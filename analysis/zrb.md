@@ -1,173 +1,58 @@
 # Zrb Prompt System Analysis
 
 ## Overview
-Zrb is a Python-based LLM task automation framework with a sophisticated prompt management system. The system is designed to be modular, configurable, and extensible with workflows.
+Zrb's prompt system is designed to be modular and context-aware, dynamically assembling prompts based on configuration, user input, and conversation history.
 
-## Core Components
+## Components
 
-### 1. Prompt Configuration System (`llm_config.py`)
-The LLM configuration system manages default prompts and allows customization through:
-- **Default prompts**: Stored in `src/zrb/config/default_prompt/` directory
-- **Configuration hierarchy**: Task-specific > Environment variables > Default prompts
-- **Configurable elements**:
-  - `default_persona`: AI agent persona/identity
-  - `default_system_prompt`: Core system instructions
-  - `default_interactive_system_prompt`: For interactive sessions
-  - `default_special_instruction_prompt`: Task-specific instructions
-  - `default_summarization_prompt`: For conversation history summarization
-  - `default_workflows`: List of default workflows to load
+### 1. Configuration (`zrb/src/zrb/config/llm_config.py`)
+-   **Centralized Config:** The `LLMConfig` class manages all LLM-related settings, including default models, providers, and prompts.
+-   **Default Prompts:** Prompts are loaded from markdown files located in `zrb/src/zrb/config/default_prompt/`:
+    -   `system_prompt.md`: For single-turn tasks (`llm-ask`).
+    -   `interactive_system_prompt.md`: For conversational sessions (`llm-chat`).
+    -   `persona.md`: Defines the agent's identity.
+    -   `summarization_prompt.md`: For summarizing history.
 
-### 2. Default Prompt Files
-Located in `src/zrb/config/default_prompt/`:
+### 2. Prompt Construction (`zrb/src/zrb/task/llm/prompt.py`)
+The `_construct_system_prompt` function is the core builder, assembling the final system message in the following order:
 
-#### `persona.md`
-```markdown
-You are a helpful and efficient AI agent. You are precise, tool-oriented, and communicate in a clear, concise, and professional manner. Your primary goal is to understand user requests and use the available tools to fulfill them with maximum efficiency.
-```
+1.  **Persona:** Retrieved from `persona.md` (or overridden by task config).
+2.  **Base System Prompt:** Retrieved from `system_prompt.md` or `interactive_system_prompt.md`.
+3.  **Special Instructions:**
+    -   Includes a "SPECIAL INSTRUCTION" section.
+    -   Injects **Active Workflows** (instructions for enabled tools/workflows).
+4.  **Available Workflows:**
+    -   Lists inactive workflows in "AVAILABLE WORKFLOWS" section, allowing the LLM to know what else it *could* do if asked.
+5.  **Context:**
+    -   **System Information:** OS, Python version, Current Directory, Current Time.
+    -   **Long Term Note:** Persistent memories from `ConversationHistory`.
+    -   **Contextual Note:** Summaries of recent conversation.
+    -   **Appendixes:** Content of files/directories referenced by the user (e.g., `@path/to/file`).
 
-#### `system_prompt.md`
-- Designed for single-request sessions
-- Emphasizes tool-centric approach without action descriptions
-- Core principles: Efficiency, sequential execution, convention adherence
-- Security rules for critical commands
-- Execution plan with risk assessment
+### 3. User Message Handling (`_get_user_message_prompt`)
+-   **Resource Expansion:** Detects `@path` references in the user message.
+-   **Content Injection:** Reads referenced files/directories.
+-   **Placeholder Replacement:** Replaces `@path` in the message with `[Reference N: filename]`.
+-   **Appendix Appending:** Adds the actual content to the "Appendixes" section of the System Prompt.
+-   **Wrapper:** Wraps the final user message with metadata (CWD, Time).
 
-#### `interactive_system_prompt.md`
-- For interactive sessions
-- Allows describing actions before tool calls
-- Includes clarification and planning guidelines
-- Similar security rules
+### 4. History Summarization (`zrb/task/llm/history_summarization.py`)
+-   **Trigger:** Configurable token threshold (`default_history_summarization_token_threshold`).
+-   **Strategy:** "State Snapshot" + "Recent Transcript".
+-   **Prompt (`summarization_prompt.md`):**
+    -   Highly structured XML output format.
+    -   Requires **Scratchpad Reasoning** (`<scratchpad>`) before generating the summary.
+    -   **Key Sections:** `<overall_goal>`, `<key_knowledge>`, `<file_system_state>`, `<recent_actions>`, `<current_plan>`.
+-   **Mechanism:** The generated summary and a short transcript of recent messages become the *only* context for the next turn, effectively discarding the raw history. This is an aggressive but token-efficient strategy.
 
-#### `summarization_prompt.md`
-- Instructions for conversation history summarization
-- Specifies format for summary and transcript
-- Guidelines for preserving critical context
+## Prompt Content Analysis
 
-### 3. Prompt Construction System (`prompt.py`)
-The `get_system_and_user_prompt()` function constructs prompts by combining:
-1. **Persona**: Task-specific or default persona
-2. **Base System Prompt**: Task-specific or default system prompt
-3. **Special Instructions**: Task-specific special instructions
-4. **Workflows**: Active and available workflows
-5. **Context**: System information, long-term notes, contextual notes, appendices
+-   **System Prompt (`system_prompt.md`):** Focuses on "Tool-Centric" behavior, "Sequential Execution", and "Execute & Verify Loop". Explicitly instructs *not* to describe actions, just report results.
+-   **Interactive Prompt (`interactive_system_prompt.md`):** Similar structure but emphasizes "Clarification" and "Planning".
+-   **Persona (`persona.md`):** Generic "helpful and efficient AI agent".
 
-### 4. Workflow System
-- Workflows are stored in `src/zrb/task/llm/default_workflow/`
-- Each workflow has a `workflow.md` file with specific guidelines
-- Workflows can be loaded dynamically based on task requirements
-- Built-in workflows include: coding, python, git, shell, golang, java, javascript, html-css, rust, copywriting, researching
-
-### 5. LLM Task Implementation (`llm_task.py`)
-The `LLMTask` class:
-- Manages conversation history
-- Handles prompt construction and agent execution
-- Supports summarization for long conversations
-- Configurable model settings and tools
-
-## Prompt Structure
-
-The constructed system prompt follows this structure:
-
-```
-[Persona]
-
-[Base System Prompt]
-
-📝 SPECIAL INSTRUCTION
-[Special Instruction Prompt]
-[Active Workflows]
-
-🛠️ AVAILABLE WORKFLOWS
-[Inactive Workflows]
-
-📚 CONTEXT
-ℹ️ System Information
-- OS: ...
-- Python Version: ...
-- Current Directory: ...
-- Current Time: ...
-
-🧠 Long Term Note
-[Long term memory]
-
-📝 Contextual Note
-[Project-specific memory]
-
-📄 Apendixes
-[Referenced file/directory contents]
-```
-
-## Key Features
-
-### 1. Modular Prompt Components
-- Persona, system prompt, and special instructions are separate components
-- Can be overridden at task level or via environment variables
-
-### 2. Workflow-Based Specialization
-- Domain-specific workflows provide targeted guidance
-- Automatic workflow loading based on task requirements
-- Workflow precedence: user-specified > built-in
-
-### 3. Context Management
-- **Long-term notes**: Cross-session memory
-- **Contextual notes**: Project-specific memory
-- **System information**: OS, Python version, directory, time
-- **Appendices**: Referenced file/directory contents
-
-### 4. File Reference System
-- Supports `@path/to/file` syntax in user messages
-- Automatically includes file/directory contents as appendices
-- Preserves original references with placeholders
-
-### 5. Conversation History
-- Maintains conversation history across sessions
-- Supports summarization to manage token limits
-- Configurable summarization thresholds
-
-## Configuration Hierarchy
-
-1. **Task-specific settings**: Directly passed to `LLMTask` constructor
-2. **Environment variables**: Via `CFG` class (e.g., `LLM_SYSTEM_PROMPT`)
-3. **Default prompts**: From `default_prompt/` directory
-4. **Hardcoded defaults**: Fallback values in code
-
-## Strengths
-
-1. **Modularity**: Clear separation of concerns between persona, system prompt, and special instructions
-2. **Extensibility**: Easy to add new workflows or modify existing ones
-3. **Context awareness**: Comprehensive context inclusion (system info, notes, references)
-4. **Customization**: Multiple levels of configuration (task, env, defaults)
-5. **Memory management**: Built-in conversation history with summarization
-
-## Areas for Improvement
-
-1. **Default prompt complexity**: System prompt is quite detailed (38 lines)
-2. **Workflow management**: Could benefit from more granular workflow control
-3. **Prompt optimization**: May benefit from more concise default prompts
-4. **Template variables**: Limited support for dynamic prompt variables
-5. **Testing**: No apparent system for testing prompt effectiveness
-
-## Usage Patterns
-
-### Basic LLM Task Creation
-```python
-task = LLMTask(
-    name="analyze_code",
-    description="Analyze codebase",
-    message="Analyze the codebase at @/path/to/project",
-    workflows=["coding", "python"],
-)
-```
-
-### Custom Prompts
-```python
-task = LLMTask(
-    name="custom_task",
-    persona="You are a security expert...",
-    system_prompt="Focus on security vulnerabilities...",
-    special_instruction_prompt="Check for SQL injection and XSS...",
-)
-```
-
-## Conclusion
-Zrb's prompt system is well-architected with clear separation of concerns, good extensibility through workflows, and comprehensive context management. The system balances flexibility with sensible defaults, making it suitable for various LLM automation tasks.
+## Key Observations
+-   **Separation of Concerns:** Distinct prompts for single-turn vs. interactive modes.
+-   **Dynamic Context:** heavily relies on injecting context (files, history, system info) into the system prompt rather than the user message.
+-   **Workflow Integration:** "Workflows" (likely tools or scripts) are dynamic components of the prompt.
+-   **Structured Summarization:** The summarization prompt is notably advanced, treating the LLM as a "State Manager" rather than just a text summarizer.

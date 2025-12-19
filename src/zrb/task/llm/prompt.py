@@ -10,7 +10,7 @@ from zrb.context.any_context import AnyContext
 from zrb.task.llm.conversation_history_model import ConversationHistory
 from zrb.task.llm.workflow import LLMWorkflow, get_available_workflows
 from zrb.util.attr import get_attr, get_str_attr, get_str_list_attr
-from zrb.util.file import read_dir, read_file_with_line_numbers
+from zrb.util.file import read_dir, read_file_with_line_numbers, read_file
 from zrb.util.markdown import make_markdown_section
 
 if TYPE_CHECKING:
@@ -85,6 +85,42 @@ def _construct_system_prompt(
         conversation_history = ConversationHistory()
     current_directory = os.getcwd()
     iso_date = datetime.now(timezone.utc).astimezone().isoformat()
+    project_rules = _get_project_rules(current_directory)
+    file_tree = _get_file_tree_context(current_directory)
+
+    context_sections = [
+        make_markdown_section(
+            "ℹ️ System Information",
+            "\n".join(
+                [
+                    f"- OS: {platform.system()} {platform.version()}",
+                    f"- Python Version: {platform.python_version()}",
+                    f"- Current Directory: {current_directory}",
+                    f"- Current Time: {iso_date}",
+                ]
+            ),
+        ),
+        make_markdown_section(
+            "📂 File Structure (Top Level)",
+            file_tree,
+        ),
+        make_markdown_section(
+            "🧠 Long Term Note",
+            conversation_history.long_term_note,
+        ),
+        make_markdown_section(
+            "📝 Contextual Note",
+            conversation_history.contextual_note,
+        ),
+        make_markdown_section(
+            "📄 Apendixes",
+            apendixes,
+        ),
+    ]
+
+    if project_rules:
+        context_sections.insert(1, project_rules)
+
     return "\n".join(
         [
             persona,
@@ -101,36 +137,36 @@ def _construct_system_prompt(
             make_markdown_section("🛠️ AVAILABLE WORKFLOWS", inactive_workflow_prompt),
             make_markdown_section(
                 "📚 CONTEXT",
-                "\n".join(
-                    [
-                        make_markdown_section(
-                            "ℹ️ System Information",
-                            "\n".join(
-                                [
-                                    f"- OS: {platform.system()} {platform.version()}",
-                                    f"- Python Version: {platform.python_version()}",
-                                    f"- Current Directory: {current_directory}",
-                                    f"- Current Time: {iso_date}",
-                                ]
-                            ),
-                        ),
-                        make_markdown_section(
-                            "🧠 Long Term Note",
-                            conversation_history.long_term_note,
-                        ),
-                        make_markdown_section(
-                            "📝 Contextual Note",
-                            conversation_history.contextual_note,
-                        ),
-                        make_markdown_section(
-                            "📄 Apendixes",
-                            apendixes,
-                        ),
-                    ]
-                ),
+                "\n".join(context_sections),
             ),
         ]
     )
+
+
+def _get_project_rules(cwd: str) -> str:
+    candidates = ["ZRB.md", "CLAUDE.md"]
+    for c in candidates:
+        p = os.path.join(cwd, c)
+        if os.path.isfile(p):
+            return make_markdown_section(
+                f"📏 PROJECT RULES ({c})",
+                read_file(p),
+            )
+    return ""
+
+
+def _get_file_tree_context(cwd: str) -> str:
+    try:
+        entries = os.listdir(cwd)
+        entries = [
+            e + "/" if os.path.isdir(os.path.join(cwd, e)) else e for e in entries
+        ]
+        # Filter hidden
+        entries = [e for e in entries if not e.startswith(".")]
+        entries.sort()
+        return "\n".join(entries[:50])  # Limit to 50 items
+    except Exception:
+        return "(Unable to list directory)"
 
 
 def _get_persona(
