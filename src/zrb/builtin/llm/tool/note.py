@@ -27,7 +27,7 @@ def write_long_term_note(content: str) -> str:
     - Cross-project goals.
     - Anything that will be useful for future interaction across projects.
 
-    WARNING: This OVERWRITES the entire global note. Always read first.
+    WARNING: This OVERWRITES the entire global note.
 
     Args:
         content (str): The text to strictly memorize.
@@ -69,7 +69,7 @@ def write_contextual_note(content: str, path: str | None = None) -> str:
     - Specific guidelines for this project.
     - Anything related to this directory that will be useful for future interaction.
 
-    WARNING: This OVERWRITES the note for the specific path. Always read first.
+    WARNING: This OVERWRITES the note for the specific path.
 
     Args:
         content (str): The text to memorize for this location.

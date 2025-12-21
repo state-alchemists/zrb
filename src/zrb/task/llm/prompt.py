@@ -115,11 +115,11 @@ def _construct_system_prompt(
                             ),
                         ),
                         make_markdown_section(
-                            "🧠 Long Term Note",
+                            "🧠 Long Term Note Content",
                             conversation_history.long_term_note,
                         ),
                         make_markdown_section(
-                            "📝 Contextual Note",
+                            "📝 Contextual Note Content",
                             conversation_history.contextual_note,
                         ),
                         make_markdown_section(
