@@ -85,42 +85,8 @@ def _construct_system_prompt(
         conversation_history = ConversationHistory()
     current_directory = os.getcwd()
     iso_date = datetime.now(timezone.utc).astimezone().isoformat()
-    project_rules = _get_project_rules(current_directory)
+    # project_rules = _get_project_rules(current_directory)
     file_tree = _get_file_tree_context(current_directory)
-
-    context_sections = [
-        make_markdown_section(
-            "ℹ️ System Information",
-            "\n".join(
-                [
-                    f"- OS: {platform.system()} {platform.version()}",
-                    f"- Python Version: {platform.python_version()}",
-                    f"- Current Directory: {current_directory}",
-                    f"- Current Time: {iso_date}",
-                ]
-            ),
-        ),
-        make_markdown_section(
-            "📂 File Structure (Top Level)",
-            file_tree,
-        ),
-        make_markdown_section(
-            "🧠 Long Term Note",
-            conversation_history.long_term_note,
-        ),
-        make_markdown_section(
-            "📝 Contextual Note",
-            conversation_history.contextual_note,
-        ),
-        make_markdown_section(
-            "📄 Apendixes",
-            apendixes,
-        ),
-    ]
-
-    if project_rules:
-        context_sections.insert(1, project_rules)
-
     return "\n".join(
         [
             persona,
@@ -137,7 +103,37 @@ def _construct_system_prompt(
             make_markdown_section("🛠️ AVAILABLE WORKFLOWS", inactive_workflow_prompt),
             make_markdown_section(
                 "📚 CONTEXT",
-                "\n".join(context_sections),
+                "\n".join(
+                    [
+                        make_markdown_section(
+                            "ℹ️ System Information",
+                            "\n".join(
+                                [
+                                    f"- OS: {platform.system()} {platform.version()}",
+                                    f"- Python Version: {platform.python_version()}",
+                                    f"- Current Directory: {current_directory}",
+                                    f"- Current Time: {iso_date}",
+                                ]
+                            ),
+                        ),
+                        make_markdown_section(
+                            "📂 File Structure (Top Level)",
+                            file_tree,
+                        ),
+                        make_markdown_section(
+                            "🧠 Long Term Note Content",
+                            conversation_history.long_term_note,
+                        ),
+                        make_markdown_section(
+                            "📝 Contextual Note Content",
+                            conversation_history.contextual_note,
+                        ),
+                        make_markdown_section(
+                            "📄 Apendixes",
+                            apendixes,
+                        ),
+                    ]
+                ),
             ),
         ]
     )

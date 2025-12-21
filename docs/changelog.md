@@ -1,5 +1,15 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.26
+
+- **Improved: Summarization Prompt Strategy**:
+  - Implemented a **70/30 split strategy** for history summarization: the oldest 70% of conversation is summarized, while the most recent 30% is preserved as a verbatim transcript.
+  - Added specific time format instructions (ISO 8601) to the transcript generation for better temporal context.
+  - Introduced strict **anti-looping logic**: tasks listed in `[Completed Actions]` are explicitly excluded from `[Pending Steps]` to prevent the AI from redoing completed work.
+  - Added a concrete example in the prompt to guide the model on merging previous summaries with new conversation turns.
+- **Documentation: Note Tool Warning Update**:
+  - Removed the "Always read first" warning from the `write_long_term_note` and `write_contextual_note` tool docstrings, as it was redundant or potentially misleading in some contexts.
+
 # 1.21.25
 
 - **Enhanced: Sub-agent Configuration Control**:
