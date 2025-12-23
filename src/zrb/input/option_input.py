@@ -47,9 +47,21 @@ class OptionInput(BaseInput):
         option_str = ", ".join(options)
         if default_value != "":
             prompt_message = f"{prompt_message} ({option_str}) [{default_value}]"
-        value = input(f"{prompt_message}: ")
+        value = self._get_value_from_user_input(shared_ctx, prompt_message, options)
         if value.strip() != "" and value.strip() not in options:
             value = self._prompt_cli_str(shared_ctx)
         if value.strip() == "":
             value = default_value
         return value
+
+    def _get_value_from_user_input(
+        self, shared_ctx: AnySharedContext, prompt_message: str, options: list[str]
+    ) -> str:
+        from prompt_toolkit import PromptSession
+        from prompt_toolkit.completion import WordCompleter
+
+        if shared_ctx.is_tty:
+            reader = PromptSession()
+            option_completer = WordCompleter(options, ignore_case=True)
+            return reader.prompt(f"{prompt_message}: ", completer=option_completer)
+        return input(f"{prompt_message}: ")
