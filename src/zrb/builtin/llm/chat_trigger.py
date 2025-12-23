@@ -1,4 +1,5 @@
 import asyncio
+import os
 from asyncio import StreamReader
 from typing import TYPE_CHECKING, Any, Callable, Coroutine
 
@@ -56,9 +57,14 @@ class LLMChatTrigger:
         """Reads one line of input using the provided reader."""
         from prompt_toolkit import PromptSession
 
+        from zrb.builtin.llm.chat_completion import ChatCompleter
+
         try:
             if isinstance(reader, PromptSession):
-                return await reader.prompt_async()
+                bottom_toolbar = f"Current directory: {os.getcwd()}"
+                return await reader.prompt_async(
+                    completer=ChatCompleter(), bottom_toolbar=bottom_toolbar
+                )
             line_bytes = await reader.readline()
             if not line_bytes:
                 return "/bye"  # Signal to exit
