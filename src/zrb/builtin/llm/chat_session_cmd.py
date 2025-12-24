@@ -26,6 +26,26 @@ SET_SUB_CMD = ["set"]
 CLEAR_SUB_CMD = ["clear"]
 RUN_CLI_CMD = ["/run", "/exec", "/execute", "/cmd", "/cli", "!"]
 
+# Command display constants
+MULTILINE_START_CMD_DESC = "Start multiline input"
+MULTILINE_END_CMD_DESC = "End multiline input"
+QUIT_CMD_DESC = "Quit from chat session"
+WORKFLOW_CMD_DESC = "Show active workflows"
+WORKFLOW_ADD_SUB_CMD_DESC = "Add active workflow"
+WORKFLOW_SET_SUB_CMD_DESC = "Set active workflows"
+WORKFLOW_CLEAR_SUB_CMD_DESC = "Deactivate all workflows"
+SAVE_CMD_DESC = "Save last response to a file"
+ATTACHMENT_CMD_DESC = "Show current attachment"
+ATTACHMENT_ADD_SUB_CMD_DESC = "Attach a file"
+ATTACHMENT_SET_SUB_CMD_DESC = "Attach a file"
+ATTACHMENT_CLEAR_SUB_CMD_DESC = "Clear attachment"
+YOLO_CMD_DESC = "Show/manipulate current YOLO Mode"
+YOLO_SHOW_CMD_DESC = "Show current YOLO mode"
+YOLO_SET_CMD_DESC = "Set YOLO mode"
+RUN_CLI_CMD_DESC = "Run a non-interactive CLI command"
+HELP_CMD_DESC = "Show info/help"
+HELP_SHOW_CMD_DESC = "Show this message"
+
 
 def print_current_yolo_mode(
     ctx: AnyContext, current_yolo_mode_value: str | bool
@@ -134,15 +154,27 @@ def get_new_attachments(old_attachment: str, user_input: str) -> str:
 
 def get_new_workflows(old_workflow: str, user_input: str) -> str:
     if not is_command_match(user_input, WORKFLOW_CMD):
-        return old_workflow
+        return _normalize_workflow_str(old_workflow)
     if is_command_match(user_input, WORKFLOW_CMD, SET_SUB_CMD):
-        return get_command_param(user_input, WORKFLOW_CMD, SET_SUB_CMD)
+        return _normalize_workflow_str(
+            get_command_param(user_input, WORKFLOW_CMD, SET_SUB_CMD)
+        )
     if is_command_match(user_input, WORKFLOW_CMD, CLEAR_SUB_CMD):
         return ""
     if is_command_match(user_input, WORKFLOW_CMD, ADD_SUB_CMD):
         new_workflow = get_command_param(user_input, WORKFLOW_CMD, ADD_SUB_CMD)
-        return ",".join([old_workflow, new_workflow])
-    return old_workflow
+        return _normalize_workflow_str(",".join([old_workflow, new_workflow]))
+    return _normalize_workflow_str(old_workflow)
+
+
+def _normalize_workflow_str(workflow_str: str) -> str:
+    return ",".join(
+        [
+            workflow_name.strip()
+            for workflow_name in workflow_str.split(",")
+            if workflow_name.strip() != ""
+        ]
+    )
 
 
 def get_command_param(user_input: str, *cmd_patterns: list[str]) -> str:
@@ -175,31 +207,37 @@ def print_commands(ctx: AnyContext):
     ctx.print(
         "\n".join(
             [
-                _show_command("/bye", "Quit from chat session"),
-                _show_command("/multi", "Start multiline input"),
-                _show_command("/end", "End multiline input"),
-                _show_command("/attachment", "Show current attachment"),
-                _show_subcommand("add", "<new-attachment>", "Attach a file"),
+                _show_command(QUIT_CMD[0], QUIT_CMD_DESC),
+                _show_command(MULTILINE_START_CMD[0], MULTILINE_START_CMD_DESC),
+                _show_command(MULTILINE_END_CMD[0], MULTILINE_END_CMD_DESC),
+                _show_command(ATTACHMENT_CMD[0], ATTACHMENT_CMD_DESC),
                 _show_subcommand(
-                    "set", "<attachment1,attachment2,...>", "Attach a file"
+                    ADD_SUB_CMD[0], "<new-attachment>", ATTACHMENT_ADD_SUB_CMD_DESC
                 ),
-                _show_subcommand("clear", "", "Clear attachment"),
-                _show_command("/workflow", "Show active workflows"),
-                _show_subcommand("add", "<workflow>", "Add active workflow"),
                 _show_subcommand(
-                    "set", "<workflow1,workflow2,..>", "Set active workflows"
+                    SET_SUB_CMD[0],
+                    "<attachment1,attachment2,...>",
+                    ATTACHMENT_SET_SUB_CMD_DESC,
                 ),
-                _show_subcommand("clear", "", "Deactivate all workflows"),
-                _show_command("/save <file-path>", "Save last response to a file"),
-                _show_command("/yolo", "Show current YOLO mode"),
+                _show_subcommand(CLEAR_SUB_CMD[0], "", ATTACHMENT_CLEAR_SUB_CMD_DESC),
+                _show_command(WORKFLOW_CMD[0], WORKFLOW_CMD_DESC),
+                _show_subcommand(
+                    ADD_SUB_CMD[0], "<workflow>", WORKFLOW_ADD_SUB_CMD_DESC
+                ),
+                _show_subcommand(
+                    SET_SUB_CMD[0],
+                    "<workflow1,workflow2,..>",
+                    WORKFLOW_SET_SUB_CMD_DESC,
+                ),
+                _show_subcommand(CLEAR_SUB_CMD[0], "", WORKFLOW_CLEAR_SUB_CMD_DESC),
+                _show_command(f"{SAVE_CMD[0]} <file-path>", SAVE_CMD_DESC),
+                _show_command(YOLO_CMD[0], YOLO_SHOW_CMD_DESC),
                 _show_command_param(
-                    "<true | false | tool1,tool2,...>", "Set YOLO mode"
+                    "<true | false | tool1,tool2,...>", YOLO_SET_CMD_DESC
                 ),
-                _show_command("/run", ""),
-                _show_command_param(
-                    "<cli-command>", "Run a non-interactive CLI command"
-                ),
-                _show_command("/help", "Show this message"),
+                _show_command(RUN_CLI_CMD[0], ""),
+                _show_command_param("<cli-command>", RUN_CLI_CMD_DESC),
+                _show_command(HELP_CMD[0], HELP_SHOW_CMD_DESC),
             ]
         ),
         plain=True,
