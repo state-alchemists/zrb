@@ -1,5 +1,26 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+# 1.21.27
+
+- **Feature: Enhanced Chat Session Autocompletion**:
+  - Introduced a new `ChatCompleter` class in `chat_completion.py` with intelligent command and file path completion.
+  - Added fuzzy path search for `@` references with support for both contiguous substring and subsequence matching.
+  - Command autocompletion now shows descriptions for all available chat commands (`/help`, `/workflow`, `/attachment`, `/yolo`, `/run`, etc.).
+  - Current directory is displayed in the bottom toolbar for better context awareness.
+- **Improved: Type System Flexibility**:
+  - Updated type definitions in `type.py` to accept both `AnyContext` and `AnySharedContext` in callable attributes.
+  - Enhanced `StrAttr`, `BoolAttr`, `IntAttr`, `FloatAttr`, `StrDictAttr`, and `StrListAttr` types for better compatibility across context types.
+- **Refactored: Chat Session Command System**:
+  - Added descriptive constants for all command descriptions to improve code maintainability.
+  - Introduced `_normalize_workflow_str()` function for consistent workflow string handling (removes empty entries, trims whitespace).
+  - Updated command display to use command constants instead of hardcoded strings.
+- **Enhanced: Option Input Autocompletion**:
+  - `OptionInput` class now uses `prompt_toolkit` with `WordCompleter` for TTY environments, providing autocompletion for available options.
+  - Improves user experience when selecting from predefined options in interactive prompts.
+- **Updated: Attribute Utility Functions**:
+  - Modified `get_str_list_attr()`, `get_str_dict_attr()`, `get_str_attr()`, `get_bool_attr()`, `get_int_attr()`, `get_float_attr()`, and `get_attr()` functions in `attr.py` to accept both `AnyContext` and `AnySharedContext`.
+  - Ensures consistent attribute retrieval across different context types.
+
 # 1.21.26
 
 - **Improved: Summarization Prompt Strategy**:

@@ -10,11 +10,14 @@ from zrb.attr.type import (
     StrListAttr,
 )
 from zrb.context.any_context import AnyContext
+from zrb.context.any_shared_context import AnySharedContext
 from zrb.util.string.conversion import to_boolean
 
 
 def get_str_list_attr(
-    ctx: AnyContext, attr: StrListAttr | None, auto_render: bool = True
+    ctx: AnyContext | AnySharedContext,
+    attr: StrListAttr | None,
+    auto_render: bool = True,
 ) -> list[str]:
     """
     Retrieve a list of strings from shared context attributes.
@@ -35,7 +38,9 @@ def get_str_list_attr(
 
 
 def get_str_dict_attr(
-    ctx: AnyContext, attr: StrDictAttr | None, auto_render: bool = True
+    ctx: AnyContext | AnySharedContext,
+    attr: StrDictAttr | None,
+    auto_render: bool = True,
 ) -> dict[str, Any]:
     """
     Retrieve a dictionary of strings from shared context attributes.
@@ -56,7 +61,7 @@ def get_str_dict_attr(
 
 
 def get_str_attr(
-    ctx: AnyContext,
+    ctx: AnyContext | AnySharedContext,
     attr: StrAttr | None,
     default: StrAttr = "",
     auto_render: bool = True,
@@ -82,7 +87,7 @@ def get_str_attr(
 
 
 def get_bool_attr(
-    ctx: AnyContext,
+    ctx: AnyContext | AnySharedContext,
     attr: BoolAttr | None,
     default: BoolAttr = False,
     auto_render: bool = True,
@@ -108,7 +113,7 @@ def get_bool_attr(
 
 
 def get_int_attr(
-    ctx: AnyContext,
+    ctx: AnyContext | AnySharedContext,
     attr: IntAttr | None,
     default: IntAttr = 0,
     auto_render: bool = True,
@@ -134,7 +139,7 @@ def get_int_attr(
 
 
 def get_float_attr(
-    ctx: AnyContext,
+    ctx: AnyContext | AnySharedContext,
     attr: FloatAttr | None,
     default: FloatAttr = 0.0,
     auto_render: bool = True,
@@ -160,7 +165,7 @@ def get_float_attr(
 
 
 def get_attr(
-    ctx: AnyContext,
+    ctx: AnyContext | AnySharedContext,
     attr: AnyAttr,
     default: AnyAttr,
     auto_render: bool = True,
