@@ -1,5 +1,11 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 1.21.29
+
+- **Improvement**: Enhanced tool execution confirmation autocompletion with custom completer that prevents partial word auto-completion.
+  - Introduced `ToolConfirmationCompleter` class that only shows completions when input is empty or exactly matches the beginning of an option.
+  - Improves user experience by avoiding unwanted auto-completions when typing partial responses.
+
 ## 1.21.28
 
 - **Improvement**: Optimized fuzzy path search in LLM chat to prevent hanging on broad searches (e.g., `@/`, `@~`).
