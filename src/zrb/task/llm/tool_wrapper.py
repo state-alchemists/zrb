@@ -185,7 +185,7 @@ async def _handle_user_response(
             ]
         )
         ctx.print(complete_confirmation_message, plain=True)
-        user_response = await _read_line()
+        user_response = await _read_line(args, kwargs)
         ctx.print("", plain=True)
         new_kwargs, is_edited = _get_edited_kwargs(ctx, user_response, kwargs)
         if is_edited:
@@ -250,13 +250,7 @@ def _get_user_approval_and_reason(
     try:
         approved = True if approval_str.strip() == "" else to_boolean(approval_str)
         if not approved and reason == "":
-            ctx.print(
-                stylize_error(
-                    f"You must specify rejection reason (i.e., No, <why>) for {func_call_str}"  # noqa
-                ),
-                plain=True,
-            )
-            return None
+            reason = "User disapproving the tool execution"
         return approved, reason
     except Exception:
         return False, user_response
@@ -300,11 +294,22 @@ def _truncate_arg(arg: str, length: int = 19) -> str:
     return normalized_arg
 
 
-async def _read_line():
+async def _read_line(args: list[Any] | tuple[Any], kwargs: dict[str, Any]):
     from prompt_toolkit import PromptSession
+    from prompt_toolkit.completion import WordCompleter
 
+    options = ["yes", "no", "edit"]
+    meta_dict = {
+        "yes": "Approve the execution",
+        "no": "Disapprove the execution",
+        "edit": "Edit tool execution parameters",
+    }
+    for key in kwargs:
+        options.append(f"edit {key}")
+        meta_dict[f"edit {key}"] = f"Edit tool execution parameter: {key}"
+    completer = WordCompleter(options, ignore_case=True, meta_dict=meta_dict)
     reader = PromptSession()
-    return await reader.prompt_async()
+    return await reader.prompt_async(completer=completer)
 
 
 def _adjust_signature(wrapper: Callable, original_sig: inspect.Signature):

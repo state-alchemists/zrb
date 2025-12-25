@@ -165,11 +165,6 @@ class ChatCompleter(Completer):
                         root = "."  # Fallback
                         search_pattern = pattern
                     else:
-                        # Adjust search pattern to be relative to the found root
-                        # We use the original pattern's basename logic roughly,
-                        # but correct approach is relpath of the expanded pattern.
-                        # However, pattern might be partial like /usr/lo
-                        # expanded: /usr/lo. root: /usr. rel: lo
                         try:
                             search_pattern = os.path.relpath(expanded_pattern, root)
                             if search_pattern == ".":
