@@ -12,13 +12,14 @@ from zrb.util.cli.style import (
 )
 from zrb.util.file import write_file
 from zrb.util.markdown import make_markdown_section
+from zrb.util.string.conversion import FALSE_STRS, TRUE_STRS, to_boolean
 
 MULTILINE_START_CMD = ["/multi", "/multiline"]
 MULTILINE_END_CMD = ["/end"]
 QUIT_CMD = ["/bye", "/quit", "/q", "/exit"]
 WORKFLOW_CMD = ["/workflow", "/workflows", "/skill", "/skills", "/w"]
 SAVE_CMD = ["/save", "/s"]
-ATTACHMENT_CMD = ["/attach", "/attachment", "/attachments"]
+ATTACHMENT_CMD = ["/attachment", "/attachments", "/attach"]
 YOLO_CMD = ["/yolo"]
 HELP_CMD = ["/help", "/info"]
 ADD_SUB_CMD = ["add"]
@@ -31,20 +32,33 @@ MULTILINE_START_CMD_DESC = "Start multiline input"
 MULTILINE_END_CMD_DESC = "End multiline input"
 QUIT_CMD_DESC = "Quit from chat session"
 WORKFLOW_CMD_DESC = "Show active workflows"
-WORKFLOW_ADD_SUB_CMD_DESC = "Add active workflow"
-WORKFLOW_SET_SUB_CMD_DESC = "Set active workflows"
+WORKFLOW_ADD_SUB_CMD_DESC = (
+    "Add active workflow "
+    f"(e.g., `{WORKFLOW_CMD[0]} {ADD_SUB_CMD[0]} coding,researching`)"
+)
+WORKFLOW_SET_SUB_CMD_DESC = (
+    "Set active workflows " f"(e.g., `{WORKFLOW_CMD[0]} {SET_SUB_CMD[0]} coding,`)"
+)
 WORKFLOW_CLEAR_SUB_CMD_DESC = "Deactivate all workflows"
-SAVE_CMD_DESC = "Save last response to a file"
+SAVE_CMD_DESC = f"Save last response to a file (e.g., `{SAVE_CMD[0]} conclusion.md`)"
 ATTACHMENT_CMD_DESC = "Show current attachment"
-ATTACHMENT_ADD_SUB_CMD_DESC = "Attach a file"
-ATTACHMENT_SET_SUB_CMD_DESC = "Attach a file"
+ATTACHMENT_ADD_SUB_CMD_DESC = (
+    "Attach a file " f"(e.g., `{ATTACHMENT_CMD[0]} {ADD_SUB_CMD[0]} ./logo.png`)"
+)
+ATTACHMENT_SET_SUB_CMD_DESC = (
+    "Set attachments "
+    f"(e.g., `{ATTACHMENT_CMD[0]} {SET_SUB_CMD[0]} ./logo.png,./diagram.png`)"
+)
 ATTACHMENT_CLEAR_SUB_CMD_DESC = "Clear attachment"
-YOLO_CMD_DESC = "Show/manipulate current YOLO Mode"
-YOLO_SHOW_CMD_DESC = "Show current YOLO mode"
-YOLO_SET_CMD_DESC = "Set YOLO mode"
+YOLO_CMD_DESC = "Show/manipulate current YOLO mode"
+YOLO_SET_CMD_DESC = (
+    "Assign YOLO tools "
+    f"(e.g., `{YOLO_CMD[0]} {SET_SUB_CMD[0]} read_from_file,analyze_file`)"
+)
+YOLO_SET_TRUE_CMD_DESC = "Activate YOLO mode for all tools"
+YOLO_SET_FALSE_CMD_DESC = "Deactivate YOLO mode for all tools"
 RUN_CLI_CMD_DESC = "Run a non-interactive CLI command"
 HELP_CMD_DESC = "Show info/help"
-HELP_SHOW_CMD_DESC = "Show this message"
 
 
 def print_current_yolo_mode(
@@ -135,43 +149,51 @@ def run_cli_command(ctx: AnyContext, user_input: str) -> None:
 def get_new_yolo_mode(old_yolo_mode: str | bool, user_input: str) -> str | bool:
     new_yolo_mode = get_command_param(user_input, YOLO_CMD)
     if new_yolo_mode != "":
+        if new_yolo_mode in TRUE_STRS or new_yolo_mode in FALSE_STRS:
+            return to_boolean(new_yolo_mode)
         return new_yolo_mode
-    return old_yolo_mode
+    if isinstance(old_yolo_mode, bool):
+        return old_yolo_mode
+    return _normalize_comma_separated_str(old_yolo_mode)
 
 
 def get_new_attachments(old_attachment: str, user_input: str) -> str:
     if not is_command_match(user_input, ATTACHMENT_CMD):
-        return old_attachment
+        return _normalize_comma_separated_str(old_attachment)
     if is_command_match(user_input, ATTACHMENT_CMD, SET_SUB_CMD):
-        return get_command_param(user_input, ATTACHMENT_CMD, SET_SUB_CMD)
+        return _normalize_comma_separated_str(
+            get_command_param(user_input, ATTACHMENT_CMD, SET_SUB_CMD)
+        )
     if is_command_match(user_input, ATTACHMENT_CMD, CLEAR_SUB_CMD):
         return ""
     if is_command_match(user_input, ATTACHMENT_CMD, ADD_SUB_CMD):
         new_attachment = get_command_param(user_input, ATTACHMENT_CMD, ADD_SUB_CMD)
-        return ",".join([old_attachment, new_attachment])
+        return _normalize_comma_separated_str(
+            ",".join([old_attachment, new_attachment])
+        )
     return old_attachment
 
 
 def get_new_workflows(old_workflow: str, user_input: str) -> str:
     if not is_command_match(user_input, WORKFLOW_CMD):
-        return _normalize_workflow_str(old_workflow)
+        return _normalize_comma_separated_str(old_workflow)
     if is_command_match(user_input, WORKFLOW_CMD, SET_SUB_CMD):
-        return _normalize_workflow_str(
+        return _normalize_comma_separated_str(
             get_command_param(user_input, WORKFLOW_CMD, SET_SUB_CMD)
         )
     if is_command_match(user_input, WORKFLOW_CMD, CLEAR_SUB_CMD):
         return ""
     if is_command_match(user_input, WORKFLOW_CMD, ADD_SUB_CMD):
         new_workflow = get_command_param(user_input, WORKFLOW_CMD, ADD_SUB_CMD)
-        return _normalize_workflow_str(",".join([old_workflow, new_workflow]))
-    return _normalize_workflow_str(old_workflow)
+        return _normalize_comma_separated_str(",".join([old_workflow, new_workflow]))
+    return _normalize_comma_separated_str(old_workflow)
 
 
-def _normalize_workflow_str(workflow_str: str) -> str:
+def _normalize_comma_separated_str(comma_separated_str: str) -> str:
     return ",".join(
         [
             workflow_name.strip()
-            for workflow_name in workflow_str.split(",")
+            for workflow_name in comma_separated_str.split(",")
             if workflow_name.strip() != ""
         ]
     )
@@ -212,11 +234,11 @@ def print_commands(ctx: AnyContext):
                 _show_command(MULTILINE_END_CMD[0], MULTILINE_END_CMD_DESC),
                 _show_command(ATTACHMENT_CMD[0], ATTACHMENT_CMD_DESC),
                 _show_subcommand(
-                    ADD_SUB_CMD[0], "<new-attachment>", ATTACHMENT_ADD_SUB_CMD_DESC
+                    ADD_SUB_CMD[0], "<file-path>", ATTACHMENT_ADD_SUB_CMD_DESC
                 ),
                 _show_subcommand(
                     SET_SUB_CMD[0],
-                    "<attachment1,attachment2,...>",
+                    "<file1-path,file2-path,...>",
                     ATTACHMENT_SET_SUB_CMD_DESC,
                 ),
                 _show_subcommand(CLEAR_SUB_CMD[0], "", ATTACHMENT_CLEAR_SUB_CMD_DESC),
@@ -230,14 +252,16 @@ def print_commands(ctx: AnyContext):
                     WORKFLOW_SET_SUB_CMD_DESC,
                 ),
                 _show_subcommand(CLEAR_SUB_CMD[0], "", WORKFLOW_CLEAR_SUB_CMD_DESC),
-                _show_command(f"{SAVE_CMD[0]} <file-path>", SAVE_CMD_DESC),
-                _show_command(YOLO_CMD[0], YOLO_SHOW_CMD_DESC),
-                _show_command_param(
-                    "<true | false | tool1,tool2,...>", YOLO_SET_CMD_DESC
+                _show_command(f"{SAVE_CMD[0]}", SAVE_CMD_DESC),
+                _show_command(YOLO_CMD[0], YOLO_CMD_DESC),
+                _show_subcommand(SET_SUB_CMD[0], "true", YOLO_SET_TRUE_CMD_DESC),
+                _show_subcommand(SET_SUB_CMD[0], "false", YOLO_SET_FALSE_CMD_DESC),
+                _show_subcommand(
+                    SET_SUB_CMD[0], "<tool1,tool2,tool2>", YOLO_SET_CMD_DESC
                 ),
                 _show_command(RUN_CLI_CMD[0], ""),
                 _show_command_param("<cli-command>", RUN_CLI_CMD_DESC),
-                _show_command(HELP_CMD[0], HELP_SHOW_CMD_DESC),
+                _show_command(HELP_CMD[0], HELP_CMD_DESC),
             ]
         ),
         plain=True,
