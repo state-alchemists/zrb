@@ -296,7 +296,38 @@ def _truncate_arg(arg: str, length: int = 19) -> str:
 
 async def _read_line(args: list[Any] | tuple[Any], kwargs: dict[str, Any]):
     from prompt_toolkit import PromptSession
-    from prompt_toolkit.completion import WordCompleter
+    from prompt_toolkit.completion import Completer, Completion
+
+    class ToolConfirmationCompleter(Completer):
+        """Custom completer for tool confirmation that doesn't auto-complete partial words."""
+
+        def __init__(self, options, meta_dict):
+            self.options = options
+            self.meta_dict = meta_dict
+
+        def get_completions(self, document, complete_event):
+            text = document.text.strip()
+
+            # Only provide completions if:
+            # 1. Input is empty, OR
+            # 2. Input exactly matches the beginning of an option
+            if text == "":
+                # Show all options when nothing is typed
+                for option in self.options:
+                    yield Completion(
+                        option,
+                        start_position=0,
+                        display_meta=self.meta_dict.get(option, ""),
+                    )
+            else:
+                # Only complete if text exactly matches the beginning of an option
+                for option in self.options:
+                    if option.startswith(text):
+                        yield Completion(
+                            option,
+                            start_position=-len(text),
+                            display_meta=self.meta_dict.get(option, ""),
+                        )
 
     options = ["yes", "no", "edit"]
     meta_dict = {
@@ -307,7 +338,7 @@ async def _read_line(args: list[Any] | tuple[Any], kwargs: dict[str, Any]):
     for key in kwargs:
         options.append(f"edit {key}")
         meta_dict[f"edit {key}"] = f"Edit tool execution parameter: {key}"
-    completer = WordCompleter(options, ignore_case=True, meta_dict=meta_dict)
+    completer = ToolConfirmationCompleter(options, meta_dict)
     reader = PromptSession()
     return await reader.prompt_async(completer=completer)
 
