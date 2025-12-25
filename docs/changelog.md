@@ -1,5 +1,12 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 1.21.28
+
+- **Improvement**: Optimized fuzzy path search in LLM chat to prevent hanging on broad searches (e.g., `@/`, `@~`).
+- **Improvement**: Enhanced LLM chat command autocompletion and slash command support.
+- **Improvement**: Better UX for tool execution confirmation (autocomplete for yes/no/edit, optional rejection reason).
+- **Refactor**: Updated command descriptions and internal command parsing logic.
+
 # 1.21.27
 
 - **Feature: Enhanced Chat Session Autocompletion**:
