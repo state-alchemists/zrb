@@ -1,5 +1,14 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 1.21.30
+
+- **Performance**: Lazy loading of prompt_toolkit dependencies to improve startup performance and reduce import overhead.
+  - Refactored `ChatCompleter` into a factory function `get_chat_completer()` in `chat_completion.py`.
+  - Extracted `ToolConfirmationCompleter` into separate module with factory function `get_tool_confirmation_completer()`.
+  - Updated `chat_trigger.py` and `tool_wrapper.py` to use factory functions instead of direct imports.
+- **Documentation**: Enhanced note tool documentation with emojis (🧠 Long Term Note, 📝 Contextual Note) for better visual distinction.
+- **Code Organization**: Improved modularity by separating completer implementations into dedicated factory functions.
+
 ## 1.21.29
 
 - **Improvement**: Enhanced tool execution confirmation autocompletion with custom completer that prevents partial word auto-completion.

@@ -39,4 +39,3 @@ def get_tool_confirmation_completer(
                     )
 
     return ToolConfirmationCompleter(options, meta_dict)
-

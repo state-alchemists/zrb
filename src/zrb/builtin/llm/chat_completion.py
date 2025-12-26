@@ -92,7 +92,9 @@ def get_chat_completer() -> "Completer":
                 return
             pattern = token[len(prefix) :]
             potential_options = self._fuzzy_path_search(pattern, dirs=False)
-            for prefixed_option in [f"{prefix}{option}" for option in potential_options]:
+            for prefixed_option in [
+                f"{prefix}{option}" for option in potential_options
+            ]:
                 yield Completion(
                     prefixed_option,
                     start_position=-len(token),
@@ -222,7 +224,9 @@ def get_chat_completer() -> "Completer":
                     # Skip hidden entries unless requested (double check for rel path segments)
                     if not include_hidden:
                         if any(
-                            seg.startswith(".") for seg in display_path.split(os.sep) if seg
+                            seg.startswith(".")
+                            for seg in display_path.split(os.sep)
+                            if seg
                         ):
                             continue
                     cand = display_path.replace(os.sep, "/")  # unify separator
