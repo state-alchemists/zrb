@@ -5,9 +5,9 @@ from zrb.config.llm_context.config import llm_context_config
 
 def read_long_term_note() -> str:
     """
-    Retrieves the GLOBAL long-term memory shared across ALL sessions and projects.
+    Retrieves the GLOBAL 🧠 Long Term Note shared across ALL sessions and projects.
 
-    CRITICAL: Consult this first for user preferences, facts, and cross-project context.
+    Use this to recall user preferences, facts, and cross-project context.
 
     Returns:
         str: The current global note content.
@@ -18,7 +18,7 @@ def read_long_term_note() -> str:
 
 def write_long_term_note(content: str) -> str:
     """
-    Persists CRITICAL facts to the GLOBAL long-term memory.
+    Persists CRITICAL facts to the GLOBAL 🧠 Long Term Note.
 
     USE EAGERLY to save or update:
     - User preferences (e.g., "I prefer Python", "No unit tests").
@@ -27,7 +27,7 @@ def write_long_term_note(content: str) -> str:
     - Cross-project goals.
     - Anything that will be useful for future interaction across projects.
 
-    WARNING: This OVERWRITES the entire global note.
+    WARNING: This OVERWRITES the entire Long Term Note.
 
     Args:
         content (str): The text to strictly memorize.
@@ -41,7 +41,7 @@ def write_long_term_note(content: str) -> str:
 
 def read_contextual_note(path: str | None = None) -> str:
     """
-    Retrieves LOCAL memory specific to a file or directory path.
+    Retrieves LOCAL 📝 Contextual Note specific to a directory path.
 
     Use to recall project-specific architecture, code summaries, or past decisions
     relevant to the current working location.
@@ -61,7 +61,7 @@ def read_contextual_note(path: str | None = None) -> str:
 
 def write_contextual_note(content: str, path: str | None = None) -> str:
     """
-    Persists LOCAL facts specific to a file or directory.
+    Persists LOCAL facts specific to a directory into 📝 Contextual Note.
 
     USE EAGERLY to save or update:
     - Architectural patterns for this project/directory.
@@ -69,7 +69,7 @@ def write_contextual_note(content: str, path: str | None = None) -> str:
     - Specific guidelines for this project.
     - Anything related to this directory that will be useful for future interaction.
 
-    WARNING: This OVERWRITES the note for the specific path.
+    WARNING: This OVERWRITES the entire Contextual Note for a directory.
 
     Args:
         content (str): The text to memorize for this location.

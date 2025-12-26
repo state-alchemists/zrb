@@ -7,7 +7,6 @@ from zrb.builtin.llm.tool.note import (
     write_contextual_note,
     write_long_term_note,
 )
-from zrb.config.llm_context.config import LLMContextConfig
 
 MOCK_NOTE_DIR = os.path.join(os.path.expanduser("~"), ".zrb_test", "llm_context")
 MOCK_CONFIG_FILE = os.path.join(MOCK_NOTE_DIR, "context.md")
