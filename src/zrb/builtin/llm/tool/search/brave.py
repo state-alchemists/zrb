@@ -1,5 +1,7 @@
 from typing import Any
+
 import requests
+
 from zrb.config.config import CFG
 
 

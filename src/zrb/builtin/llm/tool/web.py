@@ -2,9 +2,9 @@ from collections.abc import Callable
 from typing import Any
 from urllib.parse import urljoin
 
+from zrb.builtin.llm.tool.search import brave, searxng, serpapi
 from zrb.config.config import CFG
 from zrb.config.llm_config import llm_config
-from zrb.builtin.llm.tool.search import serpapi, brave, searxng
 
 _DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"  # noqa
 
