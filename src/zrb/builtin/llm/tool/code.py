@@ -59,8 +59,12 @@ async def analyze_repo(
     """
     Analyzes a code repository or directory to answer a specific query.
 
-    CRITICAL: The quality of analysis depends entirely on the query. Vague queries yield poor
+    CRITICAL: The query must contain ALL necessary context, instructions, and information.
+        The sub-agent performing the analysis does NOT share your current conversation
+        history, memory, or global context.
+        The quality of analysis depends entirely on the query. Vague queries yield poor
         results.
+
     IMPORTANT: This tool can be slow and expensive on large repositories. Use judiciously.
 
     Example:

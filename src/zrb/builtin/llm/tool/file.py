@@ -516,6 +516,12 @@ async def analyze_file(
     """
     Analyzes a file using a sub-agent for complex questions.
 
+    CRITICAL: The query must contain ALL necessary context, instructions, and information.
+        The sub-agent performing the analysis does NOT share your current conversation
+        history, memory, or global context.
+        The quality of analysis depends entirely on the query. Vague queries yield poor
+        results.
+
     Example:
     analyze_file(path='src/main.py', query='Summarize the main function.')
 

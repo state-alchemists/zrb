@@ -22,7 +22,7 @@ class ShellCommandResult(TypedDict):
     stderr: str
 
 
-def run_shell_command(command: str) -> ShellCommandResult:
+def run_shell_command(command: str, timeout: int = 30) -> ShellCommandResult:
     """
     Executes a non-interactive shell command on the user's machine.
 
@@ -31,22 +31,34 @@ def run_shell_command(command: str) -> ShellCommandResult:
     IMPORTANT: Long-running processes should be run in the background (e.g., `command &`).
 
     Example:
-    run_shell_command(command='ls -l')
+    run_shell_command(command='ls -l', timeout=30)
 
     Args:
         command (str): The exact shell command to be executed.
+        timeout (int): The maximum time in seconds to wait for the command to finish.
+            Defaults to 30.
 
     Returns:
         dict: return_code, stdout, and stderr.
     """
-    result = subprocess.run(
-        command,
-        shell=True,
-        capture_output=True,
-        text=True,
-    )
-    return {
-        "return_code": result.returncode,
-        "stdout": result.stdout,
-        "stderr": result.stderr,
-    }
+    try:
+        result = subprocess.run(
+            command,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        return {
+            "return_code": int(result.returncode),
+            "stdout": str(result.stdout or ""),
+            "stderr": str(result.stderr or ""),
+        }
+    except subprocess.TimeoutExpired as e:
+        stdout = e.stdout.decode() if isinstance(e.stdout, bytes) else (e.stdout or "")
+        stderr = e.stderr.decode() if isinstance(e.stderr, bytes) else (e.stderr or "")
+        return {
+            "return_code": 124,
+            "stdout": str(stdout),
+            "stderr": f"{stderr}\nError: Command timed out after {timeout} seconds".strip(),
+        }

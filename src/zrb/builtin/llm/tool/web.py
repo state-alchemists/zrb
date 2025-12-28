@@ -4,6 +4,7 @@ from urllib.parse import urljoin
 
 from zrb.config.config import CFG
 from zrb.config.llm_config import llm_config
+from zrb.builtin.llm.tool.search import serpapi, brave, searxng
 
 _DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"  # noqa
 
@@ -30,78 +31,17 @@ async def open_web_page(url: str) -> dict[str, Any]:
 def create_search_internet_tool() -> Callable:
     if llm_config.default_search_internet_tool is not None:
         return llm_config.default_search_internet_tool
-
-    def search_internet(query: str, page: int = 1) -> dict[str, Any]:
-        """
-        Performs an internet search using a search engine.
-        Use to find information, answer general knowledge, or research topics.
-
-        Example:
-        search_internet(query='latest AI advancements', page=1)
-
-        Args:
-            query (str): The search query.
-            page (int, optional): Search result page number. Defaults to 1.
-
-        Returns:
-            dict: Summary of search results (titles, links, snippets).
-        """
-        import requests
-
-        if (
-            CFG.SEARCH_INTERNET_METHOD.strip().lower() == "serpapi"
-            and CFG.SERPAPI_KEY != ""
-        ):
-            response = requests.get(
-                "https://serpapi.com/search",
-                headers={"User-Agent": _DEFAULT_USER_AGENT},
-                params={
-                    "q": query,
-                    "start": (page - 1) * 10,
-                    "hl": CFG.SERPAPI_LANG,
-                    "safe": CFG.SERPAPI_SAFE,
-                    "api_key": CFG.SERPAPI_KEY,
-                },
-            )
-        elif (
-            CFG.SEARCH_INTERNET_METHOD.strip().lower() == "brave"
-            and CFG.BRAVE_API_KEY != ""
-        ):
-            response = requests.get(
-                "https://api.search.brave.com/res/v1/web/search",
-                headers={
-                    "User-Agent": _DEFAULT_USER_AGENT,
-                    "Accept": "application/json",
-                    "x-subscription-token": CFG.BRAVE_API_KEY,
-                },
-                params={
-                    "q": query,
-                    "count": "10",
-                    "offset": (page - 1) * 10,
-                    "safesearch": CFG.BRAVE_API_SAFE,
-                    "search_lang": CFG.BRAVE_API_LANG,
-                    "summary": "true",
-                },
-            )
-        else:
-            response = requests.get(
-                url=f"{CFG.SEARXNG_BASE_URL}/search",
-                headers={"User-Agent": _DEFAULT_USER_AGENT},
-                params={
-                    "q": query,
-                    "format": "json",
-                    "pageno": page,
-                    "safesearch": CFG.SEARXNG_SAFE,
-                    "language": CFG.SEARXNG_LANG,
-                },
-            )
-        if response.status_code != 200:
-            raise Exception(
-                f"Error: Unable to retrieve search results (status code: {response.status_code})"  # noqa
-            )
-        return response.json()
-
-    return search_internet
+    if (
+        CFG.SEARCH_INTERNET_METHOD.strip().lower() == "serpapi"
+        and CFG.SERPAPI_KEY != ""
+    ):
+        return serpapi.search_internet
+    if (
+        CFG.SEARCH_INTERNET_METHOD.strip().lower() == "brave"
+        and CFG.BRAVE_API_KEY != ""
+    ):
+        return brave.search_internet
+    return searxng.search_internet
 
 
 async def _fetch_page_content(url: str) -> tuple[str, list[str]]:
