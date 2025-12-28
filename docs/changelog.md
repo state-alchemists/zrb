@@ -1,5 +1,13 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 1.21.31
+
+- **Refactor**: Split `search_internet` tool into specific implementations for SerpApi, Brave, and SearXNG.
+  - Added explicit control for `language` and `safe_search` parameters.
+  - Improved docstrings to guide LLM usage, encouraging concise natural language queries and discouraging "keyword stuffing".
+- **Improvement**: Added `timeout` parameter to `run_shell_command` (default 30s) to prevent hanging processes.
+- **Documentation**: Updated `analyze_repo` and `analyze_file` docstrings to explicitly warn that sub-agents do not share context, ensuring the main LLM provides comprehensive queries.
+
 ## 1.21.30
 
 - **Performance**: Lazy loading of prompt_toolkit dependencies to improve startup performance and reduce import overhead.
