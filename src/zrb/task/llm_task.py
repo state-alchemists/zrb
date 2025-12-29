@@ -134,9 +134,6 @@ class LLMTask(BaseTask):
         upstream: list[AnyTask] | AnyTask | None = None,
         fallback: list[AnyTask] | AnyTask | None = None,
         successor: list[AnyTask] | AnyTask | None = None,
-        conversation_context: (
-            dict[str, Any] | Callable[[AnyContext], dict[str, Any]] | None
-        ) = None,
     ):
         super().__init__(
             name=name,
@@ -204,7 +201,6 @@ class LLMTask(BaseTask):
             render_history_summarization_token_threshold
         )
         self._max_call_iteration = max_call_iteration
-        self._conversation_context = conversation_context
         self._yolo_mode = yolo_mode
         self._render_yolo_mode = render_yolo_mode
         self._attachment = attachment

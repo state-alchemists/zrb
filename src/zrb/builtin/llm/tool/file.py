@@ -563,6 +563,7 @@ async def analyze_file(
         tools=[read_from_file, search_files],
         auto_summarize=False,
         remember_history=False,
+        yolo_mode=True,
     )
     payload = json.dumps(
         {
