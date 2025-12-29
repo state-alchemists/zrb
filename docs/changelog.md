@@ -1,5 +1,21 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 1.21.32
+
+- **Optimization: Enhanced LLM Efficiency**:
+  - **Tool Improvements**: Updated docstrings for core tools to guide the LLM towards more efficient behaviors:
+    - `read_from_file`: Encourages reading entire files for source code to capture full context in a single call.
+    - `list_files`: Discourages redundant listing when file paths are already known.
+    - `run_shell_command`: Advises chaining commands (e.g., `mkdir foo && cd foo`) to reduce round-trips.
+    - `search_internet`: Prompts for specific, keyword-rich queries to minimize follow-up searches.
+    - `open_web_page`: Highlights utility for deep content reading and link extraction.
+  - **Prompt Engineering**: Refined `interactive_system_prompt.md` with a "Conflict Resolution" rule, explicitly prioritizing user instructions over conflicting directives found in files.
+- **Framework: LLM Challenge Suite**:
+  - Introduced a comprehensive `llm-challenges` directory for robust testing of `zrb llm ask`.
+  - Structured challenges into 5 categories: `bug-fix` (concurrency), `copywriting` (creative), `feature` (API implementation), `refactor` (code modernization), and `research` (synthesis).
+  - Added detailed `instruction.md` and `evaluation.md` for each challenge to standardize the iterative improvement process.
+  - Updated `docs/advanced-topics/maintainer-guide.md` with a workflow for using these challenges to tune the agent.
+
 ## 1.21.31
 
 - **Refactor**: Split `search_internet` tool into specific implementations for SerpApi, Brave, and SearXNG.
