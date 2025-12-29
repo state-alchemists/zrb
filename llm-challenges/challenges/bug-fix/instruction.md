@@ -1,0 +1,2 @@
+The `inventory_system.py` script has a race condition where multiple users can purchase items simultaneously, driving the stock below zero.
+Fix this issue using `asyncio.Lock` or another appropriate concurrency control mechanism to ensure the final stock is never negative.
