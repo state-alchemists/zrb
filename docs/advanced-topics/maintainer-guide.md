@@ -181,7 +181,7 @@ The key to resolving recent `AttributeError: can't delete attribute` issues was 
 
 # Improving Zrb LLM Agent Performance
 
-To maintain and improve the quality of the Zrb LLM agent, we use a set of challenges located in the `llm-challenge` directory. The goal is to ensure that the agent can successfully handle various software engineering and general tasks by iteratively improving its system prompts and tool docstrings.
+To maintain and improve the quality of the Zrb LLM agent, we use a set of challenges located in the `llm-challenges` directory. The goal is to ensure that the agent can successfully handle various software engineering and general tasks by iteratively improving its system prompts and tool docstrings.
 
 ## Iterative Improvement Process
 
@@ -189,11 +189,11 @@ If you find that the agent is struggling with certain types of requests, you can
 
 1.  **Open a chat session**:
     ```bash
-    zrb llm chat "Read instruction in llm-challenge/TASK.md, do meticulously, and improve zrb's prompt component and docstring until all challenges pass successfully"
+    zrb llm chat "Read instruction in llm-challenges/TASK.md, do meticulously, and improve zrb's prompt component and docstring until all challenges pass successfully"
     ```
 2.  **Monitor the progress**: The agent will attempt to run the challenges, identify failures, and modify its own prompts in `src/zrb/config/default_prompt/` or tool docstrings in `src/zrb/builtin/llm/tool/`.
 3.  **Verify**: Ensure all challenges pass and that the changes are idiomatic and maintainable.
 
-Refer to `llm-challenge/TASK.md` for more details on the challenge structure and the specific files involved in the improvement loop.
+Refer to `llm-challenges/TASK.md` for more details on the challenge structure and the specific files involved in the improvement loop.
 
 🔖 [Documentation Home](../README.md)
