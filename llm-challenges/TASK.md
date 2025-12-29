@@ -48,7 +48,7 @@ Follow these steps to run a challenge:
 
 2. **Move to Experiment Directory and run `zrb llm ask`** (IMPORTANT: always provide `start-new` and `yolo` parameters when calling `zrb llm ask`):
    ```bash
-   cd experiment/refactor/resources && zrb llm ask --start-new true --yolo true "$(cat ./instruction.md)"
+   cd experiment/refactor/resources && zrb llm ask --start-new true --yolo true "$(cat ../instruction.md)"
    ```
 
 3. **Evaluate the Result**:
