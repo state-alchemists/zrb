@@ -14,6 +14,11 @@ async def open_web_page(url: str) -> dict[str, Any]:
     Fetches, parses, and converts a web page to readable Markdown.
     Preserves semantic structure, removes non-essentials, and extracts all absolute links.
 
+    **EFFICIENCY TIP:**
+    Use this tool to read the full content of a specific search result or article.
+    It returns clean Markdown and a list of links, which is perfect for deep-diving
+    into a topic without navigating a browser UI.
+
     Example:
     open_web_page(url='https://www.example.com/article')
 

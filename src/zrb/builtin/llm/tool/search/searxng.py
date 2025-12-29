@@ -17,6 +17,12 @@ def search_internet(
     Use this tool to find up-to-date information, answer questions about current events,
     or research topics using a search engine.
 
+    **EFFICIENCY TIP:**
+    Make your `query` specific and keyword-rich to get the best results in a single call.
+    Avoid vague queries that require follow-up searches.
+    Bad: "new python features"
+    Good: "python 3.12 new features list release date"
+
     Args:
         query (str): The natural language search query (e.g., 'Soto Madura').
             Do NOT include instructions, meta-talk, or internal reasoning.

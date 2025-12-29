@@ -26,6 +26,10 @@ def run_shell_command(command: str, timeout: int = 30) -> ShellCommandResult:
     """
     Executes a non-interactive shell command on the user's machine.
 
+    **EFFICIENCY TIP:**
+    Combine multiple shell commands into a single call using `&&` or `;` to save steps.
+    Example: `mkdir new_dir && cd new_dir && touch file.txt`
+
     CRITICAL: This tool runs with user-level permissions. Explain commands that modify
         the system (e.g., `git`, `pip`) and ask for confirmation.
     IMPORTANT: Long-running processes should be run in the background (e.g., `command &`).

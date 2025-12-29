@@ -89,6 +89,10 @@ def list_files(
     """
     Lists files recursively up to a specified depth.
 
+    **EFFICIENCY TIP:**
+    Do NOT use this tool if you already know the file path (e.g., from the user's prompt).
+    Use `read_from_file` directly in that case. Only use this to explore directory structures.
+
     Example:
     list_files(path='src', include_hidden=False, depth=2)
 
@@ -178,6 +182,12 @@ def read_from_file(
 ) -> dict[str, Any]:
     """
     Reads content from one or more files, optionally specifying line ranges.
+
+    **EFFICIENCY TIP:**
+    For source code or configuration files, prefer reading the **entire file** at once
+    to ensure you have full context (imports, class definitions, etc.).
+    Only use `start_line` and `end_line` for extremely large files (like logs) or
+    when you are certain only a specific section is needed.
 
     Examples:
     ```
