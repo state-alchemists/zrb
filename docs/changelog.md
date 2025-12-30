@@ -1,5 +1,18 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 1.21.33
+
+- **Optimization: Enhanced LLM System Prompts**:
+  - **Token Efficiency Focus**: Added explicit "Token Efficiency" principle to both interactive and standard system prompts, guiding the LLM to optimize input/output token usage while maintaining quality.
+  - **Streamlined Safety Rules**: Consolidated security and safety guidelines into "Safety & Confirmation" operational guidelines for clearer, more concise instructions.
+  - **Improved Clarity**: Refined prompt language for better professional tone and direct communication style.
+- **Framework: LLM Task Cleanup**:
+  - **Parameter Removal**: Eliminated unused `conversation_context` parameter from `LLMTask` constructor for cleaner API and reduced complexity.
+  - **Analyze File Enhancement**: Added `yolo_mode=True` to `analyze_file` agent configuration, enabling smoother tool execution flow without manual confirmations.
+- **Testing: LLM Challenge Suite Improvements**:
+  - **Environment Setup**: Updated challenge instructions to include `ZRB_LOGGING_LEVEL=DEBUG` and `ZRB_LLM_SHOW_TOOL_CALL_RESULT=true` for better debugging visibility.
+  - **Path Correction**: Fixed instruction file reference from `./instruction.md` to `../instruction.md` for proper relative path resolution.
+
 ## 1.21.32
 
 - **Optimization: Enhanced LLM Efficiency**:
