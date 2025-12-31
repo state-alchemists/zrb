@@ -60,7 +60,7 @@ class LLMChatTrigger:
 
         try:
             if isinstance(reader, PromptSession):
-                bottom_toolbar = f"📁 Current directory: {os.getcwd()}"
+                bottom_toolbar = f"📌 Current directory: {os.getcwd()}"
                 return await reader.prompt_async(
                     completer=get_chat_completer(), bottom_toolbar=bottom_toolbar
                 )

@@ -1,7 +1,13 @@
+from typing import TYPE_CHECKING
+
 from zrb.attr.type import StrAttr, StrListAttr
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.base_input import BaseInput
 from zrb.util.attr import get_str_list_attr
+from zrb.util.match import fuzzy_match
+
+if TYPE_CHECKING:
+    from prompt_toolkit.completion import Completer
 
 
 class OptionInput(BaseInput):
@@ -58,10 +64,32 @@ class OptionInput(BaseInput):
         self, shared_ctx: AnySharedContext, prompt_message: str, options: list[str]
     ) -> str:
         from prompt_toolkit import PromptSession
-        from prompt_toolkit.completion import WordCompleter
 
         if shared_ctx.is_tty:
             reader = PromptSession()
-            option_completer = WordCompleter(options, ignore_case=True)
+            option_completer = self._get_option_completer(options)
             return reader.prompt(f"{prompt_message}: ", completer=option_completer)
         return input(f"{prompt_message}: ")
+
+    def _get_option_completer(self, options: list[str]) -> "Completer":
+        from prompt_toolkit.completion import CompleteEvent, Completer, Completion
+        from prompt_toolkit.document import Document
+
+        class OptionCompleter(Completer):
+            def __init__(self, options: list[str]):
+                self._options = options
+
+            def get_completions(
+                self, document: Document, complete_event: CompleteEvent
+            ):
+                search_pattern = document.get_word_before_cursor(WORD=True)
+                candidates = []
+                for option in self._options:
+                    matched, score = fuzzy_match(option, search_pattern)
+                    if matched:
+                        candidates.append((score, option))
+                candidates.sort(key=lambda x: (x[0], x[1]))
+                for _, option in candidates:
+                    yield Completion(option, start_position=-len(search_pattern))
+
+        return OptionCompleter(options)

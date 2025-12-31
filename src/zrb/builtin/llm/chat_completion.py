@@ -33,6 +33,7 @@ from zrb.builtin.llm.chat_session_cmd import (
     YOLO_SET_FALSE_CMD_DESC,
     YOLO_SET_TRUE_CMD_DESC,
 )
+from zrb.util.match import fuzzy_match
 
 if TYPE_CHECKING:
     from prompt_toolkit.completion import Completer
@@ -64,7 +65,7 @@ def get_chat_completer() -> "Completer":
             for prefix in prefixes:
                 if text.startswith(prefix):
                     pattern = text[len(prefix) :]
-                    potential_options = self._fuzzy_path_search(pattern, dirs=False)
+                    potential_options = self._fuzzy_path_search(pattern, dirs=True)
                     for prefixed_option in [
                         f"{prefix}{option}" for option in potential_options
                     ]:
@@ -91,7 +92,7 @@ def get_chat_completer() -> "Completer":
             if not token.startswith(prefix):
                 return
             pattern = token[len(prefix) :]
-            potential_options = self._fuzzy_path_search(pattern, dirs=False)
+            potential_options = self._fuzzy_path_search(pattern, dirs=True)
             for prefixed_option in [
                 f"{prefix}{option}" for option in potential_options
             ]:
@@ -156,47 +157,14 @@ def get_chat_completer() -> "Completer":
             - dirs/files booleans let you restrict results
             - returns list of relative paths (from root), sorted best-first
             """
-            search_pattern = pattern
-            if root is None:
-                # Determine root and adjust pattern if necessary
-                expanded_pattern = os.path.expanduser(pattern)
-                if os.path.isabs(expanded_pattern) or pattern.startswith("~"):
-                    # For absolute paths, find the deepest existing directory
-                    if os.path.isdir(expanded_pattern):
-                        root = expanded_pattern
-                        search_pattern = ""
-                    else:
-                        root = os.path.dirname(expanded_pattern)
-                        while root and not os.path.isdir(root) and len(root) > 1:
-                            root = os.path.dirname(root)
-                        if not os.path.isdir(root):
-                            root = "."  # Fallback
-                            search_pattern = pattern
-                        else:
-                            try:
-                                search_pattern = os.path.relpath(expanded_pattern, root)
-                                if search_pattern == ".":
-                                    search_pattern = ""
-                            except ValueError:
-                                search_pattern = os.path.basename(pattern)
-                else:
-                    root = "."
-                    search_pattern = pattern
-            # Normalize pattern -> tokens split on path separators or whitespace
-            search_pattern = search_pattern.strip()
-            if search_pattern:
-                raw_tokens = [t for t in search_pattern.split(os.path.sep) if t]
-            else:
-                raw_tokens = []
-            # prepare tokens (case)
-            if not case_sensitive:
-                tokens = [t.lower() for t in raw_tokens]
-            else:
-                tokens = raw_tokens
+            root, search_pattern = self._get_root_and_search_pattern(pattern, root)
             # specific ignore list
             try:
-                is_recursive = os.path.abspath(os.path.expanduser(root)).startswith(
-                    os.path.abspath(os.getcwd())
+                abs_root = os.path.abspath(os.path.expanduser(root))
+                abs_cwd = os.path.abspath(os.getcwd())
+                # Check if root is a subdirectory of cwd or is cwd itself
+                is_recursive = (
+                    abs_root.startswith(abs_cwd + os.sep) or abs_root == abs_cwd
                 )
             except Exception:
                 is_recursive = False
@@ -230,29 +198,8 @@ def get_chat_completer() -> "Completer":
                         ):
                             continue
                     cand = display_path.replace(os.sep, "/")  # unify separator
-                    cand_cmp = cand if case_sensitive else cand.lower()
-                    last_pos = 0
-                    score = 0.0
-                    matched_all = True
-                    for token in tokens:
-                        # try contiguous substring search first
-                        idx = cand_cmp.find(token, last_pos)
-                        if idx != -1:
-                            # good match: reward contiguous early matches
-                            score += idx  # smaller idx preferred
-                            last_pos = idx + len(token)
-                        else:
-                            # fallback to subsequence matching
-                            pos = self._find_subsequence_pos(cand_cmp, token, last_pos)
-                            if pos is None:
-                                matched_all = False
-                                break
-                            # subsequence match is less preferred than contiguous substring
-                            score += pos + 0.5 * len(token)
-                            last_pos = pos + len(token)
-                    if matched_all:
-                        # prefer shorter paths when score ties, so include length as tiebreaker
-                        score += 0.01 * len(cand)
+                    matched, score = fuzzy_match(cand, search_pattern)
+                    if matched:
                         out = (
                             cand
                             if os.path.abspath(cand) == cand
@@ -263,25 +210,42 @@ def get_chat_completer() -> "Completer":
             candidates.sort(key=lambda x: (x[0], x[1]))
             return [p for _, p in candidates[:max_results]]
 
-        def _find_subsequence_pos(
-            self, hay: str, needle: str, start: int = 0
-        ) -> int | None:
-            """
-            Try to locate needle in hay as a subsequence starting at `start`.
-            Returns the index of the first matched character of the subsequence or None if not
-            match.
-            """
-            if not needle:
-                return start
-            i = start
-            j = 0
-            first_pos = None
-            while i < len(hay) and j < len(needle):
-                if hay[i] == needle[j]:
-                    if first_pos is None:
-                        first_pos = i
-                    j += 1
-                i += 1
-            return first_pos if j == len(needle) else None
+        def _get_root_and_search_pattern(
+            self,
+            pattern: str,
+            root: str | None = None,
+        ) -> tuple[str, str]:
+            search_pattern = pattern
+            if root is None:
+                # Determine root and adjust pattern if necessary
+                expanded_pattern = os.path.expanduser(pattern)
+                if os.path.isabs(expanded_pattern) or pattern.startswith("~"):
+                    # For absolute paths, find the deepest existing directory
+                    if os.path.isdir(expanded_pattern):
+                        root = expanded_pattern
+                        return (root, "")
+                    root = os.path.dirname(expanded_pattern)
+                    while root and not os.path.isdir(root) and len(root) > 1:
+                        root = os.path.dirname(root)
+                    if not os.path.isdir(root):
+                        return (".", pattern)  # Fallback
+                    try:
+                        search_pattern = os.path.relpath(expanded_pattern, root)
+                        if search_pattern == ".":
+                            return (root, "")
+                    except ValueError:
+                        return (root, os.path.basename(pattern))
+                # Handle redundant current directory prefixes (e.g., ./ or .\)
+                if pattern.startswith(f".{os.sep}"):
+                    return (".", pattern[len(f".{os.sep}") :])
+                if os.sep != "/" and pattern.startswith("./"):
+                    return (".", pattern[2:])
+                return (".", pattern)
+
+            if pattern.startswith(f".{os.sep}"):
+                pattern = pattern[len(f".{os.sep}") :]
+            elif os.sep != "/" and pattern.startswith("./"):
+                pattern = pattern[2:]
+            return (root, pattern)
 
     return ChatCompleter()
