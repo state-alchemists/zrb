@@ -71,7 +71,9 @@ async def print_node(
                                 if isinstance(args_delta, dict):
                                     args_delta = json.dumps(args_delta)
                                 print_func(
-                                    _format_stream_content(args_delta, log_indent_level),
+                                    _format_stream_content(
+                                        args_delta, log_indent_level
+                                    ),
                                     end="",
                                 )
                                 is_streaming = True
@@ -83,7 +85,7 @@ async def print_node(
                                 _format_content(
                                     f"Preparing Tool Parameters... {progress_char}",
                                     log_indent_level,
-                                    prefix=f"\r{prefix}"
+                                    prefix=f"\r{prefix}",
                                 ),
                                 end="",
                             )
@@ -150,9 +152,7 @@ async def print_node(
                             )
                             continue
                         print_func(
-                            _format_content(
-                                f"{call_id} | Executed", log_indent_level
-                            )
+                            _format_content(f"{call_id} | Executed", log_indent_level)
                         )
         except UnexpectedModelBehavior as e:
             print_func("")  # ensure newline consistency
@@ -182,7 +182,9 @@ def _format_header(text: str | None, log_indent_level: int = 0) -> str:
     )
 
 
-def _format_content(text: str | None, log_indent_level: int = 0, prefix: str = "") -> str:
+def _format_content(
+    text: str | None, log_indent_level: int = 0, prefix: str = ""
+) -> str:
     return prefix + _format(
         text,
         base_indent=2,
