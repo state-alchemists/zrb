@@ -24,15 +24,19 @@ async def print_node(
     )
 
     meta = getattr(node, "id", None) or getattr(node, "request_id", None)
+    progress_char_list = ["|", "/", "-", "\\"]
+    progress_index = 0
     if Agent.is_user_prompt_node(node):
         print_func(_format_header("🔠 Receiving input...", log_indent_level))
-    elif Agent.is_model_request_node(node):
+        return
+    if Agent.is_model_request_node(node):
         # A model request node => We can stream tokens from the model's request
         print_func(_format_header("🧠 Processing...", log_indent_level))
         # Reference: https://ai.pydantic.dev/agents/#streaming-all-events-and-output
         try:
             async with node.stream(agent_run.ctx) as request_stream:
                 is_streaming = False
+                is_tool_processing = False
                 async for event in request_stream:
                     if isinstance(event, PartStartEvent) and event.part:
                         if is_streaming:
@@ -40,29 +44,57 @@ async def print_node(
                         content = _get_event_part_content(event)
                         print_func(_format_content(content, log_indent_level), end="")
                         is_streaming = True
-                    elif isinstance(event, PartDeltaEvent):
+                        is_tool_processing = False
+                        continue
+                    if isinstance(event, PartDeltaEvent):
                         if isinstance(event.delta, TextPartDelta):
                             content_delta = event.delta.content_delta
                             print_func(
                                 _format_stream_content(content_delta, log_indent_level),
                                 end="",
                             )
-                        elif isinstance(event.delta, ThinkingPartDelta):
+                            is_tool_processing = False
+                            is_streaming = True
+                            continue
+                        if isinstance(event.delta, ThinkingPartDelta):
                             content_delta = event.delta.content_delta
                             print_func(
                                 _format_stream_content(content_delta, log_indent_level),
                                 end="",
                             )
-                        elif isinstance(event.delta, ToolCallPartDelta):
-                            args_delta = event.delta.args_delta
-                            if isinstance(args_delta, dict):
-                                args_delta = json.dumps(args_delta)
+                            is_tool_processing = False
+                            is_streaming = True
+                            continue
+                        if isinstance(event.delta, ToolCallPartDelta):
+                            if CFG.LLM_SHOW_TOOL_CALL_PREPARATION:
+                                args_delta = event.delta.args_delta
+                                if isinstance(args_delta, dict):
+                                    args_delta = json.dumps(args_delta)
+                                print_func(
+                                    _format_stream_content(args_delta, log_indent_level),
+                                    end="",
+                                )
+                                is_streaming = True
+                                is_tool_processing = True
+                                continue
+                            prefix = "\n" if not is_tool_processing else ""
+                            progress_char = progress_char_list[progress_index]
                             print_func(
-                                _format_stream_content(args_delta, log_indent_level),
+                                _format_content(
+                                    f"Preparing Tool Parameters... {progress_char}",
+                                    log_indent_level,
+                                    prefix=f"\r{prefix}"
+                                ),
                                 end="",
                             )
+                            progress_index += 1
+                            if progress_index >= len(progress_char_list):
+                                progress_index = 0
+                            is_tool_processing = True
+                            is_streaming = True
+                            continue
                         is_streaming = True
-                    elif isinstance(event, FinalResultEvent) and event.tool_name:
+                    if isinstance(event, FinalResultEvent) and event.tool_name:
                         if is_streaming:
                             print_func("")
                         tool_name = event.tool_name
@@ -72,6 +104,7 @@ async def print_node(
                             )
                         )
                         is_streaming = False
+                        is_tool_processing = False
                 if is_streaming:
                     print_func("")
         except UnexpectedModelBehavior as e:
@@ -85,7 +118,8 @@ async def print_node(
                     log_indent_level,
                 )
             )
-    elif Agent.is_call_tools_node(node):
+        return
+    if Agent.is_call_tools_node(node):
         # A handle-response node => The model returned some data, potentially calls a tool
         print_func(_format_header("🧰 Calling Tool...", log_indent_level))
         try:
@@ -100,7 +134,8 @@ async def print_node(
                                 f"{call_id} | Call {tool_name} {args}", log_indent_level
                             )
                         )
-                    elif (
+                        continue
+                    if (
                         isinstance(event, FunctionToolResultEvent)
                         and event.tool_call_id
                     ):
@@ -113,12 +148,12 @@ async def print_node(
                                     log_indent_level,
                                 )
                             )
-                        else:
-                            print_func(
-                                _format_content(
-                                    f"{call_id} | Executed", log_indent_level
-                                )
+                            continue
+                        print_func(
+                            _format_content(
+                                f"{call_id} | Executed", log_indent_level
                             )
+                        )
         except UnexpectedModelBehavior as e:
             print_func("")  # ensure newline consistency
             print_func(
@@ -130,9 +165,11 @@ async def print_node(
                     log_indent_level,
                 )
             )
-    elif Agent.is_end_node(node):
+        return
+    if Agent.is_end_node(node):
         # Once an End node is reached, the agent run is complete
         print_func(_format_header("✅ Completed...", log_indent_level))
+        return
 
 
 def _format_header(text: str | None, log_indent_level: int = 0) -> str:
@@ -145,8 +182,8 @@ def _format_header(text: str | None, log_indent_level: int = 0) -> str:
     )
 
 
-def _format_content(text: str | None, log_indent_level: int = 0) -> str:
-    return _format(
+def _format_content(text: str | None, log_indent_level: int = 0, prefix: str = "") -> str:
+    return prefix + _format(
         text,
         base_indent=2,
         first_indent=3,
@@ -155,8 +192,10 @@ def _format_content(text: str | None, log_indent_level: int = 0) -> str:
     )
 
 
-def _format_stream_content(text: str | None, log_indent_level: int = 0) -> str:
-    return _format(
+def _format_stream_content(
+    text: str | None, log_indent_level: int = 0, prefix: str = ""
+) -> str:
+    return prefix + _format(
         text,
         base_indent=2,
         indent=3,
@@ -207,7 +246,7 @@ def _truncate_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
     return {key: _truncate_arg(val) for key, val in kwargs.items()}
 
 
-def _truncate_arg(arg: str, length: int = 19) -> str:
+def _truncate_arg(arg: str, length: int = 30) -> str:
     if isinstance(arg, str) and len(arg) > length:
         return f"{arg[:length-4]} ..."
     return arg

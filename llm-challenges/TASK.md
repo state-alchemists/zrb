@@ -43,13 +43,16 @@ Follow these steps to run a challenge:
 1. **Setup Experiment Directory**:
    Copy a use case from the `challenges` folder into the `experiment` directory.
    ```bash
-   cp -r challenges/refactor experiment/
+   mkdir -p experiment
+   rm -Rf experiment/refactor
+   cp -r challenges/refactor experiment/refactor
    ```
 
 2. **Move to Experiment Directory and run `zrb llm ask`** (IMPORTANT: always provide `start-new` and `yolo` parameters when calling `zrb llm ask`):
    ```bash
    export ZRB_LOGGING_LEVEL=DEBUG
    export ZRB_LLM_SHOW_TOOL_CALL_RESULT=true
+   export ZRB_LLM_SHOW_TOOL_CALL_PREPARATION=true
    cd experiment/refactor/resources && zrb llm ask --start-new true --yolo true "$(cat ../instruction.md)"
    ```
 
