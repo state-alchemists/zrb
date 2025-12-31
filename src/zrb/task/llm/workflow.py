@@ -44,26 +44,40 @@ def get_available_workflows() -> dict[str, LLMWorkflow]:
         workflow_name.strip().lower(): workflow
         for workflow_name, workflow in llm_context_config.get_workflows().items()
     }
-    # Define builtin workflow locations in order of precedence
-    builtin_workflow_locations = [
-        os.path.expanduser(additional_builtin_workflow_path)
-        for additional_builtin_workflow_path in CFG.LLM_BUILTIN_WORKFLOW_PATHS
-        if os.path.isdir(os.path.expanduser(additional_builtin_workflow_path))
-    ]
-    builtin_workflow_locations.append(
-        os.path.join(os.path.dirname(__file__), "default_workflow")
+    workflow_hidden_folder = f".{CFG.ROOT_GROUP_NAME}"
+    # Define workflow locations in order of precedence
+    default_workflow_locations = (
+        [
+            # Project specific + user specific workflows
+            os.path.join(
+                os.path.dirname(__file__), workflow_hidden_folder, "workflows"
+            ),
+            os.path.join(os.path.dirname(__file__), workflow_hidden_folder, "skills"),
+            os.path.join(os.path.dirname(__file__), ".claude", "skills"),
+            os.path.join(os.path.expanduser("~"), workflow_hidden_folder, "workflows"),
+            os.path.join(os.path.expanduser("~"), workflow_hidden_folder, "skills"),
+            os.path.join(os.path.expanduser("~"), ".claude", "skills"),
+        ]
+        + [
+            # User defined builtin workflows
+            os.path.expanduser(additional_builtin_workflow_path)
+            for additional_builtin_workflow_path in CFG.LLM_BUILTIN_WORKFLOW_PATHS
+            if os.path.isdir(os.path.expanduser(additional_builtin_workflow_path))
+        ]
+        + [
+            # Zrb builtin workflows
+            os.path.join(os.path.dirname(__file__), "default_workflow"),
+        ]
     )
     # Load workflows from all locations
-    for workflow_location in builtin_workflow_locations:
+    for workflow_location in default_workflow_locations:
         if not os.path.isdir(workflow_location):
             continue
         for workflow_name in os.listdir(workflow_location):
             workflow_dir = os.path.join(workflow_location, workflow_name)
-            workflow_file = os.path.join(workflow_dir, "workflow.md")
-            if not os.path.isfile(workflow_file):
-                workflow_file = os.path.join(workflow_dir, "SKILL.md")
-                if not os.path.isfile(path=workflow_file):
-                    continue
+            workflow_file = _get_workflow_file_name(workflow_dir)
+            if not workflow_file:
+                continue
             # Only add if not already defined (earlier locations have precedence)
             if workflow_name not in available_workflows:
                 with open(workflow_file, "r") as f:
@@ -74,3 +88,16 @@ def get_available_workflows() -> dict[str, LLMWorkflow]:
                     content=workflow_content,
                 )
     return available_workflows
+
+
+def _get_workflow_file_name(workflow_dir: str) -> str | None:
+    workflow_file = os.path.join(workflow_dir, "workflow.md")
+    if os.path.isfile(workflow_file):
+        return workflow_file
+    workflow_file = os.path.join(workflow_dir, "WORKFLOW.md")
+    if os.path.isfile(workflow_file):
+        return workflow_file
+    workflow_file = os.path.join(workflow_dir, "SKILL.md")
+    if os.path.isfile(workflow_file):
+        return workflow_file
+    return None
