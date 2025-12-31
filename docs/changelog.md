@@ -1,5 +1,28 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 1.21.34
+
+- **Feature: Enhanced Fuzzy Matching System**:
+  - **New Utility Module**: Introduced `fuzzy_match()` function in `src/zrb/util/match.py` with VSCode Ctrl+P style fuzzy search algorithm for better path and option matching.
+  - **Chat Completion Integration**: Updated `ChatCompleter` to use fuzzy matching for `@` references, improving file path discovery with smarter token-based scoring.
+  - **Option Input Enhancement**: `OptionInput` class now uses fuzzy matching for autocompletion, providing more intuitive option selection in interactive prompts.
+- **Feature: Tool Call Preparation Visualization**:
+  - **New Configuration**: Added `ZRB_LLM_SHOW_TOOL_CALL_PREPARATION` environment variable (default: `false`) to control display of tool parameter preparation.
+  - **Visual Feedback**: When disabled, shows animated "Preparing Tool Parameters..." indicator during tool call preparation for cleaner output.
+  - **Improved UX**: Enhanced tool call streaming with better visual separation between parameter preparation and execution phases.
+- **Framework: Workflow Discovery Improvements**:
+  - **Case-Insensitive Discovery**: Enhanced workflow file detection to support `workflow.md`, `WORKFLOW.md`, and `SKILL.md` filenames for better compatibility.
+  - **Expanded Search Paths**: Added support for `.zrb/workflows`, `.zrb/skills`, and `.claude/skills` directories in user home and project locations.
+- **Testing: LLM Challenge Suite Updates**:
+  - **Improved Setup Instructions**: Updated challenge TASK.md with clearer directory setup commands (`mkdir -p experiment` and proper cleanup).
+  - **Enhanced Debugging**: Added `export ZRB_LLM_SHOW_TOOL_CALL_PREPARATION=true` to challenge environment setup for comprehensive tool call visibility.
+- **UI Refinements**:
+  - **Toolbar Update**: Changed bottom toolbar emoji from 📁 to 📌 for better visual distinction.
+  - **Argument Display**: Increased tool argument truncation length from 19 to 30 characters for more informative tool call displays.
+- **Bug Fixes**:
+  - **Path Completion**: Fixed directory search in chat completer to include directories when searching for `@` references.
+  - **Recursive Check**: Improved recursive directory detection logic to handle edge cases with absolute paths.
+
 ## 1.21.33
 
 - **Optimization: Enhanced LLM System Prompts**:
