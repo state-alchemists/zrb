@@ -1,7 +1,8 @@
 class CmdResult:
-    def __init__(self, output: str, error: str):
+    def __init__(self, output: str, error: str, display: str):
         self.output = output
         self.error = error
+        self.display = display
 
     def __repr__(self):
         class_name = self.__class__.__name__

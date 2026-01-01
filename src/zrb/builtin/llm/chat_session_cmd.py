@@ -1,6 +1,8 @@
+import asyncio
 import os
 import subprocess
 
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.workflow import get_available_workflows
 from zrb.util.cli.markdown import render_markdown
@@ -10,6 +12,7 @@ from zrb.util.cli.style import (
     stylize_error,
     stylize_faint,
 )
+from zrb.util.cmd.command import run_command
 from zrb.util.file import write_file
 from zrb.util.markdown import make_markdown_section
 from zrb.util.string.conversion import FALSE_STRS, TRUE_STRS, to_boolean
@@ -118,13 +121,11 @@ def save_final_result(ctx: AnyContext, user_input: str, final_result: str) -> No
     ctx.print(f"Response saved to {save_path}", plain=True)
 
 
-def run_cli_command(ctx: AnyContext, user_input: str) -> None:
+async def run_cli_command(ctx: AnyContext, user_input: str) -> None:
     command = get_command_param(user_input, RUN_CLI_CMD)
-    result = subprocess.run(
-        command,
-        shell=True,
-        capture_output=True,
-        text=True,
+    cmd_result, return_code = await run_command(
+        [CFG.DEFAULT_SHELL, "-c", command],
+        timeout=3600,
     )
     ctx.print(
         render_markdown(
@@ -132,10 +133,11 @@ def run_cli_command(ctx: AnyContext, user_input: str) -> None:
                 f"`{command}`",
                 "\n".join(
                     [
-                        make_markdown_section("📤 Stdout", result.stdout, as_code=True),
-                        make_markdown_section("🚫 Stderr", result.stderr, as_code=True),
                         make_markdown_section(
-                            "🎯 Return code", f"Return Code: {result.returncode}"
+                            "📤 Output", cmd_result.display, as_code=True
+                        ),
+                        make_markdown_section(
+                            "🎯 Return code", f"Return Code: {return_code}"
                         ),
                     ]
                 ),

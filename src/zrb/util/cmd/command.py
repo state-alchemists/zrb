@@ -5,7 +5,7 @@ import signal
 import sys
 from collections import deque
 from collections.abc import Callable
-from typing import TextIO
+from typing import Any, TextIO
 
 import psutil
 
@@ -62,6 +62,8 @@ async def run_command(
     register_pid_method: Callable[[int], None] | None = None,
     max_output_line: int = 1000,
     max_error_line: int = 1000,
+    max_display_line: int | None = None,
+    timeout: int = 3600,
     is_interactive: bool = False,
 ) -> tuple[CmdResult, int]:
     """
@@ -77,6 +79,8 @@ async def run_command(
     actual_print_method = print_method if print_method is not None else print
     if cwd is None:
         cwd = os.getcwd()
+    if max_display_line is None:
+        max_display_line = max(max_output_line, max_error_line)
     # While environment variables alone weren't the fix, they are still
     # good practice for encouraging simpler output from tools.
     child_env = (env_map or os.environ).copy()
@@ -95,17 +99,33 @@ async def run_command(
     if register_pid_method is not None:
         register_pid_method(cmd_process.pid)
     # Use the new, simple, and correct stream reader.
+    display_lines = deque(maxlen=max_display_line if max_display_line > 0 else 0)
     stdout_task = asyncio.create_task(
-        __read_stream(cmd_process.stdout, actual_print_method, max_output_line)
+        __read_stream(
+            cmd_process.stdout, actual_print_method, max_output_line, display_lines
+        )
     )
     stderr_task = asyncio.create_task(
-        __read_stream(cmd_process.stderr, actual_print_method, max_error_line)
+        __read_stream(
+            cmd_process.stderr, actual_print_method, max_error_line, display_lines
+        )
+    )
+    timeout_task = (
+        asyncio.create_task(asyncio.sleep(timeout)) if timeout and timeout > 0 else None
     )
     try:
-        return_code = await cmd_process.wait()
+        wait_task = asyncio.create_task(cmd_process.wait())
+        done, pending = await asyncio.wait(
+            {wait_task, timeout_task} if timeout_task else {wait_task},
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        if timeout_task and timeout_task in done:
+            raise asyncio.TimeoutError()
+        return_code = wait_task.result()
         stdout, stderr = await asyncio.gather(stdout_task, stderr_task)
-        return CmdResult(stdout, stderr), return_code
-    except (KeyboardInterrupt, asyncio.CancelledError):
+        display = "\r\n".join(display_lines)
+        return CmdResult(stdout, stderr, display=display), return_code
+    except (KeyboardInterrupt, asyncio.CancelledError, asyncio.TimeoutError):
         try:
             os.killpg(cmd_process.pid, signal.SIGINT)
             await asyncio.wait_for(cmd_process.wait(), timeout=2.0)
@@ -133,13 +153,14 @@ def __get_cmd_stdin(is_interactive: bool) -> int | TextIO:
 async def __read_stream(
     stream: asyncio.StreamReader,
     print_method: Callable[..., None],
-    max_lines: int,
+    max_line: int,
+    display_queue: deque[Any],
 ) -> str:
     """
     Reads from the stream using the robust `readline()` and correctly
     interprets carriage returns (`\r`) as distinct print events.
     """
-    captured_lines = deque(maxlen=max_lines if max_lines > 0 else 0)
+    captured_lines = deque(maxlen=max_line if max_line > 0 else 0)
     while True:
         try:
             line_bytes = await stream.readline()
@@ -149,8 +170,9 @@ async def __read_stream(
             # Safety valve for the memory limit.
             error_msg = "[ERROR] A single line of output was too long to process."
             print_method(error_msg)
-            if max_lines > 0:
+            if max_line > 0:
                 captured_lines.append(error_msg)
+                display_queue.append(error_msg)
             break
         except (KeyboardInterrupt, asyncio.CancelledError):
             raise
@@ -165,8 +187,9 @@ async def __read_stream(
                     print_method(clean_part, end="\r\n")
                 except Exception:
                     print_method(clean_part)
-                if max_lines > 0:
+                if max_line > 0:
                     captured_lines.append(clean_part)
+                    display_queue.append(clean_part)
     return "\r\n".join(captured_lines)
 
 

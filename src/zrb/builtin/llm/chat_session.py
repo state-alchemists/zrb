@@ -101,7 +101,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
                 print_current_yolo_mode(ctx, current_yolo_mode)
                 continue
             elif is_command_match(user_input, RUN_CLI_CMD):
-                run_cli_command(ctx, user_input)
+                await run_cli_command(ctx, user_input)
                 continue
             elif is_command_match(user_input, HELP_CMD):
                 print_commands(ctx)

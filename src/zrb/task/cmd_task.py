@@ -48,6 +48,7 @@ class CmdTask(BaseTask):
         warn_unrecommended_command: bool | None = None,
         max_output_line: int = 1000,
         max_error_line: int = 1000,
+        execution_timeout: int = 3600,
         is_interactive: bool = False,
         execute_condition: BoolAttr = True,
         retries: int = 2,
@@ -103,6 +104,7 @@ class CmdTask(BaseTask):
         self._render_cwd = render_cwd
         self._max_output_line = max_output_line
         self._max_error_line = max_error_line
+        self._execution_timeout = execution_timeout
         self._should_plain_print = plain_print
         self._should_warn_unrecommended_command = warn_unrecommended_command
         self._is_interactive = is_interactive
@@ -142,6 +144,7 @@ class CmdTask(BaseTask):
             register_pid_method=lambda pid: ctx.xcom.get(xcom_pid_key).push(pid),
             max_output_line=self._max_output_line,
             max_error_line=self._max_error_line,
+            timeout=self._execution_timeout,
             is_interactive=self._is_interactive,
         )
         # Check for errors
