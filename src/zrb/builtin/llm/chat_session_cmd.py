@@ -1,6 +1,7 @@
 import os
-import subprocess
+from typing import Callable
 
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.workflow import get_available_workflows
 from zrb.util.cli.markdown import render_markdown
@@ -10,6 +11,7 @@ from zrb.util.cli.style import (
     stylize_error,
     stylize_faint,
 )
+from zrb.util.cmd.command import run_command
 from zrb.util.file import write_file
 from zrb.util.markdown import make_markdown_section
 from zrb.util.string.conversion import FALSE_STRS, TRUE_STRS, to_boolean
@@ -118,13 +120,12 @@ def save_final_result(ctx: AnyContext, user_input: str, final_result: str) -> No
     ctx.print(f"Response saved to {save_path}", plain=True)
 
 
-def run_cli_command(ctx: AnyContext, user_input: str) -> None:
+async def run_cli_command(ctx: AnyContext, user_input: str) -> None:
     command = get_command_param(user_input, RUN_CLI_CMD)
-    result = subprocess.run(
-        command,
-        shell=True,
-        capture_output=True,
-        text=True,
+    cmd_result, return_code = await run_command(
+        [CFG.DEFAULT_SHELL, "-c", command],
+        print_method=_create_faint_print(ctx),
+        timeout=3600,
     )
     ctx.print(
         render_markdown(
@@ -132,10 +133,14 @@ def run_cli_command(ctx: AnyContext, user_input: str) -> None:
                 f"`{command}`",
                 "\n".join(
                     [
-                        make_markdown_section("📤 Stdout", result.stdout, as_code=True),
-                        make_markdown_section("🚫 Stderr", result.stderr, as_code=True),
                         make_markdown_section(
-                            "🎯 Return code", f"Return Code: {result.returncode}"
+                            "📤 Stdout", cmd_result.output, as_code=True
+                        ),
+                        make_markdown_section(
+                            "🚫 Stderr", cmd_result.error, as_code=True
+                        ),
+                        make_markdown_section(
+                            "🎯 Return code", f"Return Code: {return_code}"
                         ),
                     ]
                 ),
@@ -146,8 +151,20 @@ def run_cli_command(ctx: AnyContext, user_input: str) -> None:
     ctx.print("", plain=True)
 
 
+def _create_faint_print(ctx: AnyContext) -> Callable[..., None]:
+    def print_faint(text: str):
+        ctx.print(stylize_faint(f"  {text}"), plain=True)
+
+    return print_faint
+
+
 def get_new_yolo_mode(old_yolo_mode: str | bool, user_input: str) -> str | bool:
-    new_yolo_mode = get_command_param(user_input, YOLO_CMD)
+    if not is_command_match(user_input, YOLO_CMD):
+        return old_yolo_mode
+    if is_command_match(user_input, YOLO_CMD, SET_SUB_CMD):
+        new_yolo_mode = get_command_param(user_input, YOLO_CMD, SET_SUB_CMD)
+    else:
+        new_yolo_mode = get_command_param(user_input, YOLO_CMD)
     if new_yolo_mode != "":
         if new_yolo_mode in TRUE_STRS or new_yolo_mode in FALSE_STRS:
             return to_boolean(new_yolo_mode)

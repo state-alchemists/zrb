@@ -1,5 +1,11 @@
-import subprocess
+import asyncio
 import sys
+from typing import Callable
+
+from zrb.config.config import CFG
+from zrb.context.any_context import AnyContext
+from zrb.util.cli.style import stylize_faint
+from zrb.util.cmd.command import run_command
 
 if sys.version_info >= (3, 12):
     from typing import TypedDict
@@ -15,14 +21,18 @@ class ShellCommandResult(TypedDict):
         return_code: The return code, 0 indicating no error
         stdout: Standard output
         stderr: Standard error
+        display: Combination of standard output and standard error, interlaced
     """
 
     return_code: int
     stdout: str
     stderr: str
+    display: str
 
 
-def run_shell_command(command: str, timeout: int = 30) -> ShellCommandResult:
+async def run_shell_command(
+    ctx: AnyContext, command: str, timeout: int = 30
+) -> ShellCommandResult:
     """
     Executes a non-interactive shell command on the user's machine.
 
@@ -46,23 +56,28 @@ def run_shell_command(command: str, timeout: int = 30) -> ShellCommandResult:
         dict: return_code, stdout, and stderr.
     """
     try:
-        result = subprocess.run(
-            command,
-            shell=True,
-            capture_output=True,
-            text=True,
+        cmd_result, return_code = await run_command(
+            [CFG.DEFAULT_SHELL, "-c", command],
+            print_method=_create_faint_print(ctx),
             timeout=timeout,
         )
         return {
-            "return_code": int(result.returncode),
-            "stdout": str(result.stdout or ""),
-            "stderr": str(result.stderr or ""),
+            "return_code": return_code,
+            "stdout": cmd_result.output,
+            "stderr": cmd_result.error,
+            "display": cmd_result.display,
         }
-    except subprocess.TimeoutExpired as e:
-        stdout = e.stdout.decode() if isinstance(e.stdout, bytes) else (e.stdout or "")
-        stderr = e.stderr.decode() if isinstance(e.stderr, bytes) else (e.stderr or "")
+    except asyncio.TimeoutError:
         return {
             "return_code": 124,
-            "stdout": str(stdout),
-            "stderr": f"{stderr}\nError: Command timed out after {timeout} seconds".strip(),
+            "stdout": "",
+            "stderr": f"Command timeout after {timeout} seconds",
+            "display": f"Command timeout after {timeout} seconds",
         }
+
+
+def _create_faint_print(ctx: AnyContext) -> Callable[..., None]:
+    def print_faint(text: str):
+        ctx.print(stylize_faint(f"  {text}"), plain=True)
+
+    return print_faint

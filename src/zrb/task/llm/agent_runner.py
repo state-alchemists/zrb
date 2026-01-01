@@ -112,8 +112,12 @@ async def _run_single_agent_iteration(
 
 
 def _create_print_throttle_notif(ctx: AnyContext) -> Callable[[str], None]:
-    def _print_throttle_notif(reason: str):
-        ctx.print(stylize_faint(f"  ⌛>> Request Throttled: {reason}"), plain=True)
+    def _print_throttle_notif(text: str, *args: Any, **kwargs: Any):
+        new_line = kwargs.get("new_line", True)
+        prefix = "\r" if not new_line else "\n"
+        if text != "":
+            prefix = f"{prefix}  🐢 Request Throttled: "
+        ctx.print(stylize_faint(f"{prefix}{text}"), plain=True, end="")
 
     return _print_throttle_notif
 
