@@ -1,5 +1,33 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 1.21.35
+
+- **Feature: Enhanced Command Execution System**:
+  - **Async Command Execution**: Updated `/run` command in chat sessions to use async `run_command` utility with real-time output display.
+  - **Improved Output Display**: Added faint styling for command output with combined stdout/stderr display in `CmdResult.display` field.
+  - **Shell Tool Refactor**: Refactored `run_shell_command` tool to be async and return combined `display` field for better tool integration.
+- **Feature: Enhanced Rate Limiter Notifications**:
+  - **Detailed Wait Time Calculations**: Rate limiter now shows precise wait times when throttling occurs, including calculations for token and request limits.
+  - **Improved Callback Interface**: Throttle notifications support `new_line` parameter for better UX with inline updates.
+  - **Comprehensive Testing**: Added `test/config/test_llm_rate_limitter_notification.py` with detailed test cases for wait time logic.
+- **Feature: Command Execution Timeout Support**:
+  - **Task Timeout Configuration**: Added `execution_timeout` parameter to `CmdTask` and `RsyncTask` for configurable command execution limits.
+  - **Enhanced Run Command**: `run_command` utility now supports proper timeout handling with `asyncio.TimeoutError`.
+  - **Timeout Task Integration**: Commands can be interrupted after specified timeout period with proper cleanup.
+- **Bug Fix: Tool Serialization**:
+  - **Context Object Removal**: Fixed serialization issue in tool wrapper where `AnyContext` objects were incorrectly included in `new_tool_parameters`.
+  - **Serializable Parameters**: Tool wrapper now creates a copy of kwargs and removes context parameters before serialization.
+  - **Test Coverage**: Added `test_tool_serialization_fix.py` to validate context object exclusion from serialized parameters.
+- **Enhancement: YOLO Mode Improvements**:
+  - **Subcommand Support**: Added `/yolo set <value>` subcommand for more intuitive yolo mode configuration in chat sessions.
+  - **Better Parameter Parsing**: Improved yolo mode parameter handling with support for boolean string conversions.
+- **Configuration Updates**:
+  - **Throttle Sleep Adjustment**: Changed default `LLM_THROTTLE_SLEEP` from 5.0 to 1.0 seconds for more responsive rate limiting.
+  - **CmdResult Enhancement**: Added `display` field to `CmdResult` class to capture combined command output.
+- **Performance: Async Command Execution**:
+  - **Non-blocking Operations**: Chat session `/run` command and shell tool now execute commands asynchronously without blocking the main thread.
+  - **Real-time Output**: Command output is displayed in real-time with proper line-by-line streaming.
+
 ## 1.21.34
 
 - **Feature: Enhanced Fuzzy Matching System**:
