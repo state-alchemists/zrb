@@ -154,6 +154,7 @@ async def run_cli_command(ctx: AnyContext, user_input: str) -> None:
 def _create_faint_print(ctx: AnyContext) -> Callable[..., None]:
     def print_faint(text: str):
         ctx.print(stylize_faint(f"  {text}"), plain=True)
+
     return print_faint
 
 

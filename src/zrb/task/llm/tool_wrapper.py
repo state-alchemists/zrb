@@ -136,9 +136,12 @@ def _create_wrapper(
             result = await run_async(func(*args, **kwargs))
             _check_tool_call_result_limit(result)
             if has_ever_edited:
+                serializable_kwargs = kwargs.copy()
+                if any_context_param_name is not None:
+                    serializable_kwargs.pop(any_context_param_name, None)
                 return {
                     "tool_call_result": result,
-                    "new_tool_parameters": kwargs,
+                    "new_tool_parameters": serializable_kwargs,
                     "message": "User correction: Tool was called with user's parameters",
                 }
             return result

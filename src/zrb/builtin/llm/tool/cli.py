@@ -4,8 +4,8 @@ from typing import Callable
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
-from zrb.util.cmd.command import run_command
 from zrb.util.cli.style import stylize_faint
+from zrb.util.cmd.command import run_command
 
 if sys.version_info >= (3, 12):
     from typing import TypedDict
@@ -79,4 +79,5 @@ async def run_shell_command(
 def _create_faint_print(ctx: AnyContext) -> Callable[..., None]:
     def print_faint(text: str):
         ctx.print(stylize_faint(f"  {text}"), plain=True)
+
     return print_faint
