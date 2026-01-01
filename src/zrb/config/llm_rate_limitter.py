@@ -133,42 +133,54 @@ class LLMRateLimitter:
     ):
         now = time.time()
         str_prompt = self._prompt_to_str(prompt)
-        tokens = self.count_token(str_prompt)
+        new_requested_tokens = self.count_token(str_prompt)
         # Clean up old entries
         while self.request_times and now - self.request_times[0] > 60:
             self.request_times.popleft()
         while self.token_times and now - self.token_times[0][0] > 60:
             self.token_times.popleft()
         # Check per-request token limit
-        if tokens > self.max_tokens_per_request:
+        if new_requested_tokens > self.max_tokens_per_request:
             raise ValueError(
                 (
                     "Request exceeds max_tokens_per_request "
-                    f"({tokens} > {self.max_tokens_per_request})."
+                    f"({new_requested_tokens} > {self.max_tokens_per_request})."
                 )
             )
-        if tokens > self.max_tokens_per_minute:
+        if new_requested_tokens > self.max_tokens_per_minute:
             raise ValueError(
                 (
                     "Request exceeds max_tokens_per_minute "
-                    f"({tokens} > {self.max_tokens_per_minute})."
+                    f"({new_requested_tokens} > {self.max_tokens_per_minute})."
                 )
             )
         # Wait if over per-minute request or token limit
         while (
             len(self.request_times) >= self.max_requests_per_minute
-            or sum(t for _, t in self.token_times) + tokens > self.max_tokens_per_minute
+            or sum(t for _, t in self.token_times) + new_requested_tokens > self.max_tokens_per_minute
         ):
             if throttle_notif_callback is not None:
                 if len(self.request_times) >= self.max_requests_per_minute:
                     rpm = len(self.request_times)
+                    wait_time = max(0, 60 - (now - self.request_times[0]))
                     throttle_notif_callback(
-                        f"Max request per minute exceeded: {rpm} of {self.max_requests_per_minute}"
+                        f"Max request per minute exceeded: {rpm} of {self.max_requests_per_minute}. "
+                        f"Waiting for {wait_time:.2f} seconds."
                     )
                 else:
-                    tpm = sum(t for _, t in self.token_times) + tokens
+                    current_tokens = sum(t for _, t in self.token_times)
+                    tpm = current_tokens + new_requested_tokens
+                    needed = tpm - self.max_tokens_per_minute
+                    freed = 0
+                    wait_time = 0
+                    for t_time, t_count in self.token_times:
+                        freed += t_count
+                        if freed >= needed:
+                            wait_time = max(0, 60 - (now - t_time))
+                            break
                     throttle_notif_callback(
-                        f"Max token per minute exceeded: {tpm} of {self.max_tokens_per_minute}"
+                        f"Max token per minute exceeded: {tpm} of {self.max_tokens_per_minute}. "
+                        f"Waiting for {wait_time:.2f} seconds."
                     )
             await asyncio.sleep(self.throttle_sleep)
             now = time.time()
@@ -178,7 +190,7 @@ class LLMRateLimitter:
                 self.token_times.popleft()
         # Record this request
         self.request_times.append(now)
-        self.token_times.append((now, tokens))
+        self.token_times.append((now, new_requested_tokens))
 
     def _prompt_to_str(self, prompt: Any) -> str:
         try:

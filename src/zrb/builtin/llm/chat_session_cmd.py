@@ -1,7 +1,6 @@
-import asyncio
 import os
-import subprocess
 
+from functools import partial
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.workflow import get_available_workflows
@@ -125,6 +124,7 @@ async def run_cli_command(ctx: AnyContext, user_input: str) -> None:
     command = get_command_param(user_input, RUN_CLI_CMD)
     cmd_result, return_code = await run_command(
         [CFG.DEFAULT_SHELL, "-c", command],
+        print_method=partial(ctx.print, plain=True),
         timeout=3600,
     )
     ctx.print(
@@ -133,9 +133,8 @@ async def run_cli_command(ctx: AnyContext, user_input: str) -> None:
                 f"`{command}`",
                 "\n".join(
                     [
-                        make_markdown_section(
-                            "📤 Output", cmd_result.display, as_code=True
-                        ),
+                        make_markdown_section("📤 Stdout", cmd_result.output, as_code=True),
+                        make_markdown_section("🚫 Stderr", cmd_result.error, as_code=True),
                         make_markdown_section(
                             "🎯 Return code", f"Return Code: {return_code}"
                         ),
@@ -149,7 +148,12 @@ async def run_cli_command(ctx: AnyContext, user_input: str) -> None:
 
 
 def get_new_yolo_mode(old_yolo_mode: str | bool, user_input: str) -> str | bool:
-    new_yolo_mode = get_command_param(user_input, YOLO_CMD)
+    if not is_command_match(user_input, YOLO_CMD):
+        return old_yolo_mode
+    if is_command_match(user_input, YOLO_CMD, SET_SUB_CMD):
+        new_yolo_mode = get_command_param(user_input, YOLO_CMD, SET_SUB_CMD)
+    else:
+        new_yolo_mode = get_command_param(user_input, YOLO_CMD)
     if new_yolo_mode != "":
         if new_yolo_mode in TRUE_STRS or new_yolo_mode in FALSE_STRS:
             return to_boolean(new_yolo_mode)

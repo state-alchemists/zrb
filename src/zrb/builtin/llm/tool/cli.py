@@ -1,7 +1,9 @@
 import asyncio
 import sys
 
+from functools import partial
 from zrb.config.config import CFG
+from zrb.context.any_context import AnyContext
 from zrb.util.cmd.command import run_command
 
 if sys.version_info >= (3, 12):
@@ -27,7 +29,9 @@ class ShellCommandResult(TypedDict):
     display: str
 
 
-async def run_shell_command(command: str, timeout: int = 30) -> ShellCommandResult:
+async def run_shell_command(
+    ctx: AnyContext, command: str, timeout: int = 30
+) -> ShellCommandResult:
     """
     Executes a non-interactive shell command on the user's machine.
 
@@ -53,6 +57,7 @@ async def run_shell_command(command: str, timeout: int = 30) -> ShellCommandResu
     try:
         cmd_result, return_code = await run_command(
             [CFG.DEFAULT_SHELL, "-c", command],
+            print_method=partial(ctx.print, plain=True),
             timeout=timeout,
         )
         return {

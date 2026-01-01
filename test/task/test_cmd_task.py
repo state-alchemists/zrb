@@ -20,7 +20,7 @@ async def test_cmd_task_exec_action_success():
     mock_ctx.render.side_effect = lambda x: x  # Simple render mock
     mock_ctx.env = {}
 
-    mock_cmd_result = CmdResult(output="output", error="")
+    mock_cmd_result = CmdResult(output="output", error="", display="output")
     mock_run_command = AsyncMock(return_value=(mock_cmd_result, 0))
 
     with patch("zrb.task.cmd_task.run_command", mock_run_command):
@@ -43,7 +43,7 @@ async def test_cmd_task_exec_action_failure():
     mock_ctx.render.side_effect = lambda x: x
     mock_ctx.env = {}
 
-    mock_cmd_result = CmdResult(output="", error="error")
+    mock_cmd_result = CmdResult(output="", error="error", display="")
     mock_run_command = AsyncMock(return_value=(mock_cmd_result, 1))
 
     with patch("zrb.task.cmd_task.run_command", mock_run_command):
@@ -65,7 +65,7 @@ async def test_cmd_task_exec_action_plain_print():
     mock_ctx.render.side_effect = lambda x: x
     mock_ctx.env = {}
 
-    mock_cmd_result = CmdResult(output="output", error="")
+    mock_cmd_result = CmdResult(output="output", error="", display="output")
     mock_run_command = AsyncMock(return_value=(mock_cmd_result, 0))
 
     with patch("zrb.task.cmd_task.run_command", mock_run_command):
@@ -88,7 +88,7 @@ async def test_cmd_task_exec_action_cwd():
     mock_ctx.render.side_effect = lambda x: x
     mock_ctx.env = {}
 
-    mock_cmd_result = CmdResult(output="output", error="")
+    mock_cmd_result = CmdResult(output="output", error="", display="output")
     mock_run_command = AsyncMock(return_value=(mock_cmd_result, 0))
 
     custom_cwd = "/tmp/custom_dir"
@@ -111,7 +111,7 @@ async def test_cmd_task_exec_action_env():
     mock_ctx.render.side_effect = lambda x: x
     mock_ctx.env = {"MY_VAR": "my_value"}
 
-    mock_cmd_result = CmdResult(output="output", error="")
+    mock_cmd_result = CmdResult(output="output", error="", display="output")
     mock_run_command = AsyncMock(return_value=(mock_cmd_result, 0))
 
     with patch("zrb.task.cmd_task.run_command", mock_run_command):
@@ -136,7 +136,7 @@ async def test_cmd_task_exec_action_remote():
     mock_ctx.render.side_effect = lambda x: x
     mock_ctx.env = {}
 
-    mock_cmd_result = CmdResult(output="remote output", error="")
+    mock_cmd_result = CmdResult(output="remote output", error="", display="remote output")
     mock_run_command = AsyncMock(return_value=(mock_cmd_result, 0))
     mock_get_remote_cmd_script = MagicMock(
         return_value="ssh user@host -p 22 'echo remote'"
