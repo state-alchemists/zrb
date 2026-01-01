@@ -1,6 +1,6 @@
 import os
+from typing import Callable
 
-from functools import partial
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.workflow import get_available_workflows
@@ -124,7 +124,7 @@ async def run_cli_command(ctx: AnyContext, user_input: str) -> None:
     command = get_command_param(user_input, RUN_CLI_CMD)
     cmd_result, return_code = await run_command(
         [CFG.DEFAULT_SHELL, "-c", command],
-        print_method=partial(ctx.print, plain=True),
+        print_method=_create_faint_print(ctx),
         timeout=3600,
     )
     ctx.print(
@@ -133,8 +133,12 @@ async def run_cli_command(ctx: AnyContext, user_input: str) -> None:
                 f"`{command}`",
                 "\n".join(
                     [
-                        make_markdown_section("📤 Stdout", cmd_result.output, as_code=True),
-                        make_markdown_section("🚫 Stderr", cmd_result.error, as_code=True),
+                        make_markdown_section(
+                            "📤 Stdout", cmd_result.output, as_code=True
+                        ),
+                        make_markdown_section(
+                            "🚫 Stderr", cmd_result.error, as_code=True
+                        ),
                         make_markdown_section(
                             "🎯 Return code", f"Return Code: {return_code}"
                         ),
@@ -145,6 +149,12 @@ async def run_cli_command(ctx: AnyContext, user_input: str) -> None:
         plain=True,
     )
     ctx.print("", plain=True)
+
+
+def _create_faint_print(ctx: AnyContext) -> Callable[..., None]:
+    def print_faint(text: str):
+        ctx.print(stylize_faint(f"  {text}"), plain=True)
+    return print_faint
 
 
 def get_new_yolo_mode(old_yolo_mode: str | bool, user_input: str) -> str | bool:

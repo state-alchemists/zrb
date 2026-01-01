@@ -402,7 +402,7 @@ class Config:
     @property
     def LLM_THROTTLE_SLEEP(self) -> float:
         """Number of seconds to sleep when throttling is required."""
-        return float(self._getenv("LLM_THROTTLE_SLEEP", "5.0"))
+        return float(self._getenv("LLM_THROTTLE_SLEEP", "1.0"))
 
     @property
     def LLM_YOLO_MODE(self) -> bool | list[str]:

@@ -1,10 +1,11 @@
 import asyncio
 import sys
+from typing import Callable
 
-from functools import partial
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.util.cmd.command import run_command
+from zrb.util.cli.style import stylize_faint
 
 if sys.version_info >= (3, 12):
     from typing import TypedDict
@@ -57,7 +58,7 @@ async def run_shell_command(
     try:
         cmd_result, return_code = await run_command(
             [CFG.DEFAULT_SHELL, "-c", command],
-            print_method=partial(ctx.print, plain=True),
+            print_method=_create_faint_print(ctx),
             timeout=timeout,
         )
         return {
@@ -73,3 +74,9 @@ async def run_shell_command(
             "stderr": f"Command timeout after {timeout} seconds",
             "display": f"Command timeout after {timeout} seconds",
         }
+
+
+def _create_faint_print(ctx: AnyContext) -> Callable[..., None]:
+    def print_faint(text: str):
+        ctx.print(stylize_faint(f"  {text}"), plain=True)
+    return print_faint
