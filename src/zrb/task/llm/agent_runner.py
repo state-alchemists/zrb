@@ -129,10 +129,18 @@ def _estimate_request_payload(
     history_list: ListOfDict,
 ) -> str:
     system_prompts = agent._system_prompts if hasattr(agent, "_system_prompts") else ()
+    pruned_history_list = [
+        {
+            key: obj[key]
+            for key in obj
+            if index == len(history_list) - 1 or key != "instructions"
+        }
+        for index, obj in enumerate(history_list)
+    ]
     return json.dumps(
         [
             {"role": "system", "content": "\n".join(system_prompts)},
-            *history_list,
+            *pruned_history_list,
             {"role": "user", "content": user_prompt},
             *[_estimate_attachment_payload(attachment) for attachment in attachments],
         ]
