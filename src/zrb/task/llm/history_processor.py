@@ -87,31 +87,30 @@ def create_summarize_history_processor(
     async def maybe_summarize_history(
         messages: list[ModelMessage],
     ) -> list[ModelMessage]:
-        history_list = json.loads(ModelMessagesTypeAdapter.dump_json(messages))
-        history_json_str = json.dumps(history_list)
+        raw_history_list = json.loads(ModelMessagesTypeAdapter.dump_json(messages))
+        pruned_history_list = [
+            {
+                key: obj[key]
+                for key in obj
+                if index == len(raw_history_list) - 1 or key != "instructions"
+            }
+            for index, obj in enumerate(raw_history_list)
+        ]
+        pruned_history_str = json.dumps(pruned_history_list)
         # Estimate token usage
         # Note: Pydantic ai has run context parameter
         # (https://ai.pydantic.dev/message-history/#runcontext-parameter)
         # But we cannot use run_ctx.usage.total_tokens because total token keep increasing
         # even after summariztion.
-        estimated_token_usage = rate_limitter.count_token(history_json_str)
+        estimated_token_usage = rate_limitter.count_token(pruned_history_str)
         _print_request_info(
             ctx, estimated_token_usage, summarization_token_threshold, messages
         )
         if estimated_token_usage < summarization_token_threshold or len(messages) == 1:
             return messages
-        history_list_without_instruction = [
-            {
-                key: obj[key]
-                for key in obj
-                if index == len(history_list) - 1 or key != "instructions"
-            }
-            for index, obj in enumerate(history_list)
-        ]
-        history_json_str_without_instruction = json.dumps(
-            history_list_without_instruction
+        summarization_message = (
+            f"Summarize the following conversation: {pruned_history_str}"
         )
-        summarization_message = f"Summarize the following conversation: {history_json_str_without_instruction}"
         summarization_agent = Agent[None, ConversationSummary](
             model=summarization_model,
             output_type=save_conversation_summary,
