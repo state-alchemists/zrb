@@ -1,5 +1,25 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 1.21.36
+
+- **Feature: Enhanced CLI Output Display**:
+  - **CmdResult Display Property**: Added `display` property to `CmdResult` class for better control over command output presentation.
+  - **Improved Output Formatting**: Enhanced CLI tool output with better visual separation and formatting for improved readability.
+  - **Rate Limiter Notifications**: Added detailed notifications showing remaining wait time when rate limits (RPM/TPM) are exceeded, providing clearer feedback to users.
+- **Performance: History Pruning for LLM Efficiency**:
+  - **Optimized Memory Usage**: Implemented history pruning mechanism to reduce context size and improve LLM response times.
+  - **Context Leak Prevention**: Fixed potential context leakage issues in LLM sessions for more secure and efficient operation.
+- **Framework: Enhanced Tool Integration**:
+  - **CmdTask Improvements**: Updated `CmdTask` with better display handling and integration with the new `CmdResult` display property.
+  - **RsyncTask Enhancement**: Added support for display property in `RsyncTask` for consistent output formatting.
+- **Testing: Comprehensive Test Coverage**:
+  - **Rate Limiter Tests**: Added extensive test coverage for LLM rate limiter notifications (`test/config/test_llm_rate_limitter_notification.py`).
+  - **CmdTask Validation**: Enhanced `CmdTask` tests to verify proper display property functionality.
+  - **Tool Serialization Fix**: Added dedicated test (`test_tool_serialization_fix.py`) to ensure proper tool serialization behavior.
+- **Configuration Updates**:
+  - **Rate Limiter Configuration**: Enhanced `llm_rate_limitter.py` with improved notification logic and remaining time calculations.
+  - **Command Utility Refactoring**: Updated `command.py` with better display handling and output formatting utilities.
+
 ## 1.21.34
 
 - **Feature: Enhanced Fuzzy Matching System**:
