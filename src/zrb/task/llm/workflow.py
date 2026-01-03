@@ -1,11 +1,12 @@
 import os
 
+from zrb.context.any_context import AnyContext
 from zrb.config.config import CFG
 from zrb.config.llm_context.config import llm_context_config
 from zrb.config.llm_context.workflow import LLMWorkflow
 
 
-def load_workflow(workflow_name: str | list[str]) -> str:
+def load_workflow(ctx: AnyContext, workflow_name: str | list[str]) -> str:
     """
     Loads and formats one or more workflow documents for LLM consumption.
 
