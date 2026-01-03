@@ -185,7 +185,7 @@ class LLMTask(BaseTask):
         self._render_summarization_prompt = render_summarization_prompt
         self._tools = tools
         self._rate_limitter = rate_limitter
-        self._additional_tools: list["ToolOrCallable"] = [load_workflow]
+        self._additional_tools: list["ToolOrCallable"] = []
         self._toolsets = toolsets
         self._additional_toolsets: list["AbstractToolset[None] | str"] = []
         self._conversation_history = conversation_history
@@ -308,7 +308,7 @@ class LLMTask(BaseTask):
             system_prompt=system_prompt,
             model_settings=model_settings,
             tools_attr=self._tools,
-            additional_tools=self._additional_tools,
+            additional_tools=[load_workflow] + self._additional_tools,
             toolsets_attr=self._toolsets,
             additional_toolsets=self._additional_toolsets,
             yolo_mode=yolo_mode,
