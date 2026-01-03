@@ -4,7 +4,9 @@ from asyncio import StreamReader
 from typing import TYPE_CHECKING, Any, Callable, Coroutine
 
 from zrb.builtin.llm.chat_completion import get_chat_completer
+from zrb.config.llm_config import llm_config
 from zrb.context.any_context import AnyContext
+from zrb.util.git import get_current_branch
 from zrb.util.run import run_async
 
 if TYPE_CHECKING:
@@ -60,9 +62,10 @@ class LLMChatTrigger:
 
         try:
             if isinstance(reader, PromptSession):
-                bottom_toolbar = f"📌 Current directory: {os.getcwd()}"
+                bottom_toolbar = await self._get_bottom_toolbar(ctx)
                 return await reader.prompt_async(
-                    completer=get_chat_completer(), bottom_toolbar=bottom_toolbar
+                    completer=get_chat_completer(),
+                    bottom_toolbar=bottom_toolbar,
                 )
             line_bytes = await reader.readline()
             if not line_bytes:
@@ -73,6 +76,56 @@ class LLMChatTrigger:
         except KeyboardInterrupt:
             ctx.print("KeyboardInterrupt detected. Exiting...", plain=True)
             return "/bye"
+
+    async def _get_bottom_toolbar(self, ctx: AnyContext) -> str:
+        import shutil
+
+        terminal_width = shutil.get_terminal_size().columns
+        previous_session_name = self._get_previous_session_name(ctx)
+        current_branch = await self._get_current_branch()
+        current_model = self._get_current_model(ctx)
+        left_text = f"📌 {os.getcwd()} ({current_branch}) | 🧠 {current_model}"
+        right_text = f"📚 Previous Session: {previous_session_name}"
+        padding = (
+            terminal_width
+            - self._get_display_width(left_text)
+            - self._get_display_width(right_text)
+            - 1
+        )
+        if padding > 0:
+            return f"{left_text}{' ' * padding}{right_text}"
+        return f"{left_text} {right_text}"
+
+    def _get_display_width(self, text: str) -> int:
+        import unicodedata
+
+        width = 0
+        for char in text:
+            eaw = unicodedata.east_asian_width(char)
+            if eaw in ("F", "W"):  # Fullwidth or Wide
+                width += 2
+            elif eaw == "A":  # Ambiguous
+                width += 1  # Usually 1 in non-East Asian contexts
+            else:  # Narrow, Halfwidth, Neutral
+                width += 1
+        return width
+
+    def _get_current_model(self, ctx: AnyContext) -> str:
+        if "model" in ctx.input and ctx.input.model:
+            return ctx.input.model
+        return str(llm_config.default_model_name)
+
+    def _get_previous_session_name(self, ctx: AnyContext) -> str:
+        no_session_str = "<No Session>"
+        if "ask_session_name" in ctx.xcom:
+            return ctx.xcom.ask_session_name.get(no_session_str)
+        return no_session_str
+
+    async def _get_current_branch(self) -> str:
+        try:
+            return await get_current_branch(os.getcwd(), print_method=lambda x: x)
+        except Exception:
+            return "<Not a git repo>"
 
 
 llm_chat_trigger = LLMChatTrigger()

@@ -55,7 +55,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
     while not should_end:
         await asyncio.sleep(0.01)
         previous_session_name: str | None = (
-            ctx.input.previous_session if is_first_time else ""
+            ctx.input.previous_session if is_first_time else None
         )
         start_new: bool = ctx.input.start_new if is_first_time else False
         if is_first_time and ctx.input.message.strip() != "":
