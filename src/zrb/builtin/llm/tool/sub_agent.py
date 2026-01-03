@@ -7,6 +7,7 @@ from zrb.context.any_context import AnyContext
 from zrb.task.llm.agent import create_agent_instance
 from zrb.task.llm.agent_runner import run_agent_iteration
 from zrb.task.llm.config import get_model, get_model_settings
+from zrb.task.llm.history_list import remove_system_prompt_and_instruction
 from zrb.task.llm.prompt import get_system_and_user_prompt
 from zrb.task.llm.subagent_conversation_history import (
     get_ctx_subagent_history,
@@ -127,7 +128,9 @@ def create_sub_agent_tool(
                 set_ctx_subagent_history(
                     ctx,
                     agent_name,
-                    json.loads(sub_agent_run.result.all_messages_json()),
+                    remove_system_prompt_and_instruction(
+                        json.loads(sub_agent_run.result.all_messages_json())
+                    ),
                 )
             return sub_agent_run.result.output
         ctx.log_warning("Sub-agent run did not produce a result.")

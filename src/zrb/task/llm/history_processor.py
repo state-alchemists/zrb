@@ -87,29 +87,21 @@ def create_summarize_history_processor(
     async def maybe_summarize_history(
         messages: list[ModelMessage],
     ) -> list[ModelMessage]:
-        raw_history_list = json.loads(ModelMessagesTypeAdapter.dump_json(messages))
-        pruned_history_list = [
-            {
-                key: obj[key]
-                for key in obj
-                if index == len(raw_history_list) - 1 or key != "instructions"
-            }
-            for index, obj in enumerate(raw_history_list)
-        ]
-        pruned_history_str = json.dumps(pruned_history_list)
+        history_list = json.loads(ModelMessagesTypeAdapter.dump_json(messages))
+        history_list_str = json.dumps(history_list)
         # Estimate token usage
         # Note: Pydantic ai has run context parameter
         # (https://ai.pydantic.dev/message-history/#runcontext-parameter)
         # But we cannot use run_ctx.usage.total_tokens because total token keep increasing
         # even after summariztion.
-        estimated_token_usage = rate_limitter.count_token(pruned_history_str)
+        estimated_token_usage = rate_limitter.count_token(history_list_str)
         _print_request_info(
             ctx, estimated_token_usage, summarization_token_threshold, messages
         )
         if estimated_token_usage < summarization_token_threshold or len(messages) == 1:
             return messages
         summarization_message = (
-            f"Summarize the following conversation: {pruned_history_str}"
+            f"Summarize the following conversation: {history_list_str}"
         )
         summarization_agent = Agent[None, ConversationSummary](
             model=summarization_model,

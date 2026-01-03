@@ -22,6 +22,7 @@ from zrb.task.llm.conversation_history import (
     write_conversation_history,
 )
 from zrb.task.llm.conversation_history_model import ConversationHistory
+from zrb.task.llm.history_list import remove_system_prompt_and_instruction
 from zrb.task.llm.history_summarization import get_history_summarization_token_threshold
 from zrb.task.llm.prompt import (
     get_attachments,
@@ -358,7 +359,9 @@ class LLMTask(BaseTask):
                 rate_limitter=self._rate_limitter,
             )
             if agent_run and agent_run.result:
-                new_history_list = json.loads(agent_run.result.all_messages_json())
+                new_history_list = remove_system_prompt_and_instruction(
+                    json.loads(agent_run.result.all_messages_json())
+                )
                 conversation_history.history = new_history_list
                 xcom_usage_key = f"{self.name}-usage"
                 if xcom_usage_key not in ctx.xcom:
