@@ -1,5 +1,18 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 1.21.37
+
+- **Refactor: Centralized History List Processing**:
+  - **New Utility Module**: Introduced `history_list.py` with `remove_system_prompt_and_instruction()` function for consistent history list cleaning across the codebase.
+  - **Simplified Agent Runner**: Removed manual instruction pruning logic from `_estimate_request_payload()` in `agent_runner.py`, using the new centralized utility instead.
+  - **Enhanced History Processor**: Simplified `history_processor.py` by eliminating redundant instruction filtering and using the unified history list processing approach.
+- **Improved: Sub-agent History Management**:
+  - **Consistent History Cleaning**: Updated `sub_agent.py` to use the new `remove_system_prompt_and_instruction()` function for cleaner sub-agent conversation history storage.
+  - **Reduced Code Duplication**: Eliminated repetitive history processing logic by centralizing system prompt and instruction removal.
+- **Enhanced: Main LLM Task Integration**:
+  - **Unified History Processing**: Modified `llm_task.py` to leverage the new centralized utility for history list cleaning after agent runs.
+  - **Improved Maintainability**: Reduced complexity by replacing inline history processing with dedicated utility function calls.
+
 ## 1.21.36
 
 - **Feature: Enhanced CLI Output Display**:
