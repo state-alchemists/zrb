@@ -26,6 +26,8 @@ from zrb.builtin.llm.chat_session_cmd import (
 from zrb.builtin.llm.chat_trigger import llm_chat_trigger
 from zrb.config.llm_config import llm_config
 from zrb.context.any_context import AnyContext
+from zrb.context.any_shared_context import AnySharedContext
+from zrb.task.llm.workflow import get_llm_loaded_workflow_xcom
 from zrb.util.cli.markdown import render_markdown
 
 if TYPE_CHECKING:
@@ -44,7 +46,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
     reader: PromptSession[Any] | StreamReader = await _setup_input_reader(is_tty)
     multiline_mode = False
     is_first_time = True
-    current_workflows: str = ctx.input.workflows
+    current_workflows: str = ctx.input.workflow
     current_yolo_mode: bool | str = ctx.input.yolo
     current_attachments: str = ctx.input.attach
     user_inputs: list[str] = []
@@ -53,7 +55,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
     while not should_end:
         await asyncio.sleep(0.01)
         previous_session_name: str | None = (
-            ctx.input.previous_session if is_first_time else ""
+            ctx.input.previous_session if is_first_time else None
         )
         start_new: bool = ctx.input.start_new if is_first_time else False
         if is_first_time and ctx.input.message.strip() != "":
@@ -68,6 +70,8 @@ async def read_user_prompt(ctx: AnyContext) -> str:
         # At this point, is_first_time has to be False
         if is_first_time:
             is_first_time = False
+        # Add additional workflows activated by LLM in the previous session
+        current_workflows = _get_new_workflows_from_xcom(ctx, current_workflows)
         # Handle user input (including slash commands)
         if multiline_mode:
             if is_command_match(user_input, MULTILINE_END_CMD):
@@ -127,6 +131,23 @@ async def read_user_prompt(ctx: AnyContext) -> str:
     return final_result
 
 
+def _get_new_workflows_from_xcom(ctx: AnyContext, current_workflows: str):
+    llm_loaded_workflow_xcom = get_llm_loaded_workflow_xcom(ctx)
+    new_workflow_names = [
+        workflow_name.strip()
+        for workflow_name in current_workflows.split(",")
+        if workflow_name.strip() != ""
+    ]
+    while len(llm_loaded_workflow_xcom) > 0:
+        additional_workflow_names = [
+            workflow_name
+            for workflow_name in llm_loaded_workflow_xcom.pop()
+            if workflow_name not in new_workflow_names
+        ]
+        new_workflow_names += additional_workflow_names
+    return ",".join(new_workflow_names)
+
+
 async def _setup_input_reader(
     is_interactive: bool,
 ) -> "PromptSession[Any] | StreamReader":
@@ -177,7 +198,7 @@ async def _trigger_ask_and_wait_for_result(
     return result
 
 
-def get_llm_ask_input_mapping(callback_ctx: AnyContext):
+def get_llm_ask_input_mapping(callback_ctx: AnyContext | AnySharedContext):
     """
     Generates the input mapping for the LLM ask task from the callback context.
 
@@ -200,7 +221,7 @@ def get_llm_ask_input_mapping(callback_ctx: AnyContext):
         "previous-session": data.get("previous_session_name"),
         "message": data.get("message"),
         "attach": data.get("attach"),
-        "workflows": data.get("workflows"),
+        "workflow": data.get("workflow"),
         "yolo": data.get("yolo"),
     }
 
@@ -231,7 +252,7 @@ async def _trigger_ask(
             "start_new": start_new,
             "message": user_prompt,
             "attach": attach,
-            "workflows": workflows,
+            "workflow": workflows,
             "yolo": yolo_mode,
         }
     )

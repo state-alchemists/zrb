@@ -3,7 +3,7 @@ import inspect
 from collections.abc import Callable
 from typing import Any
 
-from zrb.attr.type import BoolAttr, fstring
+from zrb.attr.type import fstring
 from zrb.context.any_context import AnyContext
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
@@ -55,7 +55,7 @@ class BaseTask(AnyTask):
         input: list[AnyInput | None] | AnyInput | None = None,
         env: list[AnyEnv | None] | AnyEnv | None = None,
         action: fstring | Callable[[AnyContext], Any] | None = None,
-        execute_condition: BoolAttr = True,
+        execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
         readiness_check: list[AnyTask] | AnyTask | None = None,

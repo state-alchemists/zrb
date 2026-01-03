@@ -40,6 +40,7 @@ from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
 from zrb.task.base_trigger import BaseTrigger
+from zrb.task.llm.workflow import LLM_LOADED_WORKFLOW_XCOM_NAME
 from zrb.task.llm_task import LLMTask
 from zrb.util.string.conversion import to_boolean
 
@@ -172,9 +173,9 @@ def _get_inputs(require_message: bool = True) -> list[AnyInput | None]:
             always_prompt=False,
         ),
         TextInput(
-            "workflows",
-            description="Workflows",
-            prompt="Workflows",
+            "workflow",
+            description="Workflows (comma separated)",
+            prompt="Workflows (comma separated)",
             default=lambda ctx: ",".join(llm_config.default_workflows),
             allow_positional_parsing=False,
             always_prompt=False,
@@ -237,7 +238,7 @@ llm_ask = LLMTask(
         None if ctx.input.system_prompt.strip() == "" else ctx.input.system_prompt
     ),
     workflows=lambda ctx: (
-        None if ctx.input.workflows.strip() == "" else ctx.input.workflows.split(",")
+        None if ctx.input.workflow.strip() == "" else ctx.input.workflow.split(",")
     ),
     attachment=_render_attach_input,
     message="{ctx.input.message}",
@@ -258,6 +259,7 @@ llm_group.add_task(
         callback=Callback(
             task=llm_ask,
             input_mapping=get_llm_ask_input_mapping,
+            xcom_mapping={LLM_LOADED_WORKFLOW_XCOM_NAME: LLM_LOADED_WORKFLOW_XCOM_NAME},
             result_queue="ask_result",
             error_queue="ask_error",
             session_name_queue="ask_session_name",

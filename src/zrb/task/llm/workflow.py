@@ -4,6 +4,9 @@ from zrb.config.config import CFG
 from zrb.config.llm_context.config import llm_context_config
 from zrb.config.llm_context.workflow import LLMWorkflow
 from zrb.context.any_context import AnyContext
+from zrb.xcom.xcom import Xcom
+
+LLM_LOADED_WORKFLOW_XCOM_NAME = "_llm_loaded_workflow_name"
 
 
 def load_workflow(ctx: AnyContext, workflow_name: str | list[str]) -> str:
@@ -37,7 +40,15 @@ def load_workflow(ctx: AnyContext, workflow_name: str | list[str]) -> str:
                 ]
             )
         )
+    llm_loaded_workflow_xcom = get_llm_loaded_workflow_xcom(ctx)
+    llm_loaded_workflow_xcom.push(names)
     return "\n".join(contents)
+
+
+def get_llm_loaded_workflow_xcom(ctx: AnyContext) -> Xcom:
+    if LLM_LOADED_WORKFLOW_XCOM_NAME not in ctx.xcom:
+        ctx.xcom[LLM_LOADED_WORKFLOW_XCOM_NAME] = Xcom([])
+    return ctx.xcom[LLM_LOADED_WORKFLOW_XCOM_NAME]
 
 
 def get_available_workflows() -> dict[str, LLMWorkflow]:
