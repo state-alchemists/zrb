@@ -5,7 +5,6 @@ from typing import Any
 from zrb.attr.type import fstring
 from zrb.callback.any_callback import AnyCallback
 from zrb.context.any_context import AnyContext
-from zrb.context.any_shared_context import AnySharedContext
 from zrb.context.shared_context import SharedContext
 from zrb.dot_dict.dot_dict import DotDict
 from zrb.env.any_env import AnyEnv

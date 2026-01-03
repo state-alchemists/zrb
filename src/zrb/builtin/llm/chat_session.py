@@ -26,6 +26,7 @@ from zrb.builtin.llm.chat_session_cmd import (
 from zrb.builtin.llm.chat_trigger import llm_chat_trigger
 from zrb.config.llm_config import llm_config
 from zrb.context.any_context import AnyContext
+from zrb.task.llm.workflow import get_llm_loaded_workflow_xcom
 from zrb.util.cli.markdown import render_markdown
 
 if TYPE_CHECKING:
@@ -68,6 +69,15 @@ async def read_user_prompt(ctx: AnyContext) -> str:
         # At this point, is_first_time has to be False
         if is_first_time:
             is_first_time = False
+        llm_loaded_workflow_xcom = get_llm_loaded_workflow_xcom(ctx)
+        print(llm_loaded_workflow_xcom)
+        while len(llm_loaded_workflow_xcom) > 0:
+            print(len(llm_loaded_workflow_xcom), llm_loaded_workflow_xcom.peek())
+            current_workflows = current_workflows + [
+                workflow_name
+                for workflow_name in llm_loaded_workflow_xcom.pop()
+                if workflow_name not in current_workflows
+            ]
         # Handle user input (including slash commands)
         if multiline_mode:
             if is_command_match(user_input, MULTILINE_END_CMD):
