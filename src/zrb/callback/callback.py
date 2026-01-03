@@ -6,7 +6,6 @@ from zrb.callback.any_callback import AnyCallback
 from zrb.session.any_session import AnySession
 from zrb.task.any_task import AnyTask
 from zrb.util.attr import get_str_dict_attr
-from zrb.util.cli.style import stylize_faint
 from zrb.util.string.conversion import to_snake_case
 from zrb.xcom.xcom import Xcom
 
@@ -24,6 +23,7 @@ class Callback(AnyCallback):
         task: AnyTask,
         input_mapping: StrDictAttr,
         render_input_mapping: bool = True,
+        xcom_mapping: dict[str, str] | None = None,
         result_queue: str | None = None,
         error_queue: str | None = None,
         session_name_queue: str | None = None,
@@ -36,6 +36,7 @@ class Callback(AnyCallback):
             input_mapping: A dictionary or attribute mapping to prepare inputs for the task.
             render_input_mapping: Whether to render the input mapping using
                 f-string like syntax.
+            xcom_mapping: Map of parent session's xcom names to current session's xcom names
             result_queue: The name of the XCom queue in the parent session
                 to publish the task result.
             result_queue: The name of the Xcom queue in the parent session
@@ -46,6 +47,7 @@ class Callback(AnyCallback):
         self._task = task
         self._input_mapping = input_mapping
         self._render_input_mapping = render_input_mapping
+        self._xcom_mapping = xcom_mapping
         self._result_queue = result_queue
         self._error_queue = error_queue
         self._session_name_queue = session_name_queue
@@ -63,6 +65,11 @@ class Callback(AnyCallback):
         for name, value in inputs.items():
             session.shared_ctx.input[name] = value
             session.shared_ctx.input[to_snake_case(name)] = value
+        # map xcom
+        if self._xcom_mapping is not None:
+            for parent_xcom_name, current_xcom_name in self._xcom_mapping.items():
+                parent_xcom = parent_session.shared_ctx.xcom[parent_xcom_name]
+                session.shared_ctx.xcom[current_xcom_name] = parent_xcom
         # run task and get result
         try:
             result = await self._task.async_run(session)
