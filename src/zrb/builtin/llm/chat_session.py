@@ -30,6 +30,10 @@ from zrb.context.any_shared_context import AnySharedContext
 from zrb.task.llm.workflow import get_llm_loaded_workflow_xcom
 from zrb.util.cli.markdown import render_markdown
 
+LLM_ASK_RESULT_XCOM_NAME = "ask_result"
+LLM_ASK_ERROR_XCOM_NAME = "ask_error"
+LLM_ASK_SESSION_XCOM_NAME = "ask_session_name"
+
 if TYPE_CHECKING:
     from asyncio import StreamReader
 
@@ -268,12 +272,18 @@ async def _wait_ask_result(ctx: AnyContext) -> str | None:
     Returns:
         The result string from the LLM task.
     """
-    while "ask_result" not in ctx.xcom or len(ctx.xcom.ask_result) == 0:
+    while (
+        LLM_ASK_RESULT_XCOM_NAME not in ctx.xcom
+        or len(ctx.xcom[LLM_ASK_RESULT_XCOM_NAME]) == 0
+    ):
         await asyncio.sleep(0.1)
-        if "ask_error" in ctx.xcom and len(ctx.xcom.ask_error) > 0:
-            ctx.xcom.ask_error.pop()
+        if (
+            LLM_ASK_ERROR_XCOM_NAME in ctx.xcom
+            and len(ctx.xcom[LLM_ASK_ERROR_XCOM_NAME]) > 0
+        ):
+            ctx.xcom[LLM_ASK_ERROR_XCOM_NAME].pop()
             return None
-    return ctx.xcom.ask_result.pop()
+    return ctx.xcom[LLM_ASK_RESULT_XCOM_NAME].pop()
 
 
 async def _wait_ask_session_name(ctx: AnyContext) -> str:
@@ -286,6 +296,9 @@ async def _wait_ask_session_name(ctx: AnyContext) -> str:
     Returns:
         The session name string.
     """
-    while "ask_session_name" not in ctx.xcom or len(ctx.xcom.ask_session_name) == 0:
+    while (
+        LLM_ASK_SESSION_XCOM_NAME not in ctx.xcom
+        or len(ctx.xcom[LLM_ASK_SESSION_XCOM_NAME]) == 0
+    ):
         await asyncio.sleep(0.1)
-    return ctx.xcom.ask_session_name.pop()
+    return ctx.xcom[LLM_ASK_SESSION_XCOM_NAME].pop()

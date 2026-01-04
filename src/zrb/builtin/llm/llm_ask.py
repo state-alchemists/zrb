@@ -4,7 +4,13 @@ from typing import TYPE_CHECKING
 
 from zrb.builtin.group import llm_group
 from zrb.builtin.llm.attachment import get_media_type
-from zrb.builtin.llm.chat_session import get_llm_ask_input_mapping, read_user_prompt
+from zrb.builtin.llm.chat_session import (
+    LLM_ASK_ERROR_XCOM_NAME,
+    LLM_ASK_RESULT_XCOM_NAME,
+    LLM_ASK_SESSION_XCOM_NAME,
+    get_llm_ask_input_mapping,
+    read_user_prompt,
+)
 from zrb.builtin.llm.history import read_chat_conversation, write_chat_conversation
 from zrb.builtin.llm.input import PreviousSessionInput
 from zrb.builtin.llm.tool.api import (
@@ -260,9 +266,9 @@ llm_group.add_task(
             task=llm_ask,
             input_mapping=get_llm_ask_input_mapping,
             xcom_mapping={LLM_LOADED_WORKFLOW_XCOM_NAME: LLM_LOADED_WORKFLOW_XCOM_NAME},
-            result_queue="ask_result",
-            error_queue="ask_error",
-            session_name_queue="ask_session_name",
+            result_queue=LLM_ASK_RESULT_XCOM_NAME,
+            error_queue=LLM_ASK_ERROR_XCOM_NAME,
+            session_name_queue=LLM_ASK_SESSION_XCOM_NAME,
         ),
         retries=0,
         cli_only=True,
