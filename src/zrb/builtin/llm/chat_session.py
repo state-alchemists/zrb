@@ -1,20 +1,26 @@
 import asyncio
+import os
 import sys
 from typing import TYPE_CHECKING, Any
 
 from zrb.builtin.llm.chat_session_cmd import (
     ATTACHMENT_CMD,
     HELP_CMD,
+    LOAD_SUB_CMD,
     MULTILINE_END_CMD,
     MULTILINE_START_CMD,
     QUIT_CMD,
     RUN_CLI_CMD,
     SAVE_CMD,
+    SAVE_SUB_CMD,
+    SESSION_CMD,
     WORKFLOW_CMD,
     YOLO_CMD,
+    get_command_param,
     get_new_attachments,
     get_new_workflows,
     get_new_yolo_mode,
+    handle_session,
     is_command_match,
     print_commands,
     print_current_attachments,
@@ -24,11 +30,14 @@ from zrb.builtin.llm.chat_session_cmd import (
     save_final_result,
 )
 from zrb.builtin.llm.chat_trigger import llm_chat_trigger
+from zrb.builtin.llm.history import get_last_session_name
+from zrb.config.config import CFG
 from zrb.config.llm_config import llm_config
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.task.llm.workflow import get_llm_loaded_workflow_xcom
 from zrb.util.cli.markdown import render_markdown
+from zrb.util.file import read_file, write_file
 
 LLM_ASK_RESULT_XCOM_NAME = "ask_result"
 LLM_ASK_ERROR_XCOM_NAME = "ask_error"
@@ -56,19 +65,24 @@ async def read_user_prompt(ctx: AnyContext) -> str:
     user_inputs: list[str] = []
     final_result: str = ""
     should_end = False
+    start_new: bool = ctx.input.start_new
+    if not start_new and ctx.input.previous_session == "":
+        session = ctx.session
+        if session is not None:
+            # Automatically inject last session name as previous session
+            last_session_name = get_last_session_name()
+            session.shared_ctx.input["previous_session"] = last_session_name
+            session.shared_ctx.input["previous-session"] = last_session_name
+    current_session_name: str | None = ctx.input.previous_session
     while not should_end:
         await asyncio.sleep(0.01)
-        previous_session_name: str | None = (
-            ctx.input.previous_session if is_first_time else None
-        )
-        start_new: bool = ctx.input.start_new if is_first_time else False
         if is_first_time and ctx.input.message.strip() != "":
             user_input = ctx.input.message
         else:
             # Get user input based on mode
             if not multiline_mode:
                 ctx.print("💬 >>", plain=True)
-            user_input = await llm_chat_trigger.wait(reader, ctx)
+            user_input = await llm_chat_trigger.wait(ctx, reader, is_first_time)
             if not multiline_mode:
                 ctx.print("", plain=True)
         # At this point, is_first_time has to be False
@@ -114,20 +128,26 @@ async def read_user_prompt(ctx: AnyContext) -> str:
             elif is_command_match(user_input, HELP_CMD):
                 print_commands(ctx)
                 continue
+            elif is_command_match(user_input, SESSION_CMD):
+                start_new = handle_session(
+                    ctx, current_session_name, start_new, user_input
+                )
             else:
                 user_inputs.append(user_input)
         # Trigger LLM
         user_prompt = "\n".join(user_inputs)
         user_inputs = []
-        result = await _trigger_ask_and_wait_for_result(
+        result, current_session_name = await _trigger_ask_and_wait_for_result(
             ctx=ctx,
             user_prompt=user_prompt,
             attach=current_attachments,
             workflows=current_workflows,
             yolo_mode=current_yolo_mode,
-            previous_session_name=previous_session_name,
+            previous_session_name=current_session_name,
             start_new=start_new,
         )
+        # After the first trigger, we no longer need to force start_new
+        start_new = False
         current_attachments = ""
         final_result = final_result if result is None else result
         if ctx.is_web_mode or not is_tty:
@@ -176,7 +196,7 @@ async def _trigger_ask_and_wait_for_result(
     yolo_mode: bool | str,
     previous_session_name: str | None = None,
     start_new: bool = False,
-) -> str | None:
+) -> tuple[str | None, str | None]:
     """
     Triggers the LLM ask task and waits for the result via XCom.
 
@@ -187,19 +207,24 @@ async def _trigger_ask_and_wait_for_result(
         start_new: Whether to start a new conversation (optional).
 
     Returns:
-        The result from the LLM task, or None if the user prompt is empty.
+        The result from the LLM task and the session name.
     """
     if user_prompt.strip() == "":
-        return None
+        return None, previous_session_name
     await _trigger_ask(
         ctx, user_prompt, attach, workflows, yolo_mode, previous_session_name, start_new
     )
     result = await _wait_ask_result(ctx)
+
+    resolved_session_name = previous_session_name
+    if result is not None:
+        resolved_session_name = await _wait_ask_session_name(ctx)
+
     md_result = render_markdown(result) if result is not None else ""
     ctx.print("\n🤖 >>", plain=True)
     ctx.print(md_result, plain=True)
     ctx.print("", plain=True)
-    return result
+    return result, resolved_session_name
 
 
 def get_llm_ask_input_mapping(callback_ctx: AnyContext | AnySharedContext):
@@ -248,8 +273,6 @@ async def _trigger_ask(
         previous_session_name: The name of the previous chat session (optional).
         start_new: Whether to start a new conversation (optional).
     """
-    if previous_session_name is None:
-        previous_session_name = await _wait_ask_session_name(ctx)
     ctx.xcom["ask_trigger"].push(
         {
             "previous_session_name": previous_session_name,

@@ -12,7 +12,7 @@ from zrb.util.cli.style import (
     stylize_faint,
 )
 from zrb.util.cmd.command import run_command
-from zrb.util.file import write_file
+from zrb.util.file import read_file, write_file
 from zrb.util.markdown import make_markdown_section
 from zrb.util.string.conversion import FALSE_STRS, TRUE_STRS, to_boolean
 
@@ -24,10 +24,14 @@ SAVE_CMD = ["/save", "/s"]
 ATTACHMENT_CMD = ["/attachment", "/attachments", "/attach"]
 YOLO_CMD = ["/yolo"]
 HELP_CMD = ["/help", "/info"]
+RUN_CLI_CMD = ["/run", "/exec", "/execute", "/cmd", "/cli", "!"]
+SESSION_CMD = ["/session", "/conversation", "/convo"]
+
 ADD_SUB_CMD = ["add"]
 SET_SUB_CMD = ["set"]
 CLEAR_SUB_CMD = ["clear"]
-RUN_CLI_CMD = ["/run", "/exec", "/execute", "/cmd", "/cli", "!"]
+SAVE_SUB_CMD = ["save"]
+LOAD_SUB_CMD = ["load"]
 
 # Command display constants
 MULTILINE_START_CMD_DESC = "Start multiline input"
@@ -35,11 +39,11 @@ MULTILINE_END_CMD_DESC = "End multiline input"
 QUIT_CMD_DESC = "Quit from chat session"
 WORKFLOW_CMD_DESC = "Show active workflows"
 WORKFLOW_ADD_SUB_CMD_DESC = (
-    "Add active workflow "
-    f"(e.g., `{WORKFLOW_CMD[0]} {ADD_SUB_CMD[0]} coding,researching`)"
+    "Add active workflow " f"(e.g., `{WORKFLOW_CMD[0]} {ADD_SUB_CMD[0]} coding`)"
 )
 WORKFLOW_SET_SUB_CMD_DESC = (
-    "Set active workflows " f"(e.g., `{WORKFLOW_CMD[0]} {SET_SUB_CMD[0]} coding,`)"
+    "Set active workflows "
+    f"(e.g., `{WORKFLOW_CMD[0]} {SET_SUB_CMD[0]} coding,researching`)"
 )
 WORKFLOW_CLEAR_SUB_CMD_DESC = "Deactivate all workflows"
 SAVE_CMD_DESC = f"Save last response to a file (e.g., `{SAVE_CMD[0]} conclusion.md`)"
@@ -61,6 +65,13 @@ YOLO_SET_TRUE_CMD_DESC = "Activate YOLO mode for all tools"
 YOLO_SET_FALSE_CMD_DESC = "Deactivate YOLO mode for all tools"
 RUN_CLI_CMD_DESC = "Run a non-interactive CLI command"
 HELP_CMD_DESC = "Show info/help"
+SESSION_CMD_DESC = "Show current session"
+SESSION_SAVE_SUB_CMD_DESC = (
+    "Save current session " f"(e.g., `{SESSION_CMD[0]} {SAVE_SUB_CMD[0]} save-point`)"
+)
+SESSION_LOAD_SUB_CMD_DESC = (
+    "Load session " f"(e.g., `{SESSION_CMD[0]} {LOAD_SUB_CMD[0]} save-point`)"
+)
 
 
 def print_current_yolo_mode(
@@ -75,7 +86,9 @@ def print_current_yolo_mode(
 
 def print_current_attachments(ctx: AnyContext, current_attachments_value: str) -> None:
     attachments_str = (
-        current_attachments_value if current_attachments_value != "" else "*Not Set*"
+        ", ".join(current_attachments_value.split(","))
+        if current_attachments_value != ""
+        else "*Not Set*"
     )
     ctx.print(render_markdown(f"📎 Current attachments: {attachments_str}"), plain=True)
     ctx.print("", plain=True)
@@ -89,7 +102,7 @@ def print_current_workflows(ctx: AnyContext, current_workflows_value: str) -> No
         else "*No Available Workflow*"
     )
     current_workflows_str = (
-        current_workflows_value
+        ", ".join(current_workflows_value.split(","))
         if current_workflows_value != ""
         else "*No Active Workflow*"
     )
@@ -206,6 +219,55 @@ def get_new_workflows(old_workflow: str, user_input: str) -> str:
     return _normalize_comma_separated_str(old_workflow)
 
 
+def handle_session(
+    ctx: AnyContext,
+    current_session_name: str | None,
+    current_start_new: bool,
+    user_input: str,
+) -> bool:
+    if is_command_match(user_input, SESSION_CMD, SAVE_SUB_CMD):
+        save_point = get_command_param(user_input, SESSION_CMD, SAVE_SUB_CMD)
+        if not save_point:
+            ctx.print(render_markdown("️⚠️ Save point name is required."), plain=True)
+            return current_start_new
+        if not current_session_name:
+            ctx.print(
+                render_markdown(
+                    "⚠️ No active session to save. Please start a conversation first."
+                ),
+                plain=True,
+            )
+            return current_start_new
+        save_point_path = os.path.join(CFG.LLM_HISTORY_DIR, "save-point", save_point)
+        write_file(save_point_path, current_session_name)
+        ctx.print(
+            render_markdown(
+                f"Session saved to save-point: {save_point} ({current_session_name})"
+            ),
+            plain=True,
+        )
+        return current_start_new
+    if is_command_match(user_input, SESSION_CMD, LOAD_SUB_CMD):
+        save_point = get_command_param(user_input, SESSION_CMD, LOAD_SUB_CMD)
+        if not save_point:
+            ctx.print(render_markdown("⚠️ Save point name is required."), plain=True)
+            return current_start_new
+        save_point_path = os.path.join(CFG.LLM_HISTORY_DIR, "save-point", save_point)
+        if not os.path.exists(save_point_path):
+            ctx.print(
+                render_markdown(f"⚠️ Save point '{save_point}' not found."), plain=True
+            )
+            return current_start_new
+        current_session_name = read_file(save_point_path).strip()
+        ctx.print(
+            render_markdown(f"Loaded session: {current_session_name}"), plain=True
+        )
+        # When loading a session, we shouldn't start a new one
+        return False
+    ctx.print(render_markdown(f"Current session: {current_session_name}"), plain=True)
+    return current_start_new
+
+
 def _normalize_comma_separated_str(comma_separated_str: str) -> str:
     return ",".join(
         [
@@ -269,6 +331,13 @@ def print_commands(ctx: AnyContext):
                     WORKFLOW_SET_SUB_CMD_DESC,
                 ),
                 _show_subcommand(CLEAR_SUB_CMD[0], "", WORKFLOW_CLEAR_SUB_CMD_DESC),
+                _show_command(SESSION_CMD[0], SESSION_CMD_DESC),
+                _show_subcommand(
+                    SAVE_SUB_CMD[0], "<session-name>", SESSION_SAVE_SUB_CMD_DESC
+                ),
+                _show_subcommand(
+                    LOAD_SUB_CMD[0], "<session-name>", SESSION_LOAD_SUB_CMD_DESC
+                ),
                 _show_command(f"{SAVE_CMD[0]}", SAVE_CMD_DESC),
                 _show_command(YOLO_CMD[0], YOLO_CMD_DESC),
                 _show_subcommand(SET_SUB_CMD[0], "true", YOLO_SET_TRUE_CMD_DESC),

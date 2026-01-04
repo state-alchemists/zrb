@@ -4,6 +4,7 @@ from asyncio import StreamReader
 from typing import TYPE_CHECKING, Any, Callable, Coroutine
 
 from zrb.builtin.llm.chat_completion import get_chat_completer
+from zrb.builtin.llm.history import get_last_session_name
 from zrb.config.llm_config import llm_config
 from zrb.context.any_context import AnyContext
 from zrb.util.git import get_current_branch
@@ -29,10 +30,15 @@ class LLMChatTrigger:
             self._triggers.append(single_trigger)
 
     async def wait(
-        self, reader: "PromptSession[Any] | StreamReader", ctx: AnyContext
+        self,
+        ctx: AnyContext,
+        reader: "PromptSession[Any] | StreamReader",
+        is_first_time: bool,
     ) -> str:
         trigger_tasks = [
-            asyncio.create_task(run_async(self._read_next_line(reader, ctx)))
+            asyncio.create_task(
+                run_async(self._read_next_line(ctx, reader, is_first_time))
+            )
         ] + [asyncio.create_task(run_async(trigger(ctx))) for trigger in self._triggers]
         final_result: str = ""
         try:
@@ -55,14 +61,17 @@ class LLMChatTrigger:
         return final_result
 
     async def _read_next_line(
-        self, reader: "PromptSession[Any] | StreamReader", ctx: AnyContext
+        self,
+        ctx: AnyContext,
+        reader: "PromptSession[Any] | StreamReader",
+        is_first_time: bool,
     ) -> str:
         """Reads one line of input using the provided reader."""
         from prompt_toolkit import PromptSession
 
         try:
             if isinstance(reader, PromptSession):
-                bottom_toolbar = await self._get_bottom_toolbar(ctx)
+                bottom_toolbar = await self._get_bottom_toolbar(ctx, is_first_time)
                 return await reader.prompt_async(
                     completer=get_chat_completer(),
                     bottom_toolbar=bottom_toolbar,
@@ -77,11 +86,11 @@ class LLMChatTrigger:
             ctx.print("KeyboardInterrupt detected. Exiting...", plain=True)
             return "/bye"
 
-    async def _get_bottom_toolbar(self, ctx: AnyContext) -> str:
+    async def _get_bottom_toolbar(self, ctx: AnyContext, is_first_time: bool) -> str:
         import shutil
 
         terminal_width = shutil.get_terminal_size().columns
-        previous_session_name = self._get_previous_session_name(ctx)
+        previous_session_name = self._get_previous_session_name(ctx, is_first_time)
         current_branch = await self._get_current_branch()
         current_model = self._get_current_model(ctx)
         left_text = f"📌 {os.getcwd()} ({current_branch}) | 🧠 {current_model}"
@@ -115,11 +124,21 @@ class LLMChatTrigger:
             return ctx.input.model
         return str(llm_config.default_model_name)
 
-    def _get_previous_session_name(self, ctx: AnyContext) -> str:
-        no_session_str = "<No Session>"
+    def _get_previous_session_name(self, ctx: AnyContext, is_first_time: bool) -> str:
+        if is_first_time:
+            start_new: bool = ctx.input.start_new
+            if (
+                not start_new
+                and "previous_session" in ctx.input
+                and ctx.input.previous_session is not None
+            ):
+                return ctx.input.previous_session
+            return "<No Session>"
         if "ask_session_name" in ctx.xcom:
-            return ctx.xcom.ask_session_name.get(no_session_str)
-        return no_session_str
+            previous_session_name = ctx.xcom.ask_session_name.get()
+            if previous_session_name is not None:
+                return previous_session_name
+        return "<No Session>"
 
     async def _get_current_branch(self) -> str:
         try:

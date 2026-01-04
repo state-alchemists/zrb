@@ -11,6 +11,7 @@ from zrb.builtin.llm.chat_session_cmd import (
     CLEAR_SUB_CMD,
     HELP_CMD,
     HELP_CMD_DESC,
+    LOAD_SUB_CMD,
     MULTILINE_END_CMD,
     MULTILINE_END_CMD_DESC,
     MULTILINE_START_CMD,
@@ -21,6 +22,11 @@ from zrb.builtin.llm.chat_session_cmd import (
     RUN_CLI_CMD_DESC,
     SAVE_CMD,
     SAVE_CMD_DESC,
+    SAVE_SUB_CMD,
+    SESSION_CMD,
+    SESSION_CMD_DESC,
+    SESSION_LOAD_SUB_CMD_DESC,
+    SESSION_SAVE_SUB_CMD_DESC,
     SET_SUB_CMD,
     WORKFLOW_ADD_SUB_CMD_DESC,
     WORKFLOW_CLEAR_SUB_CMD_DESC,
@@ -33,6 +39,7 @@ from zrb.builtin.llm.chat_session_cmd import (
     YOLO_SET_FALSE_CMD_DESC,
     YOLO_SET_TRUE_CMD_DESC,
 )
+from zrb.config.config import CFG
 from zrb.util.match import fuzzy_match
 
 if TYPE_CHECKING:
@@ -52,9 +59,39 @@ def get_chat_completer() -> "Completer":
                 yield completion
             for completion in self._complete_slash_file_command(document):
                 yield completion
+            for completion in self._complete_slash_session_load_command(document):
+                yield completion
             # Appendix
             for completion in self._complete_appendix(document):
                 yield completion
+
+        def _complete_slash_session_load_command(self, document: Document):
+            text = document.text_before_cursor
+            prefixes = []
+            for cmd in SESSION_CMD:
+                for subcmd in LOAD_SUB_CMD:
+                    prefixes.append(f"{cmd} {subcmd} ")
+
+            for prefix in prefixes:
+                if text.startswith(prefix):
+                    pattern = text[len(prefix) :]
+                    # Use fuzzy_path_search but in LLM_HISTORY_DIR/save-point
+                    save_point_dir = os.path.join(CFG.LLM_HISTORY_DIR, "save-point")
+                    if not os.path.isdir(save_point_dir):
+                        return
+
+                    potential_options = self._fuzzy_path_search(
+                        pattern, root=save_point_dir, dirs=False, files=True
+                    )
+                    for option in potential_options:
+                        if option.startswith(save_point_dir):
+                            rel_option = os.path.relpath(option, save_point_dir)
+                        else:
+                            rel_option = option
+                        yield Completion(
+                            f"{prefix}{rel_option}",
+                            start_position=-len(text),
+                        )
 
         def _complete_slash_file_command(self, document: Document):
             text = document.text_before_cursor
@@ -118,6 +155,12 @@ def get_chat_completer() -> "Completer":
                     cmd_options[f"{cmd} {subcmd}"] = WORKFLOW_CLEAR_SUB_CMD_DESC
                 for subcmd in SET_SUB_CMD:
                     cmd_options[f"{cmd} {subcmd}"] = WORKFLOW_SET_SUB_CMD_DESC
+            for cmd in SESSION_CMD:
+                cmd_options[cmd] = SESSION_CMD_DESC
+                for subcmd in SAVE_SUB_CMD:
+                    cmd_options[f"{cmd} {subcmd}"] = SESSION_SAVE_SUB_CMD_DESC
+                for subcmd in LOAD_SUB_CMD:
+                    cmd_options[f"{cmd} {subcmd}"] = SESSION_LOAD_SUB_CMD_DESC
             for cmd in SAVE_CMD:
                 cmd_options[cmd] = SAVE_CMD_DESC
             for cmd in ATTACHMENT_CMD:

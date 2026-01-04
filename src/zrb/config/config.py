@@ -373,7 +373,7 @@ class Config:
         """
         return int(
             self._getenv(
-                ["LLM_MAX_TOKEN_PER_MINUTE", "LLM_MAX_TOKENS_PER_MINUTE"], "100000"
+                ["LLM_MAX_TOKEN_PER_MINUTE", "LLM_MAX_TOKENS_PER_MINUTE"], "120000"
             )
         )
 

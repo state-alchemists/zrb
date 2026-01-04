@@ -32,11 +32,8 @@ def get_system_and_user_prompt(
 ) -> tuple[str, str]:
     if conversation_history is None:
         conversation_history = ConversationHistory()
-    new_user_message_prompt, apendixes = _get_user_message_prompt(user_message)
     new_system_prompt = _construct_system_prompt(
         ctx=ctx,
-        user_message=user_message,
-        apendixes=apendixes,
         persona_attr=persona_attr,
         render_persona=render_persona,
         system_prompt_attr=system_prompt_attr,
@@ -47,13 +44,12 @@ def get_system_and_user_prompt(
         render_workflows=render_workflows,
         conversation_history=conversation_history,
     )
+    new_user_message_prompt = _get_user_message_prompt(user_message)
     return new_system_prompt, new_user_message_prompt
 
 
 def _construct_system_prompt(
     ctx: AnyContext,
-    user_message: str,
-    apendixes: str,
     persona_attr: StrAttr | None = None,
     render_persona: bool = False,
     system_prompt_attr: StrAttr | None = None,
@@ -121,10 +117,6 @@ def _construct_system_prompt(
                         make_markdown_section(
                             "📝 Contextual Note Content",
                             conversation_history.contextual_note,
-                        ),
-                        make_markdown_section(
-                            "📄 Apendixes",
-                            apendixes,
                         ),
                     ]
                 ),
@@ -229,7 +221,8 @@ def _get_workflow_prompt(
     )
 
 
-def _get_user_message_prompt(user_message: str) -> tuple[str, str]:
+def _get_user_message_prompt(user_message: str) -> str:
+    current_directory = os.getcwd()
     processed_user_message = user_message
     # Match “@” + any non-space/comma sequence that contains at least one “/”
     pattern = r"(?<!\w)@(?=[^,\s]*\/)([^,\?\!\s]+)"
@@ -247,19 +240,19 @@ def _get_user_message_prompt(user_message: str) -> tuple[str, str]:
             ref_type = "directory"
         if content != "":
             # Replace the @-reference in the user message with the placeholder
-            placeholder = f"[Reference {i+1}: `{os.path.basename(ref)}`]"
+            rel_path = os.path.relpath(resource_path, current_directory)
+            placeholder = f"`[Ref: {rel_path} ({ref_type})]`"
             processed_user_message = processed_user_message.replace(
                 f"@{ref}", placeholder, 1
             )
             apendix_list.append(
                 make_markdown_section(
-                    f"Content of {placeholder} ({ref_type} path: `{resource_path}`)",
+                    placeholder,
                     "\n".join(content) if isinstance(content, list) else content,
                     as_code=True,
                 )
             )
     apendixes = "\n".join(apendix_list)
-    current_directory = os.getcwd()
     iso_date = datetime.now(timezone.utc).astimezone().isoformat()
     modified_user_message = make_markdown_section(
         "User Request",
@@ -269,10 +262,14 @@ def _get_user_message_prompt(user_message: str) -> tuple[str, str]:
                 f"- Current Time: {iso_date}",
                 "---",
                 processed_user_message,
+                make_markdown_section(
+                    "📄 Apendixes",
+                    apendixes,
+                ),
             ]
         ),
     )
-    return modified_user_message, apendixes
+    return modified_user_message
 
 
 def get_user_message(
