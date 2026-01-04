@@ -4,13 +4,7 @@ from typing import TYPE_CHECKING
 
 from zrb.builtin.group import llm_group
 from zrb.builtin.llm.attachment import get_media_type
-from zrb.builtin.llm.chat_session import (
-    LLM_ASK_ERROR_XCOM_NAME,
-    LLM_ASK_RESULT_XCOM_NAME,
-    LLM_ASK_SESSION_XCOM_NAME,
-    get_llm_ask_input_mapping,
-    read_user_prompt,
-)
+from zrb.builtin.llm.chat_session import get_llm_ask_input_mapping, read_user_prompt
 from zrb.builtin.llm.history import read_chat_conversation, write_chat_conversation
 from zrb.builtin.llm.input import PreviousSessionInput
 from zrb.builtin.llm.tool.api import (
@@ -36,6 +30,11 @@ from zrb.builtin.llm.tool.note import (
 from zrb.builtin.llm.tool.web import (
     create_search_internet_tool,
     open_web_page,
+)
+from zrb.builtin.llm.xcom_names import (
+    LLM_ASK_ERROR_XCOM_NAME,
+    LLM_ASK_RESULT_XCOM_NAME,
+    LLM_ASK_SESSION_XCOM_NAME,
 )
 from zrb.callback.callback import Callback
 from zrb.config.config import CFG

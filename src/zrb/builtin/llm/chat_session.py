@@ -1,22 +1,18 @@
 import asyncio
-import os
 import sys
 from typing import TYPE_CHECKING, Any
 
 from zrb.builtin.llm.chat_session_cmd import (
     ATTACHMENT_CMD,
     HELP_CMD,
-    LOAD_SUB_CMD,
     MULTILINE_END_CMD,
     MULTILINE_START_CMD,
     QUIT_CMD,
     RUN_CLI_CMD,
     SAVE_CMD,
-    SAVE_SUB_CMD,
     SESSION_CMD,
     WORKFLOW_CMD,
     YOLO_CMD,
-    get_command_param,
     get_new_attachments,
     get_new_workflows,
     get_new_yolo_mode,
@@ -31,17 +27,16 @@ from zrb.builtin.llm.chat_session_cmd import (
 )
 from zrb.builtin.llm.chat_trigger import llm_chat_trigger
 from zrb.builtin.llm.history import get_last_session_name
-from zrb.config.config import CFG
+from zrb.builtin.llm.xcom_names import (
+    LLM_ASK_ERROR_XCOM_NAME,
+    LLM_ASK_RESULT_XCOM_NAME,
+    LLM_ASK_SESSION_XCOM_NAME,
+)
 from zrb.config.llm_config import llm_config
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.task.llm.workflow import get_llm_loaded_workflow_xcom
 from zrb.util.cli.markdown import render_markdown
-from zrb.util.file import read_file, write_file
-
-LLM_ASK_RESULT_XCOM_NAME = "ask_result"
-LLM_ASK_ERROR_XCOM_NAME = "ask_error"
-LLM_ASK_SESSION_XCOM_NAME = "ask_session_name"
 
 if TYPE_CHECKING:
     from asyncio import StreamReader
@@ -82,7 +77,9 @@ async def read_user_prompt(ctx: AnyContext) -> str:
             # Get user input based on mode
             if not multiline_mode:
                 ctx.print("💬 >>", plain=True)
-            user_input = await llm_chat_trigger.wait(ctx, reader, is_first_time)
+            user_input = await llm_chat_trigger.wait(
+                ctx, reader, current_session_name, is_first_time
+            )
             if not multiline_mode:
                 ctx.print("", plain=True)
         # At this point, is_first_time has to be False
