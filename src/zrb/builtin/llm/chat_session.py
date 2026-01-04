@@ -126,7 +126,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
                 print_commands(ctx)
                 continue
             elif is_command_match(user_input, SESSION_CMD):
-                start_new = handle_session(
+                current_session_name, start_new = handle_session(
                     ctx, current_session_name, start_new, user_input
                 )
             else:

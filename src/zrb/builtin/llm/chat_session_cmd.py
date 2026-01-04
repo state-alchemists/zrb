@@ -224,12 +224,12 @@ def handle_session(
     current_session_name: str | None,
     current_start_new: bool,
     user_input: str,
-) -> bool:
+) -> tuple[str | None, bool]:
     if is_command_match(user_input, SESSION_CMD, SAVE_SUB_CMD):
         save_point = get_command_param(user_input, SESSION_CMD, SAVE_SUB_CMD)
         if not save_point:
             ctx.print(render_markdown("️⚠️ Save point name is required."), plain=True)
-            return current_start_new
+            return current_session_name, current_start_new
         if not current_session_name:
             ctx.print(
                 render_markdown(
@@ -237,7 +237,7 @@ def handle_session(
                 ),
                 plain=True,
             )
-            return current_start_new
+            return current_session_name, current_start_new
         save_point_path = os.path.join(CFG.LLM_HISTORY_DIR, "save-point", save_point)
         write_file(save_point_path, current_session_name)
         ctx.print(
@@ -246,26 +246,26 @@ def handle_session(
             ),
             plain=True,
         )
-        return current_start_new
+        return current_session_name, current_start_new
     if is_command_match(user_input, SESSION_CMD, LOAD_SUB_CMD):
         save_point = get_command_param(user_input, SESSION_CMD, LOAD_SUB_CMD)
         if not save_point:
             ctx.print(render_markdown("⚠️ Save point name is required."), plain=True)
-            return current_start_new
+            return current_session_name, current_start_new
         save_point_path = os.path.join(CFG.LLM_HISTORY_DIR, "save-point", save_point)
         if not os.path.exists(save_point_path):
             ctx.print(
                 render_markdown(f"⚠️ Save point '{save_point}' not found."), plain=True
             )
-            return current_start_new
+            return current_session_name, current_start_new
         current_session_name = read_file(save_point_path).strip()
         ctx.print(
             render_markdown(f"Loaded session: {current_session_name}"), plain=True
         )
         # When loading a session, we shouldn't start a new one
-        return False
+        return current_session_name, False
     ctx.print(render_markdown(f"Current session: {current_session_name}"), plain=True)
-    return current_start_new
+    return current_session_name, current_start_new
 
 
 def _normalize_comma_separated_str(comma_separated_str: str) -> str:
