@@ -1,5 +1,11 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 1.21.39
+
+- **Fix: Session Management**:
+  - Fixed an issue where the session name was not properly returned after loading a checkpoint.
+  - Resolved a bug where the previous session name was not correctly tracked or displayed.
+
 ## 1.21.38
 
 - **Feature: Chat Session Checkpoints**:
