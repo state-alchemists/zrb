@@ -396,7 +396,7 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Possible values: Any positive integer (also accepts `ZRB_LLM_MAX_REQUEST_PER_MINUTE`)
 
 * `ZRB_LLM_MAX_TOKENS_PER_MINUTE`: Maximum number of LLM tokens allowed per minute.
-    * Default: `100000`
+    * Default: `120000`
     * Possible values: Any positive integer (also accepts `ZRB_LLM_MAX_TOKEN_PER_MINUTE`)
 
 * `ZRB_LLM_MAX_TOKENS_PER_REQUEST`: Maximum number of tokens allowed per individual LLM request.

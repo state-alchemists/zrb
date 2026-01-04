@@ -1,5 +1,21 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 1.21.38
+
+- **Feature: Chat Session Checkpoints**:
+  - Introduced `/session` command family for better conversation management.
+  - `/session save <name>`: Save the current session state as a named checkpoint.
+  - `/session load <name>`: Load a previously saved session checkpoint.
+  - Added fuzzy autocompletion for session names when using `/session load`.
+- **UI/UX Improvements**:
+  - **Enhanced Bottom Toolbar**: Added "Previous Session" display to the chat toolbar for better context awareness.
+  - **Smart Session Loading**: Automatically detects and loads the last active session context when starting a new chat if no specific session is provided.
+- **Improved: Workflow & Context Integration**:
+  - **Dynamic Workflow Loading**: Workflows activated by the LLM are now correctly propagated and loaded into the chat session via XCom mapping.
+  - **Optimized Prompt Construction**: Simplified the system prompt structure by refining how file references and appendices are handled.
+- **Configuration**:
+  - Increased default `LLM_MAX_TOKEN_PER_MINUTE` from 100,000 to 120,000 to accommodate larger context windows.
+
 ## 1.21.37
 
 - **Refactor: Centralized History List Processing**:
