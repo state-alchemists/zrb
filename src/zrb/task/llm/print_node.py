@@ -7,7 +7,11 @@ from zrb.util.cli.style import stylize_faint
 
 
 async def print_node(
-    print_func: Callable, agent_run: Any, node: Any, log_indent_level: int = 0
+    print_func: Callable,
+    agent_run: Any,
+    node: Any,
+    log_indent_level: int = 0,
+    stop_check: Callable[[], bool] | None = None,
 ):
     """Prints the details of an agent execution node using a provided print function."""
     from pydantic_ai import Agent
@@ -38,6 +42,8 @@ async def print_node(
                 is_streaming = False
                 is_tool_processing = False
                 async for event in request_stream:
+                    if stop_check and stop_check():
+                        return
                     if isinstance(event, PartStartEvent) and event.part:
                         if is_streaming:
                             print_func("")
@@ -127,6 +133,8 @@ async def print_node(
         try:
             async with node.stream(agent_run.ctx) as handle_stream:
                 async for event in handle_stream:
+                    if stop_check and stop_check():
+                        return
                     if isinstance(event, FunctionToolCallEvent):
                         args = _get_event_part_args(event)
                         call_id = event.part.tool_call_id

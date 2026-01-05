@@ -1,4 +1,7 @@
+import asyncio
 import json
+import os
+import sys
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
@@ -87,28 +90,81 @@ async def _run_single_agent_iteration(
     else:
         await llm_rate_limitter.throttle(agent_payload, callback)
     user_prompt_with_attachments = [user_prompt] + attachments
+    escape_task = asyncio.create_task(_wait_for_escape(ctx))
     async with agent:
         async with agent.iter(
             user_prompt=user_prompt_with_attachments,
             message_history=ModelMessagesTypeAdapter.validate_python(history_list),
             usage_limits=UsageLimits(request_limit=None),  # We don't want limit
         ) as agent_run:
-            async for node in agent_run:
-                # Each node represents a step in the agent's execution
-                try:
-                    await print_node(
-                        _get_plain_printer(ctx), agent_run, node, log_indent_level
-                    )
-                except APIError as e:
-                    # Extract detailed error information from the response
-                    error_details = extract_api_error_details(e)
-                    ctx.log_error(f"API Error: {error_details}")
-                    raise
-                except Exception as e:
-                    ctx.log_error(f"Error processing node: {str(e)}")
-                    ctx.log_error(f"Error type: {type(e).__name__}")
-                    raise
+            try:
+                async for node in agent_run:
+                    if escape_task.done():
+                        ctx.print("\n🚫 Interrupted by user.", plain=True)
+                        break
+                    # Each node represents a step in the agent's execution
+                    try:
+                        await print_node(
+                            _get_plain_printer(ctx),
+                            agent_run,
+                            node,
+                            log_indent_level,
+                            lambda: escape_task.done(),
+                        )
+                    except APIError as e:
+                        # Extract detailed error information from the response
+                        error_details = extract_api_error_details(e)
+                        ctx.log_error(f"API Error: {error_details}")
+                        raise
+                    except Exception as e:
+                        ctx.log_error(f"Error processing node: {str(e)}")
+                        ctx.log_error(f"Error type: {type(e).__name__}")
+                        raise
+                    finally:
+                        if escape_task.done():
+                            ctx.print("\n🚫 Interrupted by user.", plain=True)
+                            break
+            finally:
+                if not escape_task.done():
+                    try:
+                        escape_task.cancel()
+                        await escape_task
+                    except asyncio.CancelledError:
+                        pass
             return agent_run
+
+
+async def _wait_for_escape(ctx: AnyContext) -> None:
+    import tty
+    if not ctx.is_tty:
+        # Wait forever
+        await asyncio.Future()
+        return
+    loop = asyncio.get_event_loop()
+    future = loop.create_future()
+    fd = sys.stdin.fileno()
+    try:
+        tty.setcbreak(fd)
+        loop.add_reader(fd, _create_escape_detector(future, fd))
+        await future
+    except asyncio.CancelledError:
+        raise
+    finally:
+        loop.remove_reader(fd)
+
+
+def _create_escape_detector(future: asyncio.Future[Any], fd: int | Any) -> Callable[[], None]:
+    def on_stdin():
+        try:
+            # Read just one byte
+            ch = os.read(fd, 1)
+            if ch == b"\x1b":
+                if not future.done():
+                    future.set_result(None)
+        except Exception as e:
+            if not future.done():
+                future.set_exception(e)
+    return on_stdin
 
 
 def _create_print_throttle_notif(ctx: AnyContext) -> Callable[[str], None]:
@@ -138,14 +194,12 @@ def _estimate_request_payload(
         ]
     )
 
-
 def _estimate_attachment_payload(attachment: "UserContent") -> Any:
     if hasattr(attachment, "url"):
         return {"role": "user", "content": attachment.url}
     if hasattr(attachment, "data"):
         return {"role": "user", "content": "x" * len(attachment.data)}
     return ""
-
 
 def _get_plain_printer(ctx: AnyContext):
     def printer(*args, **kwargs):
