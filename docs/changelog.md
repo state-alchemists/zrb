@@ -1,5 +1,20 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 1.21.40
+
+- **Feature: Chat Command Enhancements**:
+  - **Simplified Session Management**: Promoted session commands to top-level. Use `/save` and `/load` directly instead of `/session save` and `/session load`.
+  - **Response Management**: Introduced `/response` command family.
+  - **Save Last Response**: Added `/response save <file>` to easily save the most recent LLM output to a file.
+- **Feature: Execution Control**:
+  - **Interrupt with ESC**: Users can now stop LLM generation and agent tasks instantly by pressing the `ESC` key.
+- **Feature: Project Context**:
+  - **Custom Instructions**: The CLI now automatically detects and includes project-specific instructions from `AGENTS.md` or `CLAUDE.md` files found in the current or parent directories.
+- **Improvement: Research Workflow**:
+  - **Mandatory Citations**: The built-in researching workflow now explicitly requires a "Sources" section listing all referenced URLs.
+- **Safety & Stability**:
+  - **File Write Safety**: Enforced a strict 4000-character limit per file write operation in the system prompt to prevent data truncation, requiring the LLM to split large writes.
+
 ## 1.21.39
 
 - **Fix: Session Management**:
