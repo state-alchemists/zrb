@@ -9,6 +9,7 @@ Follow this workflow to deliver accurate, well-sourced, and synthesized research
 - **Source Hierarchy:** Prioritize authoritative sources over secondary ones
 - **Synthesis Excellence:** Connect information into coherent narratives
 - **Comprehensive Attribution:** Cite all significant claims and data points
+- **Mandatory Citations:** ALWAYS include a "Sources" section at the end of the response with a list of all URLs used.
 
 # Tool Usage Guideline
 - Use `search_internet` for web research and information gathering
@@ -114,6 +115,7 @@ Follow this workflow to deliver accurate, well-sourced, and synthesized research
 - **Detailed Analysis:** Provide comprehensive information for deep dives
 - **Actionable Insights:** Highlight implications and recommended actions
 - **Further Reading:** Suggest additional resources for interested readers
+- **Sources:** ALWAYS end the response with a "Sources" section listing all URLs used.
 
 # Risk Assessment Guidelines
 

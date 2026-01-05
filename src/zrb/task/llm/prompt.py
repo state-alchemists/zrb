@@ -10,7 +10,7 @@ from zrb.context.any_context import AnyContext
 from zrb.task.llm.conversation_history_model import ConversationHistory
 from zrb.task.llm.workflow import LLMWorkflow, get_available_workflows
 from zrb.util.attr import get_attr, get_str_attr, get_str_list_attr
-from zrb.util.file import read_dir, read_file_with_line_numbers
+from zrb.util.file import read_dir, read_file, read_file_with_line_numbers
 from zrb.util.markdown import make_markdown_section
 
 if TYPE_CHECKING:
@@ -67,6 +67,7 @@ def _construct_system_prompt(
     special_instruction_prompt = _get_special_instruction_prompt(
         ctx, special_instruction_prompt_attr, render_special_instruction_prompt
     )
+    project_instructions = _get_project_instructions()
     available_workflows = get_available_workflows()
     active_workflow_names = set(
         _get_active_workflow_names(ctx, workflows_attr, render_workflows)
@@ -94,6 +95,7 @@ def _construct_system_prompt(
                     ]
                 ),
             ),
+            make_markdown_section("📜 PROJECT INSTRUCTIONS", project_instructions),
             make_markdown_section("🛠️ AVAILABLE WORKFLOWS", inactive_workflow_prompt),
             make_markdown_section(
                 "📚 CONTEXT",
@@ -123,6 +125,22 @@ def _construct_system_prompt(
             ),
         ]
     )
+
+
+def _get_project_instructions() -> str:
+    instructions = []
+    cwd = os.getcwd()
+    file_names = ["AGENTS.md", "CLAUDE.md"]
+    abs_file_names = [os.path.join(cwd, file_name) for file_name in file_names] + [
+        os.path.expanduser(os.path.join("~", file_name)) for file_name in file_names
+    ]
+    for abs_file_name in abs_file_names:
+        if os.path.isfile(abs_file_name):
+            content = read_file(abs_file_name)
+            instructions.append(
+                make_markdown_section(f"Instruction from `{abs_file_name}`", content)
+            )
+    return "\n".join(instructions)
 
 
 def _get_persona(
@@ -241,13 +259,13 @@ def _get_user_message_prompt(user_message: str) -> str:
         if content != "":
             # Replace the @-reference in the user message with the placeholder
             rel_path = os.path.relpath(resource_path, current_directory)
-            placeholder = f"`[Ref: {rel_path} ({ref_type})]`"
+            placeholder = f"`{rel_path}`"
             processed_user_message = processed_user_message.replace(
                 f"@{ref}", placeholder, 1
             )
             apendix_list.append(
                 make_markdown_section(
-                    placeholder,
+                    f"{placeholder} {ref_type}",
                     "\n".join(content) if isinstance(content, list) else content,
                     as_code=True,
                 )
