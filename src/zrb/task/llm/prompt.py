@@ -129,17 +129,32 @@ def _construct_system_prompt(
 
 def _get_project_instructions() -> str:
     instructions = []
-    cwd = os.getcwd()
-    file_names = ["AGENTS.md", "CLAUDE.md"]
-    abs_file_names = [os.path.join(cwd, file_name) for file_name in file_names] + [
-        os.path.expanduser(os.path.join("~", file_name)) for file_name in file_names
-    ]
-    for abs_file_name in abs_file_names:
-        if os.path.isfile(abs_file_name):
-            content = read_file(abs_file_name)
-            instructions.append(
-                make_markdown_section(f"Instruction from `{abs_file_name}`", content)
-            )
+    cwd = os.path.abspath(os.getcwd())
+    home = os.path.abspath(os.path.expanduser("~"))
+    search_dirs = []
+    if cwd == home or cwd.startswith(os.path.join(home, "")):
+        current_dir = cwd
+        while True:
+            search_dirs.append(current_dir)
+            if current_dir == home:
+                break
+            parent_dir = os.path.dirname(current_dir)
+            if parent_dir == current_dir:
+                break
+            current_dir = parent_dir
+    else:
+        search_dirs.append(cwd)
+    for file_name in ["AGENTS.md", "CLAUDE.md"]:
+        for dir_path in search_dirs:
+            abs_file_name = os.path.join(dir_path, file_name)
+            if os.path.isfile(abs_file_name):
+                content = read_file(abs_file_name)
+                instructions.append(
+                    make_markdown_section(
+                        f"Instruction from `{abs_file_name}`", content
+                    )
+                )
+                break
     return "\n".join(instructions)
 
 

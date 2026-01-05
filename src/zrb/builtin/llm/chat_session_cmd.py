@@ -20,7 +20,9 @@ MULTILINE_START_CMD = ["/multi", "/multiline"]
 MULTILINE_END_CMD = ["/end"]
 QUIT_CMD = ["/bye", "/quit", "/q", "/exit"]
 WORKFLOW_CMD = ["/workflow", "/workflows", "/skill", "/skills", "/w"]
+RESPONSE_CMD = ["/response", "/res"]
 SAVE_CMD = ["/save", "/s"]
+LOAD_CMD = ["/load", "/l"]
 ATTACHMENT_CMD = ["/attachment", "/attachments", "/attach"]
 YOLO_CMD = ["/yolo"]
 HELP_CMD = ["/help", "/info"]
@@ -46,7 +48,13 @@ WORKFLOW_SET_SUB_CMD_DESC = (
     f"(e.g., `{WORKFLOW_CMD[0]} {SET_SUB_CMD[0]} coding,researching`)"
 )
 WORKFLOW_CLEAR_SUB_CMD_DESC = "Deactivate all workflows"
-SAVE_CMD_DESC = f"Save last response to a file (e.g., `{SAVE_CMD[0]} conclusion.md`)"
+RESPONSE_CMD_DESC = "Manage response"
+RESPONSE_SAVE_SUB_CMD_DESC = (
+    "Save last response to a file "
+    f"(e.g., `{RESPONSE_CMD[0]} {SAVE_SUB_CMD[0]} conclusion.md`)"
+)
+SAVE_CMD_DESC = "Save current session " f"(e.g., `{SAVE_CMD[0]} save-point`)"
+LOAD_CMD_DESC = "Load session " f"(e.g., `{LOAD_CMD[0]} save-point`)"
 ATTACHMENT_CMD_DESC = "Show current attachment"
 ATTACHMENT_ADD_SUB_CMD_DESC = (
     "Attach a file " f"(e.g., `{ATTACHMENT_CMD[0]} {ADD_SUB_CMD[0]} ./logo.png`)"
@@ -66,12 +74,6 @@ YOLO_SET_FALSE_CMD_DESC = "Deactivate YOLO mode for all tools"
 RUN_CLI_CMD_DESC = "Run a non-interactive CLI command"
 HELP_CMD_DESC = "Show info/help"
 SESSION_CMD_DESC = "Show current session"
-SESSION_SAVE_SUB_CMD_DESC = (
-    "Save current session " f"(e.g., `{SESSION_CMD[0]} {SAVE_SUB_CMD[0]} save-point`)"
-)
-SESSION_LOAD_SUB_CMD_DESC = (
-    "Load session " f"(e.g., `{SESSION_CMD[0]} {LOAD_SUB_CMD[0]} save-point`)"
-)
 
 
 def print_current_yolo_mode(
@@ -120,8 +122,10 @@ def print_current_workflows(ctx: AnyContext, current_workflows_value: str) -> No
     ctx.print("", plain=True)
 
 
-def save_final_result(ctx: AnyContext, user_input: str, final_result: str) -> None:
-    save_path = get_command_param(user_input, SAVE_CMD)
+def handle_response_cmd(ctx: AnyContext, user_input: str, final_result: str) -> None:
+    if not is_command_match(user_input, RESPONSE_CMD, SAVE_SUB_CMD):
+        return
+    save_path = get_command_param(user_input, RESPONSE_CMD, SAVE_SUB_CMD)
     save_path = os.path.expanduser(save_path)
     if os.path.exists(save_path):
         ctx.print(
@@ -225,8 +229,8 @@ def handle_session(
     current_start_new: bool,
     user_input: str,
 ) -> tuple[str | None, bool]:
-    if is_command_match(user_input, SESSION_CMD, SAVE_SUB_CMD):
-        save_point = get_command_param(user_input, SESSION_CMD, SAVE_SUB_CMD)
+    if is_command_match(user_input, SAVE_CMD):
+        save_point = get_command_param(user_input, SAVE_CMD)
         if not save_point:
             ctx.print(render_markdown("️⚠️ Save point name is required."), plain=True)
             return current_session_name, current_start_new
@@ -247,8 +251,8 @@ def handle_session(
             plain=True,
         )
         return current_session_name, current_start_new
-    if is_command_match(user_input, SESSION_CMD, LOAD_SUB_CMD):
-        save_point = get_command_param(user_input, SESSION_CMD, LOAD_SUB_CMD)
+    if is_command_match(user_input, LOAD_CMD):
+        save_point = get_command_param(user_input, LOAD_CMD)
         if not save_point:
             ctx.print(render_markdown("⚠️ Save point name is required."), plain=True)
             return current_session_name, current_start_new
@@ -264,7 +268,11 @@ def handle_session(
         )
         # When loading a session, we shouldn't start a new one
         return current_session_name, False
-    ctx.print(render_markdown(f"Current session: {current_session_name}"), plain=True)
+    if is_command_match(user_input, SESSION_CMD):
+        ctx.print(
+            render_markdown(f"Current session: {current_session_name}"), plain=True
+        )
+        return current_session_name, current_start_new
     return current_session_name, current_start_new
 
 
@@ -332,13 +340,12 @@ def print_commands(ctx: AnyContext):
                 ),
                 _show_subcommand(CLEAR_SUB_CMD[0], "", WORKFLOW_CLEAR_SUB_CMD_DESC),
                 _show_command(SESSION_CMD[0], SESSION_CMD_DESC),
+                _show_command(SAVE_CMD[0], SAVE_CMD_DESC),
+                _show_command(LOAD_CMD[0], LOAD_CMD_DESC),
+                _show_command(RESPONSE_CMD[0], RESPONSE_CMD_DESC),
                 _show_subcommand(
-                    SAVE_SUB_CMD[0], "<session-name>", SESSION_SAVE_SUB_CMD_DESC
+                    SAVE_SUB_CMD[0], "<file-path>", RESPONSE_SAVE_SUB_CMD_DESC
                 ),
-                _show_subcommand(
-                    LOAD_SUB_CMD[0], "<session-name>", SESSION_LOAD_SUB_CMD_DESC
-                ),
-                _show_command(f"{SAVE_CMD[0]}", SAVE_CMD_DESC),
                 _show_command(YOLO_CMD[0], YOLO_CMD_DESC),
                 _show_subcommand(SET_SUB_CMD[0], "true", YOLO_SET_TRUE_CMD_DESC),
                 _show_subcommand(SET_SUB_CMD[0], "false", YOLO_SET_FALSE_CMD_DESC),

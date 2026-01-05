@@ -5,9 +5,11 @@ from typing import TYPE_CHECKING, Any
 from zrb.builtin.llm.chat_session_cmd import (
     ATTACHMENT_CMD,
     HELP_CMD,
+    LOAD_CMD,
     MULTILINE_END_CMD,
     MULTILINE_START_CMD,
     QUIT_CMD,
+    RESPONSE_CMD,
     RUN_CLI_CMD,
     SAVE_CMD,
     SESSION_CMD,
@@ -16,6 +18,7 @@ from zrb.builtin.llm.chat_session_cmd import (
     get_new_attachments,
     get_new_workflows,
     get_new_yolo_mode,
+    handle_response_cmd,
     handle_session,
     is_command_match,
     print_commands,
@@ -23,7 +26,6 @@ from zrb.builtin.llm.chat_session_cmd import (
     print_current_workflows,
     print_current_yolo_mode,
     run_cli_command,
-    save_final_result,
 )
 from zrb.builtin.llm.chat_trigger import llm_chat_trigger
 from zrb.builtin.llm.history import get_last_session_name
@@ -106,8 +108,8 @@ async def read_user_prompt(ctx: AnyContext) -> str:
                 current_workflows = get_new_workflows(current_workflows, user_input)
                 print_current_workflows(ctx, current_workflows)
                 continue
-            elif is_command_match(user_input, SAVE_CMD):
-                save_final_result(ctx, user_input, final_result)
+            elif is_command_match(user_input, RESPONSE_CMD):
+                handle_response_cmd(ctx, user_input, final_result)
                 continue
             elif is_command_match(user_input, ATTACHMENT_CMD):
                 current_attachments = get_new_attachments(
@@ -125,7 +127,11 @@ async def read_user_prompt(ctx: AnyContext) -> str:
             elif is_command_match(user_input, HELP_CMD):
                 print_commands(ctx)
                 continue
-            elif is_command_match(user_input, SESSION_CMD):
+            elif (
+                is_command_match(user_input, SESSION_CMD)
+                or is_command_match(user_input, SAVE_CMD)
+                or is_command_match(user_input, LOAD_CMD)
+            ):
                 current_session_name, start_new = handle_session(
                     ctx, current_session_name, start_new, user_input
                 )

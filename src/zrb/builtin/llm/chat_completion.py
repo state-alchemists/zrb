@@ -11,13 +11,17 @@ from zrb.builtin.llm.chat_session_cmd import (
     CLEAR_SUB_CMD,
     HELP_CMD,
     HELP_CMD_DESC,
-    LOAD_SUB_CMD,
+    LOAD_CMD,
+    LOAD_CMD_DESC,
     MULTILINE_END_CMD,
     MULTILINE_END_CMD_DESC,
     MULTILINE_START_CMD,
     MULTILINE_START_CMD_DESC,
     QUIT_CMD,
     QUIT_CMD_DESC,
+    RESPONSE_CMD,
+    RESPONSE_CMD_DESC,
+    RESPONSE_SAVE_SUB_CMD_DESC,
     RUN_CLI_CMD,
     RUN_CLI_CMD_DESC,
     SAVE_CMD,
@@ -25,8 +29,6 @@ from zrb.builtin.llm.chat_session_cmd import (
     SAVE_SUB_CMD,
     SESSION_CMD,
     SESSION_CMD_DESC,
-    SESSION_LOAD_SUB_CMD_DESC,
-    SESSION_SAVE_SUB_CMD_DESC,
     SET_SUB_CMD,
     WORKFLOW_ADD_SUB_CMD_DESC,
     WORKFLOW_CLEAR_SUB_CMD_DESC,
@@ -68,9 +70,8 @@ def get_chat_completer() -> "Completer":
         def _complete_slash_session_load_command(self, document: Document):
             text = document.text_before_cursor
             prefixes = []
-            for cmd in SESSION_CMD:
-                for subcmd in LOAD_SUB_CMD:
-                    prefixes.append(f"{cmd} {subcmd} ")
+            for cmd in LOAD_CMD:
+                prefixes.append(f"{cmd} ")
 
             for prefix in prefixes:
                 if text.startswith(prefix):
@@ -157,12 +158,14 @@ def get_chat_completer() -> "Completer":
                     cmd_options[f"{cmd} {subcmd}"] = WORKFLOW_SET_SUB_CMD_DESC
             for cmd in SESSION_CMD:
                 cmd_options[cmd] = SESSION_CMD_DESC
-                for subcmd in SAVE_SUB_CMD:
-                    cmd_options[f"{cmd} {subcmd}"] = SESSION_SAVE_SUB_CMD_DESC
-                for subcmd in LOAD_SUB_CMD:
-                    cmd_options[f"{cmd} {subcmd}"] = SESSION_LOAD_SUB_CMD_DESC
             for cmd in SAVE_CMD:
                 cmd_options[cmd] = SAVE_CMD_DESC
+            for cmd in LOAD_CMD:
+                cmd_options[cmd] = LOAD_CMD_DESC
+            for cmd in RESPONSE_CMD:
+                cmd_options[cmd] = RESPONSE_CMD_DESC
+                for subcmd in SAVE_SUB_CMD:
+                    cmd_options[f"{cmd} {subcmd}"] = RESPONSE_SAVE_SUB_CMD_DESC
             for cmd in ATTACHMENT_CMD:
                 cmd_options[cmd] = ATTACHMENT_CMD_DESC
                 for subcmd in ADD_SUB_CMD:

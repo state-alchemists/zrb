@@ -274,8 +274,9 @@ def write_to_file(
        - CORRECT: "content": "He said \"Hello\""
        - WRONG:   "content": "He said \\"Hello\\""  <-- This breaks JSON parsing!
     2. **SIZE LIMIT:** Content MUST NOT exceed 4000 characters.
-       - Exceeding this causes truncation and EOF errors.
-       - Split larger content into multiple sequential calls (first 'w', then 'a').
+       - **STRICT PROHIBITION:** You are FORBIDDEN from writing more than 4000 characters in a single call.
+       - This is due to LLM output token limits, which will cause truncation and failure.
+       - To write larger files, you MUST split the content into multiple sequential calls (e.g., first 'w', then 'a').
 
     Examples:
     ```
