@@ -1,4 +1,8 @@
+import asyncio
 import json
+import os
+import sys
+import tty
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
@@ -93,11 +97,16 @@ async def _run_single_agent_iteration(
             message_history=ModelMessagesTypeAdapter.validate_python(history_list),
             usage_limits=UsageLimits(request_limit=None),  # We don't want limit
         ) as agent_run:
+            escape_task = asyncio.create_task(_wait_for_escape(ctx))
             async for node in agent_run:
                 # Each node represents a step in the agent's execution
                 try:
                     await print_node(
-                        _get_plain_printer(ctx), agent_run, node, log_indent_level
+                        _get_plain_printer(ctx),
+                        agent_run,
+                        node,
+                        log_indent_level,
+                        lambda: escape_task.done(),
                     )
                 except APIError as e:
                     # Extract detailed error information from the response
@@ -108,7 +117,52 @@ async def _run_single_agent_iteration(
                     ctx.log_error(f"Error processing node: {str(e)}")
                     ctx.log_error(f"Error type: {type(e).__name__}")
                     raise
+                if escape_task.done():
+                    break
+            # Clean escape_task
+            if not escape_task.done():
+                try:
+                    escape_task.cancel()
+                    await escape_task
+                except asyncio.CancelledError:
+                    pass
             return agent_run
+
+
+async def _wait_for_escape(ctx: AnyContext) -> None:
+    if not ctx.is_tty:
+        # Wait forever
+        await asyncio.Future()
+        return
+    loop = asyncio.get_event_loop()
+    future = loop.create_future()
+    fd = sys.stdin.fileno()
+    try:
+        tty.setcbreak(fd)
+        loop.add_reader(fd, _create_escape_detector(ctx, future, fd))
+        await future
+    except asyncio.CancelledError:
+        raise
+    finally:
+        loop.remove_reader(fd)
+
+
+def _create_escape_detector(
+    ctx: AnyContext, future: asyncio.Future[Any], fd: int | Any
+) -> Callable[[], None]:
+    def on_stdin():
+        try:
+            # Read just one byte
+            ch = os.read(fd, 1)
+            if ch == b"\x1b":
+                ctx.print("\n🚫 Interrupted by user.", plain=True)
+                if not future.done():
+                    future.set_result(None)
+        except Exception as e:
+            if not future.done():
+                future.set_exception(e)
+
+    return on_stdin
 
 
 def _create_print_throttle_notif(ctx: AnyContext) -> Callable[[str], None]:
