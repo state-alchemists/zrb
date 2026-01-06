@@ -105,6 +105,7 @@ async def _run_single_agent_iteration(
                         _get_plain_printer(ctx),
                         agent_run,
                         node,
+                        ctx.is_tty,
                         log_indent_level,
                         lambda: escape_task.done(),
                     )

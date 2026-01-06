@@ -10,6 +10,7 @@ async def print_node(
     print_func: Callable,
     agent_run: Any,
     node: Any,
+    is_tty: bool,
     log_indent_level: int = 0,
     stop_check: Callable[[], bool] | None = None,
 ):
@@ -35,7 +36,8 @@ async def print_node(
         return
     if Agent.is_model_request_node(node):
         # A model request node => We can stream tokens from the model's request
-        print_func(_format_header("🧠 Processing...", log_indent_level))
+        esc_notif = " (Press esc to cancel)" if is_tty else ""
+        print_func(_format_header(f"🧠 Processing{esc_notif}...", log_indent_level))
         # Reference: https://ai.pydantic.dev/agents/#streaming-all-events-and-output
         try:
             async with node.stream(agent_run.ctx) as request_stream:
