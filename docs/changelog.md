@@ -1,5 +1,12 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 1.21.41
+
+- **Improvement: User Experience**:
+  - **ESC Cancellation Notification**: Added "(Press esc to cancel)" notification to the processing message in TTY mode, providing clearer feedback to users about the interrupt capability.
+- **Fix: YOLO Mode Handling**:
+  - **Boolean Input Support**: Fixed handling of boolean yolo mode input in `llm_ask` to properly accept `True`/`False` values alongside comma-separated tool name lists.
+
 ## 1.21.40
 
 - **Feature: Chat Command Enhancements**:
