@@ -105,6 +105,8 @@ def _get_default_yolo_mode(ctx: AnyContext) -> str:
 
 
 def _render_yolo_mode_input(ctx: AnyContext) -> list[str] | bool:
+    if isinstance(ctx.input.yolo, bool):
+        return ctx.input.yolo
     if ctx.input.yolo.strip() == "":
         return []
     elements = [element.strip() for element in ctx.input.yolo.split(",")]
