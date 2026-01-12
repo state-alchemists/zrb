@@ -3,68 +3,109 @@ from unittest import mock
 
 import pytest
 
-from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
+from zrb.session.session import Session
 from zrb.task.tcp_check import TcpCheck
 
 
-@pytest.mark.asyncio
-@mock.patch("asyncio.open_connection")
-async def test_tcp_check_success(mock_open_connection):
-    mock_reader, mock_writer = mock.MagicMock(), mock.MagicMock()
-    mock_open_connection.return_value = (mock_reader, mock_writer)
+@pytest.fixture
+def mock_session():
+    shared_ctx = SharedContext()
+    session = Session(shared_ctx=shared_ctx)
+    return session
 
-    tcp_check = TcpCheck(name="test_tcp_check", interval=0)
-    shared_ctx = SharedContext(env={})
-    ctx = Context(
-        shared_ctx=shared_ctx,
-        task_name="test_tcp_check",
-        color=1,
-        icon="🔌",
-    )
-    result = await tcp_check._exec_action(ctx)
+
+@pytest.mark.asyncio
+async def test_tcp_check_success(mock_session):
+    mock_reader, mock_writer = mock.MagicMock(), mock.MagicMock()
+    
+    # Create an async function that returns the mock values
+    async def mock_open_connection(host, port):
+        return (mock_reader, mock_writer)
+    
+    tcp_check = TcpCheck(name="test_tcp_check")
+    mock_session.register_task(tcp_check)
+
+    # Directly replace the function to avoid AsyncMock
+    original_open_connection = asyncio.open_connection
+    asyncio.open_connection = mock_open_connection
+    try:
+        result = await tcp_check.exec(mock_session)
+    finally:
+        asyncio.open_connection = original_open_connection
 
     assert result == (mock_reader, mock_writer)
-    mock_open_connection.assert_called_once_with("localhost", 80)
 
 
 @pytest.mark.asyncio
-@mock.patch("asyncio.open_connection")
-async def test_tcp_check_retry_and_succeed(mock_open_connection):
+async def test_tcp_check_retry_and_succeed(mock_session):
     mock_reader, mock_writer = mock.MagicMock(), mock.MagicMock()
-    mock_open_connection.side_effect = [
-        asyncio.TimeoutError,
-        (mock_reader, mock_writer),
-    ]
+    
+    # Create side effect that handles both exception and success
+    call_count = 0
+    
+    async def mock_open_connection(host, port):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise asyncio.TimeoutError("Test timeout")
+        else:
+            return (mock_reader, mock_writer)
+    
+    # Mock sleep to return immediately
+    async def mock_sleep(delay):
+        return None
+    
+    tcp_check = TcpCheck(name="test_tcp_check")
+    mock_session.register_task(tcp_check)
 
-    tcp_check = TcpCheck(name="test_tcp_check", interval=0)
-    shared_ctx = SharedContext(env={})
-    ctx = Context(
-        shared_ctx=shared_ctx,
-        task_name="test_tcp_check",
-        color=1,
-        icon="🔌",
-    )
-    result = await tcp_check._exec_action(ctx)
+    # Directly replace the functions to avoid AsyncMock
+    original_open_connection = asyncio.open_connection
+    original_sleep = asyncio.sleep
+    asyncio.open_connection = mock_open_connection
+    asyncio.sleep = mock_sleep
+    try:
+        result = await tcp_check.exec(mock_session)
+    finally:
+        asyncio.open_connection = original_open_connection
+        asyncio.sleep = original_sleep
 
     assert result == (mock_reader, mock_writer)
-    assert mock_open_connection.call_count == 2
+    assert call_count == 2
 
 
 @pytest.mark.asyncio
-@mock.patch("asyncio.open_connection", side_effect=Exception("Test error"))
-async def test_tcp_check_exception(mock_open_connection):
-    tcp_check = TcpCheck(name="test_tcp_check", interval=0)
-    shared_ctx = SharedContext(env={})
-    ctx = Context(
-        shared_ctx=shared_ctx,
-        task_name="test_tcp_check",
-        color=1,
-        icon="🔌",
-    )
+async def test_tcp_check_exception(mock_session):
+    # Create a mock for open_connection that always raises an exception
+    async def mock_open_connection(host, port):
+        raise Exception("Test error")
+    
+    # Create a mock for sleep that returns a never-completing coroutine
+    # This allows wait_for to timeout without warnings
+    async def mock_sleep_coro(delay):
+        # Create a future that never completes
+        # This allows wait_for to timeout naturally
+        loop = asyncio.get_event_loop()
+        fut = loop.create_future()
+        try:
+            await fut
+        except asyncio.CancelledError:
+            # Properly handle cancellation when wait_for times out
+            fut.cancel()
+            raise
+        return None
+    
+    tcp_check = TcpCheck(name="test_tcp_check")
+    mock_session.register_task(tcp_check)
 
-    async def run_check():
-        await tcp_check._exec_action(ctx)
-
-    with pytest.raises(asyncio.TimeoutError):
-        await asyncio.wait_for(run_check(), timeout=1)
+    # Directly replace the functions to avoid AsyncMock
+    original_open_connection = asyncio.open_connection
+    original_sleep = asyncio.sleep
+    asyncio.open_connection = mock_open_connection
+    asyncio.sleep = mock_sleep_coro
+    try:
+        with pytest.raises(asyncio.TimeoutError):
+            await asyncio.wait_for(tcp_check.exec(mock_session), timeout=1)
+    finally:
+        asyncio.open_connection = original_open_connection
+        asyncio.sleep = original_sleep

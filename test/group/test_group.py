@@ -22,6 +22,24 @@ def test_remove_group_by_alias_and_name():
     assert parent_group.get_group_by_alias("same_alias") is None
 
 
+def test_remove_group_by_object():
+    parent_group = Group(name="parent")
+    group1 = Group(name="group1")
+    parent_group.add_group(group1)
+
+    parent_group.remove_group(group1)
+    assert parent_group.get_group_by_alias("group1") is None
+
+
+def test_remove_group_by_object_raises_error():
+    parent_group = Group(name="parent")
+    group1 = Group(name="group1")
+    # Not added
+
+    with pytest.raises(ValueError):
+        parent_group.remove_group(group1)
+
+
 def test_remove_group_raises_value_error():
     parent_group = Group(name="parent")
     with pytest.raises(ValueError):
@@ -44,6 +62,24 @@ def test_remove_task_by_alias_and_name():
     parent_group.add_task(task3, alias="same_alias")
     parent_group.remove_task("same_alias")
     assert parent_group.get_task_by_alias("same_alias") is None
+
+
+def test_remove_task_by_object():
+    parent_group = Group(name="parent")
+    task1 = BaseTask(name="task1")
+    parent_group.add_task(task1)
+
+    parent_group.remove_task(task1)
+    assert parent_group.get_task_by_alias("task1") is None
+
+
+def test_remove_task_by_object_raises_error():
+    parent_group = Group(name="parent")
+    task1 = BaseTask(name="task1")
+    # Not added
+
+    with pytest.raises(ValueError):
+        parent_group.remove_task(task1)
 
 
 def test_remove_task_raises_value_error():
@@ -121,6 +157,12 @@ def test_add_group():
     assert parent_group.get_group_by_alias("alias2") == group2
 
 
+def test_add_group_from_string():
+    parent = Group(name="parent")
+    parent.add_group("child")
+    assert parent.get_group_by_alias("child").name == "child"
+
+
 def test_add_task():
     parent_group = Group(name="parent")
     task1 = BaseTask(name="test_task")
@@ -129,3 +171,8 @@ def test_add_task():
     task2 = BaseTask(name="test_task2")
     parent_group.add_task(task2, alias="alias2")
     assert parent_group.get_task_by_alias("alias2") == task2
+
+
+def test_repr():
+    g = Group(name="foo")
+    assert repr(g) == "<Group name=foo>"

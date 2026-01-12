@@ -178,7 +178,7 @@ async def execute_action_with_retry(task: "BaseTask", session: AnySession) -> An
             await run_async(execute_successors(task, session))
             return result
 
-        except (asyncio.CancelledError, KeyboardInterrupt):
+        except (asyncio.CancelledError, KeyboardInterrupt, GeneratorExit):
             ctx.log_warning("Task cancelled or interrupted")
             session.get_task_status(task).mark_as_failed()  # Mark as failed on cancel
             # Do not trigger fallbacks/successors on cancellation

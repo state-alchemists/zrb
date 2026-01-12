@@ -79,24 +79,36 @@ def combine_inputs(
             input_names.append(task_input.name)  # Update names list
 
 
+def combine_envs(
+    existing_envs: list[AnyEnv],
+    new_envs: list[AnyEnv | None] | AnyEnv | None,
+):
+    """
+    Combines new envs into an existing list.
+    Modifies the existing_envs list in place.
+    """
+    if isinstance(new_envs, AnyEnv):
+        existing_envs.append(new_envs)
+    elif new_envs is None:
+        pass
+    else:
+        # new_envs is a list
+        for env in new_envs:
+            if env is not None:
+                existing_envs.append(env)
+
+
 def get_combined_envs(task: "BaseTask") -> list[AnyEnv]:
     """
     Aggregates environment variables from the task and its upstreams.
     """
-    envs = []
+    envs: list[AnyEnv] = []
     for upstream in task.upstreams:
-        envs.extend(upstream.envs)  # Use extend for list concatenation
+        combine_envs(envs, upstream.envs)
 
-    # Access _envs directly as task is BaseTask
-    task_envs: list[AnyEnv | None] | AnyEnv | None = task._envs
-    if isinstance(task_envs, AnyEnv):
-        envs.append(task_envs)
-    elif isinstance(task_envs, list):
-        # Filter out None while extending
-        envs.extend(env for env in task_envs if env is not None)
+    combine_envs(envs, task._envs)
 
-    # Filter out None values efficiently from the combined list
-    return [env for env in envs if env is not None]
+    return envs
 
 
 def get_combined_inputs(task: "BaseTask") -> list[AnyInput]:

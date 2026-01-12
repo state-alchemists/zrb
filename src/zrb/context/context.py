@@ -139,6 +139,17 @@ class Context(AnyContext):
         stylized_prefix = stylize(prefix, color=color)
         print(f"{stylized_prefix} {message}", sep=sep, end=end, file=file, flush=flush)
 
+    def print_err(
+        self,
+        *values: object,
+        sep: str | None = " ",
+        end: str | None = "\n",
+        file: TextIO | None = sys.stderr,
+        flush: bool = True,
+        plain: bool = False,
+    ):
+        self.print(*values, sep=sep, end=end, file=file, flush=flush, plain=plain)
+
     def log_debug(
         self,
         *values: object,

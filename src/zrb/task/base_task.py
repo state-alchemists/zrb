@@ -68,9 +68,18 @@ class BaseTask(AnyTask):
         fallback: list[AnyTask] | AnyTask | None = None,
         successor: list[AnyTask] | AnyTask | None = None,
     ):
-        caller_frame = inspect.stack()[1]
-        self.__decl_file = caller_frame.filename
-        self.__decl_line = caller_frame.lineno
+        # Optimized stack retrieval
+        frame = inspect.currentframe()
+        if frame is not None:
+            caller_frame = frame.f_back
+            self.__decl_file = (
+                caller_frame.f_code.co_filename if caller_frame else "unknown"
+            )
+            self.__decl_line = caller_frame.f_lineno if caller_frame else 0
+        else:
+            self.__decl_file = "unknown"
+            self.__decl_line = 0
+
         self._name = name
         self._color = color
         self._icon = icon
@@ -80,10 +89,10 @@ class BaseTask(AnyTask):
         self._envs = env
         self._retries = retries
         self._retry_period = retry_period
-        self._upstreams = upstream
-        self._fallbacks = fallback
-        self._successors = successor
-        self._readiness_checks = readiness_check
+        self._upstreams = self._ensure_task_list(upstream)
+        self._fallbacks = self._ensure_task_list(fallback)
+        self._successors = self._ensure_task_list(successor)
+        self._readiness_checks = self._ensure_task_list(readiness_check)
         self._readiness_check_delay = readiness_check_delay
         self._readiness_check_period = readiness_check_period
         self._readiness_failure_threshold = readiness_failure_threshold
@@ -91,6 +100,13 @@ class BaseTask(AnyTask):
         self._monitor_readiness = monitor_readiness
         self._execute_condition = execute_condition
         self._action = action
+
+    def _ensure_task_list(self, tasks: AnyTask | list[AnyTask] | None) -> list[AnyTask]:
+        if tasks is None:
+            return []
+        if isinstance(tasks, list):
+            return tasks
+        return [tasks]
 
     def __repr__(self):
         return f"<{self.__class__.__name__} name={self.name}>"
@@ -132,18 +148,10 @@ class BaseTask(AnyTask):
     @property
     def fallbacks(self) -> list[AnyTask]:
         """Returns the list of fallback tasks."""
-        if self._fallbacks is None:
-            return []
-        elif isinstance(self._fallbacks, list):
-            return self._fallbacks
-        return [self._fallbacks]  # Assume single task
+        return self._fallbacks
 
     def append_fallback(self, fallbacks: AnyTask | list[AnyTask]):
         """Appends fallback tasks, ensuring no duplicates."""
-        if self._fallbacks is None:
-            self._fallbacks = []
-        elif not isinstance(self._fallbacks, list):
-            self._fallbacks = [self._fallbacks]
         to_add = fallbacks if isinstance(fallbacks, list) else [fallbacks]
         for fb in to_add:
             if fb not in self._fallbacks:
@@ -152,18 +160,10 @@ class BaseTask(AnyTask):
     @property
     def successors(self) -> list[AnyTask]:
         """Returns the list of successor tasks."""
-        if self._successors is None:
-            return []
-        elif isinstance(self._successors, list):
-            return self._successors
-        return [self._successors]  # Assume single task
+        return self._successors
 
     def append_successor(self, successors: AnyTask | list[AnyTask]):
         """Appends successor tasks, ensuring no duplicates."""
-        if self._successors is None:
-            self._successors = []
-        elif not isinstance(self._successors, list):
-            self._successors = [self._successors]
         to_add = successors if isinstance(successors, list) else [successors]
         for succ in to_add:
             if succ not in self._successors:
@@ -172,18 +172,10 @@ class BaseTask(AnyTask):
     @property
     def readiness_checks(self) -> list[AnyTask]:
         """Returns the list of readiness check tasks."""
-        if self._readiness_checks is None:
-            return []
-        elif isinstance(self._readiness_checks, list):
-            return self._readiness_checks
-        return [self._readiness_checks]  # Assume single task
+        return self._readiness_checks
 
     def append_readiness_check(self, readiness_checks: AnyTask | list[AnyTask]):
         """Appends readiness check tasks, ensuring no duplicates."""
-        if self._readiness_checks is None:
-            self._readiness_checks = []
-        elif not isinstance(self._readiness_checks, list):
-            self._readiness_checks = [self._readiness_checks]
         to_add = (
             readiness_checks
             if isinstance(readiness_checks, list)
@@ -196,18 +188,10 @@ class BaseTask(AnyTask):
     @property
     def upstreams(self) -> list[AnyTask]:
         """Returns the list of upstream tasks."""
-        if self._upstreams is None:
-            return []
-        elif isinstance(self._upstreams, list):
-            return self._upstreams
-        return [self._upstreams]  # Assume single task
+        return self._upstreams
 
     def append_upstream(self, upstreams: AnyTask | list[AnyTask]):
         """Appends upstream tasks, ensuring no duplicates."""
-        if self._upstreams is None:
-            self._upstreams = []
-        elif not isinstance(self._upstreams, list):
-            self._upstreams = [self._upstreams]
         to_add = upstreams if isinstance(upstreams, list) else [upstreams]
         for up in to_add:
             if up not in self._upstreams:
@@ -277,6 +261,8 @@ class BaseTask(AnyTask):
         try:
             # Delegate to the helper function for the default behavior
             return await run_default_action(self, ctx)
+        except (KeyboardInterrupt, GeneratorExit):
+            raise
         except BaseException as e:
             additional_error_note = (
                 f"Task: {self.name} ({self.__decl_file}:{self.__decl_line})"

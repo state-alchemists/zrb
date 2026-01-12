@@ -158,21 +158,32 @@ def _get_project_instructions() -> str:
     return "\n".join(instructions)
 
 
+def _get_prompt_attr(
+    ctx: AnyContext,
+    attr: StrAttr | None,
+    render: bool,
+    default: str | None,
+) -> str:
+    """Generic helper to get a prompt attribute, prioritizing task-specific then default."""
+    value = get_attr(
+        ctx,
+        attr,
+        None,
+        auto_render=render,
+    )
+    if value is not None:
+        return value
+    return default or ""
+
+
 def _get_persona(
     ctx: AnyContext,
     persona_attr: StrAttr | None,
     render_persona: bool,
 ) -> str:
-    """Gets the persona, prioritizing task-specific, then default."""
-    persona = get_attr(
-        ctx,
-        persona_attr,
-        None,
-        auto_render=render_persona,
+    return _get_prompt_attr(
+        ctx, persona_attr, render_persona, llm_config.default_persona
     )
-    if persona is not None:
-        return persona
-    return llm_config.default_persona or ""
 
 
 def _get_base_system_prompt(
@@ -180,16 +191,9 @@ def _get_base_system_prompt(
     system_prompt_attr: StrAttr | None,
     render_system_prompt: bool,
 ) -> str:
-    """Gets the base system prompt, prioritizing task-specific, then default."""
-    system_prompt = get_attr(
-        ctx,
-        system_prompt_attr,
-        None,
-        auto_render=render_system_prompt,
+    return _get_prompt_attr(
+        ctx, system_prompt_attr, render_system_prompt, llm_config.default_system_prompt
     )
-    if system_prompt is not None:
-        return system_prompt
-    return llm_config.default_system_prompt or ""
 
 
 def _get_special_instruction_prompt(
@@ -197,16 +201,12 @@ def _get_special_instruction_prompt(
     special_instruction_prompt_attr: StrAttr | None,
     render_spcecial_instruction_prompt: bool,
 ) -> str:
-    """Gets the special instruction prompt, prioritizing task-specific, then default."""
-    special_instruction = get_attr(
+    return _get_prompt_attr(
         ctx,
         special_instruction_prompt_attr,
-        None,
-        auto_render=render_spcecial_instruction_prompt,
+        render_spcecial_instruction_prompt,
+        llm_config.default_special_instruction_prompt,
     )
-    if special_instruction is not None:
-        return special_instruction
-    return llm_config.default_special_instruction_prompt
 
 
 def _get_active_workflow_names(

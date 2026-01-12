@@ -235,7 +235,58 @@ class LLMTask(BaseTask):
         self._yolo_mode = yolo_mode
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
-        # Get dependent configurations first
+        # 1. Get dependent configurations
+        (
+            model_settings,
+            model,
+            yolo_mode,
+            summarization_prompt,
+            user_message,
+            attachments,
+        ) = self._get_llm_config(ctx)
+
+        # 2. Prepare initial state (read history from previous session)
+        conversation_history = await read_conversation_history(
+            ctx=ctx,
+            conversation_history_reader=self._conversation_history_reader,
+            conversation_history_file_attr=self._conversation_history_file,
+            render_history_file=self._render_history_file,
+            conversation_history_attr=self._conversation_history,
+        )
+        inject_conversation_history_notes(conversation_history)
+        inject_subagent_conversation_history_into_ctx(ctx, conversation_history)
+
+        # 3. Get system prompt and user prompt
+        system_prompt, user_prompt = self._get_prompts(
+            ctx, user_message, conversation_history
+        )
+
+        # 4. Get the agent instance
+        ctx.log_info(f"SYSTEM PROMPT:\n{system_prompt}")
+        ctx.log_info(f"USER PROMPT:\n{user_prompt}")
+        agent = self._create_agent(
+            ctx,
+            model,
+            system_prompt,
+            model_settings,
+            yolo_mode,
+            summarization_prompt,
+        )
+
+        # 5. Run the agent iteration
+        result = await self._execute_agent(
+            ctx=ctx,
+            agent=agent,
+            user_prompt=user_prompt,
+            attachments=attachments,
+            conversation_history=conversation_history,
+        )
+
+        # 6. Save history and usage
+        await self._save_history_and_usage(ctx, conversation_history)
+        return result
+
+    def _get_llm_config(self, ctx: AnyContext):
         model_settings = get_model_settings(ctx, self._model_settings)
         model = get_model(
             ctx=ctx,
@@ -258,18 +309,22 @@ class LLMTask(BaseTask):
         )
         user_message = get_user_message(ctx, self._message, self._render_message)
         attachments = get_attachments(ctx, self._attachment)
-        # 1. Prepare initial state (read history from previous session)
-        conversation_history = await read_conversation_history(
-            ctx=ctx,
-            conversation_history_reader=self._conversation_history_reader,
-            conversation_history_file_attr=self._conversation_history_file,
-            render_history_file=self._render_history_file,
-            conversation_history_attr=self._conversation_history,
+        return (
+            model_settings,
+            model,
+            yolo_mode,
+            summarization_prompt,
+            user_message,
+            attachments,
         )
-        inject_conversation_history_notes(conversation_history)
-        inject_subagent_conversation_history_into_ctx(ctx, conversation_history)
-        # 2. Get system prompt and user prompt
-        system_prompt, user_prompt = get_system_and_user_prompt(
+
+    def _get_prompts(
+        self,
+        ctx: AnyContext,
+        user_message: str,
+        conversation_history: ConversationHistory,
+    ):
+        return get_system_and_user_prompt(
             ctx=ctx,
             user_message=user_message,
             persona_attr=self._persona,
@@ -282,7 +337,16 @@ class LLMTask(BaseTask):
             render_workflows=self._render_workflows,
             conversation_history=conversation_history,
         )
-        # 3. Summarization
+
+    def _create_agent(
+        self,
+        ctx: AnyContext,
+        model,
+        system_prompt,
+        model_settings,
+        yolo_mode,
+        summarization_prompt,
+    ):
         small_model = get_model(
             ctx=ctx,
             model_attr=self._small_model,
@@ -298,10 +362,7 @@ class LLMTask(BaseTask):
             self._history_summarization_token_threshold,
             self._render_history_summarization_token_threshold,
         )
-        # 4. Get the agent instance
-        ctx.log_info(f"SYSTEM PROMPT:\n{system_prompt}")
-        ctx.log_info(f"USER PROMPT:\n{user_prompt}")
-        agent = get_agent(
+        return get_agent(
             ctx=ctx,
             model=model,
             rate_limitter=self._rate_limitter,
@@ -319,15 +380,10 @@ class LLMTask(BaseTask):
             summarization_token_threshold=summarization_token_threshold,
             history_processors=[],  # TODO: make this a property
         )
-        # 5. Run the agent iteration and save the results/history
-        result = await self._execute_agent(
-            ctx=ctx,
-            agent=agent,
-            user_prompt=user_prompt,
-            attachments=attachments,
-            conversation_history=conversation_history,
-        )
-        # 6. Write conversation history
+
+    async def _save_history_and_usage(
+        self, ctx: AnyContext, conversation_history: ConversationHistory
+    ):
         conversation_history.subagent_history = (
             extract_subagent_conversation_history_from_ctx(ctx)
         )
@@ -338,7 +394,6 @@ class LLMTask(BaseTask):
             conversation_history_file_attr=self._conversation_history_file,
             render_history_file=self._render_history_file,
         )
-        return result
 
     async def _execute_agent(
         self,

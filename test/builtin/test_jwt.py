@@ -1,9 +1,9 @@
 from zrb.builtin.jwt import decode_jwt, encode_jwt, validate_jwt
-from zrb.task.base_task import BaseTask
+from zrb.task.base_task import AnyTask
 
 
 def test_encode_jwt():
-    task: BaseTask = encode_jwt
+    task: AnyTask = encode_jwt
     token = task.run(
         str_kwargs={
             "secret": "secret",
@@ -15,7 +15,7 @@ def test_encode_jwt():
 
 
 def test_decode_jwt():
-    task: BaseTask = encode_jwt
+    task: AnyTask = encode_jwt
     token = task.run(
         str_kwargs={
             "secret": "secret",
@@ -23,7 +23,7 @@ def test_decode_jwt():
             "algorithm": "HS256",
         }
     )
-    task: BaseTask = decode_jwt
+    task: AnyTask = decode_jwt
     payload = task.run(
         str_kwargs={"token": token, "secret": "secret", "algorithm": "HS256"}
     )
@@ -31,7 +31,7 @@ def test_decode_jwt():
 
 
 def test_validate_jwt():
-    task: BaseTask = encode_jwt
+    task: AnyTask = encode_jwt
     token = task.run(
         str_kwargs={
             "secret": "secret",
@@ -39,7 +39,7 @@ def test_validate_jwt():
             "algorithm": "HS256",
         }
     )
-    task: BaseTask = validate_jwt
+    task: AnyTask = validate_jwt
     is_valid = task.run(
         str_kwargs={"token": token, "secret": "secret", "algorithm": "HS256"}
     )

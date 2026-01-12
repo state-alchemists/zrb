@@ -1,5 +1,5 @@
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -50,14 +50,12 @@ async def test_wait_time_calculation_tokens_logic():
     # We can throw an exception in asyncio.sleep to break the loop early
     # OR we can just check the logic by mocking time.time and ensure loop runs once.
 
+    async def mock_sleep(duration):
+        raise InterruptedError("Break Loop")
+    
     with patch("time.time", return_value=current_time), patch(
-        "asyncio.sleep", new_callable=AsyncMock
-    ) as mock_sleep:
-
-        # We need to break the loop.
-        # The loop condition is checked, then callback, then sleep, then time updated, then loop checked again.
-        # We can make mock_sleep raise an error to stop execution after the first callback.
-        mock_sleep.side_effect = InterruptedError("Break Loop")
+        "asyncio.sleep", side_effect=mock_sleep
+    ):
 
         try:
             # "dummy" prompt length 2 tokens (we will mock count_token)
@@ -108,11 +106,12 @@ async def test_wait_time_calculation_requests_logic():
     def callback(msg, *args, **kwargs):
         captured_messages.append(msg)
 
+    async def mock_sleep(duration):
+        raise InterruptedError("Break Loop")
+    
     with patch("time.time", return_value=current_time), patch(
-        "asyncio.sleep", new_callable=AsyncMock
-    ) as mock_sleep:
-
-        mock_sleep.side_effect = InterruptedError("Break Loop")
+        "asyncio.sleep", side_effect=mock_sleep
+    ):
 
         try:
             with patch.object(limiter, "count_token", return_value=1):
