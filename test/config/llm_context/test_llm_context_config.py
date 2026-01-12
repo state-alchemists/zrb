@@ -4,7 +4,7 @@ from unittest import mock
 from zrb.config.config import CFG
 from zrb.config.llm_context.config import LLMContextConfig
 
-# Mock data for a config file in a project directory
+# MagicMock data for a config file in a project directory
 PROJECT_CONFIG_CONTENT = """
 # Note: .
 This is the project context.
@@ -19,7 +19,7 @@ This is a test workflow.
 This is a global context.
 """
 
-# Mock data for a config file in the home directory
+# MagicMock data for a config file in the home directory
 HOME_CONFIG_CONTENT = """
 # Note: .
 This is the home context.
@@ -28,7 +28,7 @@ This is the home context.
 This is a global workflow.
 """
 
-# Mock data with nested code fences
+# MagicMock data with nested code fences
 FENCED_CONFIG_CONTENT = """
 # Note: .
 This context has code fences.

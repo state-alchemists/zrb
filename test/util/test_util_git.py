@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -18,7 +18,7 @@ from zrb.util.git import (
 
 @pytest.mark.asyncio
 async def test_get_diff():
-    # Mock run_command output for diff
+    # MagicMock run_command output for diff
     # /dev/null lines are ignored by the parser, resulting in correct state
     diff_output = """--- /dev/null
 +++ b/new.txt
@@ -34,10 +34,16 @@ async def test_get_diff():
 -Old content
 +New content
 """
-    async def mock_run_command(*args, **kwargs):
-        return (CmdResult(diff_output, "", ""), 0)
-    
-    with patch("zrb.util.git.run_command", side_effect=mock_run_command) as mock_run:
+
+    def mock_run_command(*args, **kwargs):
+        async def _coro():
+            return (CmdResult(diff_output, "", ""), 0)
+
+        return _coro()
+
+    with patch(
+        "zrb.util.git.run_command", new=MagicMock(side_effect=mock_run_command)
+    ) as mock_run:
         result = await get_diff("/repo", "HEAD~1", "HEAD")
 
         assert "new.txt" in result.created
@@ -47,20 +53,30 @@ async def test_get_diff():
 
 @pytest.mark.asyncio
 async def test_get_repo_dir():
-    async def mock_run_command(*args, **kwargs):
-        return (CmdResult("/path/to/repo\n", "", ""), 0)
-    
-    with patch("zrb.util.git.run_command", side_effect=mock_run_command) as mock_run:
+    def mock_run_command(*args, **kwargs):
+        async def _coro():
+            return (CmdResult("/path/to/repo\n", "", ""), 0)
+
+        return _coro()
+
+    with patch(
+        "zrb.util.git.run_command", new=MagicMock(side_effect=mock_run_command)
+    ) as mock_run:
         result = await get_repo_dir()
         assert result == "/path/to/repo"
 
 
 @pytest.mark.asyncio
 async def test_get_current_branch():
-    async def mock_run_command(*args, **kwargs):
-        return (CmdResult("main\n", "", ""), 0)
-    
-    with patch("zrb.util.git.run_command", side_effect=mock_run_command) as mock_run:
+    def mock_run_command(*args, **kwargs):
+        async def _coro():
+            return (CmdResult("main\n", "", ""), 0)
+
+        return _coro()
+
+    with patch(
+        "zrb.util.git.run_command", new=MagicMock(side_effect=mock_run_command)
+    ) as mock_run:
         result = await get_current_branch("/repo")
         assert result == "main"
 
@@ -68,10 +84,16 @@ async def test_get_current_branch():
 @pytest.mark.asyncio
 async def test_get_branches():
     output = "  main\n* develop\n  feature"
-    async def mock_run_command(*args, **kwargs):
-        return (CmdResult(output, "", ""), 0)
-    
-    with patch("zrb.util.git.run_command", side_effect=mock_run_command) as mock_run:
+
+    def mock_run_command(*args, **kwargs):
+        async def _coro():
+            return (CmdResult(output, "", ""), 0)
+
+        return _coro()
+
+    with patch(
+        "zrb.util.git.run_command", new=MagicMock(side_effect=mock_run_command)
+    ) as mock_run:
         result = await get_branches("/repo")
         assert "main" in result
         assert "develop" in result
@@ -80,10 +102,15 @@ async def test_get_branches():
 
 @pytest.mark.asyncio
 async def test_delete_branch():
-    async def mock_run_command(*args, **kwargs):
-        return (CmdResult("Deleted branch foo", "", ""), 0)
-    
-    with patch("zrb.util.git.run_command", side_effect=mock_run_command) as mock_run:
+    def mock_run_command(*args, **kwargs):
+        async def _coro():
+            return (CmdResult("Deleted branch foo", "", ""), 0)
+
+        return _coro()
+
+    with patch(
+        "zrb.util.git.run_command", new=MagicMock(side_effect=mock_run_command)
+    ) as mock_run:
         await delete_branch("/repo", "foo")
         mock_run.assert_called_with(
             cmd=["git", "branch", "-d", "foo"], cwd="/repo", print_method=print
@@ -92,20 +119,30 @@ async def test_delete_branch():
 
 @pytest.mark.asyncio
 async def test_add():
-    async def mock_run_command(*args, **kwargs):
-        return (CmdResult("", "", ""), 0)
-    
-    with patch("zrb.util.git.run_command", side_effect=mock_run_command) as mock_run:
+    def mock_run_command(*args, **kwargs):
+        async def _coro():
+            return (CmdResult("", "", ""), 0)
+
+        return _coro()
+
+    with patch(
+        "zrb.util.git.run_command", new=MagicMock(side_effect=mock_run_command)
+    ) as mock_run:
         await add("/repo")
         mock_run.assert_called()
 
 
 @pytest.mark.asyncio
 async def test_commit():
-    async def mock_run_command(*args, **kwargs):
-        return (CmdResult("[main 123456] message", "", ""), 0)
-    
-    with patch("zrb.util.git.run_command", side_effect=mock_run_command) as mock_run:
+    def mock_run_command(*args, **kwargs):
+        async def _coro():
+            return (CmdResult("[main 123456] message", "", ""), 0)
+
+        return _coro()
+
+    with patch(
+        "zrb.util.git.run_command", new=MagicMock(side_effect=mock_run_command)
+    ) as mock_run:
         await commit("/repo", "message")
         mock_run.assert_called()
 
@@ -113,33 +150,48 @@ async def test_commit():
 @pytest.mark.asyncio
 async def test_commit_nothing_to_commit():
     # Simulate exit code 1 but "nothing to commit" in output
-    async def mock_run_command(*args, **kwargs):
-        return (
-            CmdResult("nothing to commit, working tree clean", "", ""),
-            1,
-        )
+    def mock_run_command(*args, **kwargs):
+        async def _coro():
+            return (
+                CmdResult("nothing to commit, working tree clean", "", ""),
+                1,
+            )
 
-    with patch("zrb.util.git.run_command", side_effect=mock_run_command) as mock_run:
+        return _coro()
+
+    with patch(
+        "zrb.util.git.run_command", new=MagicMock(side_effect=mock_run_command)
+    ) as mock_run:
         # Should not raise exception
         await commit("/repo", "message")
 
 
 @pytest.mark.asyncio
 async def test_pull():
-    async def mock_run_command(*args, **kwargs):
-        return (CmdResult("Already up to date.", "", ""), 0)
-    
-    with patch("zrb.util.git.run_command", side_effect=mock_run_command) as mock_run:
+    def mock_run_command(*args, **kwargs):
+        async def _coro():
+            return (CmdResult("Already up to date.", "", ""), 0)
+
+        return _coro()
+
+    with patch(
+        "zrb.util.git.run_command", new=MagicMock(side_effect=mock_run_command)
+    ) as mock_run:
         await pull("/repo", "origin", "main")
         mock_run.assert_called()
 
 
 @pytest.mark.asyncio
 async def test_push():
-    async def mock_run_command(*args, **kwargs):
-        return (CmdResult("Everything up-to-date", "", ""), 0)
-    
-    with patch("zrb.util.git.run_command", side_effect=mock_run_command) as mock_run:
+    def mock_run_command(*args, **kwargs):
+        async def _coro():
+            return (CmdResult("Everything up-to-date", "", ""), 0)
+
+        return _coro()
+
+    with patch(
+        "zrb.util.git.run_command", new=MagicMock(side_effect=mock_run_command)
+    ) as mock_run:
         await push("/repo", "origin", "main")
         mock_run.assert_called()
 
@@ -147,10 +199,15 @@ async def test_push():
 @pytest.mark.asyncio
 async def test_git_errors():
     # Test error raising for all functions
-    async def mock_run_command(*args, **kwargs):
-        return (CmdResult("", "Error", "Error"), 1)
-    
-    with patch("zrb.util.git.run_command", side_effect=mock_run_command) as mock_run:
+    def mock_run_command(*args, **kwargs):
+        async def _coro():
+            return (CmdResult("", "Error", "Error"), 1)
+
+        return _coro()
+
+    with patch(
+        "zrb.util.git.run_command", new=MagicMock(side_effect=mock_run_command)
+    ) as mock_run:
         with pytest.raises(Exception):
             await get_diff("/repo", "HEAD", "HEAD")
 

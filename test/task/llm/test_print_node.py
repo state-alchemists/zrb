@@ -29,7 +29,7 @@ def mock_node():
     return node
 
 
-# Mock events classes
+# MagicMock events classes
 class MockPartDeltaEvent:
     def __init__(self, delta):
         self.delta = delta

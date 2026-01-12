@@ -1,5 +1,5 @@
 import asyncio
-from unittest.mock import MagicMock, patch, Mock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -39,11 +39,11 @@ async def test_http_check_retry_and_succeed(mock_session):
 
     # Create a simple async function for sleep
     sleep_called = []
-    
+
     async def mock_sleep(delay):
         sleep_called.append(delay)
         return None
-    
+
     with patch(
         "requests.request", side_effect=[mock_response_fail, mock_response_success]
     ) as mock_request, patch("asyncio.sleep", side_effect=mock_sleep):
@@ -59,13 +59,11 @@ async def test_http_check_retry_and_succeed(mock_session):
 
 @pytest.mark.asyncio
 async def test_http_check_exception(mock_session):
-    with patch(
-        "requests.request", side_effect=Exception("Test error")
-    ) as mock_request:
+    with patch("requests.request", side_effect=Exception("Test error")) as mock_request:
         # Create a mock for sleep that returns a never-completing coroutine
         # This allows wait_for to timeout without warnings
-        mock_sleep = Mock()
-        
+        mock_sleep = MagicMock()
+
         async def mock_sleep_coro(delay):
             # Create a future that never completes
             # This allows wait_for to timeout naturally
@@ -78,9 +76,9 @@ async def test_http_check_exception(mock_session):
                 fut.cancel()
                 raise
             return None
-        
+
         mock_sleep.side_effect = mock_sleep_coro
-        
+
         with patch("asyncio.sleep", mock_sleep):
             http_check = HttpCheck(name="test_http_check")
             mock_session.register_task(http_check)

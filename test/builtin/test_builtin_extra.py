@@ -58,9 +58,9 @@ async def test_http_request():
     session = get_fresh_session()
     session.set_main_task(task)
 
-    # Mock requests.request
+    # MagicMock requests.request
     with mock.patch("requests.request") as mock_request:
-        mock_response = mock.Mock()
+        mock_response = mock.MagicMock()
         mock_response.status_code = 200
         mock_response.text = "OK"
         mock_response.headers = {"Content-Type": "application/json"}

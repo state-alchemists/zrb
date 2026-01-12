@@ -54,7 +54,7 @@ async def test_wrap_tool_execution_success(mock_context):
     async def my_tool(ctx: AnyContext, x: int) -> int:
         return x * 2
 
-    # Mock pydantic_ai.Tool
+    # MagicMock pydantic_ai.Tool
     with patch("pydantic_ai.Tool") as MockTool:
         wrapped_tool = wrap_tool(my_tool, mock_context, yolo_mode=True)
 
@@ -116,13 +116,13 @@ async def test_wrap_tool_interactive_approval(mock_context):
         return "done"
 
     with patch("pydantic_ai.Tool") as MockTool:
-        
+
         async def mock_read_line(args, kwargs):
             # This will be controlled by side_effect
             return mock_read_line.return_value
-        
+
         mock_read_line.return_value = "yes"
-        
+
         with patch(
             "zrb.task.llm.tool_wrapper._read_line", side_effect=mock_read_line
         ) as mock_read_patch:

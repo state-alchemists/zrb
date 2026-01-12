@@ -52,7 +52,7 @@ async def test_wait_time_calculation_tokens_logic():
 
     async def mock_sleep(duration):
         raise InterruptedError("Break Loop")
-    
+
     with patch("time.time", return_value=current_time), patch(
         "asyncio.sleep", side_effect=mock_sleep
     ):
@@ -108,7 +108,7 @@ async def test_wait_time_calculation_requests_logic():
 
     async def mock_sleep(duration):
         raise InterruptedError("Break Loop")
-    
+
     with patch("time.time", return_value=current_time), patch(
         "asyncio.sleep", side_effect=mock_sleep
     ):

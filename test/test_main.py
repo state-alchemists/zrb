@@ -18,7 +18,7 @@ def mock_os_path(tmp_path):
     (tmp_path / "zrb_init.py").touch()
     (nested_dir / "zrb_init.py").touch()
 
-    # Mock functions
+    # MagicMock functions
     def mock_getcwd():
         return str(nested_dir)
 
@@ -66,7 +66,7 @@ def test_get_init_path_list_finds_files(mock_os_path):
         str(tmp_path / "zrb_init.py"),
         str(nested_dir / "zrb_init.py"),
     ]
-    # Mock logger to avoid side effects during test
+    # MagicMock logger to avoid side effects during test
     with mock.patch(
         "zrb.config.config.Config.LOGGER", new_callable=mock.MagicMock
     ) as mock_logger:
@@ -109,7 +109,7 @@ def test_get_init_path_list_no_files(tmp_path):
     ), mock.patch("os.path.dirname", mock_dirname), mock.patch(
         "os.path.isfile", mock_isfile
     ):
-        # Mock logger to avoid side effects during test
+        # MagicMock logger to avoid side effects during test
         patch_target_logger = "zrb.config.config.Config.LOGGER"
         with mock.patch(
             patch_target_logger, new_callable=mock.MagicMock

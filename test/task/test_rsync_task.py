@@ -1,5 +1,5 @@
 from unittest import mock
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -28,14 +28,17 @@ async def test_rsync_task_local_to_remote(mock_session):
 
     # Track call arguments
     call_args_list = []
-    
-    # Create a simple async function instead of AsyncMock
-    async def mock_run_command(*args, **kwargs):
-        call_args_list.append((args, kwargs))
-        return (None, 0)
-    
+
+    # Create a simple function that returns a coroutine instead of an async function
+    def mock_run_command(*args, **kwargs):
+        async def _coro():
+            call_args_list.append((args, kwargs))
+            return (None, 0)
+
+        return _coro()
+
     with patch(
-        "zrb.task.cmd_task.run_command", new=Mock(side_effect=mock_run_command)
+        "zrb.task.cmd_task.run_command", new=MagicMock(side_effect=mock_run_command)
     ):
         await rsync_task.exec(mock_session)
 
@@ -61,14 +64,17 @@ async def test_rsync_task_remote_to_local(mock_session):
 
     # Track call arguments
     call_args_list = []
-    
-    # Create a simple async function instead of AsyncMock
-    async def mock_run_command(*args, **kwargs):
-        call_args_list.append((args, kwargs))
-        return (None, 0)
-    
+
+    # Create a simple function that returns a coroutine instead of an async function
+    def mock_run_command(*args, **kwargs):
+        async def _coro():
+            call_args_list.append((args, kwargs))
+            return (None, 0)
+
+        return _coro()
+
     with patch(
-        "zrb.task.cmd_task.run_command", new=Mock(side_effect=mock_run_command)
+        "zrb.task.cmd_task.run_command", new=MagicMock(side_effect=mock_run_command)
     ):
         await rsync_task.exec(mock_session)
 
@@ -95,14 +101,17 @@ async def test_rsync_task_with_key(mock_session):
 
     # Track call arguments
     call_args_list = []
-    
-    # Create a simple async function instead of AsyncMock
-    async def mock_run_command(*args, **kwargs):
-        call_args_list.append((args, kwargs))
-        return (None, 0)
-    
+
+    # Create a simple function that returns a coroutine instead of an async function
+    def mock_run_command(*args, **kwargs):
+        async def _coro():
+            call_args_list.append((args, kwargs))
+            return (None, 0)
+
+        return _coro()
+
     with patch(
-        "zrb.task.cmd_task.run_command", new=Mock(side_effect=mock_run_command)
+        "zrb.task.cmd_task.run_command", new=MagicMock(side_effect=mock_run_command)
     ):
         await rsync_task.exec(mock_session)
 
@@ -127,14 +136,17 @@ async def test_rsync_task_with_password(mock_session):
 
     # Track call arguments
     call_args_list = []
-    
-    # Create a simple async function instead of AsyncMock
-    async def mock_run_command(*args, **kwargs):
-        call_args_list.append((args, kwargs))
-        return (None, 0)
-    
+
+    # Create a simple function that returns a coroutine instead of an async function
+    def mock_run_command(*args, **kwargs):
+        async def _coro():
+            call_args_list.append((args, kwargs))
+            return (None, 0)
+
+        return _coro()
+
     with patch(
-        "zrb.task.cmd_task.run_command", new=Mock(side_effect=mock_run_command)
+        "zrb.task.cmd_task.run_command", new=MagicMock(side_effect=mock_run_command)
     ):
         await rsync_task.exec(mock_session)
 
@@ -160,14 +172,17 @@ async def test_rsync_task_with_key_and_password(mock_session):
 
     # Track call arguments
     call_args_list = []
-    
-    # Create a simple async function instead of AsyncMock
-    async def mock_run_command(*args, **kwargs):
-        call_args_list.append((args, kwargs))
-        return (None, 0)
-    
+
+    # Create a simple function that returns a coroutine instead of an async function
+    def mock_run_command(*args, **kwargs):
+        async def _coro():
+            call_args_list.append((args, kwargs))
+            return (None, 0)
+
+        return _coro()
+
     with patch(
-        "zrb.task.cmd_task.run_command", new=Mock(side_effect=mock_run_command)
+        "zrb.task.cmd_task.run_command", new=MagicMock(side_effect=mock_run_command)
     ):
         await rsync_task.exec(mock_session)
 

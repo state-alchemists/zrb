@@ -29,7 +29,7 @@ async def test_analyze_repo_success(temp_dir):
     ctx = MagicMock(spec=AnyContext)
     ctx.print = MagicMock()
 
-    # Mock sub-agent creation
+    # MagicMock sub-agent creation
     mock_extract_agent_call_info = MagicMock()
 
     async def mock_extract_agent(*args, **kwargs):
@@ -55,7 +55,7 @@ async def test_analyze_repo_success(temp_dir):
         side_effect=side_effect_create_agent,
     ):
         with patch("zrb.builtin.llm.tool.code.llm_rate_limitter") as mock_limiter:
-            # Mock rate limiter to simulate token counts that trigger/don't trigger splitting
+            # MagicMock rate limiter to simulate token counts that trigger/don't trigger splitting
             mock_limiter.count_token.return_value = 10
             mock_limiter.clip_prompt.side_effect = lambda x, y: x
 
@@ -107,10 +107,12 @@ async def test_analyze_repo_with_summarization(temp_dir):
         return ["Final Summary"]  # Reduced to 1
 
     with patch(
-        "zrb.builtin.llm.tool.code._extract_info", side_effect=mock_extract
+        "zrb.builtin.llm.tool.code._extract_info",
+        new=MagicMock(side_effect=mock_extract),
     ) as mock_extract_patched:
         with patch(
-            "zrb.builtin.llm.tool.code._summarize_info", side_effect=mock_summarize
+            "zrb.builtin.llm.tool.code._summarize_info",
+            new=MagicMock(side_effect=mock_summarize),
         ) as mock_summarize_patched:
             with patch(
                 "zrb.builtin.llm.tool.code._get_file_metadatas"
@@ -132,7 +134,8 @@ async def test_analyze_repo_no_files(temp_dir):
         return []  # No info
 
     with patch(
-        "zrb.builtin.llm.tool.code._extract_info", side_effect=mock_extract
+        "zrb.builtin.llm.tool.code._extract_info",
+        new=MagicMock(side_effect=mock_extract),
     ) as mock_extract_patched:
         with pytest.raises(RuntimeError, match="No info can be extracted"):
             await analyze_repo(ctx, temp_dir, "Query")

@@ -88,56 +88,61 @@ async def execute_action_until_ready(task: "BaseTask", session: AnySession):
         run_async(execute_action_with_retry(task, session))
     )
 
-    await asyncio.sleep(readiness_check_delay)
-
-    readiness_check_coros = [
-        run_async(check.exec_chain(session)) for check in readiness_checks
-    ]
-
-    # Wait primarily for readiness checks to complete
-    ctx.log_info("Waiting for readiness checks")
-    readiness_passed = False
     try:
-        # Gather results, but primarily interested in completion/errors
-        await asyncio.gather(*readiness_check_coros)
-        # Check if all readiness tasks actually completed successfully
-        all_readiness_completed = all(
-            session.get_task_status(check).is_completed for check in readiness_checks
-        )
-        if all_readiness_completed:
-            ctx.log_info("Readiness checks completed successfully")
-            readiness_passed = True
-            # Mark task as ready only if checks passed and action didn't fail during checks
-            if not session.get_task_status(task).is_failed:
-                ctx.log_info("Marked as ready")
-                session.get_task_status(task).mark_as_ready()
-        else:
-            ctx.log_warning(
-                "One or more readiness checks did not complete successfully."
+        await asyncio.sleep(readiness_check_delay)
+
+        readiness_check_coros = [
+            run_async(check.exec_chain(session)) for check in readiness_checks
+        ]
+
+        # Wait primarily for readiness checks to complete
+        ctx.log_info("Waiting for readiness checks")
+        readiness_passed = False
+        try:
+            # Gather results, but primarily interested in completion/errors
+            await asyncio.gather(*readiness_check_coros)
+            # Check if all readiness tasks actually completed successfully
+            all_readiness_completed = all(
+                session.get_task_status(check).is_completed
+                for check in readiness_checks
             )
+            if all_readiness_completed:
+                ctx.log_info("Readiness checks completed successfully")
+                readiness_passed = True
+                # Mark task as ready only if checks passed and action didn't fail during checks
+                if not session.get_task_status(task).is_failed:
+                    ctx.log_info("Marked as ready")
+                    session.get_task_status(task).mark_as_ready()
+            else:
+                ctx.log_warning(
+                    "One or more readiness checks did not complete successfully."
+                )
 
-    except Exception as e:
-        ctx.log_error(f"Readiness check failed with exception: {e}")
-        # If readiness checks fail with an exception, the task is not ready.
-        # The action_coro might still be running or have failed.
-        # execute_action_with_retry handles marking the main task status.
+        except Exception as e:
+            ctx.log_error(f"Readiness check failed with exception: {e}")
+            # If readiness checks fail with an exception, the task is not ready.
+            # The action_coro might still be running or have failed.
+            # execute_action_with_retry handles marking the main task status.
 
-    # Defer the main action coroutine; it will be awaited later if needed
-    session.defer_action(task, action_coro)
+        # Defer the main action coroutine; it will be awaited later if needed
+        session.defer_action(task, action_coro)
 
-    # Start monitoring only if readiness passed and monitoring is enabled
-    if readiness_passed and monitor_readiness:
-        # Import dynamically to avoid circular dependency if monitoring imports execution
-        from zrb.task.base.monitoring import monitor_task_readiness
+        # Start monitoring only if readiness passed and monitoring is enabled
+        if readiness_passed and monitor_readiness:
+            # Import dynamically to avoid circular dependency if monitoring imports execution
+            from zrb.task.base.monitoring import monitor_task_readiness
 
-        monitor_coro = asyncio.create_task(
-            run_async(monitor_task_readiness(task, session, action_coro))
-        )
-        session.defer_monitoring(task, monitor_coro)
+            monitor_coro = asyncio.create_task(
+                run_async(monitor_task_readiness(task, session, action_coro))
+            )
+            session.defer_monitoring(task, monitor_coro)
 
-    # The result here is primarily about readiness check completion.
-    # The actual task result is handled by the deferred action_coro.
-    return None
+        # The result here is primarily about readiness check completion.
+        # The actual task result is handled by the deferred action_coro.
+        return None
+    except (asyncio.CancelledError, KeyboardInterrupt, GeneratorExit):
+        action_coro.cancel()
+        raise
 
 
 async def execute_action_with_retry(task: "BaseTask", session: AnySession) -> Any:

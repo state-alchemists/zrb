@@ -25,7 +25,7 @@ async def test_analyze_file_success(temp_dir):
 
     ctx = MagicMock(spec=AnyContext)
 
-    # Mock the sub-agent creation and execution
+    # MagicMock the sub-agent creation and execution
     mock_agent_tool_call_info = MagicMock()
 
     async def mock_agent_tool(*args, **kwargs):
@@ -36,7 +36,7 @@ async def test_analyze_file_success(temp_dir):
         "zrb.builtin.llm.tool.file.create_sub_agent_tool", return_value=mock_agent_tool
     ) as mock_create_agent:
         with patch("zrb.builtin.llm.tool.file.llm_rate_limitter") as mock_limitter:
-            # Mock rate limiter behavior
+            # MagicMock rate limiter behavior
             mock_limitter.clip_prompt.side_effect = lambda content, threshold: content
 
             result = await analyze_file(ctx, file_path, "Analyze this")

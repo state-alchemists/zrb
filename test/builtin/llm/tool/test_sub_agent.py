@@ -19,7 +19,7 @@ async def test_sub_agent_execution(mock_context):
         mock_agent_run.result.output = "Agent Result"
         mock_agent_run.result.all_messages_json.return_value = "[]"
         return mock_agent_run
-    
+
     with patch("zrb.builtin.llm.tool.sub_agent.get_model") as mock_get_model, patch(
         "zrb.builtin.llm.tool.sub_agent.get_model_settings"
     ) as mock_get_settings, patch(
@@ -27,7 +27,8 @@ async def test_sub_agent_execution(mock_context):
     ) as mock_get_prompts, patch(
         "zrb.builtin.llm.tool.sub_agent.create_agent_instance"
     ) as mock_create_agent, patch(
-        "zrb.builtin.llm.tool.sub_agent.run_agent_iteration", side_effect=mock_run_agent_iteration
+        "zrb.builtin.llm.tool.sub_agent.run_agent_iteration",
+        side_effect=mock_run_agent_iteration,
     ) as mock_run_iteration, patch(
         "zrb.builtin.llm.tool.sub_agent.get_ctx_subagent_history", return_value=[]
     ) as mock_get_hist, patch(
@@ -50,7 +51,7 @@ async def test_sub_agent_execution(mock_context):
 async def test_sub_agent_no_result(mock_context):
     async def mock_run_agent_iteration(*args, **kwargs):
         return None
-    
+
     with patch("zrb.builtin.llm.tool.sub_agent.get_model"), patch(
         "zrb.builtin.llm.tool.sub_agent.get_model_settings"
     ), patch(
@@ -59,7 +60,8 @@ async def test_sub_agent_no_result(mock_context):
     ), patch(
         "zrb.builtin.llm.tool.sub_agent.create_agent_instance"
     ), patch(
-        "zrb.builtin.llm.tool.sub_agent.run_agent_iteration", side_effect=mock_run_agent_iteration
+        "zrb.builtin.llm.tool.sub_agent.run_agent_iteration",
+        side_effect=mock_run_agent_iteration,
     ) as mock_run_iteration, patch(
         "zrb.builtin.llm.tool.sub_agent.get_ctx_subagent_history", return_value=[]
     ):

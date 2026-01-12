@@ -18,11 +18,11 @@ def mock_session():
 @pytest.mark.asyncio
 async def test_tcp_check_success(mock_session):
     mock_reader, mock_writer = mock.MagicMock(), mock.MagicMock()
-    
+
     # Create an async function that returns the mock values
     async def mock_open_connection(host, port):
         return (mock_reader, mock_writer)
-    
+
     tcp_check = TcpCheck(name="test_tcp_check")
     mock_session.register_task(tcp_check)
 
@@ -40,10 +40,10 @@ async def test_tcp_check_success(mock_session):
 @pytest.mark.asyncio
 async def test_tcp_check_retry_and_succeed(mock_session):
     mock_reader, mock_writer = mock.MagicMock(), mock.MagicMock()
-    
+
     # Create side effect that handles both exception and success
     call_count = 0
-    
+
     async def mock_open_connection(host, port):
         nonlocal call_count
         call_count += 1
@@ -51,11 +51,11 @@ async def test_tcp_check_retry_and_succeed(mock_session):
             raise asyncio.TimeoutError("Test timeout")
         else:
             return (mock_reader, mock_writer)
-    
-    # Mock sleep to return immediately
+
+    # MagicMock sleep to return immediately
     async def mock_sleep(delay):
         return None
-    
+
     tcp_check = TcpCheck(name="test_tcp_check")
     mock_session.register_task(tcp_check)
 
@@ -79,7 +79,7 @@ async def test_tcp_check_exception(mock_session):
     # Create a mock for open_connection that always raises an exception
     async def mock_open_connection(host, port):
         raise Exception("Test error")
-    
+
     # Create a mock for sleep that returns a never-completing coroutine
     # This allows wait_for to timeout without warnings
     async def mock_sleep_coro(delay):
@@ -94,7 +94,7 @@ async def test_tcp_check_exception(mock_session):
             fut.cancel()
             raise
         return None
-    
+
     tcp_check = TcpCheck(name="test_tcp_check")
     mock_session.register_task(tcp_check)
 

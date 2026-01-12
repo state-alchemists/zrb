@@ -19,7 +19,7 @@ def test_chat_completer_slash_commands(mock_fuzzy_match):
     document = MagicMock()
     document.text_before_cursor = "/"
     document.get_word_before_cursor.return_value = "/"
-    # Mock os.path.isdir to avoid issues with LLM_HISTORY_DIR
+    # MagicMock os.path.isdir to avoid issues with LLM_HISTORY_DIR
     with patch("os.path.isdir", return_value=False):
         completions = list(completer.get_completions(document, None))
         assert len(completions) > 0
@@ -31,7 +31,7 @@ def test_chat_completer_appendix_completion():
     document = MagicMock()
     document.get_word_before_cursor.return_value = "@"
     document.text_before_cursor = "@"
-    # Mock _fuzzy_path_search to return something
+    # MagicMock _fuzzy_path_search to return something
     with patch.object(completer, "_fuzzy_path_search", return_value=["test_dir"]):
         completions = list(completer.get_completions(document, None))
         assert any(c.text == "@test_dir" for c in completions)

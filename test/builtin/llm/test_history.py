@@ -12,11 +12,11 @@ from zrb.task.llm.conversation_history_model import ConversationHistory
 @pytest.fixture
 def mock_shared_context():
     """Fixture for a mocked AnySharedContext."""
-    context = mock.Mock()
+    context = mock.MagicMock()
     context.input = SimpleNamespace(start_new=False, previous_session=None)
     context.session = SimpleNamespace(name="current_session")
-    context.log_warning = mock.Mock()
-    context.log_error = mock.Mock()
+    context.log_warning = mock.MagicMock()
+    context.log_error = mock.MagicMock()
     return context
 
 
@@ -143,7 +143,7 @@ def test_read_chat_last_session_exists(
     last_session_path = os.path.join(mock_llm_history_dir, "last-session")
     session_file_path = os.path.join(mock_llm_history_dir, f"{last_session_name}.json")
 
-    # Mock isfile to return True for both last-session and the session file it points to
+    # MagicMock isfile to return True for both last-session and the session file it points to
     def isfile_side_effect(path):
         if path == last_session_path:
             return True
@@ -153,7 +153,7 @@ def test_read_chat_last_session_exists(
 
     mock_isfile.side_effect = isfile_side_effect
 
-    # Mock read_file to return the session name and then the session data
+    # MagicMock read_file to return the session name and then the session data
     mock_data = {"messages": [{"role": "user", "content": "From last session"}]}
 
     def read_file_side_effect(path):
@@ -198,7 +198,7 @@ def test_read_chat_last_session_points_to_nonexistent(
     last_session_path = os.path.join(mock_llm_history_dir, "last-session")
     session_file_path = os.path.join(mock_llm_history_dir, f"{last_session_name}.json")
 
-    # Mock isfile: last-session exists, session file does not
+    # MagicMock isfile: last-session exists, session file does not
     def isfile_side_effect(path):
         if path == last_session_path:
             return True

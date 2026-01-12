@@ -40,7 +40,7 @@ def test_getenv_list():
 
 def test_get_internal_default_prompt():
     config = Config()
-    # Mock file reading
+    # MagicMock file reading
     with patch("builtins.open", mock_open(read_data="prompt content")):
         prompt = config._get_internal_default_prompt("test_prompt")
         assert prompt == "prompt content"
@@ -51,7 +51,7 @@ def test_get_internal_default_prompt():
 
 def test_default_shell():
     config = Config()
-    # Mock platform.system
+    # MagicMock platform.system
     with patch("platform.system", return_value="Windows"):
         assert config.DEFAULT_SHELL == "PowerShell"
 

@@ -10,8 +10,8 @@ from zrb.builtin.llm.input import PreviousSessionInput
 @pytest.fixture
 def mock_shared_context():
     """Fixture for a mocked AnySharedContext."""
-    context = mock.Mock()
-    # Mock necessary attributes used by get_default_str if needed
+    context = mock.MagicMock()
+    # MagicMock necessary attributes used by get_default_str if needed
     context.input = SimpleNamespace()
     context.session = SimpleNamespace()
     context.task = SimpleNamespace()
@@ -42,7 +42,7 @@ def test_previous_session_input_to_html(
         name=input_name, description=input_description, default=input_default
     )
 
-    # Mock get_default_str to return the default value directly for simplicity
+    # MagicMock get_default_str to return the default value directly for simplicity
     with mock.patch.object(
         prev_session_input, "get_default_str", return_value=input_default
     ):

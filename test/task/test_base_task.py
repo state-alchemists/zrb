@@ -10,18 +10,20 @@ from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 
+
 # Create a custom mock class to avoid AsyncMock issues
 class MockAnySession:
     """Custom mock for AnySession to avoid AsyncMock warnings."""
+
     def __init__(self):
         self._registered_tasks = []
-    
+
     async def wait_deferred(self):
         return None
-    
+
     def register_task(self, task):
         self._registered_tasks.append(task)
-        
+
     # Add other methods as needed
     def get_task_status(self, task):
         # Return a mock task status
@@ -30,28 +32,29 @@ class MockAnySession:
                 self.is_completed = False
                 self.is_skipped = False
                 self.is_failed = False
-                
+
             def mark_as_completed(self):
                 self.is_completed = True
                 self.is_skipped = False
                 self.is_failed = False
-                
+
             def mark_as_skipped(self):
                 self.is_completed = False
                 self.is_skipped = True
                 self.is_failed = False
-                
+
             def mark_as_failed(self):
                 self.is_completed = False
                 self.is_skipped = False
                 self.is_failed = True
-        
+
         return MockTaskStatus()
+
 
 # Create mock instances
 mock_any_session = MockAnySession()
-mock_any_context = MagicMock()
-mock_any_task = MagicMock()
+mock_any_context = Mock()
+mock_any_task = Mock()
 
 
 def test_base_task_init():
@@ -167,8 +170,11 @@ def test_base_task_get_ctx(mock_build_task_context):
 def test_base_task_run():
     async def mock_run_and_cleanup(task, session=None, str_kwargs=None, kwargs=None):
         return None
-    
-    with patch("zrb.task.base_task.run_and_cleanup", side_effect=mock_run_and_cleanup) as mock_run_and_cleanup:
+
+    with patch(
+        "zrb.task.base_task.run_and_cleanup",
+        new=Mock(side_effect=mock_run_and_cleanup),
+    ) as mock_run_and_cleanup:
         with patch("asyncio.run") as mock_asyncio_run:
             task = BaseTask(name="test_task")
             task.run(session=mock_any_session, str_kwargs={"key": "value"})
@@ -180,20 +186,24 @@ def test_base_task_run():
             mock_asyncio_run.assert_called_once()
             called_with_arg = mock_asyncio_run.call_args[0][0]
             assert asyncio.iscoroutine(called_with_arg)
+            called_with_arg.close()  # Avoid RuntimeWarning
 
 
 @pytest.mark.asyncio
 async def test_base_task_async_run():
-    # Create a simple async function instead of AsyncMock
+    # Create a simple function that returns a coroutine instead of an async function
     call_args = []
 
-    async def mock_run_task_async(task, session=None, str_kwargs=None, kwargs=None):
-        call_args.append((task, session, str_kwargs, kwargs))
-        return None
+    def mock_run_task_async(task, session=None, str_kwargs=None, kwargs=None):
+        async def _coro():
+            call_args.append((task, session, str_kwargs, kwargs))
+            return None
+
+        return _coro()
 
     with patch(
         "zrb.task.base_task.run_task_async",
-        new=Mock(side_effect=mock_run_task_async),
+        new=MagicMock(side_effect=mock_run_task_async),
     ):
         task = BaseTask(name="test_task")
         await task.async_run(session=mock_any_session, str_kwargs={"key": "value"})
@@ -206,16 +216,19 @@ async def test_base_task_async_run():
 
 @pytest.mark.asyncio
 async def test_base_task_exec_root_tasks():
-    # Create a simple async function instead of AsyncMock
+    # Create a simple function that returns a coroutine instead of an async function
     call_args = []
 
-    async def mock_execute_root_tasks(task, session):
-        call_args.append((task, session))
-        return None
+    def mock_execute_root_tasks(task, session):
+        async def _coro():
+            call_args.append((task, session))
+            return None
+
+        return _coro()
 
     with patch(
         "zrb.task.base_task.execute_root_tasks",
-        new=Mock(side_effect=mock_execute_root_tasks),
+        new=MagicMock(side_effect=mock_execute_root_tasks),
     ):
         task = BaseTask(name="test_task")
         await task.exec_root_tasks(mock_any_session)
@@ -226,16 +239,19 @@ async def test_base_task_exec_root_tasks():
 
 @pytest.mark.asyncio
 async def test_base_task_exec_chain():
-    # Create a simple async function instead of AsyncMock
+    # Create a simple function that returns a coroutine instead of an async function
     call_args = []
 
-    async def mock_execute_task_chain(task, session):
-        call_args.append((task, session))
-        return None
+    def mock_execute_task_chain(task, session):
+        async def _coro():
+            call_args.append((task, session))
+            return None
+
+        return _coro()
 
     with patch(
         "zrb.task.base_task.execute_task_chain",
-        new=Mock(side_effect=mock_execute_task_chain),
+        new=MagicMock(side_effect=mock_execute_task_chain),
     ):
         task = BaseTask(name="test_task")
         await task.exec_chain(mock_any_session)
@@ -246,23 +262,25 @@ async def test_base_task_exec_chain():
 
 @pytest.mark.asyncio
 async def test_base_task_exec():
-    # Create a simple async function instead of AsyncMock
+    # Create a simple function that returns a coroutine instead of an async function
     call_args = []
 
-    async def mock_execute_task_action(task, session):
-        call_args.append((task, session))
-        return None
+    def mock_execute_task_action(task, session):
+        async def _coro():
+            call_args.append((task, session))
+            return None
+
+        return _coro()
 
     with patch(
         "zrb.task.base_task.execute_task_action",
-        new=Mock(side_effect=mock_execute_task_action),
+        new=MagicMock(side_effect=mock_execute_task_action),
     ):
         task = BaseTask(name="test_task")
         await task.exec(mock_any_session)
         assert len(call_args) == 1
         assert call_args[0][0] == task
         assert call_args[0][1] == mock_any_session
-
 
 
 @pytest.mark.asyncio
@@ -335,17 +353,20 @@ async def test_base_task_execute_condition_skipped():
     call_count = 0
     called_tasks = []
 
-    async def mock_execute_action_with_retry(task, session):
-        nonlocal call_count
-        nonlocal called_tasks
-        call_count += 1
-        called_tasks.append(task)
-        session.get_task_status(task).mark_as_completed()
-        return None
+    def mock_execute_action_with_retry(task, session):
+        async def _coro():
+            nonlocal call_count
+            nonlocal called_tasks
+            call_count += 1
+            called_tasks.append(task)
+            session.get_task_status(task).mark_as_completed()
+            return None
+
+        return _coro()
 
     with patch(
         "zrb.task.base.execution.execute_action_with_retry",
-        new=Mock(side_effect=mock_execute_action_with_retry),
+        new=MagicMock(side_effect=mock_execute_action_with_retry),
     ):
         await task1.exec_chain(session)
 
@@ -357,4 +378,3 @@ async def test_base_task_execute_condition_skipped():
         assert session.get_task_status(task1).is_skipped
         assert session.get_task_status(task2).is_completed
         assert session.get_task_status(task3).is_completed
-

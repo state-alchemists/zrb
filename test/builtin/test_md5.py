@@ -10,10 +10,10 @@ from zrb.builtin import md5 as md5_module
 @pytest.fixture
 def mock_context():
     """Fixture for a mocked AnyContext."""
-    context = mock.Mock()
+    context = mock.MagicMock()
     context.input = SimpleNamespace()
-    context.print = mock.Mock()
-    context.log_error = mock.Mock()  # Keep for consistency, might be needed later
+    context.print = mock.MagicMock()
+    context.log_error = mock.MagicMock()  # Keep for consistency, might be needed later
     return context
 
 

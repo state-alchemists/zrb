@@ -1,5 +1,5 @@
 import asyncio
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -12,7 +12,7 @@ from zrb.xcom.xcom import Xcom
 
 @pytest.fixture
 def mock_shared_ctx():
-    shared_ctx = Mock(spec=AnySharedContext)
+    shared_ctx = MagicMock(spec=AnySharedContext)
     shared_ctx.xcom = {}
     shared_ctx.input = {}
     shared_ctx.shared_log = []
@@ -33,7 +33,7 @@ def test_session_init(session, mock_shared_ctx):
 
 
 def test_register_task(session):
-    task = Mock(spec=AnyTask)
+    task = MagicMock(spec=AnyTask)
     task.name = "task1"
     task.readiness_checks = []
     task.successors = []
@@ -52,7 +52,7 @@ def test_register_task(session):
 
 
 def test_register_task_with_dependencies(session):
-    upstream = Mock(spec=AnyTask)
+    upstream = MagicMock(spec=AnyTask)
     upstream.name = "upstream"
     upstream.readiness_checks = []
     upstream.successors = []
@@ -61,7 +61,7 @@ def test_register_task_with_dependencies(session):
     upstream.color = None
     upstream.icon = None
 
-    task = Mock(spec=AnyTask)
+    task = MagicMock(spec=AnyTask)
     task.name = "task"
     task.readiness_checks = []
     task.successors = []
@@ -87,7 +87,7 @@ def test_register_task_with_dependencies(session):
 
 
 def test_is_allowed_to_run(session):
-    task = Mock(spec=AnyTask)
+    task = MagicMock(spec=AnyTask)
     task.name = "task"
     task.readiness_checks = []
     task.successors = []
@@ -107,7 +107,7 @@ def test_is_allowed_to_run(session):
 
 
 def test_is_allowed_to_run_with_upstream(session):
-    upstream = Mock(spec=AnyTask)
+    upstream = MagicMock(spec=AnyTask)
     upstream.name = "upstream"
     upstream.readiness_checks = []
     upstream.successors = []
@@ -116,7 +116,7 @@ def test_is_allowed_to_run_with_upstream(session):
     upstream.color = None
     upstream.icon = None
 
-    task = Mock(spec=AnyTask)
+    task = MagicMock(spec=AnyTask)
     task.name = "task"
     task.readiness_checks = []
     task.successors = []
@@ -143,7 +143,7 @@ def test_terminate(session):
 
 @pytest.mark.asyncio
 async def test_defer_action_and_wait(session):
-    task = Mock(spec=AnyTask)
+    task = MagicMock(spec=AnyTask)
     task.name = "task"
     task.readiness_checks = []
     task.successors = []
@@ -167,7 +167,7 @@ async def test_defer_action_and_wait(session):
 
 @pytest.mark.asyncio
 async def test_defer_monitoring_and_wait(session):
-    task = Mock(spec=AnyTask)
+    task = MagicMock(spec=AnyTask)
     task.name = "task"
     task.readiness_checks = []
     task.successors = []
@@ -187,7 +187,7 @@ async def test_defer_coro_and_wait(session):
 
 
 def test_context_creation(session):
-    task = Mock(spec=AnyTask)
+    task = MagicMock(spec=AnyTask)
     task.name = "task"
     task.readiness_checks = []
     task.successors = []
@@ -202,7 +202,7 @@ def test_context_creation(session):
 
 
 def test_final_result(session):
-    task = Mock(spec=AnyTask)
+    task = MagicMock(spec=AnyTask)
     task.name = "main_task"
     task.readiness_checks = []
     task.successors = []
@@ -224,7 +224,7 @@ def test_final_result_no_main_task(session):
 
 
 def test_as_state_log(session):
-    task = Mock(spec=AnyTask)
+    task = MagicMock(spec=AnyTask)
     task.name = "task"
     task.readiness_checks = []
     task.successors = []
