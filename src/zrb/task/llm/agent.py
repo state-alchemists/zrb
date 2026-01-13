@@ -39,39 +39,10 @@ def create_agent_instance(
     auto_summarize: bool = True,
 ) -> "Agent[None, Any]":
     """Creates a new Agent instance with configured tools and servers."""
-    from pydantic_ai import Agent, RunContext, Tool
+    from pydantic_ai import Agent, Tool
     from pydantic_ai.tools import GenerateToolJsonSchema
-    from pydantic_ai.toolsets import ToolsetTool, WrapperToolset
 
-    @dataclass
-    class ConfirmationWrapperToolset(WrapperToolset):
-        ctx: AnyContext
-        yolo_mode: bool | list[str]
-
-        async def call_tool(
-            self, name: str, tool_args: dict, ctx: RunContext, tool: ToolsetTool[None]
-        ) -> Any:
-            # The `tool` object is passed in. Use it for inspection.
-            # Define a temporary function that performs the actual tool call.
-            async def execute_delegated_tool_call(**params):
-                # Pass all arguments down the chain.
-                return await self.wrapped.call_tool(name, tool_args, ctx, tool)
-
-            # For the confirmation UI, make our temporary function look like the real one.
-            try:
-                execute_delegated_tool_call.__name__ = name
-                execute_delegated_tool_call.__doc__ = tool.function.__doc__
-                execute_delegated_tool_call.__signature__ = inspect.signature(
-                    tool.function
-                )
-            except (AttributeError, TypeError):
-                pass  # Ignore if we can't inspect the original function
-            # Use the existing wrap_func to get the confirmation logic
-            wrapped_executor = wrap_func(
-                execute_delegated_tool_call, self.ctx, self.yolo_mode
-            )
-            # Call the wrapped executor. This will trigger the confirmation prompt.
-            return await wrapped_executor(**tool_args)
+    ConfirmationWrapperToolset = _get_confirmation_wrapper_toolset_class()
 
     if yolo_mode is None:
         yolo_mode = False
@@ -130,6 +101,43 @@ def create_agent_instance(
         retries=retries,
         history_processors=history_processors,
     )
+
+
+def _get_confirmation_wrapper_toolset_class():
+    from pydantic_ai import RunContext
+    from pydantic_ai.toolsets import ToolsetTool, WrapperToolset
+
+    @dataclass
+    class ConfirmationWrapperToolset(WrapperToolset):
+        ctx: AnyContext
+        yolo_mode: bool | list[str]
+
+        async def call_tool(
+            self, name: str, tool_args: dict, ctx: RunContext, tool: ToolsetTool[None]
+        ) -> Any:
+            # The `tool` object is passed in. Use it for inspection.
+            # Define a temporary function that performs the actual tool call.
+            async def execute_delegated_tool_call(**params):
+                # Pass all arguments down the chain.
+                return await self.wrapped.call_tool(name, tool_args, ctx, tool)
+
+            # For the confirmation UI, make our temporary function look like the real one.
+            try:
+                execute_delegated_tool_call.__name__ = name
+                execute_delegated_tool_call.__doc__ = tool.function.__doc__
+                execute_delegated_tool_call.__signature__ = inspect.signature(
+                    tool.function
+                )
+            except (AttributeError, TypeError):
+                pass  # Ignore if we can't inspect the original function
+            # Use the existing wrap_func to get the confirmation logic
+            wrapped_executor = wrap_func(
+                execute_delegated_tool_call, self.ctx, self.yolo_mode
+            )
+            # Call the wrapped executor. This will trigger the confirmation prompt.
+            return await wrapped_executor(**tool_args)
+
+    return ConfirmationWrapperToolset
 
 
 def get_agent(

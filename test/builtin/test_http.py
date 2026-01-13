@@ -2,7 +2,7 @@ import shlex
 from unittest.mock import MagicMock, patch
 
 from zrb.builtin.http import generate_curl, http_request
-from zrb.task.base_task import BaseTask
+from zrb.task.any_task import AnyTask
 
 
 def test_http_request():
@@ -13,7 +13,7 @@ def test_http_request():
         mock_response.text = '{"foo": "bar"}'
         mock_request.return_value = mock_response
 
-        task: BaseTask = http_request
+        task: AnyTask = http_request
         task.run(
             str_kwargs={
                 "method": "GET",
@@ -33,7 +33,7 @@ def test_http_request():
 
 
 def test_generate_curl():
-    task: BaseTask = generate_curl
+    task: AnyTask = generate_curl
     result = task.run(
         str_kwargs={
             "method": "POST",

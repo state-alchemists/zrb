@@ -323,9 +323,9 @@ def test_get_file_matches_generic_exception(temp_dir, monkeypatch):
             raise Exception("Simulated unexpected error during readlines")
 
         def close(self):
-            pass  # Mock close
+            pass  # MagicMock close
 
-    # Mock builtins.open to return the mock file object
+    # MagicMock builtins.open to return the mock file object
     def mock_open(*args, **kwargs):
         return MockFile()
 

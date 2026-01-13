@@ -10,11 +10,11 @@ from zrb.builtin import base64 as base64_module
 @pytest.fixture
 def mock_context():
     """Fixture for a mocked AnyContext."""
-    context = mock.Mock()
+    context = mock.MagicMock()
     # Use SimpleNamespace for attribute assignment if needed, otherwise remove import
     context.input = SimpleNamespace()
-    context.print = mock.Mock()
-    context.log_error = mock.Mock()
+    context.print = mock.MagicMock()
+    context.log_error = mock.MagicMock()
     return context
 
 

@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -14,9 +14,9 @@ from zrb.util.group import (
 )
 
 
-# Mock classes for testing
+# MagicMock classes for testing
 def create_mock_task(name, cli_only=False):
-    mock_task = Mock(spec=AnyTask)
+    mock_task = MagicMock(spec=AnyTask)
     mock_task.name = name
     mock_task.cli_only = cli_only
     # Add other attributes/methods if needed by the functions being tested
@@ -43,7 +43,7 @@ def create_mock_task(name, cli_only=False):
 
 
 def create_mock_group(name, subgroups=None, subtasks=None):
-    mock_group = Mock(spec=AnyGroup)
+    mock_group = MagicMock(spec=AnyGroup)
     mock_group.name = name
     mock_group.subgroups = subgroups if subgroups is not None else {}
     mock_group.subtasks = subtasks if subtasks is not None else {}
@@ -53,7 +53,7 @@ def create_mock_group(name, subgroups=None, subtasks=None):
     mock_group.add_group.return_value = None
     mock_group.add_task.return_value = None
 
-    # Mock get_group_by_alias and get_task_by_alias to return from the provided dicts
+    # MagicMock get_group_by_alias and get_task_by_alias to return from the provided dicts
     def get_group_by_alias_side_effect(alias):
         return mock_group.subgroups.get(alias)
 
