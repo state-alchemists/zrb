@@ -1,5 +1,13 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 1.21.42
+
+- **Refactor: Codebase Quality**:
+  - **Code Coverage**: Performed refactoring and increased test coverage across the project.
+  - **Cleanup**: Removed unused imports and test warnings for better maintainability.
+- **Dependency Management**:
+  - **Lockfile Update**: Updated `poetry.lock` to ensure consistent dependency resolution.
+
 ## 1.21.41
 
 - **Improvement: User Experience**:
