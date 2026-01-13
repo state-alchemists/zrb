@@ -1,7 +1,10 @@
 import os
+import platform
 from collections.abc import Callable
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
+from zrb.attr.type import StrAttr, StrListAttr
 from zrb.builtin.group import llm_group
 from zrb.builtin.llm.attachment import get_media_type
 from zrb.builtin.llm.chat_session import get_llm_ask_input_mapping, read_user_prompt
@@ -45,9 +48,27 @@ from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
 from zrb.task.base_trigger import BaseTrigger
-from zrb.task.llm.workflow import LLM_LOADED_WORKFLOW_XCOM_NAME
+from zrb.task.llm.conversation_history_model import ConversationHistory
+from zrb.task.llm.prompt import (
+    get_attachments,
+)
+from zrb.task.llm.subagent_conversation_history import (
+    extract_subagent_conversation_history_from_ctx,
+    inject_subagent_conversation_history_into_ctx,
+)
+from zrb.task.llm.workflow import (
+    LLM_LOADED_WORKFLOW_XCOM_NAME,
+    LLMWorkflow,
+    get_available_workflows,
+    load_workflow,
+)
 from zrb.task.llm_task import LLMTask
+from zrb.util.attr import get_attr, get_str_list_attr
+from zrb.util.cli.style import stylize_faint
+from zrb.util.file import read_file
+from zrb.util.markdown import make_markdown_section
 from zrb.util.string.conversion import to_boolean
+from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
     from pydantic_ai import AbstractToolset, Tool, UserContent
@@ -228,6 +249,195 @@ def _get_inputs(require_message: bool = True) -> list[AnyInput | None]:
     ]
 
 
+def _get_llm_ask_system_prompt(ctx: AnyContext) -> str:
+    system_prompt_attr = (
+        None if ctx.input.system_prompt.strip() == "" else ctx.input.system_prompt
+    )
+    workflows_attr = (
+        None if ctx.input.workflow.strip() == "" else ctx.input.workflow.split(",")
+    )
+    conversation_history = getattr(ctx, "conversation_history", ConversationHistory())
+
+    persona = _get_persona(ctx)
+    base_system_prompt = _get_base_system_prompt(ctx, system_prompt_attr)
+    special_instruction_prompt = _get_special_instruction_prompt(ctx)
+    project_instructions = _get_project_instructions()
+    available_workflows = get_available_workflows()
+    active_workflow_names = set(_get_active_workflow_names(ctx, workflows_attr, True))
+    active_workflow_prompt = _get_workflow_prompt(
+        available_workflows, active_workflow_names, True
+    )
+    inactive_workflow_prompt = _get_workflow_prompt(
+        available_workflows, active_workflow_names, False
+    )
+
+    current_directory = os.getcwd()
+    iso_date = datetime.now(timezone.utc).astimezone().isoformat()
+    return "\n".join(
+        [
+            persona,
+            base_system_prompt,
+            make_markdown_section(
+                "📝 SPECIAL INSTRUCTION",
+                "\n".join(
+                    [
+                        special_instruction_prompt,
+                        active_workflow_prompt,
+                    ]
+                ),
+            ),
+            make_markdown_section("📜 PROJECT INSTRUCTIONS", project_instructions),
+            make_markdown_section("🛠️ AVAILABLE WORKFLOWS", inactive_workflow_prompt),
+            make_markdown_section(
+                "📚 CONTEXT",
+                "\n".join(
+                    [
+                        make_markdown_section(
+                            "ℹ️ System Information",
+                            "\n".join(
+                                [
+                                    f"- OS: {platform.system()} {platform.version()}",
+                                    f"- Python Version: {platform.python_version()}",
+                                    f"- Current Directory: {current_directory}",
+                                    f"- Current Time: {iso_date}",
+                                ]
+                            ),
+                        ),
+                        make_markdown_section(
+                            "🧠 Long Term Note Content",
+                            conversation_history.long_term_note,
+                        ),
+                        make_markdown_section(
+                            "📝 Contextual Note Content",
+                            conversation_history.contextual_note,
+                        ),
+                    ]
+                ),
+            ),
+        ]
+    )
+
+
+def _get_project_instructions() -> str:
+    instructions = []
+    cwd = os.path.abspath(os.getcwd())
+    home = os.path.abspath(os.path.expanduser("~"))
+    search_dirs = []
+    if cwd == home or cwd.startswith(os.path.join(home, "")):
+        current_dir = cwd
+        while True:
+            search_dirs.append(current_dir)
+            if current_dir == home:
+                break
+            parent_dir = os.path.dirname(current_dir)
+            if parent_dir == current_dir:
+                break
+            current_dir = parent_dir
+    else:
+        search_dirs.append(cwd)
+    for file_name in ["AGENTS.md", "CLAUDE.md"]:
+        for dir_path in search_dirs:
+            abs_file_name = os.path.join(dir_path, file_name)
+            if os.path.isfile(abs_file_name):
+                content = read_file(abs_file_name)
+                instructions.append(
+                    make_markdown_section(
+                        f"Instruction from `{abs_file_name}`", content
+                    )
+                )
+                break
+    return "\n".join(instructions)
+
+
+def _get_prompt_attr(
+    ctx: AnyContext,
+    attr: StrAttr | None,
+    render: bool,
+    default: str | None,
+) -> str:
+    """Generic helper to get a prompt attribute, prioritizing task-specific then default."""
+    value = get_attr(
+        ctx,
+        attr,
+        None,
+        auto_render=render,
+    )
+    if value is not None:
+        return value
+    return default or ""
+
+
+def _get_persona(
+    ctx: AnyContext,
+) -> str:
+    return _get_prompt_attr(ctx, None, False, llm_config.default_persona)
+
+
+def _get_base_system_prompt(
+    ctx: AnyContext,
+    system_prompt_attr: StrAttr | None,
+) -> str:
+    return _get_prompt_attr(
+        ctx, system_prompt_attr, False, llm_config.default_system_prompt
+    )
+
+
+def _get_special_instruction_prompt(
+    ctx: AnyContext,
+) -> str:
+    return _get_prompt_attr(
+        ctx,
+        None,
+        False,
+        llm_config.default_special_instruction_prompt,
+    )
+
+
+def _get_active_workflow_names(
+    ctx: AnyContext,
+    workflows_attr: StrListAttr | None,
+    render_workflows: bool,
+) -> list[str]:
+    """Gets the workflows, prioritizing task-specific, then default."""
+    raw_workflows = get_str_list_attr(
+        ctx,
+        [] if workflows_attr is None else workflows_attr,
+        auto_render=render_workflows,
+    )
+    if raw_workflows is not None and len(raw_workflows) > 0:
+        return [w.strip().lower() for w in raw_workflows if w.strip() != ""]
+    return []
+
+
+def _get_workflow_prompt(
+    available_workflows: dict[str, LLMWorkflow],
+    active_workflow_names: list[str] | set[str],
+    select_active_workflow: bool,
+) -> str:
+    selected_workflows = {
+        workflow_name: available_workflows[workflow_name]
+        for workflow_name in available_workflows
+        if (workflow_name in active_workflow_names) == select_active_workflow
+    }
+    return "\n".join(
+        [
+            make_markdown_section(
+                workflow_name.capitalize(),
+                (
+                    (
+                        "> Workflow status: Automatically Loaded/Activated.\n"
+                        f"> Workflow location: `{workflow.path}`\n"
+                        "{workflow.content}"
+                    )
+                    if select_active_workflow
+                    else f"Workflow name: {workflow_name}\n{workflow.description}"
+                ),
+            )
+            for workflow_name, workflow in selected_workflows.items()
+        ]
+    )
+
+
 llm_ask = LLMTask(
     name="llm-ask",
     input=_get_inputs(True),
@@ -241,12 +451,7 @@ llm_ask = LLMTask(
     ),
     conversation_history_reader=read_chat_conversation,
     conversation_history_writer=write_chat_conversation,
-    system_prompt=lambda ctx: (
-        None if ctx.input.system_prompt.strip() == "" else ctx.input.system_prompt
-    ),
-    workflows=lambda ctx: (
-        None if ctx.input.workflow.strip() == "" else ctx.input.workflow.split(",")
-    ),
+    system_prompt=_get_llm_ask_system_prompt,
     attachment=_render_attach_input,
     message="{ctx.input.message}",
     tools=_get_tool,
