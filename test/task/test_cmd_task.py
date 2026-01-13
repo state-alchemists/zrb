@@ -1,10 +1,8 @@
 from functools import partial
-from unittest.mock import MagicMock, patch
 
 import pytest
 
 from zrb.cmd.cmd_result import CmdResult
-from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
 from zrb.session.session import Session
 from zrb.task.cmd_task import CmdTask
@@ -37,7 +35,6 @@ async def test_cmd_task_exec_success(mock_session):
         task = CmdTask(name="test_cmd", cmd="echo hello")
         mock_session.register_task(task)
 
-        ctx = mock_session.get_ctx(task)
         result = await task.exec(mock_session)
 
         # We can't use assert_called_once() with side_effect
@@ -67,7 +64,6 @@ async def test_cmd_task_exec_failure(mock_session):
         task = CmdTask(name="test_cmd_fail", cmd="exit 1")
         mock_session.register_task(task)
 
-        ctx = mock_session.get_ctx(task)
         with pytest.raises(Exception, match="Process test_cmd_fail exited \\(1\\)"):
             await task.exec(mock_session)
     finally:
@@ -98,7 +94,6 @@ async def test_cmd_task_exec_plain_print(mock_session):
         task = CmdTask(name="test_plain_print", cmd="echo plain", plain_print=True)
         mock_session.register_task(task)
 
-        ctx = mock_session.get_ctx(task)
         await task.exec(mock_session)
 
         # Check that run_command was called
@@ -140,7 +135,6 @@ async def test_cmd_task_exec_cwd(mock_session):
         task = CmdTask(name="test_cwd", cmd="pwd", cwd=custom_cwd)
         mock_session.register_task(task)
 
-        ctx = mock_session.get_ctx(task)
         await task.exec(mock_session)
 
         # Check that run_command was called
@@ -177,7 +171,6 @@ async def test_cmd_task_exec_env(mock_session):
         task = CmdTask(name="test_env", cmd="echo $MY_VAR")
         mock_session.register_task(task)
 
-        ctx = mock_session.get_ctx(task)
         await task.exec(mock_session)
 
         # Check that run_command was called
@@ -221,7 +214,6 @@ async def test_cmd_task_exec_remote(mock_session):
         )
         mock_session.register_task(task)
 
-        ctx = mock_session.get_ctx(task)
         await task.exec(mock_session)
 
         assert len(call_args_list) == 1
