@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 from zrb.attr.type import BoolAttr, IntAttr, StrAttr, StrListAttr, fstring
 from zrb.config.llm_rate_limitter import LLMRateLimitter
 from zrb.context.any_context import AnyContext
+from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
@@ -135,6 +136,7 @@ class LLMTask(BaseTask):
         upstream: list[AnyTask] | AnyTask | None = None,
         fallback: list[AnyTask] | AnyTask | None = None,
         successor: list[AnyTask] | AnyTask | None = None,
+        print_fn: PrintFn | None = None,
     ):
         super().__init__(
             name=name,
@@ -156,6 +158,7 @@ class LLMTask(BaseTask):
             upstream=upstream,
             fallback=fallback,
             successor=successor,
+            print_fn=print_fn,
         )
         self._model = model
         self._render_model = render_model

@@ -2,6 +2,7 @@ from collections.abc import Callable
 from typing import Any
 
 from zrb.context.any_context import AnyContext
+from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
 from zrb.group.any_group import AnyGroup
 from zrb.input.any_input import AnyInput
@@ -29,6 +30,7 @@ def make_task(
     upstream: list[AnyTask] | AnyTask | None = None,
     fallback: list[AnyTask] | AnyTask | None = None,
     successor: list[AnyTask] | AnyTask | None = None,
+    print_fn: PrintFn | None = None,
     group: AnyGroup | None = None,
     alias: str | None = None,
 ) -> Callable[[Callable[[AnyContext], Any]], AnyTask]:
@@ -54,6 +56,7 @@ def make_task(
             upstream=upstream,
             fallback=fallback,
             successor=successor,
+            print_fn=print_fn,
         )
         if group is not None:
             return group.add_task(task, alias=alias)

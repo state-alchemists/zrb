@@ -101,6 +101,18 @@ class Context(AnyContext):
             return template
         return float(self.render(template))
 
+    def shared_print(
+        self,
+        *values: object,
+        sep: str = " ",
+        end: str = "\n",
+        file: TextIO | None = sys.stderr,
+        flush: bool = True,
+    ):
+        return self._shared_ctx.shared_print(
+            *values, sep=sep, end=end, file=file, flush=flush
+        )
+
     def print(
         self,
         *values: object,
@@ -110,11 +122,14 @@ class Context(AnyContext):
         flush: bool = True,
         plain: bool = False,
     ):
-        sep = " " if sep is None else sep
+        if sep is None:
+            sep = " "
+        if end is None:
+            end = "\n"
         message = sep.join([f"{value}" for value in values])
         if plain:
             # self.append_to_shared_log(remove_style(message))
-            print(message, sep=sep, end=end, file=file, flush=flush)
+            self.shared_print(message, sep=sep, end=end, file=file, flush=flush)
             self.append_to_shared_log(remove_style(f"{message}{end}"))
             return
         color = self._color
@@ -137,7 +152,9 @@ class Context(AnyContext):
         prefix = f"{formatted_time}{attempt_status} {padded_styled_task_name} ⬤ "
         self.append_to_shared_log(remove_style(f"{prefix} {message}{end}"))
         stylized_prefix = stylize(prefix, color=color)
-        print(f"{stylized_prefix} {message}", sep=sep, end=end, file=file, flush=flush)
+        self.shared_print(
+            f"{stylized_prefix} {message}", sep=sep, end=end, file=file, flush=flush
+        )
 
     def print_err(
         self,

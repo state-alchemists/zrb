@@ -1,14 +1,18 @@
 import asyncio
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from zrb.attr.type import StrAttr
 from zrb.context.any_context import AnyContext
-from zrb.context.context import Context
+from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_str_attr
+
+if TYPE_CHECKING:
+    from requests import Response
 
 
 class HttpCheck(BaseTask):
@@ -19,16 +23,17 @@ class HttpCheck(BaseTask):
         icon: str | None = None,
         description: str | None = None,
         cli_only: bool = False,
-        input: list[AnyInput] | AnyInput | None = None,
-        env: list[AnyEnv] | AnyEnv | None = None,
+        input: list[AnyInput | None] | AnyInput | None = None,
+        env: list[AnyEnv | None] | AnyEnv | None = None,
         url: StrAttr = "http://localhost",
         render_url: bool = True,
         http_method: StrAttr = "GET",
         interval: int = 5,
-        execute_condition: bool | str | Callable[[Context], bool] = True,
+        execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         upstream: list[AnyTask] | AnyTask | None = None,
         fallback: list[AnyTask] | AnyTask | None = None,
         successor: list[AnyTask] | AnyTask | None = None,
+        print_fn: PrintFn | None = None,
     ):
         super().__init__(
             name=name,
@@ -43,6 +48,7 @@ class HttpCheck(BaseTask):
             upstream=upstream,
             fallback=fallback,
             successor=successor,
+            print_fn=print_fn,
         )
         self._url = url
         self._render_url = render_url
@@ -57,7 +63,7 @@ class HttpCheck(BaseTask):
     def _get_http_method(self, ctx: AnyContext) -> str:
         return get_str_attr(ctx, self._http_method, "GET", auto_render=True).upper()
 
-    async def _exec_action(self, ctx: AnyContext) -> bool:
+    async def _exec_action(self, ctx: AnyContext) -> "bool | Response":
         import requests
 
         url = self._get_url(ctx)

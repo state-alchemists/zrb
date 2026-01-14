@@ -2,10 +2,11 @@ import os
 import shutil
 from collections.abc import Callable
 
-from zrb.attr.type import BoolAttr, StrAttr
+from zrb.attr.type import StrAttr
 from zrb.content_transformer.any_content_transformer import AnyContentTransformer
 from zrb.content_transformer.content_transformer import ContentTransformer
 from zrb.context.any_context import AnyContext
+from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
@@ -24,8 +25,8 @@ class Scaffolder(BaseTask):
         icon: str | None = None,
         description: str | None = None,
         cli_only: bool = False,
-        input: list[AnyInput] | AnyInput | None = None,
-        env: list[AnyEnv] | AnyEnv | None = None,
+        input: list[AnyInput | None] | AnyInput | None = None,
+        env: list[AnyEnv | None] | AnyEnv | None = None,
         source_path: StrAttr | None = None,
         render_source_path: bool = True,
         destination_path: StrAttr | None = None,
@@ -36,7 +37,7 @@ class Scaffolder(BaseTask):
             list[AnyContentTransformer] | AnyContentTransformer | TransformConfig
         ) = [],
         render_transform_content: bool = True,
-        execute_condition: BoolAttr = True,
+        execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
         readiness_check: list[AnyTask] | AnyTask | None = None,
@@ -48,6 +49,7 @@ class Scaffolder(BaseTask):
         upstream: list[AnyTask] | AnyTask | None = None,
         fallback: list[AnyTask] | AnyTask | None = None,
         successor: list[AnyTask] | AnyTask | None = None,
+        print_fn: PrintFn | None = None,
     ):
         super().__init__(
             name=name,
@@ -69,6 +71,7 @@ class Scaffolder(BaseTask):
             upstream=upstream,
             fallback=fallback,
             successor=successor,
+            print_fn=print_fn,
         )
         self._source_path = source_path
         self._render_source_path = render_source_path

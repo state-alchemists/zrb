@@ -1,10 +1,10 @@
 from __future__ import annotations  # Enables forward references
 
+import sys
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.dot_dict.dot_dict import DotDict
-from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
     from zrb.session import any_session
@@ -86,4 +86,15 @@ class AnySharedContext(ABC):
         Returns:
             str: The rendered template as a string.
         """
+        pass
+
+    @abstractmethod
+    def shared_print(
+        self,
+        *values: object,
+        sep: str = " ",
+        end: str = "\n",
+        file: TextIO | None = sys.stderr,
+        flush: bool = True,
+    ):
         pass

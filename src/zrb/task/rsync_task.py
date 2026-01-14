@@ -1,5 +1,6 @@
 from zrb.attr.type import BoolAttr, IntAttr, StrAttr
 from zrb.context.any_context import AnyContext
+from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
@@ -52,6 +53,7 @@ class RsyncTask(CmdTask):
         upstream: list[AnyTask] | AnyTask | None = None,
         fallback: list[AnyTask] | AnyTask | None = None,
         successor: list[AnyTask] | AnyTask | None = None,
+        print_fn: PrintFn | None = None,
     ):
         super().__init__(
             name=name,
@@ -86,6 +88,7 @@ class RsyncTask(CmdTask):
             upstream=upstream,
             fallback=fallback,
             successor=successor,
+            print_fn=print_fn,
         )
         self._remote_source_path = remote_source_path
         self._render_remote_source_path = render_remote_source_path

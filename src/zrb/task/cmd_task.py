@@ -6,6 +6,7 @@ from zrb.cmd.cmd_result import CmdResult
 from zrb.cmd.cmd_val import AnyCmdVal, CmdVal, SingleCmdVal
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
+from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
@@ -62,6 +63,7 @@ class CmdTask(BaseTask):
         upstream: list[AnyTask] | AnyTask | None = None,
         fallback: list[AnyTask] | AnyTask | None = None,
         successor: list[AnyTask] | AnyTask | None = None,
+        print_fn: PrintFn | None = None,
     ):
         super().__init__(
             name=name,
@@ -83,6 +85,7 @@ class CmdTask(BaseTask):
             upstream=upstream,
             fallback=fallback,
             successor=successor,
+            print_fn=print_fn,
         )
         self._shell = shell
         self._render_shell = render_shell

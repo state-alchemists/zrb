@@ -1,9 +1,10 @@
 import datetime
 import sys
-from typing import Any
+from typing import Any, TextIO
 
 from zrb.config.config import CFG
 from zrb.context.any_shared_context import AnySharedContext
+from zrb.context.print_fn import PrintFn
 from zrb.dot_dict.dot_dict import DotDict
 from zrb.session.any_session import AnySession
 from zrb.util.string.conversion import (
@@ -28,6 +29,7 @@ class SharedContext(AnySharedContext):
         xcom: dict[str, Xcom] = {},
         logging_level: int | None = None,
         is_web_mode: bool = False,
+        print_fn: PrintFn | None = None,
     ):
         self.__logging_level = logging_level
         self._input = DotDict(input)
@@ -37,6 +39,7 @@ class SharedContext(AnySharedContext):
         self._session: AnySession | None = None
         self._log = []
         self._is_web_mode = is_web_mode
+        self._print_fn = print_fn if print_fn is not None else print
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -108,3 +111,13 @@ class SharedContext(AnySharedContext):
                 "double_quote": double_quote,
             },
         )
+
+    def shared_print(
+        self,
+        *values: object,
+        sep: str = " ",
+        end: str = "\n",
+        file: TextIO | None = sys.stderr,
+        flush: bool = True,
+    ):
+        return self._print_fn(*values, sep=sep, end=end, file=file, flush=flush)

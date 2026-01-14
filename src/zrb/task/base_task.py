@@ -5,6 +5,7 @@ from typing import Any
 
 from zrb.attr.type import fstring
 from zrb.context.any_context import AnyContext
+from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.session.any_session import AnySession
@@ -67,6 +68,7 @@ class BaseTask(AnyTask):
         upstream: list[AnyTask] | AnyTask | None = None,
         fallback: list[AnyTask] | AnyTask | None = None,
         successor: list[AnyTask] | AnyTask | None = None,
+        print_fn: PrintFn | None = None,
     ):
         # Optimized stack retrieval
         frame = inspect.currentframe()
@@ -100,6 +102,7 @@ class BaseTask(AnyTask):
         self._monitor_readiness = monitor_readiness
         self._execute_condition = execute_condition
         self._action = action
+        self._print_fn = print_fn
 
     def _ensure_task_list(self, tasks: AnyTask | list[AnyTask] | None) -> list[AnyTask]:
         if tasks is None:
@@ -284,7 +287,7 @@ class BaseTask(AnyTask):
 
         def task_runner_fn(**kwargs) -> Any:
             task_kwargs = self._get_func_kwargs(kwargs)
-            shared_ctx = SharedContext()
+            shared_ctx = SharedContext(print_fn=self._print_fn)
             session = Session(shared_ctx=shared_ctx)
             return self.run(session=session, kwargs=task_kwargs)
 

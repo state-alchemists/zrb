@@ -5,6 +5,7 @@ from typing import Any
 from zrb.attr.type import fstring
 from zrb.callback.any_callback import AnyCallback
 from zrb.context.any_context import AnyContext
+from zrb.context.print_fn import PrintFn
 from zrb.context.shared_context import SharedContext
 from zrb.dot_dict.dot_dict import DotDict
 from zrb.env.any_env import AnyEnv
@@ -49,6 +50,7 @@ class BaseTrigger(BaseTask):
         upstream: list[AnyTask] | AnyTask | None = None,
         fallback: list[AnyTask] | AnyTask | None = None,
         successor: list[AnyTask] | AnyTask | None = None,
+        print_fn: PrintFn | None = None,
     ):
         """
         Initializes a new instance of the BaseTrigger class.
@@ -102,6 +104,7 @@ class BaseTrigger(BaseTask):
             upstream=upstream,
             fallback=fallback,
             successor=successor,
+            print_fn=print_fn,
         )
         self._callbacks = callback
         self._queue_name = queue_name
@@ -143,6 +146,7 @@ class BaseTrigger(BaseTask):
                 shared_ctx=SharedContext(
                     input=dict(session.shared_ctx.input),
                     xcom=xcom_dict,
+                    print_fn=self._print_fn,
                 ),
                 parent=session,
                 root_group=session.root_group,
