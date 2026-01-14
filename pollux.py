@@ -1,5 +1,18 @@
+#!/usr/bin/env python3
+"""
+Pollux CLI - A Gemini-inspired terminal chat interface.
+Mock AI implementation with high-fidelity UI/UX details.
+"""
+
+import os
+
+# Disable LLMTask escape detection to prevent terminal interference
+os.environ["ZRB_DISABLE_LLM_ESCAPE_DETECTION"] = "1"
+
 import asyncio
 import random
+import re
+import string
 from datetime import datetime
 from typing import TextIO
 
@@ -14,27 +27,10 @@ from prompt_toolkit.lexers import Lexer
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import Frame, TextArea
 
-from zrb import AnyContext, LLMTask, Session, SharedContext, StrInput, make_task
+from zrb import LLMTask, Session, SharedContext, StrInput, Task
+from zrb.util.cli.markdown import render_markdown
 
 # --- Constants & Mock Data ---
-
-LOREM_IPSUM = [
-    "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-    "Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-    "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
-    "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
-    "Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-    "Curabitur pretium tincidunt lacus. Nulla gravida orci a odio.",
-    "Nullam varius, turpis et commodo pharetra, est eros bibendum elit, nec luctus magna felis sollicitudin mauris.",
-    "Integer in mauris eu nibh euismod gravida.",
-    "Duis ac tellus et risus vulputate vehicula.",
-    "Donec lobortis risus a elit. Etiam tempor.",
-    "Ut ullamcorper, ligula eu tempor congue, eros est euismod turpis, id tincidunt sapien risus a quam.",
-    "Maecenas fermentum consequat mi. Donec fermentum.",
-    "Pellentesque malesuada nulla a mi. Duis sapien sem, aliquet nec, commodo eget, consequat quis, neque.",
-    "Aliquam faucibus, elit ut dictum aliquet, felis nisl adipiscing sapien, sed malesuada diam lacus eget erat.",
-    "Cras mollis scelerisque nunc. Nullam arcu.",
-]
 
 GEMINI_GREETING = """
   /\\
@@ -48,35 +44,77 @@ GEMINI_GREETING = """
 # --- Custom Lexer for Syntax Highlighting ---
 
 
-class ChatLexer(Lexer):
+class CLIStyleLexer(Lexer):
     def lex_document(self, document):
-        # A simple lexer to colorize User and AI names
         def get_line(lineno):
             line = document.lines[lineno]
             tokens = []
 
-            # Simple parsing logic
-            if line.startswith("User"):
-                # "User" mock-up
-                # Assume format: "User   <timestamp>"
-                # We split by parts for basic coloring
-                parts = line.split(" ", 1)
-                tokens.append(("class:username", parts[0]))
-                if len(parts) > 1:
-                    tokens.append(("", " " + parts[1]))
+            # Regex to find ANSI escape sequences
+            ansi_escape = re.compile(r"\x1B\[[0-9;]*[mK]")
 
-            elif line.startswith("Pollux"):
-                parts = line.split(" ", 1)
-                tokens.append(("class:ai_name", parts[0]))
-                if len(parts) > 1:
-                    tokens.append(("", " " + parts[1]))
+            last_end = 0
+            current_style = ""
 
-            elif line.startswith("Thinking..."):
-                tokens.append(("class:thinking", line))
+            for match in ansi_escape.finditer(line):
+                start, end = match.span()
 
-            else:
-                # content
-                tokens.append(("class:text", line))
+                # Add text before the escape sequence with current style
+                if start > last_end:
+                    tokens.append((current_style, line[last_end:start]))
+
+                # Parse the escape sequence to update style
+                sequence = match.group()
+                if sequence == "\x1b[0m":
+                    current_style = ""  # Reset
+                else:
+                    # Simple mapping for common colors/styles used in zrb
+                    # This is a basic implementation and might need expansion
+                    if "1" in sequence:
+                        current_style += "bold "
+                    if "2" in sequence:
+                        current_style += "class:faint "
+                    if "3" in sequence:
+                        current_style += "italic "  # Italic is 3 in zrb style
+                    if "30" in sequence:
+                        current_style += "#000000 "
+                    if "31" in sequence:
+                        current_style += "#ff0000 "
+                    if "32" in sequence:
+                        current_style += "#00ff00 "
+                    if "33" in sequence:
+                        current_style += "#ffff00 "
+                    if "34" in sequence:
+                        current_style += "#0000ff "
+                    if "35" in sequence:
+                        current_style += "#ff00ff "
+                    if "36" in sequence:
+                        current_style += "#00ffff "
+                    if "37" in sequence:
+                        current_style += "#ffffff "
+                    # Bright colors
+                    if "90" in sequence:
+                        current_style += "#555555 "
+                    if "91" in sequence:
+                        current_style += "#ff5555 "
+                    if "92" in sequence:
+                        current_style += "#55ff55 "
+                    if "93" in sequence:
+                        current_style += "#ffff55 "
+                    if "94" in sequence:
+                        current_style += "#5555ff "
+                    if "95" in sequence:
+                        current_style += "#ff55ff "
+                    if "96" in sequence:
+                        current_style += "#55ffff "
+                    if "97" in sequence:
+                        current_style += "#ffffff "
+
+                last_end = end
+
+            # Add remaining text
+            if last_end < len(line):
+                tokens.append((current_style, line[last_end:]))
 
             return tokens
 
@@ -88,8 +126,8 @@ class ChatLexer(Lexer):
 
 class PolluxApp:
     def __init__(self):
-        self.session_name = ""
         self.is_thinking = False
+
         # UI Styles
         self.style = Style.from_dict(
             {
@@ -97,20 +135,25 @@ class PolluxApp:
                 "username": "ansibrightblue bold",
                 "ai_name": "ansipurple bold",
                 "thinking": "ansigreen italic",
+                "faint": "#888888",
                 "text": "#eeeeee",
                 "status": "reverse",
                 "bottom-toolbar": "bg:#333333 #aaaaaa",
             }
         )
+
         # Output Area (Read-only chat history)
         self.output_field = TextArea(
             text=GEMINI_GREETING.rstrip() + "\n\n",
             read_only=True,
             scrollbar=True,
             wrap_lines=True,
-            lexer=ChatLexer(),
+            lexer=CLIStyleLexer(),
             focus_on_click=True,
+            focusable=True,
         )
+        self.output_field.control.key_bindings = self._create_output_keybindings()
+
         # Input Area
         self.input_field = TextArea(
             height=4,
@@ -118,9 +161,11 @@ class PolluxApp:
             multiline=True,
             wrap_lines=True,
         )
+
         # Key Bindings
         self.kb = KeyBindings()
         self._setup_keybindings()
+
         # Layout
         self.layout = Layout(
             HSplit(
@@ -155,6 +200,7 @@ class PolluxApp:
             ),
             focused_element=self.input_field,
         )
+
         self.application = Application(
             layout=self.layout,
             key_bindings=self.kb,
@@ -167,6 +213,21 @@ class PolluxApp:
         if self.is_thinking:
             return [("class:thinking", " Pollux is thinking... ")]
         return [("class:status", " Ready ")]
+
+    def _create_output_keybindings(self):
+        kb = KeyBindings()
+
+        def redirect_focus(event):
+            get_app().layout.focus(self.input_field)
+            self.input_field.buffer.insert_text(event.data)
+
+        for char in string.printable:
+            # Skip control characters (Tab, Newline, etc.) to preserve navigation/standard behavior
+            if char in "\t\n\r\x0b\x0c":
+                continue
+            kb.add(char)(redirect_focus)
+
+        return kb
 
     def _setup_keybindings(self):
         @self.kb.add("c-c")
@@ -209,16 +270,36 @@ class PolluxApp:
     def append_to_output(
         self,
         *values: object,
-        sep: str = "",
+        sep: str = " ",
         end: str = "\n",
         file: TextIO | None = None,
         flush: bool = False,
     ):
         # Helper to safely append to read-only buffer
         current_text = self.output_field.text
-        text = sep.join([f"{value}" for value in values])
 
-        new_text = current_text + text + end
+        # Construct the new content
+        content = sep.join([str(value) for value in values]) + end
+
+        # Handle carriage returns (\r) for status updates
+        if "\r" in content:
+            # Find the start of the last line in the current text
+            last_newline = current_text.rfind("\n")
+            if last_newline == -1:
+                previous = ""
+                last = current_text
+            else:
+                previous = current_text[: last_newline + 1]
+                last = current_text[last_newline + 1 :]
+
+            combined = last + content
+            # Remove content before \r on the same line
+            # [^\n]* matches any character except newline
+            resolved = re.sub(r"[^\n]*\r", "", combined)
+
+            new_text = previous + resolved
+        else:
+            new_text = current_text + content
 
         # Update content directly
         # We use bypass_readonly=True by constructing a Document
@@ -237,7 +318,7 @@ class PolluxApp:
         # 2. Trigger AI Response
         asyncio.create_task(self.stream_ai_response(user_message))
 
-    async def stream_ai_response(self, user_messages):
+    async def stream_ai_response(self, user_message):
         self.is_thinking = True
         get_app().invalidate()  # Update status bar
 
@@ -252,25 +333,32 @@ class PolluxApp:
         self.append_to_output(f"\n{ai_header}{separator}")
 
         session = Session(
-            shared_ctx=SharedContext(
-                input={"message": user_messages}, print_fn=self.append_to_output
+            SharedContext(
+                input={"message": user_message},
+                print_fn=self.append_to_output,
+                is_web_mode=True,
             )
         )
-        ai_task = self.create_ai_task()
-        await ai_task.async_run(session)
-        self.session_name = session.name
+        llm_ask = self.create_task_llm()
+        result = await llm_ask.async_run(session)
+        if result is not None:
+            self.append_to_output("\n")
+            self.append_to_output(render_markdown(result))
 
         self.append_to_output("\n")
         self.is_thinking = False
         get_app().invalidate()
 
-    def create_ai_task(self):
+    def create_task_llm(self):
         return LLMTask(
-            name="llm-ask",
-            input=[
-                StrInput("message"),
-            ],
-            message="{ctx.input.message}",
+            name="llm-anu", input=[StrInput("message")], message="{ctx.input.message}"
+        )
+
+    def create_task(self):
+        return Task(
+            name="coba",
+            input=[StrInput("message")],
+            action=lambda ctx: ctx.print(ctx.input.message),
         )
 
     def run(self):
