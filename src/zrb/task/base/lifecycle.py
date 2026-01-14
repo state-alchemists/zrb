@@ -176,7 +176,7 @@ async def log_session_state(task: AnyTask, session: AnySession):
     try:
         while not session.is_terminated:
             session.state_logger.write(session.as_state_log())
-            await asyncio.sleep(0.1)  # Log interval
+            await asyncio.sleep(0)  # Log interval
         # Log one final time after termination signal
         session.state_logger.write(session.as_state_log())
     except asyncio.CancelledError:

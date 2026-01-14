@@ -1,5 +1,12 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 1.21.43
+
+- **Improvement: LLM Chat Responsiveness**:
+  - **Responsive ESC Handler**: Enhanced the interrupt handling in `llm-chat` to be more responsive, ensuring immediate cancellation of tasks when the `ESC` key is pressed.
+- **Performance**:
+  - **Lazy Loading**: Implemented lazy loading for `requests` module and optimized `asyncio.sleep` wait times to improve startup performance and responsiveness.
+
 ## 1.21.42
 
 - **Refactor: Codebase Quality**:

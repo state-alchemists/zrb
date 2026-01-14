@@ -1,3 +1,4 @@
+import asyncio
 import json
 from collections.abc import Callable
 from typing import Any
@@ -46,6 +47,7 @@ async def print_node(
                 async for event in request_stream:
                     if stop_check and stop_check():
                         return
+                    await asyncio.sleep(0)
                     if isinstance(event, PartStartEvent) and event.part:
                         if is_streaming:
                             print_func("")
@@ -137,6 +139,7 @@ async def print_node(
                 async for event in handle_stream:
                     if stop_check and stop_check():
                         return
+                    await asyncio.sleep(0)
                     if isinstance(event, FunctionToolCallEvent):
                         args = _get_event_part_args(event)
                         call_id = event.part.tool_call_id

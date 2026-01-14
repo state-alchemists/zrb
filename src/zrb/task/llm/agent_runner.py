@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import sys
+import termios
 import tty
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
@@ -138,6 +139,7 @@ async def _wait_for_escape(ctx: AnyContext) -> None:
     loop = asyncio.get_event_loop()
     future = loop.create_future()
     fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
     try:
         tty.setcbreak(fd)
         loop.add_reader(fd, _create_escape_detector(ctx, future, fd))
@@ -146,6 +148,7 @@ async def _wait_for_escape(ctx: AnyContext) -> None:
         raise
     finally:
         loop.remove_reader(fd)
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 
 def _create_escape_detector(

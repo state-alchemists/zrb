@@ -1,7 +1,5 @@
 from typing import Any
 
-import requests
-
 from zrb.config.config import CFG
 
 
@@ -36,6 +34,8 @@ def search_internet(
     Returns:
         dict: Summary of search results (titles, links, snippets).
     """
+    import requests
+
     if safe_search is None:
         safe_search = CFG.BRAVE_API_SAFE
     if language is None:
