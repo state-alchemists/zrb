@@ -3,12 +3,13 @@ from collections.abc import Callable
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Coroutine
 
+from zrb.config.llm_config import llm_config
 from zrb.context.any_context import AnyContext
 from zrb.task.llm.agent import create_agent_instance
 from zrb.task.llm.agent_runner import run_agent_iteration
 from zrb.task.llm.config import get_model, get_model_settings
 from zrb.task.llm.history_list import remove_system_prompt_and_instruction
-from zrb.task.llm.prompt import get_system_and_user_prompt
+from zrb.task.llm.prompt import construct_user_prompt
 from zrb.task.llm.subagent_conversation_history import (
     get_ctx_subagent_history,
     set_ctx_subagent_history,
@@ -87,15 +88,12 @@ def create_sub_agent_tool(
             model_settings_attr=model_settings,
         )
         if system_prompt is None:
-            resolved_system_prompt, query = get_system_and_user_prompt(
-                ctx=ctx,
-                user_message=query,
-                persona_attr=None,
-                system_prompt_attr=None,
-                special_instruction_prompt_attr=None,
-            )
+            resolved_system_prompt = llm_config.default_system_prompt
         else:
             resolved_system_prompt = system_prompt
+
+        query = construct_user_prompt(query)
+
         # Create the sub-agent instance
         sub_agent_agent = create_agent_instance(
             ctx=ctx,

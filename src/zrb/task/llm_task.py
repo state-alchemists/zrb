@@ -25,9 +25,9 @@ from zrb.task.llm.conversation_history_model import ConversationHistory
 from zrb.task.llm.history_list import remove_system_prompt_and_instruction
 from zrb.task.llm.history_summarization import get_history_summarization_token_threshold
 from zrb.task.llm.prompt import (
+    construct_user_prompt,
     get_attachments,
     get_summarization_system_prompt,
-    get_system_and_user_prompt,
     get_user_message,
 )
 from zrb.task.llm.subagent_conversation_history import (
@@ -35,6 +35,7 @@ from zrb.task.llm.subagent_conversation_history import (
     inject_subagent_conversation_history_into_ctx,
 )
 from zrb.task.llm.workflow import load_workflow
+from zrb.util.attr import get_attr
 from zrb.util.cli.style import stylize_faint
 from zrb.xcom.xcom import Xcom
 
@@ -76,14 +77,8 @@ class LLMTask(BaseTask):
         small_model_settings: (
             "ModelSettings | Callable[[AnyContext], ModelSettings] | None"
         ) = None,
-        persona: "Callable[[AnyContext], str | None] | str | None" = None,
-        render_persona: bool = False,
         system_prompt: "Callable[[AnyContext], str | None] | str | None" = None,
         render_system_prompt: bool = False,
-        special_instruction_prompt: "Callable[[AnyContext], str | None] | str | None" = None,
-        render_special_instruction_prompt: bool = False,
-        workflows: "Callable[[AnyContext], list[str] | None] | list[str] | None" = None,
-        render_workflows: bool = True,
         message: StrAttr | None = None,
         attachment: "UserContent | list[UserContent] | Callable[[AnyContext], UserContent | list[UserContent]] | None" = None,  # noqa
         render_message: bool = True,
@@ -171,14 +166,8 @@ class LLMTask(BaseTask):
         self._small_model_api_key = small_model_api_key
         self._render_small_model_api_key = render_small_model_api_key
         self._small_model_settings = small_model_settings
-        self._persona = persona
-        self._render_persona = render_persona
         self._system_prompt = system_prompt
         self._render_system_prompt = render_system_prompt
-        self._special_instruction_prompt = special_instruction_prompt
-        self._render_special_instruction_prompt = render_special_instruction_prompt
-        self._workflows = workflows
-        self._render_workflows = render_workflows
         self._message = message
         self._render_message = render_message
         self._summarization_prompt = summarization_prompt
@@ -228,9 +217,6 @@ class LLMTask(BaseTask):
     ):
         self._history_summarization_token_threshold = summarization_token_threshold
 
-    def set_workflows(self, workflows: StrListAttr):
-        self._workflows = workflows
-
     def set_yolo_mode(self, yolo_mode: StrListAttr | BoolAttr):
         self._yolo_mode = yolo_mode
 
@@ -255,11 +241,10 @@ class LLMTask(BaseTask):
         )
         inject_conversation_history_notes(conversation_history)
         inject_subagent_conversation_history_into_ctx(ctx, conversation_history)
+        ctx.conversation_history = conversation_history
 
         # 3. Get system prompt and user prompt
-        system_prompt, user_prompt = self._get_prompts(
-            ctx, user_message, conversation_history
-        )
+        system_prompt, user_prompt = self._get_prompts(ctx, user_message)
 
         # 4. Get the agent instance
         ctx.log_info(f"SYSTEM PROMPT:\n{system_prompt}")
@@ -322,21 +307,12 @@ class LLMTask(BaseTask):
         self,
         ctx: AnyContext,
         user_message: str,
-        conversation_history: ConversationHistory,
     ):
-        return get_system_and_user_prompt(
-            ctx=ctx,
-            user_message=user_message,
-            persona_attr=self._persona,
-            render_persona=self._render_persona,
-            system_prompt_attr=self._system_prompt,
-            render_system_prompt=self._render_system_prompt,
-            special_instruction_prompt_attr=self._special_instruction_prompt,
-            render_special_instruction_prompt=self._render_special_instruction_prompt,
-            workflows_attr=self._workflows,
-            render_workflows=self._render_workflows,
-            conversation_history=conversation_history,
+        system_prompt = get_attr(
+            ctx, self._system_prompt, None, auto_render=self._render_system_prompt
         )
+        user_prompt = construct_user_prompt(user_message)
+        return system_prompt, user_prompt
 
     def _create_agent(
         self,
