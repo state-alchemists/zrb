@@ -46,6 +46,7 @@ async def print_node(
                 async for event in request_stream:
                     if stop_check and stop_check():
                         return
+                    await asyncio.sleep(0)
                     if isinstance(event, PartStartEvent) and event.part:
                         if is_streaming:
                             print_func("")
