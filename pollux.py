@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-Pollux CLI - A Gemini-inspired terminal chat interface.
-Mock AI implementation with high-fidelity UI/UX details.
-"""
-
 import asyncio
 import random
 from datetime import datetime
@@ -20,7 +14,7 @@ from prompt_toolkit.lexers import Lexer
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import Frame, TextArea
 
-from zrb import AnyContext, make_task
+from zrb import AnyContext, LLMTask, Session, SharedContext, StrInput, make_task
 
 # --- Constants & Mock Data ---
 
@@ -94,8 +88,8 @@ class ChatLexer(Lexer):
 
 class PolluxApp:
     def __init__(self):
+        self.session_name = ""
         self.is_thinking = False
-
         # UI Styles
         self.style = Style.from_dict(
             {
@@ -108,7 +102,6 @@ class PolluxApp:
                 "bottom-toolbar": "bg:#333333 #aaaaaa",
             }
         )
-
         # Output Area (Read-only chat history)
         self.output_field = TextArea(
             text=GEMINI_GREETING.rstrip() + "\n\n",
@@ -118,7 +111,6 @@ class PolluxApp:
             lexer=ChatLexer(),
             focus_on_click=True,
         )
-
         # Input Area
         self.input_field = TextArea(
             height=4,
@@ -126,11 +118,9 @@ class PolluxApp:
             multiline=True,
             wrap_lines=True,
         )
-
         # Key Bindings
         self.kb = KeyBindings()
         self._setup_keybindings()
-
         # Layout
         self.layout = Layout(
             HSplit(
@@ -165,7 +155,6 @@ class PolluxApp:
             ),
             focused_element=self.input_field,
         )
-
         self.application = Application(
             layout=self.layout,
             key_bindings=self.kb,
@@ -237,18 +226,18 @@ class PolluxApp:
             Document(new_text, cursor_position=len(new_text)), bypass_readonly=True
         )
 
-    def submit_message(self, text):
+    def submit_message(self, user_message):
         timestamp = datetime.now().strftime("%H:%M")
 
         # 1. Render User Message
         user_header = f"User   {timestamp}\n"
         separator = "-" * 40 + "\n"
-        self.append_to_output(f"\n{user_header}{separator}{text.strip()}\n")
+        self.append_to_output(f"\n{user_header}{separator}{user_message.strip()}\n")
 
         # 2. Trigger AI Response
-        asyncio.create_task(self.stream_ai_response())
+        asyncio.create_task(self.stream_ai_response(user_message))
 
-    async def stream_ai_response(self):
+    async def stream_ai_response(self, user_messages):
         self.is_thinking = True
         get_app().invalidate()  # Update status bar
 
@@ -262,41 +251,27 @@ class PolluxApp:
         # Header first
         self.append_to_output(f"\n{ai_header}{separator}")
 
+        session = Session(
+            shared_ctx=SharedContext(
+                input={"message": user_messages}, print_fn=self.append_to_output
+            )
+        )
         ai_task = self.create_ai_task()
-        await ai_task.async_run()
+        await ai_task.async_run(session)
+        self.session_name = session.name
 
         self.append_to_output("\n")
         self.is_thinking = False
         get_app().invalidate()
 
     def create_ai_task(self):
-
-        @make_task(
-            name="coba",
-            print_fn=self.append_to_output,
+        return LLMTask(
+            name="llm-ask",
+            input=[
+                StrInput("message"),
+            ],
+            message="{ctx.input.message}",
         )
-        async def ai_task(ctx: AnyContext):
-            num_paragraphs = random.randint(1, 3)
-            paragraphs = random.sample(
-                LOREM_IPSUM, min(len(LOREM_IPSUM), num_paragraphs * 3)
-            )
-            # Stream word by word
-            for i, para in enumerate(paragraphs):
-                words = para.split(" ")
-                for word in words:
-                    chunk = word + " "
-                    ctx.print(chunk, end="", plain=True)
-                    # self.append_to_output(chunk)
-                    # Random typing speed
-                    await asyncio.sleep(random.uniform(0.02, 0.1))
-
-                # Newline between paragraphs
-                if i < len(paragraphs) - 1:
-                    ctx.print("\n\n", end="", plain=True)
-                    # self.append_to_output("\n\n")
-                    await asyncio.sleep(0.3)
-
-        return ai_task
 
     def run(self):
         # We need to run async to support the streaming task
