@@ -227,7 +227,13 @@ class BaseTask(AnyTask):
         """
         # Use asyncio.run() to execute the async cleanup wrapper
         return asyncio.run(
-            run_and_cleanup(self, session=session, str_kwargs=str_kwargs, kwargs=kwargs)
+            run_and_cleanup(
+                self,
+                session=session,
+                print_fn=self._print_fn,
+                str_kwargs=str_kwargs,
+                kwargs=kwargs,
+            )
         )
 
     async def async_run(
@@ -237,7 +243,11 @@ class BaseTask(AnyTask):
         kwargs: dict[str, Any] | None = None,
     ) -> Any:
         return await run_task_async(
-            self, session=session, str_kwargs=str_kwargs, kwargs=kwargs
+            self,
+            session=session,
+            print_fn=self._print_fn,
+            str_kwargs=str_kwargs,
+            kwargs=kwargs,
         )
 
     async def exec_root_tasks(self, session: AnySession):
@@ -307,7 +317,7 @@ class BaseTask(AnyTask):
     def _create_fn_docstring(self) -> str:
         from zrb.context.shared_context import SharedContext
 
-        stub_shared_ctx = SharedContext()
+        stub_shared_ctx = SharedContext(print_fn=self._print_fn)
         str_input_default_values = {}
         for inp in self.inputs:
             str_input_default_values[inp.name] = inp.get_default_str(stub_shared_ctx)
