@@ -4,12 +4,8 @@ Pollux CLI - A Gemini-inspired terminal chat interface.
 Mock AI implementation with high-fidelity UI/UX details.
 """
 
-import os
-
-# Disable LLMTask escape detection to prevent terminal interference
-os.environ["ZRB_DISABLE_LLM_ESCAPE_DETECTION"] = "1"
-
 import asyncio
+import os
 import random
 import re
 import string
@@ -30,7 +26,12 @@ from prompt_toolkit.widgets import Frame, TextArea
 from zrb import LLMTask, Session, SharedContext, StrInput, Task
 from zrb.util.cli.markdown import render_markdown
 
+# Disable LLMTask escape detection to prevent terminal interference
+
+
 # --- Constants & Mock Data ---
+
+os.environ["ZRB_DISABLE_LLM_ESCAPE_DETECTION"] = "1"
 
 GEMINI_GREETING = """
   /\\
@@ -187,7 +188,7 @@ class PolluxApp:
                     # Input Area
                     Frame(
                         self.input_field,
-                        title="Input (Enter to send, \\+Enter or Ctrl+Space for newline)",
+                        title="Input (Enter to send, Alt+Enter or Ctrl+J for newline)",
                         style="class:input-frame",
                     ),
                     # Status Bar
@@ -263,6 +264,7 @@ class PolluxApp:
             buff.reset()
 
         @self.kb.add("escape", "enter")  # Alt+Enter (ESC + Enter)
+        @self.kb.add("c-j")  # Ctrl+J
         @self.kb.add("c-space")  # Ctrl+Space (Fallback)
         def _(event):
             event.current_buffer.insert_text("\n")
