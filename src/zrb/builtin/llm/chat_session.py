@@ -72,7 +72,7 @@ async def read_user_prompt(ctx: AnyContext) -> str:
             session.shared_ctx.input["previous-session"] = last_session_name
     current_session_name: str | None = ctx.input.previous_session
     while not should_end:
-        await asyncio.sleep(0.01)
+        await asyncio.sleep(0)
         if is_first_time and ctx.input.message.strip() != "":
             user_input = ctx.input.message
         else:
@@ -302,7 +302,7 @@ async def _wait_ask_result(ctx: AnyContext) -> str | None:
         LLM_ASK_RESULT_XCOM_NAME not in ctx.xcom
         or len(ctx.xcom[LLM_ASK_RESULT_XCOM_NAME]) == 0
     ):
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0)
         if (
             LLM_ASK_ERROR_XCOM_NAME in ctx.xcom
             and len(ctx.xcom[LLM_ASK_ERROR_XCOM_NAME]) > 0
@@ -326,5 +326,5 @@ async def _wait_ask_session_name(ctx: AnyContext) -> str:
         LLM_ASK_SESSION_XCOM_NAME not in ctx.xcom
         or len(ctx.xcom[LLM_ASK_SESSION_XCOM_NAME]) == 0
     ):
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0)
     return ctx.xcom[LLM_ASK_SESSION_XCOM_NAME].pop()

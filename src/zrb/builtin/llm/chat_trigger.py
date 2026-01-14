@@ -59,9 +59,13 @@ class LLMChatTrigger:
         except asyncio.CancelledError:
             ctx.print("Task cancelled.", plain=True)
             final_result = "/bye"
+            for task in trigger_tasks:
+                task.cancel()
         except KeyboardInterrupt:
             ctx.print("KeyboardInterrupt detected. Exiting...", plain=True)
             final_result = "/bye"
+            for task in trigger_tasks:
+                task.cancel()
         return final_result
 
     async def _read_next_line(
