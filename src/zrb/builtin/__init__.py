@@ -12,6 +12,7 @@ from zrb.builtin.jwt import decode_jwt, encode_jwt, validate_jwt
 from zrb.builtin.llm.chat_trigger import llm_chat_trigger
 from zrb.builtin.llm.llm_ask import llm_ask
 from zrb.builtin.md5 import hash_md5, sum_md5, validate_md5
+from zrb.builtin.pollux.chat_task import chat_task
 from zrb.builtin.project.add.fastapp.fastapp_task import add_fastapp_to_project
 from zrb.builtin.project.create.project_task import create_project
 from zrb.builtin.python import format_python_code
