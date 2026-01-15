@@ -1,4 +1,6 @@
+import asyncio
 from collections.abc import Callable
+from functools import wraps
 from typing import TYPE_CHECKING, Any
 
 from zrb.attr.type import StrAttr, fstring
@@ -65,6 +67,7 @@ class LLMTask(BaseTask):
         conversation_name: StrAttr | None = None,
         render_conversation_name: bool = True,
         history_manager: AnyHistoryManager | None = None,
+        yolo: bool | str | Callable[[AnyContext], bool] = False,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
@@ -126,6 +129,7 @@ class LLMTask(BaseTask):
             if history_manager is None
             else history_manager
         )
+        self._yolo = yolo
 
     def add_toolset(self, *toolset: "AbstractToolset"):
         self.append_toolset(*toolset)
@@ -141,7 +145,12 @@ class LLMTask(BaseTask):
         self._tools += tools
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
-        from pydantic_ai import AgentRunResultEvent
+        from pydantic_ai import (
+            AgentRunResultEvent,
+            DeferredToolRequests,
+            DeferredToolResults,
+            ToolCallPart,
+        )
 
         conversation_name = str(
             get_attr(
@@ -150,20 +159,40 @@ class LLMTask(BaseTask):
         )
         message_history = self._history_manager.load(conversation_name)
         message = get_attr(ctx, self._message, "", self._render_message)
+
+        # Check for deferred_tool_results in input
+        deferred_tool_results = ctx.input.get("deferred_tool_results")
+
+        # If resuming, we usually don't want to re-send the user message that triggered the tool,
+        # otherwise the agent might loop (executing tool, then seeing the message again and executing again).
+        if deferred_tool_results:
+            # When resuming, typically the history contains the context.
+            # We pass None as the new user message.
+            run_message = None
+        else:
+            run_message = get_attr(ctx, self._message, "", self._render_message)
+
         system_prompt = str(
             get_attr(ctx, self._system_prompt, "", self._render_system_prompt)
         )
+        yolo = get_attr(ctx, self._yolo, False)
+        if isinstance(yolo, str):
+            yolo = yolo.lower() == "true"
+
         agent = self._create_agent(
             ctx=ctx,
             system_prompt=system_prompt,
             tools=self._tools,
             toolsets=self._toolsets,
+            yolo=yolo,
         )
         print_event = create_faint_printer(ctx)
         handle_event = create_event_handler(print_event)
         result = None
         async for event in agent.run_stream_events(
-            message, message_history=message_history
+            run_message,
+            message_history=message_history,
+            deferred_tool_results=deferred_tool_results,
         ):
             if isinstance(event, AgentRunResultEvent):
                 result = event.result
@@ -173,7 +202,20 @@ class LLMTask(BaseTask):
                 ctx.log_debug(f"All messages: {result.all_messages()}")
             else:
                 await handle_event(event)
-        return result
+
+        output = result.output if result else None
+
+        # Fix for empty DeferredToolRequests.calls when using ApprovalRequired
+        if isinstance(output, DeferredToolRequests) and not output.calls:
+            # Scan new messages for ToolCallPart
+            for msg in reversed(result.new_messages()):
+                if hasattr(msg, "parts"):
+                    for part in msg.parts:
+                        if isinstance(part, ToolCallPart):
+                            # output.calls expects list[ToolCallPart]
+                            output.calls.append(part)
+
+        return output
 
     def _create_agent(
         self,
@@ -185,19 +227,57 @@ class LLMTask(BaseTask):
         toolsets: list["AbstractToolset[None]"] = [],
         retries: int = 1,
         is_small: bool = False,
+        yolo: bool = False,
     ) -> "Agent[None, Any]":
-        from pydantic_ai import Agent
+        from pydantic_ai import Agent, DeferredToolRequests
+
+        final_output_type = output_type
+        if not yolo:
+            final_output_type = output_type | DeferredToolRequests
+
+        effective_tools = tools
+        if not yolo:
+            effective_tools = [self._wrap_tool(t, yolo) for t in tools]
 
         return Agent(
             model=self._get_model(ctx, is_small),
-            output_type=output_type,
+            output_type=final_output_type,
             instructions=system_prompt,
-            tools=tools,
+            tools=effective_tools,
             toolsets=toolsets,
             model_settings=self._get_model_settings(ctx, is_small),
             history_processors=history_processors,
             retries=retries,
         )
+
+    def _wrap_tool(
+        self, tool: "Tool | ToolFuncEither", yolo: bool
+    ) -> "Tool | ToolFuncEither":
+        from pydantic_ai import RunContext, Tool
+        from pydantic_ai.exceptions import ApprovalRequired
+
+        if callable(tool) and not isinstance(tool, Tool):
+            func = tool
+
+            @wraps(func)
+            async def wrapper(ctx: RunContext[Any], *args, **kwargs):
+                if yolo:
+                    if asyncio.iscoroutinefunction(func):
+                        return await func(*args, **kwargs)
+                    return func(*args, **kwargs)
+
+                # Check if approval has been granted in this context
+                if hasattr(ctx, "tool_call_approved") and ctx.tool_call_approved:
+                    if asyncio.iscoroutinefunction(func):
+                        return await func(*args, **kwargs)
+                    return func(*args, **kwargs)
+
+                raise ApprovalRequired()
+
+            # Create a Tool instance explicitly, enabling context injection
+            return Tool(wrapper, takes_ctx=True)
+
+        return tool
 
     def _get_model_settings(
         self,

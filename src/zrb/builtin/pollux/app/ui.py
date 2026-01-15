@@ -36,6 +36,7 @@ class UI:
         llm_task: AnyTask,
         first_message: str = "",
         conversation_session_name: str = "",
+        yolo: bool = False,
     ):
         self._is_thinking = False
         self._running_llm_task: asyncio.Task | None = None
@@ -44,6 +45,10 @@ class UI:
         self._jargon = jargon
         self._first_message = first_message
         self._conversation_session_name = conversation_session_name
+        self._yolo = yolo
+        # Confirmation state
+        self._waiting_for_confirmation = False
+        self._confirmation_future: asyncio.Future[bool] | None = None
         # UI Styles
         self._style = self._create_style()
         # Input Area
@@ -76,6 +81,20 @@ class UI:
     def _on_first_render(self, app: Application):
         self._application.after_render.remove_handler(self._on_first_render)
         self._submit_user_message(self._llm_task, self._first_message)
+
+    async def _confirm_tool_execution(self, message: str) -> bool:
+        self._waiting_for_confirmation = True
+        self._confirmation_future = asyncio.Future()
+
+        # Display confirmation prompt
+        self._append_to_output(f"\n[?] {message} (y/N) ", end="")
+        get_app().invalidate()
+
+        try:
+            return await self._confirmation_future
+        finally:
+            self._waiting_for_confirmation = False
+            self._confirmation_future = None
 
     @property
     def application(self) -> Application:
@@ -185,6 +204,12 @@ class UI:
     def _create_output_keybindings(self, input_field: TextArea):
         kb = KeyBindings()
 
+        @kb.add("c-c")
+        def _(event):
+            # Copy selection to clipboard
+            data = event.current_buffer.copy_selection()
+            event.app.clipboard.set_data(data)
+
         def redirect_focus(event):
             get_app().layout.focus(input_field)
             input_field.buffer.insert_text(event.data)
@@ -201,6 +226,13 @@ class UI:
     def _setup_app_keybindings(self, app_keybindings: KeyBindings, llm_task: AnyTask):
         @app_keybindings.add("c-c")
         def _(event):
+            # If text is selected, copy it instead of exiting
+            buffer = event.app.current_buffer
+            if buffer.selection_state:
+                data = buffer.copy_selection()
+                event.app.clipboard.set_data(data)
+                buffer.exit_selection()
+                return
             event.app.exit()
 
         @app_keybindings.add("escape")
@@ -212,6 +244,18 @@ class UI:
         def _(event):
             buff = event.current_buffer
             text = buff.text
+
+            # Handle confirmation if waiting
+            if self._waiting_for_confirmation and self._confirmation_future:
+                # Echo the user input
+                self._append_to_output(text + "\n")
+
+                is_confirmed = text.strip().lower() in ("y", "yes")
+                if not self._confirmation_future.done():
+                    self._confirmation_future.set_result(is_confirmed)
+
+                buff.reset()
+                return
 
             # Check for multiline indicator (trailing backslash)
             if text.strip().endswith("\\"):
@@ -253,6 +297,14 @@ class UI:
         file: TextIO | None = None,
         flush: bool = False,
     ):
+        # Log everything to file for debugging
+        try:
+            with open("zrb_debug.log", "a") as f:
+                content = sep.join([str(value) for value in values]) + end
+                f.write(content)
+        except Exception:
+            pass
+
         # Helper to safely append to read-only buffer
         current_text = self._output_field.text
 
@@ -298,6 +350,13 @@ class UI:
         )
 
     async def _stream_ai_response(self, llm_task: AnyTask, user_message: str):
+        from pydantic_ai import (
+            DeferredToolRequests,
+            DeferredToolResults,
+            ToolApproved,
+            ToolDenied,
+        )
+
         self._is_thinking = True
         get_app().invalidate()  # Update status bar
 
@@ -306,27 +365,70 @@ class UI:
             ai_header = f"🤖 {timestamp} >>\n"
             # Header first
             self._append_to_output(f"\n{ai_header}")
-            session = Session(
-                SharedContext(
-                    input={
-                        "message": user_message,
-                        "session": self._conversation_session_name,
-                    },
-                    print_fn=self._append_to_output,
-                    is_web_mode=True,
-                )
-            )
-            result = await llm_task.async_run(session)
-            if result is not None:
-                self._append_to_output("\n")
-                if hasattr(result, "output"):
-                    output = getattr(result, "output")
-                    self._append_to_output(render_markdown(output))
 
-            self._append_to_output("\n")
+            # Initial Inputs
+            deferred_tool_results = None
+
+            while True:
+                session_input = {
+                    "message": user_message,
+                    "session": self._conversation_session_name,
+                    "yolo": self._yolo,
+                }
+                if deferred_tool_results:
+                    session_input["deferred_tool_results"] = deferred_tool_results
+
+                session = Session(
+                    SharedContext(
+                        input=session_input,
+                        print_fn=self._append_to_output,
+                        is_web_mode=True,
+                    )
+                )
+
+                # Run the task (one step)
+                result_data = await llm_task.async_run(session)
+
+                # Check for DeferredToolRequests
+                if isinstance(result_data, DeferredToolRequests):
+                    # Prepare results container (User pattern: init empty, assign dict)
+                    deferred_tool_results = DeferredToolResults()
+
+                    for call in result_data.calls:
+                        msg = f"Execute tool '{call.tool_name}' with args {call.args}?"
+                        approved = await self._confirm_tool_execution(msg)
+
+                        if approved:
+                            # ToolApproved doesn't need tool_call_id as it's the key in the dict
+                            res = ToolApproved()
+                        else:
+                            res = ToolDenied("User denied execution")
+
+                        deferred_tool_results.approvals[call.tool_call_id] = res
+
+                    continue
+
+                # Check for final text output
+                if result_data is not None:
+                    # If it's a string, it's the final answer
+                    # If it's something else, we might need to render it
+                    # Usually LLMTask returns result.data which is the output.
+                    # If output_type=str, it's str.
+                    if isinstance(result_data, str):
+                        self._append_to_output(render_markdown(result_data))
+                    # If it's other types, handle or ignore (already printed via stream?)
+                    # Stream handlers print partials. Final result is mostly for programmatic use,
+                    # but we might want to ensure we didn't miss anything.
+                    # For now, let's assume stream printed everything.
+                    pass
+
+                break
+
         except asyncio.CancelledError:
             self._append_to_output("\n[Cancelled]\n")
         except Exception as e:
+            with open("zrb_debug.log", "a") as f:
+                f.write(f"[{datetime.now()}] Error: {e}\n")
             self._append_to_output(f"\n[Error: {e}]\n")
         finally:
             self._is_thinking = False

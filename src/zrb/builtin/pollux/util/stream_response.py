@@ -29,20 +29,28 @@ def create_event_handler(
     progress_char_list = ["|", "/", "-", "\\"]
     progress_char_index = 0
     was_tool_call_delta = False
+    event_prefix = indentation
 
-    def fprint(content: str):
-        if content.startswith("\n"):
+    def fprint(content: str, preserve_leading_newline: bool = False):
+        if preserve_leading_newline and content.startswith("\n"):
             return print_event("\n" + content[1:].replace("\n", f"\n{indentation}   "))
         return print_event(content.replace("\n", f"\n{indentation}   "))
 
     async def handle_event(event: "AgentStreamEvent"):
-        nonlocal progress_char_index, was_tool_call_delta
+        from pydantic_ai import ToolCallPart
+
+        nonlocal progress_char_index, was_tool_call_delta, event_prefix
         if isinstance(event, PartStartEvent):
+            # Skip ToolCallPart start, we handle it in Deltas/CallEvent
+            if isinstance(event.part, ToolCallPart):
+                return
             content = _get_event_part_content(event)
-            fprint(f"\n{indentation}🧠 {content}")
+            # Use preserve_leading_newline=True because event_prefix contains the correctly indented newline
+            fprint(f"{event_prefix}🧠 {content}", preserve_leading_newline=True)
             was_tool_call_delta = False
         elif isinstance(event, PartDeltaEvent):
             if isinstance(event.delta, TextPartDelta):
+                # Standard fprint for deltas to ensure wrapping indentation
                 fprint(f"{event.delta.content_delta}")
                 was_tool_call_delta = False
             elif isinstance(event.delta, ThinkingPartDelta):
@@ -53,9 +61,14 @@ def create_event_handler(
                     fprint(f"{event.delta.args_delta}")
                 else:
                     progress_char = progress_char_list[progress_char_index]
-                    line_start = "\r" if was_tool_call_delta else "\n"
+                    if not was_tool_call_delta:
+                        # Print newline for tool param spinner
+                        fprint("\n")
+
+                    # Split \r to avoid UI._append_to_output stripping the ANSI start code along with the line
+                    print_event("\r")
                     print_event(
-                        f"{line_start}{indentation} Prepare tool parameters {progress_char}"
+                        f"{indentation}🔄 Prepare tool parameters {progress_char}"
                     )
                     progress_char_index += 1
                     if progress_char_index >= len(progress_char_list):
@@ -63,20 +76,27 @@ def create_event_handler(
                     was_tool_call_delta = True
         elif isinstance(event, FunctionToolCallEvent):
             args = _get_truncated_event_part_args(event)
+            # Use preserve_leading_newline=True for the block header
             fprint(
-                f"\n{indentation}🧰 {event.part.tool_call_id} | {event.part.tool_name} {args}\n"
+                f"{event_prefix}🧰 {event.part.tool_call_id} | {event.part.tool_name} {args}",
+                preserve_leading_newline=True,
             )
             was_tool_call_delta = False
         elif isinstance(event, FunctionToolResultEvent):
             if show_tool_result:
                 fprint(
-                    f"\n{indentation}🔠 {event.tool_call_id} | Return {event.result.content}\n"
+                    f"{event_prefix}🔠 {event.tool_call_id} | Return {event.result.content}",
+                    preserve_leading_newline=True,
                 )
             else:
-                fprint(f"\n{indentation}🔠 {event.tool_call_id} Executed\n")
+                fprint(
+                    f"{event_prefix}🔠 {event.tool_call_id} Executed",
+                    preserve_leading_newline=True,
+                )
             was_tool_call_delta = False
         elif isinstance(event, FinalResultEvent):
             was_tool_call_delta = False
+        event_prefix = f"\n{indentation}"
 
     return handle_event
 
@@ -127,8 +147,9 @@ def _truncate_arg(arg: str, length: int = 30) -> str:
 
 def _get_event_part_content(event: "AgentStreamEvent") -> str:
     if not hasattr(event, "part"):
-        return f"{event}"
+        return ""
     part = getattr(event, "part")
-    if not hasattr(part, "content"):
-        return f"{part}"
-    return getattr(part, "content")
+    if hasattr(part, "content"):
+        return getattr(part, "content")
+    # For parts without content (like ToolCallPart, though we skip it now), return empty or simple repr
+    return ""
