@@ -31,13 +31,15 @@ def create_event_handler(
     was_tool_call_delta = False
 
     def fprint(content: str):
+        if content.startswith("\n"):
+            return print_event("\n" + content[1:].replace("\n", f"\n{indentation}   "))
         return print_event(content.replace("\n", f"\n{indentation}   "))
 
     async def handle_event(event: "AgentStreamEvent"):
         nonlocal progress_char_index, was_tool_call_delta
         if isinstance(event, PartStartEvent):
             content = _get_event_part_content(event)
-            fprint(f"{indentation}🧠 {content}")
+            fprint(f"\n{indentation}🧠 {content}")
             was_tool_call_delta = False
         elif isinstance(event, PartDeltaEvent):
             if isinstance(event.delta, TextPartDelta):
@@ -51,26 +53,27 @@ def create_event_handler(
                     fprint(f"{event.delta.args_delta}")
                 else:
                     progress_char = progress_char_list[progress_char_index]
+                    line_start = "\r" if was_tool_call_delta else "\n"
                     print_event(
-                        f"\r{indentation} Prepare tool parameters {progress_char}"
+                        f"{line_start}{indentation} Prepare tool parameters {progress_char}"
                     )
                     progress_char_index += 1
                     if progress_char_index >= len(progress_char_list):
                         progress_char_index = 0
-                was_tool_call_delta = True
+                    was_tool_call_delta = True
         elif isinstance(event, FunctionToolCallEvent):
             args = _get_truncated_event_part_args(event)
             fprint(
-                f"{indentation}🧰 {event.part.tool_call_id} | {event.part.tool_name} {args}\n"
+                f"\n{indentation}🧰 {event.part.tool_call_id} | {event.part.tool_name} {args}\n"
             )
             was_tool_call_delta = False
         elif isinstance(event, FunctionToolResultEvent):
             if show_tool_result:
                 fprint(
-                    f"{indentation}🔠 {event.tool_call_id} | Return {event.result.content}\n"
+                    f"\n{indentation}🔠 {event.tool_call_id} | Return {event.result.content}\n"
                 )
             else:
-                fprint(f"{indentation}🔠 {event.tool_call_id} Executed\n")
+                fprint(f"\n{indentation}🔠 {event.tool_call_id} Executed\n")
             was_tool_call_delta = False
         elif isinstance(event, FinalResultEvent):
             was_tool_call_delta = False

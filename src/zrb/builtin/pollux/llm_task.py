@@ -62,7 +62,8 @@ class LLMTask(BaseTask):
         small_model_settings: (
             "ModelSettings | Callable[[AnyContext], ModelSettings] | None"
         ) = None,
-        conversation_name: str | None = None,
+        conversation_name: StrAttr | None = None,
+        render_conversation_name: bool = True,
         history_manager: AnyHistoryManager | None = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 2,
@@ -118,9 +119,8 @@ class LLMTask(BaseTask):
         self._small_model = small_model
         self._render_small_model = render_small_model
         self._small_model_settings = small_model_settings
-        self._conversation_name = (
-            "default" if conversation_name is None else conversation_name
-        )
+        self._conversation_name = conversation_name
+        self._render_conversation_name = render_conversation_name
         self._history_manager = (
             FileHistoryManager(history_dir="~/.llm_chat")
             if history_manager is None
@@ -143,7 +143,12 @@ class LLMTask(BaseTask):
     async def _exec_action(self, ctx: AnyContext) -> Any:
         from pydantic_ai import AgentRunResultEvent
 
-        message_history = self._history_manager.load(self._conversation_name)
+        conversation_name = str(
+            get_attr(
+                ctx, self._conversation_name, "default", self._render_conversation_name
+            )
+        )
+        message_history = self._history_manager.load(conversation_name)
         message = get_attr(ctx, self._message, "", self._render_message)
         system_prompt = str(
             get_attr(ctx, self._system_prompt, "", self._render_system_prompt)
@@ -163,12 +168,9 @@ class LLMTask(BaseTask):
             if isinstance(event, AgentRunResultEvent):
                 result = event.result
                 new_message_history = result.all_messages()
-                self._history_manager.update(
-                    self._conversation_name, new_message_history
-                )
-                self._history_manager.save(self._conversation_name)
-                ctx.print(plain=True)
-                ctx.print(f"All messages: {result.all_messages()}")
+                self._history_manager.update(conversation_name, new_message_history)
+                self._history_manager.save(conversation_name)
+                ctx.log_debug(f"All messages: {result.all_messages()}")
             else:
                 await handle_event(event)
         return result

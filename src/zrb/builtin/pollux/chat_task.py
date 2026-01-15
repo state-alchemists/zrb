@@ -24,14 +24,27 @@ async def roll_dice() -> str:
 
 llm_task_core = LLMTask(
     name="llm-anu",
-    input=[StrInput("message")],
+    input=[
+        StrInput("message", "Message"),
+        StrInput("session", "Conversation Session"),
+    ],
     system_prompt="You are Zaruba, a helpful AI Assistant",
     tools=[roll_dice],
     message="{ctx.input.message}",
 )
 
 
-@make_task(name="chat", description="AI Assistant", group=cli)
+@make_task(
+    name="chat",
+    description="AI Assistant",
+    input=[
+        StrInput("message", "Message", allow_empty=True),
+        StrInput(
+            "session", "Conversation Session", allow_empty=True, default="default"
+        ),
+    ],
+    group=cli,
+)
 async def chat_task(ctx: AnyContext):
     from zrb.builtin.pollux.app.lexer import CLIStyleLexer
     from zrb.builtin.pollux.app.ui import UI
@@ -42,5 +55,7 @@ async def chat_task(ctx: AnyContext):
         jargon="Nye nye nye",
         output_lexer=CLIStyleLexer(),
         llm_task=llm_task_core,
+        first_message=ctx.input.message,
+        conversation_session_name=ctx.input.session,
     )
     return await ui.application.run_async()

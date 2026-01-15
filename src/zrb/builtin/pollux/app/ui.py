@@ -34,12 +34,16 @@ class UI:
         jargon: str,
         output_lexer: Lexer,
         llm_task: AnyTask,
+        first_message: str = "",
+        conversation_session_name: str = "",
     ):
         self._is_thinking = False
         self._running_llm_task: asyncio.Task | None = None
         self._llm_task = llm_task
         self._assistant_name = assistant_name
         self._jargon = jargon
+        self._first_message = first_message
+        self._conversation_session_name = conversation_session_name
         # UI Styles
         self._style = self._create_style()
         # Input Area
@@ -65,6 +69,13 @@ class UI:
         self._application = self._create_application(
             layout=self._layout, keybindings=self._app_kb, style=self._style
         )
+        # Send message if first_message is provided. Make sure only run at most once
+        if self._first_message:
+            self._application.after_render.add_handler(self._on_first_render)
+
+    def _on_first_render(self, app: Application):
+        self._application.after_render.remove_handler(self._on_first_render)
+        self._submit_user_message(self._llm_task, self._first_message)
 
     @property
     def application(self) -> Application:
@@ -297,7 +308,10 @@ class UI:
             self._append_to_output(f"\n{ai_header}")
             session = Session(
                 SharedContext(
-                    input={"message": user_message},
+                    input={
+                        "message": user_message,
+                        "session": self._conversation_session_name,
+                    },
                     print_fn=self._append_to_output,
                     is_web_mode=True,
                 )
