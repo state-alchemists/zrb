@@ -11,15 +11,21 @@ from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import HTML, AnyFormattedText
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.layout import HSplit, Layout, Window, WindowAlign
+from prompt_toolkit.layout.containers import FloatContainer, Float
+from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.layout.controls import FormattedTextControl
 from prompt_toolkit.lexers import Lexer
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import Frame, TextArea
+from prompt_toolkit.completion import WordCompleter
 
 from zrb.context.shared_context import SharedContext
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.util.cli.markdown import render_markdown
+
+
+EXIT_COMMANDS = ["/q", "/bye", "/quit", "/exit"]
 
 
 class UI:
@@ -96,6 +102,8 @@ class UI:
             prompt=HTML('<style color="ansibrightblue"><b>&gt;&gt;&gt; </b></style>'),
             multiline=True,
             wrap_lines=True,
+            completer=WordCompleter(EXIT_COMMANDS, ignore_case=True, WORD=True),
+            complete_while_typing=True,
         )
 
     def _create_application(
@@ -122,30 +130,39 @@ class UI:
             f"<style color='#888888'>| {jargon}</style>"
         )
         return Layout(
-            HSplit(
-                [
-                    # Title Bar
-                    Window(
-                        height=2,
-                        content=FormattedTextControl(title_bar_text),
-                        style="class:title-bar",
-                        align=WindowAlign.CENTER,
+            FloatContainer(
+                content=HSplit(
+                    [
+                        # Title Bar
+                        Window(
+                            height=2,
+                            content=FormattedTextControl(title_bar_text),
+                            style="class:title-bar",
+                            align=WindowAlign.CENTER,
+                        ),
+                        # Chat History
+                        Frame(output_field, title="Conversation", style="class:frame"),
+                        # Input Area
+                        Frame(
+                            input_field,
+                            title="Input (Enter to send, Ctrl+enter or Ctrl+J for newline)",
+                            style="class:input-frame",
+                        ),
+                        # Status Bar
+                        Window(
+                            height=1,
+                            content=FormattedTextControl(status_bar_text),
+                            style="class:bottom-toolbar",
+                        ),
+                    ]
+                ),
+                floats=[
+                    Float(
+                        xcursor=True,
+                        ycursor=True,
+                        content=CompletionsMenu(max_height=16, scroll_offset=1),
                     ),
-                    # Chat History
-                    Frame(output_field, title="Conversation", style="class:frame"),
-                    # Input Area
-                    Frame(
-                        input_field,
-                        title="Input (Enter to send, Ctrl+enter or Ctrl+J for newline)",
-                        style="class:input-frame",
-                    ),
-                    # Status Bar
-                    Window(
-                        height=1,
-                        content=FormattedTextControl(status_bar_text),
-                        style="class:bottom-toolbar",
-                    ),
-                ]
+                ],
             ),
             focused_element=input_field,
         )
@@ -195,6 +212,10 @@ class UI:
 
             # If input is empty, do nothing
             if not text.strip():
+                return
+
+            if text.strip().lower() in EXIT_COMMANDS:
+                event.app.exit()
                 return
 
             # If we are thinking, ignore input
