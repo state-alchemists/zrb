@@ -1,5 +1,4 @@
 import asyncio
-import random
 import re
 import string
 from datetime import datetime
@@ -7,23 +6,22 @@ from typing import TextIO
 
 from prompt_toolkit import Application
 from prompt_toolkit.application import get_app
+from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import HTML, AnyFormattedText
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.layout import HSplit, Layout, Window, WindowAlign
-from prompt_toolkit.layout.containers import FloatContainer, Float
-from prompt_toolkit.layout.menus import CompletionsMenu
+from prompt_toolkit.layout.containers import Float, FloatContainer
 from prompt_toolkit.layout.controls import FormattedTextControl
+from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.lexers import Lexer
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import Frame, TextArea
-from prompt_toolkit.completion import WordCompleter
 
 from zrb.context.shared_context import SharedContext
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.util.cli.markdown import render_markdown
-
 
 EXIT_COMMANDS = ["/q", "/bye", "/quit", "/exit"]
 
@@ -38,6 +36,7 @@ class UI:
         llm_task: AnyTask,
     ):
         self._is_thinking = False
+        self._running_llm_task: asyncio.Task | None = None
         self._llm_task = llm_task
         self._assistant_name = assistant_name
         self._jargon = jargon
@@ -193,6 +192,11 @@ class UI:
         def _(event):
             event.app.exit()
 
+        @app_keybindings.add("escape")
+        def _(event):
+            if self._running_llm_task and not self._running_llm_task.done():
+                self._running_llm_task.cancel()
+
         @app_keybindings.add("enter")
         def _(event):
             buff = event.current_buffer
@@ -274,39 +278,43 @@ class UI:
         timestamp = datetime.now().strftime("%H:%M")
 
         # 1. Render User Message
-        user_header = f"User   {timestamp}\n"
-        separator = "-" * 40 + "\n"
-        self._append_to_output(f"\n{user_header}{separator}{user_message.strip()}\n")
+        user_header = f"💬 {timestamp} >>\n"
+        self._append_to_output(f"\n{user_header}{user_message.strip()}\n")
 
         # 2. Trigger AI Response
-        asyncio.create_task(self._stream_ai_response(llm_task, user_message))
+        self._running_llm_task = asyncio.create_task(
+            self._stream_ai_response(llm_task, user_message)
+        )
 
     async def _stream_ai_response(self, llm_task: AnyTask, user_message: str):
         self._is_thinking = True
         get_app().invalidate()  # Update status bar
 
-        # Simulate network delay / "Thinking"
-        await asyncio.sleep(random.uniform(0.5, 1.5))
-
-        timestamp = datetime.now().strftime("%H:%M")
-        ai_header = f"{self._assistant_name}   {timestamp}\n"
-        separator = "-" * 40 + "\n"
-
-        # Header first
-        self._append_to_output(f"\n{ai_header}{separator}")
-
-        session = Session(
-            SharedContext(
-                input={"message": user_message},
-                print_fn=self._append_to_output,
-                is_web_mode=True,
+        try:
+            timestamp = datetime.now().strftime("%H:%M")
+            ai_header = f"🤖 {timestamp} >>\n"
+            # Header first
+            self._append_to_output(f"\n{ai_header}")
+            session = Session(
+                SharedContext(
+                    input={"message": user_message},
+                    print_fn=self._append_to_output,
+                    is_web_mode=True,
+                )
             )
-        )
-        result = await llm_task.async_run(session)
-        if result is not None:
-            self._append_to_output("\n")
-            self._append_to_output(render_markdown(result))
+            result = await llm_task.async_run(session)
+            if result is not None:
+                self._append_to_output("\n")
+                if hasattr(result, "output"):
+                    output = getattr(result, "output")
+                    self._append_to_output(render_markdown(output))
 
-        self._append_to_output("\n")
-        self._is_thinking = False
-        get_app().invalidate()
+            self._append_to_output("\n")
+        except asyncio.CancelledError:
+            self._append_to_output("\n[Cancelled]\n")
+        except Exception as e:
+            self._append_to_output(f"\n[Error: {e}]\n")
+        finally:
+            self._is_thinking = False
+            self._running_llm_task = None
+            get_app().invalidate()
