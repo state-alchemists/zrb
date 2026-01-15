@@ -394,12 +394,17 @@ class UI:
                     # Prepare results container (User pattern: init empty, assign dict)
                     deferred_tool_results = DeferredToolResults()
 
-                    for call in result_data.calls:
+                    # Combine calls and approvals (though for ApprovalRequired it should be in approvals)
+                    # We iterate both to be safe and comprehensive
+                    all_requests = (result_data.calls or []) + (
+                        result_data.approvals or []
+                    )
+
+                    for call in all_requests:
                         msg = f"Execute tool '{call.tool_name}' with args {call.args}?"
                         approved = await self._confirm_tool_execution(msg)
 
                         if approved:
-                            # ToolApproved doesn't need tool_call_id as it's the key in the dict
                             res = ToolApproved()
                         else:
                             res = ToolDenied("User denied execution")
@@ -415,6 +420,8 @@ class UI:
                     # Usually LLMTask returns result.data which is the output.
                     # If output_type=str, it's str.
                     if isinstance(result_data, str):
+                        # Ensure new line after stream before final output
+                        self._append_to_output("\n")
                         self._append_to_output(render_markdown(result_data))
                     # If it's other types, handle or ignore (already printed via stream?)
                     # Stream handlers print partials. Final result is mostly for programmatic use,

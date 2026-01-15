@@ -1,9 +1,7 @@
-import asyncio
 from collections.abc import Callable
-from functools import wraps
 from typing import TYPE_CHECKING, Any
 
-from zrb.attr.type import StrAttr, fstring
+from zrb.attr.type import BoolAttr, StrAttr, fstring
 from zrb.builtin.pollux.history_manager import AnyHistoryManager, FileHistoryManager
 from zrb.builtin.pollux.util.stream_response import (
     create_event_handler,
@@ -19,7 +17,7 @@ from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
-from zrb.util.attr import get_attr
+from zrb.util.attr import get_attr, get_bool_attr
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent, Tool
@@ -67,7 +65,8 @@ class LLMTask(BaseTask):
         conversation_name: StrAttr | None = None,
         render_conversation_name: bool = True,
         history_manager: AnyHistoryManager | None = None,
-        yolo: bool | str | Callable[[AnyContext], bool] = False,
+        deferred_tool_results: Any = None,
+        yolo: BoolAttr = False,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
@@ -129,6 +128,7 @@ class LLMTask(BaseTask):
             if history_manager is None
             else history_manager
         )
+        self._deferred_tool_results = deferred_tool_results
         self._yolo = yolo
 
     def add_toolset(self, *toolset: "AbstractToolset"):
@@ -148,8 +148,6 @@ class LLMTask(BaseTask):
         from pydantic_ai import (
             AgentRunResultEvent,
             DeferredToolRequests,
-            DeferredToolResults,
-            ToolCallPart,
         )
 
         conversation_name = str(
@@ -158,19 +156,19 @@ class LLMTask(BaseTask):
             )
         )
         message_history = self._history_manager.load(conversation_name)
-        message = get_attr(ctx, self._message, "", self._render_message)
 
-        # Check for deferred_tool_results in input
-        deferred_tool_results = ctx.input.get("deferred_tool_results")
+        # Resolve deferred_tool_results
+        deferred_tool_results = get_attr(ctx, self._deferred_tool_results, None)
 
-        # If resuming, we usually don't want to re-send the user message that triggered the tool,
-        # otherwise the agent might loop (executing tool, then seeing the message again and executing again).
-        if deferred_tool_results:
-            # When resuming, typically the history contains the context.
-            # We pass None as the new user message.
-            run_message = None
-        else:
-            run_message = get_attr(ctx, self._message, "", self._render_message)
+        # Get message or request via helper
+        run_message_or_request = self._get_user_message(
+            ctx, message_history, deferred_tool_results
+        )
+
+        if isinstance(run_message_or_request, DeferredToolRequests):
+            return run_message_or_request
+
+        run_message = run_message_or_request
 
         system_prompt = str(
             get_attr(ctx, self._system_prompt, "", self._render_system_prompt)
@@ -204,18 +202,47 @@ class LLMTask(BaseTask):
                 await handle_event(event)
 
         output = result.output if result else None
-
-        # Fix for empty DeferredToolRequests.calls when using ApprovalRequired
-        if isinstance(output, DeferredToolRequests) and not output.calls:
-            # Scan new messages for ToolCallPart
-            for msg in reversed(result.new_messages()):
-                if hasattr(msg, "parts"):
-                    for part in msg.parts:
-                        if isinstance(part, ToolCallPart):
-                            # output.calls expects list[ToolCallPart]
-                            output.calls.append(part)
-
         return output
+
+    def _get_user_message(
+        self, ctx: AnyContext, message_history: list[Any], deferred_tool_results: Any
+    ) -> Any:
+        from pydantic_ai import DeferredToolRequests, ToolCallPart
+
+        # If resuming with results, we pass None as message
+        if deferred_tool_results:
+            return None
+
+        # Otherwise, resolve the configured message
+        message = get_attr(ctx, self._message, "", self._render_message)
+
+        # RECOVERY LOGIC: Check if history is in a pending state
+        if message_history:
+            last_msg = message_history[-1]
+            pending_calls = []
+            if hasattr(last_msg, "parts"):
+                for part in last_msg.parts:
+                    if isinstance(part, ToolCallPart):
+                        pending_calls.append(part)
+
+            if pending_calls:
+                # We have pending calls. Return DeferredToolRequests to trigger UI approval flow.
+                # Use calls=pending_calls assuming pydantic_ai expects pending requests in calls list for DeferredToolRequests
+                # Or approvals list?
+                # For output of agent (requesting approval), usually calls list.
+                # Let's try populating both or check DeferredToolRequests signature.
+                # Standard is calls=[ToolCallPart...]
+                try:
+                    req = DeferredToolRequests(approvals=pending_calls)
+                except:
+                    # Fallback
+                    req = DeferredToolRequests(calls=pending_calls)
+                    if hasattr(req, "approvals") and not req.approvals:
+                        req.approvals.extend(pending_calls)
+
+                return req
+
+        return message
 
     def _create_agent(
         self,
@@ -230,54 +257,28 @@ class LLMTask(BaseTask):
         yolo: bool = False,
     ) -> "Agent[None, Any]":
         from pydantic_ai import Agent, DeferredToolRequests
+        from pydantic_ai.toolsets import FunctionToolset
 
         final_output_type = output_type
+        # Copy to avoid modifying original list
+        effective_toolsets = list(toolsets)
+        # If we have individual tools, wrap them in a toolset
+        # so we can apply approval_required globally
+        if tools:
+            effective_toolsets.append(FunctionToolset(tools=tools))
         if not yolo:
             final_output_type = output_type | DeferredToolRequests
-
-        effective_tools = tools
-        if not yolo:
-            effective_tools = [self._wrap_tool(t, yolo) for t in tools]
-
+            # Wrap all toolsets with native approval mechanism
+            effective_toolsets = [ts.approval_required() for ts in effective_toolsets]
         return Agent(
             model=self._get_model(ctx, is_small),
             output_type=final_output_type,
             instructions=system_prompt,
-            tools=effective_tools,
-            toolsets=toolsets,
+            toolsets=effective_toolsets,
             model_settings=self._get_model_settings(ctx, is_small),
             history_processors=history_processors,
             retries=retries,
         )
-
-    def _wrap_tool(
-        self, tool: "Tool | ToolFuncEither", yolo: bool
-    ) -> "Tool | ToolFuncEither":
-        from pydantic_ai import RunContext, Tool
-        from pydantic_ai.exceptions import ApprovalRequired
-
-        if callable(tool) and not isinstance(tool, Tool):
-            func = tool
-
-            @wraps(func)
-            async def wrapper(ctx: RunContext[Any], *args, **kwargs):
-                if yolo:
-                    if asyncio.iscoroutinefunction(func):
-                        return await func(*args, **kwargs)
-                    return func(*args, **kwargs)
-
-                # Check if approval has been granted in this context
-                if hasattr(ctx, "tool_call_approved") and ctx.tool_call_approved:
-                    if asyncio.iscoroutinefunction(func):
-                        return await func(*args, **kwargs)
-                    return func(*args, **kwargs)
-
-                raise ApprovalRequired()
-
-            # Create a Tool instance explicitly, enabling context injection
-            return Tool(wrapper, takes_ctx=True)
-
-        return tool
 
     def _get_model_settings(
         self,

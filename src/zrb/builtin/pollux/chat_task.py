@@ -1,4 +1,4 @@
-import random
+from pydantic_ai.toolsets import FunctionToolset
 
 from zrb.builtin.pollux.llm_task import LLMTask
 from zrb.context.any_context import AnyContext
@@ -19,7 +19,16 @@ ZARUBA_GREETING = """
 
 async def roll_dice() -> str:
     """Roll a six-sided die and return the result."""
+    import random
+
     return str(random.randint(1, 6))
+
+
+async def get_current_time() -> str:
+    """Get the current time."""
+    from datetime import datetime
+
+    return datetime.now().strftime("%H:%M:%S")
 
 
 llm_task_core = LLMTask(
@@ -31,9 +40,11 @@ llm_task_core = LLMTask(
     ],
     system_prompt="You are Zaruba, a helpful AI Assistant",
     tools=[roll_dice],
+    toolsets=[FunctionToolset(tools=[get_current_time])],
     message="{ctx.input.message}",
     conversation_name="{ctx.input.session}",
     yolo="{ctx.input.yolo}",
+    deferred_tool_results=lambda ctx: ctx.input.get("deferred_tool_results"),
 )
 
 
