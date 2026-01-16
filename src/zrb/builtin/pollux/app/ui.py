@@ -1,8 +1,9 @@
 import asyncio
 import re
 import string
+from collections.abc import Callable
 from datetime import datetime
-from typing import TextIO
+from typing import Any, TextIO
 
 from prompt_toolkit import Application
 from prompt_toolkit.application import get_app
@@ -15,13 +16,14 @@ from prompt_toolkit.layout.containers import Float, FloatContainer
 from prompt_toolkit.layout.controls import FormattedTextControl
 from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.lexers import Lexer
+from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import Frame, TextArea
 
 from zrb.context.shared_context import SharedContext
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
-from zrb.util.cli.markdown import render_markdown
+from zrb.util.string.name import get_random_name
 
 EXIT_COMMANDS = ["/q", "/bye", "/quit", "/exit"]
 
@@ -37,6 +39,7 @@ class UI:
         first_message: str = "",
         conversation_session_name: str = "",
         yolo: bool = False,
+        triggers: list[Callable[[], Any]] = [],
     ):
         self._is_thinking = False
         self._running_llm_task: asyncio.Task | None = None
@@ -45,7 +48,11 @@ class UI:
         self._jargon = jargon
         self._first_message = first_message
         self._conversation_session_name = conversation_session_name
+        if not self._conversation_session_name:
+            self._conversation_session_name = get_random_name()
         self._yolo = yolo
+        self._triggers = triggers
+        self._trigger_tasks: list[asyncio.Task] = []
         # Confirmation state
         self._waiting_for_confirmation = False
         self._confirmation_future: asyncio.Future[bool] | None = None
@@ -78,6 +85,41 @@ class UI:
         if self._first_message:
             self._application.after_render.add_handler(self._on_first_render)
 
+    async def run_async(self):
+        """Run the application and manage triggers."""
+        # Start triggers
+        for trigger_fn in self._triggers:
+            trigger_task = self._application.create_background_task(
+                self._trigger_loop(trigger_fn)
+            )
+            self._trigger_tasks.append(trigger_task)
+
+        try:
+            with patch_stdout():
+                return await self._application.run_async()
+        finally:
+            # Stop triggers
+            for trigger_task in self._trigger_tasks:
+                trigger_task.cancel()
+            self._trigger_tasks.clear()
+
+    async def _trigger_loop(self, trigger_fn: Callable[[], Any]):
+        while True:
+            try:
+                if asyncio.iscoroutinefunction(trigger_fn):
+                    result = await trigger_fn()
+                else:
+                    result = await asyncio.to_thread(trigger_fn)
+
+                if result:
+                    self._submit_user_message(self._llm_task, str(result))
+
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                # Keep running on error, maybe log it
+                pass
+
     def _on_first_render(self, app: Application):
         self._application.after_render.remove_handler(self._on_first_render)
         self._submit_user_message(self._llm_task, self._first_message)
@@ -95,6 +137,14 @@ class UI:
         finally:
             self._waiting_for_confirmation = False
             self._confirmation_future = None
+
+    @property
+    def triggers(self) -> list[Callable[[], Any]]:
+        return self._triggers
+
+    @triggers.setter
+    def triggers(self, value: list[Callable[[], Any]]):
+        self._triggers = value
 
     @property
     def application(self) -> Application:
@@ -422,7 +472,7 @@ class UI:
                     if isinstance(result_data, str):
                         # Ensure new line after stream before final output
                         self._append_to_output("\n")
-                        self._append_to_output(render_markdown(result_data))
+                        self._append_to_output(result_data)
                     # If it's other types, handle or ignore (already printed via stream?)
                     # Stream handlers print partials. Final result is mostly for programmatic use,
                     # but we might want to ensure we didn't miss anything.
