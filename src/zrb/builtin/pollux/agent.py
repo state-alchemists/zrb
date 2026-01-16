@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Callable
 from zrb.builtin.pollux.config.limiter import LLMLimiter
 
 # Context variable to propagate tool confirmation callback to sub-agents
-tool_confirmation_var: ContextVar[Callable[[str], bool | Any] | None] = ContextVar(
+tool_confirmation_var: ContextVar[Callable[[Any], Any] | None] = ContextVar(
     "tool_confirmation", default=None
 )
 
@@ -59,7 +59,7 @@ async def run_agent(
     limiter: LLMLimiter,
     print_fn: Callable[[str], Any] = print,
     event_handler: Callable[[Any], Any] | None = None,
-    tool_confirmation: Callable[[str], bool | Any] | None = None,
+    tool_confirmation: Callable[[Any], Any] | None = None,
     initial_deferred_tool_requests: Any | None = None,
 ) -> tuple[Any, list[Any]]:
     """
@@ -134,38 +134,34 @@ async def run_agent(
                     return result_output, run_history
 
                 for call in all_requests:
-                    prompt_text = (
-                        f"Execute tool '{call.tool_name}' with args {call.args}?"
-                    )
-
                     if effective_tool_confirmation:
-                        res = effective_tool_confirmation(prompt_text)
+                        res = effective_tool_confirmation(call)
                         if inspect.isawaitable(res):
-                            answer = await res
+                            result = await res
                         else:
-                            answer = res
+                            result = res
+                        current_results.approvals[call.tool_call_id] = result
                     else:
                         # CLI Fallback
+                        prompt_text = (
+                            f"Execute tool '{call.tool_name}' with args {call.args}?"
+                        )
                         prompt_cli = f"\n[?] {prompt_text} (y/N) "
                         if print_fn == print:
                             user_input = await asyncio.to_thread(input, prompt_cli)
                         else:
-                            # If print_fn is redirected (e.g. logging), we still try to use print/input for CLI
-                            # But properly we should use print_fn to show the prompt?
-                            # Using print() directly ensures it goes to stdout even if print_fn is logging.
-                            # However, for consistency with 'input', we use standard IO.
-                            # If we are in a non-interactive mode, this might hang or fail.
-                            # Assuming interactive CLI.
                             user_input = await asyncio.to_thread(input, prompt_cli)
 
                         answer = user_input.strip().lower() in ("y", "yes")
 
-                    if answer:
-                        current_results.approvals[call.tool_call_id] = ToolApproved()
-                    else:
-                        current_results.approvals[call.tool_call_id] = ToolDenied(
-                            "User denied"
-                        )
+                        if answer:
+                            current_results.approvals[call.tool_call_id] = (
+                                ToolApproved()
+                            )
+                        else:
+                            current_results.approvals[call.tool_call_id] = ToolDenied(
+                                "User denied"
+                            )
 
                 # Prepare next iteration
                 current_message = None

@@ -23,6 +23,10 @@ from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import Frame, TextArea
 
+from zrb.builtin.pollux.app.confirmation import (
+    ConfirmationHandler,
+    InteractiveConfirmationMiddleware,
+)
 from zrb.context.shared_context import SharedContext
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
@@ -32,7 +36,7 @@ EXIT_COMMANDS = ["/q", "/bye", "/quit", "/exit"]
 
 
 class StdoutToUI(io.TextIOBase):
-    """Redirect stdout to UI's _append_to_output."""
+    """Redirect stdout to UI's append_to_output."""
 
     def __init__(self, ui_callback):
         self.ui_callback = ui_callback
@@ -61,6 +65,7 @@ class UI:
         conversation_session_name: str = "",
         yolo: bool = False,
         triggers: list[Callable[[], Any]] = [],
+        confirmation_handler: ConfirmationHandler | None = None,
     ):
         self._is_thinking = False
         self._running_llm_task: asyncio.Task | None = None
@@ -74,9 +79,20 @@ class UI:
         self._yolo = yolo
         self._triggers = triggers
         self._trigger_tasks: list[asyncio.Task] = []
-        # Confirmation state
+
+        # Confirmation Handler
+        if confirmation_handler is None:
+            # Default to interactive
+            self._confirmation_handler = ConfirmationHandler(
+                middlewares=[InteractiveConfirmationMiddleware()]
+            )
+        else:
+            self._confirmation_handler = confirmation_handler
+
+        # Confirmation state (Used by ask_user and keybindings)
         self._waiting_for_confirmation = False
-        self._confirmation_future: asyncio.Future[bool] | None = None
+        self._confirmation_future: asyncio.Future[str] | None = None
+
         # UI Styles
         self._style = self._create_style()
         # Input Area
@@ -145,17 +161,24 @@ class UI:
         self._application.after_render.remove_handler(self._on_first_render)
         self._submit_user_message(self._llm_task, self._first_message)
 
-    async def _confirm_tool_execution(self, message: str) -> bool:
+    async def ask_user(self, prompt: str) -> str:
+        """Prompts the user for input via the main input field, blocking until provided."""
         self._waiting_for_confirmation = True
         self._confirmation_future = asyncio.Future()
-        # Display confirmation prompt
-        self._append_to_output(f"\n❓ {message} (y/N) ", end="")
+
+        if prompt:
+            self.append_to_output(prompt, end="")
+
         get_app().invalidate()
+
         try:
             return await self._confirmation_future
         finally:
             self._waiting_for_confirmation = False
             self._confirmation_future = None
+
+    async def _confirm_tool_execution(self, call: Any) -> Any:
+        return await self._confirmation_handler.handle(self, call)
 
     @property
     def triggers(self) -> list[Callable[[], Any]]:
@@ -205,7 +228,10 @@ class UI:
         )
 
     def _create_application(
-        self, layout: Layout, keybindings: KeyBindings, style: Style
+        self,
+        layout: Layout,
+        keybindings: KeyBindings,
+        style: Style,
     ) -> Application:
         return Application(
             layout=layout,
@@ -317,11 +343,10 @@ class UI:
             # Handle confirmation if waiting
             if self._waiting_for_confirmation and self._confirmation_future:
                 # Echo the user input
-                self._append_to_output(text + "\n")
+                self.append_to_output(text + "\n")
 
-                is_confirmed = text.strip().lower() in ("y", "yes")
                 if not self._confirmation_future.done():
-                    self._confirmation_future.set_result(is_confirmed)
+                    self._confirmation_future.set_result(text)
 
                 buff.reset()
                 return
@@ -358,7 +383,7 @@ class UI:
         def _(event):
             event.current_buffer.insert_text("\n")
 
-    def _append_to_output(
+    def append_to_output(
         self,
         *values: object,
         sep: str = " ",
@@ -411,7 +436,7 @@ class UI:
 
         # 1. Render User Message
         user_header = f"💬 {timestamp} >>\n"
-        self._append_to_output(f"\n{user_header}{user_message.strip()}\n")
+        self.append_to_output(f"\n{user_header}{user_message.strip()}\n")
 
         # 2. Trigger AI Response
         self._running_llm_task = asyncio.create_task(
@@ -428,7 +453,7 @@ class UI:
             timestamp = datetime.now().strftime("%H:%M")
             ai_header = f"🤖 {timestamp} >>\n"
             # Header first
-            self._append_to_output(f"\n{ai_header}")
+            self.append_to_output(f"\n{ai_header}")
 
             session_input = {
                 "message": user_message,
@@ -438,13 +463,13 @@ class UI:
 
             shared_ctx = SharedContext(
                 input=session_input,
-                print_fn=self._append_to_output,
+                print_fn=self.append_to_output,
                 is_web_mode=True,
             )
             session = Session(shared_ctx)
 
             # Run the task with stdout/stderr redirected to UI
-            stdout_capture = StdoutToUI(self._append_to_output)
+            stdout_capture = StdoutToUI(self.append_to_output)
 
             # Set context var for tool confirmation
             token = tool_confirmation_var.set(self._confirm_tool_execution)
@@ -460,15 +485,15 @@ class UI:
             if result_data is not None:
                 if isinstance(result_data, str):
                     # Ensure new line after stream before final output
-                    self._append_to_output("\n")
-                    self._append_to_output(result_data)
+                    self.append_to_output("\n")
+                    self.append_to_output(result_data)
 
         except asyncio.CancelledError:
-            self._append_to_output("\n[Cancelled]\n")
+            self.append_to_output("\n[Cancelled]\n")
         except Exception as e:
             with open("zrb_debug.log", "a") as f:
                 f.write(f"[{datetime.now()}] Error: {e}\n")
-            self._append_to_output(f"\n[Error: {e}]\n")
+            self.append_to_output(f"\n[Error: {e}]\n")
         finally:
             self._is_thinking = False
             self._running_llm_task = None

@@ -61,7 +61,7 @@ class LLMTask(BaseTask):
         conversation_name: StrAttr | None = None,
         render_conversation_name: bool = True,
         history_manager: AnyHistoryManager | None = None,
-        tool_confirmation: Callable[[str], bool | Any] | None = None,
+        tool_confirmation: Callable[[Any], Any] | None = None,
         yolo: BoolAttr = False,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 2,
