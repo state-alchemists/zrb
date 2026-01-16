@@ -1,6 +1,4 @@
-from typing import Any
-
-from pydantic_ai import RunContext, Tool
+from pydantic_ai import Tool
 
 from zrb.builtin.pollux.agent import create_agent, run_agent
 from zrb.builtin.pollux.config.config import LLMConfig
@@ -20,7 +18,6 @@ def create_sub_agent_tool(
     llm_limitter: LLMLimiter | None = None,
     history_manager: AnyHistoryManager | None = None,
     conversation_name: str = "sub_agent_default",
-    return_deferred_tool_call: bool = False,
 ) -> Tool:
     """
     Creates a Tool that invokes a sub-agent.
@@ -39,7 +36,7 @@ def create_sub_agent_tool(
         yolo=False,
     )
 
-    async def run_sub_agent(ctx: RunContext[Any], prompt: str) -> str:
+    async def run_sub_agent(prompt: str) -> str:
         # Load persistent history
         history = manager.load(conversation_name)
 
@@ -48,9 +45,7 @@ def create_sub_agent_tool(
             agent=agent,
             message=prompt,
             message_history=history,
-            deferred_tool_results=None,
             limiter=limiter,
-            return_deferred_tool_call=return_deferred_tool_call,
         )
 
         # Save updated history

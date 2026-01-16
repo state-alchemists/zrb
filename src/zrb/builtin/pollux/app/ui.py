@@ -1,6 +1,9 @@
 import asyncio
+import contextlib
+import io
 import re
 import string
+import sys
 from collections.abc import Callable
 from datetime import datetime
 from typing import Any, TextIO
@@ -26,6 +29,24 @@ from zrb.task.any_task import AnyTask
 from zrb.util.string.name import get_random_name
 
 EXIT_COMMANDS = ["/q", "/bye", "/quit", "/exit"]
+
+
+class StdoutToUI(io.TextIOBase):
+    """Redirect stdout to UI's _append_to_output."""
+
+    def __init__(self, ui_callback):
+        self.ui_callback = ui_callback
+        self.original_stdout = sys.stdout
+        self.original_stderr = sys.stderr
+
+    def write(self, text: str) -> int:
+        if text:
+            self.ui_callback(text, end="")
+        return len(text)
+
+    def flush(self):
+        self.original_stdout.flush()
+        self.original_stderr.flush()
 
 
 class UI:
@@ -127,11 +148,9 @@ class UI:
     async def _confirm_tool_execution(self, message: str) -> bool:
         self._waiting_for_confirmation = True
         self._confirmation_future = asyncio.Future()
-
         # Display confirmation prompt
-        self._append_to_output(f"\n[?] {message} (y/N) ", end="")
+        self._append_to_output(f"\n❓ {message} (y/N) ", end="")
         get_app().invalidate()
-
         try:
             return await self._confirmation_future
         finally:
@@ -400,12 +419,7 @@ class UI:
         )
 
     async def _stream_ai_response(self, llm_task: AnyTask, user_message: str):
-        from pydantic_ai import (
-            DeferredToolRequests,
-            DeferredToolResults,
-            ToolApproved,
-            ToolDenied,
-        )
+        from zrb.builtin.pollux.agent import tool_confirmation_var
 
         self._is_thinking = True
         get_app().invalidate()  # Update status bar
@@ -416,70 +430,38 @@ class UI:
             # Header first
             self._append_to_output(f"\n{ai_header}")
 
-            # Initial Inputs
-            deferred_tool_results = None
+            session_input = {
+                "message": user_message,
+                "session": self._conversation_session_name,
+                "yolo": self._yolo,
+            }
 
-            while True:
-                session_input = {
-                    "message": user_message,
-                    "session": self._conversation_session_name,
-                    "yolo": self._yolo,
-                }
-                if deferred_tool_results:
-                    session_input["deferred_tool_results"] = deferred_tool_results
+            shared_ctx = SharedContext(
+                input=session_input,
+                print_fn=self._append_to_output,
+                is_web_mode=True,
+            )
+            session = Session(shared_ctx)
 
-                session = Session(
-                    SharedContext(
-                        input=session_input,
-                        print_fn=self._append_to_output,
-                        is_web_mode=True,
-                    )
-                )
+            # Run the task with stdout/stderr redirected to UI
+            stdout_capture = StdoutToUI(self._append_to_output)
 
-                # Run the task (one step)
-                result_data = await llm_task.async_run(session)
+            # Set context var for tool confirmation
+            token = tool_confirmation_var.set(self._confirm_tool_execution)
+            try:
+                with contextlib.redirect_stdout(
+                    stdout_capture
+                ), contextlib.redirect_stderr(stdout_capture):
+                    result_data = await llm_task.async_run(session)
+            finally:
+                tool_confirmation_var.reset(token)
 
-                # Check for DeferredToolRequests
-                if isinstance(result_data, DeferredToolRequests):
-                    # Prepare results container (User pattern: init empty, assign dict)
-                    deferred_tool_results = DeferredToolResults()
-
-                    # Combine calls and approvals (though for ApprovalRequired it should be in approvals)
-                    # We iterate both to be safe and comprehensive
-                    all_requests = (result_data.calls or []) + (
-                        result_data.approvals or []
-                    )
-
-                    for call in all_requests:
-                        msg = f"Execute tool '{call.tool_name}' with args {call.args}?"
-                        approved = await self._confirm_tool_execution(msg)
-
-                        if approved:
-                            res = ToolApproved()
-                        else:
-                            res = ToolDenied("User denied execution")
-
-                        deferred_tool_results.approvals[call.tool_call_id] = res
-
-                    continue
-
-                # Check for final text output
-                if result_data is not None:
-                    # If it's a string, it's the final answer
-                    # If it's something else, we might need to render it
-                    # Usually LLMTask returns result.data which is the output.
-                    # If output_type=str, it's str.
-                    if isinstance(result_data, str):
-                        # Ensure new line after stream before final output
-                        self._append_to_output("\n")
-                        self._append_to_output(result_data)
-                    # If it's other types, handle or ignore (already printed via stream?)
-                    # Stream handlers print partials. Final result is mostly for programmatic use,
-                    # but we might want to ensure we didn't miss anything.
-                    # For now, let's assume stream printed everything.
-                    pass
-
-                break
+            # Check for final text output
+            if result_data is not None:
+                if isinstance(result_data, str):
+                    # Ensure new line after stream before final output
+                    self._append_to_output("\n")
+                    self._append_to_output(result_data)
 
         except asyncio.CancelledError:
             self._append_to_output("\n[Cancelled]\n")

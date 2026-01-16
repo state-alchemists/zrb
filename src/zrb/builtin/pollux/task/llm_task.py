@@ -61,8 +61,7 @@ class LLMTask(BaseTask):
         conversation_name: StrAttr | None = None,
         render_conversation_name: bool = True,
         history_manager: AnyHistoryManager | None = None,
-        deferred_tool_results: Any = None,
-        return_deferred_tool_call: BoolAttr = True,
+        tool_confirmation: Callable[[str], bool | Any] | None = None,
         yolo: BoolAttr = False,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 2,
@@ -121,8 +120,7 @@ class LLMTask(BaseTask):
             if history_manager is None
             else history_manager
         )
-        self._deferred_tool_results = deferred_tool_results
-        self._return_deferred_tool_call = return_deferred_tool_call
+        self._tool_confirmation = tool_confirmation
         self._yolo = yolo
 
     def add_toolset(self, *toolset: "AbstractToolset"):
@@ -144,15 +142,15 @@ class LLMTask(BaseTask):
         conversation_name = self._get_conversation_name(ctx)
         message_history = self._history_manager.load(conversation_name)
 
-        deferred_tool_results = get_attr(ctx, self._deferred_tool_results, None)
+        run_message_or_request = self._get_user_message(ctx, message_history)
 
-        run_message_or_request = self._get_user_message(
-            ctx, message_history, deferred_tool_results
-        )
+        initial_deferred_tool_requests = None
+        run_message = None
+
         if isinstance(run_message_or_request, DeferredToolRequests):
-            return run_message_or_request
-
-        run_message = run_message_or_request
+            initial_deferred_tool_requests = run_message_or_request
+        else:
+            run_message = run_message_or_request
 
         system_prompt = str(
             get_attr(ctx, self._system_prompt, "", self._render_system_prompt)
@@ -172,17 +170,15 @@ class LLMTask(BaseTask):
         print_event = create_faint_printer(ctx)
         handle_event = create_event_handler(print_event)
 
-        return_deferred = get_bool_attr(ctx, self._return_deferred_tool_call, True)
-
         output, new_history = await run_agent(
             agent=agent,
             message=run_message,
             message_history=message_history,
-            deferred_tool_results=deferred_tool_results,
             limiter=self._llm_limitter,
             print_fn=ctx.print,
             event_handler=handle_event,
-            return_deferred_tool_call=return_deferred,
+            tool_confirmation=self._tool_confirmation,
+            initial_deferred_tool_requests=initial_deferred_tool_requests,
         )
 
         self._history_manager.update(conversation_name, new_history)
@@ -199,13 +195,8 @@ class LLMTask(BaseTask):
             conversation_name = get_random_name()
         return conversation_name
 
-    def _get_user_message(
-        self, ctx: AnyContext, message_history: list[Any], deferred_tool_results: Any
-    ) -> Any:
+    def _get_user_message(self, ctx: AnyContext, message_history: list[Any]) -> Any:
         from pydantic_ai import DeferredToolRequests, ToolCallPart
-
-        if deferred_tool_results:
-            return None
 
         if message_history:
             last_msg = message_history[-1]

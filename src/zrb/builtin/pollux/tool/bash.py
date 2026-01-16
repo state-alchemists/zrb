@@ -1,14 +1,13 @@
 import asyncio
 
-from pydantic_ai import RunContext, Tool
+from pydantic_ai import Tool
 
 
-async def run_shell_command(ctx: RunContext, command: str) -> str:
+async def run_shell_command(command: str) -> str:
     """
     Executes a shell command and returns the output.
     Streams output to stdout during execution.
     """
-    print(f"Executing: {command}")
     process = await asyncio.create_subprocess_shell(
         command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )

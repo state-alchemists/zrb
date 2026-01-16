@@ -40,7 +40,6 @@ joke_agent = create_sub_agent_tool(
     description="Generates jokes about the current directory content.",
     system_prompt="You are a comedian. Use the 'run_shell_command' tool to list files (ls -la) and make a funny joke about the project structure.",
     tools=[run_shell_command],
-    return_deferred_tool_call=True,  # Propagate approval to UI
 )
 
 
@@ -57,8 +56,6 @@ llm_task_core = LLMTask(
     message="{ctx.input.message}",
     conversation_name="{ctx.input.session}",
     yolo="{ctx.input.yolo}",
-    deferred_tool_results=lambda ctx: ctx.input.get("deferred_tool_results"),
-    return_deferred_tool_call=True,
 )
 
 

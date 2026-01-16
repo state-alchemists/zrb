@@ -1,6 +1,12 @@
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.builtin.pollux.config.limiter import LLMLimiter
+
+# Context variable to propagate tool confirmation callback to sub-agents
+tool_confirmation_var: ContextVar[Callable[[str], bool | Any] | None] = ContextVar(
+    "tool_confirmation", default=None
+)
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent, Tool
@@ -50,18 +56,18 @@ async def run_agent(
     agent: "Agent[None, Any]",
     message: str | None,
     message_history: list[Any],
-    deferred_tool_results: Any,
     limiter: LLMLimiter,
     print_fn: Callable[[str], Any] = print,
     event_handler: Callable[[Any], Any] | None = None,
-    return_deferred_tool_call: bool = True,
+    tool_confirmation: Callable[[str], bool | Any] | None = None,
+    initial_deferred_tool_requests: Any | None = None,
 ) -> tuple[Any, list[Any]]:
     """
     Runs the agent with rate limiting, history management, and optional CLI confirmation loop.
     Returns (result_output, new_message_history).
     """
     import asyncio
-    import sys
+    import inspect
 
     from pydantic_ai import (
         AgentRunResultEvent,
@@ -71,73 +77,102 @@ async def run_agent(
         ToolDenied,
     )
 
-    # 1. Prune & Throttle
-    if message:
-        message_history = limiter.fit_context_window(message_history, message)
-        est_tokens = limiter.count_tokens(message_history) + limiter.count_tokens(
-            message
-        )
-        await limiter.acquire(
-            est_tokens, notifier=lambda msg: print_fn(msg) if msg else None
-        )
+    # Resolve tool confirmation callback (Arg > Context > None)
+    effective_tool_confirmation = tool_confirmation
+    if effective_tool_confirmation is None:
+        effective_tool_confirmation = tool_confirmation_var.get()
 
-    current_history = message_history
-    current_message = message
-    current_results = deferred_tool_results
+    # Set context var for sub-agents
+    token = tool_confirmation_var.set(effective_tool_confirmation)
 
-    # 2. Execution Loop
-    while True:
-        result_output = None
-        run_history = []
+    try:
+        # 1. Prune & Throttle
+        if message:
+            message_history = limiter.fit_context_window(message_history, message)
+            est_tokens = limiter.count_tokens(message_history) + limiter.count_tokens(
+                message
+            )
+            await limiter.acquire(
+                est_tokens, notifier=lambda msg: print_fn(msg) if msg else None
+            )
 
-        async for event in agent.run_stream_events(
-            current_message,
-            message_history=current_history,
-            deferred_tool_results=current_results,
-        ):
-            if isinstance(event, AgentRunResultEvent):
-                result = event.result
-                result_output = result.output
-                run_history = result.all_messages()
-            elif event_handler:
-                await event_handler(event)
+        current_history = message_history
+        current_message = message
+        current_results = None
+        next_deferred_requests = initial_deferred_tool_requests
 
-        # Handle Deferred Calls
-        if isinstance(result_output, DeferredToolRequests):
-            if return_deferred_tool_call:
-                return result_output, run_history
+        # 2. Execution Loop
+        while True:
+            result_output = None
+            run_history = []
 
-            # CLI Fallback Mode
-            current_results = DeferredToolResults()
-            all_requests = (result_output.calls or []) + (result_output.approvals or [])
+            if next_deferred_requests:
+                result_output = next_deferred_requests
+                run_history = current_history
+                next_deferred_requests = None
+            else:
+                async for event in agent.run_stream_events(
+                    current_message,
+                    message_history=current_history,
+                    deferred_tool_results=current_results,
+                ):
+                    if isinstance(event, AgentRunResultEvent):
+                        result = event.result
+                        result_output = result.output
+                        run_history = result.all_messages()
+                    elif event_handler:
+                        await event_handler(event)
 
-            if not all_requests:
-                return result_output, run_history
+            # Handle Deferred Calls
+            if isinstance(result_output, DeferredToolRequests):
+                current_results = DeferredToolResults()
+                all_requests = (result_output.calls or []) + (
+                    result_output.approvals or []
+                )
 
-            for call in all_requests:
-                # Use standard input for CLI
-                # We assume we are in a terminal if no UI is present
-                prompt_text = f"\n[?] Execute tool '{call.tool_name}' with args {call.args}? (y/N) "
-                if print_fn == print:
-                    # Direct stdout
-                    answer = await asyncio.to_thread(input, prompt_text)
-                else:
-                    # Fallback
-                    print_fn(prompt_text)
-                    # We can't easily get input if print_fn is abstract, assume denial or wait?
-                    # For safety, denial.
-                    answer = "n"
+                if not all_requests:
+                    return result_output, run_history
 
-                if answer.strip().lower() in ("y", "yes"):
-                    current_results.approvals[call.tool_call_id] = ToolApproved()
-                else:
-                    current_results.approvals[call.tool_call_id] = ToolDenied(
-                        "User denied"
+                for call in all_requests:
+                    prompt_text = (
+                        f"Execute tool '{call.tool_name}' with args {call.args}?"
                     )
 
-            # Prepare next iteration
-            current_message = None
-            current_history = run_history
-            continue
+                    if effective_tool_confirmation:
+                        res = effective_tool_confirmation(prompt_text)
+                        if inspect.isawaitable(res):
+                            answer = await res
+                        else:
+                            answer = res
+                    else:
+                        # CLI Fallback
+                        prompt_cli = f"\n[?] {prompt_text} (y/N) "
+                        if print_fn == print:
+                            user_input = await asyncio.to_thread(input, prompt_cli)
+                        else:
+                            # If print_fn is redirected (e.g. logging), we still try to use print/input for CLI
+                            # But properly we should use print_fn to show the prompt?
+                            # Using print() directly ensures it goes to stdout even if print_fn is logging.
+                            # However, for consistency with 'input', we use standard IO.
+                            # If we are in a non-interactive mode, this might hang or fail.
+                            # Assuming interactive CLI.
+                            user_input = await asyncio.to_thread(input, prompt_cli)
 
-        return result_output, run_history
+                        answer = user_input.strip().lower() in ("y", "yes")
+
+                    if answer:
+                        current_results.approvals[call.tool_call_id] = ToolApproved()
+                    else:
+                        current_results.approvals[call.tool_call_id] = ToolDenied(
+                            "User denied"
+                        )
+
+                # Prepare next iteration
+                current_message = None
+                current_history = run_history
+                continue
+
+            return result_output, run_history
+
+    finally:
+        tool_confirmation_var.reset(token)
