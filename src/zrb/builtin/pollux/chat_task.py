@@ -1,5 +1,6 @@
 from pydantic_ai.toolsets import FunctionToolset
 
+from zrb.builtin.pollux.ascii_art.util import get_art
 from zrb.builtin.pollux.prompt.claude_compatibility import (
     create_claude_compatibility_prompt,
 )
@@ -23,21 +24,26 @@ from zrb.builtin.pollux.tool.zrb_task import (
     create_list_zrb_task_tool,
     create_run_zrb_task_tool,
 )
+from zrb.config.config import CFG
+from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.runner.cli import cli
 
-ZARUBA_GREETING = """
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡀⠀⠀⠀⠀
-⠀⠀⠀⠀⢀⡴⣆⠀⠀⠀⠀⠀⣠⡀⠀⠀⠀⠀⠀⠀⣼⣿⡗⠀⠀⠀⠀
-⠀⠀⠀⣠⠟⠀⠘⠷⠶⠶⠶⠾⠉⢳⡄⠀⠀⠀⠀⠀⣧⣿⠀⠀⠀⠀⠀
-⠀⠀⣰⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⣤⣤⣤⣤⣤⣿⢿⣄⠀⠀⠀⠀
-⠀⠀⡇⠀⢀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣧⠀⠀⠀⠀⠀⠀⠙⣷⡴⠶⣦
-⠀⠀⢱⡀⠀⠉⠉⠀⠀⠀⠀⠛⠃⠀⢠⡟⠂⠀⠀⢀⣀⣠⣤⠿⠞⠛⠋
-⣠⠾⠋⠙⣶⣤⣤⣤⣤⣤⣀⣠⣤⣾⣿⠴⠶⠚⠋⠉⠁⠀⠀⠀⠀⠀⠀
-⠛⠒⠛⠉⠉⠀⠀⠀⣴⠟⣣⡴⠛⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠛⠛⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-"""
+
+def _get_ui_greeting(ctx: AnySharedContext) -> str | None:
+    assistant_name = _get_ui_assistant_name(ctx)
+    jargon = _get_ui_jargon(ctx)
+    return get_art(text=f"{assistant_name}\n{jargon}")
+
+
+def _get_ui_assistant_name(ctx: AnySharedContext) -> str:
+    return CFG.ROOT_GROUP_NAME.capitalize()
+
+
+def _get_ui_jargon(ctx: AnySharedContext) -> str | None:
+    return CFG.ROOT_GROUP_DESCRIPTION
+
 
 skill_manager = SkillManager()
 chat_task = LLMChatTask(
@@ -54,9 +60,9 @@ chat_task = LLMChatTask(
     conversation_name="{ctx.input.session}",
     prompt_manager=PromptManager(),
     summarize_command=["/compact", "/compress"],
-    ui_assistant_name="Zaruba",
-    ui_greeting=ZARUBA_GREETING,
-    ui_jargon="Nye nye nye",
+    ui_assistant_name=_get_ui_assistant_name,
+    ui_greeting=_get_ui_greeting,
+    ui_jargon=_get_ui_jargon,
 )
 cli.add_task(chat_task)
 

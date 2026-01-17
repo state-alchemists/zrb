@@ -10,7 +10,6 @@ from typing import Any, TextIO
 
 from prompt_toolkit import Application
 from prompt_toolkit.application import get_app
-from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import HTML, AnyFormattedText
 from prompt_toolkit.key_binding import KeyBindings
@@ -23,6 +22,7 @@ from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import Frame, TextArea
 
+from zrb.builtin.pollux.app.completion import InputCompleter
 from zrb.builtin.pollux.app.confirmation.handler import (
     ConfirmationHandler,
     ConfirmationMiddleware,
@@ -215,14 +215,14 @@ class UI:
         )
 
     def _create_input_field(self) -> TextArea:
+        summarize_commands = getattr(self._llm_task, "_summarize_command", [])
+        all_commands = EXIT_COMMANDS + ["/attach"] + summarize_commands
         return TextArea(
             height=4,
             prompt=HTML('<style color="ansibrightblue"><b>&gt;&gt;&gt; </b></style>'),
             multiline=True,
             wrap_lines=True,
-            completer=WordCompleter(
-                EXIT_COMMANDS + ["/attach"], ignore_case=True, WORD=True
-            ),
+            completer=InputCompleter(all_commands),
             complete_while_typing=True,
         )
 
