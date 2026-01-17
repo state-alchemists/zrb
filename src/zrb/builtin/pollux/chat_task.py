@@ -5,11 +5,13 @@ from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.llm.app.confirmation.replace_confirmation import replace_confirmation
+from zrb.llm.note.manager import NoteManager
 from zrb.llm.prompt.claude_compatibility import (
     create_claude_compatibility_prompt,
 )
 from zrb.llm.prompt.compose import PromptManager, new_prompt
 from zrb.llm.prompt.default import get_default_prompt
+from zrb.llm.prompt.note import create_note_prompt
 from zrb.llm.prompt.system_context import system_context
 from zrb.llm.prompt.zrb import create_zrb_prompt
 from zrb.llm.skill.manager import SkillManager
@@ -24,6 +26,7 @@ from zrb.llm.tool.file import (
     write_file,
     write_files,
 )
+from zrb.llm.tool.note import create_note_tools
 from zrb.llm.tool.skill import create_activate_skill_tool
 from zrb.llm.tool.sub_agent import create_sub_agent_tool
 from zrb.llm.tool.web import open_web_page, search_internet
@@ -47,6 +50,8 @@ def _get_ui_jargon(ctx: AnySharedContext) -> str | None:
 
 
 skill_manager = SkillManager()
+note_manager = NoteManager()
+
 chat_task = LLMChatTask(
     name="chat",
     description="AI Assistant",
@@ -101,6 +106,7 @@ joke_agent = create_sub_agent_tool(
 chat_task.prompt_manager.add_middleware(
     new_prompt(get_default_prompt("assistant")),
     system_context,
+    create_note_prompt(note_manager),
     create_claude_compatibility_prompt(skill_manager),
     create_zrb_prompt(),
 )
@@ -118,5 +124,6 @@ chat_task.add_tool(
     create_list_zrb_task_tool(),
     create_run_zrb_task_tool(),
     create_activate_skill_tool(skill_manager),
+    *create_note_tools(note_manager),
 )
 chat_task.add_toolset(FunctionToolset(tools=[get_current_time]))

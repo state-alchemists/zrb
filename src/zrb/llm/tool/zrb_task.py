@@ -45,7 +45,9 @@ def create_list_zrb_task_tool():
 def create_run_zrb_task_tool():
     from pydantic_ai import Tool
 
-    async def run_zrb_task(task_name: str, args: dict[str, str] = {}) -> str:
+    async def run_zrb_task(
+        task_name: str, args: dict[str, str] = {}, timeout: int = 30
+    ) -> str:
         """ """
         # Construct command
         cmd_parts = ["zrb"] + task_name.split()
@@ -55,7 +57,7 @@ def create_run_zrb_task_tool():
             cmd_parts.append(str(val))
 
         command = " ".join(cmd_parts)
-        return await run_shell_command(command)
+        return await run_shell_command(command, timeout=timeout)
 
     zrb_cmd = CFG.ROOT_GROUP_NAME
     list_zrb_tasks = Tool(
