@@ -21,6 +21,21 @@ ConfirmationMiddleware = Callable[
 ]
 
 
+def _dump_yaml(data: Any) -> str:
+    class BlockDumper(yaml.SafeDumper):
+        pass
+
+    def str_presenter(dumper, data):
+        if len(data.splitlines()) > 1:
+            return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data)
+
+    BlockDumper.add_representer(str, str_presenter)
+    return yaml.dump(
+        data, Dumper=BlockDumper, default_flow_style=False, sort_keys=False
+    )
+
+
 class ConfirmationHandler:
     def __init__(self, middlewares: list[ConfirmationMiddleware]):
         self.middlewares = middlewares
@@ -64,7 +79,7 @@ class ConfirmationHandler:
                     args = json.loads(args)
                 except json.JSONDecodeError:
                     pass
-            args_str = yaml.dump(args, default_flow_style=False, sort_keys=False)
+            args_str = _dump_yaml(args)
             # Indent nicely for display
             args_str = "\n".join(
                 [f"{arg_line_prefix}{line}" for line in args_str.splitlines()]
@@ -103,7 +118,7 @@ async def last_confirmation(
             # YAML for editing
             is_yaml_edit = True
             try:
-                content = yaml.dump(args, default_flow_style=False, sort_keys=False)
+                content = _dump_yaml(args)
                 extension = ".yaml"
             except Exception:
                 # Fallback to JSON
