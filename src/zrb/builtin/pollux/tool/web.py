@@ -57,9 +57,10 @@ async def _fetch_page_content(url: str) -> tuple:
             await browser.close()
             return content, links
     except Exception:
+        from urllib.parse import urljoin
+
         import requests
         from bs4 import BeautifulSoup
-        from urllib.parse import urljoin
 
         response = requests.get(url, headers={"User-Agent": user_agent})
         response.raise_for_status()

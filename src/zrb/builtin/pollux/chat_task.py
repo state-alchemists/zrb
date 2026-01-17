@@ -1,5 +1,7 @@
 from pydantic_ai.toolsets import FunctionToolset
 
+from zrb.builtin.pollux.prompt.compose import compose_prompt, new_prompt
+from zrb.builtin.pollux.prompt.default import get_default_prompt
 from zrb.builtin.pollux.task.chat_task import LLMChatTask
 from zrb.builtin.pollux.tool.bash import run_shell_command
 from zrb.builtin.pollux.tool.file import (
@@ -62,7 +64,7 @@ chat_task = cli.add_task(
         yolo="{ctx.input.yolo}",
         message="{ctx.input.message}",
         conversation_name="{ctx.input.session}",
-        system_prompt="You are Zaruba, a helpful AI Assistant",
+        system_prompt=compose_prompt(new_prompt(get_default_prompt("persona"))),
         summarize_command=["/compact"],
         tools=[
             roll_dice,

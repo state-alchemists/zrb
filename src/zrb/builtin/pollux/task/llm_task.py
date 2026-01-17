@@ -8,12 +8,12 @@ from zrb.builtin.pollux.config.config import llm_config as default_llm_config
 from zrb.builtin.pollux.config.limiter import LLMLimiter
 from zrb.builtin.pollux.config.limiter import llm_limiter as default_llm_limitter
 from zrb.builtin.pollux.history_manager import AnyHistoryManager, FileHistoryManager
+from zrb.builtin.pollux.history_processor.summarizer import (
+    summarize_history,
+)
 from zrb.builtin.pollux.util.stream_response import (
     create_event_handler,
     create_faint_printer,
-)
-from zrb.builtin.pollux.history_processor.summarizer import (
-    summarize_history,
 )
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
@@ -44,7 +44,9 @@ class LLMTask(BaseTask):
         cli_only: bool = False,
         input: list[AnyInput | None] | AnyInput | None = None,
         env: list[AnyEnv | None] | AnyEnv | None = None,
-        system_prompt: StrAttr | None = None,
+        system_prompt: (
+            "Callable[[AnyContext], str | fstring | None] | str | None"
+        ) = None,
         render_system_prompt: bool = False,
         tools: list["Tool | ToolFuncEither"] = [],
         toolsets: list["AbstractToolset[None]"] = [],

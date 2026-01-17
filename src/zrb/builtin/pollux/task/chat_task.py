@@ -2,6 +2,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.attr.type import BoolAttr, StrAttr, fstring
+from zrb.builtin.pollux.app.confirmation.handler import ConfirmationMiddleware
 from zrb.builtin.pollux.config.config import LLMConfig
 from zrb.builtin.pollux.config.config import llm_config as default_llm_config
 from zrb.builtin.pollux.config.limiter import LLMLimiter
@@ -39,7 +40,9 @@ class LLMChatTask(BaseTask):
         cli_only: bool = False,
         input: list[AnyInput | None] | AnyInput | None = None,
         env: list[AnyEnv | None] | AnyEnv | None = None,
-        system_prompt: StrAttr | None = None,
+        system_prompt: (
+            "Callable[[AnyContext], str | fstring | None] | str | None"
+        ) = None,
         render_system_prompt: bool = False,
         tools: list["Tool | ToolFuncEither"] = [],
         toolsets: list["AbstractToolset[None]"] = [],
@@ -67,6 +70,8 @@ class LLMChatTask(BaseTask):
         render_ui_assistant_name: bool = True,
         ui_jargon: StrAttr | None = None,
         render_ui_jargon: bool = True,
+        triggers: list[Callable[[], Any]] = [],
+        confirmation_middlewares: list[ConfirmationMiddleware] = [],
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
@@ -133,6 +138,8 @@ class LLMChatTask(BaseTask):
         self._render_ui_assistant_name = render_ui_assistant_name
         self._ui_jargon = ui_jargon
         self._render_ui_jargon = render_ui_jargon
+        self._triggers = triggers
+        self._confirmation_middlewares = confirmation_middlewares
 
     def add_toolset(self, *toolset: "AbstractToolset"):
         self.append_toolset(*toolset)
@@ -198,6 +205,8 @@ class LLMChatTask(BaseTask):
             initial_message=initial_message,
             conversation_session_name=initial_conversation_name,
             yolo=initial_yolo,
+            triggers=self._triggers,
+            confirmation_middlewares=self._confirmation_middlewares,
         )
         return await ui.run_async()
 
