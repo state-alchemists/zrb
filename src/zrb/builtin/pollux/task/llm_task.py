@@ -12,6 +12,9 @@ from zrb.builtin.pollux.util.stream_response import (
     create_event_handler,
     create_faint_printer,
 )
+from zrb.builtin.pollux.history_processor.summarizer import (
+    summarize_history,
+)
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
@@ -62,6 +65,7 @@ class LLMTask(BaseTask):
         history_manager: AnyHistoryManager | None = None,
         tool_confirmation: Callable[[Any], Any] | None = None,
         yolo: BoolAttr = False,
+        summarize_command: list[str] = [],
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
@@ -121,6 +125,7 @@ class LLMTask(BaseTask):
         )
         self._tool_confirmation = tool_confirmation
         self._yolo = yolo
+        self._summarize_command = summarize_command
 
     def add_toolset(self, *toolset: "AbstractToolset"):
         self.append_toolset(*toolset)
@@ -147,6 +152,16 @@ class LLMTask(BaseTask):
         message_history = self._history_manager.load(conversation_name)
 
         run_message_or_request = self._get_user_message(ctx, message_history)
+
+        if (
+            isinstance(run_message_or_request, str)
+            and run_message_or_request.strip() in self._summarize_command
+        ):
+            ctx.print("Compacting conversation history...", plain=True)
+            new_history = await summarize_history(message_history)
+            self._history_manager.update(conversation_name, new_history)
+            self._history_manager.save(conversation_name)
+            return "Conversation history compacted."
 
         initial_deferred_tool_requests = None
         run_message = None

@@ -60,6 +60,7 @@ class LLMChatTask(BaseTask):
         history_manager: AnyHistoryManager | None = None,
         tool_confirmation: Callable[[Any], Any] | None = None,
         yolo: BoolAttr = False,
+        summarize_command: list[str] = [],
         ui_greeting: StrAttr | None = None,
         render_ui_greeting: bool = True,
         ui_assistant_name: StrAttr | None = None,
@@ -125,6 +126,7 @@ class LLMChatTask(BaseTask):
         )
         self._tool_confirmation = tool_confirmation
         self._yolo = yolo
+        self._summarize_command = summarize_command
         self._ui_greeting = ui_greeting
         self._render_ui_greeting = render_ui_greeting
         self._ui_assistant_name = ui_assistant_name
@@ -185,6 +187,7 @@ class LLMChatTask(BaseTask):
             message="{ctx.input.message}",
             conversation_name="{ctx.input.session}",
             yolo="{ctx.input.yolo}",
+            summarize_command=self._summarize_command,
         )
         ui = UI(
             greeting=ui_greeting,

@@ -5,8 +5,7 @@ import tempfile
 from typing import Any, Awaitable, Callable, Protocol
 
 import yaml
-from prompt_toolkit.application import run_in_terminal
-from pydantic_ai import ToolApproved, ToolDenied
+from zrb.config.config import CFG
 
 
 class UIProtocol(Protocol):
@@ -86,6 +85,8 @@ async def last_confirmation(
     user_response: str,
     next_handler: Callable[[UIProtocol, Any, str], Awaitable[Any]],
 ) -> Any:
+    from pydantic_ai import ToolApproved, ToolDenied
+
     if user_response.lower() in ("y", "yes", "ok", "okay", ""):
         return ToolApproved()
     elif user_response.lower() in ("n", "no"):
@@ -112,7 +113,7 @@ async def last_confirmation(
                 is_yaml_edit = False
 
             new_content = await wait_edit_content(
-                text_editor=os.environ.get("EDITOR", "vim"),
+                text_editor=CFG.DEFAULT_EDITOR,
                 content=content,
                 extension=extension,
             )
@@ -142,14 +143,15 @@ async def last_confirmation(
 async def wait_edit_content(
     text_editor: str, content: str, extension: str = ".txt"
 ) -> str:
+    from prompt_toolkit.application import run_in_terminal
+
     # Write temporary file
     with tempfile.NamedTemporaryFile(suffix=extension, mode="w+", delete=False) as tf:
         tf.write(content)
         tf_path = tf.name
 
     # Edit and wait
-    editor = os.environ.get("EDITOR", "vim")
-    await run_in_terminal(lambda: subprocess.call([editor, tf_path]))
+    await run_in_terminal(lambda: subprocess.call([text_editor, tf_path]))
     with open(tf_path, "r") as tf:
         new_content = tf.read()
     os.remove(tf_path)
