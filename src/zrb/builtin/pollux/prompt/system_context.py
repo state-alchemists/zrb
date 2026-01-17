@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Callable
 
 from zrb.context.any_context import AnyContext
+from zrb.util.markdown import make_markdown_section
 
 
 def system_context(
@@ -34,12 +35,12 @@ def system_context(
     except Exception:
         pass
 
-    info_block = "\n".join(
+    info_content = "\n".join(
         [
-            "## System Context",
             f"- Date: {now}",
             f"- OS: {os_info}",
             f"- Directory: {cwd}{git_info}",
         ]
     )
+    info_block = make_markdown_section("System Context", info_content)
     return next_handler(ctx, f"{current_prompt}\n\n{info_block}")

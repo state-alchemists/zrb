@@ -3,6 +3,7 @@ from typing import Callable
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.runner.cli import cli
+from zrb.util.markdown import make_markdown_section
 
 
 def create_zrb_prompt():
@@ -14,7 +15,7 @@ def create_zrb_prompt():
         additional_context = []
         # Available Zrb Workflows (Skills)
         zrb_cmd = CFG.ROOT_GROUP_NAME
-        zrb_context = [f"# Available Skills ({zrb_cmd} Workflows)"]
+        zrb_context = []
 
         # List top-level groups
         if cli.subgroups:
@@ -28,7 +29,11 @@ def create_zrb_prompt():
             for alias, task in cli.subtasks.items():
                 zrb_context.append(f"- {alias}: {task.description}")
 
-        additional_context.append("\n".join(zrb_context))
+        additional_context.append(
+            make_markdown_section(
+                f"Available Skills ({zrb_cmd} Workflows)", "\n".join(zrb_context)
+            )
+        )
 
         new_section = "\n\n".join(additional_context)
         return next_handler(ctx, f"{current_prompt}\n\n{new_section}")

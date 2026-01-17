@@ -10,6 +10,7 @@ from pydantic_ai.messages import (
 from zrb.builtin.pollux.agent.summarizer import create_summarizer_agent
 from zrb.builtin.pollux.config.limiter import LLMLimiter
 from zrb.builtin.pollux.config.limiter import llm_limiter as default_llm_limiter
+from zrb.util.markdown import make_markdown_section
 
 
 def is_turn_start(msg: Any) -> bool:
@@ -66,7 +67,13 @@ async def summarize_history(
 
     # Create a summary message injected as user context
     summary_message = ModelRequest(
-        parts=[UserPromptPart(content=f"Previous conversation summary: {summary_text}")]
+        parts=[
+            UserPromptPart(
+                content=make_markdown_section(
+                    "Previous conversation summary", summary_text
+                )
+            )
+        ]
     )
 
     return [summary_message] + to_keep
