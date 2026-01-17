@@ -23,9 +23,10 @@ from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import Frame, TextArea
 
-from zrb.builtin.pollux.app.confirmation import (
+from zrb.builtin.pollux.app.confirmation.handler import (
     ConfirmationHandler,
-    InteractiveConfirmationMiddleware,
+    ConfirmationMiddleware,
+    last_confirmation,
 )
 from zrb.context.shared_context import SharedContext
 from zrb.session.session import Session
@@ -61,38 +62,31 @@ class UI:
         jargon: str,
         output_lexer: Lexer,
         llm_task: AnyTask,
-        first_message: str = "",
+        initial_message: Any = "",
         conversation_session_name: str = "",
         yolo: bool = False,
         triggers: list[Callable[[], Any]] = [],
-        confirmation_handler: ConfirmationHandler | None = None,
+        confirmation_middlewares: list[ConfirmationMiddleware] = [],
     ):
         self._is_thinking = False
         self._running_llm_task: asyncio.Task | None = None
         self._llm_task = llm_task
         self._assistant_name = assistant_name
         self._jargon = jargon
-        self._first_message = first_message
+        self._initial_message = initial_message
         self._conversation_session_name = conversation_session_name
         if not self._conversation_session_name:
             self._conversation_session_name = get_random_name()
         self._yolo = yolo
         self._triggers = triggers
         self._trigger_tasks: list[asyncio.Task] = []
-
         # Confirmation Handler
-        if confirmation_handler is None:
-            # Default to interactive
-            self._confirmation_handler = ConfirmationHandler(
-                middlewares=[InteractiveConfirmationMiddleware()]
-            )
-        else:
-            self._confirmation_handler = confirmation_handler
-
+        self._confirmation_handler = ConfirmationHandler(
+            middlewares=confirmation_middlewares + [last_confirmation]
+        )
         # Confirmation state (Used by ask_user and keybindings)
         self._waiting_for_confirmation = False
         self._confirmation_future: asyncio.Future[str] | None = None
-
         # UI Styles
         self._style = self._create_style()
         # Input Area
@@ -119,7 +113,7 @@ class UI:
             layout=self._layout, keybindings=self._app_kb, style=self._style
         )
         # Send message if first_message is provided. Make sure only run at most once
-        if self._first_message:
+        if self._initial_message:
             self._application.after_render.add_handler(self._on_first_render)
 
     async def run_async(self):
@@ -159,7 +153,7 @@ class UI:
 
     def _on_first_render(self, app: Application):
         self._application.after_render.remove_handler(self._on_first_render)
-        self._submit_user_message(self._llm_task, self._first_message)
+        self._submit_user_message(self._llm_task, self._initial_message)
 
     async def ask_user(self, prompt: str) -> str:
         """Prompts the user for input via the main input field, blocking until provided."""
@@ -444,7 +438,7 @@ class UI:
         )
 
     async def _stream_ai_response(self, llm_task: AnyTask, user_message: str):
-        from zrb.builtin.pollux.agent import tool_confirmation_var
+        from zrb.builtin.pollux.agent.agent import tool_confirmation_var
 
         self._is_thinking = True
         get_app().invalidate()  # Update status bar

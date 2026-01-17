@@ -1,13 +1,18 @@
 from pydantic_ai.toolsets import FunctionToolset
 
-from zrb.builtin.pollux.task.llm_task import LLMTask
+from zrb.builtin.pollux.task.chat_task import LLMChatTask
 from zrb.builtin.pollux.tool.bash import run_shell_command
+from zrb.builtin.pollux.tool.file import (
+    list_files,
+    read_file,
+    replace_in_file,
+    write_file,
+)
 from zrb.builtin.pollux.tool.sub_agent import create_sub_agent_tool
-from zrb.context.any_context import AnyContext
+from zrb.builtin.pollux.tool.web import open_web_page, search_internet
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.runner.cli import cli
-from zrb.task.make_task import make_task
 
 ZARUBA_GREETING = """
   /\\
@@ -42,45 +47,33 @@ joke_agent = create_sub_agent_tool(
     tools=[run_shell_command],
 )
 
-
-llm_task_core = LLMTask(
-    name="llm-anu",
-    input=[
-        StrInput("message", "Message"),
-        StrInput("session", "Conversation Session"),
-        BoolInput("yolo", "YOLO Mode"),
-    ],
-    system_prompt="You are Zaruba, a helpful AI Assistant",
-    tools=[roll_dice, joke_agent, run_shell_command],
-    toolsets=[FunctionToolset(tools=[get_current_time])],
-    message="{ctx.input.message}",
-    conversation_name="{ctx.input.session}",
-    yolo="{ctx.input.yolo}",
-)
-
-
-@make_task(
-    name="chat",
-    description="AI Assistant",
-    input=[
-        StrInput("message", "Message", allow_empty=True),
-        StrInput("session", "Conversation Session", allow_empty=True, default=""),
-        BoolInput("yolo", "YOLO Mode", default=False, allow_empty=True),
-    ],
-    group=cli,
-)
-async def chat_task(ctx: AnyContext):
-    from zrb.builtin.pollux.app.lexer import CLIStyleLexer
-    from zrb.builtin.pollux.app.ui import UI
-
-    ui = UI(
-        greeting=ZARUBA_GREETING,
-        assistant_name="Zaruba",
-        jargon="Nye nye nye",
-        output_lexer=CLIStyleLexer(),
-        llm_task=llm_task_core,
-        first_message=ctx.input.message,
-        conversation_session_name=ctx.input.session,
-        yolo=ctx.input.yolo,
+chat_task = cli.add_task(
+    LLMChatTask(
+        name="chat",
+        description="AI Assistant",
+        input=[
+            StrInput("message", "Message", allow_empty=True),
+            StrInput("session", "Conversation Session", allow_empty=True, default=""),
+            BoolInput("yolo", "YOLO Mode", default=False, allow_empty=True),
+        ],
+        yolo="{ctx.input.yolo}",
+        message="{ctx.input.message}",
+        conversation_name="{ctx.input.session}",
+        system_prompt="You are Zaruba, a helpful AI Assistant",
+        tools=[
+            roll_dice,
+            joke_agent,
+            run_shell_command,
+            list_files,
+            read_file,
+            write_file,
+            replace_in_file,
+            search_internet,
+            open_web_page,
+        ],
+        toolsets=[FunctionToolset(tools=[get_current_time])],
+        ui_assistant_name="Zaruba",
+        ui_greeting=ZARUBA_GREETING,
+        ui_jargon="Nye nye nye",
     )
-    return await ui.run_async()
+)

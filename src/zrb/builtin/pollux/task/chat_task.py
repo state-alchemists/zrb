@@ -2,23 +2,21 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.attr.type import BoolAttr, StrAttr, fstring
-from zrb.builtin.pollux.agent.agent import create_agent, run_agent
 from zrb.builtin.pollux.config.config import LLMConfig
 from zrb.builtin.pollux.config.config import llm_config as default_llm_config
 from zrb.builtin.pollux.config.limiter import LLMLimiter
 from zrb.builtin.pollux.config.limiter import llm_limiter as default_llm_limitter
 from zrb.builtin.pollux.history_manager import AnyHistoryManager, FileHistoryManager
-from zrb.builtin.pollux.util.stream_response import (
-    create_event_handler,
-    create_faint_printer,
-)
+from zrb.builtin.pollux.task.llm_task import LLMTask
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
+from zrb.input.bool_input import BoolInput
+from zrb.input.str_input import StrInput
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
-from zrb.util.attr import get_attr, get_bool_attr
+from zrb.util.attr import get_attr, get_bool_attr, get_str_attr
 from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
@@ -30,7 +28,7 @@ if TYPE_CHECKING:
     from pydantic_ai.toolsets import AbstractToolset
 
 
-class LLMTask(BaseTask):
+class LLMChatTask(BaseTask):
 
     def __init__(
         self,
@@ -62,6 +60,12 @@ class LLMTask(BaseTask):
         history_manager: AnyHistoryManager | None = None,
         tool_confirmation: Callable[[Any], Any] | None = None,
         yolo: BoolAttr = False,
+        ui_greeting: StrAttr | None = None,
+        render_ui_greeting: bool = True,
+        ui_assistant_name: StrAttr | None = None,
+        render_ui_assistant_name: bool = True,
+        ui_jargon: StrAttr | None = None,
+        render_ui_jargon: bool = True,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
@@ -121,6 +125,12 @@ class LLMTask(BaseTask):
         )
         self._tool_confirmation = tool_confirmation
         self._yolo = yolo
+        self._ui_greeting = ui_greeting
+        self._render_ui_greeting = render_ui_greeting
+        self._ui_assistant_name = ui_assistant_name
+        self._render_ui_assistant_name = render_ui_assistant_name
+        self._ui_jargon = ui_jargon
+        self._render_ui_jargon = render_ui_jargon
 
     def add_toolset(self, *toolset: "AbstractToolset"):
         self.append_toolset(*toolset)
@@ -141,55 +151,52 @@ class LLMTask(BaseTask):
         self._history_processors += list(processor)
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
-        from pydantic_ai import DeferredToolRequests
+        from zrb.builtin.pollux.app.lexer import CLIStyleLexer
+        from zrb.builtin.pollux.app.ui import UI
 
-        conversation_name = self._get_conversation_name(ctx)
-        message_history = self._history_manager.load(conversation_name)
-
-        run_message_or_request = self._get_user_message(ctx, message_history)
-
-        initial_deferred_tool_requests = None
-        run_message = None
-
-        if isinstance(run_message_or_request, DeferredToolRequests):
-            initial_deferred_tool_requests = run_message_or_request
-        else:
-            run_message = run_message_or_request
-
-        system_prompt = str(
-            get_attr(ctx, self._system_prompt, "", self._render_system_prompt)
+        initial_conversation_name = self._get_conversation_name(ctx)
+        initial_yolo = get_bool_attr(ctx, self._yolo, False)
+        initial_message = get_attr(ctx, self._message, "", self._render_message)
+        ui_greeting = get_str_attr(ctx, self._ui_greeting, "", self._render_ui_greeting)
+        ui_assistant_name = get_str_attr(
+            ctx, self._ui_assistant_name, "", self._render_ui_assistant_name
         )
-        yolo = get_bool_attr(ctx, self._yolo, False)
+        ui_jargon = get_str_attr(ctx, self._ui_jargon, "", self._render_ui_jargon)
 
-        agent = create_agent(
-            model=self._get_model(ctx),
-            system_prompt=system_prompt,
+        llm_task_core = LLMTask(
+            name=f"{self.name}-process",
+            input=[
+                StrInput("message", "Message"),
+                StrInput("session", "Conversation Session"),
+                BoolInput("yolo", "YOLO Mode"),
+            ],
+            env=self.envs,
+            system_prompt=self._system_prompt,
+            render_system_prompt=self._render_system_prompt,
+            llm_config=self._llm_config,
+            llm_limitter=self._llm_limitter,
             tools=self._tools,
             toolsets=self._toolsets,
-            model_settings=self._get_model_settings(ctx),
             history_processors=self._history_processors,
-            yolo=yolo,
+            model=self._model,
+            render_model=self._render_model,
+            model_settings=self._model_settings,
+            history_manager=self._history_manager,
+            message="{ctx.input.message}",
+            conversation_name="{ctx.input.session}",
+            yolo="{ctx.input.yolo}",
         )
-
-        print_event = create_faint_printer(ctx)
-        handle_event = create_event_handler(print_event)
-
-        output, new_history = await run_agent(
-            agent=agent,
-            message=run_message,
-            message_history=message_history,
-            limiter=self._llm_limitter,
-            print_fn=ctx.print,
-            event_handler=handle_event,
-            tool_confirmation=self._tool_confirmation,
-            initial_deferred_tool_requests=initial_deferred_tool_requests,
+        ui = UI(
+            greeting=ui_greeting,
+            assistant_name=ui_assistant_name,
+            jargon=ui_jargon,
+            output_lexer=CLIStyleLexer(),
+            llm_task=llm_task_core,
+            initial_message=initial_message,
+            conversation_session_name=initial_conversation_name,
+            yolo=initial_yolo,
         )
-
-        self._history_manager.update(conversation_name, new_history)
-        self._history_manager.save(conversation_name)
-        ctx.log_debug(f"All messages: {new_history}")
-
-        return output
+        return await ui.run_async()
 
     def _get_conversation_name(self, ctx: AnyContext) -> str:
         conversation_name = str(
@@ -198,45 +205,3 @@ class LLMTask(BaseTask):
         if conversation_name.strip() == "":
             conversation_name = get_random_name()
         return conversation_name
-
-    def _get_user_message(self, ctx: AnyContext, message_history: list[Any]) -> Any:
-        from pydantic_ai import DeferredToolRequests, ToolCallPart
-
-        if message_history:
-            last_msg = message_history[-1]
-            pending_calls = []
-            if hasattr(last_msg, "parts"):
-                for part in last_msg.parts:
-                    if isinstance(part, ToolCallPart):
-                        pending_calls.append(part)
-            if pending_calls:
-                try:
-                    req = DeferredToolRequests(approvals=pending_calls)
-                except Exception:
-                    req = DeferredToolRequests(calls=pending_calls)
-                    if hasattr(req, "approvals") and not req.approvals:
-                        req.approvals.extend(pending_calls)
-                return req
-
-        message = get_attr(ctx, self._message, "", self._render_message)
-        return message
-
-    def _get_model_settings(
-        self,
-        ctx: AnyContext,
-    ) -> "ModelSettings | None":
-        model_settings = self._model_settings
-        rendered_model_settings = get_attr(ctx, model_settings, None)
-        if rendered_model_settings is not None:
-            return rendered_model_settings
-        return self._llm_config.model_settings
-
-    def _get_model(
-        self,
-        ctx: AnyContext,
-    ) -> "str | Model":
-        model = self._model
-        rendered_model = get_attr(ctx, model, None, auto_render=self._render_model)
-        if rendered_model is not None:
-            return rendered_model
-        return self._llm_config.model
