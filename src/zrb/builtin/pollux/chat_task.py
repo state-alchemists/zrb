@@ -1,5 +1,6 @@
 from pydantic_ai.toolsets import FunctionToolset
 
+from zrb.builtin.pollux.app.confirmation.replace_confirmation import replace_confirmation
 from zrb.builtin.pollux.ascii_art.util import get_art
 from zrb.builtin.pollux.prompt.claude_compatibility import (
     create_claude_compatibility_prompt,
@@ -99,6 +100,7 @@ chat_task.prompt_manager.add_middleware(
     create_claude_compatibility_prompt(skill_manager),
     create_zrb_prompt(),
 )
+chat_task.add_confirmation_middleware(replace_confirmation)
 chat_task.add_tool(
     roll_dice,
     joke_agent,

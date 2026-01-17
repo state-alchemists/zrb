@@ -7,6 +7,7 @@ from typing import Any, Awaitable, Callable, Protocol
 import yaml
 
 from zrb.config.config import CFG
+from zrb.util.yaml import yaml_dump
 
 
 class UIProtocol(Protocol):
@@ -19,21 +20,6 @@ ConfirmationMiddleware = Callable[
     [UIProtocol, Any, str, Callable[[UIProtocol, Any, str], Awaitable[Any]]],
     Awaitable[Any],
 ]
-
-
-def _dump_yaml(data: Any) -> str:
-    class BlockDumper(yaml.SafeDumper):
-        pass
-
-    def str_presenter(dumper, data):
-        if len(data.splitlines()) > 1:
-            return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
-        return dumper.represent_scalar("tag:yaml.org,2002:str", data)
-
-    BlockDumper.add_representer(str, str_presenter)
-    return yaml.dump(
-        data, Dumper=BlockDumper, default_flow_style=False, sort_keys=False
-    )
 
 
 class ConfirmationHandler:
@@ -64,9 +50,7 @@ class ConfirmationHandler:
                 )
 
             result = await _next(ui, call, user_response, 0)
-            # If result is None, it means no middleware handled it (invalid choice likely)
             if result is None:
-                ui.append_to_output("\n  ⛔ Invalid choice. ", end="")
                 continue
             return result
 
@@ -79,7 +63,7 @@ class ConfirmationHandler:
                     args = json.loads(args)
                 except json.JSONDecodeError:
                     pass
-            args_str = _dump_yaml(args)
+            args_str = yaml_dump(args)
             # Indent nicely for display
             args_str = "\n".join(
                 [f"{arg_line_prefix}{line}" for line in args_str.splitlines()]
@@ -89,7 +73,7 @@ class ConfirmationHandler:
         return (
             "  🎰 Executing tool '{tool_name}'\n"
             "       Arguments:\n{args_str}\n"
-            "  ❓ Allow tool Execution? (Y/n/e)? "
+            "  ❓ Allow tool Execution? (✅ Y | 🛑 n | ✏️ e)? "
         ).format(tool_name=call.tool_name, args_str=args_str)
 
 
@@ -102,8 +86,10 @@ async def last_confirmation(
     from pydantic_ai import ToolApproved, ToolDenied
 
     if user_response.lower() in ("y", "yes", "ok", "okay", ""):
+        ui.append_to_output("\n✅ Execution approved.")
         return ToolApproved()
     elif user_response.lower() in ("n", "no"):
+        ui.append_to_output("\n🛑 Execution denied.")
         return ToolDenied("User denied execution")
     elif user_response.lower() in ("e", "edit"):
         # Edit logic
@@ -118,7 +104,7 @@ async def last_confirmation(
             # YAML for editing
             is_yaml_edit = True
             try:
-                content = _dump_yaml(args)
+                content = yaml_dump(args)
                 extension = ".yaml"
             except Exception:
                 # Fallback to JSON
@@ -134,6 +120,7 @@ async def last_confirmation(
 
             # Compare content
             if new_content == content:
+                ui.append_to_output("\nℹ️ No changes made.")
                 return None
 
             try:
@@ -141,6 +128,7 @@ async def last_confirmation(
                     new_args = yaml.safe_load(new_content)
                 else:
                     new_args = json.loads(new_content)
+                ui.append_to_output("\n✅ Execution approved (with modification).")
                 return ToolApproved(override_args=new_args)
             except Exception as e:
                 ui.append_to_output(f"\n❌ Invalid format: {e}. ", end="")
@@ -151,7 +139,8 @@ async def last_confirmation(
             ui.append_to_output(f"\n❌ Error editing: {e}. ", end="")
             return None
     else:
-        return ToolDenied(f"User denied execution: {user_response}")
+        ui.append_to_output("\n🛑 Execution denied.")
+        return ToolDenied(f"User denied execution with message: {user_response}")
 
 
 async def wait_edit_content(
