@@ -153,10 +153,10 @@ class LLMTask(BaseTask):
     def append_tool(self, *tool: "Tool | ToolFuncEither"):
         self._tools += list(tool)
 
-    def add_history_processors(self, *processor: "HistoryProcessor"):
-        self.append_history_processors(*processor)
+    def add_history_processor(self, *processor: "HistoryProcessor"):
+        self.append_history_processor(*processor)
 
-    def append_history_processors(self, *processor: "HistoryProcessor"):
+    def append_history_processor(self, *processor: "HistoryProcessor"):
         self._history_processors += list(processor)
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
