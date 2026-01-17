@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.builtin.pollux.config.limiter import LLMLimiter
 from zrb.builtin.pollux.util.attachment import normalize_attachments
+from zrb.builtin.pollux.util.prompt import expand_prompt
 
 # Context variable to propagate tool confirmation callback to sub-agents
 tool_confirmation_var: ContextVar[Callable[[Any], Any] | None] = ContextVar(
@@ -34,6 +35,9 @@ def create_agent(
     from pydantic_ai import Agent, DeferredToolRequests
     from pydantic_ai.toolsets import FunctionToolset
 
+    # Expand system prompt with references
+    effective_system_prompt = expand_prompt(system_prompt)
+
     final_output_type = output_type
     effective_toolsets = list(toolsets)
     if tools:
@@ -46,7 +50,7 @@ def create_agent(
     return Agent(
         model=model,
         output_type=final_output_type,
-        instructions=system_prompt,
+        instructions=effective_system_prompt,
         toolsets=effective_toolsets,
         model_settings=model_settings,
         history_processors=history_processors,
@@ -79,9 +83,11 @@ async def run_agent(
     token = tool_confirmation_var.set(effective_tool_confirmation)
 
     try:
+        # Expand user message with references
+        effective_message = expand_prompt(message) if message else message
+
         # Prepare Prompt Content
-        prompt_content = _get_prompt_content(message, attachments, print_fn)
-        prompt_content = message
+        prompt_content = _get_prompt_content(effective_message, attachments, print_fn)
 
         # 1. Prune & Throttle
         current_history = await _acquire_rate_limit(
