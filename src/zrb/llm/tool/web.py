@@ -21,9 +21,7 @@ async def search_internet(
         CFG.SEARCH_INTERNET_METHOD.strip().lower() == "serpapi"
         and CFG.SERPAPI_KEY != ""
     ):
-        from zrb.llm.tool.search.serpapi import (
-            search_internet as serpapi_search,
-        )
+        from zrb.llm.tool.search.serpapi import search_internet as serpapi_search
 
         return serpapi_search(query, page=page)
     if (

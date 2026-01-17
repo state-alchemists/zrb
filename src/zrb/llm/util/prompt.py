@@ -15,7 +15,7 @@ def expand_prompt(prompt: str) -> str:
     # Regex to capture @path.
     # Matches @ followed by typical path chars.
     # We'll allow alphanumeric, _, -, ., /, \, and ~ (home dir).
-    pattern = re.compile(r'@(?P<path>[\w~\-\./\\]+)')
+    pattern = re.compile(r"@(?P<path>[\w~\-\./\\]+)")
 
     matches = list(pattern.finditer(prompt))
     if not matches:
@@ -28,7 +28,7 @@ def expand_prompt(prompt: str) -> str:
 
     for match in matches:
         # Add text before match
-        parts.append(prompt[last_idx:match.start()])
+        parts.append(prompt[last_idx : match.start()])
 
         path_ref = match.group("path")
         original_token = match.group(0)
@@ -68,7 +68,7 @@ def expand_prompt(prompt: str) -> str:
             continue
 
         # If we successfully got content
-        parts.append(f'`{path_ref}` (see Appendix)')
+        parts.append(f"`{path_ref}` (see Appendix)")
 
         # Add to appendix with strict instructions
         entry_lines = [
@@ -78,7 +78,7 @@ def expand_prompt(prompt: str) -> str:
             "> Use the content provided here directly.\n",
             "```",
             f"{content}",
-            "```"
+            "```",
         ]
         appendix_entries.append("\n".join(entry_lines))
 
@@ -96,7 +96,7 @@ def expand_prompt(prompt: str) -> str:
             "⚠️ **SYSTEM INSTRUCTION**: The user has attached the following content.",
             "You MUST use this provided content for your analysis.",
             "**DO NOT** consume resources by calling `read_file` or `list_files`",
-            "or `run_shell_command` to read these specific paths again.\n"
+            "or `run_shell_command` to read these specific paths again.\n",
         ]
         appendix_section = "\n".join(header_lines)
         appendix_section += "\n\n".join(appendix_entries)

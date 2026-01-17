@@ -1,5 +1,5 @@
-from zrb.llm.tool.bash import run_shell_command
 from zrb.config.config import CFG
+from zrb.llm.tool.bash import run_shell_command
 from zrb.runner.cli import cli
 
 

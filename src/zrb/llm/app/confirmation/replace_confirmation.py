@@ -7,8 +7,8 @@ from typing import Any, Awaitable, Callable
 from prompt_toolkit.application import run_in_terminal
 from pydantic_ai import ToolApproved
 
-from zrb.llm.app.confirmation.handler import UIProtocol
 from zrb.config.config import CFG
+from zrb.llm.app.confirmation.handler import UIProtocol
 
 
 async def replace_confirmation(

@@ -1,7 +1,10 @@
 from pydantic_ai.toolsets import FunctionToolset
 
+from zrb.config.config import CFG
+from zrb.context.any_shared_context import AnySharedContext
+from zrb.input.bool_input import BoolInput
+from zrb.input.str_input import StrInput
 from zrb.llm.app.confirmation.replace_confirmation import replace_confirmation
-from zrb.util.ascii_art.banner import create_banner
 from zrb.llm.prompt.claude_compatibility import (
     create_claude_compatibility_prompt,
 )
@@ -25,11 +28,8 @@ from zrb.llm.tool.zrb_task import (
     create_list_zrb_task_tool,
     create_run_zrb_task_tool,
 )
-from zrb.config.config import CFG
-from zrb.context.any_shared_context import AnySharedContext
-from zrb.input.bool_input import BoolInput
-from zrb.input.str_input import StrInput
 from zrb.runner.cli import cli
+from zrb.util.ascii_art.banner import create_banner
 
 
 def _get_ui_greeting(ctx: AnySharedContext) -> str | None:
@@ -52,8 +52,12 @@ chat_task = LLMChatTask(
     description="AI Assistant",
     input=[
         StrInput("message", "Message", allow_empty=True, always_prompt=False),
-        StrInput("session", "Conversation Session", allow_empty=True, always_prompt=False),
-        BoolInput("yolo", "YOLO Mode", default=False, allow_empty=True, always_prompt=False),
+        StrInput(
+            "session", "Conversation Session", allow_empty=True, always_prompt=False
+        ),
+        BoolInput(
+            "yolo", "YOLO Mode", default=False, allow_empty=True, always_prompt=False
+        ),
         StrInput("attach", "Attachments", allow_empty=True, always_prompt=False),
     ],
     yolo="{ctx.input.yolo}",

@@ -22,13 +22,13 @@ from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import Frame, TextArea
 
+from zrb.context.shared_context import SharedContext
 from zrb.llm.app.completion import InputCompleter
 from zrb.llm.app.confirmation.handler import (
     ConfirmationHandler,
     ConfirmationMiddleware,
     last_confirmation,
 )
-from zrb.context.shared_context import SharedContext
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.util.string.name import get_random_name

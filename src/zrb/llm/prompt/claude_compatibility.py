@@ -1,8 +1,8 @@
 import os
 from typing import Callable
 
-from zrb.llm.skill.manager import SkillManager
 from zrb.context.any_context import AnyContext
+from zrb.llm.skill.manager import SkillManager
 from zrb.runner.cli import cli
 from zrb.util.markdown import make_markdown_section
 

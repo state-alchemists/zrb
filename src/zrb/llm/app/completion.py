@@ -1,7 +1,12 @@
 from typing import Iterable, List
-from prompt_toolkit.completion import Completer, Completion, PathCompleter
+
+from prompt_toolkit.completion import (
+    CompleteEvent,
+    Completer,
+    Completion,
+    PathCompleter,
+)
 from prompt_toolkit.document import Document
-from prompt_toolkit.completion import CompleteEvent
 
 
 class InputCompleter(Completer):
@@ -32,10 +37,7 @@ class InputCompleter(Completer):
 
             # Create a virtual document for PathCompleter
             # PathCompleter needs a document where the text represents the path
-            fake_document = Document(
-                text=path_part,
-                cursor_position=len(path_part)
-            )
+            fake_document = Document(text=path_part, cursor_position=len(path_part))
 
             # Delegate to PathCompleter
             for c in self.path_completer.get_completions(fake_document, complete_event):
