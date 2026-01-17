@@ -1,9 +1,8 @@
 import os
 from typing import List
 
-from pydantic_ai import Tool
-
 from zrb.llm.note.manager import NoteManager
+from zrb.llm.tool.tool import Tool
 
 
 def create_note_tools(note_manager: NoteManager) -> List[Tool]:

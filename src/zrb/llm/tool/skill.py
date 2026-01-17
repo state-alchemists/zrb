@@ -2,7 +2,7 @@ from zrb.llm.skill.manager import SkillManager
 
 
 def create_activate_skill_tool(skill_manager: SkillManager):
-    from pydantic_ai import Tool
+    from zrb.llm.tool.tool import Tool
 
     async def activate_skill_impl(name: str) -> str:
         content = skill_manager.get_skill_content(name)

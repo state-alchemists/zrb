@@ -4,7 +4,7 @@ from zrb.runner.cli import cli
 
 
 def create_list_zrb_task_tool():
-    from pydantic_ai import Tool
+    from zrb.llm.tool.tool import Tool
 
     def list_zrb_tasks_impl(group_name: str | None = None) -> str:
         target_group = cli
@@ -43,7 +43,7 @@ def create_list_zrb_task_tool():
 
 
 def create_run_zrb_task_tool():
-    from pydantic_ai import Tool
+    from zrb.llm.tool.tool import Tool
 
     async def run_zrb_task(
         task_name: str, args: dict[str, str] = {}, timeout: int = 30

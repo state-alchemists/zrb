@@ -1,5 +1,3 @@
-from pydantic_ai.toolsets import FunctionToolset
-
 from zrb.config.config import CFG
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.bool_input import BoolInput
@@ -117,8 +115,11 @@ chat_task.add_tool(
     run_shell_command,
     list_files,
     read_file,
+    read_files,
     write_file,
+    write_files,
     replace_in_file,
+    search_files,
     search_internet,
     open_web_page,
     create_list_zrb_task_tool(),
@@ -126,4 +127,4 @@ chat_task.add_tool(
     create_activate_skill_tool(skill_manager),
     *create_note_tools(note_manager),
 )
-chat_task.add_toolset(FunctionToolset(tools=[get_current_time]))
+chat_task.add_tool(get_current_time)

@@ -300,11 +300,10 @@ async def analyze_file(path: str, query: str) -> str:
     that requires "thinking" rather than just reading.
     """
     # Lazy imports to avoid circular dependencies
-    from pydantic_ai import Tool
-
     from zrb.config.config import CFG
     from zrb.llm.agent.agent import create_agent, run_agent
     from zrb.llm.config.limiter import llm_limiter
+    from zrb.llm.tool.tool import Tool
 
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):

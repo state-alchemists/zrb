@@ -1,7 +1,5 @@
 import asyncio
 
-from pydantic_ai import Tool
-
 
 async def run_shell_command(command: str, timeout: int = 30) -> str:
     """
@@ -56,8 +54,3 @@ async def run_shell_command(command: str, timeout: int = 30) -> str:
 
     except Exception as e:
         return f"Error executing command: {e}"
-
-
-shell_tool = Tool(
-    run_shell_command, name="run_shell_command", description="Run a shell command"
-)

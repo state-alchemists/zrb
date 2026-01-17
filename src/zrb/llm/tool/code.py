@@ -1,7 +1,6 @@
 import fnmatch
 import json
 import os
-from typing import Any
 
 from zrb.config.config import CFG
 from zrb.llm.agent.agent import create_agent, run_agent
