@@ -1,4 +1,4 @@
-from zrb.builtin.pollux.agent.agent import (
+from zrb.llm.agent.agent import (
     create_agent,
     run_agent,
     tool_confirmation_var,

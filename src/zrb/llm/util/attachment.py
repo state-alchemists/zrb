@@ -14,7 +14,7 @@ def normalize_attachments(
 
     from pydantic_ai import BinaryContent
 
-    from zrb.builtin.pollux.util.attachment import get_media_type
+    from zrb.llm.util.attachment import get_media_type
 
     final_attachments = []
     for item in attachments:

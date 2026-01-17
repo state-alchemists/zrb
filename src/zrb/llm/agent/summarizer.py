@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING
 
-from zrb.builtin.pollux.agent.agent import create_agent
-from zrb.builtin.pollux.config.config import LLMConfig
-from zrb.builtin.pollux.config.config import llm_config as default_llm_config
-from zrb.builtin.pollux.prompt.default import get_default_prompt
+from zrb.llm.agent.agent import create_agent
+from zrb.llm.config.config import LLMConfig
+from zrb.llm.config.config import llm_config as default_llm_config
+from zrb.llm.prompt.default import get_default_prompt
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent

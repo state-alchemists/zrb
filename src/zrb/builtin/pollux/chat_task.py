@@ -1,27 +1,27 @@
 from pydantic_ai.toolsets import FunctionToolset
 
-from zrb.builtin.pollux.app.confirmation.replace_confirmation import replace_confirmation
-from zrb.builtin.pollux.ascii_art.util import get_art
-from zrb.builtin.pollux.prompt.claude_compatibility import (
+from zrb.llm.app.confirmation.replace_confirmation import replace_confirmation
+from zrb.util.ascii_art.banner import create_banner
+from zrb.llm.prompt.claude_compatibility import (
     create_claude_compatibility_prompt,
 )
-from zrb.builtin.pollux.prompt.compose import PromptManager, new_prompt
-from zrb.builtin.pollux.prompt.default import get_default_prompt
-from zrb.builtin.pollux.prompt.system_context import system_context
-from zrb.builtin.pollux.prompt.zrb import create_zrb_prompt
-from zrb.builtin.pollux.skill.manager import SkillManager
-from zrb.builtin.pollux.task.chat_task import LLMChatTask
-from zrb.builtin.pollux.tool.bash import run_shell_command
-from zrb.builtin.pollux.tool.file import (
+from zrb.llm.prompt.compose import PromptManager, new_prompt
+from zrb.llm.prompt.default import get_default_prompt
+from zrb.llm.prompt.system_context import system_context
+from zrb.llm.prompt.zrb import create_zrb_prompt
+from zrb.llm.skill.manager import SkillManager
+from zrb.llm.task.chat_task import LLMChatTask
+from zrb.llm.tool.bash import run_shell_command
+from zrb.llm.tool.file import (
     list_files,
     read_file,
     replace_in_file,
     write_file,
 )
-from zrb.builtin.pollux.tool.skill import create_activate_skill_tool
-from zrb.builtin.pollux.tool.sub_agent import create_sub_agent_tool
-from zrb.builtin.pollux.tool.web import open_web_page, search_internet
-from zrb.builtin.pollux.tool.zrb_task import (
+from zrb.llm.tool.skill import create_activate_skill_tool
+from zrb.llm.tool.sub_agent import create_sub_agent_tool
+from zrb.llm.tool.web import open_web_page, search_internet
+from zrb.llm.tool.zrb_task import (
     create_list_zrb_task_tool,
     create_run_zrb_task_tool,
 )
@@ -35,7 +35,7 @@ from zrb.runner.cli import cli
 def _get_ui_greeting(ctx: AnySharedContext) -> str | None:
     assistant_name = _get_ui_assistant_name(ctx)
     jargon = _get_ui_jargon(ctx)
-    return get_art(text=f"{assistant_name}\n{jargon}")
+    return create_banner(text=f"{assistant_name}\n{jargon}")
 
 
 def _get_ui_assistant_name(ctx: AnySharedContext) -> str:

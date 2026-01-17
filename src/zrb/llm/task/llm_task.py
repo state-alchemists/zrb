@@ -2,18 +2,18 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.attr.type import BoolAttr, StrAttr, fstring
-from zrb.builtin.pollux.agent.agent import create_agent, run_agent
-from zrb.builtin.pollux.config.config import LLMConfig
-from zrb.builtin.pollux.config.config import llm_config as default_llm_config
-from zrb.builtin.pollux.config.limiter import LLMLimiter
-from zrb.builtin.pollux.config.limiter import llm_limiter as default_llm_limitter
-from zrb.builtin.pollux.history_manager import AnyHistoryManager, FileHistoryManager
-from zrb.builtin.pollux.history_processor.summarizer import (
+from zrb.llm.agent.agent import create_agent, run_agent
+from zrb.llm.config.config import LLMConfig
+from zrb.llm.config.config import llm_config as default_llm_config
+from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.config.limiter import llm_limiter as default_llm_limitter
+from zrb.llm.history_manager import AnyHistoryManager, FileHistoryManager
+from zrb.llm.history_processor.summarizer import (
     summarize_history,
 )
-from zrb.builtin.pollux.prompt.compose import PromptManager
-from zrb.builtin.pollux.util.attachment import get_attachments
-from zrb.builtin.pollux.util.stream_response import (
+from zrb.llm.prompt.compose import PromptManager
+from zrb.llm.util.attachment import get_attachments
+from zrb.llm.util.stream_response import (
     create_event_handler,
     create_faint_printer,
 )

@@ -1,4 +1,4 @@
-from zrb.builtin.pollux.history_processor.summarizer import (
+from zrb.llm.history_processor.summarizer import (
     create_summarizer_history_processor,
     summarize_history,
 )

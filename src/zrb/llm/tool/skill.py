@@ -1,4 +1,4 @@
-from zrb.builtin.pollux.skill.manager import SkillManager
+from zrb.llm.skill.manager import SkillManager
 
 
 def create_activate_skill_tool(skill_manager: SkillManager):

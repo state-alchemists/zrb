@@ -1,7 +1,7 @@
 import os
 import re
 
-from zrb.builtin.pollux.tool.file import list_files, read_file
+from zrb.llm.tool.file import list_files, read_file
 
 
 def expand_prompt(prompt: str) -> str:

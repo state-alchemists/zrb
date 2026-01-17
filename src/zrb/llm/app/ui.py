@@ -22,8 +22,8 @@ from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import Frame, TextArea
 
-from zrb.builtin.pollux.app.completion import InputCompleter
-from zrb.builtin.pollux.app.confirmation.handler import (
+from zrb.llm.app.completion import InputCompleter
+from zrb.llm.app.confirmation.handler import (
     ConfirmationHandler,
     ConfirmationMiddleware,
     last_confirmation,
@@ -469,7 +469,7 @@ class UI:
     async def _stream_ai_response(
         self, llm_task: AnyTask, user_message: str, attachments: list[str] = []
     ):
-        from zrb.builtin.pollux.agent.agent import tool_confirmation_var
+        from zrb.llm.agent.agent import tool_confirmation_var
 
         self._is_thinking = True
         get_app().invalidate()  # Update status bar

@@ -21,7 +21,7 @@ async def search_internet(
         CFG.SEARCH_INTERNET_METHOD.strip().lower() == "serpapi"
         and CFG.SERPAPI_KEY != ""
     ):
-        from zrb.builtin.pollux.tool.search.serpapi import (
+        from zrb.llm.tool.search.serpapi import (
             search_internet as serpapi_search,
         )
 
@@ -30,10 +30,10 @@ async def search_internet(
         CFG.SEARCH_INTERNET_METHOD.strip().lower() == "brave"
         and CFG.BRAVE_API_KEY != ""
     ):
-        from zrb.builtin.pollux.tool.search.brave import search_internet as brave_search
+        from zrb.llm.tool.search.brave import search_internet as brave_search
 
         return brave_search(query, page=page)
-    from zrb.builtin.pollux.tool.search.searxng import search_internet as searxng_search
+    from zrb.llm.tool.search.searxng import search_internet as searxng_search
 
     return searxng_search(query, page=page)
 

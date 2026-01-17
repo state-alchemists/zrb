@@ -1,9 +1,9 @@
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Callable
 
-from zrb.builtin.pollux.config.limiter import LLMLimiter
-from zrb.builtin.pollux.util.attachment import normalize_attachments
-from zrb.builtin.pollux.util.prompt import expand_prompt
+from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.util.attachment import normalize_attachments
+from zrb.llm.util.prompt import expand_prompt
 
 # Context variable to propagate tool confirmation callback to sub-agents
 tool_confirmation_var: ContextVar[Callable[[Any], Any] | None] = ContextVar(

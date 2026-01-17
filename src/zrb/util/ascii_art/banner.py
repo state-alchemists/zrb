@@ -2,7 +2,7 @@ import os
 import random
 
 
-def get_art(art: str | None = None, text: str | None = None) -> str:
+def create_banner(art: str | None = None, text: str | None = None) -> str:
     # First get art using _get_art_only
     art_content = _get_art_only(art)
 

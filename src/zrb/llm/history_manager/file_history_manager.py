@@ -5,7 +5,7 @@ from typing import Dict, List
 from pydantic_ai import ModelMessage
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 
-from zrb.builtin.pollux.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 
 
 class FileHistoryManager(AnyHistoryManager):

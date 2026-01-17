@@ -1,11 +1,11 @@
 from pydantic_ai import Tool
 
-from zrb.builtin.pollux.agent import create_agent, run_agent
-from zrb.builtin.pollux.config.config import LLMConfig
-from zrb.builtin.pollux.config.config import llm_config as default_config
-from zrb.builtin.pollux.config.limiter import LLMLimiter
-from zrb.builtin.pollux.config.limiter import llm_limiter as default_limiter
-from zrb.builtin.pollux.history_manager import AnyHistoryManager, FileHistoryManager
+from zrb.llm.agent import create_agent, run_agent
+from zrb.llm.config.config import LLMConfig
+from zrb.llm.config.config import llm_config as default_config
+from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.config.limiter import llm_limiter as default_limiter
+from zrb.llm.history_manager import AnyHistoryManager, FileHistoryManager
 
 
 def create_sub_agent_tool(

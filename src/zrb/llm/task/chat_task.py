@@ -2,13 +2,13 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.attr.type import BoolAttr, StrAttr, fstring
-from zrb.builtin.pollux.app.confirmation.handler import ConfirmationMiddleware
-from zrb.builtin.pollux.config.config import LLMConfig
-from zrb.builtin.pollux.config.limiter import LLMLimiter
-from zrb.builtin.pollux.history_manager import AnyHistoryManager
-from zrb.builtin.pollux.prompt.compose import PromptManager
-from zrb.builtin.pollux.task.llm_task import LLMTask
-from zrb.builtin.pollux.util.attachment import get_attachments
+from zrb.llm.app.confirmation.handler import ConfirmationMiddleware
+from zrb.llm.config.config import LLMConfig
+from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.history_manager import AnyHistoryManager
+from zrb.llm.prompt.compose import PromptManager
+from zrb.llm.task.llm_task import LLMTask
+from zrb.llm.util.attachment import get_attachments
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
@@ -170,8 +170,8 @@ class LLMChatTask(BaseTask):
         self._confirmation_middlewares += list(middleware)
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
-        from zrb.builtin.pollux.app.lexer import CLIStyleLexer
-        from zrb.builtin.pollux.app.ui import UI
+        from zrb.llm.app.lexer import CLIStyleLexer
+        from zrb.llm.app.ui import UI
 
         initial_conversation_name = self._get_conversation_name(ctx)
         initial_yolo = get_bool_attr(ctx, self._yolo, False)

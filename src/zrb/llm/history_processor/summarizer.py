@@ -7,9 +7,9 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 
-from zrb.builtin.pollux.agent.summarizer import create_summarizer_agent
-from zrb.builtin.pollux.config.limiter import LLMLimiter
-from zrb.builtin.pollux.config.limiter import llm_limiter as default_llm_limiter
+from zrb.llm.agent.summarizer import create_summarizer_agent
+from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
 from zrb.util.markdown import make_markdown_section
 
 

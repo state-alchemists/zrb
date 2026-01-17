@@ -7,7 +7,7 @@ from typing import Any, Awaitable, Callable
 from prompt_toolkit.application import run_in_terminal
 from pydantic_ai import ToolApproved
 
-from zrb.builtin.pollux.app.confirmation.handler import UIProtocol
+from zrb.llm.app.confirmation.handler import UIProtocol
 from zrb.config.config import CFG
 
 
