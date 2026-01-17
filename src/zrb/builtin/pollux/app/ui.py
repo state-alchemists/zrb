@@ -63,6 +63,7 @@ class UI:
         output_lexer: Lexer,
         llm_task: AnyTask,
         initial_message: Any = "",
+        initial_attachments: list[str] = [],
         conversation_session_name: str = "",
         yolo: bool = False,
         triggers: list[Callable[[], Any]] = [],
@@ -80,6 +81,8 @@ class UI:
         self._yolo = yolo
         self._triggers = triggers
         self._trigger_tasks: list[asyncio.Task] = []
+        # Attachments
+        self._pending_attachments: list[str] = list(initial_attachments)
         # Confirmation Handler
         self._confirmation_handler = ConfirmationHandler(
             middlewares=confirmation_middlewares + [last_confirmation]
@@ -217,7 +220,9 @@ class UI:
             prompt=HTML('<style color="ansibrightblue"><b>&gt;&gt;&gt; </b></style>'),
             multiline=True,
             wrap_lines=True,
-            completer=WordCompleter(EXIT_COMMANDS, ignore_case=True, WORD=True),
+            completer=WordCompleter(
+                EXIT_COMMANDS + ["/attach"], ignore_case=True, WORD=True
+            ),
             complete_while_typing=True,
         )
 
@@ -365,6 +370,12 @@ class UI:
                 event.app.exit()
                 return
 
+            if text.strip().lower().startswith("/attach "):
+                path = text.strip()[8:].strip()
+                self._handle_attach_command(path)
+                buff.reset()
+                return
+
             # If we are thinking, ignore input
             if self._is_thinking:
                 return
@@ -376,6 +387,21 @@ class UI:
         @app_keybindings.add("c-space")  # Ctrl+Space (Fallback)
         def _(event):
             event.current_buffer.insert_text("\n")
+
+    def _handle_attach_command(self, path: str):
+        # Validate path
+        import os
+
+        expanded_path = os.path.abspath(os.path.expanduser(path))
+        if not os.path.exists(expanded_path):
+            self.append_to_output(f"\n❌ File not found: {path}\n")
+            return
+
+        if expanded_path not in self._pending_attachments:
+            self._pending_attachments.append(expanded_path)
+            self.append_to_output(f"\n📎 Attached: {path}\n")
+        else:
+            self.append_to_output(f"\n📎 Already attached: {path}\n")
 
     def append_to_output(
         self,
@@ -433,11 +459,16 @@ class UI:
         self.append_to_output(f"\n{user_header}{user_message.strip()}\n")
 
         # 2. Trigger AI Response
+        attachments = list(self._pending_attachments)
+        self._pending_attachments.clear()
+
         self._running_llm_task = asyncio.create_task(
-            self._stream_ai_response(llm_task, user_message)
+            self._stream_ai_response(llm_task, user_message, attachments)
         )
 
-    async def _stream_ai_response(self, llm_task: AnyTask, user_message: str):
+    async def _stream_ai_response(
+        self, llm_task: AnyTask, user_message: str, attachments: list[str] = []
+    ):
         from zrb.builtin.pollux.agent.agent import tool_confirmation_var
 
         self._is_thinking = True
@@ -453,6 +484,7 @@ class UI:
                 "message": user_message,
                 "session": self._conversation_session_name,
                 "yolo": self._yolo,
+                "attachments": attachments,
             }
 
             shared_ctx = SharedContext(

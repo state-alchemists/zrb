@@ -4,11 +4,11 @@ from typing import TYPE_CHECKING, Any
 from zrb.attr.type import BoolAttr, StrAttr, fstring
 from zrb.builtin.pollux.app.confirmation.handler import ConfirmationMiddleware
 from zrb.builtin.pollux.config.config import LLMConfig
-from zrb.builtin.pollux.config.config import llm_config as default_llm_config
 from zrb.builtin.pollux.config.limiter import LLMLimiter
-from zrb.builtin.pollux.config.limiter import llm_limiter as default_llm_limitter
-from zrb.builtin.pollux.history_manager import AnyHistoryManager, FileHistoryManager
+from zrb.builtin.pollux.history_manager import AnyHistoryManager
+from zrb.builtin.pollux.prompt.compose import PromptManager
 from zrb.builtin.pollux.task.llm_task import LLMTask
+from zrb.builtin.pollux.util.attachment import get_attachments
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
@@ -21,7 +21,7 @@ from zrb.util.attr import get_attr, get_bool_attr, get_str_attr
 from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
-    from pydantic_ai import Tool
+    from pydantic_ai import Tool, UserContent
     from pydantic_ai._agent_graph import HistoryProcessor
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
@@ -44,10 +44,12 @@ class LLMChatTask(BaseTask):
             "Callable[[AnyContext], str | fstring | None] | str | None"
         ) = None,
         render_system_prompt: bool = False,
+        prompt_manager: PromptManager | None = None,
         tools: list["Tool | ToolFuncEither"] = [],
         toolsets: list["AbstractToolset[None]"] = [],
         message: StrAttr | None = None,
         render_message: bool = True,
+        attachment: "UserContent | list[UserContent] | Callable[[AnyContext], UserContent | list[UserContent]] | None" = None,  # noqa
         history_processors: list["HistoryProcessor"] = [],
         llm_config: LLMConfig | None = None,
         llm_limitter: LLMLimiter | None = None,
@@ -108,27 +110,23 @@ class LLMChatTask(BaseTask):
             successor=successor,
             print_fn=print_fn,
         )
-        self._llm_config = default_llm_config if llm_config is None else llm_config
-        self._llm_limitter = (
-            default_llm_limitter if llm_limitter is None else llm_limitter
-        )
+        self._llm_config = llm_config
+        self._llm_limitter = llm_limitter
         self._system_prompt = system_prompt
         self._render_system_prompt = render_system_prompt
+        self._prompt_manager = prompt_manager
         self._tools = tools
         self._toolsets = toolsets
         self._message = message
         self._render_message = render_message
+        self._attachment = attachment
         self._history_processors = history_processors
         self._model = model
         self._render_model = render_model
         self._model_settings = model_settings
         self._conversation_name = conversation_name
         self._render_conversation_name = render_conversation_name
-        self._history_manager = (
-            FileHistoryManager(history_dir="~/.llm_chat")
-            if history_manager is None
-            else history_manager
-        )
+        self._history_manager = history_manager
         self._tool_confirmation = tool_confirmation
         self._yolo = yolo
         self._summarize_command = summarize_command
@@ -140,6 +138,12 @@ class LLMChatTask(BaseTask):
         self._render_ui_jargon = render_ui_jargon
         self._triggers = triggers
         self._confirmation_middlewares = confirmation_middlewares
+
+    @property
+    def prompt_manager(self) -> PromptManager:
+        if self._prompt_manager is None:
+            raise ValueError(f"Task {self.name} doesn't have prompt_manager")
+        return self._prompt_manager
 
     def add_toolset(self, *toolset: "AbstractToolset"):
         self.append_toolset(*toolset)
@@ -166,6 +170,7 @@ class LLMChatTask(BaseTask):
         initial_conversation_name = self._get_conversation_name(ctx)
         initial_yolo = get_bool_attr(ctx, self._yolo, False)
         initial_message = get_attr(ctx, self._message, "", self._render_message)
+        initial_attachments = get_attachments(ctx, self._attachment)
         ui_greeting = get_str_attr(ctx, self._ui_greeting, "", self._render_ui_greeting)
         ui_assistant_name = get_str_attr(
             ctx, self._ui_assistant_name, "", self._render_ui_assistant_name
@@ -178,6 +183,7 @@ class LLMChatTask(BaseTask):
                 StrInput("message", "Message"),
                 StrInput("session", "Conversation Session"),
                 BoolInput("yolo", "YOLO Mode"),
+                StrInput("attachments", "Attachments"),
             ],
             env=self.envs,
             system_prompt=self._system_prompt,
@@ -194,6 +200,7 @@ class LLMChatTask(BaseTask):
             message="{ctx.input.message}",
             conversation_name="{ctx.input.session}",
             yolo="{ctx.input.yolo}",
+            attachment=lambda ctx: ctx.input.attachments,
             summarize_command=self._summarize_command,
         )
         ui = UI(
@@ -203,6 +210,7 @@ class LLMChatTask(BaseTask):
             output_lexer=CLIStyleLexer(),
             llm_task=llm_task_core,
             initial_message=initial_message,
+            initial_attachments=initial_attachments,
             conversation_session_name=initial_conversation_name,
             yolo=initial_yolo,
             triggers=self._triggers,

@@ -11,6 +11,8 @@ from zrb.builtin.pollux.history_manager import AnyHistoryManager, FileHistoryMan
 from zrb.builtin.pollux.history_processor.summarizer import (
     summarize_history,
 )
+from zrb.builtin.pollux.prompt.compose import PromptManager
+from zrb.builtin.pollux.util.attachment import get_attachments
 from zrb.builtin.pollux.util.stream_response import (
     create_event_handler,
     create_faint_printer,
@@ -25,7 +27,7 @@ from zrb.util.attr import get_attr, get_bool_attr
 from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
-    from pydantic_ai import Tool
+    from pydantic_ai import Tool, UserContent
     from pydantic_ai._agent_graph import HistoryProcessor
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
@@ -48,10 +50,12 @@ class LLMTask(BaseTask):
             "Callable[[AnyContext], str | fstring | None] | str | None"
         ) = None,
         render_system_prompt: bool = False,
+        prompt_manager: PromptManager | None = None,
         tools: list["Tool | ToolFuncEither"] = [],
         toolsets: list["AbstractToolset[None]"] = [],
         message: StrAttr | None = None,
         render_message: bool = True,
+        attachment: "UserContent | list[UserContent] | Callable[[AnyContext], UserContent | list[UserContent]] | None" = None,  # noqa
         history_processors: list["HistoryProcessor"] = [],
         llm_config: LLMConfig | None = None,
         llm_limitter: LLMLimiter | None = None,
@@ -110,10 +114,12 @@ class LLMTask(BaseTask):
         )
         self._system_prompt = system_prompt
         self._render_system_prompt = render_system_prompt
+        self._prompt_manager = prompt_manager
         self._tools = tools
         self._toolsets = toolsets
         self._message = message
         self._render_message = render_message
+        self._attachment = attachment
         self._history_processors = history_processors
         self._model = model
         self._render_model = render_model
@@ -128,6 +134,12 @@ class LLMTask(BaseTask):
         self._tool_confirmation = tool_confirmation
         self._yolo = yolo
         self._summarize_command = summarize_command
+
+    @property
+    def prompt_manager(self) -> PromptManager:
+        if self._prompt_manager is None:
+            raise ValueError(f"Task {self.name} doesn't have prompt_manager")
+        return self._prompt_manager
 
     def add_toolset(self, *toolset: "AbstractToolset"):
         self.append_toolset(*toolset)
@@ -148,16 +160,14 @@ class LLMTask(BaseTask):
         self._history_processors += list(processor)
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
-        from pydantic_ai import DeferredToolRequests
-
         conversation_name = self._get_conversation_name(ctx)
         message_history = self._history_manager.load(conversation_name)
-
-        run_message_or_request = self._get_user_message(ctx, message_history)
+        user_message = get_attr(ctx, self._message, "", self._render_message)
+        user_attachments = get_attachments(ctx, self._attachment)
 
         if (
-            isinstance(run_message_or_request, str)
-            and run_message_or_request.strip() in self._summarize_command
+            isinstance(user_message, str)
+            and user_message.strip() in self._summarize_command
         ):
             ctx.print("Compacting conversation history...", plain=True)
             new_history = await summarize_history(message_history)
@@ -165,22 +175,10 @@ class LLMTask(BaseTask):
             self._history_manager.save(conversation_name)
             return "Conversation history compacted."
 
-        initial_deferred_tool_requests = None
-        run_message = None
-
-        if isinstance(run_message_or_request, DeferredToolRequests):
-            initial_deferred_tool_requests = run_message_or_request
-        else:
-            run_message = run_message_or_request
-
-        system_prompt = str(
-            get_attr(ctx, self._system_prompt, "", self._render_system_prompt)
-        )
         yolo = get_bool_attr(ctx, self._yolo, False)
-
         agent = create_agent(
             model=self._get_model(ctx),
-            system_prompt=system_prompt,
+            system_prompt=self._get_system_prompt(ctx),
             tools=self._tools,
             toolsets=self._toolsets,
             model_settings=self._get_model_settings(ctx),
@@ -193,13 +191,13 @@ class LLMTask(BaseTask):
 
         output, new_history = await run_agent(
             agent=agent,
-            message=run_message,
+            message=user_message,
             message_history=message_history,
             limiter=self._llm_limitter,
+            attachments=user_attachments,
             print_fn=ctx.print,
             event_handler=handle_event,
             tool_confirmation=self._tool_confirmation,
-            initial_deferred_tool_requests=initial_deferred_tool_requests,
         )
 
         self._history_manager.update(conversation_name, new_history)
@@ -208,6 +206,14 @@ class LLMTask(BaseTask):
 
         return output
 
+    def _get_system_prompt(self, ctx: AnyContext) -> str:
+        if self._prompt_manager is None:
+            return str(
+                get_attr(ctx, self._system_prompt, "", self._render_system_prompt)
+            )
+        compose_prompt = self._prompt_manager.compose_prompt()
+        return compose_prompt(ctx)
+
     def _get_conversation_name(self, ctx: AnyContext) -> str:
         conversation_name = str(
             get_attr(ctx, self._conversation_name, "", self._render_conversation_name)
@@ -215,28 +221,6 @@ class LLMTask(BaseTask):
         if conversation_name.strip() == "":
             conversation_name = get_random_name()
         return conversation_name
-
-    def _get_user_message(self, ctx: AnyContext, message_history: list[Any]) -> Any:
-        from pydantic_ai import DeferredToolRequests, ToolCallPart
-
-        if message_history:
-            last_msg = message_history[-1]
-            pending_calls = []
-            if hasattr(last_msg, "parts"):
-                for part in last_msg.parts:
-                    if isinstance(part, ToolCallPart):
-                        pending_calls.append(part)
-            if pending_calls:
-                try:
-                    req = DeferredToolRequests(approvals=pending_calls)
-                except Exception:
-                    req = DeferredToolRequests(calls=pending_calls)
-                    if hasattr(req, "approvals") and not req.approvals:
-                        req.approvals.extend(pending_calls)
-                return req
-
-        message = get_attr(ctx, self._message, "", self._render_message)
-        return message
 
     def _get_model_settings(
         self,

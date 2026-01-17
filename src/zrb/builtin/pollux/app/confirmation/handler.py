@@ -71,13 +71,11 @@ class ConfirmationHandler:
             )
         except Exception:
             args_str = f"{arg_line_prefix}{call.args}"
-        return "\n".join(
-            [
-                f"  ❓ Execute tool '{call.tool_name}'?",
-                f"     Arguments:\n{args_str}",
-                "     (y/n/e) ",
-            ]
-        )
+        return (
+            "  🎰 Executing tool '{tool_name}'\n"
+            "       Arguments:\n{args_str}\n"
+            "  ❓ Allow tool Execution? (Y/n/e)? "
+        ).format(tool_name=call.tool_name, args_str=args_str)
 
 
 async def last_confirmation(

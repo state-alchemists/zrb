@@ -15,6 +15,7 @@ def create_event_handler(
     show_tool_result: bool = False,
 ):
     from pydantic_ai import (
+        AgentRunResultEvent,
         FinalResultEvent,
         FunctionToolCallEvent,
         FunctionToolResultEvent,
@@ -93,6 +94,28 @@ def create_event_handler(
                     f"{event_prefix}🔠 {event.tool_call_id} Executed",
                     preserve_leading_newline=True,
                 )
+            was_tool_call_delta = False
+        elif isinstance(event, AgentRunResultEvent):
+            usage = event.result.usage()
+            usage_msg = " ".join(
+                [
+                    "💸",
+                    f"Requests: {usage.requests} |",
+                    f"Tool Calls: {usage.tool_calls} ||",
+                    f"Total: {usage.total_tokens} |",
+                    f"Input: {usage.input_tokens} |",
+                    f"Audio Input: {usage.input_audio_tokens} |",
+                    f"Output: {usage.output_tokens} |",
+                    f"Audio Output: {usage.output_audio_tokens} |",
+                    f"Cache Read: {usage.cache_read_tokens} |",
+                    f"Cache Write: {usage.cache_write_tokens} |",
+                    f"Details: {usage.details}",
+                ]
+            )
+            fprint(
+                f"{event_prefix}{stylize_faint(usage_msg)}",
+                preserve_leading_newline=True,
+            )
             was_tool_call_delta = False
         elif isinstance(event, FinalResultEvent):
             was_tool_call_delta = False
