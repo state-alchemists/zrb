@@ -1,3 +1,3 @@
-from zrb.builtin.pollux.prompt.compose import PromptMiddleware, compose_prompt
+from zrb.builtin.pollux.prompt.compose import PromptManager, PromptMiddleware
 
-__all__ = ["compose_prompt", "PromptMiddleware"]
+__all__ = ["PromptManager", "PromptMiddleware"]
