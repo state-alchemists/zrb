@@ -1,4 +1,6 @@
 import asyncio
+import re
+from zrb.util.cli.style import stylize_faint
 
 
 async def run_shell_command(command: str, timeout: int = 30) -> str:
@@ -10,6 +12,11 @@ async def run_shell_command(command: str, timeout: int = 30) -> str:
         command (str): The shell command to execute.
         timeout (int): Maximum time in seconds to wait for the command. Defaults to 30.
     """
+    ANSI_ESCAPE = re.compile(
+        r'(?:\x1B\[[0-?]*[ -/]*[@-~])|' # CSI (Control Sequence Introducer)
+        r'(?:\x1B\][^\a\x1b]*[\a\x1b])|'        # OSC (Operating System Command)
+        r'(?:\x1B[0-9=>])'                      # Simple 2-byte (DECSC, DECRC, etc.)
+    )
     try:
         process = await asyncio.create_subprocess_shell(
             command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
@@ -23,9 +30,11 @@ async def run_shell_command(command: str, timeout: int = 30) -> str:
                 line = await stream.readline()
                 if not line:
                     break
-                decoded = line.decode().strip()
+                decoded = line.decode()
                 if decoded:
-                    print(f"{prefix}{decoded}")  # Stream to console
+                    shown = ANSI_ESCAPE.sub('', decoded)
+                    shown = stylize_faint(shown)
+                    print(f"{prefix}  {shown}", end="")  # Stream to console
                     lines_list.append(decoded)
 
         # Wait for the process to complete or timeout

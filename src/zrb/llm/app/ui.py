@@ -46,6 +46,7 @@ class StdoutToUI(io.TextIOBase):
         self._is_first_write = True
 
     def write(self, text: str) -> int:
+        text = text.expandtabs(4)
         if text:
             if self._is_first_write:
                 self.ui_callback("\n", end="")
@@ -197,11 +198,11 @@ class UI:
     def _create_style(self) -> Style:
         return Style.from_dict(
             {
-                "frame.label": "bg:#ffffff #000000",
-                "username": "ansibrightblue bold",
-                "ai_name": "ansipurple bold",
+                "frame.label": "bg:#000000 #ffff00",
                 "thinking": "ansigreen italic",
                 "faint": "#888888",
+                "output_field": "bg:#000000 #eeeeee", 
+                "input_field": "bg:#000000 #eeeeee", 
                 "text": "#eeeeee",
                 "status": "reverse",
                 "bottom-toolbar": "bg:#333333 #aaaaaa",
@@ -212,11 +213,12 @@ class UI:
         return TextArea(
             text=greeting.rstrip() + "\n\n",
             read_only=True,
-            scrollbar=True,
+            scrollbar=False,
             wrap_lines=True,
             lexer=lexer,
             focus_on_click=True,
             focusable=True,
+            style="class:output_field"
         )
 
     def _create_input_field(self) -> TextArea:
@@ -230,6 +232,7 @@ class UI:
             completer=InputCompleter(all_commands),
             complete_while_typing=True,
             focus_on_click=True,
+            style="class:input_field"
         )
 
     def _create_application(
@@ -417,14 +420,6 @@ class UI:
         file: TextIO | None = None,
         flush: bool = False,
     ):
-        # Log everything to file for debugging
-        try:
-            with open("zrb_debug.log", "a") as f:
-                content = sep.join([str(value) for value in values]) + end
-                f.write(content)
-        except Exception:
-            pass
-
         # Helper to safely append to read-only buffer
         current_text = self._output_field.text
 
