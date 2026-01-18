@@ -35,6 +35,8 @@ from zrb.input.option_input import OptionInput
 from zrb.input.password_input import PasswordInput
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
+from zrb.llm.task.chat_task import LLMChatTask
+from zrb.llm.task.llm_task import LLMTask
 from zrb.runner.cli import cli
 from zrb.runner.web_schema.user import User
 from zrb.session.session import Session
@@ -106,4 +108,6 @@ __all__ = [
     "load_file",
     "load_module",
     "Xcom",
+    "LLMTask",
+    "LLMChatTask",
 ]

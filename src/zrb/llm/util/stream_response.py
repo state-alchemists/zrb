@@ -113,7 +113,7 @@ def create_event_handler(
                 ]
             )
             fprint(
-                f"{event_prefix}{stylize_faint(usage_msg)}",
+                f"{event_prefix}{stylize_faint(usage_msg)}\n",
                 preserve_leading_newline=True,
             )
             was_tool_call_delta = False

@@ -110,6 +110,8 @@ class UI:
 
     async def run_async(self):
         """Run the application and manage triggers."""
+        import logging
+
         # Start triggers
         for trigger_fn in self._triggers:
             trigger_task = self._application.create_background_task(
@@ -117,10 +119,24 @@ class UI:
             )
             self._trigger_tasks.append(trigger_task)
 
+        # Setup logging redirection to UI
+        root_logger = logging.getLogger()
+        original_handlers = root_logger.handlers[:]
+
+        ui_stream = StreamToUI(self.append_to_output)
+        ui_handler = logging.StreamHandler(ui_stream)
+        formatter = logging.Formatter("[%(levelname)s] %(name)s: %(message)s")
+        ui_handler.setFormatter(formatter)
+
+        root_logger.handlers = [ui_handler]
+
         try:
             with patch_stdout():
                 return await self._application.run_async()
         finally:
+            # Restore handlers
+            root_logger.handlers = original_handlers
+
             # Stop triggers
             for trigger_task in self._trigger_tasks:
                 trigger_task.cancel()

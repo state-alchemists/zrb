@@ -18,7 +18,7 @@ _DEFAULT_BANNER = """
    zzzzz rr rr  bb
      zz  rrr  r bbbbbb
     zz   rr     bb   bb
-   zzzzz rr     bbbbbb   {VERSION} Janggala
+   zzzzz rr     bbbbbb   {VERSION} Pollux
    _ _ . .  . _ .  _ . . .
 Your Automation Powerhouse
 ☕ Donate at: https://stalchmst.com

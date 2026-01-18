@@ -176,6 +176,8 @@ class LLMTask(BaseTask):
             return "Conversation history compacted."
 
         yolo = get_bool_attr(ctx, self._yolo, False)
+        system_prompt = self._get_system_prompt(ctx)
+        ctx.log_debug(f"SYSTEM PROMPT: {system_prompt}")
         agent = create_agent(
             model=self._get_model(ctx),
             system_prompt=self._get_system_prompt(ctx),
