@@ -305,7 +305,6 @@ async def analyze_file(path: str, query: str) -> str:
     from zrb.llm.config.config import llm_config
     from zrb.llm.config.limiter import llm_limiter
     from zrb.llm.prompt.default import get_file_extractor_system_prompt
-    from zrb.llm.tool.tool import Tool
 
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
@@ -332,8 +331,8 @@ async def analyze_file(path: str, query: str) -> str:
         model=llm_config.model,
         system_prompt=system_prompt,
         tools=[
-            Tool(read_file, name="read_file", description="Read file content"),
-            Tool(search_files, name="search_files", description="Search in files"),
+            read_file,
+            search_files,
         ],
     )
 

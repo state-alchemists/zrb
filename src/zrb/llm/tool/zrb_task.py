@@ -4,8 +4,6 @@ from zrb.runner.cli import cli
 
 
 def create_list_zrb_task_tool():
-    from zrb.llm.tool.tool import Tool
-
     def list_zrb_tasks_impl(group_name: str | None = None) -> str:
         target_group = cli
         if group_name:
@@ -29,22 +27,17 @@ def create_list_zrb_task_tool():
         return "\n".join(output)
 
     zrb_cmd = CFG.ROOT_GROUP_NAME
-    list_zrb_tasks = Tool(
-        list_zrb_tasks_impl,
-        name=f"list_{zrb_cmd}_tasks",
-        description=" ".join(
-            [
-                f"Lists available {zrb_cmd} tasks and groups. "
-                "If group_name is provided, lists tasks under that group."
-            ]
-        ),
+    list_zrb_tasks_impl.__name__ = f"list_{zrb_cmd}_tasks"
+    list_zrb_tasks_impl.__doc__ = " ".join(
+        [
+            f"Lists available {zrb_cmd} tasks and groups. "
+            "If group_name is provided, lists tasks under that group."
+        ]
     )
-    return list_zrb_tasks
+    return list_zrb_tasks_impl
 
 
 def create_run_zrb_task_tool():
-    from zrb.llm.tool.tool import Tool
-
     async def run_zrb_task(
         task_name: str, args: dict[str, str] = {}, timeout: int = 30
     ) -> str:
@@ -60,16 +53,13 @@ def create_run_zrb_task_tool():
         return await run_shell_command(command, timeout=timeout)
 
     zrb_cmd = CFG.ROOT_GROUP_NAME
-    list_zrb_tasks = Tool(
-        run_zrb_task,
-        name=f"run_{zrb_cmd}_task",
-        description="\n".join(
-            [
-                f"Executes a {zrb_cmd} task.\n",
-                "Args:",
-                '    task_name: The full name/alias path of the task (e.g., "server start").',
-                '    args: Dictionary of arguments to pass to the task (e.g., {"port": "8080"}).',
-            ]
-        ),
+    run_zrb_task.__name__ = f"run_{zrb_cmd}_task"
+    run_zrb_task.__doc__ = "\n".join(
+        [
+            f"Executes a {zrb_cmd} task.\n",
+            "Args:",
+            '    task_name: The full name/alias path of the task (e.g., "server start").',
+            '    args: Dictionary of arguments to pass to the task (e.g., {"port": "8080"}).',
+        ]
     )
-    return list_zrb_tasks
+    return run_zrb_task

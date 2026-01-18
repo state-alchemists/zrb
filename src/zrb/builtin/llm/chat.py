@@ -51,7 +51,7 @@ def _get_ui_jargon(ctx: AnySharedContext) -> str | None:
 skill_manager = SkillManager()
 note_manager = NoteManager()
 
-chat_task = LLMChatTask(
+llm_chat = LLMChatTask(
     name="chat",
     description="AI Assistant",
     input=[
@@ -79,7 +79,7 @@ chat_task = LLMChatTask(
     ui_greeting=_get_ui_greeting,
     ui_jargon=_get_ui_jargon,
 )
-cli.add_task(chat_task)
+cli.add_task(llm_chat)
 
 
 async def roll_dice() -> str:
@@ -108,15 +108,15 @@ joke_agent = create_sub_agent_tool(
     tools=[run_shell_command],
 )
 
-chat_task.prompt_manager.add_middleware(
+llm_chat.prompt_manager.add_middleware(
     new_prompt(get_assistant_system_prompt()),
     system_context,
     create_note_prompt(note_manager),
     create_claude_compatibility_prompt(skill_manager),
     create_zrb_prompt(),
 )
-chat_task.add_confirmation_middleware(replace_confirmation)
-chat_task.add_tool(
+llm_chat.add_confirmation_middleware(replace_confirmation)
+llm_chat.add_tool(
     roll_dice,
     joke_agent,
     run_shell_command,
@@ -134,4 +134,4 @@ chat_task.add_tool(
     create_activate_skill_tool(skill_manager),
     *create_note_tools(note_manager),
 )
-chat_task.add_tool(get_current_time)
+llm_chat.add_tool(get_current_time)

@@ -1,11 +1,10 @@
 import os
-from typing import List
+from typing import Any, List
 
 from zrb.llm.note.manager import NoteManager
-from zrb.llm.tool.tool import Tool
 
 
-def create_note_tools(note_manager: NoteManager) -> List[Tool]:
+def create_note_tools(note_manager: NoteManager) -> List[Any]:
     async def read_long_term_note() -> str:
         """
         Retrieves the GLOBAL 🧠 Long Term Note.
@@ -14,6 +13,8 @@ def create_note_tools(note_manager: NoteManager) -> List[Tool]:
             str: The current global note content.
         """
         return note_manager.read("~")
+
+    read_long_term_note.__name__ = "read_long_term_note"
 
     async def write_long_term_note(content: str) -> str:
         """
@@ -32,6 +33,8 @@ def create_note_tools(note_manager: NoteManager) -> List[Tool]:
         note_manager.write("~", content)
         return "Global long-term note saved."
 
+    write_long_term_note.__name__ = "write_long_term_note"
+
     async def read_contextual_note(path: str | None = None) -> str:
         """
         Retrieves LOCAL 📝 Contextual Note specific to a directory path.
@@ -45,6 +48,8 @@ def create_note_tools(note_manager: NoteManager) -> List[Tool]:
         if path is None:
             path = os.getcwd()
         return note_manager.read(path)
+
+    read_contextual_note.__name__ = "read_contextual_note"
 
     async def write_contextual_note(content: str, path: str | None = None) -> str:
         """
@@ -64,9 +69,11 @@ def create_note_tools(note_manager: NoteManager) -> List[Tool]:
         note_manager.write(path, content)
         return f"Contextual note saved for: {path}"
 
+    write_contextual_note.__name__ = "write_contextual_note"
+
     return [
-        Tool(read_long_term_note, name="read_long_term_note"),
-        Tool(write_long_term_note, name="write_long_term_note"),
-        Tool(read_contextual_note, name="read_contextual_note"),
-        Tool(write_contextual_note, name="write_contextual_note"),
+        read_long_term_note,
+        write_long_term_note,
+        read_contextual_note,
+        write_contextual_note,
     ]

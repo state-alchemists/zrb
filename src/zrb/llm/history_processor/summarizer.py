@@ -8,6 +8,8 @@ from zrb.util.markdown import make_markdown_section
 
 if TYPE_CHECKING:
     from pydantic_ai.messages import ModelMessage
+else:
+    ModelMessage = Any
 
 
 def is_turn_start(msg: Any) -> bool:
