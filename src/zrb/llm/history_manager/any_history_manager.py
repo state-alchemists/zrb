@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import TYPE_CHECKING
 
-from pydantic_ai import ModelMessage
+if TYPE_CHECKING:
+    from pydantic_ai import ModelMessage
 
 
 class AnyHistoryManager(ABC):
     @abstractmethod
-    def load(self, conversation_name: str) -> List[ModelMessage]:
+    def load(self, conversation_name: str) -> "list[ModelMessage]":
         pass
 
     @abstractmethod
@@ -14,5 +15,5 @@ class AnyHistoryManager(ABC):
         pass
 
     @abstractmethod
-    def update(self, conversation_name: str, messages: List[ModelMessage]):
+    def update(self, conversation_name: str, messages: "list[ModelMessage]"):
         pass

@@ -2,8 +2,6 @@ import json
 import re
 from typing import Any, Awaitable, Callable, Dict, Optional
 
-from pydantic_ai import ToolApproved
-
 from zrb.llm.app.confirmation.handler import ConfirmationMiddleware, UIProtocol
 
 
@@ -21,6 +19,7 @@ def allow_tool_usage(
                    specified in kwargs (only for arguments present in both).
     :return: A ConfirmationMiddleware function.
     """
+    from pydantic_ai import ToolApproved
 
     async def middleware(
         ui: UIProtocol,

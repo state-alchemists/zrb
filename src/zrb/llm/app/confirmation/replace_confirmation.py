@@ -5,7 +5,6 @@ import tempfile
 from typing import Any, Awaitable, Callable
 
 from prompt_toolkit.application import run_in_terminal
-from pydantic_ai import ToolApproved
 
 from zrb.config.config import CFG
 from zrb.llm.app.confirmation.handler import UIProtocol
@@ -17,6 +16,8 @@ async def replace_confirmation(
     response: str,
     next_handler: Callable[[UIProtocol, Any, str], Awaitable[Any]],
 ) -> Any:
+    from pydantic_ai import ToolApproved
+
     if call.tool_name != "replace_in_file":
         return await next_handler(ui, call, response)
 

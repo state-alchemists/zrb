@@ -1,9 +1,9 @@
 import json
 import os
-from typing import Dict, List
+from typing import TYPE_CHECKING
 
-from pydantic_ai import ModelMessage
-from pydantic_ai.messages import ModelMessagesTypeAdapter
+if TYPE_CHECKING:
+    from pydantic_ai import ModelMessage
 
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 
@@ -11,7 +11,7 @@ from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 class FileHistoryManager(AnyHistoryManager):
     def __init__(self, history_dir: str):
         self._history_dir = os.path.expanduser(history_dir)
-        self._cache: Dict[str, List[ModelMessage]] = {}
+        self._cache: "dict[str, list[ModelMessage]]" = {}
         if not os.path.exists(self._history_dir):
             os.makedirs(self._history_dir, exist_ok=True)
 
@@ -24,7 +24,9 @@ class FileHistoryManager(AnyHistoryManager):
             safe_name = "default"
         return os.path.join(self._history_dir, f"{safe_name}.json")
 
-    def load(self, conversation_name: str) -> List[ModelMessage]:
+    def load(self, conversation_name: str) -> "list[ModelMessage]":
+        from pydantic_ai.messages import ModelMessagesTypeAdapter
+
         if conversation_name in self._cache:
             return self._cache[conversation_name]
 
@@ -47,10 +49,12 @@ class FileHistoryManager(AnyHistoryManager):
             print(f"Warning: Failed to load history for {conversation_name}: {e}")
             return []
 
-    def update(self, conversation_name: str, messages: List[ModelMessage]):
+    def update(self, conversation_name: str, messages: "list[ModelMessage]"):
         self._cache[conversation_name] = messages
 
     def save(self, conversation_name: str):
+        from pydantic_ai.messages import ModelMessagesTypeAdapter
+
         if conversation_name not in self._cache:
             return
 

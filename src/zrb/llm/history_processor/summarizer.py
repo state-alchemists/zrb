@@ -1,11 +1,4 @@
-from typing import Any, Awaitable, Callable
-
-from pydantic_ai.messages import (
-    ModelMessage,
-    ModelRequest,
-    ToolReturnPart,
-    UserPromptPart,
-)
+from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from zrb.config.config import CFG
 from zrb.llm.agent.summarizer import create_summarizer_agent
@@ -13,9 +6,14 @@ from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
 from zrb.util.markdown import make_markdown_section
 
+if TYPE_CHECKING:
+    from pydantic_ai.messages import ModelMessage
+
 
 def is_turn_start(msg: Any) -> bool:
     """Identify start of a new user interaction (User Prompt without Tool Return)."""
+    from pydantic_ai.messages import ModelRequest, ToolReturnPart, UserPromptPart
+
     if not isinstance(msg, ModelRequest):
         return False
     # In pydantic_ai, ModelRequest parts can be list of various parts
@@ -25,14 +23,16 @@ def is_turn_start(msg: Any) -> bool:
 
 
 async def summarize_history(
-    messages: list[ModelMessage],
+    messages: "list[ModelMessage]",
     agent: Any = None,
     summary_window: int | None = None,
-) -> list[ModelMessage]:
+) -> "list[ModelMessage]":
     """
     Summarizes the history, keeping the last `summary_window` messages intact.
     Returns a new list of messages where older messages are replaced by a summary.
     """
+    from pydantic_ai.messages import ModelRequest, UserPromptPart
+
     if summary_window is None:
         summary_window = CFG.LLM_HISTORY_SUMMARIZATION_WINDOW
     if len(messages) <= summary_window:
@@ -87,7 +87,7 @@ def create_summarizer_history_processor(
     limiter: LLMLimiter | None = None,
     token_threshold: int | None = None,
     summary_window: int | None = None,
-) -> Callable[[list[ModelMessage]], Awaitable[list[ModelMessage]]]:
+) -> "Callable[[list[ModelMessage]], Awaitable[list[ModelMessage]]]":
     """
     Creates a history processor that auto-summarizes history when it exceeds `token_threshold`.
     """
@@ -95,7 +95,7 @@ def create_summarizer_history_processor(
     if token_threshold is None:
         token_threshold = CFG.LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD
 
-    async def process_history(messages: list[ModelMessage]) -> list[ModelMessage]:
+    async def process_history(messages: "list[ModelMessage]") -> "list[ModelMessage]":
         current_tokens = llm_limiter.count_tokens(messages)
 
         if current_tokens <= token_threshold:
