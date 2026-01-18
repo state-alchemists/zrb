@@ -51,6 +51,7 @@ class StdoutToUI(io.TextIOBase):
                 self.ui_callback("\n", end="")
                 self._is_first_write = False
             self.ui_callback(text, end="")
+            get_app().invalidate()
         return len(text)
 
     def flush(self):
@@ -455,6 +456,7 @@ class UI:
         self._output_field.buffer.set_document(
             Document(new_text, cursor_position=len(new_text)), bypass_readonly=True
         )
+        get_app().invalidate()
 
     def _submit_user_message(self, llm_task: AnyTask, user_message: str):
         timestamp = datetime.now().strftime("%H:%M")
