@@ -132,7 +132,7 @@ async def _run_single_agent_iteration(
 
 
 async def _wait_for_escape(ctx: AnyContext) -> None:
-    if not ctx.is_tty:
+    if not ctx.is_tty or os.getenv("ZRB_DISABLE_LLM_ESCAPE_DETECTION") == "1":
         # Wait forever
         await asyncio.Future()
         return

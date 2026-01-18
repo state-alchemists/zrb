@@ -108,15 +108,21 @@ class LLMConfig:
 
     @property
     def default_model_provider(self) -> "Provider | str":
+        # Provider is set
         if self._default_model_provider is not None:
             return self._default_model_provider
-        if self.default_model_base_url is None and self.default_model_api_key is None:
-            return "openai"
-        from pydantic_ai.providers.openai import OpenAIProvider
+        # Provider is not set, but base_url/api_key is set
+        if (
+            self.default_model_base_url is not None
+            or self.default_model_api_key is not None
+        ):
+            from pydantic_ai.providers.openai import OpenAIProvider
 
-        return OpenAIProvider(
-            base_url=self.default_model_base_url, api_key=self.default_model_api_key
-        )
+            return OpenAIProvider(
+                base_url=self.default_model_base_url, api_key=self.default_model_api_key
+            )
+        # Nothing set
+        return "openai"
 
     @property
     def default_small_model_name(self) -> str | None:
@@ -152,19 +158,21 @@ class LLMConfig:
 
     @property
     def default_small_model_provider(self) -> "Provider | str":
+        # Provider is set
         if self._default_small_model_provider is not None:
             return self._default_small_model_provider
+        # Provider is not set, but base_url/api_key is set
         if (
-            self.default_small_model_base_url is None
-            and self.default_small_model_api_key is None
+            self.default_small_model_base_url is not None
+            or self.default_small_model_api_key is not None
         ):
-            return self.default_model_provider
-        from pydantic_ai.providers.openai import OpenAIProvider
+            from pydantic_ai.providers.openai import OpenAIProvider
 
-        return OpenAIProvider(
-            base_url=self.default_small_model_base_url,
-            api_key=self.default_small_model_api_key,
-        )
+            return OpenAIProvider(
+                base_url=self.default_small_model_base_url,
+                api_key=self.default_small_model_api_key,
+            )
+        return self.default_model_provider
 
     @property
     def default_system_prompt(self) -> str:
@@ -216,24 +224,66 @@ class LLMConfig:
     def default_model(self) -> "Model | str":
         if self._default_model is not None:
             return self._default_model
-        model_name = self.default_model_name
-        if model_name is None:
+        # default_model is not set, and default_model_name is not set
+        if self.default_model_name is None:
             return "openai:gpt-4o"
-        from pydantic_ai.models.openai import OpenAIChatModel
-
-        return OpenAIChatModel(
-            model_name=model_name,
-            provider=self.default_model_provider,
+        return self._get_model_by_model_name_and_provider(
+            self.default_model_name, self.default_model_provider
         )
 
     @property
     def default_small_model(self) -> "Model | str":
         if self._default_small_model is not None:
             return self._default_small_model
-        model_name = self.default_small_model_name
+        model_name = (
+            self.default_small_model_name
+            if self.default_small_model_name is not None
+            else self.default_model_name
+        )
         if model_name is None:
             return "openai:gpt-4o"
-        return self.default_model
+        return self._get_model_by_model_name_and_provider(
+            model_name, self.default_small_model_provider
+        )
+
+    def _get_model_by_model_name_and_provider(
+        self, model_name: str, model_provider: "Provider | str"
+    ) -> "Model | str":
+        from pydantic_ai.models.openai import OpenAIChatModel
+        from pydantic_ai.providers.openai import OpenAIProvider
+
+        # default_provider is openai compatible
+        if isinstance(model_provider, OpenAIProvider) or (
+            isinstance(model_provider, str)
+            and model_provider
+            in (
+                "openai",
+                "openai-chat",
+                "gateway",
+                "alibaba",
+                "azure",
+                "cerebras",
+                "deepseek",
+                "fireworks",
+                "github",
+                "grok",
+                "heroku",
+                "litellm",
+                "moonshotai",
+                "nebius",
+                "ollama",
+                "openrouter",
+                "ovhcloud",
+                "sambanova",
+                "together",
+                "vercel",
+            )
+        ):
+            return OpenAIChatModel(
+                model_name=model_name,
+                provider=model_provider,
+            )
+        return model_name
 
     @property
     def default_summarize_history(self) -> bool:
