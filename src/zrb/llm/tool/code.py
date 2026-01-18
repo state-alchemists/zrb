@@ -5,6 +5,10 @@ import os
 from zrb.config.config import CFG
 from zrb.llm.agent.agent import create_agent, run_agent
 from zrb.llm.config.limiter import llm_limiter
+from zrb.llm.prompt.default import (
+    get_repo_extractor_system_prompt,
+    get_repo_summarizer_system_prompt,
+)
 from zrb.llm.tool.file import DEFAULT_EXCLUDED_PATTERNS
 
 _DEFAULT_EXTENSIONS = [
@@ -152,7 +156,7 @@ async def _extract_info(
 ) -> list[str]:
     agent = create_agent(
         model=CFG.LLM_MODEL,
-        system_prompt=CFG.LLM_REPO_EXTRACTOR_SYSTEM_PROMPT,
+        system_prompt=get_repo_extractor_system_prompt(),
     )
 
     extracted_infos = []
@@ -210,7 +214,7 @@ async def _summarize_info(
 ) -> list[str]:
     agent = create_agent(
         model=CFG.LLM_MODEL,
-        system_prompt=CFG.LLM_REPO_SUMMARIZER_SYSTEM_PROMPT,
+        system_prompt=get_repo_summarizer_system_prompt(),
     )
 
     summarized_infos = []

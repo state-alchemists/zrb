@@ -303,6 +303,7 @@ async def analyze_file(path: str, query: str) -> str:
     from zrb.config.config import CFG
     from zrb.llm.agent.agent import create_agent, run_agent
     from zrb.llm.config.limiter import llm_limiter
+    from zrb.llm.prompt.default import get_file_extractor_system_prompt
     from zrb.llm.tool.tool import Tool
 
     abs_path = os.path.abspath(os.path.expanduser(path))
@@ -323,7 +324,7 @@ async def analyze_file(path: str, query: str) -> str:
     if len(content) > char_limit:
         clipped_content = content[:char_limit] + "\n...[TRUNCATED]..."
 
-    system_prompt = CFG.LLM_FILE_EXTRACTOR_SYSTEM_PROMPT
+    system_prompt = get_file_extractor_system_prompt()
 
     # Create the sub-agent
     agent = create_agent(

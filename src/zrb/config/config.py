@@ -22,7 +22,7 @@ Your Automation Powerhouse
 
 class Config:
     def __init__(self):
-        self.__internal_default_prompt: dict[str, str] = {}
+        pass
 
     @property
     def ENV_PREFIX(self) -> str:
@@ -35,15 +35,6 @@ class Config:
             if value is not None:
                 return value
         return default
-
-    def _get_internal_default_prompt(self, name: str) -> str:
-        if name not in self.__internal_default_prompt:
-            file_path = os.path.join(
-                os.path.dirname(__file__), "default_prompt", f"{name}.md"
-            )
-            with open(file_path, "r") as f:
-                self.__internal_default_prompt[name] = f.read().strip()
-        return self.__internal_default_prompt[name]
 
     @property
     def LOGGER(self) -> logging.Logger:
@@ -282,78 +273,6 @@ class Config:
         return None if value == "" else value
 
     @property
-    def LLM_MODEL_SMALL(self) -> str | None:
-        value = self._getenv("LLM_MODEL_SMALL")
-        return None if value == "" else value
-
-    @property
-    def LLM_BASE_URL_SMALL(self) -> str | None:
-        value = self._getenv("LLM_BASE_URL_SMALL")
-        return None if value == "" else value
-
-    @property
-    def LLM_API_KEY_SMALL(self) -> str | None:
-        value = self._getenv("LLM_API_KEY_SMALL")
-        return None if value == "" else value
-
-    @property
-    def LLM_SYSTEM_PROMPT(self) -> str | None:
-        value = self._getenv("LLM_SYSTEM_PROMPT")
-        return None if value == "" else value
-
-    @property
-    def LLM_INTERACTIVE_SYSTEM_PROMPT(self) -> str | None:
-        value = self._getenv("LLM_INTERACTIVE_SYSTEM_PROMPT")
-        return None if value == "" else value
-
-    @property
-    def LLM_PERSONA(self) -> str | None:
-        value = self._getenv("LLM_PERSONA")
-        return None if value == "" else value
-
-    @property
-    def LLM_WORKFLOWS(self) -> list[str]:
-        """Get a list of LLM workflows from environment variables."""
-        workflows = []
-        for workflow in self._getenv("LLM_WORKFLOWS", "").split(","):
-            workflow = workflow.strip()
-            if workflow != "":
-                workflows.append(workflow)
-        return workflows
-
-    @property
-    def LLM_BUILTIN_WORKFLOW_PATHS(self) -> list[str]:
-        """Get a list of additional builtin workflow paths from environment variables."""
-        builtin_workflow_paths_str = self._getenv(
-            ["LLM_BUILTIN_WORFKLOW_PATH", "LLM_BUILTIN_WORKFLOW_PATHS"], ""
-        )
-        if builtin_workflow_paths_str != "":
-            return [
-                path.strip()
-                for path in builtin_workflow_paths_str.split(":")
-                if path.strip() != ""
-            ]
-        return []
-
-    @property
-    def LLM_SPECIAL_INSTRUCTION_PROMPT(self) -> str | None:
-        value = self._getenv("LLM_SPECIAL_INSTRUCTION_PROMPT")
-        return None if value == "" else value
-
-    @property
-    def LLM_SUMMARIZATION_PROMPT(self) -> str | None:
-        value = self._getenv("LLM_SUMMARIZATION_PROMPT")
-        return None if value == "" else value
-
-    @property
-    def LLM_SHOW_TOOL_CALL_PREPARATION(self) -> bool:
-        return to_boolean(self._getenv("LLM_SHOW_TOOL_CALL_PREPARATION", "false"))
-
-    @property
-    def LLM_SHOW_TOOL_CALL_RESULT(self) -> bool:
-        return to_boolean(self._getenv("LLM_SHOW_TOOL_CALL_RESULT", "false"))
-
-    @property
     def LLM_MAX_REQUESTS_PER_MINUTE(self) -> int:
         """
         Maximum number of LLM requests allowed per minute.
@@ -387,34 +306,9 @@ class Config:
         )
 
     @property
-    def LLM_MAX_TOKENS_PER_TOOL_CALL_RESULT(self) -> int:
-        """Maximum number of tokens allowed per tool call result."""
-        return int(
-            self._getenv(
-                [
-                    "LLM_MAX_TOKEN_PER_TOOL_CALL_RESULT",
-                    "LLM_MAX_TOKENS_PER_TOOL_CALL_RESULT",
-                ],
-                str(self._get_max_threshold(0.4)),
-            )
-        )
-
-    @property
     def LLM_THROTTLE_SLEEP(self) -> float:
         """Number of seconds to sleep when throttling is required."""
         return float(self._getenv("LLM_THROTTLE_SLEEP", "1.0"))
-
-    @property
-    def LLM_YOLO_MODE(self) -> bool | list[str]:
-        str_val = self._getenv("LLM_YOLO_MODE", "false")
-        try:
-            return to_boolean(str_val)
-        except Exception:
-            return [val.strip() for val in str_val.split(",") if val.strip() != ""]
-
-    @property
-    def LLM_SUMMARIZE_HISTORY(self) -> bool:
-        return to_boolean(self._getenv("LLM_SUMMARIZE_HISTORY", "true"))
 
     @property
     def LLM_HISTORY_SUMMARIZATION_WINDOW(self) -> int:
@@ -467,66 +361,6 @@ class Config:
             factor
             * min(self.LLM_MAX_TOKENS_PER_MINUTE, self.LLM_MAX_TOKENS_PER_REQUEST)
         )
-
-    @property
-    def LLM_FILE_EXTRACTOR_SYSTEM_PROMPT(self) -> str:
-        return self._getenv(
-            "LLM_FILE_EXTRACTOR_SYSTEM_PROMPT",
-            self._get_internal_default_prompt("file_extractor_system_prompt"),
-        )
-
-    @property
-    def LLM_REPO_EXTRACTOR_SYSTEM_PROMPT(self) -> str:
-        return self._getenv(
-            "LLM_REPO_EXTRACTOR_SYSTEM_PROMPT",
-            self._get_internal_default_prompt("repo_extractor_system_prompt"),
-        )
-
-    @property
-    def LLM_REPO_SUMMARIZER_SYSTEM_PROMPT(self) -> str:
-        return self._getenv(
-            "LLM_REPO_SUMMARIZER_SYSTEM_PROMPT",
-            self._get_internal_default_prompt("repo_summarizer_system_prompt"),
-        )
-
-    @property
-    def LLM_HISTORY_DIR(self) -> str:
-        return self._getenv(
-            "LLM_HISTORY_DIR",
-            os.path.expanduser(os.path.join("~", ".zrb-llm-history")),
-        )
-
-    @property
-    def LLM_ALLOW_ACCESS_LOCAL_FILE(self) -> bool:
-        return to_boolean(self._getenv("LLM_ALLOW_ACCESS_LOCAL_FILE", "1"))
-
-    @property
-    def LLM_ALLOW_ANALYZE_FILE(self) -> bool:
-        return to_boolean(self._getenv("LLM_ALLOW_ANALYZE_LOCAL_FILE", "1"))
-
-    @property
-    def LLM_ALLOW_ANALYZE_REPO(self) -> bool:
-        return to_boolean(self._getenv("LLM_ALLOW_ANALYZE_REPO", "1"))
-
-    @property
-    def LLM_ALLOW_ACCESS_SHELL(self) -> bool:
-        return to_boolean(self._getenv("LLM_ALLOW_ACCESS_SHELL", "1"))
-
-    @property
-    def LLM_ALLOW_OPEN_WEB_PAGE(self) -> bool:
-        return to_boolean(self._getenv("LLM_ALLOW_OPEN_WEB_PAGE", "1"))
-
-    @property
-    def LLM_ALLOW_SEARCH_INTERNET(self) -> bool:
-        return to_boolean(self._getenv("LLM_ALLOW_SEARCH_INTERNET", "1"))
-
-    @property
-    def LLM_ALLOW_GET_CURRENT_LOCATION(self) -> bool:
-        return to_boolean(self._getenv("LLM_ALLOW_GET_CURRENT_LOCATION", "1"))
-
-    @property
-    def LLM_ALLOW_GET_CURRENT_WEATHER(self) -> bool:
-        return to_boolean(self._getenv("LLM_ALLOW_GET_CURRENT_WEATHER", "1"))
 
     @property
     def RAG_EMBEDDING_API_KEY(self) -> str | None:
@@ -607,16 +441,14 @@ class Config:
         )
 
     @property
-    def LLM_CONTEXT_FILE(self) -> str:
-        return self._getenv("LLM_CONTEXT_FILE", "ZRB.md")
-
-    @property
     def USE_TIKTOKEN(self) -> bool:
         return to_boolean(self._getenv("USE_TIKTOKEN", "true"))
 
     @property
     def TIKTOKEN_ENCODING_NAME(self) -> str:
-        return self._getenv("TIKTOKEN_ENCODING_NAME", "cl100k_base")
+        return self._getenv(
+            ["TIKTOKEN_ENCODING", "TIKTOKEN_ENCODING_NAME"], "cl100k_base"
+        )
 
 
 CFG = Config()

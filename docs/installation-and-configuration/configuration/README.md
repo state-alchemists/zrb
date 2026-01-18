@@ -16,7 +16,6 @@ Furthermore, Zrb also allows you to override some configurations with a special 
 - [LLM Workflow](./llm-workflow.md): How `zrb` thinks and manages context.
 - [LLM Workflow Config](./llm-workflow-config.md): How to configure LLM workflows.
 - [LLM Context File (`ZRB.md`)](../../technical-specs/llm-context.md): Detailed guide on defining Workflows, Contexts, and Notes.
-- [LLM Config](./llm-config.md): Configuring LLM configurations programmatically.
 - [LLM Rate Limiter Config](./llm-rate-limiter.md): Configuring LLM rate limiting.
 - [Web Auth Config](./web-auth-config.md): Configuring Zrb Web Server authentication programmatically.
 
@@ -261,7 +260,7 @@ Some Environment variables like `ZRB_WEB_GUEST_USERNAME` and `ZRB_WEB_SUPER_ADMI
 
 ### LLM (Language Model) Configuration
 
-The following environment variables are used as [LLM Config](./llm-config.md) default property values.
+The following environment variables are used as LLM configuration default property values.
 
 * `ZRB_LLM_MODEL`: LLM model to use.
     * Default: None
@@ -275,34 +274,6 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Default: None
     * Possible values: Any valid API key for the chosen provider
 
-* `ZRB_LLM_PERSONA`: LLM persona.
-    * Default: None
-    * Possible values: Any valid persona prompt
-
-* `ZRB_LLM_WORKFLOWS`: Comma-separated list of workflows to activate special instructions.
-    * Default: `coding`
-    * Possible values: `coding`, `copywriting`, `researching`, or any workflow defined on `ZRB.md`
-
-* `ZRB_LLM_BUILTIN_WORKFLOW_PATHS`: Colon-separated list of paths to custom workflow directories.
-    * Default: Empty
-    * Possible values: Any valid directory paths separated by colons (also accepts `ZRB_LLM_BUILTIN_WORFKLOW_PATH`)
-
-* `ZRB_LLM_YOLO_MODE`: Whether to skip tool execution confirmation.
-    * Default: `false`
-    * Possible values: `true`, `false`
-
-* `ZRB_LLM_SHOW_TOOL_CALL_RESULT`: Whether to display tool call results.
-    * Default: `false`
-    * Possible values: `true`, `false`
-
-* `ZRB_LLM_SYSTEM_PROMPT`: System prompt for LLM.
-    * Default: None
-    * Possible values: Any valid system prompt string
-
-* `ZRB_LLM_FILE_EXTRACTOR_SYSTEM_PROMPT`: System prompt for file analysis extraction.
-    * Default: None
-    * Possible values: Any valid extraction prompt string
-
 * `ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD`: Token threshold for repository analysis extraction.
     * Default: 40% of the model's maximum context window.
     * Possible values: Any positive integer
@@ -315,66 +286,6 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Default: 40% of the model's maximum context window.
     * Possible values: Any positive integer (previously `ZRB_LLM_FILE_ANALYSIS_TOKEN_LIMIT`)
 
-* `ZRB_LLM_INTERACTIVE_SYSTEM_PROMPT`: Interactive system prompt for LLM.
-    * Default: None
-    * Possible values: Any valid prompt string
-
-* `ZRB_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT`: System prompt for repository analysis extraction.
-    * Default: None
-    * Possible values: Any valid extraction prompt string
-
-* `ZRB_LLM_REPO_SUMMARIZER_SYSTEM_PROMPT`: System prompt for repository analysis summarization.
-    * Default: None
-    * Possible values: Any valid summarization prompt string
-
-* `ZRB_LLM_HISTORY_DIR`: Directory for LLM conversation history files.
-    * Default: `~/.zrb-llm-history`
-    * Possible values: Any valid directory path
-
-* `ZRB_LLM_ALLOW_ANALYZE_REPO`: Whether to allow LLM to analyze repository.
-    * Default: `1` (true)
-    * Possible values: `0` (false), `1` (true)
-
-* `ZRB_LLM_ALLOW_ANALYZE_LOCAL_FILE`: Whether to allow LLM to analyze a local file.
-    * Default: `1` (true)
-    * Possible values: `0` (false), `1` (true)
-
-* `ZRB_LLM_ALLOW_ACCESS_LOCAL_FILE`: Whether to allow LLM to access local files.
-    * Default: `1` (true)
-    * Possible values: `0` (false), `1` (true)
-
-* `ZRB_LLM_ALLOW_ACCESS_SHELL`: Whether to allow LLM Chat Agent to access shell.
-    * Default: `1` (true)
-    * Possible values: `0` (false), `1` (true)
-
-* `ZRB_LLM_ALLOW_OPEN_WEB_PAGE`: Allows the LLM to open and read web pages.
-    * Default: `1` (true)
-    * Possible values: `0` (false), `1` (true)
-
-* `ZRB_LLM_ALLOW_SEARCH_INTERNET`: Allows the LLM to perform general internet searches (requires `SERPAPI_KEY`).
-    * Default: `1` (true)
-    * Possible values: `0` (false), `1` (true)
-
-* `ZRB_LLM_ALLOW_GET_CURRENT_LOCATION`: Allows the LLM to get the current geographical location.
-    * Default: `1` (true)
-    * Possible values: `0` (false), `1` (true)
-
-* `ZRB_LLM_ALLOW_GET_CURRENT_WEATHER`: Allows the LLM to get the current weather.
-    * Default: `1` (true)
-    * Possible values: `0` (false), `1` (true)
-
-* `ZRB_LLM_SPECIAL_INSTRUCTION_PROMPT`: Special instruction prompt for LLM.
-    * Default: None
-    * Possible values: Any valid prompt string
-
-* `ZRB_LLM_SUMMARIZATION_PROMPT`: Prompt for summarizing conversation history.
-    * Default: None
-    * Possible values: Any valid prompt string
-
-* `ZRB_LLM_CONTEXT_FILE`: The path for context file.
-    * Default: `ZRB.md`
-    * Possible values: Any valid file name.
-
 * `ZRB_USE_TIKTOKEN`: Whether to use Tiktoken for token counting.
     * Default: `1` (true)
     * Possible values: `0` (false), `1` (true)
@@ -382,10 +293,6 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
 * `ZRB_TIKTOKEN_ENCODING`: The Tiktoken encoding to use.
     * Default: `cl100k_base`
     * Possible values: Any valid Tiktoken encoding name (e.g., `cl100k_base`, `p50k_base`)
-
-* `ZRB_LLM_SUMMARIZE_HISTORY`: Whether to summarize conversation history.
-    * Default: `1` (true)
-    * Possible values: `0` (false), `1` (true)
 
 * `ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`: Token threshold for summarizing history.
     * Default: 60% of the model's maximum context window.
@@ -403,17 +310,9 @@ The following environment variables are used as [LLM Config](./llm-config.md) de
     * Default: `120000`
     * Possible values: Any positive integer (also accepts `ZRB_LLM_MAX_TOKEN_PER_REQUEST`)
 
-* `ZRB_LLM_MAX_TOKENS_PER_TOOL_CALL_RESULT`: Maximum number of tokens allowed per tool call result.
-    * Default: 40% of `min(ZRB_LLM_MAX_TOKENS_PER_MINUTE, ZRB_LLM_MAX_TOKENS_PER_REQUEST)`
-    * Possible values: Any positive integer (also accepts `ZRB_LLM_MAX_TOKEN_PER_TOOL_CALL_RESULT`)
-
 * `ZRB_LLM_THROTTLE_SLEEP`: Number of seconds to sleep when throttling is required.
     * Default: `5.0`
     * Possible values: Any positive float
-
-* `ZRB_LLM_HISTORY_DIR`: Directory for LLM conversation history files.
-    * Default: `~/.zrb-llm-history`
-    * Possible values: Any valid directory path
 
 ### RAG (Retrieval-Augmented Generation) Configuration
 

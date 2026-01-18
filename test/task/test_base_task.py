@@ -164,7 +164,9 @@ def test_base_task_get_ctx(mock_build_task_context):
 
 
 def test_base_task_run():
-    async def mock_run_and_cleanup(task, session=None, str_kwargs=None, kwargs=None):
+    async def mock_run_and_cleanup(
+        task, session=None, str_kwargs=None, kwargs=None, print_fn=None
+    ):
         return None
 
     with patch(
@@ -176,7 +178,11 @@ def test_base_task_run():
             task.run(session=mock_any_session, str_kwargs={"key": "value"})
 
             mock_run_and_cleanup.assert_called_once_with(
-                task, session=mock_any_session, str_kwargs={"key": "value"}, kwargs=None
+                task,
+                session=mock_any_session,
+                str_kwargs={"key": "value"},
+                kwargs=None,
+                print_fn=None,
             )
             # Assert that asyncio.run was called with a coroutine object
             mock_asyncio_run.assert_called_once()
@@ -190,9 +196,11 @@ async def test_base_task_async_run():
     # Create a simple function that returns a coroutine instead of an async function
     call_args = []
 
-    def mock_run_task_async(task, session=None, str_kwargs=None, kwargs=None):
+    def mock_run_task_async(
+        task, session=None, str_kwargs=None, kwargs=None, print_fn=None
+    ):
         async def _coro():
-            call_args.append((task, session, str_kwargs, kwargs))
+            call_args.append((task, session, str_kwargs, kwargs, print_fn))
             return None
 
         return _coro()
@@ -208,6 +216,7 @@ async def test_base_task_async_run():
         assert call_args[0][1] == mock_any_session
         assert call_args[0][2] == {"key": "value"}
         assert call_args[0][3] is None
+        assert call_args[0][4] is None
 
 
 @pytest.mark.asyncio
@@ -306,6 +315,9 @@ async def test_base_task_execute_condition_skipped():
 
         def append_to_shared_log(self, message):
             self._log.append(message)
+
+        def shared_print(self, *args, **kwargs):
+            pass
 
         @property
         def session(self):

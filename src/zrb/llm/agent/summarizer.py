@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from zrb.llm.agent.agent import create_agent
-from zrb.llm.prompt.default import get_default_prompt
+from zrb.llm.prompt.default import get_summarizer_system_prompt
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -12,7 +12,7 @@ def create_summarizer_agent(
     model: "str | None | Model" = None,
     system_prompt: str | None = None,
 ) -> "Agent[None, str]":
-    effective_system_prompt = system_prompt or get_default_prompt("summarizer")
+    effective_system_prompt = system_prompt or get_summarizer_system_prompt()
 
     return create_agent(
         model=model,

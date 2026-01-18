@@ -9,7 +9,7 @@ from zrb.llm.prompt.claude_compatibility import (
     create_claude_compatibility_prompt,
 )
 from zrb.llm.prompt.compose import PromptManager, new_prompt
-from zrb.llm.prompt.default import get_default_prompt
+from zrb.llm.prompt.default import get_assistant_system_prompt
 from zrb.llm.prompt.note import create_note_prompt
 from zrb.llm.prompt.system_context import system_context
 from zrb.llm.prompt.zrb import create_zrb_prompt
@@ -109,7 +109,7 @@ joke_agent = create_sub_agent_tool(
 )
 
 chat_task.prompt_manager.add_middleware(
-    new_prompt(get_default_prompt("assistant")),
+    new_prompt(get_assistant_system_prompt()),
     system_context,
     create_note_prompt(note_manager),
     create_claude_compatibility_prompt(skill_manager),

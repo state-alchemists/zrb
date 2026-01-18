@@ -33,7 +33,7 @@ For example, to set the default workflows to `coding` and `researching`, you wou
 
 ## Available Workflows
 
-`zrb` comes with a set of built-in workflows that you can use out of the box. These workflows are located in the `src/zrb/task/llm/default_workflow` directory.
+`zrb` comes with a set of built-in workflows that you can use out of the box.
 
 Here are the available built-in workflows:
 

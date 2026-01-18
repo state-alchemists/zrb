@@ -317,40 +317,6 @@ def test_llm_api_key_none(monkeypatch):
     assert config.LLM_API_KEY is None
 
 
-def test_llm_system_prompt(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_SYSTEM_PROMPT", "my-system-prompt")
-    config = Config()
-    assert config.LLM_SYSTEM_PROMPT == "my-system-prompt"
-
-
-def test_llm_interactive_system_prompt(monkeypatch):
-    monkeypatch.setenv(
-        "ZRB_LLM_INTERACTIVE_SYSTEM_PROMPT", "my-interactive-system-prompt"
-    )
-    config = Config()
-    assert config.LLM_INTERACTIVE_SYSTEM_PROMPT == "my-interactive-system-prompt"
-
-
-def test_llm_persona(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_PERSONA", "my-persona")
-    config = Config()
-    assert config.LLM_PERSONA == "my-persona"
-
-
-def test_llm_special_instruction_prompt(monkeypatch):
-    monkeypatch.setenv(
-        "ZRB_LLM_SPECIAL_INSTRUCTION_PROMPT", "my-special-instruction-prompt"
-    )
-    config = Config()
-    assert config.LLM_SPECIAL_INSTRUCTION_PROMPT == "my-special-instruction-prompt"
-
-
-def test_llm_summarization_prompt(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_SUMMARIZATION_PROMPT", "my-summarization-prompt")
-    config = Config()
-    assert config.LLM_SUMMARIZATION_PROMPT == "my-summarization-prompt"
-
-
 def test_llm_max_requests_per_minute(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_MAX_REQUESTS_PER_MINUTE", "30")
     config = Config()
@@ -381,12 +347,6 @@ def test_llm_throttle_sleep(monkeypatch):
     assert config.LLM_THROTTLE_SLEEP == 2.0
 
 
-def test_llm_summarize_history(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_SUMMARIZE_HISTORY", "false")
-    config = Config()
-    assert not config.LLM_SUMMARIZE_HISTORY
-
-
 def test_llm_history_summarization_token_threshold(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD", "30000")
     config = Config()
@@ -409,115 +369,6 @@ def test_llm_file_analysis_token_threshold(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD", "40000")
     config = Config()
     assert config.LLM_FILE_ANALYSIS_TOKEN_THRESHOLD == 40000
-
-
-def test_llm_file_extractor_system_prompt(monkeypatch):
-    monkeypatch.setenv(
-        "ZRB_LLM_FILE_EXTRACTOR_SYSTEM_PROMPT", "my-file-extractor-prompt"
-    )
-    config = Config()
-    assert config.LLM_FILE_EXTRACTOR_SYSTEM_PROMPT == "my-file-extractor-prompt"
-
-
-def test_llm_repo_extractor_system_prompt(monkeypatch):
-    monkeypatch.setenv(
-        "ZRB_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT", "my-repo-extractor-prompt"
-    )
-    config = Config()
-    assert config.LLM_REPO_EXTRACTOR_SYSTEM_PROMPT == "my-repo-extractor-prompt"
-
-
-def test_llm_repo_summarizer_system_prompt(monkeypatch):
-    monkeypatch.setenv(
-        "ZRB_LLM_REPO_SUMMARIZER_SYSTEM_PROMPT", "my-repo-summarizer-prompt"
-    )
-    config = Config()
-    assert config.LLM_REPO_SUMMARIZER_SYSTEM_PROMPT == "my-repo-summarizer-prompt"
-
-
-@mock.patch("os.path.expanduser", return_value="/home/user/.zrb-llm-history")
-def test_llm_history_dir_default(mock_expanduser, monkeypatch):
-    monkeypatch.delenv("ZRB_LLM_HISTORY_DIR", raising=False)
-    config = Config()
-    assert config.LLM_HISTORY_DIR == "/home/user/.zrb-llm-history"
-
-
-def test_llm_history_dir_custom(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", "/tmp/llm-history")
-    config = Config()
-    assert config.LLM_HISTORY_DIR == "/tmp/llm-history"
-
-
-def test_llm_allow_access_local_file(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_ALLOW_ACCESS_LOCAL_FILE", "0")
-    config = Config()
-    assert not config.LLM_ALLOW_ACCESS_LOCAL_FILE
-
-
-def test_llm_allow_access_shell(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_ALLOW_ACCESS_SHELL", "0")
-    config = Config()
-    assert not config.LLM_ALLOW_ACCESS_SHELL
-
-
-def test_llm_allow_open_web_page(monkeypatch):
-    # Test default value
-    monkeypatch.delenv("ZRB_LLM_ALLOW_OPEN_WEB_PAGE", raising=False)
-    config = Config()
-    assert config.LLM_ALLOW_OPEN_WEB_PAGE
-    # Test set to false
-    monkeypatch.setenv("ZRB_LLM_ALLOW_OPEN_WEB_PAGE", "0")
-    config = Config()
-    assert not config.LLM_ALLOW_OPEN_WEB_PAGE
-    # Test set to true
-    monkeypatch.setenv("ZRB_LLM_ALLOW_OPEN_WEB_PAGE", "1")
-    config = Config()
-    assert config.LLM_ALLOW_OPEN_WEB_PAGE
-
-
-def test_llm_allow_search_internet(monkeypatch):
-    # Test default value
-    monkeypatch.delenv("ZRB_LLM_ALLOW_SEARCH_INTERNET", raising=False)
-    config = Config()
-    assert config.LLM_ALLOW_SEARCH_INTERNET
-    # Test set to false
-    monkeypatch.setenv("ZRB_LLM_ALLOW_SEARCH_INTERNET", "0")
-    config = Config()
-    assert not config.LLM_ALLOW_SEARCH_INTERNET
-    # Test set to true
-    monkeypatch.setenv("ZRB_LLM_ALLOW_SEARCH_INTERNET", "1")
-    config = Config()
-    assert config.LLM_ALLOW_SEARCH_INTERNET
-
-
-def test_llm_allow_get_current_location(monkeypatch):
-    # Test default value
-    monkeypatch.delenv("ZRB_LLM_ALLOW_GET_CURRENT_LOCATION", raising=False)
-    config = Config()
-    assert config.LLM_ALLOW_GET_CURRENT_LOCATION
-    # Test set to false
-    monkeypatch.setenv("ZRB_LLM_ALLOW_GET_CURRENT_LOCATION", "0")
-    config = Config()
-    assert not config.LLM_ALLOW_GET_CURRENT_LOCATION
-    # Test set to true
-    monkeypatch.setenv("ZRB_LLM_ALLOW_GET_CURRENT_LOCATION", "1")
-    config = Config()
-    assert config.LLM_ALLOW_GET_CURRENT_LOCATION
-
-
-def test_llm_allow_get_current_weather(monkeypatch):
-    # Test default value
-    monkeypatch.delenv("ZRB_LLM_ALLOW_GET_CURRENT_WEATHER", raising=False)
-    config = Config()
-    assert config.LLM_ALLOW_GET_CURRENT_WEATHER
-    # Test set to false
-    monkeypatch.setenv("ZRB_LLM_ALLOW_GET_CURRENT_WEATHER", "0")
-    config = Config()
-    assert not config.LLM_ALLOW_GET_CURRENT_WEATHER
-    # Test set to true
-    monkeypatch.setenv("ZRB_LLM_ALLOW_GET_CURRENT_WEATHER", "1")
-    config = Config()
-    assert config.LLM_ALLOW_GET_CURRENT_WEATHER
 
 
 def test_rag_embedding_api_key(monkeypatch):
