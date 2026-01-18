@@ -28,11 +28,11 @@ def create_list_zrb_task_tool():
 
     zrb_cmd = CFG.ROOT_GROUP_NAME
     list_zrb_tasks_impl.__name__ = f"list_{zrb_cmd}_tasks"
-    list_zrb_tasks_impl.__doc__ = " ".join(
-        [
-            f"Lists available {zrb_cmd} tasks and groups. "
-            "If group_name is provided, lists tasks under that group."
-        ]
+    list_zrb_tasks_impl.__doc__ = (
+        f"Discovery tool to browse all available {zrb_cmd} tasks and automation groups. "
+        "Use this to understand what predefined workflows exist in the current project."
+        "\n\n**ARGS:**"
+        "\n- `group_name`: Optional name of the group to browse (e.g., 'server')."
     )
     return list_zrb_tasks_impl
 
@@ -54,13 +54,13 @@ def create_run_zrb_task_tool():
 
     zrb_cmd = CFG.ROOT_GROUP_NAME
     run_zrb_task.__name__ = f"run_{zrb_cmd}_task"
-    run_zrb_task.__doc__ = "\n".join(
-        [
-            f"Executes a {zrb_cmd} task.\n",
-            "**IMPORTANT** Provide all args completely\n\n",
-            "Args:",
-            '    task_name: The full name/alias path of the task (e.g., "server start").',
-            '    args: Dictionary of arguments to pass to the task (e.g., {"port": "8080"}).',
-        ]
+    run_zrb_task.__doc__ = (
+        f"Executes a predefined {zrb_cmd} automation task with specified arguments. "
+        "This is the preferred way to run project-specific workflows (e.g., deployments, scaffolding, specialized builds)."
+        "\n\n**IMPORTANT:** You must provide all required arguments."
+        "\n\n**ARGS:**"
+        "\n- `task_name`: The full alias path of the task (e.g., 'server start')."
+        "\n- `args`: Dictionary of arguments (e.g., {'port': '8080'})."
+        "\n- `timeout`: Maximum wait time in seconds (default 30)."
     )
     return run_zrb_task

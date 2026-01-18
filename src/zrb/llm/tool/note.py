@@ -7,10 +7,9 @@ from zrb.llm.note.manager import NoteManager
 def create_note_tools(note_manager: NoteManager) -> List[Any]:
     async def read_long_term_note() -> str:
         """
-        Retrieves the GLOBAL 🧠 Long Term Note.
-        Use this to recall user preferences, facts, and cross-project context.
-        Returns:
-            str: The current global note content.
+        Retrieves your GLOBAL 🧠 Long-Term Memory.
+        This contains established preferences, personal facts, and context spanning multiple projects.
+        ALWAYS check this at the start of a session.
         """
         return note_manager.read("~")
 
@@ -18,17 +17,13 @@ def create_note_tools(note_manager: NoteManager) -> List[Any]:
 
     async def write_long_term_note(content: str) -> str:
         """
-        Persists CRITICAL facts to the GLOBAL 🧠 Long Term Note.
-        USE EAGERLY to save or update:
-        - User preferences.
-        - User information.
-        - Important facts.
-        - Cross-project goals.
-        WARNING: This OVERWRITES the entire Long Term Note.
-        Args:
-            content (str): The text to memorize.
-        Returns:
-            str: Confirmation message.
+        Updates your GLOBAL 🧠 Long-Term Memory with CRITICAL information.
+        Use this to persist user preferences, personal facts, and cross-project rules.
+
+        **WARNING:** This COMPLETELY OVERWRITES the existing Long-Term Note.
+
+        **ARGS:**
+        - `content`: The full text to store in the global memory.
         """
         note_manager.write("~", content)
         return "Global long-term note saved."
@@ -37,13 +32,11 @@ def create_note_tools(note_manager: NoteManager) -> List[Any]:
 
     async def read_contextual_note(path: str | None = None) -> str:
         """
-        Retrieves LOCAL 📝 Contextual Note specific to a directory path.
-        Use to recall project-specific architecture, or past decisions
-        relevant to the current working location.
-        Args:
-            path (str | None): Target file/dir. Defaults to current working directory (CWD).
-        Returns:
-            str: The local note content for the path.
+        Retrieves LOCAL 📝 Contextual Notes for a specific project or directory.
+        Use this to recall architectural decisions or project-specific guidelines.
+
+        **ARGS:**
+        - `path`: Target file/dir path. Defaults to current working directory.
         """
         if path is None:
             path = os.getcwd()
@@ -53,16 +46,14 @@ def create_note_tools(note_manager: NoteManager) -> List[Any]:
 
     async def write_contextual_note(content: str, path: str | None = None) -> str:
         """
-        Persists LOCAL facts specific to a directory into 📝 Contextual Note.
-        USE EAGERLY to save or update:
-        - Architectural patterns for this project/directory.
-        - Specific guidelines for this project.
-        WARNING: This OVERWRITES the entire Contextual Note for a directory.
-        Args:
-            content (str): The text to memorize for this location.
-            path (str | None): Target file/dir. Defaults to CWD.
-        Returns:
-            str: Confirmation message.
+        Persists LOCAL 📝 Contextual Notes for a specific project or directory.
+        Use this to save architectural patterns or progress markers for the current task.
+
+        **WARNING:** This COMPLETELY OVERWRITES the contextual note for the specified path.
+
+        **ARGS:**
+        - `content`: The full text to store in the local memory.
+        - `path`: Target file/dir path. Defaults to current working directory.
         """
         if path is None:
             path = os.getcwd()

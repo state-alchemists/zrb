@@ -12,7 +12,16 @@ def search_internet(
     language: str | None = None,
 ) -> dict[str, Any]:
     """
-    Performs an internet search using Brave Search.
+    Performs a live internet search using Brave Search to retrieve up-to-date information, news, or documentation.
+
+    **WHEN TO USE:**
+    - To find the latest information on rapidly changing topics (e.g., library updates, current events).
+    - To search for documentation or examples not present in the local codebase.
+    - To verify facts or find external resources.
+
+    **ARGS:**
+    - `query`: The search string or question.
+    - `page`: Result page number (default 1).
     """
     if safe_search is None:
         safe_search = CFG.BRAVE_API_SAFE

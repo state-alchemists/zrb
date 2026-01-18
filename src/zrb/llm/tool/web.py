@@ -3,7 +3,14 @@ from zrb.config.config import CFG
 
 async def open_web_page(url: str) -> dict:
     """
-    Fetches, parses, and converts a web page to readable Markdown.
+    Downloads and converts a web page into clean, readable Markdown.
+
+    **WHEN TO USE:**
+    - To read specific articles, documentation, or blog posts.
+    - To extract structured information from a known URL.
+
+    **ARGS:**
+    - `url`: The full web address to fetch.
     """
     html_content, links = await _fetch_page_content(url)
     markdown_content = _convert_html_to_markdown(html_content)
@@ -15,7 +22,14 @@ async def search_internet(
     page: int = 1,
 ) -> dict:
     """
-    Performs an internet search.
+    Performs a broad internet search.
+
+    **WHEN TO USE:**
+    - When you need to find information but don't have a specific URL.
+
+    **ARGS:**
+    - `query`: The search string or question.
+    - `page`: Result page number (default 1).
     """
     if (
         CFG.SEARCH_INTERNET_METHOD.strip().lower() == "serpapi"

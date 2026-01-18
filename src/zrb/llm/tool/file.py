@@ -32,11 +32,21 @@ def list_files(
     excluded_patterns: list[str] | None = None,
 ) -> dict[str, list[str]]:
     """
-    Lists files recursively up to a specified depth.
+    Recursively explores and lists files within a directory tree up to a defined depth.
+
+    **WHEN TO USE:**
+    - To discover the project structure or find specific files when the path is unknown.
+    - To verify the existence of files in a directory.
 
     **EFFICIENCY TIP:**
-    Do NOT use this tool if you already know the file path (e.g., from the user's prompt).
-    Use `read_from_file` directly in that case. Only use this to explore directory structures.
+    - Do NOT use this tool if you already know the file path. Use `read_file` directly.
+    - Keep `depth` low (default 3) to avoid overwhelming output.
+
+    **ARGS:**
+    - `path`: The root directory to start the search from.
+    - `include_hidden`: If True, includes hidden files and directories (starting with `.`).
+    - `depth`: Maximum levels of directories to descend.
+    - `excluded_patterns`: List of glob patterns to ignore.
     """
     all_files: list[str] = []
     abs_path = os.path.abspath(os.path.expanduser(path))
@@ -79,13 +89,16 @@ def read_file(
     path: str, start_line: int | None = None, end_line: int | None = None
 ) -> str:
     """
-    Reads content from one or more files, optionally specifying line ranges.
+    Reads content from a file, optionally specifying a line range.
 
     **EFFICIENCY TIP:**
-    For source code or configuration files, prefer reading the **entire file** at once
-    to ensure you have full context (imports, class definitions, etc.).
-    Only use `start_line` and `end_line` for extremely large files (like logs) or
-    when you are certain only a specific section is needed.
+    - Prefer reading the **entire file** at once for full context (imports, class definitions).
+    - Only use `start_line` and `end_line` for extremely large files (e.g., logs).
+
+    **ARGS:**
+    - `path`: Path to the file to read.
+    - `start_line`: The 1-based line number to start reading from.
+    - `end_line`: The 1-based line number to stop reading at (inclusive).
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
@@ -119,8 +132,13 @@ def read_file(
 
 def read_files(paths: list[str]) -> dict[str, str]:
     """
-    Reads content from multiple files.
-    Returns a dictionary mapping file paths to their content or error messages.
+    Reads content from multiple files simultaneously.
+
+    **USAGE:**
+    - Use this when you need context from several related files (e.g., a class definition and its tests).
+
+    **ARGS:**
+    - `paths`: List of file paths to read.
     """
     results = {}
     for path in paths:
@@ -130,27 +148,18 @@ def read_files(paths: list[str]) -> dict[str, str]:
 
 def write_file(path: str, content: str, mode: str = "w") -> str:
     """
-    Writes content to one or more files, with options for overwrite, append, or exclusive
-    creation.
+    Writes or appends content to a file.
 
-    **CRITICAL - PREVENT JSON ERRORS:**
-    1. **ESCAPING:** Do NOT double-escape quotes.
-       - CORRECT: "content": "He said \"Hello\""
-       - WRONG:   "content": "He said \\"Hello\\""  <-- This breaks JSON parsing!
-    2. **SIZE LIMIT:** Write large content in chunks.
-       - **STRICT PROHIBITION:** DO NOT WRITE MORE THAN 2000 characters per chunks.
-       - Write chunks in multiple sequential calls
-         (i.e., first with 'w' mode, then 'a' mode subsequentially). For example:
-         - write_file(path="README.md", content="First chunk...\n", mode="w")
-         - write_file(path="README.md", content="Second chunk...\n", mode="w")
-         - write_file(path="README.md", content="Third chunk...\n", mode="w")
-       - To end your chunk with new line, you should put "\n" at the end of the chunk
+    **CRITICAL - PREVENT ERRORS:**
+    1. **ESCAPING:** Do NOT double-escape quotes in your JSON tool call.
+    2. **SIZE LIMIT:** DO NOT write more than 4000 characters in a single call.
+    3. **CHUNKING:** For large files, use `mode="w"` for the first chunk and `mode="a"` for the rest.
+
+    **ARGS:**
+    - `path`: Target file path.
+    - `content`: Text content to write.
+    - `mode`: File opening mode ("w" to overwrite, "a" to append).
     """
-    if len(content) > 4000:
-        return (
-            "Error: Content exceeds 4000 characters. Please split your write operation."
-        )
-
     abs_path = os.path.abspath(os.path.expanduser(path))
     try:
         os.makedirs(os.path.dirname(abs_path), exist_ok=True)
@@ -163,12 +172,13 @@ def write_file(path: str, content: str, mode: str = "w") -> str:
 
 def write_files(files: list[dict[str, str]]) -> dict[str, str]:
     """
-    Writes content to multiple files.
-    Args:
-        files: List of dicts, each containing 'path', 'content', and optional 'mode'.
-               Example: [{"path": "file1.txt", "content": "hello"}, {"path": "file2.txt", "content": "world", "mode": "a"}]
-    Returns:
-        Dictionary mapping file paths to success/error messages.
+    Performs batch write operations to multiple files.
+
+    **ARGS:**
+    - `files`: A list of dictionaries, each containing:
+        - `path` (str): Target file path.
+        - `content` (str): Text to write.
+        - `mode` (str, optional): "w" (overwrite, default) or "a" (append).
     """
     results = {}
     for file_info in files:
@@ -184,15 +194,18 @@ def write_files(files: list[dict[str, str]]) -> dict[str, str]:
 
 def replace_in_file(path: str, old_text: str, new_text: str, count: int = -1) -> str:
     """
-    Replaces exact text in files.
+    Replaces exact text sequences within a file.
 
     **CRITICAL INSTRUCTIONS:**
-    1. **READ FIRST:** Make sure you know the exact content to be replaced. Use `read_file` if unsure.
-    2. **EXACT MATCH:** `old_text` must match file content EXACTLY (whitespace, newlines).
-    3. **ESCAPING:** Do NOT double-escape quotes in `new_text`. Use `\"`, not `\\"`.
-    4. **SIZE LIMIT:** `new_text` MUST NOT exceed 4000 chars to avoid truncation/EOF errors.
-    5. **MINIMAL CONTEXT:** Keep `old_text` small (target lines + 2-3 context lines).
-    6. **DEFAULT:** Replaces **ALL** occurrences. Set `count=1` for first occurrence only.
+    1. **PRECISION:** `old_text` must match the file content EXACTLY.
+    2. **READ FIRST:** Always `read_file` before replacing.
+    3. **MINIMAL CONTEXT:** Include 2-3 lines of context in `old_text` to ensure uniqueness.
+
+    **ARGS:**
+    - `path`: Path to the file to modify.
+    - `old_text`: The exact literal text to be replaced.
+    - `new_text`: The replacement text.
+    - `count`: Number of occurrences to replace (default -1 for all).
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
@@ -224,7 +237,16 @@ def search_files(
     include_hidden: bool = True,
 ) -> dict[str, Any]:
     """
-    Searches for a regex pattern in files within a directory.
+    Searches for a regular expression pattern within files.
+
+    **WHEN TO USE:**
+    - To find usages of a function, variable, or string across the project.
+
+    **ARGS:**
+    - `path`: Root directory to search.
+    - `regex`: A standard Python regular expression.
+    - `file_pattern`: Optional glob (e.g., "*.py") to restrict the search.
+    - `include_hidden`: Whether to search in hidden files/dirs.
     """
     try:
         pattern = re.compile(regex)
@@ -325,9 +347,17 @@ def _is_excluded(name: str, patterns: list[str]) -> bool:
 
 async def analyze_file(path: str, query: str) -> str:
     """
-    Analyzes a file using a sub-agent.
-    Use this for complex questions about code structure, logic, or content
-    that requires "thinking" rather than just reading.
+    Delegates deep analysis of a specific file to a specialized sub-agent.
+
+    **WHEN TO USE:**
+    - For complex questions about a file's logic, structure, or potential bugs.
+    - When you need a summary or specific details that require "understanding" the code.
+
+    **NOTE:** For simple data retrieval, use `read_file`.
+
+    **ARGS:**
+    - `path`: Path to the file to analyze.
+    - `query`: The specific analytical question or instruction.
     """
     # Lazy imports to avoid circular dependencies
     from zrb.config.config import CFG

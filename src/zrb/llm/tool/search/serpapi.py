@@ -12,7 +12,15 @@ def search_internet(
     language: str | None = None,
 ) -> dict[str, Any]:
     """
-    Performs an internet search using SerpApi (Google).
+    Performs a live internet search using SerpApi (Google Search) to retrieve the most relevant and current information from the web.
+
+    **WHEN TO USE:**
+    - When you need precise, high-quality search results from Google.
+    - To find the latest official documentation, technical articles, or community discussions.
+
+    **ARGS:**
+    - `query`: The search string or question.
+    - `page`: Result page number (default 1).
     """
     if safe_search is None:
         safe_search = CFG.SERPAPI_SAFE

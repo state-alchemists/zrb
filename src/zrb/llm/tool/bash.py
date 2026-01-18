@@ -6,12 +6,21 @@ from zrb.util.cli.style import stylize_faint
 
 async def run_shell_command(command: str, timeout: int = 30) -> str:
     """
-    Executes a shell command and returns the output.
-    Streams output to stdout during execution.
+    Executes a shell command on the host system and returns its combined stdout and stderr.
+    This is a powerful tool for running builds, tests, or system utilities.
+
+    **CRITICAL SAFETY:**
+    - DO NOT run destructive commands (e.g., `rm -rf /`) without absolute certainty.
+    - Prefer specialized tools (like `read_file` or `write_file`) for file operations.
+
+    **USAGE GUIDELINES:**
+    - Use non-interactive commands.
+    - If a command is expected to produce massive output, use `timeout` or pipe to a file.
+    - The output is streamed to the console in real-time.
 
     Args:
-        command (str): The shell command to execute.
-        timeout (int): Maximum time in seconds to wait for the command. Defaults to 30.
+        command (str): The full shell command to execute.
+        timeout (int): Maximum wait time in seconds before terminating the process. Defaults to 30.
     """
     ANSI_ESCAPE = re.compile(
         r"(?:\x1B\[[0-?]*[ -/]*[@-~])|"  # CSI (Control Sequence Introducer)

@@ -199,11 +199,14 @@ def create_rag_from_directory(
     retrieve.__doc__ = dedent(
         f"""
         {tool_description}
-        Args:
-            query (str): The user query to search for in documents.
-        Returns:
-            dict[str, Any]: dictionary with search results:
-                {{"ids": [...], "documents": [...], ...}}
+        This tool performs a semantic search across a curated knowledge base of documents.
+        It is highly effective for answering questions that require specific project knowledge not found in general training data.
+
+        **ARGS:**
+        - `query` (str): The semantic search query or question.
+
+        **RETURNS:**
+        - A dictionary containing matching document chunks ("documents") and their metadata.
         """
     ).strip()
     return retrieve

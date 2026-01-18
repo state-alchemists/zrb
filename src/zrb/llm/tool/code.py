@@ -58,17 +58,26 @@ async def analyze_code(
     exclude_patterns: list[str] | None = None,
 ) -> str:
     """
-    Analyzes a code repository or directory to answer a specific query.
-    Uses a map-reduce approach: extracts info from files in chunks, then summarizes.
+    Performs a deep, semantic analysis of an entire codebase or directory to answer complex architectural or logic-based questions.
+    This tool uses a 'map-reduce' strategy to handle large repositories that exceed single-prompt limits.
+
+    **WHEN TO USE:**
+    - To understand system-wide flows, architectural patterns, or cross-file dependencies.
+    - When you need a summary of how a feature is implemented across multiple files.
+    - To identify potential refactoring opportunities or technical debt.
+
+    **LIMITATIONS:**
+    - It extracts and summarizes information; it does not read every single byte if the repo is massive.
+    - For precise line-by-line reading of a known file, use `read_file` instead.
 
     Args:
         path (str): Path to the directory or repository.
-        query (str): Clear and specific analysis question or goal.
-        extensions (list[str], optional): File extensions to include.
-        exclude_patterns (list[str], optional): Glob patterns to exclude.
+        query (str): A clear, specific question or analysis goal (e.g., "How is authentication handled?").
+        extensions (list[str], optional): File extensions to include (e.g., ["py", "ts"]).
+        exclude_patterns (list[str], optional): Glob patterns to ignore (e.g., ["tests/*"]).
 
     Returns:
-        str: Detailed analysis and summary.
+        str: A comprehensive analytical report.
     """
     if extensions is None:
         extensions = _DEFAULT_EXTENSIONS

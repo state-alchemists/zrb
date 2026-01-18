@@ -59,5 +59,11 @@ def create_sub_agent_tool(
         return str(result)
 
     run_sub_agent.__name__ = name
-    run_sub_agent.__doc__ = description
+    run_sub_agent.__doc__ = (
+        f"DELEGATION TOOL: {description}\n\n"
+        "Use this tool to delegate complex, multi-step sub-tasks to a specialized agent. "
+        "The sub-agent has its own memory and can perform its own tool calls."
+        "\n\n**ARGS:**"
+        "\n- `prompt`: The clear and detailed objective or instruction for the sub-agent."
+    )
     return run_sub_agent

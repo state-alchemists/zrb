@@ -10,9 +10,10 @@ def create_activate_skill_tool(skill_manager: SkillManager):
 
     activate_skill_impl.__name__ = "activate_skill"
     activate_skill_impl.__doc__ = (
-        "Activates a specialized agent skill by name. "
-        "Returns the skill's instructions wrapped in <ACTIVATED_SKILL> tags. "
-        "These provide specialized guidance for the current task. "
-        "Use this when you identify a task that matches a skill's description."
+        "Immediately activates a specialized expertise 'skill' to handle complex or domain-specific tasks. "
+        "Returns a set of authoritative instructions that YOU MUST follow to complete the task successfully. "
+        "Use this as soon as you identify a task that matches an available skill. "
+        "\n\n**ARGS:**"
+        "\n- `name`: The unique name of the skill to activate."
     )
     return activate_skill_impl
