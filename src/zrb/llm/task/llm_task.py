@@ -2,6 +2,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.attr.type import BoolAttr, StrAttr, fstring
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
@@ -127,7 +128,7 @@ class LLMTask(BaseTask):
         self._conversation_name = conversation_name
         self._render_conversation_name = render_conversation_name
         self._history_manager = (
-            FileHistoryManager(history_dir="~/.llm_chat")
+            FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
             if history_manager is None
             else history_manager
         )

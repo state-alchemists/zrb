@@ -158,7 +158,8 @@ class Config:
     @property
     def SESSION_LOG_DIR(self) -> str:
         return os.getenv(
-            "ZRB_SESSION_LOG_DIR", os.path.expanduser(os.path.join("~", ".zrb-session"))
+            "ZRB_SESSION_LOG_DIR",
+            os.path.expanduser(os.path.join("~", f".{self.ROOT_GROUP_NAME}-session")),
         )
 
     @SESSION_LOG_DIR.setter
@@ -357,6 +358,17 @@ class Config:
     @WEB_HOMEPAGE_INTRO.setter
     def WEB_HOMEPAGE_INTRO(self, value: str):
         os.environ[f"{self.ENV_PREFIX}_WEB_HOMEPAGE_INTRO"] = value
+
+    @property
+    def LLM_HISTORY_DIR(self) -> str:
+        return os.getenv(
+            "ZRB_LLM_HISTORY_DIR",
+            os.path.expanduser(os.path.join("~", f".{self.ROOT_GROUP_NAME}-llm-history")),
+        )
+
+    @LLM_HISTORY_DIR.setter
+    def LLM_HISTORY_DIR(self, value: str):
+        os.environ["ZRB_LLM_HISTORY_DIR"] = value
 
     @property
     def LLM_MODEL(self) -> str | None:
