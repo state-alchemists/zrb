@@ -73,6 +73,7 @@ async def run_agent(
     Returns (result_output, new_message_history).
     """
     import asyncio
+
     from pydantic_ai import AgentRunResultEvent, DeferredToolRequests
 
     # Resolve tool confirmation callback (Arg > Context > None)

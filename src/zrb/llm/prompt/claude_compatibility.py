@@ -1,9 +1,8 @@
-import os
-from typing import Callable
+from pathlib import Path
+from typing import Callable, List, Optional
 
 from zrb.context.any_context import AnyContext
 from zrb.llm.skill.manager import SkillManager
-from zrb.runner.cli import cli
 from zrb.util.markdown import make_markdown_section
 
 
@@ -13,52 +12,81 @@ def create_claude_compatibility_prompt(skill_manager: SkillManager):
         current_prompt: str,
         next_handler: Callable[[AnyContext, str], str],
     ) -> str:
+        search_dirs = _get_search_directories()
         additional_context = []
 
         # 1. CLAUDE.md
-        if os.path.exists("CLAUDE.md"):
-            try:
-                with open("CLAUDE.md", "r", encoding="utf-8") as f:
-                    content = f.read().strip()
-                    if content:
-                        additional_context.append(
-                            make_markdown_section(
-                                "Project Instructions (CLAUDE.md)", content
-                            )
-                        )
-            except Exception:
-                pass
-
-        # 2. AGENTS.md
-        if os.path.exists("AGENTS.md"):
-            try:
-                with open("AGENTS.md", "r", encoding="utf-8") as f:
-                    content = f.read().strip()
-                    if content:
-                        additional_context.append(
-                            make_markdown_section(
-                                "Agent Definitions (AGENTS.md)", content
-                            )
-                        )
-            except Exception:
-                pass
-
-        # 3. Available Claude Skills
-        skills = skill_manager.scan()
-        if skills:
-            skills_context = []
-            skills_context.append(
-                "Use 'activate_skill' to load instructions for a skill."
-            )
-            for skill in skills:
-                skills_context.append(f"- {skill.name}")
+        claude_content = _get_combined_content("CLAUDE.md", search_dirs)
+        if claude_content:
             additional_context.append(
                 make_markdown_section(
-                    "Available Skills (Claude Skills)", "\n".join(skills_context)
+                    "Project Instructions (CLAUDE.md)", claude_content
                 )
             )
+
+        # 2. AGENTS.md
+        agents_content = _get_combined_content("AGENTS.md", search_dirs)
+        if agents_content:
+            additional_context.append(
+                make_markdown_section("Agent Definitions (AGENTS.md)", agents_content)
+            )
+
+        # 3. Available Claude Skills
+        skills_section = _get_skills_section(skill_manager)
+        if skills_section:
+            additional_context.append(skills_section)
 
         new_section = "\n\n".join(additional_context)
         return next_handler(ctx, f"{current_prompt}\n\n{new_section}")
 
     return claude_compatibility
+
+
+def _get_search_directories() -> List[Path]:
+    search_dirs: List[Path] = []
+    # 1. User global config (~/.claude)
+    try:
+        home = Path.home()
+        search_dirs.append(home / ".claude")
+    except Exception:
+        pass
+
+    # 2. Project directories (Root -> ... -> CWD)
+    try:
+        cwd = Path.cwd()
+        # Parents returns [parent, grandparent...]. We want reversed (Root first)
+        # This allows specific configs (closer to CWD) to override general ones
+        project_dirs = list(cwd.parents)[::-1] + [cwd]
+        search_dirs.extend(project_dirs)
+    except Exception:
+        pass
+    return search_dirs
+
+
+def _get_combined_content(filename: str, search_dirs: List[Path]) -> str:
+    contents = []
+    for directory in search_dirs:
+        file_path = directory / filename
+        if file_path.exists() and file_path.is_file():
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    content = f.read().strip()
+                    if content:
+                        contents.append(content)
+            except Exception:
+                pass
+    return "\n\n".join(contents)
+
+
+def _get_skills_section(skill_manager: SkillManager) -> Optional[str]:
+    skills = skill_manager.scan()
+    if not skills:
+        return None
+
+    skills_context = ["Use 'activate_skill' to load instructions for a skill."]
+    for skill in skills:
+        skills_context.append(f"- {skill.name}")
+
+    return make_markdown_section(
+        "Available Skills (Claude Skills)", "\n".join(skills_context)
+    )

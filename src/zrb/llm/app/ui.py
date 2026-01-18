@@ -201,8 +201,8 @@ class UI:
                 "frame.label": "bg:#000000 #ffff00",
                 "thinking": "ansigreen italic",
                 "faint": "#888888",
-                "output_field": "bg:#000000 #eeeeee", 
-                "input_field": "bg:#000000 #eeeeee", 
+                "output_field": "bg:#000000 #eeeeee",
+                "input_field": "bg:#000000 #eeeeee",
                 "text": "#eeeeee",
                 "status": "reverse",
                 "bottom-toolbar": "bg:#333333 #aaaaaa",
@@ -218,7 +218,7 @@ class UI:
             lexer=lexer,
             focus_on_click=True,
             focusable=True,
-            style="class:output_field"
+            style="class:output_field",
         )
 
     def _create_input_field(self) -> TextArea:
@@ -232,7 +232,7 @@ class UI:
             completer=InputCompleter(all_commands),
             complete_while_typing=True,
             focus_on_click=True,
-            style="class:input_field"
+            style="class:input_field",
         )
 
     def _create_application(
@@ -343,7 +343,6 @@ class UI:
             if self._running_llm_task and not self._running_llm_task.done():
                 self._running_llm_task.cancel()
                 self.append_to_output("\n<Esc> Canceled")
-
 
         @app_keybindings.add("enter")
         def _(event):
