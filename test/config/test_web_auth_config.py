@@ -5,8 +5,12 @@ from zrb.config.web_auth_config import WebAuthConfig
 def test_web_auth_config_defaults():
     config = WebAuthConfig()
     assert config.secret_key == CFG.WEB_SECRET_KEY
-    assert config.access_token_expire_minutes == CFG.WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES
-    assert config.refresh_token_expire_minutes == CFG.WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES
+    assert (
+        config.access_token_expire_minutes == CFG.WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+    assert (
+        config.refresh_token_expire_minutes == CFG.WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES
+    )
     assert config.access_token_cookie_name == CFG.WEB_ACCESS_TOKEN_COOKIE_NAME
     assert config.refresh_token_cookie_name == CFG.WEB_REFRESH_TOKEN_COOKIE_NAME
     assert config.enable_auth == CFG.WEB_ENABLE_AUTH
