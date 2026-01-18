@@ -36,7 +36,7 @@ class LLMConfig:
         if self._model is not None:
             return self._model
 
-        model_name = getattr(CFG, "LLM_MODEL", None) or "openai:gpt-4o"
+        model_name = CFG.LLM_MODEL or "openai:gpt-4o"
         provider = self.provider
 
         return self._resolve_model(model_name, provider)

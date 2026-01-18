@@ -70,7 +70,7 @@ chat_task = LLMChatTask(
     history_processors=[
         create_summarizer_history_processor(
             token_threshold=CFG.LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD,
-            summary_window=5,
+            summary_window=CFG.LLM_HISTORY_SUMMARIZATION_WINDOW,
         )
     ],
     prompt_manager=PromptManager(),

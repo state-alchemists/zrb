@@ -302,6 +302,7 @@ async def analyze_file(path: str, query: str) -> str:
     # Lazy imports to avoid circular dependencies
     from zrb.config.config import CFG
     from zrb.llm.agent.agent import create_agent, run_agent
+    from zrb.llm.config.config import llm_config
     from zrb.llm.config.limiter import llm_limiter
     from zrb.llm.prompt.default import get_file_extractor_system_prompt
     from zrb.llm.tool.tool import Tool
@@ -328,7 +329,7 @@ async def analyze_file(path: str, query: str) -> str:
 
     # Create the sub-agent
     agent = create_agent(
-        model=CFG.LLM_MODEL,
+        model=llm_config.model,
         system_prompt=system_prompt,
         tools=[
             Tool(read_file, name="read_file", description="Read file content"),

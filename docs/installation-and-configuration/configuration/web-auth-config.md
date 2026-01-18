@@ -12,7 +12,7 @@ Zrb has a `web_auth_config` singleton that you can access and manipulate by impo
 from zrb import web_auth_config, User
 
 # Enable authentication:
-web_auth_config.set_enable_auth(True) 
+web_auth_config.enable_auth = True 
 
 # Add a user named Ace, and Taro, define their password and accessible tasks.
 # The accessible tasks can be:
@@ -46,7 +46,7 @@ web_auth_config.append_user(
 )
 
 # Define accessible tasks for guest users
-web_auth_config.set_guest_accessible_tasks(["throw-dice", "shuffle"])
+web_auth_config.guest_accessible_tasks = ["throw-dice", "shuffle"]
 ```
 
 ## Properties
@@ -113,39 +113,6 @@ web_auth_config.set_guest_accessible_tasks(["throw-dice", "shuffle"])
 - **Type**: `list[User]`
 
 ## Methods
-
-### `set_secret_key(secret_key: str)`
-- **Description**: Sets the secret key.
-
-### `set_access_token_expire_minutes(minutes: int)`
-- **Description**: Sets the access token expiration time.
-
-### `set_refresh_token_expire_minutes(minutes: int)`
-- **Description**: Sets the refresh token expiration time.
-
-### `set_access_token_cookie_name(name: str)`
-- **Description**: Sets the access token cookie name.
-
-### `set_refresh_token_cookie_name(name: str)`
-- **Description**: Sets the refresh token cookie name.
-
-### `set_enable_auth(enable: bool)`
-- **Description**: Enables or disables authentication.
-
-### `set_super_admin_username(username: str)`
-- **Description**: Sets the super admin username.
-
-### `set_super_admin_password(password: str)`
-- **Description**: Sets the super admin password.
-
-### `set_guest_username(username: str)`
-- **Description**: Sets the guest username.
-
-### `set_guest_accessible_tasks(tasks: list[AnyTask | str])`
-- **Description**: Sets the list of tasks accessible to guests.
-
-### `set_find_user_by_username(find_user_by_username: Callable[[str], User | None])`
-- **Description**: Sets the function to find a user by username.
 
 ### `append_user(user: User)`
 - **Description**: Adds a user to the user list.
