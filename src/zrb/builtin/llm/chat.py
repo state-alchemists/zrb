@@ -74,10 +74,16 @@ llm_chat = LLMChatTask(
         )
     ],
     prompt_manager=PromptManager(),
-    ui_summarize_command=["/compact", "/compress"],
     ui_assistant_name=_get_ui_assistant_name,
     ui_greeting=_get_ui_greeting,
     ui_jargon=_get_ui_jargon,
+    ui_summarize_commands=["/compress", "/compact"],
+    ui_attach_commands=["/attach"],
+    ui_exit_commands=["/q", "/bye", "/quit", "/exit"],
+    ui_info_commands=["/info", "/help"],
+    ui_save_commands=["/save"],
+    ui_load_commands=["/load"],
+    ui_redirect_output_commands=[">"],
 )
 cli.add_task(llm_chat)
 

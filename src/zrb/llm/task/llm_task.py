@@ -170,11 +170,11 @@ class LLMTask(BaseTask):
             isinstance(user_message, str)
             and user_message.strip() in self._summarize_command
         ):
-            ctx.print("Compacting conversation history...", plain=True)
+            ctx.print("Compressing conversation history...", plain=True)
             new_history = await summarize_history(message_history)
             self._history_manager.update(conversation_name, new_history)
             self._history_manager.save(conversation_name)
-            return "Conversation history compacted."
+            return "Conversation history compressed."
 
         yolo = get_bool_attr(ctx, self._yolo, False)
         system_prompt = self._get_system_prompt(ctx)

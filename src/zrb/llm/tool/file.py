@@ -33,7 +33,10 @@ def list_files(
 ) -> dict[str, list[str]]:
     """
     Lists files recursively up to a specified depth.
-    Use this to explore directory structure.
+
+    **EFFICIENCY TIP:**
+    Do NOT use this tool if you already know the file path (e.g., from the user's prompt).
+    Use `read_from_file` directly in that case. Only use this to explore directory structures.
     """
     all_files: list[str] = []
     abs_path = os.path.abspath(os.path.expanduser(path))
@@ -76,7 +79,13 @@ def read_file(
     path: str, start_line: int | None = None, end_line: int | None = None
 ) -> str:
     """
-    Reads content from a file, optionally specifying line ranges.
+    Reads content from one or more files, optionally specifying line ranges.
+
+    **EFFICIENCY TIP:**
+    For source code or configuration files, prefer reading the **entire file** at once
+    to ensure you have full context (imports, class definitions, etc.).
+    Only use `start_line` and `end_line` for extremely large files (like logs) or
+    when you are certain only a specific section is needed.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
@@ -121,8 +130,21 @@ def read_files(paths: list[str]) -> dict[str, str]:
 
 def write_file(path: str, content: str, mode: str = "w") -> str:
     """
-    Writes content to a file. Mode 'w' for overwrite, 'a' for append.
-    WARNING: Content MUST NOT exceed 4000 characters.
+    Writes content to one or more files, with options for overwrite, append, or exclusive
+    creation.
+
+    **CRITICAL - PREVENT JSON ERRORS:**
+    1. **ESCAPING:** Do NOT double-escape quotes.
+       - CORRECT: "content": "He said \"Hello\""
+       - WRONG:   "content": "He said \\"Hello\\""  <-- This breaks JSON parsing!
+    2. **SIZE LIMIT:** Write large content in chunks.
+       - **STRICT PROHIBITION:** DO NOT WRITE MORE THAN 2000 characters per chunks.
+       - Write chunks in multiple sequential calls
+         (i.e., first with 'w' mode, then 'a' mode subsequentially). For example:
+         - write_file(path="README.md", content="First chunk...\n", mode="w")
+         - write_file(path="README.md", content="Second chunk...\n", mode="w")
+         - write_file(path="README.md", content="Third chunk...\n", mode="w")
+       - To end your chunk with new line, you should put "\n" at the end of the chunk
     """
     if len(content) > 4000:
         return (
@@ -162,7 +184,15 @@ def write_files(files: list[dict[str, str]]) -> dict[str, str]:
 
 def replace_in_file(path: str, old_text: str, new_text: str, count: int = -1) -> str:
     """
-    Replaces exact text in a file.
+    Replaces exact text in files.
+
+    **CRITICAL INSTRUCTIONS:**
+    1. **READ FIRST:** Make sure you know the exact content to be replaced. Use `read_file` if unsure.
+    2. **EXACT MATCH:** `old_text` must match file content EXACTLY (whitespace, newlines).
+    3. **ESCAPING:** Do NOT double-escape quotes in `new_text`. Use `\"`, not `\\"`.
+    4. **SIZE LIMIT:** `new_text` MUST NOT exceed 4000 chars to avoid truncation/EOF errors.
+    5. **MINIMAL CONTEXT:** Keep `old_text` small (target lines + 2-3 context lines).
+    6. **DEFAULT:** Replaces **ALL** occurrences. Set `count=1` for first occurrence only.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
@@ -234,7 +264,7 @@ def search_files(
                         search_results["results"].append(
                             {"file": rel_file_path, "matches": matches}
                         )
-                except Exception as e:
+                except Exception:
                     # Ignore read errors for binary files etc
                     pass
 

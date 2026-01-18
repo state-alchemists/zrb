@@ -68,7 +68,7 @@ async def summarize_history(
     result = await summarizer_agent.run(
         f"Summarize this conversation history:\n{history_text}"
     )
-    summary_text = result.data
+    summary_text = result.output
 
     # Create a summary message injected as user context
     summary_message = ModelRequest(

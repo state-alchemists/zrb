@@ -66,7 +66,13 @@ class LLMChatTask(BaseTask):
         history_manager: AnyHistoryManager | None = None,
         tool_confirmation: Callable[[Any], Any] | None = None,
         yolo: BoolAttr = False,
-        ui_summarize_command: list[str] = [],
+        ui_summarize_commands: list[str] = [],
+        ui_attach_commands: list[str] = [],
+        ui_exit_commands: list[str] = [],
+        ui_info_commands: list[str] = [],
+        ui_save_commands: list[str] = [],
+        ui_load_commands: list[str] = [],
+        ui_redirect_output_commands: list[str] = [],
         ui_greeting: StrAttr | None = None,
         render_ui_greeting: bool = True,
         ui_assistant_name: StrAttr | None = None,
@@ -131,7 +137,13 @@ class LLMChatTask(BaseTask):
         self._history_manager = history_manager
         self._tool_confirmation = tool_confirmation
         self._yolo = yolo
-        self._ui_summarize_command = ui_summarize_command
+        self._ui_summarize_commands = ui_summarize_commands
+        self._ui_attach_commands = ui_attach_commands
+        self._ui_exit_commands = ui_exit_commands
+        self._ui_info_commands = ui_info_commands
+        self._ui_save_commands = ui_save_commands
+        self._ui_load_commands = ui_load_commands
+        self._ui_redirect_output_commands = ui_redirect_output_commands
         self._ui_greeting = ui_greeting
         self._render_ui_greeting = render_ui_greeting
         self._ui_assistant_name = ui_assistant_name
@@ -213,7 +225,7 @@ class LLMChatTask(BaseTask):
             conversation_name="{ctx.input.session}",
             yolo="{ctx.input.yolo}",
             attachment=lambda ctx: ctx.input.attachments,
-            summarize_command=self._ui_summarize_command,
+            summarize_command=self._ui_summarize_commands,
         )
         ui = UI(
             greeting=ui_greeting,
@@ -228,6 +240,13 @@ class LLMChatTask(BaseTask):
             triggers=self._triggers,
             confirmation_middlewares=self._confirmation_middlewares,
             markdown_theme=self._markdown_theme,
+            summarize_commands=self._ui_summarize_commands,
+            attach_commands=self._ui_attach_commands,
+            exit_commands=self._ui_exit_commands,
+            info_commands=self._ui_info_commands,
+            save_commands=self._ui_save_commands,
+            load_commands=self._ui_load_commands,
+            redirect_output_commands=self._ui_redirect_output_commands,
         )
         return await ui.run_async()
 

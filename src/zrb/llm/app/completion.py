@@ -1,4 +1,4 @@
-from typing import Iterable, List
+from typing import Iterable
 
 from prompt_toolkit.completion import (
     CompleteEvent,
@@ -10,8 +10,23 @@ from prompt_toolkit.document import Document
 
 
 class InputCompleter(Completer):
-    def __init__(self, commands: List[str]):
-        self.commands = commands
+    def __init__(
+        self,
+        attach_commands: list[str] = [],
+        exit_commands: list[str] = [],
+        info_commands: list[str] = [],
+        save_commands: list[str] = [],
+        load_commands: list[str] = [],
+        redirect_output_commands: list[str] = [],
+        summarize_commands: list[str] = [],
+    ):
+        self.attach_commands = attach_commands
+        self.exit_commands = exit_commands
+        self.info_commands = info_commands
+        self.save_commands = save_commands
+        self.load_commands = load_commands
+        self.redirect_output_commands = redirect_output_commands
+        self.summarize_commands = summarize_commands
         # expanduser=True allows ~/path
         self.path_completer = PathCompleter(expanduser=True)
 
@@ -24,7 +39,15 @@ class InputCompleter(Completer):
         # 1. Command Completion (/)
         if word.startswith("/"):
             lower_word = word.lower()
-            for cmd in self.commands:
+            for cmd in (
+                self.exit_commands
+                + self.attach_commands
+                + self.summarize_commands
+                + self.info_commands
+                + self.save_commands
+                + self.load_commands
+                + self.redirect_output_commands
+            ):
                 if cmd.lower().startswith(lower_word):
                     # yield match
                     yield Completion(cmd, start_position=-len(word))

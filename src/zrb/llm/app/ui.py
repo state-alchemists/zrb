@@ -56,6 +56,13 @@ class UI:
         triggers: list[Callable[[], Any]] = [],
         confirmation_middlewares: list[ConfirmationMiddleware] = [],
         markdown_theme: "Theme | None" = None,
+        summarize_commands: list[str] = [],
+        attach_commands: list[str] = [],
+        exit_commands: list[str] = [],
+        info_commands: list[str] = [],
+        save_commands: list[str] = [],
+        load_commands: list[str] = [],
+        redirect_output_commands: list[str] = [],
     ):
         self._is_thinking = False
         self._running_llm_task: asyncio.Task | None = None
@@ -69,6 +76,13 @@ class UI:
         self._yolo = yolo
         self._triggers = triggers
         self._markdown_theme = markdown_theme
+        self._summarize_commands = summarize_commands
+        self._attach_commands = attach_commands
+        self._exit_commands = exit_commands
+        self._info_commands = info_commands
+        self._save_commands = save_commands
+        self._load_commands = load_commands
+        self._redirect_output_commands = redirect_output_commands
         self._trigger_tasks: list[asyncio.Task] = []
         # Attachments
         self._pending_attachments: "list[UserContent]" = list(initial_attachments)
@@ -221,14 +235,20 @@ class UI:
         )
 
     def _create_input_field(self) -> TextArea:
-        summarize_commands = getattr(self._llm_task, "_summarize_command", [])
-        all_commands = EXIT_COMMANDS + ["/attach"] + summarize_commands
         return TextArea(
             height=4,
             prompt=HTML('<style color="ansibrightblue"><b>&gt;&gt;&gt; </b></style>'),
             multiline=True,
             wrap_lines=True,
-            completer=InputCompleter(all_commands),
+            completer=InputCompleter(
+                attach_commands=self._attach_commands,
+                exit_commands=self._exit_commands,
+                info_commands=self._info_commands,
+                save_commands=self._save_commands,
+                load_commands=self._load_commands,
+                redirect_output_commands=self._redirect_output_commands,
+                summarize_commands=self._summarize_commands,
+            ),
             complete_while_typing=True,
             focus_on_click=True,
             style="class:input_field",
