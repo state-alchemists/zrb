@@ -24,7 +24,13 @@ ConfirmationMiddleware = Callable[
 
 class ConfirmationHandler:
     def __init__(self, middlewares: list[ConfirmationMiddleware]):
-        self.middlewares = middlewares
+        self._middlewares = middlewares
+
+    def add_middleware(self, *middleware: ConfirmationMiddleware):
+        self.prepend_middleware(*middleware)
+
+    def prepend_middleware(self, *middleware: ConfirmationMiddleware):
+        self._middlewares = list(middleware) + self._middlewares
 
     async def handle(self, ui: UIProtocol, call: Any) -> Any:
         while True:
@@ -38,10 +44,10 @@ class ConfirmationHandler:
             async def _next(
                 ui: UIProtocol, call: Any, response: str, index: int
             ) -> Any:
-                if index >= len(self.middlewares):
+                if index >= len(self._middlewares):
                     # Default if no middleware handles it
                     return None
-                middleware = self.middlewares[index]
+                middleware = self._middlewares[index]
                 return await middleware(
                     ui,
                     call,

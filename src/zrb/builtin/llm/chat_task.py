@@ -3,6 +3,7 @@ from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.llm.app.confirmation.replace_confirmation import replace_confirmation
+from zrb.llm.history_processor import create_summarizer_history_processor
 from zrb.llm.note.manager import NoteManager
 from zrb.llm.prompt.claude_compatibility import (
     create_claude_compatibility_prompt,
@@ -66,8 +67,14 @@ chat_task = LLMChatTask(
     yolo="{ctx.input.yolo}",
     message="{ctx.input.message}",
     conversation_name="{ctx.input.session}",
+    history_processors=[
+        create_summarizer_history_processor(
+            token_threshold=CFG.LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD,
+            summary_window=5,
+        )
+    ],
     prompt_manager=PromptManager(),
-    summarize_command=["/compact", "/compress"],
+    ui_summarize_command=["/compact", "/compress"],
     ui_assistant_name=_get_ui_assistant_name,
     ui_greeting=_get_ui_greeting,
     ui_jargon=_get_ui_jargon,

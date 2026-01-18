@@ -7,6 +7,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 
+from zrb.config.config import CFG
 from zrb.llm.agent.summarizer import create_summarizer_agent
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
@@ -26,12 +27,14 @@ def is_turn_start(msg: Any) -> bool:
 async def summarize_history(
     messages: list[ModelMessage],
     agent: Any = None,
-    summary_window: int = 5,
+    summary_window: int | None = None,
 ) -> list[ModelMessage]:
     """
     Summarizes the history, keeping the last `summary_window` messages intact.
     Returns a new list of messages where older messages are replaced by a summary.
     """
+    if summary_window is None:
+        summary_window = CFG.LLM_HISTORY_SUMMARIZATION_WINDOW
     if len(messages) <= summary_window:
         return messages
 
@@ -82,13 +85,15 @@ async def summarize_history(
 def create_summarizer_history_processor(
     agent: Any = None,
     limiter: LLMLimiter | None = None,
-    token_threshold: int = 2000,
-    summary_window: int = 5,
+    token_threshold: int | None = None,
+    summary_window: int | None = None,
 ) -> Callable[[list[ModelMessage]], Awaitable[list[ModelMessage]]]:
     """
     Creates a history processor that auto-summarizes history when it exceeds `token_threshold`.
     """
     llm_limiter = limiter or default_llm_limiter
+    if token_threshold is None:
+        token_threshold = CFG.LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD
 
     async def process_history(messages: list[ModelMessage]) -> list[ModelMessage]:
         current_tokens = llm_limiter.count_tokens(messages)

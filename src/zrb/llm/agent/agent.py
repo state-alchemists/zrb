@@ -1,6 +1,7 @@
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Callable
 
+from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.util.attachment import normalize_attachments
 from zrb.llm.util.prompt import expand_prompt
@@ -22,7 +23,7 @@ if TYPE_CHECKING:
 
 
 def create_agent(
-    model: "Model | str",
+    model: "Model | str | None" = None,
     system_prompt: str = "",
     tools: list["Tool | ToolFuncEither"] = [],
     toolsets: list["AbstractToolset[None]"] = [],
@@ -46,6 +47,9 @@ def create_agent(
     if not yolo:
         final_output_type = output_type | DeferredToolRequests
         effective_toolsets = [ts.approval_required() for ts in effective_toolsets]
+
+    if model is None:
+        model = default_llm_config.model
 
     return Agent(
         model=model,

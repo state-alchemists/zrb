@@ -1,12 +1,10 @@
 import asyncio
 import contextlib
-import io
 import re
 import string
-import sys
 from collections.abc import Callable
 from datetime import datetime
-from typing import Any, TextIO
+from typing import TYPE_CHECKING, Any, TextIO
 
 from prompt_toolkit import Application
 from prompt_toolkit.application import get_app
@@ -29,35 +27,18 @@ from zrb.llm.app.confirmation.handler import (
     ConfirmationMiddleware,
     last_confirmation,
 )
+from zrb.llm.app.redirection import StreamToUI
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
+from zrb.util.cli.markdown import render_markdown
 from zrb.util.string.name import get_random_name
 
+if TYPE_CHECKING:
+    from pydantic_ai import UserContent
+    from rich.theme import Theme
+
+
 EXIT_COMMANDS = ["/q", "/bye", "/quit", "/exit"]
-
-
-class StdoutToUI(io.TextIOBase):
-    """Redirect stdout to UI's append_to_output."""
-
-    def __init__(self, ui_callback):
-        self.ui_callback = ui_callback
-        self.original_stdout = sys.stdout
-        self.original_stderr = sys.stderr
-        self._is_first_write = True
-
-    def write(self, text: str) -> int:
-        text = text.expandtabs(4)
-        if text:
-            if self._is_first_write:
-                self.ui_callback("\n", end="")
-                self._is_first_write = False
-            self.ui_callback(text, end="")
-            get_app().invalidate()
-        return len(text)
-
-    def flush(self):
-        self.original_stdout.flush()
-        self.original_stderr.flush()
 
 
 class UI:
@@ -69,11 +50,12 @@ class UI:
         output_lexer: Lexer,
         llm_task: AnyTask,
         initial_message: Any = "",
-        initial_attachments: list[str] = [],
+        initial_attachments: "list[UserContent]" = [],
         conversation_session_name: str = "",
         yolo: bool = False,
         triggers: list[Callable[[], Any]] = [],
         confirmation_middlewares: list[ConfirmationMiddleware] = [],
+        markdown_theme: "Theme | None" = None,
     ):
         self._is_thinking = False
         self._running_llm_task: asyncio.Task | None = None
@@ -86,9 +68,10 @@ class UI:
             self._conversation_session_name = get_random_name()
         self._yolo = yolo
         self._triggers = triggers
+        self._markdown_theme = markdown_theme
         self._trigger_tasks: list[asyncio.Task] = []
         # Attachments
-        self._pending_attachments: list[str] = list(initial_attachments)
+        self._pending_attachments: "list[UserContent]" = list(initial_attachments)
         # Confirmation Handler
         self._confirmation_handler = ConfirmationHandler(
             middlewares=confirmation_middlewares + [last_confirmation]
@@ -474,20 +457,17 @@ class UI:
 
         self._is_thinking = True
         get_app().invalidate()  # Update status bar
-
         try:
             timestamp = datetime.now().strftime("%H:%M")
             ai_header = f"🤖 {timestamp} >>\n"
             # Header first
             self.append_to_output(f"\n{ai_header}")
-
             session_input = {
                 "message": user_message,
                 "session": self._conversation_session_name,
                 "yolo": self._yolo,
                 "attachments": attachments,
             }
-
             shared_ctx = SharedContext(
                 input=session_input,
                 print_fn=self.append_to_output,
@@ -496,7 +476,7 @@ class UI:
             session = Session(shared_ctx)
 
             # Run the task with stdout/stderr redirected to UI
-            stdout_capture = StdoutToUI(self.append_to_output)
+            stdout_capture = StreamToUI(self.append_to_output)
 
             # Set context var for tool confirmation
             token = tool_confirmation_var.set(self._confirm_tool_execution)
@@ -511,9 +491,19 @@ class UI:
             # Check for final text output
             if result_data is not None:
                 if isinstance(result_data, str):
-                    # Ensure new line after stream before final output
+                    try:
+                        width = get_app().output.get_size().columns - 4
+                        if width < 10:
+                            width = None
+                    except Exception:
+                        width = None
+
                     self.append_to_output("\n")
-                    self.append_to_output(result_data)
+                    self.append_to_output(
+                        render_markdown(
+                            result_data, width=width, theme=self._markdown_theme
+                        )
+                    )
 
         except asyncio.CancelledError:
             self.append_to_output("\n[Cancelled]\n")

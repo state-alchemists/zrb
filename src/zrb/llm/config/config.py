@@ -18,6 +18,7 @@ class LLMConfig:
         self._model: "str | Model | None" = None
         self._model_settings: "ModelSettings | None" = None
         self._system_prompt: str | None = None
+        self._summarization_prompt: str | None = None
 
         # Optional overrides for provider resolution
         self._api_key: str | None = None
@@ -43,21 +44,6 @@ class LLMConfig:
     @model.setter
     def model(self, value: "str | Model"):
         self._model = value
-
-    # --- System Prompt ---
-
-    @property
-    def system_prompt(self) -> str:
-        """The default system prompt."""
-        if self._system_prompt is not None:
-            return self._system_prompt
-        return (
-            getattr(CFG, "LLM_SYSTEM_PROMPT", None) or "You are a helpful AI assistant."
-        )
-
-    @system_prompt.setter
-    def system_prompt(self, value: str):
-        self._system_prompt = value
 
     # --- Model Settings ---
 

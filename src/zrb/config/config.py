@@ -417,6 +417,10 @@ class Config:
         return to_boolean(self._getenv("LLM_SUMMARIZE_HISTORY", "true"))
 
     @property
+    def LLM_HISTORY_SUMMARIZATION_WINDOW(self) -> int:
+        return int(self._getenv("LLM_HISTORY_SUMMARIZATION_WINDOW", "5"))
+
+    @property
     def LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
         threshold = int(
             self._getenv(

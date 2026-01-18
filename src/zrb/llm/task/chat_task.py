@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.tools import ToolFuncEither
     from pydantic_ai.toolsets import AbstractToolset
+    from rich.theme import Theme
 
 
 class LLMChatTask(BaseTask):
@@ -65,7 +66,7 @@ class LLMChatTask(BaseTask):
         history_manager: AnyHistoryManager | None = None,
         tool_confirmation: Callable[[Any], Any] | None = None,
         yolo: BoolAttr = False,
-        summarize_command: list[str] = [],
+        ui_summarize_command: list[str] = [],
         ui_greeting: StrAttr | None = None,
         render_ui_greeting: bool = True,
         ui_assistant_name: StrAttr | None = None,
@@ -74,6 +75,7 @@ class LLMChatTask(BaseTask):
         render_ui_jargon: bool = True,
         triggers: list[Callable[[], Any]] = [],
         confirmation_middlewares: list[ConfirmationMiddleware] = [],
+        markdown_theme: "Theme | None" = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
@@ -129,7 +131,7 @@ class LLMChatTask(BaseTask):
         self._history_manager = history_manager
         self._tool_confirmation = tool_confirmation
         self._yolo = yolo
-        self._summarize_command = summarize_command
+        self._ui_summarize_command = ui_summarize_command
         self._ui_greeting = ui_greeting
         self._render_ui_greeting = render_ui_greeting
         self._ui_assistant_name = ui_assistant_name
@@ -138,6 +140,7 @@ class LLMChatTask(BaseTask):
         self._render_ui_jargon = render_ui_jargon
         self._triggers = triggers
         self._confirmation_middlewares = confirmation_middlewares
+        self._markdown_theme = markdown_theme
 
     @property
     def prompt_manager(self) -> PromptManager:
@@ -164,10 +167,12 @@ class LLMChatTask(BaseTask):
         self._history_processors += list(processor)
 
     def add_confirmation_middleware(self, *middleware: ConfirmationMiddleware):
-        self.append_confirmation_middleware(*middleware)
+        self.prepend_confirmation_middleware(*middleware)
 
-    def append_confirmation_middleware(self, *middleware: ConfirmationMiddleware):
-        self._confirmation_middlewares += list(middleware)
+    def prepend_confirmation_middleware(self, *middleware: ConfirmationMiddleware):
+        self._confirmation_middlewares = (
+            list(middleware) + self._confirmation_middlewares
+        )
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
         from zrb.llm.app.lexer import CLIStyleLexer
@@ -207,7 +212,7 @@ class LLMChatTask(BaseTask):
             conversation_name="{ctx.input.session}",
             yolo="{ctx.input.yolo}",
             attachment=lambda ctx: ctx.input.attachments,
-            summarize_command=self._summarize_command,
+            summarize_command=self._ui_summarize_command,
         )
         ui = UI(
             greeting=ui_greeting,
@@ -221,6 +226,7 @@ class LLMChatTask(BaseTask):
             yolo=initial_yolo,
             triggers=self._triggers,
             confirmation_middlewares=self._confirmation_middlewares,
+            markdown_theme=self._markdown_theme,
         )
         return await ui.run_async()
 

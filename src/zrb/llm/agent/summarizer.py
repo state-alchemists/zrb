@@ -1,23 +1,20 @@
 from typing import TYPE_CHECKING
 
 from zrb.llm.agent.agent import create_agent
-from zrb.llm.config.config import LLMConfig
-from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.prompt.default import get_default_prompt
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
+    from pydantic_ai.models import Model
 
 
 def create_summarizer_agent(
-    model: str | None = None,
-    llm_config: LLMConfig | None = None,
+    model: "str | None | Model" = None,
+    system_prompt: str | None = None,
 ) -> "Agent[None, str]":
-    config = llm_config or default_llm_config
-    agent_model = model or config.model
-    system_prompt = get_default_prompt("summarizer")
+    effective_system_prompt = system_prompt or get_default_prompt("summarizer")
 
     return create_agent(
-        model=agent_model,
-        system_prompt=system_prompt,
+        model=model,
+        system_prompt=effective_system_prompt,
     )
