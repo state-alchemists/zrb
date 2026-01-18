@@ -1,6 +1,6 @@
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from zrb.llm.agent import create_agent, run_agent
+from zrb.llm.agent.agent import create_agent, run_agent
 from zrb.llm.config.config import LLMConfig
 from zrb.llm.config.config import llm_config as default_config
 from zrb.llm.config.limiter import LLMLimiter

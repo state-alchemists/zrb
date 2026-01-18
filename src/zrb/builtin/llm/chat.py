@@ -3,7 +3,7 @@ from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.llm.app.confirmation.replace_confirmation import replace_confirmation
-from zrb.llm.history_processor import create_summarizer_history_processor
+from zrb.llm.history_processor.summarizer import create_summarizer_history_processor
 from zrb.llm.note.manager import NoteManager
 from zrb.llm.prompt.claude_compatibility import (
     create_claude_compatibility_prompt,
