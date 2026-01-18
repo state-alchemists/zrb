@@ -100,9 +100,9 @@ def create_event_handler(
             usage_msg = " ".join(
                 [
                     "💸",
-                    f"Requests: {usage.requests} |",
-                    f"Tool Calls: {usage.tool_calls} ||",
-                    f"Total: {usage.total_tokens} |",
+                    f"(Requests: {usage.requests} |",
+                    f"Tool Calls: {usage.tool_calls} |",
+                    f"Total: {usage.total_tokens})",
                     f"Input: {usage.input_tokens} |",
                     f"Audio Input: {usage.input_audio_tokens} |",
                     f"Output: {usage.output_tokens} |",

@@ -72,6 +72,7 @@ async def run_agent(
     Runs the agent with rate limiting, history management, and optional CLI confirmation loop.
     Returns (result_output, new_message_history).
     """
+    import asyncio
     from pydantic_ai import AgentRunResultEvent, DeferredToolRequests
 
     # Resolve tool confirmation callback (Arg > Context > None)
@@ -106,6 +107,7 @@ async def run_agent(
                 message_history=current_history,
                 deferred_tool_results=current_results,
             ):
+                await asyncio.sleep(0)
                 if isinstance(event, AgentRunResultEvent):
                     result = event.result
                     result_output = result.output

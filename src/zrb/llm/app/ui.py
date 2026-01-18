@@ -43,9 +43,13 @@ class StdoutToUI(io.TextIOBase):
         self.ui_callback = ui_callback
         self.original_stdout = sys.stdout
         self.original_stderr = sys.stderr
+        self._is_first_write = True
 
     def write(self, text: str) -> int:
         if text:
+            if self._is_first_write:
+                self.ui_callback("\n", end="")
+                self._is_first_write = False
             self.ui_callback(text, end="")
         return len(text)
 
@@ -224,6 +228,7 @@ class UI:
             wrap_lines=True,
             completer=InputCompleter(all_commands),
             complete_while_typing=True,
+            focus_on_click=True,
         )
 
     def _create_application(
@@ -268,7 +273,7 @@ class UI:
                         # Input Area
                         Frame(
                             input_field,
-                            title="Input (Enter to send, Ctrl+enter or Ctrl+J for newline)",
+                            title="(ENTER to send, CTRL+ENTER for newline, ESC to cancel)",
                             style="class:input-frame",
                         ),
                         # Status Bar
@@ -333,6 +338,8 @@ class UI:
         def _(event):
             if self._running_llm_task and not self._running_llm_task.done():
                 self._running_llm_task.cancel()
+                self.append_to_output("\n<Esc> Canceled")
+
 
         @app_keybindings.add("enter")
         def _(event):
@@ -343,10 +350,8 @@ class UI:
             if self._waiting_for_confirmation and self._confirmation_future:
                 # Echo the user input
                 self.append_to_output(text + "\n")
-
                 if not self._confirmation_future.done():
                     self._confirmation_future.set_result(text)
-
                 buff.reset()
                 return
 
