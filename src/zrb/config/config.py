@@ -363,7 +363,9 @@ class Config:
     def LLM_HISTORY_DIR(self) -> str:
         return os.getenv(
             "ZRB_LLM_HISTORY_DIR",
-            os.path.expanduser(os.path.join("~", f".{self.ROOT_GROUP_NAME}-llm-history")),
+            os.path.expanduser(
+                os.path.join("~", f".{self.ROOT_GROUP_NAME}-llm-history")
+            ),
         )
 
     @LLM_HISTORY_DIR.setter
