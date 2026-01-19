@@ -43,9 +43,7 @@ cd experiment/refactor/resources
 export ZRB_LLM_SHOW_TOOL_CALL_RESULT=true
 export ZRB_LLM_SHOW_TOOL_CALL_DETAIL=true
 
-# Read the instruction and execute
-# Use the absolute path to the project's venv to ensure reliability
-../../../.venv/bin/zrb llm chat \
+zrb \
     --interactive false \
     --yolo true \
     --message "$(cat ../instruction.md)"
@@ -59,7 +57,7 @@ Read the `evaluation.md` file in the original challenge directory (e.g., `challe
 *   **FAIL:** The agent missed ANY criterion, hallucinated, or crashed.
 
 ### 4. OPTIMIZE (Fix the Root Cause)
-**IF AND ONLY IF** a challenge fails:
+**IF AND ONLY IF** a challenge fails/solved but inefficient:
 1.  **Analyze**: Why did it fail?
     -   Ambiguous System Prompt?
     -   Confusing Tool Docstring?
