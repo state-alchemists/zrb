@@ -1,5 +1,22 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.0.0a1
+
+- **Refactor: Major Architectural Overhaul**:
+  - **LLM Module Consolidation**: Moved all LLM-related logic from `src/zrb/builtin/llm` and `src/zrb/task/llm` to a unified `src/zrb/llm` package for better modularity and maintainability.
+  - **Tool Relocation**: LLM tools (e.g., `analyze_repo`, `write_to_file`) are now located in `zrb.llm.tool`.
+- **Feature: Enhanced LLM Interface**:
+  - **Interactive TUI**: Introduced a new, feature-rich Terminal User Interface (TUI) for `llm-chat`, providing a more responsive and visually appealing experience.
+  - **Improved Command Structure**: Consolidated and refined LLM-related commands for better usability.
+- **Feature: Prompt & Agent Management**:
+  - **Centralized Prompt System**: Introduced a more robust prompt management system with support for markdown-based templates.
+  - **New Agent Framework**: Re-implemented LLM agents with better history and skill management.
+- **Performance & Cleanup**:
+  - **Code Pruning**: Conducted a significant "prune" of the codebase, removing redundant components, old tests, and unused dependencies to improve startup time and reduce package size.
+  - **Lazy Loading**: Further optimized imports to ensure faster CLI responsiveness.
+- **Testing**:
+  - **Updated Test Suite**: Refactored the test suite to align with the new architecture, ensuring high coverage and stability for the 2.0 release.
+
 ## 1.21.43
 
 - **Improvement: LLM Chat Responsiveness**:
