@@ -780,14 +780,12 @@ class Config:
         os.environ[f"{self.ENV_PREFIX}_BANNER"] = value
 
     @property
-    def LLM_SHOW_TOOL_CALL_PREPARATION(self) -> bool:
-        return to_boolean(
-            get_env("LLM_SHOW_TOOL_CALL_PREPARATION", "0", self.ENV_PREFIX)
-        )
+    def LLM_SHOW_TOOL_CALL_DETAIL(self) -> bool:
+        return to_boolean(get_env("LLM_SHOW_TOOL_CALL_DETAIL", "0", self.ENV_PREFIX))
 
-    @LLM_SHOW_TOOL_CALL_PREPARATION.setter
-    def LLM_SHOW_TOOL_CALL_PREPARATION(self, value: bool):
-        os.environ[f"{self.ENV_PREFIX}_LLM_SHOW_TOOL_CALL_PREPARATION"] = (
+    @LLM_SHOW_TOOL_CALL_DETAIL.setter
+    def LLM_SHOW_TOOL_CALL_DETAIL(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_SHOW_TOOL_CALL_DETAIL"] = (
             "1" if value else "0"
         )
 

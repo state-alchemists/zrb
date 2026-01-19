@@ -193,7 +193,7 @@ class LLMTask(BaseTask):
         print_event = create_faint_printer(ctx)
         handle_event = create_event_handler(
             print_event,
-            show_tool_call_detail=CFG.LLM_SHOW_TOOL_CALL_PREPARATION,
+            show_tool_call_detail=CFG.LLM_SHOW_TOOL_CALL_DETAIL,
             show_tool_result=CFG.LLM_SHOW_TOOL_CALL_RESULT,
         )
 

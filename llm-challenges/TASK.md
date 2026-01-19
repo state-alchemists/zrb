@@ -40,9 +40,8 @@ Run the `zrb` agent against the challenge instructions.
 # Navigate to the resources directory
 cd experiment/refactor/resources
 
-export ZRB_LOGGING_LEVEL=DEBUG
 export ZRB_LLM_SHOW_TOOL_CALL_RESULT=true
-export ZRB_LLM_SHOW_TOOL_CALL_PREPARATION=true
+export ZRB_LLM_SHOW_TOOL_CALL_DETAIL=true
 
 # Read the instruction and execute
 # Use the absolute path to the project's venv to ensure reliability

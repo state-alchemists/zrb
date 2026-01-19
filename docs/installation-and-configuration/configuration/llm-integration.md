@@ -42,7 +42,7 @@ Available prompt names (file names) include:
 
 These variables control the verbosity of the tool execution logs in the CLI:
 
-- **`ZRB_LLM_SHOW_TOOL_CALL_PREPARATION`**: Set to `1` or `true` to show the arguments being prepared for a tool call (default: `0`).
+- **`ZRB_LLM_SHOW_TOOL_CALL_DETAIL`**: Set to `1` or `true` to show the arguments being prepared for a tool call (default: `0`).
 - **`ZRB_LLM_SHOW_TOOL_CALL_RESULT`**: Set to `1` or `true` to show the result returned by a tool (default: `0`).
 
 ### Rate Limiting and Token Management
@@ -123,7 +123,7 @@ ZRB_LLM_API_KEY=sk-your-openai-key
 ZRB_LLM_PROMPT_DIR=.zrb/llm/prompt
 
 # Tool Debugging
-ZRB_LLM_SHOW_TOOL_CALL_PREPARATION=true
+ZRB_LLM_SHOW_TOOL_CALL_DETAIL=true
 ZRB_LLM_SHOW_TOOL_CALL_RESULT=true
 
 # Rate Limiting

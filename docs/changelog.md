@@ -120,7 +120,7 @@
   - **Chat Completion Integration**: Updated `ChatCompleter` to use fuzzy matching for `@` references, improving file path discovery with smarter token-based scoring.
   - **Option Input Enhancement**: `OptionInput` class now uses fuzzy matching for autocompletion, providing more intuitive option selection in interactive prompts.
 - **Feature: Tool Call Preparation Visualization**:
-  - **New Configuration**: Added `ZRB_LLM_SHOW_TOOL_CALL_PREPARATION` environment variable (default: `false`) to control display of tool parameter preparation.
+  - **New Configuration**: Added `ZRB_LLM_SHOW_TOOL_CALL_DETAIL` environment variable (default: `false`) to control display of tool parameter preparation.
   - **Visual Feedback**: When disabled, shows animated "Preparing Tool Parameters..." indicator during tool call preparation for cleaner output.
   - **Improved UX**: Enhanced tool call streaming with better visual separation between parameter preparation and execution phases.
 - **Framework: Workflow Discovery Improvements**:
@@ -128,7 +128,7 @@
   - **Expanded Search Paths**: Added support for `.zrb/workflows`, `.zrb/skills`, and `.claude/skills` directories in user home and project locations.
 - **Testing: LLM Challenge Suite Updates**:
   - **Improved Setup Instructions**: Updated challenge TASK.md with clearer directory setup commands (`mkdir -p experiment` and proper cleanup).
-  - **Enhanced Debugging**: Added `export ZRB_LLM_SHOW_TOOL_CALL_PREPARATION=true` to challenge environment setup for comprehensive tool call visibility.
+  - **Enhanced Debugging**: Added `export ZRB_LLM_SHOW_TOOL_CALL_DETAIL=true` to challenge environment setup for comprehensive tool call visibility.
 - **UI Refinements**:
   - **Toolbar Update**: Changed bottom toolbar emoji from 📁 to 📌 for better visual distinction.
   - **Argument Display**: Increased tool argument truncation length from 19 to 30 characters for more informative tool call displays.
