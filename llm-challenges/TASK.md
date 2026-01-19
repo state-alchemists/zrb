@@ -27,14 +27,17 @@ Ensure a clean state for the challenge (e.g., `refactor`).
 rm -rf experiment/refactor
 mkdir -p experiment/refactor
 cp -r challenges/refactor/* experiment/refactor/
+
+# CLEANUP: Kill any hanging processes on common ports (e.g., FastAPI on 8000)
+lsof -ti:8000 | xargs kill -9 2>/dev/null || true
 ```
 
 ### 2. EXECUTE (Run the Agent)
 Run the `zrb` agent against the challenge instructions.
-**CRITICAL:** Use `--interactive false` and `--yolo true` to ensure autonomous execution.
+**CRITICAL:** Use `--interactive false` and `--yolo true` to ensure autonomous execution. Always execute from within the `resources` directory of the experiment.
 
 ```bash
-# Navigate to the resources directory of the experiment
+# Navigate to the resources directory
 cd experiment/refactor/resources
 
 export ZRB_LOGGING_LEVEL=DEBUG
@@ -42,7 +45,8 @@ export ZRB_LLM_SHOW_TOOL_CALL_RESULT=true
 export ZRB_LLM_SHOW_TOOL_CALL_PREPARATION=true
 
 # Read the instruction and execute
-zrb llm chat \
+# Use the absolute path to the project's venv to ensure reliability
+../../../.venv/bin/zrb llm chat \
     --interactive false \
     --yolo true \
     --message "$(cat ../instruction.md)"

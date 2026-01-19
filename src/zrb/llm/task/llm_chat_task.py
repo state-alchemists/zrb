@@ -205,6 +205,12 @@ class LLMChatTask(BaseTask):
             list(middleware) + self._confirmation_middlewares
         )
 
+    def add_trigger(self, *trigger: Callable[[], Any]):
+        self.append_trigger(*trigger)
+
+    def append_trigger(self, *trigger: Callable[[], Any]):
+        self._triggers += trigger
+
     async def _exec_action(self, ctx: AnyContext) -> Any:
         from zrb.llm.app.lexer import CLIStyleLexer
         from zrb.llm.app.ui import UI
