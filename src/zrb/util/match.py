@@ -54,7 +54,9 @@ def fuzzy_match(text: str, pattern: str) -> tuple[bool, float]:
     return True, score
 
 
-def _find_subsequence_range(hay: str, needle: str, start: int = 0) -> tuple[int, int] | None:
+def _find_subsequence_range(
+    hay: str, needle: str, start: int = 0
+) -> tuple[int, int] | None:
     """
     Try to locate needle in hay as a subsequence starting at `start`.
     Returns (start_index, end_index) where end_index is the index AFTER the last matched character.
@@ -70,7 +72,7 @@ def _find_subsequence_range(hay: str, needle: str, start: int = 0) -> tuple[int,
                 first_pos = i
             j += 1
         i += 1
-    
+
     if j == len(needle):
         return first_pos, i
     return None

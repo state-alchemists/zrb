@@ -9,6 +9,7 @@ from prompt_toolkit.completion import (
     PathCompleter,
 )
 from prompt_toolkit.document import Document
+
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.util.match import fuzzy_match
 
@@ -84,9 +85,7 @@ class InputCompleter(Completer):
                 # Exec Command: Suggest History
                 if self._is_command(cmd, self._exec_commands):
                     # Filter history
-                    matches = [
-                        h for h in self._cmd_history if h.startswith(arg_prefix)
-                    ]
+                    matches = [h for h in self._cmd_history if h.startswith(arg_prefix)]
                     # Sort matches by length (shorter first) as heuristic? Or just recent?
                     # Since _cmd_history is set (unique), we lose order.
                     # But Python 3.7+ dicts preserve insertion order, so if we used dict keys, we kept order.
@@ -98,9 +97,10 @@ class InputCompleter(Completer):
 
                 # Check if we are typing the second part (argument) strictly
                 # (Re-evaluating logic for other commands which only take 1 arg usually)
-                if not ((len(parts) == 1 and text_before_cursor.endswith(" ")) or (
-                    len(parts) == 2 and not text_before_cursor.endswith(" ")
-                )):
+                if not (
+                    (len(parts) == 1 and text_before_cursor.endswith(" "))
+                    or (len(parts) == 2 and not text_before_cursor.endswith(" "))
+                ):
                     return
 
                 arg_prefix = parts[1] if len(parts) == 2 else ""
@@ -164,7 +164,7 @@ class InputCompleter(Completer):
                             parts = line.split(";", 1)
                             if len(parts) == 2:
                                 line = parts[1]
-                        
+
                         if line:
                             # Remove existing to update position to end (most recent)
                             if line in unique_cmds:
@@ -172,7 +172,7 @@ class InputCompleter(Completer):
                             unique_cmds[line] = None
             except Exception:
                 pass
-        
+
         return list(unique_cmds.keys())
 
     def _is_command(self, cmd: str, cmd_list: list[str]) -> bool:
@@ -240,22 +240,24 @@ class InputCompleter(Completer):
         for _, f in matches[:20]:
             yield Completion(f, start_position=-len(text))
 
-    def _get_recursive_files(
-        self, root: str = ".", limit: int = 5000
-    ) -> list[str]:
+    def _get_recursive_files(self, root: str = ".", limit: int = 5000) -> list[str]:
         # Simple walker with exclusions
         paths = []
         # Check if current dir is hidden
         cwd_is_hidden = os.path.basename(os.path.abspath(root)).startswith(".")
-        
+
         try:
             for dirpath, dirnames, filenames in os.walk(root):
                 # Exclude hidden directories unless root is hidden
                 if not cwd_is_hidden:
                     dirnames[:] = [d for d in dirnames if not d.startswith(".")]
-                
+
                 # Exclude common ignores
-                dirnames[:] = [d for d in dirnames if d not in ("node_modules", "__pycache__", "venv", ".venv")]
+                dirnames[:] = [
+                    d
+                    for d in dirnames
+                    if d not in ("node_modules", "__pycache__", "venv", ".venv")
+                ]
 
                 rel_dir = os.path.relpath(dirpath, root)
                 if rel_dir == ".":

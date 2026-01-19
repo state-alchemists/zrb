@@ -602,6 +602,18 @@ class Config:
     def LLM_FILE_ANALYSIS_TOKEN_THRESHOLD(self, value: int):
         os.environ[f"{self.ENV_PREFIX}_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD"] = str(value)
 
+    @property
+    def LLM_PROMPT_DIR(self) -> str:
+        return get_env(
+            "LLM_PROMPT_DIR",
+            os.path.join(f".{self.ROOT_GROUP_NAME}", "llm", "prompt"),
+            self.ENV_PREFIX,
+        )
+
+    @LLM_PROMPT_DIR.setter
+    def LLM_PROMPT_DIR(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_PROMPT_DIR"] = value
+
     def _get_max_threshold(self, factor: float) -> int:
         return get_max_token_threshold(
             factor, self.LLM_MAX_TOKENS_PER_MINUTE, self.LLM_MAX_TOKENS_PER_REQUEST

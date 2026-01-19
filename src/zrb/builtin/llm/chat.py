@@ -9,7 +9,10 @@ from zrb.llm.prompt.claude_compatibility import (
     create_claude_compatibility_prompt,
 )
 from zrb.llm.prompt.compose import PromptManager, new_prompt
-from zrb.llm.prompt.default import get_assistant_system_prompt
+from zrb.llm.prompt.default import (
+    get_mandate_prompt,
+    get_persona_prompt,
+)
 from zrb.llm.prompt.note import create_note_prompt
 from zrb.llm.prompt.system_context import system_context
 from zrb.llm.prompt.zrb import create_zrb_prompt
@@ -31,7 +34,6 @@ from zrb.llm.tool.sub_agent import create_sub_agent_tool
 from zrb.llm.tool.web import open_web_page, search_internet
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
 from zrb.runner.cli import cli
-
 
 skill_manager = SkillManager()
 note_manager = NoteManager()
@@ -104,7 +106,8 @@ joke_agent = create_sub_agent_tool(
 )
 
 llm_chat.prompt_manager.add_middleware(
-    new_prompt(get_assistant_system_prompt(CFG.LLM_ASSISTANT_NAME)),
+    new_prompt(get_persona_prompt(CFG.LLM_ASSISTANT_NAME)),
+    new_prompt(get_mandate_prompt()),
     system_context,
     create_note_prompt(note_manager),
     create_claude_compatibility_prompt(skill_manager),

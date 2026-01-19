@@ -26,15 +26,15 @@ from zrb.llm.app.keybinding import create_output_keybindings
 from zrb.llm.app.layout import create_input_field, create_layout, create_output_field
 from zrb.llm.app.redirection import StreamToUI
 from zrb.llm.app.style import create_style
+from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.task.llm_task import LLMTask
 from zrb.session.any_session import AnySession
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
-from zrb.util.cli.markdown import render_markdown
-from zrb.util.string.name import get_random_name
-from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.util.ascii_art.banner import create_banner
+from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_faint
+from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
     from pydantic_ai import UserContent
@@ -121,9 +121,7 @@ class UI:
         )
         # Output Area (Read-only chat history)
         help_text = self._get_help_text()
-        full_greeting = create_banner(
-            self._ascii_art, f"{greeting}\n{help_text}"
-        )
+        full_greeting = create_banner(self._ascii_art, f"{greeting}\n{help_text}")
         self._output_field = create_output_field(full_greeting, output_lexer)
         self._output_field.control.key_bindings = create_output_keybindings(
             self._input_field
@@ -383,11 +381,11 @@ class UI:
             if text.strip().lower().startswith(prefix):
                 if self._is_thinking:
                     return False
-                
+
                 shell_cmd = text.strip()[len(prefix) :].strip()
                 if not shell_cmd:
                     return True
-                
+
                 buff.reset()
                 # Run in background
                 self._running_llm_task = asyncio.create_task(
@@ -400,11 +398,11 @@ class UI:
         self._is_thinking = True
         get_app().invalidate()
         timestamp = datetime.now().strftime("%H:%M")
-        
+
         try:
             self.append_to_output(f"\n💻 {timestamp} >>\n$ {cmd}\n")
             self.append_to_output(f"\n  🔢 Executing...\n")
-            
+
             # Create subprocess
             process = await asyncio.create_subprocess_shell(
                 cmd,
@@ -412,7 +410,7 @@ class UI:
                 stderr=asyncio.subprocess.PIPE,
             )
             is_first_output = True
-            
+
             # Read output streams
             async def read_stream(stream, is_stderr=False):
                 while True:
@@ -420,8 +418,10 @@ class UI:
                     line = await stream.readline()
                     if not line:
                         break
-                    decoded_line = line.decode('utf-8', errors='replace')
-                    decoded_line = decoded_line.replace("\n", "\n  ").replace("\r", "\r  ")
+                    decoded_line = line.decode("utf-8", errors="replace")
+                    decoded_line = decoded_line.replace("\n", "\n  ").replace(
+                        "\r", "\r  "
+                    )
                     if is_first_output:
                         decoded_line = f"  {decoded_line}"
                         is_first_output = False
@@ -429,16 +429,17 @@ class UI:
                     self.append_to_output(decoded_line, end="")
 
             await asyncio.gather(
-                read_stream(process.stdout),
-                read_stream(process.stderr, is_stderr=True)
+                read_stream(process.stdout), read_stream(process.stderr, is_stderr=True)
             )
-            
+
             return_code = await process.wait()
-            
+
             if return_code == 0:
-                 self.append_to_output(f"\n  ✅ Command finished successfully.\n")
+                self.append_to_output(f"\n  ✅ Command finished successfully.\n")
             else:
-                 self.append_to_output(f"\n  ❌ Command failed with exit code {return_code}.\n")
+                self.append_to_output(
+                    f"\n  ❌ Command failed with exit code {return_code}.\n"
+                )
 
         except asyncio.CancelledError:
             self.append_to_output("\n[Cancelled]\n")
@@ -522,9 +523,7 @@ class UI:
                     self._history_manager.save(name)
                     self.append_to_output(f"\n  💾 Conversation saved as: {name}\n")
                 except Exception as e:
-                    self.append_to_output(
-                        f"\n  ❌ Failed to save conversation: {e}\n"
-                    )
+                    self.append_to_output(f"\n  ❌ Failed to save conversation: {e}\n")
                 buff.reset()
                 return True
         return False
@@ -570,13 +569,9 @@ class UI:
                     os.makedirs(os.path.dirname(expanded_path), exist_ok=True)
                     with open(expanded_path, "w", encoding="utf-8") as f:
                         f.write(content)
-                    self.append_to_output(
-                        f"\n  📝 Last output redirected to: {path}\n"
-                    )
+                    self.append_to_output(f"\n  📝 Last output redirected to: {path}\n")
                 except Exception as e:
-                    self.append_to_output(
-                        f"\n  ❌ Failed to redirect output: {e}\n"
-                    )
+                    self.append_to_output(f"\n  ❌ Failed to redirect output: {e}\n")
 
                 buff.reset()
                 return True
