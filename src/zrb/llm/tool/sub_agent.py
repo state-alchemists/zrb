@@ -5,7 +5,8 @@ from zrb.llm.config.config import LLMConfig
 from zrb.llm.config.config import llm_config as default_config
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_limiter
-from zrb.llm.history_manager import AnyHistoryManager, FileHistoryManager
+from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 
 
 def create_sub_agent_tool(

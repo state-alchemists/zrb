@@ -2,6 +2,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.attr.type import BoolAttr, StrAttr, fstring
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
@@ -12,7 +13,8 @@ from zrb.llm.app.confirmation.handler import ConfirmationMiddleware
 from zrb.llm.config.config import LLMConfig
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.config.limiter import LLMLimiter
-from zrb.llm.history_manager import AnyHistoryManager
+from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.prompt.compose import PromptManager
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.util.attachment import get_attachments
@@ -74,12 +76,15 @@ class LLMChatTask(BaseTask):
         ui_save_commands: list[str] = [],
         ui_load_commands: list[str] = [],
         ui_redirect_output_commands: list[str] = [],
+        ui_yolo_toggle_commands: list[str] = [],
         ui_greeting: StrAttr | None = None,
         render_ui_greeting: bool = True,
         ui_assistant_name: StrAttr | None = None,
         render_ui_assistant_name: bool = True,
         ui_jargon: StrAttr | None = None,
         render_ui_jargon: bool = True,
+        ui_ascii_art_name: StrAttr | None = None,
+        render_ui_ascii_art_name: bool = True,
         triggers: list[Callable[[], Any]] = [],
         confirmation_middlewares: list[ConfirmationMiddleware] = [],
         markdown_theme: "Theme | None" = None,
@@ -135,7 +140,11 @@ class LLMChatTask(BaseTask):
         self._model_settings = model_settings
         self._conversation_name = conversation_name
         self._render_conversation_name = render_conversation_name
-        self._history_manager = history_manager
+        self._history_manager = (
+            FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
+            if history_manager is None
+            else history_manager
+        )
         self._tool_confirmation = tool_confirmation
         self._yolo = yolo
         self._ui_summarize_commands = ui_summarize_commands
@@ -145,12 +154,15 @@ class LLMChatTask(BaseTask):
         self._ui_save_commands = ui_save_commands
         self._ui_load_commands = ui_load_commands
         self._ui_redirect_output_commands = ui_redirect_output_commands
+        self._ui_yolo_toggle_commands = ui_yolo_toggle_commands
         self._ui_greeting = ui_greeting
         self._render_ui_greeting = render_ui_greeting
         self._ui_assistant_name = ui_assistant_name
         self._render_ui_assistant_name = render_ui_assistant_name
         self._ui_jargon = ui_jargon
         self._render_ui_jargon = render_ui_jargon
+        self._ui_ascii_art_name = ui_ascii_art_name
+        self._render_ui_ascii_art_name = render_ui_ascii_art_name
         self._triggers = triggers
         self._confirmation_middlewares = confirmation_middlewares
         self._markdown_theme = markdown_theme
@@ -200,6 +212,9 @@ class LLMChatTask(BaseTask):
             ctx, self._ui_assistant_name, "", self._render_ui_assistant_name
         )
         ui_jargon = get_str_attr(ctx, self._ui_jargon, "", self._render_ui_jargon)
+        ui_ascii_art_name = get_str_attr(
+            ctx, self._ui_ascii_art_name, "", self._render_ui_ascii_art_name
+        )
 
         llm_task_core = LLMTask(
             name=f"{self.name}-process",
@@ -231,9 +246,11 @@ class LLMChatTask(BaseTask):
         ui = UI(
             greeting=ui_greeting,
             assistant_name=ui_assistant_name,
+            ascii_art_name=ui_ascii_art_name,
             jargon=ui_jargon,
             output_lexer=CLIStyleLexer(),
             llm_task=llm_task_core,
+            history_manager=self._history_manager,
             initial_message=initial_message,
             initial_attachments=initial_attachments,
             conversation_session_name=initial_conversation_name,
@@ -247,6 +264,7 @@ class LLMChatTask(BaseTask):
             info_commands=self._ui_info_commands,
             save_commands=self._ui_save_commands,
             load_commands=self._ui_load_commands,
+            yolo_toggle_commands=self._ui_yolo_toggle_commands,
             redirect_output_commands=self._ui_redirect_output_commands,
             model=self._get_model(ctx),
         )

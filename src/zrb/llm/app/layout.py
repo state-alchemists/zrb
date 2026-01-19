@@ -9,9 +9,11 @@ from prompt_toolkit.lexers import Lexer
 from prompt_toolkit.widgets import Frame, TextArea
 
 from zrb.llm.app.completion import InputCompleter
+from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 
 
 def create_input_field(
+    history_manager: AnyHistoryManager,
     attach_commands: list[str],
     exit_commands: list[str],
     info_commands: list[str],
@@ -26,6 +28,7 @@ def create_input_field(
         multiline=True,
         wrap_lines=True,
         completer=InputCompleter(
+            history_manager=history_manager,
             attach_commands=attach_commands,
             exit_commands=exit_commands,
             info_commands=info_commands,

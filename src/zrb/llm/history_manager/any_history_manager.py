@@ -17,3 +17,7 @@ class AnyHistoryManager(ABC):
     @abstractmethod
     def update(self, conversation_name: str, messages: "list[ModelMessage]"):
         pass
+
+    @abstractmethod
+    def search(self, keyword: str) -> list[str]:
+        pass

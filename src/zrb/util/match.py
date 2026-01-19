@@ -40,25 +40,27 @@ def fuzzy_match(text: str, pattern: str) -> tuple[bool, float]:
             last_pos = idx + len(token)
         else:
             # fallback to subsequence matching
-            pos = _find_subsequence_pos(text_cmp, token, last_pos)
-            if pos is None:
+            res = _find_subsequence_range(text_cmp, token, last_pos)
+            if res is None:
                 return False, 0.0
+
+            pos, end_pos = res
 
             # subsequence match is less preferred than contiguous substring
             score += pos + 0.5 * len(token)
-            last_pos = pos + len(token)
+            last_pos = end_pos
     # prefer shorter texts when score ties, so include length as tiebreaker
     score += 0.01 * len(text)
     return True, score
 
 
-def _find_subsequence_pos(hay: str, needle: str, start: int = 0) -> int | None:
+def _find_subsequence_range(hay: str, needle: str, start: int = 0) -> tuple[int, int] | None:
     """
     Try to locate needle in hay as a subsequence starting at `start`.
-    Returns the index of the first matched character of the subsequence or None if not match.
+    Returns (start_index, end_index) where end_index is the index AFTER the last matched character.
     """
     if not needle:
-        return start
+        return start, start
     i = start
     j = 0
     first_pos = None
@@ -68,4 +70,7 @@ def _find_subsequence_pos(hay: str, needle: str, start: int = 0) -> int | None:
                 first_pos = i
             j += 1
         i += 1
-    return first_pos if j == len(needle) else None
+    
+    if j == len(needle):
+        return first_pos, i
+    return None

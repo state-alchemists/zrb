@@ -7,11 +7,13 @@ from prompt_toolkit.completion import (
     PathCompleter,
 )
 from prompt_toolkit.document import Document
+from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 
 
 class InputCompleter(Completer):
     def __init__(
         self,
+        history_manager: AnyHistoryManager,
         attach_commands: list[str] = [],
         exit_commands: list[str] = [],
         info_commands: list[str] = [],
@@ -20,15 +22,16 @@ class InputCompleter(Completer):
         redirect_output_commands: list[str] = [],
         summarize_commands: list[str] = [],
     ):
-        self.attach_commands = attach_commands
-        self.exit_commands = exit_commands
-        self.info_commands = info_commands
-        self.save_commands = save_commands
-        self.load_commands = load_commands
-        self.redirect_output_commands = redirect_output_commands
-        self.summarize_commands = summarize_commands
+        self._history_manager = history_manager
+        self._attach_commands = attach_commands
+        self._exit_commands = exit_commands
+        self._info_commands = info_commands
+        self._save_commands = save_commands
+        self._load_commands = load_commands
+        self._redirect_output_commands = redirect_output_commands
+        self._summarize_commands = summarize_commands
         # expanduser=True allows ~/path
-        self.path_completer = PathCompleter(expanduser=True)
+        self._path_completer = PathCompleter(expanduser=True)
 
     def get_completions(
         self, document: Document, complete_event: CompleteEvent
@@ -40,13 +43,13 @@ class InputCompleter(Completer):
         if word.startswith("/"):
             lower_word = word.lower()
             for cmd in (
-                self.exit_commands
-                + self.attach_commands
-                + self.summarize_commands
-                + self.info_commands
-                + self.save_commands
-                + self.load_commands
-                + self.redirect_output_commands
+                self._exit_commands
+                + self._attach_commands
+                + self._summarize_commands
+                + self._info_commands
+                + self._save_commands
+                + self._load_commands
+                + self._redirect_output_commands
             ):
                 if cmd.lower().startswith(lower_word):
                     # yield match
@@ -63,5 +66,5 @@ class InputCompleter(Completer):
             fake_document = Document(text=path_part, cursor_position=len(path_part))
 
             # Delegate to PathCompleter
-            for c in self.path_completer.get_completions(fake_document, complete_event):
+            for c in self._path_completer.get_completions(fake_document, complete_event):
                 yield c

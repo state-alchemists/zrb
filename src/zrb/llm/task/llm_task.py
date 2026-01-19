@@ -12,7 +12,8 @@ from zrb.llm.config.config import LLMConfig
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limitter
-from zrb.llm.history_manager import AnyHistoryManager, FileHistoryManager
+from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.history_processor.summarizer import (
     summarize_history,
 )

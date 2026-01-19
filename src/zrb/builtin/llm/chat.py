@@ -14,7 +14,7 @@ from zrb.llm.prompt.note import create_note_prompt
 from zrb.llm.prompt.system_context import system_context
 from zrb.llm.prompt.zrb import create_zrb_prompt
 from zrb.llm.skill.manager import SkillManager
-from zrb.llm.task.chat_task import LLMChatTask
+from zrb.llm.task.llm_chat_task import LLMChatTask
 from zrb.llm.tool.bash import run_shell_command
 from zrb.llm.tool.file import (
     list_files,
@@ -31,13 +31,12 @@ from zrb.llm.tool.sub_agent import create_sub_agent_tool
 from zrb.llm.tool.web import open_web_page, search_internet
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
 from zrb.runner.cli import cli
-from zrb.util.ascii_art.banner import create_banner
 
 
 def _get_ui_greeting(ctx: AnySharedContext) -> str | None:
     assistant_name = _get_ui_assistant_name(ctx)
     jargon = _get_ui_jargon(ctx)
-    return create_banner(text=f"{assistant_name}\n{jargon}")
+    return f"{assistant_name}\n{jargon}"
 
 
 def _get_ui_assistant_name(ctx: AnySharedContext) -> str:
@@ -83,7 +82,8 @@ llm_chat = LLMChatTask(
     ui_info_commands=["/info", "/help"],
     ui_save_commands=["/save"],
     ui_load_commands=["/load"],
-    ui_redirect_output_commands=[">"],
+    ui_yolo_toggle_commands=["/yolo"],
+    ui_redirect_output_commands=[">", "/redirect"],
 )
 cli.add_task(llm_chat)
 

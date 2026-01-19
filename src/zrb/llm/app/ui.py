@@ -32,6 +32,9 @@ from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.string.name import get_random_name
+from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.util.ascii_art.banner import create_banner
+from zrb.util.cli.style import stylize_faint
 
 if TYPE_CHECKING:
     from pydantic_ai import UserContent
@@ -44,9 +47,11 @@ class UI:
         self,
         greeting: str,
         assistant_name: str,
+        ascii_art_name: str,
         jargon: str,
         output_lexer: Lexer,
         llm_task: LLMTask,
+        history_manager: AnyHistoryManager,
         initial_message: Any = "",
         initial_attachments: "list[UserContent]" = [],
         conversation_session_name: str = "",
@@ -61,12 +66,15 @@ class UI:
         save_commands: list[str] = [],
         load_commands: list[str] = [],
         redirect_output_commands: list[str] = [],
+        yolo_toggle_commands: list[str] = [],
         model: "Model | str | None" = None,
     ):
         self._is_thinking = False
         self._running_llm_task: asyncio.Task | None = None
         self._llm_task = llm_task
+        self._history_manager = history_manager
         self._assistant_name = assistant_name
+        self._ascii_art_name = ascii_art_name
         self._jargon = jargon
         self._initial_message = initial_message
         self._conversation_session_name = conversation_session_name
@@ -83,7 +91,9 @@ class UI:
         self._save_commands = save_commands
         self._load_commands = load_commands
         self._redirect_output_commands = redirect_output_commands
+        self._yolo_toggle_commands = yolo_toggle_commands
         self._trigger_tasks: list[asyncio.Task] = []
+        self._last_result_data: str | None = None
         # Attachments
         self._pending_attachments: "list[UserContent]" = list(initial_attachments)
         # Confirmation Handler
@@ -97,6 +107,7 @@ class UI:
         self._style = create_style()
         # Input Area
         self._input_field = create_input_field(
+            history_manager=self._history_manager,
             attach_commands=self._attach_commands,
             exit_commands=self._exit_commands,
             info_commands=self._info_commands,
@@ -106,7 +117,11 @@ class UI:
             summarize_commands=self._summarize_commands,
         )
         # Output Area (Read-only chat history)
-        self._output_field = create_output_field(greeting, output_lexer)
+        help_text = self._get_help_text()
+        full_greeting = create_banner(
+            self._ascii_art_name, f"{greeting}\n{help_text}"
+        )
+        self._output_field = create_output_field(full_greeting, output_lexer)
         self._output_field.control.key_bindings = create_output_keybindings(
             self._input_field
         )
@@ -233,6 +248,41 @@ class UI:
             mouse_support=True,
         )
 
+    def _get_help_text(self) -> str:
+        help_lines = ["\nAvailable Commands:"]
+
+        def add_cmd_help(commands, description):
+            if commands:
+                cmds = ", ".join(f"{cmd}" for cmd in commands)
+                if cmds:
+                    help_lines.append(f"  {cmds:<30} : {description}")
+
+        if len(self._exit_commands) > 0:
+            add_cmd_help(self._exit_commands, "Exit the application")
+        if len(self._info_commands) > 0:
+            add_cmd_help(self._info_commands, "Show this help message")
+        if len(self._attach_commands) > 0:
+            attach_cmd = self._attach_commands[0]
+            add_cmd_help(self._attach_commands, f"Attach file (usage: {attach_cmd} <path>)")
+        if len(self._save_commands) > 0:
+            save_cmd = self._save_commands[0]
+            add_cmd_help(self._save_commands, f"Save conversation (usage: {save_cmd} <name>)")
+        if len(self._load_commands) > 0:
+            load_cmd = self._load_commands[0]
+            add_cmd_help(self._load_commands, f"Load conversation (usage: {load_cmd} <name>)")
+        if len(self._redirect_output_commands) > 0:
+            redirect_cmd = self._redirect_output_commands[0]
+            add_cmd_help(
+                self._redirect_output_commands,
+                f"Save last output to file (usage: {redirect_cmd} <file>)",
+            )
+        if len(self._summarize_commands) > 0:
+            add_cmd_help(self._summarize_commands, "Summarize conversation history")
+        if len(self._yolo_toggle_commands) > 0:
+            add_cmd_help(self._yolo_toggle_commands, "Toggle YOLO mode")
+
+        return "\n".join(help_lines) + "\n"
+
     def _get_info_bar_text(self) -> AnyFormattedText:
         from prompt_toolkit.formatted_text import HTML
 
@@ -295,7 +345,17 @@ class UI:
             # Handle other commands
             if self._handle_exit_command(event):
                 return
+            if self._handle_info_command(event):
+                return
+            if self._handle_save_command(event):
+                return
+            if self._handle_load_command(event):
+                return
+            if self._handle_redirect_command(event):
+                return
             if self._handle_attach_command(event):
+                return
+            if self._handle_toggle_yolo(event):
                 return
 
             # If we are thinking, ignore input
@@ -308,6 +368,17 @@ class UI:
         @app_keybindings.add("c-space")  # Ctrl+Space (Fallback)
         def _(event):
             event.current_buffer.insert_text("\n")
+
+    def _handle_toggle_yolo(self, event) -> bool:
+        buff = event.current_buffer
+        text = buff.text
+        if text.strip().lower() in self._yolo_toggle_commands:
+            if self._is_thinking:
+                return False
+            self._yolo = not self._yolo
+            buff.reset()
+            return True
+        return False
 
     def _handle_multiline(self, event) -> bool:
         buff = event.current_buffer
@@ -343,6 +414,92 @@ class UI:
         if text.strip().lower() in self._exit_commands:
             event.app.exit()
             return True
+        return False
+
+    def _handle_info_command(self, event) -> bool:
+        buff = event.current_buffer
+        text = buff.text
+        if text.strip().lower() in self._info_commands:
+            self.append_to_output(stylize_faint(self._get_help_text()))
+            buff.reset()
+            return True
+        return False
+
+    def _handle_save_command(self, event) -> bool:
+        buff = event.current_buffer
+        text = buff.text.strip()
+        for cmd in self._save_commands:
+            prefix = f"{cmd} "
+            if text.lower().startswith(prefix):
+                name = text[len(prefix) :].strip()
+                if not name:
+                    continue
+                try:
+                    history = self._history_manager.load(
+                        self._conversation_session_name
+                    )
+                    self._history_manager.update(name, history)
+                    self._history_manager.save(name)
+                    self.append_to_output(f"\n  💾 Conversation saved as: {name}\n")
+                except Exception as e:
+                    self.append_to_output(
+                        f"\n  ❌ Failed to save conversation: {e}\n"
+                    )
+                buff.reset()
+                return True
+        return False
+
+    def _handle_load_command(self, event) -> bool:
+        buff = event.current_buffer
+        text = buff.text.strip()
+        for cmd in self._load_commands:
+            prefix = f"{cmd} "
+            if text.lower().startswith(prefix):
+                name = text[len(prefix) :].strip()
+                if not name:
+                    continue
+                self._conversation_session_name = name
+                self.append_to_output(
+                    f"\n  📂 Conversation session switched to: {name}\n"
+                )
+                buff.reset()
+                return True
+        return False
+
+    def _handle_redirect_command(self, event) -> bool:
+        buff = event.current_buffer
+        text = buff.text.strip()
+        for cmd in self._redirect_output_commands:
+            prefix = f"{cmd} "
+            if text.lower().startswith(prefix):
+                path = text[len(prefix) :].strip()
+                if not path:
+                    continue
+
+                content = self._last_result_data
+                if not content:
+                    self.append_to_output(
+                        "\n  ❌ No AI response available to redirect.\n"
+                    )
+                    buff.reset()
+                    return True
+
+                try:
+                    # Write to file
+                    expanded_path = os.path.abspath(os.path.expanduser(path))
+                    os.makedirs(os.path.dirname(expanded_path), exist_ok=True)
+                    with open(expanded_path, "w", encoding="utf-8") as f:
+                        f.write(content)
+                    self.append_to_output(
+                        f"\n  📝 Last output redirected to: {path}\n"
+                    )
+                except Exception as e:
+                    self.append_to_output(
+                        f"\n  ❌ Failed to redirect output: {e}\n"
+                    )
+
+                buff.reset()
+                return True
         return False
 
     def _handle_attach_command(self, event) -> bool:
@@ -454,6 +611,7 @@ class UI:
             # Check for final text output
             if result_data is not None:
                 if isinstance(result_data, str):
+                    self._last_result_data = result_data
                     width = self._get_output_field_width()
                     self.append_to_output("\n")
                     self.append_to_output(

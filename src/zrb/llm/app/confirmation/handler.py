@@ -69,7 +69,7 @@ class ConfirmationHandler:
 
     def _get_confirm_user_message(self, call: Any) -> str:
         args_section = ""
-        if call.args:
+        if f"{call.args}" != "{}":
             args_str = self._format_args(call.args)
             args_section = f"       Arguments:\n{args_str}\n"
         return (

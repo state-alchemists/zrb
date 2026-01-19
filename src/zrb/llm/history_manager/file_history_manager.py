@@ -6,6 +6,7 @@ if TYPE_CHECKING:
     from pydantic_ai import ModelMessage
 
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.util.match import fuzzy_match
 
 
 class FileHistoryManager(AnyHistoryManager):
@@ -67,3 +68,24 @@ class FileHistoryManager(AnyHistoryManager):
                 json.dump(data, f, indent=2)
         except OSError as e:
             print(f"Error: Failed to save history for {conversation_name}: {e}")
+
+    def search(self, keyword: str) -> list[str]:
+        if not os.path.exists(self._history_dir):
+            return []
+
+        matches = []
+        for filename in os.listdir(self._history_dir):
+            if not filename.endswith(".json"):
+                continue
+
+            # Remove extension to get session name
+            session_name = filename[:-5]
+
+            is_match, score = fuzzy_match(session_name, keyword)
+            if is_match:
+                matches.append((session_name, score))
+
+        # Sort by score (lower is better)
+        matches.sort(key=lambda x: x[1])
+
+        return [m[0] for m in matches]
