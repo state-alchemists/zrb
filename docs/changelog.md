@@ -1,5 +1,9 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.0.0a2
+
+- **Add imports for LLM package**
+
 ## 2.0.0a1
 
 - **Refactor: Major Architectural Overhaul**:
