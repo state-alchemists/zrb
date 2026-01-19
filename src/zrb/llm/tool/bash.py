@@ -15,6 +15,8 @@ async def run_shell_command(command: str, timeout: int = 30) -> str:
 
     **USAGE GUIDELINES:**
     - Use non-interactive commands.
+    - **AVOID complex Bash syntax** (like brace expansion `{1..5}`) as it may not work in all environments.
+    - **PREFER Python one-liners** (`python -c "..."`) for loops or complex logic to ensure safety and compatibility.
     - If a command is expected to produce massive output, use `timeout` or pipe to a file.
     - The output is streamed to the console in real-time.
 

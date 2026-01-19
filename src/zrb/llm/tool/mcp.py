@@ -20,7 +20,7 @@ def load_mcp_config(config_file_name: str | None = None) -> list[Any]:
         # Traverse from home to cwd
         rel_path = os.path.relpath(cwd, home)
         current = home
-        
+
         # Check home
         path = os.path.join(current, config_file_name)
         if os.path.isfile(path):
@@ -42,7 +42,7 @@ def load_mcp_config(config_file_name: str | None = None) -> list[Any]:
         return []
 
     merged_servers: dict[str, Any] = {}
-    
+
     for config_file in config_files:
         try:
             with open(config_file, "r", encoding="utf-8") as f:
@@ -64,25 +64,14 @@ def load_mcp_config(config_file_name: str | None = None) -> list[Any]:
                 command = _expand_env_vars(config["command"])
                 args = [_expand_env_vars(arg) for arg in config.get("args", [])]
                 env = {
-                    k: _expand_env_vars(v) 
-                    for k, v in config.get("env", {}).items()
+                    k: _expand_env_vars(v) for k, v in config.get("env", {}).items()
                 } or None
-                
-                servers.append(
-                    MCPServerStdio(
-                        command=command,
-                        args=args,
-                        env=env
-                    )
-                )
+
+                servers.append(MCPServerStdio(command=command, args=args, env=env))
             elif "url" in config:
                 # SSE
                 url = _expand_env_vars(config["url"])
-                servers.append(
-                    MCPServerSSE(
-                        url=url
-                    )
-                )
+                servers.append(MCPServerSSE(url=url))
         except Exception as e:
             print(f"Warning: Failed to create MCP server '{server_name}': {e}")
 

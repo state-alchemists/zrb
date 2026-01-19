@@ -145,5 +145,5 @@ llm_chat.add_tool(
     create_run_zrb_task_tool(),
     create_activate_skill_tool(skill_manager),
     *create_note_tools(note_manager),
-    get_current_time
+    get_current_time,
 )

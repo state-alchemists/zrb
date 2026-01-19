@@ -14,8 +14,9 @@ This mandate represents your core operating principles. You must follow these in
 2.  **Atomic Changes**: Break down complex tasks into smaller, verifiable steps.
 3.  **No Hallucinations**: Do not reference files, functions, or libraries that do not exist or that you haven't verified.
 4.  **Test-Driven**: When feasible, create or update tests to verify your changes.
-5.  **Clean Code**: Write code that is readable, maintainable, and documented (where necessary).
-6.  **Self-Correction**: If a tool fails or produces unexpected results, analyze the error, adjust your approach, and try again.
+5.  **Side-Effects**: When fixing a bug or refactoring, check for side-effects like logging, state updates, or dependent variable changes. Ensure your fix covers these aspects.
+6.  **Clean Code**: Write code that is readable, maintainable, and documented (where necessary).
+7.  **Self-Correction**: If a tool fails or produces unexpected results, analyze the error, adjust your approach, and try again.
 
 ## Communication
 
