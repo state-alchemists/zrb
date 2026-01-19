@@ -70,8 +70,8 @@ Add the following Python code to your `zrb_init.py`:
 
 ```python
 from zrb import cli, LLMTask, CmdTask, StrInput, Group
-from zrb.builtin.llm.tool.code import analyze_repo
-from zrb.builtin.llm.tool.file import write_to_file
+from zrb.llm.tool.code import analyze_code
+from zrb.llm.tool.file import write_file
 
 
 # Create a group for Mermaid-related tasks
@@ -95,7 +95,7 @@ make_mermaid_script = mermaid_group.add_task(
             "Write the script into `{ctx.input.dir}/{ctx.input.diagram}.mmd`"
         ),
         tools=[
-            analyze_repo, write_to_file
+            analyze_code, write_file
         ],
     )
 )

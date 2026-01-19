@@ -1,3 +1,4 @@
+import fnmatch
 import os
 import re
 from typing import Literal
@@ -49,38 +50,6 @@ def _read_pdf_file_content(file_path: str) -> str:
         )
 
 
-def read_file_with_line_numbers(
-    file_path: str, replace_map: dict[str, str] = {}
-) -> str:
-    """Reads a file and returns content with line numbers.
-
-    Args:
-        file_path: The path to the file.
-        replace_map: A dictionary of strings to replace.
-
-    Returns:
-        The content of the file with line numbers and replacements applied.
-    """
-    content = read_file(file_path, replace_map)
-    if not content:
-        return ""
-    lines = content.splitlines()
-    numbered_lines = [f"{i + 1} | {line}" for i, line in enumerate(lines)]
-    return "\n".join(numbered_lines)
-
-
-def read_dir(dir_path: str) -> list[str]:
-    """Reads a directory and returns a list of file names.
-
-    Args:
-        dir_path: The path to the directory.
-
-    Returns:
-        A list of file names in the directory.
-    """
-    return [f for f in os.listdir(os.path.abspath(os.path.expanduser(dir_path)))]
-
-
 def write_file(
     file_path: str,
     content: str | list[str],
@@ -106,3 +75,53 @@ def write_file(
         content += "\n"
     with open(abs_file_path, mode) as f:
         f.write(content)
+
+
+def list_files(
+    path: str = ".",
+    include_hidden: bool = False,
+    depth: int = 3,
+    excluded_patterns: list[str] = [],
+) -> list[str]:
+    all_files: list[str] = []
+    abs_path = os.path.abspath(os.path.expanduser(path))
+    if not os.path.exists(abs_path):
+        raise FileNotFoundError(f"Path does not exist: {path}")
+
+    patterns_to_exclude = excluded_patterns
+    if depth <= 0:
+        depth = 1
+
+    initial_depth = abs_path.rstrip(os.sep).count(os.sep)
+    for root, dirs, files in os.walk(abs_path, topdown=True):
+        current_depth = root.rstrip(os.sep).count(os.sep) - initial_depth
+        if current_depth >= depth - 1:
+            del dirs[:]
+
+        dirs[:] = [
+            d
+            for d in dirs
+            if (include_hidden or not d.startswith("."))
+            and not _is_excluded(d, patterns_to_exclude)
+        ]
+
+        for filename in files:
+            if (include_hidden or not filename.startswith(".")) and not _is_excluded(
+                filename, patterns_to_exclude
+            ):
+                full_path = os.path.join(root, filename)
+                rel_full_path = os.path.relpath(full_path, abs_path)
+                if not _is_excluded(rel_full_path, patterns_to_exclude):
+                    all_files.append(rel_full_path)
+    return sorted(all_files)
+
+
+def _is_excluded(name: str, patterns: list[str]) -> bool:
+    for pattern in patterns:
+        if fnmatch.fnmatch(name, pattern):
+            return True
+        parts = name.split(os.path.sep)
+        for part in parts:
+            if fnmatch.fnmatch(part, pattern):
+                return True
+    return False

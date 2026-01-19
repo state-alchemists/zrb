@@ -35,6 +35,8 @@ from zrb.input.option_input import OptionInput
 from zrb.input.password_input import PasswordInput
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
+from zrb.llm.config.config import LLMConfig, llm_config
+from zrb.llm.config.limiter import LLMLimiter, llm_limiter
 from zrb.llm.task.llm_chat_task import LLMChatTask
 from zrb.llm.task.llm_task import LLMTask
 from zrb.runner.cli import cli
@@ -110,4 +112,8 @@ __all__ = [
     "Xcom",
     "LLMTask",
     "LLMChatTask",
+    "LLMConfig",
+    "llm_config",
+    "LLMLimiter",
+    "llm_limiter",
 ]

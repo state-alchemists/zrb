@@ -19,7 +19,9 @@ from zrb.llm.prompt.zrb import create_zrb_prompt
 from zrb.llm.skill.manager import SkillManager
 from zrb.llm.task.llm_chat_task import LLMChatTask
 from zrb.llm.tool.bash import run_shell_command
+from zrb.llm.tool.code import analyze_code
 from zrb.llm.tool.file import (
+    analyze_file,
     list_files,
     read_file,
     read_files,
@@ -133,6 +135,8 @@ llm_chat.add_tool(
     write_files,
     replace_in_file,
     search_files,
+    analyze_file,
+    analyze_code,
     search_internet,
     open_web_page,
     create_list_zrb_task_tool(),
