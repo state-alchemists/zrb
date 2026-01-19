@@ -1,7 +1,7 @@
 import os
 import re
 
-from zrb.llm.tool.file import list_files, read_file
+from zrb.util.file import list_files, read_file
 
 
 def expand_prompt(prompt: str) -> str:
@@ -51,8 +51,7 @@ def expand_prompt(prompt: str) -> str:
         elif os.path.isdir(abs_path):
             try:
                 # Use list_files for directory structure
-                files_dict = list_files(abs_path, depth=2)
-                file_list = files_dict.get("files", [])
+                file_list = list_files(abs_path, depth=2)
                 content = "\n".join(file_list)
                 if not content:
                     content = "(Empty directory)"
