@@ -10,6 +10,7 @@ from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.llm.app.confirmation.handler import ConfirmationMiddleware
 from zrb.llm.config.config import LLMConfig
+from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.history_manager import AnyHistoryManager
 from zrb.llm.prompt.compose import PromptManager
@@ -118,7 +119,7 @@ class LLMChatTask(BaseTask):
             successor=successor,
             print_fn=print_fn,
         )
-        self._llm_config = llm_config
+        self._llm_config = default_llm_config if llm_config is None else llm_config
         self._llm_limitter = llm_limitter
         self._system_prompt = system_prompt
         self._render_system_prompt = render_system_prompt
@@ -247,6 +248,7 @@ class LLMChatTask(BaseTask):
             save_commands=self._ui_save_commands,
             load_commands=self._ui_load_commands,
             redirect_output_commands=self._ui_redirect_output_commands,
+            model=self._get_model(ctx),
         )
         return await ui.run_async()
 
@@ -257,3 +259,10 @@ class LLMChatTask(BaseTask):
         if conversation_name.strip() == "":
             conversation_name = get_random_name()
         return conversation_name
+
+    def _get_model(self, ctx: AnyContext) -> "str | Model":
+        model = self._model
+        rendered_model = get_attr(ctx, model, None, auto_render=self._render_model)
+        if rendered_model is not None:
+            return rendered_model
+        return self._llm_config.model

@@ -2,7 +2,7 @@ import json
 import os
 import subprocess
 import tempfile
-from typing import Any, Awaitable, Callable, Protocol
+from typing import Any, Awaitable, Callable, Protocol, TextIO
 
 import yaml
 
@@ -13,7 +13,14 @@ from zrb.util.yaml import yaml_dump
 class UIProtocol(Protocol):
     async def ask_user(self, prompt: str) -> str: ...
 
-    def append_to_output(self, text: str, end: str = "\n"): ...
+    def append_to_output(
+        self,
+        *values: object,
+        sep: str = " ",
+        end: str = "\n",
+        file: TextIO | None = None,
+        flush: bool = False,
+    ): ...
 
 
 ConfirmationMiddleware = Callable[
@@ -60,10 +67,20 @@ class ConfirmationHandler:
                 continue
             return result
 
-    def _get_confirm_user_message(self, call: Any):
-        arg_line_prefix = " " * 7
+    def _get_confirm_user_message(self, call: Any) -> str:
+        args_section = ""
+        if call.args:
+            args_str = self._format_args(call.args)
+            args_section = f"       Arguments:\n{args_str}\n"
+        return (
+            f"  🎰 Executing tool '{call.tool_name}'\n"
+            f"{args_section}"
+            "  ❓ Allow tool Execution? (✅ Y | 🛑 n | ✏️ e)? "
+        )
+
+    def _format_args(self, args: Any) -> str:
+        indent = " " * 7
         try:
-            args = call.args
             if isinstance(args, str):
                 try:
                     args = json.loads(args)
@@ -71,16 +88,9 @@ class ConfirmationHandler:
                     pass
             args_str = yaml_dump(args)
             # Indent nicely for display
-            args_str = "\n".join(
-                [f"{arg_line_prefix}{line}" for line in args_str.splitlines()]
-            )
+            return "\n".join([f"{indent}{line}" for line in args_str.splitlines()])
         except Exception:
-            args_str = f"{arg_line_prefix}{call.args}"
-        return (
-            "  🎰 Executing tool '{tool_name}'\n"
-            "       Arguments:\n{args_str}\n"
-            "  ❓ Allow tool Execution? (✅ Y | 🛑 n | ✏️ e)? "
-        ).format(tool_name=call.tool_name, args_str=args_str)
+            return f"{indent}{args}"
 
 
 async def last_confirmation(

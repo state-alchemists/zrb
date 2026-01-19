@@ -1,7 +1,7 @@
 import asyncio
 import contextlib
+import os
 import re
-import string
 from collections.abc import Callable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, TextIO
@@ -9,25 +9,25 @@ from typing import TYPE_CHECKING, Any, TextIO
 from prompt_toolkit import Application
 from prompt_toolkit.application import get_app
 from prompt_toolkit.document import Document
-from prompt_toolkit.formatted_text import HTML, AnyFormattedText
+from prompt_toolkit.formatted_text import AnyFormattedText
 from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.layout import HSplit, Layout, Window, WindowAlign
-from prompt_toolkit.layout.containers import Float, FloatContainer
-from prompt_toolkit.layout.controls import FormattedTextControl
-from prompt_toolkit.layout.menus import CompletionsMenu
+from prompt_toolkit.layout import Layout
 from prompt_toolkit.lexers import Lexer
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.styles import Style
-from prompt_toolkit.widgets import Frame, TextArea
 
 from zrb.context.shared_context import SharedContext
-from zrb.llm.app.completion import InputCompleter
 from zrb.llm.app.confirmation.handler import (
     ConfirmationHandler,
     ConfirmationMiddleware,
     last_confirmation,
 )
+from zrb.llm.app.keybinding import create_output_keybindings
+from zrb.llm.app.layout import create_input_field, create_layout, create_output_field
 from zrb.llm.app.redirection import StreamToUI
+from zrb.llm.app.style import create_style
+from zrb.llm.task.llm_task import LLMTask
+from zrb.session.any_session import AnySession
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.util.cli.markdown import render_markdown
@@ -35,10 +35,8 @@ from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
     from pydantic_ai import UserContent
+    from pydantic_ai.models import Model
     from rich.theme import Theme
-
-
-EXIT_COMMANDS = ["/q", "/bye", "/quit", "/exit"]
 
 
 class UI:
@@ -48,7 +46,7 @@ class UI:
         assistant_name: str,
         jargon: str,
         output_lexer: Lexer,
-        llm_task: AnyTask,
+        llm_task: LLMTask,
         initial_message: Any = "",
         initial_attachments: "list[UserContent]" = [],
         conversation_session_name: str = "",
@@ -63,6 +61,7 @@ class UI:
         save_commands: list[str] = [],
         load_commands: list[str] = [],
         redirect_output_commands: list[str] = [],
+        model: "Model | str | None" = None,
     ):
         self._is_thinking = False
         self._running_llm_task: asyncio.Task | None = None
@@ -74,6 +73,7 @@ class UI:
         if not self._conversation_session_name:
             self._conversation_session_name = get_random_name()
         self._yolo = yolo
+        self._model = model
         self._triggers = triggers
         self._markdown_theme = markdown_theme
         self._summarize_commands = summarize_commands
@@ -94,19 +94,28 @@ class UI:
         self._waiting_for_confirmation = False
         self._confirmation_future: asyncio.Future[str] | None = None
         # UI Styles
-        self._style = self._create_style()
+        self._style = create_style()
         # Input Area
-        self._input_field = self._create_input_field()
+        self._input_field = create_input_field(
+            attach_commands=self._attach_commands,
+            exit_commands=self._exit_commands,
+            info_commands=self._info_commands,
+            save_commands=self._save_commands,
+            load_commands=self._load_commands,
+            redirect_output_commands=self._redirect_output_commands,
+            summarize_commands=self._summarize_commands,
+        )
         # Output Area (Read-only chat history)
-        self._output_field = self._create_output_field(greeting, output_lexer)
-        self._output_field.control.key_bindings = self._create_output_keybindings(
+        self._output_field = create_output_field(greeting, output_lexer)
+        self._output_field.control.key_bindings = create_output_keybindings(
             self._input_field
         )
-        self._layout = self._create_layout(
+        self._layout = create_layout(
             title=self._assistant_name,
             jargon=self._jargon,
             input_field=self._input_field,
             output_field=self._output_field,
+            info_bar_text=self._get_info_bar_text,
             status_bar_text=self._get_status_bar_text,
         )
         # Key Bindings
@@ -157,6 +166,7 @@ class UI:
             self._trigger_tasks.clear()
 
     async def _trigger_loop(self, trigger_fn: Callable[[], Any]):
+        """Handle external triggers and submit user message when trigger activated"""
         while True:
             try:
                 if asyncio.iscoroutinefunction(trigger_fn):
@@ -174,6 +184,7 @@ class UI:
                 pass
 
     def _on_first_render(self, app: Application):
+        """Handle initial message (the message sent when creating the UI)"""
         self._application.after_render.remove_handler(self._on_first_render)
         self._submit_user_message(self._llm_task, self._initial_message)
 
@@ -208,52 +219,6 @@ class UI:
     def application(self) -> Application:
         return self._application
 
-    def _create_style(self) -> Style:
-        return Style.from_dict(
-            {
-                "frame.label": "bg:#000000 #ffff00",
-                "thinking": "ansigreen italic",
-                "faint": "#888888",
-                "output_field": "bg:#000000 #eeeeee",
-                "input_field": "bg:#000000 #eeeeee",
-                "text": "#eeeeee",
-                "status": "reverse",
-                "bottom-toolbar": "bg:#333333 #aaaaaa",
-            }
-        )
-
-    def _create_output_field(self, greeting: str, lexer: Lexer) -> TextArea:
-        return TextArea(
-            text=greeting.rstrip() + "\n\n",
-            read_only=True,
-            scrollbar=False,
-            wrap_lines=True,
-            lexer=lexer,
-            focus_on_click=True,
-            focusable=True,
-            style="class:output_field",
-        )
-
-    def _create_input_field(self) -> TextArea:
-        return TextArea(
-            height=4,
-            prompt=HTML('<style color="ansibrightblue"><b>&gt;&gt;&gt; </b></style>'),
-            multiline=True,
-            wrap_lines=True,
-            completer=InputCompleter(
-                attach_commands=self._attach_commands,
-                exit_commands=self._exit_commands,
-                info_commands=self._info_commands,
-                save_commands=self._save_commands,
-                load_commands=self._load_commands,
-                redirect_output_commands=self._redirect_output_commands,
-                summarize_commands=self._summarize_commands,
-            ),
-            complete_while_typing=True,
-            focus_on_click=True,
-            style="class:input_field",
-        )
-
     def _create_application(
         self,
         layout: Layout,
@@ -268,82 +233,32 @@ class UI:
             mouse_support=True,
         )
 
-    def _create_layout(
-        self,
-        title: str,
-        jargon: str,
-        input_field: TextArea,
-        output_field: TextArea,
-        status_bar_text: AnyFormattedText,
-    ) -> Layout:
-        title_bar_text = HTML(
-            f" <style bg='ansipurple' color='white'><b> {title} </b></style> "
-            f"<style color='#888888'>| {jargon}</style>"
+    def _get_info_bar_text(self) -> AnyFormattedText:
+        from prompt_toolkit.formatted_text import HTML
+
+        model_name = "Unknown"
+        if self._model:
+            if isinstance(self._model, str):
+                model_name = self._model
+            elif hasattr(self._model, "model_name"):
+                model_name = getattr(self._model, "model_name")
+            else:
+                model_name = str(self._model)
+        yolo_text = (
+            "<style color='ansired'><b>ON</b></style>"
+            if self._yolo
+            else "<style color='ansigreen'>OFF</style>"
         )
-        return Layout(
-            FloatContainer(
-                content=HSplit(
-                    [
-                        # Title Bar
-                        Window(
-                            height=2,
-                            content=FormattedTextControl(title_bar_text),
-                            style="class:title-bar",
-                            align=WindowAlign.CENTER,
-                        ),
-                        # Chat History
-                        Frame(output_field, title="Conversation", style="class:frame"),
-                        # Input Area
-                        Frame(
-                            input_field,
-                            title="(ENTER to send, CTRL+ENTER for newline, ESC to cancel)",
-                            style="class:input-frame",
-                        ),
-                        # Status Bar
-                        Window(
-                            height=1,
-                            content=FormattedTextControl(status_bar_text),
-                            style="class:bottom-toolbar",
-                        ),
-                    ]
-                ),
-                floats=[
-                    Float(
-                        xcursor=True,
-                        ycursor=True,
-                        content=CompletionsMenu(max_height=16, scroll_offset=1),
-                    ),
-                ],
-            ),
-            focused_element=input_field,
+        return HTML(
+            f" 🤖 <b>Model:</b> {model_name} "
+            f"| 🗣️ <b>Session:</b> {self._conversation_session_name} "
+            f"| 🤠 <b>YOLO:</b> {yolo_text} "
         )
 
-    def _get_status_bar_text(self):
+    def _get_status_bar_text(self) -> AnyFormattedText:
         if self._is_thinking:
             return [("class:thinking", f" {self._assistant_name} is thinking... ")]
         return [("class:status", " Ready ")]
-
-    def _create_output_keybindings(self, input_field: TextArea):
-        kb = KeyBindings()
-
-        @kb.add("c-c")
-        def _(event):
-            # Copy selection to clipboard
-            data = event.current_buffer.copy_selection()
-            event.app.clipboard.set_data(data)
-
-        def redirect_focus(event):
-            get_app().layout.focus(input_field)
-            input_field.buffer.insert_text(event.data)
-
-        for char in string.printable:
-            # Skip control characters (Tab, Newline, etc.)
-            #  to preserve navigation/standard behavior
-            if char in "\t\n\r\x0b\x0c":
-                continue
-            kb.add(char)(redirect_focus)
-
-        return kb
 
     def _setup_app_keybindings(self, app_keybindings: KeyBindings, llm_task: AnyTask):
         @app_keybindings.add("c-c")
@@ -365,48 +280,27 @@ class UI:
 
         @app_keybindings.add("enter")
         def _(event):
-            buff = event.current_buffer
-            text = buff.text
-
-            # Handle confirmation if waiting
-            if self._waiting_for_confirmation and self._confirmation_future:
-                # Echo the user input
-                self.append_to_output(text + "\n")
-                if not self._confirmation_future.done():
-                    self._confirmation_future.set_result(text)
-                buff.reset()
+            # Handle confirmation and multiline
+            if self._handle_confirmation(event):
+                return
+            if self._handle_multiline(event):
                 return
 
-            # Check for multiline indicator (trailing backslash)
-            if text.strip().endswith("\\"):
-                # If cursor is at the end, remove backslash and insert newline
-                if buff.cursor_position == len(text):
-                    # Remove the backslash (assuming it's the last char)
-                    # We need to be careful with whitespace after backslash if we used strip()
-                    # Let's just check the character before cursor
-                    if text.endswith("\\"):
-                        buff.delete_before_cursor(count=1)
-                        buff.insert_text("\n")
-                        return
-
-            # If input is empty, do nothing
+            # Handle empty inputs
+            buff = event.current_buffer
+            text = buff.text
             if not text.strip():
                 return
 
-            if text.strip().lower() in EXIT_COMMANDS:
-                event.app.exit()
+            # Handle other commands
+            if self._handle_exit_command(event):
                 return
-
-            if text.strip().lower().startswith("/attach "):
-                path = text.strip()[8:].strip()
-                self._handle_attach_command(path)
-                buff.reset()
+            if self._handle_attach_command(event):
                 return
 
             # If we are thinking, ignore input
             if self._is_thinking:
                 return
-
             self._submit_user_message(llm_task, text)
             buff.reset()
 
@@ -415,20 +309,65 @@ class UI:
         def _(event):
             event.current_buffer.insert_text("\n")
 
-    def _handle_attach_command(self, path: str):
-        # Validate path
-        import os
+    def _handle_multiline(self, event) -> bool:
+        buff = event.current_buffer
+        text = buff.text
+        # Check for multiline indicator (trailing backslash)
+        if text.strip().endswith("\\"):
+            # If cursor is at the end, remove backslash and insert newline
+            if buff.cursor_position == len(text):
+                # Remove the backslash (assuming it's the last char)
+                # We need to be careful with whitespace after backslash if we used strip()
+                # Let's just check the character before cursor
+                if text.endswith("\\"):
+                    buff.delete_before_cursor(count=1)
+                    buff.insert_text("\n")
+                    return True
+        return False
 
+    def _handle_confirmation(self, event) -> bool:
+        buff = event.current_buffer
+        text = buff.text
+        if self._waiting_for_confirmation and self._confirmation_future:
+            # Echo the user input
+            self.append_to_output(text + "\n")
+            if not self._confirmation_future.done():
+                self._confirmation_future.set_result(text)
+            buff.reset()
+            return True
+        return False
+
+    def _handle_exit_command(self, event) -> bool:
+        buff = event.current_buffer
+        text = buff.text
+        if text.strip().lower() in self._exit_commands:
+            event.app.exit()
+            return True
+        return False
+
+    def _handle_attach_command(self, event) -> bool:
+        buff = event.current_buffer
+        text = buff.text
+        for attach_command in self._attach_commands:
+            if text.strip().lower().startswith(f"{attach_command} "):
+                path = text.strip()[8:].strip()
+                self._submit_attachment(path)
+                buff.reset()
+                return True
+        return False
+
+    def _submit_attachment(self, path: str):
+        # Validate path
+        self.append_to_output(f"\n  🔢 Attach {path}...\n")
         expanded_path = os.path.abspath(os.path.expanduser(path))
         if not os.path.exists(expanded_path):
-            self.append_to_output(f"\n❌ File not found: {path}\n")
+            self.append_to_output(f"\n  ❌ File not found: {path}\n")
             return
-
         if expanded_path not in self._pending_attachments:
             self._pending_attachments.append(expanded_path)
-            self.append_to_output(f"\n📎 Attached: {path}\n")
+            self.append_to_output(f"\n  📎 Attached: {path}\n")
         else:
-            self.append_to_output(f"\n📎 Already attached: {path}\n")
+            self.append_to_output(f"\n  📎 Already attached: {path}\n")
 
     def append_to_output(
         self,
@@ -473,21 +412,20 @@ class UI:
 
     def _submit_user_message(self, llm_task: AnyTask, user_message: str):
         timestamp = datetime.now().strftime("%H:%M")
-
         # 1. Render User Message
-        user_header = f"💬 {timestamp} >>\n"
-        self.append_to_output(f"\n{user_header}{user_message.strip()}\n")
-
+        self.append_to_output(f"\n💬 {timestamp} >>\n{user_message.strip()}\n")
         # 2. Trigger AI Response
         attachments = list(self._pending_attachments)
         self._pending_attachments.clear()
-
         self._running_llm_task = asyncio.create_task(
             self._stream_ai_response(llm_task, user_message, attachments)
         )
 
     async def _stream_ai_response(
-        self, llm_task: AnyTask, user_message: str, attachments: list[str] = []
+        self,
+        llm_task: AnyTask,
+        user_message: str,
+        attachments: "list[UserContent]" = [],
     ):
         from zrb.llm.agent.agent import tool_confirmation_var
 
@@ -495,23 +433,12 @@ class UI:
         get_app().invalidate()  # Update status bar
         try:
             timestamp = datetime.now().strftime("%H:%M")
-            ai_header = f"🤖 {timestamp} >>\n"
             # Header first
-            self.append_to_output(f"\n{ai_header}")
-            session_input = {
-                "message": user_message,
-                "session": self._conversation_session_name,
-                "yolo": self._yolo,
-                "attachments": attachments,
-            }
-            shared_ctx = SharedContext(
-                input=session_input,
-                print_fn=self.append_to_output,
-                is_web_mode=True,
-            )
-            session = Session(shared_ctx)
+            self.append_to_output(f"\n🤖 {timestamp} >>\n")
+            session = self._create_sesion_for_llm_task(user_message, attachments)
 
             # Run the task with stdout/stderr redirected to UI
+            self.append_to_output("\n  🔢 Streaming response...\n")
             stdout_capture = StreamToUI(self.append_to_output)
 
             # Set context var for tool confirmation
@@ -527,13 +454,7 @@ class UI:
             # Check for final text output
             if result_data is not None:
                 if isinstance(result_data, str):
-                    try:
-                        width = get_app().output.get_size().columns - 4
-                        if width < 10:
-                            width = None
-                    except Exception:
-                        width = None
-
+                    width = self._get_output_field_width()
                     self.append_to_output("\n")
                     self.append_to_output(
                         render_markdown(
@@ -551,3 +472,29 @@ class UI:
             self._is_thinking = False
             self._running_llm_task = None
             get_app().invalidate()
+
+    def _create_sesion_for_llm_task(
+        self, user_message: str, attachments: "list[UserContent]"
+    ) -> AnySession:
+        """Create session to run LLMTask"""
+        session_input = {
+            "message": user_message,
+            "session": self._conversation_session_name,
+            "yolo": self._yolo,
+            "attachments": attachments,
+        }
+        shared_ctx = SharedContext(
+            input=session_input,
+            print_fn=self.append_to_output,
+            is_web_mode=True,
+        )
+        return Session(shared_ctx)
+
+    def _get_output_field_width(self) -> int | None:
+        try:
+            width = get_app().output.get_size().columns - 4
+            if width < 10:
+                width = None
+        except Exception:
+            width = None
+        return width

@@ -225,20 +225,14 @@ class LLMTask(BaseTask):
             conversation_name = get_random_name()
         return conversation_name
 
-    def _get_model_settings(
-        self,
-        ctx: AnyContext,
-    ) -> "ModelSettings | None":
+    def _get_model_settings(self, ctx: AnyContext) -> "ModelSettings | None":
         model_settings = self._model_settings
         rendered_model_settings = get_attr(ctx, model_settings, None)
         if rendered_model_settings is not None:
             return rendered_model_settings
         return self._llm_config.model_settings
 
-    def _get_model(
-        self,
-        ctx: AnyContext,
-    ) -> "str | Model":
+    def _get_model(self, ctx: AnyContext) -> "str | Model":
         model = self._model
         rendered_model = get_attr(ctx, model, None, auto_render=self._render_model)
         if rendered_model is not None:
