@@ -2,10 +2,10 @@ import asyncio
 from decimal import Decimal
 
 from zrb import (
+    AnyContext,
     BaseTrigger,
     Callback,
     CmdTask,
-    Context,
     FloatInput,
     Group,
     IntInput,
@@ -19,17 +19,11 @@ from zrb import (
     web_auth_config,
 )
 
-web_auth_config.set_enable_auth(True)
+web_auth_config.enable_auth = True
 web_auth_config.append_user(
     User(username="jack", password="jack", accessible_tasks=["ppn", "llm-chat"])
 )
-web_auth_config.set_guest_accessible_tasks(["ppn"])
-
-# from zrb.builtin import llm_ask
-# from pydantic_ai.mcp import MCPServerSSE
-
-# server = MCPServerSSE("http://10.32.11.213:9002/sse")
-# llm_ask.add_toolset(server)
+web_auth_config.guest_accessible_tasks = ["ppn"]
 
 
 @make_task(
@@ -52,7 +46,7 @@ web_auth_config.set_guest_accessible_tasks(["ppn"])
     successor=CmdTask(name="yay", cmd="echo success"),
     group=cli,
 )
-def ppn(ctx: Context):
+def ppn(ctx: AnyContext):
     """
     This task calculates the discrepancy between the price and the payed amount.
     Indonesian's PPN tax sucks BTW
@@ -113,7 +107,7 @@ calculate_perimeter = geometry.add_task(
     group=geometry,
     alias="calculate-area",
 )
-async def calculate_area(ctx: Context):
+async def calculate_area(ctx: AnyContext):
     ctx.print("Let's pretend this is a heavy calculation")
     await asyncio.sleep(1)
     ctx.print("Now the heavy calculation is done")
@@ -128,7 +122,7 @@ calculate_all = geometry.add_task(
         action="Perimeter: {ctx.xcom.perimeter.pop()}, Area: {ctx.xcom.area.pop()}",
     )
 )
-calculate_all << [calculate_area, calculate_perimeter]
+assert calculate_all << [calculate_area, calculate_perimeter]
 
 
 figlet = cli.add_task(
@@ -138,7 +132,7 @@ figlet = cli.add_task(
 )
 
 
-async def trigger_action(ctx: Context):
+async def trigger_action(ctx: AnyContext):
     for i in range(2):
         await asyncio.sleep(0.001)
         xcom: Xcom = ctx.xcom["exchange"]
@@ -179,7 +173,7 @@ cli.add_task(
 
 
 def create_long_process(message: str, delay: float):
-    async def long_process(ctx: Context):
+    async def long_process(ctx: AnyContext):
         ctx.print(f"Starting {message}")
         await asyncio.sleep(delay)
         ctx.print(f"Finishing {message}")
@@ -198,8 +192,8 @@ create_clorine = cli.add_task(
 create_salt = cli.add_task(
     Task(name="create-salt", action=create_long_process("Create salt", 2))
 )
-create_natrium >> create_salt
-create_clorine >> create_salt
+assert create_natrium >> create_salt
+assert create_clorine >> create_salt
 
 
 cli.add_task(Task(name="test-error", action="{ctx.input.oraumum}"))

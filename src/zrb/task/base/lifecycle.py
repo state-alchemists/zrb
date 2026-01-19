@@ -1,6 +1,7 @@
 import asyncio
 from typing import Any
 
+from zrb.context.print_fn import PrintFn
 from zrb.context.shared_context import SharedContext
 from zrb.session.any_session import AnySession
 from zrb.session.session import Session
@@ -12,6 +13,7 @@ from zrb.util.run import run_async
 async def run_and_cleanup(
     task: AnyTask,
     session: AnySession | None = None,
+    print_fn: PrintFn | None = None,
     str_kwargs: dict[str, str] | None = None,
     kwargs: dict[str, Any] | None = None,
 ) -> Any:
@@ -21,11 +23,11 @@ async def run_and_cleanup(
     """
     # Ensure a session exists
     if session is None:
-        session = Session(shared_ctx=SharedContext())
+        session = Session(shared_ctx=SharedContext(print_fn=print_fn))
 
     # Create the main task execution coroutine
     main_task_coro = asyncio.create_task(
-        run_task_async(task, session, str_kwargs, kwargs)
+        run_task_async(task, session, print_fn, str_kwargs, kwargs)
     )
 
     try:
@@ -70,6 +72,7 @@ async def run_and_cleanup(
 async def run_task_async(
     task: AnyTask,
     session: AnySession | None = None,
+    print_fn: PrintFn | None = None,
     str_kwargs: dict[str, str] | None = None,
     kwargs: dict[str, Any] | None = None,
 ) -> Any:
@@ -78,7 +81,7 @@ async def run_task_async(
     Sets up the session and initiates the root task execution chain.
     """
     if session is None:
-        session = Session(shared_ctx=SharedContext())
+        session = Session(shared_ctx=SharedContext(print_fn=print_fn))
 
     # Populate shared context with inputs and environment variables
     fill_shared_context_inputs(session.shared_ctx, task, str_kwargs, kwargs)

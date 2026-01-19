@@ -12,3 +12,4 @@ test-generated
 test-generated-*
 playground/generated
 ZRB.md
+zrb_debug.log

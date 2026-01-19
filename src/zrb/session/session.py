@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Coroutine
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.context.context import AnyContext, Context
 from zrb.group.any_group import AnyGroup
-from zrb.session.any_session import AnySession, TAnySession
+from zrb.session.any_session import AnySession
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 from zrb.session_state_logger.session_state_logger_factory import session_state_logger
 from zrb.task.any_task import AnyTask

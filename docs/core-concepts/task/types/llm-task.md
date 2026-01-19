@@ -62,8 +62,8 @@ You can even provide other, more specialized `LLMTask` instances as tools. This 
 
 ```python
 from zrb import LLMTask, cli
-from zrb.builtin.llm.tool.sub_agent import create_sub_agent_tool
-from zrb.builtin.llm.tool.web import open_web_page # An example built-in tool
+from zrb.llm.tool.sub_agent import create_sub_agent_tool
+from zrb.llm.tool.web import open_web_page # An example built-in tool
 
 # Create a subagent tool that is an expert at fetching IT news
 it_news_fetcher_tool = create_sub_agent_tool(
@@ -91,14 +91,11 @@ You can set default configurations for all `LLMTask` instances using the `llm_co
 ```python
 from zrb import llm_config
 
-# Set a default model name (e.g., "gpt-4o", "gemini-pro")
-llm_config.set_default_model_name("gpt-4o")
+# Set a default model name (e.g., "openai:gpt-4o", "google-vertex:gemini-1.5-pro")
+llm_config.model = "openai:gpt-4o"
 
 # Set a default API key (best practice is to use an environment variable)
-# llm_config.set_default_model_api_key("your-api-key")
-
-# Set a default system prompt
-llm_config.set_default_system_prompt("You are a helpful assistant.")
+# llm_config.api_key = "your-api-key"
 ```
 
 **When to use**: Use `LLMTask` whenever you want to add AI capabilities to your workflows. It's perfect for content generation, summarization, complex decision-making, and building AI-powered tools.

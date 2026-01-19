@@ -1,12 +1,46 @@
 import logging
+import os
 from unittest import mock
+from unittest.mock import patch
 
 from zrb.config.config import Config
+from zrb.config.helper import get_current_shell, get_env, get_log_level
 
 
 def test_logger():
     config = Config()
     assert isinstance(config.LOGGER, logging.Logger)
+
+
+def test_env_prefix():
+    # Default
+    config = Config()
+    assert config.ENV_PREFIX == "ZRB"
+
+    # Custom
+    with patch.dict(os.environ, {"_ZRB_ENV_PREFIX": "MYAPP"}):
+        assert config.ENV_PREFIX == "MYAPP"
+
+
+def test_getenv_single():
+    config = Config()
+    # No env set, returns default
+    assert get_env("TEST_VAR", "default", config.ENV_PREFIX) == "default"
+
+    # Env set
+    with patch.dict(os.environ, {"ZRB_TEST_VAR": "value"}):
+        assert get_env("TEST_VAR", "default", config.ENV_PREFIX) == "value"
+
+
+def test_getenv_list():
+    config = Config()
+    # First match
+    with patch.dict(os.environ, {"ZRB_VAR1": "val1", "ZRB_VAR2": "val2"}):
+        assert get_env(["VAR1", "VAR2"], "default", config.ENV_PREFIX) == "val1"
+
+    # Second match
+    with patch.dict(os.environ, {"ZRB_VAR2": "val2"}):
+        assert get_env(["VAR1", "VAR2"], "default", config.ENV_PREFIX) == "val2"
 
 
 def test_default_shell_env_var_set(monkeypatch):
@@ -28,6 +62,8 @@ def test_default_shell_zsh(mock_platform_system, monkeypatch):
     monkeypatch.setenv("SHELL", "/bin/zsh")
     config = Config()
     assert config.DEFAULT_SHELL == "zsh"
+    # Test helper directly
+    assert get_current_shell() == "zsh"
 
 
 @mock.patch("platform.system", return_value="Linux")
@@ -36,12 +72,34 @@ def test_default_shell_bash(mock_platform_system, monkeypatch):
     monkeypatch.setenv("SHELL", "/bin/bash")
     config = Config()
     assert config.DEFAULT_SHELL == "bash"
+    # Test helper directly
+    assert get_current_shell() == "bash"
 
 
 def test_default_editor(monkeypatch):
     monkeypatch.setenv("ZRB_EDITOR", "my-editor")
     config = Config()
     assert config.DEFAULT_EDITOR == "my-editor"
+
+
+def test_diff_edit_command():
+    config = Config()
+
+    # Test vscode
+    with patch.dict(os.environ, {"ZRB_EDITOR": "code"}):
+        assert "code --wait" in config.DEFAULT_DIFF_EDIT_COMMAND_TPL
+
+    # Test emacs
+    with patch.dict(os.environ, {"ZRB_EDITOR": "emacs"}):
+        assert "emacs --eval" in config.DEFAULT_DIFF_EDIT_COMMAND_TPL
+
+    # Test vim
+    with patch.dict(os.environ, {"ZRB_EDITOR": "vim"}):
+        assert "vim -d" in config.DEFAULT_DIFF_EDIT_COMMAND_TPL
+
+    # Test default (nano or unknown)
+    with patch.dict(os.environ, {"ZRB_EDITOR": "nano"}):
+        assert "vimdiff" in config.DEFAULT_DIFF_EDIT_COMMAND_TPL
 
 
 def test_init_modules(monkeypatch):
@@ -99,15 +157,14 @@ def test_logging_level_invalid(monkeypatch):
 
 
 def test_get_log_level():
-    config = Config()
-    assert config._get_log_level("CRITICAL") == logging.CRITICAL
-    assert config._get_log_level("ERROR") == logging.ERROR
-    assert config._get_log_level("WARN") == logging.WARNING
-    assert config._get_log_level("WARNING") == logging.WARNING
-    assert config._get_log_level("INFO") == logging.INFO
-    assert config._get_log_level("DEBUG") == logging.DEBUG
-    assert config._get_log_level("NOTSET") == logging.NOTSET
-    assert config._get_log_level("INVALID") == logging.WARNING
+    assert get_log_level("CRITICAL") == logging.CRITICAL
+    assert get_log_level("ERROR") == logging.ERROR
+    assert get_log_level("WARN") == logging.WARNING
+    assert get_log_level("WARNING") == logging.WARNING
+    assert get_log_level("INFO") == logging.INFO
+    assert get_log_level("DEBUG") == logging.DEBUG
+    assert get_log_level("NOTSET") == logging.NOTSET
+    assert get_log_level("INVALID") == logging.WARNING
 
 
 def test_load_builtin(monkeypatch):
@@ -317,40 +374,6 @@ def test_llm_api_key_none(monkeypatch):
     assert config.LLM_API_KEY is None
 
 
-def test_llm_system_prompt(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_SYSTEM_PROMPT", "my-system-prompt")
-    config = Config()
-    assert config.LLM_SYSTEM_PROMPT == "my-system-prompt"
-
-
-def test_llm_interactive_system_prompt(monkeypatch):
-    monkeypatch.setenv(
-        "ZRB_LLM_INTERACTIVE_SYSTEM_PROMPT", "my-interactive-system-prompt"
-    )
-    config = Config()
-    assert config.LLM_INTERACTIVE_SYSTEM_PROMPT == "my-interactive-system-prompt"
-
-
-def test_llm_persona(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_PERSONA", "my-persona")
-    config = Config()
-    assert config.LLM_PERSONA == "my-persona"
-
-
-def test_llm_special_instruction_prompt(monkeypatch):
-    monkeypatch.setenv(
-        "ZRB_LLM_SPECIAL_INSTRUCTION_PROMPT", "my-special-instruction-prompt"
-    )
-    config = Config()
-    assert config.LLM_SPECIAL_INSTRUCTION_PROMPT == "my-special-instruction-prompt"
-
-
-def test_llm_summarization_prompt(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_SUMMARIZATION_PROMPT", "my-summarization-prompt")
-    config = Config()
-    assert config.LLM_SUMMARIZATION_PROMPT == "my-summarization-prompt"
-
-
 def test_llm_max_requests_per_minute(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_MAX_REQUESTS_PER_MINUTE", "30")
     config = Config()
@@ -381,12 +404,6 @@ def test_llm_throttle_sleep(monkeypatch):
     assert config.LLM_THROTTLE_SLEEP == 2.0
 
 
-def test_llm_summarize_history(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_SUMMARIZE_HISTORY", "false")
-    config = Config()
-    assert not config.LLM_SUMMARIZE_HISTORY
-
-
 def test_llm_history_summarization_token_threshold(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD", "30000")
     config = Config()
@@ -409,115 +426,6 @@ def test_llm_file_analysis_token_threshold(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD", "40000")
     config = Config()
     assert config.LLM_FILE_ANALYSIS_TOKEN_THRESHOLD == 40000
-
-
-def test_llm_file_extractor_system_prompt(monkeypatch):
-    monkeypatch.setenv(
-        "ZRB_LLM_FILE_EXTRACTOR_SYSTEM_PROMPT", "my-file-extractor-prompt"
-    )
-    config = Config()
-    assert config.LLM_FILE_EXTRACTOR_SYSTEM_PROMPT == "my-file-extractor-prompt"
-
-
-def test_llm_repo_extractor_system_prompt(monkeypatch):
-    monkeypatch.setenv(
-        "ZRB_LLM_REPO_EXTRACTOR_SYSTEM_PROMPT", "my-repo-extractor-prompt"
-    )
-    config = Config()
-    assert config.LLM_REPO_EXTRACTOR_SYSTEM_PROMPT == "my-repo-extractor-prompt"
-
-
-def test_llm_repo_summarizer_system_prompt(monkeypatch):
-    monkeypatch.setenv(
-        "ZRB_LLM_REPO_SUMMARIZER_SYSTEM_PROMPT", "my-repo-summarizer-prompt"
-    )
-    config = Config()
-    assert config.LLM_REPO_SUMMARIZER_SYSTEM_PROMPT == "my-repo-summarizer-prompt"
-
-
-@mock.patch("os.path.expanduser", return_value="/home/user/.zrb-llm-history")
-def test_llm_history_dir_default(mock_expanduser, monkeypatch):
-    monkeypatch.delenv("ZRB_LLM_HISTORY_DIR", raising=False)
-    config = Config()
-    assert config.LLM_HISTORY_DIR == "/home/user/.zrb-llm-history"
-
-
-def test_llm_history_dir_custom(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_HISTORY_DIR", "/tmp/llm-history")
-    config = Config()
-    assert config.LLM_HISTORY_DIR == "/tmp/llm-history"
-
-
-def test_llm_allow_access_local_file(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_ALLOW_ACCESS_LOCAL_FILE", "0")
-    config = Config()
-    assert not config.LLM_ALLOW_ACCESS_LOCAL_FILE
-
-
-def test_llm_allow_access_shell(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_ALLOW_ACCESS_SHELL", "0")
-    config = Config()
-    assert not config.LLM_ALLOW_ACCESS_SHELL
-
-
-def test_llm_allow_open_web_page(monkeypatch):
-    # Test default value
-    monkeypatch.delenv("ZRB_LLM_ALLOW_OPEN_WEB_PAGE", raising=False)
-    config = Config()
-    assert config.LLM_ALLOW_OPEN_WEB_PAGE
-    # Test set to false
-    monkeypatch.setenv("ZRB_LLM_ALLOW_OPEN_WEB_PAGE", "0")
-    config = Config()
-    assert not config.LLM_ALLOW_OPEN_WEB_PAGE
-    # Test set to true
-    monkeypatch.setenv("ZRB_LLM_ALLOW_OPEN_WEB_PAGE", "1")
-    config = Config()
-    assert config.LLM_ALLOW_OPEN_WEB_PAGE
-
-
-def test_llm_allow_search_internet(monkeypatch):
-    # Test default value
-    monkeypatch.delenv("ZRB_LLM_ALLOW_SEARCH_INTERNET", raising=False)
-    config = Config()
-    assert config.LLM_ALLOW_SEARCH_INTERNET
-    # Test set to false
-    monkeypatch.setenv("ZRB_LLM_ALLOW_SEARCH_INTERNET", "0")
-    config = Config()
-    assert not config.LLM_ALLOW_SEARCH_INTERNET
-    # Test set to true
-    monkeypatch.setenv("ZRB_LLM_ALLOW_SEARCH_INTERNET", "1")
-    config = Config()
-    assert config.LLM_ALLOW_SEARCH_INTERNET
-
-
-def test_llm_allow_get_current_location(monkeypatch):
-    # Test default value
-    monkeypatch.delenv("ZRB_LLM_ALLOW_GET_CURRENT_LOCATION", raising=False)
-    config = Config()
-    assert config.LLM_ALLOW_GET_CURRENT_LOCATION
-    # Test set to false
-    monkeypatch.setenv("ZRB_LLM_ALLOW_GET_CURRENT_LOCATION", "0")
-    config = Config()
-    assert not config.LLM_ALLOW_GET_CURRENT_LOCATION
-    # Test set to true
-    monkeypatch.setenv("ZRB_LLM_ALLOW_GET_CURRENT_LOCATION", "1")
-    config = Config()
-    assert config.LLM_ALLOW_GET_CURRENT_LOCATION
-
-
-def test_llm_allow_get_current_weather(monkeypatch):
-    # Test default value
-    monkeypatch.delenv("ZRB_LLM_ALLOW_GET_CURRENT_WEATHER", raising=False)
-    config = Config()
-    assert config.LLM_ALLOW_GET_CURRENT_WEATHER
-    # Test set to false
-    monkeypatch.setenv("ZRB_LLM_ALLOW_GET_CURRENT_WEATHER", "0")
-    config = Config()
-    assert not config.LLM_ALLOW_GET_CURRENT_WEATHER
-    # Test set to true
-    monkeypatch.setenv("ZRB_LLM_ALLOW_GET_CURRENT_WEATHER", "1")
-    config = Config()
-    assert config.LLM_ALLOW_GET_CURRENT_WEATHER
 
 
 def test_rag_embedding_api_key(monkeypatch):
@@ -567,3 +475,49 @@ def test_banner(mock_version, monkeypatch):
     monkeypatch.setenv("ZRB_BANNER", "My Banner {VERSION}")
     config = Config()
     assert config.BANNER == "My Banner 1.2.3"
+
+
+def test_llm_configs_types():
+    # Access all LLM properties to ensure coverage
+    config = Config()
+    assert config.LLM_MODEL is None or isinstance(config.LLM_MODEL, str)
+    assert config.LLM_BASE_URL is None or isinstance(config.LLM_BASE_URL, str)
+    assert config.LLM_API_KEY is None or isinstance(config.LLM_API_KEY, str)
+
+    assert isinstance(config.LLM_MAX_REQUESTS_PER_MINUTE, int)
+    assert isinstance(config.LLM_MAX_TOKENS_PER_MINUTE, int)
+    assert isinstance(config.LLM_MAX_TOKENS_PER_REQUEST, int)
+    assert isinstance(config.LLM_THROTTLE_SLEEP, float)
+
+    assert isinstance(config.LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD, int)
+    assert isinstance(config.LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD, int)
+    assert isinstance(config.LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD, int)
+    assert isinstance(config.LLM_FILE_ANALYSIS_TOKEN_THRESHOLD, int)
+
+    assert config.RAG_EMBEDDING_API_KEY is None or isinstance(
+        config.RAG_EMBEDDING_API_KEY, str
+    )
+    assert config.RAG_EMBEDDING_BASE_URL is None or isinstance(
+        config.RAG_EMBEDDING_BASE_URL, str
+    )
+    assert isinstance(config.RAG_EMBEDDING_MODEL, str)
+    assert isinstance(config.RAG_CHUNK_SIZE, int)
+    assert isinstance(config.RAG_OVERLAP, int)
+    assert isinstance(config.RAG_MAX_RESULT_COUNT, int)
+
+    assert isinstance(config.SEARCH_INTERNET_METHOD, str)
+    assert isinstance(config.BRAVE_API_KEY, str)
+    assert isinstance(config.BRAVE_API_SAFE, str)
+    assert isinstance(config.BRAVE_API_LANG, str)
+    assert isinstance(config.SERPAPI_KEY, str)
+    assert isinstance(config.SERPAPI_SAFE, str)
+    assert isinstance(config.SERPAPI_LANG, str)
+
+    assert isinstance(config.SEARXNG_PORT, int)
+    assert isinstance(config.SEARXNG_BASE_URL, str)
+    assert isinstance(config.SEARXNG_SAFE, int)
+    assert isinstance(config.SEARXNG_LANG, str)
+
+    assert isinstance(config.BANNER, str)
+    assert isinstance(config.USE_TIKTOKEN, bool)
+    assert isinstance(config.TIKTOKEN_ENCODING_NAME, str)

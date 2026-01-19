@@ -41,11 +41,19 @@ class WebAuthConfig:
             return self._secret_key
         return CFG.WEB_SECRET_KEY
 
+    @secret_key.setter
+    def secret_key(self, secret_key: str):
+        self._secret_key = secret_key
+
     @property
     def access_token_expire_minutes(self) -> int:
         if self._access_token_expire_minutes is not None:
             return self._access_token_expire_minutes
         return CFG.WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES
+
+    @access_token_expire_minutes.setter
+    def access_token_expire_minutes(self, minutes: int):
+        self._access_token_expire_minutes = minutes
 
     @property
     def refresh_token_expire_minutes(self) -> int:
@@ -53,11 +61,19 @@ class WebAuthConfig:
             return self._refresh_token_expire_minutes
         return CFG.WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES
 
+    @refresh_token_expire_minutes.setter
+    def refresh_token_expire_minutes(self, minutes: int):
+        self._refresh_token_expire_minutes = minutes
+
     @property
     def access_token_cookie_name(self) -> str:
         if self._access_token_cookie_name is not None:
             return self._access_token_cookie_name
         return CFG.WEB_ACCESS_TOKEN_COOKIE_NAME
+
+    @access_token_cookie_name.setter
+    def access_token_cookie_name(self, name: str):
+        self._access_token_cookie_name = name
 
     @property
     def refresh_token_cookie_name(self) -> str:
@@ -65,11 +81,19 @@ class WebAuthConfig:
             return self._refresh_token_cookie_name
         return CFG.WEB_REFRESH_TOKEN_COOKIE_NAME
 
+    @refresh_token_cookie_name.setter
+    def refresh_token_cookie_name(self, name: str):
+        self._refresh_token_cookie_name = name
+
     @property
     def enable_auth(self) -> bool:
         if self._enable_auth is not None:
             return self._enable_auth
         return CFG.WEB_ENABLE_AUTH
+
+    @enable_auth.setter
+    def enable_auth(self, enable: bool):
+        self._enable_auth = enable
 
     @property
     def super_admin_username(self) -> str:
@@ -77,11 +101,19 @@ class WebAuthConfig:
             return self._super_admin_username
         return CFG.WEB_SUPER_ADMIN_USERNAME
 
+    @super_admin_username.setter
+    def super_admin_username(self, username: str):
+        self._super_admin_username = username
+
     @property
     def super_admin_password(self) -> str:
         if self._super_admin_password is not None:
             return self._super_admin_password
         return CFG.WEB_SUPER_ADMIN_PASSWORD
+
+    @super_admin_password.setter
+    def super_admin_password(self, password: str):
+        self._super_admin_password = password
 
     @property
     def guest_username(self) -> str:
@@ -89,9 +121,27 @@ class WebAuthConfig:
             return self._guest_username
         return CFG.WEB_GUEST_USERNAME
 
+    @guest_username.setter
+    def guest_username(self, username: str):
+        self._guest_username = username
+
     @property
     def guest_accessible_tasks(self) -> list[AnyTask | str]:
         return self._guest_accessible_tasks
+
+    @guest_accessible_tasks.setter
+    def guest_accessible_tasks(self, tasks: list[AnyTask | str]):
+        self._guest_accessible_tasks = tasks
+
+    @property
+    def find_user_by_username_callback(self) -> Callable[[str], "User | None"] | None:
+        return self._find_user_by_username
+
+    @find_user_by_username_callback.setter
+    def find_user_by_username_callback(
+        self, find_user_by_username: Callable[[str], "User | None"]
+    ):
+        self._find_user_by_username = find_user_by_username
 
     @property
     def default_user(self) -> "User":
@@ -126,41 +176,6 @@ class WebAuthConfig:
         if not self.enable_auth:
             return [self.default_user]
         return self._user_list + [self.super_admin, self.default_user]
-
-    def set_secret_key(self, secret_key: str):
-        self._secret_key = secret_key
-
-    def set_access_token_expire_minutes(self, minutes: int):
-        self._access_token_expire_minutes = minutes
-
-    def set_refresh_token_expire_minutes(self, minutes: int):
-        self._refresh_token_expire_minutes = minutes
-
-    def set_access_token_cookie_name(self, name: str):
-        self._access_token_cookie_name = name
-
-    def set_refresh_token_cookie_name(self, name: str):
-        self._refresh_token_cookie_name = name
-
-    def set_enable_auth(self, enable: bool):
-        self._enable_auth = enable
-
-    def set_super_admin_username(self, username: str):
-        self._super_admin_username = username
-
-    def set_super_admin_password(self, password: str):
-        self._super_admin_password = password
-
-    def set_guest_username(self, username: str):
-        self._guest_username = username
-
-    def set_guest_accessible_tasks(self, tasks: list[AnyTask | str]):
-        self._guest_accessible_tasks = tasks
-
-    def set_find_user_by_username(
-        self, find_user_by_username: Callable[[str], "User | None"]
-    ):
-        self._find_user_by_username = find_user_by_username
 
     def append_user(self, user: "User"):
         duplicates = [

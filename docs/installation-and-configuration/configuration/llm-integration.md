@@ -2,7 +2,7 @@
 
 # LLM Configuration for `zrb`
 
-`zrb` uses `pydantic-ai` under the hood to manage Large Language Model (LLM) configurations. This document outlines how to configure the LLM for `zrb` using environment variables, with suggested values for common providers like OpenAI, Gemini, OpenRouter, and DeepSeek.
+`zrb` uses `pydantic-ai` under the hood to manage Large Language Model (LLM) configurations. This document outlines how to configure the LLM for `zrb` using environment variables.
 
 ---
 
@@ -10,50 +10,72 @@
 
 The following environment variables are used to configure the LLM in `zrb`:
 
-- **`ZRB_LLM_MODEL`**: Specifies the LLM model to use (e.g., `gpt-4`, `gemini-pro`).
+- **`ZRB_LLM_MODEL`**: Specifies the LLM model to use (e.g., `openai:gpt-4o`, `google-vertex:gemini-1.5-pro`).
 - **`ZRB_LLM_API_KEY`**: The API key for the LLM provider.
 - **`ZRB_LLM_BASE_URL`**: The base URL for the LLM API (required for some providers or custom endpoints).
-- **`ZRB_LLM_SYSTEM_PROMPT`**: Optional system prompt for the LLM.
-- **`ZRB_LLM_INTERACTIVE_SYSTEM_PROMPT`**: Optional interactive system prompt.
-- **`ZRB_LLM_PERSONA`**: Optional persona for the LLM.
+
+---
+
+## Prompt Customization
+
+`zrb` allows you to override its built-in system prompts by creating a custom prompt directory.
+
+- **`ZRB_LLM_PROMPT_DIR`**: The directory where custom prompts are stored (default: `.zrb/llm/prompt` in your project root).
+
+### How it Works
+
+When `zrb` needs a system prompt, it first checks `ZRB_LLM_PROMPT_DIR` for a corresponding `.md` file. If the file exists, it overrides the default built-in prompt.
+
+Available prompt names (file names) include:
+- `persona.md`: Defines the AI assistant's personality and role.
+- `mandate.md`: Defines the core rules and safety constraints.
+- `summarizer.md`: System prompt for summarizing conversation history.
+- `file_extractor.md`: System prompt for extracting information from files.
+- `repo_extractor.md`: System prompt for extracting repository structures.
+- `repo_summarizer.md`: System prompt for summarizing repository analysis.
 
 ---
 
 ## Advanced Configuration
 
-### Access Control
+### Tool Execution Visibility
 
-These variables control the LLM's access to local files and the internet:
+These variables control the verbosity of the tool execution logs in the CLI:
 
-- **`ZRB_LLM_ALLOW_ACCESS_LOCAL_FILE`**: Set to `true` to allow the LLM to read local files (default: `false`).
-- **`ZRB_LLM_ALLOW_OPEN_WEB_PAGE`**: Set to `true` to allow the LLM to open web pages (default: `false`).
-- **`ZRB_LLM_ALLOW_SEARCH_INTERNET`**: Set to `true` to allow the LLM to search the internet (default: `false`).
+- **`ZRB_LLM_SHOW_TOOL_CALL_PREPARATION`**: Set to `1` or `true` to show the arguments being prepared for a tool call (default: `0`).
+- **`ZRB_LLM_SHOW_TOOL_CALL_RESULT`**: Set to `1` or `true` to show the result returned by a tool (default: `0`).
 
-### Rate Limiting
+### Rate Limiting and Token Management
 
-- **`ZRB_LLM_MAX_REQUESTS_PER_MINUTE`**: Limits the number of LLM API requests per minute (default: no limit).
+These variables help you manage costs and stay within provider rate limits:
+
+- **`ZRB_LLM_MAX_REQUESTS_PER_MINUTE`**: Limits the number of LLM API requests per minute (default: `60`).
+- **`ZRB_LLM_MAX_TOKENS_PER_MINUTE`**: Limits the total tokens processed per minute (default: `120000`).
+- **`ZRB_LLM_MAX_TOKENS_PER_REQUEST`**: Limits the tokens per individual request (default: `120000`).
+- **`ZRB_LLM_THROTTLE_SLEEP`**: Seconds to sleep when throttling is triggered (default: `1.0`).
+
+#### Analysis Thresholds
+- **`ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD`**: Max tokens for repo extraction (default: 40% of request limit).
+- **`ZRB_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD`**: Max tokens for repo summarization (default: 40% of request limit).
+- **`ZRB_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD`**: Max tokens for analyzing a single file (default: 40% of request limit).
 
 ### RAG Configuration
 
 For Retrieval-Augmented Generation (RAG), use the following:
 
-- **`ZRB_RAG_EMBEDDING_API_KEY`**: API key for the embedding service used in RAG.
+- **`ZRB_RAG_EMBEDDING_API_KEY`**: API key for the embedding service.
+- **`ZRB_RAG_EMBEDDING_MODEL`**: The embedding model to use (default: `text-embedding-ada-002`).
+- **`ZRB_RAG_CHUNK_SIZE`**: Size of text chunks for indexing (default: `1024`).
+- **`ZRB_RAG_OVERLAP`**: Overlap between chunks (default: `128`).
+- **`ZRB_RAG_MAX_RESULT_COUNT`**: Number of results to retrieve (default: `5`).
 
-### Summarization
+### Summarization and Context
 
-`zrb` provides built-in support for summarization to manage large conversation histories efficiently. This feature is enabled by default with the following configurations:
+`zrb` automatically summarizes conversation history to manage context window usage.
 
-#### Summarization
-- **Trigger**: When the conversation history exceeds the token threshold (`ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`, default: 60% of the model's maximum context window), the system automatically summarizes the history.
-- **Default Prompt**: The summarization prompt is designed to condense the conversation while retaining key details.
-- **Configuration**:
-  - **`ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`**: Sets the token threshold for triggering summarization (default: 60% of the model's maximum context window).
-  - **`ZRB_LLM_SUMMARIZATION_PROMPT`**: Overrides the default summarization prompt if provided.
-
-#### Workflow
-1. **Summarization**: If the conversation history exceeds the token threshold, the system summarizes it.
-2. **Continuation**: The enriched history is used for subsequent interactions.
-
+- **`ZRB_LLM_HISTORY_SUMMARIZATION_WINDOW`**: Number of recent messages to keep in the "recent history" block (default: `5`).
+- **`ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`**: The token count that triggers a summarization of the history (default: 60% of request limit).
+- **`ZRB_LLM_HISTORY_DIR`**: Directory to store conversation history (default: `~/.zrb/llm-history`).
 
 ---
 
@@ -61,76 +83,62 @@ For Retrieval-Augmented Generation (RAG), use the following:
 
 ### OpenAI
 ```env
-ZRB_LLM_MODEL=gpt-4
+ZRB_LLM_MODEL=openai:gpt-4o
 ZRB_LLM_API_KEY=your_openai_api_key
-ZRB_LLM_BASE_URL=https://api.openai.com/v1
 ```
 
-### Gemini
+### Gemini (Google Vertex AI)
 ```env
-ZRB_LLM_MODEL=gemini-2.5-flash
-ZRB_LLM_API_KEY=your_gemini_api_key
-ZRB_LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
+ZRB_LLM_MODEL=google-vertex:gemini-1.5-pro
+# Google Vertex AI typically uses Application Default Credentials (ADC)
+# Ensure you have run `gcloud auth application-default login`
 ```
 
 ### OpenRouter
 ```env
-ZRB_LLM_MODEL=openai/gpt-4
+ZRB_LLM_MODEL=openai:gpt-4o
 ZRB_LLM_API_KEY=your_openrouter_api_key
 ZRB_LLM_BASE_URL=https://openrouter.ai/api/v1
 ```
 
-### DeepSeek
+### Ollama (Local)
 ```env
-ZRB_LLM_MODEL=deepseek-chat
-ZRB_LLM_API_KEY=your_deepseek_api_key
-ZRB_LLM_BASE_URL=https://api.deepseek.com/v1
-```
-
-### Ollama
-```env
-ZRB_LLM_MODEL=llama2  # or any other model available in Ollama
-ZRB_LLM_API_KEY=random-string  # Typically not required for local Ollama instances
-ZRB_LLM_BASE_URL=http://localhost:11434  # Default Ollama API endpoint
+ZRB_LLM_MODEL=ollama:llama3
+ZRB_LLM_BASE_URL=http://localhost:11434/v1
+ZRB_LLM_API_KEY=ollama # Required by some clients, can be any string
 ```
 
 ---
 
 ## Example `.env` File
 
-Here’s an example `.env` file for OpenAI:
+Here’s an example `.env` file for a typical setup:
+
 ```env
-# OpenAI Configuration
-ZRB_LLM_MODEL=gpt-4
+# Core LLM Config
+ZRB_LLM_MODEL=openai:gpt-4o
 ZRB_LLM_API_KEY=sk-your-openai-key
-ZRB_LLM_BASE_URL=https://api.openai.com/v1
 
-# Optional Prompts
-ZRB_LLM_PERSONA=You are a helpful assistant.
+# Prompt Customization
+ZRB_LLM_PROMPT_DIR=.zrb/llm/prompt
 
-# Advanced Settings
-ZRB_LLM_ACCESS_LOCAL_FILE=false
-ZRB_LLM_ACCESS_INTERNET=false
+# Tool Debugging
+ZRB_LLM_SHOW_TOOL_CALL_PREPARATION=true
+ZRB_LLM_SHOW_TOOL_CALL_RESULT=true
+
+# Rate Limiting
 ZRB_LLM_MAX_REQUESTS_PER_MINUTE=60
-ZRB_RAG_EMBEDDING_API_KEY=your_rag_api_key
 
-# Summarization and Context Enrichment
-# ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD=48000  # Example: 60% of 80k context window
+# RAG
+ZRB_RAG_EMBEDDING_API_KEY=your_rag_api_key
 ```
 
 ## Interacting with LLM
 
 ```sh
 # One shot request
-zrb llm ask "zip project directory into project.zip"
+zrb llm chat --message "zip project directory into project.zip"
 
 # Chat session
-zrb llm chat "How is the current weather at my current location?"
+zrb llm chat --session my-session
 ```
-
----
-
-## Notes
-- Ensure all required environment variables are set before running `zrb`.
-- For providers like OpenAI and OpenRouter, the `ZRB_LLM_BASE_URL` is typically fixed. For self-hosted or custom endpoints, adjust this value accordingly.
-- Refer to the provider’s documentation for the latest model names and API endpoints.

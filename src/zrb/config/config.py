@@ -1,8 +1,15 @@
 import importlib.metadata as metadata
 import logging
 import os
-import platform
 
+from zrb.config.helper import (
+    get_current_shell,
+    get_default_diff_edit_command,
+    get_env,
+    get_log_level,
+    get_max_token_threshold,
+    limit_token_threshold,
+)
 from zrb.util.string.conversion import to_boolean
 from zrb.util.string.format import fstring_format
 
@@ -11,7 +18,7 @@ _DEFAULT_BANNER = """
    zzzzz rr rr  bb
      zz  rrr  r bbbbbb
     zz   rr     bb   bb
-   zzzzz rr     bbbbbb   {VERSION} Janggala
+   zzzzz rr     bbbbbb   {VERSION} Pollux
    _ _ . .  . _ .  _ . . .
 Your Automation Powerhouse
 ☕ Donate at: https://stalchmst.com
@@ -22,28 +29,15 @@ Your Automation Powerhouse
 
 class Config:
     def __init__(self):
-        self.__internal_default_prompt: dict[str, str] = {}
+        pass
 
     @property
     def ENV_PREFIX(self) -> str:
         return os.getenv("_ZRB_ENV_PREFIX", "ZRB")
 
-    def _getenv(self, env_name: str | list[str], default: str = "") -> str:
-        env_name_list = env_name if isinstance(env_name, list) else [env_name]
-        for env_name in env_name_list:
-            value = os.getenv(f"{self.ENV_PREFIX}_{env_name}", None)
-            if value is not None:
-                return value
-        return default
-
-    def _get_internal_default_prompt(self, name: str) -> str:
-        if name not in self.__internal_default_prompt:
-            file_path = os.path.join(
-                os.path.dirname(__file__), "default_prompt", f"{name}.md"
-            )
-            with open(file_path, "r") as f:
-                self.__internal_default_prompt[name] = f.read().strip()
-        return self.__internal_default_prompt[name]
+    @ENV_PREFIX.setter
+    def ENV_PREFIX(self, value: str):
+        os.environ["_ZRB_ENV_PREFIX"] = value
 
     @property
     def LOGGER(self) -> logging.Logger:
@@ -51,55 +45,35 @@ class Config:
 
     @property
     def DEFAULT_SHELL(self) -> str:
-        return self._getenv("SHELL", self._get_current_shell())
+        return get_env("SHELL", get_current_shell(), self.ENV_PREFIX)
 
-    def _get_current_shell(self) -> str:
-        if platform.system() == "Windows":
-            return "PowerShell"
-        current_shell = os.getenv("SHELL", "")
-        if current_shell.endswith("zsh"):
-            return "zsh"
-        return "bash"
+    @DEFAULT_SHELL.setter
+    def DEFAULT_SHELL(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_SHELL"] = value
 
     @property
     def DEFAULT_EDITOR(self) -> str:
-        return self._getenv("EDITOR", "nano")
+        return get_env("EDITOR", "nano", self.ENV_PREFIX)
+
+    @DEFAULT_EDITOR.setter
+    def DEFAULT_EDITOR(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_EDITOR"] = value
 
     @property
     def DEFAULT_DIFF_EDIT_COMMAND_TPL(self) -> str:
-        return self._getenv("DIFF_EDIT_COMMAND", self._get_default_diff_edit_command())
+        return get_env(
+            "DIFF_EDIT_COMMAND",
+            get_default_diff_edit_command(self.DEFAULT_EDITOR),
+            self.ENV_PREFIX,
+        )
 
-    def _get_default_diff_edit_command(self) -> str:
-        editor = self.DEFAULT_EDITOR
-        if editor in [
-            "code",
-            "vscode",
-            "vscodium",
-            "windsurf",
-            "cursor",
-            "zed",
-            "zeditor",
-            "agy",
-        ]:
-            return f"{editor} --wait --diff {{old}} {{new}}"
-        if editor == "emacs":
-            return 'emacs --eval \'(ediff-files "{old}" "{new}")\''
-        if editor in ["nvim", "vim"]:
-            return (
-                f"{editor} -d {{old}} {{new}} "
-                "-i NONE "
-                '-c "wincmd h | set readonly | wincmd l" '
-                '-c "highlight DiffAdd cterm=bold ctermbg=22 guibg=#005f00 | highlight DiffChange cterm=bold ctermbg=24 guibg=#005f87 | highlight DiffText ctermbg=21 guibg=#0000af | highlight DiffDelete ctermbg=52 guibg=#5f0000" '  # noqa
-                '-c "set showtabline=2 | set tabline=[Instructions]\\ :wqa(save\\ &\\ quit)\\ \\|\\ i/esc(toggle\\ edit\\ mode)" '  # noqa
-                '-c "wincmd h | setlocal statusline=OLD\\ FILE" '
-                '-c "wincmd l | setlocal statusline=%#StatusBold#NEW\\ FILE\\ :wqa(save\\ &\\ quit)\\ \\|\\ i/esc(toggle\\ edit\\ mode)" '  # noqa
-                '-c "autocmd BufWritePost * wqa"'
-            )
-        return 'vimdiff {old} {new} +"setlocal ro" +"wincmd l" +"autocmd BufWritePost <buffer> qa"'  # noqa
+    @DEFAULT_DIFF_EDIT_COMMAND_TPL.setter
+    def DEFAULT_DIFF_EDIT_COMMAND_TPL(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_DIFF_EDIT_COMMAND"] = value
 
     @property
     def INIT_MODULES(self) -> list[str]:
-        init_modules_str = self._getenv("INIT_MODULES", "")
+        init_modules_str = get_env("INIT_MODULES", "", self.ENV_PREFIX)
         if init_modules_str != "":
             return [
                 module.strip()
@@ -108,17 +82,31 @@ class Config:
             ]
         return []
 
+    @INIT_MODULES.setter
+    def INIT_MODULES(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_INIT_MODULES"] = ":".join(value)
+
     @property
     def ROOT_GROUP_NAME(self) -> str:
-        return self._getenv("ROOT_GROUP_NAME", "zrb")
+        return get_env("ROOT_GROUP_NAME", "zrb", self.ENV_PREFIX)
+
+    @ROOT_GROUP_NAME.setter
+    def ROOT_GROUP_NAME(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_ROOT_GROUP_NAME"] = value
 
     @property
     def ROOT_GROUP_DESCRIPTION(self) -> str:
-        return self._getenv("ROOT_GROUP_DESCRIPTION", "Your Automation Powerhouse")
+        return get_env(
+            "ROOT_GROUP_DESCRIPTION", "Your Automation Powerhouse", self.ENV_PREFIX
+        )
+
+    @ROOT_GROUP_DESCRIPTION.setter
+    def ROOT_GROUP_DESCRIPTION(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_ROOT_GROUP_DESCRIPTION"] = value
 
     @property
     def INIT_SCRIPTS(self) -> list[str]:
-        init_scripts_str = self._getenv("INIT_SCRIPTS", "")
+        init_scripts_str = get_env("INIT_SCRIPTS", "", self.ENV_PREFIX)
         if init_scripts_str != "":
             return [
                 script.strip()
@@ -127,55 +115,84 @@ class Config:
             ]
         return []
 
+    @INIT_SCRIPTS.setter
+    def INIT_SCRIPTS(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_INIT_SCRIPTS"] = ":".join(value)
+
     @property
     def INIT_FILE_NAME(self) -> str:
-        return self._getenv("INIT_FILE_NAME", "zrb_init.py")
+        return get_env("INIT_FILE_NAME", "zrb_init.py", self.ENV_PREFIX)
+
+    @INIT_FILE_NAME.setter
+    def INIT_FILE_NAME(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_INIT_FILE_NAME"] = value
 
     @property
     def LOGGING_LEVEL(self) -> int:
-        return self._get_log_level(self._getenv("LOGGING_LEVEL", "WARNING"))
+        return get_log_level(get_env("LOGGING_LEVEL", "WARNING", self.ENV_PREFIX))
 
-    def _get_log_level(self, level: str) -> int:
-        level = level.upper()
-        log_levels = {
-            "CRITICAL": logging.CRITICAL,  # 50
-            "FATAL": logging.CRITICAL,  # 50
-            "ERROR": logging.ERROR,  # 40
-            "WARN": logging.WARNING,  # 30
-            "WARNING": logging.WARNING,  # 30
-            "INFO": logging.INFO,  # 20
-            "DEBUG": logging.DEBUG,  # 10
-            "NOTSET": logging.NOTSET,  # 0
-        }
-        if level in log_levels:
-            return log_levels[level]
-        return logging.WARNING
+    @LOGGING_LEVEL.setter
+    def LOGGING_LEVEL(self, value: int | str):
+        if isinstance(value, int):
+            value = logging.getLevelName(value)
+        os.environ[f"{self.ENV_PREFIX}_LOGGING_LEVEL"] = str(value)
 
     @property
     def LOAD_BUILTIN(self) -> bool:
-        return to_boolean(self._getenv("LOAD_BUILTIN", "1"))
+        return to_boolean(get_env("LOAD_BUILTIN", "1", self.ENV_PREFIX))
+
+    @LOAD_BUILTIN.setter
+    def LOAD_BUILTIN(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LOAD_BUILTIN"] = "1" if value else "0"
 
     @property
     def WARN_UNRECOMMENDED_COMMAND(self) -> bool:
-        return to_boolean(self._getenv("WARN_UNRECOMMENDED_COMMAND", "1"))
+        return to_boolean(get_env("WARN_UNRECOMMENDED_COMMAND", "1", self.ENV_PREFIX))
 
-    @property
-    def SESSION_LOG_DIR(self) -> str:
-        return os.getenv(
-            "ZRB_SESSION_LOG_DIR", os.path.expanduser(os.path.join("~", ".zrb-session"))
+    @WARN_UNRECOMMENDED_COMMAND.setter
+    def WARN_UNRECOMMENDED_COMMAND(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_WARN_UNRECOMMENDED_COMMAND"] = (
+            "1" if value else "0"
         )
 
     @property
+    def SESSION_LOG_DIR(self) -> str:
+        return get_env(
+            "SESSION_LOG_DIR",
+            os.path.expanduser(os.path.join("~", f".{self.ROOT_GROUP_NAME}-session")),
+        )
+
+    @SESSION_LOG_DIR.setter
+    def SESSION_LOG_DIR(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_SESSION_LOG_DIR"] = value
+
+    @property
     def TODO_DIR(self) -> str:
-        return self._getenv("TODO_DIR", os.path.expanduser(os.path.join("~", "todo")))
+        return get_env(
+            "TODO_DIR",
+            os.path.expanduser(os.path.join("~", "todo")),
+            self.ENV_PREFIX,
+        )
+
+    @TODO_DIR.setter
+    def TODO_DIR(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_TODO_DIR"] = value
 
     @property
     def TODO_VISUAL_FILTER(self) -> str:
-        return self._getenv("TODO_FILTER", "")
+        return get_env("TODO_FILTER", "", self.ENV_PREFIX)
+
+    @TODO_VISUAL_FILTER.setter
+    def TODO_VISUAL_FILTER(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_TODO_FILTER"] = value
 
     @property
     def TODO_RETENTION(self) -> str:
-        return self._getenv("TODO_RETENTION", "2w")
+        return get_env("TODO_RETENTION", "2w", self.ENV_PREFIX)
+
+    @TODO_RETENTION.setter
+    def TODO_RETENTION(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_TODO_RETENTION"] = value
 
     @property
     def VERSION(self) -> str:
@@ -184,9 +201,13 @@ class Config:
             return custom_version
         return metadata.version("zrb")
 
+    @VERSION.setter
+    def VERSION(self, value: str):
+        os.environ["_ZRB_CUSTOM_VERSION"] = value
+
     @property
     def WEB_CSS_PATH(self) -> list[str]:
-        web_css_path_str = self._getenv("WEB_CSS_PATH", "")
+        web_css_path_str = get_env("WEB_CSS_PATH", "", self.ENV_PREFIX)
         if web_css_path_str != "":
             return [
                 path.strip()
@@ -195,9 +216,13 @@ class Config:
             ]
         return []
 
+    @WEB_CSS_PATH.setter
+    def WEB_CSS_PATH(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_WEB_CSS_PATH"] = ":".join(value)
+
     @property
     def WEB_JS_PATH(self) -> list[str]:
-        web_js_path_str = self._getenv("WEB_JS_PATH", "")
+        web_js_path_str = get_env("WEB_JS_PATH", "", self.ENV_PREFIX)
         if web_js_path_str != "":
             return [
                 path.strip()
@@ -206,152 +231,222 @@ class Config:
             ]
         return []
 
+    @WEB_JS_PATH.setter
+    def WEB_JS_PATH(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_WEB_JS_PATH"] = ":".join(value)
+
     @property
     def WEB_FAVICON_PATH(self) -> str:
-        return self._getenv("WEB_FAVICON_PATH", "/static/favicon-32x32.png")
+        return get_env("WEB_FAVICON_PATH", "/static/favicon-32x32.png", self.ENV_PREFIX)
+
+    @WEB_FAVICON_PATH.setter
+    def WEB_FAVICON_PATH(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_WEB_FAVICON_PATH"] = value
 
     @property
     def WEB_COLOR(self) -> str:
-        return self._getenv("WEB_COLOR", "")
+        return get_env("WEB_COLOR", "", self.ENV_PREFIX)
+
+    @WEB_COLOR.setter
+    def WEB_COLOR(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_WEB_COLOR"] = value
 
     @property
     def WEB_HTTP_PORT(self) -> int:
-        return int(self._getenv("WEB_HTTP_PORT", "21213"))
+        return int(get_env("WEB_HTTP_PORT", "21213", self.ENV_PREFIX))
+
+    @WEB_HTTP_PORT.setter
+    def WEB_HTTP_PORT(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_WEB_HTTP_PORT"] = str(value)
 
     @property
     def WEB_GUEST_USERNAME(self) -> str:
-        return self._getenv("WEB_GUEST_USERNAME", "user")
+        return get_env("WEB_GUEST_USERNAME", "user", self.ENV_PREFIX)
+
+    @WEB_GUEST_USERNAME.setter
+    def WEB_GUEST_USERNAME(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_WEB_GUEST_USERNAME"] = value
 
     @property
     def WEB_SUPER_ADMIN_USERNAME(self) -> str:
-        return self._getenv("WEB_SUPER_ADMIN_USERNAME", "admin")
+        return get_env("WEB_SUPER_ADMIN_USERNAME", "admin", self.ENV_PREFIX)
+
+    @WEB_SUPER_ADMIN_USERNAME.setter
+    def WEB_SUPER_ADMIN_USERNAME(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_WEB_SUPER_ADMIN_USERNAME"] = value
 
     @property
     def WEB_SUPER_ADMIN_PASSWORD(self) -> str:
-        return self._getenv("WEB_SUPER_ADMIN_PASSWORD", "admin")
+        return get_env("WEB_SUPER_ADMIN_PASSWORD", "admin", self.ENV_PREFIX)
+
+    @WEB_SUPER_ADMIN_PASSWORD.setter
+    def WEB_SUPER_ADMIN_PASSWORD(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_WEB_SUPER_ADMIN_PASSWORD"] = value
 
     @property
     def WEB_ACCESS_TOKEN_COOKIE_NAME(self) -> str:
-        return self._getenv("WEB_ACCESS_TOKEN_COOKIE_NAME", "access_token")
+        return get_env("WEB_ACCESS_TOKEN_COOKIE_NAME", "access_token", self.ENV_PREFIX)
+
+    @WEB_ACCESS_TOKEN_COOKIE_NAME.setter
+    def WEB_ACCESS_TOKEN_COOKIE_NAME(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_WEB_ACCESS_TOKEN_COOKIE_NAME"] = value
 
     @property
     def WEB_REFRESH_TOKEN_COOKIE_NAME(self) -> str:
-        return self._getenv("WEB_REFRESH_TOKEN_COOKIE_NAME", "refresh_token")
+        return get_env(
+            "WEB_REFRESH_TOKEN_COOKIE_NAME", "refresh_token", self.ENV_PREFIX
+        )
+
+    @WEB_REFRESH_TOKEN_COOKIE_NAME.setter
+    def WEB_REFRESH_TOKEN_COOKIE_NAME(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_WEB_REFRESH_TOKEN_COOKIE_NAME"] = value
 
     @property
     def WEB_SECRET_KEY(self) -> str:
-        return self._getenv("WEB_SECRET", "zrb")
+        return get_env("WEB_SECRET", "zrb", self.ENV_PREFIX)
+
+    @WEB_SECRET_KEY.setter
+    def WEB_SECRET_KEY(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_WEB_SECRET"] = value
 
     @property
     def WEB_ENABLE_AUTH(self) -> bool:
-        return to_boolean(self._getenv("WEB_ENABLE_AUTH", "0"))
+        return to_boolean(get_env("WEB_ENABLE_AUTH", "0", self.ENV_PREFIX))
+
+    @WEB_ENABLE_AUTH.setter
+    def WEB_ENABLE_AUTH(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_WEB_ENABLE_AUTH"] = "1" if value else "0"
 
     @property
     def WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES(self) -> int:
-        return int(self._getenv("WEB_ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+        return int(get_env("WEB_ACCESS_TOKEN_EXPIRE_MINUTES", "30", self.ENV_PREFIX))
+
+    @WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES.setter
+    def WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_WEB_ACCESS_TOKEN_EXPIRE_MINUTES"] = str(value)
 
     @property
     def WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES(self) -> int:
-        return int(self._getenv("WEB_REFRESH_TOKEN_EXPIRE_MINUTES", "60"))
+        return int(get_env("WEB_REFRESH_TOKEN_EXPIRE_MINUTES", "60", self.ENV_PREFIX))
+
+    @WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES.setter
+    def WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_WEB_REFRESH_TOKEN_EXPIRE_MINUTES"] = str(value)
 
     @property
     def WEB_TITLE(self) -> str:
-        return self._getenv("WEB_TITLE", "Zrb")
+        return get_env("WEB_TITLE", "Zrb", self.ENV_PREFIX)
+
+    @WEB_TITLE.setter
+    def WEB_TITLE(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_WEB_TITLE"] = value
 
     @property
     def WEB_JARGON(self) -> str:
-        return self._getenv("WEB_JARGON", "Your Automation PowerHouse")
+        return get_env("WEB_JARGON", "Your Automation PowerHouse", self.ENV_PREFIX)
+
+    @WEB_JARGON.setter
+    def WEB_JARGON(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_WEB_JARGON"] = value
 
     @property
     def WEB_HOMEPAGE_INTRO(self) -> str:
-        return self._getenv("WEB_HOMEPAGE_INTRO", "Welcome to Zrb Web Interface")
+        return get_env(
+            "WEB_HOMEPAGE_INTRO", "Welcome to Zrb Web Interface", self.ENV_PREFIX
+        )
+
+    @WEB_HOMEPAGE_INTRO.setter
+    def WEB_HOMEPAGE_INTRO(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_WEB_HOMEPAGE_INTRO"] = value
+
+    @property
+    def LLM_ASSISTANT_NAME(self) -> str:
+        return get_env("LLM_ASSISTANT_NAME", self.ROOT_GROUP_NAME)
+
+    @LLM_ASSISTANT_NAME.setter
+    def LLM_ASSISTANT_NAME(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_ASSISTANT_NAME"] = value
+
+    @property
+    def LLM_ASSISTANT_ASCII_ART(self) -> str:
+        return get_env("LLM_ASSISTANT_ASCII_ART", "cat")
+
+    @LLM_ASSISTANT_ASCII_ART.setter
+    def LLM_ASSISTANT_ASCII_ART(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_ASSISTANT_ASCII_ART"] = value
+
+    @property
+    def LLM_ASSISTANT_JARGON(self) -> str:
+        return get_env("LLM_ASSISTANT_JARGON", self.ROOT_GROUP_DESCRIPTION)
+
+    @LLM_ASSISTANT_JARGON.setter
+    def LLM_ASSISTANT_JARGON(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_ASSISTANT_JARGON"] = value
+
+    @property
+    def LLM_HISTORY_DIR(self) -> str:
+        return get_env(
+            "LLM_HISTORY_DIR",
+            os.path.expanduser(
+                os.path.join("~", f".{self.ROOT_GROUP_NAME}", "llm-history")
+            ),
+        )
+
+    @LLM_HISTORY_DIR.setter
+    def LLM_HISTORY_DIR(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_HISTORY_DIR"] = value
+
+    @property
+    def LLM_NOTE_FILE(self) -> str:
+        return get_env(
+            "LLM_NOTE_FILE",
+            os.path.expanduser(
+                os.path.join("~", f".{self.ROOT_GROUP_NAME}", "notes.json")
+            ),
+        )
+
+    @LLM_NOTE_FILE.setter
+    def LLM_NOTE_FILE(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_NOTE_FILE"] = value
 
     @property
     def LLM_MODEL(self) -> str | None:
-        value = self._getenv("LLM_MODEL")
+        value = get_env("LLM_MODEL", "", self.ENV_PREFIX)
         return None if value == "" else value
+
+    @LLM_MODEL.setter
+    def LLM_MODEL(self, value: str | None):
+        if value is None:
+            if f"{self.ENV_PREFIX}_LLM_MODEL" in os.environ:
+                del os.environ[f"{self.ENV_PREFIX}_LLM_MODEL"]
+        else:
+            os.environ[f"{self.ENV_PREFIX}_LLM_MODEL"] = value
 
     @property
     def LLM_BASE_URL(self) -> str | None:
-        value = self._getenv("LLM_BASE_URL")
+        value = get_env("LLM_BASE_URL", "", self.ENV_PREFIX)
         return None if value == "" else value
+
+    @LLM_BASE_URL.setter
+    def LLM_BASE_URL(self, value: str | None):
+        if value is None:
+            if f"{self.ENV_PREFIX}_LLM_BASE_URL" in os.environ:
+                del os.environ[f"{self.ENV_PREFIX}_LLM_BASE_URL"]
+        else:
+            os.environ[f"{self.ENV_PREFIX}_LLM_BASE_URL"] = value
 
     @property
     def LLM_API_KEY(self) -> str | None:
-        value = self._getenv("LLM_API_KEY")
+        value = get_env("LLM_API_KEY", "", self.ENV_PREFIX)
         return None if value == "" else value
 
-    @property
-    def LLM_MODEL_SMALL(self) -> str | None:
-        value = self._getenv("LLM_MODEL_SMALL")
-        return None if value == "" else value
-
-    @property
-    def LLM_BASE_URL_SMALL(self) -> str | None:
-        value = self._getenv("LLM_BASE_URL_SMALL")
-        return None if value == "" else value
-
-    @property
-    def LLM_API_KEY_SMALL(self) -> str | None:
-        value = self._getenv("LLM_API_KEY_SMALL")
-        return None if value == "" else value
-
-    @property
-    def LLM_SYSTEM_PROMPT(self) -> str | None:
-        value = self._getenv("LLM_SYSTEM_PROMPT")
-        return None if value == "" else value
-
-    @property
-    def LLM_INTERACTIVE_SYSTEM_PROMPT(self) -> str | None:
-        value = self._getenv("LLM_INTERACTIVE_SYSTEM_PROMPT")
-        return None if value == "" else value
-
-    @property
-    def LLM_PERSONA(self) -> str | None:
-        value = self._getenv("LLM_PERSONA")
-        return None if value == "" else value
-
-    @property
-    def LLM_WORKFLOWS(self) -> list[str]:
-        """Get a list of LLM workflows from environment variables."""
-        workflows = []
-        for workflow in self._getenv("LLM_WORKFLOWS", "").split(","):
-            workflow = workflow.strip()
-            if workflow != "":
-                workflows.append(workflow)
-        return workflows
-
-    @property
-    def LLM_BUILTIN_WORKFLOW_PATHS(self) -> list[str]:
-        """Get a list of additional builtin workflow paths from environment variables."""
-        builtin_workflow_paths_str = self._getenv(
-            ["LLM_BUILTIN_WORFKLOW_PATH", "LLM_BUILTIN_WORKFLOW_PATHS"], ""
-        )
-        if builtin_workflow_paths_str != "":
-            return [
-                path.strip()
-                for path in builtin_workflow_paths_str.split(":")
-                if path.strip() != ""
-            ]
-        return []
-
-    @property
-    def LLM_SPECIAL_INSTRUCTION_PROMPT(self) -> str | None:
-        value = self._getenv("LLM_SPECIAL_INSTRUCTION_PROMPT")
-        return None if value == "" else value
-
-    @property
-    def LLM_SUMMARIZATION_PROMPT(self) -> str | None:
-        value = self._getenv("LLM_SUMMARIZATION_PROMPT")
-        return None if value == "" else value
-
-    @property
-    def LLM_SHOW_TOOL_CALL_PREPARATION(self) -> bool:
-        return to_boolean(self._getenv("LLM_SHOW_TOOL_CALL_PREPARATION", "false"))
-
-    @property
-    def LLM_SHOW_TOOL_CALL_RESULT(self) -> bool:
-        return to_boolean(self._getenv("LLM_SHOW_TOOL_CALL_RESULT", "false"))
+    @LLM_API_KEY.setter
+    def LLM_API_KEY(self, value: str | None):
+        if value is None:
+            if f"{self.ENV_PREFIX}_LLM_API_KEY" in os.environ:
+                del os.environ[f"{self.ENV_PREFIX}_LLM_API_KEY"]
+        else:
+            os.environ[f"{self.ENV_PREFIX}_LLM_API_KEY"] = value
 
     @property
     def LLM_MAX_REQUESTS_PER_MINUTE(self) -> int:
@@ -360,10 +455,16 @@ class Config:
         Default is conservative to accommodate free-tier LLM providers.
         """
         return int(
-            self._getenv(
-                ["LLM_MAX_REQUEST_PER_MINUTE", "LLM_MAX_REQUESTS_PER_MINUTE"], "60"
+            get_env(
+                ["LLM_MAX_REQUEST_PER_MINUTE", "LLM_MAX_REQUESTS_PER_MINUTE"],
+                "60",
+                self.ENV_PREFIX,
             )
         )
+
+    @LLM_MAX_REQUESTS_PER_MINUTE.setter
+    def LLM_MAX_REQUESTS_PER_MINUTE(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_MAX_REQUESTS_PER_MINUTE"] = str(value)
 
     @property
     def LLM_MAX_TOKENS_PER_MINUTE(self) -> int:
@@ -372,247 +473,353 @@ class Config:
         Default is conservative to accommodate free-tier LLM providers.
         """
         return int(
-            self._getenv(
-                ["LLM_MAX_TOKEN_PER_MINUTE", "LLM_MAX_TOKENS_PER_MINUTE"], "120000"
+            get_env(
+                ["LLM_MAX_TOKEN_PER_MINUTE", "LLM_MAX_TOKENS_PER_MINUTE"],
+                "120000",
+                self.ENV_PREFIX,
             )
         )
+
+    @LLM_MAX_TOKENS_PER_MINUTE.setter
+    def LLM_MAX_TOKENS_PER_MINUTE(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_MAX_TOKENS_PER_MINUTE"] = str(value)
 
     @property
     def LLM_MAX_TOKENS_PER_REQUEST(self) -> int:
         """Maximum number of tokens allowed per individual LLM request."""
         return int(
-            self._getenv(
-                ["LLM_MAX_TOKEN_PER_REQUEST", "LLM_MAX_TOKENS_PER_REQUEST"], "120000"
+            get_env(
+                ["LLM_MAX_TOKEN_PER_REQUEST", "LLM_MAX_TOKENS_PER_REQUEST"],
+                "120000",
+                self.ENV_PREFIX,
             )
         )
 
-    @property
-    def LLM_MAX_TOKENS_PER_TOOL_CALL_RESULT(self) -> int:
-        """Maximum number of tokens allowed per tool call result."""
-        return int(
-            self._getenv(
-                [
-                    "LLM_MAX_TOKEN_PER_TOOL_CALL_RESULT",
-                    "LLM_MAX_TOKENS_PER_TOOL_CALL_RESULT",
-                ],
-                str(self._get_max_threshold(0.4)),
-            )
-        )
+    @LLM_MAX_TOKENS_PER_REQUEST.setter
+    def LLM_MAX_TOKENS_PER_REQUEST(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_MAX_TOKENS_PER_REQUEST"] = str(value)
 
     @property
     def LLM_THROTTLE_SLEEP(self) -> float:
         """Number of seconds to sleep when throttling is required."""
-        return float(self._getenv("LLM_THROTTLE_SLEEP", "1.0"))
+        return float(get_env("LLM_THROTTLE_SLEEP", "1.0", self.ENV_PREFIX))
+
+    @LLM_THROTTLE_SLEEP.setter
+    def LLM_THROTTLE_SLEEP(self, value: float):
+        os.environ[f"{self.ENV_PREFIX}_LLM_THROTTLE_SLEEP"] = str(value)
 
     @property
-    def LLM_YOLO_MODE(self) -> bool | list[str]:
-        str_val = self._getenv("LLM_YOLO_MODE", "false")
-        try:
-            return to_boolean(str_val)
-        except Exception:
-            return [val.strip() for val in str_val.split(",") if val.strip() != ""]
+    def LLM_HISTORY_SUMMARIZATION_WINDOW(self) -> int:
+        return int(get_env("LLM_HISTORY_SUMMARIZATION_WINDOW", "5", self.ENV_PREFIX))
 
-    @property
-    def LLM_SUMMARIZE_HISTORY(self) -> bool:
-        return to_boolean(self._getenv("LLM_SUMMARIZE_HISTORY", "true"))
+    @LLM_HISTORY_SUMMARIZATION_WINDOW.setter
+    def LLM_HISTORY_SUMMARIZATION_WINDOW(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_HISTORY_SUMMARIZATION_WINDOW"] = str(value)
 
     @property
     def LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
         threshold = int(
-            self._getenv(
+            get_env(
                 "LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD",
                 str(self._get_max_threshold(0.6)),
+                self.ENV_PREFIX,
             )
         )
-        return self._limit_token_threshold(threshold, 0.6)
+        return limit_token_threshold(
+            threshold,
+            0.6,
+            self.LLM_MAX_TOKENS_PER_MINUTE,
+            self.LLM_MAX_TOKENS_PER_REQUEST,
+        )
+
+    @LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD.setter
+    def LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD"] = (
+            str(value)
+        )
 
     @property
     def LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD(self) -> int:
         threshold = int(
-            self._getenv(
+            get_env(
                 "LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD",
                 str(self._get_max_threshold(0.4)),
+                self.ENV_PREFIX,
             )
         )
-        return self._limit_token_threshold(threshold, 0.4)
+        return limit_token_threshold(
+            threshold,
+            0.4,
+            self.LLM_MAX_TOKENS_PER_MINUTE,
+            self.LLM_MAX_TOKENS_PER_REQUEST,
+        )
+
+    @LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD.setter
+    def LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD(self, value: int):
+        os.environ[
+            f"{self.ENV_PREFIX}_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD"
+        ] = str(value)
 
     @property
     def LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
         threshold = int(
-            self._getenv(
+            get_env(
                 "LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD",
                 str(self._get_max_threshold(0.4)),
+                self.ENV_PREFIX,
             )
         )
-        return self._limit_token_threshold(threshold, 0.4)
+        return limit_token_threshold(
+            threshold,
+            0.4,
+            self.LLM_MAX_TOKENS_PER_MINUTE,
+            self.LLM_MAX_TOKENS_PER_REQUEST,
+        )
+
+    @LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD.setter
+    def LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD(self, value: int):
+        os.environ[
+            f"{self.ENV_PREFIX}_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD"
+        ] = str(value)
 
     @property
     def LLM_FILE_ANALYSIS_TOKEN_THRESHOLD(self) -> int:
         threshold = int(
-            self._getenv(
-                "LLM_FILE_ANALYSIS_TOKEN_THRESHOLD", str(self._get_max_threshold(0.4))
+            get_env(
+                "LLM_FILE_ANALYSIS_TOKEN_THRESHOLD",
+                str(self._get_max_threshold(0.4)),
+                self.ENV_PREFIX,
             )
         )
-        return self._limit_token_threshold(threshold, 0.4)
+        return limit_token_threshold(
+            threshold,
+            0.4,
+            self.LLM_MAX_TOKENS_PER_MINUTE,
+            self.LLM_MAX_TOKENS_PER_REQUEST,
+        )
 
-    def _limit_token_threshold(self, threshold: int, factor: float) -> int:
-        return min(threshold, self._get_max_threshold(factor))
+    @LLM_FILE_ANALYSIS_TOKEN_THRESHOLD.setter
+    def LLM_FILE_ANALYSIS_TOKEN_THRESHOLD(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD"] = str(value)
+
+    @property
+    def LLM_PROMPT_DIR(self) -> str:
+        return get_env(
+            "LLM_PROMPT_DIR",
+            os.path.join(f".{self.ROOT_GROUP_NAME}", "llm", "prompt"),
+            self.ENV_PREFIX,
+        )
+
+    @LLM_PROMPT_DIR.setter
+    def LLM_PROMPT_DIR(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_PROMPT_DIR"] = value
 
     def _get_max_threshold(self, factor: float) -> int:
-        return round(
-            factor
-            * min(self.LLM_MAX_TOKENS_PER_MINUTE, self.LLM_MAX_TOKENS_PER_REQUEST)
+        return get_max_token_threshold(
+            factor, self.LLM_MAX_TOKENS_PER_MINUTE, self.LLM_MAX_TOKENS_PER_REQUEST
         )
-
-    @property
-    def LLM_FILE_EXTRACTOR_SYSTEM_PROMPT(self) -> str:
-        return self._getenv(
-            "LLM_FILE_EXTRACTOR_SYSTEM_PROMPT",
-            self._get_internal_default_prompt("file_extractor_system_prompt"),
-        )
-
-    @property
-    def LLM_REPO_EXTRACTOR_SYSTEM_PROMPT(self) -> str:
-        return self._getenv(
-            "LLM_REPO_EXTRACTOR_SYSTEM_PROMPT",
-            self._get_internal_default_prompt("repo_extractor_system_prompt"),
-        )
-
-    @property
-    def LLM_REPO_SUMMARIZER_SYSTEM_PROMPT(self) -> str:
-        return self._getenv(
-            "LLM_REPO_SUMMARIZER_SYSTEM_PROMPT",
-            self._get_internal_default_prompt("repo_summarizer_system_prompt"),
-        )
-
-    @property
-    def LLM_HISTORY_DIR(self) -> str:
-        return self._getenv(
-            "LLM_HISTORY_DIR",
-            os.path.expanduser(os.path.join("~", ".zrb-llm-history")),
-        )
-
-    @property
-    def LLM_ALLOW_ACCESS_LOCAL_FILE(self) -> bool:
-        return to_boolean(self._getenv("LLM_ALLOW_ACCESS_LOCAL_FILE", "1"))
-
-    @property
-    def LLM_ALLOW_ANALYZE_FILE(self) -> bool:
-        return to_boolean(self._getenv("LLM_ALLOW_ANALYZE_LOCAL_FILE", "1"))
-
-    @property
-    def LLM_ALLOW_ANALYZE_REPO(self) -> bool:
-        return to_boolean(self._getenv("LLM_ALLOW_ANALYZE_REPO", "1"))
-
-    @property
-    def LLM_ALLOW_ACCESS_SHELL(self) -> bool:
-        return to_boolean(self._getenv("LLM_ALLOW_ACCESS_SHELL", "1"))
-
-    @property
-    def LLM_ALLOW_OPEN_WEB_PAGE(self) -> bool:
-        return to_boolean(self._getenv("LLM_ALLOW_OPEN_WEB_PAGE", "1"))
-
-    @property
-    def LLM_ALLOW_SEARCH_INTERNET(self) -> bool:
-        return to_boolean(self._getenv("LLM_ALLOW_SEARCH_INTERNET", "1"))
-
-    @property
-    def LLM_ALLOW_GET_CURRENT_LOCATION(self) -> bool:
-        return to_boolean(self._getenv("LLM_ALLOW_GET_CURRENT_LOCATION", "1"))
-
-    @property
-    def LLM_ALLOW_GET_CURRENT_WEATHER(self) -> bool:
-        return to_boolean(self._getenv("LLM_ALLOW_GET_CURRENT_WEATHER", "1"))
 
     @property
     def RAG_EMBEDDING_API_KEY(self) -> str | None:
-        value = self._getenv("RAG_EMBEDDING_API_KEY")
+        value = get_env("RAG_EMBEDDING_API_KEY", "", self.ENV_PREFIX)
         return None if value == "" else value
+
+    @RAG_EMBEDDING_API_KEY.setter
+    def RAG_EMBEDDING_API_KEY(self, value: str | None):
+        if value is None:
+            if f"{self.ENV_PREFIX}_RAG_EMBEDDING_API_KEY" in os.environ:
+                del os.environ[f"{self.ENV_PREFIX}_RAG_EMBEDDING_API_KEY"]
+        else:
+            os.environ[f"{self.ENV_PREFIX}_RAG_EMBEDDING_API_KEY"] = value
 
     @property
     def RAG_EMBEDDING_BASE_URL(self) -> str | None:
-        value = self._getenv("RAG_EMBEDDING_BASE_URL")
+        value = get_env("RAG_EMBEDDING_BASE_URL", "", self.ENV_PREFIX)
         return None if value == "" else value
+
+    @RAG_EMBEDDING_BASE_URL.setter
+    def RAG_EMBEDDING_BASE_URL(self, value: str | None):
+        if value is None:
+            if f"{self.ENV_PREFIX}_RAG_EMBEDDING_BASE_URL" in os.environ:
+                del os.environ[f"{self.ENV_PREFIX}_RAG_EMBEDDING_BASE_URL"]
+        else:
+            os.environ[f"{self.ENV_PREFIX}_RAG_EMBEDDING_BASE_URL"] = value
 
     @property
     def RAG_EMBEDDING_MODEL(self) -> str:
-        return self._getenv("RAG_EMBEDDING_MODEL", "text-embedding-ada-002")
+        return get_env("RAG_EMBEDDING_MODEL", "text-embedding-ada-002", self.ENV_PREFIX)
+
+    @RAG_EMBEDDING_MODEL.setter
+    def RAG_EMBEDDING_MODEL(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_RAG_EMBEDDING_MODEL"] = value
 
     @property
     def RAG_CHUNK_SIZE(self) -> int:
-        return int(self._getenv("RAG_CHUNK_SIZE", "1024"))
+        return int(get_env("RAG_CHUNK_SIZE", "1024", self.ENV_PREFIX))
+
+    @RAG_CHUNK_SIZE.setter
+    def RAG_CHUNK_SIZE(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_RAG_CHUNK_SIZE"] = str(value)
 
     @property
     def RAG_OVERLAP(self) -> int:
-        return int(self._getenv("RAG_OVERLAP", "128"))
+        return int(get_env("RAG_OVERLAP", "128", self.ENV_PREFIX))
+
+    @RAG_OVERLAP.setter
+    def RAG_OVERLAP(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_RAG_OVERLAP"] = str(value)
 
     @property
     def RAG_MAX_RESULT_COUNT(self) -> int:
-        return int(self._getenv("RAG_MAX_RESULT_COUNT", "5"))
+        return int(get_env("RAG_MAX_RESULT_COUNT", "5", self.ENV_PREFIX))
+
+    @RAG_MAX_RESULT_COUNT.setter
+    def RAG_MAX_RESULT_COUNT(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_RAG_MAX_RESULT_COUNT"] = str(value)
 
     @property
     def SEARCH_INTERNET_METHOD(self) -> str:
         """Either serpapi or searxng"""
-        return self._getenv("SEARCH_INTERNET_METHOD", "serpapi")
+        return get_env("SEARCH_INTERNET_METHOD", "serpapi", self.ENV_PREFIX)
+
+    @SEARCH_INTERNET_METHOD.setter
+    def SEARCH_INTERNET_METHOD(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_SEARCH_INTERNET_METHOD"] = value
 
     @property
     def BRAVE_API_KEY(self) -> str:
         return os.getenv("BRAVE_API_KEY", "")
 
+    @BRAVE_API_KEY.setter
+    def BRAVE_API_KEY(self, value: str):
+        os.environ["BRAVE_API_KEY"] = value
+
     @property
     def BRAVE_API_SAFE(self) -> str:
-        return self._getenv("BRAVE_API_SAFE", "off")
+        return get_env("BRAVE_API_SAFE", "off", self.ENV_PREFIX)
+
+    @BRAVE_API_SAFE.setter
+    def BRAVE_API_SAFE(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_BRAVE_API_SAFE"] = value
 
     @property
     def BRAVE_API_LANG(self) -> str:
-        return self._getenv("BRAVE_API_LANG", "en")
+        return get_env("BRAVE_API_LANG", "en", self.ENV_PREFIX)
+
+    @BRAVE_API_LANG.setter
+    def BRAVE_API_LANG(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_BRAVE_API_LANG"] = value
 
     @property
     def SERPAPI_KEY(self) -> str:
         return os.getenv("SERPAPI_KEY", "")
 
+    @SERPAPI_KEY.setter
+    def SERPAPI_KEY(self, value: str):
+        os.environ["SERPAPI_KEY"] = value
+
     @property
     def SERPAPI_SAFE(self) -> str:
-        return self._getenv("SERPAPI_SAFE", "off")
+        return get_env("SERPAPI_SAFE", "off", self.ENV_PREFIX)
+
+    @SERPAPI_SAFE.setter
+    def SERPAPI_SAFE(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_SERPAPI_SAFE"] = value
 
     @property
     def SERPAPI_LANG(self) -> str:
-        return self._getenv("SERPAPI_LANG", "en")
+        return get_env("SERPAPI_LANG", "en", self.ENV_PREFIX)
+
+    @SERPAPI_LANG.setter
+    def SERPAPI_LANG(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_SERPAPI_LANG"] = value
 
     @property
     def SEARXNG_PORT(self) -> int:
-        return int(self._getenv("SEARXNG_PORT", "8080"))
+        return int(get_env("SEARXNG_PORT", "8080", self.ENV_PREFIX))
+
+    @SEARXNG_PORT.setter
+    def SEARXNG_PORT(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_SEARXNG_PORT"] = str(value)
 
     @property
     def SEARXNG_BASE_URL(self) -> str:
-        return self._getenv("SEARXNG_BASE_URL", f"http://localhost:{self.SEARXNG_PORT}")
+        return get_env(
+            "SEARXNG_BASE_URL", f"http://localhost:{self.SEARXNG_PORT}", self.ENV_PREFIX
+        )
+
+    @SEARXNG_BASE_URL.setter
+    def SEARXNG_BASE_URL(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_SEARXNG_BASE_URL"] = value
 
     @property
     def SEARXNG_SAFE(self) -> int:
-        return int(self._getenv("SEARXNG_SAFE", "0"))
+        return int(get_env("SEARXNG_SAFE", "0", self.ENV_PREFIX))
+
+    @SEARXNG_SAFE.setter
+    def SEARXNG_SAFE(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_SEARXNG_SAFE"] = str(value)
 
     @property
     def SEARXNG_LANG(self) -> str:
-        return self._getenv("SEARXNG_LANG", "en")
+        return get_env("SEARXNG_LANG", "en", self.ENV_PREFIX)
+
+    @SEARXNG_LANG.setter
+    def SEARXNG_LANG(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_SEARXNG_LANG"] = value
 
     @property
     def BANNER(self) -> str:
         return fstring_format(
-            self._getenv("BANNER", _DEFAULT_BANNER),
+            get_env("BANNER", _DEFAULT_BANNER, self.ENV_PREFIX),
             {"VERSION": self.VERSION},
         )
 
+    @BANNER.setter
+    def BANNER(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_BANNER"] = value
+
     @property
-    def LLM_CONTEXT_FILE(self) -> str:
-        return self._getenv("LLM_CONTEXT_FILE", "ZRB.md")
+    def LLM_SHOW_TOOL_CALL_PREPARATION(self) -> bool:
+        return to_boolean(
+            get_env("LLM_SHOW_TOOL_CALL_PREPARATION", "0", self.ENV_PREFIX)
+        )
+
+    @LLM_SHOW_TOOL_CALL_PREPARATION.setter
+    def LLM_SHOW_TOOL_CALL_PREPARATION(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_SHOW_TOOL_CALL_PREPARATION"] = (
+            "1" if value else "0"
+        )
+
+    @property
+    def LLM_SHOW_TOOL_CALL_RESULT(self) -> bool:
+        return to_boolean(get_env("LLM_SHOW_TOOL_CALL_RESULT", "0", self.ENV_PREFIX))
+
+    @LLM_SHOW_TOOL_CALL_RESULT.setter
+    def LLM_SHOW_TOOL_CALL_RESULT(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_SHOW_TOOL_CALL_RESULT"] = (
+            "1" if value else "0"
+        )
 
     @property
     def USE_TIKTOKEN(self) -> bool:
-        return to_boolean(self._getenv("USE_TIKTOKEN", "true"))
+        return to_boolean(get_env("USE_TIKTOKEN", "true", self.ENV_PREFIX))
+
+    @USE_TIKTOKEN.setter
+    def USE_TIKTOKEN(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_USE_TIKTOKEN"] = "1" if value else "0"
 
     @property
     def TIKTOKEN_ENCODING_NAME(self) -> str:
-        return self._getenv("TIKTOKEN_ENCODING_NAME", "cl100k_base")
+        return get_env(
+            ["TIKTOKEN_ENCODING", "TIKTOKEN_ENCODING_NAME"],
+            "cl100k_base",
+            self.ENV_PREFIX,
+        )
+
+    @TIKTOKEN_ENCODING_NAME.setter
+    def TIKTOKEN_ENCODING_NAME(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_TIKTOKEN_ENCODING_NAME"] = value
 
 
 CFG = Config()

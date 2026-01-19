@@ -44,7 +44,7 @@ The simplest method is to set your OpenAI API key as an environment variable.
 export OPENAI_API_KEY="your-openai-api-key-here"
 ```
 
-Once this is set, Zrb can immediately use OpenAI for tasks like `zrb llm chat` and `zrb llm ask`.
+Once this is set, Zrb can immediately use OpenAI for tasks like `zrb llm chat`.
 
 > **💡 No OpenAI key? No problem!**
 > Zrb supports a wide range of LLM providers, including open-source models running locally with Ollama. For detailed instructions on configuring other providers, see the [**LLM Integration Guide**](./configuration/llm-integration.md).
