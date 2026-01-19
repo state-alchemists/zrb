@@ -780,6 +780,28 @@ class Config:
         os.environ[f"{self.ENV_PREFIX}_BANNER"] = value
 
     @property
+    def LLM_SHOW_TOOL_CALL_PREPARATION(self) -> bool:
+        return to_boolean(
+            get_env("LLM_SHOW_TOOL_CALL_PREPARATION", "0", self.ENV_PREFIX)
+        )
+
+    @LLM_SHOW_TOOL_CALL_PREPARATION.setter
+    def LLM_SHOW_TOOL_CALL_PREPARATION(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_SHOW_TOOL_CALL_PREPARATION"] = (
+            "1" if value else "0"
+        )
+
+    @property
+    def LLM_SHOW_TOOL_CALL_RESULT(self) -> bool:
+        return to_boolean(get_env("LLM_SHOW_TOOL_CALL_RESULT", "0", self.ENV_PREFIX))
+
+    @LLM_SHOW_TOOL_CALL_RESULT.setter
+    def LLM_SHOW_TOOL_CALL_RESULT(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_SHOW_TOOL_CALL_RESULT"] = (
+            "1" if value else "0"
+        )
+
+    @property
     def USE_TIKTOKEN(self) -> bool:
         return to_boolean(get_env("USE_TIKTOKEN", "true", self.ENV_PREFIX))
 

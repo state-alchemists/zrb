@@ -1,151 +1,85 @@
-# LLM Context and Workflow Requirements
+🔖 [Home](../../README.md) > [Documentation](../README.md)
 
-This document outlines the requirements for managing LLM context and workflows using a special configuration file. The goal is to allow users to define context-sensitive instructions and standard operating procedures (SOPs) for the LLM based on their current working directory.
+# LLM Notes & Context (Technical Specification)
+
+Zrb provides a mechanism for maintaining persistent, location-aware notes and context that are automatically provided to the LLM. This allows the assistant to remember project-specific details, user preferences, and local environment information.
 
 ## 1. Overview
 
-The system uses a special file to define "Workflows", "Contexts", and "Notes".
+The system manages a collection of "Notes" associated with specific directory paths. When an LLM task is executed, it retrieves all notes relevant to the current working directory (including those from parent directories) and injects them into the system prompt.
 
--   **Workflow**: A named set of instructions or an SOP for the LLM for a specific task (e.g., "coding", "testing", "docs").
--   **Context**: General, cascading information that applies to a directory and its subdirectories.
--   **Note**: Specific information associated with a directory, which is read globally from the user's home directory.
+## 2. Storage Mechanism
 
-The system searches for this file starting from the current working directory and traversing upwards to the user's home directory. This allows for global, project-level, and directory-level configurations, with closer (more specific) configurations taking precedence.
+Notes are stored in a single, global JSON file.
 
-For reading and writing context, the system will only use the file in the user's home directory.
+-   **File Location**: Defined by the `ZRB_LLM_NOTE_FILE` environment variable.
+-   **Default Path**: `~/.zrb/notes.json`
+-   **Structure**: A simple JSON object where keys are normalized paths and values are strings containing the note content.
 
-The name of this file is defined by the configuration setting `CFG.LLM_CONTEXT_FILE`, which defaults to `ZRB.md`.
+### Path Normalization
+Paths are normalized to ensure consistency across different environments:
+-   Paths inside the user's home directory are stored with a tilde (e.g., `~/projects/zrb`).
+-   Paths outside the home directory are stored as absolute paths (e.g., `/etc/nginx`).
+-   The user's home directory itself is stored as `~`.
 
-## 2. File Format
-
-The context file uses a simple, flat Markdown structure. Each top-level H1 header (`#`) acts as a key. The content following a header, up to the next H1 header, is its value.
-
-There are three valid key formats:
-
--   `# Context`
--   `# Workflow: <workflow_name>`
--   `# Note: <directory_path>`
-
-Any other H1 headers will be ignored.
-
-### Example File: `~/ZRB.md`
-
-```markdown
-# Context
-This is a general context for all projects.
-
-# Workflow: coding
-- Use Python for all new scripts.
-- Adhere strictly to the PEP8 style guide.
-- Include docstrings for all functions.
-
-# Note: .
-This is the root directory of our main project.
-It contains the primary configuration and source code.
-
-# Note: ~/common-libs
-This directory contains shared libraries. Do not modify files here
-without consulting the core team.
-
-# Ignored Header
-This content will be ignored by the parser.
+### Example `notes.json`:
+```json
+{
+  "~": "The user prefers Python and likes concise answers.",
+  "~/projects/zrb": "This is the Zrb project. It uses Poetry for dependency management.",
+  "~/projects/zrb/src": "This directory contains the core library source code."
+}
 ```
 
-## 3. Resolution Logic (Reading)
+## 3. Resolution Logic (Cascading Context)
 
-When the LLM is invoked, it resolves workflows and contexts by searching for the `ZRB.md` file.
+When an LLM task is executed from a directory (e.g., `/home/user/projects/zrb/src`), the system retrieves notes using a **cascading** approach:
 
-### Workflow Resolution
+1.  **Identify Ancestors**: The system identifies all ancestor directories of the current path up to the root or home directory.
+2.  **Retrieve Notes**: It looks up each ancestor path in the global `notes.json` file.
+3.  **Aggregate**: All found notes are collected.
 
--   The system searches for a `# Workflow: <name>` entry.
--   The search starts in the current directory and proceeds up the directory tree to the user's home directory (`~/`).
--   The **first one found** during the upward search is used. Any workflows with the same name in parent directories are ignored. This "closest wins" approach ensures the most specific workflow is applied.
+### Example Resolution:
+If the current directory is `~/projects/zrb/src`:
+-   It checks `~`
+-   It checks `~/projects`
+-   It checks `~/projects/zrb`
+-   It checks `~/projects/zrb/src`
 
-#### Example:
+All content found for these keys is aggregated into a single "Notes & Context" block.
 
-Suppose we have the following directory structure and files:
+## 4. Prompt Injection
 
--   `/home/user/ZRB.md`:
-    ```markdown
-    # Workflow: coding
-    - Global default: Use Python.
-    ```
--   `/home/user/project/ZRB.md`:
-    ```markdown
-    # Workflow: coding
-    - Project-specific: Use TypeScript.
-    ```
+The aggregated notes are formatted into a Markdown section and appended to the LLM's system prompt:
 
-| Current Directory         | Resolved `coding` Workflow         |
-| ------------------------- | ---------------------------------- |
-| `/home/user/project/src`  | `- Project-specific: Use TypeScript.` |
-| `/home/user/project`      | `- Project-specific: Use TypeScript.` |
-| `/home/user`              | `- Global default: Use Python.`    |
+```markdown
+### Notes & Context
+**~**:
+The user prefers Python and likes concise answers.
 
-### Context Resolution
+**~/projects/zrb**:
+This is the Zrb project. It uses Poetry for dependency management.
 
--   The system gathers all `# Context` entries from all `ZRB.md` files found during the upward search.
--   This provides a cascading context, where more specific contexts can augment or override general ones.
+**~/projects/zrb/src**:
+This directory contains the core library source code.
+```
 
-#### Example:
+## 5. Management
 
--   `/home/user/ZRB.md`:
-    ```markdown
-    # Context
-    This is a global context for the user.
-    ```
--   `/home/user/project/ZRB.md`:
-    ```markdown
-    # Context
-    This is a project-specific context.
-    ```
+Notes can be managed programmatically via the `NoteManager` class or by the LLM itself using tools.
 
-If the current directory is `/home/user/project/src`, the system would retrieve both contexts. The final aggregated context would include the content from both `/home/user/ZRB.md` and `/home/user/project/ZRB.md`.
+### Programmatic Access
+```python
+from zrb.llm.note.manager import NoteManager
 
-### Note Resolution
+manager = NoteManager()
 
--   The system gathers all `# Note: <path>` entries from the `ZRB.md` file in the user's home directory.
--   A context is considered "relevant" if its `<directory_path>` is an ancestor of, or the same as, the current working directory.
+# Write a note
+manager.write("~/my-project", "This project uses FastAPI.")
 
-#### Path Normalization:
+# Read all relevant notes for a path
+notes = manager.read_all("~/my-project/app")
+```
 
--   If `<directory_path>` is absolute (e.g., `/home/user/project`), it is used as is.
--   If `<directory_path>` is relative (e.g., `.` or `src`), it is resolved relative to the user's home directory.
-
-#### Example:
-
--   `/home/user/ZRB.md`:
-    ```markdown
-    # Note: .
-    This is the home context.
-
-    # Note: project
-    This is the main project folder (from home).
-    ```
-
-If the current directory is `/home/user/project/src`, the system would retrieve the following contexts:
-
-1.  **From `/home/user/ZRB.md`**: The context for `.` (resolved to `/home/user`).
-2.  **From `/home/user/ZRB.md`**: The context for `project` (resolved to `/home/user/project`).
-
-The final, aggregated context would include the notes for `/home/user` and `/home/user/project`.
-
-## 4. Writing Logic
-
-When adding or updating a context entry, the system will always write to the `ZRB.md` file in the **user's home directory**. If the file does not exist, it should be created.
-
-The `<directory_path>` written to the file follows these rules to ensure portability and clarity:
-
-1.  **Path inside Home Directory**: If the target path is within the user's home directory, it is written as a **relative path** from home.
-    -   *Example*: Adding context for `/home/user/project/src`. The file entry is `# Note: project/src`.
-
-2.  **Absolute Path**: For any other path (e.g., a system directory), the **absolute path** is used.
-    -   *Example*: Adding context for `/etc/nginx`. The file entry is `# Note: /etc/nginx`.
-
-### Example:
-
-| Path to Add             | Resulting Entry in `~/ZRB.md` |
-| ----------------------- | ---------------------------------- |
-| `/home/user/project/lib`| `# Note: project/lib`           |
-| `/home/user/docs`       | `# Note: docs`                  |
-| `/var/log`              | `# Note: /var/log`              |
+### LLM Tools
+The `zrb llm chat` command provides the LLM with tools to read and write these notes, allowing it to "remember" facts about the project it is working on.

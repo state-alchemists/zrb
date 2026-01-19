@@ -1,76 +1,72 @@
-# Zrb LLM Challenge
+# LLM Framework Evaluation & Optimization Protocol
 
-This directory contains a framework for testing and evaluating `zrb llm chat`.
+**TARGET AUDIENCE:** AI Agents (Zrb, Gemini CLI, etc.) and Maintainers.
+**OBJECTIVE:** Run, Evaluate, and Improve the `zrb` LLM framework.
 
-## Overview of `zrb llm chat`
+## Mission
+Your goal is to ensure `zrb llm chat` can autonomously and correctly solve complex software engineering tasks. You will run a series of challenges, evaluate the results against strict criteria, and modify the `zrb` source code (prompts and tool definitions) to fix any failures.
 
-The `zrb llm chat` command is a powerful tool for interacting with Large Language Models (LLMs) to perform various tasks, especially those related to software engineering. It uses the `LLMTask` class to orchestrate interactions.
+## The Challenges
+Located in: `challenges/` (relative to this directory)
+- `bug-fix`
+- `copywriting`
+- `feature`
+- `refactor`
+- `research`
 
-The process generally follows these steps:
-1. **History Management**: Loads conversation history (long-term context, narrative summary, and raw chat log).
-2. **Context Enrichment**: Periodically updates the long-term context with stable facts.
-3. **History Summarization**: Condenses old chat logs into a narrative summary.
-4. **Prompt Construction**: Builds a system prompt using persona, base system prompt, special instructions, and a context block (system info, long-term context, summary, and referenced files).
-5. **Agent Execution**: Uses a `pydantic-ai` agent with defined tools to execute the task.
+## Execution Protocol
 
-## Iterative Improvement Goal
+**Prerequisite:** Open a terminal in the `llm-challenges/` directory.
 
-The ultimate goal of these challenges is to **improve `zrb`'s internal prompts and tool definitions**. 
+Perform the following loop for **EACH** challenge:
 
-You should run these challenges to identify weaknesses in how `zrb` understands instructions or uses tools. If a challenge fails:
-1.  **Analyze the Failure**: Did the LLM misunderstand the request? Did it misuse a tool? Did it hallucinate?
-2.  **Modify Zrb**:
-    -   **Prompts**: specific files in `src/zrb/config/default_prompt/` (e.g., `system_prompt.md`, `persona.md`).
-    -   **Tool Docstrings**: The Python docstrings in `src/zrb/builtin/llm/tool/*.py`. These are what the LLM sees as "instructions" for using tools.
-3.  **Retry**: Run the challenge again.
-4.  **Repeat**: Continue until **ALL** challenges pass successfully and consistently.
+### 1. SETUP (Reset Environment)
+Ensure a clean state for the challenge (e.g., `refactor`).
+```bash
+# Example for 'refactor' challenge
+rm -rf experiment/refactor
+mkdir -p experiment/refactor
+cp -r challenges/refactor/* experiment/refactor/
+```
 
-### Important Files to Modify
+### 2. EXECUTE (Run the Agent)
+Run the `zrb` agent against the challenge instructions.
+**CRITICAL:** Use `--interactive false` and `--yolo true` to ensure autonomous execution.
 
-These are the files you will likely need to tune:
+```bash
+# Navigate to the resources directory of the experiment
+cd experiment/refactor/resources
 
-- **System Prompts**: `src/zrb/config/default_prompt/`
-    - `system_prompt.md`: The core instruction set.
-    - `persona.md`: The personality and role definition.
-- **Tool Definitions**: `src/zrb/builtin/llm/tool/`
-    - Check files like `file.py`, `code.py`, `web.py` etc.
-    - Improve the docstrings (function descriptions, argument descriptions) to be clearer and more robust against misuse.
+export ZRB_LOGGING_LEVEL=DEBUG
+export ZRB_LLM_SHOW_TOOL_CALL_RESULT=true
+export ZRB_LLM_SHOW_TOOL_CALL_PREPARATION=true
 
-## How to Run a Challenge
+# Read the instruction and execute
+zrb llm chat \
+    --interactive false \
+    --yolo true \
+    --message "$(cat ../instruction.md)"
+```
 
-Follow these steps to run a challenge:
+### 3. EVALUATE (Assert Quality)
+Read the `evaluation.md` file in the original challenge directory (e.g., `challenges/refactor/evaluation.md`).
+**Compare the actual outcome** (files in `experiment/refactor/resources/`, logs) against the **Expected Outcome**.
 
-1. **Setup Experiment Directory**:
-   Copy a use case from the `challenges` folder into the `experiment` directory.
-   ```bash
-   mkdir -p experiment
-   rm -Rf experiment/refactor
-   cp -r challenges/refactor experiment/refactor
-   ```
+*   **PASS:** The agent met ALL criteria perfectly.
+*   **FAIL:** The agent missed ANY criterion, hallucinated, or crashed.
 
-2. **Move to Experiment Directory and run `zrb llm chat`** (IMPORTANT: always provide `start-new` and `yolo` parameters when calling `zrb llm chat`):
-   ```bash
-   export ZRB_LOGGING_LEVEL=DEBUG
-   export ZRB_LLM_SHOW_TOOL_CALL_RESULT=true
-   export ZRB_LLM_SHOW_TOOL_CALL_PREPARATION=true
-   cd experiment/refactor/resources && zrb llm chat --start-new true --yolo true --message "$(cat ../instruction.md)"
-   ```
+### 4. OPTIMIZE (Fix the Root Cause)
+**IF AND ONLY IF** a challenge fails:
+1.  **Analyze**: Why did it fail?
+    -   Ambiguous System Prompt?
+    -   Confusing Tool Docstring?
+    -   Missing Context?
+2.  **Refactor `zrb`**: Modify the core framework files to guide the LLM better.
+    -   **Prompts**: `src/zrb/llm/prompt/markdown/` (e.g., `mandate.md`, `persona.md`) relative to project root.
+    -   **Tools**: `src/zrb/llm/tool/` (Edit Python docstrings/signatures) relative to project root.
+3.  **Retry**: Go back to Step 1 (SETUP) and repeat until PASS.
 
-3. **Evaluate the Result**:
-   Check the changes made to the files in the `resources` directory (or new files created) and compare them against the criteria in `evaluation.md`.
-
-## Challenges
-
-### Software Engineering
-- **`refactor`**: Refactor a legacy "spaghetti code" ETL script (`legacy_etl.py`).
-    - *Goal*: Modularize code, fix global configs, improve parsing, and add typing.
-- **`bug-fix`**: Fix a race condition in an async inventory system (`inventory_system.py`).
-    - *Goal*: Use concurrency control (Locks) to prevent negative stock.
-- **`feature`**: Implement CRUD endpoints for a FastAPI Todo App (`todo_app.py`).
-    - *Goal*: Add POST, PUT, DELETE endpoints with proper Pydantic models.
-
-### General Tasks
-- **`research`**: Conduct research on "Solid State Batteries".
-    - *Goal*: Produce a structured markdown report covering timelines, players, and hurdles.
-- **`copywriting`**: Write a launch blog post for "Zrb-Flow".
-    - *Goal*: Creative writing with specific tone and structural requirements.
+## Rules of Engagement
+1.  **DO NOT MODIFY CHALLENGES**: You are testing `zrb`, not the test itself. The `instruction.md` and `evaluation.md` are IMMUTABLE STANDARDS.
+2.  **BE RUTHLESS**: Partial credit is FAILURE. The code must run, the features must exist, the tone must be correct.
+3.  **SELF-CORRECTION**: If you (the AI Agent running this test) encounter errors running the commands, fix your command usage immediately.

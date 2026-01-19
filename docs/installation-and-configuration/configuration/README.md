@@ -13,8 +13,6 @@ Many applications (including Zrb) can be configured using environment variables.
 Furthermore, Zrb also allows you to override some configurations with a special singletons.
 
 - [LLM Integration](./llm-integration.md): Integration with LLM
-- [LLM Workflow](./llm-workflow.md): How `zrb` thinks and manages context.
-- [LLM Workflow Config](./llm-workflow-config.md): How to configure LLM workflows.
 - [LLM Context File (`ZRB.md`)](../../technical-specs/llm-context.md): Detailed guide on defining Workflows, Contexts, and Notes.
 - [LLM Rate Limiter Config](./llm-rate-limiter.md): Configuring LLM rate limiting.
 - [Web Auth Config](./web-auth-config.md): Configuring Zrb Web Server authentication programmatically.
@@ -311,7 +309,7 @@ The following environment variables are used as LLM configuration default proper
     * Possible values: Any positive integer (also accepts `ZRB_LLM_MAX_TOKEN_PER_REQUEST`)
 
 * `ZRB_LLM_THROTTLE_SLEEP`: Number of seconds to sleep when throttling is required.
-    * Default: `5.0`
+    * Default: `1.0`
     * Possible values: Any positive float
 
 ### RAG (Retrieval-Augmented Generation) Configuration
