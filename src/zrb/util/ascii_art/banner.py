@@ -30,14 +30,24 @@ def create_banner(art: str | None = None, text: str | None = None) -> str:
     # Determine the maximum number of lines we need
     max_lines = max(len(padded_art_lines), len(text_lines))
 
+    # Calculate vertical offsets for centering
+    art_offset = (max_lines - len(padded_art_lines)) // 2
+    text_offset = (max_lines - len(text_lines)) // 2
+
     for i in range(max_lines):
         # Get art line (or empty string if we've run out of art lines)
-        art_line = (
-            padded_art_lines[i] if i < len(padded_art_lines) else " " * max_art_length
-        )
+        art_index = i - art_offset
+        if 0 <= art_index < len(padded_art_lines):
+            art_line = padded_art_lines[art_index]
+        else:
+            art_line = " " * max_art_length
 
         # Get text line (or empty string if we've run out of text lines)
-        text_line = text_lines[i] if i < len(text_lines) else ""
+        text_index = i - text_offset
+        if 0 <= text_index < len(text_lines):
+            text_line = text_lines[text_index]
+        else:
+            text_line = ""
 
         # Combine art and text lines
         combined_line = art_line + "  " + text_line

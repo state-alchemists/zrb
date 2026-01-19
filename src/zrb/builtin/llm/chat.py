@@ -1,5 +1,5 @@
+from zrb.builtin.group import llm_group
 from zrb.config.config import CFG
-from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.llm.app.confirmation.replace_confirmation import replace_confirmation
@@ -33,26 +33,12 @@ from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task
 from zrb.runner.cli import cli
 
 
-def _get_ui_greeting(ctx: AnySharedContext) -> str | None:
-    assistant_name = _get_ui_assistant_name(ctx)
-    jargon = _get_ui_jargon(ctx)
-    return f"{assistant_name}\n{jargon}"
-
-
-def _get_ui_assistant_name(ctx: AnySharedContext) -> str:
-    return CFG.ROOT_GROUP_NAME.capitalize()
-
-
-def _get_ui_jargon(ctx: AnySharedContext) -> str | None:
-    return CFG.ROOT_GROUP_DESCRIPTION
-
-
 skill_manager = SkillManager()
 note_manager = NoteManager()
 
 llm_chat = LLMChatTask(
     name="chat",
-    description="AI Assistant",
+    description="🤖 Chat with your AI Assistant",
     input=[
         StrInput("message", "Message", allow_empty=True, always_prompt=False),
         StrInput(
@@ -73,9 +59,10 @@ llm_chat = LLMChatTask(
         )
     ],
     prompt_manager=PromptManager(),
-    ui_assistant_name=_get_ui_assistant_name,
-    ui_greeting=_get_ui_greeting,
-    ui_jargon=_get_ui_jargon,
+    ui_ascii_art=lambda ctx: CFG.LLM_ASSISTANT_ASCII_ART,
+    ui_assistant_name=lambda ctx: CFG.LLM_ASSISTANT_NAME,
+    ui_greeting=lambda ctx: f"{CFG.LLM_ASSISTANT_NAME}\n{CFG.LLM_ASSISTANT_JARGON}",
+    ui_jargon=lambda ctx: CFG.LLM_ASSISTANT_JARGON,
     ui_summarize_commands=["/compress", "/compact"],
     ui_attach_commands=["/attach"],
     ui_exit_commands=["/q", "/bye", "/quit", "/exit"],
@@ -84,7 +71,9 @@ llm_chat = LLMChatTask(
     ui_load_commands=["/load"],
     ui_yolo_toggle_commands=["/yolo"],
     ui_redirect_output_commands=[">", "/redirect"],
+    ui_exec_commands=["!", "/exec"],
 )
+llm_group.add_task(llm_chat)
 cli.add_task(llm_chat)
 
 
@@ -115,7 +104,7 @@ joke_agent = create_sub_agent_tool(
 )
 
 llm_chat.prompt_manager.add_middleware(
-    new_prompt(get_assistant_system_prompt()),
+    new_prompt(get_assistant_system_prompt(CFG.LLM_ASSISTANT_NAME)),
     system_context,
     create_note_prompt(note_manager),
     create_claude_compatibility_prompt(skill_manager),

@@ -157,14 +157,14 @@ class Config:
 
     @property
     def SESSION_LOG_DIR(self) -> str:
-        return os.getenv(
-            "ZRB_SESSION_LOG_DIR",
+        return get_env(
+            "SESSION_LOG_DIR",
             os.path.expanduser(os.path.join("~", f".{self.ROOT_GROUP_NAME}-session")),
         )
 
     @SESSION_LOG_DIR.setter
     def SESSION_LOG_DIR(self, value: str):
-        os.environ["ZRB_SESSION_LOG_DIR"] = value
+        os.environ[f"{self.ENV_PREFIX}_SESSION_LOG_DIR"] = value
 
     @property
     def TODO_DIR(self) -> str:
@@ -360,17 +360,54 @@ class Config:
         os.environ[f"{self.ENV_PREFIX}_WEB_HOMEPAGE_INTRO"] = value
 
     @property
+    def LLM_ASSISTANT_NAME(self) -> str:
+        return get_env("LLM_ASSISTANT_NAME", self.ROOT_GROUP_NAME)
+
+    @LLM_ASSISTANT_NAME.setter
+    def LLM_ASSISTANT_NAME(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_ASSISTANT_NAME"] = value
+
+    @property
+    def LLM_ASSISTANT_ASCII_ART(self) -> str:
+        return get_env("LLM_ASSISTANT_ASCII_ART", "cat")
+
+    @LLM_ASSISTANT_ASCII_ART.setter
+    def LLM_ASSISTANT_ASCII_ART(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_ASSISTANT_ASCII_ART"] = value
+
+    @property
+    def LLM_ASSISTANT_JARGON(self) -> str:
+        return get_env("LLM_ASSISTANT_JARGON", self.ROOT_GROUP_DESCRIPTION)
+
+    @LLM_ASSISTANT_JARGON.setter
+    def LLM_ASSISTANT_JARGON(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_ASSISTANT_JARGON"] = value
+
+    @property
     def LLM_HISTORY_DIR(self) -> str:
-        return os.getenv(
-            "ZRB_LLM_HISTORY_DIR",
+        return get_env(
+            "LLM_HISTORY_DIR",
             os.path.expanduser(
-                os.path.join("~", f".{self.ROOT_GROUP_NAME}-llm-history")
+                os.path.join("~", f".{self.ROOT_GROUP_NAME}", "llm-history")
             ),
         )
 
     @LLM_HISTORY_DIR.setter
     def LLM_HISTORY_DIR(self, value: str):
-        os.environ["ZRB_LLM_HISTORY_DIR"] = value
+        os.environ[f"{self.ENV_PREFIX}_LLM_HISTORY_DIR"] = value
+
+    @property
+    def LLM_NOTE_FILE(self) -> str:
+        return get_env(
+            "LLM_NOTE_FILE",
+            os.path.expanduser(
+                os.path.join("~", f".{self.ROOT_GROUP_NAME}", "notes.json")
+            ),
+        )
+
+    @LLM_NOTE_FILE.setter
+    def LLM_NOTE_FILE(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_NOTE_FILE"] = value
 
     @property
     def LLM_MODEL(self) -> str | None:

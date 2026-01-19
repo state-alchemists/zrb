@@ -77,13 +77,14 @@ class LLMChatTask(BaseTask):
         ui_load_commands: list[str] = [],
         ui_redirect_output_commands: list[str] = [],
         ui_yolo_toggle_commands: list[str] = [],
+        ui_exec_commands: list[str] = [],
         ui_greeting: StrAttr | None = None,
         render_ui_greeting: bool = True,
         ui_assistant_name: StrAttr | None = None,
         render_ui_assistant_name: bool = True,
         ui_jargon: StrAttr | None = None,
         render_ui_jargon: bool = True,
-        ui_ascii_art_name: StrAttr | None = None,
+        ui_ascii_art: StrAttr | None = None,
         render_ui_ascii_art_name: bool = True,
         triggers: list[Callable[[], Any]] = [],
         confirmation_middlewares: list[ConfirmationMiddleware] = [],
@@ -155,13 +156,14 @@ class LLMChatTask(BaseTask):
         self._ui_load_commands = ui_load_commands
         self._ui_redirect_output_commands = ui_redirect_output_commands
         self._ui_yolo_toggle_commands = ui_yolo_toggle_commands
+        self._ui_exec_commands = ui_exec_commands
         self._ui_greeting = ui_greeting
         self._render_ui_greeting = render_ui_greeting
         self._ui_assistant_name = ui_assistant_name
         self._render_ui_assistant_name = render_ui_assistant_name
         self._ui_jargon = ui_jargon
         self._render_ui_jargon = render_ui_jargon
-        self._ui_ascii_art_name = ui_ascii_art_name
+        self._ui_ascii_art_name = ui_ascii_art
         self._render_ui_ascii_art_name = render_ui_ascii_art_name
         self._triggers = triggers
         self._confirmation_middlewares = confirmation_middlewares
@@ -212,7 +214,7 @@ class LLMChatTask(BaseTask):
             ctx, self._ui_assistant_name, "", self._render_ui_assistant_name
         )
         ui_jargon = get_str_attr(ctx, self._ui_jargon, "", self._render_ui_jargon)
-        ui_ascii_art_name = get_str_attr(
+        ascii_art = get_str_attr(
             ctx, self._ui_ascii_art_name, "", self._render_ui_ascii_art_name
         )
 
@@ -246,7 +248,7 @@ class LLMChatTask(BaseTask):
         ui = UI(
             greeting=ui_greeting,
             assistant_name=ui_assistant_name,
-            ascii_art_name=ui_ascii_art_name,
+            ascii_art=ascii_art,
             jargon=ui_jargon,
             output_lexer=CLIStyleLexer(),
             llm_task=llm_task_core,
@@ -266,9 +268,11 @@ class LLMChatTask(BaseTask):
             load_commands=self._ui_load_commands,
             yolo_toggle_commands=self._ui_yolo_toggle_commands,
             redirect_output_commands=self._ui_redirect_output_commands,
+            exec_commands=self._ui_exec_commands,
             model=self._get_model(ctx),
         )
-        return await ui.run_async()
+        await ui.run_async()
+        return ui.last_output
 
     def _get_conversation_name(self, ctx: AnyContext) -> str:
         conversation_name = str(

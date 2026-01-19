@@ -1,13 +1,12 @@
 import json
 import os
 from typing import Dict
-
-DEFAULT_NOTE_FILE = os.path.expanduser("~/.zrb/notes.json")
+from zrb.config.config import CFG
 
 
 class NoteManager:
-    def __init__(self, context_file: str = DEFAULT_NOTE_FILE):
-        self.context_file = os.path.abspath(context_file)
+    def __init__(self, context_file: str = CFG.LLM_NOTE_FILE):
+        self.context_file = os.path.abspath(os.path.expanduser(context_file))
 
     def _get_normalized_path(self, path: str) -> str:
         """

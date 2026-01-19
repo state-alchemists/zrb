@@ -27,7 +27,7 @@ def create_event_handler(
     )
 
     indentation = indent_level * 2 * " "
-    progress_char_list = ["|", "/", "-", "\\"]
+    progress_char_list = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
     progress_char_index = 0
     was_tool_call_delta = False
     event_prefix = indentation

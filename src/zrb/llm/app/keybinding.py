@@ -8,11 +8,17 @@ from prompt_toolkit.widgets import TextArea
 def create_output_keybindings(input_field: TextArea) -> KeyBindings:
     kb = KeyBindings()
 
+    @kb.add("escape")
+    def _(event):
+        get_app().layout.focus(input_field)
+
     @kb.add("c-c")
     def _(event):
         # Copy selection to clipboard
-        data = event.current_buffer.copy_selection()
-        event.app.clipboard.set_data(data)
+        if event.current_buffer.selection_state:
+            data = event.current_buffer.copy_selection()
+            event.app.clipboard.set_data(data)
+        get_app().layout.focus(input_field)
 
     def redirect_focus(event):
         get_app().layout.focus(input_field)

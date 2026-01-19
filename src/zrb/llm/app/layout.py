@@ -21,6 +21,7 @@ def create_input_field(
     load_commands: list[str],
     redirect_output_commands: list[str],
     summarize_commands: list[str],
+    exec_commands: list[str],
 ) -> TextArea:
     return TextArea(
         height=4,
@@ -36,6 +37,7 @@ def create_input_field(
             load_commands=load_commands,
             redirect_output_commands=redirect_output_commands,
             summarize_commands=summarize_commands,
+            exec_commands=exec_commands,
         ),
         complete_while_typing=True,
         focus_on_click=True,

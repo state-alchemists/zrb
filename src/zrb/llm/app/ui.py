@@ -47,7 +47,7 @@ class UI:
         self,
         greeting: str,
         assistant_name: str,
-        ascii_art_name: str,
+        ascii_art: str,
         jargon: str,
         output_lexer: Lexer,
         llm_task: LLMTask,
@@ -67,6 +67,7 @@ class UI:
         load_commands: list[str] = [],
         redirect_output_commands: list[str] = [],
         yolo_toggle_commands: list[str] = [],
+        exec_commands: list[str] = [],
         model: "Model | str | None" = None,
     ):
         self._is_thinking = False
@@ -74,7 +75,7 @@ class UI:
         self._llm_task = llm_task
         self._history_manager = history_manager
         self._assistant_name = assistant_name
-        self._ascii_art_name = ascii_art_name
+        self._ascii_art = ascii_art
         self._jargon = jargon
         self._initial_message = initial_message
         self._conversation_session_name = conversation_session_name
@@ -92,6 +93,7 @@ class UI:
         self._load_commands = load_commands
         self._redirect_output_commands = redirect_output_commands
         self._yolo_toggle_commands = yolo_toggle_commands
+        self._exec_commands = exec_commands
         self._trigger_tasks: list[asyncio.Task] = []
         self._last_result_data: str | None = None
         # Attachments
@@ -115,11 +117,12 @@ class UI:
             load_commands=self._load_commands,
             redirect_output_commands=self._redirect_output_commands,
             summarize_commands=self._summarize_commands,
+            exec_commands=self._exec_commands,
         )
         # Output Area (Read-only chat history)
         help_text = self._get_help_text()
         full_greeting = create_banner(
-            self._ascii_art_name, f"{greeting}\n{help_text}"
+            self._ascii_art, f"{greeting}\n{help_text}"
         )
         self._output_field = create_output_field(full_greeting, output_lexer)
         self._output_field.control.key_bindings = create_output_keybindings(
@@ -234,6 +237,12 @@ class UI:
     def application(self) -> Application:
         return self._application
 
+    @property
+    def last_output(self) -> str:
+        if self._last_result_data is None:
+            return ""
+        return self._last_result_data
+
     def _create_application(
         self,
         layout: Layout,
@@ -251,35 +260,26 @@ class UI:
     def _get_help_text(self) -> str:
         help_lines = ["\nAvailable Commands:"]
 
-        def add_cmd_help(commands, description):
-            if commands:
-                cmds = ", ".join(f"{cmd}" for cmd in commands)
-                if cmds:
-                    help_lines.append(f"  {cmds:<30} : {description}")
+        def add_cmd_help(commands: list[str], description: str):
+            if commands and len(commands) > 0:
+                cmd = commands[0]
+                description = description.replace("{cmd}", cmd)
+                help_lines.append(f"  {cmd:<10} : {description}")
 
-        if len(self._exit_commands) > 0:
-            add_cmd_help(self._exit_commands, "Exit the application")
-        if len(self._info_commands) > 0:
-            add_cmd_help(self._info_commands, "Show this help message")
-        if len(self._attach_commands) > 0:
-            attach_cmd = self._attach_commands[0]
-            add_cmd_help(self._attach_commands, f"Attach file (usage: {attach_cmd} <path>)")
-        if len(self._save_commands) > 0:
-            save_cmd = self._save_commands[0]
-            add_cmd_help(self._save_commands, f"Save conversation (usage: {save_cmd} <name>)")
-        if len(self._load_commands) > 0:
-            load_cmd = self._load_commands[0]
-            add_cmd_help(self._load_commands, f"Load conversation (usage: {load_cmd} <name>)")
-        if len(self._redirect_output_commands) > 0:
-            redirect_cmd = self._redirect_output_commands[0]
-            add_cmd_help(
-                self._redirect_output_commands,
-                f"Save last output to file (usage: {redirect_cmd} <file>)",
-            )
-        if len(self._summarize_commands) > 0:
-            add_cmd_help(self._summarize_commands, "Summarize conversation history")
-        if len(self._yolo_toggle_commands) > 0:
-            add_cmd_help(self._yolo_toggle_commands, "Toggle YOLO mode")
+        add_cmd_help(self._exit_commands, "Exit the application")
+        add_cmd_help(self._info_commands, "Show this help message")
+        add_cmd_help(self._attach_commands, "Attach file (usage: {cmd} <path>)")
+        add_cmd_help(self._save_commands, "Save conversation (usage: {cmd} <name>)")
+        add_cmd_help(self._load_commands, "Load conversation (usage: {cmd} <name>)")
+        add_cmd_help(
+            self._redirect_output_commands,
+            "Save last output to file (usage: {cmd} <file>)",
+        )
+        add_cmd_help(self._summarize_commands, "Summarize conversation history")
+        add_cmd_help(self._yolo_toggle_commands, "Toggle YOLO mode")
+        add_cmd_help(
+            self._exec_commands, "Execute shell command (usage: {cmd} <command>)"
+        )
 
         return "\n".join(help_lines) + "\n"
 
@@ -320,6 +320,10 @@ class UI:
                 event.app.clipboard.set_data(data)
                 buffer.exit_selection()
                 return
+            # If buffer is not empty, clear it
+            if buffer.text != "":
+                buffer.reset()
+                return
             event.app.exit()
 
         @app_keybindings.add("escape")
@@ -357,6 +361,8 @@ class UI:
                 return
             if self._handle_toggle_yolo(event):
                 return
+            if self._handle_exec_command(event):
+                return
 
             # If we are thinking, ignore input
             if self._is_thinking:
@@ -368,6 +374,80 @@ class UI:
         @app_keybindings.add("c-space")  # Ctrl+Space (Fallback)
         def _(event):
             event.current_buffer.insert_text("\n")
+
+    def _handle_exec_command(self, event) -> bool:
+        buff = event.current_buffer
+        text = buff.text
+        for cmd in self._exec_commands:
+            prefix = f"{cmd} "
+            if text.strip().lower().startswith(prefix):
+                if self._is_thinking:
+                    return False
+                
+                shell_cmd = text.strip()[len(prefix) :].strip()
+                if not shell_cmd:
+                    return True
+                
+                buff.reset()
+                # Run in background
+                self._running_llm_task = asyncio.create_task(
+                    self._run_shell_command(shell_cmd)
+                )
+                return True
+        return False
+
+    async def _run_shell_command(self, cmd: str):
+        self._is_thinking = True
+        get_app().invalidate()
+        timestamp = datetime.now().strftime("%H:%M")
+        
+        try:
+            self.append_to_output(f"\n💻 {timestamp} >>\n$ {cmd}\n")
+            self.append_to_output(f"\n  🔢 Executing...\n")
+            
+            # Create subprocess
+            process = await asyncio.create_subprocess_shell(
+                cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            is_first_output = True
+            
+            # Read output streams
+            async def read_stream(stream, is_stderr=False):
+                while True:
+                    nonlocal is_first_output
+                    line = await stream.readline()
+                    if not line:
+                        break
+                    decoded_line = line.decode('utf-8', errors='replace')
+                    decoded_line = decoded_line.replace("\n", "\n  ").replace("\r", "\r  ")
+                    if is_first_output:
+                        decoded_line = f"  {decoded_line}"
+                        is_first_output = False
+                    # Could use a different color for stderr if desired
+                    self.append_to_output(decoded_line, end="")
+
+            await asyncio.gather(
+                read_stream(process.stdout),
+                read_stream(process.stderr, is_stderr=True)
+            )
+            
+            return_code = await process.wait()
+            
+            if return_code == 0:
+                 self.append_to_output(f"\n  ✅ Command finished successfully.\n")
+            else:
+                 self.append_to_output(f"\n  ❌ Command failed with exit code {return_code}.\n")
+
+        except asyncio.CancelledError:
+            self.append_to_output("\n[Cancelled]\n")
+        except Exception as e:
+            self.append_to_output(f"\n[Error: {e}]\n")
+        finally:
+            self._is_thinking = False
+            self._running_llm_task = None
+            get_app().invalidate()
 
     def _handle_toggle_yolo(self, event) -> bool:
         buff = event.current_buffer
@@ -476,7 +556,7 @@ class UI:
                 if not path:
                     continue
 
-                content = self._last_result_data
+                content = self.last_output
                 if not content:
                     self.append_to_output(
                         "\n  ❌ No AI response available to redirect.\n"
