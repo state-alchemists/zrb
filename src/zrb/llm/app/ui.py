@@ -185,10 +185,14 @@ class UI:
         """Handle external triggers and submit user message when trigger activated"""
         while True:
             try:
-                if asyncio.iscoroutinefunction(trigger_fn):
-                    result = await trigger_fn()
-                else:
-                    result = await asyncio.to_thread(trigger_fn)
+                stdout_capture = StreamToUI(self.append_to_output)
+                with contextlib.redirect_stdout(
+                    stdout_capture
+                ), contextlib.redirect_stderr(stdout_capture):
+                    if asyncio.iscoroutinefunction(trigger_fn):
+                        result = await trigger_fn()
+                    else:
+                        result = await asyncio.to_thread(trigger_fn)
 
                 if result:
                     self._submit_user_message(self._llm_task, str(result))
@@ -698,8 +702,6 @@ class UI:
         except asyncio.CancelledError:
             self.append_to_output("\n[Cancelled]\n")
         except Exception as e:
-            with open("zrb_debug.log", "a") as f:
-                f.write(f"[{datetime.now()}] Error: {e}\n")
             self.append_to_output(f"\n[Error: {e}]\n")
         finally:
             self._is_thinking = False

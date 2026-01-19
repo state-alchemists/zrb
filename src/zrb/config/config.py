@@ -819,5 +819,13 @@ class Config:
     def TIKTOKEN_ENCODING_NAME(self, value: str):
         os.environ[f"{self.ENV_PREFIX}_TIKTOKEN_ENCODING_NAME"] = value
 
+    @property
+    def MCP_CONFIG_FILE(self) -> str:
+        return get_env("MCP_CONFIG_FILE", "mcp.json", self.ENV_PREFIX)
+
+    @MCP_CONFIG_FILE.setter
+    def MCP_CONFIG_FILE(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_MCP_CONFIG_FILE"] = value
+
 
 CFG = Config()

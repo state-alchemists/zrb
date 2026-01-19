@@ -10,6 +10,7 @@ from zrb.llm.tool.file import (
     write_file,
     write_files,
 )
+from zrb.llm.tool.mcp import load_mcp_config
 from zrb.llm.tool.note import create_note_tools
 from zrb.llm.tool.rag import create_rag_from_directory
 from zrb.llm.tool.skill import create_activate_skill_tool
@@ -28,6 +29,7 @@ __all__ = [
     "replace_in_file",
     "search_files",
     "analyze_file",
+    "load_mcp_config",
     "create_note_tools",
     "create_rag_from_directory",
     "create_activate_skill_tool",

@@ -30,6 +30,7 @@ from zrb.llm.tool.file import (
     write_file,
     write_files,
 )
+from zrb.llm.tool.mcp import load_mcp_config
 from zrb.llm.tool.note import create_note_tools
 from zrb.llm.tool.skill import create_activate_skill_tool
 from zrb.llm.tool.sub_agent import create_sub_agent_tool
@@ -124,6 +125,7 @@ llm_chat.prompt_manager.add_middleware(
     create_zrb_prompt(),
 )
 llm_chat.add_confirmation_middleware(replace_confirmation)
+llm_chat.add_toolset(*load_mcp_config())
 llm_chat.add_tool(
     roll_dice,
     joke_agent,
@@ -143,5 +145,5 @@ llm_chat.add_tool(
     create_run_zrb_task_tool(),
     create_activate_skill_tool(skill_manager),
     *create_note_tools(note_manager),
+    get_current_time
 )
-llm_chat.add_tool(get_current_time)
