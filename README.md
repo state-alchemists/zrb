@@ -171,13 +171,7 @@ Start a chat session with an LLM to ask questions, brainstorm ideas, or get codi
 zrb llm chat
 ```
 
-### Quick Questions
 
-For a single question, use the `ask` command for a fast response.
-
-```bash
-zrb llm ask "What is the capital of Indonesia?"
-```
 
 ---
 

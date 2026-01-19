@@ -122,7 +122,7 @@ ZRB_RAG_EMBEDDING_API_KEY=your_rag_api_key
 
 ```sh
 # One shot request
-zrb llm ask "zip project directory into project.zip"
+zrb llm chat --message "zip project directory into project.zip"
 
 # Chat session
 zrb llm chat "How is the current weather at my current location?"

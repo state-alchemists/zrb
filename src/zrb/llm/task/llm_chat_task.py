@@ -5,6 +5,7 @@ from zrb.attr.type import BoolAttr, StrAttr, fstring
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
+from zrb.context.shared_context import SharedContext
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.input.bool_input import BoolInput
@@ -18,6 +19,7 @@ from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.prompt.compose import PromptManager
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.util.attachment import get_attachments
+from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_attr, get_bool_attr, get_str_attr
@@ -89,6 +91,7 @@ class LLMChatTask(BaseTask):
         triggers: list[Callable[[], Any]] = [],
         confirmation_middlewares: list[ConfirmationMiddleware] = [],
         markdown_theme: "Theme | None" = None,
+        interactive: BoolAttr = True,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
@@ -168,6 +171,7 @@ class LLMChatTask(BaseTask):
         self._triggers = triggers
         self._confirmation_middlewares = confirmation_middlewares
         self._markdown_theme = markdown_theme
+        self._interactive = interactive
 
     @property
     def prompt_manager(self) -> PromptManager:
@@ -217,6 +221,7 @@ class LLMChatTask(BaseTask):
         ascii_art = get_str_attr(
             ctx, self._ui_ascii_art_name, "", self._render_ui_ascii_art_name
         )
+        interactive = get_bool_attr(ctx, self._interactive, True)
 
         llm_task_core = LLMTask(
             name=f"{self.name}-process",
@@ -245,6 +250,21 @@ class LLMChatTask(BaseTask):
             attachment=lambda ctx: ctx.input.attachments,
             summarize_command=self._ui_summarize_commands,
         )
+
+        if not interactive:
+            session_input = {
+                "message": initial_message,
+                "session": initial_conversation_name,
+                "yolo": initial_yolo,
+                "attachments": initial_attachments,
+            }
+            shared_ctx = SharedContext(
+                input=session_input,
+                print_fn=ctx.shared_print,  # Use current task's print function
+            )
+            session = Session(shared_ctx)
+            return await llm_task_core.async_run(session)
+
         ui = UI(
             greeting=ui_greeting,
             assistant_name=ui_assistant_name,

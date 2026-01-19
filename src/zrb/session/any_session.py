@@ -15,9 +15,6 @@ if TYPE_CHECKING:
     from zrb.task.any_task import AnyTask
 
 
-TAnySession = TypeVar("TAnySession", bound="AnySession")
-
-
 class AnySession(ABC):
     """Abstract base class for managing task execution and context in a session.
 

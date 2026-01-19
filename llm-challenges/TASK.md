@@ -1,10 +1,10 @@
 # Zrb LLM Challenge
 
-This directory contains a framework for testing and evaluating `zrb llm ask`.
+This directory contains a framework for testing and evaluating `zrb llm chat`.
 
-## Overview of `zrb llm ask`
+## Overview of `zrb llm chat`
 
-The `zrb llm ask` command is a powerful tool for interacting with Large Language Models (LLMs) to perform various tasks, especially those related to software engineering. It uses the `LLMTask` class to orchestrate interactions.
+The `zrb llm chat` command is a powerful tool for interacting with Large Language Models (LLMs) to perform various tasks, especially those related to software engineering. It uses the `LLMTask` class to orchestrate interactions.
 
 The process generally follows these steps:
 1. **History Management**: Loads conversation history (long-term context, narrative summary, and raw chat log).
@@ -48,12 +48,12 @@ Follow these steps to run a challenge:
    cp -r challenges/refactor experiment/refactor
    ```
 
-2. **Move to Experiment Directory and run `zrb llm ask`** (IMPORTANT: always provide `start-new` and `yolo` parameters when calling `zrb llm ask`):
+2. **Move to Experiment Directory and run `zrb llm chat`** (IMPORTANT: always provide `start-new` and `yolo` parameters when calling `zrb llm chat`):
    ```bash
    export ZRB_LOGGING_LEVEL=DEBUG
    export ZRB_LLM_SHOW_TOOL_CALL_RESULT=true
    export ZRB_LLM_SHOW_TOOL_CALL_PREPARATION=true
-   cd experiment/refactor/resources && zrb llm ask --start-new true --yolo true "$(cat ../instruction.md)"
+   cd experiment/refactor/resources && zrb llm chat --start-new true --yolo true --message "$(cat ../instruction.md)"
    ```
 
 3. **Evaluate the Result**:

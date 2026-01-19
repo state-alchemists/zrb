@@ -1,6 +1,6 @@
 🔖 [Home](../../../README.md) > [Documentation](../../README.md) > [Installation and Configuration](../README.md) > [Configuration](./README.md)# LLM Workflow: How `zrb` Thinks
 
-The `zrb` LLM tasks (`llm-ask` and `llm-chat`) are designed to provide intelligent, context-aware assistance by managing a sophisticated workflow. This document breaks down the step-by-step process of how the agent handles a conversation, enriches its understanding, and generates responses.
+The `zrb` LLM task (`llm-chat`) is designed to provide intelligent, context-aware assistance by managing a sophisticated workflow. This document breaks down the step-by-step process of how the agent handles a conversation, enriches its understanding, and generates responses.
 
 ## The Core Workflow
 
@@ -45,7 +45,7 @@ graph TD
 
 ### Step-by-Step Breakdown
 
-1.  **Load History**: When you run `llm-chat` or `llm-ask`, the first thing `zrb` does is load the conversation history. This history is divided into three parts:
+1.  **Load History**: When you run `llm-chat`, the first thing `zrb` does is load the conversation history. This history is divided into three parts:
     *   **Long-Term/Contextual Notes**: Stable facts and key information gathered over time.
     *   **Narrative Summary**: A condensed, story-like summary of the conversation so far.
     *   **Conversation Transcript**: The verbatim, turn-by-turn log of the most recent interactions.

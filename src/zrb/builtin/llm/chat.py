@@ -50,10 +50,18 @@ llm_chat = LLMChatTask(
             "yolo", "YOLO Mode", default=False, allow_empty=True, always_prompt=False
         ),
         StrInput("attach", "Attachments", allow_empty=True, always_prompt=False),
+        BoolInput(
+            "interactive",
+            "Interactive Mode",
+            default=True,
+            allow_empty=True,
+            always_prompt=False,
+        ),
     ],
     yolo="{ctx.input.yolo}",
     message="{ctx.input.message}",
     conversation_name="{ctx.input.session}",
+    interactive="{ctx.input.interactive}",
     history_processors=[
         create_summarizer_history_processor(
             token_threshold=CFG.LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD,
