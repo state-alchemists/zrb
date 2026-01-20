@@ -19,7 +19,7 @@ def get_default_prompt(name: str) -> str:
 
     # 2. Load from environment
     env_prefix = CFG.ENV_PREFIX
-    env_value = os.getenv(f"{env_prefix}_{to_snake_case(name).upper()}", "")
+    env_value = os.getenv(f"{env_prefix}_LLM_PROMPT_{to_snake_case(name).upper()}", "")
     if env_value:
         return env_value
 
