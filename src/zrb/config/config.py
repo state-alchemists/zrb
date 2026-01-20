@@ -29,11 +29,85 @@ Your Automation Powerhouse
 
 class Config:
     def __init__(self):
-        pass
+        self.DEFAULT_ENV_PREFIX = "ZRB"
+        self.DEFAULT_SHELL = ""
+        self.DEFAULT_EDITOR = "nano"
+        self.DEFAULT_EDIT_COMMAND_TPL = ""
+        self.DEFAULT_INIT_MODULES = ""
+        self.DEFAULT_ROOT_GROUP_NAME = "zrb"
+        self.DEFAULT_ROOT_GROUP_DESCRIPTION = "Your Automation Powerhouse"
+        self.DEFAULT_INIT_SCRIPTS = ""
+        self.DEFAULT_INIT_FILE_NAME = "zrb_init.py"
+        self.DEFAULT_LOGGING_LEVEL = "WARNING"
+        self.DEFAULT_LOAD_BUILTIN = "1"
+        self.DEFAULT_WARN_UNRECOMMENDED_COMMAND = "1"
+        self.DEFAULT_SESSION_LOG_DIR = ""
+        self.DEFAULT_TODO_DIR = ""
+        self.DEFAULT_TODO_VISUAL_FILTER = ""
+        self.DEFAULT_TODO_RETENTION = "2w"
+        self.DEFAULT_VERSION = ""
+        self.DEFAULT_WEB_CSS_PATH = ""
+        self.DEFAULT_WEB_JS_PATH = ""
+        self.DEFAULT_WEB_FAVICON_PATH = "/static/favicon-32x32.png"
+        self.DEFAULT_WEB_COLOR = ""
+        self.DEFAULT_WEB_HTTP_PORT = "21213"
+        self.DEFAULT_WEB_GUEST_USERNAME = "user"
+        self.DEFAULT_WEB_SUPER_ADMIN_USERNAME = "admin"
+        self.DEFAULT_WEB_SUPER_ADMIN_PASSWORD = "admin"
+        self.DEFAULT_WEB_ACCESS_TOKEN_COOKIE_NAME = "access_token"
+        self.DEFAULT_WEB_REFRESH_TOKEN_COOKIE_NAME = "refresh_token"
+        self.DEFAULT_WEB_SECRET_KEY = "zrb"
+        self.DEFAULT_WEB_ENABLE_AUTH = "0"
+        self.DEFAULT_WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES = "30"
+        self.DEFAULT_WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES = "60"
+        self.DEFAULT_WEB_TITLE = "Zrb"
+        self.DEFAULT_WEB_JARGON = "Your Automation PowerHouse"
+        self.DEFAULT_WEB_HOMEPAGE_INTRO = "Welcome to Zrb Web Interface"
+        self.DEFAULT_LLM_ASSISTANT_NAME = ""
+        self.DEFAULT_LLM_ASSISTANT_ASCII_ART = "cat"
+        self.DEFAULT_LLM_ASSISTANT_JARGON = ""
+        self.DEFAULT_LLM_HISTORY_DIR = ""
+        self.DEFAULT_LLM_NOTE_FILE = ""
+        self.DEFAULT_LLM_MODEL = ""
+        self.DEFAULT_LLM_BASE_URL = ""
+        self.DEFAULT_LLM_API_KEY = ""
+        self.DEFAULT_LLM_MAX_REQUESTS_PER_MINUTE = "60"
+        self.DEFAULT_LLM_MAX_TOKENS_PER_MINUTE = "120000"
+        self.DEFAULT_LLM_MAX_TOKENS_PER_REQUEST = "120000"
+        self.DEFAULT_LLM_THROTTLE_SLEEP = "1.0"
+        self.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW = "5"
+        self.DEFAULT_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD = ""
+        self.DEFAULT_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD = ""
+        self.DEFAULT_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD = ""
+        self.DEFAULT_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD = ""
+        self.DEFAULT_LLM_PROMPT_DIR = ""
+        self.DEFAULT_RAG_EMBEDDING_API_KEY = ""
+        self.DEFAULT_RAG_EMBEDDING_BASE_URL = ""
+        self.DEFAULT_RAG_EMBEDDING_MODEL = "text-embedding-ada-002"
+        self.DEFAULT_RAG_CHUNK_SIZE = "1024"
+        self.DEFAULT_RAG_OVERLAP = "128"
+        self.DEFAULT_RAG_MAX_RESULT_COUNT = "5"
+        self.DEFAULT_SEARCH_INTERNET_METHOD = "serpapi"
+        self.DEFAULT_BRAVE_API_KEY = ""
+        self.DEFAULT_BRAVE_API_SAFE = "off"
+        self.DEFAULT_BRAVE_API_LANG = "en"
+        self.DEFAULT_SERPAPI_KEY = ""
+        self.DEFAULT_SERPAPI_SAFE = "off"
+        self.DEFAULT_SERPAPI_LANG = "en"
+        self.DEFAULT_SEARXNG_PORT = "8080"
+        self.DEFAULT_SEARXNG_BASE_URL = ""
+        self.DEFAULT_SEARXNG_SAFE = "0"
+        self.DEFAULT_SEARXNG_LANG = "en"
+        self.DEFAULT_BANNER = _DEFAULT_BANNER
+        self.DEFAULT_LLM_SHOW_TOOL_CALL_DETAIL = "0"
+        self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT = "0"
+        self.DEFAULT_USE_TIKTOKEN = "1"
+        self.DEFAULT_TIKTOKEN_ENCODING_NAME = "cl100k_base"
+        self.DEFAULT_MCP_CONFIG_FILE = "mcp.json"
 
     @property
     def ENV_PREFIX(self) -> str:
-        return os.getenv("_ZRB_ENV_PREFIX", "ZRB")
+        return os.getenv("_ZRB_ENV_PREFIX", self.DEFAULT_ENV_PREFIX)
 
     @ENV_PREFIX.setter
     def ENV_PREFIX(self, value: str):
@@ -44,36 +118,50 @@ class Config:
         return logging.getLogger()
 
     @property
-    def DEFAULT_SHELL(self) -> str:
-        return get_env("SHELL", get_current_shell(), self.ENV_PREFIX)
-
-    @DEFAULT_SHELL.setter
-    def DEFAULT_SHELL(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_SHELL"] = value
-
-    @property
-    def DEFAULT_EDITOR(self) -> str:
-        return get_env("EDITOR", "nano", self.ENV_PREFIX)
-
-    @DEFAULT_EDITOR.setter
-    def DEFAULT_EDITOR(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_EDITOR"] = value
-
-    @property
-    def DEFAULT_DIFF_EDIT_COMMAND_TPL(self) -> str:
+    def SHELL(self) -> str:
         return get_env(
-            "DIFF_EDIT_COMMAND",
-            get_default_diff_edit_command(self.DEFAULT_EDITOR),
+            "SHELL",
+            (
+                self.DEFAULT_SHELL
+                if self.DEFAULT_SHELL != ""
+                else get_current_shell()
+            ),
             self.ENV_PREFIX,
         )
 
-    @DEFAULT_DIFF_EDIT_COMMAND_TPL.setter
-    def DEFAULT_DIFF_EDIT_COMMAND_TPL(self, value: str):
+    @SHELL.setter
+    def SHELL(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_SHELL"] = value
+
+    @property
+    def EDITOR(self) -> str:
+        return get_env("EDITOR", self.DEFAULT_EDITOR, self.ENV_PREFIX)
+
+    @EDITOR.setter
+    def EDITOR(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_EDITOR"] = value
+
+    @property
+    def DIFF_EDIT_COMMAND_TPL(self) -> str:
+        return get_env(
+            "DIFF_EDIT_COMMAND",
+            (
+                self.DEFAULT_EDIT_COMMAND_TPL
+                if self.DEFAULT_EDIT_COMMAND_TPL != ""
+                else get_default_diff_edit_command(self.EDITOR)
+            ),
+            self.ENV_PREFIX,
+        )
+
+    @DIFF_EDIT_COMMAND_TPL.setter
+    def DIFF_EDIT_COMMAND_TPL(self, value: str):
         os.environ[f"{self.ENV_PREFIX}_DIFF_EDIT_COMMAND"] = value
 
     @property
     def INIT_MODULES(self) -> list[str]:
-        init_modules_str = get_env("INIT_MODULES", "", self.ENV_PREFIX)
+        init_modules_str = get_env(
+            "INIT_MODULES", self.DEFAULT_INIT_MODULES, self.ENV_PREFIX
+        )
         if init_modules_str != "":
             return [
                 module.strip()
@@ -88,7 +176,9 @@ class Config:
 
     @property
     def ROOT_GROUP_NAME(self) -> str:
-        return get_env("ROOT_GROUP_NAME", "zrb", self.ENV_PREFIX)
+        return get_env(
+            "ROOT_GROUP_NAME", self.DEFAULT_ROOT_GROUP_NAME, self.ENV_PREFIX
+        )
 
     @ROOT_GROUP_NAME.setter
     def ROOT_GROUP_NAME(self, value: str):
@@ -97,7 +187,9 @@ class Config:
     @property
     def ROOT_GROUP_DESCRIPTION(self) -> str:
         return get_env(
-            "ROOT_GROUP_DESCRIPTION", "Your Automation Powerhouse", self.ENV_PREFIX
+            "ROOT_GROUP_DESCRIPTION",
+            self.DEFAULT_ROOT_GROUP_DESCRIPTION,
+            self.ENV_PREFIX,
         )
 
     @ROOT_GROUP_DESCRIPTION.setter
@@ -106,7 +198,9 @@ class Config:
 
     @property
     def INIT_SCRIPTS(self) -> list[str]:
-        init_scripts_str = get_env("INIT_SCRIPTS", "", self.ENV_PREFIX)
+        init_scripts_str = get_env(
+            "INIT_SCRIPTS", self.DEFAULT_INIT_SCRIPTS, self.ENV_PREFIX
+        )
         if init_scripts_str != "":
             return [
                 script.strip()
@@ -121,7 +215,9 @@ class Config:
 
     @property
     def INIT_FILE_NAME(self) -> str:
-        return get_env("INIT_FILE_NAME", "zrb_init.py", self.ENV_PREFIX)
+        return get_env(
+            "INIT_FILE_NAME", self.DEFAULT_INIT_FILE_NAME, self.ENV_PREFIX
+        )
 
     @INIT_FILE_NAME.setter
     def INIT_FILE_NAME(self, value: str):
@@ -129,7 +225,9 @@ class Config:
 
     @property
     def LOGGING_LEVEL(self) -> int:
-        return get_log_level(get_env("LOGGING_LEVEL", "WARNING", self.ENV_PREFIX))
+        return get_log_level(
+            get_env("LOGGING_LEVEL", self.DEFAULT_LOGGING_LEVEL, self.ENV_PREFIX)
+        )
 
     @LOGGING_LEVEL.setter
     def LOGGING_LEVEL(self, value: int | str):
@@ -139,7 +237,9 @@ class Config:
 
     @property
     def LOAD_BUILTIN(self) -> bool:
-        return to_boolean(get_env("LOAD_BUILTIN", "1", self.ENV_PREFIX))
+        return to_boolean(
+            get_env("LOAD_BUILTIN", self.DEFAULT_LOAD_BUILTIN, self.ENV_PREFIX)
+        )
 
     @LOAD_BUILTIN.setter
     def LOAD_BUILTIN(self, value: bool):
@@ -147,7 +247,13 @@ class Config:
 
     @property
     def WARN_UNRECOMMENDED_COMMAND(self) -> bool:
-        return to_boolean(get_env("WARN_UNRECOMMENDED_COMMAND", "1", self.ENV_PREFIX))
+        return to_boolean(
+            get_env(
+                "WARN_UNRECOMMENDED_COMMAND",
+                self.DEFAULT_WARN_UNRECOMMENDED_COMMAND,
+                self.ENV_PREFIX,
+            )
+        )
 
     @WARN_UNRECOMMENDED_COMMAND.setter
     def WARN_UNRECOMMENDED_COMMAND(self, value: bool):
@@ -157,9 +263,14 @@ class Config:
 
     @property
     def SESSION_LOG_DIR(self) -> str:
+        default = self.DEFAULT_SESSION_LOG_DIR
+        if default == "":
+            default = os.path.expanduser(
+                os.path.join("~", f".{self.ROOT_GROUP_NAME}-session")
+            )
         return get_env(
             "SESSION_LOG_DIR",
-            os.path.expanduser(os.path.join("~", f".{self.ROOT_GROUP_NAME}-session")),
+            default,
             self.ENV_PREFIX,
         )
 
@@ -169,9 +280,12 @@ class Config:
 
     @property
     def TODO_DIR(self) -> str:
+        default = self.DEFAULT_TODO_DIR
+        if default == "":
+            default = os.path.expanduser(os.path.join("~", "todo"))
         return get_env(
             "TODO_DIR",
-            os.path.expanduser(os.path.join("~", "todo")),
+            default,
             self.ENV_PREFIX,
         )
 
@@ -181,7 +295,7 @@ class Config:
 
     @property
     def TODO_VISUAL_FILTER(self) -> str:
-        return get_env("TODO_FILTER", "", self.ENV_PREFIX)
+        return get_env("TODO_FILTER", self.DEFAULT_TODO_VISUAL_FILTER, self.ENV_PREFIX)
 
     @TODO_VISUAL_FILTER.setter
     def TODO_VISUAL_FILTER(self, value: str):
@@ -189,7 +303,7 @@ class Config:
 
     @property
     def TODO_RETENTION(self) -> str:
-        return get_env("TODO_RETENTION", "2w", self.ENV_PREFIX)
+        return get_env("TODO_RETENTION", self.DEFAULT_TODO_RETENTION, self.ENV_PREFIX)
 
     @TODO_RETENTION.setter
     def TODO_RETENTION(self, value: str):
@@ -200,7 +314,11 @@ class Config:
         custom_version = os.getenv("_ZRB_CUSTOM_VERSION", "")
         if custom_version != "":
             return custom_version
-        return metadata.version("zrb")
+        return (
+            self.DEFAULT_VERSION
+            if self.DEFAULT_VERSION != ""
+            else metadata.version("zrb")
+        )
 
     @VERSION.setter
     def VERSION(self, value: str):
@@ -208,7 +326,9 @@ class Config:
 
     @property
     def WEB_CSS_PATH(self) -> list[str]:
-        web_css_path_str = get_env("WEB_CSS_PATH", "", self.ENV_PREFIX)
+        web_css_path_str = get_env(
+            "WEB_CSS_PATH", self.DEFAULT_WEB_CSS_PATH, self.ENV_PREFIX
+        )
         if web_css_path_str != "":
             return [
                 path.strip()
@@ -223,7 +343,9 @@ class Config:
 
     @property
     def WEB_JS_PATH(self) -> list[str]:
-        web_js_path_str = get_env("WEB_JS_PATH", "", self.ENV_PREFIX)
+        web_js_path_str = get_env(
+            "WEB_JS_PATH", self.DEFAULT_WEB_JS_PATH, self.ENV_PREFIX
+        )
         if web_js_path_str != "":
             return [
                 path.strip()
@@ -238,7 +360,9 @@ class Config:
 
     @property
     def WEB_FAVICON_PATH(self) -> str:
-        return get_env("WEB_FAVICON_PATH", "/static/favicon-32x32.png", self.ENV_PREFIX)
+        return get_env(
+            "WEB_FAVICON_PATH", self.DEFAULT_WEB_FAVICON_PATH, self.ENV_PREFIX
+        )
 
     @WEB_FAVICON_PATH.setter
     def WEB_FAVICON_PATH(self, value: str):
@@ -246,7 +370,7 @@ class Config:
 
     @property
     def WEB_COLOR(self) -> str:
-        return get_env("WEB_COLOR", "", self.ENV_PREFIX)
+        return get_env("WEB_COLOR", self.DEFAULT_WEB_COLOR, self.ENV_PREFIX)
 
     @WEB_COLOR.setter
     def WEB_COLOR(self, value: str):
@@ -254,7 +378,9 @@ class Config:
 
     @property
     def WEB_HTTP_PORT(self) -> int:
-        return int(get_env("WEB_HTTP_PORT", "21213", self.ENV_PREFIX))
+        return int(
+            get_env("WEB_HTTP_PORT", self.DEFAULT_WEB_HTTP_PORT, self.ENV_PREFIX)
+        )
 
     @WEB_HTTP_PORT.setter
     def WEB_HTTP_PORT(self, value: int):
@@ -262,7 +388,9 @@ class Config:
 
     @property
     def WEB_GUEST_USERNAME(self) -> str:
-        return get_env("WEB_GUEST_USERNAME", "user", self.ENV_PREFIX)
+        return get_env(
+            "WEB_GUEST_USERNAME", self.DEFAULT_WEB_GUEST_USERNAME, self.ENV_PREFIX
+        )
 
     @WEB_GUEST_USERNAME.setter
     def WEB_GUEST_USERNAME(self, value: str):
@@ -270,7 +398,11 @@ class Config:
 
     @property
     def WEB_SUPER_ADMIN_USERNAME(self) -> str:
-        return get_env("WEB_SUPER_ADMIN_USERNAME", "admin", self.ENV_PREFIX)
+        return get_env(
+            "WEB_SUPER_ADMIN_USERNAME",
+            self.DEFAULT_WEB_SUPER_ADMIN_USERNAME,
+            self.ENV_PREFIX,
+        )
 
     @WEB_SUPER_ADMIN_USERNAME.setter
     def WEB_SUPER_ADMIN_USERNAME(self, value: str):
@@ -278,7 +410,11 @@ class Config:
 
     @property
     def WEB_SUPER_ADMIN_PASSWORD(self) -> str:
-        return get_env("WEB_SUPER_ADMIN_PASSWORD", "admin", self.ENV_PREFIX)
+        return get_env(
+            "WEB_SUPER_ADMIN_PASSWORD",
+            self.DEFAULT_WEB_SUPER_ADMIN_PASSWORD,
+            self.ENV_PREFIX,
+        )
 
     @WEB_SUPER_ADMIN_PASSWORD.setter
     def WEB_SUPER_ADMIN_PASSWORD(self, value: str):
@@ -286,7 +422,11 @@ class Config:
 
     @property
     def WEB_ACCESS_TOKEN_COOKIE_NAME(self) -> str:
-        return get_env("WEB_ACCESS_TOKEN_COOKIE_NAME", "access_token", self.ENV_PREFIX)
+        return get_env(
+            "WEB_ACCESS_TOKEN_COOKIE_NAME",
+            self.DEFAULT_WEB_ACCESS_TOKEN_COOKIE_NAME,
+            self.ENV_PREFIX,
+        )
 
     @WEB_ACCESS_TOKEN_COOKIE_NAME.setter
     def WEB_ACCESS_TOKEN_COOKIE_NAME(self, value: str):
@@ -295,7 +435,9 @@ class Config:
     @property
     def WEB_REFRESH_TOKEN_COOKIE_NAME(self) -> str:
         return get_env(
-            "WEB_REFRESH_TOKEN_COOKIE_NAME", "refresh_token", self.ENV_PREFIX
+            "WEB_REFRESH_TOKEN_COOKIE_NAME",
+            self.DEFAULT_WEB_REFRESH_TOKEN_COOKIE_NAME,
+            self.ENV_PREFIX,
         )
 
     @WEB_REFRESH_TOKEN_COOKIE_NAME.setter
@@ -304,7 +446,7 @@ class Config:
 
     @property
     def WEB_SECRET_KEY(self) -> str:
-        return get_env("WEB_SECRET", "zrb", self.ENV_PREFIX)
+        return get_env("WEB_SECRET", self.DEFAULT_WEB_SECRET_KEY, self.ENV_PREFIX)
 
     @WEB_SECRET_KEY.setter
     def WEB_SECRET_KEY(self, value: str):
@@ -312,7 +454,9 @@ class Config:
 
     @property
     def WEB_ENABLE_AUTH(self) -> bool:
-        return to_boolean(get_env("WEB_ENABLE_AUTH", "0", self.ENV_PREFIX))
+        return to_boolean(
+            get_env("WEB_ENABLE_AUTH", self.DEFAULT_WEB_ENABLE_AUTH, self.ENV_PREFIX)
+        )
 
     @WEB_ENABLE_AUTH.setter
     def WEB_ENABLE_AUTH(self, value: bool):
@@ -320,7 +464,13 @@ class Config:
 
     @property
     def WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES(self) -> int:
-        return int(get_env("WEB_ACCESS_TOKEN_EXPIRE_MINUTES", "30", self.ENV_PREFIX))
+        return int(
+            get_env(
+                "WEB_ACCESS_TOKEN_EXPIRE_MINUTES",
+                self.DEFAULT_WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES,
+                self.ENV_PREFIX,
+            )
+        )
 
     @WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES.setter
     def WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES(self, value: int):
@@ -328,7 +478,13 @@ class Config:
 
     @property
     def WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES(self) -> int:
-        return int(get_env("WEB_REFRESH_TOKEN_EXPIRE_MINUTES", "60", self.ENV_PREFIX))
+        return int(
+            get_env(
+                "WEB_REFRESH_TOKEN_EXPIRE_MINUTES",
+                self.DEFAULT_WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES,
+                self.ENV_PREFIX,
+            )
+        )
 
     @WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES.setter
     def WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES(self, value: int):
@@ -336,7 +492,7 @@ class Config:
 
     @property
     def WEB_TITLE(self) -> str:
-        return get_env("WEB_TITLE", "Zrb", self.ENV_PREFIX)
+        return get_env("WEB_TITLE", self.DEFAULT_WEB_TITLE, self.ENV_PREFIX)
 
     @WEB_TITLE.setter
     def WEB_TITLE(self, value: str):
@@ -344,7 +500,7 @@ class Config:
 
     @property
     def WEB_JARGON(self) -> str:
-        return get_env("WEB_JARGON", "Your Automation PowerHouse", self.ENV_PREFIX)
+        return get_env("WEB_JARGON", self.DEFAULT_WEB_JARGON, self.ENV_PREFIX)
 
     @WEB_JARGON.setter
     def WEB_JARGON(self, value: str):
@@ -353,7 +509,7 @@ class Config:
     @property
     def WEB_HOMEPAGE_INTRO(self) -> str:
         return get_env(
-            "WEB_HOMEPAGE_INTRO", "Welcome to Zrb Web Interface", self.ENV_PREFIX
+            "WEB_HOMEPAGE_INTRO", self.DEFAULT_WEB_HOMEPAGE_INTRO, self.ENV_PREFIX
         )
 
     @WEB_HOMEPAGE_INTRO.setter
@@ -362,7 +518,10 @@ class Config:
 
     @property
     def LLM_ASSISTANT_NAME(self) -> str:
-        return get_env("LLM_ASSISTANT_NAME", self.ROOT_GROUP_NAME, self.ENV_PREFIX)
+        default = self.DEFAULT_LLM_ASSISTANT_NAME
+        if default == "":
+            default = self.ROOT_GROUP_NAME
+        return get_env("LLM_ASSISTANT_NAME", default, self.ENV_PREFIX)
 
     @LLM_ASSISTANT_NAME.setter
     def LLM_ASSISTANT_NAME(self, value: str):
@@ -370,7 +529,11 @@ class Config:
 
     @property
     def LLM_ASSISTANT_ASCII_ART(self) -> str:
-        return get_env("LLM_ASSISTANT_ASCII_ART", "cat", self.ENV_PREFIX)
+        return get_env(
+            "LLM_ASSISTANT_ASCII_ART",
+            self.DEFAULT_LLM_ASSISTANT_ASCII_ART,
+            self.ENV_PREFIX,
+        )
 
     @LLM_ASSISTANT_ASCII_ART.setter
     def LLM_ASSISTANT_ASCII_ART(self, value: str):
@@ -378,8 +541,13 @@ class Config:
 
     @property
     def LLM_ASSISTANT_JARGON(self) -> str:
+        default = self.DEFAULT_LLM_ASSISTANT_JARGON
+        if default == "":
+            default = self.ROOT_GROUP_DESCRIPTION
         return get_env(
-            "LLM_ASSISTANT_JARGON", self.ROOT_GROUP_DESCRIPTION, self.ENV_PREFIX
+            "LLM_ASSISTANT_JARGON",
+            default,
+            self.ENV_PREFIX,
         )
 
     @LLM_ASSISTANT_JARGON.setter
@@ -388,11 +556,14 @@ class Config:
 
     @property
     def LLM_HISTORY_DIR(self) -> str:
+        default = self.DEFAULT_LLM_HISTORY_DIR
+        if default == "":
+            default = os.path.expanduser(
+                os.path.join("~", f".{self.ROOT_GROUP_NAME}", "llm-history")
+            )
         return get_env(
             "LLM_HISTORY_DIR",
-            os.path.expanduser(
-                os.path.join("~", f".{self.ROOT_GROUP_NAME}", "llm-history")
-            ),
+            default,
             self.ENV_PREFIX,
         )
 
@@ -402,11 +573,14 @@ class Config:
 
     @property
     def LLM_NOTE_FILE(self) -> str:
+        default = self.DEFAULT_LLM_NOTE_FILE
+        if default == "":
+            default = os.path.expanduser(
+                os.path.join("~", f".{self.ROOT_GROUP_NAME}", "notes.json")
+            )
         return get_env(
             "LLM_NOTE_FILE",
-            os.path.expanduser(
-                os.path.join("~", f".{self.ROOT_GROUP_NAME}", "notes.json")
-            ),
+            default,
             self.ENV_PREFIX,
         )
 
@@ -416,7 +590,7 @@ class Config:
 
     @property
     def LLM_MODEL(self) -> str | None:
-        value = get_env("LLM_MODEL", "", self.ENV_PREFIX)
+        value = get_env("LLM_MODEL", self.DEFAULT_LLM_MODEL, self.ENV_PREFIX)
         return None if value == "" else value
 
     @LLM_MODEL.setter
@@ -429,7 +603,7 @@ class Config:
 
     @property
     def LLM_BASE_URL(self) -> str | None:
-        value = get_env("LLM_BASE_URL", "", self.ENV_PREFIX)
+        value = get_env("LLM_BASE_URL", self.DEFAULT_LLM_BASE_URL, self.ENV_PREFIX)
         return None if value == "" else value
 
     @LLM_BASE_URL.setter
@@ -442,7 +616,7 @@ class Config:
 
     @property
     def LLM_API_KEY(self) -> str | None:
-        value = get_env("LLM_API_KEY", "", self.ENV_PREFIX)
+        value = get_env("LLM_API_KEY", self.DEFAULT_LLM_API_KEY, self.ENV_PREFIX)
         return None if value == "" else value
 
     @LLM_API_KEY.setter
@@ -462,7 +636,7 @@ class Config:
         return int(
             get_env(
                 ["LLM_MAX_REQUEST_PER_MINUTE", "LLM_MAX_REQUESTS_PER_MINUTE"],
-                "60",
+                self.DEFAULT_LLM_MAX_REQUESTS_PER_MINUTE,
                 self.ENV_PREFIX,
             )
         )
@@ -480,7 +654,7 @@ class Config:
         return int(
             get_env(
                 ["LLM_MAX_TOKEN_PER_MINUTE", "LLM_MAX_TOKENS_PER_MINUTE"],
-                "120000",
+                self.DEFAULT_LLM_MAX_TOKENS_PER_MINUTE,
                 self.ENV_PREFIX,
             )
         )
@@ -495,7 +669,7 @@ class Config:
         return int(
             get_env(
                 ["LLM_MAX_TOKEN_PER_REQUEST", "LLM_MAX_TOKENS_PER_REQUEST"],
-                "120000",
+                self.DEFAULT_LLM_MAX_TOKENS_PER_REQUEST,
                 self.ENV_PREFIX,
             )
         )
@@ -507,7 +681,13 @@ class Config:
     @property
     def LLM_THROTTLE_SLEEP(self) -> float:
         """Number of seconds to sleep when throttling is required."""
-        return float(get_env("LLM_THROTTLE_SLEEP", "1.0", self.ENV_PREFIX))
+        return float(
+            get_env(
+                "LLM_THROTTLE_SLEEP",
+                self.DEFAULT_LLM_THROTTLE_SLEEP,
+                self.ENV_PREFIX,
+            )
+        )
 
     @LLM_THROTTLE_SLEEP.setter
     def LLM_THROTTLE_SLEEP(self, value: float):
@@ -515,7 +695,13 @@ class Config:
 
     @property
     def LLM_HISTORY_SUMMARIZATION_WINDOW(self) -> int:
-        return int(get_env("LLM_HISTORY_SUMMARIZATION_WINDOW", "5", self.ENV_PREFIX))
+        return int(
+            get_env(
+                "LLM_HISTORY_SUMMARIZATION_WINDOW",
+                self.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW,
+                self.ENV_PREFIX,
+            )
+        )
 
     @LLM_HISTORY_SUMMARIZATION_WINDOW.setter
     def LLM_HISTORY_SUMMARIZATION_WINDOW(self, value: int):
@@ -523,10 +709,14 @@ class Config:
 
     @property
     def LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
+        default = self.DEFAULT_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD
+        if default == "":
+            default = str(self._get_max_threshold(0.6))
+        
         threshold = int(
             get_env(
                 "LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD",
-                str(self._get_max_threshold(0.6)),
+                default,
                 self.ENV_PREFIX,
             )
         )
@@ -545,10 +735,14 @@ class Config:
 
     @property
     def LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD(self) -> int:
+        default = self.DEFAULT_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD
+        if default == "":
+            default = str(self._get_max_threshold(0.4))
+        
         threshold = int(
             get_env(
                 "LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD",
-                str(self._get_max_threshold(0.4)),
+                default,
                 self.ENV_PREFIX,
             )
         )
@@ -567,10 +761,14 @@ class Config:
 
     @property
     def LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
+        default = self.DEFAULT_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD
+        if default == "":
+            default = str(self._get_max_threshold(0.4))
+        
         threshold = int(
             get_env(
                 "LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD",
-                str(self._get_max_threshold(0.4)),
+                default,
                 self.ENV_PREFIX,
             )
         )
@@ -589,10 +787,14 @@ class Config:
 
     @property
     def LLM_FILE_ANALYSIS_TOKEN_THRESHOLD(self) -> int:
+        default = self.DEFAULT_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD
+        if default == "":
+            default = str(self._get_max_threshold(0.4))
+        
         threshold = int(
             get_env(
                 "LLM_FILE_ANALYSIS_TOKEN_THRESHOLD",
-                str(self._get_max_threshold(0.4)),
+                default,
                 self.ENV_PREFIX,
             )
         )
@@ -609,9 +811,12 @@ class Config:
 
     @property
     def LLM_PROMPT_DIR(self) -> str:
+        default = self.DEFAULT_LLM_PROMPT_DIR
+        if default == "":
+            default = os.path.join(f".{self.ROOT_GROUP_NAME}", "llm", "prompt")
         return get_env(
             "LLM_PROMPT_DIR",
-            os.path.join(f".{self.ROOT_GROUP_NAME}", "llm", "prompt"),
+            default,
             self.ENV_PREFIX,
         )
 
@@ -626,7 +831,7 @@ class Config:
 
     @property
     def RAG_EMBEDDING_API_KEY(self) -> str | None:
-        value = get_env("RAG_EMBEDDING_API_KEY", "", self.ENV_PREFIX)
+        value = get_env("RAG_EMBEDDING_API_KEY", self.DEFAULT_RAG_EMBEDDING_API_KEY, self.ENV_PREFIX)
         return None if value == "" else value
 
     @RAG_EMBEDDING_API_KEY.setter
@@ -639,7 +844,7 @@ class Config:
 
     @property
     def RAG_EMBEDDING_BASE_URL(self) -> str | None:
-        value = get_env("RAG_EMBEDDING_BASE_URL", "", self.ENV_PREFIX)
+        value = get_env("RAG_EMBEDDING_BASE_URL", self.DEFAULT_RAG_EMBEDDING_BASE_URL, self.ENV_PREFIX)
         return None if value == "" else value
 
     @RAG_EMBEDDING_BASE_URL.setter
@@ -652,7 +857,9 @@ class Config:
 
     @property
     def RAG_EMBEDDING_MODEL(self) -> str:
-        return get_env("RAG_EMBEDDING_MODEL", "text-embedding-ada-002", self.ENV_PREFIX)
+        return get_env(
+            "RAG_EMBEDDING_MODEL", self.DEFAULT_RAG_EMBEDDING_MODEL, self.ENV_PREFIX
+        )
 
     @RAG_EMBEDDING_MODEL.setter
     def RAG_EMBEDDING_MODEL(self, value: str):
@@ -660,7 +867,11 @@ class Config:
 
     @property
     def RAG_CHUNK_SIZE(self) -> int:
-        return int(get_env("RAG_CHUNK_SIZE", "1024", self.ENV_PREFIX))
+        return int(
+            get_env(
+                "RAG_CHUNK_SIZE", self.DEFAULT_RAG_CHUNK_SIZE, self.ENV_PREFIX
+            )
+        )
 
     @RAG_CHUNK_SIZE.setter
     def RAG_CHUNK_SIZE(self, value: int):
@@ -668,7 +879,9 @@ class Config:
 
     @property
     def RAG_OVERLAP(self) -> int:
-        return int(get_env("RAG_OVERLAP", "128", self.ENV_PREFIX))
+        return int(
+            get_env("RAG_OVERLAP", self.DEFAULT_RAG_OVERLAP, self.ENV_PREFIX)
+        )
 
     @RAG_OVERLAP.setter
     def RAG_OVERLAP(self, value: int):
@@ -676,7 +889,13 @@ class Config:
 
     @property
     def RAG_MAX_RESULT_COUNT(self) -> int:
-        return int(get_env("RAG_MAX_RESULT_COUNT", "5", self.ENV_PREFIX))
+        return int(
+            get_env(
+                "RAG_MAX_RESULT_COUNT",
+                self.DEFAULT_RAG_MAX_RESULT_COUNT,
+                self.ENV_PREFIX,
+            )
+        )
 
     @RAG_MAX_RESULT_COUNT.setter
     def RAG_MAX_RESULT_COUNT(self, value: int):
@@ -685,7 +904,11 @@ class Config:
     @property
     def SEARCH_INTERNET_METHOD(self) -> str:
         """Either serpapi or searxng"""
-        return get_env("SEARCH_INTERNET_METHOD", "serpapi", self.ENV_PREFIX)
+        return get_env(
+            "SEARCH_INTERNET_METHOD",
+            self.DEFAULT_SEARCH_INTERNET_METHOD,
+            self.ENV_PREFIX,
+        )
 
     @SEARCH_INTERNET_METHOD.setter
     def SEARCH_INTERNET_METHOD(self, value: str):
@@ -693,7 +916,7 @@ class Config:
 
     @property
     def BRAVE_API_KEY(self) -> str:
-        return os.getenv("BRAVE_API_KEY", "")
+        return os.getenv("BRAVE_API_KEY", self.DEFAULT_BRAVE_API_KEY)
 
     @BRAVE_API_KEY.setter
     def BRAVE_API_KEY(self, value: str):
@@ -701,7 +924,7 @@ class Config:
 
     @property
     def BRAVE_API_SAFE(self) -> str:
-        return get_env("BRAVE_API_SAFE", "off", self.ENV_PREFIX)
+        return get_env("BRAVE_API_SAFE", self.DEFAULT_BRAVE_API_SAFE, self.ENV_PREFIX)
 
     @BRAVE_API_SAFE.setter
     def BRAVE_API_SAFE(self, value: str):
@@ -709,7 +932,7 @@ class Config:
 
     @property
     def BRAVE_API_LANG(self) -> str:
-        return get_env("BRAVE_API_LANG", "en", self.ENV_PREFIX)
+        return get_env("BRAVE_API_LANG", self.DEFAULT_BRAVE_API_LANG, self.ENV_PREFIX)
 
     @BRAVE_API_LANG.setter
     def BRAVE_API_LANG(self, value: str):
@@ -717,7 +940,7 @@ class Config:
 
     @property
     def SERPAPI_KEY(self) -> str:
-        return os.getenv("SERPAPI_KEY", "")
+        return os.getenv("SERPAPI_KEY", self.DEFAULT_SERPAPI_KEY)
 
     @SERPAPI_KEY.setter
     def SERPAPI_KEY(self, value: str):
@@ -725,7 +948,7 @@ class Config:
 
     @property
     def SERPAPI_SAFE(self) -> str:
-        return get_env("SERPAPI_SAFE", "off", self.ENV_PREFIX)
+        return get_env("SERPAPI_SAFE", self.DEFAULT_SERPAPI_SAFE, self.ENV_PREFIX)
 
     @SERPAPI_SAFE.setter
     def SERPAPI_SAFE(self, value: str):
@@ -733,7 +956,7 @@ class Config:
 
     @property
     def SERPAPI_LANG(self) -> str:
-        return get_env("SERPAPI_LANG", "en", self.ENV_PREFIX)
+        return get_env("SERPAPI_LANG", self.DEFAULT_SERPAPI_LANG, self.ENV_PREFIX)
 
     @SERPAPI_LANG.setter
     def SERPAPI_LANG(self, value: str):
@@ -741,7 +964,11 @@ class Config:
 
     @property
     def SEARXNG_PORT(self) -> int:
-        return int(get_env("SEARXNG_PORT", "8080", self.ENV_PREFIX))
+        return int(
+            get_env(
+                "SEARXNG_PORT", self.DEFAULT_SEARXNG_PORT, self.ENV_PREFIX
+            )
+        )
 
     @SEARXNG_PORT.setter
     def SEARXNG_PORT(self, value: int):
@@ -749,8 +976,11 @@ class Config:
 
     @property
     def SEARXNG_BASE_URL(self) -> str:
+        default = self.DEFAULT_SEARXNG_BASE_URL
+        if default == "":
+            default = f"http://localhost:{self.SEARXNG_PORT}"
         return get_env(
-            "SEARXNG_BASE_URL", f"http://localhost:{self.SEARXNG_PORT}", self.ENV_PREFIX
+            "SEARXNG_BASE_URL", default, self.ENV_PREFIX
         )
 
     @SEARXNG_BASE_URL.setter
@@ -759,7 +989,9 @@ class Config:
 
     @property
     def SEARXNG_SAFE(self) -> int:
-        return int(get_env("SEARXNG_SAFE", "0", self.ENV_PREFIX))
+        return int(
+            get_env("SEARXNG_SAFE", self.DEFAULT_SEARXNG_SAFE, self.ENV_PREFIX)
+        )
 
     @SEARXNG_SAFE.setter
     def SEARXNG_SAFE(self, value: int):
@@ -767,7 +999,7 @@ class Config:
 
     @property
     def SEARXNG_LANG(self) -> str:
-        return get_env("SEARXNG_LANG", "en", self.ENV_PREFIX)
+        return get_env("SEARXNG_LANG", self.DEFAULT_SEARXNG_LANG, self.ENV_PREFIX)
 
     @SEARXNG_LANG.setter
     def SEARXNG_LANG(self, value: str):
@@ -776,7 +1008,7 @@ class Config:
     @property
     def BANNER(self) -> str:
         return fstring_format(
-            get_env("BANNER", _DEFAULT_BANNER, self.ENV_PREFIX),
+            get_env("BANNER", self.DEFAULT_BANNER, self.ENV_PREFIX),
             {"VERSION": self.VERSION},
         )
 
@@ -786,7 +1018,9 @@ class Config:
 
     @property
     def LLM_SHOW_TOOL_CALL_DETAIL(self) -> bool:
-        return to_boolean(get_env("LLM_SHOW_TOOL_CALL_DETAIL", "0", self.ENV_PREFIX))
+        return to_boolean(
+            get_env("LLM_SHOW_TOOL_CALL_DETAIL", self.DEFAULT_LLM_SHOW_TOOL_CALL_DETAIL, self.ENV_PREFIX)
+        )
 
     @LLM_SHOW_TOOL_CALL_DETAIL.setter
     def LLM_SHOW_TOOL_CALL_DETAIL(self, value: bool):
@@ -796,7 +1030,9 @@ class Config:
 
     @property
     def LLM_SHOW_TOOL_CALL_RESULT(self) -> bool:
-        return to_boolean(get_env("LLM_SHOW_TOOL_CALL_RESULT", "0", self.ENV_PREFIX))
+        return to_boolean(
+            get_env("LLM_SHOW_TOOL_CALL_RESULT", self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT, self.ENV_PREFIX)
+        )
 
     @LLM_SHOW_TOOL_CALL_RESULT.setter
     def LLM_SHOW_TOOL_CALL_RESULT(self, value: bool):
@@ -806,7 +1042,7 @@ class Config:
 
     @property
     def USE_TIKTOKEN(self) -> bool:
-        return to_boolean(get_env("USE_TIKTOKEN", "true", self.ENV_PREFIX))
+        return to_boolean(get_env("USE_TIKTOKEN", self.DEFAULT_USE_TIKTOKEN, self.ENV_PREFIX))
 
     @USE_TIKTOKEN.setter
     def USE_TIKTOKEN(self, value: bool):
@@ -816,7 +1052,7 @@ class Config:
     def TIKTOKEN_ENCODING_NAME(self) -> str:
         return get_env(
             ["TIKTOKEN_ENCODING", "TIKTOKEN_ENCODING_NAME"],
-            "cl100k_base",
+            self.DEFAULT_TIKTOKEN_ENCODING_NAME,
             self.ENV_PREFIX,
         )
 
@@ -826,7 +1062,7 @@ class Config:
 
     @property
     def MCP_CONFIG_FILE(self) -> str:
-        return get_env("MCP_CONFIG_FILE", "mcp.json", self.ENV_PREFIX)
+        return get_env("MCP_CONFIG_FILE", self.DEFAULT_MCP_CONFIG_FILE, self.ENV_PREFIX)
 
     @MCP_CONFIG_FILE.setter
     def MCP_CONFIG_FILE(self, value: str):

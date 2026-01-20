@@ -337,7 +337,7 @@ if os.path.isfile(generated_zrb_init_path):
 
 
 async def _run_shell_script(ctx: AnyContext, script: str) -> Any:
-    shell = CFG.DEFAULT_SHELL
+    shell = CFG.SHELL
     flag = "/c" if shell.lower() == "powershell" else "-c"
     cmd_result, return_code = await run_command(
         cmd=[shell, flag, script],

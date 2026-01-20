@@ -129,7 +129,7 @@ async def last_confirmation(
                 is_yaml_edit = False
 
             new_content = await wait_edit_content(
-                text_editor=CFG.DEFAULT_EDITOR,
+                text_editor=CFG.EDITOR,
                 content=content,
                 extension=extension,
             )

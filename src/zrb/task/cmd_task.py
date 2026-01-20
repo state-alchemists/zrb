@@ -178,9 +178,7 @@ class CmdTask(BaseTask):
         return envs
 
     def _get_shell(self, ctx: AnyContext) -> str:
-        return get_str_attr(
-            ctx, self._shell, CFG.DEFAULT_SHELL, auto_render=self._render_shell
-        )
+        return get_str_attr(ctx, self._shell, CFG.SHELL, auto_render=self._render_shell)
 
     def _get_shell_flag(self, ctx: AnyContext) -> str:
         default_shell_flags = {

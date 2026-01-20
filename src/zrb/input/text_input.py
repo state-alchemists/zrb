@@ -59,8 +59,8 @@ class TextInput(BaseInput):
     def editor_cmd(self) -> str | None:
         if self._editor is not None:
             return self._editor
-        if CFG.DEFAULT_EDITOR != "":
-            return CFG.DEFAULT_EDITOR
+        if CFG.EDITOR != "":
+            return CFG.EDITOR
         return None
 
     def to_html(self, shared_ctx: AnySharedContext) -> str:

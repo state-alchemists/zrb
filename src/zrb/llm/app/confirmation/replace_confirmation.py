@@ -46,7 +46,7 @@ async def replace_confirmation(
 
     try:
         # Prepare command
-        cmd_tpl = CFG.DEFAULT_DIFF_EDIT_COMMAND_TPL
+        cmd_tpl = CFG.DIFF_EDIT_COMMAND_TPL
         cmd = cmd_tpl.format(old=old_path, new=new_path)
 
         # Run command

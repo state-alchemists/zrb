@@ -46,14 +46,14 @@ def test_getenv_list():
 def test_default_shell_env_var_set(monkeypatch):
     monkeypatch.setenv("ZRB_SHELL", "my-shell")
     config = Config()
-    assert config.DEFAULT_SHELL == "my-shell"
+    assert config.SHELL == "my-shell"
 
 
 @mock.patch("platform.system", return_value="Windows")
 def test_default_shell_windows(mock_platform_system, monkeypatch):
     monkeypatch.delenv("ZRB_SHELL", raising=False)
     config = Config()
-    assert config.DEFAULT_SHELL == "PowerShell"
+    assert config.SHELL == "PowerShell"
 
 
 @mock.patch("platform.system", return_value="Linux")
@@ -61,7 +61,7 @@ def test_default_shell_zsh(mock_platform_system, monkeypatch):
     monkeypatch.delenv("ZRB_SHELL", raising=False)
     monkeypatch.setenv("SHELL", "/bin/zsh")
     config = Config()
-    assert config.DEFAULT_SHELL == "zsh"
+    assert config.SHELL == "zsh"
     # Test helper directly
     assert get_current_shell() == "zsh"
 
@@ -71,7 +71,7 @@ def test_default_shell_bash(mock_platform_system, monkeypatch):
     monkeypatch.delenv("ZRB_SHELL", raising=False)
     monkeypatch.setenv("SHELL", "/bin/bash")
     config = Config()
-    assert config.DEFAULT_SHELL == "bash"
+    assert config.SHELL == "bash"
     # Test helper directly
     assert get_current_shell() == "bash"
 
@@ -79,7 +79,7 @@ def test_default_shell_bash(mock_platform_system, monkeypatch):
 def test_default_editor(monkeypatch):
     monkeypatch.setenv("ZRB_EDITOR", "my-editor")
     config = Config()
-    assert config.DEFAULT_EDITOR == "my-editor"
+    assert config.EDITOR == "my-editor"
 
 
 def test_diff_edit_command():
@@ -87,19 +87,19 @@ def test_diff_edit_command():
 
     # Test vscode
     with patch.dict(os.environ, {"ZRB_EDITOR": "code"}):
-        assert "code --wait" in config.DEFAULT_DIFF_EDIT_COMMAND_TPL
+        assert "code --wait" in config.DIFF_EDIT_COMMAND_TPL
 
     # Test emacs
     with patch.dict(os.environ, {"ZRB_EDITOR": "emacs"}):
-        assert "emacs --eval" in config.DEFAULT_DIFF_EDIT_COMMAND_TPL
+        assert "emacs --eval" in config.DIFF_EDIT_COMMAND_TPL
 
     # Test vim
     with patch.dict(os.environ, {"ZRB_EDITOR": "vim"}):
-        assert "vim -d" in config.DEFAULT_DIFF_EDIT_COMMAND_TPL
+        assert "vim -d" in config.DIFF_EDIT_COMMAND_TPL
 
     # Test default (nano or unknown)
     with patch.dict(os.environ, {"ZRB_EDITOR": "nano"}):
-        assert "vimdiff" in config.DEFAULT_DIFF_EDIT_COMMAND_TPL
+        assert "vimdiff" in config.DIFF_EDIT_COMMAND_TPL
 
 
 def test_init_modules(monkeypatch):
