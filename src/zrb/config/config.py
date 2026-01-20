@@ -160,6 +160,7 @@ class Config:
         return get_env(
             "SESSION_LOG_DIR",
             os.path.expanduser(os.path.join("~", f".{self.ROOT_GROUP_NAME}-session")),
+            self.ENV_PREFIX,
         )
 
     @SESSION_LOG_DIR.setter
@@ -361,7 +362,7 @@ class Config:
 
     @property
     def LLM_ASSISTANT_NAME(self) -> str:
-        return get_env("LLM_ASSISTANT_NAME", self.ROOT_GROUP_NAME)
+        return get_env("LLM_ASSISTANT_NAME", self.ROOT_GROUP_NAME, self.ENV_PREFIX)
 
     @LLM_ASSISTANT_NAME.setter
     def LLM_ASSISTANT_NAME(self, value: str):
@@ -369,7 +370,7 @@ class Config:
 
     @property
     def LLM_ASSISTANT_ASCII_ART(self) -> str:
-        return get_env("LLM_ASSISTANT_ASCII_ART", "cat")
+        return get_env("LLM_ASSISTANT_ASCII_ART", "cat", self.ENV_PREFIX)
 
     @LLM_ASSISTANT_ASCII_ART.setter
     def LLM_ASSISTANT_ASCII_ART(self, value: str):
@@ -377,7 +378,9 @@ class Config:
 
     @property
     def LLM_ASSISTANT_JARGON(self) -> str:
-        return get_env("LLM_ASSISTANT_JARGON", self.ROOT_GROUP_DESCRIPTION)
+        return get_env(
+            "LLM_ASSISTANT_JARGON", self.ROOT_GROUP_DESCRIPTION, self.ENV_PREFIX
+        )
 
     @LLM_ASSISTANT_JARGON.setter
     def LLM_ASSISTANT_JARGON(self, value: str):
@@ -390,6 +393,7 @@ class Config:
             os.path.expanduser(
                 os.path.join("~", f".{self.ROOT_GROUP_NAME}", "llm-history")
             ),
+            self.ENV_PREFIX,
         )
 
     @LLM_HISTORY_DIR.setter
@@ -403,6 +407,7 @@ class Config:
             os.path.expanduser(
                 os.path.join("~", f".{self.ROOT_GROUP_NAME}", "notes.json")
             ),
+            self.ENV_PREFIX,
         )
 
     @LLM_NOTE_FILE.setter
