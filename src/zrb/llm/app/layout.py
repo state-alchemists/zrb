@@ -84,7 +84,7 @@ def create_layout(
                     ),
                     # Info Bar
                     Window(
-                        height=2,
+                        height=3,
                         content=FormattedTextControl(info_bar_text),
                         style="class:info-bar",
                         align=WindowAlign.CENTER,
