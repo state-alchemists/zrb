@@ -51,13 +51,15 @@ class PromptManager:
         return composed_prompt_factory
 
 
-def new_prompt(new_prompt: str, render: bool = False):
+def new_prompt(new_prompt: str | Callable[[], str], render: bool = False):
     def new_prompt_middleware(
         ctx: AnyContext, current_prompt: str, next: Callable[[AnyContext, str], str]
     ):
-        effective_new_prompt = new_prompt
+        effective_new_prompt = new_prompt() if callable(new_prompt) else new_prompt
         if render:
-            effective_new_prompt = get_str_attr(ctx, new_prompt, auto_render=True)
+            effective_new_prompt = get_str_attr(
+                ctx, effective_new_prompt, auto_render=True
+            )
         return next(ctx, f"{current_prompt}\n{effective_new_prompt}")
 
     return new_prompt_middleware

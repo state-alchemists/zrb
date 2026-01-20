@@ -91,8 +91,8 @@ cli.add_task(llm_chat)
 
 
 llm_chat.prompt_manager.add_middleware(
-    new_prompt(get_persona_prompt(CFG.LLM_ASSISTANT_NAME)),
-    new_prompt(get_mandate_prompt()),
+    new_prompt(lambda: get_persona_prompt(CFG.LLM_ASSISTANT_NAME)),
+    new_prompt(lambda: get_mandate_prompt()),
     system_context,
     create_note_prompt(note_manager),
     create_claude_compatibility_prompt(skill_manager),
