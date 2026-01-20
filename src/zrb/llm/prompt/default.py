@@ -1,6 +1,7 @@
 import os
 
 from zrb.config.config import CFG
+from zrb.util.string.conversion import to_snake_case
 
 
 def get_default_prompt(name: str) -> str:
@@ -9,7 +10,6 @@ def get_default_prompt(name: str) -> str:
     local_prompt_path = os.path.abspath(
         os.path.join(os.getcwd(), prompt_dir, f"{name}.md")
     )
-
     if os.path.exists(local_prompt_path):
         try:
             with open(local_prompt_path, "r", encoding="utf-8") as f:
@@ -17,7 +17,13 @@ def get_default_prompt(name: str) -> str:
         except Exception:
             pass
 
-    # 2. Fallback to package default
+    # 2. Load from environment
+    env_prefix = CFG.ENV_PREFIX
+    env_value = os.getenv(f"{env_prefix}_{to_snake_case(name).upper()}", "")
+    if env_value:
+        return env_value
+
+    # 3. Fallback to package default
     cwd = os.path.dirname(__file__)
     with open(os.path.join(cwd, "markdown", f"{name}.md"), "r", encoding="utf-8") as f:
         return f.read()

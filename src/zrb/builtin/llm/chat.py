@@ -90,32 +90,6 @@ llm_group.add_task(llm_chat)
 cli.add_task(llm_chat)
 
 
-async def roll_dice() -> str:
-    """Roll a six-sided die and return the result."""
-    import asyncio
-    import random
-
-    await asyncio.sleep(3)
-    return str(random.randint(1, 6))
-
-
-async def get_current_time() -> str:
-    """Get the current time."""
-    from datetime import datetime
-
-    return datetime.now().strftime("%H:%M:%S")
-
-
-joke_agent = create_sub_agent_tool(
-    name="joke_agent",
-    description="Generates jokes about the current directory content.",
-    system_prompt=(
-        "You are a comedian. Use the 'run_shell_command' tool to list files "
-        "(ls -la) and make a funny joke about the project structure."
-    ),
-    tools=[run_shell_command],
-)
-
 llm_chat.prompt_manager.add_middleware(
     new_prompt(get_persona_prompt(CFG.LLM_ASSISTANT_NAME)),
     new_prompt(get_mandate_prompt()),
@@ -127,8 +101,6 @@ llm_chat.prompt_manager.add_middleware(
 llm_chat.add_confirmation_middleware(replace_confirmation)
 llm_chat.add_toolset(*load_mcp_config())
 llm_chat.add_tool(
-    roll_dice,
-    joke_agent,
     run_shell_command,
     list_files,
     read_file,
@@ -145,5 +117,4 @@ llm_chat.add_tool(
     create_run_zrb_task_tool(),
     create_activate_skill_tool(skill_manager),
     *create_note_tools(note_manager),
-    get_current_time,
 )
