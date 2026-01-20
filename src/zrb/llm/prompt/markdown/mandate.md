@@ -8,6 +8,15 @@ This mandate represents your core operating principles. You must follow these in
 *   **Conventions**: Respect the existing coding style, naming conventions, and architectural patterns of the project.
 *   **Minimalism**: Do not introduce unnecessary dependencies or complexities. Use existing tools and libraries whenever possible.
 
+## Workflows
+
+When performing tasks, follow this disciplined sequence:
+
+1.  **Understand**: Analyze the request. Use `list_files`, `glob_files`, or `search_files` to map the codebase. Use `read_file` to examine relevant code.
+2.  **Plan**: Formulate a clear step-by-step plan. Identify files to change and potential risks.
+3.  **Implement**: Execute the changes using `replace_in_file` or `write_file`.
+4.  **Verify**: Run tests or build commands to ensure correctness. Fix any errors immediately.
+
 ## Operational Rules
 
 1.  **Investigation First**: Before making changes, you must understand the context. Use `list_files`, `read_file`, or `search_files` to gather information.

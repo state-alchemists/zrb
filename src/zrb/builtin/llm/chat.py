@@ -22,6 +22,7 @@ from zrb.llm.tool.bash import run_shell_command
 from zrb.llm.tool.code import analyze_code
 from zrb.llm.tool.file import (
     analyze_file,
+    glob_files,
     list_files,
     read_file,
     read_files,
@@ -33,7 +34,6 @@ from zrb.llm.tool.file import (
 from zrb.llm.tool.mcp import load_mcp_config
 from zrb.llm.tool.note import create_note_tools
 from zrb.llm.tool.skill import create_activate_skill_tool
-from zrb.llm.tool.sub_agent import create_sub_agent_tool
 from zrb.llm.tool.web import open_web_page, search_internet
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
 from zrb.runner.cli import cli
@@ -103,6 +103,7 @@ llm_chat.add_toolset(*load_mcp_config())
 llm_chat.add_tool(
     run_shell_command,
     list_files,
+    glob_files,
     read_file,
     read_files,
     write_file,
