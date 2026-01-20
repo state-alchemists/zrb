@@ -96,6 +96,10 @@ class UI:
         self._exec_commands = exec_commands
         self._trigger_tasks: list[asyncio.Task] = []
         self._last_result_data: str | None = None
+        # System Info
+        self._cwd = os.getcwd()
+        self._git_info = "Checking..."
+        self._system_info_task: asyncio.Task | None = None
         # Attachments
         self._pending_attachments: "list[UserContent]" = list(initial_attachments)
         # Confirmation Handler
@@ -158,6 +162,11 @@ class UI:
             )
             self._trigger_tasks.append(trigger_task)
 
+        # Start system info update loop
+        self._system_info_task = self._application.create_background_task(
+            self._update_system_info_loop()
+        )
+
         # Setup logging redirection to UI
         root_logger = logging.getLogger()
         original_handlers = root_logger.handlers[:]
@@ -181,6 +190,9 @@ class UI:
                 trigger_task.cancel()
             self._trigger_tasks.clear()
 
+            if self._system_info_task:
+                self._system_info_task.cancel()
+
     async def _trigger_loop(self, trigger_fn: Callable[[], Any]):
         """Handle external triggers and submit user message when trigger activated"""
         while True:
@@ -202,6 +214,62 @@ class UI:
             except Exception:
                 # Keep running on error, maybe log it
                 pass
+
+    async def _update_system_info_loop(self):
+        """Periodically update CWD and Git info."""
+        while True:
+            try:
+                self._cwd = self._get_cwd_display()
+                branch, status = await self._get_git_info()
+                if branch:
+                    self._git_info = f"{branch}{status}"
+                else:
+                    self._git_info = "Not a git repo"
+                get_app().invalidate()
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                pass
+            await asyncio.sleep(2)
+
+    def _get_cwd_display(self) -> str:
+        cwd = os.getcwd()
+        home = os.path.expanduser("~")
+        if cwd.startswith(home):
+            return "~" + cwd[len(home) :]
+        return cwd
+
+    async def _get_git_info(self) -> tuple[str, str]:
+        """Returns (branch_name, status_symbol)"""
+        try:
+            # Check branch
+            proc = await asyncio.create_subprocess_exec(
+                "git",
+                "rev-parse",
+                "--abbrev-ref",
+                "HEAD",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, _ = await proc.communicate()
+            if proc.returncode != 0:
+                return "", ""
+            branch = stdout.decode().strip()
+
+            # Check status (dirty or clean)
+            proc = await asyncio.create_subprocess_exec(
+                "git",
+                "status",
+                "--porcelain",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, _ = await proc.communicate()
+            is_dirty = bool(stdout.strip())
+
+            return branch, "*" if is_dirty else ""
+        except Exception:
+            return "", ""
 
     def _on_first_render(self, app: Application):
         """Handle initial message (the message sent when creating the UI)"""
@@ -304,7 +372,9 @@ class UI:
         return HTML(
             f" 🤖 <b>Model:</b> {model_name} "
             f"| 🗣️ <b>Session:</b> {self._conversation_session_name} "
-            f"| 🤠 <b>YOLO:</b> {yolo_text} "
+            f"| 🤠 <b>YOLO:</b> {yolo_text} \n"
+            f" 📂 <b>Dir:</b> {self._cwd} "
+            f"| 🌿 <b>Git:</b> {self._git_info} "
         )
 
     def _get_status_bar_text(self) -> AnyFormattedText:

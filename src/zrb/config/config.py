@@ -64,7 +64,7 @@ class Config:
         self.DEFAULT_WEB_JARGON = "Your Automation PowerHouse"
         self.DEFAULT_WEB_HOMEPAGE_INTRO = "Welcome to Zrb Web Interface"
         self.DEFAULT_LLM_ASSISTANT_NAME = ""
-        self.DEFAULT_LLM_ASSISTANT_ASCII_ART = "cat"
+        self.DEFAULT_LLM_ASSISTANT_ASCII_ART = "default"
         self.DEFAULT_LLM_ASSISTANT_JARGON = ""
         self.DEFAULT_LLM_HISTORY_DIR = ""
         self.DEFAULT_LLM_NOTE_FILE = ""
@@ -121,11 +121,7 @@ class Config:
     def SHELL(self) -> str:
         return get_env(
             "SHELL",
-            (
-                self.DEFAULT_SHELL
-                if self.DEFAULT_SHELL != ""
-                else get_current_shell()
-            ),
+            (self.DEFAULT_SHELL if self.DEFAULT_SHELL != "" else get_current_shell()),
             self.ENV_PREFIX,
         )
 
@@ -176,9 +172,7 @@ class Config:
 
     @property
     def ROOT_GROUP_NAME(self) -> str:
-        return get_env(
-            "ROOT_GROUP_NAME", self.DEFAULT_ROOT_GROUP_NAME, self.ENV_PREFIX
-        )
+        return get_env("ROOT_GROUP_NAME", self.DEFAULT_ROOT_GROUP_NAME, self.ENV_PREFIX)
 
     @ROOT_GROUP_NAME.setter
     def ROOT_GROUP_NAME(self, value: str):
@@ -215,9 +209,7 @@ class Config:
 
     @property
     def INIT_FILE_NAME(self) -> str:
-        return get_env(
-            "INIT_FILE_NAME", self.DEFAULT_INIT_FILE_NAME, self.ENV_PREFIX
-        )
+        return get_env("INIT_FILE_NAME", self.DEFAULT_INIT_FILE_NAME, self.ENV_PREFIX)
 
     @INIT_FILE_NAME.setter
     def INIT_FILE_NAME(self, value: str):
@@ -712,7 +704,7 @@ class Config:
         default = self.DEFAULT_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD
         if default == "":
             default = str(self._get_max_threshold(0.6))
-        
+
         threshold = int(
             get_env(
                 "LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD",
@@ -738,7 +730,7 @@ class Config:
         default = self.DEFAULT_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD
         if default == "":
             default = str(self._get_max_threshold(0.4))
-        
+
         threshold = int(
             get_env(
                 "LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD",
@@ -764,7 +756,7 @@ class Config:
         default = self.DEFAULT_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD
         if default == "":
             default = str(self._get_max_threshold(0.4))
-        
+
         threshold = int(
             get_env(
                 "LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD",
@@ -790,7 +782,7 @@ class Config:
         default = self.DEFAULT_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD
         if default == "":
             default = str(self._get_max_threshold(0.4))
-        
+
         threshold = int(
             get_env(
                 "LLM_FILE_ANALYSIS_TOKEN_THRESHOLD",
@@ -831,7 +823,9 @@ class Config:
 
     @property
     def RAG_EMBEDDING_API_KEY(self) -> str | None:
-        value = get_env("RAG_EMBEDDING_API_KEY", self.DEFAULT_RAG_EMBEDDING_API_KEY, self.ENV_PREFIX)
+        value = get_env(
+            "RAG_EMBEDDING_API_KEY", self.DEFAULT_RAG_EMBEDDING_API_KEY, self.ENV_PREFIX
+        )
         return None if value == "" else value
 
     @RAG_EMBEDDING_API_KEY.setter
@@ -844,7 +838,11 @@ class Config:
 
     @property
     def RAG_EMBEDDING_BASE_URL(self) -> str | None:
-        value = get_env("RAG_EMBEDDING_BASE_URL", self.DEFAULT_RAG_EMBEDDING_BASE_URL, self.ENV_PREFIX)
+        value = get_env(
+            "RAG_EMBEDDING_BASE_URL",
+            self.DEFAULT_RAG_EMBEDDING_BASE_URL,
+            self.ENV_PREFIX,
+        )
         return None if value == "" else value
 
     @RAG_EMBEDDING_BASE_URL.setter
@@ -868,9 +866,7 @@ class Config:
     @property
     def RAG_CHUNK_SIZE(self) -> int:
         return int(
-            get_env(
-                "RAG_CHUNK_SIZE", self.DEFAULT_RAG_CHUNK_SIZE, self.ENV_PREFIX
-            )
+            get_env("RAG_CHUNK_SIZE", self.DEFAULT_RAG_CHUNK_SIZE, self.ENV_PREFIX)
         )
 
     @RAG_CHUNK_SIZE.setter
@@ -879,9 +875,7 @@ class Config:
 
     @property
     def RAG_OVERLAP(self) -> int:
-        return int(
-            get_env("RAG_OVERLAP", self.DEFAULT_RAG_OVERLAP, self.ENV_PREFIX)
-        )
+        return int(get_env("RAG_OVERLAP", self.DEFAULT_RAG_OVERLAP, self.ENV_PREFIX))
 
     @RAG_OVERLAP.setter
     def RAG_OVERLAP(self, value: int):
@@ -964,11 +958,7 @@ class Config:
 
     @property
     def SEARXNG_PORT(self) -> int:
-        return int(
-            get_env(
-                "SEARXNG_PORT", self.DEFAULT_SEARXNG_PORT, self.ENV_PREFIX
-            )
-        )
+        return int(get_env("SEARXNG_PORT", self.DEFAULT_SEARXNG_PORT, self.ENV_PREFIX))
 
     @SEARXNG_PORT.setter
     def SEARXNG_PORT(self, value: int):
@@ -979,9 +969,7 @@ class Config:
         default = self.DEFAULT_SEARXNG_BASE_URL
         if default == "":
             default = f"http://localhost:{self.SEARXNG_PORT}"
-        return get_env(
-            "SEARXNG_BASE_URL", default, self.ENV_PREFIX
-        )
+        return get_env("SEARXNG_BASE_URL", default, self.ENV_PREFIX)
 
     @SEARXNG_BASE_URL.setter
     def SEARXNG_BASE_URL(self, value: str):
@@ -989,9 +977,7 @@ class Config:
 
     @property
     def SEARXNG_SAFE(self) -> int:
-        return int(
-            get_env("SEARXNG_SAFE", self.DEFAULT_SEARXNG_SAFE, self.ENV_PREFIX)
-        )
+        return int(get_env("SEARXNG_SAFE", self.DEFAULT_SEARXNG_SAFE, self.ENV_PREFIX))
 
     @SEARXNG_SAFE.setter
     def SEARXNG_SAFE(self, value: int):
@@ -1019,7 +1005,11 @@ class Config:
     @property
     def LLM_SHOW_TOOL_CALL_DETAIL(self) -> bool:
         return to_boolean(
-            get_env("LLM_SHOW_TOOL_CALL_DETAIL", self.DEFAULT_LLM_SHOW_TOOL_CALL_DETAIL, self.ENV_PREFIX)
+            get_env(
+                "LLM_SHOW_TOOL_CALL_DETAIL",
+                self.DEFAULT_LLM_SHOW_TOOL_CALL_DETAIL,
+                self.ENV_PREFIX,
+            )
         )
 
     @LLM_SHOW_TOOL_CALL_DETAIL.setter
@@ -1031,7 +1021,11 @@ class Config:
     @property
     def LLM_SHOW_TOOL_CALL_RESULT(self) -> bool:
         return to_boolean(
-            get_env("LLM_SHOW_TOOL_CALL_RESULT", self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT, self.ENV_PREFIX)
+            get_env(
+                "LLM_SHOW_TOOL_CALL_RESULT",
+                self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT,
+                self.ENV_PREFIX,
+            )
         )
 
     @LLM_SHOW_TOOL_CALL_RESULT.setter
@@ -1042,7 +1036,9 @@ class Config:
 
     @property
     def USE_TIKTOKEN(self) -> bool:
-        return to_boolean(get_env("USE_TIKTOKEN", self.DEFAULT_USE_TIKTOKEN, self.ENV_PREFIX))
+        return to_boolean(
+            get_env("USE_TIKTOKEN", self.DEFAULT_USE_TIKTOKEN, self.ENV_PREFIX)
+        )
 
     @USE_TIKTOKEN.setter
     def USE_TIKTOKEN(self, value: bool):

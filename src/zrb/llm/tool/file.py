@@ -1,4 +1,5 @@
 import fnmatch
+import glob
 import os
 import re
 from typing import Any
@@ -85,49 +86,203 @@ def list_files(
     return {"files": sorted(all_files)}
 
 
+def glob_files(
+    pattern: str,
+    path: str = ".",
+    case_sensitive: bool = False,
+    include_hidden: bool = False,
+    excluded_patterns: list[str] | None = None,
+) -> list[str]:
+    """
+    Finds files matching specific glob patterns.
+
+    **WHEN TO USE:**
+    - To find files by name or extension (e.g., `**/*.py`, `src/**/*.ts`).
+    - Faster and more targeted than `list_files` when looking for specific file types.
+
+    **ARGS:**
+    - `pattern`: The glob pattern to match (e.g., `**/*.md`).
+    - `path`: The root directory to start the search from.
+    - `case_sensitive`: Whether the search should be case-sensitive.
+    - `include_hidden`: Whether to include hidden files/dirs.
+    - `excluded_patterns`: List of glob patterns to ignore.
+    """
+    found_files = []
+    abs_path = os.path.abspath(os.path.expanduser(path))
+    if not os.path.exists(abs_path):
+        return [f"Error: Path does not exist: {path}"]
+
+    patterns_to_exclude = (
+        excluded_patterns
+        if excluded_patterns is not None
+        else DEFAULT_EXCLUDED_PATTERNS
+    )
+
+    search_pattern = os.path.join(abs_path, pattern)
+    # This might find files in excluded directories
+    candidates = glob.glob(search_pattern, recursive=True)
+
+    for candidate in candidates:
+        if os.path.isdir(candidate):
+            continue
+
+        rel_path = os.path.relpath(candidate, abs_path)
+
+        # Filter hidden
+        if not include_hidden:
+            if any(part.startswith(".") for part in rel_path.split(os.sep)):
+                continue
+
+        # Filter excluded
+        if _is_excluded(rel_path, patterns_to_exclude):
+            continue
+
+        found_files.append(rel_path)
+
+    return sorted(found_files)
+
+
 def read_file(
-    path: str, start_line: int | None = None, end_line: int | None = None
+    path: str,
+    start_line: int | None = None,
+    end_line: int | None = None,
+    limit: int | None = None,
+    offset: int | None = None,
 ) -> str:
     """
     Reads content from a file, optionally specifying a line range.
 
     **EFFICIENCY TIP:**
     - Prefer reading the **entire file** at once for full context (imports, class definitions).
-    - Only use `start_line` and `end_line` for extremely large files (e.g., logs).
+    - Only use `start_line`/`end_line` or `offset`/`limit` for extremely large files (e.g., logs).
+    - If the file is too large (default limit ~2000 lines), it will be truncated.
 
     **ARGS:**
     - `path`: Path to the file to read.
     - `start_line`: The 1-based line number to start reading from.
     - `end_line`: The 1-based line number to stop reading at (inclusive).
+    - `limit`: Max lines to read (alias/alternative to end_line calculation).
+    - `offset`: 0-based line index to start reading from (alternative to start_line).
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
-    if not os.path.exists(abs_path):
-        return f"Error: File not found: {path}"
+
+    validation_error = _validate_path_for_reading(abs_path)
+    if validation_error:
+        return validation_error
+
+    safety_error = _check_file_safety(abs_path)
+    if safety_error:
+        return safety_error
 
     try:
         with open(abs_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
 
         total_lines = len(lines)
-        start_idx = (start_line - 1) if start_line is not None else 0
-        end_idx = end_line if end_line is not None else total_lines
-
-        if start_idx < 0:
-            start_idx = 0
-        if end_idx > total_lines:
-            end_idx = total_lines
-        if start_idx > end_idx:
-            start_idx = end_idx
+        start_idx, end_idx, truncated = _calculate_read_bounds(
+            total_lines, start_line, end_line, limit, offset
+        )
 
         selected_lines = lines[start_idx:end_idx]
         content_result = "".join(selected_lines)
 
-        if start_line is not None or end_line is not None:
-            return f"File: {path} (Lines {start_idx + 1}-{end_idx} of {total_lines})\n{content_result}"
-        return content_result
+        header = _format_read_header(path, start_idx, end_idx, total_lines, truncated)
+        return f"{header}{content_result}"
 
+    except UnicodeDecodeError:
+        return f"Error: File {path} appears to be binary or non-UTF-8."
     except Exception as e:
         return f"Error reading file {path}: {e}"
+
+
+def _validate_path_for_reading(abs_path: str) -> str | None:
+    """Validates if the path exists and is a file."""
+    if not os.path.exists(abs_path):
+        return f"Error: File not found: {abs_path}"
+    if os.path.isdir(abs_path):
+        return f"Error: {abs_path} is a directory."
+    return None
+
+
+def _check_file_safety(abs_path: str) -> str | None:
+    """Checks if the file is safe to read (size and content type)."""
+    # Check size
+    file_size = os.path.getsize(abs_path)
+    if file_size > 10 * 1024 * 1024:  # 10MB limit
+        return (
+            f"Error: File is too large ({file_size} bytes). "
+            f"Please use `offset` and `limit` to read chunks."
+        )
+
+    # Check binary
+    try:
+        with open(abs_path, "rb") as f:
+            chunk = f.read(1024)
+            if b"\0" in chunk:
+                return (
+                    "Error: File appears to be binary. "
+                    "Reading binary files is not supported."
+                )
+    except Exception:
+        pass
+    return None
+
+
+def _calculate_read_bounds(
+    total_lines: int,
+    start_line: int | None,
+    end_line: int | None,
+    limit: int | None,
+    offset: int | None,
+) -> tuple[int, int, bool]:
+    """Calculates the start and end indices for reading lines."""
+    DEFAULT_LIMIT = 2000
+    truncated = False
+
+    final_start_idx = 0
+    final_end_idx = total_lines
+
+    if offset is not None:
+        final_start_idx = offset
+    elif start_line is not None:
+        final_start_idx = start_line - 1
+
+    if limit is not None:
+        final_end_idx = final_start_idx + limit
+    elif end_line is not None:
+        final_end_idx = end_line
+
+    if start_line is None and end_line is None and limit is None and offset is None:
+        if total_lines > DEFAULT_LIMIT:
+            final_end_idx = DEFAULT_LIMIT
+            truncated = True
+
+    # Bounds checking
+    if final_start_idx < 0:
+        final_start_idx = 0
+    if final_end_idx > total_lines:
+        final_end_idx = total_lines
+    if final_start_idx > final_end_idx:
+        final_start_idx = final_end_idx
+
+    return final_start_idx, final_end_idx, truncated
+
+
+def _format_read_header(
+    path: str, start_idx: int, end_idx: int, total_lines: int, truncated: bool
+) -> str:
+    """Formats the header information for the read content."""
+    if truncated:
+        next_offset = end_idx
+        return (
+            f"IMPORTANT: The file content has been truncated.\n"
+            f"Status: Showing lines {start_idx + 1}-{end_idx} of {total_lines} total lines.\n"
+            f"Action: To read more of the file, you can use the 'offset' and 'limit' parameters in a subsequent 'read_file' call. "
+            f"For example, to read the next section, use offset={next_offset}, limit=2000.\n\n"
+        )
+    elif start_idx > 0 or end_idx < total_lines:
+        return f"File: {path} (Lines {start_idx + 1}-{end_idx} of {total_lines})\n"
+    return ""
 
 
 def read_files(paths: list[str]) -> dict[str, str]:
