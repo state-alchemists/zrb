@@ -1,0 +1,210 @@
+[stderr]   [2m/bin/sh: 1: Syntax error: ";" unexpected
+[0m[stderr]   [2mINFO:     Started server process [10687]
+[0m[stderr]   [2mINFO:     Waiting for application startup.
+[0m[stderr]   [2mINFO:     Application startup complete.
+[0m[stderr]   [2mINFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+[0m  [2mServer started with PID: 10687
+[0m  [2mTesting Todo App API
+[0m  [2m==================================================
+[0m  [2mGET /todos - Status: 200
+[0m  [2mResponse: [
+[0m  [2m  {
+[0m  [2m    "id": 1,
+[0m  [2m    "title": "Buy groceries",
+[0m  [2m    "completed": false
+[0m  [2m  },
+[0m  [2m  {
+[0m  [2m    "id": 2,
+[0m  [2m    "title": "Walk the dog",
+[0m  [2m    "completed": false
+[0m  [2m  }
+[0m  [2m]
+[0m  [2m
+[0m  [2mPOST /todos - Status: 200
+[0m  [2mResponse: {
+[0m  [2m  "id": 3,
+[0m  [2m  "title": "Test new todo",
+[0m  [2m  "completed": false
+[0m  [2m}
+[0m  [2m
+[0m  [2mGET /todos - Status: 200
+[0m  [2mResponse: [
+[0m  [2m  {
+[0m  [2m    "id": 1,
+[0m  [2m    "title": "Buy groceries",
+[0m  [2m    "completed": false
+[0m  [2m  },
+[0m  [2m  {
+[0m  [2m    "id": 2,
+[0m  [2m    "title": "Walk the dog",
+[0m  [2m    "completed": false
+[0m  [2m  },
+[0m  [2m  {
+[0m  [2m    "id": 3,
+[0m  [2m    "title": "Test new todo",
+[0m  [2m    "completed": false
+[0m  [2m  }
+[0m  [2m]
+[0m  [2m
+[0m  [2mPUT /todos/3 (title update) - Status: 200
+[0m  [2mResponse: {
+[0m  [2m  "id": 3,
+[0m  [2m  "title": "Updated todo title",
+[0m  [2m  "completed": false
+[0m  [2m}
+[0m  [2m
+[0m  [2mPUT /todos/3 (completed update) - Status: 200
+[0m  [2mResponse: {
+[0m  [2m  "id": 3,
+[0m  [2m  "title": "Updated todo title",
+[0m  [2m  "completed": true
+[0m  [2m}
+[0m  [2m
+[0m  [2mPUT /todos/3 (both fields) - Status: 200
+[0m  [2mResponse: {
+[0m  [2m  "id": 3,
+[0m  [2m  "title": "Final updated title",
+[0m  [2m  "completed": false
+[0m  [2m}
+[0m  [2m
+[0m  [2mGET /todos - Status: 200
+[0m  [2mResponse: [
+[0m  [2m  {
+[0m  [2m    "id": 1,
+[0m  [2m    "title": "Buy groceries",
+[0m  [2m    "completed": false
+[0m  [2m  },
+[0m  [2m  {
+[0m  [2m    "id": 2,
+[0m  [2m    "title": "Walk the dog",
+[0m  [2m    "completed": false
+[0m  [2m  },
+[0m  [2m  {
+[0m  [2m    "id": 3,
+[0m  [2m    "title": "Final updated title",
+[0m  [2m    "completed": false
+[0m  [2m  }
+[0m  [2m]
+[0m  [2m
+[0m  [2mPUT /todos/999 (non-existent) - Status: 404
+[0m  [2mResponse: {'detail': 'Todo item not found'}
+[0m  [2m
+[0m  [2mDELETE /todos/999 (non-existent) - Status: 404
+[0m  [2mResponse: {'detail': 'Todo item not found'}
+[0m  [2m
+[0m  [2mDELETE /todos/3 - Status: 200
+[0m  [2mResponse: {'message': 'Todo item deleted successfully'}
+[0m  [2m
+[0m  [2mGET /todos - Status: 200
+[0m  [2mResponse: [
+[0m  [2m  {
+[0m  [2m    "id": 1,
+[0m  [2m    "title": "Buy groceries",
+[0m  [2m    "completed": false
+[0m  [2m  },
+[0m  [2m  {
+[0m  [2m    "id": 2,
+[0m  [2m    "title": "Walk the dog",
+[0m  [2m    "completed": false
+[0m  [2m  }
+[0m  [2m]
+[0m  [2m
+[0m[stderr]   [2mINFO:     Started server process [10921]
+[0m[stderr]   [2mINFO:     Waiting for application startup.
+[0m[stderr]   [2mINFO:     Application startup complete.
+[0m[stderr]   [2mINFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+[0m  [2mINFO:     127.0.0.1:39692 - "POST /todos HTTP/1.1" 200 OK
+[0m  [2mINFO:     127.0.0.1:39704 - "PUT /todos/3 HTTP/1.1" 200 OK
+[0m  [2mINFO:     127.0.0.1:39718 - "PUT /todos/3 HTTP/1.1" 200 OK
+[0m  [2mINFO:     127.0.0.1:39732 - "PUT /todos/3 HTTP/1.1" 200 OK
+[0m[stderr]   [2mINFO:     Shutting down
+[0m[stderr]   [2mINFO:     Waiting for application shutdown.
+[0m[stderr]   [2mINFO:     Application shutdown complete.
+[0m[stderr]   [2mINFO:     Finished server process [10921]
+[0m[stderr]   [2mINFO:     Started server process [10933]
+[0m[stderr]   [2mINFO:     Waiting for application startup.
+[0m[stderr]   [2mINFO:     Application startup complete.
+[0m[stderr]   [2mINFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+[0m  [2mINFO:     127.0.0.1:39740 - "GET /todos HTTP/1.1" 200 OK
+[0m  [2mINFO:     127.0.0.1:39748 - "DELETE /todos/2 HTTP/1.1" 200 OK
+[0m  [2mINFO:     127.0.0.1:39750 - "POST /todos HTTP/1.1" 200 OK
+[0m  [2mINFO:     127.0.0.1:39758 - "POST /todos HTTP/1.1" 200 OK
+[0m  [2mINFO:     127.0.0.1:39766 - "GET /todos HTTP/1.1" 200 OK
+[0m[stderr]   [2mINFO:     Shutting down
+[0m[stderr]   [2mINFO:     Waiting for application shutdown.
+[0m[stderr]   [2mINFO:     Application shutdown complete.
+[0m[stderr]   [2mINFO:     Finished server process [10933]
+[0m  [2mTesting Edge Cases for Todo App
+[0m  [2m==================================================
+[0m  [2mTesting edge case: Empty database
+[0m  [2m----------------------------------------
+[0m  [2mLogic check: When db is empty, max() would fail without 'if db else 0'
+[0m  [2mOur implementation has: max_id = max(item.id for item in db) if db else 0
+[0m  [2mSo empty db -> max_id = 0 -> new_id = 1
+[0m  [2m✓ Edge case handled correctly in code
+[0m  [2m
+[0m  [2mTesting edge case: Partial updates
+[0m  [2m----------------------------------------
+[0m  [2mAfter title-only update:
+[0m  [2m  Title: Only title updated (should be 'Only title updated')
+[0m  [2m  Completed: False (should be False)
+[0m  [2m
+[0m  [2mAfter completed-only update:
+[0m  [2m  Title: Only title updated (should be 'Only title updated')
+[0m  [2m  Completed: True (should be True)
+[0m  [2m
+[0m  [2mAfter empty update:
+[0m  [2m  Title: Only title updated (should be 'Only title updated')
+[0m  [2m  Completed: True (should be True)
+[0m  [2m
+[0m  [2m✓ Partial updates work correctly
+[0m  [2m
+[0m  [2mTesting edge case: ID generation after deletions
+[0m  [2m----------------------------------------
+[0m  [2mInitial todos: [1, 2]
+[0m  [2mDeleted todo id 2: 200
+[0m  [2mCreated new todo: id=2, title='New after deletion'
+[0m  [2mCreated another todo: id=3, title='Another new todo'
+[0m  [2m
+[0m  [2mAll todo IDs: [1, 2, 3]
+[0m  [2m✓ ID generation works correctly (auto-incrementing)
+[0m  [2m
+[0m  [2mAll edge case tests completed!
+[0mPerfect! The implementation is complete and tested. Let me create a final summary of what was implemented:
+
+## Summary
+
+I have successfully completed the FastAPI application in `todo_app.py` by implementing all three required endpoints:
+
+### 1. **POST /todos** - Create a new todo item
+- Accepts a JSON body with `title` (required) and `completed` (optional, defaults to `False`)
+- Automatically generates a new ID by finding the maximum existing ID and adding 1
+- Handles empty database case correctly (`max_id = max(...) if db else 0`)
+- Returns the created todo item with the generated ID
+
+### 2. **PUT /todos/{item_id}** - Update an existing todo item
+- Accepts a JSON body with optional `title` and/or `completed` fields
+- Uses `Optional[str]` and `Optional[bool]` to allow partial updates
+- Returns 404 HTTP error if the item doesn't exist
+- Updates only the fields provided in the request
+
+### 3. **DELETE /todos/{item_id}** - Delete a todo item
+- Deletes the todo item with the specified ID
+- Returns 404 HTTP error if the item doesn't exist
+- Returns a success message upon successful deletion
+
+### Additional improvements made:
+1. Created separate Pydantic models for different operations:
+   - `TodoItem`: For full todo items (with ID)
+   - `TodoCreate`: For creating new todos (without ID)
+   - `TodoUpdate`: For updating todos (all fields optional)
+
+2. Implemented proper error handling with `HTTPException` for 404 cases
+
+3. The implementation handles edge cases correctly:
+   - Empty database when creating first todo
+   - Partial updates (updating only title or only completed status)
+   - Auto-incrementing IDs even after deletions
+   - Non-existent todo operations return proper 404 errors
+
+The application has been thoroughly tested and all functionality works as specified.

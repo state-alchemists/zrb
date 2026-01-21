@@ -4,5 +4,5 @@ Focus on:
 2. Key players (Companies leading the race).
 3. Main technical hurdles remaining.
 
-Produce a Markdown report saved as `workdir/solid_state_battery_report.md`.
+Produce a Markdown report saved as `solid_state_battery_report.md`.
 Use the `search_web` tool if available, or rely on internal knowledge but cite sources/dates where possible.

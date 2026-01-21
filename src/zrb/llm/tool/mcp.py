@@ -2,8 +2,6 @@ import json
 import os
 from typing import Any
 
-from pydantic_ai.mcp import MCPServerSSE, MCPServerStdio, _expand_env_vars
-
 from zrb.config.config import CFG
 
 
@@ -11,6 +9,18 @@ def load_mcp_config(config_file_name: str | None = None) -> list[Any]:
     if config_file_name is None:
         config_file_name = CFG.MCP_CONFIG_FILE
 
+    config_files = _get_config_files(config_file_name)
+    if not config_files:
+        return []
+
+    merged_servers = _merge_mcp_servers_config(config_files)
+    if not merged_servers:
+        return []
+
+    return _create_mcp_servers(merged_servers)
+
+
+def _get_config_files(config_file_name: str) -> list[str]:
     home = os.path.abspath(os.path.expanduser("~"))
     cwd = os.path.abspath(os.getcwd())
 
@@ -38,9 +48,10 @@ def load_mcp_config(config_file_name: str | None = None) -> list[Any]:
         if os.path.isfile(path):
             config_files.append(path)
 
-    if not config_files:
-        return []
+    return config_files
 
+
+def _merge_mcp_servers_config(config_files: list[str]) -> dict[str, Any]:
     merged_servers: dict[str, Any] = {}
 
     for config_file in config_files:
@@ -52,8 +63,11 @@ def load_mcp_config(config_file_name: str | None = None) -> list[Any]:
         except Exception as e:
             print(f"Warning: Failed to load MCP config from {config_file}: {e}")
 
-    if not merged_servers:
-        return []
+    return merged_servers
+
+
+def _create_mcp_servers(merged_servers: dict[str, Any]) -> list[Any]:
+    from pydantic_ai.mcp import MCPServerSSE, MCPServerStdio, _expand_env_vars
 
     servers: list[Any] = []
 

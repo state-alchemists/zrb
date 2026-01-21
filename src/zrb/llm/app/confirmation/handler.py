@@ -71,7 +71,7 @@ class ConfirmationHandler:
         args_section = ""
         if f"{call.args}" != "{}":
             args_str = self._format_args(call.args)
-            args_section = f"       Arguments:\n{args_str}\n"
+            args_section = f"{args_str}\n"
         return (
             f"  🎰 Executing tool '{call.tool_name}'\n"
             f"{args_section}"

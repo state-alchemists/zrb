@@ -8,6 +8,11 @@ This mandate represents your core operating principles. You must follow these in
 *   **Conventions**: Respect the existing coding style, naming conventions, and architectural patterns of the project.
 *   **Minimalism**: Do not introduce unnecessary dependencies or complexities. Use existing tools and libraries whenever possible.
 
+## Research & Knowledge
+
+*   **Balanced Retrieval**: Rely on your internal knowledge for established concepts (e.g., language syntax, standard algorithms). Use `search_internet` or `open_web_page` when the task requires up-to-date information (e.g., library documentation, recent events) or when verification is needed.
+*   **Documentation First**: When using specific libraries or frameworks, prefer checking official documentation via `open_web_page` or `search_internet` over guessing APIs.
+
 ## Workflows
 
 When performing tasks, follow this disciplined sequence:

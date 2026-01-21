@@ -1,0 +1,150 @@
+  [2mCreated sample log file: server.log
+[0m  [2mStarting ETL pipeline with config:
+[0m  [2m  Log file: server.log
+[0m  [2m  DB host: localhost
+[0m  [2m  DB user: admin
+[0m  [2m  Report file: report.html
+[0m  [2m
+[0m  [2m1. Extracting logs...
+[0m  [2m   Extracted 9 log lines
+[0m  [2m
+[0m  [2m2. Transforming logs...
+[0m  [2m   Parsed 9 log entries
+[0m  [2m
+[0m  [2m3. Loading to database...
+[0m  [2mConnecting to localhost as admin...
+[0m  [2mWould insert 9 log entries to database
+[0m  [2mStatistics: 4 errors, 4 info messages
+[0m  [2m
+[0m  [2m4. Generating report...
+[0m  [2m   Generated report: report.html
+[0m  [2m   Found 2 unique errors
+[0m  [2m
+[0m  [2mETL pipeline completed successfully!
+[0m  [2mCreated sample log file: test.log
+[0m  [2mStarting ETL pipeline with config:
+[0m  [2m  Log file: test.log
+[0m  [2m  DB host: prod-db
+[0m  [2m  DB user: etl_user
+[0m  [2m  Report file: test_report.html
+[0m  [2m
+[0m  [2m1. Extracting logs...
+[0m  [2m   Extracted 9 log lines
+[0m  [2m
+[0m  [2m2. Transforming logs...
+[0m  [2m   Parsed 9 log entries
+[0m  [2m
+[0m  [2m3. Loading to database...
+[0m  [2mConnecting to prod-db as etl_user...
+[0m  [2mWould insert 9 log entries to database
+[0m  [2mStatistics: 4 errors, 4 info messages
+[0m  [2m
+[0m  [2m4. Generating report...
+[0m  [2m   Generated report: test_report.html
+[0m  [2m   Found 2 unique errors
+[0m  [2m
+[0m  [2mETL pipeline completed successfully!
+[0m  [2mStarting ETL pipeline with config:
+[0m  [2m  Log file: non_existent.log
+[0m  [2m  DB host: localhost
+[0m  [2m  DB user: admin
+[0m  [2m  Report file: report.html
+[0m  [2m
+[0m  [2m1. Extracting logs...
+[0m  [2mError: Log file not found: non_existent.log
+[0m  [2mPlease ensure the log file exists or create a sample with --create-sample
+[0m  [2m-rw-r--r-- 1 bsim_user bsim_user 2025 Dec 30 07:06 legacy_etl.py
+[0m  [2m-rw-r--r-- 1 bsim_user bsim_user 9700 Jan 21 18:16 legacy_etl_refactored.py
+[0m  [2m"""
+[0m  [2mETL (Extract, Transform, Load) pipeline for processing server logs.
+[0m  [2m
+[0m  [2mThis module provides a refactored version of the legacy ETL script with:
+[0m  [2m- Separated extraction, transformation, and loading phases
+[0m  [2m- Configuration via environment variables
+[0m  [2m- Improved log parsing using regex
+[0m  [2m- Type hints and comprehensive docstrings
+[0m  [2m"""
+[0m  [2m
+[0m  [2mimport datetime
+[0m  [2mimport os
+[0m  [2mimport re
+[0m  [2mimport sys
+[0m  [2mfrom dataclasses import dataclass
+[0m  [2mfrom typing import Dict, List, Optional, TypedDict, Union
+[0m  [2mfrom pathlib import Path
+[0m  [2m
+[0m  [2m
+[0m  [2m# Type definitions for better type safety
+[0m  [2mCreated sample log file: server.log
+[0m  [2mStarting ETL pipeline with config:
+[0m  [2m  Log file: server.log
+[0m  [2m  DB host: localhost
+[0m  [2m  DB user: admin
+[0m  [2m  Report file: report.html
+[0m  [2m
+[0m  [2m1. Extracting logs...
+[0m  [2m   Extracted 9 log lines
+[0m  [2m
+[0m  [2m2. Transforming logs...
+[0m  [2m   Parsed 9 log entries
+[0m  [2m
+[0m  [2m3. Loading to database...
+[0m  [2mConnecting to localhost as admin...
+[0m  [2mWould insert 9 log entries to database
+[0m  [2mStatistics: 4 errors, 4 info messages
+[0m  [2m
+[0m  [2m4. Generating report...
+[0m  [2m   Generated report: report.html
+[0m  [2m   Found 2 unique errors
+[0m  [2m
+[0m  [2mETL pipeline completed successfully!
+[0m  [2musage: legacy_etl.py [-h] [--create-sample] [--config-file CONFIG_FILE]
+[0m  [2m
+[0m  [2mETL pipeline for processing server logs
+[0m  [2m
+[0m  [2moptions:
+[0m  [2m  -h, --help            show this help message and exit
+[0m  [2m  --create-sample       Create a sample log file instead of running ETL
+[0m  [2m  --config-file CONFIG_FILE
+[0m  [2m                        Path to configuration file (JSON/YAML)
+[0m## Summary
+
+I have successfully refactored the `legacy_etl.py` script according to your requirements:
+
+### ✅ **1. Isolated ETL phases into separate functions/classes:**
+- **Extract**: `extract_logs()` function
+- **Transform**: `transform_logs()` and `parse_log_line()` functions  
+- **Load/Report**: `load_to_database()`, `generate_error_report()`, `generate_html_report()` functions
+- **Configuration**: `Config` dataclass
+
+### ✅ **2. Removed global configuration variables:**
+- Replaced with `Config.from_env()` that uses `os.getenv()`
+- All configuration now comes from environment variables with sensible defaults
+- Configurable via: `DB_HOST`, `DB_USER`, `LOG_FILE`, `REPORT_FILE`
+
+### ✅ **3. Improved log parsing logic:**
+- Uses regex pattern: `r'^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\s+(\w+)\s+(.+)$'`
+- Properly extracts timestamps, log types, and messages
+- Better user ID extraction from INFO messages
+- Returns `Optional[LogEntry]` for type safety
+
+### ✅ **4. Separated file creation/dummy data generation:**
+- `create_sample_log_file()` function only creates sample data
+- Controlled via `--create-sample` command-line flag
+- Clean separation from main ETL logic
+
+### ✅ **5. Added type hints and docstrings:**
+- Full Python type hints throughout
+- Comprehensive docstrings for all functions and classes
+- Type definitions: `LogEntry`, `ErrorReport`, `Config`
+- Clear function signatures and return types
+
+### **Additional improvements:**
+- **Better error handling**: Proper exception handling with user-friendly messages
+- **Command-line interface**: `argparse` for better usability
+- **Enhanced HTML report**: Styled report with timestamps and statistics
+- **Modular design**: Each function has a single responsibility
+- **Testable code**: Functions can be tested independently
+- **Extensible architecture**: Easy to add new log formats, outputs, or databases
+
+The refactored script maintains backward compatibility while providing a much more robust, maintainable, and professional ETL pipeline.
