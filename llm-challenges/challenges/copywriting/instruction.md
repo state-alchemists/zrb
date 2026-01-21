@@ -8,4 +8,4 @@ Write a launch announcement blog post for a fictional tool named **Zrb-Flow**.
 **Requirements:**
 - Tone: Exciting, technical yet accessible, slightly witty.
 - Structure: Catchy Title, The Problem (DevOps fatigue), The Solution (Zrb-Flow), Key Features, Call to Action (Install now).
-- Save the result to `resources/launch_post.md`.
+- Save the result to `workdir/launch_post.md`.

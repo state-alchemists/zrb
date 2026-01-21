@@ -18,56 +18,46 @@ Located in: `challenges/` (relative to this directory)
 
 **Prerequisite:** Open a terminal in the `llm-challenges/` directory.
 
-Perform the following loop for **EACH** challenge:
-
-### 1. SETUP (Reset Environment)
-Ensure a clean state for the challenge (e.g., `refactor`).
-```bash
-# Example for 'refactor' challenge
-rm -rf experiment/refactor
-mkdir -p experiment/refactor
-cp -r challenges/refactor/* experiment/refactor/
-
-# CLEANUP: Kill any hanging processes on common ports (e.g., FastAPI on 8000)
-lsof -ti:8000 | xargs kill -9 2>/dev/null || true
-```
-
-### 2. EXECUTE (Run the Agent)
-Run the `zrb` agent against the challenge instructions.
-**CRITICAL:** Use `--interactive false` and `--yolo true` to ensure autonomous execution. Always execute from within the `resources` directory of the experiment.
+### 1. EXECUTE (Run the Automated Suite)
+We have an automated script to reset the environment and run `zrb` against all challenges.
 
 ```bash
-# Navigate to the resources directory
-cd experiment/refactor/resources
-
-export ZRB_LLM_SHOW_TOOL_CALL_RESULT=true
-export ZRB_LLM_SHOW_TOOL_CALL_DETAIL=true
-
-zrb \
-    --interactive false \
-    --yolo true \
-    --message "$(cat ../instruction.md)"
+python3 run_challenges.py
 ```
 
-### 3. EVALUATE (Assert Quality)
-Read the `evaluation.md` file in the original challenge directory (e.g., `challenges/refactor/evaluation.md`).
-**Compare the actual outcome** (files in `experiment/refactor/resources/`, logs) against the **Expected Outcome**.
+This script will:
+1.  Clean and recreate the `experiment/` directory.
+2.  Copy challenge resources to `experiment/<challenge_name>/`.
+3.  Run `zrb chat` autonomously for each challenge.
+4.  Capture `stdout` and `stderr` logs to `experiment/<challenge_name>/`.
 
-*   **PASS:** The agent met ALL criteria perfectly.
-*   **FAIL:** The agent missed ANY criterion, hallucinated, or crashed.
+### 2. EVALUATE (Assert Quality)
+After the script finishes, examine the `experiment/` directory.
 
-### 4. OPTIMIZE (Fix the Root Cause)
-**IF AND ONLY IF** a challenge fails/solved but inefficient:
+For **EACH** challenge (e.g., `bug-fix`, `refactor`):
+1.  **Read the Evaluation Criteria**: Open `experiment/<challenge_name>/evaluation.md`.
+2.  **Inspect Logs**: Check `experiment/<challenge_name>/stdout.log` and `stderr.log` (agent's reasoning/tool usage) .
+3.  **Inspect Artifacts**: Check the files in `experiment/<challenge_name>/workdir/` (or the root of the experiment folder if no workdir dir).
+    *   *Did the code change as expected?*
+    *   *Does the fix work?*
+    *   *Is the report written correctly?*
+
+*   **PASS:** The agent met ALL criteria in `evaluation.md`.
+*   **FAIL:** The agent missed ANY criterion, hallucinated, crashed, or the code doesn't work.
+
+### 3. OPTIMIZE (Fix the Root Cause)
+**IF AND ONLY IF** a challenge fails or is solved inefficiently:
 1.  **Analyze**: Why did it fail?
     -   Ambiguous System Prompt?
     -   Confusing Tool Docstring?
     -   Missing Context?
+    -   Poor Tool Selection?
 2.  **Refactor `zrb`**: Modify the core framework files to guide the LLM better.
     -   **Prompts**: `src/zrb/llm/prompt/markdown/` (e.g., `mandate.md`, `persona.md`) relative to project root.
     -   **Tools**: `src/zrb/llm/tool/` (Edit Python docstrings/signatures) relative to project root.
-3.  **Retry**: Go back to Step 1 (SETUP) and repeat until PASS.
+3.  **Retry**: Run `python3 run_challenges.py` again to verify the fix.
 
 ## Rules of Engagement
 1.  **DO NOT MODIFY CHALLENGES**: You are testing `zrb`, not the test itself. The `instruction.md` and `evaluation.md` are IMMUTABLE STANDARDS.
 2.  **BE RUTHLESS**: Partial credit is FAILURE. The code must run, the features must exist, the tone must be correct.
-3.  **SELF-CORRECTION**: If you (the AI Agent running this test) encounter errors running the commands, fix your command usage immediately.
+3.  **SELF-CORRECTION**: If the `run_challenges.py` script fails due to environment issues, fix the environment or the script, but do not alter the challenge logic.
