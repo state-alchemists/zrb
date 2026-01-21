@@ -325,6 +325,7 @@ class UI:
             style=style,
             full_screen=True,
             mouse_support=True,
+            refresh_interval=0.3,
         )
 
     def _get_help_text(self) -> str:
