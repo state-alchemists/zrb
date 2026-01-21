@@ -1,8 +1,9 @@
 import asyncio
 import contextlib
+import inspect
 import os
 import re
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable, Iterator
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, TextIO
 
@@ -56,7 +57,7 @@ class UI:
         initial_attachments: "list[UserContent]" = [],
         conversation_session_name: str = "",
         yolo: bool = False,
-        triggers: list[Callable[[], Any]] = [],
+        triggers: list[Callable[[], Iterator[Any] | AsyncIterator[Any]]] = [],
         confirmation_middlewares: list[ConfirmationMiddleware] = [],
         markdown_theme: "Theme | None" = None,
         summarize_commands: list[str] = [],
@@ -195,25 +196,67 @@ class UI:
 
     async def _trigger_loop(self, trigger_fn: Callable[[], Any]):
         """Handle external triggers and submit user message when trigger activated"""
-        while True:
-            try:
-                stdout_capture = StreamToUI(self.append_to_output)
-                with contextlib.redirect_stdout(
-                    stdout_capture
-                ), contextlib.redirect_stderr(stdout_capture):
-                    if asyncio.iscoroutinefunction(trigger_fn):
-                        result = await trigger_fn()
-                    else:
-                        result = await asyncio.to_thread(trigger_fn)
 
-                if result:
-                    self._submit_user_message(self._llm_task, str(result))
+        async def run_sync_step(iterator):
+            def _step():
+                try:
+                    return next(iterator)
+                except StopIteration:
+                    return StopIteration
+                except Exception as e:
+                    return e
 
-            except asyncio.CancelledError:
-                break
-            except Exception:
-                # Keep running on error, maybe log it
-                pass
+            return await asyncio.to_thread(_step)
+
+        try:
+            # 1. Initialize Generator
+            stdout_capture = StreamToUI(self.append_to_output)
+            with contextlib.redirect_stdout(stdout_capture), contextlib.redirect_stderr(
+                stdout_capture
+            ):
+                if inspect.isasyncgenfunction(trigger_fn):
+                    gen = trigger_fn()
+                elif asyncio.iscoroutinefunction(trigger_fn):
+                    gen = await trigger_fn()
+                else:
+                    gen = await asyncio.to_thread(trigger_fn)
+
+            # 2. Iterate
+            if hasattr(gen, "__aiter__"):
+                # Async Iterator
+                iterator = gen.__aiter__()
+                while True:
+                    with contextlib.redirect_stdout(
+                        stdout_capture
+                    ), contextlib.redirect_stderr(stdout_capture):
+                        try:
+                            result = await iterator.__anext__()
+                        except StopAsyncIteration:
+                            break
+
+                    if result:
+                        self._submit_user_message(self._llm_task, str(result))
+
+            elif hasattr(gen, "__iter__") and not isinstance(gen, (str, bytes)):
+                # Sync Iterator
+                iterator = iter(gen)
+                while True:
+                    result = await run_sync_step(iterator)
+
+                    if result is StopIteration:
+                        break
+
+                    if isinstance(result, Exception):
+                        continue
+
+                    if result:
+                        self._submit_user_message(self._llm_task, str(result))
+
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            # Keep running on error, maybe log it
+            pass
 
     async def _update_system_info_loop(self):
         """Periodically update CWD and Git info."""
@@ -296,11 +339,11 @@ class UI:
         return await self._confirmation_handler.handle(self, call)
 
     @property
-    def triggers(self) -> list[Callable[[], Any]]:
+    def triggers(self) -> list[Callable[[], Iterator[Any] | AsyncIterator[Any]]]:
         return self._triggers
 
     @triggers.setter
-    def triggers(self, value: list[Callable[[], Any]]):
+    def triggers(self, value: list[Callable[[], Iterator[Any] | AsyncIterator[Any]]]):
         self._triggers = value
 
     @property
