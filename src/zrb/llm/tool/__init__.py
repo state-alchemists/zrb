@@ -2,6 +2,7 @@ from zrb.llm.tool.bash import run_shell_command
 from zrb.llm.tool.code import analyze_code
 from zrb.llm.tool.file import (
     analyze_file,
+    glob_files,
     list_files,
     read_file,
     read_files,
@@ -21,6 +22,7 @@ from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task
 __all__ = [
     "run_shell_command",
     "analyze_code",
+    "glob_files",
     "list_files",
     "read_file",
     "read_files",
