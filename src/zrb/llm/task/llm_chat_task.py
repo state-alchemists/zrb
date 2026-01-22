@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterable, Callable
+from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any
 
 from zrb.attr.type import BoolAttr, StrAttr, fstring
@@ -277,34 +278,40 @@ class LLMChatTask(BaseTask):
             session = Session(shared_ctx)
             return await llm_task_core.async_run(session)
 
-        ui = UI(
-            greeting=ui_greeting,
-            assistant_name=ui_assistant_name,
-            ascii_art=ascii_art,
-            jargon=ui_jargon,
-            output_lexer=CLIStyleLexer(),
-            llm_task=llm_task_core,
-            history_manager=self._history_manager,
-            initial_message=initial_message,
-            initial_attachments=initial_attachments,
-            conversation_session_name=initial_conversation_name,
-            yolo=initial_yolo,
-            triggers=self._triggers,
-            confirmation_middlewares=self._confirmation_middlewares,
-            markdown_theme=self._markdown_theme,
-            summarize_commands=self._ui_summarize_commands,
-            attach_commands=self._ui_attach_commands,
-            exit_commands=self._ui_exit_commands,
-            info_commands=self._ui_info_commands,
-            save_commands=self._ui_save_commands,
-            load_commands=self._ui_load_commands,
-            yolo_toggle_commands=self._ui_yolo_toggle_commands,
-            redirect_output_commands=self._ui_redirect_output_commands,
-            exec_commands=self._ui_exec_commands,
-            model=self._get_model(ctx),
-        )
-        await ui.run_async()
-        return ui.last_output
+        async with AsyncExitStack() as stack:
+            # Enter context for all toolsets that support it
+            for toolset in self._toolsets:
+                if hasattr(toolset, "__aenter__"):
+                    await stack.enter_async_context(toolset)
+
+            ui = UI(
+                greeting=ui_greeting,
+                assistant_name=ui_assistant_name,
+                ascii_art=ascii_art,
+                jargon=ui_jargon,
+                output_lexer=CLIStyleLexer(),
+                llm_task=llm_task_core,
+                history_manager=self._history_manager,
+                initial_message=initial_message,
+                initial_attachments=initial_attachments,
+                conversation_session_name=initial_conversation_name,
+                yolo=initial_yolo,
+                triggers=self._triggers,
+                confirmation_middlewares=self._confirmation_middlewares,
+                markdown_theme=self._markdown_theme,
+                summarize_commands=self._ui_summarize_commands,
+                attach_commands=self._ui_attach_commands,
+                exit_commands=self._ui_exit_commands,
+                info_commands=self._ui_info_commands,
+                save_commands=self._ui_save_commands,
+                load_commands=self._ui_load_commands,
+                yolo_toggle_commands=self._ui_yolo_toggle_commands,
+                redirect_output_commands=self._ui_redirect_output_commands,
+                exec_commands=self._ui_exec_commands,
+                model=self._get_model(ctx),
+            )
+            await ui.run_async()
+            return ui.last_output
 
     def _get_conversation_name(self, ctx: AnyContext) -> str:
         conversation_name = str(
