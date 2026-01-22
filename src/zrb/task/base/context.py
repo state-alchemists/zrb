@@ -7,6 +7,7 @@ from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.session.any_session import AnySession
 from zrb.task.any_task import AnyTask
+from zrb.util.string.conversion import to_snake_case
 
 if TYPE_CHECKING:
     # Keep BaseTask under TYPE_CHECKING for functions that need it
@@ -38,9 +39,12 @@ def fill_shared_context_inputs(
     kwarg_dict = kwargs if kwargs is not None else {}
     for task_input in task.inputs:
         if task_input.name not in shared_ctx.input:
+            val = kwarg_dict.get(task_input.name, None)
+            if val is None:
+                val = kwarg_dict.get(to_snake_case(task_input.name), None)
             task_input.update_shared_context(
                 shared_ctx,
-                value=kwarg_dict.get(task_input.name, None),
+                value=val,
                 str_value=str_kwarg_dict.get(task_input.name, None),
             )
 
