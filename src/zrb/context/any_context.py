@@ -1,8 +1,13 @@
 import sys
 from abc import abstractmethod
-from typing import TextIO
+from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.context.any_shared_context import AnySharedContext
+
+if TYPE_CHECKING:
+    from pydantic import GetCoreSchemaHandler
+    from pydantic.json_schema import GetJsonSchemaHandler, JsonSchemaValue
+    from pydantic_core import CoreSchema
 
 
 class AnyContext(AnySharedContext):
@@ -12,6 +17,20 @@ class AnyContext(AnySharedContext):
     attempt counts, logging, and rendering templates with additional data.
     Subclasses must implement all abstract methods.
     """
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source_type: Any, handler: "GetCoreSchemaHandler"
+    ) -> "CoreSchema":
+        from pydantic_core import core_schema
+
+        return core_schema.is_instance_schema(cls)
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, core_schema: "CoreSchema", handler: "GetJsonSchemaHandler"
+    ) -> "JsonSchemaValue":
+        return {"type": "object", "title": "AnyContext"}
 
     @abstractmethod
     def set_attempt(self, attempt: int):
