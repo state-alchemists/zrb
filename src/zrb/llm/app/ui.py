@@ -14,6 +14,7 @@ from prompt_toolkit.formatted_text import AnyFormattedText
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.layout import Layout
 from prompt_toolkit.lexers import Lexer
+from prompt_toolkit.output import create_output
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.styles import Style
 
@@ -25,7 +26,7 @@ from zrb.llm.app.confirmation.handler import (
 )
 from zrb.llm.app.keybinding import create_output_keybindings
 from zrb.llm.app.layout import create_input_field, create_layout, create_output_field
-from zrb.llm.app.redirection import StreamToUI
+from zrb.llm.app.redirection import GlobalStreamCapture
 from zrb.llm.app.style import create_style
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.task.llm_task import LLMTask
@@ -110,6 +111,8 @@ class UI:
         # Confirmation state (Used by ask_user and keybindings)
         self._waiting_for_confirmation = False
         self._confirmation_future: asyncio.Future[str] | None = None
+        # Output Capture
+        self._capture = GlobalStreamCapture(self.append_to_output)
         # UI Styles
         self._style = create_style()
         # Input Area
@@ -154,8 +157,6 @@ class UI:
 
     async def run_async(self):
         """Run the application and manage triggers."""
-        import logging
-
         # Start triggers
         for trigger_fn in self._triggers:
             trigger_task = self._application.create_background_task(
@@ -168,23 +169,11 @@ class UI:
             self._update_system_info_loop()
         )
 
-        # Setup logging redirection to UI
-        root_logger = logging.getLogger()
-        original_handlers = root_logger.handlers[:]
-
-        ui_stream = StreamToUI(self.append_to_output)
-        ui_handler = logging.StreamHandler(ui_stream)
-        formatter = logging.Formatter("[%(levelname)s] %(name)s: %(message)s")
-        ui_handler.setFormatter(formatter)
-
-        root_logger.handlers = [ui_handler]
-
         try:
-            with patch_stdout():
-                return await self._application.run_async()
+            self._capture.start()
+            return await self._application.run_async()
         finally:
-            # Restore handlers
-            root_logger.handlers = original_handlers
+            self._capture.stop()
 
             # Stop triggers
             for trigger_task in self._trigger_tasks:
@@ -205,20 +194,15 @@ class UI:
             if inspect.isawaitable(iterator):
                 iterator = await iterator
 
-            stdout_capture = StreamToUI(self.append_to_output)
-
             # 2. Iterate
             if hasattr(iterator, "__aiter__"):
                 # Async Iterator
                 async_iter = iterator.__aiter__()
                 while True:
-                    with contextlib.redirect_stdout(
-                        stdout_capture
-                    ), contextlib.redirect_stderr(stdout_capture):
-                        try:
-                            result = await async_iter.__anext__()
-                        except StopAsyncIteration:
-                            break
+                    try:
+                        result = await async_iter.__anext__()
+                    except StopAsyncIteration:
+                        break
 
                     if result:
                         self._submit_user_message(self._llm_task, str(result))
@@ -345,6 +329,7 @@ class UI:
             full_screen=True,
             mouse_support=True,
             refresh_interval=0.3,
+            output=create_output(stdout=self._capture.get_original_stdout()),
         )
 
     def _get_help_text(self) -> str:
@@ -765,15 +750,12 @@ class UI:
 
             # Run the task with stdout/stderr redirected to UI
             self.append_to_output("\n  🔢 Streaming response...\n")
-            stdout_capture = StreamToUI(self.append_to_output)
 
             # Set context var for tool confirmation
             token = tool_confirmation_var.set(self._confirm_tool_execution)
+            result_data = None
             try:
-                with contextlib.redirect_stdout(
-                    stdout_capture
-                ), contextlib.redirect_stderr(stdout_capture):
-                    result_data = await llm_task.async_run(session)
+                result_data = await llm_task.async_run(session)
             finally:
                 tool_confirmation_var.reset(token)
 
