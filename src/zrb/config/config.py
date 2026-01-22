@@ -117,8 +117,8 @@ class Config:
         self.DEFAULT_SERPAPI_LANG: str = "en"
         self.DEFAULT_SEARXNG_PORT: str = "8080"
         self.DEFAULT_SEARXNG_BASE_URL: str = ""
-        self.DEFAULT_SEARXNG_SAFE: str = "off"
-        self.DEFAULT_SEARXNG_LANG: str = "en"
+        self.DEFAULT_SEARXNG_SAFE: str = "0"
+        self.DEFAULT_SEARXNG_LANG: str = "en-US"
         self.DEFAULT_BANNER: str = _DEFAULT_BANNER
         self.DEFAULT_LLM_SHOW_TOOL_CALL_DETAIL: str = "off"
         self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT: str = "off"
