@@ -1,4 +1,4 @@
-from collections.abc import AsyncIterator, Callable, Iterator
+from collections.abc import AsyncIterable, Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.attr.type import BoolAttr, StrAttr, fstring
@@ -88,7 +88,7 @@ class LLMChatTask(BaseTask):
         render_ui_jargon: bool = True,
         ui_ascii_art: StrAttr | None = None,
         render_ui_ascii_art_name: bool = True,
-        triggers: list[Callable[[], Iterator[Any] | AsyncIterator[Any]]] = [],
+        triggers: list[Callable[[], AsyncIterable[Any]]] = [],
         confirmation_middlewares: list[ConfirmationMiddleware] = [],
         markdown_theme: "Theme | None" = None,
         interactive: BoolAttr = True,
@@ -205,11 +205,15 @@ class LLMChatTask(BaseTask):
             list(middleware) + self._confirmation_middlewares
         )
 
-    def add_trigger(self, *trigger: Callable[[], Iterator[Any] | AsyncIterator[Any]]):
+    def add_trigger(
+        self,
+        *trigger: Callable[[], AsyncIterable[Any]],
+    ):
         self.append_trigger(*trigger)
 
     def append_trigger(
-        self, *trigger: Callable[[], Iterator[Any] | AsyncIterator[Any]]
+        self,
+        *trigger: Callable[[], AsyncIterable[Any]],
     ):
         self._triggers += trigger
 

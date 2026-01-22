@@ -3,7 +3,7 @@ import contextlib
 import inspect
 import os
 import re
-from collections.abc import AsyncIterator, Callable, Iterator
+from collections.abc import AsyncIterable, Callable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, TextIO
 
@@ -57,7 +57,7 @@ class UI:
         initial_attachments: "list[UserContent]" = [],
         conversation_session_name: str = "",
         yolo: bool = False,
-        triggers: list[Callable[[], Iterator[Any] | AsyncIterator[Any]]] = [],
+        triggers: list[Callable[[], AsyncIterable[Any]]] = [],
         confirmation_middlewares: list[ConfirmationMiddleware] = [],
         markdown_theme: "Theme | None" = None,
         summarize_commands: list[str] = [],
@@ -194,60 +194,31 @@ class UI:
             if self._system_info_task:
                 self._system_info_task.cancel()
 
-    async def _trigger_loop(self, trigger_fn: Callable[[], Any]):
+    async def _trigger_loop(
+        self,
+        trigger_factory: Callable[[], AsyncIterable[Any]],
+    ):
         """Handle external triggers and submit user message when trigger activated"""
-
-        async def run_sync_step(iterator):
-            def _step():
-                try:
-                    return next(iterator)
-                except StopIteration:
-                    return StopIteration
-                except Exception as e:
-                    return e
-
-            return await asyncio.to_thread(_step)
-
         try:
-            # 1. Initialize Generator
+            # 1. Get the iterator
+            iterator = trigger_factory()
+            if inspect.isawaitable(iterator):
+                iterator = await iterator
+
             stdout_capture = StreamToUI(self.append_to_output)
-            with contextlib.redirect_stdout(stdout_capture), contextlib.redirect_stderr(
-                stdout_capture
-            ):
-                if inspect.isasyncgenfunction(trigger_fn):
-                    gen = trigger_fn()
-                elif asyncio.iscoroutinefunction(trigger_fn):
-                    gen = await trigger_fn()
-                else:
-                    gen = await asyncio.to_thread(trigger_fn)
 
             # 2. Iterate
-            if hasattr(gen, "__aiter__"):
+            if hasattr(iterator, "__aiter__"):
                 # Async Iterator
-                iterator = gen.__aiter__()
+                async_iter = iterator.__aiter__()
                 while True:
                     with contextlib.redirect_stdout(
                         stdout_capture
                     ), contextlib.redirect_stderr(stdout_capture):
                         try:
-                            result = await iterator.__anext__()
+                            result = await async_iter.__anext__()
                         except StopAsyncIteration:
                             break
-
-                    if result:
-                        self._submit_user_message(self._llm_task, str(result))
-
-            elif hasattr(gen, "__iter__") and not isinstance(gen, (str, bytes)):
-                # Sync Iterator
-                iterator = iter(gen)
-                while True:
-                    result = await run_sync_step(iterator)
-
-                    if result is StopIteration:
-                        break
-
-                    if isinstance(result, Exception):
-                        continue
 
                     if result:
                         self._submit_user_message(self._llm_task, str(result))
@@ -339,11 +310,16 @@ class UI:
         return await self._confirmation_handler.handle(self, call)
 
     @property
-    def triggers(self) -> list[Callable[[], Iterator[Any] | AsyncIterator[Any]]]:
+    def triggers(
+        self,
+    ) -> list[Callable[[], AsyncIterable[Any]]]:
         return self._triggers
 
     @triggers.setter
-    def triggers(self, value: list[Callable[[], Iterator[Any] | AsyncIterator[Any]]]):
+    def triggers(
+        self,
+        value: list[Callable[[], AsyncIterable[Any]]],
+    ):
         self._triggers = value
 
     @property
@@ -519,7 +495,7 @@ class UI:
 
         try:
             self.append_to_output(f"\n💻 {timestamp} >>\n$ {cmd}\n")
-            self.append_to_output(f"\n  🔢 Executing...\n")
+            self.append_to_output("\n  🔢 Executing...\n")
 
             # Create subprocess
             process = await asyncio.create_subprocess_shell(
@@ -553,7 +529,7 @@ class UI:
             return_code = await process.wait()
 
             if return_code == 0:
-                self.append_to_output(f"\n  ✅ Command finished successfully.\n")
+                self.append_to_output("\n  ✅ Command finished successfully.\n")
             else:
                 self.append_to_output(
                     f"\n  ❌ Command failed with exit code {return_code}.\n"
