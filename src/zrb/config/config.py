@@ -40,7 +40,7 @@ class Config:
         self.DEFAULT_INIT_FILE_NAME: str = "zrb_init.py"
         self.DEFAULT_LOGGING_LEVEL: str = "WARNING"
         self.DEFAULT_LOAD_BUILTIN: str = "1"
-        self.DEFAULT_WARN_UNRECOMMENDED_COMMAND: str = "1"
+        self.DEFAULT_WARN_UNRECOMMENDED_COMMAND: str = "on"
         self.DEFAULT_SESSION_LOG_DIR: str = ""
         self.DEFAULT_TODO_DIR: str = ""
         self.DEFAULT_TODO_VISUAL_FILTER: str = ""
@@ -66,6 +66,27 @@ class Config:
         self.DEFAULT_LLM_ASSISTANT_NAME: str = ""
         self.DEFAULT_LLM_ASSISTANT_ASCII_ART: str = "default"
         self.DEFAULT_LLM_ASSISTANT_JARGON: str = ""
+        self.DEFAULT_LLM_UI_STYLE_TITLE_BAR: str = "#ffffff"
+        self.DEFAULT_LLM_UI_STYLE_INFO_BAR: str = "#ffffff"
+        self.DEFAULT_LLM_UI_STYLE_FRAME: str = "#888888"
+        self.DEFAULT_LLM_UI_STYLE_FRAME_LABEL: str = "#ffff00"
+        self.DEFAULT_LLM_UI_STYLE_INPUT_FRAME: str = "#888888"
+        self.DEFAULT_LLM_UI_STYLE_THINKING: str = "ansigreen italic"
+        self.DEFAULT_LLM_UI_STYLE_FAINT: str = "#888888"
+        self.DEFAULT_LLM_UI_STYLE_OUTPUT_FIELD: str = "#eeeeee"
+        self.DEFAULT_LLM_UI_STYLE_INPUT_FIELD: str = "#eeeeee"
+        self.DEFAULT_LLM_UI_STYLE_TEXT: str = "#eeeeee"
+        self.DEFAULT_LLM_UI_STYLE_STATUS: str = "reverse"
+        self.DEFAULT_LLM_UI_STYLE_BOTTOM_TOOLBAR: str = "bg:#333333 #aaaaaa"
+        self.DEFAULT_LLM_UI_COMMAND_SUMMARIZE: str = "/compress, /compact"
+        self.DEFAULT_LLM_UI_COMMAND_ATTACH: str = "/attach"
+        self.DEFAULT_LLM_UI_COMMAND_EXIT: str = "/q, /bye, /quit, /exit"
+        self.DEFAULT_LLM_UI_COMMAND_INFO: str = "/info, /help"
+        self.DEFAULT_LLM_UI_COMMAND_SAVE: str = "/save"
+        self.DEFAULT_LLM_UI_COMMAND_LOAD: str = "/load"
+        self.DEFAULT_LLM_UI_COMMAND_YOLO_TOGGLE: str = "/yolo"
+        self.DEFAULT_LLM_UI_COMMAND_REDIRECT_OUTPUT: str = ">, /redirect"
+        self.DEFAULT_LLM_UI_COMMAND_EXEC: str = "!, /exec"
         self.DEFAULT_LLM_HISTORY_DIR: str = ""
         self.DEFAULT_LLM_NOTE_FILE: str = ""
         self.DEFAULT_LLM_MODEL: str = ""
@@ -96,12 +117,12 @@ class Config:
         self.DEFAULT_SERPAPI_LANG: str = "en"
         self.DEFAULT_SEARXNG_PORT: str = "8080"
         self.DEFAULT_SEARXNG_BASE_URL: str = ""
-        self.DEFAULT_SEARXNG_SAFE: str = "0"
+        self.DEFAULT_SEARXNG_SAFE: str = "off"
         self.DEFAULT_SEARXNG_LANG: str = "en"
         self.DEFAULT_BANNER: str = _DEFAULT_BANNER
-        self.DEFAULT_LLM_SHOW_TOOL_CALL_DETAIL: str = "0"
-        self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT: str = "0"
-        self.DEFAULT_USE_TIKTOKEN: str = "1"
+        self.DEFAULT_LLM_SHOW_TOOL_CALL_DETAIL: str = "off"
+        self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT: str = "off"
+        self.DEFAULT_USE_TIKTOKEN: str = "off"
         self.DEFAULT_TIKTOKEN_ENCODING_NAME: str = "cl100k_base"
         self.DEFAULT_MCP_CONFIG_FILE: str = "mcp-config.json"
 
@@ -545,6 +566,257 @@ class Config:
     @LLM_ASSISTANT_JARGON.setter
     def LLM_ASSISTANT_JARGON(self, value: str):
         os.environ[f"{self.ENV_PREFIX}_LLM_ASSISTANT_JARGON"] = value
+
+    @property
+    def LLM_UI_STYLE_TITLE_BAR(self) -> str:
+        return get_env(
+            "LLM_UI_STYLE_TITLE_BAR",
+            self.DEFAULT_LLM_UI_STYLE_TITLE_BAR,
+            self.ENV_PREFIX,
+        )
+
+    @LLM_UI_STYLE_TITLE_BAR.setter
+    def LLM_UI_STYLE_TITLE_BAR(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_TITLE_BAR"] = value
+
+    @property
+    def LLM_UI_STYLE_INFO_BAR(self) -> str:
+        return get_env(
+            "LLM_UI_STYLE_INFO_BAR", self.DEFAULT_LLM_UI_STYLE_INFO_BAR, self.ENV_PREFIX
+        )
+
+    @LLM_UI_STYLE_INFO_BAR.setter
+    def LLM_UI_STYLE_INFO_BAR(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_INFO_BAR"] = value
+
+    @property
+    def LLM_UI_STYLE_FRAME(self) -> str:
+        return get_env(
+            "LLM_UI_STYLE_FRAME", self.DEFAULT_LLM_UI_STYLE_FRAME, self.ENV_PREFIX
+        )
+
+    @LLM_UI_STYLE_FRAME.setter
+    def LLM_UI_STYLE_FRAME(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_FRAME"] = value
+
+    @property
+    def LLM_UI_STYLE_FRAME_LABEL(self) -> str:
+        return get_env(
+            "LLM_UI_STYLE_FRAME_LABEL",
+            self.DEFAULT_LLM_UI_STYLE_FRAME_LABEL,
+            self.ENV_PREFIX,
+        )
+
+    @LLM_UI_STYLE_FRAME_LABEL.setter
+    def LLM_UI_STYLE_FRAME_LABEL(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_FRAME_LABEL"] = value
+
+    @property
+    def LLM_UI_STYLE_INPUT_FRAME(self) -> str:
+        return get_env(
+            "LLM_UI_STYLE_INPUT_FRAME",
+            self.DEFAULT_LLM_UI_STYLE_INPUT_FRAME,
+            self.ENV_PREFIX,
+        )
+
+    @LLM_UI_STYLE_INPUT_FRAME.setter
+    def LLM_UI_STYLE_INPUT_FRAME(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_INPUT_FRAME"] = value
+
+    @property
+    def LLM_UI_STYLE_THINKING(self) -> str:
+        return get_env(
+            "LLM_UI_STYLE_THINKING", self.DEFAULT_LLM_UI_STYLE_THINKING, self.ENV_PREFIX
+        )
+
+    @LLM_UI_STYLE_THINKING.setter
+    def LLM_UI_STYLE_THINKING(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_THINKING"] = value
+
+    @property
+    def LLM_UI_STYLE_FAINT(self) -> str:
+        return get_env(
+            "LLM_UI_STYLE_FAINT", self.DEFAULT_LLM_UI_STYLE_FAINT, self.ENV_PREFIX
+        )
+
+    @LLM_UI_STYLE_FAINT.setter
+    def LLM_UI_STYLE_FAINT(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_FAINT"] = value
+
+    @property
+    def LLM_UI_STYLE_OUTPUT_FIELD(self) -> str:
+        return get_env(
+            "LLM_UI_STYLE_OUTPUT_FIELD",
+            self.DEFAULT_LLM_UI_STYLE_OUTPUT_FIELD,
+            self.ENV_PREFIX,
+        )
+
+    @LLM_UI_STYLE_OUTPUT_FIELD.setter
+    def LLM_UI_STYLE_OUTPUT_FIELD(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_OUTPUT_FIELD"] = value
+
+    @property
+    def LLM_UI_STYLE_INPUT_FIELD(self) -> str:
+        return get_env(
+            "LLM_UI_STYLE_INPUT_FIELD",
+            self.DEFAULT_LLM_UI_STYLE_INPUT_FIELD,
+            self.ENV_PREFIX,
+        )
+
+    @LLM_UI_STYLE_INPUT_FIELD.setter
+    def LLM_UI_STYLE_INPUT_FIELD(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_INPUT_FIELD"] = value
+
+    @property
+    def LLM_UI_STYLE_TEXT(self) -> str:
+        return get_env(
+            "LLM_UI_STYLE_TEXT", self.DEFAULT_LLM_UI_STYLE_TEXT, self.ENV_PREFIX
+        )
+
+    @LLM_UI_STYLE_TEXT.setter
+    def LLM_UI_STYLE_TEXT(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_TEXT"] = value
+
+    @property
+    def LLM_UI_STYLE_STATUS(self) -> str:
+        return get_env(
+            "LLM_UI_STYLE_STATUS", self.DEFAULT_LLM_UI_STYLE_STATUS, self.ENV_PREFIX
+        )
+
+    @LLM_UI_STYLE_STATUS.setter
+    def LLM_UI_STYLE_STATUS(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_STATUS"] = value
+
+    @property
+    def LLM_UI_STYLE_BOTTOM_TOOLBAR(self) -> str:
+        return get_env(
+            "LLM_UI_STYLE_BOTTOM_TOOLBAR",
+            self.DEFAULT_LLM_UI_STYLE_BOTTOM_TOOLBAR,
+            self.ENV_PREFIX,
+        )
+
+    @LLM_UI_STYLE_BOTTOM_TOOLBAR.setter
+    def LLM_UI_STYLE_BOTTOM_TOOLBAR(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_BOTTOM_TOOLBAR"] = value
+
+    @property
+    def LLM_UI_COMMAND_SUMMARIZE(self) -> list[str]:
+        cmd_str = get_env(
+            "LLM_UI_COMMAND_SUMMARIZE",
+            self.DEFAULT_LLM_UI_COMMAND_SUMMARIZE,
+            self.ENV_PREFIX,
+        )
+        return [cmd.strip() for cmd in cmd_str.split(",") if cmd.strip() != ""]
+
+    @LLM_UI_COMMAND_SUMMARIZE.setter
+    def LLM_UI_COMMAND_SUMMARIZE(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_SUMMARIZE"] = ",".join(value)
+
+    @property
+    def LLM_UI_COMMAND_ATTACH(self) -> list[str]:
+        cmd_str = get_env(
+            "LLM_UI_COMMAND_ATTACH",
+            self.DEFAULT_LLM_UI_COMMAND_ATTACH,
+            self.ENV_PREFIX,
+        )
+        return [cmd.strip() for cmd in cmd_str.split(",") if cmd.strip() != ""]
+
+    @LLM_UI_COMMAND_ATTACH.setter
+    def LLM_UI_COMMAND_ATTACH(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_ATTACH"] = ",".join(value)
+
+    @property
+    def LLM_UI_COMMAND_EXIT(self) -> list[str]:
+        cmd_str = get_env(
+            "LLM_UI_COMMAND_EXIT",
+            self.DEFAULT_LLM_UI_COMMAND_EXIT,
+            self.ENV_PREFIX,
+        )
+        return [cmd.strip() for cmd in cmd_str.split(",") if cmd.strip() != ""]
+
+    @LLM_UI_COMMAND_EXIT.setter
+    def LLM_UI_COMMAND_EXIT(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_EXIT"] = ",".join(value)
+
+    @property
+    def LLM_UI_COMMAND_INFO(self) -> list[str]:
+        cmd_str = get_env(
+            "LLM_UI_COMMAND_INFO",
+            self.DEFAULT_LLM_UI_COMMAND_INFO,
+            self.ENV_PREFIX,
+        )
+        return [cmd.strip() for cmd in cmd_str.split(",") if cmd.strip() != ""]
+
+    @LLM_UI_COMMAND_INFO.setter
+    def LLM_UI_COMMAND_INFO(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_INFO"] = ",".join(value)
+
+    @property
+    def LLM_UI_COMMAND_SAVE(self) -> list[str]:
+        cmd_str = get_env(
+            "LLM_UI_COMMAND_SAVE",
+            self.DEFAULT_LLM_UI_COMMAND_SAVE,
+            self.ENV_PREFIX,
+        )
+        return [cmd.strip() for cmd in cmd_str.split(",") if cmd.strip() != ""]
+
+    @LLM_UI_COMMAND_SAVE.setter
+    def LLM_UI_COMMAND_SAVE(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_SAVE"] = ",".join(value)
+
+    @property
+    def LLM_UI_COMMAND_LOAD(self) -> list[str]:
+        cmd_str = get_env(
+            "LLM_UI_COMMAND_LOAD",
+            self.DEFAULT_LLM_UI_COMMAND_LOAD,
+            self.ENV_PREFIX,
+        )
+        return [cmd.strip() for cmd in cmd_str.split(",") if cmd.strip() != ""]
+
+    @LLM_UI_COMMAND_LOAD.setter
+    def LLM_UI_COMMAND_LOAD(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_LOAD"] = ",".join(value)
+
+    @property
+    def LLM_UI_COMMAND_YOLO_TOGGLE(self) -> list[str]:
+        cmd_str = get_env(
+            "LLM_UI_COMMAND_YOLO_TOGGLE",
+            self.DEFAULT_LLM_UI_COMMAND_YOLO_TOGGLE,
+            self.ENV_PREFIX,
+        )
+        return [cmd.strip() for cmd in cmd_str.split(",") if cmd.strip() != ""]
+
+    @LLM_UI_COMMAND_YOLO_TOGGLE.setter
+    def LLM_UI_COMMAND_YOLO_TOGGLE(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_YOLO_TOGGLE"] = ",".join(value)
+
+    @property
+    def LLM_UI_COMMAND_REDIRECT_OUTPUT(self) -> list[str]:
+        cmd_str = get_env(
+            "LLM_UI_COMMAND_REDIRECT_OUTPUT",
+            self.DEFAULT_LLM_UI_COMMAND_REDIRECT_OUTPUT,
+            self.ENV_PREFIX,
+        )
+        return [cmd.strip() for cmd in cmd_str.split(",") if cmd.strip() != ""]
+
+    @LLM_UI_COMMAND_REDIRECT_OUTPUT.setter
+    def LLM_UI_COMMAND_REDIRECT_OUTPUT(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_REDIRECT_OUTPUT"] = ",".join(
+            value
+        )
+
+    @property
+    def LLM_UI_COMMAND_EXEC(self) -> list[str]:
+        cmd_str = get_env(
+            "LLM_UI_COMMAND_EXEC",
+            self.DEFAULT_LLM_UI_COMMAND_EXEC,
+            self.ENV_PREFIX,
+        )
+        return [cmd.strip() for cmd in cmd_str.split(",") if cmd.strip() != ""]
+
+    @LLM_UI_COMMAND_EXEC.setter
+    def LLM_UI_COMMAND_EXEC(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_EXEC"] = ",".join(value)
 
     @property
     def LLM_HISTORY_DIR(self) -> str:

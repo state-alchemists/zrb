@@ -76,15 +76,6 @@ llm_chat = LLMChatTask(
     ui_assistant_name=lambda ctx: CFG.LLM_ASSISTANT_NAME,
     ui_greeting=lambda ctx: f"{CFG.LLM_ASSISTANT_NAME}\n{CFG.LLM_ASSISTANT_JARGON}",
     ui_jargon=lambda ctx: CFG.LLM_ASSISTANT_JARGON,
-    ui_summarize_commands=["/compress", "/compact"],
-    ui_attach_commands=["/attach"],
-    ui_exit_commands=["/q", "/bye", "/quit", "/exit"],
-    ui_info_commands=["/info", "/help"],
-    ui_save_commands=["/save"],
-    ui_load_commands=["/load"],
-    ui_yolo_toggle_commands=["/yolo"],
-    ui_redirect_output_commands=[">", "/redirect"],
-    ui_exec_commands=["!", "/exec"],
 )
 llm_group.add_task(llm_chat)
 cli.add_task(llm_chat)

@@ -1,5 +1,4 @@
 import asyncio
-import contextlib
 import inspect
 import os
 import re
@@ -15,7 +14,6 @@ from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.layout import Layout
 from prompt_toolkit.lexers import Lexer
 from prompt_toolkit.output import create_output
-from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.styles import Style
 
 from zrb.context.shared_context import SharedContext
@@ -335,7 +333,7 @@ class UI:
             style=style,
             full_screen=True,
             mouse_support=True,
-            refresh_interval=0.3,
+            refresh_interval=0.1,
             output=create_output(stdout=self._capture.get_original_stdout()),
             clipboard=clipboard,
         )

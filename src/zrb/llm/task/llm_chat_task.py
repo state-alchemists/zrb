@@ -219,24 +219,93 @@ class LLMChatTask(BaseTask):
         self._triggers += trigger
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
-        from zrb.llm.app.lexer import CLIStyleLexer
-        from zrb.llm.app.ui import UI
-
+        # 1. Resolve inputs/attributes
         initial_conversation_name = self._get_conversation_name(ctx)
         initial_yolo = get_bool_attr(ctx, self._yolo, False)
         initial_message = get_attr(ctx, self._message, "", self._render_message)
         initial_attachments = get_attachments(ctx, self._attachment)
-        ui_greeting = get_str_attr(ctx, self._ui_greeting, "", self._render_ui_greeting)
-        ui_assistant_name = get_str_attr(
-            ctx, self._ui_assistant_name, "", self._render_ui_assistant_name
-        )
-        ui_jargon = get_str_attr(ctx, self._ui_jargon, "", self._render_ui_jargon)
-        ascii_art = get_str_attr(
-            ctx, self._ui_ascii_art_name, "", self._render_ui_ascii_art_name
-        )
         interactive = get_bool_attr(ctx, self._interactive, True)
 
-        llm_task_core = LLMTask(
+        # 2. Resolve UI Commands
+        ui_commands = self._get_ui_commands()
+
+        # 3. Create core LLM task
+        llm_task_core = self._create_llm_task_core(ui_commands["summarize"])
+
+        # 4. Run Interactive or Non-Interactive
+        if not interactive:
+            return await self._run_non_interactive_session(
+                ctx=ctx,
+                llm_task_core=llm_task_core,
+                initial_message=initial_message,
+                initial_conversation_name=initial_conversation_name,
+                initial_yolo=initial_yolo,
+                initial_attachments=initial_attachments,
+            )
+
+        return await self._run_interactive_ui(
+            ctx=ctx,
+            llm_task_core=llm_task_core,
+            ui_commands=ui_commands,
+            initial_message=initial_message,
+            initial_conversation_name=initial_conversation_name,
+            initial_yolo=initial_yolo,
+            initial_attachments=initial_attachments,
+        )
+
+    def _get_ui_commands(self) -> dict[str, list[str]]:
+        """Resolve all UI commands from attributes or CFG defaults."""
+        return {
+            "summarize": (
+                self._ui_summarize_commands
+                if self._ui_summarize_commands
+                else CFG.LLM_UI_COMMAND_SUMMARIZE
+            ),
+            "attach": (
+                self._ui_attach_commands
+                if self._ui_attach_commands
+                else CFG.LLM_UI_COMMAND_ATTACH
+            ),
+            "exit": (
+                self._ui_exit_commands
+                if self._ui_exit_commands
+                else CFG.LLM_UI_COMMAND_EXIT
+            ),
+            "info": (
+                self._ui_info_commands
+                if self._ui_info_commands
+                else CFG.LLM_UI_COMMAND_INFO
+            ),
+            "save": (
+                self._ui_save_commands
+                if self._ui_save_commands
+                else CFG.LLM_UI_COMMAND_SAVE
+            ),
+            "load": (
+                self._ui_load_commands
+                if self._ui_load_commands
+                else CFG.LLM_UI_COMMAND_LOAD
+            ),
+            "yolo_toggle": (
+                self._ui_yolo_toggle_commands
+                if self._ui_yolo_toggle_commands
+                else CFG.LLM_UI_COMMAND_YOLO_TOGGLE
+            ),
+            "redirect_output": (
+                self._ui_redirect_output_commands
+                if self._ui_redirect_output_commands
+                else CFG.LLM_UI_COMMAND_REDIRECT_OUTPUT
+            ),
+            "exec": (
+                self._ui_exec_commands
+                if self._ui_exec_commands
+                else CFG.LLM_UI_COMMAND_EXEC
+            ),
+        }
+
+    def _create_llm_task_core(self, summarize_commands: list[str]) -> LLMTask:
+        """Create the inner LLMTask that handles the actual processing."""
+        return LLMTask(
             name=f"{self.name}-process",
             input=[
                 StrInput("message", "Message"),
@@ -261,22 +330,53 @@ class LLMChatTask(BaseTask):
             conversation_name="{ctx.input.session}",
             yolo="{ctx.input.yolo}",
             attachment=lambda ctx: ctx.input.attachments,
-            summarize_command=self._ui_summarize_commands,
+            summarize_command=summarize_commands,
         )
 
-        if not interactive:
-            session_input = {
-                "message": initial_message,
-                "session": initial_conversation_name,
-                "yolo": initial_yolo,
-                "attachments": initial_attachments,
-            }
-            shared_ctx = SharedContext(
-                input=session_input,
-                print_fn=ctx.shared_print,  # Use current task's print function
-            )
-            session = Session(shared_ctx)
-            return await llm_task_core.async_run(session)
+    async def _run_non_interactive_session(
+        self,
+        ctx: AnyContext,
+        llm_task_core: LLMTask,
+        initial_message: Any,
+        initial_conversation_name: str,
+        initial_yolo: bool,
+        initial_attachments: list["UserContent"],
+    ) -> Any:
+        session_input = {
+            "message": initial_message,
+            "session": initial_conversation_name,
+            "yolo": initial_yolo,
+            "attachments": initial_attachments,
+        }
+        shared_ctx = SharedContext(
+            input=session_input,
+            print_fn=ctx.shared_print,  # Use current task's print function
+        )
+        session = Session(shared_ctx)
+        return await llm_task_core.async_run(session)
+
+    async def _run_interactive_ui(
+        self,
+        ctx: AnyContext,
+        llm_task_core: LLMTask,
+        ui_commands: dict[str, list[str]],
+        initial_message: Any,
+        initial_conversation_name: str,
+        initial_yolo: bool,
+        initial_attachments: list["UserContent"],
+    ) -> Any:
+        from zrb.llm.app.lexer import CLIStyleLexer
+        from zrb.llm.app.ui import UI
+
+        # Resolve UI attributes
+        ui_greeting = get_str_attr(ctx, self._ui_greeting, "", self._render_ui_greeting)
+        ui_assistant_name = get_str_attr(
+            ctx, self._ui_assistant_name, "", self._render_ui_assistant_name
+        )
+        ui_jargon = get_str_attr(ctx, self._ui_jargon, "", self._render_ui_jargon)
+        ascii_art = get_str_attr(
+            ctx, self._ui_ascii_art_name, "", self._render_ui_ascii_art_name
+        )
 
         async with AsyncExitStack() as stack:
             # Enter context for all toolsets that support it
@@ -299,15 +399,15 @@ class LLMChatTask(BaseTask):
                 triggers=self._triggers,
                 confirmation_middlewares=self._confirmation_middlewares,
                 markdown_theme=self._markdown_theme,
-                summarize_commands=self._ui_summarize_commands,
-                attach_commands=self._ui_attach_commands,
-                exit_commands=self._ui_exit_commands,
-                info_commands=self._ui_info_commands,
-                save_commands=self._ui_save_commands,
-                load_commands=self._ui_load_commands,
-                yolo_toggle_commands=self._ui_yolo_toggle_commands,
-                redirect_output_commands=self._ui_redirect_output_commands,
-                exec_commands=self._ui_exec_commands,
+                summarize_commands=ui_commands["summarize"],
+                attach_commands=ui_commands["attach"],
+                exit_commands=ui_commands["exit"],
+                info_commands=ui_commands["info"],
+                save_commands=ui_commands["save"],
+                load_commands=ui_commands["load"],
+                yolo_toggle_commands=ui_commands["yolo_toggle"],
+                redirect_output_commands=ui_commands["redirect_output"],
+                exec_commands=ui_commands["exec"],
                 model=self._get_model(ctx),
             )
             await ui.run_async()
