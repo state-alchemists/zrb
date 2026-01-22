@@ -101,13 +101,15 @@ async def last_confirmation(
 ) -> Any:
     from pydantic_ai import ToolApproved, ToolDenied
 
-    if user_response.lower() in ("y", "yes", "ok", "okay", ""):
+    print(user_response)
+
+    if user_response.lower().strip() in ("y", "yes", "ok", "okay", ""):
         ui.append_to_output("\n✅ Execution approved.")
         return ToolApproved()
-    elif user_response.lower() in ("n", "no"):
+    elif user_response.lower().strip() in ("n", "no"):
         ui.append_to_output("\n🛑 Execution denied.")
         return ToolDenied("User denied execution")
-    elif user_response.lower() in ("e", "edit"):
+    elif user_response.lower().strip() in ("e", "edit"):
         # Edit logic
         try:
             args = call.args
@@ -156,6 +158,7 @@ async def last_confirmation(
             return None
     else:
         ui.append_to_output("\n🛑 Execution denied.")
+        ui.append_to_output(f"\n🛑 Reason: {user_response}")
         return ToolDenied(f"User denied execution with message: {user_response}")
 
 

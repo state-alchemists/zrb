@@ -26,8 +26,8 @@ def mock_fs():
 def test_mcp_toolset_factory_instantiation(mock_fs):
     home_dir, project_dir, sub_dir = mock_fs
 
-    # Create mcp.json in home with Stdio server
-    with open(os.path.join(home_dir, "mcp.json"), "w") as f:
+    # Create mcp-config.json in home with Stdio server
+    with open(os.path.join(home_dir, "mcp-config.json"), "w") as f:
         json.dump(
             {
                 "mcpServers": {
@@ -41,8 +41,8 @@ def test_mcp_toolset_factory_instantiation(mock_fs):
             f,
         )
 
-    # Create mcp.json in project with SSE server
-    with open(os.path.join(project_dir, "mcp.json"), "w") as f:
+    # Create mcp-config.json in project with SSE server
+    with open(os.path.join(project_dir, "mcp-config.json"), "w") as f:
         json.dump(
             {"mcpServers": {"sse_server": {"url": "http://localhost:8080/sse"}}}, f
         )
@@ -76,10 +76,10 @@ def test_mcp_toolset_factory_instantiation(mock_fs):
 def test_mcp_toolset_factory_overrides(mock_fs):
     home_dir, project_dir, sub_dir = mock_fs
 
-    with open(os.path.join(home_dir, "mcp.json"), "w") as f:
+    with open(os.path.join(home_dir, "mcp-config.json"), "w") as f:
         json.dump({"mcpServers": {"server1": {"command": "cmd1"}}}, f)
 
-    with open(os.path.join(project_dir, "mcp.json"), "w") as f:
+    with open(os.path.join(project_dir, "mcp-config.json"), "w") as f:
         json.dump({"mcpServers": {"server1": {"command": "cmd2"}}}, f)
 
     with patch("os.path.expanduser", return_value=home_dir), patch(

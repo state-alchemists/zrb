@@ -103,7 +103,7 @@ class Config:
         self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT: str = "0"
         self.DEFAULT_USE_TIKTOKEN: str = "1"
         self.DEFAULT_TIKTOKEN_ENCODING_NAME: str = "cl100k_base"
-        self.DEFAULT_MCP_CONFIG_FILE: str = "mcp.json"
+        self.DEFAULT_MCP_CONFIG_FILE: str = "mcp-config.json"
 
     @property
     def ENV_PREFIX(self) -> str:
