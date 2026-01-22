@@ -7,9 +7,15 @@ from typing import TYPE_CHECKING, Any, TextIO
 from zrb.dot_dict.dot_dict import DotDict
 
 if TYPE_CHECKING:
+    from pydantic import GetCoreSchemaHandler, GetJsonSchemaHandler
+    from pydantic.json_schema import JsonSchemaValue
+    from pydantic_core import CoreSchema
+
     from zrb.session import any_session
 
 
+# Note: __get_pydantic_core_schema__ and __get_pudantic_json_schema__ is needed
+# since session generate state_log (which is a pydantic base model)
 class AnySharedContext(ABC):
     """Abstract base class for shared context across tasks.
 
@@ -17,6 +23,20 @@ class AnySharedContext(ABC):
     such as logging level configuration, time display preferences, and
     rendering templates with additional data.
     """
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source_type: Any, handler: "GetCoreSchemaHandler"
+    ) -> "CoreSchema":
+        from pydantic_core import core_schema
+
+        return core_schema.is_instance_schema(cls)
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, core_schema: "CoreSchema", handler: "GetJsonSchemaHandler"
+    ) -> "JsonSchemaValue":
+        return {"type": "object", "title": "AnySharedContext"}
 
     @property
     @abstractmethod

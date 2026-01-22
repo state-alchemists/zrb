@@ -5,11 +5,13 @@ from typing import TYPE_CHECKING, Any, TextIO
 from zrb.context.any_shared_context import AnySharedContext
 
 if TYPE_CHECKING:
-    from pydantic import GetCoreSchemaHandler
-    from pydantic.json_schema import GetJsonSchemaHandler, JsonSchemaValue
+    from pydantic import GetCoreSchemaHandler, GetJsonSchemaHandler
+    from pydantic.json_schema import JsonSchemaValue
     from pydantic_core import CoreSchema
 
 
+# Note: __get_pydantic_core_schema__ and __get_pudantic_json_schema__ is needed
+# since session generate state_log (which is a pydantic base model)
 class AnyContext(AnySharedContext):
     """Abstract base class for managing task contexts, logging, and rendering.
 
