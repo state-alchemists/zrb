@@ -7,6 +7,7 @@ from typing import Any, Awaitable, Callable, Protocol, TextIO
 import yaml
 
 from zrb.config.config import CFG
+from zrb.util.cli.markdown import render_markdown
 from zrb.util.yaml import yaml_dump
 
 
@@ -87,8 +88,13 @@ class ConfirmationHandler:
                 except json.JSONDecodeError:
                     pass
             args_str = yaml_dump(args)
-            # Indent nicely for display
-            return "\n".join([f"{indent}{line}" for line in args_str.splitlines()])
+            args_str = "\n".join([f"{indent}{line}" for line in args_str.splitlines()])
+            width = None
+            try:
+                width = os.get_terminal_size().columns - len(indent) - 1
+            except Exception:
+                pass
+            return render_markdown(f"```yaml\n{args_str}\n```", width=width)
         except Exception:
             return f"{indent}{args}"
 

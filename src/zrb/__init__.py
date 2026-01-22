@@ -54,6 +54,7 @@ from zrb.task.scheduler import Scheduler
 from zrb.task.task import Task
 from zrb.task.tcp_check import TcpCheck
 from zrb.util.load import load_file, load_module
+from zrb.util.stream import to_infinite_stream
 from zrb.xcom.xcom import Xcom
 
 __all__ = [
@@ -109,6 +110,7 @@ __all__ = [
     "TcpCheck",
     "load_file",
     "load_module",
+    "to_infinite_stream",
     "Xcom",
     "LLMTask",
     "LLMChatTask",
