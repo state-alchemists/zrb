@@ -7,18 +7,22 @@ from typing import TextIO
 class GlobalStreamCapture:
     def __init__(self, ui_callback):
         self.ui_callback = ui_callback
-        self.pipe_r, self.pipe_w = os.pipe()
-        # Save original file descriptors
+        # Save original file descriptors once
         self.original_stdout_fd = os.dup(sys.stdout.fileno())
         self.original_stderr_fd = os.dup(sys.stderr.fileno())
         self.capturing = False
         self.thread: threading.Thread | None = None
+        self.pipe_r = None
+        self.pipe_w = None
 
     def start(self):
         if self.capturing:
             return
 
         self.capturing = True
+
+        # Create new pipe for this session
+        self.pipe_r, self.pipe_w = os.pipe()
 
         # Flush existing buffers to ensure order
         sys.stdout.flush()
@@ -29,7 +33,9 @@ class GlobalStreamCapture:
         os.dup2(self.pipe_w, sys.stderr.fileno())
 
         # Start the reader thread
-        self.thread = threading.Thread(target=self._reader, daemon=True)
+        self.thread = threading.Thread(
+            target=self._reader, args=(self.pipe_r,), daemon=True
+        )
         self.thread.start()
 
     def stop(self):
@@ -45,19 +51,20 @@ class GlobalStreamCapture:
         os.dup2(self.original_stderr_fd, sys.stderr.fileno())
 
         # Close the write end of the pipe to signal EOF to the reader
-        os.close(self.pipe_w)
+        if self.pipe_w is not None:
+            os.close(self.pipe_w)
+            self.pipe_w = None
 
         if self.thread:
             self.thread.join()
+            self.thread = None
 
-        os.close(self.pipe_r)
-        os.close(self.original_stdout_fd)
-        os.close(self.original_stderr_fd)
+        # pipe_r is closed by _reader context manager
 
-    def _reader(self):
+    def _reader(self, pipe_r):
         from prompt_toolkit.application import get_app
 
-        with os.fdopen(self.pipe_r, "r", errors="replace", buffering=1) as f:
+        with os.fdopen(pipe_r, "r", errors="replace", buffering=1) as f:
             for line in f:
                 if line:
                     self.ui_callback(line.expandtabs(4), end="")
@@ -68,10 +75,11 @@ class GlobalStreamCapture:
 
     def get_original_stdout(self) -> TextIO:
         """Returns a file object connected to the original stdout (terminal)."""
+        new_fd = os.dup(self.original_stdout_fd)
         return os.fdopen(
-            self.original_stdout_fd,
+            new_fd,
             "w",
             encoding="utf-8",
             errors="replace",
-            closefd=False,
+            closefd=True,
         )

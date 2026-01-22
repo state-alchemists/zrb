@@ -322,6 +322,13 @@ class UI:
         keybindings: KeyBindings,
         style: Style,
     ) -> Application:
+        try:
+            from prompt_toolkit.clipboard.pyperclip import PyperclipClipboard
+
+            clipboard = PyperclipClipboard()
+        except ImportError:
+            clipboard = None
+
         return Application(
             layout=layout,
             key_bindings=keybindings,
@@ -330,6 +337,7 @@ class UI:
             mouse_support=True,
             refresh_interval=0.3,
             output=create_output(stdout=self._capture.get_original_stdout()),
+            clipboard=clipboard,
         )
 
     def _get_help_text(self) -> str:

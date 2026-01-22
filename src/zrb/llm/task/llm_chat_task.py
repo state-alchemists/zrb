@@ -93,7 +93,7 @@ class LLMChatTask(BaseTask):
         markdown_theme: "Theme | None" = None,
         interactive: BoolAttr = True,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
-        retries: int = 2,
+        retries: int = 0,
         retry_period: float = 0,
         readiness_check: list[AnyTask] | AnyTask | None = None,
         readiness_check_delay: float = 0.5,
