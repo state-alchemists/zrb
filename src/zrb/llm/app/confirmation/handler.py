@@ -1,14 +1,19 @@
+from __future__ import annotations
+
 import json
 import os
 import subprocess
 import tempfile
-from typing import Any, Awaitable, Callable, Protocol, TextIO
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Protocol, TextIO
 
 import yaml
 
 from zrb.config.config import CFG
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.yaml import yaml_dump
+
+if TYPE_CHECKING:
+    from pydantic_ai import ToolApproved, ToolCallPart, ToolDenied
 
 
 class UIProtocol(Protocol):
@@ -25,7 +30,12 @@ class UIProtocol(Protocol):
 
 
 ConfirmationMiddleware = Callable[
-    [UIProtocol, Any, str, Callable[[UIProtocol, Any, str], Awaitable[Any]]],
+    [
+        UIProtocol,
+        "ToolCallPart",
+        str,
+        Callable[[UIProtocol, "ToolCallPart", str], Awaitable[Any]],
+    ],
     Awaitable[Any],
 ]
 
@@ -40,7 +50,9 @@ class ConfirmationHandler:
     def prepend_middleware(self, *middleware: ConfirmationMiddleware):
         self._middlewares = list(middleware) + self._middlewares
 
-    async def handle(self, ui: UIProtocol, call: Any) -> Any:
+    async def handle(
+        self, ui: UIProtocol, call: ToolCallPart
+    ) -> ToolApproved | ToolDenied | None:
         while True:
             message = self._get_confirm_user_message(call)
             ui.append_to_output(f"\n\n{message}", end="")
@@ -50,7 +62,7 @@ class ConfirmationHandler:
 
             # Build the chain
             async def _next(
-                ui: UIProtocol, call: Any, response: str, index: int
+                ui: UIProtocol, call: ToolCallPart, response: str, index: int
             ) -> Any:
                 if index >= len(self._middlewares):
                     # Default if no middleware handles it
@@ -68,7 +80,7 @@ class ConfirmationHandler:
                 continue
             return result
 
-    def _get_confirm_user_message(self, call: Any) -> str:
+    def _get_confirm_user_message(self, call: ToolCallPart) -> str:
         args_section = ""
         if f"{call.args}" != "{}":
             args_str = self._format_args(call.args)
@@ -101,10 +113,10 @@ class ConfirmationHandler:
 
 async def last_confirmation(
     ui: UIProtocol,
-    call: Any,
+    call: ToolCallPart,
     user_response: str,
-    next_handler: Callable[[UIProtocol, Any, str], Awaitable[Any]],
-) -> Any:
+    next_handler: Callable[[UIProtocol, ToolCallPart, str], Awaitable[Any]],
+) -> ToolApproved | ToolDenied | None:
     from pydantic_ai import ToolApproved, ToolDenied
 
     print(user_response)

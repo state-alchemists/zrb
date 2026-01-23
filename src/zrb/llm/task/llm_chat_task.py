@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import AsyncIterable, Callable
 from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any
@@ -11,6 +13,7 @@ from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
+from zrb.llm.agent.agent import AnyToolConfirmation
 from zrb.llm.app.confirmation.handler import ConfirmationMiddleware
 from zrb.llm.config.config import LLMConfig
 from zrb.llm.config.config import llm_config as default_llm_config
@@ -47,30 +50,33 @@ class LLMChatTask(BaseTask):
         cli_only: bool = False,
         input: list[AnyInput | None] | AnyInput | None = None,
         env: list[AnyEnv | None] | AnyEnv | None = None,
-        system_prompt: (
-            "Callable[[AnyContext], str | fstring | None] | str | None"
-        ) = None,
+        system_prompt: Callable[[AnyContext], str | fstring | None] | str | None = None,
         render_system_prompt: bool = False,
         prompt_manager: PromptManager | None = None,
-        tools: list["Tool | ToolFuncEither"] = [],
-        toolsets: list["AbstractToolset[None]"] = [],
+        tools: list[Tool | ToolFuncEither] = [],
+        toolsets: list[AbstractToolset[None]] = [],
         message: StrAttr | None = None,
         render_message: bool = True,
-        attachment: "UserContent | list[UserContent] | Callable[[AnyContext], UserContent | list[UserContent]] | None" = None,  # noqa
-        history_processors: list["HistoryProcessor"] = [],
+        attachment: (
+            UserContent
+            | list[UserContent]
+            | Callable[[AnyContext], UserContent | list[UserContent]]
+            | None
+        ) = None,  # noqa
+        history_processors: list[HistoryProcessor] = [],
         llm_config: LLMConfig | None = None,
         llm_limitter: LLMLimiter | None = None,
         model: (
-            "Callable[[AnyContext], Model | str | fstring | None] | Model | None"
+            Callable[[AnyContext], Model | str | fstring | None] | Model | None
         ) = None,
         render_model: bool = True,
         model_settings: (
-            "ModelSettings | Callable[[AnyContext], ModelSettings] | None"
+            ModelSettings | Callable[[AnyContext], ModelSettings] | None
         ) = None,
         conversation_name: StrAttr | None = None,
         render_conversation_name: bool = True,
         history_manager: AnyHistoryManager | None = None,
-        tool_confirmation: Callable[[Any], Any] | None = None,
+        tool_confirmation: AnyToolConfirmation = None,
         yolo: BoolAttr = False,
         ui_summarize_commands: list[str] = [],
         ui_attach_commands: list[str] = [],
@@ -180,22 +186,22 @@ class LLMChatTask(BaseTask):
             raise ValueError(f"Task {self.name} doesn't have prompt_manager")
         return self._prompt_manager
 
-    def add_toolset(self, *toolset: "AbstractToolset"):
+    def add_toolset(self, *toolset: AbstractToolset):
         self.append_toolset(*toolset)
 
-    def append_toolset(self, *toolset: "AbstractToolset"):
+    def append_toolset(self, *toolset: AbstractToolset):
         self._toolsets += list(toolset)
 
-    def add_tool(self, *tool: "Tool | ToolFuncEither"):
+    def add_tool(self, *tool: Tool | ToolFuncEither):
         self.append_tool(*tool)
 
-    def append_tool(self, *tool: "Tool | ToolFuncEither"):
+    def append_tool(self, *tool: Tool | ToolFuncEither):
         self._tools += list(tool)
 
-    def add_history_processor(self, *processor: "HistoryProcessor"):
+    def add_history_processor(self, *processor: HistoryProcessor):
         self.append_history_processor(*processor)
 
-    def append_history_processor(self, *processor: "HistoryProcessor"):
+    def append_history_processor(self, *processor: HistoryProcessor):
         self._history_processors += list(processor)
 
     def add_confirmation_middleware(self, *middleware: ConfirmationMiddleware):
@@ -326,6 +332,7 @@ class LLMChatTask(BaseTask):
             render_model=self._render_model,
             model_settings=self._model_settings,
             history_manager=self._history_manager,
+            tool_confirmation=self._tool_confirmation,
             message="{ctx.input.message}",
             conversation_name="{ctx.input.session}",
             yolo="{ctx.input.yolo}",
@@ -340,7 +347,7 @@ class LLMChatTask(BaseTask):
         initial_message: Any,
         initial_conversation_name: str,
         initial_yolo: bool,
-        initial_attachments: list["UserContent"],
+        initial_attachments: list[UserContent],
     ) -> Any:
         session_input = {
             "message": initial_message,
@@ -363,7 +370,7 @@ class LLMChatTask(BaseTask):
         initial_message: Any,
         initial_conversation_name: str,
         initial_yolo: bool,
-        initial_attachments: list["UserContent"],
+        initial_attachments: list[UserContent],
     ) -> Any:
         from zrb.llm.app.lexer import CLIStyleLexer
         from zrb.llm.app.ui import UI
@@ -421,7 +428,7 @@ class LLMChatTask(BaseTask):
             conversation_name = get_random_name()
         return conversation_name
 
-    def _get_model(self, ctx: AnyContext) -> "str | Model":
+    def _get_model(self, ctx: AnyContext) -> str | Model:
         model = self._model
         rendered_model = get_attr(ctx, model, None, auto_render=self._render_model)
         if rendered_model is not None:

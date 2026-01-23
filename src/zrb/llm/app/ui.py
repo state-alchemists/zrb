@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import inspect
 import os
@@ -37,7 +39,7 @@ from zrb.util.cli.style import stylize_faint
 from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
-    from pydantic_ai import UserContent
+    from pydantic_ai import ToolApproved, ToolCallPart, ToolDenied, UserContent
     from pydantic_ai.models import Model
     from rich.theme import Theme
 
@@ -53,7 +55,7 @@ class UI:
         llm_task: LLMTask,
         history_manager: AnyHistoryManager,
         initial_message: Any = "",
-        initial_attachments: "list[UserContent]" = [],
+        initial_attachments: list[UserContent] = [],
         conversation_session_name: str = "",
         yolo: bool = False,
         triggers: list[Callable[[], AsyncIterable[Any]]] = [],
@@ -101,7 +103,7 @@ class UI:
         self._git_info = "Checking..."
         self._system_info_task: asyncio.Task | None = None
         # Attachments
-        self._pending_attachments: "list[UserContent]" = list(initial_attachments)
+        self._pending_attachments: list[UserContent] = list(initial_attachments)
         # Confirmation Handler
         self._confirmation_handler = ConfirmationHandler(
             middlewares=confirmation_middlewares + [last_confirmation]
@@ -288,7 +290,9 @@ class UI:
             self._waiting_for_confirmation = False
             self._confirmation_future = None
 
-    async def _confirm_tool_execution(self, call: Any) -> Any:
+    async def _confirm_tool_execution(
+        self, call: ToolCallPart
+    ) -> ToolApproved | ToolDenied | None:
         return await self._confirmation_handler.handle(self, call)
 
     @property
@@ -742,7 +746,7 @@ class UI:
         self,
         llm_task: AnyTask,
         user_message: str,
-        attachments: "list[UserContent]" = [],
+        attachments: list[UserContent] = [],
     ):
         from zrb.llm.agent.agent import tool_confirmation_var
 
@@ -787,7 +791,7 @@ class UI:
             get_app().invalidate()
 
     def _create_sesion_for_llm_task(
-        self, user_message: str, attachments: "list[UserContent]"
+        self, user_message: str, attachments: list[UserContent]
     ) -> AnySession:
         """Create session to run LLMTask"""
         session_input = {

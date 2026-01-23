@@ -1,18 +1,23 @@
+from __future__ import annotations
+
 from contextvars import ContextVar
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias
 
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.util.attachment import normalize_attachments
 from zrb.llm.util.prompt import expand_prompt
 
-# Context variable to propagate tool confirmation callback to sub-agents
-tool_confirmation_var: ContextVar[Callable[[Any], Any] | None] = ContextVar(
-    "tool_confirmation", default=None
-)
-
 if TYPE_CHECKING:
-    from pydantic_ai import Agent, DeferredToolRequests, DeferredToolResults, Tool
+    from pydantic_ai import (
+        Agent,
+        DeferredToolRequests,
+        DeferredToolResults,
+        Tool,
+        ToolApproved,
+        ToolCallPart,
+        ToolDenied,
+    )
     from pydantic_ai._agent_graph import HistoryProcessor
     from pydantic_ai.messages import UserPromptPart
     from pydantic_ai.models import Model
@@ -20,6 +25,21 @@ if TYPE_CHECKING:
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.tools import ToolFuncEither
     from pydantic_ai.toolsets import AbstractToolset
+
+    AnyToolConfirmation: TypeAlias = (
+        Callable[
+            [ToolCallPart],
+            ToolApproved | ToolDenied | Awaitable[ToolApproved | ToolDenied],
+        ]
+        | None
+    )
+else:
+    AnyToolConfirmation: TypeAlias = Any
+
+# Context variable to propagate tool confirmation callback to sub-agents
+tool_confirmation_var: ContextVar[AnyToolConfirmation] = ContextVar(
+    "tool_confirmation", default=None
+)
 
 
 def create_agent(
@@ -70,7 +90,7 @@ async def run_agent(
     attachments: list[Any] | None = None,
     print_fn: Callable[[str], Any] = print,
     event_handler: Callable[[Any], Any] | None = None,
-    tool_confirmation: Callable[[Any], Any] | None = None,
+    tool_confirmation: AnyToolConfirmation = None,
 ) -> tuple[Any, list[Any]]:
     """
     Runs the agent with rate limiting, history management, and optional CLI confirmation loop.
@@ -176,7 +196,7 @@ async def _acquire_rate_limit(
 
 async def _process_deferred_requests(
     result_output: "DeferredToolRequests",
-    effective_tool_confirmation: Callable[[Any], Any] | None,
+    effective_tool_confirmation: AnyToolConfirmation,
 ) -> "DeferredToolResults | None":
     """Handles tool approvals/denials via callback or CLI fallback."""
     import asyncio
