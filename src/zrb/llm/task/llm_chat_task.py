@@ -14,18 +14,18 @@ from zrb.input.any_input import AnyInput
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.llm.agent.agent import AnyToolConfirmation
-from zrb.llm.tool_call.handler import (
-    ConfirmationMessageMiddleware,
-    PostConfirmationMiddleware,
-    PreConfirmationMiddleware,
-)
 from zrb.llm.config.config import LLMConfig
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
-from zrb.llm.prompt.compose import PromptManager
+from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.task.llm_task import LLMTask
+from zrb.llm.tool_call import (
+    ArgumentFormatter,
+    ResponseHandler,
+    ToolPolicy,
+)
 from zrb.llm.util.attachment import get_attachments
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
@@ -100,9 +100,9 @@ class LLMChatTask(BaseTask):
         ui_ascii_art: StrAttr | None = None,
         render_ui_ascii_art_name: bool = True,
         triggers: list[Callable[[], AsyncIterable[Any]]] = [],
-        post_confirmation_middlewares: list[PostConfirmationMiddleware] = [],
-        pre_confirmation_middlewares: list[PreConfirmationMiddleware] = [],
-        confirmation_message_middlewares: list[ConfirmationMessageMiddleware] = [],
+        response_handlers: list[ResponseHandler] = [],
+        tool_policies: list[ToolPolicy] = [],
+        argument_formatters: list[ArgumentFormatter] = [],
         markdown_theme: "Theme | None" = None,
         interactive: BoolAttr = True,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
@@ -182,9 +182,9 @@ class LLMChatTask(BaseTask):
         self._ui_ascii_art_name = ui_ascii_art
         self._render_ui_ascii_art_name = render_ui_ascii_art_name
         self._triggers = triggers
-        self._post_confirmation_middlewares = post_confirmation_middlewares
-        self._pre_confirmation_middlewares = pre_confirmation_middlewares
-        self._confirmation_message_middlewares = confirmation_message_middlewares
+        self._response_handlers = response_handlers
+        self._tool_policies = tool_policies
+        self._argument_formatters = argument_formatters
         self._markdown_theme = markdown_theme
         self._interactive = interactive
 
@@ -212,37 +212,23 @@ class LLMChatTask(BaseTask):
     def append_history_processor(self, *processor: HistoryProcessor):
         self._history_processors += list(processor)
 
-    def add_post_confirmation_middleware(self, *middleware: PostConfirmationMiddleware):
-        self.prepend_post_confirmation_middleware(*middleware)
+    def add_response_handler(self, *handler: ResponseHandler):
+        self.prepend_response_handler(*handler)
 
-    def prepend_post_confirmation_middleware(
-        self, *middleware: PostConfirmationMiddleware
-    ):
-        self._post_confirmation_middlewares = (
-            list(middleware) + self._post_confirmation_middlewares
-        )
+    def prepend_response_handler(self, *handler: ResponseHandler):
+        self._response_handlers = list(handler) + self._response_handlers
 
-    def add_pre_confirmation_middleware(self, *middleware: PreConfirmationMiddleware):
-        self.prepend_pre_confirmation_middleware(*middleware)
+    def add_tool_policy(self, *policy: ToolPolicy):
+        self.prepend_tool_policy(*policy)
 
-    def prepend_pre_confirmation_middleware(
-        self, *middleware: PreConfirmationMiddleware
-    ):
-        self._pre_confirmation_middlewares = (
-            list(middleware) + self._pre_confirmation_middlewares
-        )
+    def prepend_tool_policy(self, *policy: ToolPolicy):
+        self._tool_policies = list(policy) + self._tool_policies
 
-    def add_confirmation_message_middleware(
-        self, *middleware: ConfirmationMessageMiddleware
-    ):
-        self.prepend_confirmation_message_middleware(*middleware)
+    def add_argument_formatter(self, *formatter: ArgumentFormatter):
+        self.prepend_argument_formatter(*formatter)
 
-    def prepend_confirmation_message_middleware(
-        self, *middleware: ConfirmationMessageMiddleware
-    ):
-        self._confirmation_message_middlewares = (
-            list(middleware) + self._confirmation_message_middlewares
-        )
+    def prepend_argument_formatter(self, *formatter: ArgumentFormatter):
+        self._argument_formatters = list(formatter) + self._argument_formatters
 
     def add_trigger(
         self,
@@ -436,9 +422,9 @@ class LLMChatTask(BaseTask):
                 conversation_session_name=initial_conversation_name,
                 yolo=initial_yolo,
                 triggers=self._triggers,
-                post_confirmation_middlewares=self._post_confirmation_middlewares,
-                pre_confirmation_middlewares=self._pre_confirmation_middlewares,
-                confirmation_message_middlewares=self._confirmation_message_middlewares,
+                response_handlers=self._response_handlers,
+                tool_policies=self._tool_policies,
+                argument_formatters=self._argument_formatters,
                 markdown_theme=self._markdown_theme,
                 summarize_commands=ui_commands["summarize"],
                 attach_commands=ui_commands["attach"],

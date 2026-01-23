@@ -2,24 +2,22 @@ import json
 import re
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
-from zrb.llm.tool_call.handler import PreConfirmationMiddleware, UIProtocol
+from zrb.llm.tool_call.handler import ToolPolicy, UIProtocol
 
 if TYPE_CHECKING:
     from pydantic_ai import ToolCallPart
 
 
-def allow_tool_usage(
-    tool_name: str, kwargs_patterns: dict[str, str] = {}
-) -> PreConfirmationMiddleware:
+def auto_approve(tool_name: str, kwargs_patterns: dict[str, str] = {}) -> ToolPolicy:
     """
-    Returns a PreConfirmationMiddleware that automatically approves tool execution
+    Returns a ToolPolicy that automatically approves tool execution
     if it matches the given tool name and keyword argument patterns.
     - tool_name: The name of the tool to match.
     - kwargs_patterns: A dictionary mapping argument names to regex patterns.
-    :return: A PreConfirmationMiddleware function.
+    :return: A ToolPolicy function.
     """
 
-    async def middleware(
+    async def approve_tool_call_policy(
         ui: UIProtocol,
         call: "ToolCallPart",
         next_handler: Callable[[UIProtocol, "ToolCallPart"], Awaitable[Any]],
@@ -63,4 +61,4 @@ def allow_tool_usage(
         ui.append_to_output(f"\n✅ Auto-approved tool: {tool_name} with matching args")
         return ToolApproved()
 
-    return middleware
+    return approve_tool_call_policy

@@ -1,5 +1,4 @@
 from zrb.llm.prompt.claude_compatibility import create_claude_compatibility_prompt
-from zrb.llm.prompt.compose import PromptManager, PromptMiddleware, new_prompt
 from zrb.llm.prompt.default import (
     get_file_extractor_system_prompt,
     get_mandate_prompt,
@@ -8,6 +7,7 @@ from zrb.llm.prompt.default import (
     get_repo_summarizer_system_prompt,
     get_summarizer_system_prompt,
 )
+from zrb.llm.prompt.manager import PromptManager, PromptMiddleware, new_prompt
 from zrb.llm.prompt.note import create_note_prompt
 from zrb.llm.prompt.system_context import system_context
 from zrb.llm.prompt.zrb import create_zrb_prompt

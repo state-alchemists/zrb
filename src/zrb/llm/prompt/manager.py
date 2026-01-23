@@ -7,18 +7,18 @@ PromptMiddleware = Callable[[AnyContext, str, Callable[[AnyContext, str], str]],
 
 
 class PromptManager:
-    def __init__(self, middlewares: list[PromptMiddleware] = []):
-        self._middlewares = middlewares
+    def __init__(self, prompts: list[PromptMiddleware] = []):
+        self._middlewares = prompts
 
     @property
-    def middleware(self):
+    def prompts(self):
         return self._middlewares
 
-    @middleware.setter
-    def middleware(self, value: list[PromptMiddleware]):
+    @prompts.setter
+    def prompts(self, value: list[PromptMiddleware]):
         self._middlewares = value
 
-    def add_middleware(self, *middleware: PromptMiddleware):
+    def add_prompt(self, *middleware: PromptMiddleware):
         self.append_middlewear(*middleware)
 
     def append_middlewear(self, *middleware: PromptMiddleware):

@@ -2,17 +2,18 @@ import json
 import os
 import subprocess
 import tempfile
-from typing import Any, Awaitable, Callable
-
-from prompt_toolkit.application import run_in_terminal
+from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from zrb.config.config import CFG
-from zrb.llm.tool_call.handler import UIProtocol
+from zrb.llm.tool_call.ui_protocol import UIProtocol
+
+if TYPE_CHECKING:
+    from pydantic_ai import ToolCallPart
 
 
-async def replace_confirmation(
+async def edit_replace_with_text_editor(
     ui: UIProtocol,
-    call: Any,
+    call: "ToolCallPart",
     response: str,
     next_handler: Callable[[UIProtocol, Any, str], Awaitable[Any]],
 ) -> Any:
@@ -32,6 +33,9 @@ async def replace_confirmation(
         except json.JSONDecodeError:
             pass
 
+    if not type(args) is dict:
+        return await next_handler(ui, call, response)
+
     old_text = args.get("old_text", "")
     new_text = args.get("new_text", "")
 
@@ -49,8 +53,8 @@ async def replace_confirmation(
         cmd_tpl = CFG.DIFF_EDIT_COMMAND_TPL
         cmd = cmd_tpl.format(old=old_path, new=new_path)
 
-        # Run command
-        await run_in_terminal(lambda: subprocess.call(cmd, shell=True))
+        # Run command using the UI's interactive command handler
+        await ui.run_interactive_command(cmd, shell=True)
 
         # Read back new content
         with open(new_path, "r") as f:

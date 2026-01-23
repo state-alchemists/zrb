@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
-import tempfile
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Protocol, TextIO
+from typing import TYPE_CHECKING, Any
 
-import yaml
-
-from zrb.config.config import CFG
+from zrb.llm.tool_call.middleware import (
+    ArgumentFormatter,
+    ResponseHandler,
+    ToolPolicy,
+)
+from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.yaml import yaml_dump
 
@@ -16,108 +17,54 @@ if TYPE_CHECKING:
     from pydantic_ai import ToolApproved, ToolCallPart, ToolDenied
 
 
-class UIProtocol(Protocol):
-    async def ask_user(self, prompt: str) -> str: ...
-
-    def append_to_output(
-        self,
-        *values: object,
-        sep: str = " ",
-        end: str = "\n",
-        file: TextIO | None = None,
-        flush: bool = False,
-    ): ...
-
-
-PostConfirmationMiddleware = Callable[
-    [
-        UIProtocol,
-        "ToolCallPart",
-        str,
-        Callable[[UIProtocol, "ToolCallPart", str], Awaitable[Any]],
-    ],
-    Awaitable[Any],
-]
-
-ConfirmationMiddleware = PostConfirmationMiddleware
-
-PreConfirmationMiddleware = Callable[
-    [
-        UIProtocol,
-        "ToolCallPart",
-        Callable[[UIProtocol, "ToolCallPart"], Awaitable[Any]],
-    ],
-    Awaitable[Any],
-]
-
-ConfirmationMessageMiddleware = Callable[
-    [UIProtocol, "ToolCallPart", str], Awaitable[str | None]
-]
-
-
-class ConfirmationHandler:
+class ToolCallHandler:
     def __init__(
         self,
-        pre_confirmation_middlewares: list[PreConfirmationMiddleware] | None = None,
-        confirmation_message_middlewares: (
-            list[ConfirmationMessageMiddleware] | None
-        ) = None,
-        post_confirmation_middlewares: list[PostConfirmationMiddleware] | None = None,
+        tool_policies: list[ToolPolicy] | None = None,
+        argument_formatters: list[ArgumentFormatter] | None = None,
+        response_handlers: list[ResponseHandler] | None = None,
     ):
-        self._pre_middlewares = pre_confirmation_middlewares or []
-        self._message_middlewares = confirmation_message_middlewares or []
-        self._post_middlewares = post_confirmation_middlewares or []
+        self._tool_policies = tool_policies or []
+        self._argument_formatters = argument_formatters or []
+        self._response_handlers = response_handlers or []
 
-    def add_pre_confirmation_middleware(self, *middleware: PreConfirmationMiddleware):
-        self.prepend_pre_confirmation_middleware(*middleware)
+    def add_tool_policy(self, *policy: ToolPolicy):
+        self.prepend_tool_policy(*policy)
 
-    def prepend_pre_confirmation_middleware(
-        self, *middleware: PreConfirmationMiddleware
-    ):
-        self._pre_middlewares = list(middleware) + self._pre_middlewares
+    def prepend_tool_policy(self, *policy: ToolPolicy):
+        self._tool_policies = list(policy) + self._tool_policies
 
-    def add_confirmation_message_middleware(
-        self, *middleware: ConfirmationMessageMiddleware
-    ):
-        self.prepend_confirmation_message_middleware(*middleware)
+    def add_argument_formatter(self, *formatter: ArgumentFormatter):
+        self.prepend_argument_formatter(*formatter)
 
-    def prepend_confirmation_message_middleware(
-        self, *middleware: ConfirmationMessageMiddleware
-    ):
-        self._message_middlewares = list(middleware) + self._message_middlewares
+    def prepend_argument_formatter(self, *formatter: ArgumentFormatter):
+        self._argument_formatters = list(formatter) + self._argument_formatters
 
-    def add_post_confirmation_middleware(self, *middleware: PostConfirmationMiddleware):
-        self.prepend_post_confirmation_middleware(*middleware)
+    def add_response_handler(self, *handler: ResponseHandler):
+        self.prepend_response_handler(*handler)
 
-    def prepend_post_confirmation_middleware(
-        self, *middleware: PostConfirmationMiddleware
-    ):
-        self._post_middlewares = list(middleware) + self._post_middlewares
-
-    # Backward compatibility
-    def add_middleware(self, *middleware: ConfirmationMiddleware):
-        self.add_post_confirmation_middleware(*middleware)
-
-    def prepend_middleware(self, *middleware: ConfirmationMiddleware):
-        self.prepend_post_confirmation_middleware(*middleware)
+    def prepend_response_handler(self, *handler: ResponseHandler):
+        self._response_handlers = list(handler) + self._response_handlers
 
     async def handle(
-        self, ui: UIProtocol, call: ToolCallPart
+        self,
+        ui: UIProtocol,
+        call: ToolCallPart,
     ) -> ToolApproved | ToolDenied | None:
-        # Pre-confirmation middlewares
-        async def _next_pre(ui: UIProtocol, call: ToolCallPart, index: int) -> Any:
-            if index >= len(self._pre_middlewares):
+        # Tool Policies (Pre-confirmation)
+        async def _next_policy(ui: UIProtocol, call: ToolCallPart, index: int) -> Any:
+            if index >= len(self._tool_policies):
                 return None
-            middleware = self._pre_middlewares[index]
-            return await middleware(
+            policy = self._tool_policies[index]
+            return await policy(
                 ui,
                 call,
-                lambda u, c: _next_pre(u, c, index + 1),
+                lambda u, c: _next_policy(u, c, index + 1),
             )
 
-        pre_result = await _next_pre(ui, call, 0)
-        if pre_result is not None:
-            return pre_result
+        policy_result = await _next_policy(ui, call, 0)
+        if policy_result is not None:
+            return policy_result
 
         while True:
             message = await self._get_confirm_user_message(ui, call)
@@ -126,36 +73,41 @@ class ConfirmationHandler:
             user_input = await ui.ask_user("")
             user_response = user_input.strip()
 
-            # Build the chain
-            async def _next_post(
-                ui: UIProtocol, call: ToolCallPart, response: str, index: int
+            # Response Handlers (Post-confirmation)
+            async def _next_handler(
+                ui: UIProtocol,
+                call: ToolCallPart,
+                response: str,
+                index: int,
             ) -> Any:
-                if index >= len(self._post_middlewares):
-                    # Default if no middleware handles it
+                if index >= len(self._response_handlers):
+                    # Default if no handler handles it
                     return None
-                middleware = self._post_middlewares[index]
-                return await middleware(
+                handler = self._response_handlers[index]
+                return await handler(
                     ui,
                     call,
                     response,
-                    lambda u, c, r: _next_post(u, c, r, index + 1),
+                    lambda u, c, r: _next_handler(u, c, r, index + 1),
                 )
 
-            result = await _next_post(ui, call, user_response, 0)
+            result = await _next_handler(ui, call, user_response, 0)
             if result is None:
                 continue
             return result
 
     async def _get_confirm_user_message(
-        self, ui: UIProtocol, call: ToolCallPart
+        self,
+        ui: UIProtocol,
+        call: ToolCallPart,
     ) -> str:
         args_section = ""
         if f"{call.args}" != "{}":
             args_str = self._format_args(call.args)
             args_section = f"{args_str}\n"
 
-        for middleware in self._message_middlewares:
-            new_args_section = await middleware(ui, call, args_section)
+        for formatter in self._argument_formatters:
+            new_args_section = await formatter(ui, call, args_section)
             if new_args_section is not None:
                 args_section = new_args_section
 
@@ -183,91 +135,3 @@ class ConfirmationHandler:
             return render_markdown(f"```yaml\n{args_str}\n```", width=width)
         except Exception:
             return f"{indent}{args}"
-
-
-async def last_confirmation(
-    ui: UIProtocol,
-    call: ToolCallPart,
-    user_response: str,
-    next_handler: Callable[[UIProtocol, ToolCallPart, str], Awaitable[Any]],
-) -> ToolApproved | ToolDenied | None:
-    from pydantic_ai import ToolApproved, ToolDenied
-
-    print(user_response)
-
-    if user_response.lower().strip() in ("y", "yes", "ok", "okay", ""):
-        ui.append_to_output("\n✅ Execution approved.")
-        return ToolApproved()
-    elif user_response.lower().strip() in ("n", "no"):
-        ui.append_to_output("\n🛑 Execution denied.")
-        return ToolDenied("User denied execution")
-    elif user_response.lower().strip() in ("e", "edit"):
-        # Edit logic
-        try:
-            args = call.args
-            if isinstance(args, str):
-                try:
-                    args = json.loads(args)
-                except json.JSONDecodeError:
-                    pass
-
-            # YAML for editing
-            is_yaml_edit = True
-            try:
-                content = yaml_dump(args)
-                extension = ".yaml"
-            except Exception:
-                # Fallback to JSON
-                content = json.dumps(args, indent=2)
-                extension = ".json"
-                is_yaml_edit = False
-
-            new_content = await wait_edit_content(
-                text_editor=CFG.EDITOR,
-                content=content,
-                extension=extension,
-            )
-
-            # Compare content
-            if new_content == content:
-                ui.append_to_output("\nℹ️ No changes made.")
-                return None
-
-            try:
-                if is_yaml_edit:
-                    new_args = yaml.safe_load(new_content)
-                else:
-                    new_args = json.loads(new_content)
-                ui.append_to_output("\n✅ Execution approved (with modification).")
-                return ToolApproved(override_args=new_args)
-            except Exception as e:
-                ui.append_to_output(f"\n❌ Invalid format: {e}. ", end="")
-                # Return None to signal loop retry
-                return None
-
-        except Exception as e:
-            ui.append_to_output(f"\n❌ Error editing: {e}. ", end="")
-            return None
-    else:
-        ui.append_to_output("\n🛑 Execution denied.")
-        ui.append_to_output(f"\n🛑 Reason: {user_response}")
-        return ToolDenied(f"User denied execution with message: {user_response}")
-
-
-async def wait_edit_content(
-    text_editor: str, content: str, extension: str = ".txt"
-) -> str:
-    from prompt_toolkit.application import run_in_terminal
-
-    # Write temporary file
-    with tempfile.NamedTemporaryFile(suffix=extension, mode="w+", delete=False) as tf:
-        tf.write(content)
-        tf_path = tf.name
-
-    # Edit and wait
-    await run_in_terminal(lambda: subprocess.call([text_editor, tf_path]))
-    with open(tf_path, "r") as tf:
-        new_content = tf.read()
-    os.remove(tf_path)
-
-    return new_content

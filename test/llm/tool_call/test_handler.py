@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from pydantic_ai import ToolApproved, ToolDenied
 
-from zrb.llm.tool_call.handler import ConfirmationHandler
+from zrb.llm.tool_call import ToolCallHandler
 
 
 @pytest.mark.asyncio
@@ -17,7 +17,7 @@ async def test_pre_confirmation_approved():
     async def pre_middleware(ui, call, next_middleware):
         return ToolApproved()
 
-    handler = ConfirmationHandler(pre_confirmation_middlewares=[pre_middleware])
+    handler = ToolCallHandler(tool_policies=[pre_middleware])
     result = await handler.handle(ui, call)
 
     assert isinstance(result, ToolApproved)
@@ -35,7 +35,7 @@ async def test_pre_confirmation_denied():
     async def pre_middleware(ui, call, next_middleware):
         return ToolDenied("Denied")
 
-    handler = ConfirmationHandler(pre_confirmation_middlewares=[pre_middleware])
+    handler = ToolCallHandler(tool_policies=[pre_middleware])
     result = await handler.handle(ui, call)
 
     assert isinstance(result, ToolDenied)
@@ -56,9 +56,9 @@ async def test_pre_confirmation_next():
     async def post_middleware(u, c, r, n):
         return ToolApproved() if r == "y" else ToolDenied("No")
 
-    handler = ConfirmationHandler(
-        pre_confirmation_middlewares=[pre_middleware],
-        post_confirmation_middlewares=[post_middleware],
+    handler = ToolCallHandler(
+        tool_policies=[pre_middleware],
+        response_handlers=[post_middleware],
     )
     result = await handler.handle(ui, call)
 
@@ -80,9 +80,9 @@ async def test_confirmation_message_middleware():
     async def post_middleware(u, c, r, n):
         return ToolApproved()
 
-    handler = ConfirmationHandler(
-        confirmation_message_middlewares=[msg_middleware],
-        post_confirmation_middlewares=[post_middleware],
+    handler = ToolCallHandler(
+        argument_formatters=[msg_middleware],
+        response_handlers=[post_middleware],
     )
     await handler.handle(ui, call)
 
@@ -104,7 +104,7 @@ async def test_post_confirmation_middleware():
             return ToolDenied("User said no")
         return await next_middleware(ui, call, response)
 
-    handler = ConfirmationHandler(post_confirmation_middlewares=[post_middleware])
+    handler = ToolCallHandler(response_handlers=[post_middleware])
     result = await handler.handle(ui, call)
 
     assert isinstance(result, ToolDenied)

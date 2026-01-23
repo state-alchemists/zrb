@@ -4,12 +4,14 @@ import asyncio
 import inspect
 import os
 import re
+import subprocess
+import sys
 from collections.abc import AsyncIterable, Callable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, TextIO
 
 from prompt_toolkit import Application
-from prompt_toolkit.application import get_app
+from prompt_toolkit.application import get_app, run_in_terminal
 from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import AnyFormattedText
 from prompt_toolkit.key_binding import KeyBindings
@@ -19,19 +21,19 @@ from prompt_toolkit.output import create_output
 from prompt_toolkit.styles import Style
 
 from zrb.context.shared_context import SharedContext
-from zrb.llm.tool_call.handler import (
-    ConfirmationHandler,
-    ConfirmationMessageMiddleware,
-    PostConfirmationMiddleware,
-    PreConfirmationMiddleware,
-    last_confirmation,
-)
 from zrb.llm.app.keybinding import create_output_keybindings
 from zrb.llm.app.layout import create_input_field, create_layout, create_output_field
 from zrb.llm.app.redirection import GlobalStreamCapture
 from zrb.llm.app.style import create_style
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.task.llm_task import LLMTask
+from zrb.llm.tool_call import (
+    ArgumentFormatter,
+    ResponseHandler,
+    ToolCallHandler,
+    ToolPolicy,
+    default_confirm_tool_call,
+)
 from zrb.session.any_session import AnySession
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
@@ -61,9 +63,9 @@ class UI:
         conversation_session_name: str = "",
         yolo: bool = False,
         triggers: list[Callable[[], AsyncIterable[Any]]] = [],
-        post_confirmation_middlewares: list[PostConfirmationMiddleware] = [],
-        pre_confirmation_middlewares: list[PreConfirmationMiddleware] = [],
-        confirmation_message_middlewares: list[ConfirmationMessageMiddleware] = [],
+        response_handlers: list[ResponseHandler] = [],
+        tool_policies: list[ToolPolicy] = [],
+        argument_formatters: list[ArgumentFormatter] = [],
         markdown_theme: "Theme | None" = None,
         summarize_commands: list[str] = [],
         attach_commands: list[str] = [],
@@ -109,11 +111,10 @@ class UI:
         # Attachments
         self._pending_attachments: list[UserContent] = list(initial_attachments)
         # Confirmation Handler
-        self._confirmation_handler = ConfirmationHandler(
-            pre_confirmation_middlewares=pre_confirmation_middlewares,
-            confirmation_message_middlewares=confirmation_message_middlewares,
-            post_confirmation_middlewares=post_confirmation_middlewares
-            + [last_confirmation],
+        self._tool_call_handler = ToolCallHandler(
+            tool_policies=tool_policies,
+            argument_formatters=argument_formatters,
+            response_handlers=response_handlers + [default_confirm_tool_call],
         )
         # Confirmation state (Used by ask_user and keybindings)
         self._waiting_for_confirmation = False
@@ -298,9 +299,24 @@ class UI:
             self._confirmation_future = None
 
     async def _confirm_tool_execution(
-        self, call: ToolCallPart
+        self,
+        call: ToolCallPart,
     ) -> ToolApproved | ToolDenied | None:
-        return await self._confirmation_handler.handle(self, call)
+        return await self._tool_call_handler.handle(self, call)
+
+    async def run_interactive_command(
+        self, cmd: str | list[str], shell: bool = False
+    ) -> Any:
+        def run_subprocess():
+            # Run the command. Standard streams will inherit from the parent,
+            # which have been restored to the TTY by self._capture.pause()
+            subprocess.call(cmd, shell=shell)
+
+        # Pause capture and await run_in_terminal.
+        # It's crucial to await so the pause() context manager stays active
+        # until the subprocess (e.g. vim) finishes.
+        with self._capture.pause():
+            await run_in_terminal(run_subprocess)
 
     @property
     def triggers(
@@ -798,7 +814,9 @@ class UI:
             get_app().invalidate()
 
     def _create_sesion_for_llm_task(
-        self, user_message: str, attachments: list[UserContent]
+        self,
+        user_message: str,
+        attachments: list[UserContent],
     ) -> AnySession:
         """Create session to run LLMTask"""
         session_input = {

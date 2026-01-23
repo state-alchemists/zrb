@@ -3,13 +3,13 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from pydantic_ai import ToolApproved
 
-from zrb.llm.tool_call.allow_tool import allow_tool_usage
+from zrb.llm.tool_call import auto_approve
 
 
 @pytest.mark.asyncio
 async def test_allow_tool_usage_match_no_kwargs():
     # Setup
-    middleware = allow_tool_usage("my_tool")
+    middleware = auto_approve("my_tool")
     ui = MagicMock()
     call = MagicMock()
     call.tool_name = "my_tool"
@@ -27,7 +27,7 @@ async def test_allow_tool_usage_match_no_kwargs():
 @pytest.mark.asyncio
 async def test_allow_tool_usage_mismatch_name():
     # Setup
-    middleware = allow_tool_usage("my_tool")
+    middleware = auto_approve("my_tool")
     ui = MagicMock()
     call = MagicMock()
     call.tool_name = "other_tool"
@@ -45,7 +45,7 @@ async def test_allow_tool_usage_mismatch_name():
 @pytest.mark.asyncio
 async def test_allow_tool_usage_match_kwargs_success():
     # Setup
-    middleware = allow_tool_usage("my_tool", {"param": "^valid_"})
+    middleware = auto_approve("my_tool", {"param": "^valid_"})
     ui = MagicMock()
     call = MagicMock()
     call.tool_name = "my_tool"
@@ -63,7 +63,7 @@ async def test_allow_tool_usage_match_kwargs_success():
 @pytest.mark.asyncio
 async def test_allow_tool_usage_match_kwargs_fail():
     # Setup
-    middleware = allow_tool_usage("my_tool", {"param": "^valid_"})
+    middleware = auto_approve("my_tool", {"param": "^valid_"})
     ui = MagicMock()
     call = MagicMock()
     call.tool_name = "my_tool"
@@ -84,7 +84,7 @@ async def test_allow_tool_usage_match_kwargs_param_missing_in_args():
     # "param" is in kwargs but NOT in args.
     # Logic: "all parameter in the call parameter has to match..."
     # Since "param" is NOT in call parameter, it doesn't have to match.
-    middleware = allow_tool_usage("my_tool", {"param": "^valid_"})
+    middleware = auto_approve("my_tool", {"param": "^valid_"})
     ui = MagicMock()
     call = MagicMock()
     call.tool_name = "my_tool"

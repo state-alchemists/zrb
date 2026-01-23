@@ -1,6 +1,7 @@
 import os
 import sys
 import threading
+from contextlib import contextmanager
 from typing import TextIO
 
 
@@ -60,6 +61,35 @@ class GlobalStreamCapture:
             self.thread = None
 
         # pipe_r is closed by _reader context manager
+
+    @contextmanager
+    def pause(self):
+        """
+        Temporarily restores original file descriptors without tearing down the thread or pipe.
+        Use this when handing control of the terminal to a subprocess (e.g. vim).
+        """
+        if not self.capturing:
+            yield
+            return
+
+        # 1. Flush Python buffers to ensure everything pending goes to the pipe
+        sys.stdout.flush()
+        sys.stderr.flush()
+
+        # 2. Restore original FDs (point FD 1/2 back to TTY)
+        os.dup2(self.original_stdout_fd, sys.stdout.fileno())
+        os.dup2(self.original_stderr_fd, sys.stderr.fileno())
+
+        try:
+            yield
+        finally:
+            # 3. Restore redirection (point FD 1/2 back to pipe)
+            if self.pipe_w is not None:
+                # Flush again just in case
+                sys.stdout.flush()
+                sys.stderr.flush()
+                os.dup2(self.pipe_w, sys.stdout.fileno())
+                os.dup2(self.pipe_w, sys.stderr.fileno())
 
     def _reader(self, pipe_r):
         from prompt_toolkit.application import get_app

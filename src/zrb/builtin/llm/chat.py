@@ -2,17 +2,16 @@ from zrb.builtin.group import llm_group
 from zrb.config.config import CFG
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
-from zrb.llm.tool_call.replace_confirmation import replace_confirmation
 from zrb.llm.history_processor.summarizer import create_summarizer_history_processor
 from zrb.llm.note.manager import NoteManager
 from zrb.llm.prompt.claude_compatibility import (
     create_claude_compatibility_prompt,
 )
-from zrb.llm.prompt.compose import PromptManager, new_prompt
 from zrb.llm.prompt.default import (
     get_mandate_prompt,
     get_persona_prompt,
 )
+from zrb.llm.prompt.manager import PromptManager, new_prompt
 from zrb.llm.prompt.note import create_note_prompt
 from zrb.llm.prompt.system_context import system_context
 from zrb.llm.prompt.zrb import create_zrb_prompt
@@ -36,6 +35,7 @@ from zrb.llm.tool.note import create_note_tools
 from zrb.llm.tool.skill import create_activate_skill_tool
 from zrb.llm.tool.web import open_web_page, search_internet
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
+from zrb.llm.tool_call import edit_replace_with_text_editor
 from zrb.runner.cli import cli
 
 skill_manager = SkillManager()
@@ -81,7 +81,7 @@ llm_group.add_task(llm_chat)
 cli.add_task(llm_chat)
 
 
-llm_chat.prompt_manager.add_middleware(
+llm_chat.prompt_manager.add_prompt(
     new_prompt(lambda: get_persona_prompt(CFG.LLM_ASSISTANT_NAME)),
     new_prompt(lambda: get_mandate_prompt()),
     system_context,
@@ -89,7 +89,7 @@ llm_chat.prompt_manager.add_middleware(
     create_claude_compatibility_prompt(skill_manager),
     create_zrb_prompt(),
 )
-llm_chat.add_post_confirmation_middleware(replace_confirmation)
+llm_chat.add_response_handler(edit_replace_with_text_editor)
 llm_chat.add_toolset(*load_mcp_config())
 llm_chat.add_tool(
     run_shell_command,
