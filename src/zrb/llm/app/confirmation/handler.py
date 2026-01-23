@@ -29,7 +29,7 @@ class UIProtocol(Protocol):
     ): ...
 
 
-ConfirmationMiddleware = Callable[
+PostConfirmationMiddleware = Callable[
     [
         UIProtocol,
         "ToolCallPart",
@@ -39,52 +39,126 @@ ConfirmationMiddleware = Callable[
     Awaitable[Any],
 ]
 
+ConfirmationMiddleware = PostConfirmationMiddleware
+
+PreConfirmationMiddleware = Callable[
+    [
+        UIProtocol,
+        "ToolCallPart",
+        Callable[[UIProtocol, "ToolCallPart"], Awaitable[Any]],
+    ],
+    Awaitable[Any],
+]
+
+ConfirmationMessageMiddleware = Callable[
+    [UIProtocol, "ToolCallPart", str], Awaitable[str | None]
+]
+
 
 class ConfirmationHandler:
-    def __init__(self, middlewares: list[ConfirmationMiddleware]):
-        self._middlewares = middlewares
+    def __init__(
+        self,
+        pre_confirmation_middlewares: list[PreConfirmationMiddleware] | None = None,
+        confirmation_message_middlewares: (
+            list[ConfirmationMessageMiddleware] | None
+        ) = None,
+        post_confirmation_middlewares: list[PostConfirmationMiddleware] | None = None,
+    ):
+        self._pre_middlewares = pre_confirmation_middlewares or []
+        self._message_middlewares = confirmation_message_middlewares or []
+        self._post_middlewares = post_confirmation_middlewares or []
 
+    def add_pre_confirmation_middleware(self, *middleware: PreConfirmationMiddleware):
+        self.prepend_pre_confirmation_middleware(*middleware)
+
+    def prepend_pre_confirmation_middleware(
+        self, *middleware: PreConfirmationMiddleware
+    ):
+        self._pre_middlewares = list(middleware) + self._pre_middlewares
+
+    def add_confirmation_message_middleware(
+        self, *middleware: ConfirmationMessageMiddleware
+    ):
+        self.prepend_confirmation_message_middleware(*middleware)
+
+    def prepend_confirmation_message_middleware(
+        self, *middleware: ConfirmationMessageMiddleware
+    ):
+        self._message_middlewares = list(middleware) + self._message_middlewares
+
+    def add_post_confirmation_middleware(self, *middleware: PostConfirmationMiddleware):
+        self.prepend_post_confirmation_middleware(*middleware)
+
+    def prepend_post_confirmation_middleware(
+        self, *middleware: PostConfirmationMiddleware
+    ):
+        self._post_middlewares = list(middleware) + self._post_middlewares
+
+    # Backward compatibility
     def add_middleware(self, *middleware: ConfirmationMiddleware):
-        self.prepend_middleware(*middleware)
+        self.add_post_confirmation_middleware(*middleware)
 
     def prepend_middleware(self, *middleware: ConfirmationMiddleware):
-        self._middlewares = list(middleware) + self._middlewares
+        self.prepend_post_confirmation_middleware(*middleware)
 
     async def handle(
         self, ui: UIProtocol, call: ToolCallPart
     ) -> ToolApproved | ToolDenied | None:
+        # Pre-confirmation middlewares
+        async def _next_pre(ui: UIProtocol, call: ToolCallPart, index: int) -> Any:
+            if index >= len(self._pre_middlewares):
+                return None
+            middleware = self._pre_middlewares[index]
+            return await middleware(
+                ui,
+                call,
+                lambda u, c: _next_pre(u, c, index + 1),
+            )
+
+        pre_result = await _next_pre(ui, call, 0)
+        if pre_result is not None:
+            return pre_result
+
         while True:
-            message = self._get_confirm_user_message(call)
+            message = await self._get_confirm_user_message(ui, call)
             ui.append_to_output(f"\n\n{message}", end="")
             # Wait for user input
             user_input = await ui.ask_user("")
             user_response = user_input.strip()
 
             # Build the chain
-            async def _next(
+            async def _next_post(
                 ui: UIProtocol, call: ToolCallPart, response: str, index: int
             ) -> Any:
-                if index >= len(self._middlewares):
+                if index >= len(self._post_middlewares):
                     # Default if no middleware handles it
                     return None
-                middleware = self._middlewares[index]
+                middleware = self._post_middlewares[index]
                 return await middleware(
                     ui,
                     call,
                     response,
-                    lambda u, c, r: _next(u, c, r, index + 1),
+                    lambda u, c, r: _next_post(u, c, r, index + 1),
                 )
 
-            result = await _next(ui, call, user_response, 0)
+            result = await _next_post(ui, call, user_response, 0)
             if result is None:
                 continue
             return result
 
-    def _get_confirm_user_message(self, call: ToolCallPart) -> str:
+    async def _get_confirm_user_message(
+        self, ui: UIProtocol, call: ToolCallPart
+    ) -> str:
         args_section = ""
         if f"{call.args}" != "{}":
             args_str = self._format_args(call.args)
             args_section = f"{args_str}\n"
+
+        for middleware in self._message_middlewares:
+            new_args_section = await middleware(ui, call, args_section)
+            if new_args_section is not None:
+                args_section = new_args_section
+
         return (
             f"  🎰 Executing tool '{call.tool_name}'\n"
             f"{args_section}"

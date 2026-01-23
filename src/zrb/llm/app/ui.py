@@ -21,7 +21,9 @@ from prompt_toolkit.styles import Style
 from zrb.context.shared_context import SharedContext
 from zrb.llm.app.confirmation.handler import (
     ConfirmationHandler,
-    ConfirmationMiddleware,
+    ConfirmationMessageMiddleware,
+    PostConfirmationMiddleware,
+    PreConfirmationMiddleware,
     last_confirmation,
 )
 from zrb.llm.app.keybinding import create_output_keybindings
@@ -59,7 +61,9 @@ class UI:
         conversation_session_name: str = "",
         yolo: bool = False,
         triggers: list[Callable[[], AsyncIterable[Any]]] = [],
-        confirmation_middlewares: list[ConfirmationMiddleware] = [],
+        post_confirmation_middlewares: list[PostConfirmationMiddleware] = [],
+        pre_confirmation_middlewares: list[PreConfirmationMiddleware] = [],
+        confirmation_message_middlewares: list[ConfirmationMessageMiddleware] = [],
         markdown_theme: "Theme | None" = None,
         summarize_commands: list[str] = [],
         attach_commands: list[str] = [],
@@ -106,7 +110,10 @@ class UI:
         self._pending_attachments: list[UserContent] = list(initial_attachments)
         # Confirmation Handler
         self._confirmation_handler = ConfirmationHandler(
-            middlewares=confirmation_middlewares + [last_confirmation]
+            pre_confirmation_middlewares=pre_confirmation_middlewares,
+            confirmation_message_middlewares=confirmation_message_middlewares,
+            post_confirmation_middlewares=post_confirmation_middlewares
+            + [last_confirmation],
         )
         # Confirmation state (Used by ask_user and keybindings)
         self._waiting_for_confirmation = False

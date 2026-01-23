@@ -14,7 +14,11 @@ from zrb.input.any_input import AnyInput
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.llm.agent.agent import AnyToolConfirmation
-from zrb.llm.app.confirmation.handler import ConfirmationMiddleware
+from zrb.llm.app.confirmation.handler import (
+    ConfirmationMessageMiddleware,
+    PostConfirmationMiddleware,
+    PreConfirmationMiddleware,
+)
 from zrb.llm.config.config import LLMConfig
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.config.limiter import LLMLimiter
@@ -96,7 +100,9 @@ class LLMChatTask(BaseTask):
         ui_ascii_art: StrAttr | None = None,
         render_ui_ascii_art_name: bool = True,
         triggers: list[Callable[[], AsyncIterable[Any]]] = [],
-        confirmation_middlewares: list[ConfirmationMiddleware] = [],
+        post_confirmation_middlewares: list[PostConfirmationMiddleware] = [],
+        pre_confirmation_middlewares: list[PreConfirmationMiddleware] = [],
+        confirmation_message_middlewares: list[ConfirmationMessageMiddleware] = [],
         markdown_theme: "Theme | None" = None,
         interactive: BoolAttr = True,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
@@ -176,7 +182,9 @@ class LLMChatTask(BaseTask):
         self._ui_ascii_art_name = ui_ascii_art
         self._render_ui_ascii_art_name = render_ui_ascii_art_name
         self._triggers = triggers
-        self._confirmation_middlewares = confirmation_middlewares
+        self._post_confirmation_middlewares = post_confirmation_middlewares
+        self._pre_confirmation_middlewares = pre_confirmation_middlewares
+        self._confirmation_message_middlewares = confirmation_message_middlewares
         self._markdown_theme = markdown_theme
         self._interactive = interactive
 
@@ -204,12 +212,43 @@ class LLMChatTask(BaseTask):
     def append_history_processor(self, *processor: HistoryProcessor):
         self._history_processors += list(processor)
 
-    def add_confirmation_middleware(self, *middleware: ConfirmationMiddleware):
-        self.prepend_confirmation_middleware(*middleware)
+    def add_post_confirmation_middleware(self, *middleware: PostConfirmationMiddleware):
+        self.prepend_post_confirmation_middleware(*middleware)
 
-    def prepend_confirmation_middleware(self, *middleware: ConfirmationMiddleware):
-        self._confirmation_middlewares = (
-            list(middleware) + self._confirmation_middlewares
+    def prepend_post_confirmation_middleware(
+        self, *middleware: PostConfirmationMiddleware
+    ):
+        self._post_confirmation_middlewares = (
+            list(middleware) + self._post_confirmation_middlewares
+        )
+
+    # Backward compatibility
+    def add_confirmation_middleware(self, *middleware: PostConfirmationMiddleware):
+        self.add_post_confirmation_middleware(*middleware)
+
+    def prepend_confirmation_middleware(self, *middleware: PostConfirmationMiddleware):
+        self.prepend_post_confirmation_middleware(*middleware)
+
+    def add_pre_confirmation_middleware(self, *middleware: PreConfirmationMiddleware):
+        self.prepend_pre_confirmation_middleware(*middleware)
+
+    def prepend_pre_confirmation_middleware(
+        self, *middleware: PreConfirmationMiddleware
+    ):
+        self._pre_confirmation_middlewares = (
+            list(middleware) + self._pre_confirmation_middlewares
+        )
+
+    def add_confirmation_message_middleware(
+        self, *middleware: ConfirmationMessageMiddleware
+    ):
+        self.prepend_confirmation_message_middleware(*middleware)
+
+    def prepend_confirmation_message_middleware(
+        self, *middleware: ConfirmationMessageMiddleware
+    ):
+        self._confirmation_message_middlewares = (
+            list(middleware) + self._confirmation_message_middlewares
         )
 
     def add_trigger(
@@ -404,7 +443,9 @@ class LLMChatTask(BaseTask):
                 conversation_session_name=initial_conversation_name,
                 yolo=initial_yolo,
                 triggers=self._triggers,
-                confirmation_middlewares=self._confirmation_middlewares,
+                post_confirmation_middlewares=self._post_confirmation_middlewares,
+                pre_confirmation_middlewares=self._pre_confirmation_middlewares,
+                confirmation_message_middlewares=self._confirmation_message_middlewares,
                 markdown_theme=self._markdown_theme,
                 summarize_commands=ui_commands["summarize"],
                 attach_commands=ui_commands["attach"],
@@ -421,6 +462,7 @@ class LLMChatTask(BaseTask):
             return ui.last_output
 
     def _get_conversation_name(self, ctx: AnyContext) -> str:
+
         conversation_name = str(
             get_attr(ctx, self._conversation_name, "", self._render_conversation_name)
         )
