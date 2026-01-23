@@ -98,7 +98,7 @@ async def run_agent(
     """
     import asyncio
 
-    from pydantic_ai import AgentRunResultEvent, DeferredToolRequests
+    from pydantic_ai import AgentRunResultEvent, DeferredToolRequests, UsageLimits
 
     # Resolve tool confirmation callback (Arg > Context > None)
     effective_tool_confirmation = tool_confirmation
@@ -131,6 +131,7 @@ async def run_agent(
                 current_message,
                 message_history=current_history,
                 deferred_tool_results=current_results,
+                usage_limits=UsageLimits(request_limit=None),
             ):
                 await asyncio.sleep(0)
                 if isinstance(event, AgentRunResultEvent):
