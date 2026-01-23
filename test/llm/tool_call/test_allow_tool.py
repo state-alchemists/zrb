@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from pydantic_ai import ToolApproved
 
-from zrb.llm.app.confirmation.allow_tool import allow_tool_usage
+from zrb.llm.tool_call.allow_tool import allow_tool_usage
 
 
 @pytest.mark.asyncio

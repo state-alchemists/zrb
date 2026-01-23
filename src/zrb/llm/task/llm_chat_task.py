@@ -14,7 +14,7 @@ from zrb.input.any_input import AnyInput
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.llm.agent.agent import AnyToolConfirmation
-from zrb.llm.app.confirmation.handler import (
+from zrb.llm.tool_call.handler import (
     ConfirmationMessageMiddleware,
     PostConfirmationMiddleware,
     PreConfirmationMiddleware,

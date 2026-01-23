@@ -19,7 +19,7 @@ from prompt_toolkit.output import create_output
 from prompt_toolkit.styles import Style
 
 from zrb.context.shared_context import SharedContext
-from zrb.llm.app.confirmation.handler import (
+from zrb.llm.tool_call.handler import (
     ConfirmationHandler,
     ConfirmationMessageMiddleware,
     PostConfirmationMiddleware,

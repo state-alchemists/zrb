@@ -2,7 +2,7 @@ import json
 import re
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
-from zrb.llm.app.confirmation.handler import PreConfirmationMiddleware, UIProtocol
+from zrb.llm.tool_call.handler import PreConfirmationMiddleware, UIProtocol
 
 if TYPE_CHECKING:
     from pydantic_ai import ToolCallPart

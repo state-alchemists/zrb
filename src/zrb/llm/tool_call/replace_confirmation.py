@@ -7,7 +7,7 @@ from typing import Any, Awaitable, Callable
 from prompt_toolkit.application import run_in_terminal
 
 from zrb.config.config import CFG
-from zrb.llm.app.confirmation.handler import UIProtocol
+from zrb.llm.tool_call.handler import UIProtocol
 
 
 async def replace_confirmation(

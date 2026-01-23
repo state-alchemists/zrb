@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from pydantic_ai import ToolApproved, ToolDenied
 
-from zrb.llm.app.confirmation.handler import ConfirmationHandler
+from zrb.llm.tool_call.handler import ConfirmationHandler
 
 
 @pytest.mark.asyncio

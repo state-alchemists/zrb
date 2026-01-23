@@ -2,7 +2,7 @@ from zrb.builtin.group import llm_group
 from zrb.config.config import CFG
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
-from zrb.llm.app.confirmation.replace_confirmation import replace_confirmation
+from zrb.llm.tool_call.replace_confirmation import replace_confirmation
 from zrb.llm.history_processor.summarizer import create_summarizer_history_processor
 from zrb.llm.note.manager import NoteManager
 from zrb.llm.prompt.claude_compatibility import (
