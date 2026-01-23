@@ -222,13 +222,6 @@ class LLMChatTask(BaseTask):
             list(middleware) + self._post_confirmation_middlewares
         )
 
-    # Backward compatibility
-    def add_confirmation_middleware(self, *middleware: PostConfirmationMiddleware):
-        self.add_post_confirmation_middleware(*middleware)
-
-    def prepend_confirmation_middleware(self, *middleware: PostConfirmationMiddleware):
-        self.prepend_post_confirmation_middleware(*middleware)
-
     def add_pre_confirmation_middleware(self, *middleware: PreConfirmationMiddleware):
         self.prepend_pre_confirmation_middleware(*middleware)
 

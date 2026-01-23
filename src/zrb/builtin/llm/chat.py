@@ -89,7 +89,7 @@ llm_chat.prompt_manager.add_middleware(
     create_claude_compatibility_prompt(skill_manager),
     create_zrb_prompt(),
 )
-llm_chat.add_confirmation_middleware(replace_confirmation)
+llm_chat.add_post_confirmation_middleware(replace_confirmation)
 llm_chat.add_toolset(*load_mcp_config())
 llm_chat.add_tool(
     run_shell_command,
