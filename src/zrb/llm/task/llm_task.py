@@ -9,7 +9,7 @@ from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
-from zrb.llm.agent.agent import AnyToolConfirmation, create_agent, run_agent
+from zrb.llm.agent import AnyToolConfirmation, create_agent, run_agent
 from zrb.llm.config.config import LLMConfig
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.config.limiter import LLMLimiter

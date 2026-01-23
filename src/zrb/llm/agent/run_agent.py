@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 from contextvars import ContextVar
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, TextIO, TypeAlias, Union
 
-from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.util.attachment import normalize_attachments
 from zrb.llm.util.prompt import expand_prompt
@@ -13,26 +13,22 @@ if TYPE_CHECKING:
         Agent,
         DeferredToolRequests,
         DeferredToolResults,
-        Tool,
         ToolApproved,
         ToolCallPart,
         ToolDenied,
     )
-    from pydantic_ai._agent_graph import HistoryProcessor
     from pydantic_ai.messages import UserPromptPart
-    from pydantic_ai.models import Model
-    from pydantic_ai.output import OutputDataT, OutputSpec
-    from pydantic_ai.settings import ModelSettings
-    from pydantic_ai.tools import ToolFuncEither
-    from pydantic_ai.toolsets import AbstractToolset
 
-    AnyToolConfirmation: TypeAlias = (
+    from zrb.llm.tool_call.handler import ToolCallHandler
+
+    AnyToolConfirmation: TypeAlias = Union[
         Callable[
             [ToolCallPart],
             ToolApproved | ToolDenied | Awaitable[ToolApproved | ToolDenied],
-        ]
-        | None
-    )
+        ],
+        ToolCallHandler,
+        None,
+    ]
 else:
     AnyToolConfirmation: TypeAlias = Any
 
@@ -42,44 +38,41 @@ tool_confirmation_var: ContextVar[AnyToolConfirmation] = ContextVar(
 )
 
 
-def create_agent(
-    model: "Model | str | None" = None,
-    system_prompt: str = "",
-    tools: list["Tool | ToolFuncEither"] = [],
-    toolsets: list["AbstractToolset[None]"] = [],
-    model_settings: "ModelSettings | None" = None,
-    history_processors: list["HistoryProcessor"] | None = None,
-    output_type: "OutputSpec[OutputDataT]" = str,
-    retries: int = 1,
-    yolo: bool = False,
-) -> "Agent[None, Any]":
-    from pydantic_ai import Agent, DeferredToolRequests
-    from pydantic_ai.toolsets import FunctionToolset
+class _NonInteractiveUI:
+    """Minimal UI wrapper for non-interactive mode that implements UIProtocol."""
 
-    # Expand system prompt with references
-    effective_system_prompt = expand_prompt(system_prompt)
+    def __init__(self, print_fn: Callable[[str], Any]):
+        self._print_fn = print_fn
 
-    final_output_type = output_type
-    effective_toolsets = list(toolsets)
-    if tools:
-        effective_toolsets.append(FunctionToolset(tools=tools))
+    async def ask_user(self, prompt: str) -> str:
+        """Prompt user via CLI input in non-interactive mode."""
+        if prompt:
+            self._print_fn(prompt)
 
-    if not yolo:
-        final_output_type = output_type | DeferredToolRequests
-        effective_toolsets = [ts.approval_required() for ts in effective_toolsets]
+        # Use asyncio.to_thread to avoid blocking the event loop
+        loop = asyncio.get_event_loop()
+        user_input = await loop.run_in_executor(None, input, "")
+        return user_input.strip()
 
-    if model is None:
-        model = default_llm_config.model
+    def append_to_output(
+        self,
+        *values: object,
+        sep: str = " ",
+        end: str = "\n",
+        file: TextIO | None = None,
+        flush: bool = False,
+    ):
+        """Print output in non-interactive mode."""
+        content = sep.join(str(v) for v in values) + end
+        self._print_fn(content)
 
-    return Agent(
-        model=model,
-        output_type=final_output_type,
-        instructions=effective_system_prompt,
-        toolsets=effective_toolsets,
-        model_settings=model_settings,
-        history_processors=history_processors,
-        retries=retries,
-    )
+    async def run_interactive_command(
+        self, cmd: str | list[str], shell: bool = False
+    ) -> Any:
+        """Run interactive commands - not supported in non-interactive mode."""
+        raise NotImplementedError(
+            "Interactive commands are not supported in non-interactive mode"
+        )
 
 
 async def run_agent(
@@ -144,7 +137,7 @@ async def run_agent(
             # Handle Deferred Calls
             if isinstance(result_output, DeferredToolRequests):
                 current_results = await _process_deferred_requests(
-                    result_output, effective_tool_confirmation
+                    result_output, effective_tool_confirmation, print_fn
                 )
                 if current_results is None:
                     return result_output, run_history
@@ -198,8 +191,9 @@ async def _acquire_rate_limit(
 async def _process_deferred_requests(
     result_output: "DeferredToolRequests",
     effective_tool_confirmation: AnyToolConfirmation,
+    print_fn: Callable[[str], Any] = print,
 ) -> "DeferredToolResults | None":
-    """Handles tool approvals/denials via callback or CLI fallback."""
+    """Handles tool approvals/denials via callback, ToolCallHandler, or CLI fallback."""
     import asyncio
     import inspect
 
@@ -212,12 +206,22 @@ async def _process_deferred_requests(
     current_results = DeferredToolResults()
 
     for call in all_requests:
+        result = None
+        handled = False
+
         if effective_tool_confirmation:
+            # It's a simple callback function (or object with __call__)
+            # If it returns None, it means "I don't know", so we fallback to CLI
             res = effective_tool_confirmation(call)
             if inspect.isawaitable(res):
                 result = await res
             else:
                 result = res
+
+            if result is not None:
+                handled = True
+
+        if handled:
             current_results.approvals[call.tool_call_id] = result
         else:
             # CLI Fallback

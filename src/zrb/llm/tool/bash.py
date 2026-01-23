@@ -59,8 +59,8 @@ async def run_shell_command(command: str, timeout: int = 30) -> str:
         try:
             await asyncio.wait_for(
                 asyncio.gather(
-                    _read_stream(process.stdout, stdout_lines, ""),
-                    _read_stream(process.stderr, stderr_lines, "[stderr] "),
+                    _read_stream(process.stdout, stdout_lines),
+                    _read_stream(process.stderr, stderr_lines),
                     process.wait(),
                 ),
                 timeout=timeout,
@@ -120,9 +120,7 @@ async def _start_process(command: str, is_windows: bool) -> asyncio.subprocess.P
     )
 
 
-async def _read_stream(
-    stream: asyncio.StreamReader, lines_list: List[str], prefix: str
-):
+async def _read_stream(stream: asyncio.StreamReader, lines_list: List[str]):
     """Reads from a stream line by line, printing to console and appending to list."""
     if not stream:
         return
@@ -139,7 +137,7 @@ async def _read_stream(
         if decoded:
             shown = ANSI_ESCAPE.sub("", decoded)
             shown = stylize_faint(shown)
-            print(f"{prefix}  {shown}", end="")  # Stream to console
+            print(f"  {shown}", end="")  # Stream to console
             lines_list.append(decoded)
 
 

@@ -35,7 +35,7 @@ from zrb.llm.tool.note import create_note_tools
 from zrb.llm.tool.skill import create_activate_skill_tool
 from zrb.llm.tool.web import open_web_page, search_internet
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
-from zrb.llm.tool_call import edit_replace_with_text_editor
+from zrb.llm.tool_call import auto_approve, edit_replace_with_text_editor
 from zrb.runner.cli import cli
 
 skill_manager = SkillManager()
@@ -110,3 +110,5 @@ llm_chat.add_tool(
     create_activate_skill_tool(skill_manager),
     *create_note_tools(note_manager),
 )
+
+llm_chat.add_tool_policy(auto_approve("read_file"), auto_approve("read_files"))

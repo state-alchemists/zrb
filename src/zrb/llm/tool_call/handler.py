@@ -17,6 +17,22 @@ if TYPE_CHECKING:
     from pydantic_ai import ToolApproved, ToolCallPart, ToolDenied
 
 
+async def check_tool_policies(
+    policies: list[ToolPolicy],
+    call: ToolCallPart,
+) -> ToolApproved | ToolDenied | None:
+    async def _next_policy(call: ToolCallPart, index: int) -> Any:
+        if index >= len(policies):
+            return None
+        policy = policies[index]
+        return await policy(
+            call,
+            lambda c: _next_policy(c, index + 1),
+        )
+
+    return await _next_policy(call, 0)
+
+
 class ToolCallHandler:
     def __init__(
         self,
@@ -52,17 +68,7 @@ class ToolCallHandler:
         call: ToolCallPart,
     ) -> ToolApproved | ToolDenied | None:
         # Tool Policies (Pre-confirmation)
-        async def _next_policy(ui: UIProtocol, call: ToolCallPart, index: int) -> Any:
-            if index >= len(self._tool_policies):
-                return None
-            policy = self._tool_policies[index]
-            return await policy(
-                ui,
-                call,
-                lambda u, c: _next_policy(u, c, index + 1),
-            )
-
-        policy_result = await _next_policy(ui, call, 0)
+        policy_result = await self.check_policies(call)
         if policy_result is not None:
             return policy_result
 
@@ -95,6 +101,12 @@ class ToolCallHandler:
             if result is None:
                 continue
             return result
+
+    async def check_policies(
+        self,
+        call: ToolCallPart,
+    ) -> ToolApproved | ToolDenied | None:
+        return await check_tool_policies(self._tool_policies, call)
 
     async def _get_confirm_user_message(
         self,

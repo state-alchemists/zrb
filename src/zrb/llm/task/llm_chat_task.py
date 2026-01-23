@@ -13,7 +13,7 @@ from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
-from zrb.llm.agent.agent import AnyToolConfirmation
+from zrb.llm.agent import AnyToolConfirmation
 from zrb.llm.config.config import LLMConfig
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.config.limiter import LLMLimiter
@@ -24,6 +24,7 @@ from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.tool_call import (
     ArgumentFormatter,
     ResponseHandler,
+    ToolCallHandler,
     ToolPolicy,
 )
 from zrb.llm.util.attachment import get_attachments
@@ -57,8 +58,8 @@ class LLMChatTask(BaseTask):
         system_prompt: Callable[[AnyContext], str | fstring | None] | str | None = None,
         render_system_prompt: bool = False,
         prompt_manager: PromptManager | None = None,
-        tools: list[Tool | ToolFuncEither] = [],
-        toolsets: list[AbstractToolset[None]] = [],
+        tools: list[Tool | ToolFuncEither] | None = None,
+        toolsets: list[AbstractToolset[None]] | None = None,
         message: StrAttr | None = None,
         render_message: bool = True,
         attachment: (
@@ -67,7 +68,7 @@ class LLMChatTask(BaseTask):
             | Callable[[AnyContext], UserContent | list[UserContent]]
             | None
         ) = None,  # noqa
-        history_processors: list[HistoryProcessor] = [],
+        history_processors: list[HistoryProcessor] | None = None,
         llm_config: LLMConfig | None = None,
         llm_limitter: LLMLimiter | None = None,
         model: (
@@ -82,15 +83,15 @@ class LLMChatTask(BaseTask):
         history_manager: AnyHistoryManager | None = None,
         tool_confirmation: AnyToolConfirmation = None,
         yolo: BoolAttr = False,
-        ui_summarize_commands: list[str] = [],
-        ui_attach_commands: list[str] = [],
-        ui_exit_commands: list[str] = [],
-        ui_info_commands: list[str] = [],
-        ui_save_commands: list[str] = [],
-        ui_load_commands: list[str] = [],
-        ui_redirect_output_commands: list[str] = [],
-        ui_yolo_toggle_commands: list[str] = [],
-        ui_exec_commands: list[str] = [],
+        ui_summarize_commands: list[str] | None = None,
+        ui_attach_commands: list[str] | None = None,
+        ui_exit_commands: list[str] | None = None,
+        ui_info_commands: list[str] | None = None,
+        ui_save_commands: list[str] | None = None,
+        ui_load_commands: list[str] | None = None,
+        ui_redirect_output_commands: list[str] | None = None,
+        ui_yolo_toggle_commands: list[str] | None = None,
+        ui_exec_commands: list[str] | None = None,
         ui_greeting: StrAttr | None = None,
         render_ui_greeting: bool = True,
         ui_assistant_name: StrAttr | None = None,
@@ -99,10 +100,10 @@ class LLMChatTask(BaseTask):
         render_ui_jargon: bool = True,
         ui_ascii_art: StrAttr | None = None,
         render_ui_ascii_art_name: bool = True,
-        triggers: list[Callable[[], AsyncIterable[Any]]] = [],
-        response_handlers: list[ResponseHandler] = [],
-        tool_policies: list[ToolPolicy] = [],
-        argument_formatters: list[ArgumentFormatter] = [],
+        triggers: list[Callable[[], AsyncIterable[Any]]] | None = None,
+        response_handlers: list[ResponseHandler] | None = None,
+        tool_policies: list[ToolPolicy] | None = None,
+        argument_formatters: list[ArgumentFormatter] | None = None,
         markdown_theme: "Theme | None" = None,
         interactive: BoolAttr = True,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
@@ -146,12 +147,14 @@ class LLMChatTask(BaseTask):
         self._system_prompt = system_prompt
         self._render_system_prompt = render_system_prompt
         self._prompt_manager = prompt_manager
-        self._tools = tools
-        self._toolsets = toolsets
+        self._tools = tools if tools is not None else []
+        self._toolsets = toolsets if toolsets is not None else []
         self._message = message
         self._render_message = render_message
         self._attachment = attachment
-        self._history_processors = history_processors
+        self._history_processors = (
+            history_processors if history_processors is not None else []
+        )
         self._model = model
         self._render_model = render_model
         self._model_settings = model_settings
@@ -164,15 +167,35 @@ class LLMChatTask(BaseTask):
         )
         self._tool_confirmation = tool_confirmation
         self._yolo = yolo
-        self._ui_summarize_commands = ui_summarize_commands
-        self._ui_attach_commands = ui_attach_commands
-        self._ui_exit_commands = ui_exit_commands
-        self._ui_info_commands = ui_info_commands
-        self._ui_save_commands = ui_save_commands
-        self._ui_load_commands = ui_load_commands
-        self._ui_redirect_output_commands = ui_redirect_output_commands
-        self._ui_yolo_toggle_commands = ui_yolo_toggle_commands
-        self._ui_exec_commands = ui_exec_commands
+        self._ui_summarize_commands = (
+            ui_summarize_commands if ui_summarize_commands is not None else []
+        )
+        self._ui_attach_commands = (
+            ui_attach_commands if ui_attach_commands is not None else []
+        )
+        self._ui_exit_commands = (
+            ui_exit_commands if ui_exit_commands is not None else []
+        )
+        self._ui_info_commands = (
+            ui_info_commands if ui_info_commands is not None else []
+        )
+        self._ui_save_commands = (
+            ui_save_commands if ui_save_commands is not None else []
+        )
+        self._ui_load_commands = (
+            ui_load_commands if ui_load_commands is not None else []
+        )
+        self._ui_redirect_output_commands = (
+            ui_redirect_output_commands
+            if ui_redirect_output_commands is not None
+            else []
+        )
+        self._ui_yolo_toggle_commands = (
+            ui_yolo_toggle_commands if ui_yolo_toggle_commands is not None else []
+        )
+        self._ui_exec_commands = (
+            ui_exec_commands if ui_exec_commands is not None else []
+        )
         self._ui_greeting = ui_greeting
         self._render_ui_greeting = render_ui_greeting
         self._ui_assistant_name = ui_assistant_name
@@ -181,10 +204,14 @@ class LLMChatTask(BaseTask):
         self._render_ui_jargon = render_ui_jargon
         self._ui_ascii_art_name = ui_ascii_art
         self._render_ui_ascii_art_name = render_ui_ascii_art_name
-        self._triggers = triggers
-        self._response_handlers = response_handlers
-        self._tool_policies = tool_policies
-        self._argument_formatters = argument_formatters
+        self._triggers = triggers if triggers is not None else []
+        self._response_handlers = (
+            response_handlers if response_handlers is not None else []
+        )
+        self._tool_policies = tool_policies if tool_policies is not None else []
+        self._argument_formatters = (
+            argument_formatters if argument_formatters is not None else []
+        )
         self._markdown_theme = markdown_theme
         self._interactive = interactive
 
@@ -254,7 +281,9 @@ class LLMChatTask(BaseTask):
         ui_commands = self._get_ui_commands()
 
         # 3. Create core LLM task
-        llm_task_core = self._create_llm_task_core(ui_commands["summarize"])
+        llm_task_core = self._create_llm_task_core(
+            ui_commands["summarize"], interactive
+        )
 
         # 4. Run Interactive or Non-Interactive
         if not interactive:
@@ -327,8 +356,34 @@ class LLMChatTask(BaseTask):
             ),
         }
 
-    def _create_llm_task_core(self, summarize_commands: list[str]) -> LLMTask:
+    def _create_llm_task_core(
+        self, summarize_commands: list[str], interactive: bool
+    ) -> LLMTask:
         """Create the inner LLMTask that handles the actual processing."""
+        from zrb.llm.tool_call import check_tool_policies
+
+        # Determine the tool confirmation to use
+        tool_confirmation = self._tool_confirmation
+
+        # If we have tool policies, response handlers, or argument formatters,
+        # create a ToolCallHandler (or simple policy checker) that wraps existing config
+        tool_policies = self._tool_policies
+        response_handlers = self._response_handlers if interactive else []
+        argument_formatters = self._argument_formatters if interactive else []
+
+        if interactive:
+            # Interactive mode: Let the UI handle everything via context variable
+            tool_confirmation = None
+        elif tool_policies:
+            # Non-interactive: Use simple policy checker, no UI overhead
+            async def _simple_policy_checker(call):
+                return await check_tool_policies(tool_policies, call)
+
+            tool_confirmation = _simple_policy_checker
+
+        # Note: If interactive=False and no policies, tool_confirmation remains as initialized (likely None)
+        # which triggers the default CLI fallback in run_agent.
+
         return LLMTask(
             name=f"{self.name}-process",
             input=[
@@ -350,7 +405,7 @@ class LLMChatTask(BaseTask):
             render_model=self._render_model,
             model_settings=self._model_settings,
             history_manager=self._history_manager,
-            tool_confirmation=self._tool_confirmation,
+            tool_confirmation=tool_confirmation,
             message="{ctx.input.message}",
             conversation_name="{ctx.input.session}",
             yolo="{ctx.input.yolo}",

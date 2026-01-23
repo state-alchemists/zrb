@@ -5,7 +5,6 @@ import inspect
 import os
 import re
 import subprocess
-import sys
 from collections.abc import AsyncIterable, Callable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, TextIO
@@ -771,7 +770,7 @@ class UI:
         user_message: str,
         attachments: list[UserContent] = [],
     ):
-        from zrb.llm.agent.agent import tool_confirmation_var
+        from zrb.llm.agent import tool_confirmation_var
 
         self._is_thinking = True
         get_app().invalidate()  # Update status bar
