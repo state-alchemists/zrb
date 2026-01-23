@@ -17,7 +17,7 @@ async def test_allow_tool_usage_match_no_kwargs():
     next_handler = AsyncMock()
 
     # Execute
-    result = await middleware(ui, call, "", next_handler)
+    result = await middleware(ui, call, next_handler)
 
     # Assert
     assert isinstance(result, ToolApproved)
@@ -35,7 +35,7 @@ async def test_allow_tool_usage_mismatch_name():
     next_handler = AsyncMock(return_value="next_result")
 
     # Execute
-    result = await middleware(ui, call, "", next_handler)
+    result = await middleware(ui, call, next_handler)
 
     # Assert
     assert result == "next_result"
@@ -53,7 +53,7 @@ async def test_allow_tool_usage_match_kwargs_success():
     next_handler = AsyncMock()
 
     # Execute
-    result = await middleware(ui, call, "", next_handler)
+    result = await middleware(ui, call, next_handler)
 
     # Assert
     assert isinstance(result, ToolApproved)
@@ -71,7 +71,7 @@ async def test_allow_tool_usage_match_kwargs_fail():
     next_handler = AsyncMock(return_value="next_result")
 
     # Execute
-    result = await middleware(ui, call, "", next_handler)
+    result = await middleware(ui, call, next_handler)
 
     # Assert
     assert result == "next_result"
@@ -92,7 +92,7 @@ async def test_allow_tool_usage_match_kwargs_param_missing_in_args():
     next_handler = AsyncMock()
 
     # Execute
-    result = await middleware(ui, call, "", next_handler)
+    result = await middleware(ui, call, next_handler)
 
     # Assert
     assert isinstance(result, ToolApproved)

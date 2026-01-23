@@ -455,7 +455,6 @@ class LLMChatTask(BaseTask):
             return ui.last_output
 
     def _get_conversation_name(self, ctx: AnyContext) -> str:
-
         conversation_name = str(
             get_attr(ctx, self._conversation_name, "", self._render_conversation_name)
         )
