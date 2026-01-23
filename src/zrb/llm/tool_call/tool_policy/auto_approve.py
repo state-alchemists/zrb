@@ -18,14 +18,15 @@ def auto_approve(tool_name: str, kwargs_patterns: dict[str, str] = {}) -> ToolPo
     """
 
     async def approve_tool_call_policy(
+        ui: UIProtocol,
         call: "ToolCallPart",
-        next_handler: Callable[["ToolCallPart"], Awaitable[Any]],
+        next_handler: Callable[[UIProtocol, "ToolCallPart"], Awaitable[Any]],
     ) -> Any:
         from pydantic_ai import ToolApproved
 
         # Check if tool name matches
         if call.tool_name != tool_name:
-            return await next_handler(call)
+            return await next_handler(ui, call)
 
         # If kwargs_patterns is empty or None, approve
         if not kwargs_patterns:
@@ -41,10 +42,10 @@ def auto_approve(tool_name: str, kwargs_patterns: dict[str, str] = {}) -> ToolPo
                 # If args is not a dict (e.g. primitive), and kwargs_patterns is not empty,
                 # we assume it doesn't match complex constraints (or we can't check keys).
                 # So we delegate to the next handler.
-                return await next_handler(call)
+                return await next_handler(ui, call)
 
         except (json.JSONDecodeError, ValueError):
-            return await next_handler(call)
+            return await next_handler(ui, call)
 
         # Check constraints
         # "all parameter in the call parameter has to match the ones in kwargs_patterns
@@ -54,7 +55,7 @@ def auto_approve(tool_name: str, kwargs_patterns: dict[str, str] = {}) -> ToolPo
                 pattern = kwargs_patterns[arg_name]
                 # Convert arg_value to string for regex matching
                 if not re.search(pattern, str(arg_value)):
-                    return await next_handler(call)
+                    return await next_handler(ui, call)
 
         return ToolApproved()
 

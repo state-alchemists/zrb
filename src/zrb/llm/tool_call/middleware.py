@@ -20,8 +20,9 @@ ResponseHandler = Callable[
 
 ToolPolicy = Callable[
     [
+        UIProtocol,
         "ToolCallPart",
-        Callable[["ToolCallPart"], Awaitable[Any]],
+        Callable[[UIProtocol, "ToolCallPart"], Awaitable[Any]],
     ],
     Awaitable[Any],
 ]

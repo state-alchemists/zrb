@@ -38,16 +38,16 @@ tool_confirmation_var: ContextVar[AnyToolConfirmation] = ContextVar(
 )
 
 
-class _NonInteractiveUI:
-    """Minimal UI wrapper for non-interactive mode that implements UIProtocol."""
-
-    def __init__(self, print_fn: Callable[[str], Any]):
-        self._print_fn = print_fn
+class StdUI:
+    """Standard UI implementation of UIProtocol for terminal environments."""
 
     async def ask_user(self, prompt: str) -> str:
-        """Prompt user via CLI input in non-interactive mode."""
+        """Prompt user via CLI input."""
+        import sys
+
         if prompt:
-            self._print_fn(prompt)
+            sys.stderr.write(prompt)
+            sys.stderr.flush()
 
         # Use asyncio.to_thread to avoid blocking the event loop
         loop = asyncio.get_event_loop()
@@ -62,17 +62,22 @@ class _NonInteractiveUI:
         file: TextIO | None = None,
         flush: bool = False,
     ):
-        """Print output in non-interactive mode."""
-        content = sep.join(str(v) for v in values) + end
-        self._print_fn(content)
+        """Print output to stderr."""
+        import sys
+
+        # Always print to stderr as per requirements
+        print(*values, sep=sep, end=end, file=sys.stderr, flush=flush)
 
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False
     ) -> Any:
-        """Run interactive commands - not supported in non-interactive mode."""
-        raise NotImplementedError(
-            "Interactive commands are not supported in non-interactive mode"
-        )
+        """Run interactive commands using subprocess."""
+        import subprocess
+
+        def _run():
+            return subprocess.run(cmd, shell=shell)
+
+        return await asyncio.to_thread(_run)
 
 
 async def run_agent(
@@ -199,24 +204,30 @@ async def _process_deferred_requests(
 
     from pydantic_ai import DeferredToolResults, ToolApproved, ToolDenied
 
+    from zrb.llm.tool_call.handler import ToolCallHandler
+
     all_requests = (result_output.calls or []) + (result_output.approvals or [])
     if not all_requests:
         return None
 
     current_results = DeferredToolResults()
+    ui = StdUI()
 
     for call in all_requests:
         result = None
         handled = False
 
         if effective_tool_confirmation:
-            # It's a simple callback function (or object with __call__)
-            # If it returns None, it means "I don't know", so we fallback to CLI
-            res = effective_tool_confirmation(call)
-            if inspect.isawaitable(res):
-                result = await res
+            if isinstance(effective_tool_confirmation, ToolCallHandler):
+                result = await effective_tool_confirmation.handle(ui, call)
             else:
-                result = res
+                # It's a simple callback function (or object with __call__)
+                # If it returns None, it means "I don't know", so we fallback to CLI
+                res = effective_tool_confirmation(call)
+                if inspect.isawaitable(res):
+                    result = await res
+                else:
+                    result = res
 
             if result is not None:
                 handled = True
@@ -224,17 +235,9 @@ async def _process_deferred_requests(
         if handled:
             current_results.approvals[call.tool_call_id] = result
         else:
-            # CLI Fallback
-            prompt_text = f"Execute tool '{call.tool_name}' with args {call.args}?"
-            prompt_cli = f"\n[?] {prompt_text} (y/N) "
-
-            # We use asyncio.to_thread(input, ...) to avoid blocking the loop
-            user_input = await asyncio.to_thread(input, prompt_cli)
-            answer = user_input.strip().lower() in ("y", "yes")
-
-            if answer:
-                current_results.approvals[call.tool_call_id] = ToolApproved()
-            else:
-                current_results.approvals[call.tool_call_id] = ToolDenied("User denied")
+            # CLI Fallback using StdUI logic
+            handler = ToolCallHandler()  # Use default handler with no policies
+            result = await handler.handle(ui, call)
+            current_results.approvals[call.tool_call_id] = result
 
     return current_results

@@ -19,18 +19,20 @@ if TYPE_CHECKING:
 
 async def check_tool_policies(
     policies: list[ToolPolicy],
+    ui: UIProtocol,
     call: ToolCallPart,
 ) -> ToolApproved | ToolDenied | None:
-    async def _next_policy(call: ToolCallPart, index: int) -> Any:
+    async def _next_policy(ui: UIProtocol, call: ToolCallPart, index: int) -> Any:
         if index >= len(policies):
             return None
         policy = policies[index]
         return await policy(
+            ui,
             call,
-            lambda c: _next_policy(c, index + 1),
+            lambda u, c: _next_policy(u, c, index + 1),
         )
 
-    return await _next_policy(call, 0)
+    return await _next_policy(ui, call, 0)
 
 
 class ToolCallHandler:
@@ -68,7 +70,7 @@ class ToolCallHandler:
         call: ToolCallPart,
     ) -> ToolApproved | ToolDenied | None:
         # Tool Policies (Pre-confirmation)
-        policy_result = await self.check_policies(call)
+        policy_result = await self.check_policies(ui, call)
         if policy_result is not None:
             return policy_result
 
@@ -87,8 +89,18 @@ class ToolCallHandler:
                 index: int,
             ) -> Any:
                 if index >= len(self._response_handlers):
-                    # Default if no handler handles it
+                    # Default behavior: simple y/n check
+                    r = response.lower().strip()
+                    if r in ("y", "yes", "ok", "accept", "✅"):
+                        from pydantic_ai import ToolApproved
+
+                        return ToolApproved()
+                    if r in ("n", "no", "deny", "cancel", "🛑"):
+                        from pydantic_ai import ToolDenied
+
+                        return ToolDenied("User denied")
                     return None
+
                 handler = self._response_handlers[index]
                 return await handler(
                     ui,
@@ -104,9 +116,10 @@ class ToolCallHandler:
 
     async def check_policies(
         self,
+        ui: UIProtocol,
         call: ToolCallPart,
     ) -> ToolApproved | ToolDenied | None:
-        return await check_tool_policies(self._tool_policies, call)
+        return await check_tool_policies(self._tool_policies, ui, call)
 
     async def _get_confirm_user_message(
         self,

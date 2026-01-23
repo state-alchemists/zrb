@@ -360,6 +360,7 @@ class LLMChatTask(BaseTask):
         self, summarize_commands: list[str], interactive: bool
     ) -> LLMTask:
         """Create the inner LLMTask that handles the actual processing."""
+        from zrb.llm.agent.run_agent import StdUI
         from zrb.llm.tool_call import check_tool_policies
 
         # Determine the tool confirmation to use
@@ -377,7 +378,7 @@ class LLMChatTask(BaseTask):
         elif tool_policies:
             # Non-interactive: Use simple policy checker, no UI overhead
             async def _simple_policy_checker(call):
-                return await check_tool_policies(tool_policies, call)
+                return await check_tool_policies(tool_policies, StdUI(), call)
 
             tool_confirmation = _simple_policy_checker
 
