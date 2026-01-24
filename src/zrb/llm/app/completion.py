@@ -1,4 +1,5 @@
 import os
+import time
 from datetime import datetime
 from typing import Iterable
 
@@ -203,7 +204,6 @@ class InputCompleter(Completer):
             text.startswith("/")
             or text.startswith(".")
             or text.startswith("~")
-            or os.sep in text
         )
 
     def _get_path_completions(
@@ -241,6 +241,10 @@ class InputCompleter(Completer):
             yield Completion(f, start_position=-len(text))
 
     def _get_recursive_files(self, root: str = ".", limit: int = 5000) -> list[str]:
+        now = time.time()
+        if self._file_cache is not None and now - self._file_cache_time < 30:
+            return self._file_cache
+
         # Simple walker with exclusions
         paths = []
         # Check if current dir is hidden
@@ -267,6 +271,8 @@ class InputCompleter(Completer):
                 for d in dirnames:
                     paths.append(os.path.join(rel_dir, d) + os.sep)
                     if len(paths) >= limit:
+                        self._file_cache = paths
+                        self._file_cache_time = now
                         return paths
 
                 # Add files
@@ -275,7 +281,11 @@ class InputCompleter(Completer):
                         continue
                     paths.append(os.path.join(rel_dir, f))
                     if len(paths) >= limit:
+                        self._file_cache = paths
+                        self._file_cache_time = now
                         return paths
         except Exception:
             pass
+        self._file_cache = paths
+        self._file_cache_time = now
         return paths
