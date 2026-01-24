@@ -32,7 +32,7 @@ def create_claude_compatibility_prompt(skill_manager: SkillManager):
             )
 
         # 3. Available Claude Skills
-        skills_section = _get_skills_section(skill_manager)
+        skills_section = _get_skills_section(skill_manager, search_dirs)
         if skills_section:
             additional_context.append(skills_section)
 
@@ -78,14 +78,22 @@ def _get_combined_content(filename: str, search_dirs: list[Path]) -> str:
     return "\n\n".join(contents)
 
 
-def _get_skills_section(skill_manager: SkillManager) -> str | None:
+def _get_skills_section(
+    skill_manager: SkillManager, search_dirs: list[Path]
+) -> str | None:
+    # Adjust search_dirs for skills (append /skills to each)
+    skill_search_dirs = [d / "skills" for d in search_dirs]
+    # Also include the root_dir (CWD) for legacy zrb skills
+    skill_search_dirs.append(Path.cwd())
+
+    skill_manager._search_dirs = skill_search_dirs
     skills = skill_manager.scan()
     if not skills:
         return None
 
     skills_context = ["Use 'activate_skill' to load instructions for a skill."]
     for skill in skills:
-        skills_context.append(f"- {skill.name}")
+        skills_context.append(f"- {skill.name}: {skill.description}")
 
     return make_markdown_section(
         "Available Skills (Claude Skills)", "\n".join(skills_context)
