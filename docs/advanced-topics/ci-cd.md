@@ -8,7 +8,7 @@ The key principle is to leverage the official Zrb Docker image (`stalchmst/zrb`)
 
 ## Using the Official Zrb Docker Image
 
-The recommended way to run Zrb commands in a CI/CD environment is by using the official Docker image: `stalchmst/zrb`. You should specify a version tag (e.g., `stalchmst/zrb:1.5.3`) for reproducible builds, rather than using `latest`.
+The recommended way to run Zrb commands in a CI/CD environment is by using the official Docker image: `stalchmst/zrb`. You should specify a version tag (e.g., `stalchmst/zrb:2.0.0`) for reproducible builds, rather than using `latest`.
 
 Find available tags on [Docker Hub](https://hub.docker.com/r/stalchmst/zrb/tags).
 
@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       # Use a specific version for consistency
-      image: stalchmst/zrb:1.21.9
+      image: stalchmst/zrb:2.0.0
 
     steps:
       - name: Check out repository code
@@ -99,7 +99,7 @@ This example sets up a simple pipeline with stages for testing and linting.
 
 ```yaml
 # Use the official Zrb Docker image
-image: stalchmst/zrb:1.5.3
+image: stalchmst/zrb:2.0.0
 
 stages:
   - setup
@@ -164,7 +164,7 @@ run_linting:
 
 **Explanation:**
 
-*   `image`: Specifies the default Docker image for all jobs (`stalchmst/zrb:1.5.3`).
+*   `image`: Specifies the default Docker image for all jobs (`stalchmst/zrb:2.0.0`).
 *   `stages`: Defines the order of execution for jobs. Jobs in the same stage can run in parallel.
 *   `variables`: Defines CI/CD variables. Use GitLab's [CI/CD Variables](https://docs.gitlab.com/ee/ci/variables/) settings for secrets (mark them as "Protected" and "Masked" where appropriate).
 *   `before_script`: Commands executed before each job.
@@ -184,7 +184,7 @@ Bitbucket Pipelines uses a `bitbucket-pipelines.yml` file in the root of your re
 This example sets up a simple pipeline with steps for testing and linting using the Zrb Docker image.
 
 ```yaml
-image: stalchmst/zrb:1.5.3
+image: stalchmst/zrb:2.0.0
 
 pipelines:
   default:
@@ -226,7 +226,7 @@ pipelines:
 
 **Explanation:**
 
-- `image`: Specifies the Docker image to use for all steps (`stalchmst/zrb:1.5.3`).
+- `image`: Specifies the Docker image to use for all steps (`stalchmst/zrb:2.0.0`).
 - `pipelines.default`: Defines the default pipeline that runs on every push.
 - `step`: Each step represents a task in the pipeline.
   - `name`: A descriptive name for the step.
@@ -236,4 +236,4 @@ pipelines:
 
 ## Choosing the Right Zrb Image Version
 
-Always pin your CI/CD pipeline to a specific version of the `stalchmst/zrb` image (e.g., `stalchmst/zrb:1.5.3`). This ensures that your builds are reproducible and won't break unexpectedly if a new `latest` version introduces changes. Update the version tag deliberately when you are ready to adopt newer Zrb features or fixes.
+Always pin your CI/CD pipeline to a specific version of the `stalchmst/zrb` image (e.g., `stalchmst/zrb:2.0.0`). This ensures that your builds are reproducible and won't break unexpectedly if a new `latest` version introduces changes. Update the version tag deliberately when you are ready to adopt newer Zrb features or fixes.

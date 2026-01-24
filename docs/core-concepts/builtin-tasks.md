@@ -49,6 +49,12 @@ Tasks for working with JSON Web Tokens (JWT).
 - `decode`: Decodes a JWT.
 - `validate`: Validates a JWT.
 
+### `llm`
+
+Tasks for interacting with Large Language Models.
+
+- `chat`: 🤖 Interactive AI Assistant. Supports TUI, file attachments, session management, and more.
+
 ### `md5`
 
 Tasks for calculating and validating MD5 hashes.
@@ -63,12 +69,25 @@ Tasks for Python development.
 
 - `format`: Formats Python code using `isort` and `black`.
 
+### `project`
+
+Tasks for managing Zrb projects and applications.
+
+- `add fastapp`: Adds a FastAPI-based application structure to your project.
+
 ### `random`
 
 Tasks for generating random data.
 
 - `throw`: Simulates throwing dice.
 - `shuffle`: Shuffles a list of values.
+
+### `shell`
+
+Tasks for managing your shell environment.
+
+- `autocomplete bash`: Generates Bash autocompletion scripts.
+- `autocomplete zsh`: Generates Zsh autocompletion scripts.
 
 ### `todo`
 
@@ -96,3 +115,10 @@ Tasks for generating and validating UUIDs.
 - `v3 validate`: Validates a UUID v3.
 - `v4 validate`: Validates a UUID v4.
 - `v5 validate`: Validates a UUID v5.
+
+### `ulid`
+
+Tasks for working with ULIDs (Universally Unique Lexicographically Sortable Identifiers).
+
+- `generate`: Generates a new ULID.
+- `validate`: Validates a ULID string.

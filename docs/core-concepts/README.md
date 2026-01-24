@@ -74,6 +74,9 @@ A **Session** represents a single execution of a task workflow. During a session
 ### [XCom (Cross-Communication)](./session-and-context/xcom.md)
 **XCom** is how tasks talk to each other. When one task produces a result that another task needs, XCom is the mechanism used to pass that data along, enabling complex, dependent workflows.
 
+### [LLM Assistant (Pollux)](./task/types/llm-task.md)
+Zrb features a powerful, stateful AI assistant that can execute tools, manage project-specific context, and help you automate complex engineering tasks via natural language.
+
 ### [Built-in Tasks](./builtin-tasks.md)
 Zrb comes with a rich library of pre-built tasks for common operations like managing Git repositories, making HTTP requests, generating random data, and more. These save you time and effort by providing ready-to-use solutions.
 

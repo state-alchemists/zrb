@@ -117,15 +117,17 @@ ARASAKA_JARGON = "Protecting the Corporate Net"
 def run_arasaka_cli():
     # --- Configure Zrb Environment ---
     # Override default Zrb configurations using environment variables.
-    # These environment variables are read by Zrb's core configuration (CFG).
+    # We use _ZRB_ENV_PREFIX to change the prefix for all other settings.
     os.environ["_ZRB_CUSTOM_VERSION"] = VERSION
     os.environ["_ZRB_ENV_PREFIX"] = "ARASAKA"
-    os.environ["ZRB_BANNER"] = ARASAKA_BANNER
-    os.environ["ZRB_WEB_TITLE"] = "Arasaka NetWatch"
-    os.environ["ZRB_WEB_JARGON"] = ARASAKA_JARGON
-    os.environ["ZRB_ROOT_GROUP_NAME"] = "arasaka" # Set the root command name
-    os.environ["ZRB_ROOT_GROUP_DESCRIPTION"] = ARASAKA_JARGON
-    os.environ["ZRB_INIT_FILE_NAME"] = "arasaka_init.py" # Specify your init file name
+    
+    # Now all other settings must use the ARASAKA_ prefix
+    os.environ["ARASAKA_BANNER"] = ARASAKA_BANNER
+    os.environ["ARASAKA_WEB_TITLE"] = "Arasaka NetWatch"
+    os.environ["ARASAKA_WEB_JARGON"] = ARASAKA_JARGON
+    os.environ["ARASAKA_ROOT_GROUP_NAME"] = "arasaka" # Set the root command name
+    os.environ["ARASAKA_ROOT_GROUP_DESCRIPTION"] = ARASAKA_JARGON
+    os.environ["ARASAKA_INIT_FILE_NAME"] = "arasaka_init.py" # Specify your init file name
 
     # --- Run the Zrb CLI ---
     # Import and run the main Zrb CLI entry point.

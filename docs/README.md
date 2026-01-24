@@ -171,6 +171,7 @@ Ready to dive deeper? Choose your path:
 *   [**Advanced Topics**](./advanced-topics/README.md)
     *   [CI/CD Integration](./advanced-topics/ci-cd.md)
     *   [Creating a Custom Zrb-Powered CLI](./advanced-topics/creating-custom-zrb-powered-cli.md)
+    *   [Customizing the AI Assistant](./advanced-topics/customizing-ai-assistant.md)
     *   [Upgrading Guide](./advanced-topics/upgrading-guide-0-to-1.md)
     *   [Maintainer Guide](./advanced-topics/maintainer-guide.md)
 *   [**Changelog**](./changelog.md)

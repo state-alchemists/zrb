@@ -61,14 +61,14 @@ Zrb provides container images for sandboxed and portable execution. This is idea
 
 -   **Standard Image**: For general-purpose automation.
     ```bash
-    docker run -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:1.8.1 zrb
+    docker run -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:2.0.0 zrb
     ```
 -   **DIND (Docker-in-Docker) Image**: For tasks that need to execute Docker commands.
     ```bash
     docker run \
         -v ${HOME}:/zrb-home \
         -v /var/run/docker.sock:/var/run/docker.sock \
-        -it --rm stalchmst/zrb:1.8.1-dind docker ps
+        -it --rm stalchmst/zrb:2.0.0-dind docker ps
     ```
 
 ### Running Zrb on Android

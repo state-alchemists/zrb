@@ -41,13 +41,13 @@ llm_limiter.throttle_check_interval = 0.1
 ### `max_tokens_per_request`
 - **Description**: The maximum number of tokens allowed per individual LLM request.
 - **Type**: `int`
-- **Default**: `16000`
+- **Default**: `120000`
 - **Environment Variable**: `ZRB_LLM_MAX_TOKENS_PER_REQUEST`
 
 ### `throttle_check_interval`
 - **Description**: The interval (in seconds) to check for rate limit clearance.
 - **Type**: `float`
-- **Default**: `0.1`
+- **Default**: `1.0`
 - **Environment Variable**: `ZRB_LLM_THROTTLE_SLEEP`
 
 ### `use_tiktoken`

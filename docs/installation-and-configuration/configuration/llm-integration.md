@@ -45,6 +45,17 @@ These variables control the verbosity of the tool execution logs in the CLI:
 - **`ZRB_LLM_SHOW_TOOL_CALL_DETAIL`**: Set to `1` or `true` to show the arguments being prepared for a tool call (default: `0`).
 - **`ZRB_LLM_SHOW_TOOL_CALL_RESULT`**: Set to `1` or `true` to show the result returned by a tool (default: `0`).
 
+### Skill & Instruction Discovery
+
+`zrb` automatically scans for instructions and "skills" in the following locations:
+
+1.  **Global Skills**: `~/.claude/skills/` (Looks for `SKILL.md` files).
+2.  **Project Skills**: `.claude/skills/` in any directory from the filesystem root down to the current working directory.
+3.  **Project Instructions**: `CLAUDE.md` or `AGENTS.md` in any directory from root to current directory.
+4.  **Local Skills**: Any `SKILL.md` or `*.skill.md` file found recursively in the current project directory.
+
+Use the `activate_skill` tool in chat to load these instructions.
+
 ### Rate Limiting and Token Management
 
 These variables help you manage costs and stay within provider rate limits:
@@ -68,6 +79,15 @@ For Retrieval-Augmented Generation (RAG), use the following:
 - **`ZRB_RAG_CHUNK_SIZE`**: Size of text chunks for indexing (default: `1024`).
 - **`ZRB_RAG_OVERLAP`**: Overlap between chunks (default: `128`).
 - **`ZRB_RAG_MAX_RESULT_COUNT`**: Number of results to retrieve (default: `5`).
+
+### Search Engine Configuration
+
+These variables control the internet search capabilities of the LLM:
+
+- **`ZRB_SEARCH_INTERNET_METHOD`**: The search engine to use (`serpapi`, `brave`, or `searxng`). Default: `serpapi`.
+- **`SERPAPI_KEY`**: API key for Google Search via SerpAPI.
+- **`BRAVE_API_KEY`**: API key for Brave Search.
+- **`ZRB_SEARXNG_BASE_URL`**: Base URL for a self-hosted SearXNG instance.
 
 ### Summarization and Context
 

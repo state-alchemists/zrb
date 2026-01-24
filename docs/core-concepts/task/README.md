@@ -42,15 +42,6 @@ class MyTask(Task):
 # ...then instantiate and register it
 my_task = MyTask(name="my-task", description="A simple task")
 cli.add_task(my_task)
-
-# Or, use a decorator for a more concise approach
-@cli.add_task
-class AnotherTask(Task):
-    name = "another-task"
-    description = "Another simple task"
-    
-    def run(self, ctx):
-        print("Hello from another task!")
 ```
 
 **When to use**: Ideal for complex logic, when you want to use inheritance, or to create reusable task templates. It's a more organized, object-oriented approach.

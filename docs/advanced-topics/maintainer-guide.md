@@ -191,7 +191,7 @@ If you find that the agent is struggling with certain types of requests, you can
     ```bash
     zrb llm chat "Read instruction in llm-challenges/TASK.md, do meticulously, and improve zrb's prompt component and docstring until all challenges pass successfully"
     ```
-2.  **Monitor the progress**: The agent will attempt to run the challenges, identify failures, and modify its own prompts in `src/zrb/config/default_prompt/` or tool docstrings in `src/zrb/builtin/llm/tool/`.
+2.  **Monitor the progress**: The agent will attempt to run the challenges, identify failures, and modify its own prompts in `src/zrb/llm/prompt/markdown/` or tool docstrings in `src/zrb/llm/tool/`.
 3.  **Verify**: Ensure all challenges pass and that the changes are idiomatic and maintainable.
 
 Refer to `llm-challenges/TASK.md` for more details on the challenge structure and the specific files involved in the improvement loop.

@@ -13,7 +13,7 @@ Many applications (including Zrb) can be configured using environment variables.
 Furthermore, Zrb also allows you to override some configurations with a special singletons.
 
 - [LLM Integration](./llm-integration.md): Integration with LLM
-- [LLM Context File (`ZRB.md`)](../../technical-specs/llm-context.md): Detailed guide on defining Workflows, Contexts, and Notes.
+- [LLM Context File (`notes.json`)](../../technical-specs/llm-context.md): Detailed guide on managing persistent, location-aware Notes and Context.
 - [LLM Rate Limiter Config](./llm-rate-limiter.md): Configuring LLM rate limiting.
 - [Web Auth Config](./web-auth-config.md): Configuring Zrb Web Server authentication programmatically.
 
@@ -272,6 +272,34 @@ The following environment variables are used as LLM configuration default proper
     * Default: None
     * Possible values: Any valid API key for the chosen provider
 
+* `ZRB_LLM_ASSISTANT_NAME`: Name of the AI assistant.
+    * Default: Root group name (e.g., `zrb`)
+    * Possible values: Any string
+
+* `ZRB_LLM_ASSISTANT_ASCII_ART`: ASCII art style for the assistant.
+    * Default: `default`
+    * Possible values: `default`, `none`, or any custom ASCII art string
+
+* `ZRB_LLM_ASSISTANT_JARGON`: Tagline/jargon for the AI assistant.
+    * Default: Root group description
+    * Possible values: Any string
+
+* `ZRB_LLM_HISTORY_DIR`: Directory to store conversation history.
+    * Default: `~/.zrb/llm-history`
+    * Possible values: Any valid directory path
+
+* `ZRB_LLM_NOTE_FILE`: Path to the LLM notes JSON file.
+    * Default: `~/.zrb/notes.json`
+    * Possible values: Any valid file path
+
+* `ZRB_LLM_PROMPT_DIR`: Directory for custom LLM prompts.
+    * Default: `.zrb/llm/prompt`
+    * Possible values: Any valid directory path
+
+* `ZRB_MCP_CONFIG_FILE`: Path to the MCP configuration file.
+    * Default: `mcp-config.json`
+    * Possible values: Any valid file path
+
 * `ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD`: Token threshold for repository analysis extraction.
     * Default: 40% of the model's maximum context window.
     * Possible values: Any positive integer
@@ -311,6 +339,54 @@ The following environment variables are used as LLM configuration default proper
 * `ZRB_LLM_THROTTLE_SLEEP`: Number of seconds to sleep when throttling is required.
     * Default: `1.0`
     * Possible values: Any positive float
+
+* `ZRB_LLM_HISTORY_SUMMARIZATION_WINDOW`: Number of messages to keep in verbatim before summarizing.
+    * Default: `5`
+    * Possible values: Any positive integer
+
+* `ZRB_LLM_SHOW_TOOL_CALL_DETAIL`: Whether to show tool call parameters in real-time.
+    * Default: `off`
+    * Possible values: `on`, `off`
+
+* `ZRB_LLM_SHOW_TOOL_CALL_RESULT`: Whether to show tool call results.
+    * Default: `off`
+    * Possible values: `on`, `off`
+
+### LLM UI Configuration (Pollux)
+
+These variables control the appearance and behavior of the LLM chat interface.
+
+* `ZRB_LLM_UI_STYLE_TITLE_BAR`: Color/Style for the title bar.
+* `ZRB_LLM_UI_STYLE_INFO_BAR`: Color/Style for the info bar.
+* `ZRB_LLM_UI_STYLE_FRAME`: Color/Style for the UI frames.
+* `ZRB_LLM_UI_STYLE_FRAME_LABEL`: Color/Style for frame labels.
+* `ZRB_LLM_UI_STYLE_INPUT_FRAME`: Color/Style for the input frame.
+* `ZRB_LLM_UI_STYLE_THINKING`: Style for the thinking indicator.
+* `ZRB_LLM_UI_STYLE_FAINT`: Style for faint text.
+* `ZRB_LLM_UI_STYLE_OUTPUT_FIELD`: Color/Style for the output field.
+* `ZRB_LLM_UI_STYLE_INPUT_FIELD`: Color/Style for the input field.
+* `ZRB_LLM_UI_STYLE_TEXT`: Default text color/style.
+* `ZRB_LLM_UI_STYLE_STATUS`: Style for status indicators.
+* `ZRB_LLM_UI_STYLE_BOTTOM_TOOLBAR`: Color/Style for the bottom toolbar.
+
+* `ZRB_LLM_UI_COMMAND_SUMMARIZE`: Commands to trigger history summarization.
+    * Default: `/compress, /compact`
+* `ZRB_LLM_UI_COMMAND_ATTACH`: Commands to attach files.
+    * Default: `/attach`
+* `ZRB_LLM_UI_COMMAND_EXIT`: Commands to exit the chat.
+    * Default: `/q, /bye, /quit, /exit`
+* `ZRB_LLM_UI_COMMAND_INFO`: Commands to show help info.
+    * Default: `/info, /help`
+* `ZRB_LLM_UI_COMMAND_SAVE`: Commands to save the session.
+    * Default: `/save`
+* `ZRB_LLM_UI_COMMAND_LOAD`: Commands to load a session.
+    * Default: `/load`
+* `ZRB_LLM_UI_COMMAND_YOLO_TOGGLE`: Commands to toggle YOLO mode.
+    * Default: `/yolo`
+* `ZRB_LLM_UI_COMMAND_REDIRECT_OUTPUT`: Commands to redirect last response to file.
+    * Default: `>, /redirect`
+* `ZRB_LLM_UI_COMMAND_EXEC`: Commands to execute a shell command.
+    * Default: `!, /exec`
 
 ### RAG (Retrieval-Augmented Generation) Configuration
 
