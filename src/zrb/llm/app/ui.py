@@ -4,6 +4,7 @@ import asyncio
 import inspect
 import os
 import re
+import shlex
 import subprocess
 from collections.abc import AsyncIterable, Callable
 from datetime import datetime
@@ -24,6 +25,7 @@ from zrb.llm.app.keybinding import create_output_keybindings
 from zrb.llm.app.layout import create_input_field, create_layout, create_output_field
 from zrb.llm.app.redirection import GlobalStreamCapture
 from zrb.llm.app.style import create_style
+from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.tool_call import (
@@ -75,6 +77,7 @@ class UI:
         redirect_output_commands: list[str] = [],
         yolo_toggle_commands: list[str] = [],
         exec_commands: list[str] = [],
+        custom_commands: list[AnyCustomCommand] = [],
         model: "Model | str | None" = None,
     ):
         self._is_thinking = False
@@ -101,6 +104,7 @@ class UI:
         self._redirect_output_commands = redirect_output_commands
         self._yolo_toggle_commands = yolo_toggle_commands
         self._exec_commands = exec_commands
+        self._custom_commands = custom_commands
         self._trigger_tasks: list[asyncio.Task] = []
         self._last_result_data: str | None = None
         # System Info
@@ -133,6 +137,7 @@ class UI:
             redirect_output_commands=self._redirect_output_commands,
             summarize_commands=self._summarize_commands,
             exec_commands=self._exec_commands,
+            custom_commands=self._custom_commands,
         )
         # Output Area (Read-only chat history)
         help_text = self._get_help_text()
@@ -387,6 +392,11 @@ class UI:
         add_cmd_help(
             self._exec_commands, "Execute shell command (usage: {cmd} <command>)"
         )
+        for custom_cmd in self._custom_commands:
+            usage = f"{custom_cmd.command} " + " ".join(
+                [f"<{a}>" for a in custom_cmd.args]
+            )
+            help_lines.append(f"  {custom_cmd.command:<10} : {usage}")
 
         return "\n".join(help_lines) + "\n"
 
@@ -472,6 +482,8 @@ class UI:
                 return
             if self._handle_exec_command(event):
                 return
+            if self._handle_custom_command(event):
+                return
 
             # If we are thinking, ignore input
             if self._is_thinking:
@@ -502,6 +514,47 @@ class UI:
                 self._running_llm_task = asyncio.create_task(
                     self._run_shell_command(shell_cmd)
                 )
+                return True
+        return False
+
+    def _handle_custom_command(self, event) -> bool:
+        buff = event.current_buffer
+        text = buff.text.strip()
+        if not text:
+            return False
+
+        try:
+            parts = shlex.split(text)
+        except Exception:
+            return False
+
+        if not parts:
+            return False
+
+        cmd_name = parts[0]
+        for custom_cmd in self._custom_commands:
+            if cmd_name == custom_cmd.command:
+                provided_args = parts[1:]
+                if len(provided_args) < len(custom_cmd.args):
+                    expected = f"{custom_cmd.command} " + " ".join(
+                        [f"<{a}>" for a in custom_cmd.args]
+                    )
+                    self.append_to_output(
+                        stylize_faint(
+                            f"\n  ⚠️ Missing arguments for {custom_cmd.command}. "
+                            f"Expected: {expected}\n"
+                        )
+                    )
+                    return True
+
+                # Extract arguments
+                args_dict = {
+                    custom_cmd.args[i]: provided_args[i]
+                    for i in range(len(custom_cmd.args))
+                }
+                prompt = custom_cmd.get_prompt(args_dict)
+                buff.reset()
+                self._submit_user_message(self._llm_task, prompt)
                 return True
         return False
 

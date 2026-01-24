@@ -9,6 +9,7 @@ from prompt_toolkit.lexers import Lexer
 from prompt_toolkit.widgets import Frame, TextArea
 
 from zrb.llm.app.completion import InputCompleter
+from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 
 
@@ -22,6 +23,7 @@ def create_input_field(
     redirect_output_commands: list[str],
     summarize_commands: list[str],
     exec_commands: list[str],
+    custom_commands: list[AnyCustomCommand],
 ) -> TextArea:
     return TextArea(
         height=4,
@@ -38,6 +40,7 @@ def create_input_field(
             redirect_output_commands=redirect_output_commands,
             summarize_commands=summarize_commands,
             exec_commands=exec_commands,
+            custom_commands=custom_commands,
         ),
         complete_while_typing=True,
         focus_on_click=True,

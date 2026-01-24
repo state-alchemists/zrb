@@ -17,6 +17,7 @@ from zrb.llm.agent import AnyToolConfirmation
 from zrb.llm.config.config import LLMConfig
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.prompt.manager import PromptManager
@@ -95,6 +96,7 @@ class LLMChatTask(BaseTask):
         ui_redirect_output_commands: list[str] | None = None,
         ui_yolo_toggle_commands: list[str] | None = None,
         ui_exec_commands: list[str] | None = None,
+        custom_commands: list[AnyCustomCommand] | None = None,
         ui_greeting: StrAttr | None = None,
         render_ui_greeting: bool = True,
         ui_assistant_name: StrAttr | None = None,
@@ -199,6 +201,7 @@ class LLMChatTask(BaseTask):
         self._ui_exec_commands = (
             ui_exec_commands if ui_exec_commands is not None else []
         )
+        self._custom_commands = custom_commands if custom_commands is not None else []
         self._ui_greeting = ui_greeting
         self._render_ui_greeting = render_ui_greeting
         self._ui_assistant_name = ui_assistant_name
@@ -264,17 +267,17 @@ class LLMChatTask(BaseTask):
     def prepend_argument_formatter(self, *formatter: ArgumentFormatter):
         self._argument_formatters = list(formatter) + self._argument_formatters
 
-    def add_trigger(
-        self,
-        *trigger: Callable[[], AsyncIterable[Any]],
-    ):
+    def add_trigger(self, *trigger: Callable[[], AsyncIterable[Any]]):
         self.append_trigger(*trigger)
 
-    def append_trigger(
-        self,
-        *trigger: Callable[[], AsyncIterable[Any]],
-    ):
+    def append_trigger(self, *trigger: Callable[[], AsyncIterable[Any]]):
         self._triggers += trigger
+
+    def add_custom_command(self, *custom_command: AnyCustomCommand):
+        self.append_custom_command(*custom_command)
+
+    def append_custom_command(self, *custom_command: AnyCustomCommand):
+        self._custom_commands += custom_command
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
         # 1. Resolve inputs/attributes
@@ -503,6 +506,7 @@ class LLMChatTask(BaseTask):
                 yolo_toggle_commands=ui_commands["yolo_toggle"],
                 redirect_output_commands=ui_commands["redirect_output"],
                 exec_commands=ui_commands["exec"],
+                custom_commands=self._custom_commands,
                 model=self._get_model(ctx),
             )
             await ui.run_async()
