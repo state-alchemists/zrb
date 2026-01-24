@@ -233,11 +233,12 @@ class InputCompleter(Completer):
 
                 # Attach Command: Suggest Files
                 if self._is_command(cmd, self._attach_commands):
-                    for c in self._get_file_completions(
-                        arg_prefix, complete_event, only_files=True
-                    ):
-                        c.display_meta = "File Path"
-                        yield c
+                    yield from self._get_file_completions(
+                        arg_prefix,
+                        complete_event,
+                        only_files=True,
+                        display_meta="File Path",
+                    )
                     return
 
                 # Other commands (Exit, Info, Summarize) need no completion
@@ -246,11 +247,12 @@ class InputCompleter(Completer):
         # 2. File Completion (@)
         if word.startswith("@"):
             path_part = word[1:]
-            for c in self._get_file_completions(
-                path_part, complete_event, only_files=False
-            ):
-                c.display_meta = "File Path"
-                yield c
+            yield from self._get_file_completions(
+                path_part,
+                complete_event,
+                only_files=False,
+                display_meta="File Path",
+            )
 
     def _get_cmd_history(self) -> list[str]:
         history_files = [
@@ -288,30 +290,44 @@ class InputCompleter(Completer):
         return cmd.lower() in [c.lower() for c in cmd_list]
 
     def _get_file_completions(
-        self, text: str, complete_event: CompleteEvent, only_files: bool = False
+        self,
+        text: str,
+        complete_event: CompleteEvent,
+        only_files: bool = False,
+        display_meta: str | None = None,
     ) -> Iterable[Completion]:
         # Logic:
         # - If text indicates path traversal (/, ., ~), use PathCompleter
         # - Else, check file count. If < 5000, use Fuzzy. Else use PathCompleter.
 
         if self._is_path_navigation(text):
-            yield from self._get_path_completions(text, complete_event, only_files)
+            yield from self._get_path_completions(
+                text, complete_event, only_files, display_meta=display_meta
+            )
             return
 
         # Count files (cached strategy could be added here if needed)
         files = self._get_recursive_files(limit=5000)
         if len(files) < 5000:
             # Fuzzy Match
-            yield from self._get_fuzzy_completions(text, files, only_files)
+            yield from self._get_fuzzy_completions(
+                text, files, only_files, display_meta=display_meta
+            )
         else:
             # Fallback to PathCompleter for large repos
-            yield from self._get_path_completions(text, complete_event, only_files)
+            yield from self._get_path_completions(
+                text, complete_event, only_files, display_meta=display_meta
+            )
 
     def _is_path_navigation(self, text: str) -> bool:
         return text.startswith("/") or text.startswith(".") or text.startswith("~")
 
     def _get_path_completions(
-        self, text: str, complete_event: CompleteEvent, only_files: bool
+        self,
+        text: str,
+        complete_event: CompleteEvent,
+        only_files: bool,
+        display_meta: str | None = None,
     ) -> Iterable[Completion]:
         # PathCompleter needs a document where text represents the path
         fake_document = Document(text=text, cursor_position=len(text))
@@ -324,10 +340,24 @@ class InputCompleter(Completer):
                 # A simple heuristic: if it ends with path separator, it's a dir.
                 if c.text.endswith(os.sep):
                     continue
-            yield c
+            if display_meta is not None:
+                yield Completion(
+                    text=c.text,
+                    start_position=c.start_position,
+                    display=c.display,
+                    display_meta=display_meta,
+                    style=c.style,
+                    selected_style=c.selected_style,
+                )
+            else:
+                yield c
 
     def _get_fuzzy_completions(
-        self, text: str, files: list[str], only_files: bool
+        self,
+        text: str,
+        files: list[str],
+        only_files: bool,
+        display_meta: str | None = None,
     ) -> Iterable[Completion]:
         matches = []
         for f in files:
@@ -342,7 +372,7 @@ class InputCompleter(Completer):
 
         # Return top 20
         for _, f in matches[:20]:
-            yield Completion(f, start_position=-len(text))
+            yield Completion(f, start_position=-len(text), display_meta=display_meta)
 
     def _get_recursive_files(self, root: str = ".", limit: int = 5000) -> list[str]:
         now = time.time()
