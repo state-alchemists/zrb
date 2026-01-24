@@ -38,6 +38,8 @@ if TYPE_CHECKING:
     from pydantic_ai.tools import ToolFuncEither
     from pydantic_ai.toolsets import AbstractToolset
 
+    from zrb.llm.tool_call.ui_protocol import UIProtocol
+
 
 class LLMTask(BaseTask):
 
@@ -77,6 +79,7 @@ class LLMTask(BaseTask):
         render_conversation_name: bool = True,
         history_manager: AnyHistoryManager | None = None,
         tool_confirmation: AnyToolConfirmation = None,
+        ui: UIProtocol | None = None,
         yolo: BoolAttr = False,
         summarize_command: list[str] = [],
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
@@ -139,6 +142,7 @@ class LLMTask(BaseTask):
             else history_manager
         )
         self._tool_confirmation = tool_confirmation
+        self._ui = ui
         self._yolo = yolo
         self._summarize_command = summarize_command
 
@@ -147,6 +151,17 @@ class LLMTask(BaseTask):
         if self._prompt_manager is None:
             raise ValueError(f"Task {self.name} doesn't have prompt_manager")
         return self._prompt_manager
+
+    def set_ui(self, ui: UIProtocol | None):
+        self._ui = ui
+
+    @property
+    def tool_confirmation(self) -> AnyToolConfirmation:
+        return self._tool_confirmation
+
+    @tool_confirmation.setter
+    def tool_confirmation(self, value: AnyToolConfirmation):
+        self._tool_confirmation = value
 
     def add_toolset(self, *toolset: AbstractToolset):
         self.append_toolset(*toolset)
@@ -211,6 +226,7 @@ class LLMTask(BaseTask):
             print_fn=ctx.print,
             event_handler=handle_event,
             tool_confirmation=self._tool_confirmation,
+            ui=self._ui,
         )
 
         self._history_manager.update(conversation_name, new_history)

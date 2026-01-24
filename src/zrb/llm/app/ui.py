@@ -766,12 +766,10 @@ class UI:
 
     async def _stream_ai_response(
         self,
-        llm_task: AnyTask,
+        llm_task: LLMTask,
         user_message: str,
         attachments: list[UserContent] = [],
     ):
-        from zrb.llm.agent import tool_confirmation_var
-
         self._is_thinking = True
         get_app().invalidate()  # Update status bar
         try:
@@ -783,13 +781,10 @@ class UI:
             # Run the task with stdout/stderr redirected to UI
             self.append_to_output("\n  🔢 Streaming response...\n")
 
-            # Set context var for tool confirmation
-            token = tool_confirmation_var.set(self._confirm_tool_execution)
-            result_data = None
-            try:
-                result_data = await llm_task.async_run(session)
-            finally:
-                tool_confirmation_var.reset(token)
+            # Set UI for tool confirmation
+            llm_task.set_ui(self)
+            llm_task.tool_confirmation = self._confirm_tool_execution
+            result_data = await llm_task.async_run(session)
 
             # Check for final text output
             if result_data is not None:

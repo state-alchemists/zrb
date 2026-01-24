@@ -360,11 +360,12 @@ class LLMChatTask(BaseTask):
         self, summarize_commands: list[str], interactive: bool
     ) -> LLMTask:
         """Create the inner LLMTask that handles the actual processing."""
-        from zrb.llm.agent.run_agent import StdUI
+        from zrb.llm.agent.std_ui import StdUI
         from zrb.llm.tool_call import check_tool_policies
 
-        # Determine the tool confirmation to use
+        # Determine the tool confirmation and ui to use
         tool_confirmation = self._tool_confirmation
+        ui = None
 
         # If we have tool policies, response handlers, or argument formatters,
         # create a ToolCallHandler (or simple policy checker) that wraps existing config
@@ -373,12 +374,15 @@ class LLMChatTask(BaseTask):
         argument_formatters = self._argument_formatters if interactive else []
 
         if interactive:
-            # Interactive mode: Let the UI handle everything via context variable
+            # Interactive mode: Let the UI handle everything
             tool_confirmation = None
+            ui = None
         elif tool_policies:
-            # Non-interactive: Use simple policy checker, no UI overhead
+            # Non-interactive: Use simple policy checker, with StdUI
+            ui = StdUI()
+
             async def _simple_policy_checker(call):
-                return await check_tool_policies(tool_policies, StdUI(), call)
+                return await check_tool_policies(tool_policies, ui, call)
 
             tool_confirmation = _simple_policy_checker
 
@@ -407,6 +411,7 @@ class LLMChatTask(BaseTask):
             model_settings=self._model_settings,
             history_manager=self._history_manager,
             tool_confirmation=tool_confirmation,
+            ui=ui,
             message="{ctx.input.message}",
             conversation_name="{ctx.input.session}",
             yolo="{ctx.input.yolo}",
