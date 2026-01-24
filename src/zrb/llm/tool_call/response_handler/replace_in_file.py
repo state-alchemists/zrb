@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from pydantic_ai import ToolCallPart
 
 
-async def edit_replace_with_text_editor(
+async def replace_in_file_response_handler(
     ui: UIProtocol,
     call: "ToolCallPart",
     response: str,

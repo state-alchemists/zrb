@@ -31,7 +31,7 @@ from zrb.llm.tool_call import (
     ResponseHandler,
     ToolCallHandler,
     ToolPolicy,
-    default_confirm_tool_call,
+    default_response_handler,
 )
 from zrb.session.any_session import AnySession
 from zrb.session.session import Session
@@ -113,7 +113,7 @@ class UI:
         self._tool_call_handler = ToolCallHandler(
             tool_policies=tool_policies,
             argument_formatters=argument_formatters,
-            response_handlers=response_handlers + [default_confirm_tool_call],
+            response_handlers=response_handlers + [default_response_handler],
         )
         # Confirmation state (Used by ask_user and keybindings)
         self._waiting_for_confirmation = False

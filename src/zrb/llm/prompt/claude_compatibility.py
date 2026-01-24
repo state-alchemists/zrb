@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import Callable
 
 from zrb.context.any_context import AnyContext
 from zrb.llm.skill.manager import SkillManager
@@ -42,8 +42,8 @@ def create_claude_compatibility_prompt(skill_manager: SkillManager):
     return claude_compatibility
 
 
-def _get_search_directories() -> List[Path]:
-    search_dirs: List[Path] = []
+def _get_search_directories() -> list[Path]:
+    search_dirs: list[Path] = []
     # 1. User global config (~/.claude)
     try:
         home = Path.home()
@@ -63,7 +63,7 @@ def _get_search_directories() -> List[Path]:
     return search_dirs
 
 
-def _get_combined_content(filename: str, search_dirs: List[Path]) -> str:
+def _get_combined_content(filename: str, search_dirs: list[Path]) -> str:
     contents = []
     for directory in search_dirs:
         file_path = directory / filename
@@ -78,7 +78,7 @@ def _get_combined_content(filename: str, search_dirs: List[Path]) -> str:
     return "\n\n".join(contents)
 
 
-def _get_skills_section(skill_manager: SkillManager) -> Optional[str]:
+def _get_skills_section(skill_manager: SkillManager) -> str | None:
     skills = skill_manager.scan()
     if not skills:
         return None

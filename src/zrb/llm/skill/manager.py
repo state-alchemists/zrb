@@ -1,5 +1,4 @@
 import os
-from typing import Dict, List, Optional
 
 IGNORE_DIRS = {
     ".git",
@@ -24,9 +23,9 @@ class Skill:
 class SkillManager:
     def __init__(self, root_dir: str = "."):
         self.root_dir = root_dir
-        self._skills: Dict[str, Skill] = {}
+        self._skills: dict[str, Skill] = {}
 
-    def scan(self) -> List[Skill]:
+    def scan(self) -> list[Skill]:
         self._skills = {}
         for root, dirs, files in os.walk(self.root_dir):
             dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
@@ -64,7 +63,7 @@ class SkillManager:
         except Exception:
             pass
 
-    def get_skill_content(self, name: str) -> Optional[str]:
+    def get_skill_content(self, name: str) -> str | None:
         skill = self._skills.get(name)
         if not skill:
             # Try partial match or path match

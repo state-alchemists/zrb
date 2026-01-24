@@ -26,6 +26,9 @@ from zrb.llm.tool_call import (
     ResponseHandler,
     ToolCallHandler,
     ToolPolicy,
+    replace_in_file_formatter,
+    write_file_formatter,
+    write_files_formatter,
 )
 from zrb.llm.util.attachment import get_attachments
 from zrb.session.session import Session
@@ -211,7 +214,11 @@ class LLMChatTask(BaseTask):
         self._tool_policies = tool_policies if tool_policies is not None else []
         self._argument_formatters = (
             argument_formatters if argument_formatters is not None else []
-        )
+        ) + [
+            replace_in_file_formatter,
+            write_file_formatter,
+            write_files_formatter,
+        ]
         self._markdown_theme = markdown_theme
         self._interactive = interactive
 

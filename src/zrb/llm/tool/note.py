@@ -1,10 +1,10 @@
 import os
-from typing import Callable, List
+from typing import Callable
 
 from zrb.llm.note.manager import NoteManager
 
 
-def create_note_tools(note_manager: NoteManager) -> List[Callable]:
+def create_note_tools(note_manager: NoteManager) -> list[Callable]:
     async def read_long_term_note() -> str:
         """
         Retrieves your GLOBAL 🧠 Long-Term Memory.

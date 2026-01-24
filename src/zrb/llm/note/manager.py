@@ -97,6 +97,10 @@ class NoteManager:
                 current = "/"
             parts = parts[1:]
 
+        # Check if 'current' exists in data before building up
+        if current in data:
+            result[current] = data[current]
+
         # Iterate and build up path
         for part in parts:
             if current == "~":

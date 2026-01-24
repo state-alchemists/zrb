@@ -8,7 +8,10 @@ if TYPE_CHECKING:
     from pydantic_ai import ToolCallPart
 
 
-def auto_approve(tool_name: str, kwargs_patterns: dict[str, str] = {}) -> ToolPolicy:
+def auto_approve(
+    tool_name: str,
+    kwargs_patterns: dict[str, str] | Callable[[dict[str, Any]], bool] = {},
+) -> ToolPolicy:
     """
     Returns a ToolPolicy that automatically approves tool execution
     if it matches the given tool name and keyword argument patterns.
@@ -50,13 +53,19 @@ def auto_approve(tool_name: str, kwargs_patterns: dict[str, str] = {}) -> ToolPo
         # Check constraints
         # "all parameter in the call parameter has to match the ones in kwargs_patterns
         # (if that parameter defined in the kwargs_patterns)"
-        for arg_name, arg_value in args.items():
-            if arg_name in kwargs_patterns:
-                pattern = kwargs_patterns[arg_name]
-                # Convert arg_value to string for regex matching
-                if not re.search(pattern, str(arg_value)):
-                    return await next_handler(ui, call)
+        if callable(kwargs_patterns):
+            if kwargs_patterns(args):
+                return ToolApproved()
+            pass
+        else:
+            for arg_name, arg_value in args.items():
+                if arg_name in kwargs_patterns:
+                    pattern = kwargs_patterns[arg_name]
+                    # Convert arg_value to string for regex matching
+                    if not re.search(pattern, str(arg_value)):
+                        return await next_handler(ui, call)
 
-        return ToolApproved()
+            return ToolApproved()
+        return await next_handler(ui, call)
 
     return approve_tool_call_policy

@@ -89,7 +89,6 @@ def list_files(
 def glob_files(
     pattern: str,
     path: str = ".",
-    case_sensitive: bool = False,
     include_hidden: bool = False,
     excluded_patterns: list[str] | None = None,
 ) -> list[str]:
@@ -103,7 +102,6 @@ def glob_files(
     **ARGS:**
     - `pattern`: The glob pattern to match (e.g., `**/*.md`).
     - `path`: The root directory to start the search from.
-    - `case_sensitive`: Whether the search should be case-sensitive.
     - `include_hidden`: Whether to include hidden files/dirs.
     - `excluded_patterns`: List of glob patterns to ignore.
     """

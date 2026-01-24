@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from pydantic_ai import ToolApproved, ToolCallPart, ToolDenied
 
 
-async def default_confirm_tool_call(
+async def default_response_handler(
     ui: UIProtocol,
     call: ToolCallPart,
     user_response: str,

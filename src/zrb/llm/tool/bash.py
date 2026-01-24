@@ -4,7 +4,6 @@ import platform
 import re
 import signal
 import tempfile
-from typing import IO, List, Optional, Tuple
 
 from zrb.util.cli.style import stylize_faint
 
@@ -89,7 +88,7 @@ async def run_shell_command(command: str, timeout: int = 30) -> str:
         return f"Error executing command: {e}"
 
 
-def _prepare_command(command: str, is_windows: bool) -> Tuple[str, Optional[str]]:
+def _prepare_command(command: str, is_windows: bool) -> tuple[str, str | None]:
     """Prepares the command for execution, handling PID tracking on non-Windows systems."""
     if is_windows:
         return command, None
@@ -120,7 +119,7 @@ async def _start_process(command: str, is_windows: bool) -> asyncio.subprocess.P
     )
 
 
-async def _read_stream(stream: asyncio.StreamReader, lines_list: List[str]):
+async def _read_stream(stream: asyncio.StreamReader, lines_list: list[str]):
     """Reads from a stream line by line, printing to console and appending to list."""
     if not stream:
         return
@@ -164,9 +163,7 @@ async def _terminate_process(process: asyncio.subprocess.Process, is_windows: bo
             process.kill()
 
 
-def _collect_background_pids(
-    temp_pid_file: Optional[str], process_pid: int
-) -> List[int]:
+def _collect_background_pids(temp_pid_file: str | None, process_pid: int) -> list[int]:
     """Reads background PIDs from the temp file and cleans it up."""
     bg_pids = []
     if temp_pid_file and os.path.exists(temp_pid_file):
@@ -185,7 +182,7 @@ def _collect_background_pids(
     return bg_pids
 
 
-def _cleanup_temp_file(temp_pid_file: Optional[str]):
+def _cleanup_temp_file(temp_pid_file: str | None):
     """Safely removes the temp file if it exists."""
     if temp_pid_file and os.path.exists(temp_pid_file):
         try:
@@ -199,8 +196,8 @@ def _format_output(
     cwd: str,
     stdout_str: str,
     stderr_str: str,
-    returncode: Optional[int],
-    bg_pids: List[int],
+    returncode: int | None,
+    bg_pids: list[int],
     timed_out: bool,
     timeout: int,
 ) -> str:

@@ -35,7 +35,13 @@ from zrb.llm.tool.note import create_note_tools
 from zrb.llm.tool.skill import create_activate_skill_tool
 from zrb.llm.tool.web import open_web_page, search_internet
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
-from zrb.llm.tool_call import auto_approve, edit_replace_with_text_editor
+from zrb.llm.tool_call import (
+    auto_approve,
+    replace_in_file_formatter,
+    replace_in_file_response_handler,
+    write_file_formatter,
+    write_files_formatter,
+)
 from zrb.runner.cli import cli
 
 skill_manager = SkillManager()
@@ -89,7 +95,7 @@ llm_chat.prompt_manager.add_prompt(
     create_claude_compatibility_prompt(skill_manager),
     create_zrb_prompt(),
 )
-llm_chat.add_response_handler(edit_replace_with_text_editor)
+llm_chat.add_response_handler(replace_in_file_response_handler)
 llm_chat.add_toolset(*load_mcp_config())
 llm_chat.add_tool(
     run_shell_command,
@@ -111,4 +117,19 @@ llm_chat.add_tool(
     *create_note_tools(note_manager),
 )
 
-llm_chat.add_tool_policy(auto_approve("read_file"), auto_approve("read_files"))
+llm_chat.add_tool_policy(
+    auto_approve("read_file"),
+    auto_approve("read_files"),
+    auto_approve("list_files"),
+    auto_approve("glob_files"),
+    auto_approve("search_files"),
+    auto_approve("analyze_file"),
+    auto_approve("search_internet"),
+    auto_approve("open_web_page"),
+    auto_approve("read_long_term_note"),
+    auto_approve("read_contextual_note"),
+    auto_approve("activate_skill"),
+)
+llm_chat.add_argument_formatter(
+    replace_in_file_formatter, write_file_formatter, write_files_formatter
+)

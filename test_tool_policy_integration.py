@@ -4,6 +4,7 @@
 import asyncio
 from typing import Any
 
+import pytest
 from pydantic_ai import Agent, Tool, ToolApproved, ToolCallPart, ToolDenied
 
 from zrb.llm.agent.run_agent import run_agent
@@ -45,6 +46,7 @@ async def auto_approve_handler(
     return await next_handler(ui, call, response, next_handler)
 
 
+@pytest.mark.asyncio
 async def test_tool_policy():
     """Test that tool policies work in non-interactive mode."""
 
