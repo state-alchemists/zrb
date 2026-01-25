@@ -56,7 +56,6 @@ def auto_approve(
         if callable(kwargs_patterns):
             if kwargs_patterns(args):
                 return ToolApproved()
-            pass
         else:
             for arg_name, arg_value in args.items():
                 if arg_name in kwargs_patterns:

@@ -1,10 +1,6 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
-## 2.0.0a2
-
-- **Add imports for LLM package**
-
-## 2.0.0a1
+## 2.0.0
 
 - **Refactor: Major Architectural Overhaul**:
   - **LLM Module Consolidation**: Moved all LLM-related logic from `src/zrb/builtin/llm` and `src/zrb/task/llm` to a unified `src/zrb/llm` package for better modularity and maintainability.

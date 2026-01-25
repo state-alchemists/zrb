@@ -139,9 +139,7 @@ class InputCompleter(Completer):
                     if custom_cmd.command.startswith(
                         prefix
                     ) and custom_cmd.command.lower().startswith(lower_word):
-                        usage = f"{custom_cmd.command} " + " ".join(
-                            [f"<{a}>" for a in custom_cmd.args]
-                        )
+                        usage = custom_cmd.description
                         yield Completion(
                             custom_cmd.command,
                             start_position=-len(word),
@@ -156,9 +154,7 @@ class InputCompleter(Completer):
                 # Custom Command Argument completion
                 for custom_cmd in self._custom_commands:
                     if cmd == custom_cmd.command:
-                        usage = f"{custom_cmd.command} " + " ".join(
-                            [f"<{a}>" for a in custom_cmd.args]
-                        )
+                        usage = custom_cmd.description
                         # We don't have specific arg completion for custom commands yet,
                         # but we show the usage as meta for the current word being typed
                         # Actually Task 4 says:

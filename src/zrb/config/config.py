@@ -102,6 +102,8 @@ class Config:
         self.DEFAULT_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_PROMPT_DIR: str = ""
+        self.DEFAULT_LLM_SHOW_TOOL_CALL_DETAIL: str = "off"
+        self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT: str = "off"
         self.DEFAULT_RAG_EMBEDDING_API_KEY: str = ""
         self.DEFAULT_RAG_EMBEDDING_BASE_URL: str = ""
         self.DEFAULT_RAG_EMBEDDING_MODEL: str = "text-embedding-ada-002"
@@ -120,8 +122,6 @@ class Config:
         self.DEFAULT_SEARXNG_SAFE: str = "0"
         self.DEFAULT_SEARXNG_LANG: str = "en-US"
         self.DEFAULT_BANNER: str = _DEFAULT_BANNER
-        self.DEFAULT_LLM_SHOW_TOOL_CALL_DETAIL: str = "off"
-        self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT: str = "off"
         self.DEFAULT_USE_TIKTOKEN: str = "off"
         self.DEFAULT_TIKTOKEN_ENCODING_NAME: str = "cl100k_base"
         self.DEFAULT_MCP_CONFIG_FILE: str = "mcp-config.json"

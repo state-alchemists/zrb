@@ -16,33 +16,26 @@ def system_context(
     os_info = f"{platform.system()} {platform.release()}"
     cwd = os.getcwd()
 
-    git_section = _get_git_context()
-    sandbox_section = _get_sandbox_context()
+    context_parts = [
+        f"- **Current Time**: {now}",
+        f"- **Operating System**: {os_info}",
+        f"- **Current Directory**: {cwd}",
+    ]
 
-    # Build the main info block
-    info_content = "\n".join(
-        [
-            f"- Current Time: {now}",
-            f"- OS: {os_info}",
-            f"- Directory: {cwd}",
-        ]
-    )
+    git_info = _get_git_info()
+    if git_info:
+        context_parts.append(f"\n### Git Repository\n{git_info}")
 
     # Combine sections
-    full_context_block = make_markdown_section("System Context", info_content)
-
-    if git_section:
-        full_context_block += f"\n{git_section}"
-    if sandbox_section:
-        full_context_block += f"\n{sandbox_section}"
-
+    full_context_block = make_markdown_section(
+        "System Context", "\n".join(context_parts)
+    )
     return next_handler(ctx, f"{current_prompt}\n\n{full_context_block}")
 
 
-def _get_git_context() -> str:
+def _get_git_info() -> str:
     try:
         # Check if inside git repo
-        # (using command is more reliable than checking .git dir for submodules/worktrees)
         res = subprocess.run(
             ["git", "rev-parse", "--is-inside-work-tree"],
             capture_output=True,
@@ -65,28 +58,12 @@ def _get_git_context() -> str:
         )
 
         return (
-            "\n# Git Repository\n"
-            "- The current directory is a Git repository.\n"
             f"- **Branch:** {branch}\n"
             f"- **Status:** {status_summary}\n"
             "- **Rules:**\n"
             "  - **NEVER** stage or commit your changes unless explicitly instructed.\n"
-            "  - When asked to commit, always gather info first: "
-            "`git status && git diff HEAD`.\n"
-            "  - Always propose a draft commit message.\n"
+            "  - When asked to commit, always gather info first: `git status && git diff HEAD`.\n"
+            "  - Always propose a draft commit message."
         )
     except Exception:
         return ""
-
-
-def _get_sandbox_context() -> str:
-    if not os.environ.get("SANDBOX"):
-        return ""
-
-    return (
-        "\n# Sandbox Environment\n"
-        "- You are running in a restricted sandbox environment.\n"
-        "- Access to files outside the project directory may be limited.\n"
-        '- If commands fail with "Operation not permitted", explain '
-        "this constraint to the user.\n"
-    )

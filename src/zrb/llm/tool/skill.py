@@ -3,6 +3,14 @@ from zrb.llm.skill.manager import SkillManager
 
 def create_activate_skill_tool(skill_manager: SkillManager):
     async def activate_skill_impl(name: str) -> str:
+        skill = skill_manager.get_skill(name)
+
+        if not skill:
+            return f"Skill '{name}' not found."
+
+        if not skill.model_invocable:
+            return f"Skill '{name}' is not invocable by the model."
+
         content = skill_manager.get_skill_content(name)
         if content:
             return f"<ACTIVATED_SKILL>\n{content}\n</ACTIVATED_SKILL>"

@@ -535,21 +535,20 @@ class UI:
         for custom_cmd in self._custom_commands:
             if cmd_name == custom_cmd.command:
                 provided_args = parts[1:]
-                if len(provided_args) < len(custom_cmd.args):
-                    expected = f"{custom_cmd.command} " + " ".join(
-                        [f"<{a}>" for a in custom_cmd.args]
-                    )
-                    self.append_to_output(
-                        stylize_faint(
-                            f"\n  ⚠️ Missing arguments for {custom_cmd.command}. "
-                            f"Expected: {expected}\n"
-                        )
-                    )
-                    return True
+                # Join residue arguments
+                if len(provided_args) > len(custom_cmd.args):
+                    num_args = len(custom_cmd.args)
+                    if num_args > 0:
+                        args_to_keep = provided_args[: num_args - 1]
+                        residue = provided_args[num_args - 1 :]
+                        joined_residue = " ".join(residue)
+                        provided_args = args_to_keep + [joined_residue]
 
                 # Extract arguments
                 args_dict = {
-                    custom_cmd.args[i]: provided_args[i]
+                    custom_cmd.args[i]: (
+                        provided_args[i] if i < len(provided_args) else ""
+                    )
                     for i in range(len(custom_cmd.args))
                 }
                 prompt = custom_cmd.get_prompt(args_dict)

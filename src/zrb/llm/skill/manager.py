@@ -17,10 +17,19 @@ IGNORE_DIRS = {
 
 
 class Skill:
-    def __init__(self, name: str, path: str, description: str):
+    def __init__(
+        self,
+        name: str,
+        path: str,
+        description: str,
+        model_invocable: bool = True,
+        user_invocable: bool = False,
+    ):
         self.name = name
         self.path = path
         self.description = description
+        self.model_invocable = model_invocable
+        self.user_invocable = user_invocable
 
 
 class SkillManager:
@@ -89,6 +98,8 @@ class SkillManager:
             default_name = os.path.basename(os.path.dirname(full_path))
             name = default_name
             description = "No description"
+            model_invocable = True
+            user_invocable = False
             is_name_resolved = False
 
             # 1. Parse YAML Frontmatter
@@ -102,6 +113,10 @@ class SkillManager:
                                 name = frontmatter["name"]
                                 is_name_resolved = True
                             description = frontmatter.get("description", description)
+                            model_invocable = not frontmatter.get(
+                                "disable-model-invocation", False
+                            )
+                            user_invocable = frontmatter.get("user-invocable", False)
                 except Exception:
                     pass
 
@@ -116,13 +131,17 @@ class SkillManager:
 
             # Use name as key, handle duplicates by overriding (precedence handled by scan order)
             self._skills[name] = Skill(
-                name=name, path=full_path, description=description
+                name=name,
+                path=full_path,
+                description=description,
+                model_invocable=model_invocable,
+                user_invocable=user_invocable,
             )
 
         except Exception:
             pass
 
-    def get_skill_content(self, name: str) -> str | None:
+    def get_skill(self, name: str) -> Skill | None:
         skill = self._skills.get(name)
         if not skill:
             # Try partial match or path match
@@ -130,7 +149,10 @@ class SkillManager:
                 if s.name == name or s.path == name:
                     skill = s
                     break
+        return skill
 
+    def get_skill_content(self, name: str) -> str | None:
+        skill = self.get_skill(name)
         if not skill:
             return None
 

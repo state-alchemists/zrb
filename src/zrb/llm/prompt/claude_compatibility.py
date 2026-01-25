@@ -93,7 +93,8 @@ def _get_skills_section(
 
     skills_context = ["Use 'activate_skill' to load instructions for a skill."]
     for skill in skills:
-        skills_context.append(f"- {skill.name}: {skill.description}")
+        if skill.model_invocable:
+            skills_context.append(f"- {skill.name}: {skill.description}")
 
     return make_markdown_section(
         "Available Skills (Claude Skills)", "\n".join(skills_context)

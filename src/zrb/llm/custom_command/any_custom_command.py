@@ -10,6 +10,11 @@ class AnyCustomCommand(ABC):
 
     @property
     @abstractmethod
+    def description(self) -> str:
+        """Description"""
+
+    @property
+    @abstractmethod
     def args(self) -> list[str]:
         """Command"""
 
