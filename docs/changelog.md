@@ -5,17 +5,22 @@
 - **Refactor: Major Architectural Overhaul**:
   - **LLM Module Consolidation**: Moved all LLM-related logic from `src/zrb/builtin/llm` and `src/zrb/task/llm` to a unified `src/zrb/llm` package for better modularity and maintainability.
   - **Tool Relocation**: LLM tools (e.g., `analyze_repo`, `write_to_file`) are now located in `zrb.llm.tool`.
+  - **Centralized Configuration**: Merged multiple LLM-specific and project-wide configuration files into a robust, centralized `Config` class in `src/zrb/config/config.py`.
 - **Feature: Enhanced LLM Interface**:
-  - **Interactive TUI**: Introduced a new, feature-rich Terminal User Interface (TUI) for `llm-chat`, providing a more responsive and visually appealing experience.
-  - **Improved Command Structure**: Consolidated and refined LLM-related commands for better usability.
+  - **Interactive TUI**: Introduced a new, feature-rich Terminal User Interface (TUI) for `llm-chat`, providing a more responsive and visually appealing experience with syntax highlighting and custom layouts.
+  - **Improved Command Structure**: Consolidated and refined LLM-related commands (e.g., `/save`, `/load`, `/attach`, `/exec`) for better usability.
+  - **ASCII Art & Banners**: Added customizable ASCII art and banners for the CLI and AI assistant.
 - **Feature: Prompt & Agent Management**:
   - **Centralized Prompt System**: Introduced a more robust prompt management system with support for markdown-based templates.
-  - **New Agent Framework**: Re-implemented LLM agents with better history and skill management.
+  - **Skill Management**: Introduced a new skill management system to extend LLM capabilities dynamically via `SkillManager`.
+  - **New Agent Framework**: Re-implemented LLM agents with better history tracking, summarization, and tool-call policies.
+- **Feature: LLM Challenge Suite**:
+  - **Benchmarking**: Added a comprehensive suite of challenges in `llm-challenges/` for benchmarking AI agent performance in scenarios like bug fixing, refactoring, and copywriting.
 - **Performance & Cleanup**:
   - **Code Pruning**: Conducted a significant "prune" of the codebase, removing redundant components, old tests, and unused dependencies to improve startup time and reduce package size.
   - **Lazy Loading**: Further optimized imports to ensure faster CLI responsiveness.
 - **Testing**:
-  - **Updated Test Suite**: Refactored the test suite to align with the new architecture, ensuring high coverage and stability for the 2.0 release.
+  - **Updated Test Suite**: Completely refactored the test suite to align with the new architecture, ensuring high coverage and stability for the 2.0 release.
 
 ## 1.21.43
 
