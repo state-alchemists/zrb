@@ -1,5 +1,25 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.0.3
+
+- **Feature: Context-Aware LLM Agent Execution**:
+  - **UI & Tool Confirmation Inheritance**: Introduced `ContextVar`-based context management for UI and tool confirmation settings, allowing sub-agents to automatically inherit parent agent configurations.
+  - **Improved Event Handling**: Enhanced streaming response management with better UI integration and configurable event handlers.
+  - **Enhanced Rate Limiting**: Updated rate limiter to accept message/history context for more accurate token estimation and throttling.
+- **Improvement: Skill Command System**:
+  - **Fixed Skill Command Factory**: Resolved function signature issue by removing unnecessary splat operator and implementing proper factory pattern for dynamic skill command loading.
+  - **Enhanced Custom Command Resolution**: Improved LLM chat task to support both direct commands and factory functions for custom command registration.
+- **Improvement: History Summarization**:
+  - **Better Message Representation**: Added `message_to_text()` function to convert pydantic_ai messages into readable text for more accurate history summarization.
+  - **Default Summarizer**: LLM chat tasks now automatically include a summarizer history processor by default to manage long conversation histories.
+- **Bug Fixes & Refinements**:
+  - **Fixed Faint Printer**: Corrected `create_faint_printer()` to accept a print function instead of context, resolving compatibility issues with streaming responses.
+  - **Improved Argument Extraction**: Fixed typo in `_extract_args()` function parameter name for consistency.
+  - **Enhanced Sub-Agent Tool**: Updated sub-agent tool to leverage automatic UI and tool confirmation inheritance via context variables.
+- **Code Quality**:
+  - **Clean Architecture**: Improved separation of concerns in agent execution with proper context management and cleanup.
+  - **Type Safety**: Enhanced type annotations and error handling throughout the LLM module.
+
 ## 2.0.2
 
 - **Improvement: Enhanced Skill Management**:
