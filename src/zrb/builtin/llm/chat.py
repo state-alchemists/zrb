@@ -123,7 +123,7 @@ llm_chat.add_tool(
 llm_chat.add_argument_formatter(
     replace_in_file_formatter, write_file_formatter, write_files_formatter
 )
-llm_chat.add_custom_command(*get_skill_custom_command(skill_manager))
+llm_chat.add_custom_command(get_skill_custom_command(skill_manager))
 
 
 def _is_path_inside_cwd(path: str) -> bool:

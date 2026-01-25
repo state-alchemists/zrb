@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias, Union
 
 from zrb.llm.agent.std_ui import StdUI
@@ -34,6 +35,12 @@ else:
     AnyToolConfirmation: TypeAlias = Any
 
 
+current_ui: ContextVar[UIProtocol | None] = ContextVar("current_ui", default=None)
+current_tool_confirmation: ContextVar[AnyToolConfirmation] = ContextVar(
+    "current_tool_confirmation", default=None
+)
+
+
 async def run_agent(
     agent: "Agent[None, Any]",
     message: str | None,
@@ -51,53 +58,66 @@ async def run_agent(
     """
     from pydantic_ai import AgentRunResultEvent, DeferredToolRequests, UsageLimits
 
-    # Expand user message with references
-    effective_message = expand_prompt(message) if message else message
+    # Resolve UI and Tool Confirmation from arguments or context fallback
+    effective_ui = ui or current_ui.get() or StdUI()
+    effective_tool_confirmation = tool_confirmation or current_tool_confirmation.get()
 
-    # Prepare Prompt Content
-    prompt_content = _get_prompt_content(effective_message, attachments, print_fn)
+    # Set context variables so sub-agents can inherit them
+    token_ui = current_ui.set(effective_ui)
+    token_confirmation = current_tool_confirmation.set(effective_tool_confirmation)
 
-    # 1. Prune & Throttle
-    current_history = await _acquire_rate_limit(
-        limiter, prompt_content, message_history, print_fn
-    )
-    current_message = prompt_content
-    current_results = None
+    try:
+        # Expand user message with references
+        effective_message = expand_prompt(message) if message else message
 
-    # Resolve UI
-    effective_ui = ui or StdUI()
+        # Prepare Prompt Content
+        prompt_content = _get_prompt_content(effective_message, attachments, print_fn)
 
-    # 2. Execution Loop
-    while True:
-        result_output = None
-        run_history = []
+        # 1. Prune & Throttle
+        current_history = await _acquire_rate_limit(
+            limiter, prompt_content, message_history, print_fn
+        )
+        current_message = prompt_content
+        current_results = None
 
-        async for event in agent.run_stream_events(
-            current_message,
-            message_history=current_history,
-            deferred_tool_results=current_results,
-            usage_limits=UsageLimits(request_limit=None),
-        ):
-            await asyncio.sleep(0)
-            if isinstance(event, AgentRunResultEvent):
-                result = event.result
-                result_output = result.output
-                run_history = result.all_messages()
-            if event_handler:
-                await event_handler(event)
+        # 2. Execution Loop
+        while True:
+            result_output = None
+            run_history = []
 
-        # Handle Deferred Calls
-        if isinstance(result_output, DeferredToolRequests):
-            current_results = await _process_deferred_requests(
-                result_output, tool_confirmation, effective_ui, print_fn
-            )
-            if current_results is None:
-                return result_output, run_history
-            # Prepare next iteration
-            current_message = None
-            current_history = run_history
-            continue
-        return result_output, run_history
+            async for event in agent.run_stream_events(
+                current_message,
+                message_history=current_history,
+                deferred_tool_results=current_results,
+                usage_limits=UsageLimits(request_limit=None),
+            ):
+                await asyncio.sleep(0)
+                if isinstance(event, AgentRunResultEvent):
+                    result = event.result
+                    result_output = result.output
+                    run_history = result.all_messages()
+                if event_handler:
+                    await event_handler(event)
+
+            # Handle Deferred Calls
+            if isinstance(result_output, DeferredToolRequests):
+                current_results = await _process_deferred_requests(
+                    result_output,
+                    effective_tool_confirmation,
+                    effective_ui,
+                    print_fn,
+                )
+                if current_results is None:
+                    return result_output, run_history
+                # Prepare next iteration
+                current_message = None
+                current_history = run_history
+                continue
+            return result_output, run_history
+    finally:
+        # Restore context variables
+        current_ui.reset(token_ui)
+        current_tool_confirmation.reset(token_confirmation)
 
 
 def _get_prompt_content(
@@ -130,9 +150,9 @@ async def _acquire_rate_limit(
     pruned_history = limiter.fit_context_window(message_history, message)
 
     # Throttle
-    est_tokens = limiter.count_tokens(pruned_history) + limiter.count_tokens(message)
     await limiter.acquire(
-        est_tokens, notifier=lambda msg: print_fn(msg) if msg else None
+        {"message": message, "history": pruned_history},
+        notifier=lambda msg: print_fn(msg) if msg else None,
     )
 
     return pruned_history

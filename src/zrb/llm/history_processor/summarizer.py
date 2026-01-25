@@ -24,6 +24,36 @@ def is_turn_start(msg: Any) -> bool:
     return has_user and not has_return
 
 
+def message_to_text(msg: Any) -> str:
+    """Convert a pydantic_ai message to a readable text representation for summarization."""
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        TextPart,
+        ToolCallPart,
+        ToolReturnPart,
+        UserPromptPart,
+    )
+
+    if isinstance(msg, ModelRequest):
+        parts = []
+        for p in msg.parts:
+            if isinstance(p, UserPromptPart):
+                parts.append(f"User: {p.content}")
+            elif isinstance(p, ToolReturnPart):
+                parts.append(f"Tool Result ({p.tool_name}): {p.content}")
+        return "\n".join(parts)
+    if isinstance(msg, ModelResponse):
+        parts = []
+        for p in msg.parts:
+            if isinstance(p, TextPart):
+                parts.append(f"AI: {p.content}")
+            elif isinstance(p, ToolCallPart):
+                parts.append(f"AI Tool Call: {p.tool_name}({p.args})")
+        return "\n".join(parts)
+    return str(msg)
+
+
 async def summarize_history(
     messages: "list[ModelMessage]",
     agent: Any = None,
@@ -59,8 +89,8 @@ async def summarize_history(
     to_summarize = messages[:split_idx]
     to_keep = messages[split_idx:]
 
-    # Simple text representation for now
-    history_text = "\n".join([str(m) for m in to_summarize])
+    # Use improved text representation
+    history_text = "\n".join([message_to_text(m) for m in to_summarize])
 
     summarizer_agent = agent or create_summarizer_agent()
 

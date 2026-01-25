@@ -20,6 +20,9 @@ from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
+from zrb.llm.history_processor.summarizer import (
+    create_summarizer_history_processor,
+)
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.tool_call import (
@@ -95,7 +98,13 @@ class LLMChatTask(BaseTask):
         ui_redirect_output_commands: list[str] | None = None,
         ui_yolo_toggle_commands: list[str] | None = None,
         ui_exec_commands: list[str] | None = None,
-        custom_commands: list[AnyCustomCommand] | None = None,
+        custom_commands: (
+            list[
+                AnyCustomCommand
+                | Callable[[], AnyCustomCommand | list[AnyCustomCommand]]
+            ]
+            | None
+        ) = None,
         ui_greeting: StrAttr | None = None,
         render_ui_greeting: bool = True,
         ui_assistant_name: StrAttr | None = None,
@@ -159,6 +168,8 @@ class LLMChatTask(BaseTask):
         self._history_processors = (
             history_processors if history_processors is not None else []
         )
+        if not self._history_processors:
+            self._history_processors.append(create_summarizer_history_processor())
         self._model = model
         self._render_model = render_model
         self._model_settings = model_settings
@@ -272,11 +283,21 @@ class LLMChatTask(BaseTask):
     def append_trigger(self, *trigger: Callable[[], AsyncIterable[Any]]):
         self._triggers += trigger
 
-    def add_custom_command(self, *custom_command: AnyCustomCommand):
+    def add_custom_command(
+        self,
+        *custom_command: (
+            AnyCustomCommand | Callable[[], AnyCustomCommand | list[AnyCustomCommand]]
+        ),
+    ):
         self.append_custom_command(*custom_command)
 
-    def append_custom_command(self, *custom_command: AnyCustomCommand):
-        self._custom_commands += custom_command
+    def append_custom_command(
+        self,
+        *custom_command: (
+            AnyCustomCommand | Callable[[], AnyCustomCommand | list[AnyCustomCommand]]
+        ),
+    ):
+        self._custom_commands += list(custom_command)
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
         # 1. Resolve inputs/attributes
@@ -479,6 +500,18 @@ class LLMChatTask(BaseTask):
                 if hasattr(toolset, "__aenter__"):
                     await stack.enter_async_context(toolset)
 
+            # Resolve custom commands
+            resolved_custom_commands: list[AnyCustomCommand] = []
+            for cmd in self._custom_commands:
+                if callable(cmd):
+                    res = cmd()
+                    if isinstance(res, list):
+                        resolved_custom_commands.extend(res)
+                    else:
+                        resolved_custom_commands.append(res)
+                else:
+                    resolved_custom_commands.append(cmd)
+
             ui = UI(
                 greeting=ui_greeting,
                 assistant_name=ui_assistant_name,
@@ -505,7 +538,7 @@ class LLMChatTask(BaseTask):
                 yolo_toggle_commands=ui_commands["yolo_toggle"],
                 redirect_output_commands=ui_commands["redirect_output"],
                 exec_commands=ui_commands["exec"],
-                custom_commands=self._custom_commands,
+                custom_commands=resolved_custom_commands,
                 model=self._get_model(ctx),
             )
             await ui.run_async()

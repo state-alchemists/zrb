@@ -1,11 +1,22 @@
 import re
+from collections.abc import Callable
 
+from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.custom_command.custom_command import CustomCommand
 from zrb.llm.skill.manager import SkillManager
 
 
-def get_skill_custom_command(skill_manager: SkillManager) -> list[CustomCommand]:
-    commands: list[CustomCommand] = []
+def get_skill_custom_command(
+    skill_manager: SkillManager,
+) -> Callable[[], list[AnyCustomCommand]]:
+    def factory() -> list[AnyCustomCommand]:
+        return _get_skill_custom_commands(skill_manager)
+
+    return factory
+
+
+def _get_skill_custom_commands(skill_manager: SkillManager) -> list[AnyCustomCommand]:
+    commands: list[AnyCustomCommand] = []
     skills = skill_manager.scan()
     for skill in skills:
         if not skill.user_invocable:
@@ -26,7 +37,7 @@ def get_skill_custom_command(skill_manager: SkillManager) -> list[CustomCommand]
     return commands
 
 
-def _extract_args(ontent: str) -> list[str]:
+def _extract_args(content: str) -> list[str]:
     args = []
     # 1. Replace ${name:-default}
     matches = re.findall(r"\${([a-zA-Z0-9_]+):-[^}]+}", content)
