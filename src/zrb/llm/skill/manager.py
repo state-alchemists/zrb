@@ -3,22 +3,15 @@ from pathlib import Path
 
 import yaml
 
-IGNORE_DIRS = {
+_IGNORE_DIRS = [
     ".git",
     "node_modules",
     "__pycache__",
-    ".venv",
     "venv",
     "dist",
     "build",
-    ".idea",
-    ".vscode",
-    ".pytest_cache",
-    ".mypy_cache",
-    ".ruff_cache",
-    ".tox",
     "htmlcov",
-}
+]
 
 
 class Skill:
@@ -41,13 +34,15 @@ class SkillManager:
     def __init__(
         self,
         root_dir: str = ".",
-        search_dirs: list[Path] | None = None,
+        search_dirs: list[str | Path] | None = None,
         max_depth: int = 1,
+        ignore_dirs: list[str] | None = None,
     ):
         self._root_dir = root_dir
         self._search_dirs = search_dirs
         self._max_depth = max_depth
         self._skills: dict[str, Skill] = {}
+        self._ignore_dirs = _IGNORE_DIRS if ignore_dirs is None else ignore_dirs
 
     def scan(self) -> list[Skill]:
         self._skills = {}
@@ -62,8 +57,8 @@ class SkillManager:
             self._scan_dir(search_dir, max_depth=self._max_depth)
         return list(self._skills.values())
 
-    def _get_search_directories(self) -> list[Path]:
-        search_dirs: list[Path] = []
+    def _get_search_directories(self) -> list[str | Path]:
+        search_dirs: list[str | Path] = []
         # 1. User global config (~/.claude/skills)
         try:
             home = Path.home()
@@ -109,7 +104,7 @@ class SkillManager:
             for item in current_dir.iterdir():
                 if item.is_dir():
                     # Skip ignored directories
-                    if item.name in IGNORE_DIRS:
+                    if item.name in self._ignore_dirs or item.name.startswith("."):
                         continue
                     # Recursively scan subdirectory
                     self._scan_dir_recursive(
