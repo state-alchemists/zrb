@@ -13,6 +13,11 @@ IGNORE_DIRS = {
     "build",
     ".idea",
     ".vscode",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".tox",
+    "htmlcov",
 }
 
 
@@ -33,9 +38,15 @@ class Skill:
 
 
 class SkillManager:
-    def __init__(self, root_dir: str = ".", search_dirs: list[Path] | None = None):
-        self.root_dir = root_dir
+    def __init__(
+        self,
+        root_dir: str = ".",
+        search_dirs: list[Path] | None = None,
+        max_depth: int = 1,
+    ):
+        self._root_dir = root_dir
         self._search_dirs = search_dirs
+        self._max_depth = max_depth
         self._skills: dict[str, Skill] = {}
 
     def scan(self) -> list[Skill]:
@@ -48,7 +59,7 @@ class SkillManager:
         # Scan in order of precedence: global -> project
         # We iterate in normal order to allow later skills (project) to override earlier ones (global)
         for search_dir in search_dirs:
-            self._scan_dir(search_dir)
+            self._scan_dir(search_dir, max_depth=self._max_depth)
         return list(self._skills.values())
 
     def _get_search_directories(self) -> list[Path]:
@@ -65,7 +76,7 @@ class SkillManager:
         # 2. Project directories (.claude/skills)
         # We look from Root -> ... -> CWD
         try:
-            cwd = Path(self.root_dir).resolve()
+            cwd = Path(self._root_dir).resolve()
             project_dirs = list(cwd.parents)[::-1] + [cwd]
             for project_dir in project_dirs:
                 local_skills = project_dir / ".claude" / "skills"
@@ -74,21 +85,45 @@ class SkillManager:
         except Exception:
             pass
 
-        # 3. Legacy/Zrb specific: The root_dir itself (recursive)
-        # This maintains backward compatibility with Zrb's existing skill detection
-        search_dirs.append(Path(self.root_dir))
+        # 3. The root_dir itself (recursive)
+        search_dirs.append(Path(self._root_dir))
 
         return search_dirs
 
-    def _scan_dir(self, directory: Path):
-        for root, dirs, files in os.walk(directory):
-            dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
+    def _scan_dir(self, directory: Path, max_depth: int):
+        try:
+            search_path = Path(directory).resolve()
+            self._scan_dir_recursive(search_path, search_path, max_depth, 0)
+        except Exception:
+            pass
 
-            for file in files:
-                if file == "SKILL.md" or file.endswith(".skill.md"):
-                    full_path = os.path.join(root, file)
-                    rel_path = os.path.relpath(full_path, self.root_dir)
-                    self._load_skill(rel_path, full_path)
+    def _scan_dir_recursive(
+        self, base_dir: Path, current_dir: Path, max_depth: int, current_depth: int
+    ):
+        """Recursively scan directories with explicit depth control."""
+        if current_depth > max_depth:
+            return
+
+        try:
+            # List directory contents
+            for item in current_dir.iterdir():
+                if item.is_dir():
+                    # Skip ignored directories
+                    if item.name in IGNORE_DIRS:
+                        continue
+                    # Recursively scan subdirectory
+                    self._scan_dir_recursive(
+                        base_dir, item, max_depth, current_depth + 1
+                    )
+                elif item.is_file():
+                    # Check for skill files
+                    if item.name == "SKILL.md" or item.name.endswith(".skill.md"):
+                        full_path = str(item)
+                        rel_path = os.path.relpath(full_path, self._root_dir)
+                        self._load_skill(rel_path, full_path)
+        except (PermissionError, OSError):
+            # Skip directories we can't access
+            pass
 
     def _load_skill(self, rel_path: str, full_path: str):
         try:

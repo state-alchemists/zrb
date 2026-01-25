@@ -103,3 +103,35 @@ Overridden content
     global_skill = next(s for s in skills if s.name == "global-skill")
     assert global_skill.description == "Overridden description"
     assert "Overridden content" in manager.get_skill_content("global-skill")
+
+
+def test_skill_manager_max_depth(tmp_path):
+    project_dir = tmp_path / "project_depth"
+    project_dir.mkdir()
+
+    # Create skill at depth 1 (relative to project_dir)
+    d1 = project_dir / "d1"
+    d1.mkdir()
+    (d1 / "SKILL.md").write_text("# Skill 1")
+
+    # Create skill at depth 6 (relative to project_dir)
+    # project_depth/dir1/dir2/dir3/dir4/dir5/dir6/SKILL.md
+    curr = project_dir
+    for i in range(1, 7):
+        curr = curr / f"dir{i}"
+        curr.mkdir()
+    (curr / "SKILL.md").write_text("# Deep Skill")
+
+    # Test with max_depth=5
+    manager = SkillManager(root_dir=str(project_dir), max_depth=5)
+    skills = manager.scan()
+    skill_names = [s.name for s in skills]
+
+    assert "Skill 1" in skill_names
+    assert "Deep Skill" not in skill_names
+
+    # Test with max_depth=10
+    manager = SkillManager(root_dir=str(project_dir), max_depth=10)
+    skills = manager.scan()
+    skill_names = [s.name for s in skills]
+    assert "Deep Skill" in skill_names
