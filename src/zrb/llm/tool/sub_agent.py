@@ -46,6 +46,7 @@ def create_sub_agent_tool(
         history = manager.load(conversation_name)
 
         # Execute agent with blocking confirmation loop for approvals
+        # Visibility and UI inheritance are handled automatically by run_agent via ContextVar
         result, new_history = await run_agent(
             agent=agent_instance,
             message=prompt,

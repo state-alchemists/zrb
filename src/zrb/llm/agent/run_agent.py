@@ -67,6 +67,27 @@ async def run_agent(
     token_confirmation = current_tool_confirmation.set(effective_tool_confirmation)
 
     try:
+        # Resolve print_fn and event_handler for streaming visibility
+        effective_print_fn = print_fn
+        # If using default print but we have a UI, redirect to UI
+        if effective_print_fn == print and effective_ui:
+            effective_print_fn = effective_ui.append_to_output
+
+        effective_event_handler = event_handler
+        if effective_event_handler is None:
+            from zrb.config.config import CFG
+            from zrb.llm.util.stream_response import (
+                create_event_handler,
+                create_faint_printer,
+            )
+
+            print_event = create_faint_printer(effective_print_fn)
+            effective_event_handler = create_event_handler(
+                print_event,
+                show_tool_call_detail=CFG.LLM_SHOW_TOOL_CALL_DETAIL,
+                show_tool_result=CFG.LLM_SHOW_TOOL_CALL_RESULT,
+            )
+
         # Expand user message with references
         effective_message = expand_prompt(message) if message else message
 
@@ -96,8 +117,8 @@ async def run_agent(
                     result = event.result
                     result_output = result.output
                     run_history = result.all_messages()
-                if event_handler:
-                    await event_handler(event)
+                if effective_event_handler:
+                    await effective_event_handler(event)
 
             # Handle Deferred Calls
             if isinstance(result_output, DeferredToolRequests):

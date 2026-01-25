@@ -210,7 +210,7 @@ class LLMTask(BaseTask):
             yolo=yolo,
         )
 
-        print_event = create_faint_printer(ctx)
+        print_event = create_faint_printer(ctx.shared_print)
         handle_event = create_event_handler(
             print_event,
             show_tool_call_detail=CFG.LLM_SHOW_TOOL_CALL_DETAIL,

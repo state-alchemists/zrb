@@ -124,10 +124,10 @@ def create_event_handler(
     return handle_event
 
 
-def create_faint_printer(ctx: AnyContext):
-    def faint_print(*values: object):
-        message = stylize_faint(" ".join([f"{value}" for value in values]))
-        ctx.print(message, end="", plain=True)
+def create_faint_printer(print_fn: Callable[..., None]):
+    def faint_print(content: str, end: str = ""):
+        message = stylize_faint(content)
+        print_fn(message, end=end)
 
     return faint_print
 
