@@ -18,6 +18,9 @@ class PromptManager:
     def prompts(self, value: list[PromptMiddleware]):
         self._middlewares = value
 
+    def reset(self):
+        self._middlewares = []
+
     def add_prompt(self, *middleware: PromptMiddleware):
         self.append_middlewear(*middleware)
 

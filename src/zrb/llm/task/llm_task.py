@@ -223,7 +223,7 @@ class LLMTask(BaseTask):
             message_history=message_history,
             limiter=self._llm_limitter,
             attachments=user_attachments,
-            print_fn=ctx.print,
+            print_fn=lambda *args, **kwargs: ctx.print(*args, **kwargs, plain=True),
             event_handler=handle_event,
             tool_confirmation=self._tool_confirmation,
             ui=self._ui,

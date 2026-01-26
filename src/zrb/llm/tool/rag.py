@@ -2,7 +2,6 @@ import fnmatch
 import hashlib
 import json
 import os
-import sys
 from collections.abc import Callable
 from textwrap import dedent
 from typing import Any
@@ -10,6 +9,7 @@ from typing import Any
 import ulid
 
 from zrb.config.config import CFG
+from zrb.context.any_context import zrb_print
 from zrb.util.cli.style import stylize_error, stylize_faint
 from zrb.util.file import read_file
 
@@ -136,9 +136,9 @@ def create_rag_from_directory(
                     updated_files.append(file_path)
         # Upsert updated_files to vector db
         if updated_files:
-            print(
+            zrb_print(
                 stylize_faint(f"Updating {len(updated_files)} changed files"),
-                file=sys.stderr,
+                plain=True,
             )
             for file_path in updated_files:
                 try:
@@ -150,11 +150,11 @@ def create_rag_from_directory(
                         chunk = content[i : i + chunk_size_val]
                         if chunk:
                             chunk_id = ulid.new().str
-                            print(
+                            zrb_print(
                                 stylize_faint(
                                     f"Vectorizing {relative_path} chunk {chunk_id}"
                                 ),
-                                file=sys.stderr,
+                                plain=True,
                             )
                             # Get embeddings using OpenAI
                             embedding_response = openai_client.embeddings.create(
@@ -171,24 +171,23 @@ def create_rag_from_directory(
                                 },
                             )
                 except Exception as e:
-                    print(
-                        stylize_error(f"Error processing {file_path}: {e}"),
-                        file=sys.stderr,
+                    zrb_print(
+                        stylize_error(f"Error processing {file_path}: {e}"), plain=True
                     )
             _save_hashes(hash_file_path, current_hashes)
         else:
-            print(
+            zrb_print(
                 stylize_faint("No changes detected. Skipping database update."),
-                file=sys.stderr,
+                plain=True,
             )
         # Vectorize query and get related document chunks
-        print(stylize_faint("Vectorizing query"), file=sys.stderr)
+        zrb_print(stylize_faint("Vectorizing query"), plain=True)
         # Get embeddings using OpenAI
         embedding_response = openai_client.embeddings.create(
             input=query, model=embedding_model_val
         )
         query_vector = embedding_response.data[0].embedding
-        print(stylize_faint("Searching documents"), file=sys.stderr)
+        zrb_print(stylize_faint("Searching documents"), plain=True)
         results = collection.query(
             query_embeddings=query_vector,
             n_results=max_result_count_val,

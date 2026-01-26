@@ -66,6 +66,8 @@ class LLMChatTask(BaseTask):
         prompt_manager: PromptManager | None = None,
         tools: list[Tool | ToolFuncEither] | None = None,
         toolsets: list[AbstractToolset[None]] | None = None,
+        tool_factories: list[Callable[[AnyContext], Tool | ToolFuncEither]] | None = None,
+        toolset_factories: list[Callable[[AnyContext], AbstractToolset[None]]] | None = None,
         message: StrAttr | None = None,
         render_message: bool = True,
         attachment: (
@@ -162,6 +164,8 @@ class LLMChatTask(BaseTask):
         self._prompt_manager = prompt_manager
         self._tools = tools if tools is not None else []
         self._toolsets = toolsets if toolsets is not None else []
+        self._tool_factories = tool_factories if tool_factories is not None else []
+        self._toolset_factories = toolset_factories if toolset_factories is not None else []
         self._message = message
         self._render_message = render_message
         self._attachment = attachment
@@ -247,11 +251,23 @@ class LLMChatTask(BaseTask):
     def append_toolset(self, *toolset: AbstractToolset):
         self._toolsets += list(toolset)
 
+    def add_toolset_factory(self, *factory: Callable[[AnyContext], AbstractToolset[None]]):
+        self.append_toolset_factory(*factory)
+
+    def append_toolset_factory(self, *factory: Callable[[AnyContext], AbstractToolset[None]]):
+        self._toolset_factories += list(factory)
+
     def add_tool(self, *tool: Tool | ToolFuncEither):
         self.append_tool(*tool)
 
     def append_tool(self, *tool: Tool | ToolFuncEither):
         self._tools += list(tool)
+
+    def add_tool_factory(self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]):
+        self.append_tool_factory(*factory)
+
+    def append_tool_factory(self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]):
+        self._tool_factories += list(factory)
 
     def add_history_processor(self, *processor: HistoryProcessor):
         self.append_history_processor(*processor)
@@ -312,7 +328,7 @@ class LLMChatTask(BaseTask):
 
         # 3. Create core LLM task
         llm_task_core = self._create_llm_task_core(
-            ui_commands["summarize"], interactive
+            ctx, ui_commands["summarize"], interactive
         )
 
         # 4. Run Interactive or Non-Interactive
@@ -335,6 +351,28 @@ class LLMChatTask(BaseTask):
             initial_yolo=initial_yolo,
             initial_attachments=initial_attachments,
         )
+
+    def _get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
+        """Get all tools including those resolved from factories."""
+        all_tools = list(self._tools)
+        for factory in self._tool_factories:
+            tool = factory(ctx)
+            if isinstance(tool, list):
+                all_tools.extend(tool)
+            else:
+                all_tools.append(tool)
+        return all_tools
+
+    def _get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
+        """Get all toolsets including those resolved from factories."""
+        all_toolsets = list(self._toolsets)
+        for factory in self._toolset_factories:
+            toolset = factory(ctx)
+            if isinstance(toolset, list):
+                all_toolsets.extend(toolset)
+            else:
+                all_toolsets.append(toolset)
+        return all_toolsets
 
     def _get_ui_commands(self) -> dict[str, list[str]]:
         """Resolve all UI commands from attributes or CFG defaults."""
@@ -387,7 +425,7 @@ class LLMChatTask(BaseTask):
         }
 
     def _create_llm_task_core(
-        self, summarize_commands: list[str], interactive: bool
+        self, ctx: AnyContext, summarize_commands: list[str], interactive: bool
     ) -> LLMTask:
         """Create the inner LLMTask that handles the actual processing."""
         from zrb.llm.agent.std_ui import StdUI
@@ -416,8 +454,9 @@ class LLMChatTask(BaseTask):
 
             tool_confirmation = _simple_policy_checker
 
-        # Note: If interactive=False and no policies, tool_confirmation remains as initialized (likely None)
-        # which triggers the default CLI fallback in run_agent.
+        # Get all tools and toolsets including those from factories
+        resolved_tools = self._get_all_tools(ctx)
+        resolved_toolsets = self._get_all_toolsets(ctx)
 
         return LLMTask(
             name=f"{self.name}-process",
@@ -431,8 +470,8 @@ class LLMChatTask(BaseTask):
             system_prompt=self._system_prompt,
             render_system_prompt=self._render_system_prompt,
             prompt_manager=self._prompt_manager,
-            tools=self._tools,
-            toolsets=self._toolsets,
+            tools=resolved_tools,
+            toolsets=resolved_toolsets,
             history_processors=self._history_processors,
             llm_config=self._llm_config,
             llm_limitter=self._llm_limitter,
@@ -458,18 +497,24 @@ class LLMChatTask(BaseTask):
         initial_yolo: bool,
         initial_attachments: list[UserContent],
     ) -> Any:
-        session_input = {
-            "message": initial_message,
-            "session": initial_conversation_name,
-            "yolo": initial_yolo,
-            "attachments": initial_attachments,
-        }
-        shared_ctx = SharedContext(
-            input=session_input,
-            print_fn=ctx.shared_print,  # Use current task's print function
-        )
-        session = Session(shared_ctx)
-        return await llm_task_core.async_run(session)
+        async with AsyncExitStack() as stack:
+            # Enter context for all toolsets that support it
+            for toolset in self._get_all_toolsets(ctx):
+                if hasattr(toolset, "__aenter__"):
+                    await stack.enter_async_context(toolset)
+            
+            session_input = {
+                "message": initial_message,
+                "session": initial_conversation_name,
+                "yolo": initial_yolo,
+                "attachments": initial_attachments,
+            }
+            shared_ctx = SharedContext(
+                input=session_input,
+                print_fn=ctx.shared_print,  # Use current task's print function
+            )
+            session = Session(shared_ctx)
+            return await llm_task_core.async_run(session)
 
     async def _run_interactive_ui(
         self,
@@ -496,7 +541,7 @@ class LLMChatTask(BaseTask):
 
         async with AsyncExitStack() as stack:
             # Enter context for all toolsets that support it
-            for toolset in self._toolsets:
+            for toolset in self._get_all_toolsets(ctx):
                 if hasattr(toolset, "__aenter__"):
                     await stack.enter_async_context(toolset)
 

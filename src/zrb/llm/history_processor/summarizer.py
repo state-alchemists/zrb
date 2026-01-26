@@ -1,9 +1,12 @@
+import sys
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from zrb.config.config import CFG
+from zrb.context.any_context import zrb_print
 from zrb.llm.agent.summarizer import create_summarizer_agent
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
+from zrb.util.cli.style import stylize_cyan
 from zrb.util.markdown import make_markdown_section
 
 if TYPE_CHECKING:
@@ -129,10 +132,26 @@ def create_summarizer_history_processor(
 
     async def process_history(messages: "list[ModelMessage]") -> "list[ModelMessage]":
         current_tokens = llm_limiter.count_tokens(messages)
-
         if current_tokens <= token_threshold:
             return messages
-
-        return await summarize_history(messages, agent, summary_window)
+        zrb_print(
+            stylize_cyan(
+                (
+                    f"Token Threshold exceeded ({current_tokens}/{token_threshold}). "
+                    "Compressing conversation..."
+                )
+            ),
+            plain=True,
+        )
+        result = await summarize_history(messages, agent, summary_window)
+        if result != messages:
+            new_tokens = llm_limiter.count_tokens(result)
+            zrb_print(
+                stylize_cyan(f"Conversation compressed ({new_tokens}/{token_threshold})"),
+                plain=True
+            )
+        else:
+            zrb_print(stylize_cyan("Cannot compress conversation"), plain=True)
+        return result
 
     return process_history

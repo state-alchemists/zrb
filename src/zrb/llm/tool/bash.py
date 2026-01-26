@@ -5,6 +5,7 @@ import re
 import signal
 import tempfile
 
+from zrb.context.any_context import zrb_print
 from zrb.util.cli.style import stylize_faint
 
 
@@ -136,7 +137,7 @@ async def _read_stream(stream: asyncio.StreamReader, lines_list: list[str]):
         if decoded:
             shown = ANSI_ESCAPE.sub("", decoded)
             shown = stylize_faint(shown)
-            print(f"  {shown}", end="")  # Stream to console
+            zrb_print(f"  {shown}", end="", plain=True)  # Stream to console
             lines_list.append(decoded)
 
 

@@ -3,6 +3,7 @@ import json
 import os
 
 from zrb.config.config import CFG
+from zrb.context.any_context import zrb_print
 from zrb.llm.agent import create_agent, run_agent
 from zrb.llm.config.config import llm_config
 from zrb.llm.config.limiter import llm_limiter
@@ -93,7 +94,7 @@ async def analyze_code(
     if not file_metadatas:
         return "No files found matching the criteria."
 
-    print(f"  📝 Extraction ({len(file_metadatas)} files)")
+    zrb_print(f"  📝 Extraction ({len(file_metadatas)} files)", plain=True)
 
     # 2. Extract Info
     extraction_token_threshold = CFG.LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD
@@ -114,7 +115,7 @@ async def analyze_code(
     summarized_infos = extracted_infos
 
     while len(summarized_infos) > 1:
-        print(f"  📝 Summarization ({len(summarized_infos)} chunks)")
+        zrb_print(f"  📝 Summarization ({len(summarized_infos)} chunks)", plain=True)
         summarized_infos = await _summarize_info(
             extracted_infos=summarized_infos,
             query=query,
@@ -143,7 +144,7 @@ def _get_file_metadatas(
                 with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                     metadata_list.append({"path": rel_path, "content": f.read()})
             except Exception as e:
-                print(f"Error reading file {file_path}: {e}")
+                zrb_print(f"Error reading file {file_path}: {e}", plain=True)
     metadata_list.sort(key=lambda m: m["path"])
     return metadata_list
 

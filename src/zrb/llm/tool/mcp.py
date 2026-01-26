@@ -3,6 +3,7 @@ import os
 from typing import Any
 
 from zrb.config.config import CFG
+from zrb.context.any_context import zrb_print
 
 
 def load_mcp_config(config_file_name: str | None = None) -> list[Any]:
@@ -61,7 +62,10 @@ def _merge_mcp_servers_config(config_files: list[str]) -> dict[str, Any]:
                 if "mcpServers" in data and isinstance(data["mcpServers"], dict):
                     merged_servers.update(data["mcpServers"])
         except Exception as e:
-            print(f"Warning: Failed to load MCP config from {config_file}: {e}")
+            zrb_print(
+                f"Warning: Failed to load MCP config from {config_file}: {e}",
+                plain=True,
+            )
 
     return merged_servers
 
@@ -87,6 +91,8 @@ def _create_mcp_servers(merged_servers: dict[str, Any]) -> list[Any]:
                 url = _expand_env_vars(config["url"])
                 servers.append(MCPServerSSE(url=url))
         except Exception as e:
-            print(f"Warning: Failed to create MCP server '{server_name}': {e}")
+            zrb_print(
+                f"Warning: Failed to create MCP server '{server_name}': {e}", plain=True
+            )
 
     return servers

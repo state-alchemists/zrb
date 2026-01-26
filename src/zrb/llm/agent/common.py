@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias
+from typing import TYPE_CHECKING, Any
 
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.util.prompt import expand_prompt

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pydantic_ai import ModelMessage
 
+from zrb.context.any_context import zrb_print
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.util.match import fuzzy_match
 
@@ -47,7 +48,10 @@ class FileHistoryManager(AnyHistoryManager):
         except (json.JSONDecodeError, OSError) as e:
             # Log error or warn? For now, return empty list or re-raise.
             # Returning empty list is safer for UI not to crash.
-            print(f"Warning: Failed to load history for {conversation_name}: {e}")
+            zrb_print(
+                f"Warning: Failed to load history for {conversation_name}: {e}",
+                plain=True,
+            )
             return []
 
     def update(self, conversation_name: str, messages: "list[ModelMessage]"):
@@ -67,7 +71,10 @@ class FileHistoryManager(AnyHistoryManager):
             with open(file_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
         except OSError as e:
-            print(f"Error: Failed to save history for {conversation_name}: {e}")
+            zrb_print(
+                f"Error: Failed to save history for {conversation_name}: {e}",
+                plain=True,
+            )
 
     def search(self, keyword: str) -> list[str]:
         if not os.path.exists(self._history_dir):

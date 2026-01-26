@@ -33,19 +33,25 @@ async def execute_task_action(task: "BaseTask", session: AnySession):
     """
     Executes a single task's action, handling conditions and readiness checks.
     """
+    from zrb.context.any_context import current_ctx
+
     ctx = task.get_ctx(session)
-    if not session.is_allowed_to_run(task):
-        # Task is not allowed to run, skip it for now.
-        # This will be triggered later if dependencies are met.
-        ctx.log_info("Not allowed to run")
-        return
-    if not check_execute_condition(task, session):
-        # Skip the task based on its execute_condition
-        ctx.log_info("Marked as skipped (condition false)")
-        session.get_task_status(task).mark_as_skipped()
-        return
-    # Wait for task to be ready (handles action execution, readiness checks)
-    return await run_async(execute_action_until_ready(task, session))
+    token = current_ctx.set(ctx)
+    try:
+        if not session.is_allowed_to_run(task):
+            # Task is not allowed to run, skip it for now.
+            # This will be triggered later if dependencies are met.
+            ctx.log_info("Not allowed to run")
+            return
+        if not check_execute_condition(task, session):
+            # Skip the task based on its execute_condition
+            ctx.log_info("Marked as skipped (condition false)")
+            session.get_task_status(task).mark_as_skipped()
+            return
+        # Wait for task to be ready (handles action execution, readiness checks)
+        return await run_async(execute_action_until_ready(task, session))
+    finally:
+        current_ctx.reset(token)
 
 
 def check_execute_condition(task: "BaseTask", session: AnySession) -> bool:

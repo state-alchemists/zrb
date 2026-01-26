@@ -92,7 +92,7 @@ class Config:
         self.DEFAULT_LLM_MODEL: str = ""
         self.DEFAULT_LLM_BASE_URL: str = ""
         self.DEFAULT_LLM_API_KEY: str = ""
-        self.DEFAULT_LLM_MAX_REQUESTS_PER_MINUTE: str = "60"
+        self.DEFAULT_LLM_MAX_REQUEST_PER_MINUTE: str = "60"
         self.DEFAULT_LLM_MAX_TOKENS_PER_MINUTE: str = "120000"
         self.DEFAULT_LLM_MAX_TOKENS_PER_REQUEST: str = "120000"
         self.DEFAULT_LLM_THROTTLE_SLEEP: str = "1.0"
@@ -892,7 +892,7 @@ class Config:
             os.environ[f"{self.ENV_PREFIX}_LLM_API_KEY"] = value
 
     @property
-    def LLM_MAX_REQUESTS_PER_MINUTE(self) -> int:
+    def LLM_MAX_REQUEST_PER_MINUTE(self) -> int:
         """
         Maximum number of LLM requests allowed per minute.
         Default is conservative to accommodate free-tier LLM providers.
@@ -900,14 +900,14 @@ class Config:
         return int(
             get_env(
                 ["LLM_MAX_REQUEST_PER_MINUTE", "LLM_MAX_REQUESTS_PER_MINUTE"],
-                self.DEFAULT_LLM_MAX_REQUESTS_PER_MINUTE,
+                self.DEFAULT_LLM_MAX_REQUEST_PER_MINUTE,
                 self.ENV_PREFIX,
             )
         )
 
-    @LLM_MAX_REQUESTS_PER_MINUTE.setter
-    def LLM_MAX_REQUESTS_PER_MINUTE(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_MAX_REQUESTS_PER_MINUTE"] = str(value)
+    @LLM_MAX_REQUEST_PER_MINUTE.setter
+    def LLM_MAX_REQUEST_PER_MINUTE(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_MAX_REQUEST_PER_MINUTE"] = str(value)
 
     @property
     def LLM_MAX_TOKENS_PER_MINUTE(self) -> int:

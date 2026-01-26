@@ -126,7 +126,6 @@ async def run_agent(
                     result_output,
                     effective_tool_confirmation,
                     effective_ui,
-                    print_fn,
                 )
                 if current_results is None:
                     return result_output, run_history
@@ -161,21 +160,33 @@ async def _acquire_rate_limit(
     limiter: LLMLimiter,
     message: str | None,
     message_history: list[Any],
-    print_fn: Callable[[str], Any],
+    print_fn: Callable[..., Any],
 ) -> list[Any]:
     """Prunes history and waits if rate limits are exceeded."""
+
+    def notify_throtling(msg: str):
+        if not msg:
+            # Clear line
+            try:
+                print_fn("\r\033[K", end="")
+            except TypeError:
+                pass
+            return
+        # Print waiting message
+        try:
+            print_fn(f"\r{msg}", end="")
+        except TypeError:
+            print_fn(msg)
+
     if not message:
         return message_history
-
-    # Prune
+    # Prune history
     pruned_history = limiter.fit_context_window(message_history, message)
-
     # Throttle
     await limiter.acquire(
         {"message": message, "history": pruned_history},
-        notifier=lambda msg: print_fn(msg) if msg else None,
+        notifier=notify_throtling,
     )
-
     return pruned_history
 
 
@@ -183,7 +194,6 @@ async def _process_deferred_requests(
     result_output: "DeferredToolRequests",
     effective_tool_confirmation: AnyToolConfirmation,
     ui: UIProtocol,
-    print_fn: Callable[[str], Any] = print,
 ) -> "DeferredToolResults | None":
     """Handles tool approvals/denials via callback, ToolCallHandler, or CLI fallback."""
     import inspect

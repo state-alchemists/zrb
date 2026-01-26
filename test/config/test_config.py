@@ -374,26 +374,26 @@ def test_llm_api_key_none(monkeypatch):
     assert config.LLM_API_KEY is None
 
 
-def test_llm_max_requests_per_minute(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_MAX_REQUESTS_PER_MINUTE", "30")
+def test_llm_max_request_per_minute(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_MAX_REQUEST_PER_MINUTE", "30")
     config = Config()
-    assert config.LLM_MAX_REQUESTS_PER_MINUTE == 30
+    assert config.LLM_MAX_REQUEST_PER_MINUTE == 30
 
 
-def test_llm_max_requests_per_minute_none(monkeypatch):
-    monkeypatch.delenv("ZRB_LLM_MAX_REQUESTS_PER_MINUTE", raising=False)
+def test_llm_max_request_per_minute_none(monkeypatch):
+    monkeypatch.delenv("ZRB_LLM_MAX_REQUEST_PER_MINUTE", raising=False)
     config = Config()
-    assert config.LLM_MAX_REQUESTS_PER_MINUTE == 60
+    assert config.LLM_MAX_REQUEST_PER_MINUTE == 60
 
 
-def test_llm_max_tokens_per_minute(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_MAX_TOKENS_PER_MINUTE", "200000")
+def test_llm_max_token_per_minute(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_MAX_TOKEN_PER_MINUTE", "200000")
     config = Config()
     assert config.LLM_MAX_TOKENS_PER_MINUTE == 200000
 
 
-def test_llm_max_tokens_per_request(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_MAX_TOKENS_PER_REQUEST", "100000")
+def test_llm_max_token_per_request(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_MAX_TOKEN_PER_REQUEST", "100000")
     config = Config()
     assert config.LLM_MAX_TOKENS_PER_REQUEST == 100000
 
@@ -484,7 +484,7 @@ def test_llm_configs_types():
     assert config.LLM_BASE_URL is None or isinstance(config.LLM_BASE_URL, str)
     assert config.LLM_API_KEY is None or isinstance(config.LLM_API_KEY, str)
 
-    assert isinstance(config.LLM_MAX_REQUESTS_PER_MINUTE, int)
+    assert isinstance(config.LLM_MAX_REQUEST_PER_MINUTE, int)
     assert isinstance(config.LLM_MAX_TOKENS_PER_MINUTE, int)
     assert isinstance(config.LLM_MAX_TOKENS_PER_REQUEST, int)
     assert isinstance(config.LLM_THROTTLE_SLEEP, float)

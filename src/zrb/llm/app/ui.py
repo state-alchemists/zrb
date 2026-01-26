@@ -40,7 +40,7 @@ from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.util.ascii_art.banner import create_banner
 from zrb.util.cli.markdown import render_markdown
-from zrb.util.cli.style import stylize_faint
+from zrb.util.cli.style import stylize_faint, stylize_error
 from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
@@ -563,8 +563,8 @@ class UI:
         timestamp = datetime.now().strftime("%H:%M")
 
         try:
-            self.append_to_output(f"\n💻 {timestamp} >>\n$ {cmd}\n")
-            self.append_to_output("\n  🔢 Executing...\n")
+            self.append_to_output(f"\n💻 {timestamp} >> {cmd}\n")
+            self.append_to_output(stylize_faint("\n  🔢 Executing...\n"))
 
             # Create subprocess
             process = await asyncio.create_subprocess_shell(
@@ -598,10 +598,10 @@ class UI:
             return_code = await process.wait()
 
             if return_code == 0:
-                self.append_to_output("\n  ✅ Command finished successfully.\n")
+                self.append_to_output(stylize_faint("\n  ✅ Command finished successfully.\n"))
             else:
                 self.append_to_output(
-                    f"\n  ❌ Command failed with exit code {return_code}.\n"
+                    stylize_error(f"\n  ❌ Command failed with exit code {return_code}.\n")
                 )
 
         except asyncio.CancelledError:
@@ -684,9 +684,9 @@ class UI:
                     )
                     self._history_manager.update(name, history)
                     self._history_manager.save(name)
-                    self.append_to_output(f"\n  💾 Conversation saved as: {name}\n")
+                    self.append_to_output(stylize_faint(f"\n  💾 Conversation saved as: {name}\n"))
                 except Exception as e:
-                    self.append_to_output(f"\n  ❌ Failed to save conversation: {e}\n")
+                    self.append_to_output(stylize_error(f"\n  ❌ Failed to save conversation: {e}\n"))
                 buff.reset()
                 return True
         return False
@@ -702,7 +702,7 @@ class UI:
                     continue
                 self._conversation_session_name = name
                 self.append_to_output(
-                    f"\n  📂 Conversation session switched to: {name}\n"
+                    stylize_faint(f"\n  📂 Conversation session switched to: {name}\n")
                 )
                 buff.reset()
                 return True
@@ -721,7 +721,7 @@ class UI:
                 content = self.last_output
                 if not content:
                     self.append_to_output(
-                        "\n  ❌ No AI response available to redirect.\n"
+                        stylize_error("\n  ❌ No AI response available to redirect.\n")
                     )
                     buff.reset()
                     return True
@@ -732,9 +732,13 @@ class UI:
                     os.makedirs(os.path.dirname(expanded_path), exist_ok=True)
                     with open(expanded_path, "w", encoding="utf-8") as f:
                         f.write(content)
-                    self.append_to_output(f"\n  📝 Last output redirected to: {path}\n")
+                    self.append_to_output(
+                        stylize_faint(f"\n  📝 Last output redirected to: {path}\n")
+                    )
                 except Exception as e:
-                    self.append_to_output(f"\n  ❌ Failed to redirect output: {e}\n")
+                    self.append_to_output(
+                        stylize_error(f"\n  ❌ Failed to redirect output: {e}\n")
+                    )
 
                 buff.reset()
                 return True
@@ -753,16 +757,16 @@ class UI:
 
     def _submit_attachment(self, path: str):
         # Validate path
-        self.append_to_output(f"\n  🔢 Attach {path}...\n")
+        self.append_to_output(stylize_faint(f"\n  🔢 Attach {path}...\n"))
         expanded_path = os.path.abspath(os.path.expanduser(path))
         if not os.path.exists(expanded_path):
-            self.append_to_output(f"\n  ❌ File not found: {path}\n")
+            self.append_to_output(stylize_error(f"\n  ❌ File not found: {path}\n"))
             return
         if expanded_path not in self._pending_attachments:
             self._pending_attachments.append(expanded_path)
-            self.append_to_output(f"\n  📎 Attached: {path}\n")
+            self.append_to_output(stylize_faint(f"\n  📎 Attached: {path}\n"))
         else:
-            self.append_to_output(f"\n  📎 Already attached: {path}\n")
+            self.append_to_output(stylize_error(f"\n  📎 Already attached: {path}\n"))
 
     def append_to_output(
         self,
@@ -808,7 +812,7 @@ class UI:
     def _submit_user_message(self, llm_task: AnyTask, user_message: str):
         timestamp = datetime.now().strftime("%H:%M")
         # 1. Render User Message
-        self.append_to_output(f"\n💬 {timestamp} >>\n{user_message.strip()}\n")
+        self.append_to_output(f"\n💬 {timestamp} >> {user_message.strip()}\n")
         # 2. Trigger AI Response
         attachments = list(self._pending_attachments)
         self._pending_attachments.clear()
@@ -831,7 +835,7 @@ class UI:
             session = self._create_sesion_for_llm_task(user_message, attachments)
 
             # Run the task with stdout/stderr redirected to UI
-            self.append_to_output("\n  🔢 Streaming response...\n")
+            self.append_to_output(stylize_faint("\n  🔢 Streaming response..."))
 
             # Set UI for tool confirmation
             llm_task.set_ui(self)

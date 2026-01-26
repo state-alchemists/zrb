@@ -5,6 +5,7 @@ from collections import deque
 from typing import Any, Callable
 
 from zrb.config.config import CFG
+from zrb.util.cli.style import stylize_cyan
 
 
 class LLMLimiter:
@@ -19,42 +20,42 @@ class LLMLimiter:
         self._token_log: deque[tuple[float, int]] = deque()
 
         # Internal overrides
-        self._max_requests_per_minute: int | None = None
-        self._max_tokens_per_minute: int | None = None
-        self._max_tokens_per_request: int | None = None
+        self._max_request_per_minute: int | None = None
+        self._max_token_per_minute: int | None = None
+        self._max_token_per_request: int | None = None
         self._throttle_check_interval: float | None = None
 
     # --- Configuration Properties ---
 
     @property
-    def max_requests_per_minute(self) -> int:
-        if self._max_requests_per_minute is not None:
-            return self._max_requests_per_minute
-        return getattr(CFG, "LLM_MAX_REQUESTS_PER_MINUTE", None) or 60
+    def max_request_per_minute(self) -> int:
+        if self._max_request_per_minute is not None:
+            return self._max_request_per_minute
+        return getattr(CFG, "LLM_MAX_REQUEST_PER_MINUTE", None) or 60
 
-    @max_requests_per_minute.setter
-    def max_requests_per_minute(self, value: int):
-        self._max_requests_per_minute = value
+    @max_request_per_minute.setter
+    def max_request_per_minute(self, value: int):
+        self._max_request_per_minute = value
 
     @property
-    def max_tokens_per_minute(self) -> int:
-        if self._max_tokens_per_minute is not None:
-            return self._max_tokens_per_minute
+    def max_token_per_minute(self) -> int:
+        if self._max_token_per_minute is not None:
+            return self._max_token_per_minute
         return getattr(CFG, "LLM_MAX_TOKENS_PER_MINUTE", None) or 100_000
 
-    @max_tokens_per_minute.setter
-    def max_tokens_per_minute(self, value: int):
-        self._max_tokens_per_minute = value
+    @max_token_per_minute.setter
+    def max_token_per_minute(self, value: int):
+        self._max_token_per_minute = value
 
     @property
-    def max_tokens_per_request(self) -> int:
-        if self._max_tokens_per_request is not None:
-            return self._max_tokens_per_request
+    def max_token_per_request(self) -> int:
+        if self._max_token_per_request is not None:
+            return self._max_token_per_request
         return getattr(CFG, "LLM_MAX_TOKENS_PER_REQUEST", None) or 16_000
 
-    @max_tokens_per_request.setter
-    def max_tokens_per_request(self, value: int):
-        self._max_tokens_per_request = value
+    @max_token_per_request.setter
+    def max_token_per_request(self, value: int):
+        self._max_token_per_request = value
 
     @property
     def throttle_check_interval(self) -> float:
@@ -105,7 +106,7 @@ class LLMLimiter:
             return has_user and not has_return
 
         new_msg_tokens = self._count_tokens(new_message)
-        if new_msg_tokens > self.max_tokens_per_request:
+        if new_msg_tokens > self.max_token_per_request * 0.95:
             return []
 
         pruned_history = list(history)
@@ -114,7 +115,7 @@ class LLMLimiter:
             history_tokens = self._count_tokens(pruned_history)
             total_tokens = history_tokens + new_msg_tokens
 
-            if total_tokens <= self.max_tokens_per_request:
+            if total_tokens <= self.max_token_per_request * 0.95:
                 break
 
             # Pruning Strategy: Find the start of the *next* turn and cut everything before it.
@@ -154,16 +155,16 @@ class LLMLimiter:
             reason = self._get_limit_reason(estimated_tokens)
 
             if notifier:
-                msg = f"Rate Limit Reached: {reason}. Waiting {wait_time:.1f}s..."
+                msg = f"Rate Limit reached: {reason}. Waiting {wait_time:.1f}s..."
                 # Only notify once or if status changes? Simple is better.
-                notifier(msg)
+                notifier(stylize_cyan(msg))
                 notified = True
 
             await asyncio.sleep(self.throttle_check_interval)
             self._prune_logs()
 
         if notified and notifier:
-            notifier("")  # Clear status
+            notifier("\n")  # Clear status
 
         # 3. Record usage
         now = time.time()
@@ -186,8 +187,8 @@ class LLMLimiter:
                 return len(enc.encode(text))
             except ImportError:
                 pass
-        # Fallback approximation (char/4)
-        return len(text) // 4
+        # Fallback approximation (char/3)
+        return len(text) // 3
 
     def _to_str(self, content: Any) -> str:
         if isinstance(content, str):
@@ -208,17 +209,21 @@ class LLMLimiter:
             self._token_log.popleft()
 
     def _can_proceed(self, tokens: int) -> bool:
-        requests_ok = len(self._request_log) < self.max_requests_per_minute
+        requests_ok = True
+        if len(self._request_log) > 0:
+            requests_ok = len(self._request_log) < self.max_request_per_minute
 
-        current_tokens = sum(t for _, t in self._token_log)
-        tokens_ok = (current_tokens + tokens) <= self.max_tokens_per_minute
+        tokens_ok = True
+        if len(self._token_log) > 0:
+            current_tokens = sum(t for _, t in self._token_log)
+            tokens_ok = (current_tokens + tokens) <= self.max_token_per_minute
 
         return requests_ok and tokens_ok
 
     def _get_limit_reason(self, tokens: int) -> str:
-        if len(self._request_log) >= self.max_requests_per_minute:
-            return f"Max Requests ({self.max_requests_per_minute}/min)"
-        return f"Max Tokens ({self.max_tokens_per_minute}/min)"
+        if len(self._request_log) >= self.max_request_per_minute:
+            return f"Max Requests ({self.max_request_per_minute}/min)"
+        return f"Max Tokens ({self.max_token_per_minute}/min)"
 
     def _calculate_wait_time(self, tokens: int) -> float:
         now = time.time()
@@ -226,14 +231,14 @@ class LLMLimiter:
         wait = 1.0
 
         # If request limit hit, wait until oldest request expires
-        if len(self._request_log) >= self.max_requests_per_minute:
+        if len(self._request_log) >= self.max_request_per_minute:
             oldest = self._request_log[0]
             wait = max(0.1, 60 - (now - oldest))
 
         # If token limit hit, wait until enough tokens expire
         current_tokens = sum(t for _, t in self._token_log)
-        if current_tokens + tokens > self.max_tokens_per_minute:
-            needed = (current_tokens + tokens) - self.max_tokens_per_minute
+        if current_tokens + tokens > self.max_token_per_minute:
+            needed = (current_tokens + tokens) - self.max_token_per_minute
             freed = 0
             for ts, count in self._token_log:
                 freed += count

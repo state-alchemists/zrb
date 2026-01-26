@@ -1,5 +1,6 @@
 import sys
 from abc import abstractmethod
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.context.any_shared_context import AnySharedContext
@@ -213,3 +214,30 @@ class AnyContext(AnySharedContext):
             float: The rendered template as a float.
         """
         pass
+
+
+current_ctx: ContextVar[AnyContext | None] = ContextVar("current_ctx", default=None)
+
+
+def get_current_ctx() -> AnyContext:
+    ctx = current_ctx.get()
+    if ctx is None:
+        raise RuntimeError(
+            "No active Zrb Context found. Are you running inside a task?"
+        )
+    return ctx
+
+
+def zrb_print(
+    *values: object,
+    sep: str | None = " ",
+    end: str | None = "\n",
+    file: TextIO | None = sys.stderr,
+    flush: bool = True,
+    plain: bool = False,
+):
+    ctx = current_ctx.get()
+    if ctx is not None:
+        ctx.print(*values, sep=sep, end=end, file=file, flush=flush, plain=plain)
+        return
+    print(*values, sep=sep, end=end, file=file, flush=flush)

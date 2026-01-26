@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable
 import yaml
 
 from zrb.config.config import CFG
+from zrb.context.any_context import zrb_print
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.util.yaml import yaml_dump
 
@@ -24,7 +25,7 @@ async def default_response_handler(
 ) -> ToolApproved | ToolDenied | None:
     from pydantic_ai import ToolApproved, ToolDenied
 
-    print(user_response)
+    zrb_print(user_response, plain=True)
 
     if user_response.lower().strip() in ("y", "yes", "ok", "okay", ""):
         ui.append_to_output("\n✅ Execution approved.")
