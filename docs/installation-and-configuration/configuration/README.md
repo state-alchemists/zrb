@@ -324,17 +324,17 @@ The following environment variables are used as LLM configuration default proper
     * Default: 60% of the model's maximum context window.
     * Possible values: Any positive integer
 
-* `ZRB_LLM_MAX_REQUESTS_PER_MINUTE`: Maximum number of LLM requests allowed per minute.
+* `ZRB_LLM_MAX_REQUEST_PER_MINUTE`: Maximum number of LLM requests allowed per minute.
     * Default: `60`
-    * Possible values: Any positive integer (also accepts `ZRB_LLM_MAX_REQUEST_PER_MINUTE`)
+    * Possible values: Any positive integer (also accepts `ZRB_LLM_MAX_REQUESTS_PER_MINUTE` for backward compatibility)
 
-* `ZRB_LLM_MAX_TOKENS_PER_MINUTE`: Maximum number of LLM tokens allowed per minute.
+* `ZRB_LLM_MAX_TOKEN_PER_MINUTE`: Maximum number of LLM tokens allowed per minute.
     * Default: `120000`
-    * Possible values: Any positive integer (also accepts `ZRB_LLM_MAX_TOKEN_PER_MINUTE`)
+    * Possible values: Any positive integer (also accepts `ZRB_LLM_MAX_TOKENS_PER_MINUTE` for backward compatibility)
 
-* `ZRB_LLM_MAX_TOKENS_PER_REQUEST`: Maximum number of tokens allowed per individual LLM request.
+* `ZRB_LLM_MAX_TOKEN_PER_REQUEST`: Maximum number of tokens allowed per individual LLM request.
     * Default: `120000`
-    * Possible values: Any positive integer (also accepts `ZRB_LLM_MAX_TOKEN_PER_REQUEST`)
+    * Possible values: Any positive integer (also accepts `ZRB_LLM_MAX_TOKENS_PER_REQUEST` for backward compatibility)
 
 * `ZRB_LLM_THROTTLE_SLEEP`: Number of seconds to sleep when throttling is required.
     * Default: `1.0`

@@ -1,5 +1,35 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.0.4
+
+- **Feature: Enhanced Context Management**:
+  - **Global ContextVar System**: Introduced `current_ctx` ContextVar and `zrb_print()` function for consistent, context-aware printing throughout the codebase.
+  - **Task Execution Context**: Added proper context management to task execution, ensuring context variables are properly set and reset during task runs.
+  - **Tool Factory Support**: Added `tool_factories` and `toolset_factories` parameters to `LLMChatTask`, enabling dynamic tool resolution based on runtime context.
+- **Improvement: Configuration Consistency**:
+  - **Standardized Config Property Names**: Updated `LLM_MAX_REQUESTS_PER_MINUTE` to `LLM_MAX_REQUEST_PER_MINUTE` (singular) for consistency with other config properties.
+  - **Backward Compatibility**: Maintained support for old environment variable names (`LLM_MAX_REQUESTS_PER_MINUTE`) while preferring the new singular form.
+- **Improvement: Rate Limiting & Token Management**:
+  - **Enhanced Token Counting**: Improved token estimation with better fallback approximation (char/3 instead of char/4) and 95% buffer for context window management.
+  - **Better Rate Limit Notifications**: Added cyan styling to rate limit messages and improved notification clearing mechanism.
+  - **Smarter Throttling**: Enhanced `_can_proceed()` logic to handle empty logs more gracefully.
+- **Improvement: UI/UX Enhancements**:
+  - **Consistent Styling**: Applied `stylize_faint()` and `stylize_error()` to UI messages for better visual hierarchy.
+  - **Improved Command Display**: Streamlined command output formatting with timestamps inline.
+  - **Better Error Feedback**: Enhanced error messages with proper styling throughout the TUI.
+- **Improvement: History & Conversation Management**:
+  - **Summarization Feedback**: Added progress notifications when compressing conversations due to token threshold limits.
+  - **Consistent Printing**: Updated `FileHistoryManager` to use `zrb_print()` for consistent error/warning messages.
+- **Bug Fixes & Refinements**:
+  - **Fixed Tool Name Assignment**: Removed explicit `__name__` assignment from note tools as pydantic-ai handles this automatically.
+  - **Improved Tool Resolution**: Enhanced `LLMChatTask` to properly resolve tools from factories during execution.
+  - **Better Async Context Management**: Added proper async context stack management for toolsets with `__aenter__` support.
+  - **Fixed Test Compatibility**: Updated tests to pass context to `_create_llm_task_core()` method.
+- **Code Quality**:
+  - **Consistent Printing**: Replaced direct `print()` calls with `zrb_print()` throughout LLM tools (bash, code, mcp, rag, note).
+  - **Prompt Manager Reset**: Added `reset()` method to `PromptManager` for easier testing and reinitialization.
+  - **Type Safety**: Cleaned up imports and type annotations in agent common module.
+
 ## 2.0.3
 
 - **Feature: Context-Aware LLM Agent Execution**:

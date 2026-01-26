@@ -60,9 +60,9 @@ Use the `activate_skill` tool in chat to load these instructions.
 
 These variables help you manage costs and stay within provider rate limits:
 
-- **`ZRB_LLM_MAX_REQUESTS_PER_MINUTE`**: Limits the number of LLM API requests per minute (default: `60`).
-- **`ZRB_LLM_MAX_TOKENS_PER_MINUTE`**: Limits the total tokens processed per minute (default: `120000`).
-- **`ZRB_LLM_MAX_TOKENS_PER_REQUEST`**: Limits the tokens per individual request (default: `120000`).
+- **`ZRB_LLM_MAX_REQUEST_PER_MINUTE`**: Limits the number of LLM API requests per minute (default: `60`). Also accepts `ZRB_LLM_MAX_REQUESTS_PER_MINUTE` for backward compatibility.
+- **`ZRB_LLM_MAX_TOKEN_PER_MINUTE`**: Limits the total tokens processed per minute (default: `120000`). Also accepts `ZRB_LLM_MAX_TOKENS_PER_MINUTE` for backward compatibility.
+- **`ZRB_LLM_MAX_TOKEN_PER_REQUEST`**: Limits the tokens per individual request (default: `120000`). Also accepts `ZRB_LLM_MAX_TOKENS_PER_REQUEST` for backward compatibility.
 - **`ZRB_LLM_THROTTLE_SLEEP`**: Seconds to sleep when throttling is triggered (default: `1.0`).
 
 #### Analysis Thresholds
@@ -147,7 +147,7 @@ ZRB_LLM_SHOW_TOOL_CALL_DETAIL=true
 ZRB_LLM_SHOW_TOOL_CALL_RESULT=true
 
 # Rate Limiting
-ZRB_LLM_MAX_REQUESTS_PER_MINUTE=60
+ZRB_LLM_MAX_REQUEST_PER_MINUTE=60
 
 # RAG
 ZRB_RAG_EMBEDDING_API_KEY=your_rag_api_key

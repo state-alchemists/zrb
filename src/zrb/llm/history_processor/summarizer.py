@@ -6,7 +6,7 @@ from zrb.context.any_context import zrb_print
 from zrb.llm.agent.summarizer import create_summarizer_agent
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
-from zrb.util.cli.style import stylize_cyan
+from zrb.util.cli.style import stylize_error, stylize_yellow
 from zrb.util.markdown import make_markdown_section
 
 if TYPE_CHECKING:
@@ -71,7 +71,7 @@ async def summarize_history(
     if summary_window is None:
         summary_window = CFG.LLM_HISTORY_SUMMARIZATION_WINDOW
     if len(messages) <= summary_window:
-        return messages
+        summary_window = len(messages) - 1
 
     # Determine split index
     # We want to keep at least summary_window messages.
@@ -87,6 +87,7 @@ async def summarize_history(
             break
 
     if split_idx <= 0:
+        zrb_print(stylize_error("  Cannot split conversation..."), plain=True)
         return messages
 
     to_summarize = messages[:split_idx]
@@ -104,16 +105,20 @@ async def summarize_history(
     summary_text = result.output
 
     # Create a summary message injected as user context
-    summary_message = ModelRequest(
-        parts=[
-            UserPromptPart(
-                content=make_markdown_section(
-                    "Previous conversation summary", summary_text
+    try:
+        zrb_print(stylize_yellow("Compressiong conversation..."), plain=True)
+        summary_message = ModelRequest(
+            parts=[
+                UserPromptPart(
+                    content=make_markdown_section(
+                        "Previous conversation summary", summary_text
+                    )
                 )
-            )
-        ]
-    )
-
+            ]
+        )
+    except Exception as e:
+        zrb_print(stylize_error(f"  Failed to compress conversation: {e}"), plain=True)
+        return messages
     return [summary_message] + to_keep
 
 
@@ -135,9 +140,9 @@ def create_summarizer_history_processor(
         if current_tokens <= token_threshold:
             return messages
         zrb_print(
-            stylize_cyan(
+            stylize_yellow(
                 (
-                    f"Token Threshold exceeded ({current_tokens}/{token_threshold}). "
+                    f"\n  Token Threshold exceeded ({current_tokens}/{token_threshold}). "
                     "Compressing conversation..."
                 )
             ),
@@ -147,13 +152,13 @@ def create_summarizer_history_processor(
         if result != messages:
             new_tokens = llm_limiter.count_tokens(result)
             zrb_print(
-                stylize_cyan(
-                    f"Conversation compressed ({new_tokens}/{token_threshold})"
+                stylize_yellow(
+                    f"  Conversation compressed ({new_tokens}/{token_threshold})"
                 ),
                 plain=True,
             )
         else:
-            zrb_print(stylize_cyan("Cannot compress conversation"), plain=True)
+            zrb_print(stylize_error("  Cannot compress conversation..."), plain=True)
         return result
 
     return process_history
