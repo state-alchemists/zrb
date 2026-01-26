@@ -66,8 +66,12 @@ class LLMChatTask(BaseTask):
         prompt_manager: PromptManager | None = None,
         tools: list[Tool | ToolFuncEither] | None = None,
         toolsets: list[AbstractToolset[None]] | None = None,
-        tool_factories: list[Callable[[AnyContext], Tool | ToolFuncEither]] | None = None,
-        toolset_factories: list[Callable[[AnyContext], AbstractToolset[None]]] | None = None,
+        tool_factories: (
+            list[Callable[[AnyContext], Tool | ToolFuncEither]] | None
+        ) = None,
+        toolset_factories: (
+            list[Callable[[AnyContext], AbstractToolset[None]]] | None
+        ) = None,
         message: StrAttr | None = None,
         render_message: bool = True,
         attachment: (
@@ -165,7 +169,9 @@ class LLMChatTask(BaseTask):
         self._tools = tools if tools is not None else []
         self._toolsets = toolsets if toolsets is not None else []
         self._tool_factories = tool_factories if tool_factories is not None else []
-        self._toolset_factories = toolset_factories if toolset_factories is not None else []
+        self._toolset_factories = (
+            toolset_factories if toolset_factories is not None else []
+        )
         self._message = message
         self._render_message = render_message
         self._attachment = attachment
@@ -251,10 +257,14 @@ class LLMChatTask(BaseTask):
     def append_toolset(self, *toolset: AbstractToolset):
         self._toolsets += list(toolset)
 
-    def add_toolset_factory(self, *factory: Callable[[AnyContext], AbstractToolset[None]]):
+    def add_toolset_factory(
+        self, *factory: Callable[[AnyContext], AbstractToolset[None]]
+    ):
         self.append_toolset_factory(*factory)
 
-    def append_toolset_factory(self, *factory: Callable[[AnyContext], AbstractToolset[None]]):
+    def append_toolset_factory(
+        self, *factory: Callable[[AnyContext], AbstractToolset[None]]
+    ):
         self._toolset_factories += list(factory)
 
     def add_tool(self, *tool: Tool | ToolFuncEither):
@@ -266,7 +276,9 @@ class LLMChatTask(BaseTask):
     def add_tool_factory(self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]):
         self.append_tool_factory(*factory)
 
-    def append_tool_factory(self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]):
+    def append_tool_factory(
+        self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]
+    ):
         self._tool_factories += list(factory)
 
     def add_history_processor(self, *processor: HistoryProcessor):
@@ -502,7 +514,7 @@ class LLMChatTask(BaseTask):
             for toolset in self._get_all_toolsets(ctx):
                 if hasattr(toolset, "__aenter__"):
                     await stack.enter_async_context(toolset)
-            
+
             session_input = {
                 "message": initial_message,
                 "session": initial_conversation_name,

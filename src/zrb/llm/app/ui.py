@@ -40,7 +40,7 @@ from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.util.ascii_art.banner import create_banner
 from zrb.util.cli.markdown import render_markdown
-from zrb.util.cli.style import stylize_faint, stylize_error
+from zrb.util.cli.style import stylize_error, stylize_faint
 from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
@@ -598,10 +598,14 @@ class UI:
             return_code = await process.wait()
 
             if return_code == 0:
-                self.append_to_output(stylize_faint("\n  ✅ Command finished successfully.\n"))
+                self.append_to_output(
+                    stylize_faint("\n  ✅ Command finished successfully.\n")
+                )
             else:
                 self.append_to_output(
-                    stylize_error(f"\n  ❌ Command failed with exit code {return_code}.\n")
+                    stylize_error(
+                        f"\n  ❌ Command failed with exit code {return_code}.\n"
+                    )
                 )
 
         except asyncio.CancelledError:
@@ -684,9 +688,13 @@ class UI:
                     )
                     self._history_manager.update(name, history)
                     self._history_manager.save(name)
-                    self.append_to_output(stylize_faint(f"\n  💾 Conversation saved as: {name}\n"))
+                    self.append_to_output(
+                        stylize_faint(f"\n  💾 Conversation saved as: {name}\n")
+                    )
                 except Exception as e:
-                    self.append_to_output(stylize_error(f"\n  ❌ Failed to save conversation: {e}\n"))
+                    self.append_to_output(
+                        stylize_error(f"\n  ❌ Failed to save conversation: {e}\n")
+                    )
                 buff.reset()
                 return True
         return False

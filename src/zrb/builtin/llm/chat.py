@@ -115,10 +115,12 @@ llm_chat.add_tool(
     analyze_code,
     search_internet,
     open_web_page,
-    create_list_zrb_task_tool(),
-    create_run_zrb_task_tool(),
-    create_activate_skill_tool(skill_manager),
     *create_note_tools(note_manager),
+)
+llm_chat.add_tool_factory(
+    lambda ctx: create_list_zrb_task_tool(),
+    lambda ctx: create_run_zrb_task_tool(),
+    lambda ctx: create_activate_skill_tool(skill_manager),
 )
 llm_chat.add_argument_formatter(
     replace_in_file_formatter, write_file_formatter, write_files_formatter

@@ -147,8 +147,10 @@ def create_summarizer_history_processor(
         if result != messages:
             new_tokens = llm_limiter.count_tokens(result)
             zrb_print(
-                stylize_cyan(f"Conversation compressed ({new_tokens}/{token_threshold})"),
-                plain=True
+                stylize_cyan(
+                    f"Conversation compressed ({new_tokens}/{token_threshold})"
+                ),
+                plain=True,
             )
         else:
             zrb_print(stylize_cyan("Cannot compress conversation"), plain=True)

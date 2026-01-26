@@ -13,8 +13,6 @@ def create_note_tools(note_manager: NoteManager) -> list[Callable]:
         """
         return note_manager.read("~")
 
-    read_long_term_note.__name__ = "read_long_term_note"
-
     async def write_long_term_note(content: str) -> str:
         """
         Updates your GLOBAL 🧠 Long-Term Memory with CRITICAL information.
@@ -28,8 +26,6 @@ def create_note_tools(note_manager: NoteManager) -> list[Callable]:
         note_manager.write("~", content)
         return "Global long-term note saved."
 
-    write_long_term_note.__name__ = "write_long_term_note"
-
     async def read_contextual_note(path: str | None = None) -> str:
         """
         Retrieves LOCAL 📝 Contextual Notes for a specific project or directory.
@@ -41,8 +37,6 @@ def create_note_tools(note_manager: NoteManager) -> list[Callable]:
         if path is None:
             path = os.getcwd()
         return note_manager.read(path)
-
-    read_contextual_note.__name__ = "read_contextual_note"
 
     async def write_contextual_note(content: str, path: str | None = None) -> str:
         """
@@ -59,8 +53,6 @@ def create_note_tools(note_manager: NoteManager) -> list[Callable]:
             path = os.getcwd()
         note_manager.write(path, content)
         return f"Contextual note saved for: {path}"
-
-    write_contextual_note.__name__ = "write_contextual_note"
 
     return [
         read_long_term_note,

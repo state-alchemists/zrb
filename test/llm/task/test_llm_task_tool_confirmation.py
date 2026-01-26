@@ -42,8 +42,8 @@ async def test_llm_task_tool_confirmation_called():
 
 @pytest.mark.asyncio
 async def test_llm_chat_task_tool_confirmation_forwarded():
-    from zrb.llm.task.llm_chat_task import LLMChatTask
     from zrb.context.shared_context import SharedContext
+    from zrb.llm.task.llm_chat_task import LLMChatTask
     from zrb.session.session import Session
 
     def tool_confirmation(call):
@@ -58,7 +58,7 @@ async def test_llm_chat_task_tool_confirmation_forwarded():
     # Create a mock context
     shared_ctx = SharedContext()
     session = Session(shared_ctx)
-    
+
     # We want to check if the core task has the tool_confirmation
     core_task = chat_task._create_llm_task_core(session, [], interactive=False)
     assert core_task._tool_confirmation == tool_confirmation
@@ -66,9 +66,9 @@ async def test_llm_chat_task_tool_confirmation_forwarded():
 
 @pytest.mark.asyncio
 async def test_llm_chat_task_interactive_handler_wrapping():
+    from zrb.context.shared_context import SharedContext
     from zrb.llm.task.llm_chat_task import LLMChatTask
     from zrb.llm.tool_call import ToolCallHandler
-    from zrb.context.shared_context import SharedContext
     from zrb.session.session import Session
 
     async def my_handler(ui, call, response, next_handler):
@@ -83,21 +83,25 @@ async def test_llm_chat_task_interactive_handler_wrapping():
     # Create a mock context
     shared_ctx = SharedContext()
     session = Session(shared_ctx)
-    
+
     # Interactive=True: Should set tool_confirmation to None (defer to UI context var)
-    core_task_interactive = chat_task._create_llm_task_core(session, [], interactive=True)
+    core_task_interactive = chat_task._create_llm_task_core(
+        session, [], interactive=True
+    )
     assert core_task_interactive._tool_confirmation is None
 
     # Interactive=False: Should NOT wrap (since handlers are filtered out and policies are empty)
-    core_task_non_interactive = chat_task._create_llm_task_core(session, [], interactive=False)
+    core_task_non_interactive = chat_task._create_llm_task_core(
+        session, [], interactive=False
+    )
     assert not isinstance(core_task_non_interactive._tool_confirmation, ToolCallHandler)
 
 
 @pytest.mark.asyncio
 async def test_llm_chat_task_policy_wrapping():
+    from zrb.context.shared_context import SharedContext
     from zrb.llm.task.llm_chat_task import LLMChatTask
     from zrb.llm.tool_call import ToolCallHandler
-    from zrb.context.shared_context import SharedContext
     from zrb.session.session import Session
 
     async def my_policy(call, next_handler):
@@ -112,7 +116,7 @@ async def test_llm_chat_task_policy_wrapping():
     # Create a mock context
     shared_ctx = SharedContext()
     session = Session(shared_ctx)
-    
+
     # Interactive=False with policies: Should get a simple callable wrapper, NOT ToolCallHandler
     core_task = chat_task._create_llm_task_core(session, [], interactive=False)
     assert callable(core_task._tool_confirmation)
