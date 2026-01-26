@@ -1,6 +1,6 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
-## 2.0.4
+## 2.0.5
 
 - **Feature: Enhanced Context Management**:
   - **Global ContextVar System**: Introduced `current_ctx` ContextVar and `zrb_print()` function for consistent, context-aware printing throughout the codebase.
