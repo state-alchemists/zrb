@@ -21,7 +21,9 @@ async def test_llm_task_tool_confirmation_called():
         def tool_confirmation(call):
             return ToolApproved()
 
-        mock_history_manager = patch("zrb.llm.history_manager.any_history_manager.AnyHistoryManager").start()
+        mock_history_manager = patch(
+            "zrb.llm.history_manager.any_history_manager.AnyHistoryManager"
+        ).start()
         mock_history_manager.load.return_value = []
 
         task = LLMTask(
@@ -64,8 +66,12 @@ async def test_llm_chat_task_tool_confirmation_forwarded():
     session = Session(shared_ctx)
 
     # We want to check if the core task has the tool_confirmation
-    mock_history_manager = patch("zrb.llm.history_manager.any_history_manager.AnyHistoryManager").start()
-    core_task = chat_task._create_llm_task_core(session, [], mock_history_manager, interactive=False)
+    mock_history_manager = patch(
+        "zrb.llm.history_manager.any_history_manager.AnyHistoryManager"
+    ).start()
+    core_task = chat_task._create_llm_task_core(
+        session, [], mock_history_manager, interactive=False
+    )
     assert core_task._tool_confirmation == tool_confirmation
 
 
@@ -90,7 +96,9 @@ async def test_llm_chat_task_interactive_handler_wrapping():
     session = Session(shared_ctx)
 
     # Interactive=True: Should set tool_confirmation to None (defer to UI context var)
-    mock_history_manager = patch("zrb.llm.history_manager.any_history_manager.AnyHistoryManager").start()
+    mock_history_manager = patch(
+        "zrb.llm.history_manager.any_history_manager.AnyHistoryManager"
+    ).start()
     core_task_interactive = chat_task._create_llm_task_core(
         session, [], mock_history_manager, interactive=True
     )
@@ -124,7 +132,11 @@ async def test_llm_chat_task_policy_wrapping():
     session = Session(shared_ctx)
 
     # Interactive=False with policies: Should get a simple callable wrapper, NOT ToolCallHandler
-    mock_history_manager = patch("zrb.llm.history_manager.any_history_manager.AnyHistoryManager").start()
-    core_task = chat_task._create_llm_task_core(session, [], mock_history_manager, interactive=False)
+    mock_history_manager = patch(
+        "zrb.llm.history_manager.any_history_manager.AnyHistoryManager"
+    ).start()
+    core_task = chat_task._create_llm_task_core(
+        session, [], mock_history_manager, interactive=False
+    )
     assert callable(core_task._tool_confirmation)
     assert not isinstance(core_task._tool_confirmation, ToolCallHandler)

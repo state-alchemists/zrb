@@ -439,7 +439,11 @@ class LLMChatTask(BaseTask):
         }
 
     def _create_llm_task_core(
-        self, ctx: AnyContext, summarize_commands: list[str], history_manager: AnyHistoryManager, interactive: bool
+        self,
+        ctx: AnyContext,
+        summarize_commands: list[str],
+        history_manager: AnyHistoryManager,
+        interactive: bool,
     ) -> LLMTask:
         """Create the inner LLMTask that handles the actual processing."""
         from zrb.llm.agent.std_ui import StdUI

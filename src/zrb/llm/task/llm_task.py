@@ -136,7 +136,7 @@ class LLMTask(BaseTask):
         self._model_settings = model_settings
         self._conversation_name = conversation_name
         self._render_conversation_name = render_conversation_name
-        self._history_manager = history_manager 
+        self._history_manager = history_manager
         self._tool_confirmation = tool_confirmation
         self._ui = ui
         self._yolo = yolo
