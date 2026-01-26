@@ -7,15 +7,16 @@ from zrb.util.string.conversion import to_snake_case
 def get_default_prompt(name: str) -> str:
     # 1. Check for local project override (configured via LLM_PROMPT_DIR)
     prompt_dir = getattr(CFG, "LLM_PROMPT_DIR", ".zrb/llm/prompt")
-    local_prompt_path = os.path.abspath(
-        os.path.join(os.getcwd(), prompt_dir, f"{name}.md")
-    )
-    if os.path.exists(local_prompt_path):
-        try:
-            with open(local_prompt_path, "r", encoding="utf-8") as f:
-                return f.read()
-        except Exception:
-            pass
+    for search_path in _get_default_prompt_search_path():
+        local_prompt_path = os.path.abspath(
+            os.path.join(search_path, prompt_dir, f"{name}.md")
+        )
+        if os.path.exists(local_prompt_path):
+            try:
+                with open(local_prompt_path, "r", encoding="utf-8") as f:
+                    return f.read()
+            except Exception:
+                pass
 
     # 2. Load from environment
     env_prefix = CFG.ENV_PREFIX
@@ -27,6 +28,24 @@ def get_default_prompt(name: str) -> str:
     cwd = os.path.dirname(__file__)
     with open(os.path.join(cwd, "markdown", f"{name}.md"), "r", encoding="utf-8") as f:
         return f.read()
+
+
+def _get_default_prompt_search_path() -> list[str]:
+    current_path = os.path.abspath(os.getcwd())
+    home_path = os.path.abspath(os.path.expanduser("~"))
+    search_paths = [current_path]
+    try:
+        if os.path.commonpath([current_path, home_path]) == home_path:
+            temp_path = current_path
+            while temp_path != home_path:
+                new_temp_path = os.path.dirname(temp_path)
+                if new_temp_path == temp_path:
+                    break
+                temp_path = new_temp_path
+                search_paths.append(temp_path)
+    except ValueError:
+        pass
+    return search_paths
 
 
 def get_persona_prompt(assistant_name: str | None = None) -> str:

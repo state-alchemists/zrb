@@ -136,11 +136,7 @@ class LLMTask(BaseTask):
         self._model_settings = model_settings
         self._conversation_name = conversation_name
         self._render_conversation_name = render_conversation_name
-        self._history_manager = (
-            FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
-            if history_manager is None
-            else history_manager
-        )
+        self._history_manager = history_manager 
         self._tool_confirmation = tool_confirmation
         self._ui = ui
         self._yolo = yolo
@@ -186,6 +182,11 @@ class LLMTask(BaseTask):
         message_history = self._history_manager.load(conversation_name)
         user_message = get_attr(ctx, self._message, "", self._render_message)
         user_attachments = get_attachments(ctx, self._attachment)
+        history_manager = (
+            FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
+            if self._history_manager is None
+            else self._history_manager
+        )
 
         if (
             isinstance(user_message, str)
@@ -193,8 +194,8 @@ class LLMTask(BaseTask):
         ):
             ctx.print("Compressing conversation history...", plain=True)
             new_history = await summarize_history(message_history)
-            self._history_manager.update(conversation_name, new_history)
-            self._history_manager.save(conversation_name)
+            history_manager.update(conversation_name, new_history)
+            history_manager.save(conversation_name)
             return "Conversation history compressed."
 
         yolo = get_bool_attr(ctx, self._yolo, False)
@@ -229,8 +230,8 @@ class LLMTask(BaseTask):
             ui=self._ui,
         )
 
-        self._history_manager.update(conversation_name, new_history)
-        self._history_manager.save(conversation_name)
+        history_manager.update(conversation_name, new_history)
+        history_manager.save(conversation_name)
         ctx.log_debug(f"All messages: {new_history}")
 
         return output

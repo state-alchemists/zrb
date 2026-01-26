@@ -185,11 +185,7 @@ class LLMChatTask(BaseTask):
         self._model_settings = model_settings
         self._conversation_name = conversation_name
         self._render_conversation_name = render_conversation_name
-        self._history_manager = (
-            FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
-            if history_manager is None
-            else history_manager
-        )
+        self._history_manager = history_manager
         self._tool_confirmation = tool_confirmation
         self._yolo = yolo
         self._ui_summarize_commands = (
@@ -334,13 +330,18 @@ class LLMChatTask(BaseTask):
         initial_message = get_attr(ctx, self._message, "", self._render_message)
         initial_attachments = get_attachments(ctx, self._attachment)
         interactive = get_bool_attr(ctx, self._interactive, True)
+        history_manager = (
+            FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
+            if self._history_manager is None
+            else self._history_manager
+        )
 
         # 2. Resolve UI Commands
         ui_commands = self._get_ui_commands()
 
         # 3. Create core LLM task
         llm_task_core = self._create_llm_task_core(
-            ctx, ui_commands["summarize"], interactive
+            ctx, ui_commands["summarize"], history_manager, interactive
         )
 
         # 4. Run Interactive or Non-Interactive
@@ -357,6 +358,7 @@ class LLMChatTask(BaseTask):
         return await self._run_interactive_ui(
             ctx=ctx,
             llm_task_core=llm_task_core,
+            history_manager=history_manager,
             ui_commands=ui_commands,
             initial_message=initial_message,
             initial_conversation_name=initial_conversation_name,
@@ -437,7 +439,7 @@ class LLMChatTask(BaseTask):
         }
 
     def _create_llm_task_core(
-        self, ctx: AnyContext, summarize_commands: list[str], interactive: bool
+        self, ctx: AnyContext, summarize_commands: list[str], history_manager: AnyHistoryManager, interactive: bool
     ) -> LLMTask:
         """Create the inner LLMTask that handles the actual processing."""
         from zrb.llm.agent.std_ui import StdUI
@@ -490,7 +492,7 @@ class LLMChatTask(BaseTask):
             model=self._model,
             render_model=self._render_model,
             model_settings=self._model_settings,
-            history_manager=self._history_manager,
+            history_manager=history_manager,
             tool_confirmation=tool_confirmation,
             ui=ui,
             message="{ctx.input.message}",
@@ -532,6 +534,7 @@ class LLMChatTask(BaseTask):
         self,
         ctx: AnyContext,
         llm_task_core: LLMTask,
+        history_manager: AnyHistoryManager,
         ui_commands: dict[str, list[str]],
         initial_message: Any,
         initial_conversation_name: str,
@@ -576,7 +579,7 @@ class LLMChatTask(BaseTask):
                 jargon=ui_jargon,
                 output_lexer=CLIStyleLexer(),
                 llm_task=llm_task_core,
-                history_manager=self._history_manager,
+                history_manager=history_manager,
                 initial_message=initial_message,
                 initial_attachments=initial_attachments,
                 conversation_session_name=initial_conversation_name,
