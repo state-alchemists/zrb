@@ -179,14 +179,14 @@ class LLMTask(BaseTask):
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
         conversation_name = self._get_conversation_name(ctx)
-        message_history = self._history_manager.load(conversation_name)
-        user_message = get_attr(ctx, self._message, "", self._render_message)
-        user_attachments = get_attachments(ctx, self._attachment)
         history_manager = (
             FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
             if self._history_manager is None
             else self._history_manager
         )
+        message_history = history_manager.load(conversation_name)
+        user_message = get_attr(ctx, self._message, "", self._render_message)
+        user_attachments = get_attachments(ctx, self._attachment)
 
         if (
             isinstance(user_message, str)

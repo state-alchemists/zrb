@@ -64,8 +64,8 @@ async def test_tool_policy():
     )
 
     # Create a simple print function
-    def test_print(msg: str):
-        print(f"[TEST] {msg}")
+    def test_print(msg: str, **kwargs):
+        print(f"[TEST] {msg}", **kwargs)
 
     # Test 1: Blocked city (should be denied by policy)
     print("\n=== Test 1: Blocked city (Moscow) ===")
