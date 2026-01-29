@@ -1,5 +1,9 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.0.9
+
+- **Fix: CFG.LLM_ASSISTANT_NAME lazy load**
+
 ## 2.0.8
 
 - **Fix: Art resolution** Fixing art resolution in case of user provided the file

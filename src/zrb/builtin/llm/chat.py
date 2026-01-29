@@ -82,7 +82,7 @@ llm_chat = LLMChatTask(
         )
     ],
     prompt_manager=PromptManager(
-        assistant_name=CFG.LLM_ASSISTANT_NAME,
+        assistant_name=lambda ctx: CFG.LLM_ASSISTANT_NAME,
         note_manager=note_manager,
         skill_manager=skill_manager,
     ),
