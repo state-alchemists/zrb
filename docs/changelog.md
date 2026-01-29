@@ -1,5 +1,19 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.0.10
+
+- **Feature: Structured History Summarization**:
+  - **XML State Snapshot**: Overhauled the summarizer prompt to generate structured `<state_snapshot>` XML (Goals, Constraints, Knowledge, Artifacts, Tasks) instead of unstructured text, improving the agent's long-term memory and context retention.
+  - **Iterative Chunking**: Implemented smart history splitting to process large conversations in manageable chunks, preventing context window overflows.
+  - **Recursive Compression**: Added logic to recursively re-summarize content if the aggregated summary remains too large.
+- **Improvement: Rate Limiting & Safety**:
+  - **Token-Aware Truncation**: Added `truncate_text` to `LLMLimiter` with `tiktoken` support (and fallback) to safely handle massive message blocks during summarization.
+  - **Prompt Injection Defense**: Added explicit security rules to the summarizer system prompt to ignore adversarial content within the chat history.
+- **Refinement: Core Prompts**:
+  - **Mandate & Persona**: Polished `mandate.md` and `persona.md` for better clarity and stricter adherence to safety and convention guidelines.
+- **Maintenance**:
+  - Updated dependencies (`poetry.lock`, `pyproject.toml`).
+
 ## 2.0.9
 
 - **Fix: CFG.LLM_ASSISTANT_NAME lazy load**
