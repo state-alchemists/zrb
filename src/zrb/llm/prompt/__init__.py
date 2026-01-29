@@ -1,5 +1,7 @@
 from zrb.llm.prompt.claude_compatibility import create_claude_compatibility_prompt
 from zrb.llm.prompt.default import (
+    get_default_prompt,
+    get_default_prompt_by_role,
     get_file_extractor_system_prompt,
     get_mandate_prompt,
     get_persona_prompt,
@@ -18,6 +20,8 @@ __all__ = [
     "PromptMiddleware",
     "new_prompt",
     "get_file_extractor_system_prompt",
+    "get_default_prompt",
+    "get_default_prompt_by_role",
     "get_mandate_prompt",
     "get_persona_prompt",
     "get_repo_extractor_system_prompt",

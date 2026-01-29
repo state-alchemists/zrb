@@ -104,6 +104,7 @@ class Config:
         self.DEFAULT_LLM_PROMPT_DIR: str = ""
         self.DEFAULT_LLM_SHOW_TOOL_CALL_DETAIL: str = "off"
         self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT: str = "off"
+        self.DEFAULT_ASCII_ART_DIR: str = ""
         self.DEFAULT_RAG_EMBEDDING_API_KEY: str = ""
         self.DEFAULT_RAG_EMBEDDING_BASE_URL: str = ""
         self.DEFAULT_RAG_EMBEDDING_MODEL: str = "text-embedding-ada-002"
@@ -528,6 +529,21 @@ class Config:
     @WEB_HOMEPAGE_INTRO.setter
     def WEB_HOMEPAGE_INTRO(self, value: str):
         os.environ[f"{self.ENV_PREFIX}_WEB_HOMEPAGE_INTRO"] = value
+
+    @property
+    def ASCII_ART_DIR(self) -> str:
+        default = self.DEFAULT_ASCII_ART_DIR
+        if default == "":
+            default = os.path.join(f".{self.ROOT_GROUP_NAME}", "llm", "prompt")
+        return get_env(
+            "ASCII_ART_DIR",
+            default,
+            self.ENV_PREFIX,
+        )
+
+    @ASCII_ART_DIR.setter
+    def ASCII_ART_DIR(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_ASCII_ART_DIR"] = value
 
     @property
     def LLM_ASSISTANT_NAME(self) -> str:

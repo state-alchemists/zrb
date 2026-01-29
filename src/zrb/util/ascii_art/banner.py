@@ -1,6 +1,8 @@
 import os
 import random
 
+from zrb.config.config import CFG
+
 
 def create_banner(art: str | None = None, text: str | None = None) -> str:
     # First get art using _get_art_only
@@ -57,36 +59,65 @@ def create_banner(art: str | None = None, text: str | None = None) -> str:
     return "\n".join(combined_lines)
 
 
-def _get_art_only(art: str | None = None) -> str:
-    # If name is provided
-    if art is not None:
-        # 1) name is a file, load the content of the file, return
-        expanded_name = os.path.expanduser(art)
-        if os.path.isfile(expanded_name):
-            with open(expanded_name, "r") as f:
-                return f.read()
-
-        # 2) name is a string, but not a file
-        # Check if art/name.txt exists in the script directory
-        cwd = os.path.dirname(__file__)
-        art_path = os.path.join(cwd, "art", f"{art}.txt")
-        if os.path.isfile(art_path):
-            with open(art_path, "r") as f:
-                return f.read()
-
-    # 3) otherwise load random file from art/ directory
-    cwd = os.path.dirname(__file__)
-    art_dir = os.path.join(cwd, "art")
-    # Get all .txt files in the art directory
+def _get_default_banner_search_path() -> list[str]:
+    current_path = os.path.abspath(os.getcwd())
+    home_path = os.path.abspath(os.path.expanduser("~"))
+    search_paths = [current_path]
     try:
-        art_files = [f for f in os.listdir(art_dir) if f.endswith(".txt")]
-    except FileNotFoundError:
-        # If art directory doesn't exist, return empty string
-        return ""
-    if not art_files:
-        return ""
-    # Select a random file
-    random_file = random.choice(art_files)
-    random_file_path = os.path.join(art_dir, random_file)
-    with open(random_file_path, "r") as f:
-        return f.read()
+        if os.path.commonpath([current_path, home_path]) == home_path:
+            temp_path = current_path
+            while temp_path != home_path:
+                new_temp_path = os.path.dirname(temp_path)
+                if new_temp_path == temp_path:
+                    break
+                temp_path = new_temp_path
+                search_paths.append(temp_path)
+    except ValueError:
+        pass
+    return search_paths
+
+
+def _get_art_only(art: str | None = None) -> str:
+    # If art name is provided, try to find it.
+    if art is not None:
+        # a. Check in search paths
+        for search_path in _get_default_banner_search_path():
+            art_path = os.path.join(search_path, CFG.ASCII_ART_DIR, f"{art}.txt")
+            if os.path.isfile(art_path):
+                with open(art_path, "r", encoding="utf-8") as f:
+                    return f.read()
+
+        # b. Check in builtin art folder
+        cwd = os.path.dirname(__file__)
+        builtin_art_path = os.path.join(cwd, "art", f"{art}.txt")
+        if os.path.isfile(builtin_art_path):
+            with open(builtin_art_path, "r", encoding="utf-8") as f:
+                return f.read()
+
+    # If no specific art requested, or if requested art not found, find a random one.
+    all_art_files = []
+
+    # a. Collect from search paths
+    for search_path in _get_default_banner_search_path():
+        art_dir = os.path.join(search_path, CFG.ASCII_ART_DIR)
+        if os.path.isdir(art_dir):
+            for filename in os.listdir(art_dir):
+                if filename.endswith(".txt"):
+                    all_art_files.append(os.path.join(art_dir, filename))
+
+    # b. Collect from builtin art folder
+    cwd = os.path.dirname(__file__)
+    builtin_art_dir = os.path.join(cwd, "art")
+    if os.path.isdir(builtin_art_dir):
+        for filename in os.listdir(builtin_art_dir):
+            if filename.endswith(".txt"):
+                all_art_files.append(os.path.join(builtin_art_dir, filename))
+
+    # c. If any art files were found, pick one at random.
+    if all_art_files:
+        random_file_path = random.choice(all_art_files)
+        with open(random_file_path, "r", encoding="utf-8") as f:
+            return f.read()
+
+    # If no art found at all, return empty string.
+    return ""

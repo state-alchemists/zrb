@@ -4,6 +4,36 @@ from zrb.config.config import CFG
 from zrb.util.string.conversion import to_snake_case
 
 
+def get_persona_prompt(
+    assistant_name: str | None = None, role: str | None = None
+) -> str:
+    effective_assistant_name = (
+        assistant_name if assistant_name else CFG.LLM_ASSISTANT_NAME
+    )
+    prompt = get_default_prompt_by_role("persona", role)
+    return prompt.replace("{ASSISTANT_NAME}", effective_assistant_name)
+
+
+def get_mandate_prompt(role: str | None = None) -> str:
+    return get_default_prompt_by_role("mandate", role)
+
+
+def get_summarizer_system_prompt() -> str:
+    return get_default_prompt("summarizer")
+
+
+def get_file_extractor_system_prompt() -> str:
+    return get_default_prompt("file_extractor")
+
+
+def get_repo_extractor_system_prompt() -> str:
+    return get_default_prompt("repo_extractor")
+
+
+def get_repo_summarizer_system_prompt() -> str:
+    return get_default_prompt("repo_summarizer")
+
+
 def get_default_prompt(name: str) -> str:
     # 1. Check for local project override (configured via LLM_PROMPT_DIR)
     prompt_dir = getattr(CFG, "LLM_PROMPT_DIR", ".zrb/llm/prompt")
@@ -26,7 +56,10 @@ def get_default_prompt(name: str) -> str:
 
     # 3. Fallback to package default
     cwd = os.path.dirname(__file__)
-    with open(os.path.join(cwd, "markdown", f"{name}.md"), "r", encoding="utf-8") as f:
+    file_path = os.path.join(cwd, "markdown", f"{name}.md")
+    if not os.path.isfile(file_path):
+        return ""
+    with open(file_path, "r", encoding="utf-8") as f:
         return f.read()
 
 
@@ -48,29 +81,8 @@ def _get_default_prompt_search_path() -> list[str]:
     return search_paths
 
 
-def get_persona_prompt(assistant_name: str | None = None) -> str:
-    effective_assistant_name = (
-        assistant_name if assistant_name else CFG.LLM_ASSISTANT_NAME
-    )
-    prompt = get_default_prompt("persona")
-    return prompt.replace("{ASSISTANT_NAME}", effective_assistant_name)
-
-
-def get_mandate_prompt() -> str:
-    return get_default_prompt("mandate")
-
-
-def get_summarizer_system_prompt() -> str:
-    return get_default_prompt("summarizer")
-
-
-def get_file_extractor_system_prompt() -> str:
-    return get_default_prompt("file_extractor")
-
-
-def get_repo_extractor_system_prompt() -> str:
-    return get_default_prompt("repo_extractor")
-
-
-def get_repo_summarizer_system_prompt() -> str:
-    return get_default_prompt("repo_summarizer")
+def get_default_prompt_by_role(name: str, role: str | None = None) -> str:
+    prompt = get_default_prompt(f"{role}-{name}")
+    if prompt.strip() != "":
+        return prompt
+    return get_default_prompt(name)

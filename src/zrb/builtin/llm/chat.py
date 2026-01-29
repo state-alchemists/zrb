@@ -81,7 +81,11 @@ llm_chat = LLMChatTask(
             summary_window=CFG.LLM_HISTORY_SUMMARIZATION_WINDOW,
         )
     ],
-    prompt_manager=PromptManager(),
+    prompt_manager=PromptManager(
+        assistant_name=CFG.LLM_ASSISTANT_NAME,
+        note_manager=note_manager,
+        skill_manager=skill_manager,
+    ),
     ui_ascii_art=lambda ctx: CFG.LLM_ASSISTANT_ASCII_ART,
     ui_assistant_name=lambda ctx: CFG.LLM_ASSISTANT_NAME,
     ui_greeting=lambda ctx: f"{CFG.LLM_ASSISTANT_NAME}\n{CFG.LLM_ASSISTANT_JARGON}",
@@ -91,14 +95,6 @@ llm_group.add_task(llm_chat)
 cli.add_task(llm_chat)
 
 
-llm_chat.prompt_manager.add_prompt(
-    new_prompt(lambda: get_persona_prompt(CFG.LLM_ASSISTANT_NAME)),
-    new_prompt(lambda: get_mandate_prompt()),
-    system_context,
-    create_note_prompt(note_manager),
-    create_claude_compatibility_prompt(skill_manager),
-    create_zrb_prompt(),
-)
 llm_chat.add_response_handler(replace_in_file_response_handler)
 llm_chat.add_toolset(*load_mcp_config())
 llm_chat.add_tool(
