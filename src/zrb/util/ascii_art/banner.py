@@ -80,14 +80,16 @@ def _get_default_banner_search_path() -> list[str]:
 def _get_art_only(art: str | None = None) -> str:
     # If art name is provided, try to find it.
     if art is not None:
-        # a. Check in search paths
+        if os.path.isfile(art):
+            with open(art, "r", encoding="utf-8") as f:
+                return f.read()
+        # Check in search paths
         for search_path in _get_default_banner_search_path():
             art_path = os.path.join(search_path, CFG.ASCII_ART_DIR, f"{art}.txt")
             if os.path.isfile(art_path):
                 with open(art_path, "r", encoding="utf-8") as f:
                     return f.read()
-
-        # b. Check in builtin art folder
+        # Check in builtin art folder
         cwd = os.path.dirname(__file__)
         builtin_art_path = os.path.join(cwd, "art", f"{art}.txt")
         if os.path.isfile(builtin_art_path):
@@ -96,28 +98,24 @@ def _get_art_only(art: str | None = None) -> str:
 
     # If no specific art requested, or if requested art not found, find a random one.
     all_art_files = []
-
-    # a. Collect from search paths
+    # Collect from search paths
     for search_path in _get_default_banner_search_path():
         art_dir = os.path.join(search_path, CFG.ASCII_ART_DIR)
         if os.path.isdir(art_dir):
             for filename in os.listdir(art_dir):
                 if filename.endswith(".txt"):
                     all_art_files.append(os.path.join(art_dir, filename))
-
-    # b. Collect from builtin art folder
+    # Collect from builtin art folder
     cwd = os.path.dirname(__file__)
     builtin_art_dir = os.path.join(cwd, "art")
     if os.path.isdir(builtin_art_dir):
         for filename in os.listdir(builtin_art_dir):
             if filename.endswith(".txt"):
                 all_art_files.append(os.path.join(builtin_art_dir, filename))
-
-    # c. If any art files were found, pick one at random.
+    # If any art files were found, pick one at random.
     if all_art_files:
         random_file_path = random.choice(all_art_files)
         with open(random_file_path, "r", encoding="utf-8") as f:
             return f.read()
-
     # If no art found at all, return empty string.
     return ""

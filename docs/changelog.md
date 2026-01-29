@@ -1,5 +1,9 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.0.8
+
+- **Fix: Art resolution** Fixing art resolution in case of user provided the file
+
 ## 2.0.7
 
 - **Update: ASCII Art Collection**:
