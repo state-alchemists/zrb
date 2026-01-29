@@ -179,17 +179,17 @@ def test_warn_unrecommended_command(monkeypatch):
     assert not config.WARN_UNRECOMMENDED_COMMAND
 
 
-@mock.patch("os.path.expanduser", return_value="/home/user/.zrb-session")
+@mock.patch("os.path.expanduser", return_value="/home/user/.zrb/session")
 def test_session_log_dir_default(mock_expanduser, monkeypatch):
     monkeypatch.delenv("ZRB_SESSION_LOG_DIR", raising=False)
     config = Config()
-    assert config.SESSION_LOG_DIR == "/home/user/.zrb-session"
+    assert config.SESSION_LOG_DIR == "/home/user/.zrb/session"
 
 
 def test_session_log_dir_custom(monkeypatch):
-    monkeypatch.setenv("ZRB_SESSION_LOG_DIR", "/tmp/zrb-session")
+    monkeypatch.setenv("ZRB_SESSION_LOG_DIR", "/tmp/zrb/session")
     config = Config()
-    assert config.SESSION_LOG_DIR == "/tmp/zrb-session"
+    assert config.SESSION_LOG_DIR == "/tmp/zrb/session"
 
 
 @mock.patch("os.path.expanduser", return_value="/home/user/todo")

@@ -1,11 +1,14 @@
 import os
+from typing import Literal
 
 from zrb.config.config import CFG
 from zrb.util.string.conversion import to_snake_case
 
+SupportedRole = Literal["executor", "orchestrator", "planner", "researcher", "reviewer"]
+
 
 def get_persona_prompt(
-    assistant_name: str | None = None, role: str | None = None
+    assistant_name: str | None = None, role: str | SupportedRole | None = None
 ) -> str:
     effective_assistant_name = (
         assistant_name if assistant_name else CFG.LLM_ASSISTANT_NAME
@@ -14,7 +17,7 @@ def get_persona_prompt(
     return prompt.replace("{ASSISTANT_NAME}", effective_assistant_name)
 
 
-def get_mandate_prompt(role: str | None = None) -> str:
+def get_mandate_prompt(role: str | SupportedRole | None = None) -> str:
     return get_default_prompt_by_role("mandate", role)
 
 
@@ -81,7 +84,9 @@ def _get_default_prompt_search_path() -> list[str]:
     return search_paths
 
 
-def get_default_prompt_by_role(name: str, role: str | None = None) -> str:
+def get_default_prompt_by_role(
+    name: str, role: str | SupportedRole | None = None
+) -> str:
     prompt = get_default_prompt(f"{role}-{name}")
     if prompt.strip() != "":
         return prompt

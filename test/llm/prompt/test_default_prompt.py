@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
-from zrb.llm.prompt.default import get_default_prompt
+from zrb.llm.prompt.prompt import get_default_prompt
 
 
 @pytest.fixture

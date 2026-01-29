@@ -280,7 +280,7 @@ class Config:
         default = self.DEFAULT_SESSION_LOG_DIR
         if default == "":
             default = os.path.expanduser(
-                os.path.join("~", f".{self.ROOT_GROUP_NAME}-session")
+                os.path.join("~", f".{self.ROOT_GROUP_NAME}", "session")
             )
         return get_env(
             "SESSION_LOG_DIR",

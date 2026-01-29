@@ -44,20 +44,22 @@ class SkillManager:
         self._skills: dict[str, Skill] = {}
         self._ignore_dirs = _IGNORE_DIRS if ignore_dirs is None else ignore_dirs
 
-    def scan(self) -> list[Skill]:
+    def scan(self, search_dirs: list[str | Path] | None = None) -> list[Skill]:
         self._skills = {}
-        search_dirs = (
-            self._search_dirs
-            if self._search_dirs is not None
-            else self._get_search_directories()
-        )
+        target_search_dirs = search_dirs
+        if target_search_dirs is None:
+            target_search_dirs = (
+                self._search_dirs
+                if self._search_dirs is not None
+                else self.get_search_directories()
+            )
         # Scan in order of precedence: global -> project
         # We iterate in normal order to allow later skills (project) to override earlier ones (global)
-        for search_dir in search_dirs:
+        for search_dir in target_search_dirs:
             self._scan_dir(search_dir, max_depth=self._max_depth)
         return list(self._skills.values())
 
-    def _get_search_directories(self) -> list[str | Path]:
+    def get_search_directories(self) -> list[str | Path]:
         search_dirs: list[str | Path] = []
         # 1. User global config (~/.claude/skills)
         try:

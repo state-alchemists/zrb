@@ -8,6 +8,18 @@ from zrb.config.config import CFG
 from zrb.util.cli.style import stylize_cyan
 
 
+def is_turn_start(msg: Any) -> bool:
+    """Identify start of a new user interaction (User Prompt without Tool Return)."""
+    from pydantic_ai.messages import ModelRequest, ToolReturnPart, UserPromptPart
+
+    if not isinstance(msg, ModelRequest):
+        return False
+    # In pydantic_ai, ModelRequest parts can be list of various parts
+    has_user = any(isinstance(p, UserPromptPart) for p in msg.parts)
+    has_return = any(isinstance(p, ToolReturnPart) for p in msg.parts)
+    return has_user and not has_return
+
+
 class LLMLimiter:
     """
     Manages LLM constraints: Context Window (Pruning) and Rate Limits (Throttling).
@@ -86,25 +98,6 @@ class LLMLimiter:
         if not history:
             return history
 
-        # Import message types locally to avoid circular deps or startup cost
-        try:
-            from pydantic_ai.messages import (
-                ModelRequest,
-                ToolReturnPart,
-                UserPromptPart,
-            )
-        except ImportError:
-            # Fallback if pydantic_ai is not installed (unlikely in context)
-            return []
-
-        def is_turn_start(msg: Any) -> bool:
-            """Identify start of a new user interaction (User Prompt without Tool Return)."""
-            if not isinstance(msg, ModelRequest):
-                return False
-            has_user = any(isinstance(p, UserPromptPart) for p in msg.parts)
-            has_return = any(isinstance(p, ToolReturnPart) for p in msg.parts)
-            return has_user and not has_return
-
         new_msg_tokens = self._count_tokens(new_message)
         if new_msg_tokens > self.max_token_per_request * 0.95:
             return []
@@ -174,6 +167,27 @@ class LLMLimiter:
     def count_tokens(self, content: Any) -> int:
         """Public alias for internal counter."""
         return self._count_tokens(content)
+
+    def truncate_text(self, text: str, max_tokens: int) -> str:
+        """Truncates a string to a maximum number of tokens."""
+        if self.use_tiktoken:
+            try:
+                import tiktoken
+
+                enc = tiktoken.get_encoding(self.tiktoken_encoding)
+                tokens = enc.encode(text)
+                if len(tokens) > max_tokens:
+                    truncated_tokens = tokens[:max_tokens]
+                    return enc.decode(truncated_tokens)
+                return text
+            except (ImportError, Exception):
+                # Fallback if tiktoken fails for any reason
+                pass
+        # Fallback approximation (char/3) for when tiktoken is not used or fails
+        estimated_chars = max_tokens * 3
+        if len(text) > estimated_chars:
+            return text[:estimated_chars]
+        return text
 
     # --- Internal Helpers ---
 

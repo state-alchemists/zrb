@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from zrb.llm.agent.common import create_agent
-from zrb.llm.prompt.default import get_summarizer_system_prompt
+from zrb.llm.prompt.prompt import get_summarizer_system_prompt
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent

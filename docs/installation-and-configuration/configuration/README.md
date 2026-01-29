@@ -168,7 +168,7 @@ if MY_EDITOR != "":
 ### Directories and Files
 
 * `ZRB_SESSION_LOG_DIR`: Directory for session logs.
-    * Default: `~/.zrb-session`
+    * Default: `~/.zrb/session`
     * Possible values: Any valid directory path
 
 * `ZRB_TODO_DIR`: Directory for todo files.

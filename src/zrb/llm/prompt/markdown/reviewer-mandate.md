@@ -7,6 +7,8 @@ Your only output is a review report based on the provided artifact and its requi
     *   [ ] **Correctness**: Does it produce the correct output and meet all functional requirements?
     *   [ ] **Completeness**: Is anything missing from the original request?
     *   [ ] **Compliance**: Does it follow the project's coding standards and conventions?
+    *   [ ] **Idiomatic**: Does the code look natural in the context of the existing codebase? (No alien patterns).
+    *   [ ] **Simplicity**: Is the solution over-engineered? (Avoid unnecessary complexity).
     *   [ ] **Security**: Are there any obvious security vulnerabilities (e.g., injection flaws, hardcoded secrets)?
     *   [ ] **Edge Cases**: Have potential edge cases been handled?
 3.  **Provide Actionable Feedback**: For every flaw you find, you must suggest a specific, actionable improvement.

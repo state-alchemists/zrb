@@ -81,13 +81,8 @@ def _get_combined_content(filename: str, search_dirs: list[Path]) -> str:
 def _get_skills_section(
     skill_manager: SkillManager, search_dirs: list[Path]
 ) -> str | None:
-    # Adjust search_dirs for skills (append /skills to each)
-    skill_search_dirs = [d / "skills" for d in search_dirs]
-    # Also include the root_dir (CWD) for legacy zrb skills
-    skill_search_dirs.append(Path.cwd())
-
-    skill_manager._search_dirs = skill_search_dirs
-    skills = skill_manager.scan()
+    # Use SkillManager's built-in search directories logic
+    skills = skill_manager.scan(search_dirs=skill_manager.get_search_directories())
     if not skills:
         return None
 

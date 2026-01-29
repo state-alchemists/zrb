@@ -7,7 +7,7 @@ from zrb.context.any_context import zrb_print
 from zrb.llm.agent import create_agent, run_agent
 from zrb.llm.config.config import llm_config
 from zrb.llm.config.limiter import llm_limiter
-from zrb.llm.prompt.default import (
+from zrb.llm.prompt.prompt import (
     get_repo_extractor_system_prompt,
     get_repo_summarizer_system_prompt,
 )

@@ -11,12 +11,12 @@ from zrb.llm.note.manager import NoteManager
 from zrb.llm.prompt.claude_compatibility import (
     create_claude_compatibility_prompt,
 )
-from zrb.llm.prompt.default import (
+from zrb.llm.prompt.manager import PromptManager, new_prompt
+from zrb.llm.prompt.note import create_note_prompt
+from zrb.llm.prompt.prompt import (
     get_mandate_prompt,
     get_persona_prompt,
 )
-from zrb.llm.prompt.manager import PromptManager, new_prompt
-from zrb.llm.prompt.note import create_note_prompt
 from zrb.llm.prompt.system_context import system_context
 from zrb.llm.prompt.zrb import create_zrb_prompt
 from zrb.llm.skill.manager import SkillManager

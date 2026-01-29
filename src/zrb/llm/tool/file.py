@@ -517,7 +517,7 @@ async def analyze_file(path: str, query: str) -> str:
     from zrb.llm.agent import create_agent, run_agent
     from zrb.llm.config.config import llm_config
     from zrb.llm.config.limiter import llm_limiter
-    from zrb.llm.prompt.default import get_file_extractor_system_prompt
+    from zrb.llm.prompt.prompt import get_file_extractor_system_prompt
 
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):

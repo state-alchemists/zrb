@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Callable
 
 from zrb.context.any_context import AnyContext
+from zrb.llm.prompt.prompt import SupportedRole
 from zrb.util.attr import get_str_attr
 
 if TYPE_CHECKING:
@@ -16,7 +17,9 @@ class PromptManager:
         self,
         prompts: list[PromptMiddleware] | None = None,
         assistant_name: str | Callable[[AnyContext], str] | None = None,
-        role: str | Callable[[AnyContext], str] | None = None,
+        role: (
+            str | SupportedRole | Callable[[AnyContext], str | SupportedRole] | None
+        ) = None,
         include_persona: bool = True,
         include_mandate: bool = True,
         include_system_context: bool = True,
@@ -50,7 +53,7 @@ class PromptManager:
         )
 
         if self._include_persona:
-            from zrb.llm.prompt.default import get_persona_prompt
+            from zrb.llm.prompt.prompt import get_persona_prompt
 
             middlewares.append(
                 new_prompt(
@@ -58,7 +61,7 @@ class PromptManager:
                 )
             )
         if self._include_mandate:
-            from zrb.llm.prompt.default import get_mandate_prompt
+            from zrb.llm.prompt.prompt import get_mandate_prompt
 
             middlewares.append(new_prompt(lambda: get_mandate_prompt(role=role)))
         if self._include_system_context:
