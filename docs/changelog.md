@@ -1,4 +1,21 @@
-🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
+🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
+
+## 2.0.7
+
+- **Update: ASCII Art Collection**:
+  - Added new ASCII art files: `batman.txt`, `butterfly.txt`, `clover.txt`, `hello-kitty.txt`, and `star.txt` under `src/zrb/util/ascii_art/art/`.
+  - Updated banner ASCII art format in `src/zrb/util/ascii_art/banner.py`.
+  
+- **Enhancement: LLM Prompt Management**:
+  - Added new markdown-based prompts for various roles such as `executor`, `orchestrator`, `planner`, `researcher`, and `reviewer` under `src/zrb/llm/prompt/markdown/`.
+
+- **Improvement: LLM Configuration**:
+  - Reviewed and possibly updated configurations related to LLM management in `src/zrb/config/config.py`.
+  - The default configuration for web components and token thresholds is now more flexible.
+  
+- **Minor Fixes & Adjustments**:
+  - Increased readability of the `Config` class with comprehensive property management.
+  - `src/zrb/builtin/llm/chat.py` adapted to improve task and tool management for LLM operations.
 
 ## 2.0.6
 

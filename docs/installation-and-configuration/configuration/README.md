@@ -324,15 +324,15 @@ The following environment variables are used as LLM configuration default proper
     * Default: 60% of the model's maximum context window.
     * Possible values: Any positive integer
 
-* `ZRB_LLM_MAX_REQUEST_PER_MINUTE`: Maximum number of LLM requests allowed per minute.
+* `ZRB_LLM_MAX_REQUEST_PER_MINUTE`: Maximum number of LLM requests allowed per minute. Also accepts `ZRB_LLM_MAX_REQUESTS_PER_MINUTE` for backward compatibility.
     * Default: `60`
     * Possible values: Any positive integer (also accepts `ZRB_LLM_MAX_REQUESTS_PER_MINUTE` for backward compatibility)
 
-* `ZRB_LLM_MAX_TOKEN_PER_MINUTE`: Maximum number of LLM tokens allowed per minute.
+* `ZRB_LLM_MAX_TOKEN_PER_MINUTE`: Maximum number of LLM tokens allowed per minute. Also accepts `ZRB_LLM_MAX_TOKENS_PER_MINUTE` for backward compatibility.
     * Default: `120000`
     * Possible values: Any positive integer (also accepts `ZRB_LLM_MAX_TOKENS_PER_MINUTE` for backward compatibility)
 
-* `ZRB_LLM_MAX_TOKEN_PER_REQUEST`: Maximum number of tokens allowed per individual LLM request.
+* `ZRB_LLM_MAX_TOKEN_PER_REQUEST`: Maximum number of tokens allowed per individual LLM request. Also accepts `ZRB_LLM_MAX_TOKENS_PER_REQUEST` for backward compatibility.
     * Default: `120000`
     * Possible values: Any positive integer (also accepts `ZRB_LLM_MAX_TOKENS_PER_REQUEST` for backward compatibility)
 
@@ -459,6 +459,10 @@ These variables control the appearance and behavior of the LLM chat interface.
 * `ZRB_SEARXNG_SAFE`: Safe search setting for SearXNG.
     * Default: `0`
     * Possible values: `0` (off), `1` (moderate), `2` (strict)
+
+* `ZRB_ASCII_ART_DIR`: Directory containing ASCII art files for assistant.
+    * Default: `.zrb/llm/prompt`
+    * Possible values: Any valid directory path
 
 ---
 🔖 [Home](../../../README.md) > [Documentation](../../README.md) > [Installation and Configuration](../README.md)
