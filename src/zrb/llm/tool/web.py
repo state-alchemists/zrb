@@ -12,9 +12,12 @@ async def open_web_page(url: str) -> dict:
     **ARGS:**
     - `url`: The full web address to fetch.
     """
-    html_content, links = await _fetch_page_content(url)
-    markdown_content = _convert_html_to_markdown(html_content)
-    return {"content": markdown_content, "links_on_page": links}
+    try:
+        html_content, links = await _fetch_page_content(url)
+        markdown_content = _convert_html_to_markdown(html_content)
+        return {"content": markdown_content, "links_on_page": links}
+    except Exception as e:
+        return {"error": f"Failed to fetch content from {url}: {str(e)}"}
 
 
 async def search_internet(

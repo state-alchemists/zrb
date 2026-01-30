@@ -64,18 +64,45 @@ async def summarize_history(
     if token_threshold is None:
         token_threshold = CFG.LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD
 
-    if len(messages) <= summary_window:
+    # Check for early exit ONLY if tokens are safe
+    current_tokens = llm_limiter.count_tokens(messages)
+    if len(messages) <= summary_window and current_tokens <= token_threshold:
         return messages
 
     # 2. Strict Splitting
-    split_idx = _get_split_index(messages, summary_window)
-    if split_idx > 0:
-        to_summarize = messages[:split_idx]
-        to_keep = messages[split_idx:]
-    else:
+    if len(messages) <= summary_window and current_tokens > token_threshold:
+        # Emergency: Window is small but tokens are huge. Summarize everything.
+        split_idx = len(
+            messages
+        )  # Initially assume we keep everything, but logic below will fix it
+        to_summarize = messages
+        to_keep = []
         zrb_print(
             stylize_yellow(
-                "  No clean split point found, summarizing entire history..."
+                "  Recent history is too large. Aggressively summarizing..."
+            ),
+            plain=True,
+        )
+    else:
+        split_idx = _get_split_index(messages, summary_window)
+        if split_idx > 0:
+            to_summarize = messages[:split_idx]
+            to_keep = messages[split_idx:]
+        else:
+            zrb_print(
+                stylize_yellow(
+                    "  No clean split point found, summarizing entire history..."
+                ),
+                plain=True,
+            )
+            to_summarize = messages
+            to_keep = []
+
+    # 3. Safety Check: Is the "kept" part still too big?
+    if to_keep and llm_limiter.count_tokens(to_keep) > token_threshold:
+        zrb_print(
+            stylize_yellow(
+                "  Protected window is too large. Summarizing everything..."
             ),
             plain=True,
         )
@@ -83,10 +110,11 @@ async def summarize_history(
         to_keep = []
 
     if not to_summarize:
+        # This should rarely happen given the checks above, but as a fallback
         zrb_print(stylize_error("  Cannot find anything to summarize..."), plain=True)
         return messages
 
-    # 3. Iterative Summarization
+    # 4. Iterative Summarization
     summarizer_agent = agent or create_summarizer_agent()
     summary_text = await _chunk_and_summarize(
         to_summarize, summarizer_agent, llm_limiter, token_threshold

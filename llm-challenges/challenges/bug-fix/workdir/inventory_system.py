@@ -5,18 +5,22 @@ import random
 class Inventory:
     def __init__(self):
         self.stock = 10
+        self.lock = asyncio.Lock()
 
     async def purchase(self, user_id, amount):
         print(f"User {user_id} checking stock...")
-        if self.stock >= amount:
-            # Simulate DB latency
-            await asyncio.sleep(0.1)
-            self.stock -= amount
-            print(f"User {user_id} purchased {amount}. Remaining: {self.stock}")
-            return True
-        else:
-            print(f"User {user_id} failed to purchase. Stock low.")
-            return False
+
+        # Acquire lock to ensure atomic check-and-decrement operation
+        async with self.lock:
+            if self.stock >= amount:
+                # Simulate DB latency
+                await asyncio.sleep(0.1)
+                self.stock -= amount
+                print(f"User {user_id} purchased {amount}. Remaining: {self.stock}")
+                return True
+            else:
+                print(f"User {user_id} failed to purchase. Stock low.")
+                return False
 
 
 async def main():

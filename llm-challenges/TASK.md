@@ -18,46 +18,46 @@ Located in: `challenges/` (relative to this directory)
 
 **Prerequisite:** Open a terminal in the `llm-challenges/` directory.
 
-### 1. EXECUTE (Run the Automated Suite)
-We have an automated script to reset the environment and run `zrb` against all challenges.
+### 1. EXECUTE (Run the Automated Runner)
+We have a powerful runner script to orchestrate experiments.
 
 ```bash
-python3 run_challenges.py
+# Run with default settings
+python3 runner.py
+
+# Run with specific models and parallelism
+python3 runner.py --models gemini-1.5-pro gpt-4 --parallelism 8
 ```
 
 This script will:
 1.  Clean and recreate the `experiment/` directory.
-2.  Copy challenge resources to `experiment/<challenge_name>/`.
-3.  Run `zrb chat` autonomously for each challenge.
-4.  Capture `stdout` and `stderr` logs to `experiment/<challenge_name>/`.
+2.  Run `zrb chat` for every combination of Model x Challenge.
+3.  Automatically execute `verify.sh` or `verify.py` if present in the challenge folder.
+4.  Generate a consolidated `REPORT.md` and `results.json` in `experiment/`.
 
-### 2. EVALUATE (Assert Quality)
-After the script finishes, examine the `experiment/` directory.
+### 2. ANALYZE (Read the Report)
+Open `experiment/REPORT.md`.
 
-For **EACH** challenge (e.g., `bug-fix`, `refactor`):
-1.  **Read the Evaluation Criteria**: Open `experiment/<challenge_name>/evaluation.md`.
-2.  **Inspect Logs**: Check `experiment/<challenge_name>/stdout.log` and `stderr.log` (agent's reasoning/tool usage) .
-3.  **Inspect Artifacts**: Check the files in `experiment/<challenge_name>/workdir/` (or the root of the experiment folder if no workdir dir).
-    *   *Did the code change as expected?*
-    *   *Does the fix work?*
-    *   *Is the report written correctly?*
-
-*   **PASS:** The agent met ALL criteria in `evaluation.md`.
-*   **FAIL:** The agent missed ANY criterion, hallucinated, crashed, or the code doesn't work.
+*   **Green Check (✅)**: The agent finished successfully and passed automated verification.
+*   **Warning (⚠️)**: The agent finished, but automated verification failed.
+*   **Red Cross (❌)**: The agent crashed or timed out.
 
 ### 3. OPTIMIZE (Fix the Root Cause)
 **IF AND ONLY IF** a challenge fails or is solved inefficiently:
-1.  **Analyze**: Why did it fail?
-    -   Ambiguous System Prompt?
-    -   Confusing Tool Docstring?
-    -   Missing Context?
-    -   Poor Tool Selection?
-2.  **Refactor `zrb`**: Modify the core framework files to guide the LLM better.
-    -   **Prompts**: `src/zrb/llm/prompt/markdown/` (e.g., `mandate.md`, `persona.md`) relative to project root.
-    -   **Tools**: `src/zrb/llm/tool/` (Edit Python docstrings/signatures) relative to project root.
-3.  **Retry**: Run `python3 run_challenges.py` again to verify the fix.
+1.  **Analyze**: Look at the logs linked in the report.
+2.  **Refactor `zrb`**: Modify the core framework files.
+    -   **Prompts**: `src/zrb/llm/prompt/markdown/`
+    -   **Tools**: `src/zrb/llm/tool/`
+3.  **Retry**: Run `python3 runner.py` again to verify the fix.
+
+## Creating New Challenges
+To create a new challenge:
+1.  Create a folder `challenges/<name>`.
+2.  Add `instruction.md` (The prompt for the agent).
+3.  Add `workdir/` (The initial files for the agent).
+4.  (Optional) Add `verify.sh` or `verify.py` (Script to assert success).
 
 ## Rules of Engagement
-1.  **DO NOT MODIFY CHALLENGES**: You are testing `zrb`, not the test itself. The `instruction.md` and `evaluation.md` are IMMUTABLE STANDARDS.
-2.  **BE RUTHLESS**: Partial credit is FAILURE. The code must run, the features must exist, the tone must be correct.
-3.  **SELF-CORRECTION**: If the `run_challenges.py` script fails due to environment issues, fix the environment or the script, but do not alter the challenge logic.
+1.  **DO NOT MODIFY CHALLENGES**: You are testing `zrb`, not the test itself.
+2.  **BE RUTHLESS**: Partial credit is FAILURE.
+3.  **SELF-CORRECTION**: If the `runner.py` script fails due to environment issues, fix the environment or the script.
