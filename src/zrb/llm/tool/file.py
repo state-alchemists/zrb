@@ -23,6 +23,7 @@ DEFAULT_EXCLUDED_PATTERNS = [
     ".pytest_cache",
     ".coverage",
     "htmlcov",
+    ".claude",
 ]
 
 
