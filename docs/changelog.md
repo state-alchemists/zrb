@@ -1,5 +1,9 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.0.11
+
+- **Fix: Exclude `.claude` directory from code analysis**
+
 ## 2.0.10
 
 - **Feature: Structured History Summarization**:
