@@ -105,6 +105,7 @@ class LLMChatTask(BaseTask):
         ui_load_commands: list[str] | None = None,
         ui_redirect_output_commands: list[str] | None = None,
         ui_yolo_toggle_commands: list[str] | None = None,
+        ui_set_model_commands: list[str] | None = None,
         ui_exec_commands: list[str] | None = None,
         custom_commands: (
             list[
@@ -216,6 +217,9 @@ class LLMChatTask(BaseTask):
         )
         self._ui_yolo_toggle_commands = (
             ui_yolo_toggle_commands if ui_yolo_toggle_commands is not None else []
+        )
+        self._ui_set_model_commands = (
+            ui_set_model_commands if ui_set_model_commands is not None else []
         )
         self._ui_exec_commands = (
             ui_exec_commands if ui_exec_commands is not None else []
@@ -333,6 +337,7 @@ class LLMChatTask(BaseTask):
         if self._yolo_xcom_key not in ctx.xcom:
             ctx.xcom[self._yolo_xcom_key] = Xcom()
         ctx.xcom[self._yolo_xcom_key].set(initial_yolo)
+
         initial_message = get_attr(ctx, self._message, "", self._render_message)
         initial_attachments = get_attachments(ctx, self._attachment)
         interactive = get_bool_attr(ctx, self._interactive, True)
@@ -432,6 +437,11 @@ class LLMChatTask(BaseTask):
                 if self._ui_yolo_toggle_commands
                 else CFG.LLM_UI_COMMAND_YOLO_TOGGLE
             ),
+            "set_model": (
+                self._ui_set_model_commands
+                if self._ui_set_model_commands
+                else CFG.LLM_UI_COMMAND_SET_MODEL
+            ),
             "redirect_output": (
                 self._ui_redirect_output_commands
                 if self._ui_redirect_output_commands
@@ -494,6 +504,7 @@ class LLMChatTask(BaseTask):
                 StrInput("session", "Conversation Session"),
                 BoolInput("yolo", "YOLO Mode"),
                 StrInput("attachments", "Attachments"),
+                StrInput("model", "Model"),
             ],
             env=self.envs,
             system_prompt=self._system_prompt,
@@ -504,7 +515,7 @@ class LLMChatTask(BaseTask):
             history_processors=self._history_processors,
             llm_config=self._llm_config,
             llm_limitter=self._llm_limitter,
-            model=self._model,
+            model="{ctx.input.model}",
             render_model=self._render_model,
             model_settings=self._model_settings,
             history_manager=history_manager,
@@ -538,6 +549,7 @@ class LLMChatTask(BaseTask):
                 "session": initial_conversation_name,
                 "yolo": initial_yolo,
                 "attachments": initial_attachments,
+                "model": self._get_model(ctx),
             }
             shared_ctx = SharedContext(
                 input=session_input,
@@ -614,6 +626,7 @@ class LLMChatTask(BaseTask):
                 save_commands=ui_commands["save"],
                 load_commands=ui_commands["load"],
                 yolo_toggle_commands=ui_commands["yolo_toggle"],
+                set_model_commands=ui_commands["set_model"],
                 redirect_output_commands=ui_commands["redirect_output"],
                 exec_commands=ui_commands["exec"],
                 custom_commands=resolved_custom_commands,

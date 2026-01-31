@@ -22,6 +22,7 @@ def create_input_field(
     load_commands: list[str],
     redirect_output_commands: list[str],
     summarize_commands: list[str],
+    set_model_commands: list[str],
     exec_commands: list[str],
     custom_commands: list[AnyCustomCommand],
 ) -> TextArea:
@@ -39,6 +40,7 @@ def create_input_field(
             load_commands=load_commands,
             redirect_output_commands=redirect_output_commands,
             summarize_commands=summarize_commands,
+            set_model_commands=set_model_commands,
             exec_commands=exec_commands,
             custom_commands=custom_commands,
         ),

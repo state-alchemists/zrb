@@ -80,6 +80,7 @@ class UI:
         load_commands: list[str] = [],
         redirect_output_commands: list[str] = [],
         yolo_toggle_commands: list[str] = [],
+        set_model_commands: list[str] = [],
         exec_commands: list[str] = [],
         custom_commands: list[AnyCustomCommand] = [],
         model: "Model | str | None" = None,
@@ -108,6 +109,7 @@ class UI:
         self._load_commands = load_commands
         self._redirect_output_commands = redirect_output_commands
         self._yolo_toggle_commands = yolo_toggle_commands
+        self._set_model_commands = set_model_commands
         self._exec_commands = exec_commands
         self._custom_commands = custom_commands
         self._trigger_tasks: list[asyncio.Task] = []
@@ -141,6 +143,7 @@ class UI:
             load_commands=self._load_commands,
             redirect_output_commands=self._redirect_output_commands,
             summarize_commands=self._summarize_commands,
+            set_model_commands=self._set_model_commands,
             exec_commands=self._exec_commands,
             custom_commands=self._custom_commands,
         )
@@ -400,15 +403,11 @@ class UI:
         add_cmd_help(self._attach_commands, "Attach file (usage: {cmd} <path>)")
         add_cmd_help(self._save_commands, "Save conversation (usage: {cmd} <name>)")
         add_cmd_help(self._load_commands, "Load conversation (usage: {cmd} <name>)")
-        add_cmd_help(
-            self._redirect_output_commands,
-            "Save last output to file (usage: {cmd} <file>)",
-        )
+        add_cmd_help(self._redirect_output_commands, "Save last output to file (usage: {cmd} <file>)")
         add_cmd_help(self._summarize_commands, "Summarize conversation history")
         add_cmd_help(self._yolo_toggle_commands, "Toggle YOLO mode")
-        add_cmd_help(
-            self._exec_commands, "Execute shell command (usage: {cmd} <command>)"
-        )
+        add_cmd_help(self._set_model_commands, "Set model (usage: {cmd} <model-name>)")
+        add_cmd_help(self._exec_commands, "Execute shell command (usage: {cmd} <command>)")
         for custom_cmd in self._custom_commands:
             usage = f"{custom_cmd.command} " + " ".join(
                 [f"<{a}>" for a in custom_cmd.args]
@@ -443,8 +442,8 @@ class UI:
 
     def _get_status_bar_text(self) -> AnyFormattedText:
         if self._is_thinking:
-            return [("class:thinking", f" {self._assistant_name} is thinking... ")]
-        return [("class:status", " Ready ")]
+            return [("class:thinking", f" ⏳ {self._assistant_name} is working... ")]
+        return [("class:status", " 🚀 Ready ")]
 
     def _setup_app_keybindings(self, app_keybindings: KeyBindings, llm_task: AnyTask):
         @app_keybindings.add("c-c")
@@ -496,6 +495,8 @@ class UI:
             if self._handle_attach_command(event):
                 return
             if self._handle_toggle_yolo(event):
+                return
+            if self._handle_set_model_command(event):
                 return
             if self._handle_exec_command(event):
                 return
@@ -650,6 +651,44 @@ class UI:
             self.toggle_yolo()
             buff.reset()
             return True
+        return False
+
+    def _handle_set_model_command(self, event) -> bool:
+        buff = event.current_buffer
+        text = buff.text.strip()
+        for cmd in self._set_model_commands:
+            prefix = f"{cmd} "
+            if text.lower().startswith(prefix):
+                if self._is_thinking:
+                    return False
+                model_name = text[len(prefix) :].strip()
+                if not model_name:
+                    continue
+                self._model = model_name
+                self.append_to_output(
+                    stylize_faint(f"\n  🤖 Model switched to: {model_name}\n")
+                )
+                buff.reset()
+                return True
+        return False
+
+    def _handle_set_model_command(self, event) -> bool:
+        buff = event.current_buffer
+        text = buff.text.strip()
+        for cmd in self._set_model_commands:
+            prefix = f"{cmd} "
+            if text.lower().startswith(prefix):
+                if self._is_thinking:
+                    return False
+                model_name = text[len(prefix) :].strip()
+                if not model_name:
+                    continue
+                self._model = model_name
+                self.append_to_output(
+                    stylize_faint(f"\n  🤖 Model switched to: {model_name}\n")
+                )
+                buff.reset()
+                return True
         return False
 
     def _handle_multiline(self, event) -> bool:
@@ -906,6 +945,7 @@ class UI:
             "session": self._conversation_session_name,
             "yolo": self._yolo,
             "attachments": attachments,
+            "model": self._model,
         }
         shared_ctx = SharedContext(
             input=session_input,

@@ -1,7 +1,7 @@
 import os
 import time
 from datetime import datetime
-from typing import Iterable
+from typing import Iterable, get_args
 
 from prompt_toolkit.completion import (
     CompleteEvent,
@@ -27,9 +27,12 @@ class InputCompleter(Completer):
         load_commands: list[str] = [],
         redirect_output_commands: list[str] = [],
         summarize_commands: list[str] = [],
+        set_model_commands: list[str] = [],
         exec_commands: list[str] = [],
         custom_commands: list[AnyCustomCommand] = [],
     ):
+        from pydantic_ai.models import KnownModelName
+
         self._history_manager = history_manager
         self._attach_commands = attach_commands
         self._exit_commands = exit_commands
@@ -38,8 +41,24 @@ class InputCompleter(Completer):
         self._load_commands = load_commands
         self._redirect_output_commands = redirect_output_commands
         self._summarize_commands = summarize_commands
+        self._set_model_commands = set_model_commands
         self._exec_commands = exec_commands
         self._custom_commands = custom_commands
+        
+        try:
+            self._known_models = list(get_args(KnownModelName.__value__))
+        except Exception:
+            self._known_models = [
+                "openai:gpt-4o",
+                "openai:gpt-4o-mini",
+                "openai:gpt-4-turbo",
+                "openai:gpt-3.5-turbo",
+                "google-vertex:gemini-1.5-pro",
+                "google-vertex:gemini-1.5-flash",
+                "anthropic:claude-3-5-sonnet-latest",
+                "mistral:mistral-large-latest",
+                "ollama:llama3",
+            ]
         # expanduser=True allows ~/path
         self._path_completer = PathCompleter(expanduser=True)
         # Cache for file listing to improve performance
@@ -61,6 +80,7 @@ class InputCompleter(Completer):
             + self._save_commands
             + self._load_commands
             + self._redirect_output_commands
+            + self._set_model_commands
             + self._exec_commands
         )
         custom_command_names = [cc.command for cc in self._custom_commands]
@@ -126,6 +146,13 @@ class InputCompleter(Completer):
                             cmd,
                             start_position=-len(word),
                             display_meta=f"Save last response (i.e., {cmd} <file>)",
+                        )
+                for cmd in self._set_model_commands:
+                    if cmd.startswith(prefix) and cmd.lower().startswith(lower_word):
+                        yield Completion(
+                            cmd,
+                            start_position=-len(word),
+                            display_meta=f"Set Model (i.e., {cmd} <model-name>)",
                         )
                 for cmd in self._exec_commands:
                     if cmd.startswith(prefix) and cmd.lower().startswith(lower_word):
@@ -214,6 +241,16 @@ class InputCompleter(Completer):
                             start_position=-len(arg_prefix),
                             display_meta="File Name",
                         )
+                    return
+
+                # Set Model Command: Suggest Models
+                if self._is_command(cmd, self._set_model_commands):
+                    yield from self._get_fuzzy_completions(
+                        arg_prefix,
+                        self._known_models,
+                        only_files=False,
+                        display_meta="Model Name",
+                    )
                     return
 
                 # Load Command: Search History
