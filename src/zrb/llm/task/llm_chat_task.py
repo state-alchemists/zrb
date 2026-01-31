@@ -515,9 +515,6 @@ class LLMChatTask(BaseTask):
             history_processors=self._history_processors,
             llm_config=self._llm_config,
             llm_limitter=self._llm_limitter,
-            model="{ctx.input.model}",
-            render_model=self._render_model,
-            model_settings=self._model_settings,
             history_manager=history_manager,
             tool_confirmation=tool_confirmation,
             ui=ui,
@@ -526,6 +523,8 @@ class LLMChatTask(BaseTask):
             yolo="{ctx.input.yolo}",
             dynamic_yolo=check_yolo,
             attachment=lambda ctx: ctx.input.attachments,
+            model=lambda ctx: ctx.input.get("model"),
+            render_model=False,
             summarize_command=summarize_commands,
         )
 

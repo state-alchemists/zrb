@@ -70,3 +70,7 @@ def serve_cli():
     except NodeNotFoundError as e:
         print(stylize_error(f"{e}"), file=sys.stderr)
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    serve_cli()

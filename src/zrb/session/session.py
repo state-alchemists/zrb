@@ -176,6 +176,18 @@ class Session(AnySession):
                 is_terminated=task_status.is_terminated,
                 history=history_log,
             )
+
+        sanitized_input = {}
+        for key, value in self.shared_ctx.input.items():
+            try:
+                # Test if value is serializable
+                import json
+
+                json.dumps(value)
+                sanitized_input[key] = value
+            except (TypeError, OverflowError):
+                sanitized_input[key] = str(value)
+
         return SessionStateLog(
             name=self.name,
             start_time=log_start_time,
@@ -188,7 +200,7 @@ class Session(AnySession):
             ),
             finished=self.is_terminated,
             log=self.shared_ctx.shared_log,
-            input=self.shared_ctx.input,
+            input=sanitized_input,
             task_status=task_status_log,
         )
 

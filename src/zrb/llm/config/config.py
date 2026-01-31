@@ -37,9 +37,7 @@ class LLMConfig:
             return self._model
 
         model_name = CFG.LLM_MODEL or "openai:gpt-4o"
-        provider = self.provider
-
-        return self._resolve_model(model_name, provider)
+        return self._resolve_model_by_name(model_name)
 
     @model.setter
     def model(self, value: "str | Model"):
@@ -93,6 +91,21 @@ class LLMConfig:
         self._provider = value
 
     # --- Internal Logic ---
+
+    def _resolve_model_by_name(self, model_name: str) -> "str | Model":
+        provider_name = "openai"
+        if ":" in model_name:
+            provider_name = model_name.split(":", 1)[0]
+
+        # Use custom OpenAIProvider if api_key or base_url is set,
+        # but only if the requested provider is openai or unknown
+        if provider_name in ["openai", "ollama", "deepseek"] or (
+            provider_name not in ["anthropic", "google", "groq", "mistral"]
+            and (self.api_key or self.base_url)
+        ):
+            return self._resolve_model(model_name, self.provider)
+
+        return model_name
 
     def _resolve_model(
         self, model_name: str, provider: "str | Provider"
