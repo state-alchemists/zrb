@@ -19,7 +19,7 @@ PromptMiddleware = Callable[[AnyContext, str, Callable[[AnyContext, str], str]],
 class PromptManager:
     def __init__(
         self,
-        prompts: list[PromptMiddleware] | None = None,
+        prompts: list[PromptMiddleware | str] | None = None,
         assistant_name: str | Callable[[AnyContext], str] | None = None,
         role: (
             str | SupportedRole | Callable[[AnyContext], str | SupportedRole] | None
@@ -45,8 +45,10 @@ class PromptManager:
         self._note_manager = note_manager
         self._skill_manager = skill_manager
 
-    def _get_composed_middlewares(self, ctx: AnyContext) -> list[PromptMiddleware]:
-        middlewares: list[PromptMiddleware] = []
+    def _get_composed_middlewares(
+        self, ctx: AnyContext
+    ) -> list[PromptMiddleware | str]:
+        middlewares: list[PromptMiddleware | str] = []
         role = get_str_attr(ctx, self._role) if self._role else None
         assistant_name = (
             get_str_attr(ctx, self._assistant_name) if self._assistant_name else None
@@ -75,16 +77,16 @@ class PromptManager:
         return self._middlewares
 
     @prompts.setter
-    def prompts(self, value: list[PromptMiddleware]):
+    def prompts(self, value: list[PromptMiddleware | str]):
         self._middlewares = value
 
     def reset(self):
         self._middlewares = []
 
-    def add_prompt(self, *middleware: PromptMiddleware):
+    def add_prompt(self, *middleware: PromptMiddleware | str):
         self.append_prompt(*middleware)
 
-    def append_prompt(self, *middleware: PromptMiddleware):
+    def append_prompt(self, *middleware: PromptMiddleware | str):
         self._middlewares.extend(middleware)
 
     def compose_prompt(self) -> Callable[[AnyContext], str]:
@@ -98,7 +100,11 @@ class PromptManager:
         """
 
         def composed_prompt_factory(ctx: AnyContext) -> str:
-            middlewares = self._get_composed_middlewares(ctx)
+            raw_middlewares = self._get_composed_middlewares(ctx)
+            middlewares: list[PromptMiddleware] = [
+                (new_prompt(m, render=True) if isinstance(m, str) else m)
+                for m in raw_middlewares
+            ]
 
             def dispatch(index: int, current_prompt: str) -> str:
                 if index >= len(middlewares):

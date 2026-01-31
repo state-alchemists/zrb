@@ -3,6 +3,8 @@ from pathlib import Path
 
 import yaml
 
+from zrb.config.config import CFG
+
 _IGNORE_DIRS = [
     ".git",
     "node_modules",
@@ -61,24 +63,36 @@ class SkillManager:
 
     def get_search_directories(self) -> list[str | Path]:
         search_dirs: list[str | Path] = []
-        # 1. User global config (~/.claude/skills)
+        zrb_skill_dir_name = f".{CFG.ROOT_GROUP_NAME}/skill"
+
+        # 1. User global config (~/.claude/skills and ~/.zrb/skill)
         try:
             home = Path.home()
-            global_skills = home / ".claude" / "skills"
-            if global_skills.exists() and global_skills.is_dir():
-                search_dirs.append(global_skills)
+            # Claude style
+            global_claude_skills = home / ".claude" / "skills"
+            if global_claude_skills.exists() and global_claude_skills.is_dir():
+                search_dirs.append(global_claude_skills)
+            # Zrb style
+            global_zrb_skills = home / zrb_skill_dir_name
+            if global_zrb_skills.exists() and global_zrb_skills.is_dir():
+                search_dirs.append(global_zrb_skills)
         except Exception:
             pass
 
-        # 2. Project directories (.claude/skills)
+        # 2. Project directories (.claude/skills and .zrb/skill)
         # We look from Root -> ... -> CWD
         try:
             cwd = Path(self._root_dir).resolve()
             project_dirs = list(cwd.parents)[::-1] + [cwd]
             for project_dir in project_dirs:
-                local_skills = project_dir / ".claude" / "skills"
-                if local_skills.exists() and local_skills.is_dir():
-                    search_dirs.append(local_skills)
+                # Claude style
+                local_claude_skills = project_dir / ".claude" / "skills"
+                if local_claude_skills.exists() and local_claude_skills.is_dir():
+                    search_dirs.append(local_claude_skills)
+                # Zrb style
+                local_zrb_skills = project_dir / zrb_skill_dir_name
+                if local_zrb_skills.exists() and local_zrb_skills.is_dir():
+                    search_dirs.append(local_zrb_skills)
         except Exception:
             pass
 

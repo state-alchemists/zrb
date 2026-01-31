@@ -403,11 +403,16 @@ class UI:
         add_cmd_help(self._attach_commands, "Attach file (usage: {cmd} <path>)")
         add_cmd_help(self._save_commands, "Save conversation (usage: {cmd} <name>)")
         add_cmd_help(self._load_commands, "Load conversation (usage: {cmd} <name>)")
-        add_cmd_help(self._redirect_output_commands, "Save last output to file (usage: {cmd} <file>)")
+        add_cmd_help(
+            self._redirect_output_commands,
+            "Save last output to file (usage: {cmd} <file>)",
+        )
         add_cmd_help(self._summarize_commands, "Summarize conversation history")
         add_cmd_help(self._yolo_toggle_commands, "Toggle YOLO mode")
         add_cmd_help(self._set_model_commands, "Set model (usage: {cmd} <model-name>)")
-        add_cmd_help(self._exec_commands, "Execute shell command (usage: {cmd} <command>)")
+        add_cmd_help(
+            self._exec_commands, "Execute shell command (usage: {cmd} <command>)"
+        )
         for custom_cmd in self._custom_commands:
             usage = f"{custom_cmd.command} " + " ".join(
                 [f"<{a}>" for a in custom_cmd.args]

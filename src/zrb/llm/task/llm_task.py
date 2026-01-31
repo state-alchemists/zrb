@@ -332,5 +332,3 @@ class LLMTask(BaseTask):
                     return ToolReturn(f"Error executing tool {tool_name}: {e}")
 
         return SafeToolsetWrapper(toolset)
-
-

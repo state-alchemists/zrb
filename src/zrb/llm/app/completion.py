@@ -44,7 +44,7 @@ class InputCompleter(Completer):
         self._set_model_commands = set_model_commands
         self._exec_commands = exec_commands
         self._custom_commands = custom_commands
-        
+
         try:
             self._known_models = list(get_args(KnownModelName.__value__))
         except Exception:

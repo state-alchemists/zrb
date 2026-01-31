@@ -43,8 +43,9 @@ def create_agent(
 
     if yolo is not True:
         final_output_type = output_type | DeferredToolRequests
-        
+
         if callable(yolo):
+
             def check_approval(ctx: Any, tool_def: Any, args: dict[str, Any]) -> bool:
                 try:
                     return not yolo(ctx, tool_def, args)
