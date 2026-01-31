@@ -8,6 +8,7 @@
   - **Renamed Compatibility Module**: Renamed `claude_compatibility.py` to `claude.py` for better clarity.
 - **Documentation**:
   - **Updated Agent Guide**: Comprehensive update to `AGENTS.md` to provide clearer context and guidelines for LLMs working with the Zrb project.
+- **Remove CI_TOOLS argument from Dockerfile**
 
 ## 2.0.11
 

@@ -4,13 +4,8 @@ FROM python:3.13-slim-bookworm AS normal
 WORKDIR /zrb-bin
 
 # install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends g++ && rm -rf /var/lib/apt/lists/*
-
-# install ci-tools
-ARG CI_TOOLS=true
-RUN if [ "$CI_TOOLS" = "true" ]; then \
-    apt-get update && apt-get install -y --no-install-recommends git curl wget jq unzip rsync openssh-client && rm -rf /var/lib/apt/lists/*; \
-    fi
+RUN apt-get update && apt-get install -y --no-install-recommends g++ git curl wget jq unzip rsync openssh-client && \
+    rm -rf /var/lib/apt/lists/*
 
 # install poetry
 RUN pip install poetry
@@ -23,7 +18,6 @@ RUN poetry install --without dev
 WORKDIR /zrb-home
 
 CMD ["zrb", "server", "start"]
-
 
 #
 # ===== DIND image =====

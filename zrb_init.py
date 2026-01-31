@@ -119,7 +119,7 @@ build_normal_docker_image = docker_build_group.add_task(
         name="build-zrb-normal-docker-image",
         description="Build Zrb normal docker image",
         cwd=_DIR,
-        cmd=f"docker build --build-arg CI_TOOLS=true . --target normal -t stalchmst/zrb:{_VERSION} -t stalchmst/zrb:latest",  # noqa
+        cmd=f"docker build --build-arg . --target normal -t stalchmst/zrb:{_VERSION} -t stalchmst/zrb:latest",  # noqa
     ),
     alias="normal",
 )
@@ -130,7 +130,7 @@ build_dind_docker_image = docker_build_group.add_task(
         name="build-zrb-dind-docker-image",
         description="Build Zrb dind docker image",
         cwd=_DIR,
-        cmd=f"docker build --build-arg CI_TOOLS=true . --target dind -t stalchmst/zrb:{_VERSION}-dind -t stalchmst/zrb:latest-dind",  # noqa
+        cmd=f"docker build --build-arg . --target dind -t stalchmst/zrb:{_VERSION}-dind -t stalchmst/zrb:latest-dind",  # noqa
     ),
     alias="dind",
 )
