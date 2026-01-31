@@ -6,7 +6,7 @@ from zrb.llm.skill.manager import SkillManager
 from zrb.util.markdown import make_markdown_section
 
 
-def create_claude_compatibility_prompt(skill_manager: SkillManager):
+def create_claude_skills_prompt(skill_manager: SkillManager):
     def claude_compatibility(
         ctx: AnyContext,
         current_prompt: str,

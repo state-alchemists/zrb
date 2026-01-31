@@ -1,0 +1,1 @@
+2023-10-01 10:00:00 INFO User 123 logged in\n2023-10-01 10:05:00 ERROR Connection failed\n2023-10-01 10:10:00 ERROR Connection failed\n2023-10-01 10:15:00 INFO User 456 logged out\n2023-10-01 10:20:00 ERROR Database timeout\n

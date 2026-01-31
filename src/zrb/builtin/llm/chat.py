@@ -8,8 +8,8 @@ from zrb.input.str_input import StrInput
 from zrb.llm.custom_command import get_skill_custom_command
 from zrb.llm.history_processor.summarizer import create_summarizer_history_processor
 from zrb.llm.note.manager import NoteManager
-from zrb.llm.prompt.claude_compatibility import (
-    create_claude_compatibility_prompt,
+from zrb.llm.prompt.claude import (
+    create_claude_skills_prompt,
 )
 from zrb.llm.prompt.manager import PromptManager, new_prompt
 from zrb.llm.prompt.note import create_note_prompt
@@ -18,7 +18,7 @@ from zrb.llm.prompt.prompt import (
     get_persona_prompt,
 )
 from zrb.llm.prompt.system_context import system_context
-from zrb.llm.prompt.zrb import create_zrb_prompt
+from zrb.llm.prompt.zrb import create_zrb_skills_prompt
 from zrb.llm.skill.manager import SkillManager
 from zrb.llm.task.llm_chat_task import LLMChatTask
 from zrb.llm.tool.bash import run_shell_command
