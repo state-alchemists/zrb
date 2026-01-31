@@ -2,8 +2,8 @@
   {
     "challenge_name": "research",
     "model": "gemini-2.5-flash",
-    "status": "VERIFY_FAILED",
-    "duration": 38.82974314689636,
+    "status": "SUCCESS",
+    "duration": 26.188416004180908,
     "tool_calls": [
       "search_internet",
       "search_internet",
@@ -14,13 +14,13 @@
     "exit_code": 0,
     "log_path": "experiment/gemini-2.5-flash/research/combined.log",
     "workdir": "experiment/gemini-2.5-flash/research/workdir",
-    "verification_output": "PASS: Markdown format\nPASS: Covers timeline/commercial viability\nPASS: Covers key players\nPASS: Covers technical hurdles\nPASS: Has multiple sections/headers\nPASS: Substantial content (200+ words)\nFAIL: References/citations\n\n"
+    "verification_output": "PASS: Markdown format\nPASS: Covers timeline/commercial viability\nPASS: Covers key players\nPASS: Covers technical hurdles\nPASS: Has multiple sections/headers\nPASS: Substantial content (200+ words)\nPASS: References/citations\n\n"
   },
   {
     "challenge_name": "copywriting",
     "model": "gemini-2.5-flash",
-    "status": "VERIFY_FAILED",
-    "duration": 11.108383178710938,
+    "status": "SUCCESS",
+    "duration": 11.253454208374023,
     "tool_calls": [
       "write_file"
     ],
@@ -28,13 +28,13 @@
     "exit_code": 0,
     "log_path": "experiment/gemini-2.5-flash/copywriting/combined.log",
     "workdir": "experiment/gemini-2.5-flash/copywriting/workdir",
-    "verification_output": "PASS: Has headings\nPASS: Contains 'Zrb-Flow'\nPASS: Contains 'AI'\nPASS: Contains 'workflow'\nPASS: Contains 'automation'\nPASS: Contains 'CLI'\nPASS: Contains 'Docker'\nFAIL: Contains 'K8s'\nPASS: Contains 'Kubernetes'\nPASS: Contains 'Python'\nPASS: Contains 'Self-Healing'\nPASS: Contains 'pipeline'\nPASS: Has call to action\nPASS: Markdown formatting\n\n"
+    "verification_output": "PASS: Has headings\nPASS: Contains 'Zrb-Flow'\nPASS: Contains 'AI'\nPASS: Contains 'workflow'\nPASS: Contains 'automation'\nPASS: Contains 'CLI'\nPASS: Contains 'Docker'\nPASS: Contains 'K8s'\nPASS: Contains 'Kubernetes'\nPASS: Contains 'Python'\nPASS: Contains 'Self-Healing'\nPASS: Contains 'pipeline'\nPASS: Has call to action\nPASS: Markdown formatting\n\n"
   },
   {
     "challenge_name": "feature",
     "model": "gemini-2.5-flash",
     "status": "SUCCESS",
-    "duration": 13.313464879989624,
+    "duration": 12.761929035186768,
     "tool_calls": [
       "read_file",
       "write_file"
@@ -49,13 +49,27 @@
     "challenge_name": "refactor",
     "model": "gemini-2.5-flash",
     "status": "SUCCESS",
-    "duration": 21.51823878288269,
+    "duration": 66.93699097633362,
     "tool_calls": [
       "list_files",
+      "list_files",
       "read_file",
-      "write_file"
+      "read_file",
+      "write_file",
+      "run_shell_command",
+      "read_file",
+      "read_file",
+      "replace_in_file",
+      "run_shell_command",
+      "read_file",
+      "write_file",
+      "run_shell_command",
+      "run_shell_command",
+      "write_file",
+      "run_shell_command",
+      "read_file"
     ],
-    "tool_call_count": 3,
+    "tool_call_count": 17,
     "exit_code": 0,
     "log_path": "experiment/gemini-2.5-flash/refactor/combined.log",
     "workdir": "experiment/gemini-2.5-flash/refactor/workdir",
@@ -65,7 +79,7 @@
     "challenge_name": "bug-fix",
     "model": "gemini-2.5-flash",
     "status": "SUCCESS",
-    "duration": 12.829624891281128,
+    "duration": 12.749889135360718,
     "tool_calls": [
       "read_file",
       "run_shell_command"
@@ -80,17 +94,16 @@
     "challenge_name": "research",
     "model": "gpt-4o",
     "status": "SUCCESS",
-    "duration": 39.703388929367065,
+    "duration": 48.04137825965881,
     "tool_calls": [
       "search_internet",
-      "search_internet",
-      "search_internet",
-      "search_internet",
-      "search_internet",
-      "search_internet",
+      "open_web_page",
+      "open_web_page",
+      "open_web_page",
+      "open_web_page",
       "write_file"
     ],
-    "tool_call_count": 7,
+    "tool_call_count": 6,
     "exit_code": 0,
     "log_path": "experiment/gpt-4o/research/combined.log",
     "workdir": "experiment/gpt-4o/research/workdir",
@@ -99,8 +112,8 @@
   {
     "challenge_name": "copywriting",
     "model": "gpt-4o",
-    "status": "VERIFY_FAILED",
-    "duration": 16.289994955062866,
+    "status": "SUCCESS",
+    "duration": 14.315863847732544,
     "tool_calls": [
       "write_file"
     ],
@@ -108,19 +121,25 @@
     "exit_code": 0,
     "log_path": "experiment/gpt-4o/copywriting/combined.log",
     "workdir": "experiment/gpt-4o/copywriting/workdir",
-    "verification_output": "PASS: Has headings\nPASS: Contains 'Zrb-Flow'\nPASS: Contains 'AI'\nPASS: Contains 'workflow'\nPASS: Contains 'automation'\nFAIL: Contains 'CLI'\nPASS: Contains 'Docker'\nPASS: Contains 'K8s'\nPASS: Contains 'Kubernetes'\nPASS: Contains 'Python'\nPASS: Contains 'Self-Healing'\nPASS: Contains 'pipeline'\nPASS: Has call to action\nPASS: Markdown formatting\n\n"
+    "verification_output": "PASS: Has headings\nPASS: Contains 'Zrb-Flow'\nPASS: Contains 'AI'\nPASS: Contains 'workflow'\nPASS: Contains 'automation'\nPASS: Contains 'CLI'\nPASS: Contains 'Docker'\nPASS: Contains 'K8s'\nPASS: Contains 'Kubernetes'\nPASS: Contains 'Python'\nPASS: Contains 'Self-Healing'\nPASS: Contains 'pipeline'\nPASS: Has call to action\nPASS: Markdown formatting\n\n"
   },
   {
     "challenge_name": "feature",
     "model": "gpt-4o",
     "status": "VERIFY_FAILED",
-    "duration": 18.258054733276367,
+    "duration": 69.33206987380981,
     "tool_calls": [
       "glob_files",
       "read_file",
-      "write_file"
+      "write_file",
+      "run_shell_command",
+      "read_file",
+      "write_file",
+      "run_shell_command",
+      "read_file",
+      "read_file"
     ],
-    "tool_call_count": 3,
+    "tool_call_count": 9,
     "exit_code": 0,
     "log_path": "experiment/gpt-4o/feature/combined.log",
     "workdir": "experiment/gpt-4o/feature/workdir",
@@ -129,28 +148,30 @@
   {
     "challenge_name": "refactor",
     "model": "gpt-4o",
-    "status": "VERIFY_FAILED",
-    "duration": 16.730719089508057,
+    "status": "SUCCESS",
+    "duration": 50.98178005218506,
     "tool_calls": [
       "glob_files",
-      "read_file"
+      "read_file",
+      "write_file"
     ],
-    "tool_call_count": 2,
+    "tool_call_count": 3,
     "exit_code": 0,
     "log_path": "experiment/gpt-4o/refactor/combined.log",
     "workdir": "experiment/gpt-4o/refactor/workdir",
-    "verification_output": "Testing if script runs...\nFAIL: Separated into functions/classes\nFAIL: ETL pattern (Extract/Transform/Load)\nPASS: Configuration decoupled\nFAIL: Uses regex for parsing\nFAIL: Has type hints\nFAIL: Has docstrings\nPASS: Script runs successfully\nPASS: Creates report.html\nPASS: Main guard present\n\n"
+    "verification_output": "Testing if script runs...\nPASS: Separated into functions/classes\nPASS: ETL pattern (Extract/Transform/Load)\nPASS: Configuration decoupled\nPASS: Uses regex for parsing\nPASS: Has type hints\nPASS: Has docstrings\nPASS: Script runs successfully\nPASS: Creates report.html\nPASS: Main guard present\n\n"
   },
   {
     "challenge_name": "bug-fix",
     "model": "gpt-4o",
     "status": "SUCCESS",
-    "duration": 12.65636396408081,
+    "duration": 18.968010902404785,
     "tool_calls": [
       "glob_files",
-      "read_file"
+      "read_file",
+      "run_shell_command"
     ],
-    "tool_call_count": 2,
+    "tool_call_count": 3,
     "exit_code": 0,
     "log_path": "experiment/gpt-4o/bug-fix/combined.log",
     "workdir": "experiment/gpt-4o/bug-fix/workdir",
@@ -160,18 +181,19 @@
     "challenge_name": "research",
     "model": "deepseek-chat",
     "status": "SUCCESS",
-    "duration": 138.9447159767151,
+    "duration": 157.70185494422913,
     "tool_calls": [
       "list_files",
       "search_internet",
+      "open_web_page",
+      "open_web_page",
       "search_internet",
       "search_internet",
       "open_web_page",
-      "open_web_page",
-      "open_web_page",
-      "write_file"
+      "write_file",
+      "read_file"
     ],
-    "tool_call_count": 8,
+    "tool_call_count": 9,
     "exit_code": 0,
     "log_path": "experiment/deepseek-chat/research/combined.log",
     "workdir": "experiment/deepseek-chat/research/workdir",
@@ -181,12 +203,13 @@
     "challenge_name": "copywriting",
     "model": "deepseek-chat",
     "status": "SUCCESS",
-    "duration": 64.92955684661865,
+    "duration": 83.04658603668213,
     "tool_calls": [
       "list_files",
-      "write_file"
+      "write_file",
+      "read_file"
     ],
-    "tool_call_count": 2,
+    "tool_call_count": 3,
     "exit_code": 0,
     "log_path": "experiment/deepseek-chat/copywriting/combined.log",
     "workdir": "experiment/deepseek-chat/copywriting/workdir",
@@ -196,27 +219,17 @@
     "challenge_name": "feature",
     "model": "deepseek-chat",
     "status": "SUCCESS",
-    "duration": 155.41772890090942,
+    "duration": 105.13270783424377,
     "tool_calls": [
       "read_file",
       "replace_in_file",
+      "write_file",
       "run_shell_command",
       "run_shell_command",
-      "run_shell_command",
-      "run_shell_command",
-      "run_shell_command",
-      "run_shell_command",
-      "run_shell_command",
-      "run_shell_command",
-      "run_shell_command",
-      "run_shell_command",
-      "run_shell_command",
-      "run_shell_command",
-      "run_shell_command",
-      "run_shell_command",
-      "read_file"
+      "read_file",
+      "run_shell_command"
     ],
-    "tool_call_count": 17,
+    "tool_call_count": 7,
     "exit_code": 0,
     "log_path": "experiment/deepseek-chat/feature/combined.log",
     "workdir": "experiment/deepseek-chat/feature/workdir",
@@ -226,19 +239,21 @@
     "challenge_name": "refactor",
     "model": "deepseek-chat",
     "status": "SUCCESS",
-    "duration": 113.85236310958862,
+    "duration": 144.62727212905884,
     "tool_calls": [
-      "read_file",
       "list_files",
+      "read_file",
       "read_file",
       "write_file",
       "run_shell_command",
       "run_shell_command",
       "read_file",
       "run_shell_command",
+      "run_shell_command",
+      "run_shell_command",
       "run_shell_command"
     ],
-    "tool_call_count": 9,
+    "tool_call_count": 11,
     "exit_code": 0,
     "log_path": "experiment/deepseek-chat/refactor/combined.log",
     "workdir": "experiment/deepseek-chat/refactor/workdir",
@@ -248,7 +263,7 @@
     "challenge_name": "bug-fix",
     "model": "deepseek-chat",
     "status": "SUCCESS",
-    "duration": 104.70351481437683,
+    "duration": 312.75713896751404,
     "tool_calls": [
       "read_file",
       "run_shell_command",
@@ -257,13 +272,34 @@
       "run_shell_command",
       "write_file",
       "run_shell_command",
+      "write_file",
+      "run_shell_command",
       "replace_in_file",
+      "run_shell_command",
+      "analyze_file",
+      "read_file",
+      "read_file",
+      "glob_files",
+      "write_file",
+      "run_shell_command",
+      "write_file",
+      "run_shell_command",
+      "read_file",
+      "replace_in_file",
+      "run_shell_command",
+      "write_file",
+      "run_shell_command",
+      "run_shell_command",
+      "run_shell_command",
+      "run_shell_command",
+      "run_shell_command",
+      "write_file",
       "run_shell_command",
       "run_shell_command",
       "run_shell_command",
       "run_shell_command"
     ],
-    "tool_call_count": 12,
+    "tool_call_count": 33,
     "exit_code": 0,
     "log_path": "experiment/deepseek-chat/bug-fix/combined.log",
     "workdir": "experiment/deepseek-chat/bug-fix/workdir",

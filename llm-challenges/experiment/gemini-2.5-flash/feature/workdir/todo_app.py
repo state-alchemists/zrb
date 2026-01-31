@@ -13,12 +13,12 @@ class TodoItem(BaseModel):
     completed: bool = False
 
 
-class TodoItemCreate(BaseModel):
+class TodoCreate(BaseModel):
     title: str
     completed: bool = False
 
 
-class TodoItemUpdate(BaseModel):
+class TodoUpdate(BaseModel):
     title: Optional[str] = None
     completed: Optional[bool] = None
 
@@ -36,34 +36,34 @@ async def get_todos():
 
 
 @app.post("/todos", response_model=TodoItem, status_code=201)
-async def create_todo(item: TodoItemCreate):
+async def create_todo(todo: TodoCreate):
     max_id = 0
     if db:
-        max_id = max(todo.id for todo in db)
+        max_id = max(item.id for item in db)
     new_id = max_id + 1
-    new_todo = TodoItem(id=new_id, title=item.title, completed=item.completed)
-    db.append(new_todo)
-    return new_todo
+    new_item = TodoItem(id=new_id, title=todo.title, completed=todo.completed)
+    db.append(new_item)
+    return new_item
 
 
 @app.put("/todos/{item_id}", response_model=TodoItem)
-async def update_todo(item_id: int, item: TodoItemUpdate):
-    for index, todo in enumerate(db):
-        if todo.id == item_id:
-            if item.title is not None:
-                db[index].title = item.title
-            if item.completed is not None:
-                db[index].completed = item.completed
+async def update_todo(item_id: int, todo_update: TodoUpdate):
+    for index, item in enumerate(db):
+        if item.id == item_id:
+            if todo_update.title is not None:
+                db[index].title = todo_update.title
+            if todo_update.completed is not None:
+                db[index].completed = todo_update.completed
             return db[index]
     raise HTTPException(status_code=404, detail="Todo item not found")
 
 
 @app.delete("/todos/{item_id}", status_code=204)
 async def delete_todo(item_id: int):
-    for index, todo in enumerate(db):
-        if todo.id == item_id:
+    for index, item in enumerate(db):
+        if item.id == item_id:
             del db[index]
-            return {"message": "Todo item deleted successfully"}
+            return
     raise HTTPException(status_code=404, detail="Todo item not found")
 
 

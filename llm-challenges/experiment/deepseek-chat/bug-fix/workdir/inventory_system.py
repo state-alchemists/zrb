@@ -8,12 +8,15 @@ class Inventory:
         self.lock = asyncio.Lock()
 
     async def purchase(self, user_id, amount):
+        # Validate input
+        if amount <= 0:
+            print(f"User {user_id}: Invalid purchase amount: {amount}")
+            return False
+
         # Acquire lock to ensure atomic check-and-decrement operation
-        # This prevents race conditions where multiple users could purchase
-        # simultaneously and drive stock below zero
         async with self.lock:
             print(f"User {user_id} checking stock...")
-
+            
             if self.stock >= amount:
                 # Simulate DB latency
                 await asyncio.sleep(0.1)
@@ -21,7 +24,7 @@ class Inventory:
                 print(f"User {user_id} purchased {amount}. Remaining: {self.stock}")
                 return True
             else:
-                print(f"User {user_id} failed to purchase. Stock low.")
+                print(f"User {user_id} failed to purchase {amount} items. Stock low: {self.stock}")
                 return False
 
 

@@ -1,30 +1,30 @@
 # LLM Challenge Experiment Report
 
-**Date:** 2026-01-31 07:58:13
+**Date:** 2026-01-31 09:05:46
 
 | Model | Challenge | Status | Time (s) | Tools | Verify |
 |---|---|---|---|---|---|
-| gemini-2.5-flash | research | VERIFY_FAILED | 38.83 | 4 | ⚠️ |
-| gemini-2.5-flash | copywriting | VERIFY_FAILED | 11.11 | 1 | ⚠️ |
-| gemini-2.5-flash | feature | SUCCESS | 13.31 | 2 | ✅ |
-| gemini-2.5-flash | refactor | SUCCESS | 21.52 | 3 | ✅ |
-| gemini-2.5-flash | bug-fix | SUCCESS | 12.83 | 2 | ✅ |
-| gpt-4o | research | SUCCESS | 39.70 | 7 | ✅ |
-| gpt-4o | copywriting | VERIFY_FAILED | 16.29 | 1 | ⚠️ |
-| gpt-4o | feature | VERIFY_FAILED | 18.26 | 3 | ⚠️ |
-| gpt-4o | refactor | VERIFY_FAILED | 16.73 | 2 | ⚠️ |
-| gpt-4o | bug-fix | SUCCESS | 12.66 | 2 | ✅ |
-| deepseek-chat | research | SUCCESS | 138.94 | 8 | ✅ |
-| deepseek-chat | copywriting | SUCCESS | 64.93 | 2 | ✅ |
-| deepseek-chat | feature | SUCCESS | 155.42 | 17 | ✅ |
-| deepseek-chat | refactor | SUCCESS | 113.85 | 9 | ✅ |
-| deepseek-chat | bug-fix | SUCCESS | 104.70 | 12 | ✅ |
+| gemini-2.5-flash | research | SUCCESS | 26.19 | 4 | ✅ |
+| gemini-2.5-flash | copywriting | SUCCESS | 11.25 | 1 | ✅ |
+| gemini-2.5-flash | feature | SUCCESS | 12.76 | 2 | ✅ |
+| gemini-2.5-flash | refactor | SUCCESS | 66.94 | 17 | ✅ |
+| gemini-2.5-flash | bug-fix | SUCCESS | 12.75 | 2 | ✅ |
+| gpt-4o | research | SUCCESS | 48.04 | 6 | ✅ |
+| gpt-4o | copywriting | SUCCESS | 14.32 | 1 | ✅ |
+| gpt-4o | feature | VERIFY_FAILED | 69.33 | 9 | ⚠️ |
+| gpt-4o | refactor | SUCCESS | 50.98 | 3 | ✅ |
+| gpt-4o | bug-fix | SUCCESS | 18.97 | 3 | ✅ |
+| deepseek-chat | research | SUCCESS | 157.70 | 9 | ✅ |
+| deepseek-chat | copywriting | SUCCESS | 83.05 | 3 | ✅ |
+| deepseek-chat | feature | SUCCESS | 105.13 | 7 | ✅ |
+| deepseek-chat | refactor | SUCCESS | 144.63 | 11 | ✅ |
+| deepseek-chat | bug-fix | SUCCESS | 312.76 | 33 | ✅ |
 
 
 ## Detailed Results
 ### gemini-2.5-flash / research
-- **Status:** VERIFY_FAILED
-- **Duration:** 38.83s
+- **Status:** SUCCESS
+- **Duration:** 26.19s
 - **Workdir:** `experiment/gemini-2.5-flash/research/workdir`
 - **Log:** `experiment/gemini-2.5-flash/research/combined.log`
 - **Tools Used:** search_internet, search_internet, search_internet, write_file
@@ -37,13 +37,13 @@ PASS: Covers key players
 PASS: Covers technical hurdles
 PASS: Has multiple sections/headers
 PASS: Substantial content (200+ words)
-FAIL: References/citations
+PASS: References/citations
 ```
 
 ---
 ### gemini-2.5-flash / copywriting
-- **Status:** VERIFY_FAILED
-- **Duration:** 11.11s
+- **Status:** SUCCESS
+- **Duration:** 11.25s
 - **Workdir:** `experiment/gemini-2.5-flash/copywriting/workdir`
 - **Log:** `experiment/gemini-2.5-flash/copywriting/combined.log`
 - **Tools Used:** write_file
@@ -57,7 +57,7 @@ PASS: Contains 'workflow'
 PASS: Contains 'automation'
 PASS: Contains 'CLI'
 PASS: Contains 'Docker'
-FAIL: Contains 'K8s'
+PASS: Contains 'K8s'
 PASS: Contains 'Kubernetes'
 PASS: Contains 'Python'
 PASS: Contains 'Self-Healing'
@@ -69,7 +69,7 @@ PASS: Markdown formatting
 ---
 ### gemini-2.5-flash / feature
 - **Status:** SUCCESS
-- **Duration:** 13.31s
+- **Duration:** 12.76s
 - **Workdir:** `experiment/gemini-2.5-flash/feature/workdir`
 - **Log:** `experiment/gemini-2.5-flash/feature/combined.log`
 - **Tools Used:** read_file, write_file
@@ -92,10 +92,10 @@ PASS: PUT returns 404 for non-existent
 ---
 ### gemini-2.5-flash / refactor
 - **Status:** SUCCESS
-- **Duration:** 21.52s
+- **Duration:** 66.94s
 - **Workdir:** `experiment/gemini-2.5-flash/refactor/workdir`
 - **Log:** `experiment/gemini-2.5-flash/refactor/combined.log`
-- **Tools Used:** list_files, read_file, write_file
+- **Tools Used:** list_files, list_files, read_file, read_file, write_file, run_shell_command, read_file, read_file, replace_in_file, run_shell_command, read_file, write_file, run_shell_command, run_shell_command, write_file, run_shell_command, read_file
 
 **Verification Output:**
 ```
@@ -114,7 +114,7 @@ PASS: Main guard present
 ---
 ### gemini-2.5-flash / bug-fix
 - **Status:** SUCCESS
-- **Duration:** 12.83s
+- **Duration:** 12.75s
 - **Workdir:** `experiment/gemini-2.5-flash/bug-fix/workdir`
 - **Log:** `experiment/gemini-2.5-flash/bug-fix/combined.log`
 - **Tools Used:** read_file, run_shell_command
@@ -128,10 +128,10 @@ PASS: Final stock is non-negative: 1
 ---
 ### gpt-4o / research
 - **Status:** SUCCESS
-- **Duration:** 39.70s
+- **Duration:** 48.04s
 - **Workdir:** `experiment/gpt-4o/research/workdir`
 - **Log:** `experiment/gpt-4o/research/combined.log`
-- **Tools Used:** search_internet, search_internet, search_internet, search_internet, search_internet, search_internet, write_file
+- **Tools Used:** search_internet, open_web_page, open_web_page, open_web_page, open_web_page, write_file
 
 **Verification Output:**
 ```
@@ -146,8 +146,8 @@ PASS: References/citations
 
 ---
 ### gpt-4o / copywriting
-- **Status:** VERIFY_FAILED
-- **Duration:** 16.29s
+- **Status:** SUCCESS
+- **Duration:** 14.32s
 - **Workdir:** `experiment/gpt-4o/copywriting/workdir`
 - **Log:** `experiment/gpt-4o/copywriting/combined.log`
 - **Tools Used:** write_file
@@ -159,7 +159,7 @@ PASS: Contains 'Zrb-Flow'
 PASS: Contains 'AI'
 PASS: Contains 'workflow'
 PASS: Contains 'automation'
-FAIL: Contains 'CLI'
+PASS: Contains 'CLI'
 PASS: Contains 'Docker'
 PASS: Contains 'K8s'
 PASS: Contains 'Kubernetes'
@@ -173,10 +173,10 @@ PASS: Markdown formatting
 ---
 ### gpt-4o / feature
 - **Status:** VERIFY_FAILED
-- **Duration:** 18.26s
+- **Duration:** 69.33s
 - **Workdir:** `experiment/gpt-4o/feature/workdir`
 - **Log:** `experiment/gpt-4o/feature/combined.log`
-- **Tools Used:** glob_files, read_file, write_file
+- **Tools Used:** glob_files, read_file, write_file, run_shell_command, read_file, write_file, run_shell_command, read_file, read_file
 
 **Verification Output:**
 ```
@@ -192,21 +192,21 @@ FAIL: POST /todos works
 
 ---
 ### gpt-4o / refactor
-- **Status:** VERIFY_FAILED
-- **Duration:** 16.73s
+- **Status:** SUCCESS
+- **Duration:** 50.98s
 - **Workdir:** `experiment/gpt-4o/refactor/workdir`
 - **Log:** `experiment/gpt-4o/refactor/combined.log`
-- **Tools Used:** glob_files, read_file
+- **Tools Used:** glob_files, read_file, write_file
 
 **Verification Output:**
 ```
 Testing if script runs...
-FAIL: Separated into functions/classes
-FAIL: ETL pattern (Extract/Transform/Load)
+PASS: Separated into functions/classes
+PASS: ETL pattern (Extract/Transform/Load)
 PASS: Configuration decoupled
-FAIL: Uses regex for parsing
-FAIL: Has type hints
-FAIL: Has docstrings
+PASS: Uses regex for parsing
+PASS: Has type hints
+PASS: Has docstrings
 PASS: Script runs successfully
 PASS: Creates report.html
 PASS: Main guard present
@@ -215,10 +215,10 @@ PASS: Main guard present
 ---
 ### gpt-4o / bug-fix
 - **Status:** SUCCESS
-- **Duration:** 12.66s
+- **Duration:** 18.97s
 - **Workdir:** `experiment/gpt-4o/bug-fix/workdir`
 - **Log:** `experiment/gpt-4o/bug-fix/combined.log`
-- **Tools Used:** glob_files, read_file
+- **Tools Used:** glob_files, read_file, run_shell_command
 
 **Verification Output:**
 ```
@@ -229,10 +229,10 @@ PASS: Final stock is non-negative: 1
 ---
 ### deepseek-chat / research
 - **Status:** SUCCESS
-- **Duration:** 138.94s
+- **Duration:** 157.70s
 - **Workdir:** `experiment/deepseek-chat/research/workdir`
 - **Log:** `experiment/deepseek-chat/research/combined.log`
-- **Tools Used:** list_files, search_internet, search_internet, search_internet, open_web_page, open_web_page, open_web_page, write_file
+- **Tools Used:** list_files, search_internet, open_web_page, open_web_page, search_internet, search_internet, open_web_page, write_file, read_file
 
 **Verification Output:**
 ```
@@ -248,10 +248,10 @@ PASS: References/citations
 ---
 ### deepseek-chat / copywriting
 - **Status:** SUCCESS
-- **Duration:** 64.93s
+- **Duration:** 83.05s
 - **Workdir:** `experiment/deepseek-chat/copywriting/workdir`
 - **Log:** `experiment/deepseek-chat/copywriting/combined.log`
-- **Tools Used:** list_files, write_file
+- **Tools Used:** list_files, write_file, read_file
 
 **Verification Output:**
 ```
@@ -274,10 +274,10 @@ PASS: Markdown formatting
 ---
 ### deepseek-chat / feature
 - **Status:** SUCCESS
-- **Duration:** 155.42s
+- **Duration:** 105.13s
 - **Workdir:** `experiment/deepseek-chat/feature/workdir`
 - **Log:** `experiment/deepseek-chat/feature/combined.log`
-- **Tools Used:** read_file, replace_in_file, run_shell_command, run_shell_command, run_shell_command, run_shell_command, run_shell_command, run_shell_command, run_shell_command, run_shell_command, run_shell_command, run_shell_command, run_shell_command, run_shell_command, run_shell_command, run_shell_command, read_file
+- **Tools Used:** read_file, replace_in_file, write_file, run_shell_command, run_shell_command, read_file, run_shell_command
 
 **Verification Output:**
 ```
@@ -297,10 +297,10 @@ PASS: PUT returns 404 for non-existent
 ---
 ### deepseek-chat / refactor
 - **Status:** SUCCESS
-- **Duration:** 113.85s
+- **Duration:** 144.63s
 - **Workdir:** `experiment/deepseek-chat/refactor/workdir`
 - **Log:** `experiment/deepseek-chat/refactor/combined.log`
-- **Tools Used:** read_file, list_files, read_file, write_file, run_shell_command, run_shell_command, read_file, run_shell_command, run_shell_command
+- **Tools Used:** list_files, read_file, read_file, write_file, run_shell_command, run_shell_command, read_file, run_shell_command, run_shell_command, run_shell_command, run_shell_command
 
 **Verification Output:**
 ```
@@ -319,10 +319,10 @@ PASS: Main guard present
 ---
 ### deepseek-chat / bug-fix
 - **Status:** SUCCESS
-- **Duration:** 104.70s
+- **Duration:** 312.76s
 - **Workdir:** `experiment/deepseek-chat/bug-fix/workdir`
 - **Log:** `experiment/deepseek-chat/bug-fix/combined.log`
-- **Tools Used:** read_file, run_shell_command, list_files, read_file, run_shell_command, write_file, run_shell_command, replace_in_file, run_shell_command, run_shell_command, run_shell_command, run_shell_command
+- **Tools Used:** read_file, run_shell_command, list_files, read_file, run_shell_command, write_file, run_shell_command, write_file, run_shell_command, replace_in_file, run_shell_command, analyze_file, read_file, read_file, glob_files, write_file, run_shell_command, write_file, run_shell_command, read_file, replace_in_file, run_shell_command, write_file, run_shell_command, run_shell_command, run_shell_command, run_shell_command, run_shell_command, write_file, run_shell_command, run_shell_command, run_shell_command, run_shell_command
 
 **Verification Output:**
 ```

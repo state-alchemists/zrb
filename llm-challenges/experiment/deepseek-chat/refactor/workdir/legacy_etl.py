@@ -2,235 +2,309 @@
 """
 ETL (Extract, Transform, Load) pipeline for processing server logs.
 
-This module extracts error and user action information from server logs,
-transforms the data, and generates an HTML report of error frequencies.
+This module extracts error and user action data from server logs,
+transforms the data into structured format, and loads it into
+a simulated database while generating HTML reports.
 """
 
 import datetime
 import os
 import re
-import sys
 from typing import Dict, List, Optional, TypedDict, Union
+from dataclasses import dataclass
 
 
-class LogEntry(TypedDict, total=False):
-    """Type definition for parsed log entries."""
-
-    date: str
-    type: str
-    msg: Optional[str]
-    user: Optional[str]
-
-
+# Configuration using environment variables with defaults
 class Config:
-    """Configuration manager for the ETL pipeline."""
+    """Configuration for the ETL pipeline."""
+    
+    DB_HOST: str = os.getenv("DB_HOST", "localhost")
+    DB_USER: str = os.getenv("DB_USER", "admin")
+    LOG_FILE: str = os.getenv("LOG_FILE", "server.log")
+    REPORT_FILE: str = os.getenv("REPORT_FILE", "report.html")
 
-    def __init__(self):
-        self.db_host = os.getenv("DB_HOST", "localhost")
-        self.db_user = os.getenv("DB_USER", "admin")
-        self.log_file = os.getenv("LOG_FILE", "server.log")
-        self.report_file = os.getenv("REPORT_FILE", "report.html")
+
+@dataclass
+class LogEntry:
+    """Represents a parsed log entry."""
+    timestamp: str
+    log_type: str
+    message: str
+    user_id: Optional[str] = None
 
 
-def extract_log_entries(log_file_path: str) -> List[LogEntry]:
+@dataclass
+class ProcessedEntry:
+    """Represents a processed log entry ready for reporting."""
+    date: str
+    entry_type: str
+    message: str
+    user_id: Optional[str] = None
+
+
+def extract_logs(log_file_path: str) -> List[str]:
     """
-    Extract log entries from a log file.
-
+    Extract raw log lines from a log file.
+    
     Args:
         log_file_path: Path to the log file
-
+        
     Returns:
-        List of parsed log entries
+        List of raw log lines as strings
+        
+    Raises:
+        FileNotFoundError: If the log file doesn't exist
     """
-    entries: List[LogEntry] = []
-
     if not os.path.exists(log_file_path):
-        print(f"Warning: Log file '{log_file_path}' not found")
-        return entries
-
-    # Regex patterns for log parsing
-    log_pattern = re.compile(
-        r"^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\s+(\w+)\s+(.+)$"
-    )
-    user_pattern = re.compile(r"User\s+(\d+)")
-
+        raise FileNotFoundError(f"Log file not found: {log_file_path}")
+    
     with open(log_file_path, "r") as f:
-        for line_num, line in enumerate(f, 1):
-            line = line.strip()
-            if not line:
-                continue
-
-            match = log_pattern.match(line)
-            if not match:
-                print(f"Warning: Line {line_num} doesn't match expected format: {line}")
-                continue
-
-            date_str, time_str, log_type, message = match.groups()
-            full_date = f"{date_str} {time_str}"
-
-            if log_type == "ERROR":
-                entries.append(
-                    {"date": full_date, "type": "ERROR", "msg": message.strip()}
-                )
-            elif log_type == "INFO":
-                user_match = user_pattern.search(message)
-                if user_match:
-                    user_id = user_match.group(1)
-                    entries.append(
-                        {"date": full_date, "type": "USER_ACTION", "user": user_id}
-                    )
-
-    return entries
+        return f.readlines()
 
 
-def transform_log_data(entries: List[LogEntry]) -> Dict[str, int]:
+def parse_log_line(line: str) -> Optional[LogEntry]:
     """
-    Transform log entries into a report-ready format.
-
+    Parse a single log line using regex.
+    
+    Expected format: "YYYY-MM-DD HH:MM:SS TYPE Message content"
+    
     Args:
-        entries: List of parsed log entries
-
+        line: Raw log line string
+        
     Returns:
-        Dictionary mapping error messages to their frequencies
+        LogEntry object if parsing successful, None otherwise
     """
-    error_counts: Dict[str, int] = {}
+    # Regex pattern for log parsing
+    # Groups: 1=date, 2=time, 3=type, 4=message
+    pattern = r'^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\s+(\w+)\s+(.+)$'
+    match = re.match(pattern, line.strip())
+    
+    if not match:
+        return None
+    
+    date_str = match.group(1)
+    time_str = match.group(2)
+    log_type = match.group(3)
+    message = match.group(4)
+    
+    timestamp = f"{date_str} {time_str}"
+    
+    # Extract user ID if present in INFO messages
+    user_id = None
+    if log_type == "INFO" and "User" in message:
+        user_match = re.search(r'User\s+(\d+)', message)
+        if user_match:
+            user_id = user_match.group(1)
+    
+    return LogEntry(
+        timestamp=timestamp,
+        log_type=log_type,
+        message=message,
+        user_id=user_id
+    )
 
-    for entry in entries:
-        if entry["type"] == "ERROR" and "msg" in entry:
-            error_msg = entry["msg"]
-            error_counts[error_msg] = error_counts.get(error_msg, 0) + 1
 
-    return error_counts
-
-
-def generate_html_report(error_counts: Dict[str, int], report_path: str) -> None:
+def transform_logs(raw_logs: List[str]) -> List[ProcessedEntry]:
     """
-    Generate an HTML report from error counts.
-
+    Transform raw log lines into structured data.
+    
     Args:
-        error_counts: Dictionary mapping error messages to frequencies
-        report_path: Path where the HTML report should be saved
+        raw_logs: List of raw log line strings
+        
+    Returns:
+        List of processed log entries
     """
-    if not error_counts:
-        print("No error data to report")
-        return
+    processed_entries: List[ProcessedEntry] = []
+    
+    for line in raw_logs:
+        log_entry = parse_log_line(line)
+        
+        if not log_entry:
+            continue
+        
+        # Determine entry type based on log type and content
+        entry_type = log_entry.log_type
+        if log_entry.log_type == "INFO" and log_entry.user_id:
+            entry_type = "USER_ACTION"
+        
+        processed_entry = ProcessedEntry(
+            date=log_entry.timestamp,
+            entry_type=entry_type,
+            message=log_entry.message,
+            user_id=log_entry.user_id
+        )
+        
+        processed_entries.append(processed_entry)
+    
+    return processed_entries
 
+
+def load_to_database(entries: List[ProcessedEntry], config: Config) -> None:
+    """
+    Simulate loading data to database.
+    
+    Args:
+        entries: List of processed log entries
+        config: Configuration object
+    """
+    print(f"Connecting to {config.DB_HOST} as {config.DB_USER}...")
+    print(f"Loaded {len(entries)} log entries to database")
+    
+    # In a real implementation, this would connect to an actual database
+    # and insert the entries
+
+
+def generate_report(entries: List[ProcessedEntry], report_file: str) -> None:
+    """
+    Generate HTML report from processed log entries.
+    
+    Args:
+        entries: List of processed log entries
+        report_file: Path to output HTML report file
+    """
+    # Count error occurrences
+    error_counts: Dict[str, int] = {}
+    
+    for entry in entries:
+        if entry.entry_type == "ERROR":
+            if entry.message not in error_counts:
+                error_counts[entry.message] = 0
+            error_counts[entry.message] += 1
+    
+    # Generate HTML report
     html_lines = [
         "<!DOCTYPE html>",
         "<html>",
         "<head>",
-        "    <title>Server Error Report</title>",
-        "    <style>",
-        "        body { font-family: Arial, sans-serif; margin: 40px; }",
-        "        h1 { color: #333; }",
-        "        ul { list-style-type: none; padding: 0; }",
-        "        li { padding: 8px; margin: 4px 0; background: #f5f5f5; border-radius: 4px; }",
-        "        .count { float: right; font-weight: bold; color: #d32f2f; }",
-        "    </style>",
+        "<title>Server Log Report</title>",
+        "<style>",
+        "body { font-family: Arial, sans-serif; margin: 40px; }",
+        "h1 { color: #333; }",
+        "ul { list-style-type: none; padding: 0; }",
+        "li { padding: 8px; margin: 5px 0; background: #f5f5f5; border-radius: 4px; }",
+        "</style>",
         "</head>",
         "<body>",
-        "    <h1>Server Error Report</h1>",
-        "    <p>Generated on: "
-        + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        + "</p>",
-        "    <ul>",
+        "<h1>Server Log Error Report</h1>",
+        f"<p>Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>",
+        f"<p>Total entries processed: {len(entries)}</p>"
     ]
-
-    for error_msg, count in sorted(
-        error_counts.items(), key=lambda x: x[1], reverse=True
-    ):
-        html_lines.append(
-            f'        <li>{error_msg} <span class="count">{count}</span></li>'
-        )
-
-    html_lines.extend(["    </ul>", "</body>", "</html>"])
-
-    with open(report_path, "w") as f:
+    
+    if error_counts:
+        html_lines.append("<h2>Error Summary</h2>")
+        html_lines.append("<ul>")
+        for error_msg, count in sorted(error_counts.items(), key=lambda x: x[1], reverse=True):
+            html_lines.append(f"<li><strong>{error_msg}</strong>: {count} occurrence(s)</li>")
+        html_lines.append("</ul>")
+    else:
+        html_lines.append("<p>No errors found in the logs.</p>")
+    
+    # Add user action summary if present
+    user_actions = [e for e in entries if e.entry_type == "USER_ACTION"]
+    if user_actions:
+        html_lines.append("<h2>User Actions</h2>")
+        html_lines.append("<ul>")
+        for action in user_actions:
+            html_lines.append(f"<li>{action.date}: User {action.user_id} - {action.message}</li>")
+        html_lines.append("</ul>")
+    
+    html_lines.append("</body>")
+    html_lines.append("</html>")
+    
+    # Write report to file
+    with open(report_file, "w") as f:
         f.write("\n".join(html_lines))
+    
+    print(f"Report generated: {report_file}")
 
-    print(f"Report generated: {report_path}")
 
-
-def load_to_database(config: Config, entries: List[LogEntry]) -> None:
+def create_dummy_logs(log_file_path: str) -> None:
     """
-    Simulate loading data to a database.
+    Create dummy log file for testing if it doesn't exist.
+    
+    Args:
+        log_file_path: Path to the log file to create
+    """
+    dummy_logs = [
+        "2023-10-01 10:00:00 INFO User 123 logged in\n",
+        "2023-10-01 10:05:00 ERROR Connection failed\n",
+        "2023-10-01 10:10:00 ERROR Connection failed\n",
+        "2023-10-01 10:15:00 INFO System backup completed\n",
+        "2023-10-01 10:20:00 ERROR Database timeout\n",
+        "2023-10-01 10:25:00 INFO User 456 logged out\n",
+        "2023-10-01 10:30:00 WARNING High memory usage detected\n",
+    ]
+    
+    with open(log_file_path, "w") as f:
+        f.writelines(dummy_logs)
+    
+    print(f"Created dummy log file: {log_file_path}")
 
+
+def run_etl_pipeline(config: Config) -> None:
+    """
+    Main ETL pipeline execution function.
+    
     Args:
         config: Configuration object
-        entries: List of log entries to load
     """
-    print(f"Connecting to {config.db_host} as {config.db_user}...")
-    print(f"Would load {len(entries)} log entries to database")
-    # In a real implementation, this would contain actual database insertion logic
-
-
-def create_sample_log_file(log_file_path: str) -> None:
-    """
-    Create a sample log file for testing if it doesn't exist.
-
-    Args:
-        log_file_path: Path where the sample log file should be created
-    """
-    sample_logs = [
-        "2023-10-01 10:00:00 INFO User 123 logged in",
-        "2023-10-01 10:05:00 ERROR Connection failed",
-        "2023-10-01 10:10:00 ERROR Connection failed",
-        "2023-10-01 10:15:00 INFO User 456 logged out",
-        "2023-10-01 10:20:00 ERROR Database timeout",
-        "2023-10-01 10:25:00 INFO User 789 accessed resource",
-        "2023-10-01 10:30:00 ERROR Connection failed",
-        "2023-10-01 10:35:00 INFO User 123 performed action",
-    ]
-
-    with open(log_file_path, "w") as f:
-        f.write("\n".join(sample_logs))
-
-    print(f"Created sample log file: {log_file_path}")
-
-
-def run_etl_pipeline(config: Optional[Config] = None) -> None:
-    """
-    Run the complete ETL pipeline.
-
-    Args:
-        config: Optional configuration object (creates default if None)
-    """
-    if config is None:
-        config = Config()
-
     print("Starting ETL pipeline...")
+    
+    try:
+        # Extract phase
+        print(f"Extracting logs from {config.LOG_FILE}...")
+        raw_logs = extract_logs(config.LOG_FILE)
+        print(f"Extracted {len(raw_logs)} log lines")
+        
+        # Transform phase
+        print("Transforming log data...")
+        processed_entries = transform_logs(raw_logs)
+        print(f"Transformed {len(processed_entries)} entries")
+        
+        # Load phase
+        load_to_database(processed_entries, config)
+        
+        # Generate report
+        print(f"Generating report to {config.REPORT_FILE}...")
+        generate_report(processed_entries, config.REPORT_FILE)
+        
+        print("ETL pipeline completed successfully!")
+        
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+        print("Please ensure the log file exists or run with --create-dummy flag")
+    except Exception as e:
+        print(f"Unexpected error during ETL pipeline: {e}")
+        raise
 
-    # Extract phase
-    print(f"Extracting logs from: {config.log_file}")
-    log_entries = extract_log_entries(config.log_file)
-    print(f"Extracted {len(log_entries)} log entries")
 
-    # Transform phase
-    print("Transforming log data...")
-    error_counts = transform_log_data(log_entries)
-    print(f"Found {len(error_counts)} unique error types")
-
-    # Load phase (simulated)
-    load_to_database(config, log_entries)
-
-    # Report generation
-    print(f"Generating report to: {config.report_file}")
-    generate_html_report(error_counts, config.report_file)
-
-    print("ETL pipeline completed successfully")
-
-
-def main() -> None:
-    """Main entry point for the ETL script."""
+def main(create_dummy: bool = False) -> None:
+    """
+    Main entry point for the ETL script.
+    
+    Args:
+        create_dummy: If True, create dummy log file before running ETL
+    """
     config = Config()
-
-    # Create sample data if log file doesn't exist
-    if not os.path.exists(config.log_file):
-        create_sample_log_file(config.log_file)
-
+    
+    # Create dummy logs if requested or if log file doesn't exist
+    if create_dummy or not os.path.exists(config.LOG_FILE):
+        print("Creating dummy log data...")
+        create_dummy_logs(config.LOG_FILE)
+    
     # Run the ETL pipeline
     run_etl_pipeline(config)
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="ETL pipeline for server logs")
+    parser.add_argument(
+        "--create-dummy",
+        action="store_true",
+        help="Create dummy log file before running ETL"
+    )
+    
+    args = parser.parse_args()
+    main(create_dummy=args.create_dummy)

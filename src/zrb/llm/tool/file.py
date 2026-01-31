@@ -304,6 +304,10 @@ def write_file(path: str, content: str, mode: str = "w") -> str:
     """
     Writes or appends content to a file.
 
+    **VERIFICATION IS MANDATORY:**
+    - Writing a file is the **START** of the implementation, not the end.
+    - After writing, you MUST verify the changes (e.g., run the code, check the output) to ensure correctness.
+
     **CRITICAL - PREVENT ERRORS:**
     1. **ESCAPING:** Do NOT double-escape quotes in your JSON tool call.
     2. **SIZE LIMIT:** DO NOT write more than 4000 characters in a single call.

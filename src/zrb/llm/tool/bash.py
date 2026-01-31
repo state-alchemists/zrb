@@ -14,6 +14,11 @@ async def run_shell_command(command: str, timeout: int = 30) -> str:
     Executes a shell command on the host system and returns its combined stdout and stderr.
     This is a powerful tool for running builds, tests, or system utilities.
 
+    **WHEN TO USE:**
+    - To **VERIFY** code changes by running tests or execution scripts.
+    - To check system state, installed packages, or file attributes.
+    - To run build processes or other system utilities.
+
     **CRITICAL SAFETY:**
     - DO NOT run destructive commands (e.g., `rm -rf /`) without absolute certainty.
     - Prefer specialized tools (like `read_file` or `write_file`) for file operations.
