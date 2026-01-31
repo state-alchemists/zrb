@@ -20,6 +20,7 @@ from prompt_toolkit.lexers import Lexer
 from prompt_toolkit.output import create_output
 from prompt_toolkit.styles import Style
 
+from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
 from zrb.llm.app.keybinding import create_output_keybindings
 from zrb.llm.app.layout import create_input_field, create_layout, create_output_field
@@ -42,6 +43,7 @@ from zrb.util.ascii_art.banner import create_banner
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_error, stylize_faint
 from zrb.util.string.name import get_random_name
+from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
     from pydantic_ai import ToolApproved, ToolCallPart, ToolDenied, UserContent
@@ -52,6 +54,8 @@ if TYPE_CHECKING:
 class UI:
     def __init__(
         self,
+        ctx: AnyContext,
+        yolo_xcom_key: str,
         greeting: str,
         assistant_name: str,
         ascii_art: str,
@@ -80,6 +84,8 @@ class UI:
         custom_commands: list[AnyCustomCommand] = [],
         model: "Model | str | None" = None,
     ):
+        self._ctx = ctx
+        self._yolo_xcom_key = yolo_xcom_key
         self._is_thinking = False
         self._running_llm_task: asyncio.Task | None = None
         self._llm_task = llm_task
@@ -91,7 +97,6 @@ class UI:
         self._conversation_session_name = conversation_session_name
         if not self._conversation_session_name:
             self._conversation_session_name = get_random_name()
-        self._yolo = yolo
         self._model = model
         self._triggers = triggers
         self._markdown_theme = markdown_theme
@@ -166,6 +171,18 @@ class UI:
         # Send message if first_message is provided. Make sure only run at most once
         if self._initial_message:
             self._application.after_render.add_handler(self._on_first_render)
+
+    @property
+    def _yolo(self) -> bool:
+        if self._yolo_xcom_key not in self._ctx.xcom:
+            return False
+        return self._ctx.xcom[self._yolo_xcom_key].get(False)
+
+    @_yolo.setter
+    def _yolo(self, value: bool):
+        if self._yolo_xcom_key not in self._ctx.xcom:
+            self._ctx.xcom[self._yolo_xcom_key] = Xcom()
+        self._ctx.xcom[self._yolo_xcom_key].set(value)
 
     async def run_async(self):
         """Run the application and manage triggers."""
@@ -491,6 +508,10 @@ class UI:
             self._submit_user_message(llm_task, text)
             buff.reset()
 
+        @app_keybindings.add("c-y")
+        def _(event):
+            self.toggle_yolo()
+
         @app_keybindings.add("c-j")  # Ctrl+J
         @app_keybindings.add("c-space")  # Ctrl+Space (Fallback)
         def _(event):
@@ -617,13 +638,16 @@ class UI:
             self._running_llm_task = None
             get_app().invalidate()
 
+    def toggle_yolo(self):
+        """Toggle YOLO mode and force refresh."""
+        self._yolo = not self._yolo
+        get_app().invalidate()
+
     def _handle_toggle_yolo(self, event) -> bool:
         buff = event.current_buffer
         text = buff.text
         if text.strip().lower() in self._yolo_toggle_commands:
-            if self._is_thinking:
-                return False
-            self._yolo = not self._yolo
+            self.toggle_yolo()
             buff.reset()
             return True
         return False

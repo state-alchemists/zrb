@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.llm.config.config import llm_config as default_llm_config
@@ -27,7 +28,7 @@ def create_agent(
     history_processors: list["HistoryProcessor"] | None = None,
     output_type: "OutputSpec[OutputDataT]" = str,
     retries: int = 1,
-    yolo: bool = False,
+    yolo: bool | Callable[[Any, Any, dict[str, Any]], bool] = False,
 ) -> "Agent[None, Any]":
     from pydantic_ai import Agent, DeferredToolRequests
     from pydantic_ai.toolsets import FunctionToolset
@@ -40,9 +41,21 @@ def create_agent(
     if tools:
         effective_toolsets.append(FunctionToolset(tools=tools))
 
-    if not yolo:
+    if yolo is not True:
         final_output_type = output_type | DeferredToolRequests
-        effective_toolsets = [ts.approval_required() for ts in effective_toolsets]
+        
+        if callable(yolo):
+            def check_approval(ctx: Any, tool_def: Any, args: dict[str, Any]) -> bool:
+                try:
+                    return not yolo(ctx, tool_def, args)
+                except TypeError:
+                    return not yolo(ctx)
+
+            effective_toolsets = [
+                ts.approval_required(check_approval) for ts in effective_toolsets
+            ]
+        else:
+            effective_toolsets = [ts.approval_required() for ts in effective_toolsets]
 
     if model is None:
         model = default_llm_config.model

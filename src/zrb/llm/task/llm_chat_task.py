@@ -39,6 +39,7 @@ from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_attr, get_bool_attr, get_str_attr
 from zrb.util.string.name import get_random_name
+from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
     from pydantic_ai import Tool, UserContent
@@ -95,6 +96,7 @@ class LLMChatTask(BaseTask):
         history_manager: AnyHistoryManager | None = None,
         tool_confirmation: AnyToolConfirmation = None,
         yolo: BoolAttr = False,
+        yolo_xcom_key: str = "yolo",
         ui_summarize_commands: list[str] | None = None,
         ui_attach_commands: list[str] | None = None,
         ui_exit_commands: list[str] | None = None,
@@ -188,6 +190,7 @@ class LLMChatTask(BaseTask):
         self._history_manager = history_manager
         self._tool_confirmation = tool_confirmation
         self._yolo = yolo
+        self._yolo_xcom_key = yolo_xcom_key
         self._ui_summarize_commands = (
             ui_summarize_commands if ui_summarize_commands is not None else []
         )
@@ -327,6 +330,9 @@ class LLMChatTask(BaseTask):
         # 1. Resolve inputs/attributes
         initial_conversation_name = self._get_conversation_name(ctx)
         initial_yolo = get_bool_attr(ctx, self._yolo, False)
+        if self._yolo_xcom_key not in ctx.xcom:
+            ctx.xcom[self._yolo_xcom_key] = Xcom()
+        ctx.xcom[self._yolo_xcom_key].set(initial_yolo)
         initial_message = get_attr(ctx, self._message, "", self._render_message)
         initial_attachments = get_attachments(ctx, self._attachment)
         interactive = get_bool_attr(ctx, self._interactive, True)
@@ -476,6 +482,11 @@ class LLMChatTask(BaseTask):
         resolved_tools = self._get_all_tools(ctx)
         resolved_toolsets = self._get_all_toolsets(ctx)
 
+        def check_yolo(*args, **kwargs):
+            if self._yolo_xcom_key not in ctx.xcom:
+                return False
+            return ctx.xcom[self._yolo_xcom_key].get(False)
+
         return LLMTask(
             name=f"{self.name}-process",
             input=[
@@ -502,6 +513,7 @@ class LLMChatTask(BaseTask):
             message="{ctx.input.message}",
             conversation_name="{ctx.input.session}",
             yolo="{ctx.input.yolo}",
+            dynamic_yolo=check_yolo,
             attachment=lambda ctx: ctx.input.attachments,
             summarize_command=summarize_commands,
         )
@@ -577,6 +589,8 @@ class LLMChatTask(BaseTask):
                     resolved_custom_commands.append(cmd)
 
             ui = UI(
+                ctx=ctx,
+                yolo_xcom_key=self._yolo_xcom_key,
                 greeting=ui_greeting,
                 assistant_name=ui_assistant_name,
                 ascii_art=ascii_art,
