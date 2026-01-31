@@ -29,7 +29,7 @@ The `PromptManager` allows you to build the system prompt using middlewares. Thi
 
 ```python
 from zrb.llm.prompt.manager import PromptManager, new_prompt
-from zrb.llm.prompt.default import get_persona_prompt, get_mandate_prompt
+from zrb.llm.prompt import get_persona_prompt, get_mandate_prompt
 
 chat_task = LLMChatTask(
     name="expert",
