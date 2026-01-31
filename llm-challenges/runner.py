@@ -199,14 +199,16 @@ def run_single_experiment(
         shutil.rmtree(exp_dir)
     exp_dir.mkdir(parents=True, exist_ok=True)
 
-    # Copy challenge files
-    shutil.copytree(challenge_path, exp_dir, dirs_exist_ok=True)
-
+    # Prepare Workdir
+    # ONLY copy the 'workdir' folder to the experiment to prevent cheating
+    # (Agent cannot see verify.py, instruction.md, etc.)
+    source_workdir = challenge_path / "workdir"
     workdir = exp_dir / "workdir"
-    if not workdir.exists():
-        workdir = exp_dir
 
-    instruction_file = exp_dir / "instruction.md"
+    shutil.copytree(source_workdir, workdir, dirs_exist_ok=True)
+
+    # Read Instruction from SOURCE
+    instruction_file = challenge_path / "instruction.md"
     if not instruction_file.exists():
         if verbose:
             print(f"ERROR: {instruction_file} not found")
@@ -227,17 +229,8 @@ def run_single_experiment(
     if verbose:
         print(f"Instruction: {instruction[:100]}...")
 
-    # Copy verification scripts to workdir for the agent to use
-    src_verify_script = exp_dir / "verify.sh"
-    src_verify_py = exp_dir / "verify.py"
-
-    tgt_verify_script = workdir / "verify.sh"
-    tgt_verify_py = workdir / "verify.py"
-
-    if src_verify_script.exists() and not tgt_verify_script.exists():
-        shutil.copy2(src_verify_script, tgt_verify_script)
-    if src_verify_py.exists() and not tgt_verify_py.exists():
-        shutil.copy2(src_verify_py, tgt_verify_py)
+    # NOTE: verification scripts are NOT copied here.
+    # They are copied/run by run_verification() AFTER the agent finishes.
 
     # 2. Prepare Command with enhanced model configuration from test_single.py
     env = os.environ.copy()
@@ -335,7 +328,7 @@ def run_single_experiment(
                 )
                 exit_code = process.returncode
 
-        status = "SUCCESS" if exit_code == 0 else "FAILURE"
+        status = "EXECUTION_COMPLETE" if exit_code == 0 else "EXECUTION_FAILED"
 
     except subprocess.TimeoutExpired:
         exit_code = 124
@@ -374,22 +367,27 @@ def run_single_experiment(
         else:
             print("⚠️ No tool calls detected")
 
-        if exit_code != 0:
-            print(f"❌ Failed with exit code {exit_code}")
-            if log_content and len(log_content) > 0:
-                error_snippet = (
-                    log_content[-500:] if len(log_content) > 500 else log_content
-                )
-                print(f"Last error snippet: {error_snippet[-200:]}...")
-        else:
-            print("✅ Success!")
-
     # 4. Verify
     v_code, v_out = run_verification(challenge_path, workdir)
-    if v_code != 0 and status == "SUCCESS":
-        status = "VERIFY_FAILED"
-        if verbose:
-            print(f"⚠️ Verification failed with code {v_code}")
+
+    # Determine final status based on verification output
+    if status == "EXECUTION_COMPLETE":
+        if "VERIFICATION_RESULT: EXCELLENT" in v_out:
+            status = "EXCELLENT"
+        elif "VERIFICATION_RESULT: PASS" in v_out:
+            status = "PASS"
+        elif "VERIFICATION_RESULT: FAIL" in v_out:
+            status = "FAIL"
+        elif v_code == 0:
+            # Fallback for legacy verify scripts
+            status = "PASS"
+        else:
+            status = "FAIL"
+
+    if verbose:
+        print(f"Final Status: {status}")
+        if v_code != 0:
+            print(f"⚠️ Verification script exit code: {v_code}")
 
     return ChallengeResult(
         challenge_name=challenge_name,
@@ -415,9 +413,17 @@ def generate_report(results: List[ChallengeResult], output_file: Path):
         f.write("|---|---|---|---|---|---|\n")
 
         for r in results:
-            verify_icon = "✅" if r.status == "SUCCESS" else "❌"
-            if r.status == "VERIFY_FAILED":
-                verify_icon = "⚠️"
+            verify_icon = "❓"
+            if r.status == "EXCELLENT":
+                verify_icon = "🌟"
+            elif r.status == "PASS":
+                verify_icon = "✅"
+            elif r.status == "FAIL" or r.status == "VERIFY_FAILED":
+                verify_icon = "❌"
+            elif r.status == "TIMEOUT":
+                verify_icon = "⏱️"
+            elif r.status == "EXECUTION_FAILED" or r.status == "ERROR":
+                verify_icon = "💥"
 
             f.write(
                 f"| {r.model} | {r.challenge_name} | {r.status} | {r.duration:.2f} | {r.tool_call_count} | {verify_icon} |\n"

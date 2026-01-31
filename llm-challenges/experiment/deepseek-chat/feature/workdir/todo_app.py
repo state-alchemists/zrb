@@ -13,16 +13,6 @@ class TodoItem(BaseModel):
     completed: bool = False
 
 
-class TodoCreate(BaseModel):
-    title: str
-    completed: bool = False
-
-
-class TodoUpdate(BaseModel):
-    title: Optional[str] = None
-    completed: Optional[bool] = None
-
-
 # In-memory database
 db: List[TodoItem] = [
     TodoItem(id=1, title="Buy groceries"),
@@ -30,63 +20,50 @@ db: List[TodoItem] = [
 ]
 
 
-def get_next_id() -> int:
-    """Generate the next ID by finding the maximum current ID and adding 1."""
-    if not db:
-        return 1
-    return max(item.id for item in db) + 1
-
-
 @app.get("/todos", response_model=List[TodoItem])
 async def get_todos():
     return db
 
 
-@app.post("/todos", response_model=TodoItem)
-async def create_todo(todo: TodoCreate):
-    """Create a new todo item with auto-generated ID."""
-    new_id = get_next_id()
-    new_todo = TodoItem(id=new_id, title=todo.title, completed=todo.completed)
-    db.append(new_todo)
-    return new_todo
+class TodoCreate(BaseModel):
+    title: str
+    completed: bool = False
+
+
+@app.post("/todos", response_model=TodoItem, status_code=201)
+async def create_todo(item: TodoCreate):
+    # Generate a new ID (max existing ID + 1)
+    new_id = max((todo.id for todo in db), default=0) + 1
+    new_item = TodoItem(id=new_id, title=item.title, completed=item.completed)
+    db.append(new_item)
+    return new_item
 
 
 @app.put("/todos/{item_id}", response_model=TodoItem)
-async def update_todo(item_id: int, todo_update: TodoUpdate):
-    """Update an existing todo item's title or completed status."""
-    # Find the todo item
-    for i, item in enumerate(db):
-        if item.id == item_id:
-            # Update title if provided
-            if todo_update.title is not None:
-                item.title = todo_update.title
-            # Update completed status if provided
-            if todo_update.completed is not None:
-                item.completed = todo_update.completed
-            return item
+async def update_todo(item_id: int, item: TodoCreate):
+    # Find the item to update
+    for i, todo in enumerate(db):
+        if todo.id == item_id:
+            updated_item = TodoItem(
+                id=item_id, title=item.title, completed=item.completed
+            )
+            db[i] = updated_item
+            return updated_item
 
-    # If item not found, raise 404
-    raise HTTPException(
-        status_code=404, detail=f"Todo item with id {item_id} not found"
-    )
+    # Item not found
+    raise HTTPException(status_code=404, detail="Todo item not found")
 
 
-@app.delete("/todos/{item_id}")
+@app.delete("/todos/{item_id}", status_code=204)
 async def delete_todo(item_id: int):
-    """Delete a todo item by ID."""
-    # Find the todo item
-    for i, item in enumerate(db):
-        if item.id == item_id:
-            deleted_item = db.pop(i)
-            return {
-                "message": f"Todo item with id {item_id} deleted",
-                "deleted_item": deleted_item,
-            }
+    # Find and remove the item
+    for i, todo in enumerate(db):
+        if todo.id == item_id:
+            db.pop(i)
+            return
 
-    # If item not found, raise 404
-    raise HTTPException(
-        status_code=404, detail=f"Todo item with id {item_id} not found"
-    )
+    # Item not found
+    raise HTTPException(status_code=404, detail="Todo item not found")
 
 
 if __name__ == "__main__":

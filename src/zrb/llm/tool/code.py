@@ -94,7 +94,7 @@ async def analyze_code(
     if not file_metadatas:
         return "No files found matching the criteria."
 
-    zrb_print(f"  📝 Extraction ({len(file_metadatas)} files)", plain=True)
+    zrb_print(f"\n  📝 Extraction ({len(file_metadatas)} files)", plain=True)
 
     # 2. Extract Info
     extraction_token_threshold = CFG.LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD
@@ -115,7 +115,7 @@ async def analyze_code(
     summarized_infos = extracted_infos
 
     while len(summarized_infos) > 1:
-        zrb_print(f"  📝 Summarization ({len(summarized_infos)} chunks)", plain=True)
+        zrb_print(f"\n  📝 Summarization ({len(summarized_infos)} chunks)", plain=True)
         summarized_infos = await _summarize_info(
             extracted_infos=summarized_infos,
             query=query,

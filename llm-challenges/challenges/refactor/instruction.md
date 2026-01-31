@@ -1,6 +1,5 @@
-Refactor the `legacy_etl.py` script. 
-1. Isolate the "Extract", "Transform", and "Load/Report" phases into separate functions or classes.
-2. Remove the global configuration variables and use `os.getenv` or a configuration object/dictionary.
-3. Improve the log parsing logic (maybe use regex).
-4. Ensure the file creation/dummy data generation is separated from the main logic (e.g., in a `setup` fixture or separate function only called if needed).
-5. Add type hints and docstrings.
+`etl.py` is a mess. It's a monolithic script with hardcoded config and fragile string parsing.
+
+Please refactor it to be more maintainable. It needs to follow the ETL pattern (Extract, Transform, Load), use regex for parsing, and separate configuration. Also, add type hints.
+
+Ensure it still produces the same `report.html` output.

@@ -9,8 +9,6 @@ class Inventory:
 
     async def purchase(self, user_id, amount):
         # Acquire lock to ensure atomic check-and-decrement operation
-        # This prevents race conditions where multiple users could purchase
-        # simultaneously and drive stock below zero
         async with self.lock:
             print(f"User {user_id} checking stock...")
 

@@ -8,6 +8,7 @@ async def open_web_page(url: str) -> dict:
     **WHEN TO USE:**
     - To read specific articles, documentation, or blog posts.
     - To extract structured information from a known URL.
+    - To **VERIFY** facts or obtain precise citations for research tasks.
 
     **ARGS:**
     - `url`: The full web address to fetch.
@@ -25,7 +26,13 @@ async def search_internet(
     page: int = 1,
 ) -> dict:
     """
-    Performs a broad internet search.
+    Performs a broad internet search to discover URLs and summaries.
+
+    **CRITICAL FOR RESEARCH:**
+    - Search results (snippets) are for **discovery only**.
+    - They are **INSUFFICIENT** for precise citations or deep analysis.
+    - You MUST use `open_web_page` on discovered URLs to extract the full content.
+    - **Report Requirement:** If generating a report, you MUST include a 'Sources' or 'References' section listing the URLs you verified.
 
     **WHEN TO USE:**
     - When you need to find information but don't have a specific URL.
@@ -77,7 +84,7 @@ async def _fetch_page_content(url: str) -> tuple:
         import requests
         from bs4 import BeautifulSoup
 
-        response = requests.get(url, headers={"User-Agent": user_agent})
+        response = requests.get(url, headers={"User-Agent": user_agent}, timeout=30)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
         links = [

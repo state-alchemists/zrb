@@ -1,8 +1,8 @@
-Research the current state of **Solid State Batteries** in late 2024/2025.
-Focus on:
-1. Commercial viability timelines (When will they be in cars?).
-2. Key players (Companies leading the race).
-3. Main technical hurdles remaining.
+Give me a status update on Solid State Batteries for late 2024/2025. 
 
-Produce a Markdown report saved as `solid_state_battery_report.md`.
-Use the `search_web` tool if available, or rely on internal knowledge but cite sources/dates where possible.
+I need to know:
+1. When are they actually hitting the market (cars)?
+2. Who are the big companies involved?
+3. What are the main technical problems they are still trying to solve?
+
+Save it as `solid_state_battery_report.md`.

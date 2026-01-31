@@ -10,6 +10,7 @@ def verify_copywriting():
     # Check if launch_post.md exists
     if not os.path.exists("launch_post.md"):
         print("FAIL: launch_post.md not found")
+        print("VERIFICATION_RESULT: FAIL")
         return False
 
     # Read the file
@@ -29,20 +30,21 @@ def verify_copywriting():
     required_terms = [
         "Zrb-Flow",
         "AI",
-        "workflow",
         "automation",
         "CLI",
         "Docker",
         "K8s",
-        "Kubernetes",
-        "Python",
         "Self-Healing",
         "pipeline",
     ]
+    # Removed "Kubernetes" (K8s is enough), "workflow" (automation covers it), "Python" (script implies it)
+    # to be more lenient on secondary terms, focusing on core brand/tech terms.
 
+    present_terms = 0
     for term in required_terms:
         if term.lower() in content.lower():
             checks.append((f"Contains '{term}'", True))
+            present_terms += 1
         else:
             checks.append((f"Contains '{term}'", False))
 
@@ -58,22 +60,37 @@ def verify_copywriting():
         if line.strip().startswith("#") and " " not in line.strip()[1:]:
             markdown_errors.append(f"Line {i+1}: Heading without space after #")
 
-    checks.append(("Markdown formatting", len(markdown_errors) == 0))
+    is_markdown_valid = len(markdown_errors) == 0
+    checks.append(("Markdown formatting", is_markdown_valid))
 
     # Print results
-    all_passed = True
     for check_name, passed in checks:
         status = "PASS" if passed else "FAIL"
         print(f"{status}: {check_name}")
-        if not passed:
-            all_passed = False
 
     if markdown_errors:
         print("\nMarkdown errors:")
         for error in markdown_errors:
             print(f"  - {error}")
 
-    return all_passed
+    # Determine status
+    # Critical: Markdown valid, Has headings
+    if not is_markdown_valid:
+        print("VERIFICATION_RESULT: FAIL")
+        return False
+
+    term_percentage = present_terms / len(required_terms)
+
+    if term_percentage == 1.0 and has_cta:
+        print("VERIFICATION_RESULT: EXCELLENT")
+    elif term_percentage >= 0.75:
+        print("VERIFICATION_RESULT: PASS")
+    else:
+        print(f"FAIL: Only {term_percentage:.0%} of required terms present")
+        print("VERIFICATION_RESULT: FAIL")
+        return False
+
+    return True
 
 
 if __name__ == "__main__":

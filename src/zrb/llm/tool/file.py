@@ -36,13 +36,13 @@ def list_files(
     """
     Recursively explores and lists files within a directory tree up to a defined depth.
 
+    **EFFICIENCY WARNING:**
+    - Do **NOT** use this if you already know the file name/path. Use `read_file` or `glob_files`.
+    - This tool is verbose and slow for large directories. Only use it for initial discovery.
+
     **WHEN TO USE:**
     - To discover the project structure or find specific files when the path is unknown.
     - To verify the existence of files in a directory.
-
-    **EFFICIENCY TIP:**
-    - Do NOT use this tool if you already know the file path. Use `read_file` directly.
-    - Keep `depth` low (default 3) to avoid overwhelming output.
 
     **ARGS:**
     - `path`: The root directory to start the search from.
@@ -304,6 +304,10 @@ def write_file(path: str, content: str, mode: str = "w") -> str:
     """
     Writes or appends content to a file.
 
+    **VERIFICATION IS MANDATORY:**
+    - Writing a file is the **START** of the implementation, not the end.
+    - After writing, you MUST verify the changes (e.g., run the code, check the output) to ensure correctness.
+
     **CRITICAL - PREVENT ERRORS:**
     1. **ESCAPING:** Do NOT double-escape quotes in your JSON tool call.
     2. **SIZE LIMIT:** DO NOT write more than 4000 characters in a single call.
@@ -506,6 +510,11 @@ async def analyze_file(path: str, query: str) -> str:
     **WHEN TO USE:**
     - For complex questions about a file's logic, structure, or potential bugs.
     - When you need a summary or specific details that require "understanding" the code.
+
+    **EFFICIENCY WARNING:**
+    - This tool is **SLOW** because it spawns a sub-agent.
+    - **Avoid** using it for simple bugs or when `read_file` is sufficient.
+    - Only use it when you are stuck or the file is too complex to understand directly.
 
     **NOTE:** For simple data retrieval, use `read_file`.
 
