@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
@@ -18,10 +18,9 @@ class TodoItemCreate(BaseModel):
     completed: bool = False
 
 
-def get_next_id() -> int:
-    if db:
-        return max(item.id for item in db) + 1
-    return 1
+class TodoItemUpdate(BaseModel):
+    title: Optional[str] = None
+    completed: Optional[bool] = None
 
 
 # In-memory database
@@ -29,6 +28,12 @@ db: List[TodoItem] = [
     TodoItem(id=1, title="Buy groceries"),
     TodoItem(id=2, title="Walk the dog"),
 ]
+
+
+def get_next_id() -> int:
+    if not db:
+        return 1
+    return max(item.id for item in db) + 1
 
 
 @app.get("/todos", response_model=List[TodoItem])
@@ -44,22 +49,24 @@ async def create_todo(todo: TodoItemCreate):
 
 
 @app.put("/todos/{item_id}", response_model=TodoItem)
-async def update_todo(item_id: int, todo: TodoItemCreate):
-    for item in db:
+async def update_todo(item_id: int, todo: TodoItemUpdate):
+    for index, item in enumerate(db):
         if item.id == item_id:
-            item.title = todo.title
-            item.completed = todo.completed
+            if todo.title is not None:
+                item.title = todo.title
+            if todo.completed is not None:
+                item.completed = todo.completed
             return item
-    raise HTTPException(status_code=404, detail="Todo item not found")
+    raise HTTPException(status_code=404, detail="Todo item not found.")
 
 
 @app.delete("/todos/{item_id}", status_code=204)
 async def delete_todo(item_id: int):
     for index, item in enumerate(db):
         if item.id == item_id:
-            db.pop(index)
+            del db[index]
             return
-    raise HTTPException(status_code=404, detail="Todo item not found")
+    raise HTTPException(status_code=404, detail="Todo item not found.")
 
 
 if __name__ == "__main__":

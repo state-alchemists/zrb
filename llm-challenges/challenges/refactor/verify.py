@@ -8,14 +8,14 @@ import sys
 def verify_refactor():
     """Verify the refactor challenge."""
 
-    # Check if legacy_etl.py exists
-    if not os.path.exists("legacy_etl.py"):
-        print("FAIL: legacy_etl.py not found")
+    # Check if etl.py exists
+    if not os.path.exists("etl.py"):
+        print("FAIL: etl.py not found")
         print("VERIFICATION_RESULT: FAIL")
         return False
 
     # Read the file
-    with open("legacy_etl.py", "r") as f:
+    with open("etl.py", "r") as f:
         content = f.read()
 
     checks = []
@@ -97,7 +97,7 @@ def verify_refactor():
             f.write("2023-10-01 10:05:00 ERROR Connection failed\n")
 
         result = subprocess.run(
-            [sys.executable, "legacy_etl.py"],
+            [sys.executable, "etl.py"],
             capture_output=True,
             text=True,
             timeout=10,

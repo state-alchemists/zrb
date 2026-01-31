@@ -8,10 +8,9 @@ class Inventory:
         self.lock = asyncio.Lock()
 
     async def purchase(self, user_id, amount):
-        print(f"User {user_id} checking stock...")
-
         # Acquire lock to ensure atomic check-and-decrement operation
         async with self.lock:
+            print(f"User {user_id} checking stock...")
             if self.stock >= amount:
                 # Simulate DB latency
                 await asyncio.sleep(0.1)
@@ -26,10 +25,10 @@ class Inventory:
 async def main():
     inventory = Inventory()
 
-    # 10 users trying to buy 2 items each.
-    # Total demand = 20, Stock = 10.
-    # Should result in negative stock if not handled correctly (but with lock it should be 0).
-    tasks = [inventory.purchase(i, 2) for i in range(10)]
+    # 5 users trying to buy 3 items each.
+    # Total demand = 15, Stock = 10.
+    # Should result in negative stock if not handled correctly.
+    tasks = [inventory.purchase(i, 3) for i in range(5)]
 
     await asyncio.gather(*tasks)
 

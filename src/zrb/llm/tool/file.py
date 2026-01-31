@@ -36,13 +36,13 @@ def list_files(
     """
     Recursively explores and lists files within a directory tree up to a defined depth.
 
+    **EFFICIENCY WARNING:**
+    - Do **NOT** use this if you already know the file name/path. Use `read_file` or `glob_files`.
+    - This tool is verbose and slow for large directories. Only use it for initial discovery.
+
     **WHEN TO USE:**
     - To discover the project structure or find specific files when the path is unknown.
     - To verify the existence of files in a directory.
-
-    **EFFICIENCY TIP:**
-    - Do NOT use this tool if you already know the file path. Use `read_file` directly.
-    - Keep `depth` low (default 3) to avoid overwhelming output.
 
     **ARGS:**
     - `path`: The root directory to start the search from.

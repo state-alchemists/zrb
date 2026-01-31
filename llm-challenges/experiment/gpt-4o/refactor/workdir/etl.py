@@ -1,61 +1,61 @@
 import os
 import re
-from typing import Dict, List
+from typing import Any, Dict, List
 
-from config import DB_HOST, DB_USER, LOG_FILE
+# Config
+CONFIG = {
+    "DB_HOST": "localhost",
+    "DB_USER": "admin",
+    "LOG_FILE": "server.log",
+    "REPORT_FILE": "report.html",
+}
 
 
-def extract_log_data(log_file: str) -> List[Dict[str, str]]:
+def extract_log_entries(log_file: str) -> List[Dict[str, Any]]:
     data = []
-    log_pattern = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) (\w+) (.+)$")
-    with open(log_file, "r") as f:
-        for line in f:
-            match = log_pattern.match(line)
-            if match:
-                date, log_type, message = match.groups()
-                if log_type == "ERROR":
-                    data.append(
-                        {"date": date, "type": log_type, "msg": message.strip()}
-                    )
-                elif log_type == "INFO" and "User" in message:
-                    user_id_search = re.search(r"User (\d+)", message)
-                    if user_id_search:
-                        user_id = user_id_search.group(1)
-                        data.append(
-                            {"date": date, "type": "USER_ACTION", "user": user_id}
-                        )
+    if os.path.exists(log_file):
+        with open(log_file, "r") as f:
+            lines = f.readlines()
+            for line in lines:
+                error_match = re.match(r"^(\S+ \S+) ERROR (.+)$", line)
+                info_match = re.match(r"^(\S+ \S+) INFO User (\d+)", line)
+                if error_match:
+                    date, msg = error_match.groups()
+                    data.append({"date": date, "type": "ERROR", "msg": msg.strip()})
+                elif info_match:
+                    date, user_id = info_match.groups()
+                    data.append({"date": date, "type": "USER_ACTION", "user": user_id})
     return data
 
 
-def transform_data(data: List[Dict[str, str]]) -> Dict[str, int]:
+def transform_data(data: List[Dict[str, Any]]) -> Dict[str, int]:
     report = {}
     for item in data:
         if item["type"] == "ERROR":
-            if item["msg"] not in report:
-                report[item["msg"]] = 0
-            report[item["msg"]] += 1
+            report[item["msg"]] = report.get(item["msg"], 0) + 1
     return report
 
 
-def load_report(report: Dict[str, int], output_file: str):
+def load_report(report: Dict[str, int], report_file: str) -> None:
     html = "<html><body><h1>Report</h1><ul>"
-    for k, v in report.items():
-        html += f"<li>{k}: {v}</li>"
+    for msg, count in report.items():
+        html += f"<li>{msg}: {count}</li>"
     html += "</ul></body></html>"
-    with open(output_file, "w") as f:
+    with open(report_file, "w") as f:
         f.write(html)
 
 
-def main():
-    print(f"Connecting to {DB_HOST} as {DB_USER}...")
-    if not os.path.exists(LOG_FILE):
-        with open(LOG_FILE, "w") as f:
+def main() -> None:
+    # Create dummy log file if not exists for testing
+    if not os.path.exists(CONFIG["LOG_FILE"]):
+        with open(CONFIG["LOG_FILE"], "w") as f:
             f.write("2023-10-01 10:00:00 INFO User 123 logged in\n")
             f.write("2023-10-01 10:05:00 ERROR Connection failed\n")
             f.write("2023-10-01 10:10:00 ERROR Connection failed\n")
-    data = extract_log_data(LOG_FILE)
+
+    data = extract_log_entries(CONFIG["LOG_FILE"])
     report = transform_data(data)
-    load_report(report, "report.html")
+    load_report(report, CONFIG["REPORT_FILE"])
     print("Done.")
 
 

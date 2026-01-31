@@ -1,5 +1,5 @@
 import asyncio
-import random
+import time
 
 
 class Inventory:
@@ -8,10 +8,10 @@ class Inventory:
         self.lock = asyncio.Lock()
 
     async def purchase(self, user_id, amount):
+        print(f"User {user_id} checking stock...")
+
         # Acquire lock to ensure atomic check-and-decrement operation
         async with self.lock:
-            print(f"User {user_id} checking stock...")
-
             if self.stock >= amount:
                 # Simulate DB latency
                 await asyncio.sleep(0.1)
@@ -23,18 +23,27 @@ class Inventory:
                 return False
 
 
-async def main():
+async def test_print_timing():
+    """Test to see if print statements give misleading timing information"""
     inventory = Inventory()
 
-    # 5 users trying to buy 3 items each.
-    # Total demand = 15, Stock = 10.
-    # Should result in negative stock if not handled correctly.
-    tasks = [inventory.purchase(i, 3) for i in range(5)]
+    async def purchase_with_timing(user_id, amount):
+        start = time.time()
+        print(f"[{time.time():.3f}] User {user_id} starting purchase...")
+        result = await inventory.purchase(user_id, amount)
+        end = time.time()
+        print(f"[{time.time():.3f}] User {user_id} completed purchase: {result}")
+        return result
+
+    # Create purchases
+    tasks = []
+    for i in range(5):
+        tasks.append(purchase_with_timing(i, 3))
 
     await asyncio.gather(*tasks)
 
-    print(f"Final Stock: {inventory.stock}")
+    print(f"\nFinal Stock: {inventory.stock}")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(test_print_timing())

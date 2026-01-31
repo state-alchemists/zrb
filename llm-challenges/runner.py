@@ -199,14 +199,16 @@ def run_single_experiment(
         shutil.rmtree(exp_dir)
     exp_dir.mkdir(parents=True, exist_ok=True)
 
-    # Copy challenge files
-    shutil.copytree(challenge_path, exp_dir, dirs_exist_ok=True)
-
+    # Prepare Workdir
+    # ONLY copy the 'workdir' folder to the experiment to prevent cheating
+    # (Agent cannot see verify.py, instruction.md, etc.)
+    source_workdir = challenge_path / "workdir"
     workdir = exp_dir / "workdir"
-    if not workdir.exists():
-        workdir = exp_dir
 
-    instruction_file = exp_dir / "instruction.md"
+    shutil.copytree(source_workdir, workdir, dirs_exist_ok=True)
+
+    # Read Instruction from SOURCE
+    instruction_file = challenge_path / "instruction.md"
     if not instruction_file.exists():
         if verbose:
             print(f"ERROR: {instruction_file} not found")
@@ -227,17 +229,8 @@ def run_single_experiment(
     if verbose:
         print(f"Instruction: {instruction[:100]}...")
 
-    # Copy verification scripts to workdir for the agent to use
-    src_verify_script = exp_dir / "verify.sh"
-    src_verify_py = exp_dir / "verify.py"
-
-    tgt_verify_script = workdir / "verify.sh"
-    tgt_verify_py = workdir / "verify.py"
-
-    if src_verify_script.exists() and not tgt_verify_script.exists():
-        shutil.copy2(src_verify_script, tgt_verify_script)
-    if src_verify_py.exists() and not tgt_verify_py.exists():
-        shutil.copy2(src_verify_py, tgt_verify_py)
+    # NOTE: verification scripts are NOT copied here.
+    # They are copied/run by run_verification() AFTER the agent finishes.
 
     # 2. Prepare Command with enhanced model configuration from test_single.py
     env = os.environ.copy()
