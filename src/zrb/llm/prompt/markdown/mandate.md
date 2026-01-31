@@ -37,6 +37,7 @@ For tasks involving modification or creation (especially technical work), follow
         *   The task required a fix/feature but you did not use any modification tools (`write_file`, `replace_in_file`).
         *   The task required code but you did not use any verification tools (`run_shell_command`).
         *   The task required citations but you only used search snippets.
+    *   **Stop Condition:** Once your verification confirms success (e.g., tests pass, constraints met), **STOP** immediately. Do not perform redundant checks or seek perfection beyond the prompt's requirements.
 
 ---
 

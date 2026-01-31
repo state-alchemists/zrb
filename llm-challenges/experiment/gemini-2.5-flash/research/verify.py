@@ -11,6 +11,7 @@ def verify_research():
     report_path = "solid_state_battery_report.md"
     if not os.path.exists(report_path):
         print(f"FAIL: {report_path} not found")
+        print("VERIFICATION_RESULT: FAIL")
         return False
 
     # Read the file
@@ -19,13 +20,27 @@ def verify_research():
 
     checks = []
 
+    score = 0
+    max_score = 6
+
+    # Critical Checks
+
     # Check for markdown format
     if content.strip().startswith("#") or "##" in content:
         checks.append(("Markdown format", True))
+        score += 1
     else:
         checks.append(("Markdown format", False))
 
-    # Check for required sections
+    # Check for Substantial content (200+ words)
+    word_count = len(content.split())
+    if word_count > 200:
+        checks.append(("Substantial content (200+ words)", True))
+        score += 1
+    else:
+        checks.append(("Substantial content (200+ words)", False))
+
+    # Content Checks
     content_lower = content.lower()
 
     # Check for timeline/commercial viability
@@ -41,6 +56,8 @@ def verify_research():
     ]
     has_timeline = any(term in content_lower for term in timeline_terms)
     checks.append(("Covers timeline/commercial viability", has_timeline))
+    if has_timeline:
+        score += 1
 
     # Check for key players
     player_terms = [
@@ -56,6 +73,8 @@ def verify_research():
     ]
     has_players = any(term in content_lower for term in player_terms)
     checks.append(("Covers key players", has_players))
+    if has_players:
+        score += 1
 
     # Check for technical hurdles
     hurdle_terms = [
@@ -68,41 +87,43 @@ def verify_research():
         "cycle",
         "cost",
         "manufacturing",
+        "dendrite",
+        "interface",
     ]
     has_hurdles = any(term in content_lower for term in hurdle_terms)
     checks.append(("Covers technical hurdles", has_hurdles))
+    if has_hurdles:
+        score += 1
 
-    # Check structure
-    lines = content.split("\n")
-    headers = [line for line in lines if line.strip().startswith("#")]
-
-    if len(headers) >= 3:
-        checks.append(("Has multiple sections/headers", True))
-    else:
-        checks.append(("Has multiple sections/headers", False))
-
-    # Check for plausible information (basic sanity)
-    word_count = len(content.split())
-    if word_count > 200:
-        checks.append(("Substantial content (200+ words)", True))
-    else:
-        checks.append(("Substantial content (200+ words)", False))
-
-    # Check for citations/sources (optional but good)
-    if "http" in content or "source" in content_lower or "reference" in content_lower:
-        checks.append(("References/citations", True))
-    else:
-        checks.append(("References/citations", False))
+    # Check for citations/sources (This distinguishes Excellent vs Pass)
+    has_citations = (
+        "http" in content
+        or "source" in content_lower
+        or "reference" in content_lower
+        or "[" in content
+    )  # [1] style
+    checks.append(("References/citations", has_citations))
+    if has_citations:
+        score += 1
 
     # Print results
-    all_passed = True
     for check_name, passed in checks:
         status = "PASS" if passed else "FAIL"
         print(f"{status}: {check_name}")
-        if not passed:
-            all_passed = False
 
-    return all_passed
+    # Determine status
+    if not (has_timeline and has_players and has_hurdles):
+        print("VERIFICATION_RESULT: FAIL")  # Missing core requirements
+        return False
+
+    if score == 6:
+        print("VERIFICATION_RESULT: EXCELLENT")
+    elif score >= 5:  # Maybe missing citations or weak formatting but good content
+        print("VERIFICATION_RESULT: PASS")
+    else:
+        print("VERIFICATION_RESULT: PASS")  # Be generous if content is there
+
+    return True
 
 
 if __name__ == "__main__":

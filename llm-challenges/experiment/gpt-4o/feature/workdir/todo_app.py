@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
@@ -13,6 +13,17 @@ class TodoItem(BaseModel):
     completed: bool = False
 
 
+class TodoItemCreate(BaseModel):
+    title: str
+    completed: bool = False
+
+
+def get_next_id() -> int:
+    if db:
+        return max(item.id for item in db) + 1
+    return 1
+
+
 # In-memory database
 db: List[TodoItem] = [
     TodoItem(id=1, title="Buy groceries"),
@@ -25,31 +36,30 @@ async def get_todos():
     return db
 
 
-@app.post("/todos", response_model=TodoItem)
-async def create_todo(item: TodoItem):
-    # Calculate ID
-    item.id = max((todo.id for todo in db), default=0) + 1
-    db.append(item)
-    return item
+@app.post("/todos", response_model=TodoItem, status_code=201)
+async def create_todo(todo: TodoItemCreate):
+    new_todo = TodoItem(id=get_next_id(), title=todo.title, completed=todo.completed)
+    db.append(new_todo)
+    return new_todo
 
 
 @app.put("/todos/{item_id}", response_model=TodoItem)
-async def update_todo(item_id: int, title: Optional[str] = None, completed: Optional[bool] = None):
-    for todo in db:
-        if todo.id == item_id:
-            if title is not None:
-                todo.title = title
-            if completed is not None:
-                todo.completed = completed
-            return todo
-    raise HTTPException(status_code=404, detail="Item not found")
+async def update_todo(item_id: int, todo: TodoItemCreate):
+    for item in db:
+        if item.id == item_id:
+            item.title = todo.title
+            item.completed = todo.completed
+            return item
+    raise HTTPException(status_code=404, detail="Todo item not found")
 
 
-@app.delete("/todos/{item_id}")
+@app.delete("/todos/{item_id}", status_code=204)
 async def delete_todo(item_id: int):
-    global db
-    db = [todo for todo in db if todo.id != item_id]
-    return {"msg": "Item deleted"}
+    for index, item in enumerate(db):
+        if item.id == item_id:
+            db.pop(index)
+            return
+    raise HTTPException(status_code=404, detail="Todo item not found")
 
 
 if __name__ == "__main__":

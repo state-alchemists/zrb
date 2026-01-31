@@ -2,8 +2,8 @@
   {
     "challenge_name": "research",
     "model": "gemini-2.5-flash",
-    "status": "SUCCESS",
-    "duration": 26.188416004180908,
+    "status": "PASS",
+    "duration": 27.37312602996826,
     "tool_calls": [
       "search_internet",
       "search_internet",
@@ -14,13 +14,13 @@
     "exit_code": 0,
     "log_path": "experiment/gemini-2.5-flash/research/combined.log",
     "workdir": "experiment/gemini-2.5-flash/research/workdir",
-    "verification_output": "PASS: Markdown format\nPASS: Covers timeline/commercial viability\nPASS: Covers key players\nPASS: Covers technical hurdles\nPASS: Has multiple sections/headers\nPASS: Substantial content (200+ words)\nPASS: References/citations\n\n"
+    "verification_output": "PASS: Markdown format\nPASS: Substantial content (200+ words)\nPASS: Covers timeline/commercial viability\nPASS: Covers key players\nPASS: Covers technical hurdles\nFAIL: References/citations\nVERIFICATION_RESULT: PASS\n\n"
   },
   {
     "challenge_name": "copywriting",
     "model": "gemini-2.5-flash",
-    "status": "SUCCESS",
-    "duration": 11.253454208374023,
+    "status": "EXCELLENT",
+    "duration": 10.634881973266602,
     "tool_calls": [
       "write_file"
     ],
@@ -28,92 +28,85 @@
     "exit_code": 0,
     "log_path": "experiment/gemini-2.5-flash/copywriting/combined.log",
     "workdir": "experiment/gemini-2.5-flash/copywriting/workdir",
-    "verification_output": "PASS: Has headings\nPASS: Contains 'Zrb-Flow'\nPASS: Contains 'AI'\nPASS: Contains 'workflow'\nPASS: Contains 'automation'\nPASS: Contains 'CLI'\nPASS: Contains 'Docker'\nPASS: Contains 'K8s'\nPASS: Contains 'Kubernetes'\nPASS: Contains 'Python'\nPASS: Contains 'Self-Healing'\nPASS: Contains 'pipeline'\nPASS: Has call to action\nPASS: Markdown formatting\n\n"
+    "verification_output": "PASS: Has headings\nPASS: Contains 'Zrb-Flow'\nPASS: Contains 'AI'\nPASS: Contains 'automation'\nPASS: Contains 'CLI'\nPASS: Contains 'Docker'\nPASS: Contains 'K8s'\nPASS: Contains 'Self-Healing'\nPASS: Contains 'pipeline'\nPASS: Has call to action\nPASS: Markdown formatting\nVERIFICATION_RESULT: EXCELLENT\n\n"
   },
   {
     "challenge_name": "feature",
     "model": "gemini-2.5-flash",
-    "status": "SUCCESS",
-    "duration": 12.761929035186768,
+    "status": "EXCELLENT",
+    "duration": 15.311826944351196,
     "tool_calls": [
+      "list_files",
       "read_file",
       "write_file"
     ],
-    "tool_call_count": 2,
+    "tool_call_count": 3,
     "exit_code": 0,
     "log_path": "experiment/gemini-2.5-flash/feature/combined.log",
     "workdir": "experiment/gemini-2.5-flash/feature/workdir",
-    "verification_output": "Testing FastAPI application...\nPASS: POST endpoint\nPASS: PUT endpoint\nPASS: DELETE endpoint\nPASS: ID generation logic\nPASS: 404 handling\nPASS: GET /todos works\nPASS: POST /todos works\nPASS: PUT /todos/{id} works\nPASS: DELETE /todos/{id} works\nPASS: PUT returns 404 for non-existent\n\n"
+    "verification_output": "Testing FastAPI application...\nPASS: GET /todos works\nPASS: POST /todos works\nPASS: PUT /todos/{id} works\nPASS: DELETE /todos/{id} works\nPASS: PUT returns 404 for non-existent\nVERIFICATION_RESULT: EXCELLENT\n\n"
   },
   {
     "challenge_name": "refactor",
     "model": "gemini-2.5-flash",
-    "status": "SUCCESS",
-    "duration": 66.93699097633362,
+    "status": "EXCELLENT",
+    "duration": 24.459177017211914,
     "tool_calls": [
       "list_files",
-      "list_files",
-      "read_file",
       "read_file",
       "write_file",
-      "run_shell_command",
-      "read_file",
-      "read_file",
-      "replace_in_file",
-      "run_shell_command",
-      "read_file",
-      "write_file",
-      "run_shell_command",
-      "run_shell_command",
       "write_file",
       "run_shell_command",
       "read_file"
     ],
-    "tool_call_count": 17,
+    "tool_call_count": 6,
     "exit_code": 0,
     "log_path": "experiment/gemini-2.5-flash/refactor/combined.log",
     "workdir": "experiment/gemini-2.5-flash/refactor/workdir",
-    "verification_output": "Testing if script runs...\nPASS: Separated into functions/classes\nPASS: ETL pattern (Extract/Transform/Load)\nPASS: Configuration decoupled\nPASS: Uses regex for parsing\nPASS: Has type hints\nPASS: Has docstrings\nPASS: Script runs successfully\nPASS: Creates report.html\nPASS: Main guard present\n\n"
+    "verification_output": "Testing if script runs...\nPASS: Separated into functions/classes\nPASS: ETL pattern (Extract/Transform/Load)\nPASS: Configuration decoupled\nPASS: Uses regex for parsing\nPASS: Has type hints & docstrings\nPASS: Script runs successfully\nPASS: Creates report.html\nVERIFICATION_RESULT: EXCELLENT\n\n"
   },
   {
     "challenge_name": "bug-fix",
     "model": "gemini-2.5-flash",
-    "status": "SUCCESS",
-    "duration": 12.749889135360718,
+    "status": "EXCELLENT",
+    "duration": 24.7863130569458,
     "tool_calls": [
       "read_file",
+      "run_shell_command",
+      "write_file",
       "run_shell_command"
     ],
-    "tool_call_count": 2,
+    "tool_call_count": 4,
     "exit_code": 0,
     "log_path": "experiment/gemini-2.5-flash/bug-fix/combined.log",
     "workdir": "experiment/gemini-2.5-flash/bug-fix/workdir",
-    "verification_output": "INFO: Lock mechanism found in code\nPASS: Final stock is non-negative: 1\n\n"
+    "verification_output": "PASS: Concurrency control found\nPASS: Final stock is non-negative: 0\nVERIFICATION_RESULT: EXCELLENT\nVERIFICATION_RESULT: EXCELLENT\n\n"
   },
   {
     "challenge_name": "research",
     "model": "gpt-4o",
-    "status": "SUCCESS",
-    "duration": 48.04137825965881,
+    "status": "FAIL",
+    "duration": 37.25979495048523,
     "tool_calls": [
+      "search_internet",
+      "search_internet",
       "search_internet",
       "open_web_page",
       "open_web_page",
       "open_web_page",
-      "open_web_page",
-      "write_file"
+      "open_web_page"
     ],
-    "tool_call_count": 6,
+    "tool_call_count": 7,
     "exit_code": 0,
     "log_path": "experiment/gpt-4o/research/combined.log",
     "workdir": "experiment/gpt-4o/research/workdir",
-    "verification_output": "PASS: Markdown format\nPASS: Covers timeline/commercial viability\nPASS: Covers key players\nPASS: Covers technical hurdles\nPASS: Has multiple sections/headers\nPASS: Substantial content (200+ words)\nPASS: References/citations\n\n"
+    "verification_output": "FAIL: solid_state_battery_report.md not found\nVERIFICATION_RESULT: FAIL\n\n"
   },
   {
     "challenge_name": "copywriting",
     "model": "gpt-4o",
-    "status": "SUCCESS",
-    "duration": 14.315863847732544,
+    "status": "PASS",
+    "duration": 11.77241587638855,
     "tool_calls": [
       "write_file"
     ],
@@ -121,51 +114,52 @@
     "exit_code": 0,
     "log_path": "experiment/gpt-4o/copywriting/combined.log",
     "workdir": "experiment/gpt-4o/copywriting/workdir",
-    "verification_output": "PASS: Has headings\nPASS: Contains 'Zrb-Flow'\nPASS: Contains 'AI'\nPASS: Contains 'workflow'\nPASS: Contains 'automation'\nPASS: Contains 'CLI'\nPASS: Contains 'Docker'\nPASS: Contains 'K8s'\nPASS: Contains 'Kubernetes'\nPASS: Contains 'Python'\nPASS: Contains 'Self-Healing'\nPASS: Contains 'pipeline'\nPASS: Has call to action\nPASS: Markdown formatting\n\n"
+    "verification_output": "PASS: Has headings\nPASS: Contains 'Zrb-Flow'\nPASS: Contains 'AI'\nPASS: Contains 'automation'\nPASS: Contains 'CLI'\nPASS: Contains 'Docker'\nFAIL: Contains 'K8s'\nPASS: Contains 'Self-Healing'\nPASS: Contains 'pipeline'\nPASS: Has call to action\nPASS: Markdown formatting\nVERIFICATION_RESULT: PASS\n\n"
   },
   {
     "challenge_name": "feature",
     "model": "gpt-4o",
-    "status": "VERIFY_FAILED",
-    "duration": 69.33206987380981,
+    "status": "EXCELLENT",
+    "duration": 43.16499376296997,
     "tool_calls": [
       "glob_files",
       "read_file",
       "write_file",
       "run_shell_command",
-      "read_file",
-      "write_file",
       "run_shell_command",
-      "read_file",
-      "read_file"
+      "write_file",
+      "run_shell_command"
     ],
-    "tool_call_count": 9,
+    "tool_call_count": 7,
     "exit_code": 0,
     "log_path": "experiment/gpt-4o/feature/combined.log",
     "workdir": "experiment/gpt-4o/feature/workdir",
-    "verification_output": "Testing FastAPI application...\nPASS: POST endpoint\nPASS: PUT endpoint\nPASS: DELETE endpoint\nPASS: ID generation logic\nPASS: 404 handling\nPASS: GET /todos works\nFAIL: POST /todos works\n\n"
+    "verification_output": "Testing FastAPI application...\nPASS: GET /todos works\nPASS: POST /todos works\nPASS: PUT /todos/{id} works\nPASS: DELETE /todos/{id} works\nPASS: PUT returns 404 for non-existent\nVERIFICATION_RESULT: EXCELLENT\n\n"
   },
   {
     "challenge_name": "refactor",
     "model": "gpt-4o",
-    "status": "SUCCESS",
-    "duration": 50.98178005218506,
+    "status": "FAIL",
+    "duration": 23.963270902633667,
     "tool_calls": [
       "glob_files",
       "read_file",
-      "write_file"
+      "write_file",
+      "write_file",
+      "run_shell_command",
+      "read_file"
     ],
-    "tool_call_count": 3,
+    "tool_call_count": 6,
     "exit_code": 0,
     "log_path": "experiment/gpt-4o/refactor/combined.log",
     "workdir": "experiment/gpt-4o/refactor/workdir",
-    "verification_output": "Testing if script runs...\nPASS: Separated into functions/classes\nPASS: ETL pattern (Extract/Transform/Load)\nPASS: Configuration decoupled\nPASS: Uses regex for parsing\nPASS: Has type hints\nPASS: Has docstrings\nPASS: Script runs successfully\nPASS: Creates report.html\nPASS: Main guard present\n\n"
+    "verification_output": "Testing if script runs...\nFAIL: Separated into functions/classes\nFAIL: ETL pattern (Extract/Transform/Load)\nPASS: Configuration decoupled\nFAIL: Uses regex for parsing\nFAIL: Has type hints & docstrings (Types: False, Docs: False)\nPASS: Script runs successfully\nPASS: Creates report.html\nVERIFICATION_RESULT: FAIL\n\n"
   },
   {
     "challenge_name": "bug-fix",
     "model": "gpt-4o",
-    "status": "SUCCESS",
-    "duration": 18.968010902404785,
+    "status": "EXCELLENT",
+    "duration": 14.86856198310852,
     "tool_calls": [
       "glob_files",
       "read_file",
@@ -175,21 +169,21 @@
     "exit_code": 0,
     "log_path": "experiment/gpt-4o/bug-fix/combined.log",
     "workdir": "experiment/gpt-4o/bug-fix/workdir",
-    "verification_output": "INFO: Lock mechanism found in code\nPASS: Final stock is non-negative: 1\n\n"
+    "verification_output": "PASS: Concurrency control found\nPASS: Final stock is non-negative: 1\nVERIFICATION_RESULT: EXCELLENT\nVERIFICATION_RESULT: EXCELLENT\n\n"
   },
   {
     "challenge_name": "research",
     "model": "deepseek-chat",
-    "status": "SUCCESS",
-    "duration": 157.70185494422913,
+    "status": "PASS",
+    "duration": 155.4679410457611,
     "tool_calls": [
-      "list_files",
+      "search_internet",
+      "search_internet",
       "search_internet",
       "open_web_page",
       "open_web_page",
-      "search_internet",
-      "search_internet",
       "open_web_page",
+      "search_internet",
       "write_file",
       "read_file"
     ],
@@ -197,99 +191,116 @@
     "exit_code": 0,
     "log_path": "experiment/deepseek-chat/research/combined.log",
     "workdir": "experiment/deepseek-chat/research/workdir",
-    "verification_output": "PASS: Markdown format\nPASS: Covers timeline/commercial viability\nPASS: Covers key players\nPASS: Covers technical hurdles\nPASS: Has multiple sections/headers\nPASS: Substantial content (200+ words)\nPASS: References/citations\n\n"
+    "verification_output": "PASS: Markdown format\nPASS: Substantial content (200+ words)\nPASS: Covers timeline/commercial viability\nPASS: Covers key players\nPASS: Covers technical hurdles\nFAIL: References/citations\nVERIFICATION_RESULT: PASS\n\n"
   },
   {
     "challenge_name": "copywriting",
     "model": "deepseek-chat",
-    "status": "SUCCESS",
-    "duration": 83.04658603668213,
+    "status": "EXCELLENT",
+    "duration": 78.04468297958374,
     "tool_calls": [
       "list_files",
+      "search_files",
+      "read_file",
       "write_file",
+      "run_shell_command",
       "read_file"
     ],
-    "tool_call_count": 3,
+    "tool_call_count": 6,
     "exit_code": 0,
     "log_path": "experiment/deepseek-chat/copywriting/combined.log",
     "workdir": "experiment/deepseek-chat/copywriting/workdir",
-    "verification_output": "PASS: Has headings\nPASS: Contains 'Zrb-Flow'\nPASS: Contains 'AI'\nPASS: Contains 'workflow'\nPASS: Contains 'automation'\nPASS: Contains 'CLI'\nPASS: Contains 'Docker'\nPASS: Contains 'K8s'\nPASS: Contains 'Kubernetes'\nPASS: Contains 'Python'\nPASS: Contains 'Self-Healing'\nPASS: Contains 'pipeline'\nPASS: Has call to action\nPASS: Markdown formatting\n\n"
+    "verification_output": "PASS: Has headings\nPASS: Contains 'Zrb-Flow'\nPASS: Contains 'AI'\nPASS: Contains 'automation'\nPASS: Contains 'CLI'\nPASS: Contains 'Docker'\nPASS: Contains 'K8s'\nPASS: Contains 'Self-Healing'\nPASS: Contains 'pipeline'\nPASS: Has call to action\nPASS: Markdown formatting\nVERIFICATION_RESULT: EXCELLENT\n\n"
   },
   {
     "challenge_name": "feature",
     "model": "deepseek-chat",
-    "status": "SUCCESS",
-    "duration": 105.13270783424377,
+    "status": "EXCELLENT",
+    "duration": 183.96602296829224,
     "tool_calls": [
       "read_file",
-      "replace_in_file",
+      "write_file",
       "write_file",
       "run_shell_command",
       "run_shell_command",
-      "read_file",
-      "run_shell_command"
+      "run_shell_command",
+      "write_file",
+      "run_shell_command",
+      "replace_in_file",
+      "run_shell_command",
+      "run_shell_command",
+      "read_file"
     ],
-    "tool_call_count": 7,
+    "tool_call_count": 12,
     "exit_code": 0,
     "log_path": "experiment/deepseek-chat/feature/combined.log",
     "workdir": "experiment/deepseek-chat/feature/workdir",
-    "verification_output": "Testing FastAPI application...\nPASS: POST endpoint\nPASS: PUT endpoint\nPASS: DELETE endpoint\nPASS: ID generation logic\nPASS: 404 handling\nPASS: GET /todos works\nPASS: POST /todos works\nPASS: PUT /todos/{id} works\nPASS: DELETE /todos/{id} works\nPASS: PUT returns 404 for non-existent\n\n"
+    "verification_output": "Testing FastAPI application...\nPASS: GET /todos works\nPASS: POST /todos works\nPASS: PUT /todos/{id} works\nPASS: DELETE /todos/{id} works\nPASS: PUT returns 404 for non-existent\nVERIFICATION_RESULT: EXCELLENT\n\n"
   },
   {
     "challenge_name": "refactor",
     "model": "deepseek-chat",
-    "status": "SUCCESS",
-    "duration": 144.62727212905884,
+    "status": "EXCELLENT",
+    "duration": 321.75874519348145,
     "tool_calls": [
-      "list_files",
       "read_file",
+      "read_file",
+      "run_shell_command",
+      "read_file",
+      "list_files",
       "read_file",
       "write_file",
       "run_shell_command",
+      "read_file",
+      "run_shell_command",
+      "read_file",
+      "replace_in_file",
+      "replace_in_file",
       "run_shell_command",
       "read_file",
       "run_shell_command",
       "run_shell_command",
       "run_shell_command",
+      "read_file",
+      "run_shell_command",
+      "read_file",
+      "run_shell_command",
+      "write_file",
+      "run_shell_command",
+      "run_shell_command",
+      "run_shell_command",
+      "write_file",
+      "run_shell_command",
       "run_shell_command"
     ],
-    "tool_call_count": 11,
+    "tool_call_count": 29,
     "exit_code": 0,
     "log_path": "experiment/deepseek-chat/refactor/combined.log",
     "workdir": "experiment/deepseek-chat/refactor/workdir",
-    "verification_output": "Testing if script runs...\nPASS: Separated into functions/classes\nPASS: ETL pattern (Extract/Transform/Load)\nPASS: Configuration decoupled\nPASS: Uses regex for parsing\nPASS: Has type hints\nPASS: Has docstrings\nPASS: Script runs successfully\nPASS: Creates report.html\nPASS: Main guard present\n\n"
+    "verification_output": "Testing if script runs...\nPASS: Separated into functions/classes\nPASS: ETL pattern (Extract/Transform/Load)\nPASS: Configuration decoupled\nPASS: Uses regex for parsing\nPASS: Has type hints & docstrings\nPASS: Script runs successfully\nPASS: Creates report.html\nVERIFICATION_RESULT: EXCELLENT\n\n"
   },
   {
     "challenge_name": "bug-fix",
     "model": "deepseek-chat",
-    "status": "SUCCESS",
-    "duration": 312.75713896751404,
+    "status": "EXCELLENT",
+    "duration": 303.94123697280884,
     "tool_calls": [
-      "read_file",
-      "run_shell_command",
       "list_files",
       "read_file",
+      "read_file",
+      "run_shell_command",
       "run_shell_command",
       "write_file",
+      "run_shell_command",
+      "write_file",
+      "run_shell_command",
       "run_shell_command",
       "write_file",
       "run_shell_command",
       "replace_in_file",
       "run_shell_command",
-      "analyze_file",
       "read_file",
-      "read_file",
-      "glob_files",
       "write_file",
-      "run_shell_command",
-      "write_file",
-      "run_shell_command",
-      "read_file",
-      "replace_in_file",
-      "run_shell_command",
-      "write_file",
-      "run_shell_command",
-      "run_shell_command",
       "run_shell_command",
       "run_shell_command",
       "run_shell_command",
@@ -299,10 +310,10 @@
       "run_shell_command",
       "run_shell_command"
     ],
-    "tool_call_count": 33,
+    "tool_call_count": 24,
     "exit_code": 0,
     "log_path": "experiment/deepseek-chat/bug-fix/combined.log",
     "workdir": "experiment/deepseek-chat/bug-fix/workdir",
-    "verification_output": "INFO: Lock mechanism found in code\nPASS: Final stock is non-negative: 1\n\n"
+    "verification_output": "PASS: Concurrency control found\nPASS: Final stock is non-negative: 1\nVERIFICATION_RESULT: EXCELLENT\nVERIFICATION_RESULT: EXCELLENT\n\n"
   }
 ]

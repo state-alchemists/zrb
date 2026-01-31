@@ -1,11 +1,5 @@
-Write a launch announcement blog post for a fictional tool named **Zrb-Flow**.
+I need a launch announcement blog post for our new tool, **Zrb-Flow**. 
 
-**Product Details:**
-- It is an AI-powered workflow automation tool for CLI users.
-- It integrates with Docker, K8s, and Python scripts.
-- It features "Self-Healing Pipelines" (if a script fails, AI attempts to fix it and retry).
+It's basically an AI automation thing for CLI users that hooks into Docker and K8s. One cool feature is "Self-Healing Pipelines" where it fixes broken scripts.
 
-**Requirements:**
-- Tone: Exciting, technical yet accessible, slightly witty.
-- Structure: Catchy Title, The Problem (DevOps fatigue), The Solution (Zrb-Flow), Key Features, Call to Action (Install now).
-- Save the result to `launch_post.md`.
+Keep it exciting and tech-savvy. Don't forget to tell people to install it at the end. Save it as `launch_post.md`.

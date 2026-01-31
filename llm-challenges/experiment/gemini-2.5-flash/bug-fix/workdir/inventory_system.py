@@ -26,10 +26,10 @@ class Inventory:
 async def main():
     inventory = Inventory()
 
-    # 5 users trying to buy 3 items each.
-    # Total demand = 15, Stock = 10.
-    # Should result in negative stock if not handled correctly.
-    tasks = [inventory.purchase(i, 3) for i in range(5)]
+    # 10 users trying to buy 2 items each.
+    # Total demand = 20, Stock = 10.
+    # Should result in negative stock if not handled correctly (but with lock it should be 0).
+    tasks = [inventory.purchase(i, 2) for i in range(10)]
 
     await asyncio.gather(*tasks)
 

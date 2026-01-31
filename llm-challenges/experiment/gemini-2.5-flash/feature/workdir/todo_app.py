@@ -18,16 +18,13 @@ class TodoCreate(BaseModel):
     completed: bool = False
 
 
-class TodoUpdate(BaseModel):
-    title: Optional[str] = None
-    completed: Optional[bool] = None
-
-
 # In-memory database
 db: List[TodoItem] = [
     TodoItem(id=1, title="Buy groceries"),
     TodoItem(id=2, title="Walk the dog"),
 ]
+
+next_id: int = 3
 
 
 @app.get("/todos", response_model=List[TodoItem])
@@ -37,34 +34,31 @@ async def get_todos():
 
 @app.post("/todos", response_model=TodoItem, status_code=201)
 async def create_todo(todo: TodoCreate):
-    max_id = 0
-    if db:
-        max_id = max(item.id for item in db)
-    new_id = max_id + 1
-    new_item = TodoItem(id=new_id, title=todo.title, completed=todo.completed)
-    db.append(new_item)
-    return new_item
+    global next_id
+    new_todo = TodoItem(id=next_id, title=todo.title, completed=todo.completed)
+    db.append(new_todo)
+    next_id += 1
+    return new_todo
 
 
 @app.put("/todos/{item_id}", response_model=TodoItem)
-async def update_todo(item_id: int, todo_update: TodoUpdate):
+async def update_todo(item_id: int, todo: TodoCreate):
     for index, item in enumerate(db):
         if item.id == item_id:
-            if todo_update.title is not None:
-                db[index].title = todo_update.title
-            if todo_update.completed is not None:
-                db[index].completed = todo_update.completed
+            db[index].title = todo.title
+            db[index].completed = todo.completed
             return db[index]
     raise HTTPException(status_code=404, detail="Todo item not found")
 
 
 @app.delete("/todos/{item_id}", status_code=204)
 async def delete_todo(item_id: int):
-    for index, item in enumerate(db):
-        if item.id == item_id:
-            del db[index]
-            return
-    raise HTTPException(status_code=404, detail="Todo item not found")
+    global db
+    initial_len = len(db)
+    db = [item for item in db if item.id != item_id]
+    if len(db) == initial_len:
+        raise HTTPException(status_code=404, detail="Todo item not found")
+    return {"message": "Todo item deleted"}
 
 
 if __name__ == "__main__":

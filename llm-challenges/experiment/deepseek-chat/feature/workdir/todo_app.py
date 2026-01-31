@@ -37,15 +37,9 @@ async def get_todos():
 
 @app.post("/todos", response_model=TodoItem, status_code=201)
 async def create_todo(todo: TodoCreate):
-    # Generate new ID (max existing ID + 1)
-    max_id = max(item.id for item in db) if db else 0
-    new_id = max_id + 1
-    
-    new_todo = TodoItem(
-        id=new_id,
-        title=todo.title,
-        completed=todo.completed
-    )
+    # Generate new ID (auto-increment)
+    new_id = max((item.id for item in db), default=0) + 1
+    new_todo = TodoItem(id=new_id, title=todo.title, completed=todo.completed)
     db.append(new_todo)
     return new_todo
 
@@ -53,28 +47,29 @@ async def create_todo(todo: TodoCreate):
 @app.put("/todos/{item_id}", response_model=TodoItem)
 async def update_todo(item_id: int, todo_update: TodoUpdate):
     # Find the todo item
-    for index, item in enumerate(db):
+    for i, item in enumerate(db):
         if item.id == item_id:
             # Update fields if provided
             if todo_update.title is not None:
-                db[index].title = todo_update.title
+                item.title = todo_update.title
             if todo_update.completed is not None:
-                db[index].completed = todo_update.completed
-            return db[index]
-    
-    # Item not found
+                item.completed = todo_update.completed
+            db[i] = item
+            return item
+
+    # If not found, raise 404
     raise HTTPException(status_code=404, detail="Todo item not found")
 
 
 @app.delete("/todos/{item_id}", status_code=204)
 async def delete_todo(item_id: int):
     # Find and remove the todo item
-    for index, item in enumerate(db):
+    for i, item in enumerate(db):
         if item.id == item_id:
-            db.pop(index)
+            db.pop(i)
             return
-    
-    # Item not found
+
+    # If not found, raise 404
     raise HTTPException(status_code=404, detail="Todo item not found")
 
 

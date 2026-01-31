@@ -335,7 +335,7 @@ def run_single_experiment(
                 )
                 exit_code = process.returncode
 
-        status = "SUCCESS" if exit_code == 0 else "FAILURE"
+        status = "EXECUTION_COMPLETE" if exit_code == 0 else "EXECUTION_FAILED"
 
     except subprocess.TimeoutExpired:
         exit_code = 124
@@ -374,22 +374,27 @@ def run_single_experiment(
         else:
             print("⚠️ No tool calls detected")
 
-        if exit_code != 0:
-            print(f"❌ Failed with exit code {exit_code}")
-            if log_content and len(log_content) > 0:
-                error_snippet = (
-                    log_content[-500:] if len(log_content) > 500 else log_content
-                )
-                print(f"Last error snippet: {error_snippet[-200:]}...")
-        else:
-            print("✅ Success!")
-
     # 4. Verify
     v_code, v_out = run_verification(challenge_path, workdir)
-    if v_code != 0 and status == "SUCCESS":
-        status = "VERIFY_FAILED"
-        if verbose:
-            print(f"⚠️ Verification failed with code {v_code}")
+
+    # Determine final status based on verification output
+    if status == "EXECUTION_COMPLETE":
+        if "VERIFICATION_RESULT: EXCELLENT" in v_out:
+            status = "EXCELLENT"
+        elif "VERIFICATION_RESULT: PASS" in v_out:
+            status = "PASS"
+        elif "VERIFICATION_RESULT: FAIL" in v_out:
+            status = "FAIL"
+        elif v_code == 0:
+            # Fallback for legacy verify scripts
+            status = "PASS"
+        else:
+            status = "FAIL"
+
+    if verbose:
+        print(f"Final Status: {status}")
+        if v_code != 0:
+            print(f"⚠️ Verification script exit code: {v_code}")
 
     return ChallengeResult(
         challenge_name=challenge_name,
@@ -415,9 +420,17 @@ def generate_report(results: List[ChallengeResult], output_file: Path):
         f.write("|---|---|---|---|---|---|\n")
 
         for r in results:
-            verify_icon = "✅" if r.status == "SUCCESS" else "❌"
-            if r.status == "VERIFY_FAILED":
-                verify_icon = "⚠️"
+            verify_icon = "❓"
+            if r.status == "EXCELLENT":
+                verify_icon = "🌟"
+            elif r.status == "PASS":
+                verify_icon = "✅"
+            elif r.status == "FAIL" or r.status == "VERIFY_FAILED":
+                verify_icon = "❌"
+            elif r.status == "TIMEOUT":
+                verify_icon = "⏱️"
+            elif r.status == "EXECUTION_FAILED" or r.status == "ERROR":
+                verify_icon = "💥"
 
             f.write(
                 f"| {r.model} | {r.challenge_name} | {r.status} | {r.duration:.2f} | {r.tool_call_count} | {verify_icon} |\n"

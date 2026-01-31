@@ -511,6 +511,11 @@ async def analyze_file(path: str, query: str) -> str:
     - For complex questions about a file's logic, structure, or potential bugs.
     - When you need a summary or specific details that require "understanding" the code.
 
+    **EFFICIENCY WARNING:**
+    - This tool is **SLOW** because it spawns a sub-agent.
+    - **Avoid** using it for simple bugs or when `read_file` is sufficient.
+    - Only use it when you are stuck or the file is too complex to understand directly.
+
     **NOTE:** For simple data retrieval, use `read_file`.
 
     **ARGS:**
