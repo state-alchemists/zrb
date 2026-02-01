@@ -1,96 +1,70 @@
 import os
 import re
-from typing import Any, Dict, Iterator, List
+from typing import Dict, Any, Iterator
 
-from config import DB_HOST, DB_USER, LOG_ENTRY_REGEX, LOG_FILE, USER_ACTION_REGEX
+from config import DB_HOST, DB_USER, LOG_FILE
 
+# Regex patterns
+ERROR_PATTERN = re.compile(r"(?P<date>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) ERROR (?P<msg>.*)")
+USER_ACTION_PATTERN = re.compile(r"(?P<date>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) INFO User (?P<user_id>\w+) logged in")
 
-def extract_logs(log_file: str) -> Iterator[str]:
-    """Extracts raw log entries from the log file."""
-    if not os.path.exists(log_file):
+def extract_data(log_file_path: str) -> Iterator[Dict[str, Any]]:
+    """Extracts data from the log file using regex patterns."""
+    if not os.path.exists(log_file_path):
         return
-    with open(log_file, "r") as f:
+
+    with open(log_file_path, "r") as f:
         for line in f:
-            yield line.strip()
+            error_match = ERROR_PATTERN.match(line)
+            if error_match:
+                yield {"date": error_match.group("date"), "type": "ERROR", "msg": error_match.group("msg").strip()}
+                continue
+
+            user_action_match = USER_ACTION_PATTERN.match(line)
+            if user_action_match:
+                yield {"date": user_action_match.group("date"), "type": "USER_ACTION", "user": user_action_match.group("user_id")}
+                continue
 
 
-def parse_log_entry(raw_entry: str) -> Dict[str, Any] | None:
-    """Parses a raw log entry using regex and extracts relevant information."""
-    match = LOG_ENTRY_REGEX.match(raw_entry)
-    if not match:
-        return None
-
-    data: Dict[str, Any] = match.groupdict()
-    data["timestamp"] = data.pop("date")  # Rename 'date' to 'timestamp'
-
-    if data["level"] == "INFO" and "User" in data["message"]:
-        user_match = USER_ACTION_REGEX.match(data["message"])
-        if user_match:
-            data["type"] = "USER_ACTION"
-            data["user_id"] = int(user_match.group("user_id"))
-        else:
-            data["type"] = "INFO"
-    elif data["level"] == "ERROR":
-        data["type"] = "ERROR"
-    else:
-        data["type"] = data["level"]
-
-    return data
-
-
-def transform_data(parsed_entries: List[Dict[str, Any]]) -> Dict[str, int]:
-    """Transforms parsed log entries into a report, counting error messages."""
+def transform_data(extracted_items: Iterator[Dict[str, Any]]) -> Dict[str, int]:
+    """Transforms extracted log data into a report of error counts."""
     report: Dict[str, int] = {}
-    for item in parsed_entries:
+    for item in extracted_items:
         if item["type"] == "ERROR":
-            msg = item["message"]
-            if msg not in report:
-                report[msg] = 0
-            report[msg] += 1
+            msg = item["msg"]
+            report[msg] = report.get(msg, 0) + 1
     return report
 
 
-def generate_report_html(report_data: Dict[str, int]) -> str:
-    """Generates an HTML report from the transformed data."""
-    html = "<html><body><h1>Report</h1><ul>"
+def load_report(report_data: Dict[str, int], output_file: str = "report.html") -> None:
+    """Loads the transformed data into an HTML report file."""
+    # Simulate database connection (from original script)
+    print(f"Connecting to {DB_HOST} as {DB_USER}...")
+
+    html_content = "<html><body><h1>Report</h1><ul>"
     for k, v in report_data.items():
-        html += f"<li>{k}: {v}</li>"
-    html += "</ul></body></html>"
-    return html
+        html_content += f"<li>{k}: {v}</li>"
+    html_content += "</ul></body></html>"
 
-
-def load_report(html_content: str, output_file: str) -> None:
-    """Writes the HTML content to the specified output file."""
     with open(output_file, "w") as f:
         f.write(html_content)
-    print(f"Report written to {output_file}")
+    print(f"Report generated: {output_file}")
 
 
 def main():
-    # Simulate database connection
-    print(f"Connecting to {DB_HOST} as {DB_USER}...")
-
-    # ETL Process
-    raw_log_entries = list(extract_logs(LOG_FILE))
-    parsed_entries: List[Dict[str, Any]] = []
-    for entry in raw_log_entries:
-        parsed = parse_log_entry(entry)
-        if parsed:
-            parsed_entries.append(parsed)
-
-    report_data = transform_data(parsed_entries)
-    html_report = generate_report_html(report_data)
-    load_report(html_report, "report.html")
-
-    print("Done.")
-
-
-if __name__ == "__main__":
-    # Create dummy log file if not exists for testing
+    # Create dummy log file if not exists for testing (moved from original __main__)
     if not os.path.exists(LOG_FILE):
         with open(LOG_FILE, "w") as f:
             f.write("2023-10-01 10:00:00 INFO User 123 logged in\n")
             f.write("2023-10-01 10:05:00 ERROR Connection failed\n")
             f.write("2023-10-01 10:10:00 ERROR Connection failed\n")
+            f.write("2023-10-01 10:15:00 INFO User 456 logged in\n")
+            f.write("2023-10-01 10:20:00 ERROR Authentication error\n")
 
+    extracted_items = extract_data(LOG_FILE)
+    transformed_report = transform_data(extracted_items)
+    load_report(transformed_report)
+    print("Done.")
+
+if __name__ == "__main__":
     main()

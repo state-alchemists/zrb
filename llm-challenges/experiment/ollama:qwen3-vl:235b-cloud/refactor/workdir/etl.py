@@ -1,90 +1,74 @@
-import os
 import re
-from typing import Dict, List
-
-# Configuration
-CONFIG = {
-    "LOG_FILE": "server.log",
-    "DB_HOST": "localhost",
-    "DB_USER": "admin",
-    "REPORT_FILE": "report.html",
-}
-
-LOG_REGEX = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) (ERROR|INFO) (.*)$")
+import os
+from typing import List, Dict, TypedDict
 
 
-def extract_logs(log_file: str) -> List[Dict[str, str]]:
-    """Extract log entries using robust regex parsing"""
-    logs = []
-    if not os.path.exists(log_file):
-        return logs
+# Configuration (separated from code)
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_USER = os.getenv("DB_USER", "admin")
+LOG_FILE = os.getenv("LOG_FILE", "server.log")
 
-    with open(log_file, "r") as f:
+
+class LogEntry(TypedDict):
+    date: str
+    level: str
+    message: str
+
+
+def extract() -> List[LogEntry]:
+    entries: List[LogEntry] = []
+    if not os.path.exists(LOG_FILE):
+        return entries
+
+    with open(LOG_FILE, "r") as f:
         for line in f:
             line = line.strip()
-            match = LOG_REGEX.match(line)
-            if not match:
-                continue
-
-            timestamp, level, message = match.groups()
-            if level == "ERROR":
-                logs.append(
-                    {
-                        "type": "ERROR",
-                        "timestamp": timestamp,
-                        "message": message.strip(),
-                    }
-                )
-            elif level == "INFO" and "User" in message:
-                user_match = re.search(r"User (\d+)", message)
-                if user_match:
-                    logs.append(
-                        {
-                            "type": "USER_ACTION",
-                            "timestamp": timestamp,
-                            "user_id": user_match.group(1),
-                        }
-                    )
-    return logs
+            match = re.match(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} (INFO|ERROR) (.+)$', line)
+            if match:
+                date = line[:19]
+                level = match.group(1)
+                message = match.group(2)
+                entries.append({
+                    "date": date,
+                    "level": level,
+                    "message": message
+                })
+    return entries
 
 
-def transform(logs: List[Dict[str, str]]) -> Dict[str, int]:
-    """Transform error logs into aggregated report data"""
-    report = {}
-    for log in logs:
-        if log["type"] == "ERROR":
-            msg = log["message"]
-            report[msg] = report.get(msg, 0) + 1
-    return report
+def transform(entries: List[LogEntry]) -> Dict[str, int]:
+    error_counts: Dict[str, int] = {}
+    for entry in entries:
+        if entry["level"] == "ERROR":
+            msg = entry["message"]
+            error_counts[msg] = error_counts.get(msg, 0) + 1
+    return error_counts
 
 
-def load_report(report: Dict[str, int], output_path: str):
-    """Generate HTML report from transformed data"""
+def load(report: Dict[str, int]) -> None:
+    print(f"Connecting to {DB_HOST} as {DB_USER}...")
+
     html = "<html><body><h1>Report</h1><ul>"
-    for message, count in report.items():
-        html += f"<li>{message}: {count}</li>"
+    for msg, count in report.items():
+        html += f"<li>{msg}: {count}</li>"
     html += "</ul></body></html>"
 
-    with open(output_path, "w") as f:
+    with open("report.html", "w") as f:
         f.write(html)
+    print("Done.")
 
 
 def main():
-    # Create test data if needed
-    if not os.path.exists(CONFIG["LOG_FILE"]):
-        with open(CONFIG["LOG_FILE"], "w") as f:
+    # Create dummy log if needed (testing setup)
+    if not os.path.exists(LOG_FILE):
+        with open(LOG_FILE, "w") as f:
             f.write("2023-10-01 10:00:00 INFO User 123 logged in\n")
             f.write("2023-10-01 10:05:00 ERROR Connection failed\n")
             f.write("2023-10-01 10:10:00 ERROR Connection failed\n")
 
-    # ETL execution
-    logs = extract_logs(CONFIG["LOG_FILE"])
-    report_data = transform(logs)
-    load_report(report_data, CONFIG["REPORT_FILE"])
-
-    # Simulated DB interaction
-    print(f"Connecting to {CONFIG['DB_HOST']} as {CONFIG['DB_USER']}...")
-    print("Done.")
+    entries = extract()
+    report = transform(entries)
+    load(report)
 
 
 if __name__ == "__main__":

@@ -236,7 +236,7 @@ def run_single_experiment(
 
     try:
         if verbose:
-            print(f"Running command...")
+            print(f"{model} Running command...")
             # For verbose mode, we can capture and show output in real-time
             with open(log_file, "w") as f:
                 process = subprocess.Popen(
@@ -254,7 +254,7 @@ def run_single_experiment(
                 for line in process.stdout:
                     f.write(line)
                     if verbose and "🧰" in line:
-                        print(f"  Tool call detected: {line.strip()[:100]}...")
+                        print(f"  {model} Tool call detected: {line.strip()[:100]}...")
 
                 process.wait(timeout=timeout)
                 exit_code = process.returncode
@@ -279,14 +279,14 @@ def run_single_experiment(
         with open(log_file, "a") as f:
             f.write(f"\n[Runner] Timeout of {timeout}s exceeded.\n")
         if verbose:
-            print(f"❌ Timeout after {timeout}s")
+            print(f"❌ {model} Timeout after {timeout}s")
     except Exception as e:
         exit_code = -1
         status = "ERROR"
         with open(log_file, "a") as f:
             f.write(f"\n[Runner] Exception: {e}\n")
         if verbose:
-            print(f"❌ Error: {e}")
+            print(f"❌ {model} Error: {e}")
 
     duration = time.time() - start_time
 
@@ -296,15 +296,15 @@ def run_single_experiment(
     tool_call_count = count_tool_calls(log_content)
 
     if verbose:
-        print(f"\nResult after {duration:.1f}s:")
-        print(f"Exit code: {exit_code}")
+        print(f"\n{model} Result after {duration:.1f}s:")
+        print(f"{model} Exit code: {exit_code}")
 
         # Enhanced tool call reporting from test_single.py
         if tool_call_count > 0:
             print(f"✅ Tool calls detected: {tool_call_count}")
             if tool_calls:
                 print(
-                    f"Tools used: {', '.join(tool_calls[:5])}"
+                    f"{model} Tools used: {', '.join(tool_calls[:5])}"
                     + ("..." if len(tool_calls) > 5 else "")
                 )
         else:
@@ -330,7 +330,7 @@ def run_single_experiment(
     if verbose:
         print(f"Final Status: {status}")
         if v_code != 0:
-            print(f"⚠️ Verification script exit code: {v_code}")
+            print(f"⚠️ {model} Verification script exit code: {v_code}")
 
     return ChallengeResult(
         challenge_name=challenge_name,
@@ -387,6 +387,26 @@ def generate_report(results: List[ChallengeResult], output_file: Path):
             f.write("\n---\n")
 
 
+def load_existing_results(json_path: Path) -> Dict[str, ChallengeResult]:
+    """Load existing results from JSON file."""
+    if not json_path.exists():
+        return {}
+    
+    try:
+        with open(json_path, "r") as f:
+            data = json.load(f)
+            results = {}
+            for item in data:
+                # Convert dictionary back to ChallengeResult
+                result = ChallengeResult(**item)
+                key = f"{result.model}/{result.challenge_name}"
+                results[key] = result
+            return results
+    except Exception as e:
+        print(f"Warning: Failed to load existing results: {e}")
+        return {}
+
+
 def main():
     config = parse_args()
 
@@ -414,38 +434,78 @@ def main():
     print(f"Models: {config.models}")
     print(f"Parallelism: {config.parallelism}")
 
+    # Load existing results
+    report_json = EXPERIMENT_BASE_DIR / "results.json"
+    existing_results = load_existing_results(report_json)
+    
+    # Track final results (start with existing ones)
+    final_results_map = existing_results.copy()
+
     print("\n=== Starting experiments ===")
 
     tasks = []
+    # We need to keep track of which futures correspond to which key to update the map later
+    future_to_key = {}
+
     with ThreadPoolExecutor(max_workers=config.parallelism) as executor:
         for model in config.models:
             for challenge in challenges:
-                if config.verbose:
-                    print(f"  Scheduling: {model} / {challenge.name}")
-                tasks.append(
-                    executor.submit(
+                key = f"{model}/{challenge.name}"
+                
+                # Check if we should skip
+                skip = False
+                if key in existing_results:
+                    prev_result = existing_results[key]
+                    # Retry only if failed, execution failed, error or timeout
+                    # i.e., Skip if status is PASS, EXCELLENT, SUCCESS
+                    if prev_result.status in ["PASS", "EXCELLENT", "SUCCESS"]:
+                        skip = True
+                        if config.verbose:
+                            print(f"  Skipping {key} (already {prev_result.status})")
+                
+                if not skip:
+                    if config.verbose:
+                        print(f"  Scheduling: {model} / {challenge.name}")
+                    
+                    future = executor.submit(
                         run_single_experiment,
                         challenge,
                         model,
                         config.timeout,
                         config.verbose,
                     )
-                )
+                    tasks.append(future)
+                    future_to_key[future] = key
+                else:
+                    # Ensure the skipped result is in the final map (it's already there from copy)
+                    pass
 
-    results = []
+    # Collect new results
     for i, future in enumerate(tasks):
         if config.verbose:
             print(f"  Waiting for result {i+1}/{len(tasks)}...")
-        results.append(future.result())
-        if config.verbose:
-            print(f"  Got result: {results[-1].status}")
+        
+        try:
+            result = future.result()
+            key = future_to_key[future]
+            final_results_map[key] = result
+            
+            if config.verbose:
+                print(f"  Got result: {result.status}")
+        except Exception as e:
+            print(f"  Error getting result: {e}")
+
+    # Prepare final list for reporting
+    results = list(final_results_map.values())
+    
+    # Sort results for consistent output (by model then challenge)
+    results.sort(key=lambda x: (x.model, x.challenge_name))
 
     # Generate Reports
     report_md = EXPERIMENT_BASE_DIR / "REPORT.md"
     generate_report(results, report_md)
 
     # Save JSON data
-    report_json = EXPERIMENT_BASE_DIR / "results.json"
     with open(report_json, "w") as f:
         json.dump([asdict(r) for r in results], f, indent=2)
 

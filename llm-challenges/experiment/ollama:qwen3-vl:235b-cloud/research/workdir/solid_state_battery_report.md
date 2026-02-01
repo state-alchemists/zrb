@@ -1,42 +1,43 @@
-# Solid-State Battery Market Status Report (Late 2024/2025)
+# Solid-State Battery Market Status Update (Late 2024/2025)
 
-## 1. Market Entry Timeline
+## 1. Market Timeline for Automotive Deployment
 
-- **2024-2025**: Prototype testing phase with multiple automakers
-  - Mercedes-Benz conducted lab testing of EQS equipped with Factorial's semi-solid-state batteries in late 2024, with road tests scheduled to begin in early 2025
-  - BMW began testing i7 prototypes with Solid Power's all-solid-state cells in Munich during summer 2025
-  - Volkswagen/QuantumScape unveiled all-solid-state battery in Ducati V21L race bike prototype at IAA Mobility 2025
+- **Limited 2025 Deployment**: Hyundai announced plans to begin full-scale production of solid-state batteries in March 2025, targeting electric vehicle applications (Research Nester, Oct 2025). This represents the earliest commercial automotive deployment.
+- **Mass Production Timeline**: Most industry experts project mass adoption between **2027-2029** due to "production hell" challenges. ProLogium established its first giga-scale manufacturing facility in Taiwan (Jan 2024) with mass production scheduled to begin in 2027.
+- **Validation Hurdles**: Bob Galyen of Galyen Energy (ex-CATL CTO) notes validation will take "seven or more years" to address safety, performance, and cost (IEEE Spectrum, Jan 2024).
+- **Market Growth Projection**: Industry is expected to grow from $1.6B (2025) to $27.7B (2035) at 38% CAGR (Research Nester).
 
-- **2026**: First limited commercial deployments expected
-  - Dongfeng Motor Corporation plans commercial production of semi-solid-state batteries for E70 sedans
-  - Verge Motorcycles announced first production motorcycle with Donut Labs' all-solid-state batteries (Q1 2026)
+*Key Constraint: Current solid-state batteries remain 5-10x more expensive ($400-800/kWh) than conventional lithium-ion ($115/kWh).*
 
-- **2027-2030**: Broader market availability
-  - Factorial Energy targets mass production by end of decade
-  - Toyota expects first commercial solid-state batteries in 2027-2028
+## 2. Major Companies Leading Development
 
-*Note: Full solid-state batteries (not semi-solid-state variants) remain limited to prototypes with mass production delayed by manufacturing challenges.*
+| Company | Progress | Status |
+|---------|----------|--------|
+| **Toyota** | Developing for 2027 production vehicles with 600-mile range | Targeting 2027 EV deployment |
+| **Hyundai** | Announced full-scale production by March 2025 | First-to-market claim for automotive |
+| **ProLogium** | Built giga-scale facility in Taiwan (2024) | Production start: 2027 |
+| **QuantumScape** | Partnered with Volkswagen; 1,000-cycle validation | Testing phase; not yet automotive-ready |
+| **CATL** | Listed as key player in research report | Semi-solid commercialized, solid-state in R&D |
+| **Solid Power** | Partnered with BMW/SK On for pilot lines | Development phase |
 
-## 2. Key Companies Involved
+*Additional key players: BYD, Samsung SDI, LG Energy Solution, Panasonic, Blue Solutions.*
 
-| Company | Partner | Status |
-|---------|---------|--------|
-| **QuantumScape** | Volkswagen | Developed prototype battery for Ducati; PowerCo (VW's battery unit) invested $260M |
-| **Factorial Energy** | Mercedes-Benz, Stellantis | Semi-solid-state batteries in EQS prototype; 375 Wh/kg energy density |
-| **Solid Power** | BMW | Testing all-solid-state cells in i7; 390 Wh/kg energy density |
-| **SAIC Motor** | IM Motors, MG | Semi-solid-state deployed in L6 sedan and MG4 EV |
-| **Nio** | WeLion | 150 kWh semi-solid-state packs available via battery swapping in China |
-| **Toyota** | Sumitomo Metal Mining | Joint development agreement for cathodes; target 2027-2028 |
-| **Dongfeng** | Ganfeng Lithium | 82 kWh semi-solid-state in Voyah Passion; commercial production planned for 2026 |
-| **Honda** | — | Developing in-house; testing pilot production line in Japan |
+## 3. Technical Challenges Still Being Solved
 
-## 3. Remaining Technical Challenges
+- **Validation Gaps**: No solid-state battery has been validated across all five "golden rules" (safety, performance, life, cost, environmental) required for automotive use (IEEE Spectrum).
+- **Material Limitations**: 
+  - Solid electrolytes face trade-offs between conductivity and stability
+  - High cost of suitable materials (5-10x current batteries)
+  - Interfacial compatibility challenges between components
+- **Production Scaling**:
+  - Incompatibility with existing lithium-ion production lines
+  - Strict quality control requirements for solid layers/interfaces
+  - Need for billions in new manufacturing infrastructure
+- **Real-World Performance Concerns**:
+  - Unclear shock/vibration performance ("What happens when you hit a pothole?")
+  - Temperature/altitude performance not fully validated
+  - Limited data on long-term cycling durability under EV conditions
 
-- **Manufacturing at scale**: Current production limited by defects in solid-electrolyte layers
-- **Material limitations**: Semi-solid-state (gel-based) solutions dominate current deployment; true all-solid-state requires breakthroughs
-- **Energy density vs. cost trade-offs**: Achieving >400 Wh/kg consistently while controlling costs
-- **Production scalability**: Only 10% of global EV demand expected to use solid-state batteries by 2035 (BloombergNEF)
-- **Material supply**: Cobalt-free alternatives (e.g., Nissan's sulfur-based electrolyte) still in development
-- **Charging infrastructure**: Required to support ultra-fast charging capabilities of new battery chemistries
-
-*Key Insight: Semi-solid-state batteries (with gel electrolytes) have reached limited commercial production, while true all-solid-state batteries remain in prototype phase with mass production timelines consistently delayed by 1-3 years.*
+**Sources Verified**:
+- IEEE Spectrum (2024): Production challenges and validation timeline
+- Research Nester Report (2025): Market analysis and company deployment plans

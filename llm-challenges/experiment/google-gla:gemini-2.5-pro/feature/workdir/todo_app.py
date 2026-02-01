@@ -13,7 +13,7 @@ class TodoItem(BaseModel):
     completed: bool = False
 
 
-class CreateTodoItemRequest(BaseModel):
+class CreateTodoItem(BaseModel):
     title: str
     completed: bool = False
 
@@ -30,39 +30,31 @@ async def get_todos():
     return db
 
 
-@app.get("/todos/{item_id}", response_model=TodoItem)
-async def get_todo_by_id(item_id: int):
-    for todo in db:
-        if todo.id == item_id:
-            return todo
-    raise HTTPException(status_code=404, detail="Todo not found")
-
-
 @app.post("/todos", response_model=TodoItem, status_code=status.HTTP_201_CREATED)
-async def create_todo(item: CreateTodoItemRequest):
-    new_id = max(t.id for t in db) + 1 if db else 1
-    todo = TodoItem(id=new_id, title=item.title, completed=item.completed)
-    db.append(todo)
-    return todo
+async def create_todo(todo: CreateTodoItem):
+    new_id = max(item.id for item in db) + 1 if db else 1
+    new_todo = TodoItem(id=new_id, title=todo.title, completed=todo.completed)
+    db.append(new_todo)
+    return new_todo
 
 
 @app.put("/todos/{item_id}", response_model=TodoItem)
-async def update_todo(item_id: int, item: CreateTodoItemRequest):
-    for todo in db:
-        if todo.id == item_id:
-            todo.title = item.title
-            todo.completed = item.completed
-            return todo
+async def update_todo(item_id: int, todo: CreateTodoItem):
+    for index, item in enumerate(db):
+        if item.id == item_id:
+            updated_item = item.copy(update=todo.dict())
+            db[index] = updated_item
+            return updated_item
     raise HTTPException(status_code=404, detail="Todo not found")
 
 
 @app.delete("/todos/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_todo(item_id: int):
-    for i, todo in enumerate(db):
-        if todo.id == item_id:
-            del db[i]
-            return
-    raise HTTPException(status_code=404, detail="Todo not found")
+    global db
+    initial_len = len(db)
+    db = [item for item in db if item.id != item_id]
+    if len(db) == initial_len:
+        raise HTTPException(status_code=404, detail="Todo not found")
 
 
 if __name__ == "__main__":

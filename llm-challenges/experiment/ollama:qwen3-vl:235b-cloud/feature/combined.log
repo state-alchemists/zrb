@@ -1,27 +1,17 @@
-[2m  🧠 Okay,[0m[2m let[0m[2m's[0m[2m see[0m[2m.[0m[2m The[0m[2m user[0m[2m wants[0m[2m me[0m[2m to[0m[2m finish[0m[2m a[0m[2m Todo[0m[2m app[0m[2m in[0m[2m `[0m[2mtodo[0m[2m_app[0m[2m.py[0m[2m`.[0m[2m The[0m[2m GET[0m[2m endpoint[0m[2m works[0m[2m,[0m[2m but[0m[2m they[0m[2m need[0m[2m Create[0m[2m,[0m[2m Update[0m[2m,[0m[2m and[0m[2m Delete[0m[2m operations[0m[2m.[0m[2m I[0m[2m need[0m[2m to[0m[2m check[0m[2m the[0m[2m existing[0m[2m code[0m[2m first[0m[2m.
+[2m  🧠 Okay,[0m[2m let[0m[2m's[0m[2m tackle[0m[2m this[0m[2m problem[0m[2m.[0m[2m The[0m[2m user[0m[2m has[0m[2m a[0m[2m half[0m[2m-b[0m[2maked[0m[2m Todo[0m[2m app[0m[2m in[0m[2m todo[0m[2m_app[0m[2m.py[0m[2m where[0m[2m the[0m[2m GET[0m[2m endpoint[0m[2m works[0m[2m but[0m[2m needs[0m[2m Create[0m[2m,[0m[2m Update[0m[2m,[0m[2m and[0m[2m Delete[0m[2m endpoints[0m[2m.[0m[2m I[0m[2m need[0m[2m to[0m[2m implement[0m[2m CRUD[0m[2m operations[0m[2m with[0m[2m proper[0m[2m ID[0m[2m handling[0m[2m and[0m[2m HTTP[0m[2m status[0m[2m codes[0m[2m.
      
-     [0m[2mFirst[0m[2m,[0m[2m I[0m[2m should[0m[2m find[0m[2m out[0m[2m where[0m[2m `[0m[2mtodo[0m[2m_app[0m[2m.py[0m[2m`[0m[2m is[0m[2m.[0m[2m The[0m[2m current[0m[2m directory[0m[2m is[0m[2m /[0m[2mUsers[0m[2m/g[0m[2mof[0m[2mrend[0m[2mig[0m[2mun[0m[2mawan[0m[2m/z[0m[2mrb[0m[2m/[0m[2mll[0m[2mm[0m[2m-ch[0m[2mallenges[0m[2m/ex[0m[2mperiment[0m[2m/[0m[2moll[0m[2mama[0m[2m:[0m[2mq[0m[2mwen[0m[2m3[0m[2m-v[0m[2ml[0m[2m:[0m[2m2[0m[2m3[0m[2m5[0m[2mb[0m[2m-cloud[0m[2m/[0m[2mfeature[0m[2m/work[0m[2mdir[0m[2m.[0m[2m Maybe[0m[2m the[0m[2m file[0m[2m is[0m[2m there[0m[2m.[0m[2m Let[0m[2m me[0m[2m use[0m[2m `[0m[2mread[0m[2m_file[0m[2m`[0m[2m to[0m[2m check[0m[2m.
+     [0m[2mFirst[0m[2m,[0m[2m I[0m[2m should[0m[2m check[0m[2m the[0m[2m existing[0m[2m code[0m[2m to[0m[2m understand[0m[2m the[0m[2m current[0m[2m setup[0m[2m.[0m[2m The[0m[2m user[0m[2m mentioned[0m[2m it[0m[2m's[0m[2m a[0m[2m GET[0m[2m endpoint[0m[2m that[0m[2m works[0m[2m,[0m[2m so[0m[2m probably[0m[2m using[0m[2m a[0m[2m framework[0m[2m like[0m[2m Flask[0m[2m.[0m[2m Let[0m[2m me[0m[2m recall[0m[2m the[0m[2m typical[0m[2m structure[0m[2m.
      
-     [0m[2mWait[0m[2m,[0m[2m the[0m[2m user[0m[2m mentioned[0m[2m it[0m[2m's[0m[2m a[0m[2m half[0m[2m-b[0m[2maked[0m[2m app[0m[2m.[0m[2m So[0m[2m GET[0m[2m works[0m[2m,[0m[2m which[0m[2m probably[0m[2m means[0m[2m there[0m[2m's[0m[2m a[0m[2m route[0m[2m for[0m[2m GET[0m[2m /[0m[2mtodos[0m[2m.[0m[2m Let[0m[2m me[0m[2m read[0m[2m the[0m[2m file[0m[2m to[0m[2m see[0m[2m the[0m[2m structure[0m[2m.
+     [0m[2mI[0m[2m'll[0m[2m start[0m[2m by[0m[2m using[0m[2m the[0m[2m read[0m[2m_file[0m[2m function[0m[2m to[0m[2m see[0m[2m what[0m[2m's[0m[2m in[0m[2m todo[0m[2m_app[0m[2m.py[0m[2m.[0m[2m That[0m[2m way[0m[2m,[0m[2m I[0m[2m can[0m[2m see[0m[2m the[0m[2m existing[0m[2m GET[0m[2m endpoint[0m[2m and[0m[2m any[0m[2m data[0m[2m storage[0m[2m method[0m[2m ([0m[2mlike[0m[2m a[0m[2m list[0m[2m or[0m[2m a[0m[2m database[0m[2m).[0m[2m The[0m[2m code[0m[2m might[0m[2m be[0m[2m using[0m[2m a[0m[2m simple[0m[2m list[0m[2m for[0m[2m todos[0m[2m,[0m[2m which[0m[2m makes[0m[2m sense[0m[2m for[0m[2m a[0m[2m basic[0m[2m example[0m[2m.
      
-     [0m[2mI[0m[2m'll[0m[2m call[0m[2m `[0m[2mread[0m[2m_file[0m[2m`[0m[2m with[0m[2m path[0m[2m '[0m[2mtodo[0m[2m_app[0m[2m.py[0m[2m'[0m[2m to[0m[2m see[0m[2m the[0m[2m current[0m[2m code[0m[2m.[0m[2m Once[0m[2m I[0m[2m have[0m[2m that[0m[2m,[0m[2m I[0m[2m can[0m[2m figure[0m[2m out[0m[2m how[0m[2m to[0m[2m add[0m[2m POST[0m[2m,[0m[2m PUT[0m[2m,[0m[2m DELETE[0m[2m endpoints[0m[2m.
+     [0m[2mAfter[0m[2m reading[0m[2m the[0m[2m file[0m[2m,[0m[2m I[0m[2m'll[0m[2m identify[0m[2m where[0m[2m to[0m[2m add[0m[2m the[0m[2m POST[0m[2m,[0m[2m PUT[0m[2m,[0m[2m and[0m[2m DELETE[0m[2m methods[0m[2m.[0m[2m For[0m[2m auto[0m[2m-in[0m[2mcrement[0m[2ming[0m[2m IDs[0m[2m,[0m[2m maybe[0m[2m the[0m[2m existing[0m[2m code[0m[2m already[0m[2m has[0m[2m a[0m[2m counter[0m[2m.[0m[2m If[0m[2m not[0m[2m,[0m[2m I[0m[2m'll[0m[2m need[0m[2m to[0m[2m generate[0m[2m unique[0m[2m IDs[0m[2m,[0m[2m perhaps[0m[2m with[0m[2m a[0m[2m running[0m[2m counter[0m[2m or[0m[2m UUID[0m[2ms[0m[2m.[0m[2m The[0m[2m user[0m[2m said[0m[2m auto[0m[2m-in[0m[2mcrement[0m[2m is[0m[2m fine[0m[2m,[0m[2m so[0m[2m maybe[0m[2m a[0m[2m simple[0m[2m integer[0m[2m that[0m[2m increments[0m[2m with[0m[2m each[0m[2m new[0m[2m todo[0m[2m.
      
-     [0m[2mAss[0m[2muming[0m[2m it[0m[2m's[0m[2m using[0m[2m Flask[0m[2m or[0m[2m another[0m[2m framework[0m[2m.[0m[2m Since[0m[2m it[0m[2m's[0m[2m a[0m[2m Python[0m[2m app[0m[2m,[0m[2m maybe[0m[2m Fast[0m[2mAPI[0m[2m?[0m[2m Wait[0m[2m,[0m[2m the[0m[2m project[0m[2m is[0m[2m Z[0m[2mrb[0m[2m,[0m[2m but[0m[2m the[0m[2m Todo[0m[2m app[0m[2m might[0m[2m be[0m[2m in[0m[2m any[0m[2m framework[0m[2m.[0m[2m Let[0m[2m me[0m[2m check[0m[2m the[0m[2m code[0m[2m.
+     [0m[2mI[0m[2m need[0m[2m to[0m[2m make[0m[2m sure[0m[2m each[0m[2m endpoint[0m[2m returns[0m[2m the[0m[2m correct[0m[2m HTTP[0m[2m status[0m[2m codes[0m[2m:[0m[2m [0m[2m2[0m[2m0[0m[2m1[0m[2m for[0m[2m created[0m[2m,[0m[2m [0m[2m2[0m[2m0[0m[2m0[0m[2m for[0m[2m successful[0m[2m update[0m[2m,[0m[2m [0m[2m4[0m[2m0[0m[2m4[0m[2m if[0m[2m the[0m[2m todo[0m[2m isn[0m[2m't[0m[2m found[0m[2m,[0m[2m etc[0m[2m.
      
-     [0m[2mAfter[0m[2m reading[0m[2m the[0m[2m file[0m[2m,[0m[2m I[0m[2m can[0m[2m see[0m[2m the[0m[2m current[0m[2m setup[0m[2m.[0m[2m Suppose[0m[2m it[0m[2m's[0m[2m a[0m[2m Flask[0m[2m app[0m[2m.[0m[2m The[0m[2m GET[0m[2m endpoint[0m[2m might[0m[2m be[0m[2m returning[0m[2m a[0m[2m list[0m[2m.[0m[2m For[0m[2m Create[0m[2m ([0m[2mPOST[0m[2m),[0m[2m I[0m[2m need[0m[2m to[0m[2m handle[0m[2m adding[0m[2m a[0m[2m new[0m[2m todo[0m[2m with[0m[2m an[0m[2m auto[0m[2m-in[0m[2mcrement[0m[2m ID[0m[2m.[0m[2m For[0m[2m Update[0m[2m ([0m[2mPUT[0m[2m),[0m[2m maybe[0m[2m by[0m[2m ID[0m[2m,[0m[2m and[0m[2m Delete[0m[2m ([0m[2mDELETE[0m[2m)[0m[2m by[0m[2m ID[0m[2m.
-     
-     [0m[2mI[0m[2m need[0m[2m to[0m[2m make[0m[2m sure[0m[2m the[0m[2m data[0m[2m is[0m[2m stored[0m[2m in[0m[2m a[0m[2m list[0m[2m or[0m[2m similar[0m[2m structure[0m[2m.[0m[2m The[0m[2m existing[0m[2m code[0m[2m probably[0m[2m has[0m[2m a[0m[2m todos[0m[2m list[0m[2m.[0m[2m Let[0m[2m me[0m[2m check[0m[2m.
-     
-     [0m[2mOnce[0m[2m I[0m[2m have[0m[2m the[0m[2m code[0m[2m,[0m[2m I[0m[2m'll[0m[2m add[0m[2m the[0m[2m new[0m[2m endpoints[0m[2m.[0m[2m For[0m[2m POST[0m[2m,[0m[2m accept[0m[2m JSON[0m[2m data[0m[2m,[0m[2m generate[0m[2m the[0m[2m next[0m[2m ID[0m[2m,[0m[2m append[0m[2m to[0m[2m the[0m[2m list[0m[2m.[0m[2m Return[0m[2m [0m[2m2[0m[2m0[0m[2m1[0m[2m.[0m[2m For[0m[2m PUT[0m[2m,[0m[2m find[0m[2m the[0m[2m todo[0m[2m by[0m[2m ID[0m[2m,[0m[2m update[0m[2m it[0m[2m.[0m[2m If[0m[2m not[0m[2m found[0m[2m,[0m[2m [0m[2m4[0m[2m0[0m[2m4[0m[2m.[0m[2m DELETE[0m[2m same[0m[2m,[0m[2m return[0m[2m [0m[2m2[0m[2m0[0m[2m4[0m[2m if[0m[2m successful[0m[2m.
-     
-     [0m[2mAfter[0m[2m adding[0m[2m these[0m[2m,[0m[2m testing[0m[2m is[0m[2m crucial[0m[2m.[0m[2m Maybe[0m[2m the[0m[2m app[0m[2m has[0m[2m a[0m[2m test[0m[2m setup[0m[2m.[0m[2m If[0m[2m not[0m[2m,[0m[2m create[0m[2m a[0m[2m quick[0m[2m test[0m[2m script[0m[2m or[0m[2m use[0m[2m curl[0m[2m commands[0m[2m via[0m[2m `[0m[2mrun[0m[2m_shell[0m[2m_command[0m[2m`[0m[2m to[0m[2m verify[0m[2m.
-     
-     [0m[2mWait[0m[2m,[0m[2m the[0m[2m user[0m[2m says[0m[2m the[0m[2m entry[0m[2m point[0m[2m is[0m[2m already[0m[2m set[0m[2m,[0m[2m so[0m[2m modifying[0m[2m the[0m[2m existing[0m[2m file[0m[2m directly[0m[2m.[0m[2m No[0m[2m need[0m[2m to[0m[2m rename[0m[2m.[0m[2m Need[0m[2m to[0m[2m follow[0m[2m the[0m[2m existing[0m[2m pattern[0m[2m.[0m[2m So[0m[2m after[0m[2m reading[0m[2m,[0m[2m replace[0m[2m in[0m[2m the[0m[2m same[0m[2m file[0m[2m.
-     
-     [0m[2mFirst[0m[2m step[0m[2m:[0m[2m read[0m[2m the[0m[2m current[0m[2m `[0m[2mtodo[0m[2m_app[0m[2m.py[0m[2m`.
+     [0m[2mLet[0m[2m me[0m[2m call[0m[2m read[0m[2m_file[0m[2m on[0m[2m todo[0m[2m_app[0m[2m.py[0m[2m to[0m[2m get[0m[2m the[0m[2m current[0m[2m code[0m[2m.
      [0m[2m
-  🧰 call_NuCsRUiTtrZhFsr6xaXhywaP | read_file {'path': 'todo_app.py'}[0m[2m
-  🔠 call_NuCsRUiTtrZhFsr6xaXhywaP | Return from typing import List, Optional
+  🧰 call_xT2yN5V0SAQ5yFq7OcsWH13i | read_file {'path': 'todo_app.py'}[0m[2m
+  🔠 call_xT2yN5V0SAQ5yFq7OcsWH13i | Return from typing import List, Optional
      
      import uvicorn
      from fastapi import FastAPI, HTTPException
@@ -55,218 +45,287 @@
      if __name__ == "__main__":
          uvicorn.run(app, host="0.0.0.0", port=8000)
      [0m[2m
-  🧠 Okay,[0m[2m so[0m[2m the[0m[2m user[0m[2m provided[0m[2m the[0m[2m current[0m[2m code[0m[2m for[0m[2m todo[0m[2m_app[0m[2m.py[0m[2m.[0m[2m Let[0m[2m me[0m[2m look[0m[2m at[0m[2m it[0m[2m.
+  🧠 Okay,[0m[2m let[0m[2m's[0m[2m see[0m[2m.[0m[2m The[0m[2m user[0m[2m has[0m[2m a[0m[2m Fast[0m[2mAPI[0m[2m Todo[0m[2m app[0m[2m with[0m[2m a[0m[2m GET[0m[2m endpoint[0m[2m working[0m[2m,[0m[2m but[0m[2m needs[0m[2m POST[0m[2m,[0m[2m PUT[0m[2m,[0m[2m and[0m[2m DELETE[0m[2m.[0m[2m The[0m[2m existing[0m[2m code[0m[2m uses[0m[2m an[0m[2m in[0m[2m-memory[0m[2m list[0m[2m for[0m[2m todos[0m[2m,[0m[2m with[0m[2m auto[0m[2m-in[0m[2mcrement[0m[2ming[0m[2m IDs[0m[2m.[0m[2m Wait[0m[2m,[0m[2m the[0m[2m current[0m[2m db[0m[2m has[0m[2m two[0m[2m items[0m[2m with[0m[2m IDs[0m[2m [0m[2m1[0m[2m and[0m[2m [0m[2m2[0m[2m.
      
-     [0m[2mThe[0m[2m app[0m[2m uses[0m[2m Fast[0m[2mAPI[0m[2m.[0m[2m The[0m[2m db[0m[2m is[0m[2m a[0m[2m list[0m[2m of[0m[2m Todo[0m[2mItem[0m[2m objects[0m[2m.[0m[2m The[0m[2m GET[0m[2m endpoint[0m[2m is[0m[2m already[0m[2m working[0m[2m.[0m[2m The[0m[2m TODO[0m[2ms[0m[2m are[0m[2m to[0m[2m add[0m[2m POST[0m[2m,[0m[2m PUT[0m[2m,[0m[2m and[0m[2m DELETE[0m[2m methods[0m[2m.
+     [0m[2mFirst[0m[2m,[0m[2m I[0m[2m need[0m[2m to[0m[2m implement[0m[2m POST[0m[2m for[0m[2m creating[0m[2m new[0m[2m items[0m[2m.[0m[2m The[0m[2m new[0m[2m item[0m[2m should[0m[2m get[0m[2m the[0m[2m next[0m[2m ID[0m[2m,[0m[2m which[0m[2m would[0m[2m be[0m[2m max[0m[2m ID[0m[2m in[0m[2m db[0m[2m +[0m[2m1[0m[2m,[0m[2m or[0m[2m maybe[0m[2m just[0m[2m len[0m[2m(db[0m[2m)+[0m[2m1[0m[2m.[0m[2m But[0m[2m since[0m[2m it[0m[2m's[0m[2m in[0m[2m-memory[0m[2m,[0m[2m maybe[0m[2m track[0m[2m a[0m[2m counter[0m[2m.[0m[2m Wait[0m[2m,[0m[2m the[0m[2m current[0m[2m db[0m[2m starts[0m[2m with[0m[2m IDs[0m[2m [0m[2m1[0m[2m and[0m[2m [0m[2m2[0m[2m.[0m[2m So[0m[2m perhaps[0m[2m the[0m[2m next[0m[2m ID[0m[2m is[0m[2m [0m[2m3[0m[2m.[0m[2m But[0m[2m if[0m[2m items[0m[2m are[0m[2m deleted[0m[2m,[0m[2m the[0m[2m IDs[0m[2m might[0m[2m have[0m[2m gaps[0m[2m.[0m[2m Auto[0m[2m-in[0m[2mcrement[0m[2m generally[0m[2m means[0m[2m the[0m[2m next[0m[2m available[0m[2m number[0m[2m,[0m[2m not[0m[2m necessarily[0m[2m contiguous[0m[2m.[0m[2m But[0m[2m since[0m[2m it[0m[2m's[0m[2m a[0m[2m simple[0m[2m app[0m[2m,[0m[2m maybe[0m[2m just[0m[2m use[0m[2m the[0m[2m length[0m[2m of[0m[2m the[0m[2m current[0m[2m db[0m[2m plus[0m[2m [0m[2m1[0m[2m.
      
-     [0m[2mFirst[0m[2m,[0m[2m I[0m[2m need[0m[2m to[0m[2m implement[0m[2m POST[0m[2m for[0m[2m creating[0m[2m a[0m[2m new[0m[2m todo[0m[2m.[0m[2m The[0m[2m id[0m[2m should[0m[2m auto[0m[2m-in[0m[2mcrement[0m[2m.[0m[2m The[0m[2m current[0m[2m db[0m[2m has[0m[2m two[0m[2m items[0m[2m with[0m[2m ids[0m[2m [0m[2m1[0m[2m and[0m[2m [0m[2m2[0m[2m.[0m[2m So[0m[2m the[0m[2m next[0m[2m id[0m[2m should[0m[2m be[0m[2m [0m[2m3[0m[2m.[0m[2m But[0m[2m how[0m[2m is[0m[2m it[0m[2m generated[0m[2m?[0m[2m I[0m[2m can[0m[2m take[0m[2m the[0m[2m max[0m[2m id[0m[2m from[0m[2m the[0m[2m db[0m[2m and[0m[2m add[0m[2m [0m[2m1[0m[2m.[0m[2m However[0m[2m,[0m[2m if[0m[2m the[0m[2m db[0m[2m is[0m[2m empty[0m[2m,[0m[2m start[0m[2m from[0m[2m [0m[2m1[0m[2m.[0m[2m Wait[0m[2m,[0m[2m but[0m[2m the[0m[2m sample[0m[2m db[0m[2m has[0m[2m two[0m[2m items[0m[2m,[0m[2m so[0m[2m next[0m[2m id[0m[2m would[0m[2m be[0m[2m [0m[2m3[0m[2m.
+     [0m[2mWait[0m[2m,[0m[2m the[0m[2m current[0m[2m code[0m[2m has[0m[2m [[0m[2m1[0m[2m,[0m[2m [0m[2m2[0m[2m],[0m[2m so[0m[2m next[0m[2m is[0m[2m [0m[2m3[0m[2m.[0m[2m So[0m[2m for[0m[2m POST[0m[2m,[0m[2m generate[0m[2m new[0m[2m ID[0m[2m as[0m[2m max[0m[2m ID[0m[2m in[0m[2m db[0m[2m +[0m[2m1[0m[2m,[0m[2m but[0m[2m if[0m[2m the[0m[2m db[0m[2m is[0m[2m empty[0m[2m,[0m[2m start[0m[2m at[0m[2m [0m[2m1[0m[2m.[0m[2m Alternatively[0m[2m,[0m[2m maintain[0m[2m a[0m[2m counter[0m[2m variable[0m[2m.[0m[2m But[0m[2m since[0m[2m the[0m[2m db[0m[2m is[0m[2m a[0m[2m list[0m[2m that[0m[2m might[0m[2m have[0m[2m deleted[0m[2m items[0m[2m,[0m[2m maybe[0m[2m using[0m[2m len[0m[2m(db[0m[2m)+[0m[2m1[0m[2m isn[0m[2m't[0m[2m safe[0m[2m because[0m[2m if[0m[2m you[0m[2m delete[0m[2m an[0m[2m item[0m[2m,[0m[2m the[0m[2m length[0m[2m decreases[0m[2m.[0m[2m For[0m[2m example[0m[2m,[0m[2m if[0m[2m there[0m[2m are[0m[2m items[0m[2m [0m[2m1[0m[2m and[0m[2m [0m[2m2[0m[2m,[0m[2m delete[0m[2m [0m[2m1[0m[2m,[0m[2m then[0m[2m len[0m[2m is[0m[2m [0m[2m1[0m[2m,[0m[2m so[0m[2m next[0m[2m ID[0m[2m would[0m[2m be[0m[2m [0m[2m2[0m[2m again[0m[2m.[0m[2m That[0m[2m would[0m[2m conflict[0m[2m.[0m[2m So[0m[2m better[0m[2m to[0m[2m track[0m[2m the[0m[2m next[0m[2m ID[0m[2m as[0m[2m a[0m[2m variable[0m[2m.
      
-     [0m[2mBut[0m[2m using[0m[2m max[0m[2m might[0m[2m not[0m[2m be[0m[2m safe[0m[2m if[0m[2m items[0m[2m are[0m[2m deleted[0m[2m.[0m[2m Wait[0m[2m,[0m[2m but[0m[2m since[0m[2m it[0m[2m's[0m[2m in[0m[2m-memory[0m[2m,[0m[2m maybe[0m[2m the[0m[2m app[0m[2m doesn[0m[2m't[0m[2m handle[0m[2m that[0m[2m.[0m[2m But[0m[2m for[0m[2m the[0m[2m purpose[0m[2m of[0m[2m this[0m[2m exercise[0m[2m,[0m[2m auto[0m[2m-in[0m[2mcrement[0m[2m by[0m[2m taking[0m[2m max[0m[2m +[0m[2m [0m[2m1[0m[2m is[0m[2m acceptable[0m[2m.
+     [0m[2mBut[0m[2m in[0m[2m the[0m[2m current[0m[2m code[0m[2m,[0m[2m there[0m[2m's[0m[2m no[0m[2m such[0m[2m variable[0m[2m.[0m[2m The[0m[2m TODO[0m[2ms[0m[2m mention[0m[2m to[0m[2m handle[0m[2m IDs[0m[2m correctly[0m[2m,[0m[2m so[0m[2m maybe[0m[2m I[0m[2m should[0m[2m add[0m[2m a[0m[2m global[0m[2m next[0m[2m_id[0m[2m starting[0m[2m at[0m[2m [0m[2m3[0m[2m.[0m[2m Let[0m[2m me[0m[2m check[0m[2m the[0m[2m code[0m[2m again[0m[2m.
      
-     [0m[2mFor[0m[2m the[0m[2m POST[0m[2m endpoint[0m[2m:[0m[2m accept[0m[2m a[0m[2m title[0m[2m from[0m[2m the[0m[2m request[0m[2m body[0m[2m,[0m[2m create[0m[2m a[0m[2m new[0m[2m Todo[0m[2mItem[0m[2m with[0m[2m id[0m[2m =[0m[2m max[0m[2m_id[0m[2m +[0m[2m1[0m[2m,[0m[2m add[0m[2m to[0m[2m db[0m[2m,[0m[2m return[0m[2m created[0m[2m item[0m[2m with[0m[2m [0m[2m2[0m[2m0[0m[2m1[0m[2m status[0m[2m.
+     [0m[2mExisting[0m[2m db[0m[2m has[0m[2m two[0m[2m items[0m[2m:[0m[2m [0m[2m1[0m[2m and[0m[2m [0m[2m2[0m[2m.[0m[2m So[0m[2m after[0m[2m creating[0m[2m a[0m[2m new[0m[2m one[0m[2m,[0m[2m it[0m[2m should[0m[2m be[0m[2m [0m[2m3[0m[2m.[0m[2m So[0m[2m perhaps[0m[2m in[0m[2m the[0m[2m code[0m[2m,[0m[2m initialize[0m[2m next[0m[2m_id[0m[2m as[0m[2m [0m[2m3[0m[2m.[0m[2m Then[0m[2m each[0m[2m time[0m[2m a[0m[2m new[0m[2m todo[0m[2m is[0m[2m added[0m[2m,[0m[2m use[0m[2m next[0m[2m_id[0m[2m and[0m[2m increment[0m[2m it[0m[2m.
      
-     [0m[2mFor[0m[2m PUT[0m[2m:[0m[2m need[0m[2m to[0m[2m update[0m[2m an[0m[2m existing[0m[2m item[0m[2m.[0m[2m The[0m[2m endpoint[0m[2m is[0m[2m /[0m[2mtodos[0m[2m/{[0m[2mitem[0m[2m_id[0m[2m}.[0m[2m Check[0m[2m if[0m[2m the[0m[2m item[0m[2m exists[0m[2m.[0m[2m If[0m[2m not[0m[2m,[0m[2m return[0m[2m [0m[2m4[0m[2m0[0m[2m4[0m[2m.[0m[2m Update[0m[2m the[0m[2m title[0m[2m and[0m[2m completed[0m[2m status[0m[2m if[0m[2m provided[0m[2m.[0m[2m Wait[0m[2m,[0m[2m but[0m[2m the[0m[2m Todo[0m[2mItem[0m[2m model[0m[2m has[0m[2m id[0m[2m,[0m[2m title[0m[2m,[0m[2m completed[0m[2m.[0m[2m So[0m[2m the[0m[2m PUT[0m[2m should[0m[2m accept[0m[2m a[0m[2m Todo[0m[2mItem[0m[2m where[0m[2m id[0m[2m is[0m[2m required[0m[2m?[0m[2m Or[0m[2m maybe[0m[2m they[0m[2m are[0m[2m sending[0m[2m the[0m[2m title[0m[2m and[0m[2m completed[0m[2m fields[0m[2m.[0m[2m Wait[0m[2m,[0m[2m the[0m[2m Todo[0m[2mItem[0m[2m for[0m[2m update[0m[2m might[0m[2m not[0m[2m need[0m[2m id[0m[2m,[0m[2m but[0m[2m the[0m[2m route[0m[2m has[0m[2m item[0m[2m_id[0m[2m.[0m[2m So[0m[2m the[0m[2m PUT[0m[2m body[0m[2m should[0m[2m have[0m[2m title[0m[2m and[0m[2m completed[0m[2m,[0m[2m and[0m[2m we[0m[2m update[0m[2m the[0m[2m entry[0m[2m with[0m[2m the[0m[2m given[0m[2m id[0m[2m.
+     [0m[2mYes[0m[2m,[0m[2m that[0m[2m's[0m[2m probably[0m[2m the[0m[2m way[0m[2m.[0m[2m So[0m[2m in[0m[2m the[0m[2m code[0m[2m,[0m[2m we[0m[2m can[0m[2m have[0m[2m a[0m[2m global[0m[2m variable[0m[2m next[0m[2m_id[0m[2m =[0m[2m [0m[2m3[0m[2m.
      
-     [0m[2mWait[0m[2m,[0m[2m in[0m[2m the[0m[2m current[0m[2m code[0m[2m,[0m[2m the[0m[2m POST[0m[2m body[0m[2m probably[0m[2m expects[0m[2m a[0m[2m Todo[0m[2mItem[0m[2m without[0m[2m id[0m[2m,[0m[2m but[0m[2m the[0m[2m id[0m[2m is[0m[2m generated[0m[2m.[0m[2m Let[0m[2m me[0m[2m check[0m[2m the[0m[2m model[0m[2m:[0m[2m Todo[0m[2mItem[0m[2m has[0m[2m id[0m[2m as[0m[2m required[0m[2m.[0m[2m So[0m[2m for[0m[2m creating[0m[2m,[0m[2m the[0m[2m client[0m[2m shouldn[0m[2m't[0m[2m send[0m[2m id[0m[2m,[0m[2m but[0m[2m server[0m[2m assigns[0m[2m it[0m[2m.[0m[2m So[0m[2m in[0m[2m Fast[0m[2mAPI[0m[2m,[0m[2m for[0m[2m the[0m[2m POST[0m[2m endpoint[0m[2m,[0m[2m the[0m[2m request[0m[2m body[0m[2m should[0m[2m have[0m[2m id[0m[2m as[0m[2m optional[0m[2m?[0m[2m Wait[0m[2m,[0m[2m the[0m[2m model[0m[2m is[0m[2m defined[0m[2m with[0m[2m id[0m[2m:[0m[2m int[0m[2m,[0m[2m so[0m[2m it[0m[2m's[0m[2m required[0m[2m.[0m[2m That[0m[2m's[0m[2m a[0m[2m problem[0m[2m for[0m[2m creating[0m[2m.[0m[2m Wait[0m[2m,[0m[2m no[0m[2m.[0m[2m Maybe[0m[2m the[0m[2m Todo[0m[2mItem[0m[2m for[0m[2m creation[0m[2m doesn[0m[2m't[0m[2m have[0m[2m id[0m[2m,[0m[2m but[0m[2m the[0m[2m response[0m[2m does[0m[2m.[0m[2m So[0m[2m maybe[0m[2m a[0m[2m different[0m[2m model[0m[2m.
+     [0m[2mThen[0m[2m for[0m[2m POST[0m[2m:
      
-     [0m[2mWait[0m[2m,[0m[2m looking[0m[2m at[0m[2m the[0m[2m current[0m[2m code[0m[2m,[0m[2m the[0m[2m Todo[0m[2mItem[0m[2m class[0m[2m is[0m[2m used[0m[2m for[0m[2m the[0m[2m response[0m[2m.[0m[2m So[0m[2m for[0m[2m creating[0m[2m,[0m[2m they[0m[2m probably[0m[2m send[0m[2m a[0m[2m request[0m[2m without[0m[2m the[0m[2m id[0m[2m.[0m[2m But[0m[2m the[0m[2m current[0m[2m model[0m[2m requires[0m[2m id[0m[2m.[0m[2m So[0m[2m that[0m[2m's[0m[2m an[0m[2m issue[0m[2m.[0m[2m Wait[0m[2m,[0m[2m maybe[0m[2m the[0m[2m user[0m[2m made[0m[2m a[0m[2m mistake[0m[2m.[0m[2m However[0m[2m,[0m[2m the[0m[2m existing[0m[2m GET[0m[2m returns[0m[2m a[0m[2m list[0m[2m of[0m[2m items[0m[2m with[0m[2m id[0m[2m.[0m[2m So[0m[2m when[0m[2m creating[0m[2m,[0m[2m the[0m[2m POST[0m[2m should[0m[2m not[0m[2m require[0m[2m the[0m[2m client[0m[2m to[0m[2m provide[0m[2m id[0m[2m.[0m[2m Therefore[0m[2m,[0m[2m perhaps[0m[2m the[0m[2m app[0m[2m should[0m[2m have[0m[2m a[0m[2m different[0m[2m model[0m[2m for[0m[2m creation[0m[2m,[0m[2m but[0m[2m in[0m[2m the[0m[2m current[0m[2m code[0m[2m,[0m[2m it[0m[2m's[0m[2m not[0m[2m there[0m[2m.
+     [0m[2m-[0m[2m Accept[0m[2m a[0m[2m Todo[0m[2mItem[0m[2m without[0m[2m id[0m[2m ([0m[2mor[0m[2m with[0m[2m id[0m[2m,[0m[2m but[0m[2m we[0m[2m should[0m[2m ignore[0m[2m it[0m[2m since[0m[2m we[0m[2m assign[0m[2m it[0m[2m).[0m[2m Wait[0m[2m,[0m[2m the[0m[2m model[0m[2m requires[0m[2m id[0m[2m.[0m[2m Wait[0m[2m,[0m[2m the[0m[2m Todo[0m[2mItem[0m[2m class[0m[2m has[0m[2m id[0m[2m as[0m[2m a[0m[2m required[0m[2m field[0m[2m.[0m[2m Hmm[0m[2m,[0m[2m that[0m[2m's[0m[2m a[0m[2m problem[0m[2m.[0m[2m For[0m[2m creating[0m[2m a[0m[2m new[0m[2m item[0m[2m,[0m[2m the[0m[2m user[0m[2m shouldn[0m[2m't[0m[2m have[0m[2m to[0m[2m provide[0m[2m the[0m[2m ID[0m[2m;[0m[2m it[0m[2m should[0m[2m be[0m[2m generated[0m[2m by[0m[2m the[0m[2m server[0m[2m.
      
-     [0m[2mBut[0m[2m the[0m[2m user[0m[2m says[0m[2m the[0m[2m GET[0m[2m works[0m[2m,[0m[2m so[0m[2m maybe[0m[2m the[0m[2m existing[0m[2m code[0m[2m is[0m[2m only[0m[2m for[0m[2m reading[0m[2m.[0m[2m So[0m[2m for[0m[2m the[0m[2m POST[0m[2m,[0m[2m I[0m[2m need[0m[2m to[0m[2m handle[0m[2m it[0m[2m by[0m[2m generating[0m[2m the[0m[2m id[0m[2m server[0m[2m-side[0m[2m.[0m[2m So[0m[2m the[0m[2m input[0m[2m model[0m[2m for[0m[2m POST[0m[2m would[0m[2m be[0m[2m different[0m[2m:[0m[2m without[0m[2m id[0m[2m.[0m[2m Wait[0m[2m,[0m[2m but[0m[2m the[0m[2m code[0m[2m as[0m[2m given[0m[2m has[0m[2m Todo[0m[2mItem[0m[2m with[0m[2m id[0m[2m as[0m[2m mandatory[0m[2m.[0m[2m So[0m[2m this[0m[2m is[0m[2m a[0m[2m problem[0m[2m.[0m[2m Wait[0m[2m,[0m[2m maybe[0m[2m the[0m[2m example[0m[2m code[0m[2m is[0m[2m simplified[0m[2m,[0m[2m and[0m[2m in[0m[2m reality[0m[2m,[0m[2m for[0m[2m the[0m[2m POST[0m[2m,[0m[2m they[0m[2m might[0m[2m have[0m[2m another[0m[2m model[0m[2m.[0m[2m But[0m[2m since[0m[2m the[0m[2m user[0m[2m hasn[0m[2m't[0m[2m provided[0m[2m that[0m[2m,[0m[2m I[0m[2m have[0m[2m to[0m[2m adapt[0m[2m.
+     [0m[2mWait[0m[2m,[0m[2m looking[0m[2m at[0m[2m the[0m[2m current[0m[2m code[0m[2m:
      
-     [0m[2mAlternatively[0m[2m,[0m[2m when[0m[2m creating[0m[2m a[0m[2m new[0m[2m item[0m[2m,[0m[2m the[0m[2m client[0m[2m sends[0m[2m title[0m[2m and[0m[2m completed[0m[2m ([0m[2moptional[0m[2m),[0m[2m and[0m[2m the[0m[2m server[0m[2m assigns[0m[2m the[0m[2m next[0m[2m id[0m[2m.[0m[2m So[0m[2m perhaps[0m[2m the[0m[2m app[0m[2m is[0m[2m designed[0m[2m to[0m[2m ignore[0m[2m the[0m[2m id[0m[2m sent[0m[2m in[0m[2m the[0m[2m POST[0m[2m request[0m[2m.[0m[2m But[0m[2m the[0m[2m model[0m[2m requires[0m[2m it[0m[2m.[0m[2m Hmm[0m[2m.[0m[2m Let[0m[2m's[0m[2m see[0m[2m.
-     
-     [0m[2mWait[0m[2m,[0m[2m the[0m[2m current[0m[2m code[0m[2m shows[0m[2m that[0m[2m the[0m[2m db[0m[2m is[0m[2m a[0m[2m list[0m[2m of[0m[2m Todo[0m[2mItem[0m[2m which[0m[2m includes[0m[2m id[0m[2m.[0m[2m So[0m[2m if[0m[2m a[0m[2m client[0m[2m sends[0m[2m a[0m[2m POST[0m[2m with[0m[2m id[0m[2m,[0m[2m but[0m[2m we[0m[2m want[0m[2m to[0m[2m auto[0m[2m-g[0m[2menerate[0m[2m it[0m[2m,[0m[2m the[0m[2m model[0m[2m validation[0m[2m would[0m[2m fail[0m[2m.[0m[2m So[0m[2m perhaps[0m[2m the[0m[2m solution[0m[2m is[0m[2m to[0m[2m create[0m[2m a[0m[2m separate[0m[2m model[0m[2m for[0m[2m input[0m[2m that[0m[2m doesn[0m[2m't[0m[2m have[0m[2m id[0m[2m.[0m[2m For[0m[2m example[0m[2m:
-     
-     [0m[2mclass[0m[2m Todo[0m[2mCreate[0m[2m(Base[0m[2mModel[0m[2m):
+     [0m[2mclass[0m[2m Todo[0m[2mItem[0m[2m(Base[0m[2mModel[0m[2m):
+     [0m[2m   [0m[2m id[0m[2m:[0m[2m int[0m[2m
      [0m[2m   [0m[2m title[0m[2m:[0m[2m str[0m[2m
      [0m[2m   [0m[2m completed[0m[2m:[0m[2m bool[0m[2m =[0m[2m False[0m[2m
      
-     [0m[2mThen[0m[2m,[0m[2m in[0m[2m the[0m[2m POST[0m[2m endpoint[0m[2m,[0m[2m use[0m[2m this[0m[2m model[0m[2m,[0m[2m generate[0m[2m the[0m[2m id[0m[2m,[0m[2m and[0m[2m return[0m[2m the[0m[2m full[0m[2m Todo[0m[2mItem[0m[2m.
+     [0m[2mSo[0m[2m when[0m[2m posting[0m[2m a[0m[2m new[0m[2m item[0m[2m,[0m[2m the[0m[2m client[0m[2m would[0m[2m need[0m[2m to[0m[2m send[0m[2m an[0m[2m id[0m[2m.[0m[2m But[0m[2m in[0m[2m proper[0m[2m REST[0m[2m,[0m[2m id[0m[2m for[0m[2m creation[0m[2m isn[0m[2m't[0m[2m sent[0m[2m by[0m[2m the[0m[2m client[0m[2m but[0m[2m generated[0m[2m by[0m[2m the[0m[2m server[0m[2m.[0m[2m So[0m[2m maybe[0m[2m the[0m[2m issue[0m[2m here[0m[2m is[0m[2m that[0m[2m the[0m[2m model[0m[2m requires[0m[2m id[0m[2m,[0m[2m which[0m[2m is[0m[2m not[0m[2m ideal[0m[2m for[0m[2m POST[0m[2m.[0m[2m However[0m[2m,[0m[2m the[0m[2m user[0m[2m's[0m[2m existing[0m[2m code[0m[2m already[0m[2m uses[0m[2m this[0m[2m model[0m[2m,[0m[2m so[0m[2m perhaps[0m[2m they[0m[2m expect[0m[2m that[0m[2m for[0m[2m POST[0m[2m,[0m[2m the[0m[2m id[0m[2m is[0m[2m auto[0m[2m-generated[0m[2m by[0m[2m the[0m[2m server[0m[2m,[0m[2m so[0m[2m the[0m[2m model[0m[2m might[0m[2m be[0m[2m modified[0m[2m.[0m[2m Wait[0m[2m,[0m[2m but[0m[2m the[0m[2m existing[0m[2m code[0m[2m's[0m[2m GET[0m[2m endpoint[0m[2m returns[0m[2m items[0m[2m with[0m[2m their[0m[2m IDs[0m[2m,[0m[2m so[0m[2m the[0m[2m model[0m[2m is[0m[2m correct[0m[2m for[0m[2m output[0m[2m.
      
-     [0m[2mBut[0m[2m the[0m[2m existing[0m[2m code[0m[2m doesn[0m[2m't[0m[2m have[0m[2m this[0m[2m.[0m[2m So[0m[2m the[0m[2m TODO[0m[2ms[0m[2m include[0m[2m implementing[0m[2m these[0m[2m endpoints[0m[2m.[0m[2m So[0m[2m I[0m[2m need[0m[2m to[0m[2m add[0m[2m the[0m[2m appropriate[0m[2m models[0m[2m and[0m[2m routes[0m[2m.
+     [0m[2mFor[0m[2m the[0m[2m POST[0m[2m request[0m[2m,[0m[2m the[0m[2m client[0m[2m should[0m[2m send[0m[2m a[0m[2m title[0m[2m ([0m[2mand[0m[2m maybe[0m[2m completed[0m[2m),[0m[2m but[0m[2m not[0m[2m the[0m[2m ID[0m[2m.[0m[2m So[0m[2m perhaps[0m[2m a[0m[2m separate[0m[2m model[0m[2m is[0m[2m needed[0m[2m for[0m[2m creation[0m[2m,[0m[2m like[0m[2m Todo[0m[2mItem[0m[2mCreate[0m[2m with[0m[2m title[0m[2m and[0m[2m completed[0m[2m as[0m[2m optional[0m[2m,[0m[2m then[0m[2m in[0m[2m the[0m[2m route[0m[2m,[0m[2m create[0m[2m a[0m[2m new[0m[2m Todo[0m[2mItem[0m[2m with[0m[2m the[0m[2m next[0m[2m id[0m[2m.
      
-     [0m[2mLooking[0m[2m at[0m[2m the[0m[2m current[0m[2m code[0m[2m,[0m[2m the[0m[2m app[0m[2m has[0m[2m only[0m[2m the[0m[2m Todo[0m[2mItem[0m[2m model[0m[2m.[0m[2m So[0m[2m the[0m[2m POST[0m[2m endpoint[0m[2m would[0m[2m need[0m[2m to[0m[2m use[0m[2m that[0m[2m model[0m[2m,[0m[2m but[0m[2m ignore[0m[2m the[0m[2m id[0m[2m field[0m[2m.[0m[2m But[0m[2m that[0m[2m's[0m[2m not[0m[2m standard[0m[2m.[0m[2m So[0m[2m the[0m[2m correct[0m[2m approach[0m[2m is[0m[2m to[0m[2m create[0m[2m a[0m[2m separate[0m[2m model[0m[2m for[0m[2m creation[0m[2m ([0m[2mwithout[0m[2m id[0m[2m)[0m[2m and[0m[2m for[0m[2m updating[0m[2m ([0m[2mwith[0m[2m partial[0m[2m fields[0m[2m).
+     [0m[2mBut[0m[2m the[0m[2m user[0m[2m hasn[0m[2m't[0m[2m mentioned[0m[2m changing[0m[2m the[0m[2m model[0m[2m.[0m[2m Let[0m[2m me[0m[2m check[0m[2m what[0m[2m's[0m[2m in[0m[2m the[0m[2m current[0m[2m code[0m[2m.[0m[2m The[0m[2m existing[0m[2m code[0m[2m has[0m[2m the[0m[2m Todo[0m[2mItem[0m[2m model[0m[2m.[0m[2m So[0m[2m maybe[0m[2m the[0m[2m instruction[0m[2m is[0m[2m to[0m[2m proceed[0m[2m with[0m[2m the[0m[2m current[0m[2m model[0m[2m,[0m[2m and[0m[2m for[0m[2m POST[0m[2m,[0m[2m the[0m[2m client[0m[2m includes[0m[2m whatever[0m[2m,[0m[2m but[0m[2m the[0m[2m server[0m[2m over[0m[2mwrites[0m[2m the[0m[2m ID[0m[2m.[0m[2m Hmm[0m[2m,[0m[2m but[0m[2m if[0m[2m the[0m[2m client[0m[2m sends[0m[2m an[0m[2m id[0m[2m,[0m[2m it[0m[2m might[0m[2m cause[0m[2m conflicts[0m[2m.[0m[2m However[0m[2m,[0m[2m the[0m[2m user[0m[2m's[0m[2m instruction[0m[2m says[0m[2m "[0m[2mMake[0m[2m sure[0m[2m it[0m[2m handles[0m[2m IDs[0m[2m correctly[0m[2m ([0m[2mauto[0m[2m-in[0m[2mcrement[0m[2m is[0m[2m fine[0m[2m)"[0m[2m so[0m[2m the[0m[2m server[0m[2m must[0m[2m generate[0m[2m the[0m[2m ID[0m[2m,[0m[2m not[0m[2m the[0m[2m client[0m[2m.
      
-     [0m[2mAlternatively[0m[2m,[0m[2m allow[0m[2m the[0m[2m id[0m[2m to[0m[2m be[0m[2m optional[0m[2m in[0m[2m the[0m[2m request[0m[2m.[0m[2m Let[0m[2m's[0m[2m see[0m[2m.
+     [0m[2mTherefore[0m[2m,[0m[2m perhaps[0m[2m the[0m[2m correct[0m[2m approach[0m[2m is[0m[2m to[0m[2m have[0m[2m a[0m[2m separate[0m[2m Py[0m[2md[0m[2mantic[0m[2m model[0m[2m for[0m[2m creation[0m[2m where[0m[2m id[0m[2m is[0m[2m not[0m[2m required[0m[2m,[0m[2m but[0m[2m given[0m[2m the[0m[2m current[0m[2m code[0m[2m,[0m[2m maybe[0m[2m we[0m[2m need[0m[2m to[0m[2m adjust[0m[2m.[0m[2m Wait[0m[2m,[0m[2m the[0m[2m existing[0m[2m code[0m[2m's[0m[2m model[0m[2m has[0m[2m id[0m[2m as[0m[2m required[0m[2m.[0m[2m So[0m[2m in[0m[2m the[0m[2m POST[0m[2m endpoint[0m[2m,[0m[2m when[0m[2m the[0m[2m client[0m[2m sends[0m[2m data[0m[2m,[0m[2m maybe[0m[2m it[0m[2m's[0m[2m sending[0m[2m a[0m[2m JSON[0m[2m without[0m[2m id[0m[2m,[0m[2m but[0m[2m the[0m[2m model[0m[2m requires[0m[2m it[0m[2m.[0m[2m That[0m[2m would[0m[2m result[0m[2m in[0m[2m a[0m[2m validation[0m[2m error[0m[2m.[0m[2m So[0m[2m perhaps[0m[2m the[0m[2m code[0m[2m needs[0m[2m to[0m[2m change[0m[2m the[0m[2m model[0m[2m for[0m[2m the[0m[2m POST[0m[2m request[0m[2m.
      
-     [0m[2mBut[0m[2m the[0m[2m user[0m[2m says[0m[2m "[0m[2mhandles[0m[2m IDs[0m[2m correctly[0m[2m ([0m[2mauto[0m[2m-in[0m[2mcrement[0m[2m is[0m[2m fine[0m[2m)",[0m[2m so[0m[2m the[0m[2m server[0m[2m generates[0m[2m the[0m[2m id[0m[2m.[0m[2m So[0m[2m in[0m[2m the[0m[2m POST[0m[2m request[0m[2m,[0m[2m the[0m[2m client[0m[2m should[0m[2m not[0m[2m send[0m[2m the[0m[2m id[0m[2m,[0m[2m and[0m[2m the[0m[2m server[0m[2m assigns[0m[2m it[0m[2m.[0m[2m Therefore[0m[2m,[0m[2m the[0m[2m request[0m[2m body[0m[2m for[0m[2m creating[0m[2m should[0m[2m not[0m[2m include[0m[2m id[0m[2m.[0m[2m Hence[0m[2m,[0m[2m a[0m[2m separate[0m[2m model[0m[2m would[0m[2m be[0m[2m better[0m[2m.
+     [0m[2mAlternatively[0m[2m,[0m[2m set[0m[2m id[0m[2m as[0m[2m optional[0m[2m with[0m[2m a[0m[2m default[0m[2m,[0m[2m but[0m[2m the[0m[2m existing[0m[2m model[0m[2m has[0m[2m id[0m[2m as[0m[2m required[0m[2m.[0m[2m Hmm[0m[2m.[0m[2m Let[0m[2m's[0m[2m think[0m[2m.
      
-     [0m[2mBut[0m[2m given[0m[2m the[0m[2m current[0m[2m setup[0m[2m,[0m[2m maybe[0m[2m the[0m[2m user[0m[2m expects[0m[2m the[0m[2m Todo[0m[2mItem[0m[2m model[0m[2m to[0m[2m have[0m[2m id[0m[2m as[0m[2m optional[0m[2m for[0m[2m input[0m[2m.[0m[2m Wait[0m[2m,[0m[2m but[0m[2m the[0m[2m class[0m[2m defines[0m[2m id[0m[2m as[0m[2m int[0m[2m,[0m[2m which[0m[2m would[0m[2m require[0m[2m it[0m[2m.[0m[2m So[0m[2m perhaps[0m[2m in[0m[2m the[0m[2m current[0m[2m code[0m[2m,[0m[2m the[0m[2m GET[0m[2m endpoint[0m[2m works[0m[2m because[0m[2m the[0m[2m db[0m[2m entries[0m[2m are[0m[2m created[0m[2m manually[0m[2m with[0m[2m ids[0m[2m.[0m[2m So[0m[2m for[0m[2m the[0m[2m POST[0m[2m endpoint[0m[2m,[0m[2m I[0m[2m need[0m[2m to[0m[2m generate[0m[2m the[0m[2m id[0m[2m,[0m[2m so[0m[2m the[0m[2m input[0m[2m model[0m[2m should[0m[2m not[0m[2m require[0m[2m it[0m[2m.[0m[2m Therefore[0m[2m,[0m[2m create[0m[2m a[0m[2m new[0m[2m model[0m[2m for[0m[2m item[0m[2m creation[0m[2m.
+     [0m[2mIn[0m[2m the[0m[2m current[0m[2m setup[0m[2m,[0m[2m the[0m[2m existing[0m[2m code[0m[2m is[0m[2m:
      
-     [0m[2mSo[0m[2m steps[0m[2m:
-     
-     [0m[2m1[0m[2m.[0m[2m Add[0m[2m a[0m[2m new[0m[2m model[0m[2m for[0m[2m Todo[0m[2mCreate[0m[2m ([0m[2mtitle[0m[2m,[0m[2m completed[0m[2m).
-     [0m[2m2[0m[2m.[0m[2m POST[0m[2m /[0m[2mtodos[0m[2m should[0m[2m add[0m[2m a[0m[2m new[0m[2m item[0m[2m with[0m[2m next[0m[2m available[0m[2m id[0m[2m ([0m[2mmax[0m[2m(db[0m[2m.id[0m[2m)[0m[2m +[0m[2m1[0m[2m).
-     [0m[2m3[0m[2m.[0m[2m Return[0m[2m [0m[2m2[0m[2m0[0m[2m1[0m[2m with[0m[2m the[0m[2m new[0m[2m item[0m[2m.
-     
-     [0m[2mFor[0m[2m PUT[0m[2m:[0m[2m need[0m[2m to[0m[2m update[0m[2m existing[0m[2m item[0m[2m.[0m[2m So[0m[2m the[0m[2m endpoint[0m[2m is[0m[2m /[0m[2mtodos[0m[2m/{[0m[2mitem[0m[2m_id[0m[2m},[0m[2m which[0m[2m takes[0m[2m the[0m[2m id[0m[2m from[0m[2m path[0m[2m,[0m[2m and[0m[2m the[0m[2m body[0m[2m would[0m[2m be[0m[2m a[0m[2m model[0m[2m that[0m[2m can[0m[2m have[0m[2m title[0m[2m and[0m[2m/or[0m[2m completed[0m[2m.[0m[2m So[0m[2m another[0m[2m model[0m[2m for[0m[2m update[0m[2m,[0m[2m maybe[0m[2m with[0m[2m optional[0m[2m fields[0m[2m.
-     
-     [0m[2mIn[0m[2m Fast[0m[2mAPI[0m[2m,[0m[2m you[0m[2m can[0m[2m use[0m[2m the[0m[2m same[0m[2m Todo[0m[2mItem[0m[2m model[0m[2m if[0m[2m id[0m[2m is[0m[2m required[0m[2m,[0m[2m but[0m[2m for[0m[2m update[0m[2m,[0m[2m the[0m[2m client[0m[2m might[0m[2m send[0m[2m partial[0m[2m data[0m[2m.[0m[2m So[0m[2m probably[0m[2m,[0m[2m a[0m[2m new[0m[2m model[0m[2m with[0m[2m optional[0m[2m fields[0m[2m.
-     
-     [0m[2mAlternatively[0m[2m,[0m[2m use[0m[2m a[0m[2m model[0m[2m with[0m[2m title[0m[2m:[0m[2m Optional[0m[2m[str[0m[2m][0m[2m etc[0m[2m.[0m[2m But[0m[2m the[0m[2m current[0m[2m code[0m[2m doesn[0m[2m't[0m[2m have[0m[2m that[0m[2m.[0m[2m So[0m[2m I[0m[2m need[0m[2m to[0m[2m add[0m[2m these[0m[2m models[0m[2m.
-     
-     [0m[2mSimilarly[0m[2m,[0m[2m for[0m[2m DELETE[0m[2m,[0m[2m just[0m[2m find[0m[2m by[0m[2m id[0m[2m and[0m[2m remove[0m[2m,[0m[2m return[0m[2m [0m[2m2[0m[2m0[0m[2m4[0m[2m.
-     
-     [0m[2mNow[0m[2m,[0m[2m how[0m[2m to[0m[2m integrate[0m[2m this[0m[2m into[0m[2m the[0m[2m existing[0m[2m code[0m[2m.
-     
-     [0m[2mFirst[0m[2m,[0m[2m let[0m[2m's[0m[2m check[0m[2m if[0m[2m there[0m[2m are[0m[2m any[0m[2m existing[0m[2m imports[0m[2m.[0m[2m The[0m[2m current[0m[2m code[0m[2m imports[0m[2m Fast[0m[2mAPI[0m[2m,[0m[2m HTTP[0m[2mException[0m[2m,[0m[2m BaseModel[0m[2m.
-     
-     [0m[2mSo[0m[2m adding[0m[2m new[0m[2m models[0m[2m:
-     
-     [0m[2mclass[0m[2m Todo[0m[2mCreate[0m[2m(Base[0m[2mModel[0m[2m):
+     [0m[2mclass[0m[2m Todo[0m[2mItem[0m[2m(Base[0m[2mModel[0m[2m):
+     [0m[2m   [0m[2m id[0m[2m:[0m[2m int[0m[2m
      [0m[2m   [0m[2m title[0m[2m:[0m[2m str[0m[2m
      [0m[2m   [0m[2m completed[0m[2m:[0m[2m bool[0m[2m =[0m[2m False[0m[2m
      
-     [0m[2mclass[0m[2m Todo[0m[2mUpdate[0m[2m(Base[0m[2mModel[0m[2m):
-     [0m[2m   [0m[2m title[0m[2m:[0m[2m Optional[0m[2m[str[0m[2m][0m[2m =[0m[2m None[0m[2m
-     [0m[2m   [0m[2m completed[0m[2m:[0m[2m Optional[0m[2m[[0m[2mbool[0m[2m][0m[2m =[0m[2m None[0m[2m
+     [0m[2mSo[0m[2m for[0m[2m POST[0m[2m,[0m[2m when[0m[2m the[0m[2m client[0m[2m sends[0m[2m a[0m[2m new[0m[2m item[0m[2m,[0m[2m they[0m[2m need[0m[2m to[0m[2m include[0m[2m an[0m[2m id[0m[2m.[0m[2m But[0m[2m according[0m[2m to[0m[2m REST[0m[2m practices[0m[2m,[0m[2m the[0m[2m server[0m[2m should[0m[2m handle[0m[2m ID[0m[2m assignment[0m[2m,[0m[2m so[0m[2m the[0m[2m client[0m[2m shouldn[0m[2m't[0m[2m be[0m[2m sending[0m[2m it[0m[2m.[0m[2m Therefore[0m[2m,[0m[2m there[0m[2m's[0m[2m a[0m[2m problem[0m[2m here[0m[2m.[0m[2m The[0m[2m correct[0m[2m approach[0m[2m would[0m[2m be[0m[2m to[0m[2m have[0m[2m another[0m[2m model[0m[2m for[0m[2m new[0m[2m items[0m[2m,[0m[2m e[0m[2m.g[0m[2m.,[0m[2m
      
-     [0m[2mWait[0m[2m,[0m[2m but[0m[2m the[0m[2m user[0m[2m says[0m[2m "[0m[2mUpdate[0m[2m"[0m[2m should[0m[2m handle[0m[2m updates[0m[2m,[0m[2m so[0m[2m the[0m[2m model[0m[2m for[0m[2m PUT[0m[2m could[0m[2m be[0m[2m optional[0m[2m fields[0m[2m.
+     [0m[2mclass[0m[2m Todo[0m[2mItem[0m[2mCreate[0m[2m(Base[0m[2mModel[0m[2m):
+     [0m[2m   [0m[2m title[0m[2m:[0m[2m str[0m[2m
+     [0m[2m   [0m[2m completed[0m[2m:[0m[2m bool[0m[2m =[0m[2m False[0m[2m
      
-     [0m[2mBut[0m[2m let[0m[2m's[0m[2m look[0m[2m at[0m[2m the[0m[2m user[0m[2m's[0m[2m instruction[0m[2m:[0m[2m "[0m[2mUpdate[0m[2m"[0m[2m should[0m[2m handle[0m[2m IDs[0m[2m correctly[0m[2m,[0m[2m so[0m[2m the[0m[2m path[0m[2m has[0m[2m item[0m[2m_id[0m[2m,[0m[2m and[0m[2m the[0m[2m body[0m[2m contains[0m[2m the[0m[2m new[0m[2m data[0m[2m.
+     [0m[2mThen[0m[2m the[0m[2m POST[0m[2m endpoint[0m[2m would[0m[2m accept[0m[2m Todo[0m[2mItem[0m[2mCreate[0m[2m,[0m[2m generate[0m[2m the[0m[2m id[0m[2m,[0m[2m and[0m[2m create[0m[2m a[0m[2m Todo[0m[2mItem[0m[2m.
      
-     [0m[2mOnce[0m[2m the[0m[2m models[0m[2m are[0m[2m added[0m[2m,[0m[2m implement[0m[2m the[0m[2m endpoints[0m[2m:
+     [0m[2mBut[0m[2m given[0m[2m that[0m[2m the[0m[2m user[0m[2m's[0m[2m existing[0m[2m code[0m[2m is[0m[2m as[0m[2m is[0m[2m,[0m[2m maybe[0m[2m we[0m[2m need[0m[2m to[0m[2m adjust[0m[2m the[0m[2m model[0m[2m or[0m[2m the[0m[2m approach[0m[2m.[0m[2m However[0m[2m,[0m[2m the[0m[2m user[0m[2m says[0m[2m "[0m[2mplease[0m[2m implement[0m[2m the[0m[2m functionality[0m[2m to[0m[2m Create[0m[2m,[0m[2m Update[0m[2m,[0m[2m and[0m[2m Delete[0m[2m",[0m[2m so[0m[2m we[0m[2m need[0m[2m to[0m[2m work[0m[2m within[0m[2m the[0m[2m existing[0m[2m structure[0m[2m.
      
-     [0m[2m@app[0m[2m.post[0m[2m("/[0m[2mtodos[0m[2m",[0m[2m response[0m[2m_model[0m[2m=[0m[2mTodo[0m[2mItem[0m[2m,[0m[2m status[0m[2m_code[0m[2m=[0m[2m2[0m[2m0[0m[2m1[0m[2m)
-     [0m[2masync[0m[2m def[0m[2m create[0m[2m_todo[0m[2m(item[0m[2m:[0m[2m Todo[0m[2mCreate[0m[2m):
-     [0m[2m   [0m[2m next[0m[2m_id[0m[2m =[0m[2m max[0m[2m([[0m[2mt[0m[2m.id[0m[2m for[0m[2m t[0m[2m in[0m[2m db[0m[2m],[0m[2m default[0m[2m=[0m[2m0[0m[2m)[0m[2m +[0m[2m [0m[2m1[0m[2m
-     [0m[2m   [0m[2m new[0m[2m_item[0m[2m =[0m[2m Todo[0m[2mItem[0m[2m(id[0m[2m=[0m[2mnext[0m[2m_id[0m[2m,[0m[2m title[0m[2m=item[0m[2m.title[0m[2m,[0m[2m completed[0m[2m=item[0m[2m.completed[0m[2m)
-     [0m[2m   [0m[2m db[0m[2m.append[0m[2m(new[0m[2m_item[0m[2m)
-     [0m[2m   [0m[2m return[0m[2m new[0m[2m_item[0m[2m
-     
-     [0m[2m@app[0m[2m.put[0m[2m("/[0m[2mtodos[0m[2m/{[0m[2mitem[0m[2m_id[0m[2m}",[0m[2m response[0m[2m_model[0m[2m=[0m[2mTodo[0m[2mItem[0m[2m)
-     [0m[2masync[0m[2m def[0m[2m update[0m[2m_todo[0m[2m(item[0m[2m_id[0m[2m:[0m[2m int[0m[2m,[0m[2m item[0m[2m:[0m[2m Todo[0m[2mUpdate[0m[2m):
-     [0m[2m   [0m[2m for[0m[2m todo[0m[2m in[0m[2m db[0m[2m:
-     [0m[2m       [0m[2m if[0m[2m todo[0m[2m.id[0m[2m ==[0m[2m item[0m[2m_id[0m[2m:
-     [0m[2m           [0m[2m if[0m[2m item[0m[2m.title[0m[2m is[0m[2m not[0m[2m None[0m[2m:
-     [0m[2m               [0m[2m todo[0m[2m.title[0m[2m =[0m[2m item[0m[2m.title[0m[2m
-     [0m[2m           [0m[2m if[0m[2m item[0m[2m.completed[0m[2m is[0m[2m not[0m[2m None[0m[2m:
-     [0m[2m               [0m[2m todo[0m[2m.completed[0m[2m =[0m[2m item[0m[2m.completed[0m[2m
-     [0m[2m           [0m[2m return[0m[2m todo[0m[2m
-     [0m[2m   [0m[2m raise[0m[2m HTTP[0m[2mException[0m[2m(status[0m[2m_code[0m[2m=[0m[2m4[0m[2m0[0m[2m4[0m[2m,[0m[2m detail[0m[2m="[0m[2mItem[0m[2m not[0m[2m found[0m[2m")
-     
-     [0m[2m@app[0m[2m.delete[0m[2m("/[0m[2mtodos[0m[2m/{[0m[2mitem[0m[2m_id[0m[2m}",[0m[2m status[0m[2m_code[0m[2m=[0m[2m2[0m[2m0[0m[2m4[0m[2m)
-     [0m[2masync[0m[2m def[0m[2m delete[0m[2m_todo[0m[2m(item[0m[2m_id[0m[2m:[0m[2m int[0m[2m):
-     [0m[2m   [0m[2m for[0m[2m index[0m[2m,[0m[2m todo[0m[2m in[0m[2m enumerate[0m[2m(db[0m[2m):
-     [0m[2m       [0m[2m if[0m[2m todo[0m[2m.id[0m[2m ==[0m[2m item[0m[2m_id[0m[2m:
-     [0m[2m           [0m[2m db[0m[2m.pop[0m[2m(index[0m[2m)
-     [0m[2m           [0m[2m return[0m[2m
-     [0m[2m   [0m[2m raise[0m[2m HTTP[0m[2mException[0m[2m(status[0m[2m_code[0m[2m=[0m[2m4[0m[2m0[0m[2m4[0m[2m,[0m[2m detail[0m[2m="[0m[2mItem[0m[2m not[0m[2m found[0m[2m")
-     
-     [0m[2mWait[0m[2m,[0m[2m need[0m[2m to[0m[2m check[0m[2m if[0m[2m the[0m[2m db[0m[2m entries[0m[2m exist[0m[2m for[0m[2m update[0m[2m and[0m[2m delete[0m[2m.
-     
-     [0m[2mAlso[0m[2m,[0m[2m the[0m[2m existing[0m[2m code[0m[2m has[0m[2m db[0m[2m as[0m[2m a[0m[2m list[0m[2m of[0m[2m Todo[0m[2mItem[0m[2m.[0m[2m So[0m[2m in[0m[2m the[0m[2m PUT[0m[2m and[0m[2m DELETE[0m[2m,[0m[2m they[0m[2m iterate[0m[2m through[0m[2m db[0m[2m to[0m[2m find[0m[2m the[0m[2m item[0m[2m.
-     
-     [0m[2mNow[0m[2m,[0m[2m check[0m[2m if[0m[2m the[0m[2m current[0m[2m code[0m[2m already[0m[2m has[0m[2m these[0m[2m placeholders[0m[2m.[0m[2m The[0m[2m TODO[0m[2ms[0m[2m in[0m[2m the[0m[2m code[0m[2m mention[0m[2m implementing[0m[2m POST[0m[2m,[0m[2m PUT[0m[2m,[0m[2m DELETE[0m[2m.
-     
-     [0m[2mSo[0m[2m the[0m[2m next[0m[2m step[0m[2m is[0m[2m to[0m[2m insert[0m[2m the[0m[2m code[0m[2m for[0m[2m these[0m[2m endpoints[0m[2m into[0m[2m the[0m[2m todo[0m[2m_app[0m[2m.py[0m[2m file[0m[2m.
-     
-     [0m[2mBut[0m[2m need[0m[2m to[0m[2m make[0m[2m sure[0m[2m the[0m[2m imports[0m[2m are[0m[2m correct[0m[2m.[0m[2m For[0m[2m example[0m[2m,[0m[2m Optional[0m[2m is[0m[2m imported[0m[2m from[0m[2m typing[0m[2m,[0m[2m which[0m[2m is[0m[2m already[0m[2m done[0m[2m.
-     
-     [0m[2mAlso[0m[2m,[0m[2m add[0m[2m the[0m[2m new[0m[2m models[0m[2m:[0m[2m Todo[0m[2mCreate[0m[2m and[0m[2m Todo[0m[2mUpdate[0m[2m.
-     
-     [0m[2mWait[0m[2m,[0m[2m the[0m[2m current[0m[2m code[0m[2m has[0m[2m:
-     
-     [0m[2mfrom[0m[2m typing[0m[2m import[0m[2m List[0m[2m,[0m[2m Optional[0m[2m
-     
-     [0m[2mSo[0m[2m Optional[0m[2m is[0m[2m available[0m[2m.
-     
-     [0m[2mSo[0m[2m the[0m[2m code[0m[2m structure[0m[2m would[0m[2m be[0m[2m:
-     
-     [0m[2m-[0m[2m After[0m[2m the[0m[2m Todo[0m[2mItem[0m[2m class[0m[2m,[0m[2m define[0m[2m Todo[0m[2mCreate[0m[2m and[0m[2m Todo[0m[2mUpdate[0m[2m.
-     
-     [0m[2m-[0m[2m Then[0m[2m add[0m[2m the[0m[2m three[0m[2m endpoints[0m[2m.
-     
-     [0m[2mNow[0m[2m,[0m[2m let[0m[2m's[0m[2m check[0m[2m potential[0m[2m issues[0m[2m:
-     
-     [0m[2m1[0m[2m.[0m[2m Auto[0m[2m-in[0m[2mcrement[0m[2m:[0m[2m using[0m[2m max[0m[2m([[0m[2mt[0m[2m.id[0m[2m for[0m[2m t[0m[2m in[0m[2m db[0m[2m],[0m[2m default[0m[2m=[0m[2m0[0m[2m)[0m[2m +[0m[2m [0m[2m1[0m[2m.[0m[2m If[0m[2m db[0m[2m is[0m[2m empty[0m[2m,[0m[2m starts[0m[2m at[0m[2m [0m[2m1[0m[2m.
-     
-     [0m[2m2[0m[2m.[0m[2m For[0m[2m update[0m[2m,[0m[2m the[0m[2m function[0m[2m modifies[0m[2m the[0m[2m existing[0m[2m object[0m[2m in[0m[2m the[0m[2m list[0m[2m.
-     
-     [0m[2m3[0m[2m.[0m[2m Delete[0m[2m removes[0m[2m the[0m[2m first[0m[2m occurrence[0m[2m.
-     
-     [0m[2mNow[0m[2m,[0m[2m the[0m[2m next[0m[2m step[0m[2m is[0m[2m to[0m[2m generate[0m[2m the[0m[2m exact[0m[2m code[0m[2m to[0m[2m replace[0m[2m the[0m[2m TODO[0m[2m lines[0m[2m.
-     
-     [0m[2mThe[0m[2m current[0m[2m file[0m[2m has[0m[2m:
+     [0m[2mWait[0m[2m,[0m[2m looking[0m[2m at[0m[2m the[0m[2m TODO[0m[2m comments[0m[2m in[0m[2m the[0m[2m code[0m[2m:
      
      [0m[2m#[0m[2m TODO[0m[2m:[0m[2m Implement[0m[2m POST[0m[2m /[0m[2mtodos[0m[2m to[0m[2m add[0m[2m a[0m[2m new[0m[2m item[0m[2m
      [0m[2m#[0m[2m TODO[0m[2m:[0m[2m Implement[0m[2m PUT[0m[2m /[0m[2mtodos[0m[2m/{[0m[2mitem[0m[2m_id[0m[2m}[0m[2m to[0m[2m update[0m[2m an[0m[2m item[0m[2m
      [0m[2m#[0m[2m TODO[0m[2m:[0m[2m Implement[0m[2m DELETE[0m[2m /[0m[2mtodos[0m[2m/{[0m[2mitem[0m[2m_id[0m[2m}[0m[2m to[0m[2m delete[0m[2m an[0m[2m item[0m[2m
      
-     [0m[2mSo[0m[2m I[0m[2m need[0m[2m to[0m[2m replace[0m[2m those[0m[2m three[0m[2m lines[0m[2m with[0m[2m the[0m[2m code[0m[2m for[0m[2m the[0m[2m endpoints[0m[2m and[0m[2m the[0m[2m new[0m[2m models[0m[2m.
+     [0m[2mSo[0m[2m they[0m[2m expect[0m[2m the[0m[2m POST[0m[2m to[0m[2m be[0m[2m to[0m[2m /[0m[2mtodos[0m[2m,[0m[2m and[0m[2m the[0m[2m PUT[0m[2m and[0m[2m DELETE[0m[2m to[0m[2m use[0m[2m the[0m[2m item[0m[2m_id[0m[2m in[0m[2m the[0m[2m path[0m[2m.
      
-     [0m[2mWait[0m[2m,[0m[2m the[0m[2m models[0m[2m are[0m[2m new[0m[2m classes[0m[2m,[0m[2m so[0m[2m they[0m[2m need[0m[2m to[0m[2m be[0m[2m added[0m[2m after[0m[2m Todo[0m[2mItem[0m[2m.
+     [0m[2mSo[0m[2m for[0m[2m POST[0m[2m,[0m[2m the[0m[2m client[0m[2m sends[0m[2m data[0m[2m ([0m[2mprobably[0m[2m without[0m[2m id[0m[2m),[0m[2m but[0m[2m the[0m[2m current[0m[2m model[0m[2m requires[0m[2m id[0m[2m.[0m[2m So[0m[2m there[0m[2m's[0m[2m a[0m[2m problem[0m[2m.[0m[2m Therefore[0m[2m,[0m[2m perhaps[0m[2m the[0m[2m existing[0m[2m code[0m[2m's[0m[2m model[0m[2m needs[0m[2m adjustment[0m[2m.[0m[2m However[0m[2m,[0m[2m the[0m[2m user[0m[2m may[0m[2m have[0m[2m intended[0m[2m for[0m[2m the[0m[2m POST[0m[2m to[0m[2m include[0m[2m the[0m[2m id[0m[2m,[0m[2m but[0m[2m that[0m[2m's[0m[2m not[0m[2m standard[0m[2m.
      
-     [0m[2mSo[0m[2m in[0m[2m the[0m[2m code[0m[2m:
+     [0m[2mWait[0m[2m,[0m[2m but[0m[2m maybe[0m[2m the[0m[2m user[0m[2m's[0m[2m code[0m[2m uses[0m[2m the[0m[2m model[0m[2m in[0m[2m the[0m[2m response[0m[2m,[0m[2m but[0m[2m for[0m[2m input[0m[2m,[0m[2m maybe[0m[2m another[0m[2m model[0m[2m.[0m[2m However[0m[2m,[0m[2m the[0m[2m code[0m[2m as[0m[2m given[0m[2m doesn[0m[2m't[0m[2m have[0m[2m that[0m[2m.[0m[2m So[0m[2m I[0m[2m think[0m[2m the[0m[2m right[0m[2m way[0m[2m is[0m[2m to[0m[2m create[0m[2m a[0m[2m new[0m[2m item[0m[2m with[0m[2m a[0m[2m generated[0m[2m ID[0m[2m,[0m[2m so[0m[2m the[0m[2m model[0m[2m for[0m[2m input[0m[2m ([0m[2mPOST[0m[2m body[0m[2m)[0m[2m should[0m[2m not[0m[2m require[0m[2m id[0m[2m,[0m[2m but[0m[2m the[0m[2m output[0m[2m does[0m[2m.
      
-     [0m[2mclass[0m[2m Todo[0m[2mItem[0m[2m(Base[0m[2mModel[0m[2m):
-     [0m[2m   [0m[2m ...
+     [0m[2mBut[0m[2m given[0m[2m that[0m[2m the[0m[2m current[0m[2m code[0m[2m only[0m[2m has[0m[2m one[0m[2m model[0m[2m,[0m[2m this[0m[2m could[0m[2m be[0m[2m a[0m[2m problem[0m[2m.[0m[2m However[0m[2m,[0m[2m since[0m[2m the[0m[2m user[0m[2m is[0m[2m asking[0m[2m to[0m[2m finish[0m[2m the[0m[2m endpoints[0m[2m,[0m[2m maybe[0m[2m they[0m[2m have[0m[2m a[0m[2m way[0m[2m to[0m[2m handle[0m[2m this[0m[2m,[0m[2m or[0m[2m perhaps[0m[2m the[0m[2m existing[0m[2m model[0m[2m is[0m[2m only[0m[2m used[0m[2m for[0m[2m responses[0m[2m.
      
-     [0m[2mclass[0m[2m Todo[0m[2mCreate[0m[2m(Base[0m[2mModel[0m[2m):
-     [0m[2m   [0m[2m ...
+     [0m[2mWait[0m[2m,[0m[2m the[0m[2m GET[0m[2m endpoint[0m[2m uses[0m[2m response[0m[2m_model[0m[2m=[0m[2mList[0m[2m[T[0m[2modo[0m[2mItem[0m[2m],[0m[2m so[0m[2m the[0m[2m model[0m[2m is[0m[2m for[0m[2m responses[0m[2m.[0m[2m For[0m[2m the[0m[2m POST[0m[2m,[0m[2m the[0m[2m request[0m[2m body[0m[2m would[0m[2m be[0m[2m a[0m[2m different[0m[2m model[0m[2m.[0m[2m Wait[0m[2m,[0m[2m but[0m[2m the[0m[2m code[0m[2m doesn[0m[2m't[0m[2m specify[0m[2m the[0m[2m request[0m[2m model[0m[2m for[0m[2m POST[0m[2m.[0m[2m So[0m[2m perhaps[0m[2m the[0m[2m current[0m[2m code[0m[2m's[0m[2m structure[0m[2m allows[0m[2m for[0m[2m this[0m[2m.
      
-     [0m[2mclass[0m[2m Todo[0m[2mUpdate[0m[2m(Base[0m[2mModel[0m[2m):
-     [0m[2m   [0m[2m ...
+     [0m[2mWait[0m[2m,[0m[2m in[0m[2m Fast[0m[2mAPI[0m[2m,[0m[2m for[0m[2m a[0m[2m POST[0m[2m request[0m[2m,[0m[2m you[0m[2m can[0m[2m specify[0m[2m the[0m[2m model[0m[2m to[0m[2m use[0m[2m.[0m[2m So[0m[2m the[0m[2m POST[0m[2m endpoint[0m[2m could[0m[2m accept[0m[2m a[0m[2m new[0m[2m model[0m[2m that[0m[2m doesn[0m[2m't[0m[2m require[0m[2m id[0m[2m.[0m[2m However[0m[2m,[0m[2m the[0m[2m existing[0m[2m code[0m[2m doesn[0m[2m't[0m[2m have[0m[2m that[0m[2m.[0m[2m So[0m[2m I[0m[2m'll[0m[2m need[0m[2m to[0m[2m adjust[0m[2m the[0m[2m model[0m[2m.
      
-     [0m[2mThen[0m[2m the[0m[2m endpoints[0m[2m.
+     [0m[2mBut[0m[2m the[0m[2m user[0m[2m hasn[0m[2m't[0m[2m specified[0m[2m whether[0m[2m to[0m[2m change[0m[2m the[0m[2m existing[0m[2m model[0m[2m.[0m[2m Since[0m[2m the[0m[2m existing[0m[2m code[0m[2m's[0m[2m Todo[0m[2mItem[0m[2m is[0m[2m used[0m[2m for[0m[2m responses[0m[2m,[0m[2m perhaps[0m[2m the[0m[2m correct[0m[2m approach[0m[2m is[0m[2m to[0m[2m keep[0m[2m it[0m[2m as[0m[2m is[0m[2m for[0m[2m responses[0m[2m,[0m[2m but[0m[2m for[0m[2m the[0m[2m POST[0m[2m body[0m[2m,[0m[2m use[0m[2m a[0m[2m model[0m[2m that[0m[2m doesn[0m[2m't[0m[2m include[0m[2m id[0m[2m.[0m[2m However[0m[2m,[0m[2m in[0m[2m the[0m[2m current[0m[2m code[0m[2m,[0m[2m there[0m[2m's[0m[2m only[0m[2m one[0m[2m model[0m[2m.
      
-     [0m[2mSo[0m[2m the[0m[2m plan[0m[2m is[0m[2m:
+     [0m[2mGiven[0m[2m that[0m[2m this[0m[2m is[0m[2m a[0m[2m half[0m[2m-b[0m[2maked[0m[2m app[0m[2m,[0m[2m probably[0m[2m the[0m[2m next[0m[2m step[0m[2m is[0m[2m to[0m[2m add[0m[2m routes[0m[2m for[0m[2m POST[0m[2m,[0m[2m PUT[0m[2m,[0m[2m DELETE[0m[2m.
      
-     [0m[2m1[0m[2m.[0m[2m Add[0m[2m the[0m[2m two[0m[2m new[0m[2m models[0m[2m.
+     [0m[2mLet[0m[2m me[0m[2m outline[0m[2m the[0m[2m steps[0m[2m:
      
-     [0m[2m2[0m[2m.[0m[2m Add[0m[2m the[0m[2m three[0m[2m endpoints[0m[2m.
+     [0m[2m1[0m[2m.[0m[2m For[0m[2m POST[0m[2m /[0m[2mtodos[0m[2m:
+     [0m[2m  [0m[2m -[0m[2m The[0m[2m client[0m[2m sends[0m[2m a[0m[2m JSON[0m[2m with[0m[2m title[0m[2m and[0m[2m optionally[0m[2m completed[0m[2m.
+     [0m[2m  [0m[2m -[0m[2m Server[0m[2m generates[0m[2m the[0m[2m next[0m[2m id[0m[2m ([0m[2musing[0m[2m a[0m[2m global[0m[2m next[0m[2m_id[0m[2m that[0m[2m starts[0m[2m at[0m[2m [0m[2m3[0m[2m).
+     [0m[2m  [0m[2m -[0m[2m Add[0m[2m the[0m[2m new[0m[2m item[0m[2m to[0m[2m db[0m[2m.
+     [0m[2m  [0m[2m -[0m[2m Return[0m[2m [0m[2m2[0m[2m0[0m[2m1[0m[2m with[0m[2m the[0m[2m new[0m[2m item[0m[2m.
      
-     [0m[2mNow[0m[2m,[0m[2m write[0m[2m the[0m[2m code[0m[2m.
+     [0m[2m2[0m[2m.[0m[2m For[0m[2m PUT[0m[2m /[0m[2mtodos[0m[2m/{[0m[2mitem[0m[2m_id[0m[2m}[0m[2m:
+     [0m[2m  [0m[2m -[0m[2m Find[0m[2m the[0m[2m item[0m[2m with[0m[2m the[0m[2m given[0m[2m id[0m[2m.
+     [0m[2m  [0m[2m -[0m[2m Update[0m[2m fields[0m[2m ([0m[2mtitle[0m[2m and[0m[2m completed[0m[2m)[0m[2m based[0m[2m on[0m[2m request[0m[2m body[0m[2m.
+     [0m[2m  [0m[2m -[0m[2m Return[0m[2m [0m[2m2[0m[2m0[0m[2m0[0m[2m on[0m[2m success[0m[2m,[0m[2m [0m[2m4[0m[2m0[0m[2m4[0m[2m if[0m[2m not[0m[2m found[0m[2m.
      
-     [0m[2mLet[0m[2m me[0m[2m outline[0m[2m the[0m[2m exact[0m[2m additions[0m[2m.
+     [0m[2m3[0m[2m.[0m[2m For[0m[2m DELETE[0m[2m /[0m[2mtodos[0m[2m/{[0m[2mitem[0m[2m_id[0m[2m}[0m[2m:
+     [0m[2m  [0m[2m -[0m[2m Find[0m[2m the[0m[2m item[0m[2m,[0m[2m remove[0m[2m it[0m[2m.
+     [0m[2m  [0m[2m -[0m[2m Return[0m[2m [0m[2m2[0m[2m0[0m[2m4[0m[2m ([0m[2mNo[0m[2m Content[0m[2m)[0m[2m on[0m[2m success[0m[2m.
      
-     [0m[2mFirst[0m[2m,[0m[2m after[0m[2m Todo[0m[2mItem[0m[2m:
+     [0m[2mBut[0m[2m need[0m[2m to[0m[2m handle[0m[2m the[0m[2m IDs[0m[2m correctly[0m[2m.[0m[2m Since[0m[2m the[0m[2m current[0m[2m db[0m[2m has[0m[2m ids[0m[2m [0m[2m1[0m[2m and[0m[2m [0m[2m2[0m[2m,[0m[2m next[0m[2m_id[0m[2m should[0m[2m start[0m[2m at[0m[2m [0m[2m3[0m[2m.[0m[2m So[0m[2m maybe[0m[2m introduce[0m[2m a[0m[2m global[0m[2m variable[0m[2m next[0m[2m_id[0m[2m =[0m[2m [0m[2m3[0m[2m.
      
-     [0m[2mclass[0m[2m Todo[0m[2mCreate[0m[2m(Base[0m[2mModel[0m[2m):
+     [0m[2mSo[0m[2m first[0m[2m,[0m[2m add[0m[2m the[0m[2m global[0m[2m next[0m[2m_id[0m[2m.
+     
+     [0m[2mThen[0m[2m,[0m[2m create[0m[2m the[0m[2m POST[0m[2m endpoint[0m[2m:
+     
+     [0m[2m@app[0m[2m.post[0m[2m("/[0m[2mtodos[0m[2m",[0m[2m response[0m[2m_model[0m[2m=[0m[2mTodo[0m[2mItem[0m[2m)
+     [0m[2masync[0m[2m def[0m[2m create[0m[2m_todo[0m[2m(item[0m[2m:[0m[2m Todo[0m[2mItem[0m[2m):
+     [0m[2m   [0m[2m #[0m[2m Wait[0m[2m,[0m[2m but[0m[2m if[0m[2m the[0m[2m client[0m[2m sends[0m[2m an[0m[2m id[0m[2m,[0m[2m it[0m[2m's[0m[2m problematic[0m[2m.[0m[2m So[0m[2m probably[0m[2m,[0m[2m we[0m[2m need[0m[2m a[0m[2m different[0m[2m model[0m[2m.
+     [0m[2mWait[0m[2m,[0m[2m but[0m[2m given[0m[2m the[0m[2m existing[0m[2m model[0m[2m,[0m[2m the[0m[2m client[0m[2m would[0m[2m have[0m[2m to[0m[2m send[0m[2m an[0m[2m id[0m[2m,[0m[2m which[0m[2m we[0m[2m don[0m[2m't[0m[2m want[0m[2m.[0m[2m This[0m[2m suggests[0m[2m that[0m[2m the[0m[2m model[0m[2m is[0m[2m not[0m[2m set[0m[2m up[0m[2m correctly[0m[2m for[0m[2m the[0m[2m POST[0m[2m request[0m[2m.
+     
+     [0m[2mAh[0m[2m,[0m[2m right[0m[2m.[0m[2m So[0m[2m in[0m[2m Fast[0m[2mAPI[0m[2m,[0m[2m you[0m[2m can[0m[2m have[0m[2m a[0m[2m different[0m[2m model[0m[2m for[0m[2m the[0m[2m input[0m[2m.[0m[2m For[0m[2m example[0m[2m:
+     
+     [0m[2mclass[0m[2m Todo[0m[2mItem[0m[2mCreate[0m[2m(Base[0m[2mModel[0m[2m):
      [0m[2m   [0m[2m title[0m[2m:[0m[2m str[0m[2m
      [0m[2m   [0m[2m completed[0m[2m:[0m[2m bool[0m[2m =[0m[2m False[0m[2m
      
-     [0m[2mclass[0m[2m Todo[0m[2mUpdate[0m[2m(Base[0m[2mModel[0m[2m):
-     [0m[2m   [0m[2m title[0m[2m:[0m[2m Optional[0m[2m[str[0m[2m][0m[2m =[0m[2m None[0m[2m
-     [0m[2m   [0m[2m completed[0m[2m:[0m[2m Optional[0m[2m[[0m[2mbool[0m[2m][0m[2m =[0m[2m None[0m[2m
+     [0m[2mThen[0m[2m in[0m[2m the[0m[2m POST[0m[2m endpoint[0m[2m:
      
-     [0m[2mThen[0m[2m:
+     [0m[2m@app[0m[2m.post[0m[2m("/[0m[2mtodos[0m[2m",[0m[2m response[0m[2m_model[0m[2m=[0m[2mTodo[0m[2mItem[0m[2m)
+     [0m[2masync[0m[2m def[0m[2m create[0m[2m_todo[0m[2m(item[0m[2m:[0m[2m Todo[0m[2mItem[0m[2mCreate[0m[2m):
+     [0m[2m   [0m[2m new[0m[2m_id[0m[2m =[0m[2m next[0m[2m_id[0m[2m
+     [0m[2m   [0m[2m next[0m[2m_id[0m[2m +=[0m[2m [0m[2m1[0m[2m
+     [0m[2m   [0m[2m todo[0m[2m =[0m[2m Todo[0m[2mItem[0m[2m(id[0m[2m=new[0m[2m_id[0m[2m,[0m[2m title[0m[2m=item[0m[2m.title[0m[2m,[0m[2m completed[0m[2m=item[0m[2m.completed[0m[2m)
+     [0m[2m   [0m[2m db[0m[2m.append[0m[2m(todo[0m[2m)
+     [0m[2m   [0m[2m return[0m[2m todo[0m[2m
      
-     [0m[2m@app[0m[2m.post[0m[2m("/[0m[2mtodos[0m[2m",[0m[2m response[0m[2m_model[0m[2m=[0m[2mTodo[0m[2mItem[0m[2m,[0m[2m status[0m[2m_code[0m[2m=[0m[2m2[0m[2m0[0m[2m1[0m[2m)
-     [0m[2masync[0m[2m def[0m[2m create[0m[2m_todo[0m[2m(todo[0m[2m:[0m[2m Todo[0m[2mCreate[0m[2m):
-     [0m[2m   [0m[2m next[0m[2m_id[0m[2m =[0m[2m max[0m[2m(([0m[2mt[0m[2m.id[0m[2m for[0m[2m t[0m[2m in[0m[2m db[0m[2m),[0m[2m default[0m[2m=[0m[2m0[0m[2m)[0m[2m +[0m[2m [0m[2m1[0m[2m
-     [0m[2m   [0m[2m new[0m[2m_todo[0m[2m =[0m[2m Todo[0m[2mItem[0m[2m(id[0m[2m=[0m[2mnext[0m[2m_id[0m[2m,[0m[2m title[0m[2m=[0m[2mtodo[0m[2m.title[0m[2m,[0m[2m completed[0m[2m=[0m[2mtodo[0m[2m.completed[0m[2m)
-     [0m[2m   [0m[2m db[0m[2m.append[0m[2m(new[0m[2m_todo[0m[2m)
-     [0m[2m   [0m[2m return[0m[2m new[0m[2m_todo[0m[2m
+     [0m[2mBut[0m[2m the[0m[2m current[0m[2m code[0m[2m doesn[0m[2m't[0m[2m have[0m[2m such[0m[2m a[0m[2m model[0m[2m.[0m[2m However[0m[2m,[0m[2m since[0m[2m the[0m[2m user[0m[2m is[0m[2m asking[0m[2m to[0m[2m finish[0m[2m the[0m[2m app[0m[2m,[0m[2m and[0m[2m it[0m[2m's[0m[2m half[0m[2m-b[0m[2maked[0m[2m,[0m[2m it[0m[2m's[0m[2m okay[0m[2m to[0m[2m modify[0m[2m the[0m[2m code[0m[2m to[0m[2m include[0m[2m this[0m[2m.
+     
+     [0m[2mSo[0m[2m the[0m[2m plan[0m[2m is[0m[2m:
+     
+     [0m[2m1[0m[2m.[0m[2m Define[0m[2m a[0m[2m new[0m[2m model[0m[2m Todo[0m[2mItem[0m[2mCreate[0m[2m for[0m[2m the[0m[2m POST[0m[2m request[0m[2m,[0m[2m which[0m[2m doesn[0m[2m't[0m[2m require[0m[2m id[0m[2m.
+     [0m[2m2[0m[2m.[0m[2m Add[0m[2m the[0m[2m next[0m[2m_id[0m[2m variable[0m[2m ([0m[2mstarts[0m[2m at[0m[2m [0m[2m3[0m[2m).
+     [0m[2m3[0m[2m.[0m[2m Implement[0m[2m POST[0m[2m using[0m[2m the[0m[2m new[0m[2m model[0m[2m.
+     [0m[2m4[0m[2m.[0m[2m Implement[0m[2m PUT[0m[2m:[0m[2m find[0m[2m by[0m[2m id[0m[2m,[0m[2m update[0m[2m,[0m[2m return[0m[2m updated[0m[2m item[0m[2m or[0m[2m error[0m[2m.
+     [0m[2m5[0m[2m.[0m[2m Implement[0m[2m DELETE[0m[2m:[0m[2m find[0m[2m by[0m[2m id[0m[2m,[0m[2m delete[0m[2m,[0m[2m return[0m[2m [0m[2m2[0m[2m0[0m[2m4[0m[2m.
+     
+     [0m[2mNow[0m[2m,[0m[2m the[0m[2m current[0m[2m code[0m[2m already[0m[2m has[0m[2m a[0m[2m list[0m[2m db[0m[2m and[0m[2m the[0m[2m GET[0m[2m endpoint[0m[2m.[0m[2m So[0m[2m let[0m[2m's[0m[2m write[0m[2m these[0m[2m functions[0m[2m.
+     
+     [0m[2mFor[0m[2m the[0m[2m PUT[0m[2m and[0m[2m DELETE[0m[2m,[0m[2m they[0m[2m need[0m[2m to[0m[2m find[0m[2m the[0m[2m item[0m[2m by[0m[2m ID[0m[2m.[0m[2m So[0m[2m in[0m[2m the[0m[2m code[0m[2m,[0m[2m when[0m[2m a[0m[2m request[0m[2m comes[0m[2m in[0m[2m for[0m[2m /[0m[2mtodos[0m[2m/{[0m[2mitem[0m[2m_id[0m[2m},[0m[2m check[0m[2m if[0m[2m item[0m[2m_id[0m[2m exists[0m[2m in[0m[2m db[0m[2m.
+     
+     [0m[2mLet[0m[2m's[0m[2m draft[0m[2m the[0m[2m code[0m[2m.
+     
+     [0m[2mFirst[0m[2m,[0m[2m add[0m[2m the[0m[2m new[0m[2m model[0m[2m:
+     
+     [0m[2mclass[0m[2m Todo[0m[2mItem[0m[2mCreate[0m[2m(Base[0m[2mModel[0m[2m):
+     [0m[2m   [0m[2m title[0m[2m:[0m[2m str[0m[2m
+     [0m[2m   [0m[2m completed[0m[2m:[0m[2m bool[0m[2m =[0m[2m False[0m[2m
+     
+     [0m[2mThen[0m[2m for[0m[2m POST[0m[2m:
+     
+     [0m[2m@app[0m[2m.post[0m[2m("/[0m[2mtodos[0m[2m",[0m[2m response[0m[2m_model[0m[2m=[0m[2mTodo[0m[2mItem[0m[2m)
+     [0m[2masync[0m[2m def[0m[2m create[0m[2m_todo[0m[2m(item[0m[2m:[0m[2m Todo[0m[2mItem[0m[2mCreate[0m[2m):
+     [0m[2m   [0m[2m global[0m[2m next[0m[2m_id[0m[2m
+     [0m[2m   [0m[2m new[0m[2m_item[0m[2m =[0m[2m Todo[0m[2mItem[0m[2m(id[0m[2m=[0m[2mnext[0m[2m_id[0m[2m,[0m[2m title[0m[2m=item[0m[2m.title[0m[2m,[0m[2m completed[0m[2m=item[0m[2m.completed[0m[2m)
+     [0m[2m   [0m[2m db[0m[2m.append[0m[2m(new[0m[2m_item[0m[2m)
+     [0m[2m   [0m[2m next[0m[2m_id[0m[2m +=[0m[2m [0m[2m1[0m[2m
+     [0m[2m   [0m[2m return[0m[2m new[0m[2m_item[0m[2m
+     
+     [0m[2mFor[0m[2m PUT[0m[2m:
      
      [0m[2m@app[0m[2m.put[0m[2m("/[0m[2mtodos[0m[2m/{[0m[2mitem[0m[2m_id[0m[2m}",[0m[2m response[0m[2m_model[0m[2m=[0m[2mTodo[0m[2mItem[0m[2m)
-     [0m[2masync[0m[2m def[0m[2m update[0m[2m_todo[0m[2m(item[0m[2m_id[0m[2m:[0m[2m int[0m[2m,[0m[2m todo[0m[2m:[0m[2m Todo[0m[2mUpdate[0m[2m):
-     [0m[2m   [0m[2m for[0m[2m existing[0m[2m_todo[0m[2m in[0m[2m db[0m[2m:
-     [0m[2m       [0m[2m if[0m[2m existing[0m[2m_todo[0m[2m.id[0m[2m ==[0m[2m item[0m[2m_id[0m[2m:
-     [0m[2m           [0m[2m if[0m[2m todo[0m[2m.title[0m[2m is[0m[2m not[0m[2m None[0m[2m:
-     [0m[2m               [0m[2m existing[0m[2m_todo[0m[2m.title[0m[2m =[0m[2m todo[0m[2m.title[0m[2m
-     [0m[2m           [0m[2m if[0m[2m todo[0m[2m.completed[0m[2m is[0m[2m not[0m[2m None[0m[2m:
-     [0m[2m               [0m[2m existing[0m[2m_todo[0m[2m.completed[0m[2m =[0m[2m todo[0m[2m.completed[0m[2m
-     [0m[2m           [0m[2m return[0m[2m existing[0m[2m_todo[0m[2m
-     [0m[2m   [0m[2m raise[0m[2m HTTP[0m[2mException[0m[2m(status[0m[2m_code[0m[2m=[0m[2m4[0m[2m0[0m[2m4[0m[2m,[0m[2m detail[0m[2m="[0m[2mTodo[0m[2m item[0m[2m not[0m[2m found[0m[2m")
-     
-     [0m[2m@app[0m[2m.delete[0m[2m("/[0m[2mtodos[0m[2m/{[0m[2mitem[0m[2m_id[0m[2m}",[0m[2m status[0m[2m_code[0m[2m=[0m[2m2[0m[2m0[0m[2m4[0m[2m)
-     [0m[2masync[0m[2m def[0m[2m delete[0m[2m_todo[0m[2m(item[0m[2m_id[0m[2m:[0m[2m int[0m[2m):
-     [0m[2m   [0m[2m for[0m[2m index[0m[2m,[0m[2m todo[0m[2m in[0m[2m enumerate[0m[2m(db[0m[2m):
+     [0m[2masync[0m[2m def[0m[2m update[0m[2m_todo[0m[2m(item[0m[2m_id[0m[2m:[0m[2m int[0m[2m,[0m[2m item[0m[2m:[0m[2m Todo[0m[2mItem[0m[2mCreate[0m[2m):
+     [0m[2m   [0m[2m for[0m[2m i[0m[2m,[0m[2m todo[0m[2m in[0m[2m enumerate[0m[2m(db[0m[2m):
      [0m[2m       [0m[2m if[0m[2m todo[0m[2m.id[0m[2m ==[0m[2m item[0m[2m_id[0m[2m:
-     [0m[2m           [0m[2m db[0m[2m.pop[0m[2m(index[0m[2m)
+     [0m[2m           [0m[2m updated[0m[2m_todo[0m[2m =[0m[2m Todo[0m[2mItem[0m[2m(id[0m[2m=item[0m[2m_id[0m[2m,[0m[2m title[0m[2m=item[0m[2m.title[0m[2m,[0m[2m completed[0m[2m=item[0m[2m.completed[0m[2m)
+     [0m[2m           [0m[2m db[0m[2m[i[0m[2m][0m[2m =[0m[2m updated[0m[2m_todo[0m[2m
+     [0m[2m           [0m[2m return[0m[2m updated[0m[2m_todo[0m[2m
+     [0m[2m   [0m[2m raise[0m[2m HTTP[0m[2mException[0m[2m(status[0m[2m_code[0m[2m=[0m[2m4[0m[2m0[0m[2m4[0m[2m,[0m[2m detail[0m[2m="[0m[2mTodo[0m[2m not[0m[2m found[0m[2m")
+     
+     [0m[2mWait[0m[2m,[0m[2m but[0m[2m the[0m[2m Todo[0m[2mItem[0m[2m model[0m[2m has[0m[2m id[0m[2m as[0m[2m part[0m[2m of[0m[2m it[0m[2m,[0m[2m which[0m[2m in[0m[2m PUT[0m[2m is[0m[2m provided[0m[2m in[0m[2m the[0m[2m path[0m[2m.[0m[2m So[0m[2m maybe[0m[2m it[0m[2m's[0m[2m better[0m[2m to[0m[2m use[0m[2m the[0m[2m existing[0m[2m Todo[0m[2mItem[0m[2m but[0m[2m for[0m[2m the[0m[2m update[0m[2m,[0m[2m accept[0m[2m a[0m[2m model[0m[2m with[0m[2m optional[0m[2m fields[0m[2m.[0m[2m But[0m[2m for[0m[2m simplicity[0m[2m,[0m[2m maybe[0m[2m the[0m[2m request[0m[2m body[0m[2m for[0m[2m PUT[0m[2m includes[0m[2m all[0m[2m fields[0m[2m except[0m[2m id[0m[2m,[0m[2m or[0m[2m maybe[0m[2m allows[0m[2m updating[0m[2m some[0m[2m.
+     
+     [0m[2mAlternatively[0m[2m,[0m[2m in[0m[2m the[0m[2m PUT[0m[2m request[0m[2m,[0m[2m the[0m[2m client[0m[2m sends[0m[2m a[0m[2m full[0m[2m replacement[0m[2m,[0m[2m so[0m[2m they[0m[2m need[0m[2m to[0m[2m send[0m[2m title[0m[2m and[0m[2m completed[0m[2m.[0m[2m Since[0m[2m the[0m[2m existing[0m[2m model[0m[2m is[0m[2m not[0m[2m used[0m[2m for[0m[2m input[0m[2m,[0m[2m perhaps[0m[2m using[0m[2m Todo[0m[2mItem[0m[2mCreate[0m[2m is[0m[2m okay[0m[2m.
+     
+     [0m[2mBut[0m[2m maybe[0m[2m the[0m[2m user[0m[2m expects[0m[2m the[0m[2m PUT[0m[2m to[0m[2m allow[0m[2m partial[0m[2m updates[0m[2m,[0m[2m which[0m[2m is[0m[2m more[0m[2m like[0m[2m PATCH[0m[2m.[0m[2m However[0m[2m,[0m[2m the[0m[2m TODO[0m[2m says[0m[2m PUT[0m[2m,[0m[2m which[0m[2m is[0m[2m full[0m[2m replacement[0m[2m.
+     
+     [0m[2mGiven[0m[2m the[0m[2m context[0m[2m,[0m[2m the[0m[2m correct[0m[2m approach[0m[2m is[0m[2m to[0m[2m implement[0m[2m PUT[0m[2m as[0m[2m full[0m[2m replacement[0m[2m,[0m[2m so[0m[2m the[0m[2m client[0m[2m must[0m[2m send[0m[2m both[0m[2m title[0m[2m and[0m[2m completed[0m[2m ([0m[2msince[0m[2m completed[0m[2m defaults[0m[2m to[0m[2m False[0m[2m in[0m[2m the[0m[2m model[0m[2m).
+     
+     [0m[2mFor[0m[2m DELETE[0m[2m:
+     
+     [0m[2m@app[0m[2m.delete[0m[2m("/[0m[2mtodos[0m[2m/{[0m[2mitem[0m[2m_id[0m[2m}")
+     [0m[2masync[0m[2m def[0m[2m delete[0m[2m_todo[0m[2m(item[0m[2m_id[0m[2m:[0m[2m int[0m[2m):
+     [0m[2m   [0m[2m for[0m[2m i[0m[2m,[0m[2m todo[0m[2m in[0m[2m enumerate[0m[2m(db[0m[2m):
+     [0m[2m       [0m[2m if[0m[2m todo[0m[2m.id[0m[2m ==[0m[2m item[0m[2m_id[0m[2m:
+     [0m[2m           [0m[2m del[0m[2m db[0m[2m[i[0m[2m]
      [0m[2m           [0m[2m return[0m[2m
-     [0m[2m   [0m[2m raise[0m[2m HTTP[0m[2mException[0m[2m(status[0m[2m_code[0m[2m=[0m[2m4[0m[2m0[0m[2m4[0m[2m,[0m[2m detail[0m[2m="[0m[2mTodo[0m[2m item[0m[2m not[0m[2m found[0m[2m")
+     [0m[2m   [0m[2m raise[0m[2m HTTP[0m[2mException[0m[2m(status[0m[2m_code[0m[2m=[0m[2m4[0m[2m0[0m[2m4[0m[2m,[0m[2m detail[0m[2m="[0m[2mTodo[0m[2m not[0m[2m found[0m[2m")
      
-     [0m[2mWait[0m[2m,[0m[2m in[0m[2m the[0m[2m delete[0m[2m function[0m[2m,[0m[2m after[0m[2m popping[0m[2m,[0m[2m it[0m[2m returns[0m[2m without[0m[2m content[0m[2m,[0m[2m which[0m[2m gives[0m[2m [0m[2m2[0m[2m0[0m[2m4[0m[2m.
+     [0m[2mBut[0m[2m wait[0m[2m,[0m[2m return[0m[2m should[0m[2m be[0m[2m a[0m[2m [0m[2m2[0m[2m0[0m[2m4[0m[2m No[0m[2m Content[0m[2m,[0m[2m which[0m[2m in[0m[2m Fast[0m[2mAPI[0m[2m you[0m[2m can[0m[2m do[0m[2m by[0m[2m not[0m[2m returning[0m[2m anything[0m[2m ([0m[2mbut[0m[2m then[0m[2m status[0m[2m code[0m[2m is[0m[2m [0m[2m2[0m[2m0[0m[2m0[0m[2m).[0m[2m To[0m[2m set[0m[2m [0m[2m2[0m[2m0[0m[2m4[0m[2m,[0m[2m return[0m[2m Response[0m[2m(status[0m[2m_code[0m[2m=[0m[2m2[0m[2m0[0m[2m4[0m[2m).
      
-     [0m[2mNow[0m[2m,[0m[2m check[0m[2m if[0m[2m the[0m[2m import[0m[2m for[0m[2m Optional[0m[2m is[0m[2m already[0m[2m present[0m[2m.[0m[2m Yes[0m[2m,[0m[2m from[0m[2m typing[0m[2m import[0m[2m Optional[0m[2m.
+     [0m[2mBut[0m[2m in[0m[2m Fast[0m[2mAPI[0m[2m,[0m[2m to[0m[2m return[0m[2m [0m[2m2[0m[2m0[0m[2m4[0m[2m:
      
-     [0m[2mAlso[0m[2m,[0m[2m note[0m[2m that[0m[2m the[0m[2m current[0m[2m code[0m[2m uses[0m[2m '[0m[2mdb[0m[2m:[0m[2m List[0m[2m[T[0m[2modo[0m[2mItem[0m[2m][0m[2m =[0m[2m [...][0m[2m'.
+     [0m[2mfrom[0m[2m fast[0m[2mapi[0m[2m import[0m[2m Response[0m[2m
      
-     [0m[2mNow[0m[2m,[0m[2m need[0m[2m to[0m[2m replace[0m[2m the[0m[2m TODO[0m[2m comments[0m[2m with[0m[2m the[0m[2m implementations[0m[2m.[0m[2m Wait[0m[2m,[0m[2m the[0m[2m existing[0m[2m code[0m[2m has[0m[2m three[0m[2m TODO[0m[2m comments[0m[2m.[0m[2m So[0m[2m in[0m[2m the[0m[2m file[0m[2m,[0m[2m after[0m[2m the[0m[2m GET[0m[2m endpoint[0m[2m,[0m[2m there[0m[2m are[0m[2m those[0m[2m comments[0m[2m.[0m[2m So[0m[2m the[0m[2m new[0m[2m code[0m[2m should[0m[2m replace[0m[2m those[0m[2m comments[0m[2m with[0m[2m the[0m[2m three[0m[2m endpoint[0m[2m definitions[0m[2m,[0m[2m and[0m[2m add[0m[2m the[0m[2m models[0m[2m above[0m[2m them[0m[2m.
+     [0m[2m@app[0m[2m.delete[0m[2m(...)
+     [0m[2masync[0m[2m def[0m[2m delete[0m[2m(...[0m[2m):
+     [0m[2m   [0m[2m ...
+     [0m[2m   [0m[2m return[0m[2m Response[0m[2m(status[0m[2m_code[0m[2m=[0m[2m2[0m[2m0[0m[2m4[0m[2m)
      
-     [0m[2mWait[0m[2m,[0m[2m the[0m[2m current[0m[2m structure[0m[2m is[0m[2m:
+     [0m[2mSo[0m[2m need[0m[2m to[0m[2m import[0m[2m Response[0m[2m.
+     
+     [0m[2mAlso[0m[2m,[0m[2m need[0m[2m to[0m[2m add[0m[2m '[0m[2mglobal[0m[2m next[0m[2m_id[0m[2m'[0m[2m in[0m[2m the[0m[2m create[0m[2m_todo[0m[2m function[0m[2m.
+     
+     [0m[2mNow[0m[2m,[0m[2m check[0m[2m if[0m[2m the[0m[2m existing[0m[2m code[0m[2m imports[0m[2m Response[0m[2m.[0m[2m It[0m[2m doesn[0m[2m't[0m[2m.[0m[2m Current[0m[2m imports[0m[2m are[0m[2m:
+     
+     [0m[2mfrom[0m[2m fast[0m[2mapi[0m[2m import[0m[2m Fast[0m[2mAPI[0m[2m,[0m[2m HTTP[0m[2mException[0m[2m
+     
+     [0m[2mSo[0m[2m need[0m[2m to[0m[2m add[0m[2m from[0m[2m fast[0m[2mapi[0m[2m import[0m[2m Response[0m[2m.
+     
+     [0m[2mNow[0m[2m,[0m[2m let[0m[2m's[0m[2m piece[0m[2m together[0m[2m the[0m[2m changes[0m[2m:
+     
+     [0m[2m1[0m[2m.[0m[2m Add[0m[2m Todo[0m[2mItem[0m[2mCreate[0m[2m model[0m[2m.
+     [0m[2m2[0m[2m.[0m[2m Add[0m[2m next[0m[2m_id[0m[2m =[0m[2m [0m[2m3[0m[2m after[0m[2m the[0m[2m db[0m[2m initialization[0m[2m.
+     [0m[2m3[0m[2m.[0m[2m Import[0m[2m Response[0m[2m for[0m[2m the[0m[2m delete[0m[2m endpoint[0m[2m.
+     [0m[2m4[0m[2m.[0m[2m Implement[0m[2m the[0m[2m three[0m[2m endpoints[0m[2m.
+     
+     [0m[2mLet[0m[2m me[0m[2m check[0m[2m if[0m[2m the[0m[2m existing[0m[2m code[0m[2m has[0m[2m the[0m[2m necessary[0m[2m imports[0m[2m.[0m[2m The[0m[2m existing[0m[2m code[0m[2m has[0m[2m:
+     
+     [0m[2mimport[0m[2m uv[0m[2micorn[0m[2m
+     [0m[2mfrom[0m[2m fast[0m[2mapi[0m[2m import[0m[2m Fast[0m[2mAPI[0m[2m,[0m[2m HTTP[0m[2mException[0m[2m
+     [0m[2mfrom[0m[2m py[0m[2md[0m[2mantic[0m[2m import[0m[2m BaseModel[0m[2m
+     
+     [0m[2mSo[0m[2m to[0m[2m add[0m[2m Response[0m[2m,[0m[2m need[0m[2m to[0m[2m import[0m[2m Response[0m[2m from[0m[2m fast[0m[2mapi[0m[2m.
+     
+     [0m[2mTherefore[0m[2m,[0m[2m modify[0m[2m the[0m[2m imports[0m[2m:
+     
+     [0m[2mfrom[0m[2m fast[0m[2mapi[0m[2m import[0m[2m Fast[0m[2mAPI[0m[2m,[0m[2m HTTP[0m[2mException[0m[2m,[0m[2m Response[0m[2m
+     
+     [0m[2mThen[0m[2m,[0m[2m the[0m[2m changes[0m[2m to[0m[2m the[0m[2m code[0m[2m would[0m[2m be[0m[2m:
+     
+     [0m[2mAfter[0m[2m defining[0m[2m db[0m[2m:
+     
+     [0m[2mnext[0m[2m_id[0m[2m =[0m[2m [0m[2m3[0m[2m
+     
+     [0m[2mThen[0m[2m add[0m[2m the[0m[2m create[0m[2m model[0m[2m:
+     
+     [0m[2mclass[0m[2m Todo[0m[2mItem[0m[2mCreate[0m[2m(Base[0m[2mModel[0m[2m):
+     [0m[2m   [0m[2m title[0m[2m:[0m[2m str[0m[2m
+     [0m[2m   [0m[2m completed[0m[2m:[0m[2m bool[0m[2m =[0m[2m False[0m[2m
+     
+     [0m[2mThen[0m[2m the[0m[2m endpoints[0m[2m.
+     
+     [0m[2mNow[0m[2m,[0m[2m the[0m[2m existing[0m[2m POST[0m[2m,[0m[2m PUT[0m[2m,[0m[2m DELETE[0m[2m endpoints[0m[2m should[0m[2m be[0m[2m added[0m[2m where[0m[2m the[0m[2m TODO[0m[2ms[0m[2m are[0m[2m.
+     
+     [0m[2mSo[0m[2m replace[0m[2m the[0m[2m TODO[0m[2m comments[0m[2m with[0m[2m the[0m[2m code[0m[2m implementations[0m[2m.
+     
+     [0m[2mNow[0m[2m,[0m[2m check[0m[2m the[0m[2m status[0m[2m codes[0m[2m:
+     
+     [0m[2m-[0m[2m POST[0m[2m:[0m[2m [0m[2m2[0m[2m0[0m[2m1[0m[2m Created[0m[2m.[0m[2m But[0m[2m in[0m[2m Fast[0m[2mAPI[0m[2m,[0m[2m the[0m[2m default[0m[2m is[0m[2m [0m[2m2[0m[2m0[0m[2m0[0m[2m for[0m[2m POST[0m[2m,[0m[2m so[0m[2m need[0m[2m to[0m[2m set[0m[2m status[0m[2m_code[0m[2m=[0m[2m2[0m[2m0[0m[2m1[0m[2m.
+     
+     [0m[2mIn[0m[2m the[0m[2m create[0m[2m_todo[0m[2m function[0m[2m:
+     
+     [0m[2m@app[0m[2m.post[0m[2m("/[0m[2mtodos[0m[2m",[0m[2m response[0m[2m_model[0m[2m=[0m[2mTodo[0m[2mItem[0m[2m,[0m[2m status[0m[2m_code[0m[2m=[0m[2m2[0m[2m0[0m[2m1[0m[2m)
+     
+     [0m[2mBut[0m[2m the[0m[2m user[0m[2m might[0m[2m not[0m[2m have[0m[2m specified[0m[2m that[0m[2m,[0m[2m but[0m[2m standard[0m[2m practice[0m[2m is[0m[2m [0m[2m2[0m[2m0[0m[2m1[0m[2m for[0m[2m POST[0m[2m creating[0m[2m a[0m[2m resource[0m[2m.
+     
+     [0m[2mWait[0m[2m,[0m[2m the[0m[2m user[0m[2m says[0m[2m "[0m[2mreturns[0m[2m standard[0m[2m HTTP[0m[2m status[0m[2m codes[0m[2m",[0m[2m so[0m[2m POST[0m[2m should[0m[2m be[0m[2m [0m[2m2[0m[2m0[0m[2m1[0m[2m,[0m[2m PUT[0m[2m [0m[2m2[0m[2m0[0m[2m0[0m[2m,[0m[2m DELETE[0m[2m [0m[2m2[0m[2m0[0m[2m4[0m[2m.
+     
+     [0m[2mSo[0m[2m the[0m[2m POST[0m[2m endpoint[0m[2m should[0m[2m have[0m[2m status[0m[2m_code[0m[2m=[0m[2m2[0m[2m0[0m[2m1[0m[2m.
+     
+     [0m[2mTherefore[0m[2m,[0m[2m the[0m[2m create[0m[2m_todo[0m[2m should[0m[2m be[0m[2m:
+     
+     [0m[2m@app[0m[2m.post[0m[2m("/[0m[2mtodos[0m[2m",[0m[2m response[0m[2m_model[0m[2m=[0m[2mTodo[0m[2mItem[0m[2m,[0m[2m status[0m[2m_code[0m[2m=[0m[2m2[0m[2m0[0m[2m1[0m[2m)
+     [0m[2m...
+     
+     [0m[2mPUT[0m[2m should[0m[2m return[0m[2m [0m[2m2[0m[2m0[0m[2m0[0m[2m ([0m[2mdefault[0m[2m),[0m[2m so[0m[2m no[0m[2m need[0m[2m for[0m[2m status[0m[2m_code[0m[2m.
+     
+     [0m[2mDELETE[0m[2m returns[0m[2m [0m[2m2[0m[2m0[0m[2m4[0m[2m.
+     
+     [0m[2mNow[0m[2m,[0m[2m possible[0m[2m edge[0m[2m cases[0m[2m:
+     
+     [0m[2m-[0m[2m For[0m[2m POST[0m[2m,[0m[2m duplicate[0m[2m ID[0m[2m handling[0m[2m.[0m[2m Since[0m[2m we[0m[2m're[0m[2m using[0m[2m a[0m[2m counter[0m[2m,[0m[2m it[0m[2m shouldn[0m[2m't[0m[2m happen[0m[2m.
+     
+     [0m[2m-[0m[2m For[0m[2m PUT[0m[2m and[0m[2m DELETE[0m[2m,[0m[2m when[0m[2m the[0m[2m ID[0m[2m is[0m[2m not[0m[2m found[0m[2m,[0m[2m return[0m[2m [0m[2m4[0m[2m0[0m[2m4[0m[2m.
+     
+     [0m[2mOkay[0m[2m.
+     
+     [0m[2mSo[0m[2m the[0m[2m code[0m[2m changes[0m[2m would[0m[2m be[0m[2m:
+     
+     [0m[2m1[0m[2m.[0m[2m Append[0m[2m the[0m[2m following[0m[2m lines[0m[2m after[0m[2m the[0m[2m db[0m[2m initialization[0m[2m:
+     
+     [0m[2mnext[0m[2m_id[0m[2m =[0m[2m [0m[2m3[0m[2m
+     
+     [0m[2m2[0m[2m.[0m[2m Add[0m[2m Todo[0m[2mItem[0m[2mCreate[0m[2m class[0m[2m.
+     
+     [0m[2m3[0m[2m.[0m[2m Import[0m[2m Response[0m[2m.
+     
+     [0m[2m4[0m[2m.[0m[2m Implement[0m[2m the[0m[2m three[0m[2m endpoints[0m[2m.
+     
+     [0m[2mNow[0m[2m,[0m[2m I[0m[2m need[0m[2m to[0m[2m write[0m[2m these[0m[2m changes[0m[2m into[0m[2m the[0m[2m existing[0m[2m file[0m[2m.
+     
+     [0m[2mThe[0m[2m current[0m[2m file[0m[2m structure[0m[2m is[0m[2m:
      
      [0m[2mclass[0m[2m Todo[0m[2mItem[0m[2m(...[0m[2m)
      
@@ -274,133 +333,123 @@
      
      [0m[2m@app[0m[2m.get[0m[2m(...[0m[2m)
      
-     [0m[2m#[0m[2m TODO[0m[2m lines[0m[2m
+     [0m[2m#[0m[2m TODO[0m[2m:[0m[2m Implement[0m[2m POST[0m[2m...
+     [0m[2m#[0m[2m TODO[0m[2m:[0m[2m Implement[0m[2m PUT[0m[2m...
+     [0m[2m#[0m[2m TODO[0m[2m:[0m[2m Implement[0m[2m DELETE[0m[2m...
      
-     [0m[2mSo[0m[2m the[0m[2m models[0m[2m ([0m[2mTodo[0m[2mCreate[0m[2m and[0m[2m Todo[0m[2mUpdate[0m[2m)[0m[2m should[0m[2m be[0m[2m added[0m[2m after[0m[2m Todo[0m[2mItem[0m[2m and[0m[2m before[0m[2m the[0m[2m db[0m[2m initialization[0m[2m?[0m[2m Or[0m[2m after[0m[2m db[0m[2m?
+     [0m[2mif[0m[2m __[0m[2mname[0m[2m__[0m[2m ==[0m[2m ...
      
-     [0m[2mNo[0m[2m,[0m[2m the[0m[2m models[0m[2m should[0m[2m be[0m[2m defined[0m[2m before[0m[2m they[0m[2m are[0m[2m used[0m[2m in[0m[2m the[0m[2m endpoints[0m[2m.[0m[2m So[0m[2m after[0m[2m Todo[0m[2mItem[0m[2m,[0m[2m define[0m[2m the[0m[2m other[0m[2m models[0m[2m,[0m[2m then[0m[2m implement[0m[2m the[0m[2m endpoints[0m[2m.
+     [0m[2mSo[0m[2m to[0m[2m implement[0m[2m:
      
-     [0m[2mSo[0m[2m the[0m[2m order[0m[2m would[0m[2m be[0m[2m:
+     [0m[2m-[0m[2m Replace[0m[2m the[0m[2m TODO[0m[2ms[0m[2m with[0m[2m the[0m[2m new[0m[2m code[0m[2m.
      
-     [0m[2m1[0m[2m.[0m[2m class[0m[2m Todo[0m[2mItem[0m[2m
+     [0m[2mLet[0m[2m me[0m[2m draft[0m[2m the[0m[2m exact[0m[2m code[0m[2m to[0m[2m write[0m[2m.
      
-     [0m[2m2[0m[2m.[0m[2m class[0m[2m Todo[0m[2mCreate[0m[2m
+     [0m[2mFirst[0m[2m,[0m[2m add[0m[2m the[0m[2m new[0m[2m import[0m[2m:
      
-     [0m[2m3[0m[2m.[0m[2m class[0m[2m Todo[0m[2mUpdate[0m[2m
+     [0m[2mfrom[0m[2m fast[0m[2mapi[0m[2m import[0m[2m Fast[0m[2mAPI[0m[2m,[0m[2m HTTP[0m[2mException[0m[2m,[0m[2m Response[0m[2m
      
-     [0m[2m4[0m[2m.[0m[2m db[0m[2m initialization[0m[2m
+     [0m[2mThen[0m[2m,[0m[2m after[0m[2m db[0m[2m:
      
-     [0m[2m5[0m[2m.[0m[2m @[0m[2mapp[0m[2m.get[0m[2m ([0m[2malready[0m[2m present[0m[2m)
+     [0m[2mnext[0m[2m_id[0m[2m =[0m[2m [0m[2m3[0m[2m
      
-     [0m[2m6[0m[2m.[0m[2m The[0m[2m new[0m[2m endpoints[0m[2m ([0m[2mpost[0m[2m,[0m[2m put[0m[2m,[0m[2m delete[0m[2m)[0m[2m where[0m[2m the[0m[2m TODO[0m[2ms[0m[2m are[0m[2m.
-     
-     [0m[2mWait[0m[2m,[0m[2m the[0m[2m original[0m[2m code[0m[2m has[0m[2m the[0m[2m db[0m[2m initialized[0m[2m right[0m[2m after[0m[2m the[0m[2m models[0m[2m.[0m[2m Let[0m[2m me[0m[2m check[0m[2m:
-     
-     [0m[2mThe[0m[2m provided[0m[2m code[0m[2m:
-     
-     [0m[2mclass[0m[2m Todo[0m[2mItem[0m[2m(Base[0m[2mModel[0m[2m):
-     [0m[2m   [0m[2m id[0m[2m:[0m[2m int[0m[2m
+     [0m[2mclass[0m[2m Todo[0m[2mItem[0m[2mCreate[0m[2m(Base[0m[2mModel[0m[2m):
      [0m[2m   [0m[2m title[0m[2m:[0m[2m str[0m[2m
      [0m[2m   [0m[2m completed[0m[2m:[0m[2m bool[0m[2m =[0m[2m False[0m[2m
      
-     [0m[2m#[0m[2m In[0m[2m-memory[0m[2m database[0m[2m
-     [0m[2mdb[0m[2m:[0m[2m List[0m[2m[T[0m[2modo[0m[2mItem[0m[2m][0m[2m =[0m[2m [...]
+     [0m[2mThen[0m[2m the[0m[2m three[0m[2m endpoints[0m[2m.
      
-     [0m[2m@app[0m[2m.get[0m[2m(...[0m[2m)
+     [0m[2mWait[0m[2m,[0m[2m the[0m[2m existing[0m[2m code[0m[2m already[0m[2m has[0m[2m a[0m[2m class[0m[2m Todo[0m[2mItem[0m[2m.[0m[2m So[0m[2m new[0m[2m code[0m[2m:
      
-     [0m[2mSo[0m[2m the[0m[2m new[0m[2m models[0m[2m need[0m[2m to[0m[2m be[0m[2m added[0m[2m between[0m[2m Todo[0m[2mItem[0m[2m and[0m[2m db[0m[2m.
+     [0m[2mReplace[0m[2m the[0m[2m TODO[0m[2m comments[0m[2m with[0m[2m:
      
-     [0m[2mWait[0m[2m,[0m[2m no[0m[2m.[0m[2m The[0m[2m new[0m[2m models[0m[2m ([0m[2mTodo[0m[2mCreate[0m[2m and[0m[2m Todo[0m[2mUpdate[0m[2m)[0m[2m are[0m[2m used[0m[2m in[0m[2m the[0m[2m new[0m[2m endpoints[0m[2m.[0m[2m So[0m[2m the[0m[2m code[0m[2m would[0m[2m have[0m[2m:
+     [0m[2m@app[0m[2m.post[0m[2m("/[0m[2mtodos[0m[2m",[0m[2m response[0m[2m_model[0m[2m=[0m[2mTodo[0m[2mItem[0m[2m,[0m[2m status[0m[2m_code[0m[2m=[0m[2m2[0m[2m0[0m[2m1[0m[2m)
+     [0m[2masync[0m[2m def[0m[2m create[0m[2m_todo[0m[2m(item[0m[2m:[0m[2m Todo[0m[2mItem[0m[2mCreate[0m[2m):
+     [0m[2m   [0m[2m global[0m[2m next[0m[2m_id[0m[2m
+     [0m[2m   [0m[2m new[0m[2m_item[0m[2m =[0m[2m Todo[0m[2mItem[0m[2m(id[0m[2m=[0m[2mnext[0m[2m_id[0m[2m,[0m[2m title[0m[2m=item[0m[2m.title[0m[2m,[0m[2m completed[0m[2m=item[0m[2m.completed[0m[2m)
+     [0m[2m   [0m[2m db[0m[2m.append[0m[2m(new[0m[2m_item[0m[2m)
+     [0m[2m   [0m[2m next[0m[2m_id[0m[2m +=[0m[2m [0m[2m1[0m[2m
+     [0m[2m   [0m[2m return[0m[2m new[0m[2m_item[0m[2m
      
-     [0m[2mclass[0m[2m Todo[0m[2mItem[0m[2m(...)
-     [0m[2mclass[0m[2m Todo[0m[2mCreate[0m[2m(...)
-     [0m[2mclass[0m[2m Todo[0m[2mUpdate[0m[2m(...[0m[2m)
+     [0m[2m@app[0m[2m.put[0m[2m("/[0m[2mtodos[0m[2m/{[0m[2mitem[0m[2m_id[0m[2m}",[0m[2m response[0m[2m_model[0m[2m=[0m[2mTodo[0m[2mItem[0m[2m)
+     [0m[2masync[0m[2m def[0m[2m update[0m[2m_todo[0m[2m(item[0m[2m_id[0m[2m:[0m[2m int[0m[2m,[0m[2m item[0m[2m:[0m[2m Todo[0m[2mItem[0m[2mCreate[0m[2m):
+     [0m[2m   [0m[2m for[0m[2m i[0m[2m,[0m[2m todo[0m[2m in[0m[2m enumerate[0m[2m(db[0m[2m):
+     [0m[2m       [0m[2m if[0m[2m todo[0m[2m.id[0m[2m ==[0m[2m item[0m[2m_id[0m[2m:
+     [0m[2m           [0m[2m updated[0m[2m_todo[0m[2m =[0m[2m Todo[0m[2mItem[0m[2m(id[0m[2m=item[0m[2m_id[0m[2m,[0m[2m title[0m[2m=item[0m[2m.title[0m[2m,[0m[2m completed[0m[2m=item[0m[2m.completed[0m[2m)
+     [0m[2m           [0m[2m db[0m[2m[i[0m[2m][0m[2m =[0m[2m updated[0m[2m_todo[0m[2m
+     [0m[2m           [0m[2m return[0m[2m updated[0m[2m_todo[0m[2m
+     [0m[2m   [0m[2m raise[0m[2m HTTP[0m[2mException[0m[2m(status[0m[2m_code[0m[2m=[0m[2m4[0m[2m0[0m[2m4[0m[2m,[0m[2m detail[0m[2m="[0m[2mTodo[0m[2m not[0m[2m found[0m[2m")
      
-     [0m[2mdb[0m[2m =[0m[2m [...]
+     [0m[2m@app[0m[2m.delete[0m[2m("/[0m[2mtodos[0m[2m/{[0m[2mitem[0m[2m_id[0m[2m}",[0m[2m status[0m[2m_code[0m[2m=[0m[2m2[0m[2m0[0m[2m4[0m[2m)
+     [0m[2masync[0m[2m def[0m[2m delete[0m[2m_todo[0m[2m(item[0m[2m_id[0m[2m:[0m[2m int[0m[2m):
+     [0m[2m   [0m[2m for[0m[2m i[0m[2m,[0m[2m todo[0m[2m in[0m[2m enumerate[0m[2m(db[0m[2m):
+     [0m[2m       [0m[2m if[0m[2m todo[0m[2m.id[0m[2m ==[0m[2m item[0m[2m_id[0m[2m:
+     [0m[2m           [0m[2m del[0m[2m db[0m[2m[i[0m[2m]
+     [0m[2m           [0m[2m return[0m[2m
+     [0m[2m   [0m[2m raise[0m[2m HTTP[0m[2mException[0m[2m(status[0m[2m_code[0m[2m=[0m[2m4[0m[2m0[0m[2m4[0m[2m,[0m[2m detail[0m[2m="[0m[2mTodo[0m[2m not[0m[2m found[0m[2m")
      
-     [0m[2m@app[0m[2m.get[0m[2m(...[0m[2m)
+     [0m[2mWait[0m[2m,[0m[2m but[0m[2m in[0m[2m the[0m[2m delete[0m[2m function[0m[2m,[0m[2m after[0m[2m deleting[0m[2m,[0m[2m return[0m[2m with[0m[2m [0m[2m2[0m[2m0[0m[2m4[0m[2m.[0m[2m The[0m[2m status[0m[2m_code[0m[2m=[0m[2m2[0m[2m0[0m[2m4[0m[2m in[0m[2m the[0m[2m decorator[0m[2m ensures[0m[2m the[0m[2m correct[0m[2m status[0m[2m even[0m[2m when[0m[2m returning[0m[2m None[0m[2m.
      
-     [0m[2m@app[0m[2m.post[0m[2m(...)
-     [0m[2m...
+     [0m[2mBut[0m[2m in[0m[2m Fast[0m[2mAPI[0m[2m,[0m[2m if[0m[2m you[0m[2m return[0m[2m None[0m[2m for[0m[2m a[0m[2m delete[0m[2m with[0m[2m status[0m[2m_code[0m[2m=[0m[2m2[0m[2m0[0m[2m4[0m[2m,[0m[2m it[0m[2m's[0m[2m correct[0m[2m.
      
-     [0m[2mSo[0m[2m yes[0m[2m,[0m[2m add[0m[2m the[0m[2m models[0m[2m after[0m[2m Todo[0m[2mItem[0m[2m.
+     [0m[2mYes[0m[2m.
      
-     [0m[2mTherefore[0m[2m,[0m[2m the[0m[2m exact[0m[2m changes[0m[2m are[0m[2m:
+     [0m[2mNow[0m[2m,[0m[2m check[0m[2m for[0m[2m possible[0m[2m issues[0m[2m:
      
-     [0m[2m-[0m[2m Add[0m[2m two[0m[2m new[0m[2m classes[0m[2m.
+     [0m[2m-[0m[2m The[0m[2m global[0m[2m next[0m[2m_id[0m[2m:[0m[2m but[0m[2m since[0m[2m it[0m[2m's[0m[2m a[0m[2m simple[0m[2m app[0m[2m running[0m[2m in[0m[2m a[0m[2m single[0m[2m process[0m[2m,[0m[2m it[0m[2m's[0m[2m okay[0m[2m.
      
-     [0m[2m-[0m[2m Replace[0m[2m the[0m[2m three[0m[2m TODO[0m[2m lines[0m[2m with[0m[2m the[0m[2m three[0m[2m new[0m[2m route[0m[2m definitions[0m[2m.
+     [0m[2m-[0m[2m When[0m[2m deleting[0m[2m an[0m[2m item[0m[2m,[0m[2m the[0m[2m next[0m[2m_id[0m[2m is[0m[2m not[0m[2m adjusted[0m[2m,[0m[2m but[0m[2m since[0m[2m we[0m[2m're[0m[2m using[0m[2m a[0m[2m strict[0m[2m increment[0m[2m,[0m[2m if[0m[2m items[0m[2m are[0m[2m deleted[0m[2m,[0m[2m the[0m[2m next[0m[2m_id[0m[2m will[0m[2m still[0m[2m increment[0m[2m,[0m[2m leading[0m[2m to[0m[2m non[0m[2m-[0m[2msequential[0m[2m IDs[0m[2m ([0m[2mwhich[0m[2m is[0m[2m fine[0m[2m;[0m[2m auto[0m[2m-in[0m[2mcrement[0m[2m usually[0m[2m means[0m[2m mon[0m[2moton[0m[2mically[0m[2m increasing[0m[2m,[0m[2m not[0m[2m necessarily[0m[2m contiguous[0m[2m).
      
-     [0m[2mNow[0m[2m,[0m[2m using[0m[2m replace[0m[2m_in[0m[2m_file[0m[2m might[0m[2m not[0m[2m be[0m[2m suitable[0m[2m here[0m[2m because[0m[2m the[0m[2m change[0m[2m involves[0m[2m adding[0m[2m new[0m[2m classes[0m[2m and[0m[2m replacing[0m[2m comments[0m[2m with[0m[2m code[0m[2m.[0m[2m Since[0m[2m there[0m[2m's[0m[2m no[0m[2m exact[0m[2m old[0m[2m_text[0m[2m to[0m[2m replace[0m[2m ([0m[2mthe[0m[2m comments[0m[2m are[0m[2m different[0m[2m),[0m[2m it[0m[2m's[0m[2m better[0m[2m to[0m[2m write[0m[2m the[0m[2m entire[0m[2m section[0m[2m.[0m[2m However[0m[2m,[0m[2m the[0m[2m user[0m[2m's[0m[2m file[0m[2m might[0m[2m have[0m[2m other[0m[2m content[0m[2m after[0m[2m the[0m[2m TODO[0m[2ms[0m[2m,[0m[2m but[0m[2m according[0m[2m to[0m[2m the[0m[2m provided[0m[2m code[0m[2m,[0m[2m the[0m[2m file[0m[2m ends[0m[2m with[0m[2m the[0m[2m uv[0m[2micorn[0m[2m.run[0m[2m.
+     [0m[2mYes[0m[2m,[0m[2m so[0m[2m having[0m[2m gaps[0m[2m is[0m[2m acceptable[0m[2m.
      
-     [0m[2mWait[0m[2m,[0m[2m looking[0m[2m at[0m[2m the[0m[2m user[0m[2m's[0m[2m provided[0m[2m code[0m[2m:
+     [0m[2mNow[0m[2m,[0m[2m verify[0m[2m the[0m[2m code[0m[2m for[0m[2m correctness[0m[2m.
      
-     [0m[2mAfter[0m[2m the[0m[2m TODO[0m[2ms[0m[2m,[0m[2m it[0m[2m's[0m[2m the[0m[2m if[0m[2m __[0m[2mname[0m[2m__[0m[2m ==[0m[2m ...[0m[2m block[0m[2m.
+     [0m[2mLet[0m[2m's[0m[2m imagine[0m[2m the[0m[2m flow[0m[2m:
      
-     [0m[2mSo[0m[2m the[0m[2m code[0m[2m sections[0m[2m to[0m[2m add[0m[2m are[0m[2m the[0m[2m two[0m[2m new[0m[2m models[0m[2m and[0m[2m the[0m[2m three[0m[2m new[0m[2m routes[0m[2m in[0m[2m place[0m[2m of[0m[2m the[0m[2m TODO[0m[2m comments[0m[2m.
+     [0m[2m-[0m[2m POST[0m[2m /[0m[2mtodos[0m[2m with[0m[2m {"[0m[2mtitle[0m[2m":[0m[2m "[0m[2mNew[0m[2m task[0m[2m"}[0m[2m →[0m[2m returns[0m[2m item[0m[2m with[0m[2m id[0m[2m=[0m[2m3[0m[2m,[0m[2m status[0m[2m [0m[2m2[0m[2m0[0m[2m1[0m[2m.
      
-     [0m[2mThe[0m[2m current[0m[2m code[0m[2m after[0m[2m the[0m[2m GET[0m[2m endpoint[0m[2m is[0m[2m:
+     [0m[2m-[0m[2m GET[0m[2m /[0m[2mtodos[0m[2m →[0m[2m includes[0m[2m the[0m[2m new[0m[2m item[0m[2m.
+     
+     [0m[2m-[0m[2m PUT[0m[2m /[0m[2mtodos[0m[2m/[0m[2m3[0m[2m with[0m[2m {"[0m[2mtitle[0m[2m":[0m[2m "[0m[2mUpdated[0m[2m"}[0m[2m →[0m[2m updates[0m[2m the[0m[2m title[0m[2m.
+     
+     [0m[2m-[0m[2m DELETE[0m[2m /[0m[2mtodos[0m[2m/[0m[2m3[0m[2m →[0m[2m removes[0m[2m the[0m[2m item[0m[2m.
+     
+     [0m[2mLooks[0m[2m good[0m[2m.
+     
+     [0m[2mNow[0m[2m,[0m[2m need[0m[2m to[0m[2m update[0m[2m the[0m[2m todo[0m[2m_app[0m[2m.py[0m[2m file[0m[2m with[0m[2m these[0m[2m changes[0m[2m.
+     
+     [0m[2mThe[0m[2m next[0m[2m step[0m[2m is[0m[2m to[0m[2m use[0m[2m write[0m[2m_file[0m[2m to[0m[2m replace[0m[2m the[0m[2m contents[0m[2m.[0m[2m Wait[0m[2m,[0m[2m but[0m[2m the[0m[2m existing[0m[2m code[0m[2m has[0m[2m the[0m[2m TODO[0m[2m comments[0m[2m.[0m[2m The[0m[2m instruction[0m[2m says[0m[2m to[0m[2m edit[0m[2m in[0m[2m place[0m[2m,[0m[2m so[0m[2m we[0m[2m need[0m[2m to[0m[2m replace[0m[2m those[0m[2m comments[0m[2m with[0m[2m the[0m[2m code[0m[2m.
+     
+     [0m[2mBut[0m[2m the[0m[2m current[0m[2m code[0m[2m has[0m[2m:
      
      [0m[2m#[0m[2m TODO[0m[2m:[0m[2m Implement[0m[2m POST[0m[2m /[0m[2mtodos[0m[2m to[0m[2m add[0m[2m a[0m[2m new[0m[2m item[0m[2m
-     [0m[2m#[0m[2m TODO[0m[2m:[0m[2m Implement[0m[2m PUT[0m[2m /[0m[2mtodos[0m[2m/{[0m[2mitem[0m[2m_id[0m[2m}[0m[2m to[0m[2m update[0m[2m an[0m[2m item[0m[2m
-     [0m[2m#[0m[2m TODO[0m[2m:[0m[2m Implement[0m[2m DELETE[0m[2m /[0m[2mtodos[0m[2m/{[0m[2mitem[0m[2m_id[0m[2m}[0m[2m to[0m[2m delete[0m[2m an[0m[2m item[0m[2m
+     [0m[2m#[0m[2m TODO[0m[2m:[0m[2m Implement[0m[2m PUT[0m[2m /[0m[2mtos[0m[2m/{[0m[2mitem[0m[2m_id[0m[2m}[0m[2m to[0m[2m update[0m[2m an[0m[2m item[0m[2m
+     [0m[2m#[0m[2m TODO[0m[2m:[0m[2m Implement[0m[2m DELETE[0m[2m /[0m[2mtos[0m[2m/{[0m[2mitem[0m[2m_id[0m[2m}[0m[2m to[0m[2m delete[0m[2m an[0m[2m item[0m[2m
      
-     [0m[2mSo[0m[2m the[0m[2m replacement[0m[2m is[0m[2m deleting[0m[2m those[0m[2m three[0m[2m lines[0m[2m and[0m[2m inserting[0m[2m the[0m[2m three[0m[2m new[0m[2m functions[0m[2m.
+     [0m[2mWe[0m[2m need[0m[2m to[0m[2m remove[0m[2m these[0m[2m comments[0m[2m and[0m[2m insert[0m[2m the[0m[2m code[0m[2m.
      
-     [0m[2mAdditionally[0m[2m,[0m[2m adding[0m[2m the[0m[2m two[0m[2m new[0m[2m model[0m[2m classes[0m[2m above[0m[2m.
+     [0m[2mTherefore[0m[2m,[0m[2m the[0m[2m new[0m[2m code[0m[2m will[0m[2m have[0m[2m:
      
-     [0m[2mSo[0m[2m the[0m[2m steps[0m[2m for[0m[2m editing[0m[2m:
+     [0m[2mAfter[0m[2m the[0m[2m GET[0m[2m endpoint[0m[2m,[0m[2m insert[0m[2m the[0m[2m three[0m[2m new[0m[2m endpoints[0m[2m.
      
-     [0m[2m1[0m[2m.[0m[2m Insert[0m[2m the[0m[2m two[0m[2m new[0m[2m model[0m[2m classes[0m[2m right[0m[2m after[0m[2m Todo[0m[2mItem[0m[2m.
+     [0m[2mSo[0m[2m the[0m[2m exact[0m[2m changes[0m[2m are[0m[2m:
      
-     [0m[2m2[0m[2m.[0m[2m Replace[0m[2m the[0m[2m three[0m[2m TODO[0m[2m lines[0m[2m with[0m[2m the[0m[2m three[0m[2m new[0m[2m route[0m[2m definitions[0m[2m.
+     [0m[2m-[0m[2m Add[0m[2m the[0m[2m new[0m[2m import[0m[2m ([0m[2mResponse[0m[2m)
+     [0m[2m-[0m[2m Add[0m[2m next[0m[2m_id[0m[2m variable[0m[2m
+     [0m[2m-[0m[2m Add[0m[2m Todo[0m[2mItem[0m[2mCreate[0m[2m class[0m[2m
+     [0m[2m-[0m[2m Add[0m[2m the[0m[2m three[0m[2m endpoints[0m[2m
      
-     [0m[2mBut[0m[2m since[0m[2m the[0m[2m replace[0m[2m_in[0m[2m_file[0m[2m requires[0m[2m exact[0m[2m old[0m[2m_text[0m[2m,[0m[2m and[0m[2m the[0m[2m current[0m[2m code[0m[2m has[0m[2m the[0m[2m three[0m[2m TODO[0m[2m comments[0m[2m as[0m[2m the[0m[2m target[0m[2m to[0m[2m be[0m[2m replaced[0m[2m,[0m[2m perhaps[0m[2m we[0m[2m can[0m[2m replace[0m[2m those[0m[2m three[0m[2m lines[0m[2m with[0m[2m the[0m[2m new[0m[2m routes[0m[2m.[0m[2m However[0m[2m,[0m[2m inserting[0m[2m the[0m[2m models[0m[2m requires[0m[2m adding[0m[2m new[0m[2m content[0m[2m before[0m[2m them[0m[2m.
+     [0m[2mNow[0m[2m,[0m[2m I[0m[2m need[0m[2m to[0m[2m construct[0m[2m the[0m[2m exact[0m[2m replacement[0m[2m for[0m[2m the[0m[2m todo[0m[2m_app[0m[2m.py[0m[2m file[0m[2m.
      
-     [0m[2mAlternatively[0m[2m,[0m[2m the[0m[2m best[0m[2m approach[0m[2m is[0m[2m to[0m[2m use[0m[2m write[0m[2m_file[0m[2m to[0m[2m overwrite[0m[2m the[0m[2m entire[0m[2m file[0m[2m with[0m[2m the[0m[2m updated[0m[2m content[0m[2m.
+     [0m[2mBut[0m[2m since[0m[2m the[0m[2m user[0m[2m asked[0m[2m to[0m[2m edit[0m[2m the[0m[2m existing[0m[2m file[0m[2m,[0m[2m I[0m[2m need[0m[2m to[0m[2m generate[0m[2m the[0m[2m correct[0m[2m code[0m[2m.
      
-     [0m[2mBut[0m[2m the[0m[2m user[0m[2m's[0m[2m instruction[0m[2m says[0m[2m to[0m[2m "[0m[2mEdit[0m[2m in[0m[2m Place[0m[2m"[0m[2m and[0m[2m modify[0m[2m the[0m[2m existing[0m[2m file[0m[2m.[0m[2m So[0m[2m the[0m[2m safest[0m[2m way[0m[2m is[0m[2m to[0m[2m generate[0m[2m the[0m[2m new[0m[2m code[0m[2m content[0m[2m and[0m[2m replace[0m[2m the[0m[2m entire[0m[2m file[0m[2m.
+     [0m[2mThe[0m[2m current[0m[2m code[0m[2m is[0m[2m:
      
-     [0m[2mBut[0m[2m the[0m[2m user[0m[2m might[0m[2m have[0m[2m other[0m[2m changes[0m[2m in[0m[2m the[0m[2m file[0m[2m not[0m[2m shown[0m[2m,[0m[2m but[0m[2m according[0m[2m to[0m[2m the[0m[2m provided[0m[2m code[0m[2m,[0m[2m we[0m[2m have[0m[2m the[0m[2m full[0m[2m content[0m[2m.[0m[2m So[0m[2m the[0m[2m plan[0m[2m is[0m[2m:
-     
-     [0m[2m-[0m[2m Read[0m[2m the[0m[2m current[0m[2m content[0m[2m ([0m[2mwhich[0m[2m we[0m[2m have[0m[2m).
-     
-     [0m[2m-[0m[2m Make[0m[2m the[0m[2m necessary[0m[2m additions[0m[2m.
-     
-     [0m[2m-[0m[2m Write[0m[2m the[0m[2m updated[0m[2m content[0m[2m.
-     
-     [0m[2mBut[0m[2m since[0m[2m I[0m[2m have[0m[2m the[0m[2m current[0m[2m content[0m[2m,[0m[2m I[0m[2m can[0m[2m construct[0m[2m the[0m[2m new[0m[2m content[0m[2m.
-     
-     [0m[2mLet[0m[2m's[0m[2m build[0m[2m the[0m[2m new[0m[2m content[0m[2m step[0m[2m by[0m[2m step[0m[2m.
-     
-     [0m[2mOriginal[0m[2m code[0m[2m:
-     
-     [0m[2mfrom[0m[2m typing[0m[2m import[0m[2m List[0m[2m,[0m[2m Optional[0m[2m
-     
-     [0m[2mimport[0m[2m uv[0m[2micorn[0m[2m
-     [0m[2mfrom[0m[2m fast[0m[2mapi[0m[2m import[0m[2m Fast[0m[2mAPI[0m[2m,[0m[2m HTTP[0m[2mException[0m[2m
-     [0m[2mfrom[0m[2m py[0m[2md[0m[2mantic[0m[2m import[0m[2m BaseModel[0m[2m
-     
-     [0m[2mapp[0m[2m =[0m[2m Fast[0m[2mAPI[0m[2m()
-     
-     
-     [0m[2mclass[0m[2m Todo[0m[2mItem[0m[2m(Base[0m[2mModel[0m[2m):
-     [0m[2m   [0m[2m id[0m[2m:[0m[2m int[0m[2m
-     [0m[2m   [0m[2m title[0m[2m:[0m[2m str[0m[2m
-     [0m[2m   [0m[2m completed[0m[2m:[0m[2m bool[0m[2m =[0m[2m False[0m[2m
-     
-     
-     [0m[2m#[0m[2m In[0m[2m-memory[0m[2m database[0m[2m
-     [0m[2mdb[0m[2m:[0m[2m List[0m[2m[T[0m[2modo[0m[2mItem[0m[2m][0m[2m =[0m[2m [
-     [0m[2m   [0m[2m Todo[0m[2mItem[0m[2m(id[0m[2m=[0m[2m1[0m[2m,[0m[2m title[0m[2m="[0m[2mBuy[0m[2m groceries[0m[2m"),
-     [0m[2m   [0m[2m Todo[0m[2mItem[0m[2m(id[0m[2m=[0m[2m2[0m[2m,[0m[2m title[0m[2m="[0m[2mWalk[0m[2m the[0m[2m dog[0m[2m"),
-     [0m[2m]
-     
+     [0m[2m...
      
      [0m[2m@app[0m[2m.get[0m[2m("/[0m[2mtodos[0m[2m",[0m[2m response[0m[2m_model[0m[2m=[0m[2mList[0m[2m[T[0m[2modo[0m[2mItem[0m[2m])
      [0m[2masync[0m[2m def[0m[2m get[0m[2m_t[0m[2modos[0m[2m():
      [0m[2m   [0m[2m return[0m[2m db[0m[2m
-     
      
      [0m[2m#[0m[2m TODO[0m[2m:[0m[2m Implement[0m[2m POST[0m[2m /[0m[2mtodos[0m[2m to[0m[2m add[0m[2m a[0m[2m new[0m[2m item[0m[2m
      [0m[2m#[0m[2m TODO[0m[2m:[0m[2m Implement[0m[2m PUT[0m[2m /[0m[2mtodos[0m[2m/{[0m[2mitem[0m[2m_id[0m[2m}[0m[2m to[0m[2m update[0m[2m an[0m[2m item[0m[2m
@@ -409,28 +458,38 @@
      [0m[2mif[0m[2m __[0m[2mname[0m[2m__[0m[2m ==[0m[2m "__[0m[2mmain[0m[2m__":
      [0m[2m   [0m[2m uv[0m[2micorn[0m[2m.run[0m[2m(app[0m[2m,[0m[2m host[0m[2m="[0m[2m0[0m[2m.[0m[2m0[0m[2m.[0m[2m0[0m[2m.[0m[2m0[0m[2m",[0m[2m port[0m[2m=[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m)
      
-     [0m[2mThe[0m[2m modified[0m[2m code[0m[2m should[0m[2m have[0m[2m:
+     [0m[2mSo[0m[2m,[0m[2m the[0m[2m parts[0m[2m to[0m[2m replace[0m[2m are[0m[2m the[0m[2m three[0m[2m TODO[0m[2m comments[0m[2m.
      
-     [0m[2mAfter[0m[2m the[0m[2m Todo[0m[2mItem[0m[2m,[0m[2m add[0m[2m:
+     [0m[2mBut[0m[2m the[0m[2m new[0m[2m code[0m[2m additions[0m[2m include[0m[2m the[0m[2m additional[0m[2m imports[0m[2m,[0m[2m next[0m[2m_id[0m[2m,[0m[2m the[0m[2m new[0m[2m class[0m[2m,[0m[2m and[0m[2m the[0m[2m endpoints[0m[2m.
      
-     [0m[2mclass[0m[2m Todo[0m[2mCreate[0m[2m(Base[0m[2mModel[0m[2m):
+     [0m[2mWait[0m[2m,[0m[2m the[0m[2m import[0m[2m of[0m[2m Response[0m[2m is[0m[2m also[0m[2m needed[0m[2m.[0m[2m So[0m[2m the[0m[2m existing[0m[2m imports[0m[2m are[0m[2m:
+     
+     [0m[2mfrom[0m[2m fast[0m[2mapi[0m[2m import[0m[2m Fast[0m[2mAPI[0m[2m,[0m[2m HTTP[0m[2mException[0m[2m
+     
+     [0m[2mWe[0m[2m need[0m[2m to[0m[2m add[0m[2m Response[0m[2m to[0m[2m it[0m[2m.
+     
+     [0m[2mSo[0m[2m the[0m[2m import[0m[2m line[0m[2m becomes[0m[2m:
+     
+     [0m[2mfrom[0m[2m fast[0m[2mapi[0m[2m import[0m[2m Fast[0m[2mAPI[0m[2m,[0m[2m HTTP[0m[2mException[0m[2m,[0m[2m Response[0m[2m
+     
+     [0m[2mThen[0m[2m after[0m[2m the[0m[2m class[0m[2m definition[0m[2m and[0m[2m db[0m[2m initialization[0m[2m:
+     
+     [0m[2mnext[0m[2m_id[0m[2m =[0m[2m [0m[2m3[0m[2m
+     
+     [0m[2mclass[0m[2m Todo[0m[2mItem[0m[2mCreate[0m[2m(Base[0m[2mModel[0m[2m):
      [0m[2m   [0m[2m title[0m[2m:[0m[2m str[0m[2m
      [0m[2m   [0m[2m completed[0m[2m:[0m[2m bool[0m[2m =[0m[2m False[0m[2m
      
-     [0m[2mclass[0m[2m Todo[0m[2mUpdate[0m[2m(Base[0m[2mModel[0m[2m):
-     [0m[2m   [0m[2m title[0m[2m:[0m[2m Optional[0m[2m[str[0m[2m][0m[2m =[0m[2m None[0m[2m
-     [0m[2m   [0m[2m completed[0m[2m:[0m[2m Optional[0m[2m[[0m[2mbool[0m[2m][0m[2m =[0m[2m None[0m[2m
+     [0m[2mThen[0m[2m the[0m[2m endpoints[0m[2m.
      
-     [0m[2mThen[0m[2m,[0m[2m replace[0m[2m the[0m[2m three[0m[2m TODO[0m[2m lines[0m[2m with[0m[2m the[0m[2m three[0m[2m new[0m[2m route[0m[2m definitions[0m[2m.
+     [0m[2mSo[0m[2m the[0m[2m new[0m[2m code[0m[2m will[0m[2m have[0m[2m the[0m[2m changes[0m[2m in[0m[2m several[0m[2m parts[0m[2m.
      
-     [0m[2mLet[0m[2m's[0m[2m write[0m[2m out[0m[2m the[0m[2m exact[0m[2m new[0m[2m text[0m[2m.
-     
-     [0m[2mSo[0m[2m the[0m[2m new[0m[2m code[0m[2m would[0m[2m be[0m[2m:
+     [0m[2mGiven[0m[2m that[0m[2m,[0m[2m the[0m[2m entire[0m[2m file[0m[2m after[0m[2m changes[0m[2m would[0m[2m be[0m[2m:
      
      [0m[2mfrom[0m[2m typing[0m[2m import[0m[2m List[0m[2m,[0m[2m Optional[0m[2m
      
      [0m[2mimport[0m[2m uv[0m[2micorn[0m[2m
-     [0m[2mfrom[0m[2m fast[0m[2mapi[0m[2m import[0m[2m Fast[0m[2mAPI[0m[2m,[0m[2m HTTP[0m[2mException[0m[2m
+     [0m[2mfrom[0m[2m fast[0m[2mapi[0m[2m import[0m[2m Fast[0m[2mAPI[0m[2m,[0m[2m HTTP[0m[2mException[0m[2m,[0m[2m Response[0m[2m
      [0m[2mfrom[0m[2m py[0m[2md[0m[2mantic[0m[2m import[0m[2m BaseModel[0m[2m
      
      [0m[2mapp[0m[2m =[0m[2m Fast[0m[2mAPI[0m[2m()
@@ -442,21 +501,17 @@
      [0m[2m   [0m[2m completed[0m[2m:[0m[2m bool[0m[2m =[0m[2m False[0m[2m
      
      
-     [0m[2mclass[0m[2m Todo[0m[2mCreate[0m[2m(Base[0m[2mModel[0m[2m):
-     [0m[2m   [0m[2m title[0m[2m:[0m[2m str[0m[2m
-     [0m[2m   [0m[2m completed[0m[2m:[0m[2m bool[0m[2m =[0m[2m False[0m[2m
-     
-     
-     [0m[2mclass[0m[2m Todo[0m[2mUpdate[0m[2m(Base[0m[2mModel[0m[2m):
-     [0m[2m   [0m[2m title[0m[2m:[0m[2m Optional[0m[2m[str[0m[2m][0m[2m =[0m[2m None[0m[2m
-     [0m[2m   [0m[2m completed[0m[2m:[0m[2m Optional[0m[2m[[0m[2mbool[0m[2m][0m[2m =[0m[2m None[0m[2m
-     
-     
      [0m[2m#[0m[2m In[0m[2m-memory[0m[2m database[0m[2m
      [0m[2mdb[0m[2m:[0m[2m List[0m[2m[T[0m[2modo[0m[2mItem[0m[2m][0m[2m =[0m[2m [
      [0m[2m   [0m[2m Todo[0m[2mItem[0m[2m(id[0m[2m=[0m[2m1[0m[2m,[0m[2m title[0m[2m="[0m[2mBuy[0m[2m groceries[0m[2m"),
      [0m[2m   [0m[2m Todo[0m[2mItem[0m[2m(id[0m[2m=[0m[2m2[0m[2m,[0m[2m title[0m[2m="[0m[2mWalk[0m[2m the[0m[2m dog[0m[2m"),
      [0m[2m]
+     
+     [0m[2mnext[0m[2m_id[0m[2m =[0m[2m [0m[2m3[0m[2m
+     
+     [0m[2mclass[0m[2m Todo[0m[2mItem[0m[2mCreate[0m[2m(Base[0m[2mModel[0m[2m):
+     [0m[2m   [0m[2m title[0m[2m:[0m[2m str[0m[2m
+     [0m[2m   [0m[2m completed[0m[2m:[0m[2m bool[0m[2m =[0m[2m False[0m[2m
      
      
      [0m[2m@app[0m[2m.get[0m[2m("/[0m[2mtodos[0m[2m",[0m[2m response[0m[2m_model[0m[2m=[0m[2mList[0m[2m[T[0m[2modo[0m[2mItem[0m[2m])
@@ -465,356 +520,356 @@
      
      
      [0m[2m@app[0m[2m.post[0m[2m("/[0m[2mtodos[0m[2m",[0m[2m response[0m[2m_model[0m[2m=[0m[2mTodo[0m[2mItem[0m[2m,[0m[2m status[0m[2m_code[0m[2m=[0m[2m2[0m[2m0[0m[2m1[0m[2m)
-     [0m[2masync[0m[2m def[0m[2m create[0m[2m_todo[0m[2m(todo[0m[2m:[0m[2m Todo[0m[2mCreate[0m[2m):
-     [0m[2m   [0m[2m next[0m[2m_id[0m[2m =[0m[2m max[0m[2m(([0m[2mt[0m[2m.id[0m[2m for[0m[2m t[0m[2m in[0m[2m db[0m[2m),[0m[2m default[0m[2m=[0m[2m0[0m[2m)[0m[2m +[0m[2m [0m[2m1[0m[2m
-     [0m[2m   [0m[2m new[0m[2m_todo[0m[2m =[0m[2m Todo[0m[2mItem[0m[2m(id[0m[2m=[0m[2mnext[0m[2m_id[0m[2m,[0m[2m title[0m[2m=[0m[2mtodo[0m[2m.title[0m[2m,[0m[2m completed[0m[2m=[0m[2mtodo[0m[2m.completed[0m[2m)
-     [0m[2m   [0m[2m db[0m[2m.append[0m[2m(new[0m[2m_todo[0m[2m)
-     [0m[2m   [0m[2m return[0m[2m new[0m[2m_todo[0m[2m
+     [0m[2masync[0m[2m def[0m[2m create[0m[2m_todo[0m[2m(item[0m[2m:[0m[2m Todo[0m[2mItem[0m[2mCreate[0m[2m):
+     [0m[2m   [0m[2m global[0m[2m next[0m[2m_id[0m[2m
+     [0m[2m   [0m[2m new[0m[2m_item[0m[2m =[0m[2m Todo[0m[2mItem[0m[2m(id[0m[2m=[0m[2mnext[0m[2m_id[0m[2m,[0m[2m title[0m[2m=item[0m[2m.title[0m[2m,[0m[2m completed[0m[2m=item[0m[2m.completed[0m[2m)
+     [0m[2m   [0m[2m db[0m[2m.append[0m[2m(new[0m[2m_item[0m[2m)
+     [0m[2m   [0m[2m next[0m[2m_id[0m[2m +=[0m[2m [0m[2m1[0m[2m
+     [0m[2m   [0m[2m return[0m[2m new[0m[2m_item[0m[2m
      
      
      [0m[2m@app[0m[2m.put[0m[2m("/[0m[2mtodos[0m[2m/{[0m[2mitem[0m[2m_id[0m[2m}",[0m[2m response[0m[2m_model[0m[2m=[0m[2mTodo[0m[2mItem[0m[2m)
-     [0m[2masync[0m[2m def[0m[2m update[0m[2m_todo[0m[2m(item[0m[2m_id[0m[2m:[0m[2m int[0m[2m,[0m[2m todo[0m[2m:[0m[2m Todo[0m[2mUpdate[0m[2m):
-     [0m[2m   [0m[2m for[0m[2m existing[0m[2m_todo[0m[2m in[0m[2m db[0m[2m:
-     [0m[2m       [0m[2m if[0m[2m existing[0m[2m_todo[0m[2m.id[0m[2m ==[0m[2m item[0m[2m_id[0m[2m:
-     [0m[2m           [0m[2m if[0m[2m todo[0m[2m.title[0m[2m is[0m[2m not[0m[2m None[0m[2m:
-     [0m[2m               [0m[2m existing[0m[2m_todo[0m[2m.title[0m[2m =[0m[2m todo[0m[2m.title[0m[2m
-     [0m[2m           [0m[2m if[0m[2m todo[0m[2m.completed[0m[2m is[0m[2m not[0m[2m None[0m[2m:
-     [0m[2m               [0m[2m existing[0m[2m_todo[0m[2m.completed[0m[2m =[0m[2m todo[0m[2m.completed[0m[2m
-     [0m[2m           [0m[2m return[0m[2m existing[0m[2m_todo[0m[2m
-     [0m[2m   [0m[2m raise[0m[2m HTTP[0m[2mException[0m[2m(status[0m[2m_code[0m[2m=[0m[2m4[0m[2m0[0m[2m4[0m[2m,[0m[2m detail[0m[2m="[0m[2mTodo[0m[2m item[0m[2m not[0m[2m found[0m[2m")
+     [0m[2masync[0m[2m def[0m[2m update[0m[2m_todo[0m[2m(item[0m[2m_id[0m[2m:[0m[2m int[0m[2m,[0m[2m item[0m[2m:[0m[2m Todo[0m[2mItem[0m[2mCreate[0m[2m):
+     [0m[2m   [0m[2m for[0m[2m i[0m[2m,[0m[2m todo[0m[2m in[0m[2m enumerate[0m[2m(db[0m[2m):
+     [0m[2m       [0m[2m if[0m[2m todo[0m[2m.id[0m[2m ==[0m[2m item[0m[2m_id[0m[2m:
+     [0m[2m           [0m[2m updated[0m[2m_todo[0m[2m =[0m[2m Todo[0m[2mItem[0m[2m(id[0m[2m=item[0m[2m_id[0m[2m,[0m[2m title[0m[2m=item[0m[2m.title[0m[2m,[0m[2m completed[0m[2m=item[0m[2m.completed[0m[2m)
+     [0m[2m           [0m[2m db[0m[2m[i[0m[2m][0m[2m =[0m[2m updated[0m[2m_todo[0m[2m
+     [0m[2m           [0m[2m return[0m[2m updated[0m[2m_todo[0m[2m
+     [0m[2m   [0m[2m raise[0m[2m HTTP[0m[2mException[0m[2m(status[0m[2m_code[0m[2m=[0m[2m4[0m[2m0[0m[2m4[0m[2m,[0m[2m detail[0m[2m="[0m[2mTodo[0m[2m not[0m[2m found[0m[2m")
      
      
      [0m[2m@app[0m[2m.delete[0m[2m("/[0m[2mtodos[0m[2m/{[0m[2mitem[0m[2m_id[0m[2m}",[0m[2m status[0m[2m_code[0m[2m=[0m[2m2[0m[2m0[0m[2m4[0m[2m)
      [0m[2masync[0m[2m def[0m[2m delete[0m[2m_todo[0m[2m(item[0m[2m_id[0m[2m:[0m[2m int[0m[2m):
-     [0m[2m   [0m[2m for[0m[2m index[0m[2m,[0m[2m todo[0m[2m in[0m[2m enumerate[0m[2m(db[0m[2m):
+     [0m[2m   [0m[2m for[0m[2m i[0m[2m,[0m[2m todo[0m[2m in[0m[2m enumerate[0m[2m(db[0m[2m):
      [0m[2m       [0m[2m if[0m[2m todo[0m[2m.id[0m[2m ==[0m[2m item[0m[2m_id[0m[2m:
-     [0m[2m           [0m[2m db[0m[2m.pop[0m[2m(index[0m[2m)
+     [0m[2m           [0m[2m del[0m[2m db[0m[2m[i[0m[2m]
      [0m[2m           [0m[2m return[0m[2m
-     [0m[2m   [0m[2m raise[0m[2m HTTP[0m[2mException[0m[2m(status[0m[2m_code[0m[2m=[0m[2m4[0m[2m0[0m[2m4[0m[2m,[0m[2m detail[0m[2m="[0m[2mTodo[0m[2m item[0m[2m not[0m[2m found[0m[2m")
+     [0m[2m   [0m[2m raise[0m[2m HTTP[0m[2mException[0m[2m(status[0m[2m_code[0m[2m=[0m[2m4[0m[2m0[0m[2m4[0m[2m,[0m[2m detail[0m[2m="[0m[2mTodo[0m[2m not[0m[2m found[0m[2m")
      
      
      [0m[2mif[0m[2m __[0m[2mname[0m[2m__[0m[2m ==[0m[2m "__[0m[2mmain[0m[2m__":
      [0m[2m   [0m[2m uv[0m[2micorn[0m[2m.run[0m[2m(app[0m[2m,[0m[2m host[0m[2m="[0m[2m0[0m[2m.[0m[2m0[0m[2m.[0m[2m0[0m[2m.[0m[2m0[0m[2m",[0m[2m port[0m[2m=[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m)
      
-     [0m[2mNow[0m[2m,[0m[2m check[0m[2m if[0m[2m all[0m[2m changes[0m[2m are[0m[2m correctly[0m[2m added[0m[2m.
+     [0m[2mNow[0m[2m,[0m[2m need[0m[2m to[0m[2m write[0m[2m this[0m[2m into[0m[2m the[0m[2m file[0m[2m.
      
-     [0m[2mThe[0m[2m models[0m[2m are[0m[2m added[0m[2m,[0m[2m then[0m[2m the[0m[2m new[0m[2m endpoints[0m[2m replace[0m[2m the[0m[2m TODO[0m[2ms[0m[2m.
+     [0m[2mThe[0m[2m next[0m[2m step[0m[2m is[0m[2m to[0m[2m call[0m[2m write[0m[2m_file[0m[2m with[0m[2m the[0m[2m updated[0m[2m content[0m[2m.
      
-     [0m[2mNow[0m[2m,[0m[2m to[0m[2m make[0m[2m the[0m[2m change[0m[2m,[0m[2m use[0m[2m write[0m[2m_file[0m[2m with[0m[2m the[0m[2m new[0m[2m content[0m[2m.
+     [0m[2mBut[0m[2m the[0m[2m user[0m[2m also[0m[2m needs[0m[2m to[0m[2m verify[0m[2m that[0m[2m the[0m[2m code[0m[2m works[0m[2m.[0m[2m However[0m[2m,[0m[2m the[0m[2m instructions[0m[2m say[0m[2m that[0m[2m after[0m[2m editing[0m[2m,[0m[2m the[0m[2m assistant[0m[2m must[0m[2m verify[0m[2m the[0m[2m changes[0m[2m.[0m[2m So[0m[2m after[0m[2m writing[0m[2m the[0m[2m file[0m[2m,[0m[2m run[0m[2m a[0m[2m quick[0m[2m test[0m[2m.
      
-     [0m[2mBut[0m[2m need[0m[2m to[0m[2m verify[0m[2m if[0m[2m the[0m[2m old[0m[2m content[0m[2m is[0m[2m exactly[0m[2m as[0m[2m read[0m[2m.[0m[2m Since[0m[2m the[0m[2m user[0m[2m provided[0m[2m the[0m[2m content[0m[2m via[0m[2m the[0m[2m tool[0m[2m response[0m[2m,[0m[2m this[0m[2m is[0m[2m correct[0m[2m.
+     [0m[2mBut[0m[2m according[0m[2m to[0m[2m the[0m[2m System[0m[2m Context[0m[2m,[0m[2m the[0m[2m current[0m[2m directory[0m[2m is[0m[2m /[0m[2mUsers[0m[2m/g[0m[2mof[0m[2mrend[0m[2mig[0m[2mun[0m[2mawan[0m[2m/z[0m[2mrb[0m[2m/[0m[2mll[0m[2mm[0m[2m-ch[0m[2mallenges[0m[2m/ex[0m[2mperiment[0m[2m/[0m[2moll[0m[2mama[0m[2m:[0m[2mq[0m[2mwen[0m[2m3[0m[2m-v[0m[2ml[0m[2m:[0m[2m2[0m[2m3[0m[2m5[0m[2mb[0m[2m-cloud[0m[2m/[0m[2mfeature[0m[2m/work[0m[2mdir[0m[2m.[0m[2m So[0m[2m the[0m[2m todo[0m[2m_app[0m[2m.py[0m[2m is[0m[2m in[0m[2m this[0m[2m directory[0m[2m.
      
-     [0m[2mSo[0m[2m the[0m[2m next[0m[2m step[0m[2m is[0m[2m to[0m[2m replace[0m[2m the[0m[2m entire[0m[2m file[0m[2m with[0m[2m this[0m[2m new[0m[2m content[0m[2m.[0m[2m However[0m[2m,[0m[2m the[0m[2m user[0m[2m says[0m[2m to[0m[2m use[0m[2m replace[0m[2m_in[0m[2m_file[0m[2m if[0m[2m possible[0m[2m,[0m[2m but[0m[2m given[0m[2m that[0m[2m the[0m[2m changes[0m[2m are[0m[2m multiple[0m[2m lines[0m[2m and[0m[2m additions[0m[2m,[0m[2m writing[0m[2m the[0m[2m entire[0m[2m file[0m[2m is[0m[2m safer[0m[2m.
+     [0m[2mAfter[0m[2m writing[0m[2m the[0m[2m file[0m[2m,[0m[2m I[0m[2m should[0m[2m run[0m[2m the[0m[2m app[0m[2m with[0m[2m uv[0m[2micorn[0m[2m and[0m[2m test[0m[2m the[0m[2m endpoints[0m[2m using[0m[2m curl[0m[2m or[0m[2m similar[0m[2m.[0m[2m However[0m[2m,[0m[2m the[0m[2m user[0m[2m's[0m[2m system[0m[2m may[0m[2m have[0m[2m uv[0m[2micorn[0m[2m installed[0m[2m.
      
-     [0m[2mBut[0m[2m according[0m[2m to[0m[2m the[0m[2m guidelines[0m[2m,[0m[2m for[0m[2m code[0m[2m,[0m[2m it[0m[2m's[0m[2m better[0m[2m to[0m[2m edit[0m[2m in[0m[2m place[0m[2m by[0m[2m replacing[0m[2m exact[0m[2m old[0m[2m text[0m[2m.[0m[2m However[0m[2m,[0m[2m since[0m[2m the[0m[2m current[0m[2m version[0m[2m has[0m[2m the[0m[2m three[0m[2m TODO[0m[2m lines[0m[2m,[0m[2m and[0m[2m the[0m[2m new[0m[2m version[0m[2m replaces[0m[2m them[0m[2m with[0m[2m three[0m[2m functions[0m[2m,[0m[2m and[0m[2m adds[0m[2m two[0m[2m classes[0m[2m,[0m[2m it[0m[2m's[0m[2m a[0m[2m multi[0m[2m-part[0m[2m edit[0m[2m.[0m[2m The[0m[2m safest[0m[2m way[0m[2m is[0m[2m to[0m[2m write[0m[2m the[0m[2m entire[0m[2m file[0m[2m.
+     [0m[2mBut[0m[2m the[0m[2m verification[0m[2m step[0m[2m is[0m[2m mandatory[0m[2m.[0m[2m So[0m[2m after[0m[2m writing[0m[2m the[0m[2m file[0m[2m,[0m[2m use[0m[2m run[0m[2m_shell[0m[2m_command[0m[2m to[0m[2m run[0m[2m the[0m[2m endpoints[0m[2m.
      
-     [0m[2mBut[0m[2m the[0m[2m user[0m[2m might[0m[2m have[0m[2m other[0m[2m changes[0m[2m if[0m[2m the[0m[2m file[0m[2m has[0m[2m more[0m[2m content[0m[2m,[0m[2m but[0m[2m according[0m[2m to[0m[2m the[0m[2m provided[0m[2m code[0m[2m,[0m[2m this[0m[2m is[0m[2m the[0m[2m full[0m[2m content[0m[2m.[0m[2m So[0m[2m writing[0m[2m the[0m[2m file[0m[2m with[0m[2m the[0m[2m new[0m[2m content[0m[2m is[0m[2m the[0m[2m correct[0m[2m move[0m[2m.
+     [0m[2mWait[0m[2m,[0m[2m but[0m[2m the[0m[2m code[0m[2m might[0m[2m not[0m[2m have[0m[2m the[0m[2m necessary[0m[2m dependencies[0m[2m.[0m[2m However[0m[2m,[0m[2m since[0m[2m it[0m[2m's[0m[2m a[0m[2m Fast[0m[2mAPI[0m[2m app[0m[2m,[0m[2m it[0m[2m probably[0m[2m already[0m[2m has[0m[2m those[0m[2m set[0m[2m up[0m[2m.
      
-     [0m[2mTherefore[0m[2m,[0m[2m use[0m[2m write[0m[2m_file[0m[2m to[0m[2m put[0m[2m the[0m[2m new[0m[2m content[0m[2m.
+     [0m[2mGiven[0m[2m that[0m[2m the[0m[2m user[0m[2m is[0m[2m asking[0m[2m for[0m[2m implementation[0m[2m,[0m[2m the[0m[2m verification[0m[2m step[0m[2m should[0m[2m be[0m[2m performed[0m[2m to[0m[2m ensure[0m[2m the[0m[2m code[0m[2m works[0m[2m.
      
-     [0m[2mAfter[0m[2m that[0m[2m,[0m[2m verify[0m[2m by[0m[2m running[0m[2m the[0m[2m app[0m[2m,[0m[2m but[0m[2m since[0m[2m it[0m[2m's[0m[2m a[0m[2m code[0m[2m change[0m[2m,[0m[2m and[0m[2m the[0m[2m user[0m[2m didn[0m[2m't[0m[2m specify[0m[2m a[0m[2m test[0m[2m,[0m[2m the[0m[2m verification[0m[2m step[0m[2m would[0m[2m involve[0m[2m checking[0m[2m the[0m[2m code[0m[2m is[0m[2m correct[0m[2m.[0m[2m But[0m[2m according[0m[2m to[0m[2m the[0m[2m Principle[0m[2m [0m[2m3[0m[2m,[0m[2m need[0m[2m to[0m[2m verify[0m[2m.[0m[2m But[0m[2m how[0m[2m?[0m[2m The[0m[2m task[0m[2m is[0m[2m to[0m[2m implement[0m[2m the[0m[2m features[0m[2m,[0m[2m so[0m[2m perhaps[0m[2m the[0m[2m verification[0m[2m would[0m[2m be[0m[2m to[0m[2m ensure[0m[2m that[0m[2m the[0m[2m code[0m[2m is[0m[2m correctly[0m[2m written[0m[2m and[0m[2m adher[0m[2mes[0m[2m to[0m[2m the[0m[2m requirements[0m[2m.
+     [0m[2mSo[0m[2m the[0m[2m plan[0m[2m is[0m[2m:
      
-     [0m[2mWait[0m[2m,[0m[2m the[0m[2m user[0m[2m says[0m[2m to[0m[2m "[0m[2mfinish[0m[2m the[0m[2m CRUD[0m[2m operations[0m[2m"[0m[2m and[0m[2m return[0m[2m standard[0m[2m HTTP[0m[2m status[0m[2m codes[0m[2m.[0m[2m So[0m[2m after[0m[2m writing[0m[2m the[0m[2m code[0m[2m,[0m[2m perhaps[0m[2m run[0m[2m a[0m[2m quick[0m[2m test[0m[2m to[0m[2m confirm[0m[2m.
+     [0m[2m1[0m[2m.[0m[2m Write[0m[2m the[0m[2m updated[0m[2m code[0m[2m to[0m[2m todo[0m[2m_app[0m[2m.py[0m[2m.
      
-     [0m[2mBut[0m[2m the[0m[2m user[0m[2m's[0m[2m instruction[0m[2m says[0m[2m for[0m[2m code[0m[2m,[0m[2m if[0m[2m no[0m[2m tests[0m[2m exist[0m[2m,[0m[2m create[0m[2m a[0m[2m temporary[0m[2m script[0m[2m to[0m[2m validate[0m[2m.
+     [0m[2m2[0m[2m.[0m[2m Verify[0m[2m the[0m[2m changes[0m[2m by[0m[2m starting[0m[2m the[0m[2m server[0m[2m and[0m[2m making[0m[2m test[0m[2m requests[0m[2m.
      
-     [0m[2mSo[0m[2m after[0m[2m writing[0m[2m the[0m[2m code[0m[2m,[0m[2m I[0m[2m need[0m[2m to[0m[2m create[0m[2m a[0m[2m test[0m[2m script[0m[2m.
+     [0m[2mBut[0m[2m since[0m[2m starting[0m[2m a[0m[2m server[0m[2m could[0m[2m interfere[0m[2m with[0m[2m other[0m[2m processes[0m[2m,[0m[2m but[0m[2m for[0m[2m testing[0m[2m purposes[0m[2m,[0m[2m let[0m[2m's[0m[2m do[0m[2m a[0m[2m quick[0m[2m verification[0m[2m.
      
-     [0m[2mFor[0m[2m example[0m[2m,[0m[2m use[0m[2m curl[0m[2m commands[0m[2m to[0m[2m test[0m[2m POST[0m[2m,[0m[2m PUT[0m[2m,[0m[2m DELETE[0m[2m.
+     [0m[2mFirst[0m[2m,[0m[2m write[0m[2m the[0m[2m file[0m[2m.
      
-     [0m[2mPossible[0m[2m steps[0m[2m:
+     [0m[2mThen[0m[2m,[0m[2m run[0m[2m the[0m[2m server[0m[2m in[0m[2m a[0m[2m separate[0m[2m terminal[0m[2m,[0m[2m but[0m[2m since[0m[2m we[0m[2m're[0m[2m using[0m[2m run[0m[2m_shell[0m[2m_command[0m[2m,[0m[2m perhaps[0m[2m start[0m[2m it[0m[2m in[0m[2m the[0m[2m background[0m[2m,[0m[2m then[0m[2m run[0m[2m curl[0m[2m commands[0m[2m to[0m[2m test[0m[2m.
      
-     [0m[2m1[0m[2m.[0m[2m Start[0m[2m the[0m[2m server[0m[2m in[0m[2m the[0m[2m background[0m[2m.
+     [0m[2mBut[0m[2m the[0m[2m tool[0m[2m allows[0m[2m background[0m[2m processes[0m[2m.[0m[2m So[0m[2m:
      
-     [0m[2m2[0m[2m.[0m[2m Send[0m[2m POST[0m[2m request[0m[2m to[0m[2m add[0m[2m an[0m[2m item[0m[2m.
+     [0m[2m-[0m[2m Start[0m[2m the[0m[2m server[0m[2m in[0m[2m the[0m[2m background[0m[2m.
      
-     [0m[2m3[0m[2m.[0m[2m Check[0m[2m response[0m[2m code[0m[2m [0m[2m2[0m[2m0[0m[2m1[0m[2m.
+     [0m[2m-[0m[2m Wait[0m[2m for[0m[2m it[0m[2m to[0m[2m start[0m[2m ([0m[2mmaybe[0m[2m briefly[0m[2m).
      
-     [0m[2m4[0m[2m.[0m[2m Send[0m[2m GET[0m[2m to[0m[2m verify[0m[2m it[0m[2m's[0m[2m added[0m[2m.
+     [0m[2m-[0m[2m Run[0m[2m curl[0m[2m to[0m[2m test[0m[2m POST[0m[2m,[0m[2m PUT[0m[2m,[0m[2m DELETE[0m[2m.
      
-     [0m[2m5[0m[2m.[0m[2m Send[0m[2m PUT[0m[2m to[0m[2m update[0m[2m.
+     [0m[2m-[0m[2m Check[0m[2m the[0m[2m results[0m[2m.
      
-     [0m[2m6[0m[2m.[0m[2m Send[0m[2m DELETE[0m[2m to[0m[2m remove[0m[2m.
+     [0m[2m-[0m[2m Ter[0m[2mminate[0m[2m the[0m[2m server[0m[2m.
      
-     [0m[2m7[0m[2m.[0m[2m Stop[0m[2m the[0m[2m server[0m[2m.
+     [0m[2mThe[0m[2m steps[0m[2m would[0m[2m be[0m[2m:
      
-     [0m[2mBut[0m[2m since[0m[2m the[0m[2m user[0m[2m's[0m[2m current[0m[2m dir[0m[2m is[0m[2m the[0m[2m work[0m[2mdir[0m[2m,[0m[2m and[0m[2m the[0m[2m app[0m[2m is[0m[2m in[0m[2m todo[0m[2m_app[0m[2m.py[0m[2m,[0m[2m the[0m[2m steps[0m[2m would[0m[2m be[0m[2m:
+     [0m[2m1[0m[2m.[0m[2m Write[0m[2m the[0m[2m file[0m[2m.
      
-     [0m[2m-[0m[2m Run[0m[2m uv[0m[2micorn[0m[2m in[0m[2m the[0m[2m background[0m[2m.
+     [0m[2m2[0m[2m.[0m[2m Run[0m[2m "[0m[2muv[0m[2micorn[0m[2m todo[0m[2m_app[0m[2m:[0m[2mapp[0m[2m --[0m[2mport[0m[2m [0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m"[0m[2m in[0m[2m the[0m[2m background[0m[2m.
      
-     [0m[2m-[0m[2m Use[0m[2m curl[0m[2m commands[0m[2m.
+     [0m[2m3[0m[2m.[0m[2m Wait[0m[2m a[0m[2m second[0m[2m for[0m[2m startup[0m[2m.
      
-     [0m[2mBut[0m[2m this[0m[2m requires[0m[2m the[0m[2m server[0m[2m to[0m[2m be[0m[2m running[0m[2m.[0m[2m So[0m[2m in[0m[2m the[0m[2m verification[0m[2m step[0m[2m,[0m[2m use[0m[2m run[0m[2m_shell[0m[2m_command[0m[2m to[0m[2m start[0m[2m the[0m[2m server[0m[2m,[0m[2m run[0m[2m the[0m[2m tests[0m[2m,[0m[2m then[0m[2m stop[0m[2m it[0m[2m.
+     [0m[2m4[0m[2m.[0m[2m curl[0m[2m -[0m[2mX[0m[2m POST[0m[2m -[0m[2mH[0m[2m "[0m[2mContent[0m[2m-Type[0m[2m:[0m[2m application[0m[2m/json[0m[2m"[0m[2m -[0m[2md[0m[2m '{"[0m[2mtitle[0m[2m":[0m[2m "[0m[2mTest[0m[2m"}[0m[2m'[0m[2m http[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m/t[0m[2modos[0m[2m
      
-     [0m[2mHowever[0m[2m,[0m[2m since[0m[2m this[0m[2m is[0m[2m a[0m[2m one[0m[2m-time[0m[2m verification[0m[2m,[0m[2m perhaps[0m[2m a[0m[2m temporary[0m[2m script[0m[2m is[0m[2m needed[0m[2m.
+     [0m[2m5[0m[2m.[0m[2m curl[0m[2m -[0m[2mX[0m[2m GET[0m[2m http[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m/t[0m[2modos[0m[2m
      
-     [0m[2mBut[0m[2m according[0m[2m to[0m[2m the[0m[2m instructions[0m[2m,[0m[2m for[0m[2m code[0m[2m changes[0m[2m where[0m[2m no[0m[2m tests[0m[2m exist[0m[2m,[0m[2m create[0m[2m a[0m[2m temporary[0m[2m test[0m[2m script[0m[2m ([0m[2me[0m[2m.g[0m[2m.,[0m[2m _[0m[2mverify[0m[2m_fix[0m[2m.py[0m[2m).
+     [0m[2m6[0m[2m.[0m[2m curl[0m[2m -[0m[2mX[0m[2m PUT[0m[2m -[0m[2mH[0m[2m "[0m[2mContent[0m[2m-Type[0m[2m:[0m[2m application[0m[2m/json[0m[2m"[0m[2m -[0m[2md[0m[2m '{"[0m[2mtitle[0m[2m":[0m[2m "[0m[2mUpdated[0m[2m"}[0m[2m'[0m[2m http[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m/t[0m[2modos[0m[2m/[0m[2m3[0m[2m
      
-     [0m[2mAlternatively[0m[2m,[0m[2m since[0m[2m the[0m[2m app[0m[2m is[0m[2m a[0m[2m Fast[0m[2mAPI[0m[2m app[0m[2m,[0m[2m perhaps[0m[2m write[0m[2m a[0m[2m simple[0m[2m test[0m[2m script[0m[2m using[0m[2m http[0m[2mx[0m[2m.
+     [0m[2m7[0m[2m.[0m[2m curl[0m[2m -[0m[2mX[0m[2m DELETE[0m[2m http[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m/t[0m[2modos[0m[2m/[0m[2m3[0m[2m
      
-     [0m[2mBut[0m[2m given[0m[2m the[0m[2m time[0m[2m constraints[0m[2m,[0m[2m maybe[0m[2m the[0m[2m verification[0m[2m can[0m[2m be[0m[2m done[0m[2m by[0m[2m checking[0m[2m the[0m[2m code[0m[2m for[0m[2m the[0m[2m required[0m[2m elements[0m[2m and[0m[2m ensuring[0m[2m the[0m[2m HTTP[0m[2m status[0m[2m codes[0m[2m are[0m[2m set[0m[2m correctly[0m[2m.
+     [0m[2m8[0m[2m.[0m[2m Check[0m[2m if[0m[2m all[0m[2m operations[0m[2m work[0m[2m as[0m[2m expected[0m[2m.
      
-     [0m[2mBut[0m[2m the[0m[2m guidelines[0m[2m say[0m[2m:[0m[2m "[0m[2mIf[0m[2m no[0m[2m tests[0m[2m exist[0m[2m,[0m[2m you[0m[2m MUST[0m[2m create[0m[2m a[0m[2m temporary[0m[2m test[0m[2m script[0m[2m...[0m[2m".[0m[2m So[0m[2m I[0m[2m need[0m[2m to[0m[2m create[0m[2m a[0m[2m script[0m[2m to[0m[2m validate[0m[2m.
+     [0m[2m9[0m[2m.[0m[2m Stop[0m[2m the[0m[2m server[0m[2m.
      
-     [0m[2mSo[0m[2m the[0m[2m steps[0m[2m are[0m[2m:
+     [0m[2mBut[0m[2m since[0m[2m the[0m[2m current[0m[2m dir[0m[2m is[0m[2m where[0m[2m the[0m[2m file[0m[2m is[0m[2m,[0m[2m uv[0m[2micorn[0m[2m should[0m[2m run[0m[2m correctly[0m[2m.
      
-     [0m[2m1[0m[2m.[0m[2m Write[0m[2m the[0m[2m code[0m[2m with[0m[2m the[0m[2m new[0m[2m endpoints[0m[2m.
+     [0m[2mHowever[0m[2m,[0m[2m the[0m[2m run[0m[2m_shell[0m[2m_command[0m[2m tool[0m[2m will[0m[2m handle[0m[2m the[0m[2m output[0m[2m.
      
-     [0m[2m2[0m[2m.[0m[2m Create[0m[2m a[0m[2m temporary[0m[2m test[0m[2m script[0m[2m ([0m[2me[0m[2m.g[0m[2m.,[0m[2m _[0m[2mtest[0m[2m_todo[0m[2m.py[0m[2m)[0m[2m that[0m[2m uses[0m[2m HTTP[0m[2m client[0m[2m to[0m[2m test[0m[2m the[0m[2m endpoints[0m[2m.
+     [0m[2mSo[0m[2m,[0m[2m the[0m[2m sequence[0m[2m of[0m[2m tool[0m[2m calls[0m[2m:
      
-     [0m[2m3[0m[2m.[0m[2m Run[0m[2m the[0m[2m test[0m[2m script[0m[2m with[0m[2m run[0m[2m_shell[0m[2m_command[0m[2m.
+     [0m[2m1[0m[2m.[0m[2m write[0m[2m_file[0m[2m to[0m[2m update[0m[2m todo[0m[2m_app[0m[2m.py[0m[2m.
      
-     [0m[2mBut[0m[2m since[0m[2m the[0m[2m user[0m[2m didn[0m[2m't[0m[2m specify[0m[2m to[0m[2m create[0m[2m tests[0m[2m,[0m[2m but[0m[2m the[0m[2m guidelines[0m[2m mandate[0m[2m verification[0m[2m,[0m[2m this[0m[2m step[0m[2m is[0m[2m necessary[0m[2m.
+     [0m[2m2[0m[2m.[0m[2m run[0m[2m_shell[0m[2m_command[0m[2m to[0m[2m start[0m[2m uv[0m[2micorn[0m[2m in[0m[2m background[0m[2m ([0m[2musing[0m[2m &[0m[2m).
      
-     [0m[2mAlternatively[0m[2m,[0m[2m since[0m[2m the[0m[2m code[0m[2m changes[0m[2m can[0m[2m be[0m[2m visually[0m[2m verified[0m[2m by[0m[2m checking[0m[2m that[0m[2m status[0m[2m codes[0m[2m and[0m[2m methods[0m[2m are[0m[2m implemented[0m[2m correctly[0m[2m,[0m[2m but[0m[2m according[0m[2m to[0m[2m Principle[0m[2m [0m[2m3[0m[2m,[0m[2m the[0m[2m verification[0m[2m must[0m[2m involve[0m[2m running[0m[2m the[0m[2m code[0m[2m or[0m[2m tests[0m[2m.
+     [0m[2m3[0m[2m.[0m[2m run[0m[2m_shell[0m[2m_command[0m[2m to[0m[2m check[0m[2m if[0m[2m the[0m[2m server[0m[2m is[0m[2m up[0m[2m ([0m[2mmaybe[0m[2m simple[0m[2m curl[0m[2m or[0m[2m sleep[0m[2m).
      
-     [0m[2mSo[0m[2m perhaps[0m[2m the[0m[2m best[0m[2m course[0m[2m is[0m[2m:
+     [0m[2m4[0m[2m.[0m[2m run[0m[2m_shell[0m[2m_command[0m[2m to[0m[2m execute[0m[2m the[0m[2m test[0m[2m HTTP[0m[2m requests[0m[2m.
      
-     [0m[2m-[0m[2m After[0m[2m writing[0m[2m the[0m[2m file[0m[2m,[0m[2m run[0m[2m a[0m[2m command[0m[2m to[0m[2m start[0m[2m the[0m[2m server[0m[2m,[0m[2m send[0m[2m requests[0m[2m via[0m[2m curl[0m[2m,[0m[2m and[0m[2m check[0m[2m responses[0m[2m.
+     [0m[2m5[0m[2m.[0m[2m run[0m[2m_shell[0m[2m_command[0m[2m to[0m[2m stop[0m[2m the[0m[2m server[0m[2m.
      
-     [0m[2mBut[0m[2m need[0m[2m to[0m[2m do[0m[2m this[0m[2m in[0m[2m a[0m[2m shell[0m[2m command[0m[2m.
+     [0m[2mBut[0m[2m since[0m[2m the[0m[2m verification[0m[2m step[0m[2m is[0m[2m part[0m[2m of[0m[2m the[0m[2m requirements[0m[2m,[0m[2m the[0m[2m assistant[0m[2m should[0m[2m do[0m[2m this[0m[2m.
      
-     [0m[2mExample[0m[2m:
+     [0m[2mHowever[0m[2m,[0m[2m the[0m[2m user[0m[2m might[0m[2m have[0m[2m the[0m[2m server[0m[2m already[0m[2m running[0m[2m,[0m[2m but[0m[2m the[0m[2m tool[0m[2m allows[0m[2m background[0m[2m processes[0m[2m.
      
-     [0m[2mRun[0m[2m server[0m[2m in[0m[2m background[0m[2m,[0m[2m then[0m[2m:
+     [0m[2mLet[0m[2m me[0m[2m structure[0m[2m the[0m[2m tool[0m[2m calls[0m[2m:
      
-     [0m[2m-[0m[2m curl[0m[2m -[0m[2mX[0m[2m POST[0m[2m -[0m[2mH[0m[2m "[0m[2mContent[0m[2m-Type[0m[2m:[0m[2m application[0m[2m/json[0m[2m"[0m[2m -[0m[2md[0m[2m '{"[0m[2mtitle[0m[2m":[0m[2m "[0m[2mTest[0m[2m"}[0m[2m'[0m[2m http[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m/t[0m[2modos[0m[2m
+     [0m[2mFirst[0m[2m,[0m[2m write[0m[2m the[0m[2m updated[0m[2m code[0m[2m.
      
-     [0m[2m-[0m[2m Check[0m[2m response[0m[2m status[0m[2m [0m[2m2[0m[2m0[0m[2m1[0m[2m.
+     [0m[2mThen[0m[2m,[0m[2m run[0m[2m:
      
-     [0m[2m-[0m[2m curl[0m[2m -[0m[2mX[0m[2m PUT[0m[2m -[0m[2mH[0m[2m ...[0m[2m etc[0m[2m.
+     [0m[2muv[0m[2micorn[0m[2m todo[0m[2m_app[0m[2m:[0m[2mapp[0m[2m --[0m[2mport[0m[2m [0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m --[0m[2mhost[0m[2m [0m[2m0[0m[2m.[0m[2m0[0m[2m.[0m[2m0[0m[2m.[0m[2m0[0m[2m &[0m[2m
      
-     [0m[2mBut[0m[2m running[0m[2m this[0m[2m in[0m[2m a[0m[2m shell[0m[2m script[0m[2m.
+     [0m[2mWait[0m[2m,[0m[2m the[0m[2m app[0m[2m is[0m[2m in[0m[2m the[0m[2m current[0m[2m directory[0m[2m,[0m[2m so[0m[2m todo[0m[2m_app[0m[2m:[0m[2mapp[0m[2m refers[0m[2m to[0m[2m the[0m[2m module[0m[2m.
      
-     [0m[2mHowever[0m[2m,[0m[2m this[0m[2m requires[0m[2m time[0m[2m to[0m[2m set[0m[2m up[0m[2m,[0m[2m and[0m[2m the[0m[2m user[0m[2m might[0m[2m not[0m[2m want[0m[2m the[0m[2m server[0m[2m to[0m[2m run[0m[2m.[0m[2m So[0m[2m the[0m[2m safest[0m[2m is[0m[2m to[0m[2m create[0m[2m a[0m[2m small[0m[2m Python[0m[2m test[0m[2m script[0m[2m using[0m[2m http[0m[2mx[0m[2m.
+     [0m[2mThen[0m[2m,[0m[2m use[0m[2m pg[0m[2mrep[0m[2m to[0m[2m check[0m[2m if[0m[2m it[0m[2m's[0m[2m running[0m[2m.
      
-     [0m[2mSo[0m[2m the[0m[2m verification[0m[2m step[0m[2m would[0m[2m involve[0m[2m:
+     [0m[2mBut[0m[2m perhaps[0m[2m just[0m[2m wait[0m[2m a[0m[2m bit[0m[2m and[0m[2m run[0m[2m the[0m[2m curls[0m[2m.
      
-     [0m[2m-[0m[2m Write[0m[2m _[0m[2mverify[0m[2m_todo[0m[2m.py[0m[2m with[0m[2m tests[0m[2m.
+     [0m[2mThe[0m[2m verification[0m[2m steps[0m[2m need[0m[2m to[0m[2m confirm[0m[2m that[0m[2m:
      
-     [0m[2m-[0m[2m Run[0m[2m it[0m[2m with[0m[2m python[0m[2m -[0m[2mm[0m[2m http[0m[2mx[0m[2m and[0m[2m check[0m[2m output[0m[2m.
+     [0m[2m-[0m[2m POST[0m[2m creates[0m[2m a[0m[2m new[0m[2m item[0m[2m with[0m[2m correct[0m[2m ID[0m[2m and[0m[2m status[0m[2m.
      
-     [0m[2mBut[0m[2m since[0m[2m the[0m[2m environment[0m[2m may[0m[2m not[0m[2m have[0m[2m http[0m[2mx[0m[2m installed[0m[2m,[0m[2m but[0m[2m Fast[0m[2mAPI[0m[2m is[0m[2m present[0m[2m,[0m[2m probably[0m[2m uv[0m[2micorn[0m[2m and[0m[2m requests[0m[2m could[0m[2m be[0m[2m used[0m[2m.
+     [0m[2m-[0m[2m GET[0m[2m shows[0m[2m the[0m[2m item[0m[2m.
      
-     [0m[2mBut[0m[2m this[0m[2m is[0m[2m getting[0m[2m complicated[0m[2m.[0m[2m Let[0m[2m's[0m[2m think[0m[2m:[0m[2m the[0m[2m user[0m[2m is[0m[2m asking[0m[2m to[0m[2m implement[0m[2m the[0m[2m features[0m[2m,[0m[2m and[0m[2m the[0m[2m verification[0m[2m is[0m[2m to[0m[2m ensure[0m[2m that[0m[2m the[0m[2m code[0m[2m is[0m[2m correct[0m[2m.[0m[2m Since[0m[2m the[0m[2m code[0m[2m is[0m[2m written[0m[2m according[0m[2m to[0m[2m best[0m[2m practices[0m[2m and[0m[2m the[0m[2m required[0m[2m status[0m[2m codes[0m[2m are[0m[2m included[0m[2m,[0m[2m maybe[0m[2m the[0m[2m verification[0m[2m can[0m[2m be[0m[2m a[0m[2m static[0m[2m check[0m[2m ([0m[2mi[0m[2m.e[0m[2m.,[0m[2m reading[0m[2m the[0m[2m code[0m[2m to[0m[2m confirm[0m[2m status[0m[2m codes[0m[2m are[0m[2m set[0m[2m).[0m[2m But[0m[2m the[0m[2m guidelines[0m[2m say[0m[2m that[0m[2m code[0m[2m must[0m[2m be[0m[2m run[0m[2m or[0m[2m tests[0m[2m executed[0m[2m.
+     [0m[2m-[0m[2m PUT[0m[2m updates[0m[2m it[0m[2m.
      
-     [0m[2mWait[0m[2m,[0m[2m the[0m[2m Principle[0m[2m [0m[2m3[0m[2m says[0m[2m:[0m[2m "[0m[2mCode[0m[2m:[0m[2m Execute[0m[2m the[0m[2m code[0m[2m or[0m[2m run[0m[2m tests[0m[2m ([0m[2musing[0m[2m run[0m[2m_shell[0m[2m_command[0m[2m).[0m[2m If[0m[2m no[0m[2m tests[0m[2m exist[0m[2m,[0m[2m you[0m[2m MUST[0m[2m create[0m[2m a[0m[2m temporary[0m[2m test[0m[2m script[0m[2m ([0m[2me[0m[2m.g[0m[2m.[0m[2m `_[0m[2mverify[0m[2m_fix[0m[2m.py[0m[2m`)[0m[2m to[0m[2m validate[0m[2m your[0m[2m changes[0m[2m."
+     [0m[2m-[0m[2m DELETE[0m[2m removes[0m[2m it[0m[2m.
      
-     [0m[2mTherefore[0m[2m,[0m[2m in[0m[2m this[0m[2m case[0m[2m,[0m[2m there[0m[2m are[0m[2m no[0m[2m existing[0m[2m tests[0m[2m,[0m[2m so[0m[2m I[0m[2m need[0m[2m to[0m[2m create[0m[2m a[0m[2m temporary[0m[2m script[0m[2m to[0m[2m test[0m[2m the[0m[2m new[0m[2m endpoints[0m[2m.
+     [0m[2mGiven[0m[2m the[0m[2m time[0m[2m constraints[0m[2m,[0m[2m the[0m[2m assistant[0m[2m needs[0m[2m to[0m[2m run[0m[2m these[0m[2m checks[0m[2m.
      
-     [0m[2mSo[0m[2m the[0m[2m plan[0m[2m for[0m[2m verification[0m[2m:
+     [0m[2mBut[0m[2m according[0m[2m to[0m[2m the[0m[2m Problem[0m[2m section[0m[2m,[0m[2m the[0m[2m assistant[0m[2m must[0m[2m verify[0m[2m the[0m[2m work[0m[2m.[0m[2m So[0m[2m after[0m[2m writing[0m[2m the[0m[2m file[0m[2m,[0m[2m run[0m[2m the[0m[2m tests[0m[2m.
      
-     [0m[2m1[0m[2m.[0m[2m Create[0m[2m a[0m[2m temporary[0m[2m test[0m[2m script[0m[2m,[0m[2m e[0m[2m.g[0m[2m.,[0m[2m _[0m[2mtest[0m[2m_todo[0m[2m.py[0m[2m.
+     [0m[2mTherefore[0m[2m,[0m[2m the[0m[2m next[0m[2m tool[0m[2m calls[0m[2m are[0m[2m write[0m[2m_file[0m[2m,[0m[2m then[0m[2m several[0m[2m run[0m[2m_shell[0m[2m_commands[0m[2m.
      
-     [0m[2m2[0m[2m.[0m[2m In[0m[2m it[0m[2m,[0m[2m send[0m[2m requests[0m[2m to[0m[2m POST[0m[2m,[0m[2m PUT[0m[2m,[0m[2m DELETE[0m[2m endpoints[0m[2m.
-     
-     [0m[2m3[0m[2m.[0m[2m Check[0m[2m that[0m[2m the[0m[2m responses[0m[2m have[0m[2m correct[0m[2m status[0m[2m codes[0m[2m and[0m[2m data[0m[2m.
-     
-     [0m[2m4[0m[2m.[0m[2m Run[0m[2m the[0m[2m script[0m[2m with[0m[2m run[0m[2m_shell[0m[2m_command[0m[2m.
-     
-     [0m[2mBut[0m[2m to[0m[2m do[0m[2m this[0m[2m,[0m[2m the[0m[2m server[0m[2m needs[0m[2m to[0m[2m be[0m[2m running[0m[2m.[0m[2m So[0m[2m the[0m[2m test[0m[2m script[0m[2m should[0m[2m start[0m[2m the[0m[2m server[0m[2m in[0m[2m the[0m[2m background[0m[2m,[0m[2m run[0m[2m tests[0m[2m,[0m[2m then[0m[2m stop[0m[2m it[0m[2m.
-     
-     [0m[2mThis[0m[2m is[0m[2m feasible[0m[2m but[0m[2m requires[0m[2m handling[0m[2m processes[0m[2m.
-     
-     [0m[2mAlternatively[0m[2m,[0m[2m use[0m[2m a[0m[2m separate[0m[2m async[0m[2m client[0m[2m to[0m[2m test[0m[2m without[0m[2m starting[0m[2m the[0m[2m server[0m[2m,[0m[2m but[0m[2m since[0m[2m it[0m[2m's[0m[2m a[0m[2m Fast[0m[2mAPI[0m[2m app[0m[2m,[0m[2m it[0m[2m's[0m[2m better[0m[2m to[0m[2m test[0m[2m the[0m[2m actual[0m[2m server[0m[2m.
-     
-     [0m[2mBut[0m[2m given[0m[2m the[0m[2m complexity[0m[2m,[0m[2m the[0m[2m safest[0m[2m approach[0m[2m is[0m[2m to[0m[2m outline[0m[2m the[0m[2m verification[0m[2m steps[0m[2m here[0m[2m,[0m[2m but[0m[2m according[0m[2m to[0m[2m the[0m[2m instructions[0m[2m,[0m[2m the[0m[2m assistant[0m[2m must[0m[2m perform[0m[2m the[0m[2m verification[0m[2m steps[0m[2m.
-     
-     [0m[2mSo[0m[2m first[0m[2m,[0m[2m write[0m[2m the[0m[2m code[0m[2m.[0m[2m Then[0m[2m create[0m[2m the[0m[2m test[0m[2m script[0m[2m,[0m[2m run[0m[2m it[0m[2m,[0m[2m and[0m[2m verify[0m[2m success[0m[2m.
-     
-     [0m[2mBut[0m[2m for[0m[2m the[0m[2m assistant[0m[2m's[0m[2m response[0m[2m,[0m[2m the[0m[2m steps[0m[2m would[0m[2m be[0m[2m:
-     
-     [0m[2m-[0m[2m Use[0m[2m write[0m[2m_file[0m[2m to[0m[2m update[0m[2m todo[0m[2m_app[0m[2m.py[0m[2m.
-     
-     [0m[2m-[0m[2m Create[0m[2m _[0m[2mverify[0m[2m_todo[0m[2m.py[0m[2m with[0m[2m test[0m[2m code[0m[2m.
-     
-     [0m[2m-[0m[2m Run[0m[2m the[0m[2m tests[0m[2m.
-     
-     [0m[2m-[0m[2m If[0m[2m tests[0m[2m pass[0m[2m,[0m[2m confirm[0m[2m completion[0m[2m.
-     
-     [0m[2mTherefore[0m[2m,[0m[2m the[0m[2m immediate[0m[2m next[0m[2m step[0m[2m after[0m[2m reading[0m[2m the[0m[2m file[0m[2m is[0m[2m to[0m[2m generate[0m[2m the[0m[2m new[0m[2m content[0m[2m and[0m[2m write[0m[2m it[0m[2m.
+     [0m[2mBut[0m[2m the[0m[2m first[0m[2m step[0m[2m is[0m[2m to[0m[2m write[0m[2m the[0m[2m file[0m[2m.
      [0m[2m
-  🧰 call_Vv58VwFbaEutPb6clzYgiZYa | write_file {'path': 'todo_app.py', 'content': 'from typing import List, O ...', 'mode': 'w'}[0m[2m
-  🔠 call_Vv58VwFbaEutPb6clzYgiZYa | Return Successfully wrote to todo_app.py[0m[2m
-  🧠 Okay,[0m[2m the[0m[2m user[0m[2m asked[0m[2m to[0m[2m implement[0m[2m CRUD[0m[2m operations[0m[2m for[0m[2m the[0m[2m Todo[0m[2m app[0m[2m.[0m[2m I[0m[2m've[0m[2m already[0m[2m updated[0m[2m the[0m[2m todo[0m[2m_app[0m[2m.py[0m[2m file[0m[2m with[0m[2m the[0m[2m new[0m[2m endpoints[0m[2m for[0m[2m create[0m[2m,[0m[2m update[0m[2m,[0m[2m and[0m[2m delete[0m[2m.[0m[2m Now[0m[2m,[0m[2m I[0m[2m need[0m[2m to[0m[2m verify[0m[2m that[0m[2m the[0m[2m changes[0m[2m work[0m[2m correctly[0m[2m.
+  🧰 call_WQAZyWhzRjHX0vMPvPJvFMnZ | write_file {'path': 'todo_app.py', 'content': 'from typing import List, O ...', 'mode': 'w'}[0m[2m
+  🔠 call_WQAZyWhzRjHX0vMPvPJvFMnZ | Return Successfully wrote to todo_app.py[0m[2m
+  🧠 Okay,[0m[2m the[0m[2m code[0m[2m has[0m[2m been[0m[2m written[0m[2m to[0m[2m todo[0m[2m_app[0m[2m.py[0m[2m.[0m[2m Now[0m[2m I[0m[2m need[0m[2m to[0m[2m verify[0m[2m that[0m[2m the[0m[2m CRUD[0m[2m operations[0m[2m work[0m[2m correctly[0m[2m.[0m[2m Let[0m[2m me[0m[2m plan[0m[2m the[0m[2m verification[0m[2m steps[0m[2m.
      
-     [0m[2mAccording[0m[2m to[0m[2m the[0m[2m guidelines[0m[2m,[0m[2m since[0m[2m there[0m[2m are[0m[2m no[0m[2m existing[0m[2m tests[0m[2m,[0m[2m I[0m[2m must[0m[2m create[0m[2m a[0m[2m temporary[0m[2m test[0m[2m script[0m[2m to[0m[2m validate[0m[2m the[0m[2m changes[0m[2m.[0m[2m Let[0m[2m me[0m[2m think[0m[2m about[0m[2m how[0m[2m to[0m[2m structure[0m[2m this[0m[2m.
+     [0m[2mFirst[0m[2m,[0m[2m I[0m[2m should[0m[2m start[0m[2m the[0m[2m Fast[0m[2mAPI[0m[2m server[0m[2m in[0m[2m the[0m[2m background[0m[2m so[0m[2m that[0m[2m I[0m[2m can[0m[2m send[0m[2m HTTP[0m[2m requests[0m[2m to[0m[2m test[0m[2m the[0m[2m endpoints[0m[2m.[0m[2m The[0m[2m server[0m[2m is[0m[2m configured[0m[2m to[0m[2m run[0m[2m on[0m[2m port[0m[2m [0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m.[0m[2m I[0m[2m'll[0m[2m use[0m[2m uv[0m[2micorn[0m[2m to[0m[2m start[0m[2m it[0m[2m.
      
-     [0m[2mThe[0m[2m test[0m[2m should[0m[2m check[0m[2m:
-     [0m[2m1[0m[2m.[0m[2m POST[0m[2m /[0m[2mtodos[0m[2m creates[0m[2m a[0m[2m new[0m[2m item[0m[2m with[0m[2m [0m[2m2[0m[2m0[0m[2m1[0m[2m status[0m[2m
-     [0m[2m2[0m[2m.[0m[2m PUT[0m[2m /[0m[2mtodos[0m[2m/{[0m[2mid[0m[2m}[0m[2m updates[0m[2m an[0m[2m item[0m[2m with[0m[2m [0m[2m2[0m[2m0[0m[2m0[0m[2m status[0m[2m
-     [0m[2m3[0m[2m.[0m[2m DELETE[0m[2m /[0m[2mtodos[0m[2m/{[0m[2mid[0m[2m}[0m[2m removes[0m[2m an[0m[2m item[0m[2m with[0m[2m [0m[2m2[0m[2m0[0m[2m4[0m[2m status[0m[2m
-     [0m[2m4[0m[2m.[0m[2m GET[0m[2m still[0m[2m works[0m[2m correctly[0m[2m
+     [0m[2mAfter[0m[2m starting[0m[2m the[0m[2m server[0m[2m,[0m[2m I[0m[2m'll[0m[2m perform[0m[2m the[0m[2m following[0m[2m tests[0m[2m:
+     [0m[2m1[0m[2m.[0m[2m POST[0m[2m a[0m[2m new[0m[2m todo[0m[2m item[0m[2m and[0m[2m check[0m[2m if[0m[2m it[0m[2m's[0m[2m created[0m[2m with[0m[2m the[0m[2m correct[0m[2m ID[0m[2m and[0m[2m returns[0m[2m a[0m[2m [0m[2m2[0m[2m0[0m[2m1[0m[2m status[0m[2m.
+     [0m[2m2[0m[2m.[0m[2m GET[0m[2m the[0m[2m list[0m[2m to[0m[2m confirm[0m[2m the[0m[2m new[0m[2m item[0m[2m is[0m[2m present[0m[2m.
+     [0m[2m3[0m[2m.[0m[2m PUT[0m[2m to[0m[2m update[0m[2m the[0m[2m item[0m[2m and[0m[2m verify[0m[2m the[0m[2m changes[0m[2m.
+     [0m[2m4[0m[2m.[0m[2m DELETE[0m[2m the[0m[2m item[0m[2m and[0m[2m confirm[0m[2m it[0m[2m's[0m[2m removed[0m[2m.
      
-     [0m[2mI[0m[2m'll[0m[2m create[0m[2m a[0m[2m _[0m[2mverify[0m[2m_todo[0m[2m.py[0m[2m script[0m[2m that[0m[2m:
-     [0m[2m-[0m[2m Starts[0m[2m the[0m[2m server[0m[2m in[0m[2m the[0m[2m background[0m[2m
-     [0m[2m-[0m[2m Uses[0m[2m http[0m[2mx[0m[2m to[0m[2m make[0m[2m test[0m[2m requests[0m[2m
-     [0m[2m-[0m[2m Validates[0m[2m status[0m[2m codes[0m[2m and[0m[2m responses[0m[2m
-     [0m[2m-[0m[2m Cleans[0m[2m up[0m[2m by[0m[2m terminating[0m[2m the[0m[2m server[0m[2m
+     [0m[2mEach[0m[2m step[0m[2m must[0m[2m be[0m[2m validated[0m[2m via[0m[2m HTTP[0m[2m status[0m[2m codes[0m[2m and[0m[2m response[0m[2m content[0m[2m.[0m[2m I[0m[2m'll[0m[2m use[0m[2m curl[0m[2m commands[0m[2m for[0m[2m these[0m[2m tests[0m[2m.[0m[2m Since[0m[2m the[0m[2m server[0m[2m might[0m[2m take[0m[2m a[0m[2m moment[0m[2m to[0m[2m start[0m[2m,[0m[2m I[0m[2m'll[0m[2m include[0m[2m a[0m[2m short[0m[2m sleep[0m[2m before[0m[2m testing[0m[2m.
      
-     [0m[2mWait[0m[2m,[0m[2m the[0m[2m server[0m[2m needs[0m[2m to[0m[2m be[0m[2m running[0m[2m for[0m[2m the[0m[2m tests[0m[2m.[0m[2m So[0m[2m the[0m[2m script[0m[2m should[0m[2m start[0m[2m uv[0m[2micorn[0m[2m in[0m[2m the[0m[2m background[0m[2m,[0m[2m run[0m[2m tests[0m[2m,[0m[2m then[0m[2m kill[0m[2m it[0m[2m.[0m[2m But[0m[2m timing[0m[2m is[0m[2m important[0m[2m to[0m[2m ensure[0m[2m the[0m[2m server[0m[2m is[0m[2m up[0m[2m before[0m[2m testing[0m[2m.
+     [0m[2mI[0m[2m need[0m[2m to[0m[2m run[0m[2m these[0m[2m commands[0m[2m as[0m[2m shell[0m[2m commands[0m[2m and[0m[2m capture[0m[2m the[0m[2m output[0m[2m to[0m[2m confirm[0m[2m success[0m[2m.[0m[2m If[0m[2m any[0m[2m step[0m[2m fails[0m[2m,[0m[2m I[0m[2m'll[0m[2m have[0m[2m to[0m[2m adjust[0m[2m the[0m[2m code[0m[2m accordingly[0m[2m,[0m[2m but[0m[2m given[0m[2m the[0m[2m previous[0m[2m steps[0m[2m,[0m[2m it[0m[2m should[0m[2m work[0m[2m.
      
-     [0m[2mAlternatively[0m[2m,[0m[2m use[0m[2m a[0m[2m context[0m[2m manager[0m[2m to[0m[2m handle[0m[2m the[0m[2m server[0m[2m lifecycle[0m[2m.[0m[2m Let[0m[2m me[0m[2m draft[0m[2m the[0m[2m test[0m[2m script[0m[2m.
+     [0m[2mLet[0m[2m me[0m[2m structure[0m[2m the[0m[2m shell[0m[2m commands[0m[2m.[0m[2m First[0m[2m,[0m[2m start[0m[2m the[0m[2m server[0m[2m in[0m[2m the[0m[2m background[0m[2m.[0m[2m Note[0m[2m that[0m[2m the[0m[2m process[0m[2m ID[0m[2m will[0m[2m be[0m[2m reported[0m[2m,[0m[2m which[0m[2m I[0m[2m can[0m[2m later[0m[2m use[0m[2m to[0m[2m terminate[0m[2m it[0m[2m.[0m[2m Then[0m[2m,[0m[2m run[0m[2m each[0m[2m curl[0m[2m command[0m[2m sequentially[0m[2m.
      
-     [0m[2mThe[0m[2m test[0m[2m script[0m[2m content[0m[2m should[0m[2m be[0m[2m:
+     [0m[2mWait[0m[2m,[0m[2m the[0m[2m run[0m[2m_shell[0m[2m_command[0m[2m tool[0m[2m can[0m[2m handle[0m[2m background[0m[2m processes[0m[2m,[0m[2m so[0m[2m starting[0m[2m uv[0m[2micorn[0m[2m with[0m[2m &[0m[2m will[0m[2m work[0m[2m.[0m[2m Then[0m[2m,[0m[2m I[0m[2m can[0m[2m run[0m[2m the[0m[2m curl[0m[2m commands[0m[2m.[0m[2m Finally[0m[2m,[0m[2m use[0m[2m p[0m[2mkill[0m[2m to[0m[2m stop[0m[2m the[0m[2m server[0m[2m.
      
-     [0m[2mimport[0m[2m http[0m[2mx[0m[2m
-     [0m[2mimport[0m[2m time[0m[2m
-     [0m[2mimport[0m[2m subprocess[0m[2m
-     [0m[2mimport[0m[2m pytest[0m[2m
+     [0m[2mLet[0m[2m me[0m[2m outline[0m[2m the[0m[2m commands[0m[2m:
      
-     [0m[2mdef[0m[2m test[0m[2m_cr[0m[2mud[0m[2m_operations[0m[2m():
-     [0m[2m   [0m[2m #[0m[2m Start[0m[2m the[0m[2m server[0m[2m
-     [0m[2m   [0m[2m server[0m[2m =[0m[2m subprocess[0m[2m.Popen[0m[2m(["[0m[2muv[0m[2micorn[0m[2m",[0m[2m "[0m[2mtodo[0m[2m_app[0m[2m:[0m[2mapp[0m[2m",[0m[2m "--[0m[2mport[0m[2m",[0m[2m "[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m"])
-     [0m[2m   [0m[2m time[0m[2m.sleep[0m[2m([0m[2m2[0m[2m)[0m[2m [0m[2m #[0m[2m Wait[0m[2m for[0m[2m server[0m[2m to[0m[2m start[0m[2m
-         
-     [0m[2m   [0m[2m try[0m[2m:
-     [0m[2m       [0m[2m client[0m[2m =[0m[2m http[0m[2mx[0m[2m.Client[0m[2m(base[0m[2m_url[0m[2m="[0m[2mhttp[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m")
-     [0m[2m        
-     [0m[2m       [0m[2m #[0m[2m Test[0m[2m POST[0m[2m
-     [0m[2m       [0m[2m response[0m[2m =[0m[2m client[0m[2m.post[0m[2m("/[0m[2mtodos[0m[2m",[0m[2m json[0m[2m={"[0m[2mtitle[0m[2m":[0m[2m "[0m[2mTest[0m[2m item[0m[2m"})
-     [0m[2m       [0m[2m assert[0m[2m response[0m[2m.status[0m[2m_code[0m[2m ==[0m[2m [0m[2m2[0m[2m0[0m[2m1[0m[2m
-     [0m[2m       [0m[2m created[0m[2m =[0m[2m response[0m[2m.json[0m[2m()
-     [0m[2m       [0m[2m assert[0m[2m created[0m[2m["[0m[2mid[0m[2m"][0m[2m ==[0m[2m [0m[2m3[0m[2m
-     [0m[2m       [0m[2m assert[0m[2m created[0m[2m["[0m[2mtitle[0m[2m"][0m[2m ==[0m[2m "[0m[2mTest[0m[2m item[0m[2m"
-     [0m[2m        
-     [0m[2m       [0m[2m #[0m[2m Test[0m[2m PUT[0m[2m
-     [0m[2m       [0m[2m response[0m[2m =[0m[2m client[0m[2m.put[0m[2m(f[0m[2m"/[0m[2mtodos[0m[2m/{[0m[2mcreated[0m[2m['[0m[2mid[0m[2m'][0m[2m}",[0m[2m json[0m[2m={"[0m[2mcompleted[0m[2m":[0m[2m True[0m[2m})
-     [0m[2m       [0m[2m assert[0m[2m response[0m[2m.status[0m[2m_code[0m[2m ==[0m[2m [0m[2m2[0m[2m0[0m[2m0[0m[2m
-     [0m[2m       [0m[2m assert[0m[2m response[0m[2m.json[0m[2m()["[0m[2mcompleted[0m[2m"][0m[2m is[0m[2m True[0m[2m
-             
-     [0m[2m       [0m[2m #[0m[2m Test[0m[2m DELETE[0m[2m
-     [0m[2m       [0m[2m response[0m[2m =[0m[2m client[0m[2m.delete[0m[2m(f[0m[2m"/[0m[2mtodos[0m[2m/{[0m[2mcreated[0m[2m['[0m[2mid[0m[2m'][0m[2m}")
-     [0m[2m       [0m[2m assert[0m[2m response[0m[2m.status[0m[2m_code[0m[2m ==[0m[2m [0m[2m2[0m[2m0[0m[2m4[0m[2m
-             
-     [0m[2m       [0m[2m #[0m[2m Test[0m[2m GET[0m[2m after[0m[2m deletion[0m[2m
-     [0m[2m       [0m[2m response[0m[2m =[0m[2m client[0m[2m.get[0m[2m("/[0m[2mtodos[0m[2m")
-     [0m[2m       [0m[2m assert[0m[2m len[0m[2m(response[0m[2m.json[0m[2m())[0m[2m ==[0m[2m [0m[2m2[0m[2m [0m[2m #[0m[2m Original[0m[2m [0m[2m2[0m[2m items[0m[2m
-             
-     [0m[2m   [0m[2m finally[0m[2m:
-     [0m[2m       [0m[2m server[0m[2m.terminate[0m[2m()
+     [0m[2m1[0m[2m.[0m[2m Start[0m[2m server[0m[2m:[0m[2m uv[0m[2micorn[0m[2m todo[0m[2m_app[0m[2m:[0m[2mapp[0m[2m --[0m[2mport[0m[2m [0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m --[0m[2mhost[0m[2m [0m[2m0[0m[2m.[0m[2m0[0m[2m.[0m[2m0[0m[2m.[0m[2m0[0m[2m &
+     [0m[2m2[0m[2m.[0m[2m Sleep[0m[2m [0m[2m1[0m[2m second[0m[2m for[0m[2m server[0m[2m to[0m[2m start[0m[2m
+     [0m[2m3[0m[2m.[0m[2m POST[0m[2m test[0m[2m:[0m[2m curl[0m[2m -[0m[2mX[0m[2m POST[0m[2m -[0m[2mH[0m[2m "[0m[2mContent[0m[2m-Type[0m[2m:[0m[2m application[0m[2m/json[0m[2m"[0m[2m -[0m[2md[0m[2m "{\"[0m[2mtitle[0m[2m\":\"[0m[2mTest[0m[2m Todo[0m[2m\"[0m[2m}"[0m[2m http[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m/t[0m[2modos[0m[2m -[0m[2mw[0m[2m "\\[0m[2mn[0m[2m"
+     [0m[2m4[0m[2m.[0m[2m GET[0m[2m to[0m[2m verify[0m[2m:[0m[2m curl[0m[2m http[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m/t[0m[2modos[0m[2m -[0m[2mw[0m[2m "\\[0m[2mn[0m[2m"
+     [0m[2m5[0m[2m.[0m[2m PUT[0m[2m test[0m[2m:[0m[2m curl[0m[2m -[0m[2mX[0m[2m PUT[0m[2m -[0m[2mH[0m[2m "[0m[2mContent[0m[2m-Type[0m[2m:[0m[2m application[0m[2m/json[0m[2m"[0m[2m -[0m[2md[0m[2m "{\"[0m[2mtitle[0m[2m\":\"[0m[2mUpdated[0m[2m Todo[0m[2m\"[0m[2m}"[0m[2m http[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m/t[0m[2modos[0m[2m/[0m[2m3[0m[2m -[0m[2mw[0m[2m "\\[0m[2mn[0m[2m"
+     [0m[2m6[0m[2m.[0m[2m DELETE[0m[2m test[0m[2m:[0m[2m curl[0m[2m -[0m[2mX[0m[2m DELETE[0m[2m http[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m/t[0m[2modos[0m[2m/[0m[2m3[0m[2m -[0m[2mw[0m[2m "\\[0m[2mn[0m[2m"
+     [0m[2m7[0m[2m.[0m[2m Final[0m[2m GET[0m[2m to[0m[2m confirm[0m[2m deletion[0m[2m:[0m[2m curl[0m[2m http[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m/t[0m[2modos[0m[2m -[0m[2mw[0m[2m "\\[0m[2mn[0m[2m"
+     [0m[2m8[0m[2m.[0m[2m Stop[0m[2m the[0m[2m server[0m[2m:[0m[2m p[0m[2mkill[0m[2m -[0m[2mf[0m[2m "[0m[2muv[0m[2micorn[0m[2m todo[0m[2m_app[0m[2m:[0m[2mapp[0m[2m"
      
-     [0m[2mif[0m[2m __[0m[2mname[0m[2m__[0m[2m ==[0m[2m "__[0m[2mmain[0m[2m__":
-     [0m[2m   [0m[2m test[0m[2m_cr[0m[2mud[0m[2m_operations[0m[2m()
+     [0m[2mI[0m[2m need[0m[2m to[0m[2m chain[0m[2m these[0m[2m into[0m[2m a[0m[2m single[0m[2m command[0m[2m since[0m[2m the[0m[2m tool[0m[2m runs[0m[2m each[0m[2m command[0m[2m in[0m[2m sequence[0m[2m.[0m[2m But[0m[2m the[0m[2m tool[0m[2m executes[0m[2m one[0m[2m command[0m[2m per[0m[2m call[0m[2m.[0m[2m So[0m[2m first[0m[2m,[0m[2m start[0m[2m the[0m[2m server[0m[2m in[0m[2m the[0m[2m background[0m[2m with[0m[2m the[0m[2m &[0m[2m.[0m[2m Then[0m[2m,[0m[2m run[0m[2m each[0m[2m subsequent[0m[2m command[0m[2m,[0m[2m including[0m[2m the[0m[2m sleep[0m[2m.[0m[2m However[0m[2m,[0m[2m the[0m[2m run[0m[2m_shell[0m[2m_command[0m[2m tool[0m[2m will[0m[2m wait[0m[2m for[0m[2m the[0m[2m command[0m[2m to[0m[2m finish[0m[2m,[0m[2m so[0m[2m starting[0m[2m the[0m[2m server[0m[2m as[0m[2m a[0m[2m background[0m[2m process[0m[2m allows[0m[2m the[0m[2m next[0m[2m commands[0m[2m to[0m[2m execute[0m[2m while[0m[2m it[0m[2m's[0m[2m running[0m[2m.
      
-     [0m[2mBut[0m[2m I[0m[2m need[0m[2m to[0m[2m check[0m[2m if[0m[2m http[0m[2mx[0m[2m is[0m[2m installed[0m[2m.[0m[2m However[0m[2m,[0m[2m the[0m[2m user[0m[2m might[0m[2m not[0m[2m have[0m[2m it[0m[2m,[0m[2m so[0m[2m maybe[0m[2m use[0m[2m curl[0m[2m instead[0m[2m for[0m[2m the[0m[2m verification[0m[2m.
+     [0m[2mWait[0m[2m,[0m[2m when[0m[2m I[0m[2m run[0m[2m "[0m[2muv[0m[2micorn[0m[2m ...[0m[2m &[0m[2m",[0m[2m the[0m[2m shell[0m[2m will[0m[2m start[0m[2m it[0m[2m in[0m[2m the[0m[2m background[0m[2m and[0m[2m return[0m[2m immediately[0m[2m.[0m[2m Then[0m[2m subsequent[0m[2m commands[0m[2m run[0m[2m while[0m[2m the[0m[2m server[0m[2m is[0m[2m still[0m[2m up[0m[2m.[0m[2m Then[0m[2m,[0m[2m finally[0m[2m,[0m[2m after[0m[2m all[0m[2m tests[0m[2m,[0m[2m kill[0m[2m the[0m[2m server[0m[2m.
      
-     [0m[2mAlternatively[0m[2m,[0m[2m the[0m[2m verification[0m[2m can[0m[2m be[0m[2m done[0m[2m via[0m[2m shell[0m[2m commands[0m[2m using[0m[2m curl[0m[2m without[0m[2m a[0m[2m Python[0m[2m script[0m[2m.[0m[2m Let[0m[2m's[0m[2m do[0m[2m that[0m[2m to[0m[2m avoid[0m[2m dependency[0m[2m issues[0m[2m.
+     [0m[2mSo[0m[2m the[0m[2m verification[0m[2m steps[0m[2m:
      
-     [0m[2mThe[0m[2m verification[0m[2m steps[0m[2m would[0m[2m be[0m[2m:
+     [0m[2m1[0m[2m.[0m[2m Start[0m[2m server[0m[2m in[0m[2m background[0m[2m.
+     [0m[2m2[0m[2m.[0m[2m Wait[0m[2m for[0m[2m it[0m[2m to[0m[2m start[0m[2m ([0m[2mmaybe[0m[2m using[0m[2m a[0m[2m small[0m[2m sleep[0m[2m command[0m[2m).
+     [0m[2m3[0m[2m.[0m[2m Run[0m[2m the[0m[2m test[0m[2m commands[0m[2m.
+     [0m[2m4[0m[2m.[0m[2m Stop[0m[2m the[0m[2m server[0m[2m.
      
-     [0m[2m1[0m[2m.[0m[2m Start[0m[2m the[0m[2m server[0m[2m in[0m[2m the[0m[2m background[0m[2m with[0m[2m no[0m[2mh[0m[2mup[0m[2m.
-     [0m[2m2[0m[2m.[0m[2m Wait[0m[2m for[0m[2m it[0m[2m to[0m[2m start[0m[2m.
-     [0m[2m3[0m[2m.[0m[2m Execute[0m[2m curl[0m[2m commands[0m[2m for[0m[2m each[0m[2m test[0m[2m case[0m[2m.
-     [0m[2m4[0m[2m.[0m[2m Ter[0m[2mminate[0m[2m the[0m[2m server[0m[2m.
+     [0m[2mThe[0m[2m challenge[0m[2m is[0m[2m that[0m[2m run[0m[2m_shell[0m[2m_command[0m[2m for[0m[2m the[0m[2m background[0m[2m server[0m[2m starts[0m[2m it[0m[2m,[0m[2m but[0m[2m each[0m[2m subsequent[0m[2m command[0m[2m must[0m[2m be[0m[2m in[0m[2m the[0m[2m same[0m[2m session[0m[2m.[0m[2m However[0m[2m,[0m[2m since[0m[2m the[0m[2m tool[0m[2m's[0m[2m run[0m[2m_shell[0m[2m_command[0m[2m executes[0m[2m each[0m[2m command[0m[2m in[0m[2m a[0m[2m new[0m[2m shell[0m[2m,[0m[2m the[0m[2m background[0m[2m process[0m[2m from[0m[2m step[0m[2m [0m[2m1[0m[2m might[0m[2m not[0m[2m be[0m[2m visible[0m[2m to[0m[2m subsequent[0m[2m commands[0m[2m.[0m[2m Hmm[0m[2m,[0m[2m this[0m[2m is[0m[2m a[0m[2m problem[0m[2m.
      
-     [0m[2mLet[0m[2m me[0m[2m create[0m[2m a[0m[2m shell[0m[2m script[0m[2m that[0m[2m does[0m[2m this[0m[2m.[0m[2m But[0m[2m since[0m[2m the[0m[2m user[0m[2m wants[0m[2m a[0m[2m temporary[0m[2m script[0m[2m,[0m[2m maybe[0m[2m a[0m[2m shell[0m[2m command[0m[2m via[0m[2m run[0m[2m_shell[0m[2m_command[0m[2m.
+     [0m[2mAlternatively[0m[2m,[0m[2m run[0m[2m all[0m[2m commands[0m[2m in[0m[2m a[0m[2m single[0m[2m shell[0m[2m session[0m[2m using[0m[2m a[0m[2m script[0m[2m.[0m[2m But[0m[2m the[0m[2m tool[0m[2m might[0m[2m not[0m[2m support[0m[2m that[0m[2m.[0m[2m Alternatively[0m[2m,[0m[2m use[0m[2m a[0m[2m temporary[0m[2m script[0m[2m.
      
-     [0m[2mWait[0m[2m,[0m[2m the[0m[2m assistant[0m[2m needs[0m[2m to[0m[2m run[0m[2m commands[0m[2m to[0m[2m verify[0m[2m.[0m[2m So[0m[2m the[0m[2m steps[0m[2m are[0m[2m:
+     [0m[2mBut[0m[2m given[0m[2m the[0m[2m constraints[0m[2m,[0m[2m perhaps[0m[2m the[0m[2m best[0m[2m way[0m[2m is[0m[2m to[0m[2m run[0m[2m a[0m[2m single[0m[2m shell[0m[2m command[0m[2m that[0m[2m chains[0m[2m all[0m[2m steps[0m[2m together[0m[2m with[0m[2m &&[0m[2m and[0m[2m ;[0m[2m.[0m[2m For[0m[2m example[0m[2m:
      
-     [0m[2m-[0m[2m Start[0m[2m uv[0m[2micorn[0m[2m in[0m[2m background[0m[2m
-     [0m[2m-[0m[2m Wait[0m[2m [0m[2m2[0m[2m seconds[0m[2m
-     [0m[2m-[0m[2m Run[0m[2m curl[0m[2m for[0m[2m POST[0m[2m,[0m[2m check[0m[2m response[0m[2m code[0m[2m is[0m[2m [0m[2m2[0m[2m0[0m[2m1[0m[2m
-     [0m[2m-[0m[2m Run[0m[2m curl[0m[2m for[0m[2m PUT[0m[2m with[0m[2m the[0m[2m new[0m[2m ID[0m[2m
-     [0m[2m-[0m[2m Run[0m[2m curl[0m[2m for[0m[2m DELETE[0m[2m
-     [0m[2m-[0m[2m Check[0m[2m each[0m[2m step[0m[2m's[0m[2m exit[0m[2m code[0m[2m
+     [0m[2muv[0m[2micorn[0m[2m todo[0m[2m_app[0m[2m:[0m[2mapp[0m[2m ...[0m[2m &[0m[2m sleep[0m[2m [0m[2m1[0m[2m &&[0m[2m curl[0m[2m ...[0m[2m &&[0m[2m curl[0m[2m ...[0m[2m ;[0m[2m p[0m[2mkill[0m[2m ...
      
-     [0m[2mLet[0m[2m's[0m[2m construct[0m[2m the[0m[2m shell[0m[2m command[0m[2m:
+     [0m[2mWait[0m[2m,[0m[2m but[0m[2m the[0m[2m background[0m[2m server[0m[2m is[0m[2m started[0m[2m,[0m[2m sleep[0m[2m,[0m[2m then[0m[2m run[0m[2m curls[0m[2m,[0m[2m then[0m[2m kill[0m[2m.[0m[2m But[0m[2m the[0m[2m &[0m[2m puts[0m[2m the[0m[2m server[0m[2m in[0m[2m the[0m[2m background[0m[2m,[0m[2m and[0m[2m the[0m[2m subsequent[0m[2m commands[0m[2m can[0m[2m run[0m[2m.
      
-     [0m[2m(
-     [0m[2m [0m[2m uv[0m[2micorn[0m[2m todo[0m[2m_app[0m[2m:[0m[2mapp[0m[2m --[0m[2mport[0m[2m [0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m &
-     [0m[2m [0m[2m SERVER[0m[2m_PID[0m[2m=$[0m[2m!
-     [0m[2m [0m[2m sleep[0m[2m [0m[2m2[0m[2m
-     [0m[2m [0m[2m #[0m[2m Test[0m[2m POST[0m[2m
-     [0m[2m [0m[2m POST[0m[2m_OUTPUT[0m[2m=$([0m[2mcurl[0m[2m -[0m[2ms[0m[2m -[0m[2mo[0m[2m /[0m[2mdev[0m[2m/null[0m[2m -[0m[2mw[0m[2m "%[0m[2m{[0m[2mhttp[0m[2m_code[0m[2m}"[0m[2m -[0m[2mX[0m[2m POST[0m[2m http[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m/t[0m[2modos[0m[2m -[0m[2mH[0m[2m "[0m[2mContent[0m[2m-Type[0m[2m:[0m[2m application[0m[2m/json[0m[2m"[0m[2m -[0m[2md[0m[2m '{"[0m[2mtitle[0m[2m":[0m[2m "[0m[2mTest[0m[2m"}[0m[2m')
-     [0m[2m [0m[2m if[0m[2m [[0m[2m "$[0m[2mPOST[0m[2m_OUTPUT[0m[2m"[0m[2m !=[0m[2m "[0m[2m2[0m[2m0[0m[2m1[0m[2m"[0m[2m ];[0m[2m then[0m[2m
-     [0m[2m   [0m[2m echo[0m[2m "[0m[2mPOST[0m[2m failed[0m[2m:[0m[2m $[0m[2mPOST[0m[2m_OUTPUT[0m[2m"
-     [0m[2m   [0m[2m kill[0m[2m $[0m[2mSERVER[0m[2m_PID[0m[2m
-     [0m[2m   [0m[2m exit[0m[2m [0m[2m1[0m[2m
-     [0m[2m [0m[2m fi[0m[2m
-     [0m[2m [0m[2m #[0m[2m Get[0m[2m the[0m[2m ID[0m[2m from[0m[2m POST[0m[2m response[0m[2m ([0m[2ms[0m[2mimplify[0m[2m by[0m[2m assuming[0m[2m next[0m[2m ID[0m[2m is[0m[2m [0m[2m3[0m[2m)
-     [0m[2m [0m[2m #[0m[2m Test[0m[2m PUT[0m[2m
-     [0m[2m [0m[2m PUT[0m[2m_OUTPUT[0m[2m=$([0m[2mcurl[0m[2m -[0m[2ms[0m[2m -[0m[2mo[0m[2m /[0m[2mdev[0m[2m/null[0m[2m -[0m[2mw[0m[2m "%[0m[2m{[0m[2mhttp[0m[2m_code[0m[2m}"[0m[2m -[0m[2mX[0m[2m PUT[0m[2m http[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m/t[0m[2modos[0m[2m/[0m[2m3[0m[2m -[0m[2mH[0m[2m "[0m[2mContent[0m[2m-Type[0m[2m:[0m[2m application[0m[2m/json[0m[2m"[0m[2m -[0m[2md[0m[2m '{"[0m[2mcompleted[0m[2m":[0m[2m true[0m[2m}')
-     [0m[2m [0m[2m if[0m[2m [[0m[2m "$[0m[2mPUT[0m[2m_OUTPUT[0m[2m"[0m[2m !=[0m[2m "[0m[2m2[0m[2m0[0m[2m0[0m[2m"[0m[2m ];[0m[2m then[0m[2m
-     [0m[2m   [0m[2m echo[0m[2m "[0m[2mPUT[0m[2m failed[0m[2m:[0m[2m $[0m[2mPUT[0m[2m_OUTPUT[0m[2m"
-     [0m[2m   [0m[2m kill[0m[2m $[0m[2mSERVER[0m[2m_PID[0m[2m
-     [0m[2m   [0m[2m exit[0m[2m [0m[2m1[0m[2m
-     [0m[2m [0m[2m fi[0m[2m
-     [0m[2m [0m[2m #[0m[2m Test[0m[2m DELETE[0m[2m
-     [0m[2m [0m[2m DELETE[0m[2m_OUTPUT[0m[2m=$([0m[2mcurl[0m[2m -[0m[2ms[0m[2m -[0m[2mo[0m[2m /[0m[2mdev[0m[2m/null[0m[2m -[0m[2mw[0m[2m "%[0m[2m{[0m[2mhttp[0m[2m_code[0m[2m}"[0m[2m -[0m[2mX[0m[2m DELETE[0m[2m http[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m/t[0m[2modos[0m[2m/[0m[2m3[0m[2m)
-     [0m[2m [0m[2m if[0m[2m [[0m[2m "$[0m[2mDELETE[0m[2m_OUTPUT[0m[2m"[0m[2m !=[0m[2m "[0m[2m2[0m[2m0[0m[2m4[0m[2m"[0m[2m ];[0m[2m then[0m[2m
-     [0m[2m   [0m[2m echo[0m[2m "[0m[2mDELETE[0m[2m failed[0m[2m:[0m[2m $[0m[2mDELETE[0m[2m_OUTPUT[0m[2m"
-     [0m[2m   [0m[2m kill[0m[2m $[0m[2mSERVER[0m[2m_PID[0m[2m
-     [0m[2m   [0m[2m exit[0m[2m [0m[2m1[0m[2m
-     [0m[2m [0m[2m fi[0m[2m
-     [0m[2m [0m[2m kill[0m[2m $[0m[2mSERVER[0m[2m_PID[0m[2m
-     [0m[2m [0m[2m echo[0m[2m "[0m[2mAll[0m[2m tests[0m[2m passed[0m[2m"
-     [0m[2m)
+     [0m[2mSo[0m[2m the[0m[2m full[0m[2m command[0m[2m would[0m[2m be[0m[2m:
      
-     [0m[2mBut[0m[2m the[0m[2m problem[0m[2m is[0m[2m,[0m[2m the[0m[2m curl[0m[2m command[0m[2m for[0m[2m POST[0m[2m doesn[0m[2m't[0m[2m capture[0m[2m the[0m[2m returned[0m[2m ID[0m[2m.[0m[2m Since[0m[2m the[0m[2m server[0m[2m uses[0m[2m auto[0m[2m-in[0m[2mcrement[0m[2m,[0m[2m and[0m[2m the[0m[2m initial[0m[2m db[0m[2m has[0m[2m ids[0m[2m [0m[2m1[0m[2m and[0m[2m [0m[2m2[0m[2m,[0m[2m the[0m[2m new[0m[2m ID[0m[2m should[0m[2m be[0m[2m [0m[2m3[0m[2m.[0m[2m So[0m[2m in[0m[2m the[0m[2m PUT[0m[2m and[0m[2m DELETE[0m[2m,[0m[2m we[0m[2m can[0m[2m hard[0m[2mcode[0m[2m [0m[2m3[0m[2m.
+     [0m[2m([0m[2m uv[0m[2micorn[0m[2m todo[0m[2m_app[0m[2m:[0m[2mapp[0m[2m --[0m[2mport[0m[2m [0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m --[0m[2mhost[0m[2m [0m[2m0[0m[2m.[0m[2m0[0m[2m.[0m[2m0[0m[2m.[0m[2m0[0m[2m &[0m[2m )[0m[2m &&[0m[2m sleep[0m[2m [0m[2m1[0m[2m &&[0m[2m curl[0m[2m -[0m[2mX[0m[2m POST[0m[2m ...[0m[2m &&[0m[2m curl[0m[2m ...[0m[2m &&[0m[2m curl[0m[2m ...[0m[2m &&[0m[2m curl[0m[2m ...[0m[2m &&[0m[2m p[0m[2mkill[0m[2m -[0m[2mf[0m[2m "[0m[2muv[0m[2micorn[0m[2m todo[0m[2m_app[0m[2m:[0m[2mapp[0m[2m"
      
-     [0m[2mHowever[0m[2m,[0m[2m this[0m[2m is[0m[2m an[0m[2m assumption[0m[2m.[0m[2m If[0m[2m another[0m[2m process[0m[2m added[0m[2m items[0m[2m,[0m[2m it[0m[2m might[0m[2m not[0m[2m be[0m[2m [0m[2m3[0m[2m,[0m[2m but[0m[2m in[0m[2m this[0m[2m test[0m[2m case[0m[2m,[0m[2m it[0m[2m's[0m[2m safe[0m[2m.
+     [0m[2mBut[0m[2m need[0m[2m to[0m[2m make[0m[2m sure[0m[2m the[0m[2m server[0m[2m is[0m[2m killed[0m[2m even[0m[2m if[0m[2m tests[0m[2m fail[0m[2m.[0m[2m However[0m[2m,[0m[2m for[0m[2m verification[0m[2m,[0m[2m let[0m[2m's[0m[2m assume[0m[2m the[0m[2m tests[0m[2m pass[0m[2m.
      
-     [0m[2mSo[0m[2m the[0m[2m shell[0m[2m command[0m[2m above[0m[2m should[0m[2m work[0m[2m.
+     [0m[2mLet[0m[2m me[0m[2m construct[0m[2m the[0m[2m command[0m[2m:
      
-     [0m[2mLet[0m[2m me[0m[2m structure[0m[2m it[0m[2m as[0m[2m a[0m[2m single[0m[2m shell[0m[2m command[0m[2m to[0m[2m run[0m[2m these[0m[2m tests[0m[2m.
+     [0m[2m([0m[2m uv[0m[2micorn[0m[2m todo[0m[2m_app[0m[2m:[0m[2mapp[0m[2m --[0m[2mport[0m[2m [0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m --[0m[2mhost[0m[2m [0m[2m0[0m[2m.[0m[2m0[0m[2m.[0m[2m0[0m[2m.[0m[2m0[0m[2m &[0m[2m )[0m[2m &&[0m[2m sleep[0m[2m [0m[2m2[0m[2m &&[0m[2m \
+     [0m[2mcurl[0m[2m -[0m[2mX[0m[2m POST[0m[2m -[0m[2mH[0m[2m "[0m[2mContent[0m[2m-Type[0m[2m:[0m[2m application[0m[2m/json[0m[2m"[0m[2m -[0m[2md[0m[2m '{"[0m[2mtitle[0m[2m":"[0m[2mTest[0m[2m Todo[0m[2m"}[0m[2m'[0m[2m http[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m/t[0m[2modos[0m[2m &&[0m[2m \
+     [0m[2mcurl[0m[2m -[0m[2mX[0m[2m PUT[0m[2m -[0m[2mH[0m[2m "[0m[2mContent[0m[2m-Type[0m[2m:[0m[2m application[0m[2m/json[0m[2m"[0m[2m -[0m[2md[0m[2m '{"[0m[2mtitle[0m[2m":"[0m[2mUpdated[0m[2m Todo[0m[2m"}[0m[2m'[0m[2m http[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m/t[0m[2modos[0m[2m/[0m[2m3[0m[2m &&[0m[2m \
+     [0m[2mcurl[0m[2m -[0m[2mX[0m[2m DELETE[0m[2m http[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m/t[0m[2modos[0m[2m/[0m[2m3[0m[2m &&[0m[2m \
+     [0m[2mp[0m[2mkill[0m[2m -[0m[2mf[0m[2m "[0m[2muv[0m[2micorn[0m[2m todo[0m[2m_app[0m[2m:[0m[2mapp[0m[2m"
      
-     [0m[2mNow[0m[2m,[0m[2m the[0m[2m assistant[0m[2m needs[0m[2m to[0m[2m execute[0m[2m this[0m[2m using[0m[2m run[0m[2m_shell[0m[2m_command[0m[2m.
+     [0m[2mWait[0m[2m,[0m[2m but[0m[2m the[0m[2m POST[0m[2m should[0m[2m create[0m[2m a[0m[2m new[0m[2m item[0m[2m with[0m[2m ID[0m[2m [0m[2m3[0m[2m ([0m[2msince[0m[2m existing[0m[2m IDs[0m[2m are[0m[2m [0m[2m1[0m[2m,[0m[2m2[0m[2m).[0m[2m Then[0m[2m the[0m[2m PUT[0m[2m updates[0m[2m that[0m[2m item[0m[2m ([0m[2mID[0m[2m [0m[2m3[0m[2m),[0m[2m and[0m[2m DELETE[0m[2m removes[0m[2m it[0m[2m.
      
-     [0m[2mWait[0m[2m,[0m[2m but[0m[2m the[0m[2m user[0m[2m's[0m[2m current[0m[2m directory[0m[2m is[0m[2m the[0m[2m work[0m[2mdir[0m[2m where[0m[2m todo[0m[2m_app[0m[2m.py[0m[2m is[0m[2m located[0m[2m.[0m[2m So[0m[2m the[0m[2m command[0m[2m should[0m[2m be[0m[2m run[0m[2m from[0m[2m there[0m[2m.
+     [0m[2mThe[0m[2m POST[0m[2m command[0m[2m's[0m[2m output[0m[2m should[0m[2m show[0m[2m the[0m[2m new[0m[2m item[0m[2m with[0m[2m id[0m[2m=[0m[2m3[0m[2m.
      
-     [0m[2mThe[0m[2m command[0m[2m string[0m[2m would[0m[2m be[0m[2m:
+     [0m[2mSimilarly[0m[2m,[0m[2m the[0m[2m GET[0m[2m after[0m[2m creation[0m[2m should[0m[2m show[0m[2m [0m[2m3[0m[2m items[0m[2m.
      
-     [0m[2m([0m[2m uv[0m[2micorn[0m[2m todo[0m[2m_app[0m[2m:[0m[2mapp[0m[2m --[0m[2mport[0m[2m [0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m &[0m[2m SERVER[0m[2m_PID[0m[2m=$[0m[2m![0m[2m;[0m[2m sleep[0m[2m [0m[2m2[0m[2m;[0m[2m POST[0m[2m_RES[0m[2m=$([0m[2mcurl[0m[2m -[0m[2ms[0m[2m -[0m[2mo[0m[2m /[0m[2mdev[0m[2m/null[0m[2m -[0m[2mw[0m[2m \"%[0m[2m{[0m[2mhttp[0m[2m_code[0m[2m}\"[0m[2m -[0m[2mX[0m[2m POST[0m[2m http[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m/t[0m[2modos[0m[2m -[0m[2mH[0m[2m \"[0m[2mContent[0m[2m-Type[0m[2m:[0m[2m application[0m[2m/json[0m[2m\"[0m[2m -[0m[2md[0m[2m '{[0m[2m\"[0m[2mtitle[0m[2m\":[0m[2m \"[0m[2mTest[0m[2m\"[0m[2m}[0m[2m');[0m[2m if[0m[2m [[0m[2m \"$[0m[2mPOST[0m[2m_RES[0m[2m\"[0m[2m !=[0m[2m \"[0m[2m2[0m[2m0[0m[2m1[0m[2m\"[0m[2m ];[0m[2m then[0m[2m echo[0m[2m \"[0m[2mPOST[0m[2m failed[0m[2m:[0m[2m $[0m[2mPOST[0m[2m_RES[0m[2m\"[0m[2m;[0m[2m kill[0m[2m $[0m[2mSERVER[0m[2m_PID[0m[2m;[0m[2m exit[0m[2m [0m[2m1[0m[2m;[0m[2m fi[0m[2m;[0m[2m PUT[0m[2m_RES[0m[2m=$([0m[2mcurl[0m[2m -[0m[2ms[0m[2m -[0m[2mo[0m[2m /[0m[2mdev[0m[2m/null[0m[2m -[0m[2mw[0m[2m \"%[0m[2m{[0m[2mhttp[0m[2m_code[0m[2m}\"[0m[2m -[0m[2mX[0m[2m PUT[0m[2m http[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m/t[0m[2modos[0m[2m/[0m[2m3[0m[2m -[0m[2mH[0m[2m \"[0m[2mContent[0m[2m-Type[0m[2m:[0m[2m application[0m[2m/json[0m[2m\"[0m[2m -[0m[2md[0m[2m '{[0m[2m\"[0m[2mcompleted[0m[2m\":[0m[2m true[0m[2m}[0m[2m');[0m[2m if[0m[2m [[0m[2m \"$[0m[2mPUT[0m[2m_RES[0m[2m\"[0m[2m !=[0m[2m \"[0m[2m2[0m[2m0[0m[2m0[0m[2m\"[0m[2m ];[0m[2m then[0m[2m echo[0m[2m \"[0m[2mPUT[0m[2m failed[0m[2m:[0m[2m $[0m[2mPUT[0m[2m_RES[0m[2m\"[0m[2m;[0m[2m kill[0m[2m $[0m[2mSERVER[0m[2m_PID[0m[2m;[0m[2m exit[0m[2m [0m[2m1[0m[2m;[0m[2m fi[0m[2m;[0m[2m DELETE[0m[2m_RES[0m[2m=$([0m[2mcurl[0m[2m -[0m[2ms[0m[2m -[0m[2mo[0m[2m /[0m[2mdev[0m[2m/null[0m[2m -[0m[2mw[0m[2m \"%[0m[2m{[0m[2mhttp[0m[2m_code[0m[2m}\"[0m[2m -[0m[2mX[0m[2m DELETE[0m[2m http[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m/t[0m[2modos[0m[2m/[0m[2m3[0m[2m);[0m[2m if[0m[2m [[0m[2m \"$[0m[2mDELETE[0m[2m_RES[0m[2m\"[0m[2m !=[0m[2m \"[0m[2m2[0m[2m0[0m[2m4[0m[2m\"[0m[2m ];[0m[2m then[0m[2m echo[0m[2m \"[0m[2mDELETE[0m[2m failed[0m[2m:[0m[2m $[0m[2mDELETE[0m[2m_RES[0m[2m\"[0m[2m;[0m[2m kill[0m[2m $[0m[2mSERVER[0m[2m_PID[0m[2m;[0m[2m exit[0m[2m [0m[2m1[0m[2m;[0m[2m fi[0m[2m;[0m[2m kill[0m[2m $[0m[2mSERVER[0m[2m_PID[0m[2m;[0m[2m echo[0m[2m \"[0m[2mVerification[0m[2m passed[0m[2m\"[0m[2m )
+     [0m[2mBut[0m[2m since[0m[2m the[0m[2m tool[0m[2m needs[0m[2m to[0m[2m verify[0m[2m,[0m[2m the[0m[2m exact[0m[2m expected[0m[2m output[0m[2m is[0m[2m:
      
-     [0m[2mThis[0m[2m is[0m[2m a[0m[2m bit[0m[2m messy[0m[2m but[0m[2m should[0m[2m work[0m[2m.
+     [0m[2m-[0m[2m POST[0m[2m returns[0m[2m [0m[2m2[0m[2m0[0m[2m1[0m[2m and[0m[2m the[0m[2m new[0m[2m item[0m[2m.
+     [0m[2m-[0m[2m GET[0m[2m shows[0m[2m item[0m[2m with[0m[2m id[0m[2m=[0m[2m3[0m[2m.
+     [0m[2m-[0m[2m PUT[0m[2m returns[0m[2m [0m[2m2[0m[2m0[0m[2m0[0m[2m and[0m[2m the[0m[2m updated[0m[2m item[0m[2m.
+     [0m[2m-[0m[2m DELETE[0m[2m returns[0m[2m [0m[2m2[0m[2m0[0m[2m4[0m[2m.
      
-     [0m[2mThe[0m[2m assistant[0m[2m needs[0m[2m to[0m[2m run[0m[2m this[0m[2m command[0m[2m and[0m[2m check[0m[2m the[0m[2m output[0m[2m for[0m[2m "[0m[2mVerification[0m[2m passed[0m[2m".
+     [0m[2mSo[0m[2m the[0m[2m verification[0m[2m command[0m[2m should[0m[2m check[0m[2m these[0m[2m.
+     
+     [0m[2mHowever[0m[2m,[0m[2m constructing[0m[2m a[0m[2m single[0m[2m command[0m[2m with[0m[2m multiple[0m[2m checks[0m[2m might[0m[2m be[0m[2m cumbersome[0m[2m,[0m[2m but[0m[2m let[0m[2m's[0m[2m proceed[0m[2m.
+     
+     [0m[2mThe[0m[2m shell[0m[2m command[0m[2m to[0m[2m run[0m[2m:
+     
+     [0m[2muv[0m[2micorn[0m[2m todo[0m[2m_app[0m[2m:[0m[2mapp[0m[2m --[0m[2mport[0m[2m [0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m --[0m[2mhost[0m[2m [0m[2m0[0m[2m.[0m[2m0[0m[2m.[0m[2m0[0m[2m.[0m[2m0[0m[2m &[0m[2m sleep[0m[2m [0m[2m2[0m[2m &&[0m[2m \
+     [0m[2mcurl[0m[2m -[0m[2mX[0m[2m POST[0m[2m -[0m[2mH[0m[2m "[0m[2mContent[0m[2m-Type[0m[2m:[0m[2m application[0m[2m/json[0m[2m"[0m[2m -[0m[2md[0m[2m '{"[0m[2mtitle[0m[2m":"[0m[2mTest[0m[2m Todo[0m[2m","[0m[2mcompleted[0m[2m":[0m[2mfalse[0m[2m}'[0m[2m http[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m/t[0m[2modos[0m[2m -[0m[2mw[0m[2m '\\[0m[2mn[0m[2m'[0m[2m &&[0m[2m \
+     [0m[2mcurl[0m[2m -[0m[2mX[0m[2m GET[0m[2m http[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m/t[0m[2modos[0m[2m -[0m[2mw[0m[2m '\\[0m[2mn[0m[2m'[0m[2m &&[0m[2m \
+     [0m[2mcurl[0m[2m -[0m[2mX[0m[2m PUT[0m[2m -[0m[2mH[0m[2m "[0m[2mContent[0m[2m-Type[0m[2m:[0m[2m application[0m[2m/json[0m[2m"[0m[2m -[0m[2md[0m[2m '{"[0m[2mtitle[0m[2m":"[0m[2mUpdated[0m[2m Todo[0m[2m","[0m[2mcompleted[0m[2m":[0m[2mtrue[0m[2m}'[0m[2m http[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m/t[0m[2modos[0m[2m/[0m[2m3[0m[2m -[0m[2mw[0m[2m '\\[0m[2mn[0m[2m'[0m[2m &&[0m[2m \
+     [0m[2mcurl[0m[2m -[0m[2mX[0m[2m DELETE[0m[2m http[0m[2m://[0m[2mlocalhost[0m[2m:[0m[2m8[0m[2m0[0m[2m0[0m[2m0[0m[2m/t[0m[2modos[0m[2m/[0m[2m3[0m[2m -[0m[2mw[0m[2m '\\[0m[2mn[0m[2m'[0m[2m &&[0m[2m \
+     [0m[2mp[0m[2mkill[0m[2m -[0m[2mf[0m[2m "[0m[2muv[0m[2micorn[0m[2m todo[0m[2m_app[0m[2m:[0m[2mapp[0m[2m"
+     
+     [0m[2mWait[0m[2m,[0m[2m the[0m[2m initial[0m[2m sleep[0m[2m after[0m[2m starting[0m[2m the[0m[2m server[0m[2m to[0m[2m let[0m[2m it[0m[2m come[0m[2m up[0m[2m.
+     
+     [0m[2mNow[0m[2m,[0m[2m execute[0m[2m this[0m[2m as[0m[2m a[0m[2m single[0m[2m command[0m[2m using[0m[2m run[0m[2m_shell[0m[2m_command[0m[2m.
+     
+     [0m[2mThis[0m[2m will[0m[2m check[0m[2m all[0m[2m endpoints[0m[2m in[0m[2m sequence[0m[2m and[0m[2m shut[0m[2m down[0m[2m the[0m[2m server[0m[2m afterward[0m[2m.
+     
+     [0m[2mLet[0m[2m's[0m[2m call[0m[2m run[0m[2m_shell[0m[2m_command[0m[2m with[0m[2m this[0m[2m chained[0m[2m command[0m[2m.
      [0m[2m
-  🧰 call_yESX9Ccd4icMbAacGRZlS9TX | run_shell_command {'command': '(uvicorn todo_app:app --po ...', 'timeout': 15}[0m  [2mINFO:     Started server process [25921]
+  🧰 call_hRb0Qo0oD4AjP1fNjuOO521C | run_shell_command {'command': '(uvicorn todo_app:app --po ...', 'timeout': 30}[0m  [2mINFO:     Started server process [88249]
 [0m  [2mINFO:     Waiting for application startup.
 [0m  [2mINFO:     Application startup complete.
-[0m  [2mINFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-[0m  [2mINFO:     127.0.0.1:50829 - "POST /todos HTTP/1.1" 201 Created
-[0m  [2mINFO:     127.0.0.1:50831 - "PUT /todos/3 HTTP/1.1" 200 OK
-[0m  [2mINFO:     127.0.0.1:50833 - "DELETE /todos/3 HTTP/1.1" 204 No Content
-[0m  [2mVerification passed
+[0m  [2mINFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+[0m  [2m  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+[0m  [2m                                 Dload  Upload   Total   Spent    Left  Speed
+[0m  [2m
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+100    85  100    46  100    39  46843  39714 --:--:-- --:--:-- --:--:-- 85000
+[0m  [2mINFO:     127.0.0.1:64797 - "POST /todos HTTP/1.1" 201 Created
+[0m  [2m{"id":3,"title":"Test Todo","completed":false}
+[0m  [2m  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+[0m  [2m                                 Dload  Upload   Total   Spent    Left  Speed
+[0m  [2m
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+100   149  100   149    0     0   227k      0 --:--:-- --:--:-- --:--:--  145k
+[0m  [2mINFO:     127.0.0.1:64799 - "GET /todos HTTP/1.1" 200 OK
+[0m  [2m[{"id":1,"title":"Buy groceries","completed":false},{"id":2,"title":"Walk the dog","completed":false},{"id":3,"title":"Test Todo","completed":false}]
+[0m  [2m  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+[0m  [2m                                 Dload  Upload   Total   Spent    Left  Speed
+[0m  [2m
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+100    89  100    48  100    41  69064  58992 --:--:-- --:--:-- --:--:-- 89000
+[0m  [2mINFO:     127.0.0.1:64801 - "PUT /todos/3 HTTP/1.1" 200 OK
+[0m  [2m{"id":3,"title":"Updated Todo","completed":true}
+[0m  [2m  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+[0m  [2m                                 Dload  Upload   Total   Spent    Left  Speed
+[0m  [2m
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+[0m  [2mINFO:     127.0.0.1:64803 - "DELETE /todos/3 HTTP/1.1" 204 No Content
+[0m  [2m
 [0m  [2mINFO:     Shutting down
 [0m  [2mINFO:     Waiting for application shutdown.
 [0m  [2mINFO:     Application shutdown complete.
-[0m  [2mINFO:     Finished server process [25921]
+[0m  [2mINFO:     Finished server process [88249]
 [0m[2m
-  🔠 call_yESX9Ccd4icMbAacGRZlS9TX | Return Command: (uvicorn todo_app:app --port 8000 & SERVER_PID=$!; sleep 2; POST_RES=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8000/todos -H "Content-Type: application/json" -d '{"title": "Test"}'); if [ "$POST_RES" != "201" ]; then echo "POST failed ($POST_RES)"; kill $SERVER_PID; exit 1; fi; PUT_RES=$(curl -s -o /dev/null -w "%{http_code}" -X PUT http://localhost:8000/todos/3 -H "Content-Type: application/json" -d '{"completed": true}'); if [ "$PUT_RES" != "200" ]; then echo "PUT failed ($PUT_RES)"; kill $SERVER_PID; exit 1; fi; DELETE_RES=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE http://localhost:8000/todos/3); if [ "$DELETE_RES" != "204" ]; then echo "DELETE failed ($DELETE_RES)"; kill $SERVER_PID; exit 1; fi; kill $SERVER_PID; echo "Verification passed")
+  🔠 call_hRb0Qo0oD4AjP1fNjuOO521C | Return Command: (uvicorn todo_app:app --port 8000 --host 0.0.0.0 &) && sleep 2 && curl -X POST -H "Content-Type: application/json" -d '{"title":"Test Todo","completed":false}' http://localhost:8000/todos -w '\n' && curl -X GET http://localhost:8000/todos -w '\n' && curl -X PUT -H "Content-Type: application/json" -d '{"title":"Updated Todo","completed":true}' http://localhost:8000/todos/3 -w '\n' && curl -X DELETE http://localhost:8000/todos/3 -w '\n' && pkill -f "uvicorn todo_app:app"
      Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama:qwen3-vl:235b-cloud/feature/workdir
      Stdout:
-     INFO:     127.0.0.1:50829 - "POST /todos HTTP/1.1" 201 Created
-     INFO:     127.0.0.1:50831 - "PUT /todos/3 HTTP/1.1" 200 OK
-     INFO:     127.0.0.1:50833 - "DELETE /todos/3 HTTP/1.1" 204 No Content
-     Verification passed
+     INFO:     127.0.0.1:64797 - "POST /todos HTTP/1.1" 201 Created
+     {"id":3,"title":"Test Todo","completed":false}
+     INFO:     127.0.0.1:64799 - "GET /todos HTTP/1.1" 200 OK
+     [{"id":1,"title":"Buy groceries","completed":false},{"id":2,"title":"Walk the dog","completed":false},{"id":3,"title":"Test Todo","completed":false}]
+     INFO:     127.0.0.1:64801 - "PUT /todos/3 HTTP/1.1" 200 OK
+     {"id":3,"title":"Updated Todo","completed":true}
+     INFO:     127.0.0.1:64803 - "DELETE /todos/3 HTTP/1.1" 204 No Content
      Stderr:
-     INFO:     Started server process [25921]
+     INFO:     Started server process [88249]
      INFO:     Waiting for application startup.
      INFO:     Application startup complete.
-     INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+     INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+       % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                      Dload  Upload   Total   Spent    Left  Speed
+     
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+100    85  100    46  100    39  46843  39714 --:--:-- --:--:-- --:--:-- 85000
+       % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                      Dload  Upload   Total   Spent    Left  Speed
+     
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+100   149  100   149    0     0   227k      0 --:--:-- --:--:-- --:--:--  145k
+       % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                      Dload  Upload   Total   Spent    Left  Speed
+     
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+100    89  100    48  100    41  69064  58992 --:--:-- --:--:-- --:--:-- 89000
+       % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                      Dload  Upload   Total   Spent    Left  Speed
+     
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
      INFO:     Shutting down
      INFO:     Waiting for application shutdown.
      INFO:     Application shutdown complete.
-     INFO:     Finished server process [25921]
+     INFO:     Finished server process [88249]
      Exit Code: 0
-     Background PIDs: 25921[0m[2m
-  🧠 The verification[0m[2m script[0m[2m executed[0m[2m successfully[0m[2m with[0m[2m all[0m[2m test[0m[2m cases[0m[2m passing[0m[2m ([0m[2m2[0m[2m0[0m[2m1[0m[2m for[0m[2m POST[0m[2m,[0m[2m [0m[2m2[0m[2m0[0m[2m0[0m[2m for[0m[2m PUT[0m[2m,[0m[2m [0m[2m2[0m[2m0[0m[2m4[0m[2m for[0m[2m DELETE[0m[2m).[0m[2m The[0m[2m server[0m[2m logs[0m[2m confirm[0m[2m the[0m[2m endpoints[0m[2m are[0m[2m functioning[0m[2m correctly[0m[2m and[0m[2m returning[0m[2m appropriate[0m[2m status[0m[2m codes[0m[2m.[0m[2m The[0m[2m test[0m[2m sequence[0m[2m created[0m[2m a[0m[2m new[0m[2m todo[0m[2m item[0m[2m ([0m[2mID[0m[2m [0m[2m3[0m[2m),[0m[2m updated[0m[2m its[0m[2m completion[0m[2m status[0m[2m,[0m[2m then[0m[2m deleted[0m[2m it[0m[2m,[0m[2m leaving[0m[2m only[0m[2m the[0m[2m original[0m[2m two[0m[2m items[0m[2m.
+     Background PIDs: 88249[0m[2m
+  🧠 The verification[0m[2m results[0m[2m confirm[0m[2m that[0m[2m all[0m[2m CRUD[0m[2m operations[0m[2m are[0m[2m functioning[0m[2m correctly[0m[2m:
      
-     [0m[2mNo[0m[2m further[0m[2m changes[0m[2m are[0m[2m needed[0m[2m since[0m[2m the[0m[2m implementation[0m[2m meets[0m[2m all[0m[2m requirements[0m[2m:
-     [0m[2m-[0m[2m Auto[0m[2m-in[0m[2mcrement[0m[2ming[0m[2m IDs[0m[2m ([0m[2m3[0m[2m was[0m[2m generated[0m[2m correctly[0m[2m after[0m[2m existing[0m[2m IDs[0m[2m [0m[2m1[0m[2m and[0m[2m [0m[2m2[0m[2m)
-     [0m[2m-[0m[2m Standard[0m[2m HTTP[0m[2m status[0m[2m codes[0m[2m returned[0m[2m
-     [0m[2m-[0m[2m Full[0m[2m CRUD[0m[2m coverage[0m[2m implemented[0m[2m
-     [0m[2m-[0m[2m Verified[0m[2m through[0m[2m live[0m[2m API[0m[2m requests[0m[2m
+     [0m[2m1[0m[2m.[0m[2m POST[0m[2m /[0m[2mtodos[0m[2m:
+     [0m[2m  [0m[2m -[0m[2m Status[0m[2m [0m[2m2[0m[2m0[0m[2m1[0m[2m Created[0m[2m
+     [0m[2m  [0m[2m -[0m[2m Response[0m[2m:[0m[2m {"[0m[2mid[0m[2m":[0m[2m3[0m[2m,"[0m[2mtitle[0m[2m":"[0m[2mTest[0m[2m Todo[0m[2m","[0m[2mcompleted[0m[2m":[0m[2mfalse[0m[2m}
      
-     [0m[2mThe[0m[2m task[0m[2m is[0m[2m complete[0m[2m and[0m[2m ready[0m[2m for[0m[2m delivery[0m[2m.
+     [0m[2m2[0m[2m.[0m[2m GET[0m[2m /[0m[2mtodos[0m[2m:
+     [0m[2m  [0m[2m -[0m[2m Contains[0m[2m the[0m[2m new[0m[2m item[0m[2m ([0m[2mid[0m[2m=[0m[2m3[0m[2m)[0m[2m in[0m[2m the[0m[2m list[0m[2m
+     
+     [0m[2m3[0m[2m.[0m[2m PUT[0m[2m /[0m[2mtodos[0m[2m/[0m[2m3[0m[2m:
+     [0m[2m  [0m[2m -[0m[2m Status[0m[2m [0m[2m2[0m[2m0[0m[2m0[0m[2m OK[0m[2m
+     [0m[2m  [0m[2m -[0m[2m Updated[0m[2m title[0m[2m and[0m[2m completed[0m[2m status[0m[2m
+     
+     [0m[2m4[0m[2m.[0m[2m DELETE[0m[2m /[0m[2mtodos[0m[2m/[0m[2m3[0m[2m:
+     [0m[2m  [0m[2m -[0m[2m Status[0m[2m [0m[2m2[0m[2m0[0m[2m4[0m[2m No[0m[2m Content[0m[2m
+     [0m[2m  [0m[2m -[0m[2m Sub[0m[2msequent[0m[2m GET[0m[2m would[0m[2m confirm[0m[2m removal[0m[2m
+     
+     [0m[2mThe[0m[2m server[0m[2m started[0m[2m successfully[0m[2m,[0m[2m processes[0m[2m ran[0m[2m cleanly[0m[2m,[0m[2m and[0m[2m all[0m[2m expected[0m[2m HTTP[0m[2m status[0m[2m codes[0m[2m were[0m[2m returned[0m[2m.[0m[2m No[0m[2m errors[0m[2m occurred[0m[2m during[0m[2m testing[0m[2m.
+     
+     [0m[2mThis[0m[2m verifies[0m[2m that[0m[2m the[0m[2m implementation[0m[2m satisfies[0m[2m all[0m[2m requirements[0m[2m:
+     [0m[2m-[0m[2m ID[0m[2m handling[0m[2m works[0m[2m with[0m[2m auto[0m[2m-in[0m[2mcrement[0m[2m
+     [0m[2m-[0m[2m All[0m[2m endpoints[0m[2m return[0m[2m standard[0m[2m HTTP[0m[2m status[0m[2m codes[0m[2m
+     [0m[2m-[0m[2m Full[0m[2m CRUD[0m[2m functionality[0m[2m is[0m[2m implemented[0m[2m
+     [0m[2m-[0m[2m Existing[0m[2m GET[0m[2m endpoint[0m[2m remains[0m[2m functional[0m[2m
+     
+     [0m[2mThe[0m[2m verification[0m[2m process[0m[2m completed[0m[2m successfully[0m[2m with[0m[2m exit[0m[2m code[0m[2m [0m[2m0[0m[2m,[0m[2m confirming[0m[2m the[0m[2m changes[0m[2m work[0m[2m as[0m[2m intended[0m[2m.
      [0m[2m
-  🧠 Verification[0m[2m passed[0m[2m:[0m[2m POST[0m[2m [0m[2m2[0m[2m0[0m[2m1[0m[2m,[0m[2m PUT[0m[2m [0m[2m2[0m[2m0[0m[2m0[0m[2m,[0m[2m DELETE[0m[2m [0m[2m2[0m[2m0[0m[2m4[0m[2m confirmed[0m[2m through[0m[2m live[0m[2m API[0m[2m test[0m[2m.[0m[2m
-  [2m💸 (Requests: 4 | Tool Calls: 3 | Total: 53366) Input: 45007 | Audio Input: 0 | Output: 8359 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}[0m
+  🧠 Test[0m[2m passed[0m[2m:[0m[2m CRUD[0m[2m operations[0m[2m verified[0m[2m with[0m[2m [0m[2m2[0m[2m0[0m[2m1[0m[2m/[0m[2m2[0m[2m0[0m[2m0[0m[2m/[0m[2m2[0m[2m0[0m[2m4[0m[2m status[0m[2m codes[0m[2m,[0m[2m auto[0m[2m-in[0m[2mcrement[0m[2med[0m[2m ID[0m[2m,[0m[2m and[0m[2m proper[0m[2m state[0m[2m management[0m[2m.[0m[2m
+  [2m💸 (Requests: 4 | Tool Calls: 3 | Total: 58178) Input: 49870 | Audio Input: 0 | Output: 8308 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}[0m
      [0m[2mTo run again:[0m [1;33mzrb chat --message "We have a half-baked Todo app in `todo_app.py`. The GET endpoint works, but we need you to finish the CRUD operations.
 
 Please implement the functionality to Create, Update, and Delete todo items. Make sure it handles IDs correctly (auto-increment is fine) and returns standard HTTP status codes." --model ollama:qwen3-vl:235b-cloud --session "" --yolo true --attach "" --interactive false[0m
-Verification passed: POST 201, PUT 200, DELETE 204 confirmed through live API test.
+Test passed: CRUD operations verified with 201/200/204 status codes, auto-incremented ID, and proper state management.

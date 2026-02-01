@@ -1,13 +1,8 @@
 import asyncio
+import random
 
 
 class Inventory:
-    """
-    Thread-safe inventory system using asyncio.Lock.
-    The lock ensures atomic check-and-decrement operations to prevent race conditions
-    when multiple purchases happen simultaneously.
-    """
-
     def __init__(self):
         self.stock = 10
         self.lock = asyncio.Lock()

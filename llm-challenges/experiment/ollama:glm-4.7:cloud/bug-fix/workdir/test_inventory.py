@@ -1,84 +1,90 @@
-"""
-Stress test for inventory system to verify thread-safety under load.
-"""
-
 import asyncio
-
 from inventory_system import Inventory
 
 
-async def stress_test():
-    """Run multiple concurrent operations to test data integrity."""
-
-    test_cases = [
-        (10, 10, 3, "Standard test: 10 concurrent purchases of 3 each"),
-        (100, 50, 2, "Heavy load: 50 concurrent purchases of 2 each"),
-        (50, 30, 5, "Edge case: 30 concurrent purchases of 5 each"),
-    ]
-
-    print("=" * 60)
-    print("INVENTORY SYSTEM STRESS TEST")
-    print("=" * 60)
-
-    for initial_stock, num_users, purchase_amount, description in test_cases:
-        print(f"\n{description}")
-        print(
-            f"Initial Stock: {initial_stock}, Users: {num_users}, Amount per user: {purchase_amount}"
-        )
-
-        inventory = Inventory()
-        inventory.stock = initial_stock
-
-        # Run concurrent purchases
-        tasks = [inventory.purchase(i, purchase_amount) for i in range(num_users)]
-        results = await asyncio.gather(*tasks)
-
-        successful = sum(results)
-        expected_successful = min(initial_stock // purchase_amount, num_users)
-        expected_stock = initial_stock - (successful * purchase_amount)
-
-        print(f"Successful purchases: {successful}/{num_users}")
-        print(f"Final Stock: {inventory.stock}")
-        print(f"Expected Stock: {expected_stock}")
-
-        # Verify integrity
-        if inventory.stock == expected_stock and inventory.stock >= 0:
-            print("✓ PASS: Data integrity maintained")
-        else:
-            print(f"✗ FAIL: Expected {expected_stock}, got {inventory_stock}")
-
-    print("\n" + "=" * 60)
-    print("All tests completed!")
-    print("=" * 60)
-
-
-async def rapid_sequential_test():
-    """Test that the system handles rapid sequential requests correctly."""
-    print("\n" + "=" * 60)
-    print("RAPID SEQUENTIAL TEST")
-    print("=" * 60)
-
+async def test_correct_usage():
+    """Test that stock never goes negative with proper locking"""
+    print("=== Test: Correct Usage (Proper Locking) ===")
     inventory = Inventory()
-    inventory.stock = 100
+    initial_stock = inventory.stock
 
-    # Simulate rapid purchases
-    total_purchased = 0
-    for i in range(20):
-        amount = 3
-        success = await inventory.purchase(i, amount)
-        if success:
-            total_purchased += amount
+    # 20 users trying to buy 2 items each
+    # Total demand = 40, Stock = 10
+    tasks = [inventory.purchase(i, 2) for i in range(20)]
 
-    print(f"Total purchased: {total_purchased}")
-    print(f"Final stock: {inventory.stock}")
-    print(f"Expected stock: {100 - total_purchased}")
+    await asyncio.gather(*tasks)
+    final_stock = inventory.stock
 
-    if inventory.stock >= 0 and inventory.stock == (100 - total_purchased):
-        print("✓ PASS: Sequential test passed")
+    # Final stock should be >= 0 (never negative!)
+    if final_stock >= 0:
+        print(f"✅ PASS: Final stock {final_stock} >= 0 (Started with {initial_stock})")
     else:
-        print("✗ FAIL: Sequential test failed")
+        print(f"❌ FAIL: Final stock {final_stock} < 0! (Started with {initial_stock})")
+
+    # Calculate total purchased items
+    total_purchased = initial_stock - final_stock
+    if total_purchased <= initial_stock:
+        print(f"✅ PASS: Purchased {total_purchased} items (exceeded stock by {total_purchased - initial_stock})")
+    else:
+        print(f"❌ FAIL: Purchased {total_purchased} items but only had {initial_stock} in stock!")
+
+    return final_stock >= 0
+
+
+async def test_concurrent_small_purchases():
+    """Test with many small concurrent purchases"""
+    print("\n=== Test: Concurrent Small Purchases ===")
+    inventory = Inventory()
+    initial_stock = inventory.stock
+
+    # 50 users trying to buy 1 item each
+    tasks = [inventory.purchase(i, 1) for i in range(50)]
+
+    await asyncio.gather(*tasks)
+    final_stock = inventory.stock
+
+    if final_stock >= 0:
+        print(f"✅ PASS: Final stock {final_stock} >= 0")
+    else:
+        print(f"❌ FAIL: Final stock {final_stock} < 0!")
+
+    return final_stock >= 0
+
+
+async def test_exact_stock_consumption():
+    """Test exact stock consumption"""
+    print("\n=== Test: Exact Stock Consumption ===")
+    inventory = Inventory()
+    initial_stock = 10
+    inventory.stock = initial_stock  # Ensure we know the starting value
+
+    # 5 users trying to buy 2 items each = 10 items total
+    tasks = [inventory.purchase(i, 2) for i in range(5)]
+
+    await asyncio.gather(*tasks)
+    final_stock = inventory.stock
+
+    if final_stock == 0:
+        print(f"✅ PASS: Stock exactly consumed ( Final: {final_stock} )")
+    else:
+        print(f"⚠️  INFO: Final stock {final_stock} (Expected exactly 0)")
+
+    return final_stock == 0
+
+
+async def main():
+    results = await asyncio.gather(
+        test_correct_usage(),
+        test_concurrent_small_purchases(),
+        test_exact_stock_consumption()
+    )
+
+    print("\n" + "="*50)
+    if all(results):
+        print("✅ ALL TESTS PASSED - Inventory system is working correctly!")
+    else:
+        print("❌ SOME TESTS FAILED - There may be issues with the inventory system")
 
 
 if __name__ == "__main__":
-    asyncio.run(stress_test())
-    asyncio.run(rapid_sequential_test())
+    asyncio.run(main())

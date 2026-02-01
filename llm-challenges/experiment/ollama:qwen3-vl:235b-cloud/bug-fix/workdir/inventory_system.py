@@ -1,42 +1,26 @@
 import asyncio
-import fcntl
-import json
-import os
 import random
 
 
 class Inventory:
-    def __init__(self, filename="inventory.json"):
-        self.filename = filename
-        if not os.path.exists(filename):
-            with open(filename, "w") as f:
-                json.dump({"stock": 10}, f)
+    def __init__(self):
+        self.stock = 10
+        self.lock = asyncio.Lock()
 
     async def purchase(self, user_id, amount):
         print(f"User {user_id} checking stock...")
 
-        # Run blocking file operations in a separate thread
-        def update_inventory():
-            with open(self.filename, "r+") as f:
-                fcntl.flock(f, fcntl.LOCK_EX)
-                data = json.load(f)
-                if data["stock"] >= amount:
-                    data["stock"] -= amount
-                    f.seek(0)
-                    json.dump(data, f)
-                    f.truncate()
-                    return True, data["stock"]
-                return False, data["stock"]
-
-        success, remaining = await asyncio.to_thread(update_inventory)
-        await asyncio.sleep(random.uniform(0.02, 0.05))  # Simulate network delay
-
-        if success:
-            print(f"User {user_id} purchased {amount}. Remaining: {remaining}")
-            return True
-        else:
-            print(f"User {user_id} failed to purchase. Stock low.")
-            return False
+        # Acquire lock to ensure atomic check-and-decrement operation
+        async with self.lock:
+            if self.stock >= amount:
+                # Simulate DB latency
+                await asyncio.sleep(0.1)
+                self.stock -= amount
+                print(f"User {user_id} purchased {amount}. Remaining: {self.stock}")
+                return True
+            else:
+                print(f"User {user_id} failed to purchase. Stock low.")
+                return False
 
 
 async def main():
@@ -49,15 +33,8 @@ async def main():
 
     await asyncio.gather(*tasks)
 
-    # Verify final stock
-    with open(inventory.filename, "r") as f:
-        final_stock = json.load(f)["stock"]
-    print(f"Final Stock (verified): {final_stock}")
+    print(f"Final Stock: {inventory.stock}")
 
 
 if __name__ == "__main__":
-
-    async def main_wrapper():
-        await main()
-
-    asyncio.run(main_wrapper())
+    asyncio.run(main())

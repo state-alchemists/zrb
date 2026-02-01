@@ -26,30 +26,31 @@ async def get_todos():
 
 
 @app.post("/todos", response_model=TodoItem, status_code=201)
-async def create_todo(item: TodoItem):
-    new_id = max(todo.id for todo in db) + 1 if db else 1
-    new_item = TodoItem(id=new_id, title=item.title, completed=item.completed)
-    db.append(new_item)
-    return new_item
+async def create_todo(todo: TodoItem):
+    # Auto-increment ID
+    new_id = max((item.id for item in db), default=0) + 1
+    new_todo = TodoItem(id=new_id, title=todo.title, completed=todo.completed)
+    db.append(new_todo)
+    return new_todo
 
 
 @app.put("/todos/{item_id}", response_model=TodoItem)
-async def update_todo(item_id: int, item: TodoItem):
-    for todo in db:
-        if todo.id == item_id:
-            todo.title = item.title
-            todo.completed = item.completed
-            return todo
-    raise HTTPException(status_code=404, detail="Todo item not found")
+async def update_todo(item_id: int, todo: TodoItem):
+    for idx, existing_todo in enumerate(db):
+        if existing_todo.id == item_id:
+            updated_todo = TodoItem(id=item_id, title=todo.title, completed=todo.completed)
+            db[idx] = updated_todo
+            return updated_todo
+    raise HTTPException(status_code=404, detail="Todo not found")
 
 
 @app.delete("/todos/{item_id}", status_code=204)
 async def delete_todo(item_id: int):
-    for idx, todo in enumerate(db):
-        if todo.id == item_id:
+    for idx, existing_todo in enumerate(db):
+        if existing_todo.id == item_id:
             db.pop(idx)
             return
-    raise HTTPException(status_code=404, detail="Todo item not found")
+    raise HTTPException(status_code=404, detail="Todo not found")
 
 
 if __name__ == "__main__":

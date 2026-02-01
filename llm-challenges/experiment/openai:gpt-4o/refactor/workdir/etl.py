@@ -1,42 +1,29 @@
-import datetime
-import os
 import re
-from typing import Any, Dict, List
+from typing import List, Dict
+import config
+import os
 
-# Import configuration
-from config import DB_HOST, DB_USER, LOG_FILE
 
-
-def extract(log_file: str) -> List[Dict[str, Any]]:
+def extract_data(file_path: str) -> List[Dict]:
     data = []
-    log_pattern = re.compile(
-        r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) (ERROR|INFO) (.*)$"
-    )
-    if os.path.exists(log_file):
-        with open(log_file, "r") as f:
-            for line in f:
-                match = log_pattern.match(line)
+    if os.path.exists(file_path):
+        with open(file_path, "r") as f:
+            lines = f.readlines()
+            for line in lines:
+                match = re.match(r"^(\d+-\d+-\d+ \d+:\d+:\d+) (ERROR|INFO) (.+)", line)
                 if match:
-                    date_str, log_type, message = match.groups()
+                    date, log_type, msg = match.groups()
                     if log_type == "ERROR":
-                        data.append(
-                            {"date": date_str, "type": log_type, "msg": message.strip()}
-                        )
-                    elif log_type == "INFO" and "User" in message:
-                        user_id_search = re.search(r"User (\d+)", message)
-                        if user_id_search:
-                            user_id = user_id_search.group(1)
-                            data.append(
-                                {
-                                    "date": date_str,
-                                    "type": "USER_ACTION",
-                                    "user": user_id,
-                                }
-                            )
+                        data.append({"date": date, "type": log_type, "msg": msg.strip()})
+                    elif log_type == "INFO" and "User" in msg:
+                        user_search = re.search(r"User (\d+)", msg)
+                        if user_search:
+                            user_id = user_search.group(1)
+                            data.append({"date": date, "type": "USER_ACTION", "user": user_id})
     return data
 
 
-def transform(data: List[Dict[str, Any]]) -> Dict[str, int]:
+def transform_data(data: List[Dict]) -> Dict:
     report = {}
     for item in data:
         if item["type"] == "ERROR":
@@ -46,29 +33,27 @@ def transform(data: List[Dict[str, Any]]) -> Dict[str, int]:
     return report
 
 
-def load(report: Dict[str, int], output_file: str) -> None:
-    html_content = "<html><body><h1>Report</h1><ul>"
-    for error_msg, count in report.items():
-        html_content += f"<li>{error_msg}: {count}</li>"
-    html_content += "</ul></body></html>"
-    with open(output_file, "w") as f:
-        f.write(html_content)
+def load_data(report: Dict) -> None:
+    html = "<html><body><h1>Report</h1><ul>"
+    for k, v in report.items():
+        html += f"<li>{k}: {v}</li>"
+    html += "</ul></body></html>"
+
+    with open("report.html", "w") as f:
+        f.write(html)
 
 
-def main() -> None:
-    data = extract(LOG_FILE)
-    report = transform(data)
-    load(report, "report.html")
-    print(f"Connecting to {DB_HOST} as {DB_USER}...")
+def main():
+    data = extract_data(config.LOG_FILE)
+    report = transform_data(data)
+    load_data(report)
     print("Done.")
 
 
 if __name__ == "__main__":
-    # Create dummy log file if not exists for testing
-    if not os.path.exists(LOG_FILE):
-        with open(LOG_FILE, "w") as f:
+    if not os.path.exists(config.LOG_FILE):
+        with open(config.LOG_FILE, "w") as f:
             f.write("2023-10-01 10:00:00 INFO User 123 logged in\n")
             f.write("2023-10-01 10:05:00 ERROR Connection failed\n")
             f.write("2023-10-01 10:10:00 ERROR Connection failed\n")
-
     main()
