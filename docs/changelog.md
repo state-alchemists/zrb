@@ -1,5 +1,15 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.0.15
+
+- **Fix: LLM Configuration & Task Handling**:
+  - **Empty Model Name Handling**: Fixed an issue in `LLMChatTask` and `LLMTask` where empty string model names were not correctly treated as `None`, potentially causing model resolution failures.
+- **Feature: LLM Chat Enhancements**:
+  - **Model Input Support**: The built-in `llm_chat` task now accepts a `model` input argument, allowing for dynamic model selection during task execution.
+- **Refinement: Runner & Documentation**:
+  - **Model Naming Convention**: Updated `llm-challenges` runner script and documentation to support and encourage specific model naming (e.g., `google-gla:gemini-2.5-flash`) for better clarity and compatibility.
+  - **Updated Dependencies**: Bumped version to `2.0.15`.
+
 ## 2.0.14
 
 - **Fix: LLM Configuration & Custom Provider Support**:
