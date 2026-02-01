@@ -1,0 +1,205 @@
+[32m260201 08:26:12.961 1/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 1/3 failed: status_code: 400, model_name: kimi-k2.5:cloud, body: {'message': 'invalid message content type: <nil>', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
+[2m  🧠 I'll[0m[2m create[0m[2m an[0m[2m exciting[0m[2m launch[0m[2m blog[0m[2m post[0m[2m for[0m[2m Z[0m[2mrb[0m[2m-F[0m[2mlow[0m[2m.[0m[2m Let[0m[2m me[0m[2m write[0m[2m this[0m[2m out[0m[2m:[0m[32m260201 08:27:50.407 2/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 2/3 failed: Exceeded maximum retries (1) for output validation[0m
+[32m260201 08:28:42.260 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 3/3 failed: status_code: 400, model_name: kimi-k2.5:cloud, body: {'message': 'invalid message content type: <nil>', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
+[32m260201 08:28:42.260 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Marked as permanently failed[0m
+[32m260201 08:28:42.265 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Attempt 1/1 failed: status_code: 400, model_name: kimi-k2.5:cloud, body: {'message': 'invalid message content type: <nil>', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
+[32m260201 08:28:42.265 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Marked as permanently failed[0m
+[2mTo run again:[0m [1;33mzrb chat --message "I need a launch announcement blog post for our new tool, **Zrb-Flow**. 
+
+It's basically an AI automation thing for CLI users that hooks into Docker and K8s. One cool feature is \"Self-Healing Pipelines\" where it fixes broken scripts.
+
+Keep it exciting and tech-savvy. Don't forget to tell people to install it at the end. Save it as `launch_post.md`." --model ollama:kimi-k2.5:cloud --session "" --yolo true --attach "" --interactive false[0m
+Traceback (most recent call last):
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 688, in _completions_create
+    return await self.client.chat.completions.create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<28 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py", line 2678, in create
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+    ...<49 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/openai/_base_client.py", line 1794, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/openai/_base_client.py", line 1594, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.BadRequestError: Error code: 400 - {'error': {'message': 'invalid message content type: <nil>', 'type': 'invalid_request_error', 'param': None, 'code': None}}
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/gofrendigunawan/zrb/.venv/bin/zrb", line 6, in <module>
+    sys.exit(serve_cli())
+             ~~~~~~~~~^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/__main__.py", line 68, in serve_cli
+    raise e
+  File "/Users/gofrendigunawan/zrb/src/zrb/__main__.py", line 61, in serve_cli
+    cli.run(sys.argv[1:])
+    ~~~~~~~^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/runner/cli.py", line 54, in run
+    result = self._run_task(node, str_args, task_str_kwargs)
+  File "/Users/gofrendigunawan/zrb/src/zrb/runner/cli.py", line 89, in _run_task
+    return task.run(
+           ~~~~~~~~^
+        Session(shared_ctx=shared_ctx, root_group=self), str_kwargs=run_kwargs
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 229, in run
+    return asyncio.run(
+           ~~~~~~~~~~~^
+        run_and_cleanup(
+        ^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+        )
+        ^
+    )
+    ^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/asyncio/base_events.py", line 721, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 34, in run_and_cleanup
+    result = await main_task_coro
+             ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 91, in run_task_async
+    result = await task.exec_root_tasks(session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 254, in exec_root_tasks
+    return await execute_root_tasks(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
+    await asyncio.gather(*root_task_coros)
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 257, in exec_chain
+    return await execute_task_chain(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 20, in execute_task_chain
+    result = await execute_task_action(task, session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 52, in execute_task_action
+    return await run_async(execute_action_until_ready(task, session))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 84, in execute_action_until_ready
+    result = await run_async(execute_action_with_retry(task, session))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 213, in execute_action_with_retry
+    raise e  # Re-raise the exception after handling fallbacks
+    ^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 177, in execute_action_with_retry
+    result = await run_async(task._exec_action(ctx))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_chat_task.py", line 360, in _exec_action
+    return await self._run_non_interactive_session(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_chat_task.py", line 558, in _run_non_interactive_session
+    return await llm_task_core.async_run(session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 245, in async_run
+    return await run_task_async(
+           ^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 91, in run_task_async
+    result = await task.exec_root_tasks(session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 254, in exec_root_tasks
+    return await execute_root_tasks(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
+    await asyncio.gather(*root_task_coros)
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 257, in exec_chain
+    return await execute_task_chain(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 20, in execute_task_chain
+    result = await execute_task_action(task, session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 52, in execute_task_action
+    return await run_async(execute_action_until_ready(task, session))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 84, in execute_action_until_ready
+    result = await run_async(execute_action_with_retry(task, session))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 213, in execute_action_with_retry
+    raise e  # Re-raise the exception after handling fallbacks
+    ^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 177, in execute_action_with_retry
+    result = await run_async(task._exec_action(ctx))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 229, in _exec_action
+    output, new_history = await run_agent(
+                          ^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run_agent.py", line 109, in run_agent
+    async for event in agent.run_stream_events(
+    ...<11 lines>...
+            await effective_event_handler(event)
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 973, in _run_stream_events
+    result = await task
+             ^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 948, in run_agent
+    return await self.run(
+           ^^^^^^^^^^^^^^^
+    ...<15 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 277, in run
+    async with node.stream(agent_run.ctx) as stream:
+               ~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 467, in stream
+    async with ctx.deps.model.request_stream(
+               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        message_history, model_settings, model_request_parameters, run_context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ) as streamed_response:
+    ^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 629, in request_stream
+    response = await self._completions_create(messages, True, model_settings_cast, model_request_parameters)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 722, in _completions_create
+    raise ModelHTTPError(status_code=status_code, model_name=self.model_name, body=e.body) from e
+pydantic_ai.exceptions.ModelHTTPError: status_code: 400, model_name: kimi-k2.5:cloud, body: {'message': 'invalid message content type: <nil>', 'type': 'invalid_request_error', 'param': None, 'code': None}

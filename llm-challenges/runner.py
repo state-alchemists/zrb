@@ -16,33 +16,8 @@ from typing import Dict, List, Optional
 # Configuration
 CHALLENGES_DIR = Path("challenges")
 EXPERIMENT_BASE_DIR = Path("experiment")
-DEFAULT_MODELS = ["default"]  # Can be overridden via CLI
+DEFAULT_MODELS = [""]  # Can be overridden via CLI
 DEFAULT_TIMEOUT = 3600  # 30 minutes
-
-# Model configurations - enhanced with test_single.py mappings
-MODEL_CONFIGS = {
-    "gpt-4o": {
-        "base_url": "https://api.openai.com/v1",
-        "api_key_env": "OPENAI_API_KEY",
-        "zrb_api_key_env": "ZRB_LLM_API_KEY",  # For backward compatibility
-    },
-    "deepseek-chat": {
-        "base_url": "https://api.deepseek.com/v1",
-        "api_key_env": "DEEPSEEK_API_KEY",
-        "zrb_api_key_env": "ZRB_LLM_API_KEY",  # For backward compatibility
-    },
-    "gemini-2.5-flash": {
-        "base_url": "https://generativelanguage.googleapis.com/v1beta",
-        "api_key_env": "GEMINI_API_KEY",
-        "zrb_api_key_env": "ZRB_LLM_API_KEY",  # For backward compatibility
-    },
-    "gemini-1.5-pro": {
-        "base_url": "https://generativelanguage.googleapis.com/v1beta",
-        "api_key_env": "GEMINI_API_KEY",
-        "zrb_api_key_env": "ZRB_LLM_API_KEY",  # For backward compatibility
-    },
-    "default": {"base_url": None, "api_key_env": None},  # Use default
-}
 
 
 @dataclass
@@ -76,7 +51,7 @@ def parse_args() -> ExperimentConfig:
         "--models",
         nargs="+",
         default=DEFAULT_MODELS,
-        help="List of models to test (e.g., gemini-2.5-flash gemini-1.5-pro gpt-4o deepseek-chat)",
+        help="List of models to test (e.g., google-gla:gemini-2.5-flash google-gla:gemini-1.5-pro openai:gpt-4o deepseek:deepseek-chat)",
     )
     parser.add_argument(
         "--parallelism", type=int, default=4, help="Number of concurrent experiments"
@@ -229,50 +204,18 @@ def run_single_experiment(
     if verbose:
         print(f"Instruction: {instruction[:100]}...")
 
-    # NOTE: verification scripts are NOT copied here.
-    # They are copied/run by run_verification() AFTER the agent finishes.
-
     # 2. Prepare Command with enhanced model configuration from test_single.py
     env = os.environ.copy()
-
-    # Set model-specific configuration with enhanced handling
-    if model != "default":
-        env["ZRB_LLM_MODEL"] = model
-
-        # Enhanced configuration from test_single.py
-        if model in MODEL_CONFIGS:
-            config = MODEL_CONFIGS[model]
-
-            # Set base URL
-            if config["base_url"]:
-                env["ZRB_LLM_BASE_URL"] = config["base_url"]
-
-            # Enhanced API key handling from test_single.py
-            if config["api_key_env"]:
-                # First try the specific API key environment variable
-                if config["api_key_env"] in os.environ:
-                    env["ZRB_LLM_API_KEY"] = os.environ[config["api_key_env"]]
-                # For gpt-4o, also check OPENAI_API_KEY
-                elif model == "gpt-4o" and "OPENAI_API_KEY" in os.environ:
-                    env["ZRB_LLM_API_KEY"] = os.environ["OPENAI_API_KEY"]
-                # For deepseek-chat, also check ZRB_LLM_API_KEY
-                elif model == "deepseek-chat" and "ZRB_LLM_API_KEY" in os.environ:
-                    env["ZRB_LLM_API_KEY"] = os.environ["ZRB_LLM_API_KEY"]
-            # Also check for zrb_api_key_env if present
-            elif (
-                "zrb_api_key_env" in config and config["zrb_api_key_env"] in os.environ
-            ):
-                env["ZRB_LLM_API_KEY"] = os.environ[config["zrb_api_key_env"]]
-
     env["ZRB_LLM_SHOW_TOOL_CALL_RESULT"] = "true"
     env["ZRB_LLM_SHOW_TOOL_CALL_DETAIL"] = "true"
-
     # Hide the parent git repo from the agent to avoid confusion
     env["GIT_CEILING_DIRECTORIES"] = str(exp_dir.resolve())
 
     cmd = [
         "zrb",
         "chat",
+        "--model",
+        model,
         "--interactive",
         "false",
         "--yolo",

@@ -645,6 +645,8 @@ class LLMChatTask(BaseTask):
     def _get_model(self, ctx: AnyContext) -> str | Model:
         model = self._model
         rendered_model = get_attr(ctx, model, None, auto_render=self._render_model)
+        if isinstance(rendered_model, str) and rendered_model.strip() == "":
+            rendered_model = None
         if rendered_model is not None:
             return rendered_model
         return self._llm_config.model

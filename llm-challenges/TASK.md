@@ -26,22 +26,22 @@ We have a powerful runner script to orchestrate experiments.
 python3 runner.py
 
 # Run with specific models and parallelism
-python3 runner.py --models gemini-2.5-flash gpt-4o deepseek-chat --parallelism 3
+python3 runner.py --models openai:gpt-4o google-gla:gemini-2.5-flash deepseek:deepseek-chat
 
 # Run quick verification test (replaces test_single.py functionality)
-python3 runner.py --models gemini-2.5-flash gpt-4o deepseek-chat --timeout 120 --parallelism 1 --verbose
+python3 runner.py --models openai:gpt-4o google-gla:gemini-2.5-flash deepseek:deepseek-chat --timeout 120 --parallelism 1 --verbose
 
 # Run with verbose output for debugging
 python3 runner.py --verbose
 
 # Run full test
-python runner.py --models gemini-2.5-flash gpt-4o deepseek-chat --timeout 3600 --parallelism 8 --verbose
+python runner.py --timeout 3600 --parallelism 8 --verbose --models openai:gpt-4o google-gla:gemini-2.5-flash google-gla:gemini-2.5-pro google-gla:gemini-3.0-flash google-gla:gemini-3.0-pro ollama:glm-4.7:cloud ollama:qwen3-vl:235b-cloud ollama:kimi-k2.5:cloud deepseek:deepseek-chat 
 
 # Test a single challenge
-python3 runner.py --filter bug-fix --timeout 120 --verbose
+python3 runner.py --models openai:gpt-4o --filter bug-fix --timeout 120 --verbose
 
 # Test only Gemini models
-python3 runner.py --models gemini-2.5-flash gemini-1.5-pro --parallelism 2
+python3 runner.py --models google-gla:gemini-2.5-flash google-gla:gemini-1.5-pro --parallelism 2
 ```
 
 This script will:

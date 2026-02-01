@@ -1,0 +1,81 @@
+[2m
+  🧰 pyd_ai_b51c7e16e12f459cb556bf31b25b2f0e | list_files {}[0m[2m
+  🔠 pyd_ai_b51c7e16e12f459cb556bf31b25b2f0e | Return {'files': ['inventory_system.py']}[0m[2m
+  🧰 pyd_ai_a3cd259dde5e4f1284768f19396119bf | read_file {'path': 'inventory_system.py'}[0m[2m
+  🔠 pyd_ai_a3cd259dde5e4f1284768f19396119bf | Return import asyncio
+     import random
+     
+     
+     class Inventory:
+         def __init__(self):
+             self.stock = 10
+             self.lock = asyncio.Lock()
+     
+         async def purchase(self, user_id, amount):
+             print(f"User {user_id} checking stock...")
+     
+             # Acquire lock to ensure atomic check-and-decrement operation
+             async with self.lock:
+                 if self.stock >= amount:
+                     # Simulate DB latency
+                     await asyncio.sleep(0.1)
+                     self.stock -= amount
+                     print(f"User {user_id} purchased {amount}. Remaining: {self.stock}")
+                     return True
+                 else:
+                     print(f"User {user_id} failed to purchase. Stock low.")
+                     return False
+     
+     
+     async def main():
+         inventory = Inventory()
+     
+         # 5 users trying to buy 3 items each.
+         # Total demand = 15, Stock = 10.
+         # Should result in negative stock if not handled correctly.
+         tasks = [inventory.purchase(i, 3) for i in range(5)]
+     
+         await asyncio.gather(*tasks)
+     
+         print(f"Final Stock: {inventory.stock}")
+     
+     
+     if __name__ == "__main__":
+         asyncio.run(main())
+     [0m[2m
+  🧰 pyd_ai_4b326a4facd541a38b02277899c128c1 | run_shell_command {'command': 'python inventory_system.py'}[0m  [2mUser 0 checking stock...
+[0m  [2mUser 1 checking stock...
+[0m  [2mUser 2 checking stock...
+[0m  [2mUser 3 checking stock...
+[0m  [2mUser 4 checking stock...
+[0m  [2mUser 0 purchased 3. Remaining: 7
+[0m  [2mUser 1 purchased 3. Remaining: 4
+[0m  [2mUser 2 purchased 3. Remaining: 1
+[0m  [2mUser 3 failed to purchase. Stock low.
+[0m  [2mUser 4 failed to purchase. Stock low.
+[0m  [2mFinal Stock: 1
+[0m[2m
+  🔠 pyd_ai_4b326a4facd541a38b02277899c128c1 | Return Command: python inventory_system.py
+     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla:gemini-2.5-flash/bug-fix/workdir
+     Stdout:
+     User 0 checking stock...
+     User 1 checking stock...
+     User 2 checking stock...
+     User 3 checking stock...
+     User 4 checking stock...
+     User 0 purchased 3. Remaining: 7
+     User 1 purchased 3. Remaining: 4
+     User 2 purchased 3. Remaining: 1
+     User 3 failed to purchase. Stock low.
+     User 4 failed to purchase. Stock low.
+     Final Stock: 1
+     Stderr:
+     (empty)
+     Exit Code: 0
+     Background PIDs: (none)[0m[2m
+  🧠 The `inventory_system.py` script correctly handles concurrent purchases using `asyncio.Lock[0m[2m`. The execution output shows that with an initial stock of 10 and 5 users attempting to buy 3 items each, 3 purchases were successful, and the final stock is 1, as expected. The race condition has been addressed[0m[2m in the current version of the file.[0m[2m
+  [2m💸 (Requests: 4 | Tool Calls: 3 | Total: 31005) Input: 29935 | Audio Input: 0 | Output: 1070 | Audio Output: 0 | Cache Read: 20176 | Cache Write: 0 | Details: {'cached_content_tokens': 20176, 'thoughts_tokens': 943, 'text_prompt_tokens': 29935, 'text_cache_tokens': 20176}[0m
+     [0m[2mTo run again:[0m [1;33mzrb chat --message "Users are reporting that the inventory count in `inventory_system.py` is sometimes incorrect when multiple purchases happen simultaneously.
+
+Investigate the code, identify the issue, and apply a fix. Ensure the script runs correctly and maintains data integrity under load." --model google-gla:gemini-2.5-flash --session "" --yolo true --attach "" --interactive false[0m
+The `inventory_system.py` script correctly handles concurrent purchases using `asyncio.Lock`. The execution output shows that with an initial stock of 10 and 5 users attempting to buy 3 items each, 3 purchases were successful, and the final stock is 1, as expected. The race condition has been addressed in the current version of the file.

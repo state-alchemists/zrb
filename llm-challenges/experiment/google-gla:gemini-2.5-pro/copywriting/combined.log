@@ -1,0 +1,11 @@
+[2m  🧠 Right, Zrb-Flow launch post. I'll[0m[2m draft an exciting, tech-savvy post covering the AI automation, Docker/K8s integration, and Self-Healing[0m[2m Pipelines. Then, I'll save it to `launch_post.md` and review. Time to write.[0m[2m
+  🧰 pyd_ai_dec0e7e648eb4b11a3230b9ac03c30d5 | write_file {'path': 'launch_post.md', 'content': '# Announcing Zrb-Flow: The ...'}[0m[2m
+  🔠 pyd_ai_dec0e7e648eb4b11a3230b9ac03c30d5 | Return Successfully wrote to launch_post.md[0m[2m
+  🧠 The blog post is done and saved. I hit all the key features, nailed the tone, and included the install[0m[2m command. Task complete.[0m[2m
+  [2m💸 (Requests: 2 | Tool Calls: 1 | Total: 15559) Input: 14794 | Audio Input: 0 | Output: 765 | Audio Output: 0 | Cache Read: 4041 | Cache Write: 0 | Details: {'thoughts_tokens': 133, 'text_prompt_tokens': 14794, 'cached_content_tokens': 4041, 'text_cache_tokens': 4041}[0m
+     [0m[2mTo run again:[0m [1;33mzrb chat --message "I need a launch announcement blog post for our new tool, **Zrb-Flow**. 
+
+It's basically an AI automation thing for CLI users that hooks into Docker and K8s. One cool feature is \"Self-Healing Pipelines\" where it fixes broken scripts.
+
+Keep it exciting and tech-savvy. Don't forget to tell people to install it at the end. Save it as `launch_post.md`." --model google-gla:gemini-2.5-pro --session "" --yolo true --attach "" --interactive false[0m
+The blog post is done and saved. I hit all the key features, nailed the tone, and included the install command. Task complete.
