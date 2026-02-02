@@ -63,7 +63,7 @@ class SkillManager:
 
     def get_search_directories(self) -> list[str | Path]:
         search_dirs: list[str | Path] = []
-        zrb_skill_dir_name = f".{CFG.ROOT_GROUP_NAME}/skill"
+        zrb_skill_dir_name = f".{CFG.ROOT_GROUP_NAME}/skills"
 
         # 1. User global config (~/.claude/skills and ~/.zrb/skill)
         try:

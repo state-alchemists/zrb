@@ -9,14 +9,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Protocol
 
-
 # =============================================================================
 # Configuration
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class Config:
     """Application configuration."""
+
     db_host: str = "localhost"
     db_user: str = "admin"
     log_file: Path = Path("server.log")
@@ -27,9 +28,11 @@ class Config:
 # Data Models
 # =============================================================================
 
+
 @dataclass
 class LogEntry:
     """Represents a parsed log entry."""
+
     timestamp: datetime.datetime
     level: str
     message: str
@@ -38,6 +41,7 @@ class LogEntry:
 @dataclass
 class ErrorReport:
     """Represents an error entry for the report."""
+
     message: str
     count: int
 
@@ -45,6 +49,7 @@ class ErrorReport:
 # =============================================================================
 # Extract
 # =============================================================================
+
 
 class LogExtractor:
     """Extracts log entries from a log file using regex parsing."""
@@ -82,15 +87,14 @@ class LogExtractor:
         timestamp = datetime.datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
 
         return LogEntry(
-            timestamp=timestamp,
-            level=level.upper(),
-            message=message.strip()
+            timestamp=timestamp, level=level.upper(), message=message.strip()
         )
 
 
 # =============================================================================
 # Transform
 # =============================================================================
+
 
 class LogTransformer:
     """Transforms log entries into reportable data structures."""
@@ -121,16 +125,19 @@ class LogTransformer:
         match = self.USER_PATTERN.search(entry.message)
         if match:
             user_id = match.group(1)
-            self._user_actions.append({
-                "timestamp": entry.timestamp.isoformat(),
-                "user": user_id,
-                "message": entry.message
-            })
+            self._user_actions.append(
+                {
+                    "timestamp": entry.timestamp.isoformat(),
+                    "user": user_id,
+                    "message": entry.message,
+                }
+            )
 
 
 # =============================================================================
 # Load
 # =============================================================================
+
 
 class ReportLoader:
     """Loads transformed data into an HTML report."""
@@ -150,9 +157,7 @@ class ReportLoader:
         for message, count in error_counts.items():
             items += f"<li>{message}: {count}</li>"
 
-        return (
-            f"<html><body><h1>Report</h1><ul>{items}</ul></body></html>"
-        )
+        return f"<html><body><h1>Report</h1><ul>{items}</ul></body></html>"
 
 
 class DatabaseLoader:
@@ -169,6 +174,7 @@ class DatabaseLoader:
 # =============================================================================
 # ETL Pipeline
 # =============================================================================
+
 
 class ETLPipeline:
     """Orchestrates the Extract-Transform-Load process."""
@@ -201,6 +207,7 @@ class ETLPipeline:
 # =============================================================================
 # Main
 # =============================================================================
+
 
 def create_dummy_log_file(log_file: Path) -> None:
     """Create a dummy log file for testing if it doesn't exist."""

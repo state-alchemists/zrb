@@ -1,5 +1,9 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.0.16
+
+- **Fix: Fix Zrb skill directory path**: The Zrb skill directory path is now `~/.zrb/skills`
+
 ## 2.0.15
 
 - **Fix: LLM Configuration & Task Handling**:

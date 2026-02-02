@@ -2,7 +2,7 @@ import os
 import re
 from collections import Counter
 from dataclasses import dataclass
-from typing import Iterable, List, Dict, Any
+from typing import Any, Dict, Iterable, List
 
 from etl_config import DB_CONFIG, LOG_FILE, REPORT_FILE
 
@@ -84,7 +84,9 @@ def extract_user_actions(records: Iterable[LogRecord]) -> List[UserAction]:
     return actions
 
 
-def load_error_report(error_summary: Dict[str, int], report_path: str = REPORT_FILE) -> None:
+def load_error_report(
+    error_summary: Dict[str, int], report_path: str = REPORT_FILE
+) -> None:
     """Load step: generate the HTML report from the error summary.
 
     The HTML structure is kept identical to the original implementation.

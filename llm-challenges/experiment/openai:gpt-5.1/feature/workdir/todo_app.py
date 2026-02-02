@@ -62,7 +62,9 @@ async def update_todo(item_id: int, item: TodoUpdate):
             db[idx] = updated_item
             return updated_item
 
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Todo item not found")
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND, detail="Todo item not found"
+    )
 
 
 @app.delete("/todos/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -74,7 +76,9 @@ async def delete_todo(item_id: int):
             # 204 responses should not include a body
             return
 
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Todo item not found")
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND, detail="Todo item not found"
+    )
 
 
 if __name__ == "__main__":

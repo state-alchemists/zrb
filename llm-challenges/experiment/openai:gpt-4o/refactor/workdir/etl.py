@@ -1,7 +1,8 @@
-import re
-from typing import List, Dict
-import config
 import os
+import re
+from typing import Dict, List
+
+import config
 
 
 def extract_data(file_path: str) -> List[Dict]:
@@ -14,12 +15,16 @@ def extract_data(file_path: str) -> List[Dict]:
                 if match:
                     date, log_type, msg = match.groups()
                     if log_type == "ERROR":
-                        data.append({"date": date, "type": log_type, "msg": msg.strip()})
+                        data.append(
+                            {"date": date, "type": log_type, "msg": msg.strip()}
+                        )
                     elif log_type == "INFO" and "User" in msg:
                         user_search = re.search(r"User (\d+)", msg)
                         if user_search:
                             user_id = user_search.group(1)
-                            data.append({"date": date, "type": "USER_ACTION", "user": user_id})
+                            data.append(
+                                {"date": date, "type": "USER_ACTION", "user": user_id}
+                            )
     return data
 
 

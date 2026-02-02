@@ -1,4 +1,5 @@
 import asyncio
+
 from inventory_system import Inventory
 
 
@@ -24,9 +25,13 @@ async def test_correct_usage():
     # Calculate total purchased items
     total_purchased = initial_stock - final_stock
     if total_purchased <= initial_stock:
-        print(f"✅ PASS: Purchased {total_purchased} items (exceeded stock by {total_purchased - initial_stock})")
+        print(
+            f"✅ PASS: Purchased {total_purchased} items (exceeded stock by {total_purchased - initial_stock})"
+        )
     else:
-        print(f"❌ FAIL: Purchased {total_purchased} items but only had {initial_stock} in stock!")
+        print(
+            f"❌ FAIL: Purchased {total_purchased} items but only had {initial_stock} in stock!"
+        )
 
     return final_stock >= 0
 
@@ -76,10 +81,10 @@ async def main():
     results = await asyncio.gather(
         test_correct_usage(),
         test_concurrent_small_purchases(),
-        test_exact_stock_consumption()
+        test_exact_stock_consumption(),
     )
 
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     if all(results):
         print("✅ ALL TESTS PASSED - Inventory system is working correctly!")
     else:

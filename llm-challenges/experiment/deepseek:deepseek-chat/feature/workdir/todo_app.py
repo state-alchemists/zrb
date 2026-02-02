@@ -56,7 +56,7 @@ async def update_todo(item_id: int, todo_update: TodoUpdate):
                 item.completed = todo_update.completed
             db[i] = item
             return item
-    
+
     # If not found, raise 404
     raise HTTPException(status_code=404, detail="Todo item not found")
 
@@ -68,7 +68,7 @@ async def delete_todo(item_id: int):
         if item.id == item_id:
             db.pop(i)
             return
-    
+
     # If not found, raise 404
     raise HTTPException(status_code=404, detail="Todo item not found")
 

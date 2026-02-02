@@ -38,7 +38,9 @@ async def create_todo(todo: TodoItem):
 async def update_todo(item_id: int, todo: TodoItem):
     for idx, existing_todo in enumerate(db):
         if existing_todo.id == item_id:
-            updated_todo = TodoItem(id=item_id, title=todo.title, completed=todo.completed)
+            updated_todo = TodoItem(
+                id=item_id, title=todo.title, completed=todo.completed
+            )
             db[idx] = updated_todo
             return updated_todo
     raise HTTPException(status_code=404, detail="Todo not found")

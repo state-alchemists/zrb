@@ -4,6 +4,7 @@ import random
 
 class InventoryWithoutLock:
     """Inventory class WITHOUT proper locking - demonstrates the race condition"""
+
     def __init__(self):
         self.stock = 10
 
@@ -24,6 +25,7 @@ class InventoryWithoutLock:
 
 class InventoryWithLock:
     """Inventory class WITH proper locking - demonstrates the fix"""
+
     def __init__(self):
         self.stock = 10
         self.lock = asyncio.Lock()
@@ -74,7 +76,7 @@ async def demonstrate_bug():
 async def demonstrate_fix():
     """Demonstrates the fix with proper locking"""
     print("\n" + "=" * 60)
-    print("DEMONSTRATION: WITH LOCK (Fixed)") 
+    print("DEMONSTRATION: WITH LOCK (Fixed)")
     print("=" * 60)
 
     inventory = InventoryWithLock()

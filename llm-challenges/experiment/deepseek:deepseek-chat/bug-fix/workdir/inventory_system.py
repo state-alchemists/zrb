@@ -14,7 +14,7 @@ class Inventory:
         if not isinstance(amount, int):
             print(f"User {user_id} failed: amount must be an integer")
             return False
-        
+
         if amount <= 0:
             print(f"User {user_id} failed: amount must be positive")
             return False

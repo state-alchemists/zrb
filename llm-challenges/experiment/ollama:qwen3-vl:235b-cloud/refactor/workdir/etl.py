@@ -1,7 +1,6 @@
-import re
 import os
-from typing import List, Dict, TypedDict
-
+import re
+from typing import Dict, List, TypedDict
 
 # Configuration (separated from code)
 DB_HOST = os.getenv("DB_HOST", "localhost")
@@ -23,16 +22,14 @@ def extract() -> List[LogEntry]:
     with open(LOG_FILE, "r") as f:
         for line in f:
             line = line.strip()
-            match = re.match(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} (INFO|ERROR) (.+)$', line)
+            match = re.match(
+                r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} (INFO|ERROR) (.+)$", line
+            )
             if match:
                 date = line[:19]
                 level = match.group(1)
                 message = match.group(2)
-                entries.append({
-                    "date": date,
-                    "level": level,
-                    "message": message
-                })
+                entries.append({"date": date, "level": level, "message": message})
     return entries
 
 

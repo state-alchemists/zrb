@@ -1,7 +1,8 @@
 import os
 import re
-from typing import List, Dict, NamedTuple, Optional
 from dataclasses import dataclass
+from typing import Dict, List, NamedTuple, Optional
+
 
 # --- Configuration ---
 @dataclass
@@ -11,17 +12,21 @@ class Config:
     LOG_FILE: str = "server.log"
     REPORT_FILE: str = "report.html"
 
+
 # --- Data Structures ---
 class LogEntry(NamedTuple):
     timestamp: str
     level: str
     message: str
 
+
 class ParsedData(NamedTuple):
     errors: List[LogEntry]
     user_actions: List[Dict[str, str]]
 
+
 # --- ETL Stages ---
+
 
 def extract(file_path: str) -> List[str]:
     """Reads raw lines from the log file."""
@@ -30,12 +35,15 @@ def extract(file_path: str) -> List[str]:
     with open(file_path, "r") as f:
         return f.readlines()
 
+
 def transform(lines: List[str]) -> ParsedData:
     """Parses log lines and aggregates data."""
     # Regex for parsing the log line: Date Time Level Message
     # Example: 2023-10-01 10:05:00 ERROR Connection failed
-    log_pattern = re.compile(r"^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+(?P<level>\w+)\s+(?P<message>.*)$")
-    
+    log_pattern = re.compile(
+        r"^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+(?P<level>\w+)\s+(?P<message>.*)$"
+    )
+
     errors: List[LogEntry] = []
     user_actions: List[Dict[str, str]] = []
 
@@ -43,7 +51,7 @@ def transform(lines: List[str]) -> ParsedData:
         line = line.strip()
         if not line:
             continue
-            
+
         match = log_pattern.match(line)
         if match:
             timestamp = match.group("timestamp")
@@ -61,15 +69,18 @@ def transform(lines: List[str]) -> ParsedData:
                     user_match = re.search(r"User\s+(\S+)", message)
                     if user_match:
                         user_id = user_match.group(1)
-                        user_actions.append({"date": timestamp, "type": "USER_ACTION", "user": user_id})
-    
+                        user_actions.append(
+                            {"date": timestamp, "type": "USER_ACTION", "user": user_id}
+                        )
+
     return ParsedData(errors=errors, user_actions=user_actions)
+
 
 def load(data: ParsedData, config: Config) -> None:
     """Simulates DB load and generates HTML report."""
     # Simulate database connection
     print(f"Connecting to {config.DB_HOST} as {config.DB_USER}...")
-    
+
     # In a real app, we might insert data here.
     # The original script didn't actually insert, just printed.
 
@@ -90,6 +101,7 @@ def load(data: ParsedData, config: Config) -> None:
     with open(config.REPORT_FILE, "w") as f:
         f.write(html_content)
 
+
 def main():
     config = Config()
 
@@ -104,8 +116,9 @@ def main():
     raw_lines = extract(config.LOG_FILE)
     transformed_data = transform(raw_lines)
     load(transformed_data, config)
-    
+
     print("Done.")
+
 
 if __name__ == "__main__":
     main()

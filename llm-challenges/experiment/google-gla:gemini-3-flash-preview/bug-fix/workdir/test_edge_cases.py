@@ -1,5 +1,7 @@
 import asyncio
+
 from inventory_system import Inventory
+
 
 async def test_negative_amount():
     inv = Inventory()
@@ -10,6 +12,7 @@ async def test_negative_amount():
     assert result is False
     assert inv.stock == 10
 
+
 async def test_zero_amount():
     inv = Inventory()
     inv.stock = 10
@@ -17,6 +20,7 @@ async def test_zero_amount():
     print(f"Purchase 0 result: {result}, Stock: {inv.stock}")
     assert result is False
     assert inv.stock == 10
+
 
 if __name__ == "__main__":
     asyncio.run(test_negative_amount())

@@ -54,5 +54,6 @@ async def delete_todo(item_id: int):
             return {"message": "Todo item deleted successfully"}
     raise HTTPException(status_code=404, detail="Todo item not found")
 
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

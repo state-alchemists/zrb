@@ -1,12 +1,17 @@
 import os
 import re
-from typing import Dict, Any, Iterator
+from typing import Any, Dict, Iterator
 
 from config import DB_HOST, DB_USER, LOG_FILE
 
 # Regex patterns
-ERROR_PATTERN = re.compile(r"(?P<date>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) ERROR (?P<msg>.*)")
-USER_ACTION_PATTERN = re.compile(r"(?P<date>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) INFO User (?P<user_id>\w+) logged in")
+ERROR_PATTERN = re.compile(
+    r"(?P<date>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) ERROR (?P<msg>.*)"
+)
+USER_ACTION_PATTERN = re.compile(
+    r"(?P<date>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) INFO User (?P<user_id>\w+) logged in"
+)
+
 
 def extract_data(log_file_path: str) -> Iterator[Dict[str, Any]]:
     """Extracts data from the log file using regex patterns."""
@@ -17,12 +22,20 @@ def extract_data(log_file_path: str) -> Iterator[Dict[str, Any]]:
         for line in f:
             error_match = ERROR_PATTERN.match(line)
             if error_match:
-                yield {"date": error_match.group("date"), "type": "ERROR", "msg": error_match.group("msg").strip()}
+                yield {
+                    "date": error_match.group("date"),
+                    "type": "ERROR",
+                    "msg": error_match.group("msg").strip(),
+                }
                 continue
 
             user_action_match = USER_ACTION_PATTERN.match(line)
             if user_action_match:
-                yield {"date": user_action_match.group("date"), "type": "USER_ACTION", "user": user_action_match.group("user_id")}
+                yield {
+                    "date": user_action_match.group("date"),
+                    "type": "USER_ACTION",
+                    "user": user_action_match.group("user_id"),
+                }
                 continue
 
 
@@ -65,6 +78,7 @@ def main():
     transformed_report = transform_data(extracted_items)
     load_report(transformed_report)
     print("Done.")
+
 
 if __name__ == "__main__":
     main()

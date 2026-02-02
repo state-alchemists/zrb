@@ -391,7 +391,7 @@ def load_existing_results(json_path: Path) -> Dict[str, ChallengeResult]:
     """Load existing results from JSON file."""
     if not json_path.exists():
         return {}
-    
+
     try:
         with open(json_path, "r") as f:
             data = json.load(f)
@@ -437,7 +437,7 @@ def main():
     # Load existing results
     report_json = EXPERIMENT_BASE_DIR / "results.json"
     existing_results = load_existing_results(report_json)
-    
+
     # Track final results (start with existing ones)
     final_results_map = existing_results.copy()
 
@@ -451,7 +451,7 @@ def main():
         for model in config.models:
             for challenge in challenges:
                 key = f"{model}/{challenge.name}"
-                
+
                 # Check if we should skip
                 skip = False
                 if key in existing_results:
@@ -462,11 +462,11 @@ def main():
                         skip = True
                         if config.verbose:
                             print(f"  Skipping {key} (already {prev_result.status})")
-                
+
                 if not skip:
                     if config.verbose:
                         print(f"  Scheduling: {model} / {challenge.name}")
-                    
+
                     future = executor.submit(
                         run_single_experiment,
                         challenge,
@@ -484,12 +484,12 @@ def main():
     for i, future in enumerate(tasks):
         if config.verbose:
             print(f"  Waiting for result {i+1}/{len(tasks)}...")
-        
+
         try:
             result = future.result()
             key = future_to_key[future]
             final_results_map[key] = result
-            
+
             if config.verbose:
                 print(f"  Got result: {result.status}")
         except Exception as e:
@@ -497,7 +497,7 @@ def main():
 
     # Prepare final list for reporting
     results = list(final_results_map.values())
-    
+
     # Sort results for consistent output (by model then challenge)
     results.sort(key=lambda x: (x.model, x.challenge_name))
 

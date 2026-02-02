@@ -8,7 +8,6 @@ from typing import Iterable, Optional
 
 from etl_config import ETLConfig
 
-
 # Regex patterns for parsing log lines.
 # Expected formats (as currently produced by the script's dummy log generator):
 #   2023-10-01 10:05:00 ERROR Connection failed

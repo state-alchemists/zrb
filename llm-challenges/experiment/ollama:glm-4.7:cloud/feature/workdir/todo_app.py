@@ -56,12 +56,12 @@ async def update_todo(item_id: int, todo_data: TodoUpdate):
     todo = find_todo(item_id)
     if not todo:
         raise HTTPException(status_code=404, detail="Todo item not found")
-    
+
     if todo_data.title is not None:
         todo.title = todo_data.title
     if todo_data.completed is not None:
         todo.completed = todo_data.completed
-    
+
     return todo
 
 
@@ -70,7 +70,7 @@ async def delete_todo(item_id: int):
     todo = find_todo(item_id)
     if not todo:
         raise HTTPException(status_code=404, detail="Todo item not found")
-    
+
     db.remove(todo)
     return None
 

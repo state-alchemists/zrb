@@ -43,7 +43,9 @@ def _find_item_index(item_id: int) -> int:
     for i, item in enumerate(db):
         if item.id == item_id:
             return i
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Todo item not found")
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND, detail="Todo item not found"
+    )
 
 
 @app.get("/todos", response_model=List[TodoItem])
@@ -65,7 +67,11 @@ async def update_todo(item_id: int, payload: TodoItemUpdate):
     updated = current.model_copy(
         update={
             **({"title": payload.title} if payload.title is not None else {}),
-            **({"completed": payload.completed} if payload.completed is not None else {}),
+            **(
+                {"completed": payload.completed}
+                if payload.completed is not None
+                else {}
+            ),
         }
     )
     db[idx] = updated

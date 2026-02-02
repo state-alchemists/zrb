@@ -12,9 +12,11 @@ class TodoItem(BaseModel):
     title: str
     completed: bool = False
 
+
 class TodoItemCreate(BaseModel):
     title: str
     completed: bool = False
+
 
 class TodoItemUpdate(BaseModel):
     title: Optional[str] = None
