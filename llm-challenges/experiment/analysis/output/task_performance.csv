@@ -1,0 +1,6 @@
+task,model_count,success_count,excellent_count,success_rate,excellent_rate,avg_duration,median_duration,min_duration,max_duration,avg_tools
+bug-fix,11,11,11,100.0,100.0,310.29,344.68,18.76,653.36,97.64
+copywriting,11,11,6,100.0,54.55,118.43,27.57,11.63,550.5,2.09
+feature,11,11,11,100.0,100.0,148.62,61.61,26.42,560.52,7.18
+refactor,11,11,11,100.0,100.0,257.96,65.02,25.33,1046.11,11.73
+research,11,10,7,90.91,63.64,181.36,87.64,18.92,849.85,6.73

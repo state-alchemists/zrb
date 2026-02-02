@@ -1,0 +1,67 @@
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Implications for Practitioners}
+
+Our findings provide actionable guidance for LLM selection in software engineering:
+
+\textbf{Speed-Critical Workflows:} For rapid prototyping or real-time assistance, GPT-5.1 offers the best combination of speed (44s avg) and quality (perfect score). GPT-4o provides nearly equal quality at 25\% faster average times.
+
+\textbf{Cost-Conscious Deployment:} Gemini-2.5 Flash achieves 80\% scores at the fastest speeds (51s avg), making it cost-effective for high-volume applications where perfect accuracy is not required.
+
+\textbf{Research Tasks:} Models showed most variation in research synthesis. GPT-5.1 and Deepseek-Chat achieved excellent results, while others struggled with citations. For research-heavy workflows, these models are recommended.
+
+\textbf{Tool Budgeting:} Our finding that tool usage does not correlate with success ($r=0.077$) suggests that API costs from excessive tool calls may not improve outcomes. Monitoring and limiting tool budgets is recommended.
+
+\subsection{Model Selection Decision Tree}
+
+Based on our results, we propose the following decision framework:
+
+\begin{enumerate}
+    \item \textbf{If speed is paramount:} Choose GPT-5.1 or Gemini-2.5 Flash
+    \item \textbf{If quality cannot be compromised:} Any top-4 model (GPT-5.1, Gemini-3 Pro, Deepseek, GLM-4.7)
+    \item \textbf{If cost is primary concern:} Gemini-2.5 Flash or open-weight models
+    \item \textbf{If data privacy requires on-premise:} GLM-4.7 (best among open models)
+    \item \textbf{For research tasks:} GPT-5.1 or Deepseek-Chat
+\end{enumerate}
+
+\subsection{Surprising Findings}
+
+\textbf{Tool Inefficiency:} The lack of correlation between tool usage and success was unexpected. Gemini-3 Flash used 917 tool calls for bug-fix (vs GPT-5.1's 3 calls) yet achieved identical scores. This suggests significant optimization opportunities in agent frameworks.
+
+\textbf{Perfect Coding Scores:} All 11 models achieved 100\% success on coding tasks (bug-fix, feature, refactor). This indicates that SE coding tasks may be approaching saturation for current LLMs, suggesting future benchmarks need increased difficulty.
+
+\textbf{Research Challenges:} The research task showed the lowest success rate (90.9\%) and highest variance. This highlights that information synthesis and citation management remain challenging for LLMs.
+
+\subsection{Threats to Validity}
+
+\textbf{Internal Validity:} Single execution per model-task may not capture performance variance. Future work should include multiple runs with error bars.
+
+\textbf{External Validity:} Synthetic tasks may not represent real-world complexity. Our tasks were designed to be representative but controlled; actual SE work involves more ambiguity and context.
+
+\textbf{Construct Validity:} Automated verification, while objective, may miss qualitative aspects like code readability or architectural elegance.
+
+\textbf{Temporal Validity:} LLM capabilities evolve rapidly. Results reflect model versions as of February 2026; newer versions may differ.
+
+\subsection{Limitations}
+
+Our study has several limitations:
+
+\begin{enumerate}
+    \item \textbf{Python-centric:} All tasks used Python; results may not generalize to other languages.
+    \item \textbf{English-only:} Tasks and evaluations were in English.
+    \item \textbf{Single domain:} DevOps-focused tasks (Zrb-Flow, Docker, K8s) may not represent all SE domains.
+    \item \textbf{No human baseline:} We did not measure human developer performance on these tasks for comparison.
+\end{enumerate}
+
+\subsection{Future Work}
+
+We identify several directions for future research:
+
+\begin{enumerate}
+    \item \textbf{Longitudinal study:} Track model improvements over time on fixed tasks.
+    \item \textbf{Human comparison:} Measure human developer performance for baseline comparison.
+    \item \textbf{Multi-language:} Extend to Java, JavaScript, Go, and other languages.
+    \item \textbf{Team simulation:} Evaluate multi-agent collaboration scenarios.
+    \item \textbf{Real-world validation:} Deploy models on actual PRs and measure acceptance rates.
+\end{enumerate}

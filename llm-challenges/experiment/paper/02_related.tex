@@ -1,0 +1,38 @@
+\section{Related Work}
+\label{sec:related}
+
+\subsection{Code Generation Benchmarks}
+
+Early benchmarks for code-generating LLMs focused on isolated programming problems. HumanEval \cite{chen2021evaluating} introduced 164 hand-written Python problems with unit test verification, establishing the pass@k metric. Most Basic Python Programming (MBPP) \cite{austin2021program} expanded this to 974 crowd-sourced problems covering diverse programming concepts.
+
+These benchmarks established foundational capabilities but had limitations: (1) function-level scope ignores real-world complexity, (2) no interaction with existing codebases, and (3) limited to algorithmic rather than engineering tasks.
+
+\subsection{Software Engineering Benchmarks}
+
+Recent work addresses these limitations through repository-level evaluation. SWE-bench \cite{jimenez2023swe} presents 2,294 real GitHub issues from popular Python repositories, testing models on actual bug reports and feature requests. While more realistic, SWE-bench has high variance in issue quality and difficulty.
+
+ClassEval \cite{classexplore} focuses on class-level code generation, requiring models to implement multiple interacting methods. RepoBench \cite{repobench} evaluates repository-level code completion with long-context understanding.
+
+Our work complements these by focusing on \textit{controlled, reproducible tasks} with objective verification, enabling precise model comparison.
+
+\subsection{Multi-Task Evaluation}
+
+Prior multi-task studies examined LLM capabilities across domains but not specifically for SE. Hendrycks et al. \cite{hendrycks2021measuring} evaluated coding alongside math and reasoning. Fu et al. \cite{fu2023gptscore} compared GPT models on various NLP tasks.
+
+For SE specifically, "Evaluating LLM-Guided Software Programming" \cite{evaluating2024llm} compared GPT-3.5, GPT-4, and CodeLlama on five SE tasks. Our work expands this to 13 models, adds automated verification, and measures efficiency metrics.
+
+\subsection{Tool-Augmented Evaluation}
+
+Modern LLMs operate through agents with tool use. Works like ToolBench \cite{qinet al2023toolllm} evaluate tool learning, but focus on general tool use rather than SE-specific workflows. Our evaluation framework uses a consistent tool environment across all models, enabling fair comparison of tool efficiency.
+
+\subsection{Efficiency and Cost Analysis}
+
+Recent work recognizes the importance of efficiency. "Efficiency Benchmarking" \cite{efficiency2024} measured inference costs but focused on throughput rather than task completion time. Our work integrates time and quality metrics, revealing that faster models can achieve equal or better results.
+
+\subsection{Research Gap}
+
+Our work fills the gap in:\\
+\textbf{(1) Task diversity:} Covering coding, writing, and research synthesis.\\
+\textbf{(2) Scale:} 13 models with automated, reproducible verification.\\
+\textbf{(3) Efficiency:} Measuring both quality and completion time.\\
+\textbf{(4) Tool analysis:} Quantifying the relationship between tool use and success.

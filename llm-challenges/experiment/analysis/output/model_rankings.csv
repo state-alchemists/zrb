@@ -1,0 +1,12 @@
+model,category,total_score,max_possible,success_rate,excellent_rate,avg_duration,median_duration,total_duration,avg_tools,task_count
+openai:gpt-5.1,OpenAI,10,10,100.0,100.0,44.23,37.5,221.17,3.8,5
+google-gla:gemini-3-pro-preview,Google,10,10,100.0,100.0,107.26,63.58,536.31,10.4,5
+deepseek:deepseek-chat,Deepseek,10,10,100.0,100.0,306.25,169.89,1531.25,20,5
+ollama:glm-4.7:cloud,Open/Ollama,10,10,100.0,100.0,355.09,324.38,1775.45,7,5
+openai:gpt-4o,OpenAI,9,10,100.0,80.0,32.95,26.77,164.76,4,5
+openai:gpt-5.2,OpenAI,9,10,100.0,80.0,85.19,35.12,425.97,7,5
+google-gla:gemini-3-flash-preview,Google,9,10,100.0,80.0,155.29,36.8,776.45,188,5
+ollama:qwen3-vl:235b-cloud,Open/Ollama,9,10,100.0,80.0,732.07,653.36,3660.35,5.4,5
+google-gla:gemini-2.5-flash,Google,8,10,100.0,60.0,50.99,20.7,254.94,7,5
+google-gla:gemini-2.5-pro,Google,8,10,100.0,60.0,121.66,61.61,608.3,15.8,5
+ollama:kimi-k2.5:cloud,Open/Ollama,8,10,80.0,80.0,245.66,328.59,1228.31,7.4,5

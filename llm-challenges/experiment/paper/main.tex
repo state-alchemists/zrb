@@ -1,0 +1,55 @@
+\documentclass[conference]{IEEEtran}
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{cleveref}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    citecolor=blue,
+}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+    
+\begin{document}
+
+\title{Comprehensive Evaluation of Large Language Models on Software Engineering Tasks: A Multi-Task Benchmark}
+
+\author{\IEEEauthorblockN{Anonymous Authors}
+\IEEEauthorblockA{\textit{Anonymous Institution} \\\textit{Anonymous Email}}}
+
+\maketitle
+
+\begin{abstract}
+Large Language Models (LLMs) have demonstrated remarkable capabilities in software engineering, yet comprehensive benchmarks covering diverse SE activities remain limited. We present a multi-task evaluation of 13 state-of-the-art LLMs across five representative software engineering tasks: bug fixing, feature development, code refactoring, technical copywriting, and research synthesis. Our automated verification framework measures both output quality and completion efficiency. Key findings reveal that (1) four models achieved perfect scores but with 8$\times$ variation in completion time, (2) tool usage frequency shows no correlation with success ($r=0.077$, $p=0.575$), and (3) coding tasks achieve 100\% success while research tasks present greater challenges (90.9\%). These results provide evidence-based guidance for practitioners selecting LLMs for specific software engineering workflows. All data and verification scripts are publicly available.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Large Language Models, Software Engineering, Benchmark, Code Generation, Evaluation
+\end{IEEEkeywords}
+
+% Include sections
+\input{01_intro}
+\input{02_related}
+\input{03_methodology}
+\input{04_results}
+\input{05_discussion}
+\input{06_conclusion}
+
+\section*{Acknowledgments}
+This research was supported by [anonymous funding]. We thank the anonymous reviewers for their valuable feedback.
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

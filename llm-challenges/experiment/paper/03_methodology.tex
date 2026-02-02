@@ -1,0 +1,195 @@
+\section{Methodology}
+\label{sec:methodology}
+
+This section describes our experimental design, including task categories, model selection, evaluation framework, and metrics.
+
+\subsection{Task Categories}
+\label{sec:tasks}
+
+We designed five representative software engineering tasks that cover different aspects of developer workflows. Each task represents a common activity in professional software development.
+
+\subsubsection{Bug Fixing (bug-fix)}
+Participants were presented with \texttt{inventory\_system.py}, a Python script simulating an inventory management system with a concurrency bug. The bug caused race conditions when multiple threads attempted to purchase items simultaneously, resulting in negative inventory counts. Models were required to:
+\begin{itemize}
+    \item Identify the race condition in multi-threaded code
+    \item Implement appropriate synchronization mechanisms
+    \item Ensure data integrity under concurrent access
+    \item Verify the fix with test scenarios
+\end{itemize}
+
+\textit{Success Criteria:} Implementation of proper concurrency control (e.g., locks) and verification that final inventory remains non-negative.
+
+\subsubsection{Feature Implementation (feature)}
+Models were given a partial FastAPI Todo application (\texttt{todo\_app.py}) with only a GET endpoint implemented. The task required completing the CRUD operations:
+\begin{itemize}
+    \item POST /todos -- Create new todo items
+    \item PUT /todos/\{id\} -- Update existing items
+    \item DELETE /todos/\{id\} -- Delete items
+\end{itemize}
+
+Additional requirements included proper HTTP status codes (201 for create, 404 for non-existent items) and auto-incrementing IDs.
+
+\textit{Success Criteria:} All endpoints functional with correct HTTP semantics.
+
+\subsubsection{Code Refactoring (refactor)}
+The refactoring task presented \texttt{etl.py}, a monolithic script performing Extract-Transform-Load operations with hardcoded configuration and fragile string parsing. Models were required to:
+\begin{itemize}
+    \item Separate concerns into distinct ETL phases
+    \item Decouple configuration from logic
+    \item Implement robust parsing using regular expressions
+    \item Add type hints and documentation
+    \item Maintain identical output (report.html)
+\end{itemize}
+
+\textit{Success Criteria:} Modular architecture with ETL pattern, configuration separation, type hints, docstrings, and functional equivalence.
+
+\subsubsection{Technical Copywriting (copywriting)}
+Models were tasked with creating a launch announcement blog post for ``Zrb-Flow,'' a fictional DevOps automation tool. Requirements included:
+\begin{itemize}
+    \item Mentioning key features: AI, automation, CLI, Docker, K8s
+    \item Highlighting ``Self-Healing Pipelines'' capability
+    \item Technical but engaging tone
+    \item Call to action for installation
+    \item Proper Markdown formatting
+\end{itemize}
+
+\textit{Success Criteria:} Complete coverage of required keywords, proper formatting, and compelling narrative.
+
+\subsubsection{Technical Research (research)}
+Models conducted research on Solid State Batteries (late 2024/2025), producing a comprehensive report covering:
+\begin{itemize}
+    \item Commercial timeline and automotive applications
+    \item Key industry players and companies
+    \item Remaining technical challenges
+    \item Proper citations and references
+\end{itemize}
+
+\textit{Success Criteria:} Substantial content (200+ words), coverage of all three required aspects, and inclusion of references.
+
+\subsection{Model Selection}
+\label{sec:models}
+
+We evaluated 13 state-of-the-art Large Language Models from four major categories, as shown in Table~\ref{tab:models}.
+
+\begin{table}[htbp]
+\centering
+\caption{Evaluated Language Models}
+\label{tab:models}
+\begin{tabular}{llll}
+\toprule
+\textbf{Provider} & \textbf{Model} & \textbf{Version/Date} & \textbf{Access} \\
+\midrule
+OpenAI & GPT-4o & 2024 & API \\
+& GPT-5.1 & 2024 & API \\
+& GPT-5.2 & 2024 & API \\
+\midrule
+Google & Gemini 2.5 Flash & 2024 & API \\
+& Gemini 2.5 Pro & 2024 & API \\
+& Gemini 3 Flash & 2025 (preview) & API \\
+& Gemini 3 Pro & 2025 (preview) & API \\
+\midrule
+Deepseek & Deepseek-Chat & 2024 & API \\
+\midrule
+Open/Ollama & GLM-4.7 & 2024 & Cloud \\
+& Kimi-K2.5 & 2024 & Cloud \\
+& Qwen3-VL & 2024 & Cloud \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Model selection criteria included:\\
+\textbf{(1) State-of-the-art performance:} All models represent current best-in-class for code generation.\\
+\textbf{(2) Diversity of architectures:} We included both proprietary (OpenAI, Google) and open-weight models (GLM, Kimi, Qwen).\\
+\textbf{(3) Availability:} Models accessible via API or cloud hosting at time of experimentation.
+
+\subsection{Evaluation Framework}
+\label{sec:evaluation}
+
+Each model-task combination was executed in an isolated environment with the following components:
+
+\subsubsection{Agent Environment}
+Models interacted with tasks through a tool-based agent framework (Zrb) providing:
+\begin{itemize}
+    \item \texttt{read\_file}: Read source files
+    \item \texttt{write\_file}: Create or modify files
+    \item \texttt{replace\_in\_file}: Targeted text replacement
+    \item \texttt{run\_shell\_command}: Execute tests and scripts
+    \item \texttt{search\_internet}: Web research (research task only)
+\end{itemize}
+
+\subsubsection{Verification Pipeline}
+Each submission underwent automated verification:
+
+\begin{enumerate}
+    \item \textbf{Bug-fix:} Concurrency tests with multiple threads; verification of non-negative inventory.
+    \item \textbf{Feature:} HTTP endpoint testing (GET, POST, PUT, DELETE) with validation of status codes and response bodies.
+    \item \textbf{Refactor:} Code quality checks (ETL pattern, type hints, docstrings) plus functional equivalence (report.html generation).
+    \item \textbf{Copywriting:} Content analysis for required keywords and Markdown validation.
+    \item \textbf{Research:} Word count, coverage analysis, and citation detection.
+\end{enumerate}
+
+\subsubsection{Scoring Rubric}
+Each submission received one of three grades:
+
+\begin{itemize}
+    \item \textbf{EXCELLENT (2 points):} Perfect completion with all criteria met
+    \item \textbf{PASS (1 point):} Acceptable completion with minor issues
+    \item \textbf{FAIL (0 points):} Failed to meet core requirements
+\end{itemize}
+
+\subsection{Metrics}
+\label{sec:metrics}
+
+We captured the following metrics for each model-task combination:
+
+\begin{enumerate}
+    \item \textbf{Status:} Final grade (EXCELLENT, PASS, FAIL)
+    \item \textbf{Duration:} Total completion time in seconds
+    \item \textbf{Tool Calls:} Number of tool invocations
+    \item \textbf{Tool Diversity:} Unique tools used
+    \item \textbf{Exit Code:} Process return status
+\end{enumerate}
+
+Aggregate metrics calculated across tasks:
+\begin{itemize}
+    \item \textbf{Total Score:} Sum of task scores (max 10 points)
+    \item \textbf{Success Rate:} Percentage of tasks completed (PASS or EXCELLENT)
+    \item \textbf{Excellent Rate:} Percentage of tasks with perfect scores
+    \item \textbf{Average Duration:} Mean completion time across tasks
+\end{itemize}
+
+\subsection{Experimental Protocol}
+\label{sec:protocol}
+
+\begin{enumerate}
+    \item \textbf{Isolation:} Each model-task run in fresh environment
+    \item \textbf{Single Attempt:} One execution per model-task combination
+    \item \textbf{Timeout:} Maximum 30 minutes per task
+    \item \textbf{Logging:} Complete execution logs captured
+    \item \textbf{Verification:} Automated, deterministic verification
+\end{enumerate}
+
+\subsection{Threats to Validity}
+\label{sec:threats}
+
+\textbf{Internal Validity:}
+\begin{itemize}
+    \item Single attempt per model-task may not capture variance
+    \item Temperature/settings not controlled across models
+    \item Task difficulty may not be uniform
+\end{itemize}
+
+\textbf{External Validity:}
+\begin{itemize}
+    \item Synthetic tasks may not represent real-world complexity
+    \item Python-centric evaluation
+    \item Limited to specific task types
+\end{itemize}
+
+\textbf{Construct Validity:}
+\begin{itemize}
+    \item Verification criteria may not capture all quality aspects
+    \item Automated checks cannot assess code readability
+\end{itemize}
+
+We mitigate these threats through diverse task design, objective verification, and transparent reporting of limitations.

@@ -1,0 +1,187 @@
+\section{Results}
+\label{sec:results}
+
+This section presents our experimental findings, including overall performance rankings, task-specific analyses, and statistical comparisons.
+
+\subsection{Overall Performance}
+\label{sec:overall}
+
+Table~\ref{tab:rankings} presents the performance ranking of all evaluated models.
+
+\begin{table}[htbp]
+\centering
+\caption{Model Performance Rankings}
+\label{tab:rankings}
+\begin{tabular}{clccc}
+\toprule
+\textbf{Rank} & \textbf{Model} & \textbf{Score} & \textbf{Success} & \textbf{Avg Time} \\
+& & \textbf{(/10)} & \textbf{Rate} & \textbf{(sec)} \\
+\midrule
+1 & GPT-5.1 & 10 & 100\% & 44.2 \\
+2 & Gemini-3 Pro & 10 & 100\% & 107.3 \\
+3 & Deepseek-Chat & 10 & 100\% & 306.3 \\
+4 & GLM-4.7 & 10 & 100\% & 355.1 \\
+5 & GPT-4o & 9 & 100\% & 33.0 \\
+6 & GPT-5.2 & 9 & 100\% & 80.2 \\
+7 & Gemini-3 Flash & 9 & 100\% & 155.2 \\
+8 & Kimi-K2.5 & 9 & 80\% & 319.7 \\
+9 & Qwen3-VL & 9 & 80\% & 572.0 \\
+10 & Gemini-2.5 Pro & 8 & 80\% & 121.4 \\
+11 & Gemini-2.5 Flash & 8 & 80\% & 51.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Key Findings:}
+\begin{itemize}
+    \item Four models achieved perfect scores (10/10): GPT-5.1, Gemini-3 Pro, Deepseek-Chat, and GLM-4.7
+    \item OpenAI models demonstrated superior speed-efficiency: GPT-4o averaged 33.0 seconds per task
+    \item Success rates were high overall: only two models fell below 100\%
+    \item Completion times varied dramatically: 20.7s (Gemini-2.5 Flash, bug-fix) to 1046.1s (Qwen3-VL, refactor)
+\end{itemize}
+
+\subsection{Task-Specific Analysis}
+\label{sec:task-specific}
+
+Figure~\ref{fig:success-rates} shows success rates across task categories.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth]{figures/fig2_success_rates.pdf}
+\caption{Success rates by task category. All tasks achieved high success rates, with research being the most challenging.}
+\label{fig:success-rates}
+\end{figure}
+
+\subsubsection{Bug Fixing}
+All 11 models (100\%) successfully fixed the concurrency bug. However, approaches varied significantly:
+\begin{itemize}
+    \item \textbf{Efficient:} GPT-5.1 (18.8s), Gemini-2.5 Flash (20.7s), GPT-4o (26.8s)
+    \item \textbf{Thorough:} Gemini-3 Flash (625.2s) used 917 tool calls including extensive testing
+    \item All implementations correctly identified race conditions and implemented synchronization
+\end{itemize}
+
+\subsubsection{Feature Implementation}
+The FastAPI CRUD implementation task showed 100\% success rate with varying implementation quality:
+\begin{itemize}
+    \item Most models correctly implemented all four endpoints
+    \item Common excellence markers: proper error handling, input validation, clean code structure
+    \item Time ranged from 26.4s (Gemini-3 Flash) to 560.5s (Qwen3-VL)
+\end{itemize}
+
+\subsubsection{Code Refactoring}
+Refactoring the ETL script achieved 100\% success:
+\begin{itemize}
+    \item All models successfully separated ETL phases
+    \item Configuration decoupling achieved by all
+    \item Type hints and docstrings: 9/11 models achieved full marks
+    \item Fastest: GPT-4o (25.3s), Slowest: Qwen3-VL (1046.1s)
+\end{itemize}
+
+\subsubsection{Technical Copywriting}
+Copywriting showed the most variation in scores (PASS vs EXCELLENT):
+\begin{itemize}
+    \item Common failures: missing ``K8s'' keyword (3 models)
+    \item Excellence factors: engaging tone, complete feature coverage
+    \item Fastest completion: Gemini-2.5 Flash (11.6s)
+\end{itemize}
+
+\subsubsection{Technical Research}
+Research was the most challenging task (90.9\% success):
+\begin{itemize}
+    \item Common issues: missing or incomplete citations
+    \item Kimi-K2.5 failed (execution error)
+    \item Longest average time due to web search requirements
+\end{itemize}
+
+\subsection{Provider Comparison}
+\label{sec:provider}
+
+Table~\ref{tab:provider} compares performance by provider category.
+
+\begin{table}[htbp]
+\centering
+\caption{Performance by Provider Category}
+\label{tab:provider}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Category} & \textbf{Models} & \textbf{Avg} & \textbf{Std} & \textbf{Min} & \textbf{Max} \\
+& & \textbf{Score} & \textbf{Dev} & \textbf{Score} & \textbf{Score} \\
+\midrule
+Deepseek & 1 & 10.0 & 0.0 & 10 & 10 \\
+OpenAI & 3 & 9.33 & 0.58 & 9 & 10 \\
+Open/Ollama & 3 & 9.0 & 1.0 & 8 & 10 \\
+Google & 4 & 8.75 & 0.96 & 8 & 10 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Statistical Analysis:}
+\begin{itemize}
+    \item \textbf{Chi-square test:} No significant association between provider and success ($\chi^2=2.72$, $p=0.438$)
+    \item \textbf{ANOVA:} Significant differences in completion times ($F=12.57$, $p<0.001$)
+    \item OpenAI models were consistently fastest (avg: 54.1s)
+    \item Open/Ollama models were slowest (avg: 444.3s)
+\end{itemize}
+
+\subsection{Tool Usage Analysis}
+\label{sec:tools}
+
+Figure~\ref{fig:tool-usage} presents the tool usage heatmap.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\textwidth]{figures/fig4_tool_usage.pdf}
+\caption{Tool usage patterns by model and task. Darker colors indicate more tool invocations.}
+\label{fig:tool-usage}
+\end{figure}
+
+\textbf{Correlation Analysis:}
+\begin{itemize}
+    \item \textbf{Tool count vs Success:} Pearson $r=0.077$ ($p=0.575$) -- no linear correlation
+    \item \textbf{Spearman rho:} $0.428$ ($p=0.001$) -- moderate monotonic relationship
+    \item Efficient models (GPT-5.1, Gemini-2.5 Flash) achieved perfect scores with minimal tools
+    \item Gemini-3 Flash used 917 tools for bug-fix but achieved same result as GPT-5.1 (3 tools)
+\end{itemize}
+
+\textbf{Implication:} More tool usage does not guarantee better results; efficiency varies by model architecture.
+
+\subsection{Time-Accuracy Tradeoff}
+\label{sec:tradeoff}
+
+Figure~\ref{fig:time-accuracy} shows the relationship between completion time and accuracy.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth]{figures/fig6_time_vs_accuracy.pdf}
+\caption{Time vs accuracy tradeoff. Each point represents a model's average performance.}
+\label{fig:time-accuracy}
+\end{figure}
+
+\textbf{Key Observations:}
+\begin{itemize}
+    \item No significant correlation between duration and score (Pearson $r=0.204$, $p=0.136$)
+    \item OpenAI cluster: Fast (avg 54s) with high scores (9.33 avg)
+    \item Open/Ollama cluster: Slow (avg 444s) with variable scores
+    \item Best efficiency: GPT-5.1 (perfect score, 44s average)
+\end{itemize}
+
+\subsection{Effect Size Analysis}
+\label{sec:effect}
+
+Comparing top performer (Deepseek-Chat, score 10) vs lowest (Gemini-2.5 Flash, score 8):
+\begin{itemize}
+    \item \textbf{Cohen's d:} 1.03 (large effect size)
+    \item Practical significance: Top models demonstrate measurably better performance
+    \item Category comparisons show small to medium effects between providers
+\end{itemize}
+
+\subsection{Summary of Findings}
+\label{sec:summary}
+
+\begin{enumerate}
+    \item \textbf{Performance:} Four models achieved perfect scores, with GPT-5.1 being fastest
+    \item \textbf{Task Difficulty:} Research was most challenging (90.9\% success), coding tasks were easiest (100\%)
+    \item \textbf{Efficiency:} No correlation between time and quality; model architecture matters more
+    \item \textbf{Tool Usage:} More tools does not guarantee better results
+    \item \textbf{Provider:} No significant quality differences, but significant speed differences
+\end{enumerate}

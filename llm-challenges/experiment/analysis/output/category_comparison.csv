@@ -1,0 +1,5 @@
+category,model_count,avg_score,std_score,min_score,max_score,avg_duration,std_duration
+Deepseek,1,10,0,10,10,306.25,0
+Google,4,8.75,0.96,8,10,108.8,43.48
+Open/Ollama,3,9,1.0,8,10,444.27,255.17
+OpenAI,3,9.33,0.58,9,10,54.12,27.49
