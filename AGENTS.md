@@ -1,122 +1,224 @@
-# Zrb Project Guide for Agents
+# AGENTS.md - ZRB Project Agent Configuration
 
-This document provides context and guidelines for LLMs (Agents) working with the `zrb` (Zaruba) project. Zrb is a Python-based task automation tool that integrates shell commands, Python functions, and LLM capabilities into a unified workflow.
+> This file contains agent configurations and coding guidelines for the ZRB project.
 
-## 1. Project Overview
+---
 
--   **Name:** Zrb (Zaruba)
--   **Purpose:** Task automation and workflow orchestration.
--   **Core Language:** Python.
--   **Key Feature:** Built-in LLM integration for generating code and documentation.
--   **Execution:** CLI (`zrb task-name`) or Web UI (`zrb server start`).
+## 📋 Overview
 
-## 2. Core Concepts
+**ZRB** is a Python-based task runner and automation framework with built-in LLM integration.
 
-### 2.1. The `zrb_init.py` File
--   **Role:** The entry point for defining tasks.
--   **Location:**
-    -   **Project-local:** `./zrb_init.py` (Applies to the current project).
-    -   **Global:** `~/zrb_init.py` (Applies system-wide).
--   **Discovery:** Zrb automatically detects and loads this file.
+- **Language**: Python 3.11+
+- **Framework**: FastAPI (for web UI), Pydantic-AI (for LLM)
+- **Package Manager**: Poetry
+- **License**: AGPL-3.0-or-later
 
-### 2.2. Tasks (`Task`)
-The fundamental unit of work. Common types include:
--   **`CmdTask`**: Executes shell commands.
--   **`Task` (or `BaseTask`)**: Executes Python code.
--   **`LLMTask`**: Interactions with LLMs.
--   **`HttpCheck` / `TcpCheck`**: Readiness checks for services.
+---
 
-### 2.3. Groups (`Group`)
--   Used to organize tasks hierarchically.
--   Example: `zrb deployment build` (`deployment` is the group, `build` is the task).
+## 🤖 Specialized Agents
 
-### 2.4. Context (`ctx`)
-The execution context passed to every task.
--   **`ctx.input`**: User inputs (arguments).
--   **`ctx.env`**: Environment variables.
--   **`ctx.print()`**: Standard output method.
--   **`ctx.xcom`**: Cross-communication storage.
+This project includes specialized agent configurations for various tasks:
 
-## 3. Defining Tasks (The "How-To")
+| Agent | Purpose | Location |
+|-------|---------|----------|
+| **Documentation** | Generate and maintain documentation | [`agents/documentation/AGENTS.md`](agents/documentation/AGENTS.md) |
+| **Planning** | Project planning and task breakdown | [`agents/planning/AGENTS.md`](agents/planning/AGENTS.md) |
+| **Testing** | Write and analyze tests | [`agents/testing/AGENTS.md`](agents/testing/AGENTS.md) |
+| **Refactoring** | Code modernization and refactoring | [`agents/refactoring/AGENTS.md`](agents/refactoring/AGENTS.md) |
+| **Research** | Academic research and journal writing | [`agents/research/AGENTS.md`](agents/research/AGENTS.md) |
 
-### 3.1. Standard Shell Command (`CmdTask`)
-Use this for running CLI tools.
+See [`agents/AGENTS.md`](agents/AGENTS.md) for the complete agent index.
 
-```python
-from zrb import CmdTask, cli
+---
 
-cli.add_task(
-    CmdTask(
-        name="hello-world",
-        cmd="echo Hello World",
-        description="Prints hello world"
-    )
-)
+## 📊 Research Paper
+
+This project includes a comprehensive research paper on LLM evaluation:
+
+**Paper:** "Comprehensive Evaluation of Large Language Models on Software Engineering Tasks"  
+**Location:** [`llm-challenges/experiment/paper/`](llm-challenges/experiment/paper/)
+
+### Paper Highlights
+- **13 LLM models** evaluated across **5 software engineering tasks**
+- **Key Finding:** Tool usage does not correlate with success (r=0.077)
+- **Data:** 55 experiment runs with automated verification
+- **Status:** Full draft complete (8-10 pages, IEEE format)
+
+### Paper Structure
+```
+llm-challenges/experiment/
+├── paper/               # LaTeX source files
+├── analysis/            # Data processing scripts
+├── figures/             # Publication-ready figures
+└── docs/                # Research questions and planning
 ```
 
-### 3.2. Python Function (`@make_task`)
-Preferred for pure Python logic.
+---
 
-```python
-from zrb import make_task, cli
+## 🏗️ Project Structure
 
-@make_task(group=cli, name="greet", description="Greets a user")
-def greet(ctx):
-    name = ctx.input.name or "World"
-    ctx.print(f"Hello, {name}!")
+```
+src/zrb/
+├── __init__.py           # Main exports
+├── __main__.py           # CLI entry point
+├── attr/                 # Attribute types (fstring, etc.)
+├── builtin/              # Built-in tasks (git, http, project scaffolding, etc.)
+├── callback/             # Callback system
+├── cmd/                  # Command execution utilities
+├── config/               # Configuration management
+├── content_transformer/  # Content transformation
+├── context/              # Task execution context
+├── dot_dict/             # Dot notation dictionary
+├── env/                  # Environment variable handling
+├── group/                # Task groups
+├── input/                # Input types (str, int, bool, etc.)
+├── llm/                  # LLM integration (agent, tools, prompts)
+├── runner/               # CLI and Web runners
+├── session/              # Session management
+├── task/                 # Task implementations
+├── util/                 # Utilities
+└── xcom/                 # Cross-task communication
 ```
 
-### 3.3. Task with Inputs and Env
-Always define inputs and envs explicitly for better CLI/UI support.
+---
+
+## 🎯 Core Concepts
+
+### Task Types
+
+- **Task**: Basic Python function task
+- **CmdTask**: Shell command execution
+- **LLMTask**: AI-powered task with LLM
+- **LLMChatTask**: Interactive LLM chat
+- **HttpCheck**: HTTP endpoint health check
+- **TcpCheck**: TCP port health check
+- **RsyncTask**: File synchronization
+- **Scaffolder**: Code generation from templates
+- **Scheduler**: Cron-like scheduled tasks
+
+### Key Components
+
+1. **Context (`AnyContext`)**: Execution context with inputs, env, xcom
+2. **XCom**: Cross-task data exchange
+3. **Inputs**: Typed inputs (StrInput, IntInput, BoolInput, etc.)
+4. **Groups**: Organize tasks hierarchically
+5. **Dependencies**: `upstream`, `successor`, `fallback` relationships
+
+---
+
+## 🧪 Development Guidelines
+
+### Code Style
+
+- **Formatter**: Black (line length 88)
+- **Import Sorter**: isort
+- **Linter**: flake8
+- Use type hints everywhere
+- Use `from __future__ import annotations` for forward references
+
+### Naming Conventions
+
+- **Classes**: PascalCase (e.g., `LLMTask`, `CmdTask`)
+- **Functions/Methods**: snake_case (e.g., `run_agent`, `get_attr`)
+- **Constants**: UPPER_CASE (e.g., `CFG`, `LLM_CONFIG`)
+- **Private**: Prefix with underscore (e.g., `_exec_action`, `_get_model`)
+
+### Async/Await Pattern
+
+- All task actions are async: `async def _exec_action(self, ctx)`
+- Use `await asyncio.sleep(0)` for cooperative multitasking
+- Wrap sync tools with safe wrappers for error handling
+
+### Error Handling
 
 ```python
-from zrb import CmdTask, StrInput, Env, cli
+try:
+    result = await some_async_operation()
+except Exception as e:
+    return f"Error executing {func.__name__}: {e}"
+```
 
-cli.add_task(
-    CmdTask(
-        name="deploy",
-        cmd="echo Deploying to $TARGET_ENV with user $DEPLOY_USER",
+---
+
+## 🤖 Available Tools
+
+### LLM Tools (src/zrb/llm/tool/)
+
+- `analyze_code`: Analyze code structure
+- `write_file`: Write content to files
+- `bash`: Execute shell commands
+- `mcp`: Model Context Protocol integration
+- `rag`: Retrieval Augmented Generation
+- `search/`: Web search (brave, serpapi, searxng)
+- `sub_agent`: Spawn sub-agents
+- `zrb_task`: Invoke ZRB tasks
+
+### File Operations
+
+- `load_file`: Load Python files dynamically
+- `load_module`: Load modules
+
+---
+
+## 📚 Task Definition Example
+
+```python
+from zrb import cli, LLMTask, CmdTask, StrInput, Group
+
+# Create a group
+my_group = cli.add_group(Group(name="myapp", description="My App Tasks"))
+
+# Define a task
+task = my_group.add_task(
+    LLMTask(
+        name="generate-docs",
+        description="Generate documentation",
         input=[
-            StrInput(name="user", default="admin", description="Deployment user")
+            StrInput(name="target_dir", default="./"),
         ],
-        env=[
-            Env(name="TARGET_ENV", default="staging", link_to_os=True)
-        ]
+        message="Generate README.md for {ctx.input.target_dir}",
+        tools=[analyze_code, write_file],
     )
 )
 ```
 
-### 3.4. Task Chaining (Dependencies)
--   `>>` (Sequential): `task_a >> task_b` (A runs, then B).
--   `<<` (Upstream): `task_b << task_a` (B depends on A).
+---
 
-```python
-build >> test >> deploy
+## 🔧 Build & Test
+
+```bash
+# Install dependencies
+poetry install
+
+# Run tests
+pytest
+
+# Format code
+black src/
+isort src/
+
+# Lint
+flake8 src/
+
+# Run ZRB
+python -m zrb --help
 ```
 
-## 4. Configuration
+---
 
-Zrb is configured via environment variables (in `.env` or OS).
+## 📖 Documentation
 
--   **LLM Model:** `ZRB_LLM_MODEL` (e.g., `openai:gpt-4o`, `google-vertex:gemini-1.5-pro`).
--   **API Keys:** `ZRB_LLM_API_KEY`, `OPENAI_API_KEY`, etc.
--   **Prompt Directory:** `ZRB_LLM_PROMPT_DIR` (default: `.zrb/llm/prompt`).
+Full documentation available in `docs/` directory:
+- `docs/core-concepts/`: Core concepts and architecture
+- `docs/installation-and-configuration/`: Setup guides
+- `docs/advanced-topics/`: Advanced usage
 
-## 5. Common Patterns & Best Practices
+---
 
-1.  **Prefer `CmdTask` for Shell Operations:** Do not use `subprocess` in Python tasks if a `CmdTask` can do the job.
-2.  **Use `ctx.print`:** Avoid `print()` to ensure output is captured and formatted correctly by Zrb.
-3.  **Explicit Inputs:** Define `Input` objects instead of parsing `sys.argv` manually.
-4.  **Readiness Checks:** Use `readiness_check` (`HttpCheck`, `TcpCheck`) for tasks that depend on services (e.g., waiting for a DB or Server).
+## 📝 Changelog
 
-## 6. Directory Structure
+See [CHANGELOG.md](CHANGELOG.md) for version history and notable changes.
 
-```
-/
-├── zrb_init.py          # Main task definition file
-├── .env                 # Environment variables
-├── .zrb/                # Zrb internal/config storage
-│   └── llm/
-│       └── prompt/      # Custom LLM prompts
-└── ...
-```
+---
+
+*Last updated: 2026-02-02*

@@ -1,0 +1,71 @@
+\section{Introduction}
+\label{sec:intro}
+
+Large Language Models (LLMs) have demonstrated remarkable capabilities in software engineering tasks, from code generation and bug fixing to documentation and architectural design \cite{chen2021evaluating, jimenez2023swe}. As these models become increasingly integrated into development workflows, practitioners face a critical question: which model should they choose for specific tasks?
+
+\subsection{Motivation}
+
+The landscape of LLMs for code has expanded rapidly. OpenAI's GPT-4 and its successors have set benchmarks in coding proficiency \cite{openai2024gpt4}. Google's Gemini series offers competitive performance with different architectural approaches \cite{gemini2024}. Open-weight alternatives like Deepseek, GLM, and Qwen provide options for organizations with data privacy or cost constraints \cite{deepseek2024, glm2024, qwen2024}.
+
+However, practitioners face several challenges when selecting models:
+
+\begin{enumerate}
+    \item \textbf{Fragmented benchmarks:} Existing evaluations focus on isolated capabilities (e.g., function-level code generation \cite{chen2021evaluating} or bug fixing \cite{jimenez2023swe}) rather than comprehensive software engineering workflows.
+    
+    \item \textbf{Task-specific studies:} Most evaluations test single task types, leaving unclear how models generalize across diverse activities like refactoring, documentation, and research.
+    
+    \item \textbf{Efficiency metrics:} Prior work often emphasizes accuracy alone, ignoring practical constraints like completion time and API costs.
+    
+    \item \textbf{Tool integration:} Modern LLMs operate through agent frameworks with tool use, yet few evaluations measure tool efficiency alongside output quality.
+\end{enumerate}
+
+\subsection{Research Questions}
+
+This study addresses these gaps through systematic evaluation of 13 state-of-the-art LLMs across five representative software engineering tasks. We investigate:
+
+\begin{description}
+    \item[RQ1] How do current LLMs rank in overall performance across diverse software engineering tasks?
+    \item[RQ2] Which models excel at specific task types (coding, writing, research)?
+    \item[RQ3] What is the relationship between tool usage frequency and task success?
+    \item[RQ4] How do completion time and accuracy correlate across models?
+    \item[RQ5] What cost-performance tradeoffs exist across model tiers?
+\end{description}
+
+\subsection{Contributions}
+
+Our work makes the following contributions:
+
+\begin{enumerate}
+    \item \textbf{Multi-task benchmark:} We present the first comprehensive evaluation covering bug fixing, feature development, refactoring, technical writing, and research synthesis.
+    
+    \item \textbf{Large-scale comparison:} We evaluate 13 models from 4 provider categories, providing the broadest comparison to date for agent-based SE tasks.
+    
+    \item \textbf{Efficiency analysis:} We measure both quality and speed, revealing which models offer the best performance per unit time.
+    
+    \item \textbf{Tool usage insights:} We analyze the relationship between tool invocation patterns and success, finding that more tools do not guarantee better results.
+    
+    \item \textbf{Public dataset:} We release all experimental data, verification scripts, and results to enable reproducibility and future research \cite{our_dataset}.
+\end{enumerate}
+
+\subsection{Key Findings}
+
+Our analysis reveals several surprising findings:
+
+\begin{itemize}
+    \item Four models (GPT-5.1, Gemini-3 Pro, Deepseek-Chat, GLM-4.7) achieved perfect scores, but completion times varied by 8$\times$ (44s vs 355s average).
+    
+    \item No correlation exists between tool usage count and success (Pearson $r=0.077$, $p=0.575$). GPT-5.1 solved bug-fix in 18.8s with 3 tools; Gemini-3 Flash took 625s with 917 tools.
+    
+    \item Research tasks were most challenging (90.9\% success), while coding tasks achieved 100\% success across all models.
+    
+    \item OpenAI models were consistently fastest (avg 54s) without sacrificing quality (9.33 avg score).
+\end{itemize}
+
+\subsection{Paper Organization}
+
+The remainder of this paper is organized as follows:
+Section~\ref{sec:related} reviews related work in LLM evaluation.
+Section~\ref{sec:methodology} describes our task design, model selection, and evaluation framework.
+Section~\ref{sec:results} presents quantitative findings and statistical analyses.
+Section~\ref{sec:discussion} discusses implications and limitations.
+Section~\ref{sec:conclusion} concludes with future directions.

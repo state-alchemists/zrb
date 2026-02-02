@@ -1,0 +1,43 @@
+================================================================================
+LLM CHALLENGE EXPERIMENT - ANALYSIS SUMMARY
+================================================================================
+
+MODEL RANKINGS (by total score)
+--------------------------------------------------------------------------------
+1. openai:gpt-5.1
+   Score: 10/10 (Success: 100.0%, Excellent: 100.0%)
+   Avg Time: 44.23s, Avg Tools: 3.8
+
+2. google-gla:gemini-3-pro-preview
+   Score: 10/10 (Success: 100.0%, Excellent: 100.0%)
+   Avg Time: 107.26s, Avg Tools: 10.4
+
+3. deepseek:deepseek-chat
+   Score: 10/10 (Success: 100.0%, Excellent: 100.0%)
+   Avg Time: 306.25s, Avg Tools: 20
+
+4. ollama:glm-4.7:cloud
+   Score: 10/10 (Success: 100.0%, Excellent: 100.0%)
+   Avg Time: 355.09s, Avg Tools: 7
+
+5. openai:gpt-4o
+   Score: 9/10 (Success: 100.0%, Excellent: 80.0%)
+   Avg Time: 32.95s, Avg Tools: 4
+
+
+TASK DIFFICULTY (by success rate)
+--------------------------------------------------------------------------------
+research: 90.91% success, avg 181.36s
+bug-fix: 100.0% success, avg 310.29s
+copywriting: 100.0% success, avg 118.43s
+feature: 100.0% success, avg 148.62s
+refactor: 100.0% success, avg 257.96s
+
+CATEGORY COMPARISON
+--------------------------------------------------------------------------------
+Deepseek: Avg Score 10 (±0), Models: 1
+OpenAI: Avg Score 9.33 (±0.58), Models: 3
+Open/Ollama: Avg Score 9 (±1.0), Models: 3
+Google: Avg Score 8.75 (±0.96), Models: 4
+
+================================================================================

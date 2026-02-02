@@ -1,0 +1,12 @@
+model,category,bug-fix_status,bug-fix_score,bug-fix_duration,bug-fix_tools,copywriting_status,copywriting_score,copywriting_duration,copywriting_tools,feature_status,feature_score,feature_duration,feature_tools,refactor_status,refactor_score,refactor_duration,refactor_tools,research_status,research_score,research_duration,research_tools
+deepseek:deepseek-chat,Deepseek,EXCELLENT,2,378.21,24,EXCELLENT,2,78.35,5,EXCELLENT,2,154.03,13,EXCELLENT,2,750.77,49,EXCELLENT,2,169.89,9
+google-gla:gemini-2.5-flash,Google,EXCELLENT,2,20.7,3,PASS,1,11.63,1,EXCELLENT,2,174.93,24,EXCELLENT,2,28.76,5,PASS,1,18.92,2
+google-gla:gemini-2.5-pro,Google,EXCELLENT,2,378.37,53,PASS,1,23.65,3,EXCELLENT,2,61.61,8,EXCELLENT,2,56.97,9,PASS,1,87.7,6
+google-gla:gemini-3-flash-preview,Google,EXCELLENT,2,625.24,917,EXCELLENT,2,22.02,3,EXCELLENT,2,26.42,5,EXCELLENT,2,65.98,10,PASS,1,36.8,5
+google-gla:gemini-3-pro-preview,Google,EXCELLENT,2,330.56,31,EXCELLENT,2,27.57,2,EXCELLENT,2,63.58,7,EXCELLENT,2,65.02,8,EXCELLENT,2,49.57,4
+ollama:glm-4.7:cloud,Open/Ollama,EXCELLENT,2,601.37,8,EXCELLENT,2,181.33,1,EXCELLENT,2,434.22,5,EXCELLENT,2,234.15,11,EXCELLENT,2,324.38,10
+ollama:kimi-k2.5:cloud,Open/Ollama,EXCELLENT,2,344.68,20,EXCELLENT,2,328.59,2,EXCELLENT,2,35.91,3,EXCELLENT,2,484.81,9,EXECUTION_FAILED,0,34.32,3
+ollama:qwen3-vl:235b-cloud,Open/Ollama,EXCELLENT,2,653.36,3,PASS,1,550.5,3,EXCELLENT,2,560.52,3,EXCELLENT,2,1046.11,12,EXCELLENT,2,849.85,6
+openai:gpt-4o,OpenAI,EXCELLENT,2,26.77,5,PASS,1,14.56,1,EXCELLENT,2,56.43,3,EXCELLENT,2,25.33,4,EXCELLENT,2,41.66,7
+openai:gpt-5.1,OpenAI,EXCELLENT,2,18.76,3,EXCELLENT,2,37.5,1,EXCELLENT,2,35.76,4,EXCELLENT,2,41.51,6,EXCELLENT,2,87.64,5
+openai:gpt-5.2,OpenAI,EXCELLENT,2,35.12,7,PASS,1,27.06,1,EXCELLENT,2,31.41,4,EXCELLENT,2,38.13,6,EXCELLENT,2,294.25,17

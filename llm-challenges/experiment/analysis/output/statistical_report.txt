@@ -1,0 +1,26 @@
+================================================================================
+STATISTICAL ANALYSIS REPORT
+LLM Challenge Experiment
+================================================================================
+
+SUMMARY OF FINDINGS:
+----------------------------------------
+
+1. CHI-SQUARE TEST:
+   Result: NOT SIGNIFICANT
+   Interpretation: Model category does not affect success
+
+2. ANOVA (Completion Times):
+   Result: SIGNIFICANT
+
+3. CORRELATIONS:
+   Tool count vs Score: r = 0.0773
+   Duration vs Score: r = 0.2035
+
+4. EFFECT SIZE:
+   Cohen's d (top vs bottom): -0.1424
+   Interpretation: large effect
+
+================================================================================
+END OF REPORT
+================================================================================
