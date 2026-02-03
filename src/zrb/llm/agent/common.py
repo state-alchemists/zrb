@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import inspect
 from collections.abc import Callable
+from functools import wraps
 from typing import TYPE_CHECKING, Any
 
 from zrb.llm.config.config import llm_config as default_llm_config
@@ -17,6 +19,66 @@ if TYPE_CHECKING:
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.tools import ToolFuncEither
     from pydantic_ai.toolsets import AbstractToolset
+
+
+def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
+    """Wrap a tool with error handling to prevent crashes."""
+    if hasattr(tool, "function"):
+        from pydantic_ai import Tool as PydanticTool
+
+        # It is a Tool instance
+        original_func = tool.function
+        safe_func = _create_safe_wrapper(original_func)
+        if isinstance(tool, PydanticTool):
+            return PydanticTool(
+                safe_func,
+                name=tool.name,
+                description=tool.description,
+                takes_ctx=tool.takes_ctx,
+                max_retries=tool.max_retries,
+                docstring_format=tool.docstring_format,
+                require_parameter_descriptions=tool.require_parameter_descriptions,
+                strict=tool.strict,
+                sequential=tool.sequential,
+                requires_approval=tool.requires_approval,
+                timeout=tool.timeout,
+            )
+        return tool
+    else:
+        # It is a callable
+        return _create_safe_wrapper(tool)
+
+
+def _create_safe_wrapper(func: Callable) -> Callable:
+    """Create a wrapper that catches exceptions and returns error messages."""
+
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        try:
+            if inspect.iscoroutinefunction(func):
+                return await func(*args, **kwargs)
+            return func(*args, **kwargs)
+        except Exception as e:
+            return f"Error executing tool {func.__name__}: {e}"
+
+    return wrapper
+
+
+def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
+    """Wrap a toolset with error handling."""
+    from pydantic_ai import ToolReturn
+    from pydantic_ai.toolsets import WrapperToolset
+
+    class SafeToolsetWrapper(WrapperToolset):
+        async def call_tool(
+            self, tool_name: str, tool_input: Any, ctx: Any
+        ) -> ToolReturn:
+            try:
+                return await super().call_tool(tool_name, tool_input, ctx)
+            except Exception as e:
+                return ToolReturn(f"Error executing tool {tool_name}: {e}")
+
+    return SafeToolsetWrapper(toolset)
 
 
 def create_agent(
@@ -36,10 +98,14 @@ def create_agent(
     # Expand system prompt with references
     effective_system_prompt = expand_prompt(system_prompt)
 
+    # Wrap tools and toolsets with error handling
+    safe_tools = [_wrap_tool(t) for t in tools]
+    safe_toolsets = [_wrap_toolset(t) for t in toolsets]
+
     final_output_type = output_type
-    effective_toolsets = list(toolsets)
-    if tools:
-        effective_toolsets.append(FunctionToolset(tools=tools))
+    effective_toolsets = list(safe_toolsets)
+    if safe_tools:
+        effective_toolsets.append(FunctionToolset(tools=safe_tools))
 
     if yolo is not True:
         final_output_type = output_type | DeferredToolRequests

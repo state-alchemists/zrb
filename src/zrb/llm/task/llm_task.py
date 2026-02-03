@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import inspect
-from collections.abc import Callable
-from functools import wraps
 from typing import TYPE_CHECKING, Any
 
 from zrb.attr.type import BoolAttr, StrAttr, fstring
@@ -212,8 +209,8 @@ class LLMTask(BaseTask):
         agent = create_agent(
             model=self._get_model(ctx),
             system_prompt=self._get_system_prompt(ctx),
-            tools=self._get_safe_tools(),
-            toolsets=self._get_safe_toolsets(),
+            tools=self._tools,
+            toolsets=self._toolsets,
             model_settings=self._get_model_settings(ctx),
             history_processors=self._history_processors,
             yolo=yolo,
@@ -275,62 +272,3 @@ class LLMTask(BaseTask):
         if rendered_model is not None:
             return rendered_model
         return self._llm_config.model
-
-    def _get_safe_tools(self) -> list[Tool | ToolFuncEither]:
-        return [self._wrap_tool(t) for t in self._tools]
-
-    def _wrap_tool(self, tool: Tool | ToolFuncEither) -> Tool | ToolFuncEither:
-        if hasattr(tool, "function"):
-            from pydantic_ai import Tool as PydanticTool
-
-            # It is a Tool instance
-            original_func = tool.function
-            safe_func = self._create_safe_wrapper(original_func)
-            if isinstance(tool, PydanticTool):
-                return PydanticTool(
-                    safe_func,
-                    name=tool.name,
-                    description=tool.description,
-                    takes_ctx=tool.takes_ctx,
-                    max_retries=tool.max_retries,
-                    docstring_format=tool.docstring_format,
-                    require_parameter_descriptions=tool.require_parameter_descriptions,
-                    strict=tool.strict,
-                    sequential=tool.sequential,
-                    requires_approval=tool.requires_approval,
-                    timeout=tool.timeout,
-                )
-            return tool
-        else:
-            # It is a callable
-            return self._create_safe_wrapper(tool)
-
-    def _create_safe_wrapper(self, func: Callable):
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            try:
-                if inspect.iscoroutinefunction(func):
-                    return await func(*args, **kwargs)
-                return func(*args, **kwargs)
-            except Exception as e:
-                return f"Error executing tool {func.__name__}: {e}"
-
-        return wrapper
-
-    def _get_safe_toolsets(self) -> list[AbstractToolset[None]]:
-        return [self._wrap_toolset(t) for t in self._toolsets]
-
-    def _wrap_toolset(self, toolset: AbstractToolset[None]) -> AbstractToolset[None]:
-        from pydantic_ai import ToolReturn
-        from pydantic_ai.toolsets import WrapperToolset
-
-        class SafeToolsetWrapper(WrapperToolset):
-            async def call_tool(
-                self, tool_name: str, tool_input: Any, ctx: Any
-            ) -> ToolReturn:
-                try:
-                    return await super().call_tool(tool_name, tool_input, ctx)
-                except Exception as e:
-                    return ToolReturn(f"Error executing tool {tool_name}: {e}")
-
-        return SafeToolsetWrapper(toolset)
