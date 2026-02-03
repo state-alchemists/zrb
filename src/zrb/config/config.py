@@ -1118,6 +1118,19 @@ class Config:
     def LLM_PROMPT_DIR(self, value: str):
         os.environ[f"{self.ENV_PREFIX}_LLM_PROMPT_DIR"] = value
 
+    @property
+    def LLM_PLUGIN_DIR(self) -> list[str]:
+        plugin_dir_str = get_env("LLM_PLUGIN_DIR", "", self.ENV_PREFIX)
+        if plugin_dir_str != "":
+            return [
+                path.strip() for path in plugin_dir_str.split(":") if path.strip() != ""
+            ]
+        return []
+
+    @LLM_PLUGIN_DIR.setter
+    def LLM_PLUGIN_DIR(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_LLM_PLUGIN_DIR"] = ":".join(value)
+
     def _get_max_threshold(self, factor: float) -> int:
         return get_max_token_threshold(
             factor, self.LLM_MAX_TOKENS_PER_MINUTE, self.LLM_MAX_TOKENS_PER_REQUEST

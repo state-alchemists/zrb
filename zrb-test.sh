@@ -9,6 +9,7 @@ pytest -vv \
     --ignore-glob="**/template/**" \
     --ignore-glob="**/fastapp_template/**" \
     --ignore="playground" \
+    --ignore="llm-challenges" \
     --cov=zrb \
     --cov-config=".coveragerc" \
     --cov-report="html" \

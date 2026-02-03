@@ -5,6 +5,7 @@ from zrb.builtin.group import llm_group
 from zrb.config.config import CFG
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
+from zrb.llm.agent.manager import SubAgentManager
 from zrb.llm.custom_command import get_skill_custom_command
 from zrb.llm.history_processor.summarizer import create_summarizer_history_processor
 from zrb.llm.note.manager import NoteManager
@@ -13,6 +14,7 @@ from zrb.llm.skill.manager import SkillManager
 from zrb.llm.task.llm_chat_task import LLMChatTask
 from zrb.llm.tool.bash import run_shell_command
 from zrb.llm.tool.code import analyze_code
+from zrb.llm.tool.delegate import create_delegate_to_agent_tool
 from zrb.llm.tool.file import (
     analyze_file,
     glob_files,
@@ -40,6 +42,31 @@ from zrb.runner.cli import cli
 
 skill_manager = SkillManager()
 note_manager = NoteManager()
+
+# Define Tool Registry for Sub-Agents
+TOOL_REGISTRY = {
+    "run_shell_command": run_shell_command,
+    "list_files": list_files,
+    "glob_files": glob_files,
+    "read_file": read_file,
+    "read_files": read_files,
+    "write_file": write_file,
+    "write_files": write_files,
+    "replace_in_file": replace_in_file,
+    "search_files": search_files,
+    "analyze_file": analyze_file,
+    "analyze_code": analyze_code,
+    "search_internet": search_internet,
+    "open_web_page": open_web_page,
+}
+
+# Add Note tools to registry
+note_tools_list = create_note_tools(note_manager)
+for tool in note_tools_list:
+    if hasattr(tool, "__name__"):
+        TOOL_REGISTRY[tool.__name__] = tool
+
+sub_agent_manager = SubAgentManager(tool_registry=TOOL_REGISTRY)
 
 llm_chat = LLMChatTask(
     name="chat",
@@ -109,6 +136,7 @@ llm_chat.add_tool_factory(
     lambda ctx: create_list_zrb_task_tool(),
     lambda ctx: create_run_zrb_task_tool(),
     lambda ctx: create_activate_skill_tool(skill_manager),
+    lambda ctx: create_delegate_to_agent_tool(sub_agent_manager),
 )
 llm_chat.add_argument_formatter(
     replace_in_file_formatter, write_file_formatter, write_files_formatter
@@ -149,4 +177,5 @@ llm_chat.add_tool_policy(
     auto_approve("read_long_term_note"),
     auto_approve("read_contextual_note"),
     auto_approve("activate_skill"),
+    auto_approve("delegate_to_agent"),
 )

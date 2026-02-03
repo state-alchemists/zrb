@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any, AsyncIterable, Callable
 
@@ -165,6 +166,30 @@ class LLMChatTask(BaseTask):
         )
         self._llm_config = default_llm_config if llm_config is None else llm_config
         self._llm_limitter = llm_limitter
+
+        # Handle backward compatibility: system_prompt -> prompt_manager
+        if system_prompt is not None:
+            warnings.warn(
+                f"Task '{name}': 'system_prompt' is deprecated, use 'prompt_manager' instead. "
+                "The 'system_prompt' and 'render_system_prompt' parameters will be removed in a future version.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        # Auto-convert system_prompt to prompt_manager if provided and prompt_manager not set
+        if system_prompt is not None and prompt_manager is None:
+            prompt_manager = PromptManager(
+                prompts=[system_prompt] if system_prompt else [],
+                render=render_system_prompt,
+                include_persona=False,
+                include_mandate=False,
+                include_system_context=False,
+                include_note=False,
+                include_claude_skills=False,
+                include_zrb_skills=False,
+                include_project_context=False,
+            )
+
         self._system_prompt = system_prompt
         self._render_system_prompt = render_system_prompt
         self._prompt_manager = prompt_manager

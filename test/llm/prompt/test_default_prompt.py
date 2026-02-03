@@ -8,7 +8,7 @@ from zrb.llm.prompt.prompt import get_default_prompt
 
 @pytest.fixture
 def mock_cfg():
-    with patch("zrb.llm.prompt.default.CFG") as mock:
+    with patch("zrb.llm.prompt.prompt.CFG") as mock:
         mock.LLM_PROMPT_DIR = ".zrb/llm/prompt"
         mock.ENV_PREFIX = "ZRB"
         yield mock
@@ -81,21 +81,21 @@ def test_get_default_prompt_outside_home_no_traversal(mock_cfg, tmp_path):
         assert content == "Other Prompt Content"
 
         # 2. Should NOT find home prompt because other is not under home.
-        # It should fallback to package default, which will raise FileNotFoundError
+        # It should fallback to package default, which returns empty string
         # for 'home_prompt' as it's not a built-in prompt.
-        with pytest.raises(FileNotFoundError):
-            get_default_prompt("home_prompt")
+        content = get_default_prompt("home_prompt")
+        assert content == ""
 
 
 def test_get_default_prompt_fallback_to_package_default(mock_cfg):
-    # Persona is a built-in prompt
+    # Persona is a built-in prompt (raw file contains {ASSISTANT_NAME} placeholder)
     with patch("os.getcwd", return_value="/tmp/empty-dir"), patch(
         "os.path.expanduser", return_value="/home/user"
     ):
 
         content = get_default_prompt("persona")
         assert "You are" in content
-        assert "AI Assistant" in content
+        assert "assistant" in content.lower()
 
 
 def test_get_default_prompt_env_override(mock_cfg, monkeypatch):

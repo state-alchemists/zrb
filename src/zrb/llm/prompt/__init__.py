@@ -3,7 +3,6 @@ from zrb.llm.prompt.manager import PromptManager, PromptMiddleware, new_prompt
 from zrb.llm.prompt.note import create_note_prompt
 from zrb.llm.prompt.prompt import (
     get_default_prompt,
-    get_default_prompt_by_role,
     get_file_extractor_system_prompt,
     get_mandate_prompt,
     get_persona_prompt,
@@ -21,7 +20,6 @@ __all__ = [
     "new_prompt",
     "get_file_extractor_system_prompt",
     "get_default_prompt",
-    "get_default_prompt_by_role",
     "get_mandate_prompt",
     "get_persona_prompt",
     "get_repo_extractor_system_prompt",
