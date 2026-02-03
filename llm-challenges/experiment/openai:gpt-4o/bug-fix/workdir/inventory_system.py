@@ -23,13 +23,17 @@ class Inventory:
                 return False
 
 
+def create_random_purchases(inventory, num_users, max_items):
+    return [
+        inventory.purchase(i, random.randint(1, max_items)) for i in range(num_users)
+    ]
+
+
 async def main():
     inventory = Inventory()
 
-    # 5 users trying to buy 3 items each.
-    # Total demand = 15, Stock = 10.
-    # Should result in negative stock if not handled correctly.
-    tasks = [inventory.purchase(i, 3) for i in range(5)]
+    # Increased load: 20 users trying to buy up to 3 items each.
+    tasks = create_random_purchases(inventory, 20, 3)
 
     await asyncio.gather(*tasks)
 

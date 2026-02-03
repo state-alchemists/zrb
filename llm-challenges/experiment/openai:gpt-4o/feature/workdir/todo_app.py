@@ -7,10 +7,13 @@ from pydantic import BaseModel
 app = FastAPI()
 
 
-class TodoItem(BaseModel):
-    id: int
+class TodoItemBase(BaseModel):
     title: str
     completed: bool = False
+
+
+class TodoItem(TodoItemBase):
+    id: int
 
 
 # In-memory database
@@ -26,33 +29,28 @@ async def get_todos():
 
 
 @app.post("/todos", response_model=TodoItem, status_code=201)
-async def create_todo(todo: TodoItem):
-    # Auto-increment ID
-    new_id = max((item.id for item in db), default=0) + 1
-    new_todo = TodoItem(id=new_id, title=todo.title, completed=todo.completed)
-    db.append(new_todo)
-    return new_todo
+async def create_todo(item: TodoItemBase):
+    new_id = db[-1].id + 1 if db else 1
+    new_item = TodoItem(id=new_id, **item.dict())
+    db.append(new_item)
+    return new_item
 
 
 @app.put("/todos/{item_id}", response_model=TodoItem)
-async def update_todo(item_id: int, todo: TodoItem):
-    for idx, existing_todo in enumerate(db):
-        if existing_todo.id == item_id:
-            updated_todo = TodoItem(
-                id=item_id, title=todo.title, completed=todo.completed
-            )
-            db[idx] = updated_todo
-            return updated_todo
-    raise HTTPException(status_code=404, detail="Todo not found")
+async def update_todo(item_id: int, item: TodoItemBase):
+    for db_item in db:
+        if db_item.id == item_id:
+            db_item.title = item.title
+            db_item.completed = item.completed
+            return db_item
+    raise HTTPException(status_code=404, detail="Item not found")
 
 
 @app.delete("/todos/{item_id}", status_code=204)
 async def delete_todo(item_id: int):
-    for idx, existing_todo in enumerate(db):
-        if existing_todo.id == item_id:
-            db.pop(idx)
-            return
-    raise HTTPException(status_code=404, detail="Todo not found")
+    global db
+    db = [item for item in db if item.id != item_id]
+    return
 
 
 if __name__ == "__main__":

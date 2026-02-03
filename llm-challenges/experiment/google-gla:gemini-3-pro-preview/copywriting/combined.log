@@ -1,43 +1,73 @@
 [2m
-  🧰 pyd_ai_355414fdaa1849639c16369ab0759225 | write_file {'path': 'launch_post.md', 'content': '# Introducing Zrb-Flow: Th ...'}[0m[2m
-  🔠 pyd_ai_355414fdaa1849639c16369ab0759225 | Return Successfully wrote to launch_post.md[0m[2m
-  🧰 pyd_ai_bff7f86f42eb40b4a6d4349b24406cb5 | run_shell_command {'command': 'ls -l launch_post.md'}[0m  [2m-rw-r--r--@ 1 gofrendigunawan  staff  2013  1 Feb 19:36 launch_post.md
-[0m[2m
-  🔠 pyd_ai_bff7f86f42eb40b4a6d4349b24406cb5 | Return Command: ls -l launch_post.md
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla:gemini-3-pro-preview/copywriting/workdir
-     Stdout:
-     -rw-r--r--@ 1 gofrendigunawan  staff  2013  1 Feb 19:36 launch_post.md
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)[0m[2m
-  🧠 I have drafted the launch announcement for[0m[2m **Zrb-Flow** and saved it to `launch_post.md`.
+  🧰 pyd_ai_82513a16e49642389d5a591d1f40631b | write_file {'path': 'launch_post.md', 'content': '# 🚀 Introducing Zrb-Flow:  ...'}[0m[2m
+  🔠 pyd_ai_82513a16e49642389d5a591d1f40631b | Return Successfully wrote to launch_post.md[0m[2m
+  🧰 pyd_ai_53087e0d80264346bbb7316dcd4382c3 | read_file {'path': 'launch_post.md'}[0m[2m
+  🔠 pyd_ai_53087e0d80264346bbb7316dcd4382c3 | Return # 🚀 Introducing Zrb-Flow: The Self-Healing Automation Engine for CLI Natives
      
-     It includes:
-     *   An[0m[2m exciting, tech-focused intro.
-     *   Highlights on Docker and K8s integration.
-     *   A dedicated[0m[2m section for the **Self-Healing Pipelines** feature.
-     *   A clear call-to-action to install the[0m[2m tool.
+     We are thrilled to announce the launch of **Zrb-Flow**, the next-generation AI automation tool designed specifically for engineers who live in the terminal.
      
-     You can verify the content with:
+     Stop context-switching between your IDE, your cluster dashboard, and ChatGPT. Zrb-Flow brings intelligent orchestration directly to your command line, deeply integrated with the tools you already use.
+     
+     ## Why Zrb-Flow?
+     
+     Automation should be robust, not fragile. Zrb-Flow isn't just another task runner; it's an intelligent agent that understands your infrastructure.
+     
+     ### 🧠 Self-Healing Pipelines
+     This is the game-changer. We've all been there: a nightly build fails because of a minor syntax error or a transient dependency issue.
+     
+     With Zrb-Flow's **Self-Healing Mode**, the system doesn't just crash and send you an email. It captures the error, analyzes the stack trace using advanced LLMs, applies a fix to the script, and **automatically retries**. It fixes broken scripts while you sleep.
+     
+     ### 🐋 Deep Docker & Kubernetes Integration
+     Zrb-Flow doesn't sit on top of your infrastructure; it hooks directly into it.
+     *   **Smart Context:** It reads your `Dockerfile` and K8s manifests to understand your architecture.
+     *   **Live Debugging:** Pipe logs directly into the AI for instant root-cause analysis on crashing pods.
+     *   **Seamless orchestration:** Spin up dev environments that match production parity with a single command.
+     
+     ### ⚡ Built for the CLI
+     No drag-and-drop interfaces. No web wizards. Just pure, unadulterated CLI power. Define workflows in Python or YAML, and control everything from your shell.
+     
+     ## Get Started
+     
+     Ready to upgrade your workflow? Zrb-Flow is available today.
+     
      ```bash
-     cat launch_post.md
-     ```[0m[2m[0m[2m
-  [2m💸 (Requests: 3 | Tool Calls: 2 | Total: 25357) Input: 23935 | Audio Input: 0 | Output: 1422 | Audio Output: 0 | Cache Read: 8072 | Cache Write: 0 | Details: {'thoughts_tokens': 789, 'text_prompt_tokens': 23935, 'cached_content_tokens': 8072, 'text_cache_tokens': 8072}[0m
+     pip install zrb-flow
+     zrb-flow init
+     ```
+     
+     Welcome to the future of intelligent engineering.
+     [0m[2m
+  🧠 I've drafted the launch announcement for **Zrb-Flow**[0m[2m! It highlights the "Self-Healing Pipelines" feature and the deep Docker/K8s integration with an energetic, engineering[0m[2m-focused tone.
+     
+     **File created:** `launch_post.md`
+     
+     ### Preview:
+     
+     > **🚀[0m[2m Introducing Zrb-Flow: The Self-Healing Automation Engine for CLI Natives**
+     >
+     > ...With Zrb[0m[2m-Flow's **Self-Healing Mode**, the system doesn't just crash and send you an email. It[0m[2m captures the error, analyzes the stack trace using advanced LLMs, applies a fix to the script, and **automatically ret[0m[2mries**.
+     >
+     > **Get Started:**
+     > ```bash
+     > pip install zrb-flow
+     > ```[0m[2m[0m[2m
+  [2m💸 (Requests: 3 | Tool Calls: 2 | Total: 30508) Input: 29102 | Audio Input: 0 | Output: 1406 | Audio Output: 0 | Cache Read: 16184 | Cache Write: 0 | Details: {'thoughts_tokens': 783, 'text_prompt_tokens': 29102, 'cached_content_tokens': 16184, 'text_cache_tokens': 16184}[0m
      [0m[2mTo run again:[0m [1;33mzrb chat --message "I need a launch announcement blog post for our new tool, **Zrb-Flow**. 
 
 It's basically an AI automation thing for CLI users that hooks into Docker and K8s. One cool feature is \"Self-Healing Pipelines\" where it fixes broken scripts.
 
 Keep it exciting and tech-savvy. Don't forget to tell people to install it at the end. Save it as `launch_post.md`." --model google-gla:gemini-3-pro-preview --session "" --yolo true --attach "" --interactive false[0m
-I have drafted the launch announcement for **Zrb-Flow** and saved it to `launch_post.md`.
+I've drafted the launch announcement for **Zrb-Flow**! It highlights the "Self-Healing Pipelines" feature and the deep Docker/K8s integration with an energetic, engineering-focused tone.
 
-It includes:
-*   An exciting, tech-focused intro.
-*   Highlights on Docker and K8s integration.
-*   A dedicated section for the **Self-Healing Pipelines** feature.
-*   A clear call-to-action to install the tool.
+**File created:** `launch_post.md`
 
-You can verify the content with:
-```bash
-cat launch_post.md
-```
+### Preview:
+
+> **🚀 Introducing Zrb-Flow: The Self-Healing Automation Engine for CLI Natives**
+>
+> ...With Zrb-Flow's **Self-Healing Mode**, the system doesn't just crash and send you an email. It captures the error, analyzes the stack trace using advanced LLMs, applies a fix to the script, and **automatically retries**.
+>
+> **Get Started:**
+> ```bash
+> pip install zrb-flow
+> ```

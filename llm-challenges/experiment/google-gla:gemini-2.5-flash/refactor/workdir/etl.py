@@ -1,83 +1,148 @@
+import datetime
 import os
 import re
-from typing import Any, Dict, Iterator
-
-from config import DB_HOST, DB_USER, LOG_FILE
-
-# Regex patterns
-ERROR_PATTERN = re.compile(
-    r"(?P<date>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) ERROR (?P<msg>.*)"
-)
-USER_ACTION_PATTERN = re.compile(
-    r"(?P<date>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) INFO User (?P<user_id>\w+) logged in"
-)
+from typing import Any, Dict, List, Optional
 
 
-def extract_data(log_file_path: str) -> Iterator[Dict[str, Any]]:
-    """Extracts data from the log file using regex patterns."""
-    if not os.path.exists(log_file_path):
-        return
-
-    with open(log_file_path, "r") as f:
-        for line in f:
-            error_match = ERROR_PATTERN.match(line)
-            if error_match:
-                yield {
-                    "date": error_match.group("date"),
-                    "type": "ERROR",
-                    "msg": error_match.group("msg").strip(),
-                }
-                continue
-
-            user_action_match = USER_ACTION_PATTERN.match(line)
-            if user_action_match:
-                yield {
-                    "date": user_action_match.group("date"),
-                    "type": "USER_ACTION",
-                    "user": user_action_match.group("user_id"),
-                }
-                continue
+# Configuration Class
+class Config:
+    LOG_FILE: str = "server.log"
+    REPORT_FILE: str = "report.html"
+    DB_HOST: str = "localhost"
+    DB_USER: str = "admin"
 
 
-def transform_data(extracted_items: Iterator[Dict[str, Any]]) -> Dict[str, int]:
-    """Transforms extracted log data into a report of error counts."""
-    report: Dict[str, int] = {}
-    for item in extracted_items:
+# Data Structures
+LogEntry = Dict[str, Any]
+ReportData = Dict[str, int]
+
+
+# --- Extract ---
+def extract_logs(log_file: str) -> List[str]:
+    """
+    Extracts raw log lines from the specified log file.
+    """
+    if not os.path.exists(log_file):
+        print(f"Log file not found: {log_file}")
+        return []
+    with open(log_file, "r") as f:
+        return f.readlines()
+
+
+# --- Transform ---
+def parse_log_line(line: str) -> Optional[LogEntry]:
+    """
+    Parses a single log line using regex and returns a structured dictionary.
+    """
+    stripped_line = line.strip()
+    # Regex to capture date, time, log_type, and message.
+    # It also handles optional user ID for INFO messages.
+    # Example: "2023-10-01 10:00:00 INFO User 123 logged in"
+    # Example: "2023-10-01 10:05:00 ERROR Connection failed"
+    match = re.match(
+        r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) (INFO|ERROR) (.+)$", stripped_line
+    )
+    if not match:
+        return None
+
+    date_str, log_type, message = match.groups()
+    entry: LogEntry = {"date": date_str, "type": log_type}
+
+    if log_type == "ERROR":
+        entry["msg"] = message.strip()
+    elif log_type == "INFO":
+        user_match = re.search(r"User (\d+)", message)
+        if user_match:
+            entry["type"] = "USER_ACTION"
+            entry["user"] = user_match.group(1)
+            entry["msg"] = message.strip()
+        else:
+            entry["msg"] = message.strip()  # Store info message if not a user action
+
+    return entry
+
+
+def transform_data(raw_logs: List[str]) -> ReportData:
+    """
+    Transforms raw log lines into a reportable data structure.
+    """
+    parsed_data: List[LogEntry] = []
+    for line in raw_logs:
+        entry = parse_log_line(line)
+        if entry:
+            parsed_data.append(entry)
+
+    report: ReportData = {}
+    for item in parsed_data:
         if item["type"] == "ERROR":
-            msg = item["msg"]
-            report[msg] = report.get(msg, 0) + 1
+            error_msg = item.get("msg", "Unknown Error")
+            report[error_msg] = report.get(error_msg, 0) + 1
+        elif item["type"] == "USER_ACTION":
+            # For user actions, we might count unique users or track activity,
+            # but for now, we'll stick to the original script's output (only error counts)
+            pass
+
     return report
 
 
-def load_report(report_data: Dict[str, int], output_file: str = "report.html") -> None:
-    """Loads the transformed data into an HTML report file."""
-    # Simulate database connection (from original script)
-    print(f"Connecting to {DB_HOST} as {DB_USER}...")
-
-    html_content = "<html><body><h1>Report</h1><ul>"
+# --- Load ---
+def generate_report_html(report_data: ReportData) -> str:
+    """
+    Generates the HTML content for the report.
+    """
+    html = "<html><body><h1>Report</h1><ul>"
     for k, v in report_data.items():
-        html_content += f"<li>{k}: {v}</li>"
-    html_content += "</ul></body></html>"
+        html += f"<li>{k}: {v}</li>"
+    html += "</ul></body></html>"
+    return html
 
-    with open(output_file, "w") as f:
+
+def load_report(html_content: str, report_file: str):
+    """
+    Writes the HTML content to the specified report file.
+    """
+    with open(report_file, "w") as f:
         f.write(html_content)
-    print(f"Report generated: {output_file}")
+    print(f"Report generated: {report_file}")
+
+
+def simulate_db_connection(config: Config):
+    """
+    Simulates a database connection.
+    """
+    print(f"Connecting to {config.DB_HOST} as {config.DB_USER}...")
 
 
 def main():
-    # Create dummy log file if not exists for testing (moved from original __main__)
-    if not os.path.exists(LOG_FILE):
-        with open(LOG_FILE, "w") as f:
-            f.write("2023-10-01 10:00:00 INFO User 123 logged in\n")
-            f.write("2023-10-01 10:05:00 ERROR Connection failed\n")
-            f.write("2023-10-01 10:10:00 ERROR Connection failed\n")
-            f.write("2023-10-01 10:15:00 INFO User 456 logged in\n")
-            f.write("2023-10-01 10:20:00 ERROR Authentication error\n")
+    config = Config()
 
-    extracted_items = extract_data(LOG_FILE)
-    transformed_report = transform_data(extracted_items)
-    load_report(transformed_report)
-    print("Done.")
+    # Always create dummy log file for testing
+    with open(config.LOG_FILE, "w") as f:
+        log_content = (
+            "2023-10-01 10:00:00 INFO User 123 logged in\n"
+            "2023-10-01 10:05:00 ERROR Connection failed\n"
+            "2023-10-01 10:10:00 ERROR Connection failed\n"
+            "2023-10-01 10:15:00 INFO Another info message\n"
+            "2023-10-01 10:20:00 ERROR Database connection timed out\n"
+        )
+        f.write(log_content)
+
+    print("Starting ETL process...")
+
+    # Extract
+    raw_logs = extract_logs(config.LOG_FILE)
+
+    # Simulate DB connection (as it was in the original script before transformation)
+    simulate_db_connection(config)
+
+    # Transform
+    report_data = transform_data(raw_logs)
+
+    # Load
+    html_content = generate_report_html(report_data)
+    load_report(html_content, config.REPORT_FILE)
+
+    print("ETL process finished.")
 
 
 if __name__ == "__main__":

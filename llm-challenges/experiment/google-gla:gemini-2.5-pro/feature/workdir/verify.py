@@ -44,7 +44,7 @@ def verify_feature():
             # Run uvicorn
             import uvicorn
 
-            uvicorn.run(module.app, host="127.0.0.1", port=8001, log_level="error")
+            uvicorn.run(module.app, host="localhost", port=8001, log_level="error")
         except Exception as e:
             print(f"Server error: {e}")
             server_error = True
@@ -61,7 +61,7 @@ def verify_feature():
         return False
 
     # Test endpoints
-    base_url = "http://127.0.0.1:8001"
+    base_url = "http://localhost:8001"
     checks = []
 
     happy_path_score = 0

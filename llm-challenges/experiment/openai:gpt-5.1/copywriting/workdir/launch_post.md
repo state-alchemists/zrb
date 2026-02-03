@@ -1,192 +1,137 @@
-# Introducing Zrb-Flow: AI-Native Automation for Developers Who Live in the CLI
+# Introducing Zrb-Flow: AI-Native Automation for People Who Actually Live in the CLI
 
-If you spend your days in a terminal, juggling Docker builds, Kubernetes deploys, and a growing pile of brittle scripts, this one’s for you.
+If you spend your days hopping between `kubectl`, `docker`, and bash scripts, you already know the truth: automation is amazing—until it quietly breaks at 2 a.m. and nobody notices.
 
-Today we’re launching **Zrb-Flow** – an AI-native automation layer for CLI-first engineers. It plugs directly into your existing workflows, speaks Docker and Kubernetes fluently, and turns your ad‑hoc shell scripts into something that actually *wants* to keep working.
+**Zrb-Flow** is here to change that.
 
-Think of it as: **`make`, but intelligent**. Or **GitHub Actions, but local, fast, and under your control**.
+Zrb-Flow is a new AI-native automation engine built for developers, SREs, and DevOps engineers who prefer a prompt over a GUI. It plugs directly into your existing CLI workflows, Docker setup, and Kubernetes clusters, and then does something different:
+
+> **It doesn’t just run your pipelines. It fixes them.**
 
 ---
 
 ## Why We Built Zrb-Flow
 
-Modern infra stacks are powerful—but also incredibly noisy:
+Most automation tools are great at one thing: executing exactly what you told them to do.
 
-- You’ve got **Docker images** to build, tag, and push.
-- **Kubernetes manifests** to apply, roll back, and debug.
-- A pile of **bash/Python scripts** that only two people on the team really understand.
-- CI pipelines that fail for reasons no one has time to chase.
+That’s also their biggest weakness.
 
-Most automation tools help you *run* this complexity. **Zrb-Flow helps you *tame* it.**
+* A script changes, but your CI config doesn’t.
+* A Docker image tag is updated, but your deploy script still points to `latest`.
+* A Kubernetes resource gets renamed, and suddenly your rollout job is red for reasons nobody has time to debug.
 
-We wanted a tool that:
+Traditional automation will happily fail and dump a stack trace in your lap.
 
-- Lives in the **CLI**, not hidden behind a web UI.
-- Plays nicely with **Docker** and **K8s** instead of reinventing them.
-- Uses **AI to repair** broken bits of automation instead of just printing stack traces.
-
-That’s Zrb-Flow.
+Zrb-Flow is built on a different assumption: **your automation should be smart enough to fix itself.**
 
 ---
 
-## What Is Zrb-Flow?
+## Meet Self-Healing Pipelines
 
-At its core, **Zrb-Flow** is an AI-augmented automation runner for terminal-native workflows.
+The headline feature of Zrb-Flow is what we call **Self-Healing Pipelines**.
 
-- Define tasks as **simple commands or Python functions**.
-- Chain them into **flows** that build, test, deploy, and validate your services.
-- Let the built‑in **AI engine observe failures** and suggest (or apply) fixes.
+Here’s what that actually means in practice:
 
-It’s designed for developers who:
+- **Understands your scripts** – Zrb-Flow doesn’t treat your shell commands as opaque strings. It parses, analyzes, and reasons about them.
+- **Detects breakages in real time** – When a step fails, Zrb-Flow inspects the error, the surrounding context, and your environment (Docker, K8s, env vars, etc.).
+- **Proposes a fix—and can apply it automatically** – Zrb-Flow can rewrite scripts, tweak flags, update image tags, or adjust manifests, then re-run the step.
+- **Learns from your stack** – The more it sees your patterns, naming, and infra, the better its suggestions become.
 
-- Prefer `vim` over browser UIs.
-- Already know Docker and Kubernetes.
-- Want automation that’s **transparent, inspectable, and hackable**.
+Imagine your deployment job fails because the Docker image changed from `backend:1.2.0` to `backend:1.3.0` but your script still tags `1.2.0`. Instead of paging you, Zrb-Flow can:
 
----
+1. Notice the mismatch.
+2. Check your registry for the latest valid tag.
+3. Patch the script or command.
+4. Retry the pipeline.
 
-## Key Capabilities
-
-### 1. Deep Docker & Kubernetes Integration
-
-Zrb-Flow doesn’t pretend Docker and K8s don’t exist. It leans into them:
-
-- **Docker-aware tasks** for building, tagging, and publishing images.
-- Integrated **Kubernetes deploy flows** that can apply manifests, wait for readiness, and roll back on failure.
-- Easy hooks to run **pre- and post-deploy checks** (migrations, smoke tests, health checks, etc.).
-
-Instead of sprinkling `kubectl` and `docker` commands across random scripts, you define them as **first-class tasks** with clear inputs, outputs, and dependencies.
-
-### 2. Self-Healing Pipelines
-
-This is the fun part.
-
-Zrb-Flow ships with **Self-Healing Pipelines**: when a task fails, the AI engine inspects the logs, the command, and the surrounding context to:
-
-1. **Identify what broke** (a changed CLI flag, a renamed env var, a missing dependency, etc.).
-2. **Propose a concrete fix** – e.g. updating a flag, adjusting a script, adding a missing step.
-3. Optionally **apply the fix automatically** (with your approval).
-
-Typical scenarios where this shines:
-
-- Your Docker CLI changes a default behavior and your build script quietly dies.
-- A Kubernetes manifest moves or a label changes and your rollout task stops matching pods.
-- Someone “just tweaks” a script in `scripts/` and half your pipeline goes red.
-
-Instead of spending an afternoon diffing shell history and CI logs, Zrb-Flow says:
-
-> “This step failed because `kubectl rollout status` is targeting the wrong deployment name. Here’s the fix. Apply? (y/N)”
-
-You’re still in control—but now you’ve got an assistant who can read logs at machine speed.
-
-### 3. CLI-First, Code-First
-
-Zrb-Flow is built around two simple ideas:
-
-- **Everything is a task** – build, test, deploy, cleanup, migrations, checks.
-- **Tasks are code** – version-controlled, reviewable, and reusable.
-
-No YAML labyrinth required. You define flows in Python or simple config files, and run them via:
-
-```bash
-zrb flow deploy
-```
-
-or trigger individual steps:
-
-```bash
-zrb task docker-build
-zrb task k8s-apply
-```
-
-The result is automation that is:
-
-- **Discoverable** – `zrb list` shows you what exists.
-- **Composable** – chain tasks, reuse them across projects.
-- **Portable** – runs on your laptop, your CI runner, or inside a container.
-
-### 4. Designed for Real Teams
-
-Zrb-Flow is intentionally opinionated about collaboration:
-
-- **Named flows** (`build`, `deploy`, `rollback`, `smoke-test`) that everyone can recognize.
-- **Explicit inputs and env vars**, so onboarding doesn’t mean reading 800 lines of bash.
-- **Consistent logging and output**, so your CI logs are actually readable.
-
-New team members don’t need to reverse‑engineer your scripts. They can inspect the flows, run them locally, and let the AI explain failures in plain language.
+All while you’re still in a meeting.
 
 ---
 
-## What Can You Automate with Zrb-Flow?
+## Built for the CLI First
 
-A few concrete examples:
+Zrb-Flow is not another web dashboard you’ll forget to open.
 
-- **Container builds**
-  - Build, tag, and push images.
-  - Run test suites inside containers.
-  - Automatically bump versions or labels.
+It’s designed for **terminal-native** developers who:
 
-- **Kubernetes deployments**
-  - Apply manifests and wait for readiness.
-  - Run post-deploy smoke tests against services.
-  - Roll back if health checks fail.
+- Live in `bash`, `zsh`, or `fish`.
+- Pipe everything.
+- Alias everything.
+- Prefer `grep` over a search box.
 
-- **Environment setup**
-  - Spin up local dev stacks using Docker Compose and K8s.
-  - Initialize databases, seed data, and run migrations.
+You can:
 
-- **Maintenance & ops**
-  - Scheduled cleanups, cache purges, log rotations.
-  - Health checks and simple SLO/SLA verifications.
+- Trigger flows from your CLI, CI, or git hooks.
+- Inspect what Zrb-Flow is about to do before it does it.
+- Keep full control while gaining a powerful AI copilot for your automation.
 
-If it starts with a CLI command, it probably fits.
+If you like tools that stay out of your way but make you feel 10x more powerful, you’ll feel at home.
 
 ---
 
-## Who Is Zrb-Flow For?
+## Docker- and Kubernetes-Native
 
-Zrb-Flow will feel natural if you are:
+Zrb-Flow plugs directly into the container and cluster tooling you already use.
 
-- A **DevOps / platform engineer** maintaining homegrown scripts and CI pipelines.
-- A **backend or infra engineer** who prefers typing commands over clicking around.
-- A **tech lead** trying to make your team’s automation less fragile and more transparent.
+### Docker Integration
 
-If you’ve ever said “it’s just a bash script” and regretted it six months later, this is aimed squarely at you.
+- Build, tag, and push images as part of your flows.
+- Automatically fix broken Docker commands (e.g., outdated tags, missing build args).
+- Coordinate multi-service builds without writing pages of bash.
 
----
+### Kubernetes Integration
 
-## Getting Started
+- Run deployment, migration, and maintenance jobs as first-class pipeline steps.
+- Automatically adapt when manifests, namespaces, or resource names evolve.
+- Surface meaningful context when something in the cluster doesn’t match what your scripts expect.
 
-Ready to try it?
-
-1. **Install Zrb-Flow** (assuming you have Python and pip installed):
-
-   ```bash
-   pip install zrb-flow
-   ```
-
-2. **Initialize a new flow in your repo**:
-
-   ```bash
-   zrb init
-   ```
-
-3. **Define a couple of tasks** (e.g., `docker-build`, `k8s-deploy`) and chain them into a `deploy` flow.
-
-4. **Break something on purpose** and watch the **Self-Healing Pipelines** kick in with suggestions.
+No magic black boxes—just smarter automation sitting on top of the tools you already trust.
 
 ---
 
-## Try It, Break It, Tell Us What Hurts
+## What You Can Do with Zrb-Flow
 
-Zrb-Flow is built for real-world messiness, and we fully expect you to push it into weird corners.
+Some examples of where Zrb-Flow shines:
 
-Install it, wire it into a Docker/K8s workflow you care about, and see how it behaves when things go sideways.
+- **Deployment Pipelines** – From Docker build to Kubernetes rollout, with self-healing on flaky or drift-prone steps.
+- **Operational Runbooks** – Turn your incident docs and shell snippets into executable, self-correcting flows.
+- **Environment Bootstrapping** – Spin up consistent dev/test environments, and let Zrb-Flow adapt when dependencies or images change.
+- **Data & Batch Jobs** – Chain CLI-driven jobs together and let the system recover when a single command goes sideways.
 
-👉 **Install Zrb-Flow now:**
+If it runs in a terminal, there’s a good chance Zrb-Flow can orchestrate it—and keep it healthy.
+
+---
+
+## Transparent, Inspectable, and Under Your Control
+
+We know how dangerous it would be to let an AI randomly rewrite your scripts without oversight.
+
+That’s why Zrb-Flow is designed to be:
+
+- **Explainable** – See exactly what changed, why it changed, and what will run next.
+- **Configurable** – Choose between “suggest-only” and “auto-heal” modes per pipeline.
+- **Auditable** – Log every attempted fix, including diffs and commands.
+
+You stay in charge. Zrb-Flow just takes over the tedious debugging and boilerplate fixes.
+
+---
+
+## Ready to Try It?
+
+If your current automation stack feels brittle, noisy, or too dependent on tribal knowledge, Zrb-Flow is built for you.
+
+Spin up smarter, self-healing automation today:
 
 ```bash
 pip install zrb-flow
 ```
 
-Then jump back into your terminal and let your automation start fixing *itself*.
+Or, if you prefer Docker-first workflows:
+
+```bash
+docker run --rm -it ghcr.io/your-org/zrb-flow:latest
+```
+
+Then open your terminal, wire Zrb-Flow into your favorite scripts, and let your pipelines start fixing themselves.
+
+**Install Zrb-Flow now and turn your CLI automation into a self-healing system instead of a house of cards.**

@@ -66,7 +66,12 @@ for tool in note_tools_list:
     if hasattr(tool, "__name__"):
         TOOL_REGISTRY[tool.__name__] = tool
 
-sub_agent_manager = SubAgentManager(tool_registry=TOOL_REGISTRY)
+# Prevent subagent from calling other subagent
+sub_agent_tool_registry = TOOL_REGISTRY.copy()
+if "delegate_to_agent" in sub_agent_tool_registry:
+    del sub_agent_tool_registry["delegate_to_agent"]
+
+sub_agent_manager = SubAgentManager(tool_registry=sub_agent_tool_registry)
 
 llm_chat = LLMChatTask(
     name="chat",

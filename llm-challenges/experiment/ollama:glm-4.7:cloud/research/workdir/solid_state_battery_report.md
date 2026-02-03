@@ -1,325 +1,223 @@
-# Solid State Battery Status Report: Late 2024/2025
+# Solid State Batteries Status Report: Late 2024/2025
 
 ## Executive Summary
 
-Solid-state batteries (SSBs) represent the next major leap in energy storage technology for electric vehicles and consumer electronics. As of late 2024/2025, the technology has moved beyond laboratory prototypes into road-testing phases, with the first commercial vehicles expected in the 2026-2030 timeframe. However, significant technical and manufacturing challenges remain before widespread adoption becomes economically viable.
+Solid-state batteries (SSBs) represent the next major evolution in electric vehicle battery technology. After over a decade of promises and near-commercial breakthroughs, late 2024/2025 has seen significant progress with actual vehicles hitting the roads for testing. However, full mass market adoption remains several years away due to significant technical and manufacturing challenges.
 
 ---
 
-## 1. When Are They Actually Hitting the Car Market?
+## 1. Market Availability Timeline
 
-### Semi-Solid-State Batteries (Already on the Road in China)
+### Current Status: Prototypes and Testing Phase
 
-**China is leading in semi-solid-state battery deployment, with vehicles already available to consumers:**
+**Real-World Testing (Late 2024 / Early 2025)**
 
-- **Nio ET7/ET5 (Late 2023):** Already available in China with semi-solid-state batteries from WeLion New Energy Technology. The 150 kWh pack delivers a claimed 648+ mile range. Available through battery swapping rather than direct ownership.
+Several major automakers have successfully integrated solid-state batteries into production vehicles for testing:
 
-- **IM Motors L6 (2025):** Available with 133 kWh semi-solid-state pack from QingTao Power Technology, offering 620+ miles of range. 900-volt architecture enables adding 248 miles of range in just 12 minutes.
+1. **Mercedes-Benz & Factorial Energy** (February 2025): Successfully installed a lithium-metal solid-state battery in a Mercedes-Benz EQS. The prototype achieved a remarkable **620-mile range** — a 25% improvement over the conventional EQS's ~500-mile range using the same battery size. Road testing began in early 2025.
 
-- **MG4 (2025):** First affordable mass-market EV with semi-solid-state batteries, priced between $10,100-$14,400. Uses only 5% liquid electrolyte.
+2. **BMW & Solid Power** (Early 2025): A BMW i7 test vehicle equipped with sulfide-based solid electrolyte cells took to the roads. The partnership focuses on investigating battery cell expansion and temperature control.
 
-- **Voyah Passion (2023):** Launched in China with 82 kWh semi-solid-state battery offering 360 miles CLTC range.
+3. **Stellantis & Factorial Energy**: Validated solid-state batteries with **375 Wh/kg energy density** and charging from 15% to 90% in approximately **18 minutes** at room temperature. Performance validated from -22°F to 113°F.
 
-- **Dongfeng Fengshen E70:** Testing since 2022 with semi-solid-state batteries from Ganfeng Lithium; commercial production planned for 2026.
+4. **Ducati & Volkswagen** (September 2025): Unveiled a solid-state battery in a prototype Ducati V21L race bike at IAA Mobility 2025, marking one of the first motorcycle applications.
 
-### All-Solid-State Batteries (Testing Phase)
+### Mass Production Timeline Estimates
 
-**True all-solid-state batteries are now in road-testing phases:**
+| Company | Target Mass Production | Notes |
+|---------|----------------------|-------|
+| **Toyota** | 2027-2028 | Recently partnered with Sumitomo Metal Mining for production. Claims 10-minute charging and 20% range increase. |
+| **Nissan** | 2028 | Planning to launch ASSB-powered EVs; prototype facility already operational in Kanagawa Prefecture. |
+| **Mercedes-Benz** | Late 2020s | Ongoing road testing with Factorial Energy. |
+| **Honda** | 2025 (Production Starts) | Plans to begin production January 2025. |
+| **Changan Automobile (China)** | 2025 (gradual mass production) | Full popularization targeted for 2030. |
+| **Hyundai** | Late 2020s | Recent patent breakthroughs on copper anode technology. |
+| **General Motors & Ford** | Late 2020s/Early 2030s | Testing phase; no specific dates confirmed. |
 
-- **Mercedes-Benz EQS (Prototype):** At the end of 2024, Mercedes successfully installed a lithium-metal solid-state battery in an EQS and began laboratory testing. Road tests scheduled for the beginning of 2025. The prototype delivers 25% more range (620 miles) than the standard EQS with same battery size.
+### Market Reality Check
 
-- **BMW i7 (Prototype):** Testing all-solid-state cells from Solid Power in Munich since summer 2025. Using prismatic cells with sulfide-based solid electrolyte. BMW plans to license technology for pilot production line in Germany.
-
-- **Dodge Charger Daytona EV (Demo Fleet):** Stellantis plans to test semi-solid-state batteries with 375 Wh/kg energy density on a demo fleet next year.
-
-### Production Vehicle Timeline by Automaker
-
-| Automaker | Timeline | Type | Notes |
-|-----------|----------|------|-------|
-| Toyota | 2027-2028 | All-solid-state | First mass production; 620+ mile range; 10-minute fast charging |
-| Honda | Second half of 2020s | All-solid-state | Pilot production line in Japan; 620+ mile range potential |
-| Nissan | By end of 2028 | All-solid-state | Sulfur-based electrolyte; aims to eliminate cobalt |
-| Hyundai-Kia | After 2030 | All-solid-state | Cautious timeline citing improving lithium-ion technology |
-| BYD | Demos 2027, Production after 2030 | All-solid-state | Currently denying deployment in existing models |
-| ProLogium | 2030 | All-solid-state | Gigafactory in Dunkirk, France opens 2028; B-sample by end of 2027 |
-| Verge Motorcycles | Q1 2026 | All-solid-state | Uses Donut Labs batteries; 370+ mile range; 400 Wh/kg |
-
-### Industry Predictions
-
-- BloombergNEF projects solid-state batteries to account for only 10% of global EV and battery storage demand by 2035
-- Initial rollout will be concentrated in premium and performance vehicles
-- 83% of current or planned solid-state battery manufacturing capacity is in China
-- The market will likely "take off after 2025" according to Fortune Business Insights
+According to industry analysts, we can expect to see:
+- **Before 2030s**: Production cars with solid-state batteries in limited numbers
+- **After 2030**: Larger scale production, though traditional Li-ion will likely maintain market majority
+- The solid-state battery market was valued at approximately **$1.6 billion in 2025** and is projected to reach **$27.7 billion by 2035** (38% CAGR)
 
 ---
 
-## 2. Who Are the Big Companies Involved?
+## 2. Major Companies Involved
 
-### Battery Technology Developers (Pure-Play)
+### Dedicated Solid-State Battery Developers
 
-**QuantumScape (US)**
-- Partnered with Volkswagen Group (PowerCo invested $260M+)
-- QSE-5 cells with 800 Wh/L energy density
-- Completed Eagle pilot line installation at end of 2025
-- Claims 1,000 charging cycles with 95% capacity retention
-- Targets: 400-500 mile range for current 350-mile EVs
+| Company | Headquarters | Key Technology | Partnerships/Investors |
+|---------|--------------|----------------|------------------------|
+| **QuantumScape** | California, USA | Ceramic separator; "anode-free" architecture | Volkswagen ($300M invested). Targets 844 Wh/L and <15-minute fast charging. |
+| **Solid Power** | Colorado, USA | Sulfide-based solid electrolyte; compatible with existing Li-ion manufacturing | BMW & Ford. Delivered prototype cells to both. |
+| **Factorial Energy** | Massachusetts, USA | Quasi-solid-state batteries | Mercedes-Benz, Stellantis. Achieved 745+ miles in testing. |
+| **ProLogium** | Taiwan | All-solid-state | GWh production capacity since 2022; working with European automakers. |
+| **Ganfeng Lithium** | China | Solid-state electrolyte technology | One of China's largest lithium producers. |
 
-**Solid Power (US)**
-- Partnered with BMW and Ford
-- Delivered 60 Ah cells to BMW; signed deal for pilot lines at BMW and SK On facilities
-- Sulfide-based solid electrolyte technology
+### Traditional Battery Manufacturers
 
-**Factorial Energy (US)**
-- Partnered with Mercedes-Benz and Stellantis
-- Semi-solid-state technology with 375 Wh/kg energy density
-- 15-90% charging in 18 minutes at room temperature
-- Operating temperature range: -22°F to 113°F
+| Company | Headquarters | Strategy |
+|---------|--------------|----------|
+| **Samsung SDI** | South Korea | Advancing solid-state research; manufacturing operations in Korea. |
+| **LG Energy Solution** | South Korea | Major R&D investment in solid-state technology. |
+| **Panasonic** | Japan | Partners with Toyota via Prime Planet Energy & Solutions; focuses on sulfide-based electrolytes. |
+| **CATL** | China | World's largest EV battery maker; actively developing solid-state solutions. |
+| **BYD** | China | Investing in solid-state development for future EVs. |
 
-**Donut Labs (Finland)**
-- Supplies Verge Motorcycles with all-solid-state batteries
-- 400 Wh/kg energy density; 100,000 cycle lifespan
-- 99% range retention even at -30°C or over 100°C
-- Claims to be ready for major OEM scale volumes
+### Automakers with In-House Development
 
-### Chinese Battery Manufacturers (Leading Semi-Solid Deployment)
+| Automaker | Status | Focus |
+|-----------|--------|-------|
+| **Toyota** | Aggressive leader; 2027-2028 mass production target | Claims to have overcome lifespan challenges; 10-minute charging capability. |
+| **Nissan** | Prototype facility operational; 2028 target | Building pilot production line at Yokohama Plant. |
+| **Honda** | Production start planned for 2025 | Investing throughout the supply chain. |
+| **Hyundai** | Recent patent breakthroughs (copper anode) | Working on cost reduction and simpler manufacturing. |
+| **Stellantis** | Early adopter with Factorial partnership | Plans to offer SSBs for cars in the US (e.g., Dodge Charger Daytona EV). |
 
-**CATL**
-- World's largest lithium cell manufacturer
-- Dedicated team of 1,000 researchers investing billions
-- Entered trial production of 20Ah samples
-- Semi-solid mass production expected by 2026
-- Small-scale all-solid-state production planned for 2027
-- Mass production and large-scale application set for 2030
+### Regional Collaboration Efforts
 
-**WeLion New Energy Technology**
-- Supplier for Nio ET7/ET5
-- Achieved 824 Wh/kg energy density in lab, targeting 1,000 Wh/kg
-- Highest projected revenue ($353.4M in 2027) among surveyed companies
-
-**QingTao Power Technology**
-- Supplier for IM Motors L6 and MG4
-- Second-highest projected revenue ($237M in 2027)
-
-**Ganfeng Lithium**
-- Third-highest projected revenue
-- Partnered with Dongfeng Motor Corporation
-
-### Major Automakers
-
-**Toyota**
-- Holds highest number of solid-state battery patents according to Nikkei (2022)
-- Signed joint development agreement with Sumimoto Metal Mining for cathode materials
-- Targets: World's first to incorporate all-solid-state batteries into EVs
-- Expects mass production by 2027-2028
-
-**Mercedes-Benz**
-- Road testing Factorial Energy batteries in EQS prototype
-- Aiming for commercialization by end of decade
-
-**BMW**
-- Testing Solid Power cells in i7 prototype
-- Building pilot production line in Germany
-
-**Honda**
-- Independent in-house development
-- Pilot production line in Japan working on mass production issues
-- Batteries could be 50% smaller, 35% lighter, 25% cheaper than current lithium-ion
-
-**Volkswagen Group**
-- $260M+ investment in QuantumScape through PowerCo
-- First product may be motorcycle (Ducati V21L race bike)
-- Prototype Ducati pack: 844 Wh/L energy density; 10-80% charge in 12 minutes
-
-**Nissan**
-- In-house development focusing on sulphur-based electrolyte
-- Sulfur-manganese cathode could eliminate cobalt entirely
-- Commercialization target: end of fiscal year 2028
-
-**Stellantis**
-- Partnered with Factorial Energy
-- Testing on Dodge Charger Daytona EV demo fleet
-
-**ProLogium (Taiwan)**
-- Building plant in Europe by 2026 to supply VinFast
-- Partnership with Mercedes-Benz
-- Gigafactory in Dunkirk, France opening 2028
-
-**Rimac Technology**
-- Unveiled solid-state battery at IAA Mobility 2025 with ProLogium and Mitsubishi Chemical
-- 100 kWh pack charges 10-80% in 6.5 minutes
-- 260 Wh/kg (350 Wh/L) energy density
-- Slated for performance-oriented hybrids
+**China All-Solid-State Battery Collaborative Innovation Platform (CASIP)**
+- Established January 2024
+- Goal: Create a complete supply chain for solid-state batteries by 2030
+- Involves companies CATL, BYD, and Ningbo Shanshan
 
 ---
 
-## 3. What Are the Main Technical Problems Still Being Solved?
+## 3. Main Technical Challenges & Problems Being Solved
 
-### The Five Golden Rule Challenges
+### A. Lithium Dendrite Formation (Safety & Shorts)
 
-According to Bob Galyen, former CTO of CATL, any successful battery technology must meet five criteria. Solid-state batteries fall short on at least three:
+**The Problem:**
+- Lithium dendrites — needle-like metal filaments — can form during charging
+- These filaments can propagate through microstructural defects in solid-state electrolytes
+- Under high current densities, they can pierce through the electrolyte and cause internal short circuits
+- Major safety risk that can lead to thermal runaway
 
-1. **Safety** - Promising improvement over liquid electrolyte fires
-2. **Performance** - **CHALLENGE**: Performance at temperature, altitude, shock, and vibration
-3. **Life** - **CRITICAL CHALLENGE**: No reliable published life cycle numbers
-4. **Cost** - **MAJOR BOTTLENECK**: Costs comparable to lithium-ion from a decade ago
-5. **Environmental** - Still being validated
+**Current Progress:**
+- Some cells have achieved stable cycling for 900+ hours at 60°C without dendrite growth
+- Researchers developing layered designs and special coatings to stop dendrite propagation
+- Toyota claims to have overcome lifespan challenges related to dendrites
+- Cathode-Li full cells demonstrating >500 cycles with 99.9% Coulombic efficiency
 
-### 1. Dendrite Formation and Short Circuits
+### B. Interfacial Instability & Resistance
 
-**The Problem:** Needle-like lithium structures (dendrites) can grow through the solid electrolyte, causing electrical shorts and potential fires.
+**The Problem:**
+- Achieving perfect solid-solid contact between electrodes and solid electrolyte is extremely difficult
+- High interfacial resistance leads to:
+  - Poor ionic conductivity
+  - Reduced cycle life
+  - Limited charge/discharge rates
+  - Performance degradation over time
 
-**Key Issues:**
-- Gaps or voids between ceramic electrolyte and lithium allow dendrites to form
-- Mechanical properties of solid electrolytes present challenges—brittle and susceptible to cracking under stress
-- Stress during cycling leads to loss of contact between electrolyte and cathode
-- Cathode fracturing and fatigue can cascade into microcracking, dendrite growth, and electrical shorting
+**Current Progress:**
+- Development of ultrathin composite polymer electrolytes (as thin as 6 μm) to improve performance
+- Use of sulfur electrolytes showing promise for improved ion transfer
+- Temperature optimization (e.g., 60°C) significantly improves performance
 
-**Current Solutions Being Tested:**
-- Avoiding gaps/voids between ceramic and lithium interfaces
-- Toyota's silver-carbon composite anode (Samsung SDI also using this approach)
-- Tin-carbon layers to suppress dendrites (Solid Power approach)
-- Better packaging to allow individual cells to expand during charging
- Hyundai's copper anode layer with protective coating (patented)
+### C. Manufacturing Scalability & Cost
 
-### 2. Manufacturing and Production Challenges
+**The Problem:**
+- SSBs currently cost **3-5 times more** than traditional lithium-ion batteries to manufacture
+- Reasons for high cost:
+  - Exotic materials (e.g., high-grade ceramics, special lithium compounds)
+  - Need for dry room or controlled atmosphere manufacturing (vacuum deposition)
+  - Specialized equipment requirements
+  - Slow production speeds compared to liquid electrolyte manufacturing
+  - Lack of established supply chains for key materials
 
-**"Production Hell"**
+**Current Progress:**
+- Companies like Solid Power focusing on technology compatible with existing Li-ion manufacturing infrastructure
+- Hyundai developing simpler copper-based designs to reduce material costs
+- Pilot plants and prototype facilities being built to prove manufacturing feasibility
+- Industry expects cost reductions as production scales (similar to Li-ion cost trajectory)
 
-- IEEE Spectrum experts warn solid-state batteries could face the same "production hell" Tesla experienced with Model 3 in 2018
-- Building factories takes ~2 years; prototype testing takes 6+ months; real-world validation takes additional time
-- Total validation timeline: 7+ years according to Galyen Energy
-- "None of these batteries have been validated yet" - Galyen
+### D. mechanical Stress from Volume Changes
 
-**Manufacturing Hurdles:**
-- Scaling solid electrolyte manufacturing to gigafactory levels
-- Manufacturing brittle ceramic/glass materials without defects at automotive scale
-- Costs remain above $80/kWh until late 2020s
-- High-precision manufacturing required to prevent defects that lead to failures
-- Temperature and pressure control during fabrication
+**The Problem:**
+- Lithium metal expands and contracts significantly during charging/discharging
+- This repeated expansion/contraction causes mechanical stress that can:
+  - Crack or fracture the solid electrolyte
+  - Cause delamination at interfaces
+  - Reduce battery lifespan
+  - Lead to sudden performance degradation
 
-### 3. Performance Under Real-World Conditions
+**Current Progress:**
+- Development of composite materials that can accommodate volume changes
+- Layered electrode designs to manage mechanical stress
+- Advanced cycling protocols to minimize damage
+- Stellantis SSBs validated to withstand wide temperature ranges (-22°F to 113°F)
 
-**Shock and Vibration**
-- Critical concern: "What happens when you're driving down I-75 and you hit a big pit in the road?"
-- Solid-state matrix could be damaged by road shocks, potholes, and vibrations
-- Brittle electrolytes may fracture under mechanical stress
-- This is a major validation hurdle automakers won't overlook
+### E. Low-Temperature Performance
 
-**Temperature Performance**
-- Low-temperature performance limitations remain
-- Fast charging and reduced cycle life in cold weather require improvement
-- However, some breakthroughs: Stellantis/Factorial batteries work from -22°F to 113°F
-- Donut Labs claims 99% range retention at -30°C and over 100°C
+**The Problem:**
+- Ionic conductivity in solid electrolytes drops significantly at low temperatures
+- This reduces or prevents charging capability in cold climates
+- Similar to the "frozen battery" problem in conventional EVs but more severe in SSBs
 
-**Altitude Effects**
-- Pressure variations at altitude affecting battery chemistry need validation
+**Current Progress:**
+- Stellantis claims their SSBs still perform at -22°F (-30°C)
+- Research into multiple solid-electrolyte chemistries (sulfide, oxide, polymer) to optimize for various conditions
+- Temperature management solutions being developed
 
-### 4. Interfacial and Materials Challenges
+### F. Cycle Life Under Fast Charging
 
-**Electrolyte-Electrode Contact**
-- Loss of contact between solid electrolyte and electrodes occurs during cycling due to volume changes
-- Anode expansion during charging creates stress on the solid electrolyte
-- Maintaining contact throughout thermal cycling is difficult
+**The Problem:**
+- While fast charging is a key promise of SSBs
+- Rapid charging can accelerate:
+  - Dendrite formation
+  - Mechanical degradation
+  - Interface degradation
+  - Overall battery lifespan reduction
 
-**Material Brittleness**
-- Solid electrolytes (ceramics, glass) are brittle compared to liquid or gel electrolytes
-- This brittleness leads to cracking and failure under mechanical or thermal stress
-- Voids and cracks further exacerbate interfacial issues and potentially cause dendrite growth
-
-### 5. Cost and Scale
-
-**Current Economic Reality:**
-- "I haven't seen cost numbers that are even close to competing with liquid-state, lithium-ion batteries" - Bob Galyen
-- Costs roughly comparable to lithium-ion prices from a decade ago
-- High-precision manufacturing and exotic materials drive costs up
-- Limited supply chain for advanced materials (lithium metal, specialty ceramics)
-
-**Scale Required:**
-- Need gigafactory-scale production to achieve economies of scale
-- Current production is pilot-scale or small-scale
-- Building this infrastructure requires billions in capital investment
-- Timeline: Small-scale 2027, mass production 2030 (CATL timeline as example)
-
-### 6. Supply Chain and Materials
-
-**Cobalt Dependence**
-- Current liquid lithium-ion requires cobalt, which is scarce, expensive, and often mined in countries with weak labor laws
-- Solid-state chemistries promise to reduce or eliminate cobalt use
-- Toyota's sulfur-based batteries could eliminate cobalt entirely
-- However, these new chemistries introduce their own supply chain challenges
-
-**Lithium Metal Anodes:**
-- Using lithium metal in anode boosts energy density but introduces safety concerns in liquid systems
-- Solid-state enables safer use of lithium metal anodes
-- But lithium metal is reactive and challenging to work with at scale
+**Current Progress:**
+- SSBs showing promise of 15-18 minute charge times to 90% capacity
+- Testing demonstrating 500+ cycles with high efficiency
+- Focus on electrolyte chemistries that stable under fast charging conditions
 
 ---
 
-## Market Outlook
+## Summary Outlook
 
-### Market Size and Growth
+### Near-Term (2025-2027)
+- Continued road testing and validation by major automakers
+- gradual scaling of manufacturing capacity
+- First limited production models likely from automakers like Honda, Toyota, or early adopter partnerships
 
-- **2024:** Global solid-state battery market valued at USD 1.18-2.04 billion
-- **2030:** Projected to reach USD 8.07-15.07 billion (CAGR of 56.6% from 2025-2030)
-- **2035:** Solid-state batteries projected to account for 10% of global EV and battery storage demand
+### Mid-Term (2027-2030)
+- Gradual commercial rollout, starting with premium/high-end vehicles
+- Cost reductions as manufacturing scales
+- Wider adoption in higher-end EVs and performance vehicles
 
-### Geographical Distribution
+### Long-Term (After 2030)
+- Broader market adoption if cost targets met
+- Potential for mainstream vehicle adoption
+- Traditional Li-ion will remain dominant due to lower costs
 
-- **China:** 83% of current or planned solid-state battery manufacturing capacity
-- **Europe:** ProLogium plant in France (2028); major automakers testing
-- **US:** QuantumScape, Solid Power, Factorial Energy; automotive partnerships but less manufacturing
-- **Japan:** Toyota, Honda dominance; strong IP position
-
-### Applications
-
-**Immediate (2025-2027):**
-- High-end performance and luxury vehicles
-- Aviation applications
-- Motorsport vehicles
-- Two-wheelers (motorcycles)
-
-**Medium-term (2027-2030):**
-- Premium consumer vehicles
-- Certain non-automotive applications requiring high energy density
-
-**Long-term (2030+):**
-- Mass-market automotive adoption
-- Grid-scale energy storage
-- Consumer electronics at scale
-
----
-
-## Key Takeaways
-
-1. **Semi-solid-state batteries are already here** in China, with multiple models available to consumers
-2. **True all-solid-state batteries** are in road-testing phase, with Mercedes-Benz and BMW running prototype vehicles in 2025
-3. **Mass production timeline**: 2026 for semi-solid-state (CATL), 2027-2030 for all-solid-state major automakers
-4. **Technical challenges remain significant**, particularly around dendrite formation, manufacturing scale, shock/vibration tolerance, and cost
-5. **China dominates manufacturing capacity** with 83% of planned capacity
-6. **Toyota leads in patents** and aims for 2027-2028 mass production
-7. **The "production hell" phase** is just beginning - expect 7+ years of validation before widespread adoption
-8. **Cost is the ultimate gatekeeper** - solid-state batteries currently can't compete with improved lithium-ion prices
+### Key Enabling Factors Needed
+1. **Cost Reduction** — Must approach parity with advanced Li-ion batteries
+2. **Manufacturing Scale** — Need GWh-level proven production facilities
+3. **Supply Chain Development** — Securing reliable sources of specialized materials
+4. **Cycle Life Validation** — Real-world validation of 10+ year lifespan
+5. **Standardization** — Industry standards for form factors and interfaces
 
 ---
 
 ## Sources
 
-- InsideEVs: "A Solid-State Motorcycle Is Coming. These Current And Future EVs Have Solid-State Batteries" (Sept 2025)
-- CarBuzz: "The Latest Solid-State Battery Developments You Need To Know About" (Dec 2025)
-- IEEE Spectrum: "Solid-State Batteries Could Face 'Production Hell'" (Jan 2024)
-- Fortune Business Insights: Solid-State Battery Market report
-- Mordor Intelligence: EV Solid-state Battery Market report
-- Grand View Research: Solid-State Battery Market report
-- EnergyTrend: "20 companies' solid-state battery mass production 'timetable'" (July 2024)
-- Interesting Engineering: "CATL's solid-state EV battery to enter mass production in 2027" (Nov 2024)
-- Batteries International: "CATL bet on solid-state becomes reality" (Nov 2024)
-- Shanghai Metals Market: "CATL's Solid-State Battery Layout" analysis
-- EVreporter: "China's Solid-State Battery Shipments are Projected to Reach 70 GWh by 2030" (Nov 2025)
-- Electrek: QuantumScape coverage (Dec 2025)
-- Electrive: Soli Power and ProLogium coverage (Dec 2025)
-- Multiple CarNewsChina articles on Chinese battery developments
+- CarBuzz. "The Latest Solid-State Battery Developments You Need To Know About" (December 2025)
+- InsideEVs. "Every Solid-State Battery EV" (September 2025)
+- Cars.com. "Solid-State Batteries Are Set to Be a Game Changer for EVs" (November 2025)
+- EnergyTrend. "20 companies' solid-state battery mass production timetable" (July 2024)
+- EV Magazine. "Top 10 Solid-State Battery Developers" (November 2025)
+- Forbes. "Solid-State Batteries Still Face Hurdles But The Prize Is Huge For EVs" (July 2025)
+- KLA. "Resolving Production Challenges that Hinder Advancement in Solid-State Batteries" (August 2025)
+- SolarTech Online. "Solid State Batteries: Complete Guide To Technology, Benefits & Timeline" (December 2025)
+- Bonnen Battery. "Solid-State Batteries 2026: Advances, Challenges & Applications" (January 2026)
+- IDTechEx. "Safety challenges, such as lithium dendrite formation" (February 2025)
+- Research Nester. "Solid State Battery Market Size & Share" (October 2025)
+- Electrek. "Solid-State Battery Maker Going Public After 745+ Mile Test" (December 2025)
 
 ---
 
-*Report compiled: February 1, 2026*
-*Status: Late 2024/2025*
+*Report compiled February 3, 2026*

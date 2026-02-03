@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 app = FastAPI()
@@ -35,22 +35,17 @@ async def get_todos():
     return db
 
 
-@app.post("/todos", response_model=TodoItem, status_code=status.HTTP_201_CREATED)
+@app.post("/todos", response_model=TodoItem, status_code=201)
 async def create_todo(item: TodoCreate):
-    """Create a new todo item with an auto-incremented ID."""
-    # Determine next ID (auto-increment based on current max ID)
+    # Auto-increment ID based on max existing id
     next_id = max((todo.id for todo in db), default=0) + 1
-    new_item = TodoItem(id=next_id, title=item.title, completed=item.completed)
-    db.append(new_item)
-    return new_item
+    new_todo = TodoItem(id=next_id, title=item.title, completed=item.completed)
+    db.append(new_todo)
+    return new_todo
 
 
 @app.put("/todos/{item_id}", response_model=TodoItem)
 async def update_todo(item_id: int, item: TodoUpdate):
-    """Update an existing todo item by ID.
-
-    All provided fields will overwrite existing values; missing fields are left unchanged.
-    """
     for idx, todo in enumerate(db):
         if todo.id == item_id:
             updated_data = todo.dict()
@@ -58,27 +53,19 @@ async def update_todo(item_id: int, item: TodoUpdate):
                 updated_data["title"] = item.title
             if item.completed is not None:
                 updated_data["completed"] = item.completed
-            updated_item = TodoItem(**updated_data)
-            db[idx] = updated_item
-            return updated_item
-
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail="Todo item not found"
-    )
+            updated_todo = TodoItem(**updated_data)
+            db[idx] = updated_todo
+            return updated_todo
+    raise HTTPException(status_code=404, detail="Todo item not found")
 
 
-@app.delete("/todos/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete("/todos/{item_id}", status_code=204)
 async def delete_todo(item_id: int):
-    """Delete a todo item by ID."""
     for idx, todo in enumerate(db):
         if todo.id == item_id:
             del db[idx]
-            # 204 responses should not include a body
             return
-
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail="Todo item not found"
-    )
+    raise HTTPException(status_code=404, detail="Todo item not found")
 
 
 if __name__ == "__main__":

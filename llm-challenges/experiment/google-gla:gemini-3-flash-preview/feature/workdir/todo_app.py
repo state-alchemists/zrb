@@ -33,18 +33,19 @@ async def get_todos():
 @app.post("/todos", response_model=TodoItem, status_code=status.HTTP_201_CREATED)
 async def create_todo(todo: TodoCreate):
     new_id = max((item.id for item in db), default=0) + 1
-    new_item = TodoItem(id=new_id, **todo.model_dump())
+    new_item = TodoItem(id=new_id, title=todo.title, completed=todo.completed)
     db.append(new_item)
     return new_item
 
 
 @app.put("/todos/{item_id}", response_model=TodoItem)
-async def update_todo(item_id: int, todo_update: TodoCreate):
+async def update_todo(item_id: int, updated_todo: TodoCreate):
     for index, item in enumerate(db):
         if item.id == item_id:
-            updated_item = TodoItem(id=item_id, **todo_update.model_dump())
-            db[index] = updated_item
-            return updated_item
+            db[index] = TodoItem(
+                id=item_id, title=updated_todo.title, completed=updated_todo.completed
+            )
+            return db[index]
     raise HTTPException(status_code=404, detail="Todo item not found")
 
 

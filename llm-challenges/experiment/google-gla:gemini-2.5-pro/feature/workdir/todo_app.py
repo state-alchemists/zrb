@@ -13,7 +13,7 @@ class TodoItem(BaseModel):
     completed: bool = False
 
 
-class CreateTodoItem(BaseModel):
+class TodoCreate(BaseModel):
     title: str
     completed: bool = False
 
@@ -24,6 +24,9 @@ db: List[TodoItem] = [
     TodoItem(id=2, title="Walk the dog"),
 ]
 
+# Auto-incrementing ID counter
+next_id = 3
+
 
 @app.get("/todos", response_model=List[TodoItem])
 async def get_todos():
@@ -31,18 +34,19 @@ async def get_todos():
 
 
 @app.post("/todos", response_model=TodoItem, status_code=status.HTTP_201_CREATED)
-async def create_todo(todo: CreateTodoItem):
-    new_id = max(item.id for item in db) + 1 if db else 1
-    new_todo = TodoItem(id=new_id, title=todo.title, completed=todo.completed)
+async def create_todo(todo: TodoCreate):
+    global next_id
+    new_todo = TodoItem(id=next_id, title=todo.title, completed=todo.completed)
     db.append(new_todo)
+    next_id += 1
     return new_todo
 
 
 @app.put("/todos/{item_id}", response_model=TodoItem)
-async def update_todo(item_id: int, todo: CreateTodoItem):
+async def update_todo(item_id: int, todo_update: TodoCreate):
     for index, item in enumerate(db):
         if item.id == item_id:
-            updated_item = item.copy(update=todo.dict())
+            updated_item = item.model_copy(update=todo_update.model_dump())
             db[index] = updated_item
             return updated_item
     raise HTTPException(status_code=404, detail="Todo not found")

@@ -35,7 +35,11 @@ python3 runner.py --models openai:gpt-4o google-gla:gemini-2.5-flash deepseek:de
 python3 runner.py --verbose
 
 # Run full test
-python runner.py --timeout 3600 --parallelism 12 --verbose --models openai:gpt-4o openai:gpt-5.1 openai:gpt-5.2 google-gla:gemini-2.5-flash google-gla:gemini-2.5-pro google-gla:gemini-3-flash-preview google-gla:gemini-3-pro-preview deepseek:deepseek-chat ollama:glm-4.7:cloud ollama:qwen3-vl:235b-cloud ollama:kimi-k2.5:cloud 
+python runner.py --timeout 3600 --parallelism 12 --verbose \
+--models openai:gpt-4o openai:gpt-5.1 openai:gpt-5.2 \
+google-gla:gemini-2.5-flash google-gla:gemini-2.5-pro google-gla:gemini-3-flash-preview google-gla:gemini-3-pro-preview \
+deepseek:deepseek-chat ollama:glm-4.7:cloud \
+ollama:qwen3-vl:235b-cloud ollama:kimi-k2.5:cloud 
 
 # Test a single challenge
 python3 runner.py --models openai:gpt-4o --filter bug-fix --timeout 120 --verbose

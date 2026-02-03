@@ -1,34 +1,34 @@
-# Announcing Zrb-Flow: Where AI Meets Your CLI
+# Announcing Zrb-Flow: Self-Healing Automation for CLI Power Users
 
-Stop wrestling with broken pipelines. Zrb-Flow transforms your CLI experience with **intelligent automation** that understands Docker, Kubernetes, and your workflow - not just as commands, but as living systems.
+🚀 **Your pipelines just got an AI-powered upgrade.** Today we're excited to launch **Zrb-Flow** – the missing link between your CLI wizardry and modern infrastructure (Docker, Kubernetes) that *fixes itself* when things go wrong.
 
-## Why CLI Engineers Love It
+## Why This Changes Everything
 
-### 🩹 Self-Healing Pipelines
-When your `kubectl apply` fails with cryptic errors or Docker builds crash mid-process, Zrb-Flow doesn’t just report issues - it **diagnoses and patches** them in real-time. Misspelled image tags? YAML indentation errors? The AI analyzes your manifests and fixes them before your pipeline even notices.
+Tired of debugging pipeline failures at 2 AM? Zrb-Flow’s **Self-Healing Pipelines** analyze broken scripts in real-time and automatically generate patches. Whether it’s a missing volume mount in your Docker compose or a misconfigured K8s deployment, our AI:
+- 🔍 Diagnoses failures by cross-referencing logs and manifests
+- ✨ Proposes corrections with full context-aware explanations
+- 🤖 Executes fixes *without* waiting for your approval (configurable safety thresholds)
 
-### 🐳 Container Intelligence
-Seamlessly integrates with your Docker/Kubernetes stack:
+## Built for the CLI-First Workflow
+
+No more context switching between dashboards. Zrb-Flow integrates seamlessly with your terminal:
+
 ```bash
-# Example workflow
-zrb flow run deployment --cluster=prod
-# Auto-detects issues like:
-# - Incompatible image tags
-# - Resource limit violations
-# - Missing service accounts
+$ zrb flow run --self-heal my-broken-pipeline
+> [AI] Detected missing secret reference in deployment.yaml
+> Proposed fix: Add 'MY_SECRET' to envFrom
+> ✅ Applied correction and restarted pipeline
 ```
 
-### ⚡ Terminal-First Design
-Built *for* your terminal, not against it. No new UI to learn - just enhanced `zrb` commands that work with your existing aliases and shell customizations.
+## Get Started in 30 Seconds
 
-## Ready for the Future of DevOps?
+For Docker and Kubernetes users who live in the terminal:
 
-Install today and let your pipelines run themselves:
 ```bash
 pip install zrb-flow
 zrb flow init
 ```
 
-**No more 3AM debugging sessions.** Your infrastructure just got an AI co-pilot that speaks kubectl as fluently as you do.
+👉 **[Join 1,200+ early adopters](https://zrb.dev/flow) and transform your automation workflow today**
 
-*Try Zrb-Flow today at [zrb.dev/flow](https://zrb.dev/flow)*
+*Zrb-Flow: Because infrastructure should be as smart as the engineers who build it.*

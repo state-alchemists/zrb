@@ -19,8 +19,8 @@ class TodoItemCreate(BaseModel):
 
 
 class TodoItemUpdate(BaseModel):
-    title: str | None = None
-    completed: bool | None = None
+    title: str
+    completed: bool
 
 
 # In-memory database
@@ -29,17 +29,10 @@ db: List[TodoItem] = [
     TodoItem(id=2, title="Walk the dog"),
 ]
 
-_next_id = 3
+_next_id: int = 3
 
 
-def _get_next_id() -> int:
-    global _next_id
-    next_id = _next_id
-    _next_id += 1
-    return next_id
-
-
-def _find_item_index(item_id: int) -> int:
+def _find_index(item_id: int) -> int:
     for i, item in enumerate(db):
         if item.id == item_id:
             return i
@@ -55,32 +48,26 @@ async def get_todos():
 
 @app.post("/todos", response_model=TodoItem, status_code=status.HTTP_201_CREATED)
 async def create_todo(payload: TodoItemCreate):
-    item = TodoItem(id=_get_next_id(), title=payload.title, completed=payload.completed)
+    global _next_id
+
+    item = TodoItem(id=_next_id, title=payload.title, completed=payload.completed)
+    _next_id += 1
     db.append(item)
     return item
 
 
 @app.put("/todos/{item_id}", response_model=TodoItem)
 async def update_todo(item_id: int, payload: TodoItemUpdate):
-    idx = _find_item_index(item_id)
-    current = db[idx]
-    updated = current.model_copy(
-        update={
-            **({"title": payload.title} if payload.title is not None else {}),
-            **(
-                {"completed": payload.completed}
-                if payload.completed is not None
-                else {}
-            ),
-        }
-    )
+    idx = _find_index(item_id)
+
+    updated = TodoItem(id=item_id, title=payload.title, completed=payload.completed)
     db[idx] = updated
     return updated
 
 
 @app.delete("/todos/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_todo(item_id: int):
-    idx = _find_item_index(item_id)
+    idx = _find_index(item_id)
     db.pop(idx)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

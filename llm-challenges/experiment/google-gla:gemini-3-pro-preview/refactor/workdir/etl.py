@@ -1,121 +1,135 @@
 import os
 import re
+from collections import defaultdict
 from dataclasses import dataclass
-from typing import Dict, List, NamedTuple, Optional
+from typing import Dict, List, Optional
 
 
 # --- Configuration ---
 @dataclass
 class Config:
-    DB_HOST: str = "localhost"
-    DB_USER: str = "admin"
-    LOG_FILE: str = "server.log"
-    REPORT_FILE: str = "report.html"
+    db_host: str = "localhost"
+    db_user: str = "admin"
+    log_file: str = "server.log"
+    report_file: str = "report.html"
 
 
-# --- Data Structures ---
-class LogEntry(NamedTuple):
+# --- Models ---
+@dataclass
+class LogEntry:
     timestamp: str
     level: str
     message: str
+    user_id: Optional[str] = None
 
 
-class ParsedData(NamedTuple):
-    errors: List[LogEntry]
-    user_actions: List[Dict[str, str]]
+# --- ETL Components ---
 
 
-# --- ETL Stages ---
+class Extractor:
+    def __init__(self, file_path: str):
+        self.file_path = file_path
+
+    def extract(self) -> List[str]:
+        if not os.path.exists(self.file_path):
+            return []
+        with open(self.file_path, "r") as f:
+            return f.readlines()
 
 
-def extract(file_path: str) -> List[str]:
-    """Reads raw lines from the log file."""
-    if not os.path.exists(file_path):
-        return []
-    with open(file_path, "r") as f:
-        return f.readlines()
+class Transformer:
+    # Regex to capture Timestamp, Level, and Message
+    # Example: 2023-10-01 10:00:00 INFO User 123 logged in
+    # Group 1: Timestamp
+    # Group 2: Level
+    # Group 3: Message
+    LOG_PATTERN = re.compile(r"^(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\s+(\w+)\s+(.*)$")
 
+    # Regex for User ID extraction
+    USER_PATTERN = re.compile(r"User\s+(\d+)")
 
-def transform(lines: List[str]) -> ParsedData:
-    """Parses log lines and aggregates data."""
-    # Regex for parsing the log line: Date Time Level Message
-    # Example: 2023-10-01 10:05:00 ERROR Connection failed
-    log_pattern = re.compile(
-        r"^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+(?P<level>\w+)\s+(?P<message>.*)$"
-    )
+    def transform(self, raw_lines: List[str]) -> List[LogEntry]:
+        entries: List[LogEntry] = []
+        for line in raw_lines:
+            match = self.LOG_PATTERN.match(line.strip())
+            if match:
+                timestamp, level, message = match.groups()
+                user_id = None
 
-    errors: List[LogEntry] = []
-    user_actions: List[Dict[str, str]] = []
-
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-
-        match = log_pattern.match(line)
-        if match:
-            timestamp = match.group("timestamp")
-            level = match.group("level")
-            message = match.group("message")
-
-            if level == "ERROR":
-                errors.append(LogEntry(timestamp, level, message))
-            elif level == "INFO":
-                # Logic from original script: extract user ID if "User" is in message
-                # Original logic: user_id = msg.split("User")[1].split(" ")[1]
-                # Msg: "User 123 logged in" -> split("User")[1] is " 123 logged in" -> split(" ")[1] is "123"
-                if "User" in message:
-                    # Using regex for robust extraction of user id
-                    user_match = re.search(r"User\s+(\S+)", message)
+                if level == "INFO":
+                    user_match = self.USER_PATTERN.search(message)
                     if user_match:
                         user_id = user_match.group(1)
-                        user_actions.append(
-                            {"date": timestamp, "type": "USER_ACTION", "user": user_id}
-                        )
 
-    return ParsedData(errors=errors, user_actions=user_actions)
+                # Filter logic based on original script:
+                # - Keeps ERRORs
+                # - Keeps INFOs if they have "User" (implied by extraction logic in original,
+                #   though original script only appended to 'data' if 'User' was in msg for INFO,
+                #   or if it was ERROR. Other lines were ignored.)
+
+                if level == "ERROR":
+                    entries.append(LogEntry(timestamp, level, message, None))
+                elif level == "INFO" and "User" in message:
+                    # Original logic:
+                    # if "User" in msg: ... data.append({"date": d, "type": "USER_ACTION", "user": user_id})
+                    # Note: Original script changed "type" to "USER_ACTION" for user logs.
+                    # But strictly, the ETL pattern usually preserves data then aggregates.
+                    # However, to produce the exact same report, we need to mimic the data selection logic.
+                    entries.append(LogEntry(timestamp, "USER_ACTION", message, user_id))
+
+        return entries
+
+    def aggregate_errors(self, entries: List[LogEntry]) -> Dict[str, int]:
+        report = defaultdict(int)
+        for entry in entries:
+            # Original logic: only counted items where type == "ERROR" (which meant original level was ERROR)
+            # And keys were the messages.
+            if entry.level == "ERROR":
+                report[entry.message] += 1
+        return dict(report)
 
 
-def load(data: ParsedData, config: Config) -> None:
-    """Simulates DB load and generates HTML report."""
-    # Simulate database connection
-    print(f"Connecting to {config.DB_HOST} as {config.DB_USER}...")
+class Loader:
+    def __init__(self, output_file: str):
+        self.output_file = output_file
 
-    # In a real app, we might insert data here.
-    # The original script didn't actually insert, just printed.
+    def load(self, report_data: Dict[str, int]) -> None:
+        html = "<html><body><h1>Report</h1><ul>"
+        for k, v in report_data.items():
+            html += f"<li>{k}: {v}</li>"
+        html += "</ul></body></html>"
 
-    # Generate Report Aggregation
-    report_counts: Dict[str, int] = {}
-    for error in data.errors:
-        msg = error.message
-        if msg not in report_counts:
-            report_counts[msg] = 0
-        report_counts[msg] += 1
+        with open(self.output_file, "w") as f:
+            f.write(html)
 
-    # Generate HTML
-    html_content = "<html><body><h1>Report</h1><ul>"
-    for msg, count in report_counts.items():
-        html_content += f"<li>{msg}: {count}</li>"
-    html_content += "</ul></body></html>"
 
-    with open(config.REPORT_FILE, "w") as f:
-        f.write(html_content)
+# --- Orchestration ---
 
 
 def main():
     config = Config()
 
-    # Ensure dummy file exists (preserving original test logic)
-    if not os.path.exists(config.LOG_FILE):
-        with open(config.LOG_FILE, "w") as f:
+    # Create dummy log file if not exists (Preserving original behavior for testing)
+    if not os.path.exists(config.log_file):
+        with open(config.log_file, "w") as f:
             f.write("2023-10-01 10:00:00 INFO User 123 logged in\n")
             f.write("2023-10-01 10:05:00 ERROR Connection failed\n")
             f.write("2023-10-01 10:10:00 ERROR Connection failed\n")
 
-    # ETL Pipeline
-    raw_lines = extract(config.LOG_FILE)
-    transformed_data = transform(raw_lines)
-    load(transformed_data, config)
+    print(f"Connecting to {config.db_host} as {config.db_user}...")
+
+    # Extract
+    extractor = Extractor(config.log_file)
+    raw_data = extractor.extract()
+
+    # Transform
+    transformer = Transformer()
+    entries = transformer.transform(raw_data)
+    report_stats = transformer.aggregate_errors(entries)
+
+    # Load
+    loader = Loader(config.report_file)
+    loader.load(report_stats)
 
     print("Done.")
 

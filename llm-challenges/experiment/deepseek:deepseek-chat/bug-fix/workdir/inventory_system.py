@@ -8,8 +8,6 @@ class Inventory:
         self.lock = asyncio.Lock()
 
     async def purchase(self, user_id, amount):
-        print(f"User {user_id} checking stock...")
-
         # Validate input: amount must be a positive integer
         if not isinstance(amount, int):
             print(f"User {user_id} failed: amount must be an integer")
@@ -21,6 +19,8 @@ class Inventory:
 
         # Acquire lock to ensure atomic check-and-decrement operation
         async with self.lock:
+            print(f"User {user_id} checking stock...")
+
             if self.stock >= amount:
                 # Simulate DB latency
                 await asyncio.sleep(0.1)

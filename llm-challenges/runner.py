@@ -456,9 +456,9 @@ def main():
                 skip = False
                 if key in existing_results:
                     prev_result = existing_results[key]
-                    # Retry only if failed, execution failed, error or timeout
-                    # i.e., Skip if status is PASS, EXCELLENT, SUCCESS
-                    if prev_result.status in ["PASS", "EXCELLENT", "SUCCESS"]:
+                    # Retry only if failed, execution error or timeout
+                    # i.e., Skip if status is PASS, EXCELLENT, SUCCESS, FAIL
+                    if prev_result.status in ["PASS", "EXCELLENT", "SUCCESS", "FAIL"]:
                         skip = True
                         if config.verbose:
                             print(f"  Skipping {key} (already {prev_result.status})")

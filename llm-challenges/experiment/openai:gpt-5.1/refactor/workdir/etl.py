@@ -1,128 +1,159 @@
+from __future__ import annotations
+
 import os
 import re
-from collections import Counter
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List
+from typing import Dict, Iterable, List
 
-from etl_config import DB_CONFIG, LOG_FILE, REPORT_FILE
+# -----------------
+# Configuration
+# -----------------
+
+
+@dataclass(frozen=True)
+class ETLConfig:
+    db_host: str = "localhost"
+    db_user: str = "admin"
+    log_file: str = "server.log"
+    report_file: str = "report.html"
+
+
+CONFIG = ETLConfig()
+
+
+# -----------------
+# Extract
+# -----------------
+
+LOG_LINE_PATTERN = re.compile(
+    r"^(?P<date>\S+\s+\S+)\s+(?P<level>\S+)\s+(?P<message>.+)$"
+)
+USER_MSG_PATTERN = re.compile(r"User\s+(?P<user_id>\S+)")
 
 
 @dataclass
 class LogRecord:
     date: str
-    level: str
-    message: str
+    type: str
+    msg: str | None = None
+    user: str | None = None
 
 
-@dataclass
-class UserAction:
-    date: str
-    user_id: str
+def extract_logs(config: ETLConfig = CONFIG) -> List[LogRecord]:
+    """Extract relevant log records from the log file.
 
-
-LOG_LINE_PATTERN = re.compile(
-    r"^(?P<date>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+"
-    r"(?P<level>INFO|ERROR)\s+"
-    r"(?P<message>.*)$"
-)
-
-USER_ACTION_PATTERN = re.compile(r"User\s+(?P<user_id>\S+)")
-
-
-def extract_log_records(log_path: str = LOG_FILE) -> List[LogRecord]:
-    """Extract structured log records from a log file.
-
-    This uses regular expressions instead of fragile string splitting.
+    This replicates the original behaviour:
+    - ERROR lines become records of type "ERROR" with full message text.
+    - INFO lines that contain the word "User" become records of type
+      "USER_ACTION" with parsed `user` id.
     """
     records: List[LogRecord] = []
-    if not os.path.exists(log_path):
+
+    if not os.path.exists(config.log_file):
         return records
 
-    with open(log_path, "r") as f:
+    with open(config.log_file, "r") as f:
         for line in f:
             line = line.rstrip("\n")
+            if not line:
+                continue
+
             match = LOG_LINE_PATTERN.match(line)
             if not match:
+                # Ignore malformed lines, as the original code effectively did
                 continue
-            records.append(
-                LogRecord(
-                    date=match.group("date"),
-                    level=match.group("level"),
-                    message=match.group("message").strip(),
-                )
-            )
+
+            date = match.group("date")
+            level = match.group("level")
+            message = match.group("message").strip()
+
+            if level == "ERROR":
+                # Preserve exact message text used as the error key
+                records.append(LogRecord(date=date, type="ERROR", msg=message))
+            elif level == "INFO":
+                user_match = USER_MSG_PATTERN.search(message)
+                if user_match:
+                    user_id = user_match.group("user_id")
+                    records.append(
+                        LogRecord(date=date, type="USER_ACTION", user=user_id)
+                    )
+
     return records
 
 
-def transform(records: Iterable[LogRecord]) -> Dict[str, int]:
-    """Transform log records into an error summary.
+# -----------------
+# Transform
+# -----------------
 
-    The original script only used ERROR messages to build the report,
-    so this keeps the same behaviour.
+
+def transform_error_counts(records: Iterable[LogRecord]) -> Dict[str, int]:
+    """Aggregate error message counts.
+
+    This mirrors the original logic that built a dict of
+    `{error_message: count}` using only records of type "ERROR".
     """
-    error_counter: Counter[str] = Counter()
+    report: Dict[str, int] = {}
     for record in records:
-        if record.level == "ERROR":
-            error_counter[record.message] += 1
-    return dict(error_counter)
+        if record.type != "ERROR" or record.msg is None:
+            continue
+        if record.msg not in report:
+            report[record.msg] = 0
+        report[record.msg] += 1
+    return report
 
 
-def extract_user_actions(records: Iterable[LogRecord]) -> List[UserAction]:
-    """Optional helper to derive user actions from INFO messages.
+# -----------------
+# Load
+# -----------------
 
-    This preserves the original user parsing logic but keeps it out of the
-    main ETL pipeline. Currently not used in the report generation.
+
+def simulate_db_connection(config: ETLConfig = CONFIG) -> None:
+    """Simulate connecting to a database.
+
+    Behaviour preserved from the original script: simply prints.
     """
-    actions: List[UserAction] = []
-    for record in records:
-        if record.level != "INFO":
-            continue
-        match = USER_ACTION_PATTERN.search(record.message)
-        if not match:
-            continue
-        actions.append(UserAction(date=record.date, user_id=match.group("user_id")))
-    return actions
+    print(f"Connecting to {config.db_host} as {config.db_user}...")
 
 
-def load_error_report(
-    error_summary: Dict[str, int], report_path: str = REPORT_FILE
-) -> None:
-    """Load step: generate the HTML report from the error summary.
+def render_html_report(error_counts: Dict[str, int]) -> str:
+    """Render the HTML report string.
 
-    The HTML structure is kept identical to the original implementation.
+    The structure and content matches the original implementation so
+    that `report.html` remains unchanged.
     """
     html = "<html><body><h1>Report</h1><ul>"
-    for message, count in error_summary.items():
+    for message, count in error_counts.items():
         html += f"<li>{message}: {count}</li>"
     html += "</ul></body></html>"
+    return html
 
-    with open(report_path, "w") as f:
+
+def load_report(error_counts: Dict[str, int], config: ETLConfig = CONFIG) -> None:
+    """Write the HTML report to disk."""
+    html = render_html_report(error_counts)
+    with open(config.report_file, "w") as f:
         f.write(html)
 
 
-def run_etl() -> None:
-    """End-to-end ETL pipeline: Extract -> Transform -> Load."""
-    # Extract
-    records = extract_log_records()
+# -----------------
+# Orchestration
+# -----------------
 
-    # Simulate DB connection (side-effect preserved for compatibility)
-    print(f"Connecting to {DB_CONFIG.host} as {DB_CONFIG.user}...")
 
-    # Transform
-    error_summary = transform(records)
-
-    # Load
-    load_error_report(error_summary)
-
+def run_etl(config: ETLConfig = CONFIG) -> None:
+    records = extract_logs(config)
+    simulate_db_connection(config)
+    error_counts = transform_error_counts(records)
+    load_report(error_counts, config)
     print("Done.")
 
 
 if __name__ == "__main__":
-    # Create dummy log file if not exists for testing (preserved behaviour)
-    if not os.path.exists(LOG_FILE):
-        with open(LOG_FILE, "w") as f:
+    # Create dummy log file if not exists for testing
+    if not os.path.exists(CONFIG.log_file):
+        with open(CONFIG.log_file, "w") as f:
             f.write("2023-10-01 10:00:00 INFO User 123 logged in\n")
             f.write("2023-10-01 10:05:00 ERROR Connection failed\n")
             f.write("2023-10-01 10:10:00 ERROR Connection failed\n")
 
-    run_etl()
+    run_etl(CONFIG)

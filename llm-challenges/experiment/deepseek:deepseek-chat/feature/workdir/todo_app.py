@@ -37,8 +37,8 @@ async def get_todos():
 
 @app.post("/todos", response_model=TodoItem, status_code=201)
 async def create_todo(todo: TodoCreate):
-    # Generate new ID (max existing ID + 1)
-    new_id = max(item.id for item in db) + 1 if db else 1
+    # Generate a new ID (max existing ID + 1)
+    new_id = max((item.id for item in db), default=0) + 1
     new_todo = TodoItem(id=new_id, title=todo.title, completed=todo.completed)
     db.append(new_todo)
     return new_todo
@@ -46,7 +46,7 @@ async def create_todo(todo: TodoCreate):
 
 @app.put("/todos/{item_id}", response_model=TodoItem)
 async def update_todo(item_id: int, todo_update: TodoUpdate):
-    # Find the todo item
+    # Find the item by ID
     for i, item in enumerate(db):
         if item.id == item_id:
             # Update fields if provided
@@ -57,19 +57,19 @@ async def update_todo(item_id: int, todo_update: TodoUpdate):
             db[i] = item
             return item
 
-    # If not found, raise 404
+    # Item not found
     raise HTTPException(status_code=404, detail="Todo item not found")
 
 
 @app.delete("/todos/{item_id}", status_code=204)
 async def delete_todo(item_id: int):
-    # Find the todo item
+    # Find the item by ID
     for i, item in enumerate(db):
         if item.id == item_id:
             db.pop(i)
             return
 
-    # If not found, raise 404
+    # Item not found
     raise HTTPException(status_code=404, detail="Todo item not found")
 
 

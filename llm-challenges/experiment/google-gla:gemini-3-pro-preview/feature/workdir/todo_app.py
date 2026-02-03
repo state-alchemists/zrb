@@ -25,8 +25,8 @@ class TodoUpdate(BaseModel):
 
 # In-memory database
 db: List[TodoItem] = [
-    TodoItem(id=1, title="Buy groceries", completed=False),
-    TodoItem(id=2, title="Walk the dog", completed=False),
+    TodoItem(id=1, title="Buy groceries"),
+    TodoItem(id=2, title="Walk the dog"),
 ]
 
 
@@ -40,20 +40,20 @@ async def create_todo(todo: TodoCreate):
     new_id = 1
     if db:
         new_id = max(item.id for item in db) + 1
-    new_item = TodoItem(id=new_id, title=todo.title, completed=todo.completed)
+    new_item = TodoItem(id=new_id, **todo.dict())
     db.append(new_item)
     return new_item
 
 
 @app.put("/todos/{item_id}", response_model=TodoItem)
 async def update_todo(item_id: int, todo_update: TodoUpdate):
-    for item in db:
+    for i, item in enumerate(db):
         if item.id == item_id:
-            if todo_update.title is not None:
-                item.title = todo_update.title
-            if todo_update.completed is not None:
-                item.completed = todo_update.completed
-            return item
+            # Create a new item with updated fields
+            update_data = todo_update.dict(exclude_unset=True)
+            updated_item = item.copy(update=update_data)
+            db[i] = updated_item
+            return updated_item
     raise HTTPException(status_code=404, detail="Todo not found")
 
 

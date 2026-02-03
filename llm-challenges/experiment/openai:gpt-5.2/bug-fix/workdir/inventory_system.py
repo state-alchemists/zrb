@@ -1,37 +1,42 @@
 import asyncio
-import random
+from dataclasses import dataclass, field
 
 
+@dataclass
 class Inventory:
-    def __init__(self):
-        self.stock = 10
-        self.lock = asyncio.Lock()
+    stock: int = 10
+    _lock: asyncio.Lock = field(default_factory=asyncio.Lock, init=False, repr=False)
 
-    async def purchase(self, user_id, amount):
+    async def purchase(self, user_id: int, amount: int) -> bool:
+        """Attempt to purchase `amount` items.
+
+        This method is safe under concurrent load: the check and decrement are
+        performed atomically while holding a lock.
+        """
+        if amount <= 0:
+            raise ValueError("amount must be positive")
+
         print(f"User {user_id} checking stock...")
 
-        # IMPORTANT: Keep the critical section (check-and-decrement) as small as possible.
-        # Holding the lock while awaiting (e.g., DB/network latency) can cause severe contention
-        # and can lead to external inconsistencies if other operations depend on progress.
-        async with self.lock:
+        # Keep the critical section minimal: do NOT await inside the lock.
+        async with self._lock:
             if self.stock < amount:
                 print(f"User {user_id} failed to purchase. Stock low.")
                 return False
             self.stock -= amount
             remaining = self.stock
 
-        # Simulate DB latency OUTSIDE the lock.
+        # Simulate DB latency outside the lock (e.g., payment / persistence).
         await asyncio.sleep(0.1)
         print(f"User {user_id} purchased {amount}. Remaining: {remaining}")
         return True
 
 
-async def main():
-    inventory = Inventory()
+async def main() -> None:
+    inventory = Inventory(stock=10)
 
     # 5 users trying to buy 3 items each.
     # Total demand = 15, Stock = 10.
-    # Should result in negative stock if not handled correctly.
     tasks = [inventory.purchase(i, 3) for i in range(5)]
 
     await asyncio.gather(*tasks)
