@@ -1,5 +1,21 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.0.18
+
+- **Feature: Sub-Agent Detection & Delegation**:
+  - **Enhanced Delegation**: Implemented a robust `delegate_to_agent` tool and logic in `AgentManager` to improve how the main agent hands off tasks to specialized sub-agents.
+  - **Smart Detection**: improved logic to detect when a sub-agent should be invoked based on task complexity or specificity.
+- **Refactor: Agent & Prompt Organization**:
+  - **Plugin-Based Agents**: Moved built-in agent definitions (Coder, Planner, Researcher, Reviewer) from general prompt directories to a dedicated `src/zrb/llm_plugin/agents/` structure, treating them more like plugins.
+  - **Prompt Manager Updates**: Refactored `PromptManager` to align with the new agent plugin structure.
+- **Refinement: Core Prompts & Mandates**:
+  - **Strict Verification**: Updated `mandate.md` to explicitly require checks for keywords, structure, and citations in text and research tasks.
+  - **Loop Prevention**: Added explicit loop prevention and stop condition directives to the `Coder` agent to reduce redundant tool calls.
+  - **Planning Rigor**: Updated the `Planner` agent to explicitly list required artifacts, keywords, and format constraints during the requirements phase.
+  - **Research Standards**: Mandated the inclusion of a "References" section for the `Researcher` agent.
+- **Improvement: LLM Challenges**:
+  - **Updated Benchmarks**: Refreshed runner scripts and experiment results to reflect the improved agent behaviors.
+
 ## 2.0.17
 
 - **Feature: Enhanced Prompt Management & Active Skills**:
