@@ -1,13 +1,37 @@
 from pathlib import Path
-from typing import Callable
+from typing import Callable, List, Optional
 
 from zrb.context.any_context import AnyContext
-from zrb.llm.skill.manager import SkillManager
+from zrb.llm.skill.manager import Skill, SkillManager
 from zrb.util.markdown import make_markdown_section
 
 
-def create_claude_skills_prompt(skill_manager: SkillManager):
+def create_claude_skills_prompt(
+    skill_manager: SkillManager, active_skills: Optional[List[str]] = None
+):
     def claude_compatibility(
+        ctx: AnyContext,
+        current_prompt: str,
+        next_handler: Callable[[AnyContext, str], str],
+    ) -> str:
+        search_dirs = _get_search_directories()
+        additional_context = []
+
+        # 1. Available Claude Skills
+        skills_section = _get_skills_section(
+            skill_manager, search_dirs, active_skills=active_skills
+        )
+        if skills_section:
+            additional_context.append(skills_section)
+
+        new_section = "\n\n".join(additional_context)
+        return next_handler(ctx, f"{current_prompt}\n\n{new_section}")
+
+    return claude_compatibility
+
+
+def create_project_context_prompt():
+    def project_context(
         ctx: AnyContext,
         current_prompt: str,
         next_handler: Callable[[AnyContext, str], str],
@@ -31,15 +55,10 @@ def create_claude_skills_prompt(skill_manager: SkillManager):
                 make_markdown_section("Agent Definitions (AGENTS.md)", agents_content)
             )
 
-        # 3. Available Claude Skills
-        skills_section = _get_skills_section(skill_manager, search_dirs)
-        if skills_section:
-            additional_context.append(skills_section)
-
         new_section = "\n\n".join(additional_context)
         return next_handler(ctx, f"{current_prompt}\n\n{new_section}")
 
-    return claude_compatibility
+    return project_context
 
 
 def _get_search_directories() -> list[Path]:
@@ -79,16 +98,42 @@ def _get_combined_content(filename: str, search_dirs: list[Path]) -> str:
 
 
 def _get_skills_section(
-    skill_manager: SkillManager, search_dirs: list[Path]
-) -> str | None:
+    skill_manager: SkillManager,
+    search_dirs: list[Path],
+    active_skills: Optional[List[str]] = None,
+) -> Optional[str]:
     # Use SkillManager's built-in search directories logic
     skills = skill_manager.scan(search_dirs=skill_manager.get_search_directories())
     if not skills:
         return None
 
-    skills_context = ["Use 'activate_skill' to load instructions for a skill."]
+    skills_context = []
+
+    # Add active skills first (if any) with their full content
+    if active_skills:
+        skills_context.append("## Active Skills (Fully Loaded)")
+        for skill_name in active_skills:
+            skill_obj = skill_manager.get_skill(skill_name)
+
+            if skill_obj and skill_obj.model_invocable:
+                # Get the full skill content
+                skill_content = skill_manager.get_skill_content(skill_name)
+                if skill_content:
+                    skills_context.append(f"### {skill_name}")
+                    skills_context.append(skill_content)
+                else:
+                    # Fallback to description if content can't be loaded
+                    skills_context.append(f"- {skill_name}: {skill_obj.description}")
+        skills_context.append("")  # Add empty line for separation
+
+    # Add available skills (just metadata)
+    skills_context.append("## Available Skills")
+    skills_context.append("Use 'activate_skill' to load instructions for a skill.")
     for skill in skills:
         if skill.model_invocable:
+            # Skip skills that are already active
+            if active_skills and skill.name in active_skills:
+                continue
             skills_context.append(f"- {skill.name}: {skill.description}")
 
     return make_markdown_section(

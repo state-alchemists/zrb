@@ -1,17 +1,17 @@
-from typing import TYPE_CHECKING, Callable
+from typing import Callable
 
 from zrb.context.any_context import AnyContext
-from zrb.llm.prompt.claude import create_claude_skills_prompt
+from zrb.llm.note.manager import NoteManager
+from zrb.llm.prompt.claude import (
+    create_claude_skills_prompt,
+    create_project_context_prompt,
+)
 from zrb.llm.prompt.note import create_note_prompt
 from zrb.llm.prompt.prompt import SupportedRole, get_mandate_prompt, get_persona_prompt
 from zrb.llm.prompt.system_context import system_context
 from zrb.llm.prompt.zrb import create_zrb_skills_prompt
+from zrb.llm.skill.manager import SkillManager
 from zrb.util.attr import get_str_attr
-
-if TYPE_CHECKING:
-    from zrb.llm.note.manager import NoteManager
-    from zrb.llm.skill.manager import SkillManager
-
 
 PromptMiddleware = Callable[[AnyContext, str, Callable[[AnyContext, str], str]], str]
 
@@ -30,8 +30,10 @@ class PromptManager:
         include_note: bool = True,
         include_claude_skills: bool = True,
         include_zrb_skills: bool = True,
-        note_manager: "NoteManager | None" = None,
-        skill_manager: "SkillManager | None" = None,
+        include_project_context: bool = True,
+        note_manager: NoteManager | None = None,
+        skill_manager: SkillManager | None = None,
+        active_skills: list[str] | None = None,
     ):
         self._middlewares = prompts or []
         self._assistant_name = assistant_name
@@ -42,8 +44,10 @@ class PromptManager:
         self._include_note = include_note
         self._include_claude_skills = include_claude_skills
         self._include_zrb_skills = include_zrb_skills
+        self._include_project_context = include_project_context
         self._note_manager = note_manager
         self._skill_manager = skill_manager
+        self._active_skills = active_skills or []
 
     def _get_composed_middlewares(
         self, ctx: AnyContext
@@ -65,8 +69,12 @@ class PromptManager:
             middlewares.append(system_context)
         if self._include_note and self._note_manager:
             middlewares.append(create_note_prompt(self._note_manager))
+        if self._include_project_context:
+            middlewares.append(create_project_context_prompt())
         if self._include_claude_skills and self._skill_manager:
-            middlewares.append(create_claude_skills_prompt(self._skill_manager))
+            middlewares.append(
+                create_claude_skills_prompt(self._skill_manager, self._active_skills)
+            )
         if self._include_zrb_skills:
             middlewares.append(create_zrb_skills_prompt())
         middlewares.extend(self._middlewares)
@@ -79,6 +87,22 @@ class PromptManager:
     @prompts.setter
     def prompts(self, value: list[PromptMiddleware | str]):
         self._middlewares = value
+
+    @property
+    def active_skills(self):
+        return self._active_skills
+
+    @active_skills.setter
+    def active_skills(self, value: list[str]):
+        self._active_skills = value
+
+    @property
+    def include_project_context(self):
+        return self._include_project_context
+
+    @include_project_context.setter
+    def include_project_context(self, value: bool):
+        self._include_project_context = value
 
     def reset(self):
         self._middlewares = []

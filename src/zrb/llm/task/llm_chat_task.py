@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterable, Callable
 from contextlib import AsyncExitStack
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, AsyncIterable, Callable
 
 from zrb.attr.type import BoolAttr, StrAttr, fstring
 from zrb.config.config import CFG

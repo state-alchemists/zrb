@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.attr.type import BoolAttr, StrAttr, fstring
 from zrb.config.config import CFG
