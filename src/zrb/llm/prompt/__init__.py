@@ -1,4 +1,5 @@
 from zrb.llm.prompt.claude import create_claude_skills_prompt
+from zrb.llm.prompt.cli import create_cli_skills_prompt
 from zrb.llm.prompt.manager import PromptManager, PromptMiddleware, new_prompt
 from zrb.llm.prompt.note import create_note_prompt
 from zrb.llm.prompt.prompt import (
@@ -11,7 +12,6 @@ from zrb.llm.prompt.prompt import (
     get_summarizer_system_prompt,
 )
 from zrb.llm.prompt.system_context import system_context
-from zrb.llm.prompt.zrb import create_zrb_skills_prompt
 
 __all__ = [
     "create_claude_skills_prompt",
@@ -27,5 +27,5 @@ __all__ = [
     "get_summarizer_system_prompt",
     "create_note_prompt",
     "system_context",
-    "create_zrb_skills_prompt",
+    "create_cli_skills_prompt",
 ]

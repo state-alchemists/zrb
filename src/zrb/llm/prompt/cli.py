@@ -6,7 +6,7 @@ from zrb.runner.cli import cli
 from zrb.util.markdown import make_markdown_section
 
 
-def create_zrb_skills_prompt():
+def create_cli_skills_prompt():
     def zrb_prompt(
         ctx: AnyContext,
         current_prompt: str,

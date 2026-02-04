@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, Any, Callable
 
-from zrb.attr.type import BoolAttr, StrAttr, fstring
+from zrb.attr.type import BoolAttr, StrAttr, StrListAttr, fstring
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
@@ -27,7 +27,7 @@ from zrb.llm.util.stream_response import (
 )
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
-from zrb.util.attr import get_attr, get_bool_attr
+from zrb.util.attr import get_attr, get_bool_attr, get_str_list_attr
 from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
@@ -55,6 +55,8 @@ class LLMTask(BaseTask):
         system_prompt: Callable[[AnyContext], str | fstring | None] | str | None = None,
         render_system_prompt: bool = False,
         prompt_manager: PromptManager | None = None,
+        active_skills: StrListAttr | None = None,
+        render_active_skills: bool = True,
         tools: list[Tool | ToolFuncEither] = [],
         toolsets: list[AbstractToolset[None]] = [],
         message: StrAttr | None = None,
@@ -123,33 +125,26 @@ class LLMTask(BaseTask):
         self._llm_limitter = (
             default_llm_limitter if llm_limitter is None else llm_limitter
         )
-
-        # Handle backward compatibility: system_prompt -> prompt_manager
-        if system_prompt is not None:
-            warnings.warn(
-                f"Task '{name}': 'system_prompt' is deprecated, use 'prompt_manager' instead. "
-                "The 'system_prompt' and 'render_system_prompt' parameters will be removed in a future version.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
         # Auto-convert system_prompt to prompt_manager if provided and prompt_manager not set
-        if system_prompt is not None and prompt_manager is None:
+        if prompt_manager is None:
             prompt_manager = PromptManager(
                 prompts=[system_prompt] if system_prompt else [],
                 render=render_system_prompt,
+                active_skills=active_skills,
+                render_active_skills=render_active_skills,
                 include_persona=False,
                 include_mandate=False,
                 include_system_context=False,
                 include_note=False,
                 include_claude_skills=False,
-                include_zrb_skills=False,
+                include_cli_skills=False,
                 include_project_context=False,
             )
-
         self._system_prompt = system_prompt
         self._render_system_prompt = render_system_prompt
         self._prompt_manager = prompt_manager
+        self._active_skills = active_skills
+        self._render_active_skills = render_active_skills
         self._tools = tools
         self._toolsets = toolsets
         self._message = message
@@ -233,7 +228,7 @@ class LLMTask(BaseTask):
         ctx.log_debug(f"SYSTEM PROMPT: {system_prompt}")
         agent = create_agent(
             model=self._get_model(ctx),
-            system_prompt=self._get_system_prompt(ctx),
+            system_prompt=system_prompt,
             tools=self._tools,
             toolsets=self._toolsets,
             model_settings=self._get_model_settings(ctx),

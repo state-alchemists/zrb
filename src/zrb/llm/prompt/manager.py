@@ -1,18 +1,19 @@
 import inspect
 from typing import Callable, Union
 
+from zrb.attr.type import StrListAttr
 from zrb.context.any_context import AnyContext
 from zrb.llm.note.manager import NoteManager
 from zrb.llm.prompt.claude import (
     create_claude_skills_prompt,
     create_project_context_prompt,
 )
+from zrb.llm.prompt.cli import create_cli_skills_prompt
 from zrb.llm.prompt.note import create_note_prompt
 from zrb.llm.prompt.prompt import get_mandate_prompt, get_persona_prompt
 from zrb.llm.prompt.system_context import system_context
-from zrb.llm.prompt.zrb import create_zrb_skills_prompt
 from zrb.llm.skill.manager import SkillManager
-from zrb.util.attr import get_str_attr
+from zrb.util.attr import get_str_attr, get_str_list_attr
 
 # Simple prompt: just takes context and returns a string
 SimplePrompt = Callable[[AnyContext], str]
@@ -32,11 +33,12 @@ class PromptManager:
         include_system_context: bool = True,
         include_note: bool = True,
         include_claude_skills: bool = True,
-        include_zrb_skills: bool = True,
+        include_cli_skills: bool = True,
         include_project_context: bool = True,
         note_manager: NoteManager | None = None,
         skill_manager: SkillManager | None = None,
-        active_skills: list[str] | None = None,
+        active_skills: StrListAttr | None = None,
+        render_active_skills: bool = True,
         render: bool = False,
     ):
         self._middlewares = prompts or []
@@ -46,11 +48,12 @@ class PromptManager:
         self._include_system_context = include_system_context
         self._include_note = include_note
         self._include_claude_skills = include_claude_skills
-        self._include_zrb_skills = include_zrb_skills
+        self._include_cli_skills = include_cli_skills
         self._include_project_context = include_project_context
         self._note_manager = note_manager
         self._skill_manager = skill_manager
-        self._active_skills = active_skills or []
+        self._active_skills = active_skills
+        self._render_active_skills = render_active_skills
         self._render = render
 
     def _get_composed_middlewares(
@@ -73,11 +76,14 @@ class PromptManager:
         if self._include_project_context:
             middlewares.append(create_project_context_prompt())
         if self._include_claude_skills and self._skill_manager:
-            middlewares.append(
-                create_claude_skills_prompt(self._skill_manager, self._active_skills)
+            active_skills = get_str_list_attr(
+                ctx, self._active_skills, self._render_active_skills
             )
-        if self._include_zrb_skills:
-            middlewares.append(create_zrb_skills_prompt())
+            middlewares.append(
+                create_claude_skills_prompt(self._skill_manager, active_skills)
+            )
+        if self._include_cli_skills:
+            middlewares.append(create_cli_skills_prompt())
         middlewares.extend(self._middlewares)
         return middlewares
 
@@ -90,11 +96,11 @@ class PromptManager:
         self._middlewares = value
 
     @property
-    def active_skills(self):
+    def active_skills(self) -> StrListAttr | None:
         return self._active_skills
 
     @active_skills.setter
-    def active_skills(self, value: list[str]):
+    def active_skills(self, value: StrListAttr | None):
         self._active_skills = value
 
     @property
