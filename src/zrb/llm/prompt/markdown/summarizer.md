@@ -21,8 +21,12 @@ If the history contains large blocks of text (e.g., file contents read by `read_
 
 After your reasoning is complete, generate the final <state_snapshot> XML object. Be incredibly dense with information. Omit any irrelevant conversational filler.
 
-The structure MUST be as follows:
+**IMPORTANT: Output Format**
+Your final output must consist **ONLY** of the `<state_snapshot>` XML object. Do **NOT** include your `<scratchpad>` reasoning or any other text in the output. The `<scratchpad>` is for your internal reasoning only and must not appear in your final output.
 
+The structure of the final output MUST be as follows:
+
+```
 <state_snapshot>
     <overall_goal>
         <!-- A single, concise sentence describing the user's high-level objective. -->
@@ -72,3 +76,4 @@ The structure MUST be as follows:
         -->
     </task_state>
 </state_snapshot>
+```
