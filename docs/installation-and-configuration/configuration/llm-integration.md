@@ -10,7 +10,8 @@
 
 The following environment variables are used to configure the LLM in `zrb`:
 
-- **`ZRB_LLM_MODEL`**: Specifies the LLM model to use (e.g., `openai:gpt-4o`, `google-vertex:gemini-1.5-pro`).
+- **`ZRB_LLM_MODEL`**: Specifies the primary LLM model to use (e.g., `openai:gpt-4o`, `deepseek:deepseek-reasoner`, `ollama:llama3.1`).
+- **`ZRB_LLM_SMALL_MODEL`**: Specifies a smaller/faster model for summarization and auxiliary tasks (e.g., `openai:gpt-4o-mini`). Defaults to `openai:gpt-4o-mini`.
 - **`ZRB_LLM_API_KEY`**: The API key for the LLM provider.
 - **`ZRB_LLM_BASE_URL`**: The base URL for the LLM API (required for some providers or custom endpoints).
 
@@ -53,6 +54,7 @@ These variables control the verbosity of the tool execution logs in the CLI:
 2.  **Project Skills**: `.claude/skills/` in any directory from the filesystem root down to the current working directory.
 3.  **Project Instructions**: `CLAUDE.md` or `AGENTS.md` in any directory from root to current directory.
 4.  **Local Skills**: Any `SKILL.md` or `*.skill.md` file found recursively in the current project directory.
+5.  **Plugin Directories**: Custom directories specified via `ZRB_LLM_PLUGIN_DIRS` (colon-separated paths) containing `agents/` and `skills/` subdirectories.
 
 Use the `activate_skill` tool in chat to load these instructions.
 
@@ -121,11 +123,17 @@ ZRB_LLM_API_KEY=your_openrouter_api_key
 ZRB_LLM_BASE_URL=https://openrouter.ai/api/v1
 ```
 
+### DeepSeek
+```env
+ZRB_LLM_MODEL=deepseek:deepseek-reasoner
+DEEPSEEK_API_KEY=your_deepseek_api_key
+# Note: DeepSeek models use their built-in provider, no base URL needed for official API
+```
+
 ### Ollama (Local)
 ```env
-ZRB_LLM_MODEL=ollama:llama3
-ZRB_LLM_BASE_URL=http://localhost:11434/v1
-ZRB_LLM_API_KEY=ollama # Required by some clients, can be any string
+ZRB_LLM_MODEL=ollama:llama3.1
+OLLAMA_API_KEY=sk-your-ollama-api-key
 ```
 
 ---
@@ -137,10 +145,14 @@ Here’s an example `.env` file for a typical setup:
 ```env
 # Core LLM Config
 ZRB_LLM_MODEL=openai:gpt-4o
-ZRB_LLM_API_KEY=sk-your-openai-key
+ZRB_LLM_SMALL_MODEL=openai:gpt-4o-mini
+OPENAI_API_KEY=sk-your-openai-key
 
 # Prompt Customization
 ZRB_LLM_PROMPT_DIR=.zrb/llm/prompt
+
+# Plugin Directories
+# ZRB_LLM_PLUGIN_DIRS=/path/to/plugins:/another/path
 
 # Tool Debugging
 ZRB_LLM_SHOW_TOOL_CALL_DETAIL=true

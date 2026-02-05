@@ -260,9 +260,13 @@ Some Environment variables like `ZRB_WEB_GUEST_USERNAME` and `ZRB_WEB_SUPER_ADMI
 
 The following environment variables are used as LLM configuration default property values.
 
-* `ZRB_LLM_MODEL`: LLM model to use.
+* `ZRB_LLM_MODEL`: LLM model to use. Use the format `provider:model-name` (e.g., `openai:gpt-4o`, `deepseek:deepseek-reasoner`, `ollama:llama3.1`).
     * Default: None
-    * Possible values: `llama3.1:latest`, `gpt-4`, `gpt-3.5-turbo`, etc.
+    * Possible values: Any valid model string with provider prefix. Built-in providers include OpenAI, Anthropic, Google, DeepSeek, Groq, Mistral, and Ollama.
+
+* `ZRB_LLM_SMALL_MODEL`: Smaller/faster LLM model for summarization and auxiliary tasks. Use the format `provider:model-name`.
+    * Default: `openai:gpt-4o-mini`
+    * Possible values: Any valid model string with provider prefix (e.g., `openai:gpt-4o-mini`, `google:gemini-2.0-flash`, `deepseek:deepseek-chat`)
 
 * `ZRB_LLM_BASE_URL`: Base URL for LLM API.
     * Default: None
@@ -295,6 +299,10 @@ The following environment variables are used as LLM configuration default proper
 * `ZRB_LLM_PROMPT_DIR`: Directory for custom LLM prompts.
     * Default: `.zrb/llm/prompt`
     * Possible values: Any valid directory path
+
+* `ZRB_LLM_PLUGIN_DIRS`: Colon-separated list of directories containing custom LLM plugins (agents and skills).
+    * Default: None
+    * Possible values: Any valid directory paths separated by colons (e.g., `/path/to/plugins:/another/path`)
 
 * `ZRB_MCP_CONFIG_FILE`: Path to the MCP configuration file.
     * Default: `mcp-config.json`

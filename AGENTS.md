@@ -98,9 +98,14 @@ build >> test >> deploy
 
 Zrb is configured via environment variables (in `.env` or OS).
 
--   **LLM Model:** `ZRB_LLM_MODEL` (e.g., `openai:gpt-4o`, `google-vertex:gemini-1.5-pro`).
+-   **Primary LLM Model:** `ZRB_LLM_MODEL` (e.g., `openai:gpt-4o`, `deepseek:deepseek-reasoner`, `ollama:llama3.1`).
+-   **Small LLM Model:** `ZRB_LLM_SMALL_MODEL` (e.g., `openai:gpt-4o-mini`) - used for summarization and auxiliary tasks.
 -   **API Keys:** `ZRB_LLM_API_KEY`, `OPENAI_API_KEY`, etc.
+-   **Base URL:** `ZRB_LLM_BASE_URL` - for custom endpoints or local LLM servers.
 -   **Prompt Directory:** `ZRB_LLM_PROMPT_DIR` (default: `.zrb/llm/prompt`).
+-   **Plugin Directories:** `ZRB_LLM_PLUGIN_DIRS` - colon-separated paths to custom plugin directories containing agents and skills.
+
+**Note on Provider Prefixes:** Zrb supports built-in providers via `pydantic-ai`. When specifying models, use the format `provider:model-name` (e.g., `deepseek:deepseek-reasoner`, `ollama:llama3.1`). Built-in providers include OpenAI, Anthropic, Google, DeepSeek, Groq, Mistral, and Ollama.
 
 ## 5. Common Patterns & Best Practices
 
@@ -119,4 +124,16 @@ Zrb is configured via environment variables (in `.env` or OS).
 │   └── llm/
 │       └── prompt/      # Custom LLM prompts
 └── ...
+
+---
+
+## 7. Keeping This Guide Updated
+
+This guide should be updated whenever significant changes are made to Zrb's architecture, configuration, or usage patterns. If you notice any information in this guide that is outdated or no longer relevant, please update it to ensure accuracy for future AI assistants working with the Zrb project.
+
+Key areas to keep current:
+- Configuration options and environment variables
+- Task definition patterns and best practices
+- Directory structure and file locations
+- Core concepts and terminology
 ```
