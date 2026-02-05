@@ -64,21 +64,20 @@ def select_todo_task(
     Returns:
         TodoTaskModel | None: The matched todo task, or None if no match is found.
     """
+    k = keyword.lower().strip()
+    # 1. Exact match (ID then Description)
     for todo_task in todo_list:
-        id = todo_task.keyval.get("id", "")
-        if keyword.lower().strip() == id.lower().strip():
+        if k == todo_task.keyval.get("id", "").lower().strip():
             return todo_task
     for todo_task in todo_list:
-        description = todo_task.description
-        if keyword.lower().strip() == description.lower().strip():
+        if k == todo_task.description.lower().strip():
+            return todo_task
+    # 2. Partial match (ID then Description)
+    for todo_task in todo_list:
+        if k in todo_task.keyval.get("id", "").lower().strip():
             return todo_task
     for todo_task in todo_list:
-        id = todo_task.keyval.get("id", "")
-        if keyword.lower().strip() in id.lower().strip():
-            return todo_task
-    for todo_task in todo_list:
-        description = todo_task.description
-        if keyword.lower().strip() in description.lower().strip():
+        if k in todo_task.description.lower().strip():
             return todo_task
     return None
 

@@ -6,6 +6,9 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias, Union
 
 from zrb.llm.agent.std_ui import StdUI
 from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.hook.manager import HookManager
+from zrb.llm.hook.manager import hook_manager as default_hook_manager
+from zrb.llm.hook.types import HookEvent
 from zrb.llm.util.attachment import normalize_attachments
 from zrb.llm.util.prompt import expand_prompt
 
@@ -39,6 +42,9 @@ current_ui: ContextVar[UIProtocol | None] = ContextVar("current_ui", default=Non
 current_tool_confirmation: ContextVar[AnyToolConfirmation] = ContextVar(
     "current_tool_confirmation", default=None
 )
+current_hook_manager: ContextVar[HookManager | None] = ContextVar(
+    "current_hook_manager", default=None
+)
 
 
 async def run_agent(
@@ -51,6 +57,7 @@ async def run_agent(
     event_handler: Callable[[Any], Any] | None = None,
     tool_confirmation: AnyToolConfirmation = None,
     ui: UIProtocol | None = None,
+    hook_manager: HookManager | None = None,
 ) -> tuple[Any, list[Any]]:
     """
     Runs the agent with rate limiting, history management, and optional CLI confirmation loop.
@@ -58,13 +65,17 @@ async def run_agent(
     """
     from pydantic_ai import AgentRunResultEvent, DeferredToolRequests, UsageLimits
 
-    # Resolve UI and Tool Confirmation from arguments or context fallback
+    # Resolve UI, Tool Confirmation, and Hook Manager from arguments or context fallback
     effective_ui = ui or current_ui.get() or StdUI()
     effective_tool_confirmation = tool_confirmation or current_tool_confirmation.get()
+    effective_hook_manager = (
+        hook_manager or current_hook_manager.get() or default_hook_manager
+    )
 
     # Set context variables so sub-agents can inherit them
     token_ui = current_ui.set(effective_ui)
     token_confirmation = current_tool_confirmation.set(effective_tool_confirmation)
+    token_hook_manager = current_hook_manager.set(effective_hook_manager)
 
     try:
         # Resolve print_fn and event_handler for streaming visibility
@@ -88,8 +99,28 @@ async def run_agent(
                 show_tool_result=CFG.LLM_SHOW_TOOL_CALL_RESULT,
             )
 
+        # Hook: SessionStart
+        await effective_hook_manager.execute_hooks(
+            HookEvent.SESSION_START,
+            {
+                "message": message,
+                "history": message_history,
+                "attachments": attachments,
+            },
+        )
+
         # Expand user message with references
         effective_message = expand_prompt(message) if message else message
+
+        # Hook: UserPromptSubmit
+        await effective_hook_manager.execute_hooks(
+            HookEvent.USER_PROMPT_SUBMIT,
+            {
+                "original_message": message,
+                "expanded_message": effective_message,
+                "attachments": attachments,
+            },
+        )
 
         # Prepare Prompt Content
         prompt_content = _get_prompt_content(effective_message, attachments, print_fn)
@@ -126,18 +157,40 @@ async def run_agent(
                     result_output,
                     effective_tool_confirmation,
                     effective_ui,
+                    effective_hook_manager,
                 )
                 if current_results is None:
+                    # Hook: SessionEnd (premature end due to tool denial or wait)
+                    await effective_hook_manager.execute_hooks(
+                        HookEvent.SESSION_END,
+                        {"reason": "deferred_wait", "history": run_history},
+                    )
                     return result_output, run_history
                 # Prepare next iteration
                 current_message = None
                 current_history = run_history
                 continue
+
+            # Hook: PreCompact (if history is getting long)
+            # This is a simplified check
+            if len(run_history) > 10:
+                await effective_hook_manager.execute_hooks(
+                    HookEvent.PRE_COMPACT,
+                    {"history": run_history},
+                )
+
+            # Hook: SessionEnd
+            await effective_hook_manager.execute_hooks(
+                HookEvent.SESSION_END,
+                {"output": result_output, "history": run_history},
+            )
+
             return result_output, run_history
     finally:
         # Restore context variables
         current_ui.reset(token_ui)
         current_tool_confirmation.reset(token_confirmation)
+        current_hook_manager.reset(token_hook_manager)
 
 
 def _get_prompt_content(
@@ -194,6 +247,7 @@ async def _process_deferred_requests(
     result_output: "DeferredToolRequests",
     effective_tool_confirmation: AnyToolConfirmation,
     ui: UIProtocol,
+    hook_manager: HookManager,
 ) -> "DeferredToolResults | None":
     """Handles tool approvals/denials via callback, ToolCallHandler, or CLI fallback."""
     import inspect
@@ -209,6 +263,22 @@ async def _process_deferred_requests(
     current_results = DeferredToolResults()
 
     for call in all_requests:
+        # Hook: PreToolUse
+        hook_results = await hook_manager.execute_hooks(
+            HookEvent.PRE_TOOL_USE,
+            {"tool": call.tool_name, "args": call.args, "call_id": call.tool_call_id},
+        )
+        # Apply modifications from hooks (simple args merging for now)
+        for hr in hook_results:
+            if hr.modifications.get("tool_args"):
+                if isinstance(call.args, dict):
+                    call.args.update(hr.modifications["tool_args"])
+            if hr.modifications.get("cancel_tool"):
+                current_results.approvals[call.tool_call_id] = ToolDenied(
+                    "Tool execution cancelled by hook"
+                )
+                continue
+
         result = None
         handled = False
 
@@ -234,5 +304,19 @@ async def _process_deferred_requests(
             handler = ToolCallHandler()  # Use default handler with no policies
             result = await handler.handle(ui, call)
             current_results.approvals[call.tool_call_id] = result
+
+        # Hook: PostToolUse / PostToolUseFailure
+        from pydantic_ai import ToolApproved, ToolDenied
+
+        if isinstance(result, ToolApproved):
+            await hook_manager.execute_hooks(
+                HookEvent.POST_TOOL_USE,
+                {"tool": call.tool_name, "args": call.args, "result": result},
+            )
+        elif isinstance(result, ToolDenied):
+            await hook_manager.execute_hooks(
+                HookEvent.POST_TOOL_USE_FAILURE,
+                {"tool": call.tool_name, "args": call.args, "error": result.reason},
+            )
 
     return current_results
