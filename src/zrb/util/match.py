@@ -29,27 +29,44 @@ def fuzzy_match(text: str, pattern: str) -> tuple[bool, float]:
     tokens = [t.lower() for t in tokens]
     if not tokens:
         return True, 0.0
+
     last_pos = 0
     score = 0.0
+
+    # Heuristics
+    BOUNDARY_BONUS = 20.0
+    SUBSEQUENCE_PENALTY = 10.0
+    SEPARATORS = {os.path.sep, "/", "_", "-", ".", " "}
+
     for token in tokens:
-        # try contiguous substring search first
+        # 1. Try contiguous substring search
         idx = text_cmp.find(token, last_pos)
+
         if idx != -1:
-            # good match: reward contiguous early matches
-            score += idx  # smaller idx preferred
+            # Check for boundary match
+            is_boundary = (idx == 0) or (text_cmp[idx - 1] in SEPARATORS)
+
+            # Base score is index (penalize depth)
+            token_score = float(idx)
+
+            if is_boundary:
+                token_score -= BOUNDARY_BONUS
+
+            score += token_score
             last_pos = idx + len(token)
         else:
-            # fallback to subsequence matching
+            # 2. Fallback to subsequence matching
             res = _find_subsequence_range(text_cmp, token, last_pos)
             if res is None:
                 return False, 0.0
 
             pos, end_pos = res
 
-            # subsequence match is less preferred than contiguous substring
-            score += pos + 0.5 * len(token)
+            # Base score + Penalty
+            score += float(pos) + SUBSEQUENCE_PENALTY + (0.1 * len(token))
             last_pos = end_pos
-    # prefer shorter texts when score ties, so include length as tiebreaker
+
+    # Tie-breaker: prefer shorter text
     score += 0.01 * len(text)
     return True, score
 

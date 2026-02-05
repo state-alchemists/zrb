@@ -16,6 +16,7 @@ class LLMConfig:
 
     def __init__(self):
         self._model: "str | Model | None" = None
+        self._small_model: "str | Model | None" = None
         self._model_settings: "ModelSettings | None" = None
         self._system_prompt: str | None = None
         self._summarization_prompt: str | None = None
@@ -42,6 +43,22 @@ class LLMConfig:
     @model.setter
     def model(self, value: "str | Model"):
         self._model = value
+
+    @property
+    def small_model(self) -> "str | Model":
+        """
+        The Small LLM model to use. Returns a model string (e.g. 'openai:gpt-4o-mini')
+        or a pydantic_ai Model object.
+        """
+        if self._small_model is not None:
+            return self._small_model
+
+        model_name = CFG.LLM_SMALL_MODEL or "openai:gpt-4o-mini"
+        return self._resolve_model_by_name(model_name)
+
+    @small_model.setter
+    def small_model(self, value: "str | Model"):
+        self._small_model = value
 
     # --- Model Settings ---
 
@@ -96,15 +113,20 @@ class LLMConfig:
         provider_name = "openai"
         if ":" in model_name:
             provider_name = model_name.split(":", 1)[0]
-
-        # Use custom OpenAIProvider if api_key or base_url is set,
-        # but only if the requested provider is openai or unknown
-        if provider_name in ["openai", "ollama", "deepseek"] or (
-            provider_name not in ["anthropic", "google", "groq", "mistral"]
-            and (self.api_key or self.base_url)
+        builtin_providers = [
+            "anthropic",
+            "google",
+            "groq",
+            "mistral",
+            "deepseek",
+            "ollama",
+        ]
+        if provider_name in builtin_providers:
+            return model_name
+        if provider_name == "openai" or (
+            provider_name not in builtin_providers and (self.api_key or self.base_url)
         ):
             return self._resolve_model(model_name, self.provider)
-
         return model_name
 
     def _resolve_model(
@@ -112,7 +134,6 @@ class LLMConfig:
     ) -> "str | Model":
         # Strip existing provider prefix if present
         clean_model_name = model_name.split(":", 1)[-1]
-
         # 1. Provider is an Object (e.g. OpenAIProvider created from custom config)
         # We check specific types we know how to wrap
         try:
@@ -123,11 +144,9 @@ class LLMConfig:
                 return OpenAIChatModel(model_name=clean_model_name, provider=provider)
         except ImportError:
             pass
-
         # 2. Provider is a String
         if isinstance(provider, str):
             return f"{provider}:{clean_model_name}"
-
         # 3. Fallback (Provider is None or unknown object)
         return model_name
 

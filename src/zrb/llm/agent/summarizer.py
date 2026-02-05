@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from zrb.llm.agent.common import create_agent
+from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.prompt.prompt import get_summarizer_system_prompt
 
 if TYPE_CHECKING:
@@ -13,7 +14,8 @@ def create_summarizer_agent(
     system_prompt: str | None = None,
 ) -> "Agent[None, str]":
     effective_system_prompt = system_prompt or get_summarizer_system_prompt()
-
+    if model is None:
+        model = default_llm_config.small_model
     return create_agent(
         model=model,
         system_prompt=effective_system_prompt,

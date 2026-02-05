@@ -103,9 +103,11 @@ class Config:
         self.DEFAULT_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_PROMPT_DIR: str = ""
+        self.DEFAULT_LLM_PLUGIN_DIRS: str = ""
         self.DEFAULT_LLM_SHOW_TOOL_CALL_DETAIL: str = "off"
         self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT: str = "off"
         self.DEFAULT_ASCII_ART_DIR: str = ""
+        self.DEFAULT_LLM_SMALL_MODEL: str = ""
         self.DEFAULT_RAG_EMBEDDING_API_KEY: str = ""
         self.DEFAULT_RAG_EMBEDDING_BASE_URL: str = ""
         self.DEFAULT_RAG_EMBEDDING_MODEL: str = "text-embedding-ada-002"
@@ -896,6 +898,21 @@ class Config:
             os.environ[f"{self.ENV_PREFIX}_LLM_MODEL"] = value
 
     @property
+    def LLM_SMALL_MODEL(self) -> str | None:
+        value = get_env(
+            "LLM_SMALL_MODEL", self.DEFAULT_LLM_SMALL_MODEL, self.ENV_PREFIX
+        )
+        return None if value == "" else value
+
+    @LLM_SMALL_MODEL.setter
+    def LLM_SMALL_MODEL(self, value: str | None):
+        if value is None:
+            if f"{self.ENV_PREFIX}_LLM_SMALL_MODEL" in os.environ:
+                del os.environ[f"{self.ENV_PREFIX}_LLM_SMALL_MODEL"]
+        else:
+            os.environ[f"{self.ENV_PREFIX}_LLM_SMALL_MODEL"] = value
+
+    @property
     def LLM_BASE_URL(self) -> str | None:
         value = get_env("LLM_BASE_URL", self.DEFAULT_LLM_BASE_URL, self.ENV_PREFIX)
         return None if value == "" else value
@@ -1119,17 +1136,19 @@ class Config:
         os.environ[f"{self.ENV_PREFIX}_LLM_PROMPT_DIR"] = value
 
     @property
-    def LLM_PLUGIN_DIR(self) -> list[str]:
-        plugin_dir_str = get_env("LLM_PLUGIN_DIR", "", self.ENV_PREFIX)
+    def LLM_PLUGIN_DIRS(self) -> list[str]:
+        plugin_dir_str = get_env(
+            "LLM_PLUGIN_DIRS", self.DEFAULT_LLM_PLUGIN_DIRS, self.ENV_PREFIX
+        )
         if plugin_dir_str != "":
             return [
                 path.strip() for path in plugin_dir_str.split(":") if path.strip() != ""
             ]
         return []
 
-    @LLM_PLUGIN_DIR.setter
-    def LLM_PLUGIN_DIR(self, value: list[str]):
-        os.environ[f"{self.ENV_PREFIX}_LLM_PLUGIN_DIR"] = ":".join(value)
+    @LLM_PLUGIN_DIRS.setter
+    def LLM_PLUGIN_DIRS(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_LLM_PLUGIN_DIRS"] = ":".join(value)
 
     def _get_max_threshold(self, factor: float) -> int:
         return get_max_token_threshold(

@@ -521,3 +521,15 @@ def test_llm_configs_types():
     assert isinstance(config.BANNER, str)
     assert isinstance(config.USE_TIKTOKEN, bool)
     assert isinstance(config.TIKTOKEN_ENCODING_NAME, str)
+
+
+def test_llm_plugin_dirs(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_PLUGIN_DIRS", "dir1:dir2")
+    config = Config()
+    assert config.LLM_PLUGIN_DIRS == ["dir1", "dir2"]
+
+
+def test_llm_small_model(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_SMALL_MODEL", "gpt-4o-mini")
+    config = Config()
+    assert config.LLM_SMALL_MODEL == "gpt-4o-mini"

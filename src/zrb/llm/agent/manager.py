@@ -84,7 +84,7 @@ class SubAgentManager:
                 search_dirs.append(agent_path)
 
         # User Plugins
-        for plugin_path_str in CFG.LLM_PLUGIN_DIR:
+        for plugin_path_str in CFG.LLM_PLUGIN_DIRS:
             plugin_path = Path(plugin_path_str)
             if plugin_path.exists() and plugin_path.is_dir():
                 agent_path = plugin_path / "agents"
