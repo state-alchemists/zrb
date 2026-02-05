@@ -28,6 +28,8 @@ from zrb.llm.app.redirection import GlobalStreamCapture
 from zrb.llm.app.style import create_style
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.hook.manager import hook_manager
+from zrb.llm.hook.types import HookEvent
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.tool_call import (
     ArgumentFormatter,
@@ -118,6 +120,7 @@ class UI:
         self._cwd = os.getcwd()
         self._git_info = "Checking..."
         self._system_info_task: asyncio.Task | None = None
+        self._refresh_task: asyncio.Task | None = None
         # Attachments
         self._pending_attachments: list[UserContent] = list(initial_attachments)
         # Confirmation Handler
@@ -201,6 +204,11 @@ class UI:
             self._update_system_info_loop()
         )
 
+        # Start refresh loop (fix for lagging/artifacts)
+        self._refresh_task = self._application.create_background_task(
+            self._refresh_loop()
+        )
+
         try:
             self._capture.start()
             return await self._application.run_async()
@@ -214,6 +222,18 @@ class UI:
 
             if self._system_info_task:
                 self._system_info_task.cancel()
+
+            if self._refresh_task:
+                self._refresh_task.cancel()
+
+    async def _refresh_loop(self):
+        """Periodically invalidate UI to fix artifacts/lag."""
+        while True:
+            try:
+                get_app().invalidate()
+            except Exception:
+                pass
+            await asyncio.sleep(0.5)
 
     async def _trigger_loop(
         self,
@@ -384,7 +404,7 @@ class UI:
             style=style,
             full_screen=True,
             mouse_support=True,
-            refresh_interval=0.1,
+            refresh_interval=0.05,
             output=create_output(stdout=self._capture.get_original_stdout()),
             clipboard=clipboard,
         )
@@ -423,6 +443,7 @@ class UI:
 
     def _get_info_bar_text(self) -> AnyFormattedText:
         from prompt_toolkit.formatted_text import HTML
+        from prompt_toolkit.formatted_text.utils import fragment_list_width
 
         model_name = "Unknown"
         if self._model:
@@ -432,18 +453,40 @@ class UI:
                 model_name = getattr(self._model, "model_name")
             else:
                 model_name = str(self._model)
+
         yolo_text = (
-            "<style color='ansired'><b>ON</b></style>"
+            "<style color='ansired'><b>ON </b></style>"
             if self._yolo
             else "<style color='ansigreen'>OFF</style>"
         )
-        return HTML(
+
+        # 1. Construct lines
+        line1_html = (
             f" 🤖 <b>Model:</b> {model_name} "
-            f"| 🗣️ <b>Session:</b> {self._conversation_session_name} "
-            f"| 🤠 <b>YOLO:</b> {yolo_text} \n"
-            f" 📂 <b>Dir:</b> {self._cwd} "
-            f"| 🌿 <b>Git:</b> {self._git_info} "
+            f"| 💬 <b>Session:</b> {self._conversation_session_name} "
+            f"| 🤠 <b>YOLO:</b> {yolo_text}"
         )
+        line2_html = (
+            f" 📂 <b>Dir:</b> {self._cwd} " f"| 🌿 <b>Git:</b> {self._git_info}"
+        )
+
+        # 2. Manual centering and clearing
+        try:
+            total_cols = get_app().output.get_size().columns
+        except Exception:
+            total_cols = 80
+
+        def center_line(html_text: str) -> str:
+            # Calculate visible width (fragment_list_width needs list of fragments)
+            fragments = HTML(html_text).__pt_formatted_text__()
+            visible_width = fragment_list_width(fragments)
+            padding = max(0, (total_cols - visible_width) // 2)
+            # Add padding to center, and more padding at end to clear entire line
+            return (
+                " " * padding + html_text + " " * (total_cols - visible_width - padding)
+            )
+
+        return HTML(center_line(line1_html) + "\n" + center_line(line2_html))
 
     def _get_status_bar_text(self) -> AnyFormattedText:
         if self._is_thinking:
@@ -464,12 +507,29 @@ class UI:
             if buffer.text != "":
                 buffer.reset()
                 return
+            # Hook: Stop
+            asyncio.create_task(
+                hook_manager.execute_hooks(
+                    HookEvent.STOP,
+                    {"reason": "ctrl_c", "session": self._conversation_session_name},
+                )
+            )
             event.app.exit()
 
         @app_keybindings.add("escape")
         def _(event):
             if self._running_llm_task and not self._running_llm_task.done():
                 self._running_llm_task.cancel()
+                # Hook: Stop
+                asyncio.create_task(
+                    hook_manager.execute_hooks(
+                        HookEvent.STOP,
+                        {
+                            "reason": "escape",
+                            "session": self._conversation_session_name,
+                        },
+                    )
+                )
                 self.append_to_output("\n<Esc> Canceled")
 
         @app_keybindings.add("enter")
@@ -677,25 +737,6 @@ class UI:
                 return True
         return False
 
-    def _handle_set_model_command(self, event) -> bool:
-        buff = event.current_buffer
-        text = buff.text.strip()
-        for cmd in self._set_model_commands:
-            prefix = f"{cmd} "
-            if text.lower().startswith(prefix):
-                if self._is_thinking:
-                    return False
-                model_name = text[len(prefix) :].strip()
-                if not model_name:
-                    continue
-                self._model = model_name
-                self.append_to_output(
-                    stylize_faint(f"\n  🤖 Model switched to: {model_name}\n")
-                )
-                buff.reset()
-                return True
-        return False
-
     def _handle_multiline(self, event) -> bool:
         buff = event.current_buffer
         text = buff.text
@@ -877,6 +918,15 @@ class UI:
             new_text = previous + resolved
         else:
             new_text = current_text + content
+
+        # Hook: Notification
+        # Use fire-and-forget for UI notifications to avoid blocking
+        asyncio.create_task(
+            hook_manager.execute_hooks(
+                HookEvent.NOTIFICATION,
+                {"content": content, "session": self._conversation_session_name},
+            )
+        )
 
         # Update content directly
         # We use bypass_readonly=True by constructing a Document

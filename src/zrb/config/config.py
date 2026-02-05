@@ -129,6 +129,11 @@ class Config:
         self.DEFAULT_USE_TIKTOKEN: str = "off"
         self.DEFAULT_TIKTOKEN_ENCODING_NAME: str = "cl100k_base"
         self.DEFAULT_MCP_CONFIG_FILE: str = "mcp-config.json"
+        self.DEFAULT_HOOKS_ENABLED: str = "1"
+        self.DEFAULT_HOOKS_DIRS: str = ""
+        self.DEFAULT_HOOKS_TIMEOUT: str = "30"
+        self.DEFAULT_HOOKS_DEBUG: str = "0"
+        self.DEFAULT_HOOKS_LOG_LEVEL: str = "INFO"
 
     @property
     def ENV_PREFIX(self) -> str:
@@ -1397,6 +1402,55 @@ class Config:
     @MCP_CONFIG_FILE.setter
     def MCP_CONFIG_FILE(self, value: str):
         os.environ[f"{self.ENV_PREFIX}_MCP_CONFIG_FILE"] = value
+
+    @property
+    def HOOKS_ENABLED(self) -> bool:
+        return to_boolean(
+            get_env("HOOKS_ENABLED", self.DEFAULT_HOOKS_ENABLED, self.ENV_PREFIX)
+        )
+
+    @HOOKS_ENABLED.setter
+    def HOOKS_ENABLED(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_HOOKS_ENABLED"] = "1" if value else "0"
+
+    @property
+    def HOOKS_DIRS(self) -> list[str]:
+        dirs_str = get_env("HOOKS_DIRS", self.DEFAULT_HOOKS_DIRS, self.ENV_PREFIX)
+        if dirs_str != "":
+            return [path.strip() for path in dirs_str.split(":") if path.strip() != ""]
+        return []
+
+    @HOOKS_DIRS.setter
+    def HOOKS_DIRS(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_HOOKS_DIRS"] = ":".join(value)
+
+    @property
+    def HOOKS_TIMEOUT(self) -> int:
+        return int(
+            get_env("HOOKS_TIMEOUT", self.DEFAULT_HOOKS_TIMEOUT, self.ENV_PREFIX)
+        )
+
+    @HOOKS_TIMEOUT.setter
+    def HOOKS_TIMEOUT(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_HOOKS_TIMEOUT"] = str(value)
+
+    @property
+    def HOOKS_DEBUG(self) -> bool:
+        return to_boolean(
+            get_env("HOOKS_DEBUG", self.DEFAULT_HOOKS_DEBUG, self.ENV_PREFIX)
+        )
+
+    @HOOKS_DEBUG.setter
+    def HOOKS_DEBUG(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_HOOKS_DEBUG"] = "1" if value else "0"
+
+    @property
+    def HOOKS_LOG_LEVEL(self) -> str:
+        return get_env("HOOKS_LOG_LEVEL", self.DEFAULT_HOOKS_LOG_LEVEL, self.ENV_PREFIX)
+
+    @HOOKS_LOG_LEVEL.setter
+    def HOOKS_LOG_LEVEL(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_HOOKS_LOG_LEVEL"] = value
 
 
 CFG = Config()

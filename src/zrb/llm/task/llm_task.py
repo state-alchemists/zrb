@@ -19,6 +19,8 @@ from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.history_processor.summarizer import (
     summarize_history,
 )
+from zrb.llm.hook.manager import HookManager
+from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.util.attachment import get_attachments
 from zrb.llm.util.stream_response import (
@@ -55,6 +57,7 @@ class LLMTask(BaseTask):
         system_prompt: Callable[[AnyContext], str | fstring | None] | str | None = None,
         render_system_prompt: bool = False,
         prompt_manager: PromptManager | None = None,
+        hook_manager: HookManager | None = None,
         active_skills: StrListAttr | None = None,
         render_active_skills: bool = True,
         tools: list[Tool | ToolFuncEither] = [],
@@ -143,6 +146,9 @@ class LLMTask(BaseTask):
         self._system_prompt = system_prompt
         self._render_system_prompt = render_system_prompt
         self._prompt_manager = prompt_manager
+        self._hook_manager = (
+            default_hook_manager if hook_manager is None else hook_manager
+        )
         self._active_skills = active_skills
         self._render_active_skills = render_active_skills
         self._tools = tools
@@ -252,6 +258,7 @@ class LLMTask(BaseTask):
             print_fn=lambda *args, **kwargs: ctx.print(*args, **kwargs, plain=True),
             event_handler=handle_event,
             tool_confirmation=self._tool_confirmation,
+            hook_manager=self._hook_manager,
             ui=self._ui,
         )
 

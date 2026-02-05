@@ -92,7 +92,6 @@ def create_layout(
                         height=3,
                         content=FormattedTextControl(info_bar_text),
                         style="class:info-bar",
-                        align=WindowAlign.CENTER,
                     ),
                     # Chat History
                     Frame(output_field, title="Conversation", style="class:frame"),

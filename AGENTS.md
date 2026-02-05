@@ -127,7 +127,33 @@ Zrb is configured via environment variables (in `.env` or OS).
 
 ---
 
-## 7. Keeping This Guide Updated
+## 7. LLM Extension Architectural Patterns
+
+When extending Zrb's LLM capabilities (e.g., adding hooks, new managers, etc.), follow these established patterns:
+
+### 7.1. Classic Python Classes
+Avoid using Pydantic's `BaseModel` for internal data structures or configurations. Use "classic" Python classes or `dataclasses`. This keeps the core lightweight and avoids dependency-heavy inheritance patterns.
+
+### 7.2. Module-Level Singletons
+Managers (like `SkillManager`, `NoteManager`, or `HookManager`) should be instantiated as singletons at the module level.
+-   Define the manager class.
+-   Create an instance at the bottom of the file (e.g., `hook_manager = HookManager()`).
+-   Import this instance where needed.
+
+### 7.3. Configuration and Path Conventions
+-   Always use `CFG.ROOT_GROUP_NAME` when defining default configuration or storage paths.
+-   Prefer paths like `.{CFG.ROOT_GROUP_NAME}/something` over hardcoded `.zrb/something`.
+-   Discovery logic should check:
+    1.  User home directory (`~/.{CFG.ROOT_GROUP_NAME}/...`)
+    2.  Project-local directories (climbing up from CWD to root, checking `.{CFG.ROOT_GROUP_NAME}/...`)
+    3.  Custom directories defined in `CFG`.
+
+### 7.4. Lazy Loading and Scanning
+Managers should have a `scan()` or `load()` method to discover artifacts, rather than doing it automatically in the constructor. This allows more control over when potentially heavy I/O operations occur.
+
+---
+
+## 8. Keeping This Guide Updated
 
 This guide should be updated whenever significant changes are made to Zrb's architecture, configuration, or usage patterns. If you notice any information in this guide that is outdated or no longer relevant, please update it to ensure accuracy for future AI assistants working with the Zrb project.
 
