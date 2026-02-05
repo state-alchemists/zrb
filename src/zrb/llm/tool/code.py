@@ -12,6 +12,7 @@ from zrb.llm.prompt.prompt import (
     get_repo_summarizer_system_prompt,
 )
 from zrb.llm.tool.file import DEFAULT_EXCLUDED_PATTERNS
+from zrb.util.file import is_path_excluded
 
 _DEFAULT_EXTENSIONS = [
     "py",
@@ -139,7 +140,7 @@ def _get_file_metadatas(
             file_path = os.path.join(root, file)
             try:
                 rel_path = os.path.relpath(file_path, dir_path)
-                if _is_excluded(rel_path, exclude_patterns):
+                if is_path_excluded(rel_path, exclude_patterns):
                     continue
                 with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                     metadata_list.append({"path": rel_path, "content": f.read()})
@@ -147,17 +148,6 @@ def _get_file_metadatas(
                 zrb_print(f"Error reading file {file_path}: {e}", plain=True)
     metadata_list.sort(key=lambda m: m["path"])
     return metadata_list
-
-
-def _is_excluded(name: str, patterns: list[str]) -> bool:
-    for pattern in patterns:
-        if fnmatch.fnmatch(name, pattern):
-            return True
-        parts = name.split(os.path.sep)
-        for part in parts:
-            if fnmatch.fnmatch(part, pattern):
-                return True
-    return False
 
 
 async def _extract_info(

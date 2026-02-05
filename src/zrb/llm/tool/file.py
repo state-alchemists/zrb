@@ -4,6 +4,8 @@ import os
 import re
 from typing import Any
 
+from zrb.util.file import is_path_excluded, read_file, write_file
+
 DEFAULT_EXCLUDED_PATTERNS = [
     "__pycache__",
     "*.pyc",
@@ -73,16 +75,16 @@ def list_files(
             d
             for d in dirs
             if (include_hidden or not d.startswith("."))
-            and not _is_excluded(d, patterns_to_exclude)
+            and not is_path_excluded(d, patterns_to_exclude)
         ]
 
         for filename in files:
-            if (include_hidden or not filename.startswith(".")) and not _is_excluded(
-                filename, patterns_to_exclude
-            ):
+            if (
+                include_hidden or not filename.startswith(".")
+            ) and not is_path_excluded(filename, patterns_to_exclude):
                 full_path = os.path.join(root, filename)
                 rel_full_path = os.path.relpath(full_path, abs_path)
-                if not _is_excluded(rel_full_path, patterns_to_exclude):
+                if not is_path_excluded(rel_full_path, patterns_to_exclude):
                     all_files.append(rel_full_path)
     return {"files": sorted(all_files)}
 
@@ -133,7 +135,7 @@ def glob_files(
                 continue
 
         # Filter excluded
-        if _is_excluded(rel_path, patterns_to_exclude):
+        if is_path_excluded(rel_path, patterns_to_exclude):
             continue
 
         found_files.append(rel_path)
@@ -490,17 +492,6 @@ def _get_file_matches(
             }
             matches.append(match_data)
     return matches
-
-
-def _is_excluded(name: str, patterns: list[str]) -> bool:
-    for pattern in patterns:
-        if fnmatch.fnmatch(name, pattern):
-            return True
-        parts = name.split(os.path.sep)
-        for part in parts:
-            if fnmatch.fnmatch(part, pattern):
-                return True
-    return False
 
 
 async def analyze_file(path: str, query: str) -> str:
