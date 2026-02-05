@@ -316,7 +316,7 @@ async def _process_deferred_requests(
         elif isinstance(result, ToolDenied):
             await hook_manager.execute_hooks(
                 HookEvent.POST_TOOL_USE_FAILURE,
-                {"tool": call.tool_name, "args": call.args, "error": result.reason},
+                {"tool": call.tool_name, "args": call.args, "error": result.message},
             )
 
     return current_results
