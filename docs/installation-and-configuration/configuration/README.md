@@ -469,8 +469,48 @@ These variables control the appearance and behavior of the LLM chat interface.
     * Possible values: `0` (off), `1` (moderate), `2` (strict)
 
 * `ZRB_ASCII_ART_DIR`: Directory containing ASCII art files for assistant.
-    * Default: `.zrb/llm/prompt`
-    * Possible values: Any valid directory path
+
+    *   Default: `.zrb/llm/prompt`
+
+    *   Possible values: Any valid directory path
+
+
+
+### LLM Hook Configuration
+
+
+
+* `ZRB_HOOKS_ENABLED`: Whether to enable the hook system.
+
+    * Default: `1` (true)
+
+    * Possible values: `0` (false), `1` (true)
+
+
+
+* `ZRB_HOOKS_DIRS`: Colon-separated list of additional directories to scan for hook configs.
+
+    * Default: Empty
+
+    * Possible values: Any valid directory paths separated by colons
+
+
+
+* `ZRB_HOOKS_TIMEOUT`: Default timeout for sync hooks in seconds.
+
+    * Default: `30`
+
+    * Possible values: Any positive integer
+
+
+
+* `ZRB_HOOKS_LOG_LEVEL`: Logging level for hook execution.
+
+    * Default: `INFO`
+
+    * Possible values: `CRITICAL`, `ERROR`, `WARN`, `WARNING`, `INFO`, `DEBUG`, `NOTSET`
+
+
 
 ---
 🔖 [Home](../../../README.md) > [Documentation](../../README.md) > [Installation and Configuration](../README.md)

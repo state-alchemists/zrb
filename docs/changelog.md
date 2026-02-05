@@ -1,5 +1,23 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.2.0
+
+- **Feature: Extensible Hook System**:
+  - **Lifecycle Integration**: Implemented a comprehensive hook system that allows user-defined shell commands and Python functions to execute at key lifecycle events: `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PreCompact`, `SessionEnd`, `Notification`, and `Stop`.
+  - **Claude Code Compatibility**: Support for Claude Code-style declarative hooks (JSON/YAML) with automatic hydration into Python callables.
+  - **Hook Management**: Introduced `HookManager` for centralized discovery, registration, and execution of hooks. Hooks can be loaded automatically from standard locations (e.g., `~/.{ROOT_GROUP_NAME}/hooks.json` and project-local directories).
+  - **Task-Level Customization**: `LLMTask` and `LLMChatTask` now support defining custom `HookManager` instances for isolated hook execution.
+
+- **Improvement: UI Responsiveness & Stability**:
+  - **Zero-Lag Updates**: Implemented a background `_refresh_loop` that periodically invalidates the UI, clearing rendering artifacts and ensuring "ghost" characters are removed.
+  - **Optimized Refresh Rate**: Lowered the `prompt_toolkit` refresh interval to `0.05s` for doubled responsiveness.
+  - **Header Rendering Fixes**: Replaced problematic emojis and implemented manual line centering with full-width padding to prevent horizontal shifting and visual artifacts in the TUI header.
+
+- **Refactor: Code Quality & Maintainability**:
+  - **DRY Utility Centralization**: Moved and renamed internal path exclusion logic to a shared `is_path_excluded` utility in `zrb.util.file`, eliminating verbatim code duplication across multiple LLM tools.
+  - **Simplified Logic**: Refactored `select_todo_task` in `todo.py` to remove redundant loop patterns, improving readability and maintenance.
+  - **Clean Architecture**: Standardized LLM extension patterns in `AGENTS.md`, emphasizing the use of classic Python classes and module-level singletons over dependency-heavy structures.
+
 ## 2.1.0
 
 - **Feature: Small Model Configuration**:

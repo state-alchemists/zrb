@@ -113,6 +113,16 @@ class HookManager:
         # 1. User global config (~/.zrb/hooks.json and ~/.zrb/hooks/)
         try:
             home = Path.home()
+            # Claude style
+            global_claude_hooks_file = home / ".claude" / "hooks.json"
+            if global_claude_hooks_file.exists() and global_claude_hooks_file.is_file():
+                search_dirs.append(global_claude_hooks_file)
+
+            global_claude_hooks_dir = home / ".claude" / "hooks"
+            if global_claude_hooks_dir.exists() and global_claude_hooks_dir.is_dir():
+                search_dirs.append(global_claude_hooks_dir)
+
+            # Zrb style
             global_zrb_hooks_file = home / zrb_dir_name / "hooks.json"
             if global_zrb_hooks_file.exists() and global_zrb_hooks_file.is_file():
                 search_dirs.append(global_zrb_hooks_file)
@@ -128,6 +138,19 @@ class HookManager:
             cwd = Path.cwd()
             project_dirs = list(cwd.parents)[::-1] + [cwd]
             for project_dir in project_dirs:
+                # Claude style
+                local_claude_hooks_file = project_dir / ".claude" / "hooks.json"
+                if (
+                    local_claude_hooks_file.exists()
+                    and local_claude_hooks_file.is_file()
+                ):
+                    search_dirs.append(local_claude_hooks_file)
+
+                local_claude_hooks_dir = project_dir / ".claude" / "hooks"
+                if local_claude_hooks_dir.exists() and local_claude_hooks_dir.is_dir():
+                    search_dirs.append(local_claude_hooks_dir)
+
+                # Zrb style
                 local_zrb_hooks_file = project_dir / zrb_dir_name / "hooks.json"
                 if local_zrb_hooks_file.exists() and local_zrb_hooks_file.is_file():
                     search_dirs.append(local_zrb_hooks_file)
