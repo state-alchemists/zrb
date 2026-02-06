@@ -1,7 +1,12 @@
 from typing import Callable
 
 from prompt_toolkit.formatted_text import HTML, AnyFormattedText
-from prompt_toolkit.layout import HSplit, Layout, Window, WindowAlign
+from prompt_toolkit.layout import (
+    HSplit,
+    Layout,
+    Window,
+    WindowAlign,
+)
 from prompt_toolkit.layout.containers import Float, FloatContainer
 from prompt_toolkit.layout.controls import FormattedTextControl
 from prompt_toolkit.layout.menus import CompletionsMenu
@@ -26,8 +31,44 @@ def create_input_field(
     exec_commands: list[str],
     custom_commands: list[AnyCustomCommand],
 ) -> TextArea:
-    return TextArea(
-        height=4,
+    class DynamicHeightTextArea(TextArea):
+        """TextArea with dynamic height based on content."""
+
+        def __init__(self, *args, **kwargs):
+            # Remove fixed height, will be calculated dynamically
+            if "height" in kwargs:
+                del kwargs["height"]
+            super().__init__(*args, **kwargs)
+
+        def preferred_height(
+            self,
+            width: int,
+            max_available_height: int,
+            wrap_lines: bool,
+            get_line_prefix,
+        ) -> int:
+            """Calculate preferred height based on content."""
+            # Get current text
+            text = self.text
+            # Count lines (including wrapped lines)
+            line_count = text.count("\n") + 1
+
+            # Calculate how many lines would be needed with wrapping
+            if wrap_lines and width > 0:
+                wrapped_lines = 0
+                for line in text.split("\n"):
+                    # Estimate wrapped lines (ceil division)
+                    wrapped_lines += (
+                        (len(line) + width - 1) // width if len(line) > 0 else 1
+                    )
+                line_count = max(line_count, wrapped_lines)
+
+            # Start with 1 line (just the prompt line)
+            # The prompt line is included in the TextArea's rendering
+            # So total height should be just the content lines
+            return min(max(line_count, 1), 10)
+
+    return DynamicHeightTextArea(
         prompt=HTML('<style color="ansibrightblue"><b>&gt;&gt;&gt; </b></style>'),
         multiline=True,
         wrap_lines=True,
@@ -47,20 +88,26 @@ def create_input_field(
         complete_while_typing=True,
         focus_on_click=True,
         style="class:input_field",
+        dont_extend_height=True,  # Don't let it be compressed
     )
 
 
 def create_output_field(greeting: str, lexer: Lexer) -> TextArea:
-    return TextArea(
+    # Create TextArea with cursor at the end to ensure bottom is visible
+    text_area = TextArea(
         text=greeting.rstrip() + "\n\n",
         read_only=True,
-        scrollbar=False,
+        scrollbar=False,  # No scrollbar on TextArea itself
         wrap_lines=True,
         lexer=lexer,
         focus_on_click=True,
         focusable=True,
         style="class:output_field",
+        dont_extend_height=False,  # Can expand/contract as needed
     )
+    # Set cursor to the end - TextArea will keep cursor visible when focusable
+    text_area.buffer.cursor_position = len(text_area.text)
+    return text_area
 
 
 def create_layout(
@@ -80,34 +127,37 @@ def create_layout(
         FloatContainer(
             content=HSplit(
                 [
-                    # Title Bar
+                    # Title Bar (fixed height)
                     Window(
                         height=2,
                         content=FormattedTextControl(title_bar_text),
                         style="class:title-bar",
                         align=WindowAlign.CENTER,
                     ),
-                    # Info Bar
+                    # Info Bar (fixed height)
                     Window(
                         height=3,
                         content=FormattedTextControl(info_bar_text),
                         style="class:info-bar",
                     ),
-                    # Chat History
-                    Frame(output_field, title="Conversation", style="class:frame"),
-                    # Input Area
+                    # Chat History - NO FRAME, NO ScrollablePane
+                    # Just the TextArea itself - it handles its own scrolling
+                    output_field,
+                    # Input Area with frame (centered title) - with padding
+                    Window(height=1),  # Top margin
                     Frame(
                         input_field,
                         title="(ENTER to send, CTRL+ENTER for newline, ESC to cancel)",
                         style="class:input-frame",
                     ),
-                    # Status Bar
+                    Window(height=1),  # Bottom padding
+                    # Status Bar (fixed height)
                     Window(
                         height=1,
                         content=FormattedTextControl(status_bar_text),
                         style="class:bottom-toolbar",
                     ),
-                ]
+                ],
             ),
             floats=[
                 Float(
