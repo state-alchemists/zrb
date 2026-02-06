@@ -258,12 +258,17 @@ class UI:
 
                     if result:
                         self._submit_user_message(self._llm_task, str(result))
+            else:
+                self.append_to_output(
+                    stylize_error(
+                        f"\n[Trigger Error: Trigger factory returned non-async iterator: {type(iterator)}]\n"
+                    )
+                )
 
         except asyncio.CancelledError:
             pass
-        except Exception:
-            # Keep running on error, maybe log it
-            pass
+        except Exception as e:
+            self.append_to_output(stylize_error(f"\n[Trigger Error: {e}]\n"))
 
     async def _update_system_info_loop(self):
         """Periodically update CWD and Git info."""
@@ -921,12 +926,21 @@ class UI:
 
         # Hook: Notification
         # Use fire-and-forget for UI notifications to avoid blocking
-        asyncio.create_task(
-            hook_manager.execute_hooks(
-                HookEvent.NOTIFICATION,
-                {"content": content, "session": self._conversation_session_name},
+        # This might be called from reader thread, so we must be thread-safe
+        def trigger_notification_hook():
+            asyncio.create_task(
+                hook_manager.execute_hooks(
+                    HookEvent.NOTIFICATION,
+                    {"content": content, "session": self._conversation_session_name},
+                )
             )
-        )
+
+        try:
+            loop = asyncio.get_running_loop()
+            loop.call_soon_threadsafe(trigger_notification_hook)
+        except RuntimeError:
+            # No running loop in this thread, or loop not found
+            pass
 
         # Update content directly
         # We use bypass_readonly=True by constructing a Document
