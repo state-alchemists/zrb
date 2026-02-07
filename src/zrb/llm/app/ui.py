@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import logging
 import os
 import re
 import shlex
@@ -9,6 +10,8 @@ import subprocess
 from collections.abc import AsyncIterable, Callable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, TextIO
+
+logger = logging.getLogger(__name__)
 
 from prompt_toolkit import Application
 from prompt_toolkit.application import get_app, run_in_terminal
@@ -925,22 +928,20 @@ class UI:
             new_text = current_text + content
 
         # Hook: Notification
-        # Use fire-and-forget for UI notifications to avoid blocking
-        # This might be called from reader thread, so we must be thread-safe
-        def trigger_notification_hook():
+        # Use thread-safe executor instead of fire-and-forget
+        try:
+            # Schedule notification hook execution
+            # The hook manager now uses thread pool executor
             asyncio.create_task(
                 hook_manager.execute_hooks(
                     HookEvent.NOTIFICATION,
                     {"content": content, "session": self._conversation_session_name},
+                    session_id=self._conversation_session_name,
+                    cwd=self._cwd,
                 )
             )
-
-        try:
-            loop = asyncio.get_running_loop()
-            loop.call_soon_threadsafe(trigger_notification_hook)
-        except RuntimeError:
-            # No running loop in this thread, or loop not found
-            pass
+        except Exception as e:
+            logger.error(f"Failed to trigger notification hook: {e}")
 
         # Update content directly
         # We use bypass_readonly=True by constructing a Document

@@ -9,6 +9,11 @@ from typing import Any, Dict, List, Optional, Union
 import yaml
 
 from zrb.config.config import CFG
+from zrb.llm.hook.executor import (
+    HookExecutionResult,
+    ThreadPoolHookExecutor,
+    get_hook_executor,
+)
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.schema import (
     AgentHookConfig,
@@ -30,6 +35,8 @@ class HookManager:
     ):
         self._hooks: Dict[HookEvent, List[HookCallable]] = defaultdict(list)
         self._global_hooks: List[HookCallable] = []
+        self._executor: ThreadPoolHookExecutor = get_hook_executor()
+        self._hook_configs: Dict[str, HookConfig] = {}  # name -> config for debugging
         if auto_load:
             self.scan(scan_dirs)
 
@@ -51,22 +58,36 @@ class HookManager:
         event_data: Any,
         session_id: Optional[str] = None,
         metadata: Dict[str, Any] = None,
-    ) -> List[HookResult]:
+        cwd: Optional[str] = None,
+        transcript_path: Optional[str] = None,
+        permission_mode: str = "default",
+        **kwargs,
+    ) -> List[HookExecutionResult]:
         """
-        Execute all hooks registered for the given event.
-        Returns a list of HookResult objects.
+        Execute all hooks registered for the given event with thread safety.
+        Returns a list of HookExecutionResult objects with Claude Code compatibility.
         """
         if metadata is None:
             metadata = {}
 
+        # Create enhanced context with Claude Code fields
         context = HookContext(
             event=event,
             event_data=event_data,
             session_id=session_id,
             metadata=metadata,
+            cwd=cwd or os.getcwd(),
+            transcript_path=transcript_path,
+            permission_mode=permission_mode,
+            hook_event_name=event.value,
         )
 
-        results: List[HookResult] = []
+        # Populate event-specific fields from kwargs
+        for key, value in kwargs.items():
+            if hasattr(context, key):
+                setattr(context, key, value)
+
+        results: List[HookExecutionResult] = []
 
         # Combine global hooks and event-specific hooks
         hooks_to_run = self._global_hooks + self._hooks[event]
@@ -74,24 +95,100 @@ class HookManager:
         if not hooks_to_run:
             return results
 
-        # Execute hooks sequentially for now
+        # Execute hooks with thread pool and timeout controls
+        tasks = []
         for hook in hooks_to_run:
-            try:
-                result = await hook(context)
+            # Get timeout from config if available
+            timeout = None
+            # TODO: Look up timeout from hook config
+
+            task = self._executor.execute_hook(hook, context, timeout=timeout)
+            tasks.append(task)
+
+        # Wait for all hooks to complete
+        hook_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for i, result in enumerate(hook_results):
+            if isinstance(result, Exception):
+                logger.error(
+                    f"Error executing hook {i} for event {event}: {result}",
+                    exc_info=True,
+                )
+                results.append(
+                    HookExecutionResult(success=False, error=str(result), exit_code=1)
+                )
+            else:
                 results.append(result)
 
-                if result.should_stop:
+                # Check for blocking decisions (exit code 2)
+                if result.blocked or result.exit_code == 2:
                     logger.info(
-                        f"Hook {hook} requested stop. "
-                        f"Stopping execution of further hooks for event {event}."
+                        f"Hook blocked execution. Stopping further hooks for event {event}."
                     )
-                    break
+                    # Return only results up to this point
+                    return results[: i + 1]
 
-            except Exception as e:
-                logger.error(
-                    f"Error executing hook {hook} for event {event}: {e}", exc_info=True
+                # Check for continue=false
+                if not result.continue_execution:
+                    logger.info(
+                        f"Hook requested stop of all processing for event {event}."
+                    )
+                    return results[: i + 1]
+
+        return results
+
+    async def execute_hooks_simple(
+        self,
+        event: HookEvent,
+        event_data: Any,
+        session_id: Optional[str] = None,
+        metadata: Dict[str, Any] = None,
+    ) -> List[HookResult]:
+        """
+        Backward compatibility method that returns old HookResult format.
+        """
+        exec_results = await self.execute_hooks(
+            event=event,
+            event_data=event_data,
+            session_id=session_id,
+            metadata=metadata,
+        )
+
+        # Convert to old format
+        results: List[HookResult] = []
+        for exec_result in exec_results:
+            modifications = {}
+            if exec_result.decision:
+                modifications["decision"] = exec_result.decision
+            if exec_result.reason:
+                modifications["reason"] = exec_result.reason
+            if exec_result.permission_decision:
+                modifications["permissionDecision"] = exec_result.permission_decision
+            if exec_result.permission_decision_reason:
+                modifications["permissionDecisionReason"] = (
+                    exec_result.permission_decision_reason
                 )
-                results.append(HookResult(success=False, output=str(e)))
+            if exec_result.additional_context:
+                modifications["additionalContext"] = exec_result.additional_context
+            if exec_result.updated_input:
+                modifications["updatedInput"] = exec_result.updated_input
+            if exec_result.system_message:
+                modifications["systemMessage"] = exec_result.system_message
+            if not exec_result.continue_execution:
+                modifications["continue"] = False
+            if exec_result.suppress_output:
+                modifications["suppressOutput"] = True
+            if exec_result.hook_specific_output:
+                modifications["hookSpecificOutput"] = exec_result.hook_specific_output
+
+            result = HookResult(
+                success=exec_result.success,
+                output=exec_result.message or exec_result.error,
+                data=exec_result.data,
+                modifications=modifications,
+                should_stop=exec_result.blocked or not exec_result.continue_execution,
+            )
+            results.append(result)
 
         return results
 
