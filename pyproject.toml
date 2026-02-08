@@ -50,7 +50,7 @@ ulid-py = "^1.1.0"
 psutil = "^7.0.0"
 
 # NOTE: Look at https://github.com/pydantic/pydantic-ai/blob/main/pydantic_ai_slim/pyproject.toml
-pydantic-ai-slim = "~1.55.0"
+pydantic-ai-slim = ">=1.55,<1.57"
 
 # NOTE: Make sure the following dependencies are not conflicting with pydantic-ai-slim
 openai = ">=2.11.0"
