@@ -91,7 +91,7 @@ class ToolCallHandler:
                 if index >= len(self._response_handlers):
                     # Default behavior: simple y/n check
                     r = response.lower().strip()
-                    if r in ("y", "yes", "ok", "accept", "✅"):
+                    if r in ("y", "yes", "ok", "accept", "✅", ""):
                         from pydantic_ai import ToolApproved
 
                         return ToolApproved()
