@@ -1,35 +1,20 @@
-import os
-from typing import Any
+from pydantic_ai import Tool
 
 from zrb.builtin.group import llm_group
 from zrb.config.config import CFG
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
-from zrb.llm.agent.manager import SubAgentManager
+from zrb.llm.agent.manager import sub_agent_manager
 from zrb.llm.custom_command import get_skill_custom_command
 from zrb.llm.history_processor.summarizer import create_summarizer_history_processor
-from zrb.llm.note.manager import NoteManager
+from zrb.llm.note.manager import note_manager
 from zrb.llm.prompt.manager import PromptManager
-from zrb.llm.skill.manager import SkillManager
+from zrb.llm.skill.manager import skill_manager
 from zrb.llm.task.llm_chat_task import LLMChatTask
-from zrb.llm.tool.bash import run_shell_command
-from zrb.llm.tool.code import analyze_code
 from zrb.llm.tool.delegate import create_delegate_to_agent_tool
-from zrb.llm.tool.file import (
-    analyze_file,
-    glob_files,
-    list_files,
-    read_file,
-    read_files,
-    replace_in_file,
-    search_files,
-    write_file,
-    write_files,
-)
 from zrb.llm.tool.mcp import load_mcp_config
-from zrb.llm.tool.note import create_note_tools
+from zrb.llm.tool.registry import tool_registry
 from zrb.llm.tool.skill import create_activate_skill_tool
-from zrb.llm.tool.web import open_web_page, search_internet
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
 from zrb.llm.tool_call import (
     auto_approve,
@@ -39,39 +24,6 @@ from zrb.llm.tool_call import (
     write_files_formatter,
 )
 from zrb.runner.cli import cli
-
-skill_manager = SkillManager()
-note_manager = NoteManager()
-
-# Define Tool Registry for Sub-Agents
-TOOL_REGISTRY = {
-    "run_shell_command": run_shell_command,
-    "list_files": list_files,
-    "glob_files": glob_files,
-    "read_file": read_file,
-    "read_files": read_files,
-    "write_file": write_file,
-    "write_files": write_files,
-    "replace_in_file": replace_in_file,
-    "search_files": search_files,
-    "analyze_file": analyze_file,
-    "analyze_code": analyze_code,
-    "search_internet": search_internet,
-    "open_web_page": open_web_page,
-}
-
-# Add Note tools to registry
-note_tools_list = create_note_tools(note_manager)
-for tool in note_tools_list:
-    if hasattr(tool, "__name__"):
-        TOOL_REGISTRY[tool.__name__] = tool
-
-# Prevent subagent from calling other subagent
-sub_agent_tool_registry = TOOL_REGISTRY.copy()
-if "delegate_to_agent" in sub_agent_tool_registry:
-    del sub_agent_tool_registry["delegate_to_agent"]
-
-sub_agent_manager = SubAgentManager(tool_registry=sub_agent_tool_registry)
 
 llm_chat = LLMChatTask(
     name="chat",
@@ -107,8 +59,6 @@ llm_chat = LLMChatTask(
     ],
     prompt_manager=PromptManager(
         assistant_name=lambda ctx: CFG.LLM_ASSISTANT_NAME,
-        note_manager=note_manager,
-        skill_manager=skill_manager,
     ),
     ui_ascii_art=lambda ctx: CFG.LLM_ASSISTANT_ASCII_ART,
     ui_assistant_name=lambda ctx: CFG.LLM_ASSISTANT_NAME,
@@ -121,31 +71,23 @@ cli.add_task(llm_chat)
 
 llm_chat.add_response_handler(replace_in_file_response_handler)
 llm_chat.add_toolset(*load_mcp_config())
-llm_chat.add_tool(
-    run_shell_command,
-    list_files,
-    glob_files,
-    read_file,
-    read_files,
-    write_file,
-    write_files,
-    replace_in_file,
-    search_files,
-    analyze_file,
-    analyze_code,
-    search_internet,
-    open_web_page,
-    *create_note_tools(note_manager),
-)
+for name, func in tool_registry.get_all().items():
+    if name == getattr(func, "__name__", None):
+        llm_chat.add_tool(func)
+    else:
+        # It's an alias, wrap it in a Tool with the alias name
+        llm_chat.add_tool(Tool(func, name=name))
 llm_chat.add_tool_factory(
     lambda ctx: create_list_zrb_task_tool(),
     lambda ctx: create_run_zrb_task_tool(),
-    lambda ctx: create_activate_skill_tool(skill_manager),
-    lambda ctx: create_delegate_to_agent_tool(sub_agent_manager),
+    lambda ctx: create_activate_skill_tool(),
+    lambda ctx: create_delegate_to_agent_tool(),
 )
 llm_chat.add_argument_formatter(
     replace_in_file_formatter, write_file_formatter, write_files_formatter
 )
+import os
+
 llm_chat.add_custom_command(get_skill_custom_command(skill_manager))
 
 
@@ -158,7 +100,7 @@ def _is_path_inside_cwd(path: str) -> bool:
         return False
 
 
-def _approve_if_path_inside_cwd(args: dict[str, Any]) -> bool:
+def _approve_if_path_inside_cwd(args: dict[str, any]) -> bool:
     path = args.get("path")
     paths = args.get("paths")
     if path is not None:

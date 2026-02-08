@@ -1,0 +1,33 @@
+[
+  {
+    "name": "log-session-start",
+    "events": ["SessionStart"],
+    "type": "command",
+    "config": {
+      "command": "echo 'Session started at $(date)' >> /tmp/zrb-hooks.log",
+      "shell": true
+    },
+    "description": "Log session starts to a file",
+    "enabled": true,
+    "priority": 10
+  },
+  {
+    "name": "notify-tool-use",
+    "events": ["PreToolUse"],
+    "type": "command",
+    "config": {
+      "command": "echo 'Tool $CLAUDE_TOOL_NAME called with input: $CLAUDE_TOOL_INPUT'",
+      "shell": true
+    },
+    "description": "Notify when tools are used",
+    "matchers": [
+      {
+        "field": "tool_name",
+        "operator": "not_equals",
+        "value": "internal_tool"
+      }
+    ],
+    "enabled": true,
+    "priority": 20
+  }
+]

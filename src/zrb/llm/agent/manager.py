@@ -1,12 +1,16 @@
 import os
+import uuid
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import yaml
 from pydantic_ai import Agent
 
 from zrb.config.config import CFG
 from zrb.llm.agent.common import create_agent
+from zrb.llm.tool.registry import tool_registry as default_tool_registry
+from zrb.util.load import load_module_from_path
 
 _IGNORE_DIRS = [
     ".git",
@@ -28,6 +32,8 @@ class SubAgentDefinition:
         system_prompt: str,
         model: str | None = None,
         tools: list[str] = [],
+        agent_instance: Any | None = None,
+        agent_factory: Callable[[], Any] | None = None,
     ):
         self.name = name
         self.path = path
@@ -35,12 +41,15 @@ class SubAgentDefinition:
         self.system_prompt = system_prompt
         self.model = model
         self.tools = tools
+        self.agent_instance = agent_instance
+        self.agent_factory = agent_factory
 
 
 class SubAgentManager:
     def __init__(
         self,
-        tool_registry: dict[str, Callable],
+        auto_load: bool = True,
+        tool_registry: dict[str, Callable] | None = None,
         root_dir: str = ".",
         search_dirs: list[str | Path] | None = None,
         max_depth: int = 1,
@@ -52,6 +61,13 @@ class SubAgentManager:
         self._max_depth = max_depth
         self._agents: dict[str, SubAgentDefinition] = {}
         self._ignore_dirs = _IGNORE_DIRS if ignore_dirs is None else ignore_dirs
+        if auto_load:
+            self.scan(self._search_dirs)
+
+    def _get_tool_registry(self) -> dict[str, Callable]:
+        if self._tool_registry is not None:
+            return self._tool_registry
+        return default_tool_registry.get_all()
 
     def scan(
         self, search_dirs: list[str | Path] | None = None
@@ -148,22 +164,69 @@ class SubAgentManager:
                         base_dir, item, max_depth, current_depth + 1
                     )
                 elif item.is_file():
-                    is_agent_file = item.name == "AGENT.md" or item.name.endswith(
-                        ".agent.md"
-                    )
-                    # Claude also supports simple .md files in the agents/ directory
-                    if not is_agent_file and item.suffix.lower() == ".md":
-                        if item.name.lower() != "readme.md":
-                            is_agent_file = True
+                    full_path = str(item)
+                    rel_path = os.path.relpath(full_path, self._root_dir)
 
-                    if is_agent_file:
-                        full_path = str(item)
-                        rel_path = os.path.relpath(full_path, self._root_dir)
-                        self._load_agent(rel_path, full_path)
+                    # Check for Python agent files
+                    if item.name == "AGENT.py" or item.name.endswith(".agent.py"):
+                        self._load_agent_from_python(rel_path, full_path)
+
+                    # Check for Markdown agent files
+                    else:
+                        is_agent_file = item.name == "AGENT.md" or item.name.endswith(
+                            ".agent.md"
+                        )
+                        # Claude also supports simple .md files in the agents/ directory
+                        if not is_agent_file and item.suffix.lower() == ".md":
+                            if item.name.lower() != "readme.md":
+                                is_agent_file = True
+
+                        if is_agent_file:
+                            self._load_agent_from_markdown(rel_path, full_path)
         except (PermissionError, OSError):
             pass
 
-    def _load_agent(self, rel_path: str, full_path: str):
+    def _load_agent_from_python(self, rel_path: str, full_path: str):
+        try:
+            module_name = f"zrb_agent_{uuid.uuid4().hex}"
+            module = load_module_from_path(module_name, full_path)
+            if not module:
+                return
+
+            agent_def = None
+            # Look for 'agent' or 'AGENT' variable
+            if hasattr(module, "agent"):
+                agent_def = getattr(module, "agent")
+            elif hasattr(module, "AGENT"):
+                agent_def = getattr(module, "AGENT")
+
+            if isinstance(agent_def, SubAgentDefinition):
+                self._agents[agent_def.name] = agent_def
+            elif isinstance(agent_def, Agent):
+                # Wrapped as definition
+                name = os.path.basename(os.path.dirname(full_path))
+                # Try to get name from module if possible? No, stick to folder/convention or let user define SubAgentDefinition
+                self._agents[name] = SubAgentDefinition(
+                    name=name,
+                    path=full_path,
+                    description="Python Agent",
+                    system_prompt="",
+                    agent_instance=agent_def,
+                )
+            elif hasattr(module, "get_agent") and callable(module.get_agent):
+                # Factory
+                name = os.path.basename(os.path.dirname(full_path))
+                self._agents[name] = SubAgentDefinition(
+                    name=name,
+                    path=full_path,
+                    description="Python Agent Factory",
+                    system_prompt="",
+                    agent_factory=module.get_agent,
+                )
+        except Exception:
+            pass
+
+    def _load_agent_from_markdown(self, rel_path: str, full_path: str):
         try:
             with open(full_path, "r", encoding="utf-8") as f:
                 content = f.read()
@@ -219,6 +282,22 @@ class SubAgentManager:
         except Exception:
             pass
 
+    def _load_agent(self, rel_path: str, full_path: str):
+        # Backward compatibility
+        self._load_agent_from_markdown(rel_path, full_path)
+
+    def add_agent(self, definition: SubAgentDefinition):
+        """
+        Manually register a sub-agent definition.
+        """
+        self._agents[definition.name] = definition
+
+    def set_tool_registry(self, tool_registry: dict[str, Callable]):
+        """
+        Update the tool registry used by sub-agents.
+        """
+        self._tool_registry = tool_registry
+
     def get_agent_definition(self, name: str) -> SubAgentDefinition | None:
         agent = self._agents.get(name)
         if not agent:
@@ -234,14 +313,27 @@ class SubAgentManager:
         if not definition:
             return None
 
+        if definition.agent_instance:
+            return definition.agent_instance
+
+        if definition.agent_factory:
+            try:
+                return definition.agent_factory()
+            except Exception:
+                pass
+
         # Resolve Tools
         resolved_tools = []
+        registry = self._get_tool_registry()
         for tool_name in definition.tools:
-            if tool_name in self._tool_registry:
-                resolved_tools.append(self._tool_registry[tool_name])
+            if tool_name in registry:
+                resolved_tools.append(registry[tool_name])
 
         return create_agent(
             model=definition.model,
             system_prompt=definition.system_prompt,
             tools=resolved_tools,
         )
+
+
+sub_agent_manager = SubAgentManager(auto_load=True)

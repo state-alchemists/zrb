@@ -19,7 +19,7 @@ async def test_python_hook_execution():
 
     manager.register(my_hook, events=[HookEvent.SESSION_START])
 
-    await manager.execute_hooks(HookEvent.SESSION_START, {"test": "data"})
+    await manager.execute_hooks_simple(HookEvent.SESSION_START, {"test": "data"})
 
     assert len(executed) == 1
     assert executed[0].event == HookEvent.SESSION_START
@@ -43,10 +43,10 @@ async def test_config_file_loading_and_hydration(tmp_path):
         json.dump(hook_config, f)
 
     # Initialize manager pointing to this dir
-    manager = HookManager(auto_load=True, scan_dirs=[hooks_dir])
+    manager = HookManager(auto_load=True, search_dirs=[hooks_dir])
 
-    # Execute hooks
-    results = await manager.execute_hooks(HookEvent.SESSION_START, {})
+    # Execute hooks using simple method for backward compatibility
+    results = await manager.execute_hooks_simple(HookEvent.SESSION_START, {})
 
     # We implemented real hydration for CommandHook
     assert len(results) >= 1
@@ -71,7 +71,7 @@ async def test_pre_tool_use_modification():
 
     manager.register(modifier_hook, events=[HookEvent.PRE_TOOL_USE])
 
-    results = await manager.execute_hooks(
+    results = await manager.execute_hooks_simple(
         HookEvent.PRE_TOOL_USE, {"tool": "my_tool", "args": {"original": "value"}}
     )
 

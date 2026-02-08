@@ -1,10 +1,14 @@
 import sys
 from typing import Any, TextIO
 
-from zrb.llm.agent.manager import SubAgentManager
+from zrb.llm.agent.manager import (
+    SubAgentManager,
+)
+from zrb.llm.agent.manager import sub_agent_manager as default_sub_agent_manager
 from zrb.llm.agent.run_agent import current_ui, run_agent
 from zrb.llm.agent.std_ui import StdUI
 from zrb.llm.config.limiter import llm_limiter
+from zrb.llm.tool.registry import tool_registry
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
@@ -59,7 +63,11 @@ class IndentedUI(UIProtocol):
         return "".join(result)
 
 
-def create_delegate_to_agent_tool(sub_agent_manager: SubAgentManager):
+def create_delegate_to_agent_tool(
+    sub_agent_manager: SubAgentManager | None = None,
+):
+    if sub_agent_manager is None:
+        sub_agent_manager = default_sub_agent_manager
     # Scan for available agents to populate the docstring
     available_agents = sub_agent_manager.scan()
     agent_docs = []
@@ -118,4 +126,5 @@ def create_delegate_to_agent_tool(sub_agent_manager: SubAgentManager):
         "\n- `task`: The specific instruction or question for the sub-agent."
         "\n- `additional_context`: Optional background information or data chunks."
     )
+    tool_registry.register(delegate_to_agent)
     return delegate_to_agent

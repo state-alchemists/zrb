@@ -1,0 +1,47 @@
+[
+  {
+    "name": "block-dangerous-tools",
+    "events": ["PreToolUse"],
+    "type": "command",
+    "config": {
+      "command": "python3 -c \"import json, sys; print(json.dumps({'decision': 'block', 'reason': 'Dangerous tool not allowed'})); sys.exit(2)\"",
+      "shell": false
+    },
+    "description": "Block dangerous tools from being executed",
+    "matchers": [
+      {
+        "field": "tool_name",
+        "operator": "equals",
+        "value": "delete_files"
+      },
+      {
+        "field": "metadata.environment",
+        "operator": "equals",
+        "value": "production"
+      }
+    ],
+    "enabled": true,
+    "priority": 100,
+    "timeout": 5
+  },
+  {
+    "name": "require-approval-for-sensitive-tools",
+    "events": ["PermissionRequest"],
+    "type": "command",
+    "config": {
+      "command": "echo '{\"decision\": \"ask\", \"reason\": \"Requires manual approval\", \"permissionDecision\": \"ask\"}'",
+      "shell": true
+    },
+    "description": "Require manual approval for sensitive operations",
+    "matchers": [
+      {
+        "field": "tool_name",
+        "operator": "contains",
+        "value": "admin",
+        "case_sensitive": false
+      }
+    ],
+    "enabled": true,
+    "priority": 90
+  }
+]

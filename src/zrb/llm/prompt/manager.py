@@ -1,9 +1,10 @@
 import inspect
-from typing import Callable, Union
+from typing import Callable
 
 from zrb.attr.type import StrListAttr
 from zrb.context.any_context import AnyContext
 from zrb.llm.note.manager import NoteManager
+from zrb.llm.note.manager import note_manager as default_note_manager
 from zrb.llm.prompt.claude import (
     create_claude_skills_prompt,
     create_project_context_prompt,
@@ -13,6 +14,7 @@ from zrb.llm.prompt.note import create_note_prompt
 from zrb.llm.prompt.prompt import get_mandate_prompt, get_persona_prompt
 from zrb.llm.prompt.system_context import system_context
 from zrb.llm.skill.manager import SkillManager
+from zrb.llm.skill.manager import skill_manager as default_skill_manager
 from zrb.util.attr import get_str_attr, get_str_list_attr
 
 # Simple prompt: just takes context and returns a string
@@ -20,7 +22,7 @@ SimplePrompt = Callable[[AnyContext], str]
 # Full middleware: takes context, current prompt, and next handler
 FullMiddleware = Callable[[AnyContext, str, Callable[[AnyContext, str], str]], str]
 # Flexible middleware: can be either simple or full
-PromptMiddleware = Union[SimplePrompt, FullMiddleware]
+PromptMiddleware = SimplePrompt | FullMiddleware
 
 
 class PromptManager:
@@ -50,8 +52,8 @@ class PromptManager:
         self._include_claude_skills = include_claude_skills
         self._include_cli_skills = include_cli_skills
         self._include_project_context = include_project_context
-        self._note_manager = note_manager
-        self._skill_manager = skill_manager
+        self._note_manager = note_manager or default_note_manager
+        self._skill_manager = skill_manager or default_skill_manager
         self._active_skills = active_skills
         self._render_active_skills = render_active_skills
         self._render = render

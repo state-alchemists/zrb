@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import logging
 import os
 import re
 import shlex
@@ -10,11 +11,15 @@ from collections.abc import AsyncIterable, Callable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, TextIO
 
+logger = logging.getLogger(__name__)
+
 from prompt_toolkit import Application
 from prompt_toolkit.application import get_app, run_in_terminal
 from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import AnyFormattedText
+from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.keys import Keys
 from prompt_toolkit.layout import Layout
 from prompt_toolkit.lexers import Lexer
 from prompt_toolkit.output import create_output
@@ -30,6 +35,35 @@ from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import hook_manager
 from zrb.llm.hook.types import HookEvent
+
+
+def _execute_hooks_safe(event: HookEvent, event_data: Any, **kwargs) -> None:
+    """
+    Safely execute hooks from either sync or async context.
+
+    This handles the "no running event loop" error by checking if we're
+    in an async context with a running event loop. If not, it runs
+    the hooks synchronously.
+    """
+    try:
+        # Try to get the running event loop
+        loop = asyncio.get_running_loop()
+        # If we get here, we're in an async context with a running loop
+        # Create a task (fire-and-forget)
+        asyncio.create_task(hook_manager.execute_hooks(event, event_data, **kwargs))
+    except RuntimeError:
+        # No running event loop - we're in a sync context
+        # Create a new event loop and run synchronously
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(
+                hook_manager.execute_hooks(event, event_data, **kwargs)
+            )
+        finally:
+            loop.close()
+
+
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.tool_call import (
     ArgumentFormatter,
@@ -137,6 +171,7 @@ class UI:
         # UI Styles
         self._style = create_style()
         # Input Area
+        self._input_history = InMemoryHistory()
         self._input_field = create_input_field(
             history_manager=self._history_manager,
             attach_commands=self._attach_commands,
@@ -149,6 +184,7 @@ class UI:
             set_model_commands=self._set_model_commands,
             exec_commands=self._exec_commands,
             custom_commands=self._custom_commands,
+            history=self._input_history,
         )
         # Output Area (Read-only chat history)
         help_text = self._get_help_text()
@@ -402,6 +438,8 @@ class UI:
             clipboard = PyperclipClipboard()
         except ImportError:
             clipboard = None
+        except Exception:
+            clipboard = None
 
         return Application(
             layout=layout,
@@ -500,6 +538,7 @@ class UI:
 
     def _setup_app_keybindings(self, app_keybindings: KeyBindings, llm_task: AnyTask):
         @app_keybindings.add("c-c")
+        @app_keybindings.add("escape", "c")
         def _(event):
             # If text is selected, copy it instead of exiting
             buffer = event.app.current_buffer
@@ -513,36 +552,38 @@ class UI:
                 buffer.reset()
                 return
             # Hook: Stop
-            asyncio.create_task(
-                hook_manager.execute_hooks(
-                    HookEvent.STOP,
-                    {"reason": "ctrl_c", "session": self._conversation_session_name},
-                )
+            _execute_hooks_safe(
+                HookEvent.STOP,
+                {"reason": "ctrl_c", "session": self._conversation_session_name},
             )
             event.app.exit()
+
+        @app_keybindings.add("c-v")
+        @app_keybindings.add("escape", "v")
+        def _(event):
+            # Paste from clipboard
+            event.current_buffer.paste_clipboard_data(event.app.clipboard.get_data())
 
         @app_keybindings.add("escape")
         def _(event):
             if self._running_llm_task and not self._running_llm_task.done():
                 self._running_llm_task.cancel()
                 # Hook: Stop
-                asyncio.create_task(
-                    hook_manager.execute_hooks(
-                        HookEvent.STOP,
-                        {
-                            "reason": "escape",
-                            "session": self._conversation_session_name,
-                        },
-                    )
+                _execute_hooks_safe(
+                    HookEvent.STOP,
+                    {
+                        "reason": "escape",
+                        "session": self._conversation_session_name,
+                    },
                 )
                 self.append_to_output("\n<Esc> Canceled")
 
         @app_keybindings.add("enter")
         def _(event):
             # Handle confirmation and multiline
-            if self._handle_confirmation(event):
-                return
             if self._handle_multiline(event):
+                return
+            if self._handle_confirmation(event):
                 return
 
             # Handle empty inputs
@@ -576,6 +617,10 @@ class UI:
             # If we are thinking, ignore input
             if self._is_thinking:
                 return
+
+            # Append to history manually to ensure persistence
+            buff.append_to_history()
+
             self._submit_user_message(llm_task, text)
             buff.reset()
 
@@ -583,7 +628,7 @@ class UI:
         def _(event):
             self.toggle_yolo()
 
-        @app_keybindings.add("c-j")  # Ctrl+J
+        @app_keybindings.add("c-j")  # Ctrl+J / Ctrl+Enter (Linefeed)
         @app_keybindings.add("c-space")  # Ctrl+Space (Fallback)
         def _(event):
             event.current_buffer.insert_text("\n")
@@ -925,22 +970,18 @@ class UI:
             new_text = current_text + content
 
         # Hook: Notification
-        # Use fire-and-forget for UI notifications to avoid blocking
-        # This might be called from reader thread, so we must be thread-safe
-        def trigger_notification_hook():
-            asyncio.create_task(
-                hook_manager.execute_hooks(
-                    HookEvent.NOTIFICATION,
-                    {"content": content, "session": self._conversation_session_name},
-                )
-            )
-
+        # Use thread-safe executor instead of fire-and-forget
         try:
-            loop = asyncio.get_running_loop()
-            loop.call_soon_threadsafe(trigger_notification_hook)
-        except RuntimeError:
-            # No running loop in this thread, or loop not found
-            pass
+            # Schedule notification hook execution
+            # The hook manager now uses thread pool executor
+            _execute_hooks_safe(
+                HookEvent.NOTIFICATION,
+                {"content": content, "session": self._conversation_session_name},
+                session_id=self._conversation_session_name,
+                cwd=self._cwd,
+            )
+        except Exception as e:
+            logger.error(f"Failed to trigger notification hook: {e}")
 
         # Update content directly
         # We use bypass_readonly=True by constructing a Document

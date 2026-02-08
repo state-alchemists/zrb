@@ -122,10 +122,20 @@ async def summarize_history(
 
     # 4. Final Aggregation and potential re-summarization
     final_summary_tokens = llm_limiter.count_tokens(summary_text)
-    if final_summary_tokens > token_threshold:
-        zrb_print(stylize_yellow("  Re-compressing summaries..."), plain=True)
+
+    # Check if we have multiple snapshots (simple string check)
+    has_multiple_snapshots = summary_text.count("<state_snapshot>") > 1
+
+    if final_summary_tokens > token_threshold or has_multiple_snapshots:
+        if has_multiple_snapshots:
+            zrb_print(
+                stylize_yellow("  Consolidating multiple snapshots..."), plain=True
+            )
+        else:
+            zrb_print(stylize_yellow("  Re-compressing summaries..."), plain=True)
+
         summary_text = await _summarize_text(
-            "Summarize the following conversation summaries into a cohesive overview:\n"
+            "Consolidate the following conversation state snapshots into a single, cohesive <state_snapshot>:\n"
             f"{summary_text}",
             summarizer_agent,
         )
@@ -208,7 +218,17 @@ async def _summarize_text(text: str, agent: Any, partial: bool = False) -> str:
         else "Summarize this conversation history:\n"
     )
     result = await agent.run(f"{prompt_prefix}{text}")
-    return result.output
+    output = result.output
+    # Ensure output is a valid state snapshot
+    if "<state_snapshot>" in output and "</state_snapshot>" in output:
+        import re
+
+        match = re.search(
+            r"(<state_snapshot>.*</state_snapshot>)", output, re.DOTALL | re.MULTILINE
+        )
+        if match:
+            return match.group(1)
+    return output
 
 
 def _create_summary_model_request(summary_text: str) -> Any:
@@ -220,7 +240,11 @@ def _create_summary_model_request(summary_text: str) -> Any:
             parts=[
                 UserPromptPart(
                     content=make_markdown_section(
-                        "Summary of earlier conversation", summary_text
+                        "SYSTEM: Automated Context Restoration",
+                        "This is an automated summary of the preceding conversation history to "
+                        "preserve context within the token limit. It is NOT a new request from "
+                        "the user. Continue the conversation based on the state snapshot below.\n\n"
+                        f"{summary_text}",
                     )
                 )
             ]

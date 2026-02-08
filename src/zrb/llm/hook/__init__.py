@@ -1,3 +1,9 @@
+from zrb.llm.hook.executor import (
+    HookExecutionResult,
+    ThreadPoolHookExecutor,
+    get_hook_executor,
+    shutdown_hook_executor,
+)
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.manager import HookManager, hook_manager
 from zrb.llm.hook.schema import (
@@ -15,6 +21,7 @@ __all__ = [
     "MatcherOperator",
     "HookContext",
     "HookResult",
+    "HookExecutionResult",
     "HookCallable",
     "HookConfig",
     "MatcherConfig",
@@ -23,4 +30,7 @@ __all__ = [
     "AgentHookConfig",
     "HookManager",
     "hook_manager",
+    "ThreadPoolHookExecutor",
+    "get_hook_executor",
+    "shutdown_hook_executor",
 ]

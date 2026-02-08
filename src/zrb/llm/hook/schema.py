@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
 
@@ -22,7 +22,7 @@ class CommandHookConfig:
         self,
         command: str,
         shell: bool = True,
-        working_dir: Optional[str] = None,
+        working_dir: str | None = None,
     ):
         self.command = command
         self.shell = shell
@@ -33,8 +33,8 @@ class PromptHookConfig:
     def __init__(
         self,
         user_prompt_template: str,
-        system_prompt: Optional[str] = None,
-        model: Optional[str] = None,
+        system_prompt: str | None = None,
+        model: str | None = None,
         temperature: float = 0.0,
     ):
         self.user_prompt_template = user_prompt_template
@@ -47,8 +47,8 @@ class AgentHookConfig:
     def __init__(
         self,
         system_prompt: str,
-        tools: List[str] = None,
-        model: Optional[str] = None,
+        tools: list[str] | None = None,
+        model: str | None = None,
     ):
         self.system_prompt = system_prompt
         self.tools = tools if tools is not None else []
@@ -59,15 +59,15 @@ class HookConfig:
     def __init__(
         self,
         name: str,
-        events: List[HookEvent],
+        events: list[HookEvent],
         type: HookType,
-        config: Union[CommandHookConfig, PromptHookConfig, AgentHookConfig],
-        description: Optional[str] = None,
-        matchers: List[MatcherConfig] = None,
+        config: CommandHookConfig | PromptHookConfig | AgentHookConfig,
+        description: str | None = None,
+        matchers: list[MatcherConfig] | None = None,
         is_async: bool = False,
         enabled: bool = True,
-        timeout: Optional[int] = None,
-        env: Dict[str, str] = None,
+        timeout: int | None = None,
+        env: dict[str, str] | None = None,
         priority: int = 0,
     ):
         self.name = name

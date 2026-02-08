@@ -2,9 +2,14 @@ import os
 from typing import Callable
 
 from zrb.llm.note.manager import NoteManager
+from zrb.llm.note.manager import note_manager as default_note_manager
+from zrb.llm.tool.registry import tool_registry
 
 
-def create_note_tools(note_manager: NoteManager) -> list[Callable]:
+def create_note_tools(note_manager: NoteManager | None = None) -> list[Callable]:
+    if note_manager is None:
+        note_manager = default_note_manager
+
     async def read_long_term_note() -> str:
         """
         Retrieves your GLOBAL 🧠 Long-Term Memory.
@@ -54,9 +59,13 @@ def create_note_tools(note_manager: NoteManager) -> list[Callable]:
         note_manager.write(path, content)
         return f"Contextual note saved for: {path}"
 
-    return [
+    tools = [
         read_long_term_note,
         write_long_term_note,
         read_contextual_note,
         write_contextual_note,
     ]
+    for tool in tools:
+        tool_registry.register(tool)
+
+    return tools
