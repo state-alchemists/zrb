@@ -37,15 +37,130 @@ class HookManager:
         self._global_hooks: List[HookCallable] = []
         self._executor: ThreadPoolHookExecutor = get_hook_executor()
         self._hook_configs: Dict[str, HookConfig] = {}  # name -> config for debugging
+        self._hook_to_config: Dict[HookCallable, HookConfig] = (
+            {}
+        )  # hook -> config mapping
         if auto_load:
             self.scan(scan_dirs)
 
-    def register(self, hook: HookCallable, events: Optional[List[HookEvent]] = None):
+    def _evaluate_matchers(
+        self, matchers: List[MatcherConfig], context: HookContext
+    ) -> bool:
+        """
+        Evaluate all matchers against the given context.
+        Returns True if ALL matchers pass, False otherwise.
+
+        Matchers can access fields in the context using dot notation.
+        For example: "metadata.project" or "event_data.file_path"
+        """
+        if not matchers:
+            return True  # No matchers means always match
+
+        for matcher in matchers:
+            # Get the value from context using dot notation
+            value = self._get_field_value(context, matcher.field)
+
+            # Apply case sensitivity if needed
+            if not matcher.case_sensitive and isinstance(value, str):
+                value = value.lower()
+                matcher_value = (
+                    matcher.value.lower()
+                    if isinstance(matcher.value, str)
+                    else matcher.value
+                )
+            else:
+                matcher_value = matcher.value
+
+            # Evaluate based on operator
+            if matcher.operator == MatcherOperator.EQUALS:
+                if value != matcher_value:
+                    return False
+
+            elif matcher.operator == MatcherOperator.NOT_EQUALS:
+                if value == matcher_value:
+                    return False
+
+            elif matcher.operator == MatcherOperator.CONTAINS:
+                if not isinstance(value, str) or not isinstance(matcher_value, str):
+                    return False
+                if matcher_value not in value:
+                    return False
+
+            elif matcher.operator == MatcherOperator.STARTS_WITH:
+                if not isinstance(value, str) or not isinstance(matcher_value, str):
+                    return False
+                if not value.startswith(matcher_value):
+                    return False
+
+            elif matcher.operator == MatcherOperator.ENDS_WITH:
+                if not isinstance(value, str) or not isinstance(matcher_value, str):
+                    return False
+                if not value.endswith(matcher_value):
+                    return False
+
+            elif matcher.operator == MatcherOperator.REGEX:
+                import re
+
+                if not isinstance(value, str) or not isinstance(matcher_value, str):
+                    return False
+                try:
+                    if not re.search(matcher_value, value):
+                        return False
+                except re.error:
+                    logger.warning(f"Invalid regex pattern in matcher: {matcher_value}")
+                    return False
+
+            elif matcher.operator == MatcherOperator.GLOB:
+                import fnmatch
+
+                if not isinstance(value, str) or not isinstance(matcher_value, str):
+                    return False
+                if not fnmatch.fnmatch(value, matcher_value):
+                    return False
+
+            else:
+                logger.warning(f"Unknown matcher operator: {matcher.operator}")
+                return False
+
+        return True
+
+    def _get_field_value(self, context: HookContext, field_path: str) -> Any:
+        """
+        Get a value from context using dot notation.
+        Supports nested access like "metadata.project.name"
+        """
+        parts = field_path.split(".")
+        current = context
+
+        for part in parts:
+            if hasattr(current, part):
+                current = getattr(current, part)
+            elif isinstance(current, dict) and part in current:
+                current = current[part]
+            else:
+                # Try to access via getattr with default
+                try:
+                    current = getattr(current, part)
+                except AttributeError:
+                    # Return None if field doesn't exist
+                    return None
+
+        return current
+
+    def register(
+        self,
+        hook: HookCallable,
+        events: Optional[List[HookEvent]] = None,
+        config: Optional[HookConfig] = None,
+    ):
         """
         Register a hook.
         If events is None or empty, the hook is treated as a global hook (runs on all events).
         Otherwise, it is registered for the specific events.
         """
+        if config:
+            self._hook_to_config[hook] = config
+
         if not events:
             self._global_hooks.append(hook)
         else:
@@ -95,12 +210,29 @@ class HookManager:
         if not hooks_to_run:
             return results
 
+        # Sort hooks by priority (higher priority first)
+        # Create a default config for hooks without config (e.g., manually registered)
+        default_config = HookConfig(
+            name="default",
+            events=[],
+            type=HookType.COMMAND,
+            config=CommandHookConfig(command=""),
+            priority=0,
+        )
+        hooks_to_run = sorted(
+            hooks_to_run,
+            key=lambda h: self._hook_to_config.get(h, default_config).priority,
+            reverse=True,  # Higher priority first
+        )
+
         # Execute hooks with thread pool and timeout controls
         tasks = []
         for hook in hooks_to_run:
             # Get timeout from config if available
             timeout = None
-            # TODO: Look up timeout from hook config
+            if hook in self._hook_to_config:
+                config = self._hook_to_config[hook]
+                timeout = config.timeout
 
             task = self._executor.execute_hook(hook, context, timeout=timeout)
             tasks.append(task)
@@ -304,7 +436,7 @@ class HookManager:
                 return
 
             hook_callable = self._hydrate_hook(config)
-            self.register(hook_callable, config.events)
+            self.register(hook_callable, config.events, config)
             logger.info(f"Registered hook '{config.name}' from {source}")
         except Exception as e:
             logger.error(f"Error registering hook from {source}: {e}", exc_info=True)
@@ -366,58 +498,165 @@ class HookManager:
     def _hydrate_hook(self, config: HookConfig) -> HookCallable:
         """
         Convert HookConfig into a HookCallable using appropriate executor.
+        Wraps the actual hook with matcher evaluation.
         """
+        # Create the actual hook callable
         if config.type == HookType.COMMAND:
-            return self._create_command_hook(config.config)
-        if config.type == HookType.PROMPT:
-            return self._create_prompt_hook(config.config)
-        if config.type == HookType.AGENT:
-            return self._create_agent_hook(config.config)
+            inner_hook = self._create_command_hook(config.config)
+        elif config.type == HookType.PROMPT:
+            inner_hook = self._create_prompt_hook(config.config)
+        elif config.type == HookType.AGENT:
+            inner_hook = self._create_agent_hook(config.config)
+        else:
 
-        async def placeholder_hook(context: HookContext) -> HookResult:
-            logger.warning(
-                f"Executing placeholder for hook '{config.name}' (Type: {config.type})."
-            )
-            return HookResult(success=True, output=f"Placeholder for {config.name}")
+            async def placeholder_hook(context: HookContext) -> HookResult:
+                logger.warning(
+                    f"Executing placeholder for hook '{config.name}' (Type: {config.type})."
+                )
+                return HookResult(success=True, output=f"Placeholder for {config.name}")
 
-        return placeholder_hook
+            inner_hook = placeholder_hook
+
+        # Store config for debugging and timeout lookup
+        self._hook_configs[config.name] = config
+
+        # Create wrapper that evaluates matchers
+        async def hook_with_matchers(context: HookContext) -> HookResult:
+            # Evaluate matchers first
+            if not self._evaluate_matchers(config.matchers, context):
+                logger.debug(
+                    f"Hook '{config.name}' skipped due to matcher evaluation failure"
+                )
+                # Return a neutral result (not an error, just didn't run)
+                return HookResult(success=True, output="Skipped due to matchers")
+
+            # Execute the actual hook
+            return await inner_hook(context)
+
+        return hook_with_matchers
 
     def _create_command_hook(self, config: CommandHookConfig) -> HookCallable:
         async def command_hook(context: HookContext) -> HookResult:
             import subprocess
 
-            # Prepare environment
+            # Prepare environment with Claude Code context variables
             env = os.environ.copy()
-            # In real implementation we might inject more context into env or stdin
-            # For now, let's keep it simple: run command.
+
+            # Inject Claude Code context variables for hook scripts
+            env["CLAUDE_HOOK_EVENT"] = str(context.event.value)
+            env["CLAUDE_HOOK_EVENT_NAME"] = context.hook_event_name or str(
+                context.event.value
+            )
+            env["CLAUDE_CWD"] = context.cwd or ""
+            env["CLAUDE_TRANSCRIPT_PATH"] = context.transcript_path or ""
+            env["CLAUDE_PERMISSION_MODE"] = context.permission_mode
+
+            # Inject event-specific data as JSON
+            import json as json_module
+
             try:
-                # We use asyncio to run command if we want it non-blocking
+                # Try to serialize event_data, fall back to string representation
+                if context.event_data is not None:
+                    env["CLAUDE_EVENT_DATA"] = json_module.dumps(context.event_data)
+                else:
+                    env["CLAUDE_EVENT_DATA"] = "null"
+            except (TypeError, ValueError):
+                # If not JSON serializable, use string representation
+                env["CLAUDE_EVENT_DATA"] = str(context.event_data)
+
+            # Add context fields to environment
+            for field in [
+                "tool_name",
+                "tool_input",
+                "prompt",
+                "message",
+                "title",
+                "notification_type",
+                "agent_id",
+                "teammate_name",
+                "task_id",
+            ]:
+                value = getattr(context, field, None)
+                if value is not None:
+                    if isinstance(value, dict):
+                        env[f"CLAUDE_{field.upper()}"] = json_module.dumps(value)
+                    else:
+                        env[f"CLAUDE_{field.upper()}"] = str(value)
+
+            try:
+                # Run command with timeout
                 process = await asyncio.create_subprocess_shell(
                     config.command,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
-                    cwd=config.working_dir,
+                    cwd=config.working_dir or context.cwd,
                     env=env,
                 )
                 stdout, stderr = await process.communicate()
 
-                success = process.returncode == 0
                 output = stdout.decode().strip()
-                if not success:
-                    logger.error(f"Command hook failed: {stderr.decode()}")
+                stderr_output = stderr.decode().strip()
 
-                # Attempt to parse output as JSON for modifications
-                modifications = {}
-                try:
-                    data = json.loads(output)
-                    if isinstance(data, dict) and "modifications" in data:
-                        modifications = data["modifications"]
-                except Exception:
-                    pass
+                # Claude Code compatibility: exit code 2 means block, 0 means success
+                # Other non-zero exit codes are errors
+                exit_code = process.returncode
 
-                return HookResult(
-                    success=success, output=output, modifications=modifications
-                )
+                if exit_code == 2:
+                    # Blocking decision - parse output for reason
+                    modifications = {}
+                    reason = "Blocked by hook"
+
+                    try:
+                        data = json_module.loads(output)
+                        if isinstance(data, dict):
+                            # Claude Code format: {"decision": "block", "reason": "...", ...}
+                            modifications = data
+                            if "reason" in data:
+                                reason = data["reason"]
+                    except Exception:
+                        # If not JSON, use output as reason
+                        if output:
+                            reason = output
+
+                    # Merge provided modifications with blocking modifications
+                    blocking_modifications = {
+                        "decision": "block",
+                        "reason": reason,
+                        "exit_code": 2,
+                    }
+                    blocking_modifications.update(modifications)
+                    return HookResult(
+                        success=False,
+                        output=output,  # Include output for logging/debugging
+                        should_stop=True,
+                        modifications=blocking_modifications,
+                    )
+
+                elif exit_code == 0:
+                    # Success - parse output for modifications
+                    modifications = {}
+                    try:
+                        data = json_module.loads(output)
+                        if isinstance(data, dict):
+                            modifications = data
+                    except Exception:
+                        # Not JSON, treat as plain output
+                        pass
+
+                    return HookResult(
+                        success=True, output=output, modifications=modifications
+                    )
+                else:
+                    # Error case
+                    error_msg = f"Command failed with exit code {exit_code}"
+                    if stderr_output:
+                        error_msg += f": {stderr_output}"
+                    elif output:
+                        error_msg += f": {output}"
+
+                    logger.error(f"Command hook failed: {error_msg}")
+                    return HookResult(success=False, output=error_msg)
+
             except Exception as e:
                 logger.error(f"Error executing command hook: {e}")
                 return HookResult(success=False, output=str(e))
@@ -426,32 +665,174 @@ class HookManager:
 
     def _create_prompt_hook(self, config: PromptHookConfig) -> HookCallable:
         async def prompt_hook(context: HookContext) -> HookResult:
-            # We need to run an LLM task here.
-            # This is complex because it might cause recursion if not careful.
-            # For now, let's implement a simplified version using LLMTask logic
-            from zrb.context.any_context import AnyContext
-            from zrb.llm.task.llm_task import LLMTask
+            """
+            Execute a prompt hook using the LLM system.
+            This runs an LLM with the given prompt template and returns the result.
+            """
+            try:
+                # Import here to avoid circular imports
+                from pydantic_ai import Agent
+                from pydantic_ai.models.openai import OpenAIModel
 
-            # Create a temporary task to run the prompt
-            task_name = f"hook-prompt-{id(context)}"
+                # Get LLM configuration
+                model_name = config.model or CFG.LLM_MODEL
+                if not model_name:
+                    logger.error("No LLM model configured for prompt hook")
+                    return HookResult(success=False, output="No LLM model configured")
 
-            # Simple context for the hook
-            # In a real app, we should pass a better context
-            # But LLMTask needs a context to run.
-            # We'll use a dummy context for now if we don't have one.
-            # Actually, we should probably have context in HookContext.
+                # Parse model name (format: provider:model)
+                if ":" in model_name:
+                    provider, model = model_name.split(":", 1)
+                else:
+                    provider = "openai"
+                    model = model_name
 
-            # For Phase 1/2, let's just log and return.
-            # Implementing full LLM call here requires careful context management.
-            logger.info(f"Prompt hook triggered: {config.user_prompt_template}")
-            return HookResult(success=True, output="Prompt hook executed (simulated)")
+                # Create model based on provider
+                if provider == "openai":
+                    llm_model = OpenAIModel(model)
+                else:
+                    # For other providers, we'd need to handle them
+                    # For now, use OpenAI as default
+                    logger.warning(
+                        f"Provider {provider} not fully supported, using OpenAI"
+                    )
+                    llm_model = OpenAIModel(model)
+
+                # Create agent with the prompt
+                agent = Agent(
+                    model=llm_model,
+                    system_prompt=config.system_prompt or "",
+                    deps_type=dict,
+                )
+
+                # Format user prompt template with context
+                # Simple template substitution using context fields
+                user_prompt = config.user_prompt_template
+                for field_name in dir(context):
+                    if not field_name.startswith("_"):
+                        field_value = getattr(context, field_name)
+                        if isinstance(field_value, (str, int, float, bool)):
+                            placeholder = f"{{{{{field_name}}}}}"
+                            if placeholder in user_prompt:
+                                user_prompt = user_prompt.replace(
+                                    placeholder, str(field_value)
+                                )
+
+                # Run the agent
+                result = await agent.run(user_prompt, deps={})
+
+                # Parse the result for modifications
+                modifications = {}
+                try:
+                    # Try to parse as JSON if it looks like JSON
+                    import json
+
+                    output_text = str(result.output)
+                    if output_text.strip().startswith(
+                        "{"
+                    ) and output_text.strip().endswith("}"):
+                        parsed = json.loads(output_text)
+                        if isinstance(parsed, dict):
+                            modifications = parsed
+                except Exception:
+                    # Not JSON, use as plain output
+                    pass
+
+                return HookResult(
+                    success=True, output=str(result.output), modifications=modifications
+                )
+
+            except Exception as e:
+                logger.error(f"Error executing prompt hook: {e}", exc_info=True)
+                return HookResult(success=False, output=str(e))
 
         return prompt_hook
 
     def _create_agent_hook(self, config: AgentHookConfig) -> HookCallable:
         async def agent_hook(context: HookContext) -> HookResult:
-            logger.info(f"Agent hook triggered: {config.system_prompt}")
-            return HookResult(success=True, output="Agent hook executed (simulated)")
+            """
+            Execute an agent hook with tools.
+            This creates an agent with the given system prompt and tools.
+            """
+            try:
+                # Import here to avoid circular imports
+                from pydantic_ai import Agent
+                from pydantic_ai.models.openai import OpenAIModel
+
+                # Get LLM configuration
+                model_name = config.model or CFG.LLM_MODEL
+                if not model_name:
+                    logger.error("No LLM model configured for agent hook")
+                    return HookResult(success=False, output="No LLM model configured")
+
+                # Parse model name (format: provider:model)
+                if ":" in model_name:
+                    provider, model = model_name.split(":", 1)
+                else:
+                    provider = "openai"
+                    model = model_name
+
+                # Create model based on provider
+                if provider == "openai":
+                    llm_model = OpenAIModel(model)
+                else:
+                    # For other providers, we'd need to handle them
+                    # For now, use OpenAI as default
+                    logger.warning(
+                        f"Provider {provider} not fully supported, using OpenAI"
+                    )
+                    llm_model = OpenAIModel(model)
+
+                # Create agent with system prompt
+                agent = Agent(
+                    model=llm_model,
+                    system_prompt=config.system_prompt,
+                    deps_type=dict,
+                )
+
+                # TODO: Add tools from config.tools
+                # For now, run without tools
+
+                # Create a prompt from context
+                # Use event_data or other context fields as input
+                user_input = ""
+                if context.event_data:
+                    if isinstance(context.event_data, dict):
+                        user_input = str(context.event_data)
+                    else:
+                        user_input = str(context.event_data)
+                elif hasattr(context, "prompt") and context.prompt:
+                    user_input = context.prompt
+                else:
+                    user_input = f"Hook event: {context.event.value}"
+
+                # Run the agent
+                result = await agent.run(user_input, deps={})
+
+                # Parse the result for modifications
+                modifications = {}
+                try:
+                    # Try to parse as JSON if it looks like JSON
+                    import json
+
+                    output_text = str(result.output)
+                    if output_text.strip().startswith(
+                        "{"
+                    ) and output_text.strip().endswith("}"):
+                        parsed = json.loads(output_text)
+                        if isinstance(parsed, dict):
+                            modifications = parsed
+                except Exception:
+                    # Not JSON, use as plain output
+                    pass
+
+                return HookResult(
+                    success=True, output=str(result.output), modifications=modifications
+                )
+
+            except Exception as e:
+                logger.error(f"Error executing agent hook: {e}", exc_info=True)
+                return HookResult(success=False, output=str(e))
 
         return agent_hook
 

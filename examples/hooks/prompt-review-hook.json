@@ -1,0 +1,38 @@
+[
+  {
+    "name": "safety-review",
+    "events": ["UserPromptSubmit"],
+    "type": "prompt",
+    "config": {
+      "user_prompt_template": "Review this user prompt for safety concerns:\n\nUser: {{prompt}}\n\nContext:\n- Session ID: {{session_id}}\n- Metadata: {{metadata}}",
+      "system_prompt": "You are a safety reviewer. Analyze the user prompt for:\n1. Harmful content (violence, hate speech, self-harm)\n2. Illegal activities\n3. Privacy violations\n4. Security risks\n\nReturn JSON with:\n- 'safe' (boolean)\n- 'risk_level' (low/medium/high)\n- 'concerns' (array of strings)\n- 'decision' (allow, block, or ask)\n- 'reason' (explanation)",
+      "model": "openai:gpt-4o-mini",
+      "temperature": 0.0
+    },
+    "description": "LLM-based safety review of user prompts",
+    "matchers": [
+      {
+        "field": "metadata.requires_safety_check",
+        "operator": "equals",
+        "value": true
+      }
+    ],
+    "enabled": true,
+    "priority": 80,
+    "timeout": 30
+  },
+  {
+    "name": "prompt-enhancer",
+    "events": ["UserPromptSubmit"],
+    "type": "prompt",
+    "config": {
+      "user_prompt_template": "The user said: {{prompt}}\n\nSuggest improvements to make it clearer and more effective.",
+      "system_prompt": "You are a prompt improvement assistant. Suggest concise improvements to user prompts.",
+      "model": "openai:gpt-4o-mini",
+      "temperature": 0.3
+    },
+    "description": "Suggest improvements to user prompts",
+    "enabled": true,
+    "priority": 10
+  }
+]

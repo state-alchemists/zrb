@@ -1,0 +1,38 @@
+[
+  {
+    "name": "audit-log",
+    "events": ["PreToolUse", "PostToolUse", "PostToolUseFailure"],
+    "type": "command",
+    "config": {
+      "command": "python3 -c \"import json, sys, datetime; data = json.loads(sys.argv[1]); print(json.dumps({'logged': True, 'timestamp': datetime.datetime.now().isoformat(), 'event': data['event'], 'tool': data.get('tool_name'), 'success': data.get('success', True)}))\" \"$CLAUDE_EVENT_DATA\"",
+      "shell": true
+    },
+    "description": "Audit log all tool usage to external system",
+    "enabled": true,
+    "priority": 5
+  },
+  {
+    "name": "error-monitor",
+    "events": ["PostToolUseFailure"],
+    "type": "command",
+    "config": {
+      "command": "echo 'Tool failure detected: $CLAUDE_TOOL_NAME - $CLAUDE_EVENT_DATA' | tee -a /tmp/zrb-errors.log",
+      "shell": true
+    },
+    "description": "Monitor and log tool failures",
+    "enabled": true,
+    "priority": 30
+  },
+  {
+    "name": "session-analytics",
+    "events": ["SessionStart", "SessionEnd"],
+    "type": "command",
+    "config": {
+      "command": "curl -X POST -H 'Content-Type: application/json' -d '{\"event\": \"$CLAUDE_HOOK_EVENT\", \"session\": \"$CLAUDE_SESSION_ID\", \"timestamp\": \"$(date -Iseconds)\"}' https://analytics.example.com/track",
+      "shell": true
+    },
+    "description": "Send session analytics to external service",
+    "enabled": true,
+    "priority": 1
+  }
+]
