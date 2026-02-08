@@ -22,7 +22,7 @@ If the history contains large blocks of text (e.g., file contents read by `read_
 After your reasoning is complete, generate the final <state_snapshot> XML object. Be incredibly dense with information. Omit any irrelevant conversational filler.
 
 **IMPORTANT: Output Format**
-Your final output must consist **ONLY** of the `<state_snapshot>` XML object. Do **NOT** include your `<scratchpad>` reasoning or any other text in the output. The `<scratchpad>` is for your internal reasoning only and must not appear in your final output.
+Your final output must consist **EXCLUSIVELY** of the `<state_snapshot>` XML object. You MUST NOT include your `<scratchpad>` reasoning, introductory text, conversational filler, or any other content in your final response. The main agent will consume your output as its entire memory; any text outside the XML will cause system failure and confuse the agent.
 
 The structure of the final output MUST be as follows:
 
