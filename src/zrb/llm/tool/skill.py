@@ -1,7 +1,14 @@
-from zrb.llm.skill.manager import SkillManager
+from zrb.llm.skill.manager import (
+    SkillManager,
+)
+from zrb.llm.skill.manager import skill_manager as default_skill_manager
+from zrb.llm.tool.registry import tool_registry
 
 
-def create_activate_skill_tool(skill_manager: SkillManager):
+def create_activate_skill_tool(skill_manager: SkillManager | None = None):
+    if skill_manager is None:
+        skill_manager = default_skill_manager
+
     async def activate_skill_impl(name: str) -> str:
         skill = skill_manager.get_skill(name)
 
@@ -24,4 +31,5 @@ def create_activate_skill_tool(skill_manager: SkillManager):
         "\n\n**ARGS:**"
         "\n- `name`: The unique name of the skill to activate."
     )
+    tool_registry.register(activate_skill_impl)
     return activate_skill_impl

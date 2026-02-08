@@ -1,9 +1,13 @@
 import os
+import uuid
+from collections.abc import Callable
 from pathlib import Path
 
 import yaml
 
 from zrb.config.config import CFG
+from zrb.llm.hook.manager import hook_manager
+from zrb.util.load import load_module_from_path
 
 _IGNORE_DIRS = [
     ".git",
@@ -24,17 +28,22 @@ class Skill:
         description: str,
         model_invocable: bool = True,
         user_invocable: bool = False,
+        content: str | None = None,
+        content_factory: Callable[[], str] | None = None,
     ):
         self.name = name
         self.path = path
         self.description = description
         self.model_invocable = model_invocable
         self.user_invocable = user_invocable
+        self.content = content
+        self.content_factory = content_factory
 
 
 class SkillManager:
     def __init__(
         self,
+        auto_load: bool = True,
         root_dir: str = ".",
         search_dirs: list[str | Path] | None = None,
         max_depth: int = 1,
@@ -45,6 +54,8 @@ class SkillManager:
         self._max_depth = max_depth
         self._skills: dict[str, Skill] = {}
         self._ignore_dirs = _IGNORE_DIRS if ignore_dirs is None else ignore_dirs
+        if auto_load:
+            self.scan(self._search_dirs)
 
     def scan(self, search_dirs: list[str | Path] | None = None) -> list[Skill]:
         self._skills = {}
@@ -145,16 +156,45 @@ class SkillManager:
                         base_dir, item, max_depth, current_depth + 1
                     )
                 elif item.is_file():
-                    # Check for skill files
-                    if item.name == "SKILL.md" or item.name.endswith(".skill.md"):
-                        full_path = str(item)
-                        rel_path = os.path.relpath(full_path, self._root_dir)
-                        self._load_skill(rel_path, full_path)
+                    full_path = str(item)
+                    rel_path = os.path.relpath(full_path, self._root_dir)
+
+                    # Check for Python skill files
+                    if item.name == "SKILL.py" or item.name.endswith(".skill.py"):
+                        self._load_skill_from_python(rel_path, full_path)
+                    # Check for Markdown skill files
+                    elif item.name == "SKILL.md" or item.name.endswith(".skill.md"):
+                        self._load_skill_from_markdown(rel_path, full_path)
         except (PermissionError, OSError):
             # Skip directories we can't access
             pass
 
-    def _load_skill(self, rel_path: str, full_path: str):
+    def _load_skill_from_python(self, rel_path: str, full_path: str):
+        try:
+            module_name = f"zrb_skill_{uuid.uuid4().hex}"
+            module = load_module_from_path(module_name, full_path)
+            if not module:
+                return
+
+            skill_obj = None
+            # Look for 'skill' or 'SKILL' variable
+            if hasattr(module, "skill"):
+                skill_obj = getattr(module, "skill")
+            elif hasattr(module, "SKILL"):
+                skill_obj = getattr(module, "SKILL")
+
+            if isinstance(skill_obj, Skill):
+                self._skills[skill_obj.name] = skill_obj
+            elif hasattr(module, "get_skill") and callable(module.get_skill):
+                # Factory function that returns a Skill
+                skill_obj = module.get_skill()
+                if isinstance(skill_obj, Skill):
+                    self._skills[skill_obj.name] = skill_obj
+
+        except Exception:
+            pass
+
+    def _load_skill_from_markdown(self, rel_path: str, full_path: str):
         try:
             with open(full_path, "r", encoding="utf-8") as f:
                 content = f.read()
@@ -181,6 +221,22 @@ class SkillManager:
                                 "disable-model-invocation", False
                             )
                             user_invocable = frontmatter.get("user-invocable", False)
+
+                            # Parse hooks if present
+                            hooks_data = frontmatter.get("hooks")
+                            if hooks_data:
+                                if isinstance(hooks_data, dict):
+                                    # Claude nested format
+                                    hook_manager._parse_claude_format(
+                                        {"hooks": hooks_data}, full_path
+                                    )
+                                elif isinstance(hooks_data, list):
+                                    # Zrb flat format
+                                    for hook_item in hooks_data:
+                                        hook_manager._parse_and_register(
+                                            hook_item, full_path
+                                        )
+
                 except Exception:
                     pass
 
@@ -205,6 +261,16 @@ class SkillManager:
         except Exception:
             pass
 
+    def _load_skill(self, rel_path: str, full_path: str):
+        # Backward compatibility / internal helper alias
+        self._load_skill_from_markdown(rel_path, full_path)
+
+    def add_skill(self, skill: Skill):
+        """
+        Manually register a skill.
+        """
+        self._skills[skill.name] = skill
+
     def get_skill(self, name: str) -> Skill | None:
         skill = self._skills.get(name)
         if not skill:
@@ -219,6 +285,15 @@ class SkillManager:
         skill = self.get_skill(name)
         if not skill:
             return None
+
+        if skill.content:
+            return skill.content
+
+        if skill.content_factory:
+            try:
+                return skill.content_factory()
+            except Exception as e:
+                return f"Error executing skill factory: {e}"
 
         try:
             with open(skill.path, "r", encoding="utf-8") as f:

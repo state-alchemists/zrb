@@ -179,101 +179,73 @@ Zrb's current hook implementation provides **partial compatibility** with Claude
 - Hooks execute in order defined in configuration
 - Multiple hooks per matcher execute sequentially
 
-## Implementation Plan (8 Phases)
+## Implementation Plan (Completed)
 
-### Phase 1: Safety & Threading Foundation (Week 1)
+### Phase 1: Safety & Threading Foundation (Completed)
+- [x] Thread Safety Implementation
+- [x] Hook Result Standardization
+- [x] Safety Event Implementation
 
-#### 1.1 Thread Safety Implementation
-```python
-# New: ThreadPoolHookExecutor
-class ThreadPoolHookExecutor:
-    def __init__(self, max_workers=10):
-        self.executor = ThreadPoolExecutor(max_workers=max_workers)
-        self.timeout = 30  # seconds
-    
-    async def execute_hook(self, hook: Hook, context: HookContext) -> HookResult:
-        # Implement with timeout and proper error handling
-        pass
-    
-    def shutdown(self, wait=True):
-        self.executor.shutdown(wait=wait)
-```
+### Phase 2: Configuration Format Migration (Completed)
+- [x] Support nested Claude Code configuration format
+- [x] Implement format detection and parsing
 
-#### 1.2 Hook Result Standardization
-```python
-# New: Standardized HookResult class
-@dataclass
-class HookResult:
-    success: bool
-    blocked: bool = False
-    message: Optional[str] = None
-    data: Dict[str, Any] = field(default_factory=dict)
-    error: Optional[str] = None
-    exit_code: int = 0
-```
+### Phase 3: Matcher System Overhaul (Completed)
+- [x] Implement regex-based matchers
+- [x] Map Claude events to Zrb context fields
 
-#### 1.3 Safety Event Implementation
-- Implement `PreToolUse` event with blocking capability
-- Add `PermissionRequest` event for security-critical operations
-- Implement `PostToolUseFailure` for error recovery
+### Phase 4: Hook-Specific Output Standardization (Completed)
+- [x] Implement `hookSpecificOutput` nesting
+- [x] Merge modifications correctly
 
-### Phase 2: Configuration Format Migration (Week 2)
+### Phase 5: Async Hook Implementation (Completed)
+- [x] Implement fire-and-forget for async command hooks
 
-**Goal**: Support both Zrb and Claude Code configuration formats
-1. Create format detector and parser for Claude Code nested format
-2. Add backward compatibility layer for existing Zrb format
-3. Update `HookManager._parse_and_register()` to handle both formats
-4. Create migration utility to convert Zrb format to Claude Code format
+### Phase 6: Plugin & Skill Integration (Completed)
+- [x] Parse hooks from `SKILL.md` frontmatter
+- [x] Register skill-based hooks with HookManager
 
-### Phase 3: Matcher System Overhaul (Week 3)
+### Phase 7: Environment & Timeout Alignment (Completed)
+- [x] Inject `$CLAUDE_PROJECT_DIR`, `$CLAUDE_PLUGIN_ROOT`, `$CLAUDE_CODE_REMOTE`
+- [x] Apply default timeouts (600s/30s/60s)
 
-**Goal**: Implement Claude Code regex-based matcher system
-1. Replace field-based matchers with event-specific regex matching
-2. Map event types to their matcher fields (tool name, session source, etc.)
-3. Support both simple string matching and regex patterns
-4. Add MCP tool pattern support (`mcp__.*__.*`)
+### Phase 8: Testing & Validation (Completed)
+- [x] Verify configuration parsing
+- [x] Verify hook registration and execution
+- [x] Run full regression test suite
 
-### Phase 4: Hook-Specific Output Standardization (Week 4)
+### Phase 9: Python First-Class Support (Completed)
 
-**Goal**: Implement Claude Code standardized output formats
-1. Create event-specific output schema classes
-2. Update `HookResult` to generate proper `hookSpecificOutput`
-3. Implement universal fields: `continue`, `stopReason`, `suppressOutput`, `systemMessage`
-4. Add `updatedInput` modification support for tool inputs
+**Goal**: Elevate Python to a first-class citizen for defining Skills, SubAgents, and Hooks, aligning with Zrb's mission. Markdown and JSON should be treated as extensions/adapters.
 
-### Phase 5: Async Hook Implementation (Week 5)
+**Objective:** Enable defining Skills, SubAgents, and Hooks using pure Python (`.py` files) to allow full power of the language (logic, dynamic behavior, existing libraries).
 
-**Goal**: Full async hook support per Claude Code spec
-1. Implement true async execution for command hooks
-2. Add async-specific limitations (no blocking decisions)
-3. Handle output delivery on next conversation turn
-4. Add timeout defaults (600s for async commands)
+#### 9.1 Dynamic Module Loading Utility
+- [x] Create a safe, robust `ModuleLoader` to import Python modules from arbitrary paths.
+- [x] Handle error isolation so one broken plugin doesn't crash the system.
 
-### Phase 6: Plugin & Skill Integration (Week 6)
+#### 9.2 Python-Based Skills
+- **Current:** `SKILL.md` (static text).
+- **New:** Support `SKILL.py` or `*.skill.py`.
+- **Contract:** File exports a `skill` object (instance of `Skill`) or a `get_skill()` function.
+- **Benefit:** Dynamic prompts, context-aware skills.
+- [x] Implemented in `SkillManager`
+- [x] Added `add_skill` method for manual registration
 
-**Goal**: Support hooks in plugins, skills, and agents
-1. Add plugin hook discovery (`hooks/hooks.json`)
-2. Implement skill/agent frontmatter hook parsing
-3. Add `${CLAUDE_PLUGIN_ROOT}` variable support
-4. Implement environment persistence (`$CLAUDE_ENV_FILE`)
+#### 9.3 Python-Based SubAgents
+- **Current:** `AGENT.md` (static config).
+- **New:** Support `AGENT.py` or `*.agent.py`.
+- **Contract:** File exports an `agent` object (`SubAgentDefinition` or `pydantic_ai.Agent`) or a factory function.
+- **Benefit:** Dynamic tools, logic-based system prompts, shared state.
+- [x] Implemented in `SubAgentManager`
+- [x] Added `add_agent` method for manual registration
 
-### Phase 7: Environment & Timeout Alignment (Week 7)
-
-**Goal**: Complete Claude Code environment variable support and timeout defaults
-1. Add `$CLAUDE_PROJECT_DIR` detection and injection
-2. Implement `$CLAUDE_ENV_FILE` for SessionStart hooks
-3. Add `$CLAUDE_CODE_REMOTE` detection
-4. Update default timeouts: 600s command, 30s prompt, 60s agent
-5. Implement proper timeout error handling per event type
-
-### Phase 8: Testing & Validation (Week 8)
-
-**Goal**: Ensure 100% compatibility through comprehensive testing
-1. Create test suite with Claude Code hook examples
-2. Test all 14 event types with matcher combinations
-3. Validate output formats against Claude Code spec
-4. Performance testing with multiple concurrent hooks
-5. Create compatibility certification tool
+#### 9.4 Python-Based Hooks
+- **Current:** `.json` / `.yaml` (static config).
+- **New:** Support `*.hook.py`.
+- **Contract:** File exports a `register(hook_manager)` function or a list of hooks.
+- **Benefit:** Complex logic in hooks, direct API access, shared libraries.
+- [x] Implemented in `HookManager`
 
 ## Technical Specifications
 

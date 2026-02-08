@@ -43,7 +43,7 @@ async def test_config_file_loading_and_hydration(tmp_path):
         json.dump(hook_config, f)
 
     # Initialize manager pointing to this dir
-    manager = HookManager(auto_load=True, scan_dirs=[hooks_dir])
+    manager = HookManager(auto_load=True, search_dirs=[hooks_dir])
 
     # Execute hooks using simple method for backward compatibility
     results = await manager.execute_hooks_simple(HookEvent.SESSION_START, {})

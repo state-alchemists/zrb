@@ -4,16 +4,14 @@ Implements Claude Code compatible execution patterns.
 """
 
 import asyncio
-import concurrent.futures
 import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
-from zrb.llm.hook.types import HookEvent
 
 logger = logging.getLogger(__name__)
 
@@ -24,20 +22,20 @@ class HookExecutionResult:
 
     success: bool
     blocked: bool = False
-    message: Optional[str] = None
-    data: Dict[str, Any] = field(default_factory=dict)
-    error: Optional[str] = None
+    message: str | None = None
+    data: dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
     exit_code: int = 0
-    decision: Optional[str] = None  # "block", "allow", "deny", "ask"
-    reason: Optional[str] = None
-    permission_decision: Optional[str] = None  # "allow", "deny", "ask"
-    permission_decision_reason: Optional[str] = None
-    additional_context: Optional[str] = None
-    updated_input: Optional[Dict[str, Any]] = None
-    system_message: Optional[str] = None
+    decision: str | None = None  # "block", "allow", "deny", "ask"
+    reason: str | None = None
+    permission_decision: str | None = None  # "allow", "deny", "ask"
+    permission_decision_reason: str | None = None
+    additional_context: str | None = None
+    updated_input: dict[str, Any] | None = None
+    system_message: str | None = None
     continue_execution: bool = True
     suppress_output: bool = False
-    hook_specific_output: Optional[Dict[str, Any]] = None
+    hook_specific_output: dict[str, Any] | None = None
 
 
 class ThreadPoolHookExecutor:
@@ -55,7 +53,7 @@ class ThreadPoolHookExecutor:
     def __init__(self, max_workers: int = 10, default_timeout: int = 30):
         self.max_workers = max_workers
         self.default_timeout = default_timeout
-        self._executor: Optional[ThreadPoolExecutor] = None
+        self._executor: ThreadPoolExecutor | None = None
         self._lock = threading.RLock()
         self._shutdown_event = threading.Event()
 
@@ -92,7 +90,7 @@ class ThreadPoolHookExecutor:
         self,
         hook: HookCallable,
         context: HookContext,
-        timeout: Optional[int] = None,
+        timeout: int | None = None,
     ) -> HookExecutionResult:
         """
         Execute a hook with timeout and proper error handling.
@@ -240,14 +238,14 @@ class ThreadPoolHookExecutor:
         self,
         success: bool = True,
         blocked: bool = False,
-        message: Optional[str] = None,
-        decision: Optional[str] = None,
-        reason: Optional[str] = None,
-        permission_decision: Optional[str] = None,
-        permission_decision_reason: Optional[str] = None,
-        additional_context: Optional[str] = None,
-        updated_input: Optional[Dict[str, Any]] = None,
-        system_message: Optional[str] = None,
+        message: str | None = None,
+        decision: str | None = None,
+        reason: str | None = None,
+        permission_decision: str | None = None,
+        permission_decision_reason: str | None = None,
+        additional_context: str | None = None,
+        updated_input: dict[str, Any] | None = None,
+        system_message: str | None = None,
         continue_execution: bool = True,
         suppress_output: bool = False,
         exit_code: int = 0,
@@ -275,7 +273,7 @@ class ThreadPoolHookExecutor:
 
 
 # Singleton instance
-_hook_executor: Optional[ThreadPoolHookExecutor] = None
+_hook_executor: ThreadPoolHookExecutor | None = None
 
 
 def get_hook_executor() -> ThreadPoolHookExecutor:

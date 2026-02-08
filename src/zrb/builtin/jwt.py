@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 
 from zrb.builtin.group import jwt_group
 from zrb.context.any_context import AnyContext
@@ -56,7 +56,7 @@ def encode_jwt(ctx: AnyContext) -> str:
         ),
     ],
 )
-def decode_jwt(ctx: AnyContext) -> Dict[str, Any]:
+def decode_jwt(ctx: AnyContext) -> dict[str, Any]:
     import jwt
 
     try:

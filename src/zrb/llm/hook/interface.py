@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
+from typing import Any, Awaitable, Callable
 
 from zrb.llm.hook.types import HookEvent
 
@@ -10,43 +10,43 @@ class HookContext:
 
     event: HookEvent
     event_data: Any
-    session_id: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    session_id: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     # Claude Code standard fields
-    transcript_path: Optional[str] = None
-    cwd: Optional[str] = None
+    transcript_path: str | None = None
+    cwd: str | None = None
     permission_mode: str = "default"
-    hook_event_name: Optional[str] = None  # For compatibility with Claude Code JSON
+    hook_event_name: str | None = None  # For compatibility with Claude Code JSON
 
     # Event-specific fields (populated based on event type)
-    prompt: Optional[str] = None  # UserPromptSubmit
-    tool_name: Optional[str] = None  # PreToolUse, PostToolUse, etc.
-    tool_input: Optional[Dict[str, Any]] = None
-    tool_response: Optional[Dict[str, Any]] = None
-    tool_use_id: Optional[str] = None
-    error: Optional[str] = None  # PostToolUseFailure
-    is_interrupt: Optional[bool] = None
-    message: Optional[str] = None  # Notification
-    title: Optional[str] = None
-    notification_type: Optional[str] = None
-    agent_id: Optional[str] = None  # SubagentStart/Stop
-    agent_type: Optional[str] = None
-    agent_transcript_path: Optional[str] = None
-    stop_hook_active: Optional[bool] = None  # Stop
-    teammate_name: Optional[str] = None  # TeammateIdle
-    team_name: Optional[str] = None
-    task_id: Optional[str] = None  # TaskCompleted
-    task_subject: Optional[str] = None
-    task_description: Optional[str] = None
-    trigger: Optional[str] = None  # PreCompact
-    custom_instructions: Optional[str] = None
-    reason: Optional[str] = None  # SessionEnd
-    source: Optional[str] = None  # SessionStart
-    model: Optional[str] = None
-    permission_suggestions: Optional[List[Dict[str, Any]]] = None  # PermissionRequest
+    prompt: str | None = None  # UserPromptSubmit
+    tool_name: str | None = None  # PreToolUse, PostToolUse, etc.
+    tool_input: dict[str, Any] | None = None
+    tool_response: dict[str, Any] | None = None
+    tool_use_id: str | None = None
+    error: str | None = None  # PostToolUseFailure
+    is_interrupt: bool | None = None
+    message: str | None = None  # Notification
+    title: str | None = None
+    notification_type: str | None = None
+    agent_id: str | None = None  # SubagentStart/Stop
+    agent_type: str | None = None
+    agent_transcript_path: str | None = None
+    stop_hook_active: bool | None = None  # Stop
+    teammate_name: str | None = None  # TeammateIdle
+    team_name: str | None = None
+    task_id: str | None = None  # TaskCompleted
+    task_subject: str | None = None
+    task_description: str | None = None
+    trigger: str | None = None  # PreCompact
+    custom_instructions: str | None = None
+    reason: str | None = None  # SessionEnd
+    source: str | None = None  # SessionStart
+    model: str | None = None
+    permission_suggestions: list[dict[str, Any]] | None = None  # PermissionRequest
 
-    def to_claude_json(self) -> Dict[str, Any]:
+    def to_claude_json(self) -> dict[str, Any]:
         """Convert to Claude Code compatible JSON format."""
         base = {
             "session_id": self.session_id,
@@ -140,16 +140,14 @@ class HookResult:
     """Claude Code compatible hook result."""
 
     success: bool = True
-    output: Optional[str] = None
-    data: Optional[Dict[str, Any]] = None
-    modifications: Dict[str, Any] = field(default_factory=dict)
+    output: str | None = None
+    data: dict[str, Any] | None = None
+    modifications: dict[str, Any] = field(default_factory=dict)
     should_stop: bool = False
 
     # Claude Code compatibility helpers
     @classmethod
-    def block(
-        cls, reason: str, additional_context: Optional[str] = None
-    ) -> "HookResult":
+    def block(cls, reason: str, additional_context: str | None = None) -> "HookResult":
         """Create a blocking result (exit code 2 in Claude Code)."""
         modifications = {"decision": "block", "reason": reason, "exit_code": 2}
         if additional_context:
@@ -160,9 +158,9 @@ class HookResult:
     def allow(
         cls,
         permission_decision: str = "allow",
-        reason: Optional[str] = None,
-        updated_input: Optional[Dict[str, Any]] = None,
-        additional_context: Optional[str] = None,
+        reason: str | None = None,
+        updated_input: dict[str, Any] | None = None,
+        additional_context: str | None = None,
     ) -> "HookResult":
         """Create an allow result for PreToolUse hooks."""
         modifications = {"permissionDecision": permission_decision, "exit_code": 0}
@@ -175,7 +173,7 @@ class HookResult:
         return cls(success=True, modifications=modifications)
 
     @classmethod
-    def ask(cls, reason: str, additional_context: Optional[str] = None) -> "HookResult":
+    def ask(cls, reason: str, additional_context: str | None = None) -> "HookResult":
         """Create an ask result for PreToolUse hooks."""
         modifications = {
             "permissionDecision": "ask",
@@ -187,9 +185,7 @@ class HookResult:
         return cls(success=True, modifications=modifications)
 
     @classmethod
-    def deny(
-        cls, reason: str, additional_context: Optional[str] = None
-    ) -> "HookResult":
+    def deny(cls, reason: str, additional_context: str | None = None) -> "HookResult":
         """Create a deny result for PreToolUse hooks."""
         modifications = {
             "permissionDecision": "deny",
@@ -210,13 +206,38 @@ class HookResult:
         """Create a result with additional context."""
         return cls(success=True, modifications={"additionalContext": context})
 
-    def to_claude_json(self) -> Dict[str, Any]:
+    def to_claude_json(self) -> dict[str, Any]:
         """Convert to Claude Code compatible JSON output."""
-        # Start with modifications if present
+        result = {}
+
+        # Merge modifications first
         if self.modifications:
-            result = dict(self.modifications)
-        else:
-            result = {}
+            result.update(self.modifications)
+
+        # Handle hookSpecificOutput - should be a dictionary
+        if "hookSpecificOutput" in result and not isinstance(
+            result["hookSpecificOutput"], dict
+        ):
+            # If it's not a dict, we might want to wrap it or leave it if it's already correct?
+            # Claude expects object with fields like permissionDecision
+            pass
+
+        # Handle specific fields that should be in hookSpecificOutput for PreToolUse
+        # If permissionDecision is present, it's likely a PreToolUse result that belongs in hookSpecificOutput
+        if "permissionDecision" in result:
+            if "hookSpecificOutput" not in result:
+                result["hookSpecificOutput"] = {}
+            result["hookSpecificOutput"]["permissionDecision"] = result.pop(
+                "permissionDecision"
+            )
+            if "permissionDecisionReason" in result:
+                result["hookSpecificOutput"]["permissionDecisionReason"] = result.pop(
+                    "permissionDecisionReason"
+                )
+            if "updatedInput" in result:
+                result["hookSpecificOutput"]["updatedInput"] = result.pop(
+                    "updatedInput"
+                )
 
         # Add basic fields
         result["success"] = self.success

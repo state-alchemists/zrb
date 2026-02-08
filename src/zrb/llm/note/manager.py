@@ -1,6 +1,5 @@
 import json
 import os
-from typing import Dict
 
 from zrb.config.config import CFG
 
@@ -26,7 +25,7 @@ class NoteManager:
 
         return abs_path
 
-    def _load_data(self) -> Dict[str, str]:
+    def _load_data(self) -> dict[str, str]:
         if not os.path.exists(self.context_file):
             return {}
         try:
@@ -35,7 +34,7 @@ class NoteManager:
         except (json.JSONDecodeError, OSError):
             return {}
 
-    def _save_data(self, data: Dict[str, str]):
+    def _save_data(self, data: dict[str, str]):
         os.makedirs(os.path.dirname(self.context_file), exist_ok=True)
         with open(self.context_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, sort_keys=True)
@@ -58,7 +57,7 @@ class NoteManager:
         data = self._load_data()
         return data.get(key, "")
 
-    def read_all(self, context_path: str) -> Dict[str, str]:
+    def read_all(self, context_path: str) -> dict[str, str]:
         """
         Seek for all key in context file that match context path or any of its parent, return as key-value.
         """
@@ -124,3 +123,6 @@ class NoteManager:
             result[target_path] = data[target_path]
 
         return result
+
+
+note_manager = NoteManager()

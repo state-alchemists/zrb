@@ -2,9 +2,10 @@ import asyncio
 import json
 import logging
 import os
+import uuid
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import yaml
 
@@ -23,28 +24,49 @@ from zrb.llm.hook.schema import (
     PromptHookConfig,
 )
 from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
+from zrb.util.load import load_module_from_path
 
 logger = logging.getLogger(__name__)
+
+# Mapping from HookEvent to the field that Claude Code matchers apply to
+CLAUDE_EVENT_MATCHER_FIELDS = {
+    HookEvent.PRE_TOOL_USE: "tool_name",
+    HookEvent.POST_TOOL_USE: "tool_name",
+    HookEvent.POST_TOOL_USE_FAILURE: "tool_name",
+    HookEvent.PERMISSION_REQUEST: "tool_name",  # Often matches tool name
+    HookEvent.USER_PROMPT_SUBMIT: "prompt",
+    HookEvent.SESSION_START: "source",
+    HookEvent.NOTIFICATION: "message",
+    HookEvent.SUBAGENT_START: "agent_type",  # Or agent_id
+    HookEvent.SUBAGENT_STOP: "agent_type",
+    HookEvent.TASK_COMPLETED: "task_id",
+}
+
+_IGNORE_DIRS = []
 
 
 class HookManager:
     def __init__(
         self,
         auto_load: bool = True,
-        scan_dirs: Optional[List[Union[str, Path]]] = None,
+        search_dirs: list[str | Path] | None = None,
+        max_depth: int = 1,
+        ignore_dirs: list[str] | None = None,
     ):
-        self._hooks: Dict[HookEvent, List[HookCallable]] = defaultdict(list)
-        self._global_hooks: List[HookCallable] = []
+        self._hooks: dict[HookEvent, list[HookCallable]] = defaultdict(list)
+        self._global_hooks: list[HookCallable] = []
         self._executor: ThreadPoolHookExecutor = get_hook_executor()
-        self._hook_configs: Dict[str, HookConfig] = {}  # name -> config for debugging
-        self._hook_to_config: Dict[HookCallable, HookConfig] = (
+        self._hook_configs: dict[str, HookConfig] = {}  # name -> config for debugging
+        self._hook_to_config: dict[HookCallable, HookConfig] = (
             {}
         )  # hook -> config mapping
+        self._max_depth = max_depth
+        self._ignore_dirs = _IGNORE_DIRS if ignore_dirs is None else ignore_dirs
         if auto_load:
-            self.scan(scan_dirs)
+            self.scan(search_dirs)
 
     def _evaluate_matchers(
-        self, matchers: List[MatcherConfig], context: HookContext
+        self, matchers: list[MatcherConfig], context: HookContext
     ) -> bool:
         """
         Evaluate all matchers against the given context.
@@ -150,8 +172,8 @@ class HookManager:
     def register(
         self,
         hook: HookCallable,
-        events: Optional[List[HookEvent]] = None,
-        config: Optional[HookConfig] = None,
+        events: list[HookEvent] | None = None,
+        config: HookConfig | None = None,
     ):
         """
         Register a hook.
@@ -171,13 +193,13 @@ class HookManager:
         self,
         event: HookEvent,
         event_data: Any,
-        session_id: Optional[str] = None,
-        metadata: Dict[str, Any] = None,
-        cwd: Optional[str] = None,
-        transcript_path: Optional[str] = None,
+        session_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        cwd: str | None = None,
+        transcript_path: str | None = None,
         permission_mode: str = "default",
         **kwargs,
-    ) -> List[HookExecutionResult]:
+    ) -> list[HookExecutionResult]:
         """
         Execute all hooks registered for the given event with thread safety.
         Returns a list of HookExecutionResult objects with Claude Code compatibility.
@@ -202,7 +224,7 @@ class HookManager:
             if hasattr(context, key):
                 setattr(context, key, value)
 
-        results: List[HookExecutionResult] = []
+        results: list[HookExecutionResult] = []
 
         # Combine global hooks and event-specific hooks
         hooks_to_run = self._global_hooks + self._hooks[event]
@@ -273,9 +295,9 @@ class HookManager:
         self,
         event: HookEvent,
         event_data: Any,
-        session_id: Optional[str] = None,
-        metadata: Dict[str, Any] = None,
-    ) -> List[HookResult]:
+        session_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> list[HookResult]:
         """
         Backward compatibility method that returns old HookResult format.
         """
@@ -287,7 +309,7 @@ class HookManager:
         )
 
         # Convert to old format
-        results: List[HookResult] = []
+        results: list[HookResult] = []
         for exec_result in exec_results:
             # Start with data which contains all modifications
             modifications = exec_result.data.copy() if exec_result.data else {}
@@ -327,10 +349,12 @@ class HookManager:
 
         return results
 
-    def scan(self, search_dirs: Optional[List[Union[str, Path]]] = None):
+    def scan(self, search_dirs: list[str | Path] | None = None):
         """
         Scan for hooks in default locations and provided directories.
         """
+        self._hooks = defaultdict(list)
+        self._global_hooks = []
         target_search_dirs = search_dirs
         if target_search_dirs is None:
             target_search_dirs = self.get_search_directories()
@@ -338,9 +362,33 @@ class HookManager:
         for search_dir in target_search_dirs:
             self._load_from_path(search_dir)
 
-    def get_search_directories(self) -> List[Union[str, Path]]:
-        search_dirs: List[Union[str, Path]] = []
+    def get_search_directories(self) -> list[str | Path]:
+        search_dirs: list[str | Path] = []
         zrb_dir_name = f".{CFG.ROOT_GROUP_NAME}"
+
+        # 0. Plugins (Default Plugin -> User Plugins)
+        # Default Plugin
+        default_plugin_path = (
+            Path(os.path.dirname(__file__)).parent.parent / "llm_plugin"
+        )
+        if default_plugin_path.exists() and default_plugin_path.is_dir():
+            hooks_path = default_plugin_path / "hooks"
+            if hooks_path.exists() and hooks_path.is_dir():
+                search_dirs.append(hooks_path)
+            hooks_file = default_plugin_path / "hooks.json"
+            if hooks_file.exists() and hooks_file.is_file():
+                search_dirs.append(hooks_file)
+
+        # User Plugins
+        for plugin_path_str in CFG.LLM_PLUGIN_DIRS:
+            plugin_path = Path(plugin_path_str)
+            if plugin_path.exists() and plugin_path.is_dir():
+                hooks_path = plugin_path / "hooks"
+                if hooks_path.exists() and hooks_path.is_dir():
+                    search_dirs.append(hooks_path)
+                hooks_file = plugin_path / "hooks.json"
+                if hooks_file.exists() and hooks_file.is_file():
+                    search_dirs.append(hooks_file)
 
         # 1. User global config (~/.zrb/hooks.json and ~/.zrb/hooks/)
         try:
@@ -399,20 +447,59 @@ class HookManager:
 
         return search_dirs
 
-    def _load_from_path(self, path: Union[str, Path]):
-        path = Path(path)
-        if not path.exists():
+    def _load_from_path(self, path: str | Path):
+        try:
+            search_path = Path(path).resolve()
+            if search_path.is_file():
+                if search_path.suffix in [".json", ".yaml", ".yml"]:
+                    self._load_file(search_path)
+                elif search_path.name.endswith(".hook.py"):
+                    self._load_hooks_from_python(search_path)
+            else:
+                self._scan_dir_recursive(search_path, search_path, self._max_depth, 0)
+        except Exception:
+            pass
+
+    def _scan_dir_recursive(
+        self, base_dir: Path, current_dir: Path, max_depth: int, current_depth: int
+    ):
+        """Recursively scan directories with explicit depth control."""
+        if current_depth > max_depth:
             return
 
-        if path.is_file():
-            if path.suffix in [".json", ".yaml", ".yml"]:
-                self._load_file(path)
-        elif path.is_dir():
-            for root, _, files in os.walk(path):
-                for file in files:
-                    file_path = Path(root) / file
-                    if file_path.suffix in [".json", ".yaml", ".yml"]:
-                        self._load_file(file_path)
+        try:
+            # List directory contents
+            for item in current_dir.iterdir():
+                if item.is_dir():
+                    # Skip ignored directories
+                    if item.name in self._ignore_dirs or item.name.startswith("."):
+                        continue
+                    # Recursively scan subdirectory
+                    self._scan_dir_recursive(
+                        base_dir, item, max_depth, current_depth + 1
+                    )
+                elif item.is_file():
+                    if item.suffix in [".json", ".yaml", ".yml"]:
+                        self._load_file(item)
+                    elif item.name.endswith(".hook.py"):
+                        self._load_hooks_from_python(item)
+        except (PermissionError, OSError):
+            # Skip directories we can't access
+            pass
+
+    def _load_hooks_from_python(self, file_path: Path):
+        try:
+            module_name = f"zrb_hook_{uuid.uuid4().hex}"
+            module = load_module_from_path(module_name, str(file_path))
+            if not module:
+                return
+
+            if hasattr(module, "register") and callable(module.register):
+                module.register(self)
+            elif hasattr(module, "register_hooks") and callable(module.register_hooks):
+                module.register_hooks(self)
+        except Exception as e:
+            logger.error(f"Failed to load python hooks from {file_path}: {e}")
 
     def _load_file(self, file_path: Path):
         logger.debug(f"Loading hooks from {file_path}")
@@ -423,14 +510,119 @@ class HookManager:
                 else:
                     data = yaml.safe_load(f)
 
-            if isinstance(data, list):
+            if (
+                isinstance(data, dict)
+                and "hooks" in data
+                and isinstance(data["hooks"], dict)
+            ):
+                # Claude Code Nested Format
+                self._parse_claude_format(data, str(file_path))
+            elif isinstance(data, list):
+                # Zrb Flat Format (List)
                 for item in data:
                     self._parse_and_register(item, str(file_path))
             elif isinstance(data, dict):
-                self._parse_and_register(data, str(file_path))
+                # Zrb Flat Format (Single Dict or unknown)
+                # Check if it looks like a Zrb hook (has 'events' and 'type')
+                if "events" in data and "type" in data:
+                    self._parse_and_register(data, str(file_path))
+                else:
+                    # Fallback or warning?
+                    pass
 
         except Exception as e:
             logger.error(f"Failed to load hooks from {file_path}: {e}")
+
+    def _parse_claude_format(self, data: dict, source: str):
+        """
+        Parse Claude Code nested format:
+        {
+          "hooks": {
+            "EventName": [
+              {
+                "matcher": "regex",
+                "hooks": [ ... ]
+              }
+            ]
+          }
+        }
+        """
+        hooks_map = data.get("hooks", {})
+        for event_name, matcher_groups in hooks_map.items():
+            try:
+                event = HookEvent.from_claude_string(event_name)
+            except ValueError:
+                logger.warning(f"Unknown event in Claude config: {event_name}")
+                continue
+
+            if not isinstance(matcher_groups, list):
+                continue
+
+            for group in matcher_groups:
+                pattern = group.get("matcher")
+                hooks_list = group.get("hooks", [])
+
+                # Create matchers
+                matchers = []
+                # If pattern is present, create a REGEX matcher for the appropriate field
+                if pattern:
+                    field = CLAUDE_EVENT_MATCHER_FIELDS.get(event)
+                    if field:
+                        matchers.append(
+                            MatcherConfig(
+                                field=field,
+                                operator=MatcherOperator.REGEX,
+                                value=pattern,
+                            )
+                        )
+                    else:
+                        # If no specific field, maybe matching general content?
+                        # For now, if no field mapping, we might skip matching logic or match on 'event_data'
+                        # But Claude docs imply specific fields.
+                        # We'll default to 'event_data' str representation if not mapped
+                        # matchers.append(MatcherConfig(field="event_data", operator=MatcherOperator.REGEX, value=pattern))
+                        pass
+
+                for hook_def in hooks_list:
+                    # Claude hook def: {"type": "command", "command": "...", ...}
+                    try:
+                        # Convert to Zrb HookConfig
+                        # Generate a unique name
+                        hook_name = f"claude_{event.value}_{uuid.uuid4().hex[:8]}"
+
+                        hook_type_str = hook_def.get("type", "command")
+                        # Map Claude types to Zrb types
+                        if hook_type_str == "command":
+                            zrb_type = HookType.COMMAND
+                            config = CommandHookConfig(
+                                command=hook_def.get("command", ""),
+                                shell=True,  # Claude defaults to shell
+                                working_dir=None,
+                            )
+                        else:
+                            # Unsupported type in this pass
+                            continue
+
+                        hook_config = HookConfig(
+                            name=hook_name,
+                            events=[event],
+                            type=zrb_type,
+                            config=config,
+                            matchers=matchers,
+                            is_async=hook_def.get("async", False),
+                            timeout=hook_def.get("timeout"),
+                            priority=0,  # Claude hooks execute in order, Zrb supports priority. We'll use 0.
+                        )
+
+                        # Register
+                        hook_callable = self._hydrate_hook(hook_config)
+                        self.register(hook_callable, hook_config.events, hook_config)
+                        logger.debug(
+                            f"Registered Claude hook '{hook_name}' for {event.value}"
+                        )
+
+                    except Exception as e:
+                        logger.error(f"Error parsing Claude hook in {source}: {e}")
 
     def _parse_and_register(self, data: dict, source: str):
         try:
@@ -451,12 +643,14 @@ class HookManager:
         hook_type = HookType(data["type"])
 
         raw_config = data["config"]
+        default_timeout = 30
         if hook_type == HookType.COMMAND:
             config = CommandHookConfig(
                 command=raw_config["command"],
                 shell=raw_config.get("shell", True),
                 working_dir=raw_config.get("working_dir"),
             )
+            default_timeout = 600
         elif hook_type == HookType.PROMPT:
             config = PromptHookConfig(
                 user_prompt_template=raw_config["user_prompt_template"],
@@ -464,12 +658,14 @@ class HookManager:
                 model=raw_config.get("model"),
                 temperature=raw_config.get("temperature", 0.0),
             )
+            default_timeout = 30
         elif hook_type == HookType.AGENT:
             config = AgentHookConfig(
                 system_prompt=raw_config["system_prompt"],
                 tools=raw_config.get("tools"),
                 model=raw_config.get("model"),
             )
+            default_timeout = 60
         else:
             raise ValueError(f"Unknown hook type: {hook_type}")
 
@@ -493,7 +689,7 @@ class HookManager:
             matchers=matchers,
             is_async=data.get("async", False),
             enabled=data.get("enabled", True),
-            timeout=data.get("timeout"),
+            timeout=data.get("timeout", default_timeout),
             env=data.get("env"),
             priority=data.get("priority", 0),
         )
@@ -533,6 +729,13 @@ class HookManager:
                 # Return a neutral result (not an error, just didn't run)
                 return HookResult(success=True, output="Skipped due to matchers")
 
+            # Handle Async execution
+            if config.is_async and config.type == HookType.COMMAND:
+                logger.debug(f"Executing async hook '{config.name}'")
+                # Fire and forget
+                asyncio.create_task(inner_hook(context))
+                return HookResult(success=True, output="Async execution started")
+
             # Execute the actual hook
             return await inner_hook(context)
 
@@ -553,6 +756,17 @@ class HookManager:
             env["CLAUDE_CWD"] = context.cwd or ""
             env["CLAUDE_TRANSCRIPT_PATH"] = context.transcript_path or ""
             env["CLAUDE_PERMISSION_MODE"] = context.permission_mode
+
+            # Phase 7: Environment Variables
+            env["CLAUDE_PROJECT_DIR"] = (
+                context.cwd or os.getcwd()
+            )  # Best guess for project root
+            env["CLAUDE_PLUGIN_ROOT"] = (
+                ""  # TODO: Need to pass this context if available
+            )
+            env["CLAUDE_CODE_REMOTE"] = "false"  # Zrb is typically local for now
+            if context.metadata.get("remote"):
+                env["CLAUDE_CODE_REMOTE"] = "true"
 
             # Inject event-specific data as JSON
             import json as json_module
@@ -840,4 +1054,4 @@ class HookManager:
         return agent_hook
 
 
-hook_manager = HookManager(auto_load=CFG.HOOKS_ENABLED, scan_dirs=CFG.HOOKS_DIRS)
+hook_manager = HookManager(auto_load=CFG.HOOKS_ENABLED, search_dirs=CFG.HOOKS_DIRS)

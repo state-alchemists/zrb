@@ -1,4 +1,5 @@
 import asyncio
+import traceback
 from typing import TYPE_CHECKING, Any
 
 from zrb.context.any_context import AnyContext
@@ -206,6 +207,7 @@ async def execute_action_with_retry(task: "BaseTask", session: AnySession) -> An
             else:
                 # Final attempt failed
                 ctx.log_error("Marked as permanently failed")
+                ctx.log_error(traceback.format_exc())
                 session.get_task_status(task).mark_as_permanently_failed()
                 # Skip successors and execute fallbacks on permanent failure
                 skip_successors(task, session)

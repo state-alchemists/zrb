@@ -1,4 +1,5 @@
 from zrb.config.config import CFG
+from zrb.llm.tool.registry import tool_registry
 
 
 async def open_web_page(url: str) -> dict:
@@ -105,3 +106,7 @@ def _convert_html_to_markdown(html_text: str) -> str:
     ):
         tag.decompose()
     return md(str(soup))
+
+
+tool_registry.register(search_internet, aliases=["SearchInternet"])
+tool_registry.register(open_web_page, aliases=["OpenWebPage"])

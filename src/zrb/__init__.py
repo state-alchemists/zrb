@@ -35,10 +35,15 @@ from zrb.input.option_input import OptionInput
 from zrb.input.password_input import PasswordInput
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
+from zrb.llm.agent.manager import sub_agent_manager
 from zrb.llm.config.config import LLMConfig, llm_config
 from zrb.llm.config.limiter import LLMLimiter, llm_limiter
+from zrb.llm.hook.manager import hook_manager
+from zrb.llm.note.manager import note_manager
+from zrb.llm.skill.manager import skill_manager
 from zrb.llm.task.llm_chat_task import LLMChatTask
 from zrb.llm.task.llm_task import LLMTask
+from zrb.llm.tool.registry import tool_registry
 from zrb.runner.cli import cli
 from zrb.runner.web_schema.user import User
 from zrb.session.session import Session
@@ -118,4 +123,9 @@ __all__ = [
     "llm_config",
     "LLMLimiter",
     "llm_limiter",
+    "skill_manager",
+    "note_manager",
+    "sub_agent_manager",
+    "hook_manager",
+    "tool_registry",
 ]

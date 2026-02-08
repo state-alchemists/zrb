@@ -1,73 +1,77 @@
 import importlib
 import importlib.util
 import os
-import re
 import sys
-from functools import lru_cache
-from typing import Any
+from types import ModuleType
 
-pattern = re.compile("[^a-zA-Z0-9]")
+from zrb.context.any_context import zrb_print
 
 
-@lru_cache
-def load_file(script_path: str, sys_path_index: int = 0) -> Any | None:
-    """
-    Load a Python module from a file path.
+def _get_new_python_path(path_to_add: str) -> str:
+    current_python_path = os.environ.get("PYTHONPATH", "")
+    paths = current_python_path.split(os.pathsep) if current_python_path else []
+    if path_to_add not in paths:
+        # Append to the end
+        return os.pathsep.join(paths + [path_to_add]) if paths else path_to_add
+    return current_python_path
 
-    Args:
-        script_path (str): The path to the Python script.
-        sys_path_index (int): The index to insert the script directory into sys.path.
 
-    Returns:
-        Any | None: The loaded module object, or None if the file does not
-            exist or cannot be loaded.
-    """
-    if not os.path.isfile(script_path):
+def load_module(name: str) -> ModuleType:
+    return importlib.import_module(name)
+
+
+def load_file(path: str, max_depth: int = -1) -> ModuleType | None:
+    # max_depth is kept for signature compatibility but ignored in this simple implementation
+    if not os.path.exists(path):
         return None
-    module_name = pattern.sub("", script_path)
-    # Append script dir path
-    script_dir_path = os.path.dirname(script_path)
-    if script_dir_path not in sys.path:
-        if sys_path_index == -1:
-            sys_path_index = len(sys.path)
-        sys.path.insert(sys_path_index, script_dir_path)
-    # Add script dir path to Python path
-    os.environ["PYTHONPATH"] = _get_new_python_path(script_dir_path)
-    spec = importlib.util.spec_from_file_location(module_name, script_path)
-    if spec is None:
+
+    try:
+        abs_path = os.path.abspath(path)
+        directory = os.path.dirname(abs_path)
+
+        # Add to sys.path if not present
+        if directory not in sys.path:
+            sys.path.append(directory)
+
+        # Update PYTHONPATH
+        new_python_path = _get_new_python_path(directory)
+        if new_python_path != os.environ.get("PYTHONPATH", ""):
+            os.environ["PYTHONPATH"] = new_python_path
+
+        module_name = os.path.splitext(os.path.basename(path))[0]
+
+        # Use load_module_from_path logic but we also wanted sys.path side effects above
+        spec = importlib.util.spec_from_file_location(module_name, abs_path)
+        if spec is None or spec.loader is None:
+            return None
+
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+        return module
+
+    except Exception as e:
+        zrb_print(f"Error loading file {path}: {e}", plain=True)
         return None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
 
 
-def _get_new_python_path(dir_path: str) -> str:
+def load_module_from_path(name: str, path: str) -> ModuleType | None:
     """
-    Helper function to update the PYTHONPATH environment variable.
-
-    Args:
-        dir_path (str): The directory path to add to PYTHONPATH.
-
-    Returns:
-        str: The new value for the PYTHONPATH environment variable.
+    Dynamically load a Python module from a file path without necessarily modifying sys.path permanently,
+    though imports within the module might require it.
     """
-    current_python_path = os.getenv("PYTHONPATH")
-    if current_python_path is None or current_python_path == "":
-        return dir_path
-    if dir_path in current_python_path.split(":"):
-        return current_python_path
-    return ":".join([current_python_path, dir_path])
+    if not os.path.exists(path):
+        return None
 
+    try:
+        spec = importlib.util.spec_from_file_location(name, path)
+        if spec is None or spec.loader is None:
+            return None
 
-def load_module(module_name: str) -> Any:
-    """
-    Load a Python module by its name.
-
-    Args:
-        module_name (str): The name of the module to load.
-
-    Returns:
-        Any: The loaded module object.
-    """
-    module = importlib.import_module(module_name)
-    return module
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+        return module
+    except Exception as e:
+        zrb_print(f"Error loading module {name} from {path}: {e}", plain=True)
+        return None
