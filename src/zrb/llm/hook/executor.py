@@ -140,23 +140,31 @@ class ThreadPoolHookExecutor:
         """
         Run hook synchronously in thread pool.
         This method handles the actual execution and result parsing.
-        """
-        try:
-            # Create a new event loop for this thread
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
 
-            # Run the async hook
-            hook_result = loop.run_until_complete(hook(context))
+        Uses asyncio.run() for proper event loop lifecycle management
+        to avoid "Event loop is closed" errors during subprocess transport cleanup.
+        """
+
+        async def run_hook_async():
+            """Wrapper to run the hook and handle exceptions."""
+            try:
+                return await hook(context)
+            except Exception as e:
+                logger.error(f"Error in hook execution: {e}", exc_info=True)
+                # Return a failure result instead of raising
+                return HookResult(success=False, output=str(e), should_stop=False)
+
+        try:
+            # Use asyncio.run() which properly handles event loop lifecycle
+            # including cleanup of subprocess transports
+            hook_result = asyncio.run(run_hook_async())
 
             # Parse result into Claude Code compatible format
             return self._parse_hook_result(hook_result)
 
         except Exception as e:
-            logger.error(f"Error in hook execution: {e}", exc_info=True)
+            logger.error(f"Error in hook execution setup: {e}", exc_info=True)
             return HookExecutionResult(success=False, error=str(e), exit_code=1)
-        finally:
-            loop.close()
 
     def _parse_hook_result(self, result: HookResult) -> HookExecutionResult:
         """
