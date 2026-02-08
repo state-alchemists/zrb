@@ -188,6 +188,9 @@ class ThreadPoolHookExecutor:
 
         # Parse modifications for Claude Code compatibility
         if result.modifications:
+            # Store all modifications in data for backward compatibility
+            exec_result.data.update(result.modifications)
+
             # Check for Claude Code specific fields
             if "decision" in result.modifications:
                 exec_result.decision = result.modifications["decision"]

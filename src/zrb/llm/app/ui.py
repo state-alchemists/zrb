@@ -33,6 +33,35 @@ from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import hook_manager
 from zrb.llm.hook.types import HookEvent
+
+
+def _execute_hooks_safe(event: HookEvent, event_data: Any, **kwargs) -> None:
+    """
+    Safely execute hooks from either sync or async context.
+
+    This handles the "no running event loop" error by checking if we're
+    in an async context with a running event loop. If not, it runs
+    the hooks synchronously.
+    """
+    try:
+        # Try to get the running event loop
+        loop = asyncio.get_running_loop()
+        # If we get here, we're in an async context with a running loop
+        # Create a task (fire-and-forget)
+        asyncio.create_task(hook_manager.execute_hooks(event, event_data, **kwargs))
+    except RuntimeError:
+        # No running event loop - we're in a sync context
+        # Create a new event loop and run synchronously
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(
+                hook_manager.execute_hooks(event, event_data, **kwargs)
+            )
+        finally:
+            loop.close()
+
+
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.tool_call import (
     ArgumentFormatter,
@@ -516,11 +545,9 @@ class UI:
                 buffer.reset()
                 return
             # Hook: Stop
-            asyncio.create_task(
-                hook_manager.execute_hooks(
-                    HookEvent.STOP,
-                    {"reason": "ctrl_c", "session": self._conversation_session_name},
-                )
+            _execute_hooks_safe(
+                HookEvent.STOP,
+                {"reason": "ctrl_c", "session": self._conversation_session_name},
             )
             event.app.exit()
 
@@ -529,14 +556,12 @@ class UI:
             if self._running_llm_task and not self._running_llm_task.done():
                 self._running_llm_task.cancel()
                 # Hook: Stop
-                asyncio.create_task(
-                    hook_manager.execute_hooks(
-                        HookEvent.STOP,
-                        {
-                            "reason": "escape",
-                            "session": self._conversation_session_name,
-                        },
-                    )
+                _execute_hooks_safe(
+                    HookEvent.STOP,
+                    {
+                        "reason": "escape",
+                        "session": self._conversation_session_name,
+                    },
                 )
                 self.append_to_output("\n<Esc> Canceled")
 
@@ -932,13 +957,11 @@ class UI:
         try:
             # Schedule notification hook execution
             # The hook manager now uses thread pool executor
-            asyncio.create_task(
-                hook_manager.execute_hooks(
-                    HookEvent.NOTIFICATION,
-                    {"content": content, "session": self._conversation_session_name},
-                    session_id=self._conversation_session_name,
-                    cwd=self._cwd,
-                )
+            _execute_hooks_safe(
+                HookEvent.NOTIFICATION,
+                {"content": content, "session": self._conversation_session_name},
+                session_id=self._conversation_session_name,
+                cwd=self._cwd,
             )
         except Exception as e:
             logger.error(f"Failed to trigger notification hook: {e}")

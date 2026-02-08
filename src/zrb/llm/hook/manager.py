@@ -289,7 +289,10 @@ class HookManager:
         # Convert to old format
         results: List[HookResult] = []
         for exec_result in exec_results:
-            modifications = {}
+            # Start with data which contains all modifications
+            modifications = exec_result.data.copy() if exec_result.data else {}
+
+            # Override with Claude Code specific fields if they exist
             if exec_result.decision:
                 modifications["decision"] = exec_result.decision
             if exec_result.reason:
