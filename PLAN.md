@@ -1,11 +1,24 @@
-# Zrb Hook System Gap Analysis & Implementation Plan
+# Zrb Hook System: Claude Code Compatibility Gap Analysis & Implementation Plan
 
 ## Executive Summary
 
-Zrb's current hook implementation is **NOT 100% compatible or safe** with Claude Code's mechanism. Our analysis reveals critical safety gaps, threading issues, and compatibility problems that must be addressed.
+Zrb's current hook implementation provides **partial compatibility** with Claude Code's official hook specification. While it supports all 14 hook events and basic execution patterns, there are significant format mismatches, missing features, and architectural differences that prevent 100% compatibility.
 
 **Safety Rating:** 40/100  
 **Compatibility Rating:** 30/100
+
+### Current State Assessment
+
+#### ✅ **Strengths (Already Compatible)**
+
+1. **Event Coverage**: 100% coverage of all 14 Claude Code hook events
+2. **Exit Code Compatibility**: Proper handling of exit code 0 (success) and 2 (block)
+3. **Thread Safety**: Thread-safe execution with timeout controls
+4. **Environment Variables**: Basic injection of Claude context variables
+5. **Hook Types**: Support for command, prompt, and agent hooks
+6. **Configuration Discovery**: Dual directory scanning (`.zrb/` and `.claude/`)
+
+#### ⚠️ **Critical Gaps (Must Fix for 100% Compatibility)**
 
 ## Detailed Gap Analysis
 
@@ -15,34 +28,160 @@ Zrb's current hook implementation is **NOT 100% compatible or safe** with Claude
 - **Claude Standard:** Synchronous execution with timeout controls, proper error propagation
 - **Gap:** No thread pool management, no graceful shutdown, no exception handling
 
-### 2. Event Compatibility Gaps
-- **Claude Events (15+):** SessionStart, UserPromptSubmit, PreToolUse, PermissionRequest, PostToolUse, PostToolUseFailure, Notification, SubagentStart, SubagentStop, Stop, TeammateIdle, TaskCompleted, PreCompact, SessionEnd
-- **Zrb Events (Limited):** Inferred from context, not explicitly defined
-- **Missing Critical Events:** PreToolUse (safety-critical), PermissionRequest (security), PostToolUseFailure (error handling)
+### 2. Configuration Format Mismatch
 
-### 3. Configuration & Discovery Issues
-- **Current:** Zrb searches both `.claude` and `.zrb` directories, causing format confusion
-- **Problem:** Mixed configuration formats, unclear precedence
-- **Claude Standard:** Single `.claude` directory with clear structure
+**Current Zrb Format** (Flat structure):
+```json
+[
+  {
+    "name": "hook-name",
+    "events": ["EventName"],
+    "type": "command",
+    "config": {...},
+    "matchers": [...]
+  }
+]
+```
 
-### 4. Safety Mechanism Deficiencies
-- **Claude:** Exit code 2 blocks actions, JSON decision fields, hookSpecificOutput
-- **Zrb:** No blocking mechanism, no fine-grained control, no decision propagation
-- **Risk:** Unsafe hooks cannot be blocked, no user feedback mechanism
+**Claude Code Format** (Nested structure):
+```json
+{
+  "hooks": {
+    "EventName": [
+      {
+        "matcher": "regex-pattern",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "...",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
+```
 
-### 5. Hook Type Implementation
-- **Command Hooks:** Partially implemented but missing safety controls
-- **Prompt Hooks:** Placeholder implementation (`simulate_prompt_hook`)
-- **Agent Hooks:** Placeholder implementation (`simulate_agent_hook`)
-- **Missing:** Background/async hook support, proper timeout handling
+**Key Differences**:
+- Claude Code uses `hooks.{event}.{matcher}.hooks[]` nesting
+- Zrb uses flat array with `events[]` and `matchers[]` arrays
+- Claude Code matchers are simple regex strings, not field-based objects
+- Claude Code supports multiple hooks per matcher group
 
-### 6. Matcher System Limitations
-- **Current:** Basic string matching, no regex support
-- **Missing:** Pattern-based matching, wildcard support, exclusion patterns
+### 3. Matcher System Incompatibility
 
-## Implementation Plan
+**Current Zrb Matchers**:
+- Field-based with dot notation (`field: "tool_name"`)
+- 7 operators (`equals`, `contains`, `regex`, `glob`, etc.)
+- Complex evaluation logic with case sensitivity
 
-### Phase 1: Safety & Threading Foundation (Week 1-2)
+**Claude Code Matchers**:
+- Simple regex patterns that match against event-specific fields
+- Different fields per event type (tool name, session source, etc.)
+- No field specification - implicit based on event type
+- No operators - just regex matching
+
+**Example Claude Code Matcher**:
+```json
+{
+  "matcher": "Bash|Edit|Write",
+  "hooks": [...]
+}
+```
+
+### 4. Hook-Specific Output Format
+
+**Current Zrb Output**:
+- Uses `modifications` dictionary with mixed fields
+- Some Claude Code fields supported but not standardized
+
+**Claude Code Output**:
+- Standardized `hookSpecificOutput` structure per event type
+- Event-specific schemas (e.g., `permissionDecision` for PreToolUse)
+- Universal fields: `continue`, `stopReason`, `suppressOutput`, `systemMessage`
+
+**Missing Output Schemas**:
+- `PreToolUse`: `hookSpecificOutput.permissionDecision` (`allow`/`deny`/`ask`)
+- `PermissionRequest`: `hookSpecificOutput.decision.behavior` (`allow`/`deny`)
+- `UserPromptSubmit`: Top-level `decision` field
+- Proper `updatedInput` modification for tool inputs
+
+### 5. Async Hook Support
+
+**Current Zrb**:
+- `is_async: true` flag in configuration
+- But execution may not properly handle async semantics
+
+**Claude Code Async Hooks**:
+- Only for command hooks (`"async": true`)
+- Cannot block or control behavior
+- Only `systemMessage` and `additionalContext` have effect
+- Output delivered on next conversation turn
+- No deduplication across multiple firings
+
+### 6. Plugin/Skill Integration
+
+**Current Zrb**:
+- No plugin system integration
+- No skill/agent frontmatter support
+- No `${CLAUDE_PLUGIN_ROOT}` variable support
+
+**Claude Code Integration**:
+- Plugin hooks in `hooks/hooks.json` with `description` field
+- Skill/agent hooks in frontmatter (`---` YAML blocks)
+- Path variables: `$CLAUDE_PROJECT_DIR`, `${CLAUDE_PLUGIN_ROOT}`
+- Environment persistence via `$CLAUDE_ENV_FILE` (SessionStart only)
+
+### 7. Timeout Defaults
+
+**Current Zrb**:
+- Default 30-second timeout for all hooks
+- Configurable per hook
+
+**Claude Code Defaults**:
+- Command hooks: 600 seconds (10 minutes)
+- Prompt hooks: 30 seconds
+- Agent hooks: 60 seconds
+- Async hooks: Same as command hooks (600s)
+
+### 8. Configuration Locations
+
+**Current Zrb Discovery**:
+- `~/.zrb/hooks/`, `~/.zrb/hooks.json`
+- `./.zrb/hooks/`, `./.zrb/hooks.json`
+- `~/.claude/hooks/`, `~/.claude/hooks.json`
+- `./.claude/hooks/`, `./.claude/hooks.json`
+
+**Claude Code Locations**:
+- `~/.claude/settings.json` (user settings)
+- `./.claude/settings.json` (project settings)
+- `./.claude/settings.local.json` (local project, gitignored)
+- Plugin `hooks/hooks.json` (when plugin enabled)
+- Skill/agent frontmatter (while component active)
+
+### 9. Environment Variables
+
+**Missing Claude Code Variables**:
+- `$CLAUDE_PROJECT_DIR` (project root directory)
+- `${CLAUDE_PLUGIN_ROOT}` (plugin root directory)
+- `$CLAUDE_ENV_FILE` (SessionStart only, for persisting env vars)
+- `$CLAUDE_CODE_REMOTE` (true in web environments)
+
+### 10. Priority System
+
+**Current Zrb**:
+- Priority-based execution (higher priority first)
+- Not part of Claude Code specification
+
+**Claude Code**:
+- No priority system
+- Hooks execute in order defined in configuration
+- Multiple hooks per matcher execute sequentially
+
+## Implementation Plan (8 Phases)
+
+### Phase 1: Safety & Threading Foundation (Week 1)
 
 #### 1.1 Thread Safety Implementation
 ```python
@@ -78,77 +217,63 @@ class HookResult:
 - Add `PermissionRequest` event for security-critical operations
 - Implement `PostToolUseFailure` for error recovery
 
-### Phase 2: Claude Compatibility Layer (Week 3-4)
+### Phase 2: Configuration Format Migration (Week 2)
 
-#### 2.1 Configuration Standardization
-- Deprecate `.zrb` hook directory (maintain backward compatibility)
-- Standardize on `.claude` directory structure
-- Implement configuration migration tool
+**Goal**: Support both Zrb and Claude Code configuration formats
+1. Create format detector and parser for Claude Code nested format
+2. Add backward compatibility layer for existing Zrb format
+3. Update `HookManager._parse_and_register()` to handle both formats
+4. Create migration utility to convert Zrb format to Claude Code format
 
-#### 2.2 Event System Enhancement
-```python
-# New: Complete event enum
-class HookEvent(Enum):
-    SESSION_START = "SessionStart"
-    USER_PROMPT_SUBMIT = "UserPromptSubmit"
-    PRE_TOOL_USE = "PreToolUse"  # Safety-critical
-    PERMISSION_REQUEST = "PermissionRequest"
-    POST_TOOL_USE = "PostToolUse"
-    POST_TOOL_USE_FAILURE = "PostToolUseFailure"
-    NOTIFICATION = "Notification"
-    SUBAGENT_START = "SubagentStart"
-    SUBAGENT_STOP = "SubagentStop"
-    STOP = "Stop"
-    TEAMMATE_IDLE = "TeammateIdle"
-    TASK_COMPLETED = "TaskCompleted"
-    PRE_COMPACT = "PreCompact"
-    SESSION_END = "SessionEnd"
-```
+### Phase 3: Matcher System Overhaul (Week 3)
 
-#### 2.3 JSON Format Compatibility
-- Implement Claude-compatible JSON output format
-- Add `decision` field support (allow/block/modify)
-- Add `hookSpecificOutput` field for extended data
+**Goal**: Implement Claude Code regex-based matcher system
+1. Replace field-based matchers with event-specific regex matching
+2. Map event types to their matcher fields (tool name, session source, etc.)
+3. Support both simple string matching and regex patterns
+4. Add MCP tool pattern support (`mcp__.*__.*`)
 
-### Phase 3: Advanced Features (Week 5-6)
+### Phase 4: Hook-Specific Output Standardization (Week 4)
 
-#### 3.1 Matcher System Enhancement
-- Add regex pattern matching
-- Implement wildcard support (`*.py`, `**/*.md`)
-- Add exclusion patterns
-- Create matcher chain with precedence rules
+**Goal**: Implement Claude Code standardized output formats
+1. Create event-specific output schema classes
+2. Update `HookResult` to generate proper `hookSpecificOutput`
+3. Implement universal fields: `continue`, `stopReason`, `suppressOutput`, `systemMessage`
+4. Add `updatedInput` modification support for tool inputs
 
-#### 3.2 Hook Type Completion
-- Implement real prompt hooks with LLM integration
-- Implement real agent hooks with sub-agent spawning
-- Add background/async hook support
-- Implement hook chaining and pipelines
+### Phase 5: Async Hook Implementation (Week 5)
 
-#### 3.3 Monitoring & Observability
-- Add hook execution logging
-- Implement metrics collection
-- Add health checks
-- Create dashboard for hook monitoring
+**Goal**: Full async hook support per Claude Code spec
+1. Implement true async execution for command hooks
+2. Add async-specific limitations (no blocking decisions)
+3. Handle output delivery on next conversation turn
+4. Add timeout defaults (600s for async commands)
 
-### Phase 4: Testing & Validation (Week 7-8)
+### Phase 6: Plugin & Skill Integration (Week 6)
 
-#### 4.1 Comprehensive Test Suite
-- Unit tests for all hook types
-- Integration tests for event flow
-- Thread safety tests
-- Security penetration testing
+**Goal**: Support hooks in plugins, skills, and agents
+1. Add plugin hook discovery (`hooks/hooks.json`)
+2. Implement skill/agent frontmatter hook parsing
+3. Add `${CLAUDE_PLUGIN_ROOT}` variable support
+4. Implement environment persistence (`$CLAUDE_ENV_FILE`)
 
-#### 4.2 Compatibility Validation
-- Test with existing Claude Code hooks
-- Validate JSON format compatibility
-- Verify event mapping correctness
-- Performance benchmarking
+### Phase 7: Environment & Timeout Alignment (Week 7)
 
-#### 4.3 Documentation & Migration
-- Complete API documentation
-- Migration guide from old `.zrb` format
-- Example hook library
-- Best practices guide
+**Goal**: Complete Claude Code environment variable support and timeout defaults
+1. Add `$CLAUDE_PROJECT_DIR` detection and injection
+2. Implement `$CLAUDE_ENV_FILE` for SessionStart hooks
+3. Add `$CLAUDE_CODE_REMOTE` detection
+4. Update default timeouts: 600s command, 30s prompt, 60s agent
+5. Implement proper timeout error handling per event type
+
+### Phase 8: Testing & Validation (Week 8)
+
+**Goal**: Ensure 100% compatibility through comprehensive testing
+1. Create test suite with Claude Code hook examples
+2. Test all 14 event types with matcher combinations
+3. Validate output formats against Claude Code spec
+4. Performance testing with multiple concurrent hooks
+5. Create compatibility certification tool
 
 ## Technical Specifications
 
@@ -166,28 +291,46 @@ class HookContext:
     metadata: Dict[str, Any] = field(default_factory=dict)
 ```
 
-### Hook Configuration Format
+### Hook Configuration Format (Claude Code Compatible)
 ```json
 {
-  "hooks": [
-    {
-      "event": "PreToolUse",
-      "match": {
-        "type": "regex",
-        "pattern": "rm -rf.*",
-        "exclude": ["safe_rm.py"]
-      },
-      "command": "validate_dangerous_command.sh",
-      "timeout": 10,
-      "block_on_failure": true,
-      "background": false
-    }
-  ]
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "rm -rf.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "validate_dangerous_command.sh",
+            "timeout": 10,
+            "async": false
+          }
+        ]
+      }
+    ]
+  }
 }
 ```
 
 ### Execution Flow
 1. Event triggered → 2. Find matching hooks → 3. Validate permissions → 4. Execute hooks (sync/async) → 5. Collect results → 6. Apply decisions → 7. Propagate to UI
+
+## Migration Strategy
+
+### Backward Compatibility
+1. **Phase 1-3**: Maintain full backward compatibility
+2. **Phase 4-6**: Add new features without breaking existing functionality
+3. **Phase 7-8**: Optional migration to pure Claude Code format
+
+### Deprecation Timeline
+- **Month 1-3**: Support both formats with warnings for Zrb format
+- **Month 4-6**: Zrb format deprecated but still functional
+- **Month 7+**: Zrb format removed, only Claude Code format supported
+
+### Migration Tools
+1. `zrb hooks migrate` - Convert Zrb format to Claude Code format
+2. `zrb hooks validate` - Validate hook configuration compatibility
+3. `zrb hooks test` - Test hooks against Claude Code spec
 
 ## Risk Mitigation
 
@@ -196,15 +339,21 @@ class HookContext:
 2. **Blocking Mechanism:** Add exit code 2 support for safety
 3. **Error Handling:** Proper exception propagation
 
-### Medium-term Risks (Address in Phase 2-3)
-1. **Configuration Confusion:** Standardize on `.claude` format
-2. **Missing Events:** Implement all Claude-standard events
-3. **Format Incompatibility:** Adopt Claude JSON format
+### Medium-term Risks (Address in Phase 2-5)
+1. **Configuration Format Change:** Breaking existing user configurations
+2. **Matcher System Overhaul:** Different matching logic may cause unexpected behavior
+3. **Async Hook Implementation:** Complex threading and timing issues
 
-### Long-term Risks (Address in Phase 4)
+### Long-term Risks (Address in Phase 6-8)
 1. **Performance:** Optimize hook matching and execution
 2. **Scalability:** Support large hook libraries
 3. **Maintenance:** Ensure backward compatibility
+
+### Mitigation Strategies
+1. **Phased Rollout:** Gradual introduction with backward compatibility
+2. **Feature Flags:** Enable/disable new features during transition
+3. **Comprehensive Testing:** Extensive test coverage before release
+4. **User Communication:** Clear documentation and migration guides
 
 ## Success Metrics
 
@@ -214,30 +363,34 @@ class HookContext:
 - [ ] Critical safety events implemented
 - [ ] Blocking mechanism working
 
-### Phase 2 Completion
-- [ ] 100% event compatibility with Claude
-- [ ] JSON format compatibility verified
-- [ ] Configuration standardization complete
-- [ ] Migration tool available
+### Phase 2-3 Completion
+- [ ] 100% configuration format compatibility
+- [ ] Matcher system overhaul complete
+- [ ] Backward compatibility maintained
 
-### Phase 3 Completion
-- [ ] All hook types fully implemented
-- [ ] Advanced matcher system operational
-- [ ] Monitoring dashboard available
-- [ ] Performance within 10% of Claude baseline
+### Phase 4-5 Completion
+- [ ] Hook-specific output standardized
+- [ ] Async hook support implemented
+- [ ] Output formats match Claude Code spec
 
-### Phase 4 Completion
+### Phase 6-7 Completion
+- [ ] Plugin/skill integration working
+- [ ] Environment variables fully supported
+- [ ] Timeout defaults aligned with Claude Code
+
+### Phase 8 Completion
 - [ ] Test coverage >90%
 - [ ] Security audit passed
 - [ ] Documentation complete
-- [ ] Backward compatibility maintained
+- [ ] 100% Claude Code compatibility verified
 
 ## Resource Requirements
 
 ### Development Team
-- 2 Senior Python Developers (8 weeks)
+- 2 Senior Python Developers (8 weeks each)
 - 1 DevOps Engineer (2 weeks for monitoring)
 - 1 QA Engineer (4 weeks for testing)
+- 1 Technical Writer (2 weeks for documentation)
 
 ### Infrastructure
 - CI/CD pipeline for hook testing
@@ -246,11 +399,53 @@ class HookContext:
 
 ### Timeline
 - **Total:** 8 weeks
-- **Phase 1-2:** 4 weeks (core safety & compatibility)
-- **Phase 3-4:** 4 weeks (advanced features & validation)
+- **Phase 1-4:** 4 weeks (core safety & compatibility)
+- **Phase 5-8:** 4 weeks (advanced features & validation)
+
+## Testing Strategy
+
+### Unit Tests
+1. Configuration parsing for both formats
+2. Matcher evaluation for all event types
+3. Output format generation
+4. Async hook execution
+5. Environment variable injection
+
+### Integration Tests
+1. End-to-end hook execution scenarios
+2. Plugin/skill integration tests
+3. Concurrent hook execution
+4. Error handling and recovery
+
+### Compatibility Tests
+1. Claude Code official example hooks
+2. Third-party plugin hooks
+3. Community hook collections
+4. Edge cases and error conditions
+
+## Documentation Updates
+
+### Required Documentation
+1. **Migration Guide:** Zrb → Claude Code format conversion
+2. **Claude Code Compatibility Guide:** Feature matrix and limitations
+3. **API Reference:** Updated hook configuration schema
+4. **Examples:** Claude Code-compatible hook examples
+5. **Troubleshooting:** Common issues and solutions
+
+### Documentation Locations
+1. Update `docs/hook-system.md` with compatibility information
+2. Create `docs/claude-code-compatibility.md`
+3. Update `examples/hooks/` with Claude Code format examples
+4. Add API documentation to docstrings
 
 ## Conclusion
 
-This plan addresses all identified gaps in Zrb's hook implementation. By following this phased approach, we can achieve 100% compatibility with Claude Code's mechanism while ensuring thread safety and robust error handling. The implementation prioritizes safety-critical features first, then compatibility, followed by advanced functionality.
+This comprehensive plan addresses all identified gaps in Zrb's hook implementation. By following this 8-phase approach, we can achieve 100% compatibility with Claude Code's mechanism while ensuring thread safety and robust error handling. The implementation prioritizes safety-critical features first, then compatibility, followed by advanced functionality.
 
-**Final Goal:** Zrb hook system that is both Claude-compatible and enterprise-ready with proper safety controls.
+**Final Goal:** Zrb hook system that is both 100% Claude Code-compatible and enterprise-ready with proper safety controls, enabling users to seamlessly use their existing Claude Code hooks while benefiting from Zrb's advanced automation capabilities.
+
+**Key Success Factors:**
+1. **Phased approach** to minimize disruption
+2. **Backward compatibility** during migration
+3. **Comprehensive testing** against Claude Code spec
+4. **Clear documentation** and migration tools
