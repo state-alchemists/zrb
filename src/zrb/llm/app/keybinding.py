@@ -13,12 +13,20 @@ def create_output_keybindings(input_field: TextArea) -> KeyBindings:
         get_app().layout.focus(input_field)
 
     @kb.add("c-c")
+    @kb.add("escape", "c")
     def _(event):
         # Copy selection to clipboard
         if event.current_buffer.selection_state:
             data = event.current_buffer.copy_selection()
             event.app.clipboard.set_data(data)
         get_app().layout.focus(input_field)
+
+    @kb.add("c-v")
+    @kb.add("escape", "v")
+    def _(event):
+        # Paste clipboard data to input field
+        get_app().layout.focus(input_field)
+        input_field.buffer.paste_clipboard_data(event.app.clipboard.get_data())
 
     def redirect_focus(event):
         get_app().layout.focus(input_field)

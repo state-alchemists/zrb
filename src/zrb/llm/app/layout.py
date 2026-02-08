@@ -1,6 +1,14 @@
 from typing import Callable
 
+from prompt_toolkit.filters import (
+    Condition,
+    emacs_insert_mode,
+    has_selection,
+    vi_insert_mode,
+)
 from prompt_toolkit.formatted_text import HTML, AnyFormattedText
+from prompt_toolkit.history import History
+from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.layout import (
     HSplit,
     Layout,
@@ -30,6 +38,7 @@ def create_input_field(
     set_model_commands: list[str],
     exec_commands: list[str],
     custom_commands: list[AnyCustomCommand],
+    history: History | None = None,
 ) -> TextArea:
     class DynamicHeightTextArea(TextArea):
         """TextArea with dynamic height based on content."""
@@ -68,10 +77,11 @@ def create_input_field(
             # So total height should be just the content lines
             return min(max(line_count, 1), 10)
 
-    return DynamicHeightTextArea(
+    text_area = DynamicHeightTextArea(
         prompt=HTML('<style color="ansibrightblue"><b>&gt;&gt;&gt; </b></style>'),
         multiline=True,
         wrap_lines=True,
+        history=history,
         completer=InputCompleter(
             history_manager=history_manager,
             attach_commands=attach_commands,
@@ -90,6 +100,40 @@ def create_input_field(
         style="class:input_field",
         dont_extend_height=True,  # Don't let it be compressed
     )
+
+    # Add custom keybindings for history navigation
+    # TextArea doesn't accept key_bindings in __init__, we must add them to its control
+    kb = text_area.control.key_bindings
+    if kb is None:
+        kb = KeyBindings()
+        text_area.control.key_bindings = kb
+
+    @Condition
+    def is_first_line() -> bool:
+        return text_area.document.cursor_position_row == 0
+
+    @Condition
+    def is_last_line() -> bool:
+        return (
+            text_area.document.cursor_position_row == text_area.document.line_count - 1
+        )
+
+    # Bind Up to history only if at first line
+    @kb.add("up", filter=is_first_line & ~has_selection)
+    def _(event):
+        event.current_buffer.history_backward()
+
+    # Bind Down to history only if at last line
+    @kb.add("down", filter=is_last_line & ~has_selection)
+    def _(event):
+        event.current_buffer.history_forward()
+
+    # Ensure Paste works locally in the input field
+    @kb.add("c-v")
+    def _(event):
+        event.current_buffer.paste_clipboard_data(event.app.clipboard.get_data())
+
+    return text_area
 
 
 def create_output_field(greeting: str, lexer: Lexer) -> TextArea:
@@ -147,7 +191,7 @@ def create_layout(
                     Window(height=1),  # Top margin
                     Frame(
                         input_field,
-                        title="(ENTER to send, CTRL+ENTER for newline, ESC to cancel)",
+                        title="(ENTER to send, CTRL+j for newline, ESC to cancel)",
                         style="class:input-frame",
                     ),
                     Window(height=1),  # Bottom padding

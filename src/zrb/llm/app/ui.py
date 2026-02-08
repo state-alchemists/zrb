@@ -17,7 +17,9 @@ from prompt_toolkit import Application
 from prompt_toolkit.application import get_app, run_in_terminal
 from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import AnyFormattedText
+from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.keys import Keys
 from prompt_toolkit.layout import Layout
 from prompt_toolkit.lexers import Lexer
 from prompt_toolkit.output import create_output
@@ -169,6 +171,7 @@ class UI:
         # UI Styles
         self._style = create_style()
         # Input Area
+        self._input_history = InMemoryHistory()
         self._input_field = create_input_field(
             history_manager=self._history_manager,
             attach_commands=self._attach_commands,
@@ -181,6 +184,7 @@ class UI:
             set_model_commands=self._set_model_commands,
             exec_commands=self._exec_commands,
             custom_commands=self._custom_commands,
+            history=self._input_history,
         )
         # Output Area (Read-only chat history)
         help_text = self._get_help_text()
@@ -434,6 +438,8 @@ class UI:
             clipboard = PyperclipClipboard()
         except ImportError:
             clipboard = None
+        except Exception:
+            clipboard = None
 
         return Application(
             layout=layout,
@@ -532,6 +538,7 @@ class UI:
 
     def _setup_app_keybindings(self, app_keybindings: KeyBindings, llm_task: AnyTask):
         @app_keybindings.add("c-c")
+        @app_keybindings.add("escape", "c")
         def _(event):
             # If text is selected, copy it instead of exiting
             buffer = event.app.current_buffer
@@ -551,6 +558,12 @@ class UI:
             )
             event.app.exit()
 
+        @app_keybindings.add("c-v")
+        @app_keybindings.add("escape", "v")
+        def _(event):
+            # Paste from clipboard
+            event.current_buffer.paste_clipboard_data(event.app.clipboard.get_data())
+
         @app_keybindings.add("escape")
         def _(event):
             if self._running_llm_task and not self._running_llm_task.done():
@@ -568,9 +581,9 @@ class UI:
         @app_keybindings.add("enter")
         def _(event):
             # Handle confirmation and multiline
-            if self._handle_confirmation(event):
-                return
             if self._handle_multiline(event):
+                return
+            if self._handle_confirmation(event):
                 return
 
             # Handle empty inputs
@@ -604,6 +617,10 @@ class UI:
             # If we are thinking, ignore input
             if self._is_thinking:
                 return
+
+            # Append to history manually to ensure persistence
+            buff.append_to_history()
+
             self._submit_user_message(llm_task, text)
             buff.reset()
 
@@ -611,7 +628,7 @@ class UI:
         def _(event):
             self.toggle_yolo()
 
-        @app_keybindings.add("c-j")  # Ctrl+J
+        @app_keybindings.add("c-j")  # Ctrl+J / Ctrl+Enter (Linefeed)
         @app_keybindings.add("c-space")  # Ctrl+Space (Fallback)
         def _(event):
             event.current_buffer.insert_text("\n")
