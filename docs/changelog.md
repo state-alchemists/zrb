@@ -1,5 +1,25 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.2.4
+
+- **Feature: Robust Hook System**:
+  - **Claude Compatibility**: Full support for Claude Code-style declarative hooks with 100% event parity.
+  - **Thread-Safe Execution**: Implemented a dedicated `HookExecutor` with built-in thread-safety and configurable timeouts for background operations.
+  - **Advanced Matchers**: Added support for complex hook filtering using field matchers with multiple operators (regex, glob, contains, etc.).
+  - **Expanded Hook Types**: Support for `Command`, `Prompt`, and `Agent` hooks with automatic environment injection.
+  - **Comprehensive Documentation**: Added new guides for [Hook System](./hook-system.md) and [Quick Start](./hook-quickstart.md).
+- **Improvement: TUI & UX Refinement**:
+  - **Fluid Input**: The chat interface now supports empty inputs and better multi-line handling.
+  - **Dynamic Keybindings**: Improved keybinding management and added new shortcuts for session control.
+  - **Visual Stability**: Refined the main layout and UI components to prevent flickering and improve responsiveness.
+- **Improvement: Agent Intelligence**:
+  - **Context-Aware Summarization**: Optimized the history summarization agent to better preserve critical session details while reducing token usage.
+  - **Extensible Tooling**: Enhanced the tool registry and delegate tool system to support more complex multi-agent workflows.
+- **Bug Fixes**:
+  - **Hook Reliability**: Resolved thread-safety issues in hook execution that previously caused intermittent TUI hangs.
+  - **Summarization Fixes**: Corrected an issue where the summarization agent would occasionally lose context in long sessions.
+  - **Claude Compatibility**: Fixed several edge cases in the Claude hook compatibility layer.
+
 ## 2.2.3
 
 - **Bug Fix: TUI Broken Pipe**: Resolved a critical regression where asynchronous hook calls from background threads (e.g., stream capture) would crash the UI and cause `Broken pipe` errors.
