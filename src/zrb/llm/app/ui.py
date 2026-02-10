@@ -149,6 +149,8 @@ class UI:
         self._exec_commands = exec_commands
         self._custom_commands = custom_commands
         self._trigger_tasks: list[asyncio.Task] = []
+        self._message_queue: asyncio.Queue = asyncio.Queue()
+        self._process_messages_task: asyncio.Task | None = None
         self._last_result_data: str | None = None
         # System Info
         self._cwd = os.getcwd()
@@ -235,6 +237,11 @@ class UI:
             )
             self._trigger_tasks.append(trigger_task)
 
+        # Start message processor
+        self._process_messages_task = self._application.create_background_task(
+            self._process_messages_loop()
+        )
+
         # Start system info update loop
         self._system_info_task = self._application.create_background_task(
             self._update_system_info_loop()
@@ -250,6 +257,17 @@ class UI:
             return await self._application.run_async()
         finally:
             self._capture.stop()
+
+            if self._process_messages_task:
+                self._process_messages_task.cancel()
+
+            # Empty the queue
+            while not self._message_queue.empty():
+                try:
+                    self._message_queue.get_nowait()
+                    self._message_queue.task_done()
+                except asyncio.QueueEmpty:
+                    break
 
             # Stop triggers
             for trigger_task in self._trigger_tasks:
@@ -271,6 +289,39 @@ class UI:
                 pass
             await asyncio.sleep(0.5)
 
+    async def _process_messages_loop(self):
+        """Process jobs from queue, ensuring only one job runs at a time."""
+        while True:
+            try:
+                job = await self._message_queue.get()
+
+                # Wait if there is a running task (e.g. from previous iteration just finishing cleanup)
+                while (
+                    self._running_llm_task is not None
+                    and not self._running_llm_task.done()
+                ):
+                    await asyncio.sleep(0.1)
+
+                # Create task for current job
+                self._running_llm_task = asyncio.create_task(job())
+
+                try:
+                    await self._running_llm_task
+                except asyncio.CancelledError:
+                    # Task was cancelled (e.g. via UI), move to next job
+                    pass
+                except Exception as e:
+                    logger.error(f"Error executing job: {e}")
+
+                self._message_queue.task_done()
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Error in message queue loop: {e}")
+                # Don't break loop on error
+                await asyncio.sleep(1)
+
     async def _trigger_loop(
         self,
         trigger_factory: Callable[[], AsyncIterable[Any]],
@@ -281,7 +332,6 @@ class UI:
             iterator = trigger_factory()
             if inspect.isawaitable(iterator):
                 iterator = await iterator
-
             # 2. Iterate
             if hasattr(iterator, "__aiter__"):
                 # Async Iterator
@@ -291,7 +341,6 @@ class UI:
                         result = await async_iter.__anext__()
                     except StopAsyncIteration:
                         break
-
                     if result:
                         self._submit_user_message(self._llm_task, str(result))
             else:
@@ -300,7 +349,6 @@ class UI:
                         f"\n[Trigger Error: Trigger factory returned non-async iterator: {type(iterator)}]\n"
                     )
                 )
-
         except asyncio.CancelledError:
             pass
         except Exception as e:
@@ -614,10 +662,6 @@ class UI:
             if self._handle_custom_command(event):
                 return
 
-            # If we are thinking, ignore input
-            if self._is_thinking:
-                return
-
             # Append to history manually to ensure persistence
             buff.append_to_history()
 
@@ -639,18 +683,16 @@ class UI:
         for cmd in self._exec_commands:
             prefix = f"{cmd} "
             if text.strip().lower().startswith(prefix):
-                if self._is_thinking:
-                    return False
-
                 shell_cmd = text.strip()[len(prefix) :].strip()
                 if not shell_cmd:
                     return True
 
                 buff.reset()
-                # Run in background
-                self._running_llm_task = asyncio.create_task(
-                    self._run_shell_command(shell_cmd)
-                )
+
+                async def job():
+                    await self._run_shell_command(shell_cmd)
+
+                self._message_queue.put_nowait(job)
                 return True
         return False
 
@@ -945,10 +987,8 @@ class UI:
     ):
         # Helper to safely append to read-only buffer
         current_text = self._output_field.text
-
         # Construct the new content
         content = sep.join([str(value) for value in values]) + end
-
         # Handle carriage returns (\r) for status updates
         if "\r" in content:
             # Find the start of the last line in the current text
@@ -959,12 +999,10 @@ class UI:
             else:
                 previous = current_text[: last_newline + 1]
                 last = current_text[last_newline + 1 :]
-
             combined = last + content
             # Remove content before \r on the same line
             # [^\n]* matches any character except newline
             resolved = re.sub(r"[^\n]*\r", "", combined)
-
             new_text = previous + resolved
         else:
             new_text = current_text + content
@@ -982,7 +1020,6 @@ class UI:
             )
         except Exception as e:
             logger.error(f"Failed to trigger notification hook: {e}")
-
         # Update content directly
         # We use bypass_readonly=True by constructing a Document
         self._output_field.buffer.set_document(
@@ -997,9 +1034,11 @@ class UI:
         # 2. Trigger AI Response
         attachments = list(self._pending_attachments)
         self._pending_attachments.clear()
-        self._running_llm_task = asyncio.create_task(
-            self._stream_ai_response(llm_task, user_message, attachments)
-        )
+
+        async def job():
+            await self._stream_ai_response(llm_task, user_message, attachments)
+
+        self._message_queue.put_nowait(job)
 
     async def _stream_ai_response(
         self,

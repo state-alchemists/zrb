@@ -94,7 +94,7 @@ class Config:
         self.DEFAULT_LLM_BASE_URL: str = ""
         self.DEFAULT_LLM_API_KEY: str = ""
         self.DEFAULT_LLM_MAX_REQUEST_PER_MINUTE: str = "60"
-        self.DEFAULT_LLM_MAX_TOKENS_PER_MINUTE: str = "120000"
+        self.DEFAULT_LLM_MAX_TOKENS_PER_MINUTE: str = "128000"
         self.DEFAULT_LLM_MAX_TOKENS_PER_REQUEST: str = "120000"
         self.DEFAULT_LLM_THROTTLE_SLEEP: str = "1.0"
         self.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW: str = "5"
