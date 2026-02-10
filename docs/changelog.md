@@ -1,5 +1,33 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.2.5
+
+- **Feature: Extended LLM Provider Support**:
+  - **xAI Integration**: Added native support for xAI models via the new `xai` extra, providing access to Grok models through the official `xai-sdk`.
+  - **Voyage AI Integration**: Added comprehensive support for Voyage AI embeddings and RAG capabilities via the new `voyageai` extra, including automatic dependency management.
+  - **Dependency Updates**: Upgraded `pydantic-ai-slim` to `1.57.0` and `anthropic` to `>=0.78.0` for latest features and stability.
+  - **Python Version Support**: Updated Python constraint to `<3.14.0` for forward compatibility.
+
+- **Improvement: TUI Stability & Concurrency**:
+  - **Message Queue System**: Implemented a robust job queue (`_message_queue`) to prevent overlapping AI responses and shell command execution, eliminating race conditions.
+  - **Sequential Processing**: Ensures only one LLM task or shell command runs at a time, improving UI responsiveness and preventing state corruption.
+  - **Better Trigger Handling**: Enhanced async iterator handling for external triggers with proper error isolation.
+
+- **Improvement: Configuration & Performance**:
+  - **Increased Token Limits**: Raised default `LLM_MAX_TOKENS_PER_MINUTE` from 120,000 to 128,000 to better accommodate modern model contexts.
+  - **Extended Provider Configuration**: Added environment variable support for xAI and Voyage AI API keys and base URLs.
+
+- **Refinement: Core Prompts & Agent Behavior**:
+  - **Enhanced Persona**: Redefined as a "Polymath AI Assistant" with fluid expertise, adapting to coding (Senior Staff Engineer), writing (Creative Author), and research (Rigorous Analyst) contexts.
+  - **Mandate Precision**: Added explicit style mimicry guidelines for both code (indentation, naming) and prose (tone, formatting).
+  - **Knowledge Stewardship**: Mandated proactive use of note tools (`write_contextual_note`, `write_long_term_note`) to preserve learned patterns and preferences.
+  - **Planning Rigor**: Expanded implementation guidance with context precision, import safety, and proofreading requirements.
+
+- **Bug Fixes & Maintenance**:
+  - **UI Cleanup**: Fixed resource cleanup on exit, properly cancelling message processor and ensuring queue drainage.
+  - **Trigger Reliability**: Improved error handling in trigger loops to prevent cascading failures.
+  - **Dependency Alignment**: Synchronized extras markers across `poetry.lock` for consistent optional dependency resolution.
+
 ## 2.2.4
 
 - **Feature: Robust Hook System**:

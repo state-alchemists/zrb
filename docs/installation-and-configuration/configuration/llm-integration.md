@@ -15,6 +15,25 @@ The following environment variables are used to configure the LLM in `zrb`:
 - **`ZRB_LLM_API_KEY`**: The API key for the LLM provider.
 - **`ZRB_LLM_BASE_URL`**: The base URL for the LLM API (required for some providers or custom endpoints).
 
+## Optional Dependencies (Extras)
+
+Zrb supports additional LLM providers via optional dependencies. Install them using pip extras:
+
+```bash
+# Install with specific provider support
+pip install "zrb[xai]"           # xAI (Grok) support
+pip install "zrb[voyageai]"      # Voyage AI embeddings and RAG
+pip install "zrb[anthropic]"     # Anthropic Claude
+pip install "zrb[cohere]"        # Cohere
+pip install "zrb[groq]"          # Groq
+pip install "zrb[mistral]"       # Mistral AI
+pip install "zrb[huggingface]"   # Hugging Face Hub inference
+pip install "zrb[rag]"           # RAG capabilities (ChromaDB)
+pip install "zrb[all]"           # All optional dependencies
+```
+
+See the [Provider-Specific Configurations](#provider-specific-configurations) section for configuration details.
+
 ---
 
 ## Prompt Customization
@@ -63,7 +82,7 @@ Use the `activate_skill` tool in chat to load these instructions.
 These variables help you manage costs and stay within provider rate limits:
 
 - **`ZRB_LLM_MAX_REQUEST_PER_MINUTE`**: Limits the number of LLM API requests per minute (default: `60`). Also accepts `ZRB_LLM_MAX_REQUESTS_PER_MINUTE` for backward compatibility.
-- **`ZRB_LLM_MAX_TOKEN_PER_MINUTE`**: Limits the total tokens processed per minute (default: `120000`). Also accepts `ZRB_LLM_MAX_TOKENS_PER_MINUTE` for backward compatibility.
+- **`ZRB_LLM_MAX_TOKEN_PER_MINUTE`**: Limits the total tokens processed per minute (default: `128000`). Also accepts `ZRB_LLM_MAX_TOKENS_PER_MINUTE` for backward compatibility.
 - **`ZRB_LLM_MAX_TOKEN_PER_REQUEST`**: Limits the tokens per individual request (default: `120000`). Also accepts `ZRB_LLM_MAX_TOKENS_PER_REQUEST` for backward compatibility.
 - **`ZRB_LLM_THROTTLE_SLEEP`**: Seconds to sleep when throttling is triggered (default: `1.0`).
 
@@ -134,6 +153,18 @@ DEEPSEEK_API_KEY=your_deepseek_api_key
 ```env
 ZRB_LLM_MODEL=ollama:llama3.1
 OLLAMA_API_KEY=sk-your-ollama-api-key
+```
+
+### xAI (Grok)
+```env
+ZRB_LLM_MODEL=xai:grok-beta
+XAI_API_KEY=your_xai_api_key
+```
+
+### Voyage AI
+```env
+ZRB_LLM_MODEL=voyage:voyage-3
+VOYAGE_API_KEY=your_voyage_api_key
 ```
 
 ---

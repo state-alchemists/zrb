@@ -15,7 +15,7 @@ from zrb.llm.config.limiter import llm_limiter
 llm_limiter.max_request_per_minute = 15
 
 # Set the maximum number of tokens per minute
-llm_limiter.max_token_per_minute = 100000
+llm_limiter.max_token_per_minute = 128000
 
 # Set the maximum number of tokens per request
 llm_limiter.max_token_per_request = 120000
@@ -35,7 +35,7 @@ llm_limiter.throttle_check_interval = 0.1
 ### `max_token_per_minute`
 - **Description**: The maximum number of tokens allowed per minute.
 - **Type**: `int`
-- **Default**: `100000`
+- **Default**: `128000`
 - **Environment Variable**: `ZRB_LLM_MAX_TOKEN_PER_MINUTE` (also accepts `ZRB_LLM_MAX_TOKENS_PER_MINUTE` for backward compatibility)
 
 ### `max_token_per_request`
