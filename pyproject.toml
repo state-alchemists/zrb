@@ -52,6 +52,9 @@ psutil = "^7.0.0"
 # NOTE: Look at https://github.com/pydantic/pydantic-ai/blob/main/pydantic_ai_slim/pyproject.toml
 pydantic-ai-slim = "~1.57.0"
 
+# Constrain transitive dependency griffe to be <2.0 for compatibility
+griffe = "<2.0"
+
 # NOTE: Make sure the following dependencies are not conflicting with pydantic-ai-slim
 openai = ">=2.11.0"
 prompt-toolkit = ">=3"
