@@ -46,6 +46,11 @@ The structure of the final output MUST be as follows:
         -->
     </key_knowledge>
 
+    <reasoning_summary>
+        <!-- Summary of key logical deductions, architectural decisions, and "Why" behind choices made in <thought> blocks. -->
+        <!-- Example: "Decided to use a Factory pattern for the Auth module to support multiple providers easily." -->
+    </reasoning_summary>
+
     <artifact_trail>
         <!-- Evolution of critical files and symbols. What was changed and WHY. Use this to track all significant code modifications and design decisions. -->
         <!-- Example:
