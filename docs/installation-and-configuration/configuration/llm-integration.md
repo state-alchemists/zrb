@@ -83,7 +83,7 @@ These variables help you manage costs and stay within provider rate limits:
 
 - **`ZRB_LLM_MAX_REQUEST_PER_MINUTE`**: Limits the number of LLM API requests per minute (default: `60`). Also accepts `ZRB_LLM_MAX_REQUESTS_PER_MINUTE` for backward compatibility.
 - **`ZRB_LLM_MAX_TOKEN_PER_MINUTE`**: Limits the total tokens processed per minute (default: `128000`). Also accepts `ZRB_LLM_MAX_TOKENS_PER_MINUTE` for backward compatibility.
-- **`ZRB_LLM_MAX_TOKEN_PER_REQUEST`**: Limits the tokens per individual request (default: `120000`). Also accepts `ZRB_LLM_MAX_TOKENS_PER_REQUEST` for backward compatibility.
+- **`ZRB_LLM_MAX_TOKEN_PER_REQUEST`**: Limits the tokens per individual request (default: `128000`). Also accepts `ZRB_LLM_MAX_TOKENS_PER_REQUEST` for backward compatibility.
 - **`ZRB_LLM_THROTTLE_SLEEP`**: Seconds to sleep when throttling is triggered (default: `1.0`).
 
 #### Analysis Thresholds

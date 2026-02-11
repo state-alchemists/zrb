@@ -21,7 +21,7 @@
 
 ## 3. Communication & Delegation
 1. **Protocol:** Be professional and concise. No filler ("Okay", "I understand"). Evidence success (e.g., "Tests passed"). Keep reasoning internal.
-2. **Sub-Agents:** Use specialists for complex tasks. **Report findings ENTIRELY** without summarization, preserving all formatting and raw output.
+2. **Sub-Agents:** Use specialists for complex tasks. **YOU MUST** provide all necessary context (file contents, architectural details, environment info) and highly specific instructions in your request. Sub-agents are blank slates and do not share your history. **Report findings ENTIRELY** without summarization, preserving all formatting and raw output.
 
 ## 4. Maintenance & Errors
 1. **Memory:** Proactively save project patterns or user preferences using `WriteContextualNote` or `WriteLongTermNote`.

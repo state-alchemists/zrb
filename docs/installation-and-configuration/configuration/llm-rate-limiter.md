@@ -18,7 +18,7 @@ llm_limiter.max_request_per_minute = 15
 llm_limiter.max_token_per_minute = 128000
 
 # Set the maximum number of tokens per request
-llm_limiter.max_token_per_request = 120000
+llm_limiter.max_token_per_request = 128000
 
 # Set the throttle check interval
 llm_limiter.throttle_check_interval = 0.1
@@ -41,7 +41,7 @@ llm_limiter.throttle_check_interval = 0.1
 ### `max_token_per_request`
 - **Description**: The maximum number of tokens allowed per individual LLM request.
 - **Type**: `int`
-- **Default**: `120000`
+- **Default**: `128000`
 - **Environment Variable**: `ZRB_LLM_MAX_TOKEN_PER_REQUEST` (also accepts `ZRB_LLM_MAX_TOKENS_PER_REQUEST` for backward compatibility)
 
 ### `throttle_check_interval`

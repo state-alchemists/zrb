@@ -46,7 +46,7 @@ class SkillManager:
         auto_load: bool = True,
         root_dir: str = ".",
         search_dirs: list[str | Path] | None = None,
-        max_depth: int = 1,
+        max_depth: int = 2,
         ignore_dirs: list[str] | None = None,
     ):
         self._root_dir = root_dir

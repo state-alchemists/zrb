@@ -189,7 +189,7 @@ class UI:
             history=self._input_history,
         )
         # Output Area (Read-only chat history)
-        help_text = self._get_help_text()
+        help_text = self._get_help_text(limit=25)
         full_greeting = create_banner(self._ascii_art, f"{greeting}\n{help_text}")
         self._output_field = create_output_field(full_greeting, output_lexer)
         self._output_field.control.key_bindings = create_output_keybindings(
@@ -500,14 +500,13 @@ class UI:
             clipboard=clipboard,
         )
 
-    def _get_help_text(self) -> str:
-        help_lines = ["\nAvailable Commands:"]
+    def _get_help_text(self, limit: int | None = None) -> str:
+        raw_lines: list[tuple[str, str]] = []
 
         def add_cmd_help(commands: list[str], description: str):
             if commands and len(commands) > 0:
                 cmd = commands[0]
-                description = description.replace("{cmd}", cmd)
-                help_lines.append(f"  {cmd:<10} : {description}")
+                raw_lines.append((cmd, description.replace("{cmd}", cmd)))
 
         add_cmd_help(self._exit_commands, "Exit the application")
         add_cmd_help(self._info_commands, "Show this help message")
@@ -528,7 +527,18 @@ class UI:
             usage = f"{custom_cmd.command} " + " ".join(
                 [f"<{a}>" for a in custom_cmd.args]
             )
-            help_lines.append(f"  {custom_cmd.command:<10} : {usage}")
+            raw_lines.append((custom_cmd.command, usage))
+
+        if not raw_lines:
+            return ""
+
+        max_cmd_len = max(len(cmd) for cmd, _ in raw_lines)
+        help_lines = ["\nAvailable Commands:"]
+        for i, (cmd, desc) in enumerate(raw_lines):
+            if limit is not None and i >= limit:
+                help_lines.append("  ... and more")
+                break
+            help_lines.append(f"  {cmd:<{max_cmd_len}} : {desc}")
 
         return "\n".join(help_lines) + "\n"
 
