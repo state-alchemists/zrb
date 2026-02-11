@@ -73,11 +73,7 @@ cli.add_task(llm_chat)
 llm_chat.add_response_handler(replace_in_file_response_handler)
 llm_chat.add_toolset(*load_mcp_config())
 for name, func in tool_registry.get_all().items():
-    if name == getattr(func, "__name__", None):
-        llm_chat.add_tool(func)
-    else:
-        # It's an alias, wrap it in a Tool with the alias name
-        llm_chat.add_tool(Tool(func, name=name))
+    llm_chat.add_tool(func)
 llm_chat.add_tool_factory(
     lambda ctx: create_list_zrb_task_tool(),
     lambda ctx: create_run_zrb_task_tool(),

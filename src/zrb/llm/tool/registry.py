@@ -8,27 +8,22 @@ class ToolRegistry:
     def register(
         self,
         tool: Callable,
-        name: str | None = None,
-        aliases: list[str] | None = None,
     ):
         """
-        Register a tool with an optional name and aliases.
+        Register a tool.
         """
-        tool_name = name or getattr(tool, "__name__", str(tool))
+        tool_name = getattr(tool, "__name__", str(tool))
         self._tools[tool_name] = tool
-        if aliases:
-            for alias in aliases:
-                self._tools[alias] = tool
 
     def get(self, name: str) -> Callable | None:
         """
-        Get a tool by name or alias.
+        Get a tool by name.
         """
         return self._tools.get(name)
 
     def get_all(self) -> dict[str, Callable]:
         """
-        Get all registered tools (including aliases).
+        Get all registered tools.
         """
         return self._tools.copy()
 
