@@ -1,6 +1,7 @@
+import os
+
 from pydantic_ai import Tool
 
-import os
 from zrb.builtin.group import llm_group
 from zrb.config.config import CFG
 from zrb.input.bool_input import BoolInput

@@ -6,8 +6,8 @@ import signal
 import tempfile
 
 from zrb.context.any_context import zrb_print
-from zrb.util.cli.style import stylize_faint
 from zrb.llm.tool.registry import tool_registry
+from zrb.util.cli.style import stylize_faint
 
 
 async def run_shell_command(command: str, timeout: int = 30) -> str:

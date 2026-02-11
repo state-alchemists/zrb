@@ -37,7 +37,7 @@ def create_project_context_prompt():
         next_handler: Callable[[AnyContext, str], str],
     ) -> str:
         search_dirs = _get_search_directories()
-        
+
         # Scan for context files
         found_files = []
         for filename in ["CLAUDE.md", "AGENTS.md"]:
@@ -47,18 +47,21 @@ def create_project_context_prompt():
                     found_files.append(f"- `{file_path}`")
                     # Stop searching for this file once found (prioritize closest to CWD)
                     break
-        
+
         if not found_files:
             return next_handler(ctx, current_prompt)
 
         context_message = (
             "The following project documentation files are available. "
             "**YOU MUST READ THEM** using `Read` if you need to understand "
-            "project conventions, architectural patterns, or specific guidelines:\n" +
-            "\n".join(found_files)
+            "project conventions, architectural patterns, or specific guidelines:\n"
+            + "\n".join(found_files)
         )
 
-        return next_handler(ctx, f"{current_prompt}\n\n{make_markdown_section('Project Documentation', context_message)}")
+        return next_handler(
+            ctx,
+            f"{current_prompt}\n\n{make_markdown_section('Project Documentation', context_message)}",
+        )
 
     return project_context
 
