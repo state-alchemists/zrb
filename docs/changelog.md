@@ -1,5 +1,22 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.2.8
+
+- **Improvement: Enhanced Agent Reasoning & Planning**:
+  - **Structured Thought Process**: Added mandatory `<thought>...</thought>` tags for internal reasoning before every response and tool call, improving transparency and decision-making quality.
+  - **Systematic Workflow Refinement**: Enhanced the DEEP PATH workflow with explicit RESEARCH, STRATEGY, EXECUTION, and FINALITY phases for complex tasks.
+  - **Bug Fix Methodology**: Added requirement to empirically reproduce failures with tests or scripts before applying fixes.
+
+- **Improvement: Core Prompt Refinements**:
+  - **Mandate Restructuring**: Reorganized mandate into logical sections: Internal Reasoning & Planning, Systematic Workflow, Communication & Delegation, Maintenance & Errors, and Context & Safety.
+  - **Persona Enhancement**: Updated Senior Staff Engineer persona to prioritize maintainability over cleverness and always look for the "Standard Way" before inventing new solutions.
+  - **Summarizer Enhancement**: Added `<reasoning_summary>` section to capture key logical deductions and architectural decisions from thought blocks.
+
+- **Improvement: Operational Attitude**:
+  - **Logical & Proactive Approach**: Added emphasis on thinking through architecture, identifying edge cases, and potential regressions before implementation.
+  - **Security Emphasis**: Added explicit protection for `.env` and `.git` folders in security guidelines.
+  - **Error Recovery**: Enhanced error handling with backtracking to Research or Strategy phase when a path fails.
+
 ## 2.2.7
 
 - **Feature: Comprehensive Skill System**:
