@@ -82,7 +82,7 @@ def create_event_handler(
             if was_tool_call_delta and not show_tool_call_detail:
                 print_event("\r")
                 # event_prefix will naturally overwrite it if it's on the same line
-            
+
             # Use preserve_leading_newline=True for the block header
             fprint(
                 f"{event_prefix}🧰 {event.part.tool_call_id} | {event.part.tool_name} {args}",

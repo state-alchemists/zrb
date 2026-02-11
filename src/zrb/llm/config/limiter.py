@@ -53,7 +53,7 @@ class LLMLimiter:
     def max_token_per_minute(self) -> int:
         if self._max_token_per_minute is not None:
             return self._max_token_per_minute
-        return getattr(CFG, "LLM_MAX_TOKENS_PER_MINUTE", None) or 100_000
+        return getattr(CFG, "LLM_MAX_TOKEN_PER_MINUTE", None) or 100_000
 
     @max_token_per_minute.setter
     def max_token_per_minute(self, value: int):
@@ -63,7 +63,7 @@ class LLMLimiter:
     def max_token_per_request(self) -> int:
         if self._max_token_per_request is not None:
             return self._max_token_per_request
-        return getattr(CFG, "LLM_MAX_TOKENS_PER_REQUEST", None) or 16_000
+        return getattr(CFG, "LLM_MAX_TOKEN_PER_REQUEST", None) or 16_000
 
     @max_token_per_request.setter
     def max_token_per_request(self, value: int):

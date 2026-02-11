@@ -83,10 +83,17 @@ async def summarize_messages(
                             plain=True,
                         )
                         summary = await _summarize_text_plain(
-                            p.content, summarizer_agent, llm_limiter, message_token_threshold
+                            p.content,
+                            summarizer_agent,
+                            llm_limiter,
+                            message_token_threshold,
                         )
                         new_parts.append(
-                            p.model_copy(update={"content": f"SUMMARY of tool result:\n{summary}"})
+                            p.model_copy(
+                                update={
+                                    "content": f"SUMMARY of tool result:\n{summary}"
+                                }
+                            )
                         )
                         msg_modified = True
                         continue
@@ -147,11 +154,16 @@ async def summarize_history(
         summary_window = CFG.LLM_HISTORY_SUMMARIZATION_WINDOW
     llm_limiter = limiter or default_llm_limiter
     if conversational_token_threshold is None:
-        conversational_token_threshold = CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD
+        conversational_token_threshold = (
+            CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD
+        )
 
     # Check for early exit ONLY if tokens are safe
     current_tokens = llm_limiter.count_tokens(messages)
-    if len(messages) <= summary_window and current_tokens <= conversational_token_threshold:
+    if (
+        len(messages) <= summary_window
+        and current_tokens <= conversational_token_threshold
+    ):
         return messages
 
     # 2. Split history into 'to_summarize' and 'to_keep'
@@ -190,7 +202,9 @@ async def summarize_history(
                 stylize_yellow("  Consolidating multiple snapshots..."), plain=True
             )
         else:
-            zrb_print(stylize_yellow("  Aggressively re-compressing summary..."), plain=True)
+            zrb_print(
+                stylize_yellow("  Aggressively re-compressing summary..."), plain=True
+            )
 
         summary_text = await _summarize_text(
             "Consolidate the following conversation state snapshots into a single, cohesive <state_snapshot>.\n"
@@ -224,7 +238,7 @@ async def _chunk_and_summarize(
     summaries = []
     current_chunk_texts = []
     current_chunk_tokens = 0
-    
+
     # CHUNK LIMIT: For normal messages, group them up to 90% of threshold.
     chunk_token_limit = int(token_threshold * 0.9)
 
@@ -261,9 +275,7 @@ async def _chunk_and_summarize(
     return "\n\n".join(summaries)
 
 
-async def _summarize_text(
-    text: str, agent: Any, partial: bool = False
-) -> str:
+async def _summarize_text(text: str, agent: Any, partial: bool = False) -> str:
     """Helper to run the summarizer agent on a block of text."""
     prompt_prefix = (
         "Summarize this partial conversation history:\n"

@@ -136,14 +136,20 @@ async def run_agent(
         # (e.g. resulted in a 1M token summary), we must hard-prune to avoid API crash.
         current_tokens = limiter.count_tokens(processed_history)
         if current_tokens > limiter.max_token_per_request:
-            print_fn(f"\n[System] History too large ({current_tokens} tokens) after summarization. Force pruning...")
+            print_fn(
+                f"\n[System] History too large ({current_tokens} tokens) after summarization. Force pruning..."
+            )
             # Keep only the last message (User prompt) if possible, or clear all if even that is too big
             # Ideally we keep system prompt + last user message
             safe_history = []
             # preserve system prompt if it exists (usually it's not in message_history for pydantic_ai, but just in case)
             # For now, just keep the very last message if it fits
-            if processed_history and limiter.count_tokens(processed_history[-1]) < limiter.max_token_per_request:
-                 safe_history = [processed_history[-1]]
+            if (
+                processed_history
+                and limiter.count_tokens(processed_history[-1])
+                < limiter.max_token_per_request
+            ):
+                safe_history = [processed_history[-1]]
             processed_history = safe_history
 
         current_history = await _acquire_rate_limit(

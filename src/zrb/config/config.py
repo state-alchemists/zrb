@@ -1057,9 +1057,9 @@ class Config:
 
     @LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD.setter
     def LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD"] = (
-            str(value)
-        )
+        os.environ[
+            f"{self.ENV_PREFIX}_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD"
+        ] = str(value)
 
     @property
     def LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:

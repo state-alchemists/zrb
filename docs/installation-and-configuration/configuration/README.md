@@ -328,8 +328,12 @@ The following environment variables are used as LLM configuration default proper
     * Default: `cl100k_base`
     * Possible values: Any valid Tiktoken encoding name (e.g., `cl100k_base`, `p50k_base`)
 
-* `ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`: Token threshold for summarizing history.
+* `ZRB_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD`: Token threshold for summarizing entire conversation history into structured XML state snapshots. Also accepts `ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD` for backward compatibility.
     * Default: 60% of the model's maximum context window.
+    * Possible values: Any positive integer
+
+* `ZRB_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD`: Token threshold for summarizing individual large tool call results and messages.
+    * Default: 50% of conversational summarization threshold.
     * Possible values: Any positive integer
 
 * `ZRB_LLM_MAX_REQUEST_PER_MINUTE`: Maximum number of LLM requests allowed per minute. Also accepts `ZRB_LLM_MAX_REQUESTS_PER_MINUTE` for backward compatibility.
@@ -349,7 +353,7 @@ The following environment variables are used as LLM configuration default proper
     * Possible values: Any positive float
 
 * `ZRB_LLM_HISTORY_SUMMARIZATION_WINDOW`: Number of messages to keep in verbatim before summarizing.
-    * Default: `5`
+    * Default: `12`
     * Possible values: Any positive integer
 
 * `ZRB_LLM_SHOW_TOOL_CALL_DETAIL`: Whether to show tool call parameters in real-time.

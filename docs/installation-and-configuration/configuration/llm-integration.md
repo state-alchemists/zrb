@@ -112,10 +112,11 @@ These variables control the internet search capabilities of the LLM:
 
 ### Summarization and Context
 
-`zrb` automatically summarizes conversation history to manage context window usage.
+`zrb` automatically summarizes conversation history to manage context window usage using a two-tier summarization system:
 
-- **`ZRB_LLM_HISTORY_SUMMARIZATION_WINDOW`**: Number of recent messages to keep in the "recent history" block (default: `5`).
-- **`ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`**: The token count that triggers a summarization of the history (default: 60% of request limit).
+- **`ZRB_LLM_HISTORY_SUMMARIZATION_WINDOW`**: Number of recent messages to keep in the "recent history" block (default: `12`).
+- **`ZRB_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD`**: The token count that triggers summarization of entire conversation history into structured XML state snapshots (default: 60% of request limit). Also accepts `ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD` for backward compatibility.
+- **`ZRB_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD`**: The token count that triggers summarization of individual large tool call results and messages (default: 50% of conversational threshold).
 - **`ZRB_LLM_HISTORY_DIR`**: Directory to store conversation history (default: `~/.zrb/llm-history`).
 
 ---
