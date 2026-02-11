@@ -60,6 +60,7 @@ def create_event_handler(
             elif isinstance(event.delta, ToolCallPartDelta):
                 if show_tool_call_detail:
                     fprint(f"{event.delta.args_delta}")
+                    was_tool_call_delta = True
                 else:
                     progress_char = progress_char_list[progress_char_index]
                     if not was_tool_call_delta:
@@ -77,6 +78,11 @@ def create_event_handler(
                     was_tool_call_delta = True
         elif isinstance(event, FunctionToolCallEvent):
             args = _get_truncated_event_part_args(event)
+            # If we were showing 'prepare parameters', clear that line first
+            if was_tool_call_delta and not show_tool_call_detail:
+                print_event("\r")
+                # event_prefix will naturally overwrite it if it's on the same line
+            
             # Use preserve_leading_newline=True for the block header
             fprint(
                 f"{event_prefix}🧰 {event.part.tool_call_id} | {event.part.tool_name} {args}",

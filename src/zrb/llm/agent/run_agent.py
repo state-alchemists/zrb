@@ -126,13 +126,56 @@ async def run_agent(
         prompt_content = _get_prompt_content(effective_message, attachments, print_fn)
 
         # 1. Prune & Throttle
+        # Process history first (e.g. summarization)
+        processed_history = message_history
+        if hasattr(agent, "history_processors"):
+            for processor in agent.history_processors:
+                processed_history = await processor(processed_history)
+
+        # EMERGENCY FAILSAFE: If summarization failed to reduce size below limit
+        # (e.g. resulted in a 1M token summary), we must hard-prune to avoid API crash.
+        current_tokens = limiter.count_tokens(processed_history)
+        if current_tokens > limiter.max_token_per_request:
+            print_fn(f"\n[System] History too large ({current_tokens} tokens) after summarization. Force pruning...")
+            # Keep only the last message (User prompt) if possible, or clear all if even that is too big
+            # Ideally we keep system prompt + last user message
+            safe_history = []
+            # preserve system prompt if it exists (usually it's not in message_history for pydantic_ai, but just in case)
+            # For now, just keep the very last message if it fits
+            if processed_history and limiter.count_tokens(processed_history[-1]) < limiter.max_token_per_request:
+                 safe_history = [processed_history[-1]]
+            processed_history = safe_history
+
         current_history = await _acquire_rate_limit(
-            limiter, prompt_content, message_history, print_fn
+            limiter, prompt_content, processed_history, print_fn
         )
         current_message = prompt_content
         current_results = None
 
-        # 2. Execution Loop
+        # 2. Safety Check: Merge consecutive ModelRequest if needed
+        # (e.g. if history was summarized and ends with a ModelRequest)
+        from pydantic_ai.messages import ModelRequest
+
+        if (
+            current_history
+            and isinstance(current_history[-1], ModelRequest)
+            and current_message is not None
+        ):
+            # Convert current_message to list of parts if it's just a string
+            from pydantic_ai.messages import UserPromptPart
+
+            new_parts: list[UserPromptPart] = []
+            if isinstance(current_message, str):
+                new_parts = [UserPromptPart(content=current_message)]
+            elif isinstance(current_message, list):
+                new_parts = current_message
+
+            # Merge into the last request and set current_message to None
+            # so pydantic_ai doesn't add another request
+            current_history[-1].parts.extend(new_parts)
+            current_message = None
+
+        # 3. Execution Loop
         while True:
             result_output = None
             run_history = []

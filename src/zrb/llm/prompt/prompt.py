@@ -20,6 +20,14 @@ def get_summarizer_system_prompt() -> str:
     return get_default_prompt("summarizer")
 
 
+def get_conversational_summarizer_system_prompt() -> str:
+    return get_default_prompt("conversational_summarizer")
+
+
+def get_message_summarizer_system_prompt() -> str:
+    return get_default_prompt("message_summarizer")
+
+
 def get_file_extractor_system_prompt() -> str:
     return get_default_prompt("file_extractor")
 

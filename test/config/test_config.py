@@ -389,13 +389,13 @@ def test_llm_max_request_per_minute_none(monkeypatch):
 def test_llm_max_token_per_minute(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_MAX_TOKEN_PER_MINUTE", "200000")
     config = Config()
-    assert config.LLM_MAX_TOKENS_PER_MINUTE == 200000
+    assert config.LLM_MAX_TOKEN_PER_MINUTE == 200000
 
 
 def test_llm_max_token_per_request(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_MAX_TOKEN_PER_REQUEST", "100000")
     config = Config()
-    assert config.LLM_MAX_TOKENS_PER_REQUEST == 100000
+    assert config.LLM_MAX_TOKEN_PER_REQUEST == 100000
 
 
 def test_llm_throttle_sleep(monkeypatch):
@@ -485,8 +485,8 @@ def test_llm_configs_types():
     assert config.LLM_API_KEY is None or isinstance(config.LLM_API_KEY, str)
 
     assert isinstance(config.LLM_MAX_REQUEST_PER_MINUTE, int)
-    assert isinstance(config.LLM_MAX_TOKENS_PER_MINUTE, int)
-    assert isinstance(config.LLM_MAX_TOKENS_PER_REQUEST, int)
+    assert isinstance(config.LLM_MAX_TOKEN_PER_MINUTE, int)
+    assert isinstance(config.LLM_MAX_TOKEN_PER_REQUEST, int)
     assert isinstance(config.LLM_THROTTLE_SLEEP, float)
 
     assert isinstance(config.LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD, int)

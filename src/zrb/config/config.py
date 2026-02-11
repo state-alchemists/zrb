@@ -94,11 +94,12 @@ class Config:
         self.DEFAULT_LLM_BASE_URL: str = ""
         self.DEFAULT_LLM_API_KEY: str = ""
         self.DEFAULT_LLM_MAX_REQUEST_PER_MINUTE: str = "60"
-        self.DEFAULT_LLM_MAX_TOKENS_PER_MINUTE: str = "128000"
-        self.DEFAULT_LLM_MAX_TOKENS_PER_REQUEST: str = "128000"
+        self.DEFAULT_LLM_MAX_TOKEN_PER_MINUTE: str = "128000"
+        self.DEFAULT_LLM_MAX_TOKEN_PER_REQUEST: str = "128000"
         self.DEFAULT_LLM_THROTTLE_SLEEP: str = "1.0"
-        self.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW: str = "5"
-        self.DEFAULT_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
+        self.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW: str = "12"
+        self.DEFAULT_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
+        self.DEFAULT_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD: str = ""
@@ -962,7 +963,7 @@ class Config:
         os.environ[f"{self.ENV_PREFIX}_LLM_MAX_REQUEST_PER_MINUTE"] = str(value)
 
     @property
-    def LLM_MAX_TOKENS_PER_MINUTE(self) -> int:
+    def LLM_MAX_TOKEN_PER_MINUTE(self) -> int:
         """
         Maximum number of LLM tokens allowed per minute.
         Default is conservative to accommodate free-tier LLM providers.
@@ -970,28 +971,28 @@ class Config:
         return int(
             get_env(
                 ["LLM_MAX_TOKEN_PER_MINUTE", "LLM_MAX_TOKENS_PER_MINUTE"],
-                self.DEFAULT_LLM_MAX_TOKENS_PER_MINUTE,
+                self.DEFAULT_LLM_MAX_TOKEN_PER_MINUTE,
                 self.ENV_PREFIX,
             )
         )
 
-    @LLM_MAX_TOKENS_PER_MINUTE.setter
-    def LLM_MAX_TOKENS_PER_MINUTE(self, value: int):
+    @LLM_MAX_TOKEN_PER_MINUTE.setter
+    def LLM_MAX_TOKEN_PER_MINUTE(self, value: int):
         os.environ[f"{self.ENV_PREFIX}_LLM_MAX_TOKENS_PER_MINUTE"] = str(value)
 
     @property
-    def LLM_MAX_TOKENS_PER_REQUEST(self) -> int:
+    def LLM_MAX_TOKEN_PER_REQUEST(self) -> int:
         """Maximum number of tokens allowed per individual LLM request."""
         return int(
             get_env(
                 ["LLM_MAX_TOKEN_PER_REQUEST", "LLM_MAX_TOKENS_PER_REQUEST"],
-                self.DEFAULT_LLM_MAX_TOKENS_PER_REQUEST,
+                self.DEFAULT_LLM_MAX_TOKEN_PER_REQUEST,
                 self.ENV_PREFIX,
             )
         )
 
-    @LLM_MAX_TOKENS_PER_REQUEST.setter
-    def LLM_MAX_TOKENS_PER_REQUEST(self, value: int):
+    @LLM_MAX_TOKEN_PER_REQUEST.setter
+    def LLM_MAX_TOKEN_PER_REQUEST(self, value: int):
         os.environ[f"{self.ENV_PREFIX}_LLM_MAX_TOKENS_PER_REQUEST"] = str(value)
 
     @property
@@ -1025,13 +1026,24 @@ class Config:
 
     @property
     def LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
-        default = self.DEFAULT_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD
+        return self.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD
+
+    @LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD.setter
+    def LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD(self, value: int):
+        self.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD = value
+
+    @property
+    def LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
+        default = self.DEFAULT_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD
         if default == "":
             default = str(self._get_max_threshold(0.6))
 
         threshold = int(
             get_env(
-                "LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD",
+                [
+                    "LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD",
+                    "LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD",
+                ],
                 default,
                 self.ENV_PREFIX,
             )
@@ -1039,13 +1051,39 @@ class Config:
         return limit_token_threshold(
             threshold,
             0.6,
-            self.LLM_MAX_TOKENS_PER_MINUTE,
-            self.LLM_MAX_TOKENS_PER_REQUEST,
+            self.LLM_MAX_TOKEN_PER_MINUTE,
+            self.LLM_MAX_TOKEN_PER_REQUEST,
         )
 
-    @LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD.setter
-    def LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD"] = (
+    @LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD.setter
+    def LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD"] = (
+            str(value)
+        )
+
+    @property
+    def LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
+        default = self.DEFAULT_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD
+        if default == "":
+            default = str(self.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD // 2)
+
+        threshold = int(
+            get_env(
+                "LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD",
+                default,
+                self.ENV_PREFIX,
+            )
+        )
+        return limit_token_threshold(
+            threshold,
+            0.6,
+            self.LLM_MAX_TOKEN_PER_MINUTE,
+            self.LLM_MAX_TOKEN_PER_REQUEST,
+        )
+
+    @LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD.setter
+    def LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD"] = (
             str(value)
         )
 
@@ -1065,8 +1103,8 @@ class Config:
         return limit_token_threshold(
             threshold,
             0.4,
-            self.LLM_MAX_TOKENS_PER_MINUTE,
-            self.LLM_MAX_TOKENS_PER_REQUEST,
+            self.LLM_MAX_TOKEN_PER_MINUTE,
+            self.LLM_MAX_TOKEN_PER_REQUEST,
         )
 
     @LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD.setter
@@ -1091,8 +1129,8 @@ class Config:
         return limit_token_threshold(
             threshold,
             0.4,
-            self.LLM_MAX_TOKENS_PER_MINUTE,
-            self.LLM_MAX_TOKENS_PER_REQUEST,
+            self.LLM_MAX_TOKEN_PER_MINUTE,
+            self.LLM_MAX_TOKEN_PER_REQUEST,
         )
 
     @LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD.setter
@@ -1117,8 +1155,8 @@ class Config:
         return limit_token_threshold(
             threshold,
             0.4,
-            self.LLM_MAX_TOKENS_PER_MINUTE,
-            self.LLM_MAX_TOKENS_PER_REQUEST,
+            self.LLM_MAX_TOKEN_PER_MINUTE,
+            self.LLM_MAX_TOKEN_PER_REQUEST,
         )
 
     @LLM_FILE_ANALYSIS_TOKEN_THRESHOLD.setter
@@ -1157,7 +1195,7 @@ class Config:
 
     def _get_max_threshold(self, factor: float) -> int:
         return get_max_token_threshold(
-            factor, self.LLM_MAX_TOKENS_PER_MINUTE, self.LLM_MAX_TOKENS_PER_REQUEST
+            factor, self.LLM_MAX_TOKEN_PER_MINUTE, self.LLM_MAX_TOKEN_PER_REQUEST
         )
 
     @property

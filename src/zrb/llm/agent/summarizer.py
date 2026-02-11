@@ -2,7 +2,11 @@ from typing import TYPE_CHECKING
 
 from zrb.llm.agent.common import create_agent
 from zrb.llm.config.config import llm_config as default_llm_config
-from zrb.llm.prompt.prompt import get_summarizer_system_prompt
+from zrb.llm.prompt.prompt import (
+    get_conversational_summarizer_system_prompt,
+    get_message_summarizer_system_prompt,
+    get_summarizer_system_prompt,
+)
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -20,3 +24,21 @@ def create_summarizer_agent(
         model=model,
         system_prompt=effective_system_prompt,
     )
+
+
+def create_conversational_summarizer_agent(
+    model: "str | None | Model" = None,
+    system_prompt: str | None = None,
+) -> "Agent[None, str]":
+    effective_system_prompt = (
+        system_prompt or get_conversational_summarizer_system_prompt()
+    )
+    return create_summarizer_agent(model=model, system_prompt=effective_system_prompt)
+
+
+def create_message_summarizer_agent(
+    model: "str | None | Model" = None,
+    system_prompt: str | None = None,
+) -> "Agent[None, str]":
+    effective_system_prompt = system_prompt or get_message_summarizer_system_prompt()
+    return create_summarizer_agent(model=model, system_prompt=effective_system_prompt)
