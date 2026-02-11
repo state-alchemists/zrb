@@ -258,4 +258,5 @@ async def _run_summarization(agent, query, content_buffer, summarized_infos):
     summarized_infos.append(str(result))
 
 
-tool_registry.register(analyze_code, aliases=["AnalyzeCode"])
+analyze_code.__name__ = "AnalyzeCode"
+tool_registry.register(analyze_code)

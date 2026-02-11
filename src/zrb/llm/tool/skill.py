@@ -23,7 +23,7 @@ def create_activate_skill_tool(skill_manager: SkillManager | None = None):
             return f"<ACTIVATED_SKILL>\n{content}\n</ACTIVATED_SKILL>"
         return f"Skill '{name}' not found."
 
-    activate_skill_impl.__name__ = "activate_skill"
+    activate_skill_impl.__name__ = "ActivateSkill"
     activate_skill_impl.__doc__ = (
         "Immediately activates a specialized expertise 'skill' to handle complex or domain-specific tasks. "
         "Returns a set of authoritative instructions that YOU MUST follow to complete the task successfully. "

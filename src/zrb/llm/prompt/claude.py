@@ -37,26 +37,28 @@ def create_project_context_prompt():
         next_handler: Callable[[AnyContext, str], str],
     ) -> str:
         search_dirs = _get_search_directories()
-        additional_context = []
+        
+        # Scan for context files
+        found_files = []
+        for filename in ["CLAUDE.md", "AGENTS.md"]:
+            for directory in search_dirs:
+                file_path = directory / filename
+                if file_path.exists() and file_path.is_file():
+                    found_files.append(f"- `{file_path}`")
+                    # Stop searching for this file once found (prioritize closest to CWD)
+                    break
+        
+        if not found_files:
+            return next_handler(ctx, current_prompt)
 
-        # 1. CLAUDE.md
-        claude_content = _get_combined_content("CLAUDE.md", search_dirs)
-        if claude_content:
-            additional_context.append(
-                make_markdown_section(
-                    "Project Instructions (CLAUDE.md)", claude_content
-                )
-            )
+        context_message = (
+            "The following project documentation files are available. "
+            "**YOU MUST READ THEM** using `Read` if you need to understand "
+            "project conventions, architectural patterns, or specific guidelines:\n" +
+            "\n".join(found_files)
+        )
 
-        # 2. AGENTS.md
-        agents_content = _get_combined_content("AGENTS.md", search_dirs)
-        if agents_content:
-            additional_context.append(
-                make_markdown_section("Agent Definitions (AGENTS.md)", agents_content)
-            )
-
-        new_section = "\n\n".join(additional_context)
-        return next_handler(ctx, f"{current_prompt}\n\n{new_section}")
+        return next_handler(ctx, f"{current_prompt}\n\n{make_markdown_section('Project Documentation', context_message)}")
 
     return project_context
 
@@ -128,7 +130,7 @@ def _get_skills_section(
 
     # Add available skills (just metadata)
     skills_context.append("## Available Skills")
-    skills_context.append("Use 'activate_skill' to load instructions for a skill.")
+    skills_context.append("Use 'ActivateSkill' to load instructions for a skill.")
     for skill in skills:
         if skill.model_invocable:
             # Skip skills that are already active

@@ -65,6 +65,12 @@ def create_note_tools(note_manager: NoteManager | None = None) -> list[Callable]
         read_contextual_note,
         write_contextual_note,
     ]
+
+    read_long_term_note.__name__ = "ReadLongTermNote"
+    write_long_term_note.__name__ = "WriteLongTermNote"
+    read_contextual_note.__name__ = "ReadContextualNote"
+    write_contextual_note.__name__ = "WriteContextualNote"
+
     for tool in tools:
         tool_registry.register(tool)
 

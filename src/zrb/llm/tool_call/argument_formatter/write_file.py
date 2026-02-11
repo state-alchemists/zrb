@@ -20,7 +20,7 @@ async def write_file_formatter(
     """
     Shows a diff or content for write_file tool call.
     """
-    if call.tool_name != "write_file":
+    if call.tool_name != "Write":
         return None
 
     try:
@@ -49,7 +49,7 @@ async def write_files_formatter(
     """
     Shows a diff or content for write_files tool call.
     """
-    if call.tool_name != "write_files":
+    if call.tool_name != "WriteMany":
         return None
 
     try:

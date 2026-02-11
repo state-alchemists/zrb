@@ -27,7 +27,7 @@ def create_list_zrb_task_tool():
         return "\n".join(output)
 
     zrb_cmd = CFG.ROOT_GROUP_NAME
-    list_zrb_tasks_impl.__name__ = f"list_{zrb_cmd}_tasks"
+    list_zrb_tasks_impl.__name__ = f"List{zrb_cmd.capitalize()}Tasks"
     list_zrb_tasks_impl.__doc__ = (
         f"Discovery tool to browse all available {zrb_cmd} tasks and automation groups. "
         "Use this to understand what predefined workflows exist in the current project."
@@ -53,7 +53,7 @@ def create_run_zrb_task_tool():
         return await run_shell_command(command, timeout=timeout)
 
     zrb_cmd = CFG.ROOT_GROUP_NAME
-    run_zrb_task.__name__ = f"run_{zrb_cmd}_task"
+    run_zrb_task.__name__ = f"Run{zrb_cmd.capitalize()}Task"
     run_zrb_task.__doc__ = (
         f"Executes a predefined {zrb_cmd} automation task with specified arguments. "
         "This is the preferred way to run project-specific workflows (e.g., deployments, scaffolding, specialized builds)."

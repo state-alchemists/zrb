@@ -20,7 +20,7 @@ async def replace_in_file_formatter(
     """
     Shows a git diff like UI for replace_in_file tool call.
     """
-    if call.tool_name != "replace_in_file":
+    if call.tool_name != "Edit":
         return None
 
     try:

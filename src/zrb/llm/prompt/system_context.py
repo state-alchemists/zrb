@@ -1,5 +1,6 @@
 import os
 import platform
+import shutil
 import subprocess
 from datetime import datetime
 from typing import Callable
@@ -13,7 +14,7 @@ def system_context(
 ) -> str:
     # Gather information
     now = datetime.now().strftime("%A, %B %d, %Y %H:%M:%S")
-    os_info = f"{platform.system()} {platform.release()}"
+    os_info = platform.platform()
     cwd = os.getcwd()
 
     context_parts = [
@@ -21,6 +22,10 @@ def system_context(
         f"- **Operating System**: {os_info}",
         f"- **Current Directory**: {cwd}",
     ]
+
+    runtime_info = _get_runtime_info()
+    if runtime_info:
+        context_parts.append(f"\n### Installed Tools\n{runtime_info}")
 
     git_info = _get_git_info()
     if git_info:
@@ -31,6 +36,45 @@ def system_context(
         "System Context", "\n".join(context_parts)
     )
     return next_handler(ctx, f"{current_prompt}\n\n{full_context_block}")
+
+
+def _get_runtime_info() -> str:
+    tools = [
+        ("Docker", "docker", ["--version"]),
+        ("Node.js", "node", ["--version"]),
+        ("Python", "python", ["--version"]),
+        ("Java", "java", ["-version"]),
+        ("Go", "go", ["version"]),
+    ]
+
+    info_lines = []
+    for label, cmd, args in tools:
+        version = _get_tool_version(cmd, args)
+        if version:
+            info_lines.append(f"- **{label}**: {version}")
+        else:
+            info_lines.append(f"- **{label}**: Not installed")
+
+    return "\n".join(info_lines)
+
+
+def _get_tool_version(cmd: str, args: list[str]) -> str:
+    if not shutil.which(cmd):
+        return ""
+    try:
+        # Capture both stdout and stderr because some tools (like java) write to stderr
+        res = subprocess.run(
+            [cmd] + args, capture_output=True, text=True, timeout=1
+        )
+        # Note: some tools might exit with non-zero when just asking version (unlikely but possible)
+        # or we might want to capture output even if return code is weird, but strict is safer.
+        if res.returncode == 0:
+            output = res.stdout.strip() or res.stderr.strip()
+            if output:
+                return output.splitlines()[0]
+    except Exception:
+        pass
+    return ""
 
 
 def _get_git_info() -> str:

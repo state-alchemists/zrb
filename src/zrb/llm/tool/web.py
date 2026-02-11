@@ -108,5 +108,8 @@ def _convert_html_to_markdown(html_text: str) -> str:
     return md(str(soup))
 
 
-tool_registry.register(search_internet, aliases=["SearchInternet"])
-tool_registry.register(open_web_page, aliases=["OpenWebPage"])
+search_internet.__name__ = "SearchInternet"
+tool_registry.register(search_internet)
+
+open_web_page.__name__ = "OpenWebPage"
+tool_registry.register(open_web_page)

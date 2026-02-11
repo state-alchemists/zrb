@@ -115,7 +115,7 @@ def create_delegate_to_agent_tool(
         except Exception as e:
             return f"Error executing sub-agent '{agent_name}': {e}"
 
-    delegate_to_agent.__name__ = "delegate_to_agent"
+    delegate_to_agent.__name__ = "DelegateToAgent"
     delegate_to_agent.__doc__ = (
         "Delegates a complex task to a specialized sub-agent. "
         "The sub-agent runs in an isolated environment with a restricted toolset. "

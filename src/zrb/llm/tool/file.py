@@ -279,6 +279,7 @@ def _format_read_header(
         return (
             f"IMPORTANT: The file content has been truncated.\n"
             f"Status: Showing lines {start_idx + 1}-{end_idx} of {total_lines} total lines.\n"
+            f"[SYSTEM SUGGESTION]: Use 'grep' via run_shell_command to find specific function definitions or patterns (e.g., 'grep -n \"def my_func\" {path}') before reading specific line ranges.\n"
             f"Action: To read more of the file, you can use the 'offset' and 'limit' parameters in a subsequent 'read_file' call. "
             f"For example, to read the next section, use offset={next_offset}, limit=2000.\n\n"
         )
@@ -574,10 +575,29 @@ async def analyze_file(path: str, query: str) -> str:
     return str(result)
 
 
-tool_registry.register(list_files, aliases=["List"])
-tool_registry.register(glob_files, aliases=["Glob"])
-tool_registry.register(read_file, aliases=["Read"])
-tool_registry.register(write_file, aliases=["Write"])
-tool_registry.register(replace_in_file, aliases=["Edit"])
-tool_registry.register(search_files, aliases=["Search"])
-tool_registry.register(analyze_file, aliases=["AnalyzeFile"])
+list_files.__name__ = "List"
+tool_registry.register(list_files)
+
+glob_files.__name__ = "Glob"
+tool_registry.register(glob_files)
+
+read_file.__name__ = "Read"
+tool_registry.register(read_file)
+
+read_files.__name__ = "ReadMany"
+tool_registry.register(read_files)
+
+write_file.__name__ = "Write"
+tool_registry.register(write_file)
+
+write_files.__name__ = "WriteMany"
+tool_registry.register(write_files)
+
+replace_in_file.__name__ = "Edit"
+tool_registry.register(replace_in_file)
+
+search_files.__name__ = "Search"
+tool_registry.register(search_files)
+
+analyze_file.__name__ = "AnalyzeFile"
+tool_registry.register(analyze_file)

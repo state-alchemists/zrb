@@ -6,8 +6,8 @@ import signal
 import tempfile
 
 from zrb.context.any_context import zrb_print
-from zrb.llm.tool.registry import tool_registry
 from zrb.util.cli.style import stylize_faint
+from zrb.llm.tool.registry import tool_registry
 
 
 async def run_shell_command(command: str, timeout: int = 30) -> str:
@@ -22,7 +22,9 @@ async def run_shell_command(command: str, timeout: int = 30) -> str:
 
     **CRITICAL SAFETY:**
     - DO NOT run destructive commands (e.g., `rm -rf /`) without absolute certainty.
-    - Prefer specialized tools (like `read_file` or `write_file`) for file operations.
+    - **TIMEOUTS:** If a command times out, it does NOT mean it failed. It likely means it is still running. CHECK STATUS with `ps aux` before taking action.
+    - **LOCKS:** If you encounter a lock file (brew/apt), DO NOT kill the process. Wait or check status.
+    - **FILE I/O:** Do NOT use this tool for reading/writing files (e.g., `cat`, `echo`). Use `read_file` and `write_file` instead.
 
     **USAGE GUIDELINES:**
     - Use non-interactive commands.
@@ -213,7 +215,28 @@ def _format_output(
     if timed_out:
         exit_code_str = "(timed out)"
         stderr_str += f"\nError: Command timed out after {timeout} seconds."
-
+    # Analyze for suggestions
+    suggestion = ""
+    combined_output = (stdout_str + stderr_str).lower()
+    if timed_out:
+        suggestion = (
+            "[SYSTEM SUGGESTION]: The command timed out. "
+            "This often means the process is still running in the background. "
+            "Use 'ps aux | grep <process_name>' to check its status before retrying or killing it."
+        )
+    elif "lock" in combined_output and (
+        "apt" in command or "brew" in command or "dpkg" in command
+    ):
+        suggestion = (
+            "[SYSTEM SUGGESTION]: A package manager lock was detected. "
+            "Another installation process might be running. "
+            "Do NOT force kill it immediately. Wait a moment and check running processes."
+        )
+    elif "permission denied" in combined_output:
+        suggestion = (
+            "[SYSTEM SUGGESTION]: Permission denied. "
+            "Consider if this command requires user usage of 'sudo' (if available) or check file permissions."
+        )
     output_parts = [
         f"Command: {command}",
         f"Directory: {cwd}",
@@ -222,8 +245,10 @@ def _format_output(
         f"Exit Code: {exit_code_str}",
         f"Background PIDs: {', '.join(map(str, bg_pids)) if bg_pids else '(none)'}",
     ]
-
+    if suggestion:
+        output_parts.append(f"\n{suggestion}")
     return "\n".join(output_parts)
 
 
-tool_registry.register(run_shell_command, aliases=["Bash"])
+run_shell_command.__name__ = "Bash"
+tool_registry.register(run_shell_command)

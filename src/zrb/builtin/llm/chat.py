@@ -69,6 +69,7 @@ llm_group.add_task(llm_chat)
 cli.add_task(llm_chat)
 
 
+
 llm_chat.add_response_handler(replace_in_file_response_handler)
 llm_chat.add_toolset(*load_mcp_config())
 for name, func in tool_registry.get_all().items():
@@ -86,7 +87,6 @@ llm_chat.add_tool_factory(
 llm_chat.add_argument_formatter(
     replace_in_file_formatter, write_file_formatter, write_files_formatter
 )
-import os
 
 llm_chat.add_custom_command(get_skill_custom_command(skill_manager))
 
@@ -113,16 +113,16 @@ def _approve_if_path_inside_cwd(args: dict[str, any]) -> bool:
 
 
 llm_chat.add_tool_policy(
-    auto_approve("read_file", _approve_if_path_inside_cwd),
-    auto_approve("read_files", _approve_if_path_inside_cwd),
-    auto_approve("list_files", _approve_if_path_inside_cwd),
-    auto_approve("glob_files", _approve_if_path_inside_cwd),
-    auto_approve("search_files", _approve_if_path_inside_cwd),
-    auto_approve("analyze_file", _approve_if_path_inside_cwd),
-    auto_approve("search_internet"),
-    auto_approve("open_web_page"),
-    auto_approve("read_long_term_note"),
-    auto_approve("read_contextual_note"),
-    auto_approve("activate_skill"),
-    auto_approve("delegate_to_agent"),
+    auto_approve("Read", _approve_if_path_inside_cwd),
+    auto_approve("ReadMany", _approve_if_path_inside_cwd),
+    auto_approve("List", _approve_if_path_inside_cwd),
+    auto_approve("Glob", _approve_if_path_inside_cwd),
+    auto_approve("Search", _approve_if_path_inside_cwd),
+    auto_approve("AnalyzeFile", _approve_if_path_inside_cwd),
+    auto_approve("SearchInternet"),
+    auto_approve("OpenWebPage"),
+    auto_approve("ReadLongTermNote"),
+    auto_approve("ReadContextualNote"),
+    auto_approve("ActivateSkill"),
+    auto_approve("DelegateToAgent"),
 )

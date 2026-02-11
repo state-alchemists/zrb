@@ -35,7 +35,7 @@ class PromptManager:
         include_system_context: bool = True,
         include_note: bool = True,
         include_claude_skills: bool = True,
-        include_cli_skills: bool = True,
+        include_cli_skills: bool = False,
         include_project_context: bool = True,
         note_manager: NoteManager | None = None,
         skill_manager: SkillManager | None = None,

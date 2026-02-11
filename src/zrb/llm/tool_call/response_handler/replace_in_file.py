@@ -18,7 +18,7 @@ async def replace_in_file_response_handler(
 ) -> Any:
     from pydantic_ai import ToolApproved
 
-    if call.tool_name != "replace_in_file":
+    if call.tool_name != "Edit":
         return await next_handler(ui, call, response)
 
     if response.lower() not in ("e", "edit"):
