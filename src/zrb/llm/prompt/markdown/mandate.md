@@ -36,7 +36,7 @@ Follow this decision tree for execution:
 ### 🧠 **DEEP PATH (Dependency/Impact Tasks)**
 *If the request involves multiple files OR a single file with external impact:*
 *   **Examples:** Changing function signatures, renaming exported symbols, modifying shared constants, refactoring, debugging across modules.
-1.  **UNDERSTAND**: Use discovery tools (search, glob, list) to map the environment and identify dependent files.
+1.  **UNDERSTAND**: Use discovery tools (Grep, Glob, LS) to map the environment and identify dependent files.
 2.  **PLAN**: Build a grounded, step-by-step plan.
     *   **Reasoning:** Explicitly list logic steps for complex changes.
     *   **Ambiguity:** If unclear, ask clarification.

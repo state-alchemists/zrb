@@ -1,13 +1,12 @@
 from pydantic_ai import Tool
 
+import os
 from zrb.builtin.group import llm_group
 from zrb.config.config import CFG
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
-from zrb.llm.agent.manager import sub_agent_manager
 from zrb.llm.custom_command import get_skill_custom_command
 from zrb.llm.history_processor.summarizer import create_summarizer_history_processor
-from zrb.llm.note.manager import note_manager
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.skill.manager import skill_manager
 from zrb.llm.task.llm_chat_task import LLMChatTask
@@ -65,10 +64,6 @@ llm_chat = LLMChatTask(
     ui_greeting=lambda ctx: f"{CFG.LLM_ASSISTANT_NAME}\n{CFG.LLM_ASSISTANT_JARGON}",
     ui_jargon=lambda ctx: CFG.LLM_ASSISTANT_JARGON,
 )
-llm_group.add_task(llm_chat)
-cli.add_task(llm_chat)
-
-
 
 llm_chat.add_response_handler(replace_in_file_response_handler)
 llm_chat.add_toolset(*load_mcp_config())
@@ -111,9 +106,9 @@ def _approve_if_path_inside_cwd(args: dict[str, any]) -> bool:
 llm_chat.add_tool_policy(
     auto_approve("Read", _approve_if_path_inside_cwd),
     auto_approve("ReadMany", _approve_if_path_inside_cwd),
-    auto_approve("List", _approve_if_path_inside_cwd),
+    auto_approve("LS", _approve_if_path_inside_cwd),
     auto_approve("Glob", _approve_if_path_inside_cwd),
-    auto_approve("Search", _approve_if_path_inside_cwd),
+    auto_approve("Grep", _approve_if_path_inside_cwd),
     auto_approve("AnalyzeFile", _approve_if_path_inside_cwd),
     auto_approve("SearchInternet"),
     auto_approve("OpenWebPage"),
@@ -122,3 +117,6 @@ llm_chat.add_tool_policy(
     auto_approve("ActivateSkill"),
     auto_approve("DelegateToAgent"),
 )
+
+llm_group.add_task(llm_chat)
+cli.add_task(llm_chat)

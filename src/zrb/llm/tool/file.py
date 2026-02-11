@@ -575,7 +575,7 @@ async def analyze_file(path: str, query: str) -> str:
     return str(result)
 
 
-list_files.__name__ = "List"
+list_files.__name__ = "LS"
 tool_registry.register(list_files)
 
 glob_files.__name__ = "Glob"
@@ -596,7 +596,7 @@ tool_registry.register(write_files)
 replace_in_file.__name__ = "Edit"
 tool_registry.register(replace_in_file)
 
-search_files.__name__ = "Search"
+search_files.__name__ = "Grep"
 tool_registry.register(search_files)
 
 analyze_file.__name__ = "AnalyzeFile"
