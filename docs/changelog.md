@@ -1,5 +1,46 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.2.7
+
+- **Feature: Comprehensive Skill System**:
+  - **Specialized Skill Definitions**: Added comprehensive skill definitions for common workflows including `commit`, `debug`, `init`, `plan`, `pr`, `research`, `review`, `skill-creator`, and `test`.
+  - **Structured Workflows**: Each skill provides detailed, step-by-step guidance for executing specific tasks with proper verification and quality standards.
+  - **User-Invocable Commands**: Skills are configured as user-invocable slash commands for direct access in the chat interface.
+
+- **Improvement: Agent Delegation Protocol**:
+  - **Enhanced Context Requirements**: Updated delegate tool documentation to emphasize that sub-agents are blank slates requiring full context (file contents, architectural details, environment info).
+  - **Clearer Instructions**: Added explicit guidance for providing highly specific instructions when delegating to sub-agents.
+  - **Mandate Alignment**: Updated core mandate to reflect the improved delegation protocol.
+
+- **Refinement: Agent Definitions**:
+  - **Coder Agent Enhancement**: Redefined as "Senior Software Engineer" with focus on code quality, safety, and rigorous verification. Added explicit "Read Before Writing" directive and improved Edit-Test-Fix loop guidance.
+  - **Planner Agent Enhancement**: Redefined as "Systems Architect" with improved discovery phase guidance, risk analysis, and structured roadmap communication.
+  - **Researcher & Reviewer Updates**: Enhanced agent descriptions and directives for better clarity and effectiveness.
+
+- **Improvement: Documentation & Configuration**:
+  - **LLM Integration Docs**: Updated configuration documentation for better clarity on LLM integration and rate limiting.
+  - **Minor UI Tweaks**: Small improvements to TUI interface for better user experience.
+
+## 2.2.6
+
+- **Refactor: LLM Tool Standardization**:
+  - **PascalCase Tool Names**: Renamed all LLM tools to use PascalCase aliases matching Claude standard conventions (e.g., `read_file` → `Read`, `write_file` → `Write`, `replace_in_file` → `Edit`).
+  - **Tool Registry Cleanup**: Removed aliases and custom names from LLM tool registry, simplifying tool loading logic and improving consistency.
+  - **Claude Compatibility**: Updated tool names to match Claude Code conventions for better interoperability.
+
+- **Improvement: Core Documentation Restructuring**:
+  - **Mandate Reorganization**: Completely restructured `mandate.md` with clearer organization into Context & Safety, Systematic Workflow, Communication & Delegation, and Maintenance & Errors sections.
+  - **AGENTS.md Simplification**: Streamlined the agent guide to focus on practical development conventions and directory navigation.
+  - **Enhanced Readability**: Improved documentation structure for better clarity and maintainability.
+
+- **Dependency Management**:
+  - **Termux Compatibility**: Limited `griffe` dependency to version < 2.0 for Termux compatibility, ensuring broader platform support.
+  - **Dependency Updates**: Updated poetry.lock with refreshed dependency resolutions.
+
+- **Configuration Updates**:
+  - **Tool Policy Alignment**: Updated tool policies to match new PascalCase tool names.
+  - **Agent Definition Updates**: Revised agent definitions to reference updated tool names and conventions.
+
 ## 2.2.5
 
 - **Feature: Extended LLM Provider Support**:
