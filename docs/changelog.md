@@ -1,5 +1,12 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.2.11
+
+- **Improvement: Thinking Tag Removal & Summarizer Robustness**:
+  - **Robust Thinking Tag Removal**: Enhanced the thinking tag removal logic in `llm_task.py` to strip ANSI escape codes before removing `<thinking>` tags, ensuring reliable cleanup of internal reasoning blocks from agent responses.
+  - **Summarizer Default Value Fix**: Added proper default value assignment for `summary_window` parameter in `summarizer.py`, preventing potential `None` value errors and improving stability of history summarization.
+  - **Default Summarization Windows**: Change default summarization from 12 to 30
+
 ## 2.2.10
 
 - **Improvement: Summarization & History Processing**:
@@ -36,7 +43,7 @@
 ## 2.2.8
 
 - **Improvement: Enhanced Agent Reasoning & Planning**:
-  - **Structured Thought Process**: Added mandatory `<thinking>...</thinking>` tags for internal reasoning before every response and tool call, improving transparency and decision-making quality.
+  - **Structured Thought Process**: Added mandatory `<thought>...</thought>` tags for internal reasoning before every response and tool call, improving transparency and decision-making quality.
   - **Systematic Workflow Refinement**: Enhanced the DEEP PATH workflow with explicit RESEARCH, STRATEGY, EXECUTION, and FINALITY phases for complex tasks.
   - **Bug Fix Methodology**: Added requirement to empirically reproduce failures with tests or scripts before applying fixes.
 
