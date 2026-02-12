@@ -39,7 +39,11 @@ async def test_summarize_heavy_recent_history():
     # The "Emergency" logic should trigger.
 
     new_history = await summarize_history(
-        messages, agent=agent, summary_window=5, limiter=limiter, token_threshold=10
+        messages,
+        agent=agent,
+        summary_window=5,
+        limiter=limiter,
+        conversational_token_threshold=10,
     )
 
     # Assert

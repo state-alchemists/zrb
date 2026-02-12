@@ -33,9 +33,26 @@ def create_event_handler(
     event_prefix = indentation
 
     def fprint(content: str, preserve_leading_newline: bool = False):
-        if preserve_leading_newline and content.startswith("\n"):
-            return print_event("\n" + content[1:].replace("\n", f"\n{indentation}   "))
-        return print_event(content.replace("\n", f"\n{indentation}   "))
+        # Handle trailing newline specially
+        has_trailing_newline = content.endswith("\n")
+        if has_trailing_newline:
+            content = content[:-1]
+
+        if preserve_leading_newline:
+            if content.startswith("\n"):
+                # Already has newline, preserve it
+                result = "\n" + content[1:].replace("\n", f"\n{indentation}   ")
+            else:
+                # Need to add newline
+                result = "\n" + content.replace("\n", f"\n{indentation}   ")
+        else:
+            result = content.replace("\n", f"\n{indentation}   ")
+
+        # Add back trailing newline without indentation
+        if has_trailing_newline:
+            result += "\n"
+
+        return print_event(result)
 
     async def handle_event(event: "AgentStreamEvent"):
         from pydantic_ai import ToolCallPart
@@ -67,10 +84,9 @@ def create_event_handler(
                         # Print newline for tool param spinner
                         fprint("\n")
 
-                    # Split \r to avoid UI._append_to_output stripping the ANSI start code along with the line
-                    print_event("\r")
+                    # Combine \r with text to ensure proper handling by UI._append_to_output
                     print_event(
-                        f"{indentation}🔄 Prepare tool parameters {progress_char}"
+                        f"\r{indentation}🔄 Prepare tool parameters {progress_char}"
                     )
                     progress_char_index += 1
                     if progress_char_index >= len(progress_char_list):
@@ -80,24 +96,25 @@ def create_event_handler(
             args = _get_truncated_event_part_args(event)
             # If we were showing 'prepare parameters', clear that line first
             if was_tool_call_delta and not show_tool_call_detail:
+                # Clear the line with \r before printing tool call
                 print_event("\r")
                 # event_prefix will naturally overwrite it if it's on the same line
 
             # Use preserve_leading_newline=True for the block header
             fprint(
-                f"{event_prefix}🧰 {event.part.tool_call_id} | {event.part.tool_name} {args}",
+                f"{event_prefix}🧰 {event.part.tool_call_id} | {event.part.tool_name} {args}\n",
                 preserve_leading_newline=True,
             )
             was_tool_call_delta = False
         elif isinstance(event, FunctionToolResultEvent):
             if show_tool_result:
                 fprint(
-                    f"{event_prefix}🔠 {event.tool_call_id} | Return {event.result.content}",
+                    f"{event_prefix}🔠 {event.tool_call_id} | Return {event.result.content}\n",
                     preserve_leading_newline=True,
                 )
             else:
                 fprint(
-                    f"{event_prefix}🔠 {event.tool_call_id} Executed",
+                    f"{event_prefix}🔠 {event.tool_call_id} Executed\n",
                     preserve_leading_newline=True,
                 )
             was_tool_call_delta = False
