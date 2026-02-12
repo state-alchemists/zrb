@@ -601,7 +601,7 @@ def _model_response_to_text(msg: ModelResponse) -> str:
 
 def _get_split_index(messages: list[Any], summary_window: int) -> int:
     """Find the last clean turn start before the summary window."""
-    start_search_idx = max(0, len(messages) - summary_window)
+    start_search_idx = max(0, len(messages) - summary_window - 1)
     for i in range(start_search_idx, 0, -1):
         if is_turn_start(messages[i]):
             return i
