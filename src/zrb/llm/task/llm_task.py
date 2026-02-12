@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import warnings
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -265,6 +266,12 @@ class LLMTask(BaseTask):
         history_manager.update(conversation_name, new_history)
         history_manager.save(conversation_name)
         ctx.log_debug(f"All messages: {new_history}")
+
+        if isinstance(output, str):
+            output = re.sub(
+                r"^<thinking>.*?</thinking>\s*", "", output, flags=re.DOTALL
+            )
+            output = re.sub(r"^<thought>.*?</thought>\s*", "", output, flags=re.DOTALL)
 
         return output
 

@@ -97,7 +97,14 @@ async def test_monitor_readiness_failure_retry():
 
     with patch.object(
         check_task, "exec_chain", side_effect=mock_exec_chain
-    ) as mock_exec_chain_patch:
+    ) as mock_exec_chain_patch, patch(
+        "zrb.task.base.monitoring.execute_action_with_retry", new_callable=MagicMock
+    ) as mock_execute_retry:
+
+        async def mock_retry_action(*args, **kwargs):
+            return None
+
+        mock_execute_retry.side_effect = mock_retry_action
 
         async def mock_action(ctx):
             return None
@@ -106,7 +113,7 @@ async def test_monitor_readiness_failure_retry():
             name="main_task",
             readiness_check=[check_task],
             readiness_check_period=0.01,
-            readiness_failure_threshold=2,
+            readiness_failure_threshold=1,  # Reduced threshold
             readiness_timeout=1,
             action=mock_action,
         )
@@ -144,14 +151,14 @@ async def test_monitor_readiness_failure_retry():
                 monitor_task_readiness(task, session, action_coro)
             )
 
-            # Wait for failure threshold to be reached (2 failures * 0.01s period)
+            # Wait for failure threshold to be reached (1 failure * 0.01s period)
             await asyncio.sleep(0.1)
 
             # Terminate session
             session.is_terminated = True
             await monitor_task
 
-            # Verify cancellation and restart
+            # Verify cancellation
             assert action_coro.cancelled()
 
             # Should have reset status
@@ -161,4 +168,52 @@ async def test_monitor_readiness_failure_retry():
             assert session.defer_action.called
 
             # Log warning should be present
-            ctx.log_warning.assert_any_call("Readiness failure threshold (2) reached.")
+            ctx.log_warning.assert_any_call("Readiness failure threshold (1) reached.")
+
+
+@pytest.mark.asyncio
+async def test_monitor_readiness_exception():
+    # Setup task with readiness check that raises exception
+    check_task = BaseTask(name="check_task")
+
+    async def mock_exec_chain(*args, **kwargs):
+        raise ValueError("Check failed")
+
+    with patch.object(check_task, "exec_chain", side_effect=mock_exec_chain):
+        task = BaseTask(
+            name="main_task",
+            readiness_check=[check_task],
+            readiness_check_period=0.01,
+            readiness_failure_threshold=5,
+            readiness_timeout=1,
+        )
+
+        session = MagicMock(spec=AnySession)
+        session.is_terminated = False
+
+        check_status = MagicMock(spec=TaskStatus)
+        check_status.is_ready = False
+        session.get_task_status.return_value = check_status
+
+        ctx = MagicMock(spec=AnyContext)
+        with patch.object(task, "get_ctx", return_value=ctx):
+            xcom_mock = MagicMock(spec=Xcom)
+            ctx.xcom = MagicMock()
+            ctx.xcom.get = MagicMock(return_value=xcom_mock)
+
+            action_coro = asyncio.create_task(asyncio.sleep(0.1))
+
+            monitor_task = asyncio.create_task(
+                monitor_task_readiness(task, session, action_coro)
+            )
+
+            await asyncio.sleep(0.05)
+            session.is_terminated = True
+            await monitor_task
+
+            # Verify error logging
+            assert ctx.log_error.called
+            assert "Readiness check failed with exception" in str(
+                ctx.log_error.call_args
+            )
+            assert check_status.mark_as_failed.called

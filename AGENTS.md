@@ -41,6 +41,12 @@ Zrb (Zaruba) is a Python-based task automation tool and library.
 - **Safety:** Use `zrb.util` for common file/string operations.
 - **Output:** Use `ctx.print` (in tasks) or standard logging.
 
+### 3.4. Refactoring Guidelines
+- **Structure:** Public functions (used by other modules) must be at the top of the file.
+- **Function Size:** Functions should be short enough to fit on a single screen (concise logic).
+- **Ordering:** Detailed helper functions should be located below the functions that call them (caller top, callee bottom).
+- **Dependencies:** Organize imports cleanly at the top.
+
 ## 4. Key Patterns
 - **White-Labeling:** Use `CFG.ROOT_GROUP_NAME` instead of hardcoding "zrb" in strings displayed to users.
 - **Lazy Loading:** Tasks and tools are often loaded lazily to speed up CLI startup.

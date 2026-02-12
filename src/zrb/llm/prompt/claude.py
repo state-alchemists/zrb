@@ -38,15 +38,32 @@ def create_project_context_prompt():
     ) -> str:
         search_dirs = _get_search_directories()
 
-        # Scan for context files
+        # 1. Try to read and inject content directly
+        injected_content = []
+        total_length = 0
+
+        for filename in ["CLAUDE.md", "AGENTS.md"]:
+            content = _get_combined_content(filename, search_dirs)
+            if content:
+                injected_content.append(f"## Content of {filename}\n{content}")
+                total_length += len(content)
+
+        # If content is reasonably small, inject it directly
+        if 0 < total_length < 10000:
+            return next_handler(
+                ctx,
+                f"{current_prompt}\n\n{make_markdown_section('Project Documentation (Loaded)', '\n\n'.join(injected_content))}",
+            )
+
+        # 2. Fallback: List files if too large or empty (but found)
+        # Scan for context files again (since we might have skipped injection due to size)
         found_files = []
         for filename in ["CLAUDE.md", "AGENTS.md"]:
             for directory in search_dirs:
                 file_path = directory / filename
                 if file_path.exists() and file_path.is_file():
                     found_files.append(f"- `{file_path}`")
-                    # Stop searching for this file once found (prioritize closest to CWD)
-                    break
+                    break  # Stop searching for this file once found
 
         if not found_files:
             return next_handler(ctx, current_prompt)

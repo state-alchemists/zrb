@@ -1,10 +1,8 @@
-from __future__ import annotations
-
-import difflib
 import json
 import os
 from typing import TYPE_CHECKING
 
+from zrb.llm.tool_call.argument_formatter.util import format_diff
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.util.cli.markdown import render_markdown
 
@@ -14,7 +12,7 @@ if TYPE_CHECKING:
 
 async def write_file_formatter(
     ui: UIProtocol,
-    call: ToolCallPart,
+    call: "ToolCallPart",
     args_section: str,
 ) -> str | None:
     """
@@ -43,7 +41,7 @@ async def write_file_formatter(
 
 async def write_files_formatter(
     ui: UIProtocol,
-    call: ToolCallPart,
+    call: "ToolCallPart",
     args_section: str,
 ) -> str | None:
     """
@@ -93,63 +91,27 @@ def _format_single_write(path: str, new_content: str, mode: str) -> str | None:
         except Exception:
             pass
 
+    final_new_content = new_content
     if mode == "a":
-        # For append, we just show what is being appended
-        indent = " " * 7
-        width = _get_width(indent)
-        # We might want to show it as a diff addition
-        diff_str = "".join(
-            difflib.unified_diff(
-                [],
-                new_content.splitlines(keepends=True),
-                fromfile=path,
-                tofile=path,
-            )
-        )
-        # unified_diff adds header which we might want to clean up or keep
-        # Let's just show it as a code block with 'diff' if it looks better
-        formatted_content = render_markdown(f"```diff\n{diff_str}\n```", width=width)
-        formatted_content = "\n".join(
-            [f"{indent}{line}" for line in formatted_content.splitlines()]
-        )
-        return f"       📝 Appending to: {path}\n{formatted_content}\n"
+        final_new_content = old_content + new_content
 
-    # For mode 'w'
-    if file_exists:
-        diff = difflib.unified_diff(
-            old_content.splitlines(keepends=True),
-            new_content.splitlines(keepends=True),
-            fromfile=path,
-            tofile=path,
-        )
-        diff_str = "".join(diff)
-        if not diff_str:
-            return f"       📄 File: {path} (No changes)\n"
+    diff_md = format_diff(old_content, final_new_content, path)
+    if not diff_md:
+        return f"       📄 File: {path} (No changes)\n"
 
-        indent = " " * 7
-        width = _get_width(indent)
-        formatted_diff = render_markdown(f"```diff\n{diff_str}\n```", width=width)
-        formatted_diff = "\n".join(
-            [f"{indent}{line}" for line in formatted_diff.splitlines()]
-        )
+    indent = " " * 7
+    width = _get_width(indent)
+
+    formatted_diff = render_markdown(diff_md, width=width)
+    formatted_diff = "\n".join(
+        [f"{indent}{line}" for line in formatted_diff.splitlines()]
+    )
+
+    if mode == "a":
+        return f"       📝 Appending to: {path}\n{formatted_diff}\n"
+    elif file_exists:
         return f"       📄 Overwriting: {path}\n{formatted_diff}\n"
     else:
-        # New file
-        indent = " " * 7
-        width = _get_width(indent)
-        # Show as additions in diff
-        diff_str = "".join(
-            difflib.unified_diff(
-                [],
-                new_content.splitlines(keepends=True),
-                fromfile="/dev/null",
-                tofile=path,
-            )
-        )
-        formatted_diff = render_markdown(f"```diff\n{diff_str}\n```", width=width)
-        formatted_diff = "\n".join(
-            [f"{indent}{line}" for line in formatted_diff.splitlines()]
-        )
         return f"       🆕 New File: {path}\n{formatted_diff}\n"
 
 

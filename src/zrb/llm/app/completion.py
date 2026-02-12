@@ -1,7 +1,7 @@
 import os
 import time
 from datetime import datetime
-from typing import Iterable, get_args
+from typing import Callable, Iterable, get_args
 
 from prompt_toolkit.completion import (
     CompleteEvent,
@@ -69,26 +69,20 @@ class InputCompleter(Completer):
     def get_completions(
         self, document: Document, complete_event: CompleteEvent
     ) -> Iterable[Completion]:
+        """Get completions for the current input.
+
+        Args:
+            document: The current document being edited.
+            complete_event: The completion event.
+
+        Yields:
+            Completion objects for the current input.
+        """
         text_before_cursor = document.text_before_cursor.lstrip()
         word = document.get_word_before_cursor(WORD=True)
 
-        all_commands = (
-            self._exit_commands
-            + self._attach_commands
-            + self._summarize_commands
-            + self._info_commands
-            + self._save_commands
-            + self._load_commands
-            + self._redirect_output_commands
-            + self._set_model_commands
-            + self._exec_commands
-        )
-        custom_command_names = [cc.command for cc in self._custom_commands]
-        all_command_names = all_commands + custom_command_names
-        command_prefixes = {cmd[0] for cmd in all_command_names if cmd}
-
-        # 1. Command and Argument Completion
-        if text_before_cursor and text_before_cursor[0] in command_prefixes:
+        # Check if we're typing a command
+        if self._is_typing_command(text_before_cursor):
             parts = text_before_cursor.split()
             # Check if we are typing the command itself or arguments
             is_typing_command = len(parts) == 1 and not text_before_cursor.endswith(" ")
@@ -97,187 +91,14 @@ class InputCompleter(Completer):
             )
 
             if is_typing_command:
-                lower_word = word.lower()
-                prefix = text_before_cursor[0]
-                # Standard commands
-                for cmd in self._exit_commands:
-                    if cmd.startswith(prefix) and cmd.lower().startswith(lower_word):
-                        yield Completion(
-                            cmd,
-                            start_position=-len(word),
-                            display_meta="Exit conversation",
-                        )
-                for cmd in self._attach_commands:
-                    if cmd.startswith(prefix) and cmd.lower().startswith(lower_word):
-                        yield Completion(
-                            cmd,
-                            start_position=-len(word),
-                            display_meta=f"Attach file (i.e., {cmd} <path>)",
-                        )
-                for cmd in self._summarize_commands:
-                    if cmd.startswith(prefix) and cmd.lower().startswith(lower_word):
-                        yield Completion(
-                            cmd,
-                            start_position=-len(word),
-                            display_meta="Summarize conversation",
-                        )
-                for cmd in self._info_commands:
-                    if cmd.startswith(prefix) and cmd.lower().startswith(lower_word):
-                        yield Completion(
-                            cmd, start_position=-len(word), display_meta="Show help"
-                        )
-                for cmd in self._save_commands:
-                    if cmd.startswith(prefix) and cmd.lower().startswith(lower_word):
-                        yield Completion(
-                            cmd,
-                            start_position=-len(word),
-                            display_meta=f"Save conversation (i.e., {cmd} <name>)",
-                        )
-                for cmd in self._load_commands:
-                    if cmd.startswith(prefix) and cmd.lower().startswith(lower_word):
-                        yield Completion(
-                            cmd,
-                            start_position=-len(word),
-                            display_meta=f"Load conversation (i.e., {cmd} <name>)",
-                        )
-                for cmd in self._redirect_output_commands:
-                    if cmd.startswith(prefix) and cmd.lower().startswith(lower_word):
-                        yield Completion(
-                            cmd,
-                            start_position=-len(word),
-                            display_meta=f"Save last response (i.e., {cmd} <file>)",
-                        )
-                for cmd in self._set_model_commands:
-                    if cmd.startswith(prefix) and cmd.lower().startswith(lower_word):
-                        yield Completion(
-                            cmd,
-                            start_position=-len(word),
-                            display_meta=f"Set Model (i.e., {cmd} <model-name>)",
-                        )
-                for cmd in self._exec_commands:
-                    if cmd.startswith(prefix) and cmd.lower().startswith(lower_word):
-                        yield Completion(
-                            cmd,
-                            start_position=-len(word),
-                            display_meta=f"Execute CLI command (i.e., {cmd} <command>)",
-                        )
-                # Custom commands
-                for custom_cmd in self._custom_commands:
-                    if custom_cmd.command.startswith(
-                        prefix
-                    ) and custom_cmd.command.lower().startswith(lower_word):
-                        usage = custom_cmd.description
-                        yield Completion(
-                            custom_cmd.command,
-                            start_position=-len(word),
-                            display_meta=usage,
-                        )
-                return
+                yield from self._get_command_completions(text_before_cursor, word)
+            elif is_typing_arg:
+                yield from self._get_argument_completions(
+                    text_before_cursor, parts, complete_event
+                )
+            return
 
-            if is_typing_arg:
-                cmd = parts[0]
-                arg_prefix = text_before_cursor[len(cmd) :].lstrip()
-
-                # Custom Command Argument completion
-                for custom_cmd in self._custom_commands:
-                    if cmd == custom_cmd.command:
-                        usage = custom_cmd.description
-                        # We don't have specific arg completion for custom commands yet,
-                        # but we show the usage as meta for the current word being typed
-                        # Actually Task 4 says:
-                        # "When user type "/init c", the autocompletion will be "/init c", with description "/init <dir>"."
-                        # This means we should yield a completion that matches current word but has the usage as description.
-                        yield Completion(
-                            arg_prefix,
-                            start_position=-len(arg_prefix),
-                            display_meta=usage,
-                        )
-                        return
-
-                # Exec Command: Suggest History
-                if self._is_command(cmd, self._exec_commands):
-                    # Filter history
-                    matches = [h for h in self._cmd_history if h.startswith(arg_prefix)]
-                    # Sort matches by length (shorter first) as heuristic? Or just recent?
-                    # Since _cmd_history is set (unique), we lose order.
-                    # But Python 3.7+ dicts preserve insertion order, so if we used dict keys, we kept order.
-                    # Let's assume _get_cmd_history returns recent last.
-                    # We reverse to show most recent first.
-                    for h in reversed(matches):
-                        yield Completion(
-                            h,
-                            start_position=-len(arg_prefix),
-                            display_meta="Shell Command",
-                        )
-                    return
-
-                # Check if we are typing the second part (argument) strictly
-                # (Re-evaluating logic for other commands which only take 1 arg usually)
-                if not (
-                    (len(parts) == 1 and text_before_cursor.endswith(" "))
-                    or (len(parts) == 2 and not text_before_cursor.endswith(" "))
-                ):
-                    return
-
-                arg_prefix = parts[1] if len(parts) == 2 else ""
-
-                # Save Command: Suggest Timestamp
-                if self._is_command(cmd, self._save_commands):
-                    ts = datetime.now().strftime("%Y-%m-%d-%H-%M")
-                    if ts.startswith(arg_prefix):
-                        yield Completion(
-                            ts,
-                            start_position=-len(arg_prefix),
-                            display_meta="Session Name",
-                        )
-                    return
-
-                # Redirect Command: Suggest Timestamp.txt
-                if self._is_command(cmd, self._redirect_output_commands):
-                    ts = datetime.now().strftime("%Y-%m-%d-%H-%M.txt")
-                    if ts.startswith(arg_prefix):
-                        yield Completion(
-                            ts,
-                            start_position=-len(arg_prefix),
-                            display_meta="File Name",
-                        )
-                    return
-
-                # Set Model Command: Suggest Models
-                if self._is_command(cmd, self._set_model_commands):
-                    yield from self._get_fuzzy_completions(
-                        arg_prefix,
-                        self._known_models,
-                        only_files=False,
-                        display_meta="Model Name",
-                    )
-                    return
-
-                # Load Command: Search History
-                if self._is_command(cmd, self._load_commands):
-                    results = self._history_manager.search(arg_prefix)
-                    for res in results[:10]:
-                        yield Completion(
-                            res,
-                            start_position=-len(arg_prefix),
-                            display_meta="Session Name",
-                        )
-                    return
-
-                # Attach Command: Suggest Files
-                if self._is_command(cmd, self._attach_commands):
-                    yield from self._get_file_completions(
-                        arg_prefix,
-                        complete_event,
-                        only_files=True,
-                        display_meta="File Path",
-                    )
-                    return
-
-                # Other commands (Exit, Info, Summarize) need no completion
-                return
-
-        # 2. File Completion (@)
+        # Check for file completion with @ prefix
         if word.startswith("@"):
             path_part = word[1:]
             yield from self._get_file_completions(
@@ -319,8 +140,316 @@ class InputCompleter(Completer):
 
         return list(unique_cmds.keys())
 
+    def _get_all_command_names(self) -> list[str]:
+        """Get all command names including custom commands.
+
+        Returns:
+            List of all command names.
+        """
+        all_commands = (
+            self._exit_commands
+            + self._attach_commands
+            + self._summarize_commands
+            + self._info_commands
+            + self._save_commands
+            + self._load_commands
+            + self._redirect_output_commands
+            + self._set_model_commands
+            + self._exec_commands
+        )
+        custom_command_names = [cc.command for cc in self._custom_commands]
+        return all_commands + custom_command_names
+
+    def _is_typing_command(self, text_before_cursor: str) -> bool:
+        """Check if the user is typing a command.
+
+        Args:
+            text_before_cursor: The text before the cursor.
+
+        Returns:
+            True if the user is typing a command, False otherwise.
+        """
+        if not text_before_cursor:
+            return False
+
+        all_command_names = self._get_all_command_names()
+        command_prefixes = {cmd[0] for cmd in all_command_names if cmd}
+        return text_before_cursor[0] in command_prefixes
+
+    def _yield_command_completions(
+        self,
+        commands: list[str],
+        prefix: str,
+        lower_word: str,
+        word: str,
+        display_meta: str | Callable[[str], str],
+    ) -> Iterable[Completion]:
+        """Yield completions for a list of commands.
+
+        Args:
+            commands: List of command strings.
+            prefix: The prefix character of the command.
+            lower_word: The lowercase version of the current word.
+            word: The current word being typed.
+            display_meta: Display metadata string or callable that takes a command.
+
+        Yields:
+            Completion objects for the commands.
+        """
+        for cmd in commands:
+            if cmd.startswith(prefix) and cmd.lower().startswith(lower_word):
+                meta = display_meta(cmd) if callable(display_meta) else display_meta
+                yield Completion(
+                    cmd,
+                    start_position=-len(word),
+                    display_meta=meta,
+                )
+
+    def _get_command_completions(
+        self, text_before_cursor: str, word: str
+    ) -> Iterable[Completion]:
+        """Get completions for command names.
+
+        Args:
+            text_before_cursor: The text before the cursor.
+            word: The current word being typed.
+
+        Yields:
+            Completion objects for command names.
+        """
+        lower_word = word.lower()
+        prefix = text_before_cursor[0]
+
+        # Standard commands
+        yield from self._yield_command_completions(
+            self._exit_commands, prefix, lower_word, word, "Exit conversation"
+        )
+        yield from self._yield_command_completions(
+            self._attach_commands,
+            prefix,
+            lower_word,
+            word,
+            lambda cmd: f"Attach file (i.e., {cmd} <path>)",
+        )
+        yield from self._yield_command_completions(
+            self._summarize_commands, prefix, lower_word, word, "Summarize conversation"
+        )
+        yield from self._yield_command_completions(
+            self._info_commands, prefix, lower_word, word, "Show help"
+        )
+        yield from self._yield_command_completions(
+            self._save_commands,
+            prefix,
+            lower_word,
+            word,
+            lambda cmd: f"Save conversation (i.e., {cmd} <name>)",
+        )
+        yield from self._yield_command_completions(
+            self._load_commands,
+            prefix,
+            lower_word,
+            word,
+            lambda cmd: f"Load conversation (i.e., {cmd} <name>)",
+        )
+        yield from self._yield_command_completions(
+            self._redirect_output_commands,
+            prefix,
+            lower_word,
+            word,
+            lambda cmd: f"Save last response (i.e., {cmd} <file>)",
+        )
+        yield from self._yield_command_completions(
+            self._set_model_commands,
+            prefix,
+            lower_word,
+            word,
+            lambda cmd: f"Set Model (i.e., {cmd} <model-name>)",
+        )
+        yield from self._yield_command_completions(
+            self._exec_commands,
+            prefix,
+            lower_word,
+            word,
+            lambda cmd: f"Execute CLI command (i.e., {cmd} <command>)",
+        )
+
+        # Custom commands
+        for custom_cmd in self._custom_commands:
+            if custom_cmd.command.startswith(
+                prefix
+            ) and custom_cmd.command.lower().startswith(lower_word):
+                usage = custom_cmd.description
+                yield Completion(
+                    custom_cmd.command,
+                    start_position=-len(word),
+                    display_meta=usage,
+                )
+
     def _is_command(self, cmd: str, cmd_list: list[str]) -> bool:
         return cmd.lower() in [c.lower() for c in cmd_list]
+
+    def _get_exec_command_completions(self, arg_prefix: str) -> Iterable[Completion]:
+        """Get completions for exec command arguments (shell command history).
+
+        Args:
+            arg_prefix: The prefix of the argument being typed.
+
+        Yields:
+            Completion objects for shell commands from history.
+        """
+        matches = [h for h in self._cmd_history if h.startswith(arg_prefix)]
+        # Sort matches by length (shorter first) as heuristic? Or just recent?
+        # Since _cmd_history is set (unique), we lose order.
+        # But Python 3.7+ dicts preserve insertion order, so if we used dict keys, we kept order.
+        # Let's assume _get_cmd_history returns recent last.
+        # We reverse to show most recent first.
+        for h in reversed(matches):
+            yield Completion(
+                h,
+                start_position=-len(arg_prefix),
+                display_meta="Shell Command",
+            )
+
+    def _get_save_command_completions(self, arg_prefix: str) -> Iterable[Completion]:
+        """Get completions for save command arguments (timestamp).
+
+        Args:
+            arg_prefix: The prefix of the argument being typed.
+
+        Yields:
+            Completion objects for save command.
+        """
+        ts = datetime.now().strftime("%Y-%m-%d-%H-%M")
+        if ts.startswith(arg_prefix):
+            yield Completion(
+                ts,
+                start_position=-len(arg_prefix),
+                display_meta="Session Name",
+            )
+
+    def _get_redirect_command_completions(
+        self, arg_prefix: str
+    ) -> Iterable[Completion]:
+        """Get completions for redirect command arguments (timestamp.txt).
+
+        Args:
+            arg_prefix: The prefix of the argument being typed.
+
+        Yields:
+            Completion objects for redirect command.
+        """
+        ts = datetime.now().strftime("%Y-%m-%d-%H-%M.txt")
+        if ts.startswith(arg_prefix):
+            yield Completion(
+                ts,
+                start_position=-len(arg_prefix),
+                display_meta="File Name",
+            )
+
+    def _get_set_model_completions(self, arg_prefix: str) -> Iterable[Completion]:
+        """Get completions for set model command arguments (model names).
+
+        Args:
+            arg_prefix: The prefix of the argument being typed.
+
+        Yields:
+            Completion objects for model names.
+        """
+        yield from self._get_fuzzy_completions(
+            arg_prefix,
+            self._known_models,
+            only_files=False,
+            display_meta="Model Name",
+        )
+
+    def _get_load_command_completions(self, arg_prefix: str) -> Iterable[Completion]:
+        """Get completions for load command arguments (session history).
+
+        Args:
+            arg_prefix: The prefix of the argument being typed.
+
+        Yields:
+            Completion objects for session names.
+        """
+        results = self._history_manager.search(arg_prefix)
+        for res in results[:10]:
+            yield Completion(
+                res,
+                start_position=-len(arg_prefix),
+                display_meta="Session Name",
+            )
+
+    def _get_attach_command_completions(
+        self, arg_prefix: str, complete_event: CompleteEvent
+    ) -> Iterable[Completion]:
+        """Get completions for attach command arguments (file paths).
+
+        Args:
+            arg_prefix: The prefix of the argument being typed.
+            complete_event: The completion event.
+
+        Yields:
+            Completion objects for file paths.
+        """
+        yield from self._get_file_completions(
+            arg_prefix,
+            complete_event,
+            only_files=True,
+            display_meta="File Path",
+        )
+
+    def _get_argument_completions(
+        self, text_before_cursor: str, parts: list[str], complete_event: CompleteEvent
+    ) -> Iterable[Completion]:
+        """Get completions for command arguments.
+
+        Args:
+            text_before_cursor: The text before the cursor.
+            parts: The split parts of the command.
+            complete_event: The completion event.
+
+        Yields:
+            Completion objects for command arguments.
+        """
+        cmd = parts[0]
+        arg_prefix = text_before_cursor[len(cmd) :].lstrip()
+
+        # Custom Command Argument completion
+        for custom_cmd in self._custom_commands:
+            if cmd == custom_cmd.command:
+                usage = custom_cmd.description
+                yield Completion(
+                    arg_prefix,
+                    start_position=-len(arg_prefix),
+                    display_meta=usage,
+                )
+                return
+
+        # Exec Command: Suggest History
+        if self._is_command(cmd, self._exec_commands):
+            yield from self._get_exec_command_completions(arg_prefix)
+            return
+
+        # Check if we are typing the second part (argument) strictly
+        if not (
+            (len(parts) == 1 and text_before_cursor.endswith(" "))
+            or (len(parts) == 2 and not text_before_cursor.endswith(" "))
+        ):
+            return
+
+        arg_prefix = parts[1] if len(parts) == 2 else ""
+
+        # Handle specific command argument completions
+        if self._is_command(cmd, self._save_commands):
+            yield from self._get_save_command_completions(arg_prefix)
+        elif self._is_command(cmd, self._redirect_output_commands):
+            yield from self._get_redirect_command_completions(arg_prefix)
+        elif self._is_command(cmd, self._set_model_commands):
+            yield from self._get_set_model_completions(arg_prefix)
+        elif self._is_command(cmd, self._load_commands):
+            yield from self._get_load_command_completions(arg_prefix)
+        elif self._is_command(cmd, self._attach_commands):
+            yield from self._get_attach_command_completions(arg_prefix, complete_event)
 
     def _get_file_completions(
         self,
