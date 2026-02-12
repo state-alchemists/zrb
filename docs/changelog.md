@@ -1,5 +1,11 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.2.12
+
+- **Bug Fix: Corrupted Mandate Restoration**:
+  - **Mandate.md Corruption Fix**: Restored missing content in `src/zrb/llm/prompt/markdown/mandate.md` that was corrupted by placeholder text ("...") in commit c8e077e6 ("Add feature/fix bug").
+  - **Complete Section Restoration**: Recovered detailed thought block instructions and systematic workflow guidance from tag 2.2.9, merging them with improved delegation rules and examples from the current version.
+
 ## 2.2.11
 
 - **Improvement: Thinking Tag Removal & Summarizer Robustness**:
