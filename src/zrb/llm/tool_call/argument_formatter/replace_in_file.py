@@ -1,10 +1,8 @@
-from __future__ import annotations
-
-import difflib
 import json
 import os
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
+from zrb.llm.tool_call.argument_formatter.util import format_diff
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.util.cli.markdown import render_markdown
 
@@ -14,7 +12,7 @@ if TYPE_CHECKING:
 
 async def replace_in_file_formatter(
     ui: UIProtocol,
-    call: ToolCallPart,
+    call: "ToolCallPart",
     args_section: str,
 ) -> str | None:
     """
@@ -50,14 +48,10 @@ async def replace_in_file_formatter(
         if content == new_content:
             return None
 
-        diff = difflib.unified_diff(
-            content.splitlines(keepends=True),
-            new_content.splitlines(keepends=True),
-            fromfile=path,
-            tofile=path,
-        )
+        diff_md = format_diff(content, new_content, path)
+        if not diff_md:
+            return None
 
-        diff_str = "".join(diff)
         indent = " " * 7
         width = None
         try:
@@ -65,7 +59,7 @@ async def replace_in_file_formatter(
         except Exception:
             pass
 
-        formatted_diff = render_markdown(f"```diff\n{diff_str}\n```", width=width)
+        formatted_diff = render_markdown(diff_md, width=width)
         formatted_diff = "\n".join(
             [f"{indent}{line}" for line in formatted_diff.splitlines()]
         )

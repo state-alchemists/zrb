@@ -58,7 +58,7 @@ The structure of the final output MUST be as follows:
     </key_knowledge>
 
     <reasoning_summary>
-        <!-- Summary of key logical deductions, architectural decisions, and "Why" behind choices made in <thought> blocks. -->
+        <!-- Summary of key logical deductions, architectural decisions, and "Why" behind choices made in <thinking> blocks. -->
         <!-- Example: "Decided to use a Factory pattern for the Auth module to support multiple providers easily." -->
     </reasoning_summary>
 
