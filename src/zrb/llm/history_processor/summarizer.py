@@ -43,6 +43,8 @@ def create_summarizer_history_processor(
         )
     if message_token_threshold is None:
         message_token_threshold = CFG.LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD
+    if summary_window is None:
+        summary_window = CFG.LLM_HISTORY_SUMMARIZATION_WINDOW
 
     async def process_history(messages: "list[ModelMessage]") -> "list[ModelMessage]":
         # 1. Summarize individual fat messages first
@@ -71,8 +73,7 @@ def create_summarizer_history_processor(
             zrb_print(
                 stylize_yellow(
                     (
-                        f"\n  Token threshold exceeded "
-                        f"({current_tokens}/{conversational_token_threshold}). "
+                        f"\n  History limits exceeded (tokens: {current_tokens}/{conversational_token_threshold}, messages: {len(messages)}/{summary_window}). "
                         "Compressing conversation..."
                     )
                 ),
@@ -150,8 +151,6 @@ async def summarize_history(
     """
     try:
         # 1. Setup Configs
-        if summary_window is None:
-            summary_window = CFG.LLM_HISTORY_SUMMARIZATION_WINDOW
         llm_limiter = limiter or default_llm_limiter
         if conversational_token_threshold is None:
             conversational_token_threshold = (

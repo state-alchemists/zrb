@@ -31,6 +31,7 @@ from zrb.llm.util.stream_response import (
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_attr, get_bool_attr, get_str_list_attr
+from zrb.util.cli.style import remove_style
 from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
@@ -268,10 +269,12 @@ class LLMTask(BaseTask):
         ctx.log_debug(f"All messages: {new_history}")
 
         if isinstance(output, str):
-            output = re.sub(
-                r"^<thinking>.*?</thinking>\s*", "", output, flags=re.DOTALL
-            )
-            output = re.sub(r"^<thought>.*?</thought>\s*", "", output, flags=re.DOTALL)
+            # Remove ANSI escape codes first to ensure regex patterns work correctly
+            output = remove_style(output)
+            # Remove thinking/thought tags (without ^ anchor to match anywhere in string)
+            # Note: \s* is removed to preserve whitespace formatting (matching pydantic_ai behavior)
+            output = re.sub(r"<thinking>.*?</thinking>", "", output, flags=re.DOTALL)
+            output = re.sub(r"<thought>.*?</thought>", "", output, flags=re.DOTALL)
 
         return output
 
