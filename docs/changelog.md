@@ -1,5 +1,16 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.2.10
+
+- **Improvement: Summarization & History Processing**:
+  - **Robust Summarizer**: Major refactoring of the history summarization logic to improve stability and context retention.
+  - **Stream Response Handling**: Enhanced handling of streaming responses during summarization to prevent interruptions.
+
+- **Improvement: UI/UX & Visualization**:
+  - **Enhanced Tool Visualization**: Improved the visual presentation of file operations (`write_file`, `replace_in_file`) in the chat interface, making code changes easier to review.
+  - **Completion Rendering**: Refined the completion rendering logic in `completion.py` for a smoother user experience.
+  - **Prompt Tweaks**: Minor updates to core prompts and mandates to align with visual improvements.
+
 ## 2.2.9
 
 - **Feature: Enhanced Two-Tier Summarization System**:

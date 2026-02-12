@@ -19,12 +19,17 @@ def load_config(repo_dir: str):
     Returns:
         SubTreeConfig: The loaded subtree configuration.
     """
-    from zrb.util.git_subtree_model import SubTreeConfig
+    import json
+
+    from zrb.util.git_subtree_model import SingleSubTreeConfig, SubTreeConfig
 
     file_path = os.path.join(repo_dir, "subtrees.json")
     if not os.path.exists(file_path):
         return SubTreeConfig(data={})
-    return SubTreeConfig.model_validate_json(read_file(file_path))
+    raw_data = json.loads(read_file(file_path))
+    return SubTreeConfig(
+        data={k: SingleSubTreeConfig(**v) for k, v in raw_data.get("data", {}).items()}
+    )
 
 
 def save_config(repo_dir: str, config: "SubTreeConfig"):
