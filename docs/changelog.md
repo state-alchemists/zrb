@@ -1,5 +1,26 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.2.14
+
+- **Improvement: Enhanced LLM Chat UI/UX**:
+  - **Improved Clipboard Handling**: Added robust fallback to in-memory clipboard when `pyperclip` is unavailable, preventing crashes on systems without clipboard support.
+  - **Better Navigation Controls**: Added F6 key to toggle focus between input and output fields, and improved Tab/Shift+Tab navigation between UI elements.
+  - **Enhanced Output Field Scrolling**: Implemented proper cursor position preservation during content updates, ensuring smooth scrolling experience.
+  - **Prevent Interruptions During Thinking**: Blocked new messages, custom commands, and execution commands while the LLM is processing, preventing state corruption.
+
+- **Improvement: Keybinding & Input Refinements**:
+  - **Smart Focus Management**: Modified printable character redirection to only occur when no text is selected in the output field, allowing text copying without losing selection.
+  - **Better History Navigation**: Restricted Up/Down arrow history navigation to only work when no completion menu is visible, preventing conflicts with autocomplete.
+  - **Enhanced Multiline Handling**: Improved handling of multiline inputs with trailing backslashes and better Enter key behavior.
+
+- **Bug Fix: ANSI Escape Sequence Handling**:
+  - **Robust Lexer Updates**: Enhanced the CLI style lexer to properly handle both real ESC characters (`\x1B`) and literal string representations (`\033`) in ANSI escape sequences.
+  - **Accurate Banner Width Calculation**: Updated ASCII art banner generation to correctly calculate visible length excluding ANSI escape codes, ensuring proper alignment.
+
+- **Improvement: ASCII Art & Visual Presentation**:
+  - **Proper ANSI-Aware Padding**: Modified banner padding logic to account for ANSI escape sequences when calculating visual width, preventing misaligned ASCII art displays.
+  - **Consistent Output Formatting**: Added global line prefix function to ensure consistent indentation of command outputs in the chat history.
+
 ## 2.2.13
 
 - **Bug Fix: Robust Thinking Tag Removal**:
