@@ -798,18 +798,11 @@ class UI:
             # Read output streams
             async def read_stream(stream, is_stderr=False):
                 while True:
-                    nonlocal is_first_output
                     line = await stream.readline()
                     if not line:
                         break
                     decoded_line = line.decode("utf-8", errors="replace")
-                    decoded_line = decoded_line.replace("\n", "\n  ").replace(
-                        "\r", "\r  "
-                    )
-                    if is_first_output:
-                        decoded_line = f"  {decoded_line}"
-                        is_first_output = False
-                    # Could use a different color for stderr if desired
+                    # Indentation is now handled globally by get_line_prefix
                     self.append_to_output(decoded_line, end="")
 
             await asyncio.gather(

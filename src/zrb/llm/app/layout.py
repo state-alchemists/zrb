@@ -149,6 +149,9 @@ def create_input_field(
 def create_output_field(
     greeting: str, lexer: Lexer, key_bindings: KeyBindings | None = None
 ) -> TextArea:
+    def get_line_prefix(line_number: int, wrap_number: int) -> AnyFormattedText:
+        return " "
+
     # Create TextArea with cursor at the end to ensure bottom is visible
     text_area = TextArea(
         text=greeting.rstrip() + "\n\n",
@@ -158,6 +161,7 @@ def create_output_field(
         lexer=lexer,
         focus_on_click=True,
         focusable=True,
+        get_line_prefix=get_line_prefix,
         style="class:output_field",
         dont_extend_height=False,  # Can expand/contract as needed
     )
@@ -206,7 +210,7 @@ def create_layout(
                     Window(height=1),  # Top margin
                     Frame(
                         input_field,
-                        title="Message (ENTER to send, CTRL+j for newline, ESC to cancel)",
+                        title="Message (ENTER to send, CTRL+j for newline, ESC to cancel, TAB to switch focus)",
                         style="class:input-frame",
                     ),
                     Window(height=1),  # Bottom padding
