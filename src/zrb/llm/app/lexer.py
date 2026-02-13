@@ -15,7 +15,8 @@ class CLIStyleLexer(Lexer):
 
         # Pre-process all lines to handle state across newlines
         # Regex to find ANSI escape sequences (CSI)
-        ansi_escape = re.compile(r"\x1B\[([0-9;]*)m")
+        # We handle both real ESC (\x1B) and literal string \033
+        ansi_escape = re.compile(r"(?:\x1B|\\033)\[([0-9;]*)m")
 
         for lineno, line in enumerate(lines):
             tokens = []

@@ -1,7 +1,15 @@
 import os
 import random
+import re
 
 from zrb.config.config import CFG
+
+ANSI_ESCAPE = re.compile(r"(?:\x1B|\\033)(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+
+
+def _get_visible_length(text: str) -> int:
+    """Return the visible length of a string, excluding ANSI escape sequences."""
+    return len(ANSI_ESCAPE.sub("", text))
 
 
 def create_banner(art: str | None = None, text: str | None = None) -> str:
@@ -17,11 +25,13 @@ def create_banner(art: str | None = None, text: str | None = None) -> str:
     if not art_lines:
         return text
 
-    # Find the maximum line length in the art
-    max_art_length = max(len(line) for line in art_lines)
+    # Find the maximum visual line length in the art
+    max_art_length = max(_get_visible_length(line) for line in art_lines)
 
-    # Pad all art lines to the same length
-    padded_art_lines = [line.ljust(max_art_length) for line in art_lines]
+    # Pad all art lines to the same visual length
+    padded_art_lines = [
+        line + " " * (max_art_length - _get_visible_length(line)) for line in art_lines
+    ]
 
     # Split text into lines
     text_lines = text.splitlines()
