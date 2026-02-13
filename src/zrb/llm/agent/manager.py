@@ -75,18 +75,20 @@ class SubAgentManager:
     def _get_tool_registry(self) -> dict[str, Callable]:
         return self._tool_registry
 
-    def add_tool(self, tool: Callable):
+    def add_tool(self, *tool: Callable):
         """
-        Register a tool.
+        Register tools.
         """
-        tool_name = getattr(tool, "__name__", str(tool))
-        self._tool_registry[tool_name] = tool
+        for single_tool in tool:
+            tool_name = getattr(single_tool, "__name__", str(single_tool))
+            self._tool_registry[tool_name] = single_tool
 
-    def add_tool_factory(self, factory: Callable[[AnyContext], Tool | ToolFuncEither]):
+    def add_tool_factory(self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]):
         """
-        Register a tool factory.
+        Register tool factories.
         """
-        self._tool_factories.append(factory)
+        for single_factory in factory:
+            self._tool_factories.append(single_factory)
 
     def scan(
         self, search_dirs: list[str | Path] | None = None

@@ -1,6 +1,5 @@
-import os
-
 from zrb.builtin.group import llm_group
+from zrb.builtin.llm.chat_tool_policy import approve_if_path_inside_cwd
 from zrb.config.config import CFG
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
@@ -88,10 +87,10 @@ llm_chat = LLMChatTask(
     ui_jargon=lambda ctx: CFG.LLM_ASSISTANT_JARGON,
 )
 
-llm_chat.add_response_handler(replace_in_file_response_handler)
+# Add toolsets
 llm_chat.add_toolset(*load_mcp_config())
 
-# Explicitly add tools to both LLMChatTask and sub_agent_manager
+# Add tools
 tools = [
     run_shell_command,
     analyze_code,
@@ -107,10 +106,10 @@ tools = [
     search_internet,
     open_web_page,
 ]
-for tool in tools:
-    llm_chat.add_tool(tool)
-    sub_agent_manager.add_tool(tool)
+llm_chat.add_tool(*tools)
+sub_agent_manager.add_tool(*tools)
 
+# Add tool factories
 tool_factories = [
     lambda ctx: create_list_zrb_task_tool(),
     lambda ctx: create_run_zrb_task_tool(),
@@ -121,48 +120,28 @@ tool_factories = [
     lambda ctx: create_write_contextual_note_tool(),
     lambda ctx: create_write_long_term_note_tool(),
 ]
-for factory in tool_factories:
-    llm_chat.add_tool_factory(factory)
-    sub_agent_manager.add_tool_factory(factory)
+llm_chat.add_tool_factory(*tool_factories)
+sub_agent_manager.add_tool_factory(*tool_factories)
 
+# Add argument formatter (show arguments when asking for user confirmation)
 llm_chat.add_argument_formatter(
     replace_in_file_formatter, write_file_formatter, write_files_formatter
 )
 
-llm_chat.add_custom_command(get_skill_custom_command(skill_manager))
+# Add response handler (update tool)
+llm_chat.add_response_handler(replace_in_file_response_handler)
 
-
-def _is_path_inside_cwd(path: str) -> bool:
-    try:
-        abs_path = os.path.abspath(os.path.expanduser(path))
-        cwd = os.getcwd()
-        return abs_path == cwd or abs_path.startswith(cwd + os.sep)
-    except Exception:
-        return False
-
-
-def _approve_if_path_inside_cwd(args: dict[str, any]) -> bool:
-    path = args.get("path")
-    paths = args.get("paths")
-    if path is not None:
-        return _is_path_inside_cwd(str(path))
-    if paths is not None:
-        if isinstance(paths, list):
-            return all(_is_path_inside_cwd(str(p)) for p in paths)
-        return False
-    return True
-
-
+# Add tool policies (automatically approve/disprove tool calling)
 llm_chat.add_tool_policy(
     replace_in_file_validation_policy,
     read_file_validation_policy,
     read_files_validation_policy,
-    auto_approve("Read", _approve_if_path_inside_cwd),
-    auto_approve("ReadMany", _approve_if_path_inside_cwd),
-    auto_approve("LS", _approve_if_path_inside_cwd),
-    auto_approve("Glob", _approve_if_path_inside_cwd),
-    auto_approve("Grep", _approve_if_path_inside_cwd),
-    auto_approve("AnalyzeFile", _approve_if_path_inside_cwd),
+    auto_approve("Read", approve_if_path_inside_cwd),
+    auto_approve("ReadMany", approve_if_path_inside_cwd),
+    auto_approve("LS", approve_if_path_inside_cwd),
+    auto_approve("Glob", approve_if_path_inside_cwd),
+    auto_approve("Grep", approve_if_path_inside_cwd),
+    auto_approve("AnalyzeFile", approve_if_path_inside_cwd),
     auto_approve("SearchInternet"),
     auto_approve("OpenWebPage"),
     auto_approve("ReadLongTermNote"),
@@ -170,6 +149,9 @@ llm_chat.add_tool_policy(
     auto_approve("ActivateSkill"),
     auto_approve("DelegateToAgent"),
 )
+
+# Add custom command (slash commands)
+llm_chat.add_custom_command(get_skill_custom_command(skill_manager))
 
 llm_group.add_task(llm_chat)
 cli.add_task(llm_chat)
