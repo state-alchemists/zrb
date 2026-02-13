@@ -33,6 +33,7 @@ from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_attr, get_bool_attr, get_str_list_attr
 from zrb.util.cli.style import remove_style
 from zrb.util.string.name import get_random_name
+from zrb.util.string.thinking import remove_thinking_tags
 
 if TYPE_CHECKING:
     from pydantic_ai import Tool, UserContent
@@ -271,10 +272,8 @@ class LLMTask(BaseTask):
         if isinstance(output, str):
             # Remove ANSI escape codes first to ensure regex patterns work correctly
             output = remove_style(output)
-            # Remove thinking/thought tags (without ^ anchor to match anywhere in string)
-            # Note: \s* is removed to preserve whitespace formatting (matching pydantic_ai behavior)
-            output = re.sub(r"<thinking>.*?</thinking>", "", output, flags=re.DOTALL)
-            output = re.sub(r"<thought>.*?</thought>", "", output, flags=re.DOTALL)
+            # Remove thinking/thought tags with proper nesting handling
+            output = remove_thinking_tags(output)
 
         return output
 

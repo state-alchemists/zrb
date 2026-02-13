@@ -11,35 +11,40 @@ def split_history(
     limiter: LLMLimiter,
     conversational_token_threshold: int,
 ) -> tuple[list[Any], list[Any]]:
-    # We always protect the last 2 messages (the active turn) as a bare minimum
-    # to prevent the agent from losing its immediate context/data.
+    """
+    Split history into messages to summarize and messages to keep.
+
+    Strategy:
+    1. Try to keep the last `summary_window` messages intact
+    2. If that's too many tokens, find a safe split point
+    3. If no safe split found, use a best-effort approach that minimizes damage
+    """
+    # First, try to keep the last summary_window messages
     split_idx = get_split_index(messages, summary_window)
     if split_idx <= 0:
         # Fallback: If no clean turn start found, protect the last 2 messages
         split_idx = max(0, len(messages) - 2)
+
     to_summarize = messages[:split_idx]
     to_keep = messages[split_idx:]
-    # Handle 'to_summarize'
-    if not to_summarize:
-        # If nothing to summarize (short history) but token count is high,
-        # we need to find a safe split point that doesn't break tool call/return pairs.
-        split_idx = find_safe_split_index(
-            messages, limiter, conversational_token_threshold
-        )
-        if split_idx > 0:
-            to_summarize = messages[:split_idx]
-            to_keep = messages[split_idx:]
-        else:
-            # No safe split found - we have to summarize everything
-            # This is risky but necessary when token count is too high
-            zrb_print(
-                stylize_yellow(
-                    "  Warning: No safe split point found, summarizing entire history..."
-                ),
-                plain=True,
+
+    # Check if what we're keeping is within token limits
+    if to_keep:
+        tokens_to_keep = limiter.count_tokens(to_keep)
+        if tokens_to_keep > conversational_token_threshold * 0.7:
+            # What we want to keep is too large, need to find a better split
+            split_idx = find_safe_split_index(
+                messages, limiter, conversational_token_threshold
             )
-            to_summarize = messages
-            to_keep = []
+            if split_idx > 0:
+                to_summarize = messages[:split_idx]
+                to_keep = messages[split_idx:]
+            else:
+                # No safe split found - use best-effort approach
+                to_summarize, to_keep = find_best_effort_split(
+                    messages, limiter, conversational_token_threshold
+                )
+
     return to_summarize, to_keep
 
 
@@ -73,15 +78,17 @@ def find_safe_split_index(
         to_keep = messages[split_idx:]
         tokens_to_keep = limiter.count_tokens(to_keep)
 
-        if tokens_to_keep > token_threshold * 0.7:
-            # We reached the point where it's too big.
-            # We can't keep more context. Stop searching lower indices.
-            break
+        if tokens_to_keep > token_threshold * 0.8:
+            # This split keeps too many tokens, skip it
+            # But continue searching for splits that keep fewer messages
+            continue
 
         if is_split_safe(messages, split_idx, tool_pairs):
             best_safe_split = split_idx
             if is_turn_start(messages[split_idx]):
                 best_boundary_split = split_idx
+                # Found a safe split at turn boundary - good enough
+                break
 
     if best_boundary_split != -1:
         return best_boundary_split
@@ -89,25 +96,211 @@ def find_safe_split_index(
 
 
 def get_tool_pairs(messages: list[Any]) -> dict[str, dict[str, int | None]]:
+    """
+    Extract tool call/return pairs from messages.
+
+    Returns a dict mapping tool_call_id to {"call_idx": index, "return_idx": index}
+    where indices are message indices containing the call/return.
+    """
     from pydantic_ai.messages import ToolCallPart, ToolReturnPart
 
     tool_pairs = {}
     for i, msg in enumerate(messages):
-        msg_parts = getattr(msg, "parts", [])
+        # Safely get message parts
+        try:
+            msg_parts = getattr(msg, "parts", [])
+        except AttributeError:
+            # Not a message with parts, skip
+            continue
+
         for part in msg_parts:
             if isinstance(part, ToolCallPart):
-                tool_call_id = getattr(part, "tool_call_id", None)
-                if tool_call_id is not None:
-                    tool_pairs[tool_call_id] = {"call_idx": i, "return_idx": None}
+                try:
+                    tool_call_id = part.tool_call_id
+                    if tool_call_id:
+                        if tool_call_id not in tool_pairs:
+                            tool_pairs[tool_call_id] = {
+                                "call_idx": i,
+                                "return_idx": None,
+                            }
+                        else:
+                            # Update existing entry (in case return was seen first)
+                            tool_pairs[tool_call_id]["call_idx"] = i
+                except AttributeError:
+                    # ToolCallPart without tool_call_id (shouldn't happen but be defensive)
+                    continue
+
             elif isinstance(part, ToolReturnPart):
-                tool_call_id = getattr(part, "tool_call_id", None)
-                if tool_call_id is not None:
-                    if tool_call_id in tool_pairs:
-                        tool_pairs[tool_call_id]["return_idx"] = i
-                    else:
-                        # Orphaned return or return preceding call (unlikely but handle)
-                        tool_pairs[tool_call_id] = {"call_idx": None, "return_idx": i}
+                try:
+                    tool_call_id = part.tool_call_id
+                    if tool_call_id:
+                        if tool_call_id in tool_pairs:
+                            tool_pairs[tool_call_id]["return_idx"] = i
+                        else:
+                            # Return seen before call (orphaned or call in summarized messages)
+                            tool_pairs[tool_call_id] = {
+                                "call_idx": None,
+                                "return_idx": i,
+                            }
+                except AttributeError:
+                    # ToolReturnPart without tool_call_id (shouldn't happen but be defensive)
+                    continue
+
     return tool_pairs
+
+
+def validate_tool_pair_integrity(messages: list[Any]) -> tuple[bool, list[str]]:
+    """
+    Check if all tool calls in the messages have corresponding returns.
+
+    Returns (is_valid, list_of_problems)
+    """
+    from pydantic_ai.messages import ToolCallPart, ToolReturnPart
+
+    from zrb.util.cli.style import stylize_yellow
+
+    problems = []
+    tool_calls_without_returns = []
+    tool_returns_without_calls = []
+
+    # Track tool calls and returns
+    tool_calls = {}
+    tool_returns = {}
+
+    for i, msg in enumerate(messages):
+        try:
+            msg_parts = getattr(msg, "parts", [])
+        except AttributeError:
+            continue
+
+        for part in msg_parts:
+            if isinstance(part, ToolCallPart):
+                try:
+                    tool_call_id = part.tool_call_id
+                    if tool_call_id:
+                        tool_calls[tool_call_id] = i
+                except AttributeError:
+                    continue
+            elif isinstance(part, ToolReturnPart):
+                try:
+                    tool_call_id = part.tool_call_id
+                    if tool_call_id:
+                        tool_returns[tool_call_id] = i
+                except AttributeError:
+                    continue
+
+    # Check for calls without returns
+    for tool_call_id, call_idx in tool_calls.items():
+        if tool_call_id not in tool_returns:
+            tool_calls_without_returns.append(
+                f"Tool call {tool_call_id} at message {call_idx} has no return"
+            )
+
+    # Check for returns without calls (orphaned)
+    for tool_call_id, return_idx in tool_returns.items():
+        if tool_call_id not in tool_calls:
+            tool_returns_without_calls.append(
+                f"Tool return {tool_call_id} at message {return_idx} has no call"
+            )
+
+    if tool_calls_without_returns:
+        problems.extend(tool_calls_without_returns)
+
+    if tool_returns_without_calls:
+        problems.extend(tool_returns_without_calls)
+
+    is_valid = len(problems) == 0
+    return is_valid, problems
+
+
+def find_best_effort_split(
+    messages: list[Any], limiter: "LLMLimiter", token_threshold: int
+) -> tuple[list[Any], list[Any]]:
+    """
+    Find the best possible split when no perfectly safe split exists.
+
+    Strategy:
+    1. Try to keep as much recent context as possible while staying under token limit
+    2. NEVER break complete tool call/return pairs (Pydantic AI requirement)
+    3. Only allow breaking incomplete pairs (calls without returns or returns without calls)
+    4. Prefer splits that break fewer incomplete pairs
+    """
+    from zrb.util.cli.style import stylize_yellow
+
+    tool_pairs = get_tool_pairs(messages)
+
+    best_split_idx = -1
+    best_broken_incomplete_pairs = float("inf")
+    best_score = -1
+
+    # Try all possible split points from the end
+    for split_idx in range(len(messages) - 1, 0, -1):
+        to_keep = messages[split_idx:]
+        tokens_to_keep = limiter.count_tokens(to_keep)
+
+        # Must stay under token limit (with some buffer)
+        if tokens_to_keep > token_threshold * 0.8:
+            continue
+
+        # Check if this split would break any complete tool pairs
+        # This is ABSOLUTELY NOT ALLOWED per Pydantic AI requirements
+        would_break_complete_pair = False
+        broken_incomplete_pairs = 0
+
+        for indices in tool_pairs.values():
+            call_idx = indices["call_idx"]
+            return_idx = indices["return_idx"]
+
+            if call_idx is not None and return_idx is not None:
+                # Complete pair - must not be separated
+                call_before_split = call_idx < split_idx
+                return_before_split = return_idx < split_idx
+                if call_before_split != return_before_split:
+                    # This would separate a call from its return - NOT ALLOWED
+                    would_break_complete_pair = True
+                    break
+            elif call_idx is not None and return_idx is None:
+                # Call without return - if call is before split, we lose it
+                if call_idx < split_idx:
+                    broken_incomplete_pairs += 1
+            elif call_idx is None and return_idx is not None:
+                # Return without call (orphaned) - if return is before split, we lose it
+                if return_idx < split_idx:
+                    broken_incomplete_pairs += 1
+
+        if would_break_complete_pair:
+            # Cannot use this split - it violates Pydantic AI requirements
+            continue
+
+        # Calculate a score (higher is better)
+        # Prefer splits with fewer broken incomplete pairs and more messages kept
+        score = (len(to_keep) * 10) - (broken_incomplete_pairs * 50)
+
+        if score > best_score:
+            best_score = score
+            best_split_idx = split_idx
+            best_broken_incomplete_pairs = broken_incomplete_pairs
+
+    if best_split_idx > 0:
+        to_summarize = messages[:best_split_idx]
+        to_keep = messages[best_split_idx:]
+        if best_broken_incomplete_pairs > 0:
+            zrb_print(
+                stylize_yellow(
+                    f"  Warning: Best-effort split loses {best_broken_incomplete_pairs} incomplete tool call/return pair(s)"
+                ),
+                plain=True,
+            )
+        return to_summarize, to_keep
+    else:
+        # Last resort: keep only the last message
+        zrb_print(
+            stylize_yellow(
+                "  Warning: Could not find any split that preserves tool call/return pairs, keeping only last message"
+            ),
+            plain=True,
+        )
+        return messages[:-1], messages[-1:]
 
 
 def is_split_safe(
@@ -115,8 +308,11 @@ def is_split_safe(
 ) -> bool:
     """
     Check if splitting at the given index would break tool call/return pairs.
+
+    Returns False if splitting would separate a tool call from its return,
+    or if it would leave a tool call without its return in the kept messages.
     """
-    for indices in tool_pairs.values():
+    for tool_call_id, indices in tool_pairs.items():
         call_idx = indices["call_idx"]
         return_idx = indices["return_idx"]
 
@@ -127,16 +323,27 @@ def is_split_safe(
 
             # They must be on the same side of the split
             if call_before_split != return_before_split:
+                # This would separate a call from its return - unsafe
                 return False
 
         # If we have only a call (no return yet)
         elif call_idx is not None and return_idx is None:
             # Tool call without return - if it's before split, we'd lose it
+            # If it's after split, it stays in kept messages without return (also problematic)
+            # Actually, a call without return in kept messages is OK - the return might come later
+            # But if call is before split and we summarize it, we lose the call context
             if call_idx < split_idx:
+                # Call would be summarized away - we lose the tool call context
                 return False
+            # Call is in kept messages, return might come in future - this is OK
 
         # If we have only a return (no call)
         elif call_idx is None and return_idx is not None:
-            return False
+            # Orphaned return - already broken, but we should try to keep it with context
+            # Don't reject split just because of orphaned return
+            # However, if the return is before split, it will be summarized away
+            # If it's after split, it stays as orphaned in kept messages
+            # Neither case breaks new tool calls, so we allow it
+            pass
 
     return True

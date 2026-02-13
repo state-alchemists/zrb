@@ -8,55 +8,23 @@ from zrb.llm.agent.summarizer import (
     create_conversational_summarizer_agent,
     create_message_summarizer_agent,
 )
-from zrb.llm.config.limiter import LLMLimiter
-from zrb.llm.config.limiter import is_turn_start as is_turn_start_impl
+from zrb.llm.config.limiter import LLMLimiter, is_turn_start
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.summarizer.chunk_processor import (
-    chunk_and_summarize as chunk_and_summarize_impl,
+    chunk_and_summarize,
+    consolidate_summaries,
 )
-from zrb.llm.summarizer.chunk_processor import (
-    consolidate_summaries as consolidate_summaries_impl,
-)
-from zrb.llm.summarizer.history_splitter import (
-    find_safe_split_index as find_safe_split_index_impl,
-)
-from zrb.llm.summarizer.history_splitter import get_tool_pairs as get_tool_pairs_impl
-from zrb.llm.summarizer.history_splitter import is_split_safe as is_split_safe_impl
 from zrb.llm.summarizer.history_splitter import (
     split_history,
 )
-from zrb.llm.summarizer.message_converter import message_to_text as message_to_text_impl
-from zrb.llm.summarizer.message_converter import (
-    model_request_to_text as model_request_to_text_impl,
-)
-from zrb.llm.summarizer.message_converter import (
-    model_response_to_text as model_response_to_text_impl,
-)
-from zrb.llm.summarizer.message_processor import (
-    process_message_for_summarization as process_message_for_summarization_impl,
-)
-from zrb.llm.summarizer.message_processor import (
-    process_tool_return_part as process_tool_return_part_impl,
-)
-from zrb.llm.summarizer.text_summarizer import (
-    summarize_long_text as summarize_long_text_impl,
-)
-from zrb.llm.summarizer.text_summarizer import (
-    summarize_text,
-)
-from zrb.llm.summarizer.text_summarizer import (
-    summarize_text_plain as summarize_text_plain_impl,
-)
+from zrb.llm.summarizer.message_processor import process_message_for_summarization
 from zrb.util.cli.style import stylize_error, stylize_yellow
 from zrb.util.markdown import make_markdown_section
 
 if TYPE_CHECKING:
-    from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, Part
+    from pydantic_ai.messages import ModelMessage
 else:
     ModelMessage = Any
-    ModelRequest = Any
-    ModelResponse = Any
-    Part = Any
 
 
 def create_summarizer_history_processor(
@@ -164,7 +132,7 @@ async def summarize_messages(
         summarizer_agent = agent or create_message_summarizer_agent()
         new_messages = []
         for msg in messages:
-            new_msg = await process_message_for_summarization_impl(
+            new_msg = await process_message_for_summarization(
                 msg, summarizer_agent, llm_limiter, message_token_threshold
             )
             new_messages.append(new_msg)
@@ -204,9 +172,23 @@ async def summarize_history(
         )
         if not to_summarize:
             return messages
+
+        # Validate tool pair integrity in kept messages
+        from zrb.llm.summarizer.history_splitter import validate_tool_pair_integrity
+        from zrb.util.cli.style import stylize_yellow
+
+        is_valid, problems = validate_tool_pair_integrity(to_keep)
+        if not is_valid and problems:
+            zrb_print(
+                stylize_yellow(
+                    f"  Warning: Kept messages have tool pair issues: {', '.join(problems[:3])}"
+                    + ("..." if len(problems) > 3 else "")
+                ),
+                plain=True,
+            )
         # 2. Iterative Summarization of Historical turns
         summarizer_agent = agent or create_conversational_summarizer_agent()
-        summary_text = await chunk_and_summarize_impl(
+        summary_text = await chunk_and_summarize(
             to_summarize, summarizer_agent, llm_limiter, conversational_token_threshold
         )
         # 3. Final Aggregation and potential re-summarization
@@ -217,7 +199,7 @@ async def summarize_history(
             conversational_token_threshold * 0.8
         )
         if is_near_threshold or has_multiple_snapshots:
-            summary_text = await consolidate_summaries_impl(
+            summary_text = await consolidate_summaries(
                 summary_text,
                 summarizer_agent,
                 conversational_token_threshold,
@@ -254,11 +236,3 @@ def _create_summary_model_request(summary_text: str) -> Any:
     except Exception as e:
         zrb_print(stylize_error(f"  Failed to create summary message: {e}"), plain=True)
         return None
-
-
-# Re-export public functions from submodules
-message_to_text = message_to_text_impl
-
-# Note: Private functions are no longer re-exported.
-# Tests should import from zrb.llm.summarizer module instead.
-# is_turn_start is available from zrb.llm.config.limiter
