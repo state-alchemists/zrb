@@ -1,6 +1,9 @@
 import os
 
-from zrb.builtin.llm.chat import _approve_if_path_inside_cwd, _is_path_inside_cwd
+from zrb.builtin.llm.chat_tool_policy import (
+    _is_path_inside_cwd,
+    approve_if_path_inside_cwd,
+)
 
 
 def test_is_path_inside_cwd():
@@ -17,15 +20,15 @@ def test_is_path_inside_cwd():
 def test_approve_if_path_inside_cwd():
     cwd = os.getcwd()
     # Test 'path' argument
-    assert _approve_if_path_inside_cwd({"path": cwd}) is True
-    assert _approve_if_path_inside_cwd({"path": os.path.dirname(cwd)}) is False
+    assert approve_if_path_inside_cwd({"path": cwd}) is True
+    assert approve_if_path_inside_cwd({"path": os.path.dirname(cwd)}) is False
 
     # Test 'paths' argument
     assert (
-        _approve_if_path_inside_cwd({"paths": [cwd, os.path.join(cwd, "abc")]}) is True
+        approve_if_path_inside_cwd({"paths": [cwd, os.path.join(cwd, "abc")]}) is True
     )
-    assert _approve_if_path_inside_cwd({"paths": [cwd, os.path.dirname(cwd)]}) is False
-    assert _approve_if_path_inside_cwd({"paths": "not a list"}) is False
+    assert approve_if_path_inside_cwd({"paths": [cwd, os.path.dirname(cwd)]}) is False
+    assert approve_if_path_inside_cwd({"paths": "not a list"}) is False
 
     # Test no path arguments
-    assert _approve_if_path_inside_cwd({}) is True
+    assert approve_if_path_inside_cwd({}) is True
