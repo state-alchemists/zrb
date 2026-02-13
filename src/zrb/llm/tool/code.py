@@ -12,7 +12,6 @@ from zrb.llm.prompt.prompt import (
     get_repo_summarizer_system_prompt,
 )
 from zrb.llm.tool.file import DEFAULT_EXCLUDED_PATTERNS
-from zrb.llm.tool.registry import tool_registry
 from zrb.util.file import is_path_excluded
 
 _DEFAULT_EXTENSIONS = [
@@ -259,4 +258,3 @@ async def _run_summarization(agent, query, content_buffer, summarized_infos):
 
 
 analyze_code.__name__ = "AnalyzeCode"
-tool_registry.register(analyze_code)

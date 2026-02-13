@@ -1,15 +1,22 @@
+from __future__ import annotations
+
 import os
 import uuid
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
 from pydantic_ai import Agent
 
+if TYPE_CHECKING:
+    from pydantic_ai import Tool
+    from pydantic_ai.tools import ToolFuncEither
+
+    from zrb.context.any_context import AnyContext
+
 from zrb.config.config import CFG
 from zrb.llm.agent.common import create_agent
-from zrb.llm.tool.registry import tool_registry as default_tool_registry
 from zrb.util.load import load_module_from_path
 
 _IGNORE_DIRS = [
@@ -55,7 +62,8 @@ class SubAgentManager:
         max_depth: int = 1,
         ignore_dirs: list[str] | None = None,
     ):
-        self._tool_registry = tool_registry
+        self._tool_registry = tool_registry if tool_registry is not None else {}
+        self._tool_factories: list[Callable[[AnyContext], Tool | ToolFuncEither]] = []
         self._root_dir = root_dir
         self._search_dirs = search_dirs
         self._max_depth = max_depth
@@ -65,9 +73,22 @@ class SubAgentManager:
             self.scan(self._search_dirs)
 
     def _get_tool_registry(self) -> dict[str, Callable]:
-        if self._tool_registry is not None:
-            return self._tool_registry
-        return default_tool_registry.get_all()
+        return self._tool_registry
+
+    def add_tool(self, *tool: Callable):
+        """
+        Register tools.
+        """
+        for single_tool in tool:
+            tool_name = getattr(single_tool, "__name__", str(single_tool))
+            self._tool_registry[tool_name] = single_tool
+
+    def add_tool_factory(self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]):
+        """
+        Register tool factories.
+        """
+        for single_factory in factory:
+            self._tool_factories.append(single_factory)
 
     def scan(
         self, search_dirs: list[str | Path] | None = None
@@ -308,7 +329,9 @@ class SubAgentManager:
                     break
         return agent
 
-    def create_agent(self, name: str) -> Agent[None, Any] | None:
+    def create_agent(
+        self, name: str, ctx: AnyContext | None = None
+    ) -> Agent[None, Any] | None:
         definition = self.get_agent_definition(name)
         if not definition:
             return None
@@ -323,11 +346,25 @@ class SubAgentManager:
                 pass
 
         # Resolve Tools
+        if ctx is None:
+            from zrb.context.context import Context
+
+            ctx = Context()
+
         resolved_tools = []
         registry = self._get_tool_registry()
+        # Add tools from registry
         for tool_name in definition.tools:
             if tool_name in registry:
                 resolved_tools.append(registry[tool_name])
+
+        # Add tools from factories
+        for factory in self._tool_factories:
+            tool = factory(ctx)
+            if isinstance(tool, list):
+                resolved_tools.extend(tool)
+            else:
+                resolved_tools.append(tool)
 
         return create_agent(
             model=definition.model,

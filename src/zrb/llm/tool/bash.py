@@ -6,7 +6,6 @@ import signal
 import tempfile
 
 from zrb.context.any_context import zrb_print
-from zrb.llm.tool.registry import tool_registry
 from zrb.util.cli.style import stylize_faint
 
 
@@ -251,4 +250,3 @@ def _format_output(
 
 
 run_shell_command.__name__ = "Bash"
-tool_registry.register(run_shell_command)

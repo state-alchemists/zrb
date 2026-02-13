@@ -8,7 +8,6 @@ from zrb.llm.agent.manager import sub_agent_manager as default_sub_agent_manager
 from zrb.llm.agent.run_agent import current_ui, run_agent
 from zrb.llm.agent.std_ui import StdUI
 from zrb.llm.config.limiter import llm_limiter
-from zrb.llm.tool.registry import tool_registry
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
@@ -127,5 +126,4 @@ def create_delegate_to_agent_tool(
         "\n- `task`: The specific, detailed instruction or query for the sub-agent. Include exactly what needs to be done."
         "\n- `additional_context`: MANDATORY context. Include relevant file contents (if not too large), environment details (OS, CWD), and any other data the sub-agent needs to work independently."
     )
-    tool_registry.register(delegate_to_agent)
     return delegate_to_agent

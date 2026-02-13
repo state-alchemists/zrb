@@ -3,20 +3,31 @@ from typing import Callable
 
 from zrb.llm.note.manager import NoteManager
 from zrb.llm.note.manager import note_manager as default_note_manager
-from zrb.llm.tool.registry import tool_registry
 
 
-def create_note_tools(note_manager: NoteManager | None = None) -> list[Callable]:
+def create_read_long_term_note_tool(
+    note_manager: NoteManager | None = None,
+) -> Callable:
     if note_manager is None:
         note_manager = default_note_manager
 
     async def read_long_term_note() -> str:
         """
         Retrieves your GLOBAL 🧠 Long-Term Memory.
-        This contains established preferences, personal facts, and context spanning multiple projects.
-        ALWAYS check this at the start of a session.
+        This contains established preferences, personal facts, and context spanning
+        multiple projects. ALWAYS check this at the start of a session.
         """
         return note_manager.read("~")
+
+    read_long_term_note.__name__ = "ReadLongTermNote"
+    return read_long_term_note
+
+
+def create_write_long_term_note_tool(
+    note_manager: NoteManager | None = None,
+) -> Callable:
+    if note_manager is None:
+        note_manager = default_note_manager
 
     async def write_long_term_note(content: str) -> str:
         """
@@ -31,6 +42,16 @@ def create_note_tools(note_manager: NoteManager | None = None) -> list[Callable]
         note_manager.write("~", content)
         return "Global long-term note saved."
 
+    write_long_term_note.__name__ = "WriteLongTermNote"
+    return write_long_term_note
+
+
+def create_read_contextual_note_tool(
+    note_manager: NoteManager | None = None,
+) -> Callable:
+    if note_manager is None:
+        note_manager = default_note_manager
+
     async def read_contextual_note(path: str | None = None) -> str:
         """
         Retrieves LOCAL 📝 Contextual Notes for a specific project or directory.
@@ -42,6 +63,16 @@ def create_note_tools(note_manager: NoteManager | None = None) -> list[Callable]
         if path is None:
             path = os.getcwd()
         return note_manager.read(path)
+
+    read_contextual_note.__name__ = "ReadContextualNote"
+    return read_contextual_note
+
+
+def create_write_contextual_note_tool(
+    note_manager: NoteManager | None = None,
+) -> Callable:
+    if note_manager is None:
+        note_manager = default_note_manager
 
     async def write_contextual_note(content: str, path: str | None = None) -> str:
         """
@@ -59,19 +90,5 @@ def create_note_tools(note_manager: NoteManager | None = None) -> list[Callable]
         note_manager.write(path, content)
         return f"Contextual note saved for: {path}"
 
-    tools = [
-        read_long_term_note,
-        write_long_term_note,
-        read_contextual_note,
-        write_contextual_note,
-    ]
-
-    read_long_term_note.__name__ = "ReadLongTermNote"
-    write_long_term_note.__name__ = "WriteLongTermNote"
-    read_contextual_note.__name__ = "ReadContextualNote"
     write_contextual_note.__name__ = "WriteContextualNote"
-
-    for tool in tools:
-        tool_registry.register(tool)
-
-    return tools
+    return write_contextual_note

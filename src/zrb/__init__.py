@@ -43,7 +43,6 @@ from zrb.llm.note.manager import note_manager
 from zrb.llm.skill.manager import skill_manager
 from zrb.llm.task.llm_chat_task import LLMChatTask
 from zrb.llm.task.llm_task import LLMTask
-from zrb.llm.tool.registry import tool_registry
 from zrb.runner.cli import cli
 from zrb.runner.web_schema.user import User
 from zrb.session.session import Session
@@ -127,5 +126,4 @@ __all__ = [
     "note_manager",
     "sub_agent_manager",
     "hook_manager",
-    "tool_registry",
 ]
