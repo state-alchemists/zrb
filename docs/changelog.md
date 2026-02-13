@@ -1,5 +1,27 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.2.15
+
+- **Feature: Tool Call Validation Policies**:
+  - **Read File Validation**: Added `read_file_validation_policy` to automatically reject `Read` tool calls if the target file does not exist, providing immediate feedback to the agent.
+  - **Read Many Files Validation**: Added `read_files_validation_policy` to reject `ReadMany` tool calls if none of the specified files are found on the system.
+  - **Edit Validation**: Added `replace_in_file_validation_policy` that proactively rejects `Edit` tool calls if:
+    - `old_text` and `new_text` are identical.
+    - The target file does not exist.
+    - The `old_text` to be replaced is not found in the file content.
+
+- **Improvement: LLM Chat Reliability**:
+  - **Integrated Validation**: Automatically applied the new validation policies to the built-in `llm_chat` task, reducing failed tool executions and improving agent recovery.
+
+- **Refactor: Tool Call Component Organization**:
+  - **Standardized Naming**: Renamed tool call components for better clarity and consistency:
+    - `replace_in_file.py` → `replace_in_file_formatter.py` (Argument Formatter)
+    - `write_file.py` → `write_file_formatter.py` (Argument Formatter)
+    - `replace_in_file.py` → `replace_in_file_response_handler.py` (Response Handler)
+
+- **Maintenance: Comprehensive Testing**:
+  - Added new test suites in `test/llm/tool_call/` for all new validation policies (`test_read_file_validation.py`, `test_read_files_validation.py`, `test_replace_in_file_validation.py`).
+
 ## 2.2.14
 
 - **Improvement: Enhanced LLM Chat UI/UX**:

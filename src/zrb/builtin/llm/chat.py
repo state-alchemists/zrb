@@ -18,8 +18,11 @@ from zrb.llm.tool.skill import create_activate_skill_tool
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
 from zrb.llm.tool_call import (
     auto_approve,
+    read_file_validation_policy,
+    read_files_validation_policy,
     replace_in_file_formatter,
     replace_in_file_response_handler,
+    replace_in_file_validation_policy,
     write_file_formatter,
     write_files_formatter,
 )
@@ -105,6 +108,9 @@ def _approve_if_path_inside_cwd(args: dict[str, any]) -> bool:
 
 
 llm_chat.add_tool_policy(
+    replace_in_file_validation_policy,
+    read_file_validation_policy,
+    read_files_validation_policy,
     auto_approve("Read", _approve_if_path_inside_cwd),
     auto_approve("ReadMany", _approve_if_path_inside_cwd),
     auto_approve("LS", _approve_if_path_inside_cwd),
