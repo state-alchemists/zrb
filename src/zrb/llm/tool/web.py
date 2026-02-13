@@ -1,5 +1,4 @@
 from zrb.config.config import CFG
-from zrb.llm.tool.registry import tool_registry
 
 
 async def open_web_page(url: str) -> dict:
@@ -109,7 +108,5 @@ def _convert_html_to_markdown(html_text: str) -> str:
 
 
 search_internet.__name__ = "SearchInternet"
-tool_registry.register(search_internet)
 
 open_web_page.__name__ = "OpenWebPage"
-tool_registry.register(open_web_page)

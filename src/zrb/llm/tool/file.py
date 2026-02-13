@@ -4,7 +4,6 @@ import os
 import re
 from typing import Any
 
-from zrb.llm.tool.registry import tool_registry
 from zrb.util.file import is_path_excluded, read_file, write_file
 
 DEFAULT_EXCLUDED_PATTERNS = [
@@ -576,28 +575,19 @@ async def analyze_file(path: str, query: str) -> str:
 
 
 list_files.__name__ = "LS"
-tool_registry.register(list_files)
 
 glob_files.__name__ = "Glob"
-tool_registry.register(glob_files)
 
 read_file.__name__ = "Read"
-tool_registry.register(read_file)
 
 read_files.__name__ = "ReadMany"
-tool_registry.register(read_files)
 
 write_file.__name__ = "Write"
-tool_registry.register(write_file)
 
 write_files.__name__ = "WriteMany"
-tool_registry.register(write_files)
 
 replace_in_file.__name__ = "Edit"
-tool_registry.register(replace_in_file)
 
 search_files.__name__ = "Grep"
-tool_registry.register(search_files)
 
 analyze_file.__name__ = "AnalyzeFile"
-tool_registry.register(analyze_file)

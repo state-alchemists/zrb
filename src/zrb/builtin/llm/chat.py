@@ -1,19 +1,38 @@
 import os
 
-from pydantic_ai import Tool
-
 from zrb.builtin.group import llm_group
 from zrb.config.config import CFG
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
+from zrb.llm.agent.manager import sub_agent_manager
 from zrb.llm.custom_command import get_skill_custom_command
 from zrb.llm.history_processor.summarizer import create_summarizer_history_processor
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.skill.manager import skill_manager
 from zrb.llm.task.llm_chat_task import LLMChatTask
+from zrb.llm.tool import (
+    analyze_code,
+    analyze_file,
+    glob_files,
+    list_files,
+    open_web_page,
+    read_file,
+    read_files,
+    replace_in_file,
+    run_shell_command,
+    search_files,
+    search_internet,
+    write_file,
+    write_files,
+)
 from zrb.llm.tool.delegate import create_delegate_to_agent_tool
 from zrb.llm.tool.mcp import load_mcp_config
-from zrb.llm.tool.registry import tool_registry
+from zrb.llm.tool.note import (
+    create_read_contextual_note_tool,
+    create_read_long_term_note_tool,
+    create_write_contextual_note_tool,
+    create_write_long_term_note_tool,
+)
 from zrb.llm.tool.skill import create_activate_skill_tool
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
 from zrb.llm.tool_call import (
@@ -71,14 +90,41 @@ llm_chat = LLMChatTask(
 
 llm_chat.add_response_handler(replace_in_file_response_handler)
 llm_chat.add_toolset(*load_mcp_config())
-for name, func in tool_registry.get_all().items():
-    llm_chat.add_tool(func)
-llm_chat.add_tool_factory(
+
+# Explicitly add tools to both LLMChatTask and sub_agent_manager
+tools = [
+    run_shell_command,
+    analyze_code,
+    list_files,
+    glob_files,
+    read_file,
+    read_files,
+    write_file,
+    write_files,
+    replace_in_file,
+    search_files,
+    analyze_file,
+    search_internet,
+    open_web_page,
+]
+for tool in tools:
+    llm_chat.add_tool(tool)
+    sub_agent_manager.add_tool(tool)
+
+tool_factories = [
     lambda ctx: create_list_zrb_task_tool(),
     lambda ctx: create_run_zrb_task_tool(),
     lambda ctx: create_activate_skill_tool(),
     lambda ctx: create_delegate_to_agent_tool(),
-)
+    lambda ctx: create_read_contextual_note_tool(),
+    lambda ctx: create_read_long_term_note_tool(),
+    lambda ctx: create_write_contextual_note_tool(),
+    lambda ctx: create_write_long_term_note_tool(),
+]
+for factory in tool_factories:
+    llm_chat.add_tool_factory(factory)
+    sub_agent_manager.add_tool_factory(factory)
+
 llm_chat.add_argument_formatter(
     replace_in_file_formatter, write_file_formatter, write_files_formatter
 )
