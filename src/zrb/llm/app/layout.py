@@ -210,7 +210,7 @@ def create_layout(
                     Window(height=1),  # Top margin
                     Frame(
                         input_field,
-                        title="Message (ENTER to send, CTRL+j for newline, ESC to cancel, TAB to switch focus)",
+                        title="Message (ENTER to send, CTRL+j for newline, ESC to cancel)",
                         style="class:input-frame",
                     ),
                     Window(height=1),  # Bottom padding
