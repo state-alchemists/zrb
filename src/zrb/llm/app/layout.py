@@ -153,7 +153,7 @@ def create_output_field(
     text_area = TextArea(
         text=greeting.rstrip() + "\n\n",
         read_only=True,
-        scrollbar=True,  # Enable scrollbar for visual feedback and mouse scrolling
+        scrollbar=False,
         wrap_lines=True,
         lexer=lexer,
         focus_on_click=True,
@@ -199,12 +199,9 @@ def create_layout(
                         content=FormattedTextControl(info_bar_text),
                         style="class:info-bar",
                     ),
+                    Window(height=1),  # Top margin for chat history
                     # Chat History
-                    Frame(
-                        output_field,
-                        title="Conversation History (Tab to toggle focus, ESC to focus input)",
-                        style="class:output-frame",
-                    ),
+                    output_field,
                     # Input Area with frame (centered title) - with padding
                     Window(height=1),  # Top margin
                     Frame(

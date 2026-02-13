@@ -487,10 +487,12 @@ class UI:
         except ImportError:
             # Fallback to in-memory clipboard if pyperclip is not available
             from prompt_toolkit.clipboard import InMemoryClipboard
+
             clipboard = InMemoryClipboard()
         except Exception:
             # Fallback to in-memory clipboard on any other error
             from prompt_toolkit.clipboard import InMemoryClipboard
+
             clipboard = InMemoryClipboard()
 
         return Application(
@@ -634,7 +636,9 @@ class UI:
         def _(event):
             # Paste from clipboard
             if event.app.clipboard:
-                event.current_buffer.paste_clipboard_data(event.app.clipboard.get_data())
+                event.current_buffer.paste_clipboard_data(
+                    event.app.clipboard.get_data()
+                )
 
         @app_keybindings.add("escape")
         def _(event):
@@ -659,7 +663,7 @@ class UI:
             # Handle confirmation (should work even when LLM is thinking)
             if self._handle_confirmation(event):
                 return
-            
+
             # Prevent new messages when LLM is thinking
             if self._is_thinking:
                 return
@@ -711,7 +715,7 @@ class UI:
         # Prevent execution when LLM is thinking
         if self._is_thinking:
             return False
-            
+
         buff = event.current_buffer
         text = buff.text
         for cmd in self._exec_commands:
@@ -734,7 +738,7 @@ class UI:
         # Prevent custom commands when LLM is thinking
         if self._is_thinking:
             return False
-            
+
         buff = event.current_buffer
         text = buff.text.strip()
         if not text:
@@ -1064,12 +1068,15 @@ class UI:
 
         # Update content directly
         # We use bypass_readonly=True by constructing a Document
-        new_cursor_position = len(new_text) if was_at_end else self._output_field.buffer.cursor_position
+        new_cursor_position = (
+            len(new_text) if was_at_end else self._output_field.buffer.cursor_position
+        )
         # Ensure cursor position is valid (within bounds)
         new_cursor_position = min(max(0, new_cursor_position), len(new_text))
 
         self._output_field.buffer.set_document(
-            Document(new_text, cursor_position=new_cursor_position), bypass_readonly=True
+            Document(new_text, cursor_position=new_cursor_position),
+            bypass_readonly=True,
         )
         get_app().invalidate()
 
