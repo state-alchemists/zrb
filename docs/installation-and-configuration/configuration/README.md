@@ -353,7 +353,7 @@ The following environment variables are used as LLM configuration default proper
     * Possible values: Any positive float
 
 * `ZRB_LLM_HISTORY_SUMMARIZATION_WINDOW`: Number of messages to keep in verbatim before summarizing.
-    * Default: `12`
+    * Default: `100`
     * Possible values: Any positive integer
 
 * `ZRB_LLM_SHOW_TOOL_CALL_DETAIL`: Whether to show tool call parameters in real-time.

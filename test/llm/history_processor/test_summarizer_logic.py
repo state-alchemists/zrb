@@ -36,7 +36,7 @@ async def test_summarize_heavy_recent_history():
     # Run with small threshold (10) and normal window (5)
     # Since limiter returns 1000, it is > 10.
     # Since len(messages) is 2, it is <= 5.
-    # The "Emergency" logic should trigger.
+    # The safe split logic should trigger.
 
     new_history = await summarize_history(
         messages,
@@ -47,9 +47,13 @@ async def test_summarize_heavy_recent_history():
     )
 
     # Assert
-    # Should return [Summary] (len 1) instead of original messages (len 2)
-    assert len(new_history) == 1
-    assert isinstance(new_history[0], ModelRequest)
+    # With the new safer logic that NEVER breaks complete tool pairs:
+    # - No tool pairs exist in these messages
+    # - find_best_effort_split will find a split that keeps the last message
+    # So we get 2 messages: summary + last message
+    assert len(new_history) == 2
+    assert isinstance(new_history[0], ModelRequest)  # Summary
+    assert new_history[1] == msg2  # Last message kept intact
 
     # Verify agent was called
     assert agent.run.called
