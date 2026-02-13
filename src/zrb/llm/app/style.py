@@ -11,6 +11,7 @@ def create_style() -> Style:
             "frame": CFG.LLM_UI_STYLE_FRAME,
             "frame.label": CFG.LLM_UI_STYLE_FRAME_LABEL,
             "input-frame": CFG.LLM_UI_STYLE_INPUT_FRAME,
+            "output-frame": CFG.LLM_UI_STYLE_FRAME,
             "thinking": CFG.LLM_UI_STYLE_THINKING,
             "faint": CFG.LLM_UI_STYLE_FAINT,
             "output_field": CFG.LLM_UI_STYLE_OUTPUT_FIELD,

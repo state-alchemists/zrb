@@ -3,6 +3,7 @@ from typing import Callable
 from prompt_toolkit.filters import (
     Condition,
     emacs_insert_mode,
+    has_completions,
     has_selection,
     vi_insert_mode,
 )
@@ -118,15 +119,24 @@ def create_input_field(
             text_area.document.cursor_position_row == text_area.document.line_count - 1
         )
 
-    # Bind Up to history only if at first line
-    @kb.add("up", filter=is_first_line & ~has_selection)
+    # Bind Up to history only if at first line and no completion menu is shown
+    @kb.add("up", filter=is_first_line & ~has_selection & ~has_completions)
     def _(event):
         event.current_buffer.history_backward()
 
-    # Bind Down to history only if at last line
-    @kb.add("down", filter=is_last_line & ~has_selection)
+    # Bind Down to history only if at last line and no completion menu is shown
+    @kb.add("down", filter=is_last_line & ~has_selection & ~has_completions)
     def _(event):
         event.current_buffer.history_forward()
+
+    # Tab navigation
+    @kb.add("tab", filter=~has_completions)
+    def _(event):
+        event.app.layout.focus_next()
+
+    @kb.add("s-tab", filter=~has_completions)
+    def _(event):
+        event.app.layout.focus_previous()
 
     # Ensure Paste works locally in the input field
     @kb.add("c-v")
@@ -136,12 +146,14 @@ def create_input_field(
     return text_area
 
 
-def create_output_field(greeting: str, lexer: Lexer) -> TextArea:
+def create_output_field(
+    greeting: str, lexer: Lexer, key_bindings: KeyBindings | None = None
+) -> TextArea:
     # Create TextArea with cursor at the end to ensure bottom is visible
     text_area = TextArea(
         text=greeting.rstrip() + "\n\n",
         read_only=True,
-        scrollbar=False,  # No scrollbar on TextArea itself
+        scrollbar=True,  # Enable scrollbar for visual feedback and mouse scrolling
         wrap_lines=True,
         lexer=lexer,
         focus_on_click=True,
@@ -149,6 +161,9 @@ def create_output_field(greeting: str, lexer: Lexer) -> TextArea:
         style="class:output_field",
         dont_extend_height=False,  # Can expand/contract as needed
     )
+    if key_bindings is not None:
+        text_area.control.key_bindings = key_bindings
+
     # Set cursor to the end - TextArea will keep cursor visible when focusable
     text_area.buffer.cursor_position = len(text_area.text)
     return text_area
@@ -184,14 +199,17 @@ def create_layout(
                         content=FormattedTextControl(info_bar_text),
                         style="class:info-bar",
                     ),
-                    # Chat History - NO FRAME, NO ScrollablePane
-                    # Just the TextArea itself - it handles its own scrolling
-                    output_field,
+                    # Chat History
+                    Frame(
+                        output_field,
+                        title="Conversation History (Tab to toggle focus, ESC to focus input)",
+                        style="class:output-frame",
+                    ),
                     # Input Area with frame (centered title) - with padding
                     Window(height=1),  # Top margin
                     Frame(
                         input_field,
-                        title="(ENTER to send, CTRL+j for newline, ESC to cancel)",
+                        title="Message (ENTER to send, CTRL+j for newline, ESC to cancel)",
                         style="class:input-frame",
                     ),
                     Window(height=1),  # Bottom padding

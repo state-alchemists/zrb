@@ -191,9 +191,9 @@ class UI:
         # Output Area (Read-only chat history)
         help_text = self._get_help_text(limit=25)
         full_greeting = create_banner(self._ascii_art, f"{greeting}\n{help_text}")
-        self._output_field = create_output_field(full_greeting, output_lexer)
-        self._output_field.control.key_bindings = create_output_keybindings(
-            self._input_field
+        custom_output_kb = create_output_keybindings(self._input_field)
+        self._output_field = create_output_field(
+            full_greeting, output_lexer, key_bindings=custom_output_kb
         )
         self._layout = create_layout(
             title=self._assistant_name,
@@ -485,9 +485,13 @@ class UI:
 
             clipboard = PyperclipClipboard()
         except ImportError:
-            clipboard = None
+            # Fallback to in-memory clipboard if pyperclip is not available
+            from prompt_toolkit.clipboard import InMemoryClipboard
+            clipboard = InMemoryClipboard()
         except Exception:
-            clipboard = None
+            # Fallback to in-memory clipboard on any other error
+            from prompt_toolkit.clipboard import InMemoryClipboard
+            clipboard = InMemoryClipboard()
 
         return Application(
             layout=layout,
@@ -595,6 +599,14 @@ class UI:
         return [("class:status", " 🚀 Ready ")]
 
     def _setup_app_keybindings(self, app_keybindings: KeyBindings, llm_task: AnyTask):
+        @app_keybindings.add("f6")
+        def _(event):
+            # Toggle focus between input and output field
+            if event.app.layout.has_focus(self._input_field):
+                event.app.layout.focus(self._output_field)
+            else:
+                event.app.layout.focus(self._input_field)
+
         @app_keybindings.add("c-c")
         @app_keybindings.add("escape", "c")
         def _(event):
@@ -602,7 +614,8 @@ class UI:
             buffer = event.app.current_buffer
             if buffer.selection_state:
                 data = buffer.copy_selection()
-                event.app.clipboard.set_data(data)
+                if event.app.clipboard:
+                    event.app.clipboard.set_data(data)
                 buffer.exit_selection()
                 return
             # If buffer is not empty, clear it
@@ -620,7 +633,8 @@ class UI:
         @app_keybindings.add("escape", "v")
         def _(event):
             # Paste from clipboard
-            event.current_buffer.paste_clipboard_data(event.app.clipboard.get_data())
+            if event.app.clipboard:
+                event.current_buffer.paste_clipboard_data(event.app.clipboard.get_data())
 
         @app_keybindings.add("escape")
         def _(event):
@@ -638,10 +652,16 @@ class UI:
 
         @app_keybindings.add("enter")
         def _(event):
-            # Handle confirmation and multiline
+            # Handle multiline (trailing backslash)
             if self._handle_multiline(event):
                 return
+
+            # Handle confirmation (should work even when LLM is thinking)
             if self._handle_confirmation(event):
+                return
+            
+            # Prevent new messages when LLM is thinking
+            if self._is_thinking:
                 return
 
             # Handle empty inputs
@@ -688,6 +708,10 @@ class UI:
             event.current_buffer.insert_text("\n")
 
     def _handle_exec_command(self, event) -> bool:
+        # Prevent execution when LLM is thinking
+        if self._is_thinking:
+            return False
+            
         buff = event.current_buffer
         text = buff.text
         for cmd in self._exec_commands:
@@ -707,6 +731,10 @@ class UI:
         return False
 
     def _handle_custom_command(self, event) -> bool:
+        # Prevent custom commands when LLM is thinking
+        if self._is_thinking:
+            return False
+            
         buff = event.current_buffer
         text = buff.text.strip()
         if not text:
@@ -997,6 +1025,9 @@ class UI:
     ):
         # Helper to safely append to read-only buffer
         current_text = self._output_field.text
+        # Determine if we should scroll to end (if already at end)
+        was_at_end = self._output_field.buffer.cursor_position == len(current_text)
+
         # Construct the new content
         content = sep.join([str(value) for value in values]) + end
         # Handle carriage returns (\r) for status updates
@@ -1030,10 +1061,15 @@ class UI:
             )
         except Exception as e:
             logger.error(f"Failed to trigger notification hook: {e}")
+
         # Update content directly
         # We use bypass_readonly=True by constructing a Document
+        new_cursor_position = len(new_text) if was_at_end else self._output_field.buffer.cursor_position
+        # Ensure cursor position is valid (within bounds)
+        new_cursor_position = min(max(0, new_cursor_position), len(new_text))
+
         self._output_field.buffer.set_document(
-            Document(new_text, cursor_position=len(new_text)), bypass_readonly=True
+            Document(new_text, cursor_position=new_cursor_position), bypass_readonly=True
         )
         get_app().invalidate()
 
