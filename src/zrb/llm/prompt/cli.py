@@ -19,7 +19,9 @@ def create_cli_skills_prompt():
 
         # List top-level groups
         if cli.subgroups:
-            zrb_context.append(f"Groups (You MUST ALWAYS use 'list_{zrb_cmd}_tasks' to see available {zrb_cmd} capabilities):")
+            zrb_context.append(
+                f"Groups (You MUST ALWAYS use 'list_{zrb_cmd}_tasks' to see available {zrb_cmd} capabilities):"
+            )
             for alias, grp in cli.subgroups.items():
                 zrb_context.append(f"- {alias}: {grp.description}")
 

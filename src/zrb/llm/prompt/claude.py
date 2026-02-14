@@ -151,7 +151,9 @@ def _get_skills_section(
 
     # Add available skills (just metadata)
     skills_context.append("## Available Skills")
-    skills_context.append("You MUST ALWAYS use 'ActivateSkill' to load instructions for a skill before execution.")
+    skills_context.append(
+        "You MUST ALWAYS use 'ActivateSkill' to load instructions for a skill before execution."
+    )
     for skill in skills:
         if skill.model_invocable:
             # Skip skills that are already active

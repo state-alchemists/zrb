@@ -140,7 +140,9 @@ def _get_file_metadatas(
                 rel_path = os.path.relpath(file_path, dir_path)
                 if is_path_excluded(rel_path, exclude_patterns):
                     continue
-                if include_patterns and not _is_path_included(rel_path, include_patterns):
+                if include_patterns and not _is_path_included(
+                    rel_path, include_patterns
+                ):
                     continue
                 with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                     metadata_list.append({"path": rel_path, "content": f.read()})
