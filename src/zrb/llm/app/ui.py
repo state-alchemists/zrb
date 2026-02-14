@@ -284,10 +284,23 @@ class UI:
         """Periodically invalidate UI to fix artifacts/lag."""
         while True:
             try:
-                get_app().invalidate()
+                app = get_app()
+                app.invalidate()
+                # If input is focused, ensure we keep showing the latest content.
+                if app.layout.has_focus(self._input_field):
+                    self._scroll_output_to_bottom()
             except Exception:
                 pass
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.1)
+
+    def _scroll_output_to_bottom(self):
+        """Scroll output field to the bottom."""
+        try:
+            buffer = self._output_field.buffer
+            if buffer.cursor_position != len(buffer.text):
+                buffer.cursor_position = len(buffer.text)
+        except Exception:
+            pass
 
     async def _process_messages_loop(self):
         """Process jobs from queue, ensuring only one job runs at a time."""
@@ -1022,8 +1035,27 @@ class UI:
     ):
         # Helper to safely append to read-only buffer
         current_text = self._output_field.text
-        # Determine if we should scroll to end (if already at end)
-        was_at_end = self._output_field.buffer.cursor_position == len(current_text)
+
+        # Determine if we should scroll to end.
+        # We scroll to end if:
+        # 1. We are focusing on the input field
+        # 2. We are on the last line of the output
+        is_input_focused = False
+        try:
+            # We use get_app() here as it is safer during initialization
+            app = get_app()
+            is_input_focused = app.layout.has_focus(self._input_field)
+        except Exception:
+            pass
+
+        is_at_last_line = False
+        try:
+            doc = self._output_field.buffer.document
+            is_at_last_line = doc.cursor_position_row >= doc.line_count - 1
+        except Exception:
+            pass
+
+        should_scroll_to_end = is_input_focused or is_at_last_line
 
         # Construct the new content
         content = sep.join([str(value) for value in values]) + end
@@ -1062,7 +1094,9 @@ class UI:
         # Update content directly
         # We use bypass_readonly=True by constructing a Document
         new_cursor_position = (
-            len(new_text) if was_at_end else self._output_field.buffer.cursor_position
+            len(new_text)
+            if should_scroll_to_end
+            else self._output_field.buffer.cursor_position
         )
         # Ensure cursor position is valid (within bounds)
         new_cursor_position = min(max(0, new_cursor_position), len(new_text))

@@ -57,29 +57,24 @@ async def analyze_code(
     path: str,
     query: str,
     extensions: list[str] | None = None,
+    include_patterns: list[str] | None = None,
     exclude_patterns: list[str] | None = None,
 ) -> str:
     """
-    Performs a deep, semantic analysis of an entire codebase or directory to answer complex architectural or logic-based questions.
-    This tool uses a 'map-reduce' strategy to handle large repositories that exceed single-prompt limits.
+    Performs a deep, semantic analysis of an entire codebase or directory.
 
-    **WHEN TO USE:**
-    - To understand system-wide flows, architectural patterns, or cross-file dependencies.
-    - When you need a summary of how a feature is implemented across multiple files.
-    - To identify potential refactoring opportunities or technical debt.
+    **EFFICIENCY MANDATE:**
+    - This tool is **VERY SLOW** and token-intensive.
+    - You MUST ALWAYS use `extensions`, `include_patterns`, and `exclude_patterns` to strictly limit the search space.
+    - You MUST ONLY use this for system-wide architectural questions or cross-file flows.
+    - You MUST NEVER use this if the specific path or pattern is known. Use `Read` or `Grep` instead.
 
-    **LIMITATIONS:**
-    - It extracts and summarizes information; it does not read every single byte if the repo is massive.
-    - For precise line-by-line reading of a known file, use `read_file` instead.
-
-    Args:
-        path (str): Path to the directory or repository.
-        query (str): A clear, specific question or analysis goal (e.g., "How is authentication handled?").
-        extensions (list[str], optional): File extensions to include (e.g., ["py", "ts"]).
-        exclude_patterns (list[str], optional): Glob patterns to ignore (e.g., ["tests/*"]).
-
-    Returns:
-        str: A comprehensive analytical report.
+    **ARGS:**
+    - `path`: Path to the directory or repository.
+    - `query`: A clear, specific question or analysis goal.
+    - `extensions`: File extensions to include (e.g., ["py", "ts"]).
+    - `include_patterns`: Glob patterns to include (e.g., ["src/**", "tests/*.py"]).
+    - `exclude_patterns`: Glob patterns to ignore (e.g., ["node_modules/**"]).
     """
     if extensions is None:
         extensions = _DEFAULT_EXTENSIONS
@@ -91,7 +86,9 @@ async def analyze_code(
         return f"Error: Path not found: {path}"
 
     # 1. Gather files
-    file_metadatas = _get_file_metadatas(abs_path, extensions, exclude_patterns)
+    file_metadatas = _get_file_metadatas(
+        abs_path, extensions, include_patterns, exclude_patterns
+    )
     if not file_metadatas:
         return "No files found matching the criteria."
 
@@ -129,6 +126,7 @@ async def analyze_code(
 def _get_file_metadatas(
     dir_path: str,
     extensions: list[str],
+    include_patterns: list[str] | None,
     exclude_patterns: list[str],
 ) -> list[dict[str, str]]:
     metadata_list = []
@@ -142,12 +140,25 @@ def _get_file_metadatas(
                 rel_path = os.path.relpath(file_path, dir_path)
                 if is_path_excluded(rel_path, exclude_patterns):
                     continue
+                if include_patterns and not _is_path_included(rel_path, include_patterns):
+                    continue
                 with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                     metadata_list.append({"path": rel_path, "content": f.read()})
             except Exception as e:
                 zrb_print(f"Error reading file {file_path}: {e}", plain=True)
     metadata_list.sort(key=lambda m: m["path"])
     return metadata_list
+
+
+def _is_path_included(name: str, patterns: list[str]) -> bool:
+    for pattern in patterns:
+        if fnmatch.fnmatch(name, pattern):
+            return True
+        parts = name.split(os.path.sep)
+        for part in parts:
+            if fnmatch.fnmatch(part, pattern):
+                return True
+    return False
 
 
 async def _extract_info(

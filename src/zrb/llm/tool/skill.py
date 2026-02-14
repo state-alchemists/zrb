@@ -24,9 +24,10 @@ def create_activate_skill_tool(skill_manager: SkillManager | None = None):
 
     activate_skill_impl.__name__ = "ActivateSkill"
     activate_skill_impl.__doc__ = (
-        "Immediately activates a specialized expertise 'skill' to handle complex or domain-specific tasks. "
-        "Returns a set of authoritative instructions that YOU MUST follow to complete the task successfully. "
-        "Use this as soon as you identify a task that matches an available skill. "
+        "Activates specialized expertise 'skill' instructions. "
+        "\n\n**OPERATIONAL MANDATE:**"
+        "\n- You MUST follow the returned authoritative instructions to complete the task."
+        "\n- You MUST ALWAYS use this as soon as you identify a task matching an available skill."
         "\n\n**ARGS:**"
         "\n- `name`: The unique name of the skill to activate."
     )

@@ -14,8 +14,10 @@ def create_read_long_term_note_tool(
     async def read_long_term_note() -> str:
         """
         Retrieves your GLOBAL 🧠 Long-Term Memory.
-        This contains established preferences, personal facts, and context spanning
-        multiple projects. ALWAYS check this at the start of a session.
+
+        **OPERATIONAL MANDATE:**
+        - You MUST ALWAYS check this at the start of a session.
+        - Contains user preferences and cross-project facts.
         """
         return note_manager.read("~")
 
@@ -31,13 +33,16 @@ def create_write_long_term_note_tool(
 
     async def write_long_term_note(content: str) -> str:
         """
-        Updates your GLOBAL 🧠 Long-Term Memory with CRITICAL information.
-        Use this to persist user preferences, personal facts, and cross-project rules.
+        Updates your GLOBAL 🧠 Long-Term Memory.
 
-        **WARNING:** This COMPLETELY OVERWRITES the existing Long-Term Note.
+        **OPERATIONAL MANDATE:**
+        - You MUST ALWAYS `Read` before writing to avoid losing established context.
+        - You MUST ALWAYS keep notes small, atomic, and focused on rarely-changing facts.
+        - Use ONLY for cross-project user preferences or critical persona facts.
+        - **WARNING:** This COMPLETELY OVERWRITES existing global memory.
 
         **ARGS:**
-        - `content`: The full text to store in the global memory.
+        - `content`: The high-signal text to persist.
         """
         note_manager.write("~", content)
         return "Global long-term note saved."
@@ -54,11 +59,14 @@ def create_read_contextual_note_tool(
 
     async def read_contextual_note(path: str | None = None) -> str:
         """
-        Retrieves LOCAL 📝 Contextual Notes for a specific project or directory.
-        Use this to recall architectural decisions or project-specific guidelines.
+        Retrieves LOCAL 📝 Contextual Notes for a project or directory.
+
+        **OPERATIONAL MANDATE:**
+        - You MUST ALWAYS check this when entering a new project directory.
+        - Contains rarely-changing architectural rules and patterns.
 
         **ARGS:**
-        - `path`: Target file/dir path. Defaults to current working directory.
+        - `path`: Target file/dir path (default CWD).
         """
         if path is None:
             path = os.getcwd()
@@ -76,14 +84,18 @@ def create_write_contextual_note_tool(
 
     async def write_contextual_note(content: str, path: str | None = None) -> str:
         """
-        Persists LOCAL 📝 Contextual Notes for a specific project or directory.
-        Use this to save architectural patterns or progress markers for the current task.
+        Persists LOCAL 📝 Contextual Notes for a project or directory.
 
-        **WARNING:** This COMPLETELY OVERWRITES the contextual note for the specified path.
+        **OPERATIONAL MANDATE:**
+        - You MUST ALWAYS `Read` before writing.
+        - You MUST ONLY save architectural information or rules that will rarely change.
+        - You MUST NEVER save transient task progress or redundant context.
+        - Keep notes small, atomic, and high-signal.
+        - **WARNING:** This COMPLETELY OVERWRITES the contextual note for the path.
 
         **ARGS:**
-        - `content`: The full text to store in the local memory.
-        - `path`: Target file/dir path. Defaults to current working directory.
+        - `content`: The high-signal text to persist.
+        - `path`: Target path (default CWD).
         """
         if path is None:
             path = os.getcwd()

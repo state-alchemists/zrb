@@ -70,8 +70,9 @@ def create_project_context_prompt():
 
         context_message = (
             "The following project documentation files are available. "
-            "**YOU MUST READ THEM** using `Read` if you need to understand "
-            "project conventions, architectural patterns, or specific guidelines:\n"
+            "You MUST ALWAYS `Read` them if you need to understand "
+            "project conventions, architectural patterns, or specific guidelines. "
+            "NEVER assume project structure without verifying these files:\n"
             + "\n".join(found_files)
         )
 
@@ -150,7 +151,7 @@ def _get_skills_section(
 
     # Add available skills (just metadata)
     skills_context.append("## Available Skills")
-    skills_context.append("Use 'ActivateSkill' to load instructions for a skill.")
+    skills_context.append("You MUST ALWAYS use 'ActivateSkill' to load instructions for a skill before execution.")
     for skill in skills:
         if skill.model_invocable:
             # Skip skills that are already active

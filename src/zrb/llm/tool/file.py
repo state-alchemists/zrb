@@ -36,20 +36,17 @@ def list_files(
     excluded_patterns: list[str] | None = None,
 ) -> dict[str, list[str]]:
     """
-    Recursively explores and lists files within a directory tree up to a defined depth.
+    Recursively explores and lists files.
 
-    **EFFICIENCY WARNING:**
-    - Do **NOT** use this if you already know the file name/path. Use `read_file` or `glob_files`.
-    - This tool is verbose and slow for large directories. Only use it for initial discovery.
-
-    **WHEN TO USE:**
-    - To discover the project structure or find specific files when the path is unknown.
-    - To verify the existence of files in a directory.
+    **EFFICIENCY MANDATE:**
+    - You MUST NEVER use this if you already know the file name or path.
+    - You MUST use `Read` or `Glob` for targeted access.
+    - Use this ONLY for initial, broad project structure discovery.
 
     **ARGS:**
-    - `path`: The root directory to start the search from.
-    - `include_hidden`: If True, includes hidden files and directories (starting with `.`).
-    - `depth`: Maximum levels of directories to descend.
+    - `path`: The root directory.
+    - `include_hidden`: If True, includes hidden files.
+    - `depth`: Maximum recursion depth.
     - `excluded_patterns`: List of glob patterns to ignore.
     """
     all_files: list[str] = []
@@ -98,13 +95,13 @@ def glob_files(
     """
     Finds files matching specific glob patterns.
 
-    **WHEN TO USE:**
-    - To find files by name or extension (e.g., `**/*.py`, `src/**/*.ts`).
-    - Faster and more targeted than `list_files` when looking for specific file types.
+    **EFFICIENCY MANDATE:**
+    - Use ALWAYS when looking for specific file types (e.g., `**/*.py`) or named files.
+    - You MUST use this instead of `LS` for targeted discovery.
 
     **ARGS:**
     - `pattern`: The glob pattern to match (e.g., `**/*.md`).
-    - `path`: The root directory to start the search from.
+    - `path`: The root directory.
     - `include_hidden`: Whether to include hidden files/dirs.
     - `excluded_patterns`: List of glob patterns to ignore.
     """
@@ -151,19 +148,19 @@ def read_file(
     offset: int | None = None,
 ) -> str:
     """
-    Reads content from a file, optionally specifying a line range.
+    Reads content from a file.
 
-    **EFFICIENCY TIP:**
-    - Prefer reading the **entire file** at once for full context (imports, class definitions).
-    - Only use `start_line`/`end_line` or `offset`/`limit` for extremely large files (e.g., logs).
-    - If the file is too large (default limit ~2000 lines), it will be truncated.
+    **EFFICIENCY MANDATE:**
+    - You MUST ALWAYS use this tool directly when the path is known.
+    - You MUST NEVER call `LS` or `Glob` if you already have the path.
+    - Prefer reading the **entire file** for full context unless it exceeds ~2000 lines.
 
     **ARGS:**
-    - `path`: Path to the file to read.
-    - `start_line`: The 1-based line number to start reading from.
-    - `end_line`: The 1-based line number to stop reading at (inclusive).
-    - `limit`: Max lines to read (alias/alternative to end_line calculation).
-    - `offset`: 0-based line index to start reading from (alternative to start_line).
+    - `path`: Path to the file.
+    - `start_line`: 1-based start line.
+    - `end_line`: 1-based end line.
+    - `limit`: Max lines to read.
+    - `offset`: 0-based start line index.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
 
@@ -307,19 +304,16 @@ def write_file(path: str, content: str, mode: str = "w") -> str:
     """
     Writes or appends content to a file.
 
-    **VERIFICATION IS MANDATORY:**
-    - Writing a file is the **START** of the implementation, not the end.
-    - After writing, you MUST verify the changes (e.g., run the code, check the output) to ensure correctness.
-
-    **CRITICAL - PREVENT ERRORS:**
-    1. **ESCAPING:** Do NOT double-escape quotes in your JSON tool call.
-    2. **SIZE LIMIT:** DO NOT write more than 4000 characters in a single call.
-    3. **CHUNKING:** For large files, use `mode="w"` for the first chunk and `mode="a"` for the rest.
+    **OPERATIONAL MANDATE:**
+    - You MUST ALWAYS verify changes (run code, check output) after writing.
+    - **CHUNKING:** You MUST NEVER write more than 4000 characters per call.
+    - To write large files, you MUST use `mode="w"` for the FIRST chunk and `mode="a"` for all SUBSEQUENT chunks.
+    - For existing files, you MUST prefer `Edit` (replace_in_file) to maintain precision.
 
     **ARGS:**
     - `path`: Target file path.
-    - `content`: Text content to write.
-    - `mode`: File opening mode ("w" to overwrite, "a" to append).
+    - `content`: Text content.
+    - `mode`: "w" (overwrite/first chunk) or "a" (append/subsequent chunks).
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     try:
@@ -357,16 +351,18 @@ def replace_in_file(path: str, old_text: str, new_text: str, count: int = -1) ->
     """
     Replaces exact text sequences within a file.
 
-    **CRITICAL INSTRUCTIONS:**
-    1. **PRECISION:** `old_text` must match the file content EXACTLY.
-    2. **READ FIRST:** Always `read_file` before replacing.
-    3. **MINIMAL CONTEXT:** Include 2-3 lines of context in `old_text` to ensure uniqueness.
+    **OPERATIONAL MANDATE:**
+    - You MUST ALWAYS prefer this tool over `Write` when modifying existing files.
+    - You MUST ALWAYS `Read` the file content BEFORE calling this tool.
+    - `old_text` MUST match the file content EXACTLY (including whitespace).
+    - You MUST ALWAYS include 2-3 lines of context in `old_text` to ensure uniqueness.
+    - After editing, you MUST ALWAYS verify the changes.
 
     **ARGS:**
-    - `path`: Path to the file to modify.
+    - `path`: Path to the file.
     - `old_text`: The exact literal text to be replaced.
     - `new_text`: The replacement text.
-    - `count`: Number of occurrences to replace (default -1 for all).
+    - `count`: Number of occurrences to replace.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
@@ -400,14 +396,15 @@ def search_files(
     """
     Searches for a regular expression pattern within files.
 
-    **WHEN TO USE:**
-    - To find usages of a function, variable, or string across the project.
+    **EFFICIENCY MANDATE:**
+    - You MUST ALWAYS use this for cross-file string or pattern discovery.
+    - You MUST ALWAYS use specific `regex` and `file_pattern` (e.g., `*.py`) to limit the search scope and minimize noise.
 
     **ARGS:**
     - `path`: Root directory to search.
     - `regex`: A standard Python regular expression.
-    - `file_pattern`: Optional glob (e.g., "*.py") to restrict the search.
-    - `include_hidden`: Whether to search in hidden files/dirs.
+    - `file_pattern`: Optional glob to restrict the search.
+    - `include_hidden`: Whether to search in hidden files.
     """
     try:
         pattern = re.compile(regex)
@@ -499,16 +496,10 @@ async def analyze_file(path: str, query: str) -> str:
     """
     Delegates deep analysis of a specific file to a specialized sub-agent.
 
-    **WHEN TO USE:**
-    - For complex questions about a file's logic, structure, or potential bugs.
-    - When you need a summary or specific details that require "understanding" the code.
-
-    **EFFICIENCY WARNING:**
-    - This tool is **SLOW** because it spawns a sub-agent.
-    - **Avoid** using it for simple bugs or when `read_file` is sufficient.
-    - Only use it when you are stuck or the file is too complex to understand directly.
-
-    **NOTE:** For simple data retrieval, use `read_file`.
+    **EFFICIENCY MANDATE:**
+    - This tool is **SLOW** and resource-intensive.
+    - You MUST ONLY use this for complex architectural questions or deep logic understanding.
+    - You MUST NEVER use this for simple data retrieval or when `Read` or `Grep` are sufficient.
 
     **ARGS:**
     - `path`: Path to the file to analyze.

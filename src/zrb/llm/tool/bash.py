@@ -11,45 +11,18 @@ from zrb.util.cli.style import stylize_faint
 
 async def run_shell_command(command: str, timeout: int = 30) -> str:
     """
-    Executes a shell command on the host system and returns its combined stdout and stderr.
-    This is a powerful tool for running builds, tests, or system utilities.
+    Executes a shell command.
 
-    **WHEN TO USE:**
-    - To **VERIFY** code changes by running tests or execution scripts.
-    - To check system state, installed packages, or file attributes.
-    - To run build processes or other system utilities.
+    **OPERATIONAL MANDATE:**
+    - You MUST ALWAYS use this to **VERIFY** changes (run tests, linters).
+    - You MUST ALWAYS use this to check system state (installed packages, processes).
+    - You MUST NEVER use this for reading or writing files. You MUST use `Read` or `Write` instead.
+    - You MUST ALWAYS use non-interactive commands.
+    - If a command times out, it is LIKELY STILL RUNNING. You MUST check status (`ps aux`) before retrying.
 
-    **CRITICAL SAFETY:**
-    - DO NOT run destructive commands (e.g., `rm -rf /`) without absolute certainty.
-    - **TIMEOUTS:** If a command times out, it does NOT mean it failed. It likely means it is still running. CHECK STATUS with `ps aux` before taking action.
-    - **LOCKS:** If you encounter a lock file (brew/apt), DO NOT kill the process. Wait or check status.
-    - **FILE I/O:** Do NOT use this tool for reading/writing files (e.g., `cat`, `echo`). Use `read_file` and `write_file` instead.
-
-    **USAGE GUIDELINES:**
-    - Use non-interactive commands.
-    - **AVOID complex Bash syntax** (like brace expansion `{1..5}`) as it may not work in all environments.
-    - **PREFER Python one-liners** (`python -c "..."`) for loops or complex logic to ensure safety and compatibility.
-    - If a command is expected to produce massive output, use `timeout` or pipe to a file.
-    - The output is streamed to the console in real-time.
-    - **Background Processes:** You can use `&` to run processes in the background. The tool will report the PIDs of any background processes spawned.
-
-    **RETURNS:**
-    - A string containing the Command, Directory, Exit Code, Stdout, Stderr, and Background PIDs.
-    - Format:
-      ```
-      Command: <command>
-      Directory: <cwd>
-      Stdout:
-      <output>
-      Stderr:
-      <error output>
-      Exit Code: <int>
-      Background PIDs: <list>
-      ```
-
-    Args:
-        command (str): The full shell command to execute.
-        timeout (int): Maximum wait time in seconds before terminating the process. Defaults to 30.
+    **ARGS:**
+    - `command`: The full shell command.
+    - `timeout`: Max wait time in seconds (default 30).
     """
     cwd = os.getcwd()
     is_windows = platform.system() == "Windows"

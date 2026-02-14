@@ -142,10 +142,10 @@ def _get_git_info() -> str:
         return (
             f"- **Branch:** {branch}\n"
             f"- **Status:** {status_summary}\n"
-            "- **Rules:**\n"
-            "  - **NEVER** stage or commit your changes unless explicitly instructed.\n"
-            "  - When asked to commit, always gather info first: `git status && git diff HEAD`.\n"
-            "  - Always propose a draft commit message."
+            "- **Git Operational Mandates:**\n"
+            "  - You MUST NEVER stage or commit changes unless explicitly instructed by the user.\n"
+            "  - Before any commit, you MUST ALWAYS gather information using `git status && git diff HEAD`.\n"
+            "  - You MUST ALWAYS propose a draft commit message and await user approval."
         )
     except Exception:
         return ""

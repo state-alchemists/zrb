@@ -3,15 +3,14 @@ from zrb.config.config import CFG
 
 async def open_web_page(url: str) -> dict:
     """
-    Downloads and converts a web page into clean, readable Markdown.
+    Downloads and converts a web page into Markdown.
 
-    **WHEN TO USE:**
-    - To read specific articles, documentation, or blog posts.
-    - To extract structured information from a known URL.
-    - To **VERIFY** facts or obtain precise citations for research tasks.
+    **RESEARCH MANDATE:**
+    - You MUST ALWAYS use this to **VERIFY** information from search results.
+    - Snippets are insufficient; you MUST read full content for precise analysis.
 
     **ARGS:**
-    - `url`: The full web address to fetch.
+    - `url`: The full web address.
     """
     try:
         html_content, links = await _fetch_page_content(url)
@@ -26,19 +25,15 @@ async def search_internet(
     page: int = 1,
 ) -> dict:
     """
-    Performs a broad internet search to discover URLs and summaries.
+    Performs a broad internet search.
 
-    **CRITICAL FOR RESEARCH:**
-    - Search results (snippets) are for **discovery only**.
-    - They are **INSUFFICIENT** for precise citations or deep analysis.
-    - You MUST use `open_web_page` on discovered URLs to extract the full content.
-    - **Report Requirement:** If generating a report, you MUST include a 'Sources' or 'References' section listing the URLs you verified.
-
-    **WHEN TO USE:**
-    - When you need to find information but don't have a specific URL.
+    **RESEARCH MANDATE:**
+    - Search snippets are for **DISCOVERY ONLY**.
+    - You MUST ALWAYS use `OpenWebPage` on relevant URLs to extract full content.
+    - Reports MUST include a 'Sources' or 'References' section listing all verified URLs.
 
     **ARGS:**
-    - `query`: The search string or question.
+    - `query`: The search string.
     - `page`: Result page number (default 1).
     """
     if (

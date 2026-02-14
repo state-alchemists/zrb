@@ -117,13 +117,15 @@ def create_delegate_to_agent_tool(
     delegate_to_agent.__name__ = "DelegateToAgent"
     delegate_to_agent.__doc__ = (
         "Delegates a complex task to a specialized sub-agent. "
-        "The sub-agent is a blank slate; it does NOT share your conversation history or full system context unless you provide it. "
-        "You MUST provide all necessary file paths, code snippets, architectural context, and detailed instructions required for the sub-agent to succeed. "
+        "\n\n**OPERATIONAL MANDATE:**"
+        "\n- The sub-agent is a **BLANK SLATE**. It does NOT share your history or system context."
+        "\n- You MUST ALWAYS provide full, self-contained context: paths, code snippets, architectural rules, and OS/CWD details."
+        "\n- Use ONLY for multi-step research or specialized analysis that would pollute your primary context."
         "\n\n**AVAILABLE AGENTS:**\n"
         f"{agent_doc_section}"
         "\n\n**ARGS:**"
-        "\n- `agent_name`: The name of the sub-agent to activate (e.g., 'coder', 'planner')."
-        "\n- `task`: The specific, detailed instruction or query for the sub-agent. Include exactly what needs to be done."
-        "\n- `additional_context`: MANDATORY context. Include relevant file contents (if not too large), environment details (OS, CWD), and any other data the sub-agent needs to work independently."
+        "\n- `agent_name`: The name of the sub-agent to activate."
+        "\n- `task`: The specific, detailed instruction for the sub-agent."
+        "\n- `additional_context`: MANDATORY self-contained context required for the task."
     )
     return delegate_to_agent
