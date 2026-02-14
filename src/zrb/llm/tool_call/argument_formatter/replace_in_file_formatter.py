@@ -48,18 +48,14 @@ async def replace_in_file_formatter(
         if content == new_content:
             return None
 
-        diff_md = format_diff(content, new_content, path)
+        diff_md = format_diff(content, new_content, path, ui=ui)
         if not diff_md:
             return None
 
         indent = " " * 7
-        width = None
-        try:
-            width = os.get_terminal_size().columns - len(indent) - 1
-        except Exception:
-            pass
-
-        formatted_diff = render_markdown(diff_md, width=width)
+        # Use width=None to let Rich handle markdown rendering without interfering
+        # with the already-wrapped diff formatting from util.py
+        formatted_diff = render_markdown(diff_md, width=None)
         formatted_diff = "\n".join(
             [f"{indent}{line}" for line in formatted_diff.splitlines()]
         )

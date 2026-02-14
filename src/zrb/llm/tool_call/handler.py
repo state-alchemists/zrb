@@ -152,11 +152,7 @@ class ToolCallHandler:
                     pass
             args_str = yaml_dump(args)
             args_str = "\n".join([f"{indent}{line}" for line in args_str.splitlines()])
-            width = None
-            try:
-                width = os.get_terminal_size().columns - len(indent) - 1
-            except Exception:
-                pass
-            return render_markdown(f"```yaml\n{args_str}\n```", width=width)
+            # Use width=None to let Rich handle markdown rendering
+            return render_markdown(f"```yaml\n{args_str}\n```", width=None)
         except Exception:
             return f"{indent}{args}"

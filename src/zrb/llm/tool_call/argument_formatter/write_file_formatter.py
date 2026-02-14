@@ -33,7 +33,7 @@ async def write_file_formatter(
         if not path or content is None:
             return None
 
-        return _format_single_write(path, content, mode)
+        return _format_single_write(path, content, mode, ui)
 
     except Exception:
         return None
@@ -66,7 +66,7 @@ async def write_files_formatter(
             mode = file_info.get("mode", "w")
             if not path or content is None:
                 continue
-            formatted = _format_single_write(path, content, mode)
+            formatted = _format_single_write(path, content, mode, ui)
             if formatted:
                 results.append(formatted)
 
@@ -79,7 +79,7 @@ async def write_files_formatter(
         return None
 
 
-def _format_single_write(path: str, new_content: str, mode: str) -> str | None:
+def _format_single_write(path: str, new_content: str, mode: str, ui) -> str | None:
     abs_path = os.path.abspath(os.path.expanduser(path))
     old_content = ""
     file_exists = os.path.exists(abs_path)
@@ -95,14 +95,14 @@ def _format_single_write(path: str, new_content: str, mode: str) -> str | None:
     if mode == "a":
         final_new_content = old_content + new_content
 
-    diff_md = format_diff(old_content, final_new_content, path)
+    diff_md = format_diff(old_content, final_new_content, path, ui=ui)
     if not diff_md:
         return f"       📄 File: {path} (No changes)\n"
 
     indent = " " * 7
-    width = _get_width(indent)
-
-    formatted_diff = render_markdown(diff_md, width=width)
+    # Use width=None to let Rich handle markdown rendering without interfering
+    # with the already-wrapped diff formatting from util.py
+    formatted_diff = render_markdown(diff_md, width=None)
     formatted_diff = "\n".join(
         [f"{indent}{line}" for line in formatted_diff.splitlines()]
     )
@@ -113,10 +113,3 @@ def _format_single_write(path: str, new_content: str, mode: str) -> str | None:
         return f"       📄 Overwriting: {path}\n{formatted_diff}\n"
     else:
         return f"       🆕 New File: {path}\n{formatted_diff}\n"
-
-
-def _get_width(indent: str) -> int | None:
-    try:
-        return os.get_terminal_size().columns - len(indent) - 1
-    except Exception:
-        return None
