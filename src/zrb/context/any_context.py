@@ -35,6 +35,16 @@ class AnyContext(AnySharedContext):
     ) -> "JsonSchemaValue":
         return {"type": "object", "title": "AnyContext"}
 
+    @property
+    @abstractmethod
+    def attempt(self) -> int:
+        """Returns the current attempt count.
+
+        Returns:
+            int: The current attempt count.
+        """
+        pass
+
     @abstractmethod
     def set_attempt(self, attempt: int):
         """Sets the current attempt count.

@@ -209,15 +209,58 @@ class LLMTask(BaseTask):
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
         conversation_name = self._get_conversation_name(ctx)
-        history_manager = (
-            FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
-            if self._history_manager is None
-            else self._history_manager
-        )
+        history_manager = self._get_history_manager(ctx)
         message_history = history_manager.load(conversation_name)
         user_message = get_attr(ctx, self._message, "", self._render_message)
         user_attachments = get_attachments(ctx, self._attachment)
 
+        if await self._should_summarize(
+            ctx, history_manager, conversation_name, user_message, message_history
+        ):
+            return "Conversation history compressed."
+
+        agent = self._create_agent(ctx)
+        handle_event = self._create_event_handler(ctx)
+        effective_message, effective_attachments = self._get_effective_prompt(
+            ctx, user_message, user_attachments, message_history
+        )
+
+        try:
+            output, new_history = await run_agent(
+                agent=agent,
+                message=effective_message,
+                message_history=message_history,
+                limiter=self._llm_limitter,
+                attachments=effective_attachments,
+                print_fn=lambda *args, **kwargs: ctx.print(*args, **kwargs, plain=True),
+                event_handler=handle_event,
+                tool_confirmation=self._tool_confirmation,
+                hook_manager=self._hook_manager,
+                ui=self._ui,
+            )
+        except Exception as e:
+            self._handle_run_error(ctx, history_manager, conversation_name, e)
+            raise e
+
+        history_manager.update(conversation_name, new_history)
+        history_manager.save(conversation_name)
+        ctx.log_debug(f"All messages: {new_history}")
+
+        return self._post_process_output(output)
+
+    def _get_history_manager(self, ctx: AnyContext) -> AnyHistoryManager:
+        if self._history_manager is not None:
+            return self._history_manager
+        return FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
+
+    async def _should_summarize(
+        self,
+        ctx: AnyContext,
+        history_manager: AnyHistoryManager,
+        conversation_name: str,
+        user_message: Any,
+        message_history: list[Any],
+    ) -> bool:
         if (
             isinstance(user_message, str)
             and user_message.strip() in self._summarize_command
@@ -226,8 +269,10 @@ class LLMTask(BaseTask):
             new_history = await summarize_history(message_history)
             history_manager.update(conversation_name, new_history)
             history_manager.save(conversation_name)
-            return "Conversation history compressed."
+            return True
+        return False
 
+    def _create_agent(self, ctx: AnyContext) -> Any:
         yolo = (
             self._dynamic_yolo
             if self._dynamic_yolo is not None
@@ -235,7 +280,7 @@ class LLMTask(BaseTask):
         )
         system_prompt = self._get_system_prompt(ctx)
         ctx.log_debug(f"SYSTEM PROMPT: {system_prompt}")
-        agent = create_agent(
+        return create_agent(
             model=self._get_model(ctx),
             system_prompt=system_prompt,
             tools=self._tools,
@@ -245,36 +290,100 @@ class LLMTask(BaseTask):
             yolo=yolo,
         )
 
+    def _create_event_handler(self, ctx: AnyContext) -> Any:
         print_event = create_faint_printer(ctx.shared_print)
-        handle_event = create_event_handler(
+        return create_event_handler(
             print_event,
             show_tool_call_detail=CFG.LLM_SHOW_TOOL_CALL_DETAIL,
             show_tool_result=CFG.LLM_SHOW_TOOL_CALL_RESULT,
         )
 
-        output, new_history = await run_agent(
-            agent=agent,
-            message=user_message,
-            message_history=message_history,
-            limiter=self._llm_limitter,
-            attachments=user_attachments,
-            print_fn=lambda *args, **kwargs: ctx.print(*args, **kwargs, plain=True),
-            event_handler=handle_event,
-            tool_confirmation=self._tool_confirmation,
-            hook_manager=self._hook_manager,
-            ui=self._ui,
+    def _get_effective_prompt(
+        self,
+        ctx: AnyContext,
+        user_message: str,
+        user_attachments: list[Any] | None,
+        message_history: list[Any],
+    ) -> tuple[str, list[Any] | None]:
+        # Detect retry and avoid duplicating the initial message if it's already in history
+        # Also, if it's a retry, we might want to inform the LLM about the previous failure.
+        if ctx.attempt > 1 and len(message_history) > 0:
+            from pydantic_ai.messages import ModelRequest, UserPromptPart
+
+            # Check if the last message (or one of the last few) is the user message
+            found_user_message = False
+            str_user_message = str(user_message)
+            for msg in reversed(message_history):
+                if isinstance(msg, ModelRequest):
+                    for part in msg.parts:
+                        if (
+                            isinstance(part, UserPromptPart)
+                            and str(part.content) == str_user_message
+                        ):
+                            found_user_message = True
+                            break
+                if found_user_message:
+                    break
+
+            if found_user_message:
+                # User message is already in history, so we don't need to send it again.
+                # Instead, we send a retry notice.
+                ctx.log_info("Initial message found in history, sending retry notice.")
+                return (
+                    f"[System] This is retry attempt {ctx.attempt}. "
+                    "The previous attempt failed. Please review the history and continue.",
+                    None,
+                )
+        return user_message, user_attachments
+
+    def _handle_run_error(
+        self,
+        ctx: AnyContext,
+        history_manager: AnyHistoryManager,
+        conversation_name: str,
+        error: Exception,
+    ):
+        from pydantic_ai.messages import (
+            ModelRequest,
+            ModelResponse,
+            ToolCallPart,
+            ToolReturnPart,
+            UserPromptPart,
         )
 
+        new_history = getattr(error, "zrb_history", None)
+        if new_history is None:
+            return
+        # Append error information to history so it's available on next retry
+        # 1. Handle dangling tool calls if necessary
+        if len(new_history) > 0:
+            last_msg = new_history[-1]
+            if isinstance(last_msg, ModelResponse):
+                tool_returns = []
+                for part in last_msg.parts:
+                    if isinstance(part, ToolCallPart):
+                        tool_returns.append(
+                            ToolReturnPart(
+                                tool_name=part.tool_name,
+                                content=f"Error: {str(error)}",
+                                tool_call_id=part.tool_call_id,
+                            )
+                        )
+                if tool_returns:
+                    new_history.append(ModelRequest(parts=tool_returns))
+
+        # 2. Append general error information
+        error_msg = f"[System] Error occurred: {str(error)}"
+        new_history.append(ModelRequest(parts=[UserPromptPart(content=error_msg)]))
         history_manager.update(conversation_name, new_history)
         history_manager.save(conversation_name)
-        ctx.log_debug(f"All messages: {new_history}")
 
+    def _post_process_output(self, output: Any) -> Any:
         if isinstance(output, str):
             # Remove ANSI escape codes first to ensure regex patterns work correctly
             output = remove_style(output)
             # Remove thinking/thought tags with proper nesting handling
             output = remove_thinking_tags(output)
-
         return output
 
     def _get_system_prompt(self, ctx: AnyContext) -> str:

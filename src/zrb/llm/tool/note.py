@@ -37,12 +37,13 @@ def create_write_long_term_note_tool(
 
         **OPERATIONAL MANDATE:**
         - You MUST ALWAYS `Read` before writing to avoid losing established context.
-        - You MUST ALWAYS keep notes small, atomic, and focused on rarely-changing facts.
-        - Use ONLY for cross-project user preferences or critical persona facts.
+        - You MUST ALWAYS keep notes small, dense, and focused on high-signal, rarely-changing facts.
+        - Use ONLY for cross-project user preferences, established patterns, or critical persona facts.
+        - **NEVER** use for transient task progress or current actions.
         - **WARNING:** This COMPLETELY OVERWRITES existing global memory.
 
         **ARGS:**
-        - `content`: The high-signal text to persist.
+        - `content`: The high-signal, invariant text to persist.
         """
         note_manager.write("~", content)
         return "Global long-term note saved."
@@ -88,9 +89,9 @@ def create_write_contextual_note_tool(
 
         **OPERATIONAL MANDATE:**
         - You MUST ALWAYS `Read` before writing.
-        - You MUST ONLY save architectural information or rules that will rarely change.
-        - You MUST NEVER save transient task progress or redundant context.
-        - Keep notes small, atomic, and high-signal.
+        - You MUST ONLY save architectural information, project-specific rules, or patterns that will rarely change.
+        - You MUST NEVER save transient task progress, current status, or redundant context.
+        - Keep notes small, dense, and high-signal.
         - **WARNING:** This COMPLETELY OVERWRITES the contextual note for the path.
 
         **ARGS:**

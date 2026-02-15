@@ -105,7 +105,8 @@ class MockLimiter:
                 for p in content.parts
                 if hasattr(p, "content")
             )
-        return 10
+        # For logic tests that expect 1000 for non-strings
+        return 1000
 
     def truncate_text(self, text, limit):
         return text[:limit]
@@ -195,8 +196,9 @@ async def test_summarizer_early_exit():
     messages = [ModelRequest(parts=[UserPromptPart(content="hi")])]
 
     # Within limits
+    # Since limiter returns 1000 for list, we need higher threshold
     result = await summarize_history(
-        messages, limiter=limiter, summary_window=10, conversational_token_threshold=100
+        messages, limiter=limiter, summary_window=10, conversational_token_threshold=2000
     )
     assert result == messages
 
@@ -351,3 +353,45 @@ async def test_summarize_text_plain_edge_cases():
         await summarize_text_plain("hi", None, limiter, 0)
         == "[Threshold too low for summarization]"
     )
+
+
+@pytest.mark.asyncio
+async def test_summarize_heavy_recent_history():
+    # Setup
+    limiter = MockLimiter()
+    agent = MagicMock()
+
+    # Mock agent.run returning a result with output
+    mock_result = MagicMock()
+    mock_result.output = "SUMMARY"
+    agent.run = AsyncMock(return_value=mock_result)
+
+    # Create 2 messages
+    msg1 = ModelRequest(parts=[UserPromptPart(content="Hello")])
+    msg2 = ModelResponse(parts=[TextPart(content="A" * 100)])
+    messages = [msg1, msg2]
+
+    # Run with small threshold (10) and normal window (5)
+    # Since limiter returns 1000 for list, it is > 10.
+    # Since len(messages) is 2, it is <= 5.
+    # The safe split logic should trigger.
+
+    new_history = await summarize_history(
+        messages,
+        agent=agent,
+        summary_window=5,
+        limiter=limiter,
+        conversational_token_threshold=10,
+    )
+
+    # Assert
+    # With the new safer logic that NEVER breaks complete tool pairs:
+    # - No tool pairs exist in these messages
+    # - find_best_effort_split will find a split that keeps the last message
+    # So we get 2 messages: summary + last message
+    assert len(new_history) == 2
+    assert isinstance(new_history[0], ModelRequest)  # Summary
+    assert new_history[1] == msg2  # Last message kept intact
+
+    # Verify agent was called
+    assert agent.run.called

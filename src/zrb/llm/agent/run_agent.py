@@ -182,59 +182,62 @@ async def run_agent(
             current_message = None
 
         # 3. Execution Loop
-        while True:
-            result_output = None
-            run_history = []
+        run_history = current_history
+        try:
+            while True:
+                async for event in agent.run_stream_events(
+                    current_message,
+                    message_history=current_history,
+                    deferred_tool_results=current_results,
+                    usage_limits=UsageLimits(request_limit=None),
+                ):
+                    await asyncio.sleep(0)
+                    if isinstance(event, AgentRunResultEvent):
+                        result = event.result
+                        result_output = result.output
+                        run_history = result.all_messages()
+                    if effective_event_handler:
+                        await effective_event_handler(event)
 
-            async for event in agent.run_stream_events(
-                current_message,
-                message_history=current_history,
-                deferred_tool_results=current_results,
-                usage_limits=UsageLimits(request_limit=None),
-            ):
-                await asyncio.sleep(0)
-                if isinstance(event, AgentRunResultEvent):
-                    result = event.result
-                    result_output = result.output
-                    run_history = result.all_messages()
-                if effective_event_handler:
-                    await effective_event_handler(event)
-
-            # Handle Deferred Calls
-            if isinstance(result_output, DeferredToolRequests):
-                current_results = await _process_deferred_requests(
-                    result_output,
-                    effective_tool_confirmation,
-                    effective_ui,
-                    effective_hook_manager,
-                )
-                if current_results is None:
-                    # Hook: SessionEnd (premature end due to tool denial or wait)
-                    await effective_hook_manager.execute_hooks(
-                        HookEvent.SESSION_END,
-                        {"reason": "deferred_wait", "history": run_history},
+                # Handle Deferred Calls
+                if isinstance(result_output, DeferredToolRequests):
+                    current_results = await _process_deferred_requests(
+                        result_output,
+                        effective_tool_confirmation,
+                        effective_ui,
+                        effective_hook_manager,
                     )
-                    return result_output, run_history
-                # Prepare next iteration
-                current_message = None
-                current_history = run_history
-                continue
+                    if current_results is None:
+                        # Hook: SessionEnd (premature end due to tool denial or wait)
+                        await effective_hook_manager.execute_hooks(
+                            HookEvent.SESSION_END,
+                            {"reason": "deferred_wait", "history": run_history},
+                        )
+                        return result_output, run_history
+                    # Prepare next iteration
+                    current_message = None
+                    current_history = run_history
+                    continue
 
-            # Hook: PreCompact (if history is getting long)
-            # This is a simplified check
-            if len(run_history) > 10:
+                # Hook: PreCompact (if history is getting long)
+                # This is a simplified check
+                if len(run_history) > 10:
+                    await effective_hook_manager.execute_hooks(
+                        HookEvent.PRE_COMPACT,
+                        {"history": run_history},
+                    )
+
+                # Hook: SessionEnd
                 await effective_hook_manager.execute_hooks(
-                    HookEvent.PRE_COMPACT,
-                    {"history": run_history},
+                    HookEvent.SESSION_END,
+                    {"output": result_output, "history": run_history},
                 )
 
-            # Hook: SessionEnd
-            await effective_hook_manager.execute_hooks(
-                HookEvent.SESSION_END,
-                {"output": result_output, "history": run_history},
-            )
-
-            return result_output, run_history
+                return result_output, run_history
+        except Exception as e:
+            if not hasattr(e, "zrb_history"):
+                setattr(e, "zrb_history", run_history)
+            raise e
     finally:
         # Restore context variables
         current_ui.reset(token_ui)

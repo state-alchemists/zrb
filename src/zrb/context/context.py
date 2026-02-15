@@ -74,6 +74,10 @@ class Context(AnyContext):
     def set_session(self, session: AnySession):
         self._shared_ctx.set_session(session)
 
+    @property
+    def attempt(self) -> int:
+        return self._attempt
+
     def set_attempt(self, attempt: int):
         self._attempt = attempt
 
