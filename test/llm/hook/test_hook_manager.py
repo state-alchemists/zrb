@@ -1,6 +1,4 @@
-import asyncio
 import json
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -9,11 +7,9 @@ import yaml
 from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.schema import (
-    AgentHookConfig,
     CommandHookConfig,
     HookConfig,
     MatcherConfig,
-    PromptHookConfig,
 )
 from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
 

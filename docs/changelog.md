@@ -1,5 +1,44 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.3.3 (February 15, 2026)
+
+- **Feature: LLM Task Error Retry with History Preservation**:
+  - **Error History Attachment**: Modified `run_agent()` to attach conversation history (`zrb_history`) to exceptions, enabling retry attempts with full context preservation.
+  - **LLMTask Retry Logic**: Enhanced `LLMTask._exec_action()` to:
+    - Save error details to history before raising exceptions
+    - Include retry attempt count in subsequent prompts (`[System] This is retry attempt N`)
+    - Maintain conversation continuity across retries
+    - Detect duplicate user messages in history to avoid repetition
+  - **Automatic Error Handling**: Added `_handle_run_error()` method to automatically append tool return results and error messages to conversation history for recovery.
+  - **Context Attempt Property**: Added `attempt` property to `AnyContext` and `Context` classes for tracking retry attempts.
+
+- **Improvement: Code Refactoring & Modularization**:
+  - **LLMTask Method Extraction**: Refactored monolithic `_exec_action()` into modular methods:
+    - `_get_history_manager()` - History manager initialization
+    - `_should_summarize()` - Conversation summarization logic
+    - `_create_agent()` - Agent creation
+    - `_create_event_handler()` - Event handler setup
+    - `_get_effective_prompt()` - Retry-aware prompt generation
+    - `_handle_run_error()` - Error history processing
+    - `_post_process_output()` - Output cleanup
+  - **Enhanced Run Agent Safety**: Wrapped `run_agent()` execution loop in try-except to ensure history attachment to exceptions.
+
+- **Improvement: Test Consolidation & Coverage**:
+  - **New Retry Test Suite**: Added comprehensive `test_llm_task_retry.py` verifying:
+    - Error history preservation and attachment
+    - Automatic history saving on failures
+    - Retry attempt tracking in prompts
+    - Conversation continuity across retries
+  - **Test File Consolidation**:
+    - Renamed `test_summarizer_comprehensive.py` → `test_history_summarizer.py`
+    - Renamed `test_hook_manager_comprehensive.py` → `test_hook_manager.py`
+    - Removed redundant `test_summarizer_logic.py`, `test_config_extended.py`, `test_cli_extended.py`
+  - **Enhanced Test Coverage**: Updated existing test files (`test_config.py`, `test_cli.py`) with improved assertions and edge case handling.
+
+- **Improvement: Core Prompt Refinements**:
+  - **Updated Mandate & Persona**: Minor refinements to `mandate.md` and `persona.md` for clearer operational directives and improved agent behavior guidelines.
+  - **Note Tool Enhancement**: Updated `note.py` tool with improved error handling and user feedback.
+
 ## 2.3.2
 
 - **Feature: Enhanced LLM Challenge Framework**:
