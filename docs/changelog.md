@@ -1,5 +1,20 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.3.4 (February 15, 2026)
+
+- **Bug Fix: Token Counting Robustness for Complex Message Structures**:
+  - **Enhanced `_to_str()` Method**: Refactored `LLMLimiter._to_str()` in `src/zrb/llm/config/limiter.py` to handle complex Pydantic AI message structures more robustly:
+    - Added proper handling for basic types (int, float, bool, None)
+    - Used `getattr()` with safe defaults instead of direct attribute access
+    - Added recursive dictionary handling for nested structures
+    - Improved resilience against malformed or unexpected message formats
+  - **Token Estimation Stability**: Fixed potential token counting inaccuracies when processing tool calls, tool returns, and complex message parts, ensuring more accurate rate limiting and context window management.
+
+- **Improvement: Test Code Quality & Formatting**:
+  - **Enhanced Retry Test Suite**: Updated `test_llm_task_retry.py` with improved imports, better formatting, and more comprehensive assertions for error handling scenarios.
+  - **Code Style Consistency**: Applied consistent formatting across test files (`test_config.py`, `test_history_summarizer.py`) with proper line breaks and import organization.
+  - **Test Coverage Validation**: Added property access tests in `test_config.py` to ensure all configuration properties are accessible without errors.
+
 ## 2.3.3 (February 15, 2026)
 
 - **Feature: LLM Task Error Retry with History Preservation**:
