@@ -1,7 +1,9 @@
-import pytest
+import json
 import os
 import tempfile
-import json
+
+import pytest
+
 from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
@@ -46,22 +48,24 @@ async def test_global_hook_execution():
 
     assert len(executed) == 2
 
+
 @pytest.mark.asyncio
 async def test_hook_manager_register_various_events():
     """Test registering hooks for multiple events."""
     manager = HookManager()
     events = [HookEvent.NOTIFICATION, HookEvent.USER_PROMPT_SUBMIT]
-    
+
     async def multi_event_hook(ctx):
         return HookResult(success=True)
-        
+
     manager.register(multi_event_hook, events=events)
-    
+
     res1 = await manager.execute_hooks(HookEvent.NOTIFICATION, {})
     res2 = await manager.execute_hooks(HookEvent.USER_PROMPT_SUBMIT, {})
-    
+
     assert len(res1) == 1
     assert len(res2) == 1
+
 
 @pytest.mark.asyncio
 async def test_hook_manager_get_search_directories():
@@ -70,4 +74,4 @@ async def test_hook_manager_get_search_directories():
     dirs = manager.get_search_directories()
     assert isinstance(dirs, list)
     # Should at least contain default plugin paths if they exist or home paths
-    assert len(dirs) >= 0 
+    assert len(dirs) >= 0

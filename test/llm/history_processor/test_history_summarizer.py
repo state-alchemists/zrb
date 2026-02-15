@@ -400,6 +400,7 @@ async def test_summarize_heavy_recent_history():
     # Verify agent was called
     assert agent.run.called
 
+
 @pytest.mark.asyncio
 async def test_summarize_history_error_handling():
     """Test that summarize_history returns original messages if agent fails."""
@@ -424,6 +425,7 @@ async def test_summarize_history_error_handling():
     # Should return original messages on error
     assert new_history == messages
 
+
 def test_message_to_text_unknown_types():
     """Test message_to_text with unknown message and part types."""
     # Unknown message type
@@ -432,7 +434,7 @@ def test_message_to_text_unknown_types():
     # Unknown part type in ModelRequest
     class UnknownPart:
         pass
-    
+
     req = ModelRequest(parts=[UnknownPart()])
     assert "Unknown part type: UnknownPart" in message_to_text(req)
 
@@ -440,53 +442,67 @@ def test_message_to_text_unknown_types():
     res = ModelResponse(parts=[UnknownPart()])
     assert "Unknown response part: UnknownPart" in message_to_text(res)
 
+
 @pytest.mark.asyncio
 async def test_summarize_short_text_non_string_output():
     """Test summarize_short_text when agent returns non-string output."""
     limiter = MockLimiter()
     agent = MagicMock()
     mock_result = MagicMock()
-    mock_result.output = 12345 # Non-string output
+    mock_result.output = 12345  # Non-string output
     agent.run = AsyncMock(return_value=mock_result)
 
     summary = await summarize_short_text("some text", agent, limiter, 100)
     assert summary == "12345"
+
 
 @pytest.mark.asyncio
 async def test_summarize_long_text_consolidation_failure():
     """Test summarize_long_text when consolidation fails."""
     limiter = MockLimiter()
     agent = MagicMock()
-    
+
     # First calls (chunk summaries) succeed, consolidation fails
     mock_chunk_result = MagicMock()
     mock_chunk_result.output = "Chunk summary"
-    
-    agent.run = AsyncMock(side_effect=[
-        mock_chunk_result,
-        mock_chunk_result,
-        Exception("Consolidation failed")
-    ])
+
+    agent.run = AsyncMock(
+        side_effect=[
+            mock_chunk_result,
+            mock_chunk_result,
+            Exception("Consolidation failed"),
+        ]
+    )
 
     with pytest.raises(Exception, match="Consolidation failed"):
         await summarize_long_text("A" * 500, agent, limiter, 100)
+
 
 @pytest.mark.asyncio
 async def test_find_best_effort_split_complex():
     """Test find_best_effort_split with mixed tool pairs."""
     from zrb.llm.summarizer.history_splitter import find_best_effort_split
+
     limiter = MockLimiter()
-    
+
     # 1. Complete pair (must not break)
     # 2. Call without return (can break)
     # 3. Orphaned return (can break)
-    
+
     messages = [
-        ModelRequest(parts=[ToolCallPart(tool_name="complete", args={}, tool_call_id="c1")]), # 0
-        ModelResponse(parts=[TextPart(content="Working...")]), # 1
-        ModelRequest(parts=[ToolReturnPart(content="done", tool_name="complete", tool_call_id="c1")]), # 2
-        ModelRequest(parts=[ToolCallPart(tool_name="incomplete", args={}, tool_call_id="i1")]), # 3
-        ModelRequest(parts=[UserPromptPart(content="last message")]) # 4
+        ModelRequest(
+            parts=[ToolCallPart(tool_name="complete", args={}, tool_call_id="c1")]
+        ),  # 0
+        ModelResponse(parts=[TextPart(content="Working...")]),  # 1
+        ModelRequest(
+            parts=[
+                ToolReturnPart(content="done", tool_name="complete", tool_call_id="c1")
+            ]
+        ),  # 2
+        ModelRequest(
+            parts=[ToolCallPart(tool_name="incomplete", args={}, tool_call_id="i1")]
+        ),  # 3
+        ModelRequest(parts=[UserPromptPart(content="last message")]),  # 4
     ]
 
     # Try to keep as much as possible but under 50 tokens
@@ -494,23 +510,28 @@ async def test_find_best_effort_split_complex():
     # Let's fix MockLimiter to be more predictable for this test
     class PreciseLimiter:
         def count_tokens(self, content):
-            if isinstance(content, str): return len(content)
-            if isinstance(content, list): return sum(self.count_tokens(m) for m in content)
+            if isinstance(content, str):
+                return len(content)
+            if isinstance(content, list):
+                return sum(self.count_tokens(m) for m in content)
             return 10
-        def truncate_text(self, text, limit): return text[:limit]
+
+        def truncate_text(self, text, limit):
+            return text[:limit]
 
     # Threshold 25 tokens -> can keep 2 messages (20 tokens)
     # Split at index 3 keeps [3, 4] -> "incomplete" call + "last message"
     # This is safe because "complete" pair is [0, 2] and it's entirely in summarized part
-    
+
     to_sum, to_keep = find_best_effort_split(messages, PreciseLimiter(), 25)
     assert len(to_keep) >= 1
     assert messages[-1] in to_keep
 
+
 def test_validate_tool_pair_integrity_problems():
     """Test validate_tool_pair_integrity with problematic history."""
     from zrb.llm.summarizer.history_splitter import validate_tool_pair_integrity
-    
+
     # 1. Call without return
     messages = [
         ModelRequest(parts=[ToolCallPart(tool_name="t", args={}, tool_call_id="c1")])
@@ -521,11 +542,14 @@ def test_validate_tool_pair_integrity_problems():
 
     # 2. Return without call
     messages = [
-        ModelRequest(parts=[ToolReturnPart(content="r", tool_name="t", tool_call_id="c2")])
+        ModelRequest(
+            parts=[ToolReturnPart(content="r", tool_name="t", tool_call_id="c2")]
+        )
     ]
     is_valid, problems = validate_tool_pair_integrity(messages)
     assert not is_valid
     assert any("has no call" in p for p in problems)
+
 
 def test_model_request_to_text_media_parts():
     """Test model_request_to_text with various media parts."""
@@ -538,15 +562,17 @@ def test_model_request_to_text_media_parts():
         UserPromptPart,
         VideoUrl,
     )
-    
+
     parts = [
-        UserPromptPart(content=[
-            ImageUrl(url="http://img"),
-            BinaryContent(data=b"bin", media_type="image/png"),
-            AudioUrl(url="http://audio"),
-            VideoUrl(url="http://video"),
-            DocumentUrl(url="http://doc"),
-        ])
+        UserPromptPart(
+            content=[
+                ImageUrl(url="http://img"),
+                BinaryContent(data=b"bin", media_type="image/png"),
+                AudioUrl(url="http://audio"),
+                VideoUrl(url="http://video"),
+                DocumentUrl(url="http://doc"),
+            ]
+        )
     ]
     req = ModelRequest(parts=parts)
     text = message_to_text(req)
@@ -556,27 +582,33 @@ def test_model_request_to_text_media_parts():
     assert "[Video URL: http://video]" in text
     assert "[Document URL: http://doc]" in text
 
+
 @pytest.mark.asyncio
 async def test_consolidate_summaries_public():
     """Test consolidate_summaries public function."""
     from zrb.llm.summarizer.chunk_processor import consolidate_summaries
+
     agent = MagicMock()
     mock_result = MagicMock()
     mock_result.output = "<state_snapshot>Consolidated</state_snapshot>"
     agent.run = AsyncMock(return_value=mock_result)
-    
+
     result = await consolidate_summaries("Summary text", agent, 100, True)
     assert "Consolidated" in result
     assert agent.run.called
+
 
 @pytest.mark.asyncio
 async def test_summarize_text_with_snapshot():
     """Test summarize_text handles state_snapshot tags correctly."""
     from zrb.llm.summarizer.text_summarizer import summarize_text
+
     agent = MagicMock()
     mock_result = MagicMock()
-    mock_result.output = "Random text <state_snapshot>Important data</state_snapshot> more text"
+    mock_result.output = (
+        "Random text <state_snapshot>Important data</state_snapshot> more text"
+    )
     agent.run = AsyncMock(return_value=mock_result)
-    
+
     result = await summarize_text("history", agent)
     assert result == "<state_snapshot>Important data</state_snapshot>"

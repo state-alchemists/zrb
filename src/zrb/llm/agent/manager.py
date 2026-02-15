@@ -2,20 +2,22 @@ from __future__ import annotations
 
 import os
 import uuid
-import yaml
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+import yaml
+
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.agent.common import create_agent
-from zrb.util.load import load_module_from_path
 from zrb.llm.history_processor.summarizer import (
     create_summarizer_history_processor,
 )
+from zrb.util.load import load_module_from_path
+
 if TYPE_CHECKING:
-    from pydantic_ai import Agent
-    from pydantic_ai import Tool
+    from pydantic_ai import Agent, Tool
     from pydantic_ai.tools import ToolFuncEither
 
 _IGNORE_DIRS = [
@@ -377,7 +379,7 @@ class SubAgentManager:
                     token_threshold=CFG.LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD,
                     summary_window=CFG.LLM_HISTORY_SUMMARIZATION_WINDOW,
                 )
-            ]
+            ],
         )
 
 

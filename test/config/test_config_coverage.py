@@ -1,6 +1,9 @@
-import pytest
 import os
+
+import pytest
+
 from zrb.config.config import Config, get_log_level
+
 
 def test_config_additional_properties():
     """Test various config properties to increase coverage."""
@@ -17,7 +20,7 @@ def test_config_additional_properties():
     assert isinstance(config.SESSION_LOG_DIR, str)
     assert isinstance(config.TODO_DIR, str)
     assert isinstance(config.TODO_VISUAL_FILTER, str)
-    assert isinstance(config.TODO_RETENTION, str) # '1w'
+    assert isinstance(config.TODO_RETENTION, str)  # '1w'
     assert isinstance(config.VERSION, str)
     assert isinstance(config.WEB_CSS_PATH, list)
     assert isinstance(config.WEB_JS_PATH, list)
@@ -37,10 +40,13 @@ def test_config_additional_properties():
     assert isinstance(config.WEB_JARGON, str)
     assert isinstance(config.WEB_HOMEPAGE_INTRO, str)
 
+
 def test_get_log_level_function():
     assert get_log_level("DEBUG") == 10
     assert get_log_level("INFO") == 20
     assert get_log_level("WARNING") == 30
     assert get_log_level("ERROR") == 40
     assert get_log_level("CRITICAL") == 50
-    assert get_log_level("INVALID") == 30 # Default is WARNING (30) based on test failure
+    assert (
+        get_log_level("INVALID") == 30
+    )  # Default is WARNING (30) based on test failure

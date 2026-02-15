@@ -1,5 +1,28 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.3.5 (February 15, 2026)
+
+- **Feature: Enhanced Agent System with Comprehensive Test Coverage**:
+  - **Agent Manager Improvements**: 
+    - Integrated history summarization processor into agent creation for better context management
+    - Added proper context initialization for sub-agents with SharedContext support
+    - Fixed import ordering and type hinting issues for better code organization
+  - **Summarizer Enhancements**:
+    - Added default configuration handling for summary window parameter
+    - Improved token threshold logic for conversational summarization with proper fallback to configuration defaults
+  - **Mandate Documentation Refinement**:
+    - Clarified FAST PATH vs DEEP PATH delegation criteria with explicit context saturation risk assessment
+    - Added recovery protocol for failed delegation scenarios to prevent brute-force execution
+    - Emphasized user visibility awareness for sub-agent outputs with clear reporting requirements
+  - **Comprehensive Test Coverage Expansion**:
+    - Added 20+ new test files across all major components (1329 insertions, 31 deletions)
+    - Extensive coverage for agent manager, run agent, history processors, hooks, prompts, and tools
+    - Resilience tests for summarizer functionality with edge case handling
+    - Coverage for config, input, runner, and utility modules ensuring system-wide stability
+  - **Minor Documentation Updates**:
+    - Refined persona and summarizer prompt templates for better agent guidance
+    - Updated tool delegation with proper imports and error handling
+
 ## 2.3.4 (February 15, 2026)
 
 - **Bug Fix: Token Counting Robustness for Complex Message Structures**:

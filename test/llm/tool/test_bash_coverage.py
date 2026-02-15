@@ -1,6 +1,9 @@
-import pytest
 import asyncio
+
+import pytest
+
 from zrb.llm.tool.bash import run_shell_command
+
 
 @pytest.mark.asyncio
 async def test_run_shell_command_timeout():
@@ -9,18 +12,20 @@ async def test_run_shell_command_timeout():
     assert "(timed out)" in result
     assert "[SYSTEM SUGGESTION]" in result
 
+
 @pytest.mark.asyncio
 async def test_run_shell_command_error():
     # Test execution error
     result = await run_shell_command("exit 1")
     assert "Exit Code: 1" in result
 
+
 @pytest.mark.asyncio
 async def test_run_shell_command_suggestions():
     # Test permission denied suggestion
     result = await run_shell_command("echo 'permission denied'")
     assert "Permission denied" in result
-    
+
     # Test package manager lock suggestion
     # We pass the full command string as the first argument
     result = await run_shell_command("echo 'lock' && echo 'brew install ...'")
