@@ -207,23 +207,31 @@ class LLMLimiter:
     def _to_str(self, content: Any) -> str:
         if isinstance(content, str):
             return content
-
-        # Optimized for Pydantic AI Messages to avoid massive repr/json overhead
         if isinstance(content, list):
             return "".join(self._to_str(c) for c in content)
-
+        if isinstance(content, (int, float, bool)) or content is None:
+            return str(content)
         # Handle ModelRequest, ModelResponse, etc.
         if hasattr(content, "parts"):
-            return "".join(self._to_str(p) for p in content.parts)
-
+            parts = getattr(content, "parts", [])
+            return self._to_str(parts)
         # Handle UserPromptPart, TextPart, ToolReturnPart
         if hasattr(content, "content"):
-            return str(content.content)
-
+            content_val = getattr(content, "content", None)
+            if isinstance(content_val, (str, list)):
+                return self._to_str(content_val)
+            if content_val is not None:
+                return str(content_val)
         # Handle ToolCallPart
         if hasattr(content, "args"):
-            return str(content.args)
-
+            args = getattr(content, "args", {})
+            if isinstance(args, (str, dict, list)):
+                return self._to_str(args)
+            return str(args)
+        if isinstance(content, dict):
+            return "".join(
+                f"{self._to_str(k)}{self._to_str(v)}" for k, v in content.items()
+            )
         try:
             return json.dumps(content, default=str)
         except Exception:
