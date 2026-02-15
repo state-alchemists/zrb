@@ -532,12 +532,15 @@ def test_llm_plugin_dirs(monkeypatch):
 def test_llm_small_model(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_SMALL_MODEL", "gpt-4o-mini")
     config = Config()
-    assert config.SHELL == get_current_shell() # Existing test was slightly wrong in my previous read, it seems config.SHELL defaults to get_current_shell() on Linux/Darwin
+    assert (
+        config.SHELL == get_current_shell()
+    )  # Existing test was slightly wrong in my previous read, it seems config.SHELL defaults to get_current_shell() on Linux/Darwin
     assert config.LLM_SMALL_MODEL == "gpt-4o-mini"
 
 
 def test_config_properties_access():
     from zrb.config.config import CFG
+
     # Access all properties to boost coverage
     # LLM properties
     # _ = CFG.LLM_PROVIDER # Removed

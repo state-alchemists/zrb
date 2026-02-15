@@ -198,7 +198,10 @@ async def test_summarizer_early_exit():
     # Within limits
     # Since limiter returns 1000 for list, we need higher threshold
     result = await summarize_history(
-        messages, limiter=limiter, summary_window=10, conversational_token_threshold=2000
+        messages,
+        limiter=limiter,
+        summary_window=10,
+        conversational_token_threshold=2000,
     )
     assert result == messages
 
