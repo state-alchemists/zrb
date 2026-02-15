@@ -1,23 +1,157 @@
-[2m{"[0m[2mpath[0m[2m":"[0m[2mlaunch[0m[2m_post[0m[2m.md[0m[2m","[0m[2mcontent[0m[2m":"[0m[2m#[0m[2m Introducing[0m[2m Z[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m:[0m[2m AI[0m[2m Automation[0m[2m for[0m[2m the[0m[2m Terminal[0m[2m ([0m[2mwith[0m[2m Docker[0m[2m +[0m[2m Kubernetes[0m[2m Super[0m[2mpowers[0m[2m)\[0m[2mn[0m[2m\n[0m[2mToday[0m[2m we[0m[2m’re[0m[2m launching[0m[2m **[0m[2mZ[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m**,[0m[2m a[0m[2m new[0m[2m automation[0m[2m tool[0m[2m built[0m[2m for[0m[2m people[0m[2m who[0m[2m live[0m[2m in[0m[2m the[0m[2m CLI[0m[2m and[0m[2m ship[0m[2m real[0m[2m systems[0m[2m.\[0m[2mn[0m[2m\n[0m[2mZ[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m blends[0m[2m **[0m[2mAI[0m[2m-assisted[0m[2m workflows[0m[2m**[0m[2m with[0m[2m the[0m[2m tooling[0m[2m you[0m[2m already[0m[2m depend[0m[2m on[0m[2m—[0m[2m**[0m[2mDocker[0m[2m**[0m[2m and[0m[2m **[0m[2mK[0m[2mubernetes[0m[2m**[0m[2m—[0m[2mso[0m[2m you[0m[2m can[0m[2m move[0m[2m from[0m[2m “[0m[2midea[0m[2m”[0m[2m to[0m[2m “[0m[2mrunning[0m[2m pipeline[0m[2m”[0m[2m faster[0m[2m,[0m[2m with[0m[2m fewer[0m[2m brittle[0m[2m scripts[0m[2m and[0m[2m less[0m[2m yak[0m[2m-sh[0m[2maving[0m[2m.\[0m[2mn[0m[2m\n[0m[2m---[0m[2m\[0m[2mn[0m[2m\n[0m[2m##[0m[2m Why[0m[2m Z[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m?\[0m[2mn[0m[2m\n[0m[2mModern[0m[2m delivery[0m[2m stacks[0m[2m are[0m[2m powerful[0m[2m,[0m[2m but[0m[2m they[0m[2m’re[0m[2m also[0m[2m noisy[0m[2m:\[0m[2mn[0m[2m\n[0m[2m-[0m[2m Shell[0m[2m scripts[0m[2m grow[0m[2m into[0m[2m fragile[0m[2m,[0m[2m undocumented[0m[2m mini[0m[2m-products[0m[2m\n[0m[2m-[0m[2m Pip[0m[2melines[0m[2m break[0m[2m for[0m[2m small[0m[2m reasons[0m[2m ([0m[2ma[0m[2m missing[0m[2m flag[0m[2m,[0m[2m a[0m[2m changed[0m[2m image[0m[2m tag[0m[2m,[0m[2m a[0m[2m renamed[0m[2m manifest[0m[2m)\[0m[2mn[0m[2m-[0m[2m Fix[0m[2mes[0m[2m are[0m[2m repetitive[0m[2m,[0m[2m time[0m[2m-consuming[0m[2m,[0m[2m and[0m[2m hard[0m[2m to[0m[2m standard[0m[2mize[0m[2m\n[0m[2m\n[0m[2m**[0m[2mZ[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m is[0m[2m designed[0m[2m to[0m[2m keep[0m[2m automation[0m[2m *[0m[2mflow[0m[2ming[0m[2m***[0m[2m—[0m[2meven[0m[2m when[0m[2m your[0m[2m environment[0m[2m changes[0m[2m.\[0m[2mn[0m[2m\n[0m[2m---[0m[2m\[0m[2mn[0m[2m\n[0m[2m##[0m[2m Built[0m[2m for[0m[2m CLI[0m[2m Power[0m[2m Users[0m[2m\n[0m[2m\n[0m[2mZ[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m is[0m[2m intentionally[0m[2m terminal[0m[2m-first[0m[2m.[0m[2m It[0m[2m’s[0m[2m made[0m[2m for[0m[2m engineers[0m[2m who[0m[2m want[0m[2m:\[0m[2mn[0m[2m\n[0m[2m-[0m[2m **[0m[2mFast[0m[2m feedback[0m[2m loops[0m[2m**[0m[2m:[0m[2m run[0m[2m tasks[0m[2m,[0m[2m see[0m[2m results[0m[2m,[0m[2m iterate[0m[2m quickly[0m[2m\n[0m[2m-[0m[2m **[0m[2mComposable[0m[2m automation[0m[2m**[0m[2m:[0m[2m chain[0m[2m tasks[0m[2m into[0m[2m dependable[0m[2m workflows[0m[2m\n[0m[2m-[0m[2m **[0m[2mPr[0m[2mactical[0m[2m AI[0m[2m**[0m[2m:[0m[2m assistance[0m[2m that[0m[2m targets[0m[2m real[0m[2m bott[0m[2mlene[0m[2mcks[0m[2m ([0m[2mnot[0m[2m “[0m[2mmagic[0m[2m”[0m[2m)\[0m[2mn[0m[2m\n[0m[2mThink[0m[2m of[0m[2m it[0m[2m as[0m[2m a[0m[2m high[0m[2m-le[0m[2mverage[0m[2m layer[0m[2m on[0m[2m top[0m[2m of[0m[2m the[0m[2m commands[0m[2m you[0m[2m already[0m[2m trust[0m[2m.\[0m[2mn[0m[2m\n[0m[2m---[0m[2m\[0m[2mn[0m[2m\n[0m[2m##[0m[2m Deep[0m[2m Hooks[0m[2m into[0m[2m Docker[0m[2m and[0m[2m Kubernetes[0m[2m\n[0m[2m\n[0m[2mZ[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m integrates[0m[2m clean[0m[2mly[0m[2m with[0m[2m container[0m[2m-based[0m[2m workflows[0m[2m:\[0m[2mn[0m[2m\n[0m[2m-[0m[2m Build[0m[2m,[0m[2m tag[0m[2m,[0m[2m and[0m[2m run[0m[2m containers[0m[2m with[0m[2m repeat[0m[2mable[0m[2m task[0m[2m definitions[0m[2m\n[0m[2m-[0m[2m Or[0m[2mchestr[0m[2mate[0m[2m deployment[0m[2m steps[0m[2m and[0m[2m environment[0m[2m checks[0m[2m\n[0m[2m-[0m[2m Autom[0m[2mate[0m[2m the[0m[2m glue[0m[2m work[0m[2m between[0m[2m local[0m[2m dev[0m[2m,[0m[2m CI[0m[2m,[0m[2m and[0m[2m clusters[0m[2m\n[0m[2m\n[0m[2mWhether[0m[2m you[0m[2m’re[0m[2m spinning[0m[2m up[0m[2m a[0m[2m quick[0m[2m local[0m[2m stack[0m[2m in[0m[2m Docker[0m[2m or[0m[2m coordinating[0m[2m a[0m[2m rollout[0m[2m in[0m[2m Kubernetes[0m[2m,[0m[2m Z[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m helps[0m[2m keep[0m[2m the[0m[2m workflow[0m[2m consistent[0m[2m and[0m[2m automated[0m[2m.\[0m[2mn[0m[2m\n[0m[2m---[0m[2m\[0m[2mn[0m[2m\n[0m[2m##[0m[2m The[0m[2m Feature[0m[2m We[0m[2m’re[0m[2m Most[0m[2m Exc[0m[2mited[0m[2m About[0m[2m:[0m[2m Self[0m[2m-He[0m[2maling[0m[2m Pip[0m[2melines[0m[2m\n[0m[2m\n[0m[2mScripts[0m[2m break[0m[2m.[0m[2m Pip[0m[2melines[0m[2m drift[0m[2m.[0m[2m Dependency[0m[2m versions[0m[2m change[0m[2m.[0m[2m Someone[0m[2m edits[0m[2m a[0m[2m command[0m[2m “[0m[2mjust[0m[2m this[0m[2m once[0m[2m.”[0m[2m\[0m[2mn[0m[2m\n[0m[2mThat[0m[2m’s[0m[2m why[0m[2m Z[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m ships[0m[2m with[0m[2m **[0m[2mSelf[0m[2m-He[0m[2maling[0m[2m Pip[0m[2melines[0m[2m**[0m[2m.\[0m[2mn[0m[2m\n[0m[2mWhen[0m[2m a[0m[2m pipeline[0m[2m step[0m[2m fails[0m[2m,[0m[2m Z[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m can[0m[2m:\[0m[2mn[0m[2m\n[0m[2m-[0m[2m Inspect[0m[2m the[0m[2m failure[0m[2m context[0m[2m ([0m[2mcommand[0m[2m output[0m[2m,[0m[2m exit[0m[2m code[0m[2m,[0m[2m relevant[0m[2m files[0m[2m)\[0m[2mn[0m[2m-[0m[2m Identify[0m[2m likely[0m[2m causes[0m[2m ([0m[2mmissing[0m[2m tools[0m[2m,[0m[2m path[0m[2m issues[0m[2m,[0m[2m changed[0m[2m flags[0m[2m,[0m[2m mis[0m[2mordered[0m[2m steps[0m[2m)\[0m[2mn[0m[2m-[0m[2m Pro[0m[2mpose[0m[2m or[0m[2m apply[0m[2m targeted[0m[2m fixes[0m[2m to[0m[2m the[0m[2m workflow[0m[2m\n[0m[2m\n[0m[2mThe[0m[2m goal[0m[2m isn[0m[2m’t[0m[2m to[0m[2m hide[0m[2m errors[0m[2m—it[0m[2m’s[0m[2m to[0m[2m **[0m[2mreduce[0m[2m the[0m[2m time[0m[2m from[0m[2m failure[0m[2m to[0m[2m recovery[0m[2m**[0m[2m and[0m[2m keep[0m[2m automation[0m[2m from[0m[2m becoming[0m[2m a[0m[2m grave[0m[2myard[0m[2m of[0m[2m half[0m[2m-working[0m[2m scripts[0m[2m.\[0m[2mn[0m[2m\n[0m[2mIf[0m[2m you[0m[2m’ve[0m[2m ever[0m[2m lost[0m[2m an[0m[2m afternoon[0m[2m to[0m[2m a[0m[2m one[0m[2m-line[0m[2m change[0m[2m,[0m[2m you[0m[2m already[0m[2m understand[0m[2m why[0m[2m this[0m[2m matters[0m[2m.\[0m[2mn[0m[2m\n[0m[2m---[0m[2m\[0m[2mn[0m[2m\n[0m[2m##[0m[2m What[0m[2m You[0m[2m Can[0m[2m Do[0m[2m with[0m[2m Z[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m ([0m[2mDay[0m[2m One[0m[2m)\[0m[2mn[0m[2m\n[0m[2mA[0m[2m few[0m[2m examples[0m[2m of[0m[2m what[0m[2m teams[0m[2m are[0m[2m using[0m[2m Z[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m for[0m[2m right[0m[2m away[0m[2m:\[0m[2mn[0m[2m\n[0m[2m-[0m[2m **[0m[2mBoot[0m[2mstr[0m[2mapping[0m[2m dev[0m[2m environments[0m[2m**[0m[2m with[0m[2m Docker[0m[2mized[0m[2m services[0m[2m\n[0m[2m-[0m[2m **[0m[2mAutom[0m[2mating[0m[2m build[0m[2m/test[0m[2m/de[0m[2mploy[0m[2m loops[0m[2m**[0m[2m in[0m[2m a[0m[2m consistent[0m[2m CLI[0m[2m workflow[0m[2m\n[0m[2m-[0m[2m **[0m[2mRunning[0m[2m release[0m[2m tasks[0m[2m**[0m[2m that[0m[2m coordinate[0m[2m image[0m[2m builds[0m[2m +[0m[2m K[0m[2m8[0m[2ms[0m[2m updates[0m[2m\n[0m[2m-[0m[2m **[0m[2mHard[0m[2mening[0m[2m pipelines[0m[2m**[0m[2m so[0m[2m failures[0m[2m trigger[0m[2m smart[0m[2m,[0m[2m actionable[0m[2m remediation[0m[2m\n[0m[2m\n[0m[2m---[0m[2m\[0m[2mn[0m[2m\n[0m[2m##[0m[2m Ready[0m[2m to[0m[2m Try[0m[2m It[0m[2m?\[0m[2mn[0m[2m\n[0m[2mIf[0m[2m you[0m[2m want[0m[2m automation[0m[2m that[0m[2m feels[0m[2m native[0m[2m in[0m[2m the[0m[2m terminal[0m[2m—and[0m[2m smarter[0m[2m when[0m[2m things[0m[2m go[0m[2m wrong[0m[2m—[0m[2m**[0m[2mZ[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m is[0m[2m ready[0m[2m**[0m[2m.\[0m[2mn[0m[2m\n[0m[2m###[0m[2m Install[0m[2m Z[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m\n[0m[2m\n[0m[2mInstall[0m[2m it[0m[2m now[0m[2m and[0m[2m start[0m[2m building[0m[2m your[0m[2m first[0m[2m flow[0m[2m:\[0m[2mn[0m[2m\n[0m[2m```[0m[2mbash[0m[2m\n[0m[2m#[0m[2m Install[0m[2m Z[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m\n[0m[2mpip[0m[2m install[0m[2m z[0m[2mrb[0m[2m-flow[0m[2m\n[0m[2m\n[0m[2m#[0m[2m Verify[0m[2m\n[0m[2mz[0m[2mrb[0m[2m-flow[0m[2m --[0m[2mhelp[0m[2m\n[0m[2m``[0m[2m`\[0m[2mn[0m[2m\n[0m[2m([0m[2mPrefer[0m[2m another[0m[2m install[0m[2m method[0m[2m?[0m[2m Check[0m[2m the[0m[2m project[0m[2m docs[0m[2m for[0m[2m your[0m[2m environment[0m[2m.)[0m[2m\[0m[2mn[0m[2m\n[0m[2m---[0m[2m\[0m[2mn[0m[2m\n[0m[2m##[0m[2m Launch[0m[2m Notes[0m[2m\n[0m[2m\n[0m[2mThis[0m[2m is[0m[2m our[0m[2m first[0m[2m public[0m[2m release[0m[2m,[0m[2m and[0m[2m we[0m[2m’re[0m[2m actively[0m[2m improving[0m[2m it[0m[2m.[0m[2m If[0m[2m you[0m[2m push[0m[2m it[0m[2m hard[0m[2m ([0m[2mwe[0m[2m hope[0m[2m you[0m[2m do[0m[2m),[0m[2m we[0m[2m’d[0m[2m love[0m[2m your[0m[2m feedback[0m[2m—[0m[2mespecially[0m[2m on[0m[2m Docker[0m[2m/K[0m[2m8[0m[2ms[0m[2m workflows[0m[2m and[0m[2m the[0m[2m Self[0m[2m-He[0m[2maling[0m[2m Pip[0m[2melines[0m[2m experience[0m[2m.\[0m[2mn[0m[2m\n[0m[2m**[0m[2mZ[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m is[0m[2m built[0m[2m for[0m[2m builders[0m[2m.[0m[2m**[0m[2m Let[0m[2m’s[0m[2m keep[0m[2m your[0m[2m automation[0m[2m moving[0m[2m.\[0m[2mn[0m[2m"}[0m[2m
-  🧰 call_BrDsZGNqlr5KUhidVTF0UlhP | write_file {'path': 'launch_post.md', 'content': '# Introducing Zrb-Flow: AI ...'}[0m[2m
-  🔠 call_BrDsZGNqlr5KUhidVTF0UlhP | Return Successfully wrote to launch_post.md[0m[2m{"[0m[2mcommand[0m[2m":"[0m[2mls[0m[2m -[0m[2mla[0m[2m launch[0m[2m_post[0m[2m.md[0m[2m &&[0m[2m wc[0m[2m -[0m[2ml[0m[2m launch[0m[2m_post[0m[2m.md[0m[2m","[0m[2mtimeout[0m[2m":[0m[2m30[0m[2m}[0m[2m
-  🧰 call_cjtLCn0zshgsz355tRclqhMO | run_shell_command {'command': 'ls -la launch_post.md && w ...', 'timeout': 30}[0m  [2m-rw-r--r--@ 1 gofrendigunawan  staff  3541  3 Feb 22:16 launch_post.md
-[0m  [2m      98 launch_post.md
+[2m{"[0m[2mpath[0m[2m":"[0m[2mlaunch[0m[2m_post[0m[2m.md[0m[2m","[0m[2mcontent[0m[2m":"[0m[2m#[0m[2m Introducing[0m[2m Z[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m:[0m[2m AI[0m[2m-P[0m[2mowered[0m[2m Automation[0m[2m for[0m[2m CLI[0m[2m,[0m[2m Docker[0m[2m,[0m[2m and[0m[2m Kubernetes[0m[2m\n[0m[2m\n[0m[2mToday[0m[2m we[0m[2m’re[0m[2m launching[0m[2m **[0m[2mZ[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m**[0m[2m —[0m[2m an[0m[2m AI[0m[2m automation[0m[2m tool[0m[2m built[0m[2m for[0m[2m people[0m[2m who[0m[2m live[0m[2m in[0m[2m the[0m[2m terminal[0m[2m and[0m[2m ship[0m[2m real[0m[2m systems[0m[2m.\[0m[2mn[0m[2m\n[0m[2mZ[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m turns[0m[2m your[0m[2m CLI[0m[2m into[0m[2m an[0m[2m intelligent[0m[2m,[0m[2m script[0m[2m-aware[0m[2m operator[0m[2m that[0m[2m can[0m[2m understand[0m[2m intent[0m[2m,[0m[2m orchestr[0m[2mate[0m[2m complex[0m[2m workflows[0m[2m,[0m[2m and[0m[2m integrate[0m[2m directly[0m[2m with[0m[2m **[0m[2mDocker[0m[2m**[0m[2m and[0m[2m **[0m[2mK[0m[2mubernetes[0m[2m**[0m[2m.[0m[2m Whether[0m[2m you[0m[2m’re[0m[2m building[0m[2m,[0m[2m testing[0m[2m,[0m[2m deploying[0m[2m,[0m[2m or[0m[2m debugging[0m[2m production[0m[2m pipelines[0m[2m,[0m[2m Z[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m helps[0m[2m you[0m[2m move[0m[2m faster[0m[2m while[0m[2m staying[0m[2m in[0m[2m control[0m[2m.\[0m[2mn[0m[2m\n[0m[2m---[0m[2m\[0m[2mn[0m[2m\n[0m[2m##[0m[2m Why[0m[2m Z[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m\n[0m[2m\n[0m[2mModern[0m[2m engineering[0m[2m workflows[0m[2m are[0m[2m a[0m[2m patch[0m[2mwork[0m[2m of[0m[2m shell[0m[2m scripts[0m[2m,[0m[2m CI[0m[2m steps[0m[2m,[0m[2m YAML[0m[2m,[0m[2m container[0m[2m builds[0m[2m,[0m[2m and[0m[2m clusters[0m[2m.[0m[2m The[0m[2m glue[0m[2m code[0m[2m works[0m[2m…[0m[2m until[0m[2m it[0m[2m doesn[0m[2m’t[0m[2m.\[0m[2mn[0m[2m\n[0m[2mZ[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m is[0m[2m designed[0m[2m to[0m[2m reduce[0m[2m that[0m[2m friction[0m[2m:\[0m[2mn[0m[2m\n[0m[2m-[0m[2m **[0m[2mAI[0m[2m-assisted[0m[2m CLI[0m[2m automation[0m[2m**[0m[2m that[0m[2m fits[0m[2m into[0m[2m the[0m[2m tools[0m[2m you[0m[2m already[0m[2m use[0m[2m\n[0m[2m-[0m[2m **[0m[2mFirst[0m[2m-class[0m[2m Docker[0m[2m integration[0m[2m**[0m[2m for[0m[2m repeat[0m[2mable[0m[2m builds[0m[2m and[0m[2m local[0m[2m environments[0m[2m\n[0m[2m-[0m[2m **[0m[2mK[0m[2mubernetes[0m[2m-aware[0m[2m workflows[0m[2m**[0m[2m for[0m[2m shipping[0m[2m to[0m[2m real[0m[2m clusters[0m[2m with[0m[2m confidence[0m[2m\n[0m[2m-[0m[2m **[0m[2mComposable[0m[2m automation[0m[2m**[0m[2m so[0m[2m you[0m[2m can[0m[2m standard[0m[2mize[0m[2m how[0m[2m your[0m[2m team[0m[2m runs[0m[2m common[0m[2m operations[0m[2m\n[0m[2m\n[0m[2m---[0m[2m\[0m[2mn[0m[2m\n[0m[2m##[0m[2m The[0m[2m standout[0m[2m feature[0m[2m:[0m[2m Self[0m[2m-He[0m[2maling[0m[2m Pip[0m[2melines[0m[2m\n[0m[2m\n[0m[2mScripts[0m[2m break[0m[2m for[0m[2m predictable[0m[2m reasons[0m[2m:[0m[2m missing[0m[2m dependencies[0m[2m,[0m[2m bad[0m[2m paths[0m[2m,[0m[2m changed[0m[2m environments[0m[2m,[0m[2m flaky[0m[2m services[0m[2m,[0m[2m outdated[0m[2m configs[0m[2m,[0m[2m and[0m[2m tiny[0m[2m differences[0m[2m between[0m[2m local[0m[2m +[0m[2m CI[0m[2m +[0m[2m production[0m[2m.\[0m[2mn[0m[2m\n[0m[2m**[0m[2mSelf[0m[2m-He[0m[2maling[0m[2m Pip[0m[2melines[0m[2m**[0m[2m is[0m[2m Z[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m’s[0m[2m answer[0m[2m.\[0m[2mn[0m[2m\n[0m[2mWhen[0m[2m a[0m[2m pipeline[0m[2m step[0m[2m fails[0m[2m,[0m[2m Z[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m can[0m[2m:\[0m[2mn[0m[2m\n[0m[2m-[0m[2m Detect[0m[2m what[0m[2m failed[0m[2m and[0m[2m **[0m[2mwhy[0m[2m**[0m[2m ([0m[2mnot[0m[2m just[0m[2m the[0m[2m exit[0m[2m code[0m[2m)\[0m[2mn[0m[2m-[0m[2m Suggest[0m[2m the[0m[2m most[0m[2m likely[0m[2m fix[0m[2m and[0m[2m apply[0m[2m it[0m[2m when[0m[2m appropriate[0m[2m\n[0m[2m-[0m[2m Patch[0m[2m brittle[0m[2m scripts[0m[2m so[0m[2m they[0m[2m become[0m[2m **[0m[2mmore[0m[2m resilient[0m[2m over[0m[2m time[0m[2m**[0m[2m\[0m[2mn[0m[2m-[0m[2m Reduce[0m[2m time[0m[2m spent[0m[2m on[0m[2m rer[0m[2muns[0m[2m,[0m[2m log[0m[2m spel[0m[2munk[0m[2ming[0m[2m,[0m[2m and[0m[2m context[0m[2m switching[0m[2m\n[0m[2m\n[0m[2mThe[0m[2m goal[0m[2m isn[0m[2m’t[0m[2m to[0m[2m “[0m[2mhide[0m[2m errors[0m[2m.”[0m[2m The[0m[2m goal[0m[2m is[0m[2m to[0m[2m turn[0m[2m failures[0m[2m into[0m[2m a[0m[2m tight[0m[2m feedback[0m[2m loop[0m[2m where[0m[2m your[0m[2m automation[0m[2m gets[0m[2m smarter[0m[2m every[0m[2m run[0m[2m.\[0m[2mn[0m[2m\n[0m[2m---[0m[2m\[0m[2mn[0m[2m\n[0m[2m##[0m[2m Built[0m[2m for[0m[2m power[0m[2m users[0m[2m ([0m[2mwithout[0m[2m taking[0m[2m control[0m[2m away[0m[2m)\[0m[2mn[0m[2m\n[0m[2mZ[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m is[0m[2m built[0m[2m to[0m[2m be[0m[2m:\[0m[2mn[0m[2m\n[0m[2m-[0m[2m **[0m[2mTerminal[0m[2m-native[0m[2m**[0m[2m:[0m[2m it[0m[2m fits[0m[2m into[0m[2m real[0m[2m CLI[0m[2m workflows[0m[2m\n[0m[2m-[0m[2m **[0m[2mTransparent[0m[2m**[0m[2m:[0m[2m you[0m[2m can[0m[2m see[0m[2m what[0m[2m it[0m[2m plans[0m[2m to[0m[2m do[0m[2m before[0m[2m it[0m[2m does[0m[2m it[0m[2m\n[0m[2m-[0m[2m **[0m[2mPr[0m[2mag[0m[2mmatic[0m[2m**[0m[2m:[0m[2m it[0m[2m autom[0m[2mates[0m[2m the[0m[2m boring[0m[2m parts[0m[2m while[0m[2m keeping[0m[2m you[0m[2m in[0m[2m the[0m[2m driver[0m[2m’s[0m[2m seat[0m[2m\n[0m[2m-[0m[2m **[0m[2mReady[0m[2m for[0m[2m containers[0m[2m +[0m[2m clusters[0m[2m**[0m[2m:[0m[2m because[0m[2m that[0m[2m’s[0m[2m where[0m[2m the[0m[2m real[0m[2m work[0m[2m happens[0m[2m\n[0m[2m\n[0m[2mIf[0m[2m you[0m[2m’ve[0m[2m ever[0m[2m wished[0m[2m your[0m[2m scripts[0m[2m could[0m[2m diagnose[0m[2m themselves[0m[2m —[0m[2m and[0m[2m fix[0m[2m themselves[0m[2m —[0m[2m Z[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m is[0m[2m for[0m[2m you[0m[2m.\[0m[2mn[0m[2m\n[0m[2m---[0m[2m\[0m[2mn[0m[2m\n[0m[2m##[0m[2m Get[0m[2m started[0m[2m\n[0m[2m\n[0m[2mInstall[0m[2m Z[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m and[0m[2m try[0m[2m it[0m[2m on[0m[2m your[0m[2m current[0m[2m automation[0m[2m workflow[0m[2m —[0m[2m especially[0m[2m the[0m[2m one[0m[2m that[0m[2m breaks[0m[2m the[0m[2m most[0m[2m.\[0m[2mn[0m[2m\n[0m[2m**[0m[2mInstall[0m[2m now[0m[2m:**[0m[2m\[0m[2mn[0m[2m\n[0m[2m```[0m[2mbash[0m[2m\n[0m[2m#[0m[2m Replace[0m[2m with[0m[2m your[0m[2m preferred[0m[2m installation[0m[2m method[0m[2m\n[0m[2m#[0m[2m ([0m[2me[0m[2m.g[0m[2m.,[0m[2m brew[0m[2m,[0m[2m pip[0m[2mx[0m[2m,[0m[2m curl[0m[2m installer[0m[2m,[0m[2m etc[0m[2m.)[0m[2m\[0m[2mn[0m[2m\n[0m[2mz[0m[2mrb[0m[2m-flow[0m[2m --[0m[2mhelp[0m[2m\n[0m[2m``[0m[2m`\[0m[2mn[0m[2m\n[0m[2mWant[0m[2m to[0m[2m see[0m[2m it[0m[2m in[0m[2m action[0m[2m?[0m[2m Start[0m[2m with[0m[2m a[0m[2m small[0m[2m pipeline[0m[2m,[0m[2m run[0m[2m it[0m[2m locally[0m[2m with[0m[2m Docker[0m[2m,[0m[2m then[0m[2m push[0m[2m the[0m[2m same[0m[2m flow[0m[2m to[0m[2m Kubernetes[0m[2m.\[0m[2mn[0m[2m\n[0m[2m---[0m[2m\[0m[2mn[0m[2m\n[0m[2m**[0m[2mZ[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m is[0m[2m live[0m[2m.[0m[2m**[0m[2m Build[0m[2m faster[0m[2m.[0m[2m Ship[0m[2m safer[0m[2m.[0m[2m And[0m[2m let[0m[2m your[0m[2m pipelines[0m[2m heal[0m[2m themselves[0m[2m.\[0m[2mn[0m[2m"}[0m[2m
+  🧰 call_LOQ5jp2VLJo2tCBKnJZ6cpxT | Write {'path': 'launch_post.md', 'content': '# Introducing Zrb-Flow: AI ...'}
 [0m[2m
-  🔠 call_cjtLCn0zshgsz355tRclqhMO | Return Command: ls -la launch_post.md && wc -l launch_post.md
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/openai:gpt-5.2/copywriting/workdir
-     Stdout:
-     -rw-r--r--@ 1 gofrendigunawan  staff  3541  3 Feb 22:16 launch_post.md
-           98 launch_post.md
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)[0m[2m
-  🧠 Saved[0m[2m the[0m[2m launch[0m[2m announcement[0m[2m as[0m[2m `[0m[2mlaunch[0m[2m_post[0m[2m.md[0m[2m`[0m[2m ([0m[2m98[0m[2m lines[0m[2m).[0m[2m Verified[0m[2m it[0m[2m exists[0m[2m on[0m[2m disk[0m[2m (`[0m[2mls[0m[2m -[0m[2mla[0m[2m`[0m[2m exit[0m[2m code[0m[2m [0m[2m0[0m[2m).[0m[2m
-  [2m💸 (Requests: 3 | Tool Calls: 2 | Total: 25986) Input: 25032 | Audio Input: 0 | Output: 954 | Audio Output: 0 | Cache Read: 17024 | Cache Write: 0 | Details: {'accepted_prediction_tokens': 0, 'audio_tokens': 0, 'reasoning_tokens': 0, 'rejected_prediction_tokens': 0}[0m
-     [0m[2mTo run again:[0m [1;33mzrb chat --message "I need a launch announcement blog post for our new tool, **Zrb-Flow**. 
+  🔠 call_LOQ5jp2VLJo2tCBKnJZ6cpxT | Return Successfully wrote to launch_post.md
+[0m[2m
+  🧠 Saved[0m[2m as[0m[2m `[0m[2mlaunch[0m[2m_post[0m[2m.md[0m[2m`[0m[2m:
+     
+[0m[2m```[0m[2mmd[0m[2m
+[0m[2m#[0m[2m Introducing[0m[2m Z[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m:[0m[2m AI[0m[2m-P[0m[2mowered[0m[2m Automation[0m[2m for[0m[2m CLI[0m[2m,[0m[2m Docker[0m[2m,[0m[2m and[0m[2m Kubernetes[0m[2m
+     
+[0m[2mToday[0m[2m we[0m[2m’re[0m[2m launching[0m[2m **[0m[2mZ[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m**[0m[2m —[0m[2m an[0m[2m AI[0m[2m automation[0m[2m tool[0m[2m built[0m[2m for[0m[2m people[0m[2m who[0m[2m live[0m[2m in[0m[2m the[0m[2m terminal[0m[2m and[0m[2m ship[0m[2m real[0m[2m systems[0m[2m.
+     
+[0m[2mZ[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m turns[0m[2m your[0m[2m CLI[0m[2m into[0m[2m an[0m[2m intelligent[0m[2m,[0m[2m script[0m[2m-aware[0m[2m operator[0m[2m that[0m[2m can[0m[2m understand[0m[2m intent[0m[2m,[0m[2m orchestr[0m[2mate[0m[2m complex[0m[2m workflows[0m[2m,[0m[2m and[0m[2m integrate[0m[2m directly[0m[2m with[0m[2m **[0m[2mDocker[0m[2m**[0m[2m and[0m[2m **[0m[2mK[0m[2mubernetes[0m[2m**[0m[2m.[0m[2m Whether[0m[2m you[0m[2m’re[0m[2m building[0m[2m,[0m[2m testing[0m[2m,[0m[2m deploying[0m[2m,[0m[2m or[0m[2m debugging[0m[2m production[0m[2m pipelines[0m[2m,[0m[2m Z[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m helps[0m[2m you[0m[2m move[0m[2m faster[0m[2m while[0m[2m staying[0m[2m in[0m[2m control[0m[2m.
+     
+[0m[2m---
+     
+[0m[2m##[0m[2m Why[0m[2m Z[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m
+     
+[0m[2mModern[0m[2m engineering[0m[2m workflows[0m[2m are[0m[2m a[0m[2m patch[0m[2mwork[0m[2m of[0m[2m shell[0m[2m scripts[0m[2m,[0m[2m CI[0m[2m steps[0m[2m,[0m[2m YAML[0m[2m,[0m[2m container[0m[2m builds[0m[2m,[0m[2m and[0m[2m clusters[0m[2m.[0m[2m The[0m[2m glue[0m[2m code[0m[2m works[0m[2m…[0m[2m until[0m[2m it[0m[2m doesn[0m[2m’t[0m[2m.
+     
+[0m[2mZ[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m is[0m[2m designed[0m[2m to[0m[2m reduce[0m[2m that[0m[2m friction[0m[2m:
+     
+[0m[2m-[0m[2m **[0m[2mAI[0m[2m-assisted[0m[2m CLI[0m[2m automation[0m[2m**[0m[2m that[0m[2m fits[0m[2m into[0m[2m the[0m[2m tools[0m[2m you[0m[2m already[0m[2m use[0m[2m
+[0m[2m-[0m[2m **[0m[2mFirst[0m[2m-class[0m[2m Docker[0m[2m integration[0m[2m**[0m[2m for[0m[2m repeat[0m[2mable[0m[2m builds[0m[2m and[0m[2m local[0m[2m environments[0m[2m
+[0m[2m-[0m[2m **[0m[2mK[0m[2mubernetes[0m[2m-aware[0m[2m workflows[0m[2m**[0m[2m for[0m[2m shipping[0m[2m to[0m[2m real[0m[2m clusters[0m[2m with[0m[2m confidence[0m[2m
+[0m[2m-[0m[2m **[0m[2mComposable[0m[2m automation[0m[2m**[0m[2m so[0m[2m you[0m[2m can[0m[2m standard[0m[2mize[0m[2m how[0m[2m your[0m[2m team[0m[2m runs[0m[2m common[0m[2m operations[0m[2m
+     
+[0m[2m---
+     
+[0m[2m##[0m[2m The[0m[2m standout[0m[2m feature[0m[2m:[0m[2m Self[0m[2m-He[0m[2maling[0m[2m Pip[0m[2melines[0m[2m
+     
+[0m[2mScripts[0m[2m break[0m[2m for[0m[2m predictable[0m[2m reasons[0m[2m:[0m[2m missing[0m[2m dependencies[0m[2m,[0m[2m bad[0m[2m paths[0m[2m,[0m[2m changed[0m[2m environments[0m[2m,[0m[2m flaky[0m[2m services[0m[2m,[0m[2m outdated[0m[2m configs[0m[2m,[0m[2m and[0m[2m tiny[0m[2m differences[0m[2m between[0m[2m local[0m[2m +[0m[2m CI[0m[2m +[0m[2m production[0m[2m.
+     
+[0m[2m**[0m[2mSelf[0m[2m-He[0m[2maling[0m[2m Pip[0m[2melines[0m[2m**[0m[2m is[0m[2m Z[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m’s[0m[2m answer[0m[2m.
+     
+[0m[2mWhen[0m[2m a[0m[2m pipeline[0m[2m step[0m[2m fails[0m[2m,[0m[2m Z[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m can[0m[2m:
+     
+[0m[2m-[0m[2m Detect[0m[2m what[0m[2m failed[0m[2m and[0m[2m **[0m[2mwhy[0m[2m**[0m[2m ([0m[2mnot[0m[2m just[0m[2m the[0m[2m exit[0m[2m code[0m[2m)
+[0m[2m-[0m[2m Suggest[0m[2m the[0m[2m most[0m[2m likely[0m[2m fix[0m[2m and[0m[2m apply[0m[2m it[0m[2m when[0m[2m appropriate[0m[2m
+[0m[2m-[0m[2m Patch[0m[2m brittle[0m[2m scripts[0m[2m so[0m[2m they[0m[2m become[0m[2m **[0m[2mmore[0m[2m resilient[0m[2m over[0m[2m time[0m[2m**
+[0m[2m-[0m[2m Reduce[0m[2m time[0m[2m spent[0m[2m on[0m[2m rer[0m[2muns[0m[2m,[0m[2m log[0m[2m spel[0m[2munk[0m[2ming[0m[2m,[0m[2m and[0m[2m context[0m[2m switching[0m[2m
+     
+[0m[2mThe[0m[2m goal[0m[2m isn[0m[2m’t[0m[2m to[0m[2m “[0m[2mhide[0m[2m errors[0m[2m.”[0m[2m The[0m[2m goal[0m[2m is[0m[2m to[0m[2m turn[0m[2m failures[0m[2m into[0m[2m a[0m[2m tight[0m[2m feedback[0m[2m loop[0m[2m where[0m[2m your[0m[2m automation[0m[2m gets[0m[2m smarter[0m[2m every[0m[2m run[0m[2m.
+     
+[0m[2m---
+     
+[0m[2m##[0m[2m Built[0m[2m for[0m[2m power[0m[2m users[0m[2m ([0m[2mwithout[0m[2m taking[0m[2m control[0m[2m away[0m[2m)
+     
+[0m[2mZ[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m is[0m[2m built[0m[2m to[0m[2m be[0m[2m:
+     
+[0m[2m-[0m[2m **[0m[2mTerminal[0m[2m-native[0m[2m**[0m[2m:[0m[2m it[0m[2m fits[0m[2m into[0m[2m real[0m[2m CLI[0m[2m workflows[0m[2m
+[0m[2m-[0m[2m **[0m[2mTransparent[0m[2m**[0m[2m:[0m[2m you[0m[2m can[0m[2m see[0m[2m what[0m[2m it[0m[2m plans[0m[2m to[0m[2m do[0m[2m before[0m[2m it[0m[2m does[0m[2m it[0m[2m
+[0m[2m-[0m[2m **[0m[2mPr[0m[2mag[0m[2mmatic[0m[2m**[0m[2m:[0m[2m it[0m[2m autom[0m[2mates[0m[2m the[0m[2m boring[0m[2m parts[0m[2m while[0m[2m keeping[0m[2m you[0m[2m in[0m[2m the[0m[2m driver[0m[2m’s[0m[2m seat[0m[2m
+[0m[2m-[0m[2m **[0m[2mReady[0m[2m for[0m[2m containers[0m[2m +[0m[2m clusters[0m[2m**[0m[2m:[0m[2m because[0m[2m that[0m[2m’s[0m[2m where[0m[2m the[0m[2m real[0m[2m work[0m[2m happens[0m[2m
+     
+[0m[2mIf[0m[2m you[0m[2m’ve[0m[2m ever[0m[2m wished[0m[2m your[0m[2m scripts[0m[2m could[0m[2m diagnose[0m[2m themselves[0m[2m —[0m[2m and[0m[2m fix[0m[2m themselves[0m[2m —[0m[2m Z[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m is[0m[2m for[0m[2m you[0m[2m.
+     
+[0m[2m---
+     
+[0m[2m##[0m[2m Get[0m[2m started[0m[2m
+     
+[0m[2mInstall[0m[2m Z[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m and[0m[2m try[0m[2m it[0m[2m on[0m[2m your[0m[2m current[0m[2m automation[0m[2m workflow[0m[2m —[0m[2m especially[0m[2m the[0m[2m one[0m[2m that[0m[2m breaks[0m[2m the[0m[2m most[0m[2m.
+     
+[0m[2m**[0m[2mInstall[0m[2m now[0m[2m:[0m[2m**
+     
+[0m[2m```[0m[2mbash[0m[2m
+[0m[2m#[0m[2m Replace[0m[2m with[0m[2m your[0m[2m preferred[0m[2m installation[0m[2m method[0m[2m
+[0m[2m#[0m[2m ([0m[2me[0m[2m.g[0m[2m.,[0m[2m brew[0m[2m,[0m[2m pip[0m[2mx[0m[2m,[0m[2m curl[0m[2m installer[0m[2m,[0m[2m etc[0m[2m.)
+     
+[0m[2mz[0m[2mrb[0m[2m-flow[0m[2m --[0m[2mhelp[0m[2m
+[0m[2m``[0m[2m`
+     
+[0m[2mWant[0m[2m to[0m[2m see[0m[2m it[0m[2m in[0m[2m action[0m[2m?[0m[2m Start[0m[2m with[0m[2m a[0m[2m small[0m[2m pipeline[0m[2m,[0m[2m run[0m[2m it[0m[2m locally[0m[2m with[0m[2m Docker[0m[2m,[0m[2m then[0m[2m push[0m[2m the[0m[2m same[0m[2m flow[0m[2m to[0m[2m Kubernetes[0m[2m.
+     
+[0m[2m---
+     
+[0m[2m**[0m[2mZ[0m[2mrb[0m[2m-[0m[2mFlow[0m[2m is[0m[2m live[0m[2m.[0m[2m**[0m[2m Build[0m[2m faster[0m[2m.[0m[2m Ship[0m[2m safer[0m[2m.[0m[2m And[0m[2m let[0m[2m your[0m[2m pipelines[0m[2m heal[0m[2m themselves[0m[2m.
+[0m[2m```[0m[2m
+  [2m💸 (Requests: 2 | Tool Calls: 1 | Total: 15654) Input: 14337 | Audio Input: 0 | Output: 1317 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {'accepted_prediction_tokens': 0, 'audio_tokens': 0, 'reasoning_tokens': 0, 'rejected_prediction_tokens': 0}[0m
+[0m[2mTo run again:[0m [1;33mzrb chat --message "I need a launch announcement blog post for our new tool, **Zrb-Flow**. 
 
 It's basically an AI automation thing for CLI users that hooks into Docker and K8s. One cool feature is \"Self-Healing Pipelines\" where it fixes broken scripts.
 
 Keep it exciting and tech-savvy. Don't forget to tell people to install it at the end. Save it as `launch_post.md`." --model openai:gpt-5.2 --session "" --yolo true --attach "" --interactive false[0m
-Saved the launch announcement as `launch_post.md` (98 lines). Verified it exists on disk (`ls -la` exit code 0).
+Saved as `launch_post.md`:
+
+```md
+# Introducing Zrb-Flow: AI-Powered Automation for CLI, Docker, and Kubernetes
+
+Today we’re launching **Zrb-Flow** — an AI automation tool built for people who live in the terminal and ship real systems.
+
+Zrb-Flow turns your CLI into an intelligent, script-aware operator that can understand intent, orchestrate complex workflows, and integrate directly with **Docker** and **Kubernetes**. Whether you’re building, testing, deploying, or debugging production pipelines, Zrb-Flow helps you move faster while staying in control.
+
+---
+
+## Why Zrb-Flow
+
+Modern engineering workflows are a patchwork of shell scripts, CI steps, YAML, container builds, and clusters. The glue code works… until it doesn’t.
+
+Zrb-Flow is designed to reduce that friction:
+
+- **AI-assisted CLI automation** that fits into the tools you already use
+- **First-class Docker integration** for repeatable builds and local environments
+- **Kubernetes-aware workflows** for shipping to real clusters with confidence
+- **Composable automation** so you can standardize how your team runs common operations
+
+---
+
+## The standout feature: Self-Healing Pipelines
+
+Scripts break for predictable reasons: missing dependencies, bad paths, changed environments, flaky services, outdated configs, and tiny differences between local + CI + production.
+
+**Self-Healing Pipelines** is Zrb-Flow’s answer.
+
+When a pipeline step fails, Zrb-Flow can:
+
+- Detect what failed and **why** (not just the exit code)
+- Suggest the most likely fix and apply it when appropriate
+- Patch brittle scripts so they become **more resilient over time**
+- Reduce time spent on reruns, log spelunking, and context switching
+
+The goal isn’t to “hide errors.” The goal is to turn failures into a tight feedback loop where your automation gets smarter every run.
+
+---
+
+## Built for power users (without taking control away)
+
+Zrb-Flow is built to be:
+
+- **Terminal-native**: it fits into real CLI workflows
+- **Transparent**: you can see what it plans to do before it does it
+- **Pragmatic**: it automates the boring parts while keeping you in the driver’s seat
+- **Ready for containers + clusters**: because that’s where the real work happens
+
+If you’ve ever wished your scripts could diagnose themselves — and fix themselves — Zrb-Flow is for you.
+
+---
+
+## Get started
+
+Install Zrb-Flow and try it on your current automation workflow — especially the one that breaks the most.
+
+**Install now:**
+
+```bash
+# Replace with your preferred installation method
+# (e.g., brew, pipx, curl installer, etc.)
+
+zrb-flow --help
+```
+
+Want to see it in action? Start with a small pipeline, run it locally with Docker, then push the same flow to Kubernetes.
+
+---
+
+**Zrb-Flow is live.** Build faster. Ship safer. And let your pipelines heal themselves.
+```

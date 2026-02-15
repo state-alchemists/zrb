@@ -1,0 +1,5 @@
+[2mTo run again:[0m [1;33mzrb chat --message "This `etl.py` script is a nightmare to maintain. Every time we want to change the database host, we have to edit the code. And the parsing is so fragile that if someone adds an extra space to the log, it breaks.
+
+Can you clean this up? I want it to be more modular (maybe use that ETL thing people talk about). Also, use environment variables for config so we can stop hardcoding passwords. 
+
+Bonus points if you add types and make it look like a professional wrote it. Don't break the `report.html` output, our boss uses that." --model "" --session "" --yolo true --attach "" --interactive false[0m

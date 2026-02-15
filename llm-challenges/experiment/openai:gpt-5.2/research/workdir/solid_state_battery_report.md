@@ -1,78 +1,113 @@
-# Solid‑state batteries (late‑2024/2025 status): market timing, key players, and remaining technical hurdles
+# Solid-state batteries (SSB) status report (late 2024–2025)
 
-**Scope & caveat:** “Solid‑state” is used loosely in public announcements. Many “semi‑solid”/hybrid cells still use some liquid/gel. Timelines below are *announced targets* as of late‑2024/2025 and commonly slip.
+## Executive summary (what’s realistic by 2025)
+Solid-state batteries for EVs moved from “lab promise” to **road-test and B-sample** phase in 2024–2025, but **broad, high-volume commercial availability remains unlikely before 2027–2028** for true all-solid-state designs.
 
-## 1) When are solid‑state batteries actually hitting the market (cars)?
+Evidence points to a common industry pattern:
+- **2024–2025:** low-volume **B-samples**, OEM validation, and **road testing** in demo vehicles.
+- **2026:** demonstration fleets and early pre-production integration work (select programs).
+- **2027–2028:** earliest **commercialization targets** for initial EV launches, expected to be **limited volume** and premium applications first.
 
-### What “hitting the market” likely looks like
-- **2025–2027:** limited‑volume launches, demonstration fleets, and premium/halo models with higher cost tolerance.
-- **~2027–2030:** first **meaningful commercial volumes** if durability + manufacturability targets are met.
-- **Post‑2030:** broader mainstream penetration (if cost/kWh approaches advanced liquid electrolyte Li‑ion).
+## 1) Realistic market timelines for EVs (late 2024–2025 view)
 
-### Notable late‑2024/2025 timelines (company statements / reported plans)
-- **Nissan:** announced it would **launch an all‑solid‑state battery production process in March 2025**, with **mass production targeted for 2028**.\
-  Source: EnergyTrend compilation of company timetables.
-- **Toyota:** continued to indicate its first solid‑state‑battery vehicle is expected **within ~2–3 years** (as reported in late‑2024/2025 coverage), implying **~2027–2028** for an initial model.\
-  Source: Electrek solid‑state battery guide/roundup.
-- **Industry-wide (general):** the **IEA** notes solid‑state batteries moved closer to commercial reality in **2024** with large prototypes and manufacturing investments, but still frames the technology as emerging rather than broadly commercial.\
-  Source: IEA *Global EV Outlook 2025* (EV batteries section).
+### 2024–2025: samples and road tests (not mass-market)
+- **QuantumScape**: announced it **started producing and shipping first low-volume B-sample cells** for automotive customer testing in **Oct 2024**, and positioned its equipment scale-up (Cobra) to support **higher-volume QSE-5 samples in 2025**. (This is a key signal of “engineering maturity”, not mass production.)\
+  Source: QuantumScape press release (Dec 5, 2024).\
+  https://www.quantumscape.com/quantumscape-releases-next-generation-solid-state-battery-separator-equipment-cobra/
 
-**Bottom line:** Expect the **first real customer cars in the 2026–2028 window**, but **mass-market impact is more plausibly late‑2020s into early‑2030s**.
+- **Mercedes-Benz / Factorial Energy**: began **road tests in Feb 2025** with a slightly modified **EQS** using **lithium-metal solid-state battery cells from Factorial**; the prototype battery was integrated in the vehicle at the **end of 2024**.\
+  Source: Mercedes-Benz USA media release (Feb 24, 2025).\
+  https://media.mbusa.com/releases/release-7fa8a8ec6fed8413f2bac1ecef23ec7a-passenger-car-and-formula-1-engineers-team-up-as-solid-state-battery-road-tests-begin
 
-## 2) Who are the big companies involved?
+- **BMW / Solid Power**: announced in **May 2025** that BMW is operating a **BMW i7 test vehicle** with **large-format “pure” all-solid-state (ASSB) cells** from Solid Power on public roads (Munich area).\
+  Source: BMW Group press release (May 20, 2025).\
+  https://www.press.bmwgroup.com/usa/article/detail/T0450262EN_US/bmw-group-and-solid-power-are-testing-all-solid-state-battery-cells-in-a-bmw-i7?language=en_US
 
-### Automakers (vehicle integration + co-development)
-- **Toyota** (major long‑running program; multiple public targets)
-- **Nissan** (pilot/process in 2025; 2028 mass‑production target)
-- **Honda** (active R&D and scaling efforts referenced by IEA)
-- **BMW** (partnership ecosystem; also tracks Solid Power)
-- **Stellantis** (partnered with Factorial)
-- **NIO** (named by IEA among companies advancing prototypes/investments)
+### 2026–2028: first limited commercialization targets
+- **Toyota**: states it is “striving for commercialization” of **all-solid-state batteries for BEVs in 2027–2028**, alongside other next-gen battery introductions.\
+  Source: Toyota newsroom (Jun 13, 2023; still cited as Toyota’s roadmap through 2024–2025 reporting).\
+  https://global.toyota/en/newsroom/corporate/39330500.html
 
-### Battery developers / cell manufacturers
-- **Samsung SDI** (named by IEA among prototype/investment leaders)
-- **QuantumScape** (solid‑state developer; named by IEA)
-- **Factorial Energy** (named by IEA; partnerships with automakers)
-- **Solid Power** (solid electrolyte / cell developer; commonly cited in OEM partnerships)
-- **BASQUEVOLT** (named by IEA)
+- **Samsung SDI**: says it aims to **mass-produce all-solid-state batteries in 2027**; it describes a pilot line (“S-line”) and sample supply to customers.\
+  Source: Samsung SDI newsroom (Dec 3, 2024).\
+  https://news.samsungsdi.com/global/articleView?seq=203
 
-### Materials / supply-chain participants (enablers)
-- Solid electrolyte and lithium‑metal supply chain actors are increasingly important; IEA highlights that 2024 saw rising manufacturing investments and pilot lines tied to these ecosystems.
+- **Stellantis / Factorial**: Stellantis states it will incorporate Factorial solid-state batteries into a **demonstration fleet by 2026**, following validation of automotive-sized cells.\
+  Source: Stellantis press release (Apr 24, 2025).\
+  https://www.stellantis.com/en/news/press-releases/2025/april/stellantis-and-factorial-energy-reach-key-milestone-in-solid-state-battery-development
 
-## 3) What are the main technical problems still being solved?
+**Practical interpretation for EV buyers and planners (late 2024–2025 reality):**
+- Expect **headline “solid-state EVs”** to appear as **limited-run** or **premium** models first.
+- Wider availability depends on scaling yield/throughput, cost, and durability to automotive warranty levels—still not fully proven publicly by 2025.
 
-### A. Interfaces & stability (the core solid‑state challenge)
-- **Electrolyte/electrode interfacial resistance**: maintaining low impedance over time and temperature.
-- **Chemical/electrochemical stability**: preventing side reactions at high voltage cathodes or with lithium metal.
-- **Mechanical contact management**: solid‑solid contact can degrade from volume changes, cracking, and stack pressure relaxation.
+## 2) Major companies and partnerships (who is aligned with whom)
 
-### B. Lithium‑metal anodes: dendrites & safety at high current
-- Many solid‑state roadmaps rely on **lithium‑metal** for high energy density.
-- Remaining issues include **dendrite formation/shorting** (even through solids under certain conditions), and achieving fast charge without accelerated degradation.
+### Automakers (OEMs) and their solid-state routes
+- **Toyota**: developing all-solid-state BEV batteries with Toyota Group entities; targets commercialization 2027–2028.\
+  Source: Toyota newsroom.\
+  https://global.toyota/en/newsroom/corporate/39330500.html
 
-### C. Cycle life, calendar life, and real‑world durability
-- Demonstrating **thousands of cycles** at automotive duty cycles (temperature swings, fast charging, partial SOC cycling) remains difficult.
-- **Calendar aging** (time‑based degradation) is often less visible in press releases but is critical for warranties.
+- **Mercedes-Benz ↔ Factorial Energy**: joint development since 2021; Factorial delivered **lithium-metal solid-state B-sample shipment** to Mercedes-Benz in summer 2024 (per MBUSA release) and road tests started Feb 2025 in an EQS prototype.\
+  Source: MBUSA release.\
+  https://media.mbusa.com/releases/release-7fa8a8ec6fed8413f2bac1ecef23ec7a-passenger-car-and-formula-1-engineers-team-up-as-solid-state-battery-road-tests-begin
 
-### D. Manufacturing scale, yield, and cost
-- **Scaling solid electrolyte production** (sulfide/oxide/polymer variants) with consistent purity and particle morphology.
-- **High‑yield lamination/stacking** of thin layers (electrolyte + electrodes) without defects.
-- **Moisture sensitivity** (notably sulfide electrolytes) can force expensive dry‑room and handling requirements.
-- **Quality control**: detecting micro‑cracks/voids/contamination at high throughput.
+- **Stellantis ↔ Factorial Energy**: validated automotive-sized FEST® cells and plans a **demo fleet by 2026**.\
+  Source: Stellantis press release.\
+  https://www.stellantis.com/en/news/press-releases/2025/april/stellantis-and-factorial-energy-reach-key-milestone-in-solid-state-battery-development
 
-### E. Operating window & thermal behavior
-- Some chemistries have **narrower temperature windows** or need pressure/thermal control.
-- Vehicle pack engineering must ensure performance in cold climates and under fast‑charge heat loads.
+- **BMW ↔ Solid Power**: BMW i7 on-road test vehicle with Solid Power all-solid-state cells; BMW to operate a prototype line under license at its cell manufacturing competence center.\
+  Source: BMW Group press release.\
+  https://www.press.bmwgroup.com/usa/article/detail/T0450262EN_US/bmw-group-and-solid-power-are-testing-all-solid-state-battery-cells-in-a-bmw-i7?language=en_US
 
-## What changed in 2024 (why the optimism increased)
-The **IEA** reports that in **2024** solid‑state batteries moved closer to commercial reality with **new large prototypes** and **manufacturing investments** from a set of major OEMs and battery developers (including **Samsung SDI, Toyota, NIO, Honda, QuantumScape, BASQUEVOLT, and Factorial**), signaling the transition from lab results toward pilot‑scale manufacturing.
+### Battery makers / technology developers
+- **QuantumScape** (solid-state lithium-metal, ceramic separator): shipped low-volume B-samples (QSE-5) in Oct 2024 and is scaling separator production equipment (“Cobra”) for higher volume samples in 2025.\
+  Source: QuantumScape press release.\
+  https://www.quantumscape.com/quantumscape-releases-next-generation-solid-state-battery-separator-equipment-cobra/
 
-## Takeaways
-- **First launches:** likely **2026–2028** (limited volumes / premium). 
-- **Mass production (meaningful volumes):** **late‑2020s to ~2030** is the common clustering of announced targets.
-- **Main blockers:** interface stability, lithium‑metal durability, cycle/calendar life, and manufacturing scale/yield/cost.
+- **Samsung SDI**: pilot line, customer samples, aims mass production in 2027; publicizes 900 Wh/L energy density target.\
+  Source: Samsung SDI newsroom.\
+  https://news.samsungsdi.com/global/articleView?seq=203
 
-## Sources (opened and used)
-- IEA – *Global EV Outlook 2025* (Electric vehicle batteries section): https://www.iea.org/reports/global-ev-outlook-2025/electric-vehicle-batteries
-- EnergyTrend – “20 companies’ solid-state battery mass production ‘timetable’”: https://www.energytrend.com/news/20241219-48133.html
-- Electrek – Solid-state battery guide/roundup (Toyota timeline coverage and ongoing updates): https://electrek.co/guides/solid-state-batteries/
+## 3) Remaining technical challenges (why timelines are still 2027–2028)
+The 2024–2025 disclosures from OEMs and developers repeatedly highlight issues that map to the same engineering bottlenecks:
+
+1. **Durability / cycle life under automotive duty**
+   - Toyota explicitly references overcoming a longstanding “durability” challenge and continuing development toward commercialization (implying it was a gating item).\
+     Source: Toyota newsroom.\
+     https://global.toyota/en/newsroom/corporate/39330500.html
+
+2. **Cell expansion management and stack pressure control (mechanical integration)**
+   - BMW notes it is investigating **cell expansion**, operating pressure control, and temperature conditions in its i7 ASSB test vehicle program.\
+     Source: BMW Group press release.\
+     https://www.press.bmwgroup.com/usa/article/detail/T0450262EN_US/bmw-group-and-solid-power-are-testing-all-solid-state-battery-cells-in-a-bmw-i7?language=en_US
+
+   - Mercedes-Benz describes an **innovative floating cell carrier** and **pneumatic actuators** to manage solid-state cell volume change during charge/discharge—again signaling mechanical/pack-level complexity remains non-trivial.\
+     Source: MBUSA release.\
+     https://media.mbusa.com/releases/release-7fa8a8ec6fed8413f2bac1ecef23ec7a-passenger-car-and-formula-1-engineers-team-up-as-solid-state-battery-road-tests-begin
+
+3. **Manufacturing scalability, throughput, yield, and cost**
+   - QuantumScape’s announcement centers on scaling separator heat-treatment equipment (Cobra) and framing it as critical for **gigawatt-hour scale** manufacturability and cost efficiency—an indicator that manufacturing readiness remains a primary risk.\
+     Source: QuantumScape press release.\
+     https://www.quantumscape.com/quantumscape-releases-next-generation-solid-state-battery-separator-equipment-cobra/
+
+4. **Fast charging without degradation (balancing tradeoffs)**
+   - Stellantis/Factorial emphasize fast charging (15%→90% in 18 minutes) and cycle progression toward qualification, illustrating the need to balance **energy density, cycle life, power, and safety** simultaneously.\
+     Source: Stellantis press release.\
+     https://www.stellantis.com/en/news/press-releases/2025/april/stellantis-and-factorial-energy-reach-key-milestone-in-solid-state-battery-development
+
+## Bottom line
+By late 2024–2025, solid-state EV batteries are demonstrably progressing (B-samples, validated large-format cells, and road-test prototypes). However, **mass-market EV penetration before 2027** is still unlikely for true all-solid-state batteries due to scale-up, durability, and pack-integration challenges. The most credible public targets cluster around **2027–2028** for initial commercialization, with **2026** as a key year for demonstration fleets and extended road validation.
+
+## Sources (primary)
+- Toyota (Jun 13, 2023): commercialization target 2027–2028 for all-solid-state BEV batteries.\
+  https://global.toyota/en/newsroom/corporate/39330500.html
+- QuantumScape (Dec 5, 2024): Cobra equipment; Oct 2024 low-volume B-sample shipments; higher-volume samples in 2025.\
+  https://www.quantumscape.com/quantumscape-releases-next-generation-solid-state-battery-separator-equipment-cobra/
+- Samsung SDI (Dec 3, 2024): aims mass production in 2027; pilot line and customer samples.\
+  https://news.samsungsdi.com/global/articleView?seq=203
+- Mercedes-Benz USA (Feb 24, 2025): EQS solid-state road tests start Feb 2025; Factorial cells; integration end of 2024; pack design details.\
+  https://media.mbusa.com/releases/release-7fa8a8ec6fed8413f2bac1ecef23ec7a-passenger-car-and-formula-1-engineers-team-up-as-solid-state-battery-road-tests-begin
+- BMW Group (May 20, 2025): i7 test vehicle with Solid Power ASSB cells; focus on expansion/pressure/temp management.\
+  https://www.press.bmwgroup.com/usa/article/detail/T0450262EN_US/bmw-group-and-solid-power-are-testing-all-solid-state-battery-cells-in-a-bmw-i7?language=en_US
+- Stellantis (Apr 24, 2025): validated 77Ah FEST® solid-state cells (375 Wh/kg), demo fleet by 2026.\
+  https://www.stellantis.com/en/news/press-releases/2025/april/stellantis-and-factorial-energy-reach-key-milestone-in-solid-state-battery-development

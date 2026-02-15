@@ -1,3 +1,8 @@
-We have a half-baked Todo app in `todo_app.py`. The GET endpoint works, but we need you to finish the CRUD operations.
+Our Todo app is moving to a more modular structure, but we haven't finished the CRUD logic.
 
-Please implement the functionality to Create, Update, and Delete todo items. Make sure it handles IDs correctly (auto-increment is fine) and returns standard HTTP status codes.
+Please implement the remaining endpoints in `app/main.py`:
+1. **POST /todos**: Add a new todo. Handle ID generation.
+2. **PUT /todos/{todo_id}**: Update an existing todo.
+3. **DELETE /todos/{todo_id}**: Remove a todo.
+
+The app uses an in-memory database in `app/database.py`. Make sure your changes follow the existing patterns and use the correct Pydantic models.

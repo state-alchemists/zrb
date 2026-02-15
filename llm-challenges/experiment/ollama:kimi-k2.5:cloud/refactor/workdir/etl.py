@@ -1,259 +1,292 @@
 """
-ETL Pipeline for processing server logs and generating HTML reports.
+Log Processing ETL Pipeline
 
-Follows the ETL pattern:
-- Extract: Read and parse log files
-- Transform: Process and aggregate data
-- Load: Generate HTML report
+Extracts error and user events from log files, transforms into structured data,
+and loads into a report.html summary.
+
+Environment Variables:
+    DB_HOST: Database hostname (default: localhost)
+    DB_USER: Database username (default: admin)
+    DB_PASS: Database password (default: admin)
+    LOG_FILE: Path to log file (default: server.log)
 """
 
+import datetime
+import os
 import re
-from dataclasses import dataclass
-from datetime import datetime
+import sys
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Protocol
+from typing import List, Dict, Protocol
+
 
 # =============================================================================
 # Configuration
 # =============================================================================
 
-
 @dataclass(frozen=True)
-class ETLConfig:
-    """Configuration for the ETL pipeline."""
-
-    db_host: str = "localhost"
-    db_user: str = "admin"
-    log_file: Path = Path("server.log")
-    report_file: Path = Path("report.html")
+class Config:
+    """Application configuration from environment variables."""
+    db_host: str = field(default_factory=lambda: os.getenv("DB_HOST", "localhost"))
+    db_user: str = field(default_factory=lambda: os.getenv("DB_USER", "admin"))
+    db_pass: str = field(default_factory=lambda: os.getenv("DB_PASS", "admin"))
+    log_file: str = field(default_factory=lambda: os.getenv("LOG_FILE", "server.log"))
 
 
 # =============================================================================
 # Data Models
 # =============================================================================
 
-
 @dataclass(frozen=True)
 class LogEntry:
-    """Represents a parsed log entry."""
-
-    timestamp: datetime
+    """Represents a single parsed log entry."""
+    timestamp: str
     level: str
     message: str
+    user_id: str | None = None
 
 
-@dataclass(frozen=True)
-class UserAction:
-    """Represents a user action extracted from a log entry."""
-
-    timestamp: datetime
-    user_id: str
-    action: str
-
-
-@dataclass(frozen=True)
+@dataclass
 class ErrorReport:
-    """Aggregated error data for reporting."""
+    """Aggregated error statistics."""
+    errors: Dict[str, int] = field(default_factory=dict)
 
-    error_counts: Dict[str, int]
+    def add_error(self, message: str) -> None:
+        """Increment count for an error message."""
+        self.errors[message] = self.errors.get(message, 0) + 1
 
 
 # =============================================================================
-# Extract Phase
+# ETL Components
 # =============================================================================
 
+class Extractor(ABC):
+    """Abstract base for data extraction."""
 
-class LogExtractor:
-    """Extracts and parses log entries from files."""
+    @abstractmethod
+    def extract(self) -> List[LogEntry]:
+        """Extract data and return list of log entries."""
+        raise NotImplementedError
 
-    # Regex pattern for log lines: YYYY-MM-DD HH:MM:SS LEVEL message...
+
+class Transformer(ABC):
+    """Abstract base for data transformation."""
+
+    @abstractmethod
+    def transform(self, entries: List[LogEntry]) -> ErrorReport:
+        """Transform entries into aggregated report."""
+        raise NotImplementedError
+
+
+class Loader(ABC):
+    """Abstract base for data loading."""
+
+    @abstractmethod
+    def load(self, report: ErrorReport) -> None:
+        """Load report to output destination."""
+        raise NotImplementedError
+
+
+# =============================================================================
+# Concrete Implementations
+# =============================================================================
+
+class LogFileExtractor(Extractor):
+    """Extracts log entries from a file using regex parsing."""
+
+    # Regex pattern: TIMESTAMP LEVEL [optional prefix] MESSAGE
+    # Handles variable whitespace and extracts user IDs from INFO logs
     LOG_PATTERN = re.compile(
-        r"^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})"  # Timestamp
-        r"\s+(\w+)"  # Log level
-        r"\s+(.*)$"  # Message
+        r"^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s+(ERROR|INFO|WARN|DEBUG)\s+(.*)$"
     )
+    USER_PATTERN = re.compile(r"User\s+(\d+)\s+logged\s+(in|out)")
 
-    def __init__(self, config: ETLConfig) -> None:
-        self.config = config
+    def __init__(self, file_path: str) -> None:
+        self.file_path = Path(file_path)
 
     def extract(self) -> List[LogEntry]:
-        """Extract log entries from the configured log file."""
+        """Parse log file and return structured entries."""
         entries: List[LogEntry] = []
-        log_path = self.config.log_file
 
-        if not log_path.exists():
+        if not self.file_path.exists():
             return entries
 
-        content = log_path.read_text(encoding="utf-8")
+        with self.file_path.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
 
-        for line in content.strip().split("\n"):
-            entry = self._parse_line(line)
-            if entry:
-                entries.append(entry)
+                entry = self._parse_line(line)
+                if entry:
+                    entries.append(entry)
 
         return entries
 
-    def _parse_line(self, line: str) -> Optional[LogEntry]:
-        """Parse a single log line using regex."""
-        match = self.LOG_PATTERN.match(line.strip())
+    def _parse_line(self, line: str) -> LogEntry | None:
+        """Parse a single log line into a LogEntry."""
+        match = self.LOG_PATTERN.match(line)
         if not match:
             return None
 
-        timestamp_str, level, message = match.groups()
+        timestamp, level, message = match.groups()
+        user_id = None
 
-        try:
-            timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
-        except ValueError:
-            return None
+        # Extract user ID from login/logout messages
+        if level == "INFO":
+            user_match = self.USER_PATTERN.search(message)
+            if user_match:
+                user_id = user_match.group(1)
 
         return LogEntry(
-            timestamp=timestamp, level=level.upper(), message=message.strip()
+            timestamp=timestamp,
+            level=level,
+            message=message,
+            user_id=user_id
         )
 
 
-# =============================================================================
-# Transform Phase
-# =============================================================================
-
-
-class LogTransformer:
-    """Transforms extracted log entries into reportable data."""
-
-    # Regex pattern to extract user ID from messages like "User 123 logged in"
-    USER_ACTION_PATTERN = re.compile(r"User\s+(\d+)\s+(.*)", re.IGNORECASE)
+class ErrorAggregator(Transformer):
+    """Aggregates error entries into a summary report."""
 
     def transform(self, entries: List[LogEntry]) -> ErrorReport:
-        """
-        Transform log entries into an error report.
-
-        Aggregates ERROR level messages and counts occurrences.
-        """
-        error_counts: Dict[str, int] = {}
+        """Count occurrences of each unique error message."""
+        report = ErrorReport()
 
         for entry in entries:
             if entry.level == "ERROR":
-                error_counts[entry.message] = error_counts.get(entry.message, 0) + 1
+                report.add_error(entry.message)
 
-        return ErrorReport(error_counts=error_counts)
-
-    def extract_user_actions(self, entries: List[LogEntry]) -> List[UserAction]:
-        """Extract user actions from INFO level log entries."""
-        actions: List[UserAction] = []
-
-        for entry in entries:
-            if entry.level == "INFO":
-                match = self.USER_ACTION_PATTERN.search(entry.message)
-                if match:
-                    user_id, action_desc = match.groups()
-                    actions.append(
-                        UserAction(
-                            timestamp=entry.timestamp,
-                            user_id=user_id,
-                            action=action_desc.strip(),
-                        )
-                    )
-
-        return actions
+        return report
 
 
-# =============================================================================
-# Load Phase
-# =============================================================================
+class HtmlReportLoader(Loader):
+    """Generates an HTML report file."""
 
+    def __init__(self, output_path: str = "report.html") -> None:
+        self.output_path = Path(output_path)
 
-class ReportLoader:
-    """Loads transformed data into output formats."""
-
-    def __init__(self, config: ETLConfig) -> None:
-        self.config = config
-
-    def load(self, report: ErrorReport) -> Path:
-        """Generate and save the HTML report."""
+    def load(self, report: ErrorReport) -> None:
+        """Generate HTML report from error statistics."""
         html_content = self._generate_html(report)
-        self.config.report_file.write_text(html_content, encoding="utf-8")
-        return self.config.report_file
+        self.output_path.write_text(html_content, encoding="utf-8")
 
     def _generate_html(self, report: ErrorReport) -> str:
-        """Generate HTML content from the error report."""
-        lines: List[str] = ["<html><body><h1>Report</h1><ul>"]
+        """Build HTML document with error summary."""
+        lines = [
+            "<html>",
+            "<head><title>System Report</title></head>",
+            "<body>",
+            "<h1>Error Summary</h1>",
+            "<ul>"
+        ]
 
-        for message, count in report.error_counts.items():
-            lines.append(f"<li>{message}: {count}</li>")
+        for err_msg, count in report.errors.items():
+            escaped_msg = self._escape_html(err_msg)
+            lines.append(f"<li><b>{escaped_msg}</b>: {count} occurrences</li>")
 
-        lines.append("</ul></body></html>")
+        lines.extend([
+            "</ul>",
+            "</body>",
+            "</html>"
+        ])
 
-        return "".join(lines)
+        return "\n".join(lines)
 
-    def simulate_db_load(self, entries: List[LogEntry]) -> None:
-        """Simulate loading data into a database."""
+    @staticmethod
+    def _escape_html(text: str) -> str:
+        """Basic HTML escaping for safety."""
+        return (text
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;"))
+
+
+class DatabaseLoader(Loader):
+    """Simulates database loading (for future implementation)."""
+
+    def __init__(self, config: Config) -> None:
+        self.config = config
+
+    def load(self, report: ErrorReport) -> None:
+        """Simulate database connection and data loading."""
+        # NOTE: Actual DB insertion logic removed by previous dev
+        # This serves as a placeholder for future database integration
         print(f"Connecting to {self.config.db_host} as {self.config.db_user}...")
+        print(f"Would insert {len(report.errors)} unique error types")
 
 
 # =============================================================================
-# ETL Pipeline Orchestrator
+# ETL Pipeline
 # =============================================================================
-
 
 class ETLPipeline:
     """Orchestrates the ETL process."""
 
     def __init__(
         self,
-        config: Optional[ETLConfig] = None,
-        extractor: Optional[LogExtractor] = None,
-        transformer: Optional[LogTransformer] = None,
-        loader: Optional[ReportLoader] = None,
+        extractor: Extractor,
+        transformer: Transformer,
+        loaders: List[Loader]
     ) -> None:
-        self.config = config or ETLConfig()
-        self.extractor = extractor or LogExtractor(self.config)
-        self.transformer = transformer or LogTransformer()
-        self.loader = loader or ReportLoader(self.config)
+        self.extractor = extractor
+        self.transformer = transformer
+        self.loaders = loaders
 
-    def run(self) -> Path:
-        """Execute the complete ETL pipeline."""
+    def run(self) -> None:
+        """Execute the full ETL pipeline."""
         # Extract
         entries = self.extractor.extract()
-
-        # Simulate database load (as in original)
-        self.loader.simulate_db_load(entries)
+        print(f"Extracted {len(entries)} log entries")
 
         # Transform
         report = self.transformer.transform(entries)
+        print(f"Transformed into {len(report.errors)} unique errors")
 
         # Load
-        report_path = self.loader.load(report)
-
-        print("Done.")
-        return report_path
+        for loader in self.loaders:
+            loader.load(report)
+        print(f"Job finished at {datetime.datetime.now()}")
 
 
 # =============================================================================
-# Main Entry Point
+# Setup & Utilities
 # =============================================================================
 
+def create_sample_log(file_path: str) -> None:
+    """Create sample log data for testing."""
+    sample_data = [
+        "2024-01-01 12:00:00 INFO User 42 logged in",
+        "2024-01-01 12:05:00 ERROR Database timeout",
+        "2024-01-01 12:05:05 ERROR Database timeout",
+        "2024-01-01 12:10:00 INFO User 42 logged out",
+    ]
+    Path(file_path).write_text("\n".join(sample_data) + "\n", encoding="utf-8")
 
-def create_sample_log_file(config: ETLConfig) -> None:
-    """Create a dummy log file for testing if it doesn't exist."""
-    if not config.log_file.exists():
-        sample_data = """\
-2023-10-01 10:00:00 INFO User 123 logged in
-2023-10-01 10:05:00 ERROR Connection failed
-2023-10-01 10:10:00 ERROR Connection failed
-"""
-        config.log_file.write_text(sample_data, encoding="utf-8")
 
+def main() -> int:
+    """Main entry point."""
+    config = Config()
 
-def main() -> None:
-    """Main entry point for the ETL pipeline."""
-    config = ETLConfig()
+    # Create sample data if log file doesn't exist
+    if not Path(config.log_file).exists():
+        create_sample_log(config.log_file)
+        print(f"Created sample log file: {config.log_file}")
 
-    # Create sample log file if not exists for testing
-    create_sample_log_file(config)
+    # Build pipeline
+    pipeline = ETLPipeline(
+        extractor=LogFileExtractor(config.log_file),
+        transformer=ErrorAggregator(),
+        loaders=[
+            HtmlReportLoader("report.html"),
+            DatabaseLoader(config),
+        ]
+    )
 
-    # Run the pipeline
-    pipeline = ETLPipeline(config=config)
     pipeline.run()
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

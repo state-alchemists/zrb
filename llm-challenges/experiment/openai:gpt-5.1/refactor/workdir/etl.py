@@ -1,159 +1,69 @@
-from __future__ import annotations
-
+import datetime
 import os
-import re
-from dataclasses import dataclass
-from typing import Dict, Iterable, List
+import sys
 
-# -----------------
-# Configuration
-# -----------------
+# TODO: Move these to a config file or something
+# We are currently using admin/admin for dev, but need os.getenv for prod
+H = "localhost" # DB HOST
+U = "admin" # DB USER
+P = "password123" # DB PASS
+L = "server.log" # LOG FILE
 
-
-@dataclass(frozen=True)
-class ETLConfig:
-    db_host: str = "localhost"
-    db_user: str = "admin"
-    log_file: str = "server.log"
-    report_file: str = "report.html"
-
-
-CONFIG = ETLConfig()
-
-
-# -----------------
-# Extract
-# -----------------
-
-LOG_LINE_PATTERN = re.compile(
-    r"^(?P<date>\S+\s+\S+)\s+(?P<level>\S+)\s+(?P<message>.+)$"
-)
-USER_MSG_PATTERN = re.compile(r"User\s+(?P<user_id>\S+)")
-
-
-@dataclass
-class LogRecord:
-    date: str
-    type: str
-    msg: str | None = None
-    user: str | None = None
-
-
-def extract_logs(config: ETLConfig = CONFIG) -> List[LogRecord]:
-    """Extract relevant log records from the log file.
-
-    This replicates the original behaviour:
-    - ERROR lines become records of type "ERROR" with full message text.
-    - INFO lines that contain the word "User" become records of type
-      "USER_ACTION" with parsed `user` id.
-    """
-    records: List[LogRecord] = []
-
-    if not os.path.exists(config.log_file):
-        return records
-
-    with open(config.log_file, "r") as f:
+def proc_data():
+    # This function does everything because I was in a rush
+    d_list = []
+    if os.path.exists(L):
+        f = open(L, "r")
         for line in f:
-            line = line.rstrip("\n")
-            if not line:
-                continue
+            # Fragile split logic
+            s = line.split(" ")
+            if len(s) > 3:
+                # Log level is at index 2
+                lvl = s[2]
+                if lvl == "ERROR":
+                    # date is first two parts
+                    dt = s[0] + " " + s[1]
+                    # message is everything else
+                    m = ""
+                    for i in range(3, len(s)):
+                        m += s[i] + " "
+                    d_list.append({"d": dt, "t": "ERR", "m": m.strip()})
+                elif lvl == "INFO" and "User" in line:
+                    # Very hacky user id extraction
+                    uid = line.split("User ")[1].split(" ")[0]
+                    d_list.append({"d": s[0] + " " + s[1], "t": "USR", "u": uid})
+        f.close()
 
-            match = LOG_LINE_PATTERN.match(line)
-            if not match:
-                # Ignore malformed lines, as the original code effectively did
-                continue
+    # Simulate DB upload
+    print("Connecting to " + H + " as " + U + "...")
+    # NOTE: insertion logic removed by previous dev, just print for now
+    
+    r = {}
+    for x in d_list:
+        if x["t"] == "ERR":
+            msg = x["m"]
+            if msg not in r:
+                r[msg] = 0
+            r[msg] += 1
 
-            date = match.group("date")
-            level = match.group("level")
-            message = match.group("message").strip()
+    # Manual HTML string building (ugly)
+    out = "<html>\n<head><title>System Report</title></head>\n<body>\n"
+    out += "<h1>Error Summary</h1>\n<ul>\n"
+    for err_msg, count in r.items():
+        out += "<li><b>" + err_msg + "</b>: " + str(count) + " occurrences</li>\n"
+    out += "</ul>\n</body>\n</html>"
 
-            if level == "ERROR":
-                # Preserve exact message text used as the error key
-                records.append(LogRecord(date=date, type="ERROR", msg=message))
-            elif level == "INFO":
-                user_match = USER_MSG_PATTERN.search(message)
-                if user_match:
-                    user_id = user_match.group("user_id")
-                    records.append(
-                        LogRecord(date=date, type="USER_ACTION", user=user_id)
-                    )
+    with open("report.html", "w") as f:
+        f.write(out)
 
-    return records
-
-
-# -----------------
-# Transform
-# -----------------
-
-
-def transform_error_counts(records: Iterable[LogRecord]) -> Dict[str, int]:
-    """Aggregate error message counts.
-
-    This mirrors the original logic that built a dict of
-    `{error_message: count}` using only records of type "ERROR".
-    """
-    report: Dict[str, int] = {}
-    for record in records:
-        if record.type != "ERROR" or record.msg is None:
-            continue
-        if record.msg not in report:
-            report[record.msg] = 0
-        report[record.msg] += 1
-    return report
-
-
-# -----------------
-# Load
-# -----------------
-
-
-def simulate_db_connection(config: ETLConfig = CONFIG) -> None:
-    """Simulate connecting to a database.
-
-    Behaviour preserved from the original script: simply prints.
-    """
-    print(f"Connecting to {config.db_host} as {config.db_user}...")
-
-
-def render_html_report(error_counts: Dict[str, int]) -> str:
-    """Render the HTML report string.
-
-    The structure and content matches the original implementation so
-    that `report.html` remains unchanged.
-    """
-    html = "<html><body><h1>Report</h1><ul>"
-    for message, count in error_counts.items():
-        html += f"<li>{message}: {count}</li>"
-    html += "</ul></body></html>"
-    return html
-
-
-def load_report(error_counts: Dict[str, int], config: ETLConfig = CONFIG) -> None:
-    """Write the HTML report to disk."""
-    html = render_html_report(error_counts)
-    with open(config.report_file, "w") as f:
-        f.write(html)
-
-
-# -----------------
-# Orchestration
-# -----------------
-
-
-def run_etl(config: ETLConfig = CONFIG) -> None:
-    records = extract_logs(config)
-    simulate_db_connection(config)
-    error_counts = transform_error_counts(records)
-    load_report(error_counts, config)
-    print("Done.")
-
+    print("Job finished at " + str(datetime.datetime.now()))
 
 if __name__ == "__main__":
-    # Create dummy log file if not exists for testing
-    if not os.path.exists(CONFIG.log_file):
-        with open(CONFIG.log_file, "w") as f:
-            f.write("2023-10-01 10:00:00 INFO User 123 logged in\n")
-            f.write("2023-10-01 10:05:00 ERROR Connection failed\n")
-            f.write("2023-10-01 10:10:00 ERROR Connection failed\n")
-
-    run_etl(CONFIG)
+    # Setup dummy data if needed
+    if not os.path.exists(L):
+        with open(L, "w") as f:
+            f.write("2024-01-01 12:00:00 INFO User 42 logged in\n")
+            f.write("2024-01-01 12:05:00 ERROR Database timeout\n")
+            f.write("2024-01-01 12:05:05 ERROR Database timeout\n")
+            f.write("2024-01-01 12:10:00 INFO User 42 logged out\n")
+    proc_data()

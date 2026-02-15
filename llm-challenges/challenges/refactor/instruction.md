@@ -1,5 +1,5 @@
-`etl.py` is a mess. It's a monolithic script with hardcoded config and fragile string parsing.
+This `etl.py` script is a nightmare to maintain. Every time we want to change the database host, we have to edit the code. And the parsing is so fragile that if someone adds an extra space to the log, it breaks.
 
-Please refactor it to be more maintainable. It needs to follow the ETL pattern (Extract, Transform, Load), use regex for parsing, and separate configuration. Also, add type hints.
+Can you clean this up? I want it to be more modular (maybe use that ETL thing people talk about). Also, use environment variables for config so we can stop hardcoding passwords. 
 
-Ensure it still produces the same `report.html` output.
+Bonus points if you add types and make it look like a professional wrote it. Don't break the `report.html` output, our boss uses that.

@@ -1,3 +1,3 @@
-Users are reporting that the inventory count in `inventory_system.py` is sometimes incorrect when multiple purchases happen simultaneously.
+The inventory system in `inventory_system.py` is failing intermittently. Sometimes we sell more items than we have in stock, especially during flash sales. 
 
-Investigate the code, identify the issue, and apply a fix. Ensure the script runs correctly and maintains data integrity under load.
+We need to make sure the stock never goes below zero. Figure out what's wrong and fix it.

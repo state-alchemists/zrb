@@ -1,0 +1,8 @@
+[2mTo run again:[0m [1;33mzrb chat --message "Our Todo app is moving to a more modular structure, but we haven't finished the CRUD logic.
+
+Please implement the remaining endpoints in `app/main.py`:
+1. **POST /todos**: Add a new todo. Handle ID generation.
+2. **PUT /todos/{todo_id}**: Update an existing todo.
+3. **DELETE /todos/{todo_id}**: Remove a todo.
+
+The app uses an in-memory database in `app/database.py`. Make sure your changes follow the existing patterns and use the correct Pydantic models." --model "" --session "" --yolo true --attach "" --interactive false[0m

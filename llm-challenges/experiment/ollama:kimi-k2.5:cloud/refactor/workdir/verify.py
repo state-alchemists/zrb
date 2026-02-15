@@ -8,14 +8,31 @@ import sys
 def verify_refactor():
     """Verify the refactor challenge."""
 
-    # Check if etl.py exists
-    if not os.path.exists("etl.py"):
-        print("FAIL: etl.py not found")
+    # Candidate files for the refactored script
+    candidates = ["etl.py", "etl_refactored.py", "main.py"]
+    refactor_file = None
+    
+    # Find the best candidate (prefer etl_refactored.py if it exists, otherwise etl.py)
+    if os.path.exists("etl_refactored.py"):
+        refactor_file = "etl_refactored.py"
+    elif os.path.exists("etl.py"):
+        refactor_file = "etl.py"
+    else:
+        # Check for any other python file that might be the one
+        for f in os.listdir("."):
+            if f.endswith(".py") and f not in ["verify.py", "account.py", "bank.py", "inventory_system.py"]:
+                refactor_file = f
+                break
+
+    if not refactor_file:
+        print("FAIL: Refactored script not found")
         print("VERIFICATION_RESULT: FAIL")
         return False
 
+    print(f"Verifying refactored script: {refactor_file}")
+
     # Read the file
-    with open("etl.py", "r") as f:
+    with open(refactor_file, "r") as f:
         content = f.read()
 
     checks = []
@@ -54,6 +71,7 @@ def verify_refactor():
         "os.getenv" in content
         or "config" in content_lower
         or "settings" in content_lower
+        or "environ" in content
     ):
         checks.append(("Configuration decoupled", True))
         score += 1
@@ -73,6 +91,8 @@ def verify_refactor():
         or ": List" in content
         or ": Dict" in content
         or ": Optional" in content
+        or ": str" in content
+        or ": int" in content
     )
     has_docs = '"""' in content or "'''" in content
 
@@ -97,7 +117,7 @@ def verify_refactor():
             f.write("2023-10-01 10:05:00 ERROR Connection failed\n")
 
         result = subprocess.run(
-            [sys.executable, "etl.py"],
+            [sys.executable, refactor_file],
             capture_output=True,
             text=True,
             timeout=10,

@@ -1,65 +1,69 @@
+import datetime
 import os
-import re
-from typing import Dict, List
+import sys
 
-# Configurable parameters
-DB_HOST = "localhost"
-DB_USER = "admin"
-LOG_FILE = "server.log"
-REPORT_FILE = "report.html"
+# TODO: Move these to a config file or something
+# We are currently using admin/admin for dev, but need os.getenv for prod
+H = "localhost" # DB HOST
+U = "admin" # DB USER
+P = "password123" # DB PASS
+L = "server.log" # LOG FILE
 
-
-def extract_log_entries(log_file_path: str) -> List[Dict[str, str]]:
-    """Extract relevant log entries from file using robust regex parsing."""
-    entries = []
-    if not os.path.exists(log_file_path):
-        return entries
-
-    pattern = r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) (\w+) (.*)$"
-    with open(log_file_path, "r") as f:
+def proc_data():
+    # This function does everything because I was in a rush
+    d_list = []
+    if os.path.exists(L):
+        f = open(L, "r")
         for line in f:
-            line = line.strip()
-            match = re.match(pattern, line)
-            if match:
-                timestamp, level, message = match.groups()
-                if level == "ERROR":
-                    entries.append({"date": timestamp, "type": level, "msg": message})
-    return entries
+            # Fragile split logic
+            s = line.split(" ")
+            if len(s) > 3:
+                # Log level is at index 2
+                lvl = s[2]
+                if lvl == "ERROR":
+                    # date is first two parts
+                    dt = s[0] + " " + s[1]
+                    # message is everything else
+                    m = ""
+                    for i in range(3, len(s)):
+                        m += s[i] + " "
+                    d_list.append({"d": dt, "t": "ERR", "m": m.strip()})
+                elif lvl == "INFO" and "User" in line:
+                    # Very hacky user id extraction
+                    uid = line.split("User ")[1].split(" ")[0]
+                    d_list.append({"d": s[0] + " " + s[1], "t": "USR", "u": uid})
+        f.close()
 
+    # Simulate DB upload
+    print("Connecting to " + H + " as " + U + "...")
+    # NOTE: insertion logic removed by previous dev, just print for now
+    
+    r = {}
+    for x in d_list:
+        if x["t"] == "ERR":
+            msg = x["m"]
+            if msg not in r:
+                r[msg] = 0
+            r[msg] += 1
 
-def transform_error_data(entries: List[Dict[str, str]]) -> Dict[str, int]:
-    """Count occurrences of each unique error message."""
-    error_counts = {}
-    for entry in entries:
-        error_msg = entry["msg"]
-        error_counts[error_msg] = error_counts.get(error_msg, 0) + 1
-    return error_counts
+    # Manual HTML string building (ugly)
+    out = "<html>\n<head><title>System Report</title></head>\n<body>\n"
+    out += "<h1>Error Summary</h1>\n<ul>\n"
+    for err_msg, count in r.items():
+        out += "<li><b>" + err_msg + "</b>: " + str(count) + " occurrences</li>\n"
+    out += "</ul>\n</body>\n</html>"
 
+    with open("report.html", "w") as f:
+        f.write(out)
 
-def load_report(data: Dict[str, int], output_path: str) -> None:
-    """Generate HTML report with error statistics."""
-    html = "<html><body><h1>Report</h1><ul>"
-    for error_msg, count in data.items():
-        html += f"<li>{error_msg}: {count}</li>"
-    html += "</ul></body></html>"
-
-    with open(output_path, "w") as f:
-        f.write(html)
-
+    print("Job finished at " + str(datetime.datetime.now()))
 
 if __name__ == "__main__":
-    # Setup test environment
-    if not os.path.exists(LOG_FILE):
-        with open(LOG_FILE, "w") as f:
-            f.write("2023-10-01 10:00:00 INFO User 123 logged in\n")
-            f.write("2023-10-01 10:05:00 ERROR Connection failed\n")
-            f.write("2023-10-01 10:10:00 ERROR Connection failed\n")
-
-    # ETL Process
-    print(f"Connecting to {DB_HOST} as {DB_USER}...")
-
-    log_entries = extract_log_entries(LOG_FILE)
-    error_report = transform_error_data(log_entries)
-    load_report(error_report, REPORT_FILE)
-
-    print("Done.")
+    # Setup dummy data if needed
+    if not os.path.exists(L):
+        with open(L, "w") as f:
+            f.write("2024-01-01 12:00:00 INFO User 42 logged in\n")
+            f.write("2024-01-01 12:05:00 ERROR Database timeout\n")
+            f.write("2024-01-01 12:05:05 ERROR Database timeout\n")
+            f.write("2024-01-01 12:10:00 INFO User 42 logged out\n")
+    proc_data()

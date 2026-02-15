@@ -1,82 +1,69 @@
+import datetime
 import os
 import re
-from typing import Dict, List
+from typing import List, Dict, Any
 
-from config import DB_HOST, DB_USER, LOG_FILE, REPORT_FILE
-
-
-class LogEntry:
-    def __init__(self, date: str, log_type: str, message: str, user: str = None):
-        self.date = date
-        self.log_type = log_type
-        self.message = message
-        self.user = user
+# Environment-based configuration
+DB_HOST = os.getenv('DB_HOST', 'localhost')
+DB_USER = os.getenv('DB_USER', 'admin')
+DB_PASS = os.getenv('DB_PASS', 'password123')
+LOG_FILE = os.getenv('LOG_FILE', 'server.log')
 
 
-def extract_logs(file_path: str) -> List[LogEntry]:
-    entries = []
-    log_entry_pattern = re.compile(
-        r"(?P<date>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) (?P<type>INFO|ERROR) (?P<message>.+)"
-    )
-    user_pattern = re.compile(r"User (\d+)")
-
+def extract_data(file_path: str) -> List[Dict[str, Any]]:
+    data = []
     if os.path.exists(file_path):
-        with open(file_path, "r") as f:
-            lines = f.readlines()
-            for line in lines:
-                match = log_entry_pattern.match(line)
-                if match:
-                    date = match.group("date")
-                    log_type = match.group("type")
-                    message = match.group("message").strip()
-                    user = None
-                    if log_type == "INFO":
-                        user_match = user_pattern.search(message)
-                        if user_match:
-                            user = user_match.group(1)
-                    entries.append(LogEntry(date, log_type, message, user))
-    return entries
+        with open(file_path, 'r') as file:
+            for line in file:
+                # Using regex for robust parsing
+                error_match = re.match(r"^(\S+ \S+) ERROR (.+)$", line)
+                info_match = re.match(r"^(\S+ \S+) INFO User (\d+) .*$", line)
+                if error_match:
+                    data.append({"d": error_match.group(1), "t": "ERR", "m": error_match.group(2).strip()})
+                elif info_match:
+                    data.append({"d": info_match.group(1), "t": "USR", "u": info_match.group(2)})
+    return data
 
 
-def transform_logs(entries: List[LogEntry]) -> Dict[str, int]:
-    report = {}
-    for entry in entries:
-        if entry.log_type == "ERROR":
-            if entry.message not in report:
-                report[entry.message] = 0
-            report[entry.message] += 1
-    return report
+def transform_data(data: List[Dict[str, Any]]) -> Dict[str, int]:
+    error_summary = {}
+    for entry in data:
+        if entry["t"] == "ERR":
+            msg = entry["m"]
+            if msg not in error_summary:
+                error_summary[msg] = 0
+            error_summary[msg] += 1
+    return error_summary
 
 
-def load_report(report: Dict[str, int], report_path: str):
-    html = "<html><body><h1>Report</h1><ul>"
-    for message, count in report.items():
-        html += f"<li>{message}: {count}</li>"
-    html += "</ul></body></html>"
-    with open(report_path, "w") as f:
-        f.write(html)
+def load_data_summary(error_summary: Dict[str, int]) -> None:
+    # Generate HTML report (remains unchanged)
+    html_output = "<html>\n<head><title>System Report</title></head>\n<body>\n"
+    html_output += "<h1>Error Summary</h1>\n<ul>\n"
+    for err_msg, count in error_summary.items():
+        html_output += f"<li><b>{err_msg}</b>: {count} occurrences</li>\n"
+    html_output += "</ul>\n</body>\n</html>"
+
+    with open("report.html", "w") as f:
+        f.write(html_output)
+
+    print(f"Report generated at {datetime.datetime.now()}")
 
 
-def etl_process():
-    # Extract
-    logs = extract_logs(LOG_FILE)
+def main() -> None:
+    # Check LOG_FILE exists or create with dummy data (for development)
+    if not os.path.exists(LOG_FILE):
+        with open(LOG_FILE, "w") as f:
+            f.write("2024-01-01 12:00:00 INFO User 42 logged in\n")
+            f.write("2024-01-01 12:05:00 ERROR Database timeout\n")
+            f.write("2024-01-01 12:05:05 ERROR Database timeout\n")
+            f.write("2024-01-01 12:10:00 INFO User 42 logged out\n")
 
-    # Transform
-    report = transform_logs(logs)
-
-    # Simulate database connection
     print(f"Connecting to {DB_HOST} as {DB_USER}...")
-
-    # Load
-    load_report(report, REPORT_FILE)
-    print("Done.")
+    raw_data = extract_data(LOG_FILE)
+    summary = transform_data(raw_data)
+    load_data_summary(summary)
 
 
 if __name__ == "__main__":
-    if not os.path.exists(LOG_FILE):
-        with open(LOG_FILE, "w") as f:
-            f.write("2023-10-01 10:00:00 INFO User 123 logged in\n")
-            f.write("2023-10-01 10:05:00 ERROR Connection failed\n")
-            f.write("2023-10-01 10:10:00 ERROR Connection failed\n")
-
-    etl_process()
+    main()

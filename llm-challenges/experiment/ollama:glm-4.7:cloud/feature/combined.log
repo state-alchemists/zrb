@@ -1,212 +1,452 @@
-[2m  🧠 The[0m[2m user wants me to[0m[2m implement[0m[2m CRUD operations for[0m[2m a Todo app in[0m[2m `todo_app.py[0m[2m`. Let me first[0m[2m read the file to[0m[2m understand the current state[0m[2m and then implement the[0m[2m missing functionality[0m[2m.
+[2m
+  🧠 The[0m[2m user wants me to[0m[2m implement CRUD endpoints for[0m[2m a Todo app.[0m[2m Let me first[0m[2m check[0m[2m the current structure[0m[2m of the project[0m[2m to understand:[0m[2m
+     1. What[0m[2m's in `app[0m[2m/main.py`[0m[2m - existing[0m[2m endpoints and[0m[2m patterns
+     2.[0m[2m What's in `[0m[2mapp/database.py`[0m[2m - the database[0m[2m interface
+     3.[0m[2m What models are defined[0m[2m
      
-     Let me start[0m[2m by reading the file[0m[2m to see what already[0m[2m exists.[0m[2m
-  🧠 I[0m[2m'll check[0m[2m the current state[0m[2m of the Todo app[0m[2m and implement the missing[0m[2m CRUD operations.[0m[2m
-  🧰 call_lz2fm563 | read_file {'path': '/Users/gofrendigunawan/zrb ...'}[0m[2m
-  🔠 call_lz2fm563 | Return from typing import List, Optional
+     This[0m[2m is a straightforward[0m[2m task -[0m[2m implementing[0m[2m 3 CRUD[0m[2m endpoints. This[0m[2m seems[0m[2m like a[0m[2m FAST PATH task ([0m[2mspecific[0m[2m file[0m[2m modifications, clear requirements[0m[2m).[0m[2m
      
-     import uvicorn
-     from fastapi import FastAPI, HTTPException
-     from pydantic import BaseModel
-     
-     app = FastAPI()
-     
-     
-     class TodoItem(BaseModel):
-         id: int
-         title: str
-         completed: bool = False
-     
-     
-     # In-memory database
-     db: List[TodoItem] = [
-         TodoItem(id=1, title="Buy groceries"),
-         TodoItem(id=2, title="Walk the dog"),
-     ]
-     
-     
-     @app.get("/todos", response_model=List[TodoItem])
-     async def get_todos():
-         return db
-     
-     
-     # TODO: Implement POST /todos to add a new item
-     # TODO: Implement PUT /todos/{item_id} to update an item
-     # TODO: Implement DELETE /todos/{item_id} to delete an item
-     
-     if __name__ == "__main__":
-         uvicorn.run(app, host="0.0.0.0", port=8000)
-     [0m[2m
-  🧠 I[0m[2m can see the existing[0m[2m Todo app.[0m[2m The[0m[2m GET endpoint works[0m[2m for[0m[2m `/todos`. I[0m[2m need to implement:[0m[2m
-     1. POST /[0m[2mtodos -[0m[2m Create a new todo[0m[2m item
-     2.[0m[2m PUT /todos/{[0m[2mitem_id} -[0m[2m Update an existing todo[0m[2m item
-     3.[0m[2m DELETE /todos/{[0m[2mitem_id} -[0m[2m Delete a todo item[0m[2m
-     
-     I'll implement[0m[2m these with proper ID[0m[2m handling ([0m[2mauto-increment)[0m[2m and standard HTTP status[0m[2m codes.[0m[2m
-  🧠 I'll add[0m[2m the POST[0m[2m ([0m[2mCreate), PUT[0m[2m (Update), and[0m[2m DELETE endpoints to[0m[2m complete the CRUD[0m[2m operations with[0m[2m proper ID[0m[2m handling and HTTP[0m[2m status codes.[0m[2m
-  🧰 call_hbyp91h1 | replace_in_file {'path': '/Users/gofrendigunawan/zrb ...', 'old_text': '@app.get("/todos", respons ...', 'new_text': '@app.get("/todos", respons ...'}[0m[2m
-  🔠 call_hbyp91h1 | Return Successfully updated /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama:glm-4.7:cloud/feature/workdir/todo_app.py[0m[2m
-  🧠 I[0m[2m've implemented the CRUD[0m[2m operations. Let[0m[2m me verify the changes[0m[2m by reading the file[0m[2m to make sure everything[0m[2m is[0m[2m correct.[0m[2m
-  🧠 Let me verify the[0m[2m implementation:[0m[2m
-  🧰 call_2t5qk9lz | read_file {'path': '/Users/gofrendigunawan/zrb ...'}[0m[2m
-  🔠 call_2t5qk9lz | Return from typing import List, Optional
-     
-     import uvicorn
-     from fastapi import FastAPI, HTTPException
-     from pydantic import BaseModel
-     
-     app = FastAPI()
-     
-     
-     class TodoItem(BaseModel):
-         id: int
-         title: str
-         completed: bool = False
-     
-     
-     # In-memory database
-     db: List[TodoItem] = [
-         TodoItem(id=1, title="Buy groceries"),
-         TodoItem(id=2, title="Walk the dog"),
-     ]
-     
-     
-     @app.get("/todos", response_model=List[TodoItem])
-     async def get_todos():
-         return db
-     
-     
-     @app.post("/todos", response_model=TodoItem, status_code=201)
-     async def create_todo(todo: TodoItem):
-         # Auto-increment ID: find the maximum ID and add 1
-         if db:
-             new_id = max(item.id for item in db) + 1
-         else:
-             new_id = 1
-         todo.id = new_id
-         db.append(todo)
-         return todo
-     
-     
-     @app.put("/todos/{item_id}", response_model=TodoItem)
-     async def update_todo(item_id: int, updated_todo: TodoItem):
-         for i, item in enumerate(db):
-             if item.id == item_id:
-                 # Preserve the ID and only update the other fields
-                 updated_todo.id = item.id
-                 db[i] = updated_todo
-                 return updated_todo
-         raise HTTPException(status_code=404, detail="Todo item not found")
-     
-     
-     @app.delete("/todos/{item_id}", status_code=204)
-     async def delete_todo(item_id: int):
-         for i, item in enumerate(db):
-             if item.id == item_id:
-                 db.pop(i)
-                 return None
-         raise HTTPException(status_code=404, detail="Todo item not found")
-     
-     if __name__ == "__main__":
-         uvicorn.run(app, host="0.0.0.0", port=8000)
-     [0m[2m
-  🧠 The[0m[2m implementation looks good[0m[2m. Let me verify[0m[2m it[0m[2m works by creating[0m[2m a quick test script[0m[2m to test[0m[2m all[0m[2m CRUD[0m[2m operations.[0m[2m
-  🧠 Now let[0m[2m me verify[0m[2m the implementation works[0m[2m correctly[0m[2m by creating[0m[2m and[0m[2m running a test[0m[2m script:[0m[2m
-  🧰 call_6nud4t3l | write_file {'path': '/Users/gofrendigunawan/zrb ...', 'content': '"""Test script for Todo ap ...'}[0m[2m
-  🔠 call_6nud4t3l | Return Successfully wrote to /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama:glm-4.7:cloud/feature/workdir/test_todo_app.py[0m[2m
-  🧠 
-     Now let me run[0m[2m the test script to[0m[2m verify all[0m[2m the[0m[2m CRUD operations work correctly[0m[2m.[0m[2m
-  🧰 call_995voy71 | run_shell_command {'command': 'python3 test_todo_app.py'}[0m  [2mTesting GET /todos...
-[0m  [2m  ✅ GET /todos: [{'id': 1, 'title': 'Buy groceries', 'completed': False}, {'id': 2, 'title': 'Walk the dog', 'completed': False}]
-[0m  [2m
-[0m  [2mTesting POST /todos...
-[0m  [2m  ✅ POST /todos: {'id': 3, 'title': 'New task', 'completed': False}
-[0m  [2m  ✅ GET /todos after POST: 3 items
-[0m  [2m
-[0m  [2mTesting PUT /todos/1...
-[0m  [2m  ✅ PUT /todos/1: {'id': 1, 'title': 'Updated groceries', 'completed': True}
-[0m  [2m
-[0m  [2mTesting DELETE /todos/2...
-[0m  [2m  ✅ GET /todos after DELETE: 2 items
-[0m  [2m
-[0m  [2mTesting PUT /todos/999 (should 404)...
-[0m  [2m  ✅ PUT /todos/999 returns 404
-[0m  [2m
-[0m  [2mTesting DELETE /todos/999 (should 404)...
-[0m  [2m  ✅ DELETE /todos/999 returns 404
-[0m  [2m
-[0m  [2m==================================================
-[0m  [2m✅ All CRUD tests passed!
-[0m  [2m==================================================
+     Let me start by[0m[2m reading the relevant files[0m[2m to understand the patterns[0m[2m.[0m[2m
+  🧠 I[0m[2m'll implement[0m[2m the remaining CRUD endpoints[0m[2m.[0m[2m Let me first examine[0m[2m the existing code structure[0m[2m to[0m[2m understand the patterns.[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama:glm-4.7:cloud/feature/workdir/app/database.py"}[0m[2m
+  🧰 call_hd1u4q4d | ReadRead {"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama:glm-4.7:cloud/feature/workdir/app/main.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama:glm-4.7:cloud/feature/workdir/app/database.py"}
 [0m[2m
-  🔠 call_995voy71 | Return Command: python3 test_todo_app.py
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama:glm-4.7:cloud/feature/workdir
-     Stdout:
-     Testing GET /todos...
-       ✅ GET /todos: [{'id': 1, 'title': 'Buy groceries', 'completed': False}, {'id': 2, 'title': 'Walk the dog', 'completed': False}]
+  🔠 call_hd1u4q4d | Return Unknown tool name: 'ReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'ReadMany', 'Write', 'WriteMany', 'Edit', 'Grep', 'AnalyzeFile', 'SearchInternet', 'OpenWebPage', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'ReadContextualNote', 'ReadLongTermNote', 'WriteContextualNote', 'WriteLongTermNote'
+[0m[32m260215 10:02:32.584 1/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 1/3 failed: status_code: 400, model_name: glm-4.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
+[2m
+  🧠 The[0m[2m user wants me to[0m[2m implement CRUD endpoints for[0m[2m a Todo app.[0m[2m Let me first[0m[2m understand the existing[0m[2m code structure[0m[2m by reading the relevant[0m[2m files.
      
-     Testing POST /todos...
-       ✅ POST /todos: {'id': 3, 'title': 'New task', 'completed': False}
-       ✅ GET /todos after POST: 3 items
+     According[0m[2m to the instructions[0m[2m:
+     1. I[0m[2m need to implement POST[0m[2m /todos ([0m[2mcreate[0m[2m),[0m[2m PUT /todos/{[0m[2mtodo_id} ([0m[2mupdate), and DELETE[0m[2m /todos/{todo[0m[2m_id} (delete[0m[2m)
+     2. The[0m[2m app uses an[0m[2m in-memory database in[0m[2m `app/database.py[0m[2m`
+     3. I[0m[2m should follow existing patterns[0m[2m and use correct[0m[2m Pydantic models[0m[2m
      
-     Testing PUT /todos/1...
-       ✅ PUT /todos/1: {'id': 1, 'title': 'Updated groceries', 'completed': True}
+     Let me start[0m[2m by reading the current[0m[2m code[0m[2m to understand:
+     1[0m[2m. The existing[0m[2m structure in `app[0m[2m/main.py`
+     2[0m[2m. The database implementation[0m[2m in `app/database[0m[2m.py`
+     3.[0m[2m The[0m[2m Pydantic models[0m[2m being used
      
-     Testing DELETE /todos/2...
-       ✅ GET /todos after DELETE: 2 items
+     This[0m[2m is a straightforward[0m[2m task ([0m[2mFAST[0m[2m PATH)[0m[2m - I need[0m[2m to read[0m[2m 2-3 files[0m[2m and implement[0m[2m 3 endpoints. No[0m[2m need[0m[2m to[0m[2m delegate to a sub[0m[2m-agent.[0m[2m
+  🧠 I[0m[2m'll examine[0m[2m the current[0m[2m code structure and[0m[2m implement the remaining[0m[2m CRUD endpoints.[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama:glm-4.7:cloud/feature/workdir/app/database.py"}[0m[2m
+  🧰 call_k1936cvh | ReadRead {"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama:glm-4.7:cloud/feature/workdir/app/main.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama:glm-4.7:cloud/feature/workdir/app/database.py"}
+[0m[2m
+  🔠 call_k1936cvh | Return Unknown tool name: 'ReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'ReadMany', 'Write', 'WriteMany', 'Edit', 'Grep', 'AnalyzeFile', 'SearchInternet', 'OpenWebPage', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'ReadContextualNote', 'ReadLongTermNote', 'WriteContextualNote', 'WriteLongTermNote'
+[0m[32m260215 10:02:38.298 2/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 2/3 failed: status_code: 400, model_name: glm-4.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
+[2m
+  🧠 The[0m[2m user wants me to[0m[2m implement remaining[0m[2m CRUD endpoints in a[0m[2m Todo app. Let[0m[2m me first[0m[2m understand the current state[0m[2m of the codebase[0m[2m by reading the relevant[0m[2m files.
      
-     Testing PUT /todos/999 (should 404)...
-       ✅ PUT /todos/999 returns 404
+     This[0m[2m is a clear[0m[2m task to[0m[2m implement some[0m[2m REST[0m[2m endpoints. I should[0m[2m:
+     1. First[0m[2m read the existing[0m[2m files to understand the[0m[2m patterns[0m[2m
+     2. Implement[0m[2m the missing endpoints[0m[2m
+     3. Verify the[0m[2m implementation[0m[2m
      
-     Testing DELETE /todos/999 (should 404)...
-       ✅ DELETE /todos/999 returns 404
+     Let me start[0m[2m by reading the files[0m[2m:[0m[2m
+     - `app/main[0m[2m.py` - the[0m[2m main application file with[0m[2m existing[0m[2m endpoints
+     - `[0m[2mapp/database.py`[0m[2m - the in-memory[0m[2m database[0m[2m
+     - Any[0m[2m other relevant files in[0m[2m the `[0m[2mapp/` directory[0m[2m
      
-     ==================================================
-     ✅ All CRUD tests passed!
-     ==================================================
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)[0m[2m
-  🧠 
-     
-     All tests passed.[0m[2m The CRUD implementation[0m[2m is complete and[0m[2m working correctly[0m[2m. Let me clean[0m[2m up by[0m[2m removing the test script[0m[2m and[0m[2m then summarize[0m[2m the work[0m[2m done.[0m[2m
-  🧰 call_eqgkn71k | run_shell_command {'command': 'rm test_todo_app.py'}[0m[2m
-  🔠 call_eqgkn71k | Return Command: rm test_todo_app.py
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama:glm-4.7:cloud/feature/workdir
-     Stdout:
-     (empty)
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)[0m[2m
-  🧠 
-     
-     
-     
-     I[0m[2m have[0m[2m successfully implemented[0m[2m all CRUD[0m[2m operations and[0m[2m verified them through[0m[2m testing[0m[2m. All[0m[2m tests passed.[0m[2m
-     
-     Summary of implementation[0m[2m:
-     - POST[0m[2m /todos -[0m[2m Creates new[0m[2m todo,[0m[2m auto[0m[2m-increments ID[0m[2m, returns 201[0m[2m
-     - PUT[0m[2m /todos/{item[0m[2m_id} - Updates[0m[2m existing todo, returns[0m[2m 200[0m[2m or[0m[2m 404
-     -[0m[2m DELETE /todos/{[0m[2mitem_id} -[0m[2m Deletes todo, returns[0m[2m 204 or[0m[2m 404
-     
-     I[0m[2m should now[0m[2m complete[0m[2m the task.[0m[2m
-  🧠 ✅ **[0m[2mCRUD operations implemented[0m[2m and verified:[0m[2m**
-     
-     -[0m[2m **POST /[0m[2mtodos** -[0m[2m Creates new todo[0m[2m with auto-increment[0m[2m ID[0m[2m, returns 201[0m[2m Created
-     - **[0m[2mPUT /todos/{[0m[2mitem_id}[0m[2m** - Updates existing[0m[2m todo by[0m[2m ID[0m[2m, returns 200[0m[2m OK or[0m[2m 404 Not[0m[2m Found
-     - **[0m[2mDELETE /todos/{[0m[2mitem_id}**[0m[2m - Deletes todo[0m[2m by ID, returns[0m[2m 204 No Content[0m[2m or 404[0m[2m Not Found
-     
-     All[0m[2m tests passed successfully[0m[2m.[0m[2m
-  [2m💸 (Requests: 7 | Tool Calls: 6 | Total: 74286) Input: 72471 | Audio Input: 0 | Output: 1815 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}[0m
-     [0m[2mTo run again:[0m [1;33mzrb chat --message "We have a half-baked Todo app in `todo_app.py`. The GET endpoint works, but we need you to finish the CRUD operations.
+     This is a[0m[2m straightforward implementation[0m[2m task,[0m[2m so it[0m[2m's on[0m[2m the FAST[0m[2m PATH.[0m[2m
+  🧠 I[0m[2m'll implement[0m[2m the remaining[0m[2m CRUD endpoints in the[0m[2m Todo app. Let[0m[2m me first examine the[0m[2m existing code to[0m[2m understand the patterns.[0m[2m{"path":"app/database.py"}[0m[2m{"path":"app"}[0m[2m
+  🧰 call_binm9rl5 | ReadReadLS {"path":"app/main.py"}{"path":"app/database.py"}{"path":"app"}
+[0m[2m
+  🔠 call_binm9rl5 | Return Unknown tool name: 'ReadReadLS'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'ReadMany', 'Write', 'WriteMany', 'Edit', 'Grep', 'AnalyzeFile', 'SearchInternet', 'OpenWebPage', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'ReadContextualNote', 'ReadLongTermNote', 'WriteContextualNote', 'WriteLongTermNote'
+[0m[32m260215 10:02:43.751 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 3/3 failed: status_code: 400, model_name: glm-4.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
+[32m260215 10:02:43.751 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Marked as permanently failed[0m
+[32m260215 10:02:43.766 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Traceback (most recent call last):
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 706, in _completions_create
+    return await self.client.chat.completions.create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<29 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py", line 2676, in create
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+    ...<49 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/openai/_base_client.py", line 1884, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/openai/_base_client.py", line 1669, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.BadRequestError: Error code: 400 - {'error': {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}}
 
-Please implement the functionality to Create, Update, and Delete todo items. Make sure it handles IDs correctly (auto-increment is fine) and returns standard HTTP status codes." --model ollama:glm-4.7:cloud --session "" --yolo true --attach "" --interactive false[0m
-✅ **CRUD operations implemented and verified:**
+The above exception was the direct cause of the following exception:
 
-- **POST /todos** - Creates new todo with auto-increment ID, returns 201 Created
-- **PUT /todos/{item_id}** - Updates existing todo by ID, returns 200 OK or 404 Not Found
-- **DELETE /todos/{item_id}** - Deletes todo by ID, returns 204 No Content or 404 Not Found
+Traceback (most recent call last):
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 178, in execute_action_with_retry
+    result = await run_async(task._exec_action(ctx))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 255, in _exec_action
+    output, new_history = await run_agent(
+                          ^^^^^^^^^^^^^^^^
+    ...<10 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run_agent.py", line 189, in run_agent
+    async for event in agent.run_stream_events(
+    ...<11 lines>...
+            await effective_event_handler(event)
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 974, in _run_stream_events
+    result = await task
+             ^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 949, in run_agent
+    return await self.run(
+           ^^^^^^^^^^^^^^^
+    ...<15 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 278, in run
+    async with node.stream(agent_run.ctx) as stream:
+               ~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 467, in stream
+    async with ctx.deps.model.request_stream(
+               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        message_history, model_settings, model_request_parameters, run_context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ) as streamed_response:
+    ^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 644, in request_stream
+    response = await self._completions_create(messages, True, model_settings_cast, model_request_parameters)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 741, in _completions_create
+    raise ModelHTTPError(status_code=status_code, model_name=self.model_name, body=e.body) from e
+pydantic_ai.exceptions.ModelHTTPError: status_code: 400, model_name: glm-4.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}
+[0m
+[32m260215 10:02:43.782 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Attempt 1/1 failed: status_code: 400, model_name: glm-4.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
+[32m260215 10:02:43.782 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Marked as permanently failed[0m
+[32m260215 10:02:43.789 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Traceback (most recent call last):
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 706, in _completions_create
+    return await self.client.chat.completions.create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<29 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py", line 2676, in create
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+    ...<49 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/openai/_base_client.py", line 1884, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/openai/_base_client.py", line 1669, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.BadRequestError: Error code: 400 - {'error': {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}}
 
-All tests passed successfully.
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 178, in execute_action_with_retry
+    result = await run_async(task._exec_action(ctx))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_chat_task.py", line 379, in _exec_action
+    return await self._run_non_interactive_session(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_chat_task.py", line 579, in _run_non_interactive_session
+    return await llm_task_core.async_run(session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 245, in async_run
+    return await run_task_async(
+           ^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 91, in run_task_async
+    result = await task.exec_root_tasks(session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 254, in exec_root_tasks
+    return await execute_root_tasks(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
+    await asyncio.gather(*root_task_coros)
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 257, in exec_chain
+    return await execute_task_chain(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 21, in execute_task_chain
+    result = await execute_task_action(task, session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 53, in execute_task_action
+    return await run_async(execute_action_until_ready(task, session))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 85, in execute_action_until_ready
+    result = await run_async(execute_action_with_retry(task, session))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 215, in execute_action_with_retry
+    raise e  # Re-raise the exception after handling fallbacks
+    ^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 178, in execute_action_with_retry
+    result = await run_async(task._exec_action(ctx))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 255, in _exec_action
+    output, new_history = await run_agent(
+                          ^^^^^^^^^^^^^^^^
+    ...<10 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run_agent.py", line 189, in run_agent
+    async for event in agent.run_stream_events(
+    ...<11 lines>...
+            await effective_event_handler(event)
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 974, in _run_stream_events
+    result = await task
+             ^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 949, in run_agent
+    return await self.run(
+           ^^^^^^^^^^^^^^^
+    ...<15 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 278, in run
+    async with node.stream(agent_run.ctx) as stream:
+               ~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 467, in stream
+    async with ctx.deps.model.request_stream(
+               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        message_history, model_settings, model_request_parameters, run_context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ) as streamed_response:
+    ^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 644, in request_stream
+    response = await self._completions_create(messages, True, model_settings_cast, model_request_parameters)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 741, in _completions_create
+    raise ModelHTTPError(status_code=status_code, model_name=self.model_name, body=e.body) from e
+pydantic_ai.exceptions.ModelHTTPError: status_code: 400, model_name: glm-4.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}
+[0m
+[2mTo run again:[0m [1;33mzrb chat --message "Our Todo app is moving to a more modular structure, but we haven't finished the CRUD logic.
+
+Please implement the remaining endpoints in `app/main.py`:
+1. **POST /todos**: Add a new todo. Handle ID generation.
+2. **PUT /todos/{todo_id}**: Update an existing todo.
+3. **DELETE /todos/{todo_id}**: Remove a todo.
+
+The app uses an in-memory database in `app/database.py`. Make sure your changes follow the existing patterns and use the correct Pydantic models." --model ollama:glm-4.7:cloud --session "" --yolo true --attach "" --interactive false[0m
+Traceback (most recent call last):
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 706, in _completions_create
+    return await self.client.chat.completions.create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<29 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py", line 2676, in create
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+    ...<49 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/openai/_base_client.py", line 1884, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/openai/_base_client.py", line 1669, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.BadRequestError: Error code: 400 - {'error': {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}}
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/gofrendigunawan/zrb/.venv/bin/zrb", line 6, in <module>
+    sys.exit(serve_cli())
+             ~~~~~~~~~^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/__main__.py", line 68, in serve_cli
+    raise e
+  File "/Users/gofrendigunawan/zrb/src/zrb/__main__.py", line 61, in serve_cli
+    cli.run(sys.argv[1:])
+    ~~~~~~~^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/runner/cli.py", line 54, in run
+    result = self._run_task(node, str_args, task_str_kwargs)
+  File "/Users/gofrendigunawan/zrb/src/zrb/runner/cli.py", line 89, in _run_task
+    return task.run(
+           ~~~~~~~~^
+        Session(shared_ctx=shared_ctx, root_group=self), str_kwargs=run_kwargs
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 229, in run
+    return asyncio.run(
+           ~~~~~~~~~~~^
+        run_and_cleanup(
+        ^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+        )
+        ^
+    )
+    ^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/asyncio/base_events.py", line 721, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 34, in run_and_cleanup
+    result = await main_task_coro
+             ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 91, in run_task_async
+    result = await task.exec_root_tasks(session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 254, in exec_root_tasks
+    return await execute_root_tasks(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
+    await asyncio.gather(*root_task_coros)
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 257, in exec_chain
+    return await execute_task_chain(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 21, in execute_task_chain
+    result = await execute_task_action(task, session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 53, in execute_task_action
+    return await run_async(execute_action_until_ready(task, session))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 85, in execute_action_until_ready
+    result = await run_async(execute_action_with_retry(task, session))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 215, in execute_action_with_retry
+    raise e  # Re-raise the exception after handling fallbacks
+    ^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 178, in execute_action_with_retry
+    result = await run_async(task._exec_action(ctx))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_chat_task.py", line 379, in _exec_action
+    return await self._run_non_interactive_session(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_chat_task.py", line 579, in _run_non_interactive_session
+    return await llm_task_core.async_run(session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 245, in async_run
+    return await run_task_async(
+           ^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 91, in run_task_async
+    result = await task.exec_root_tasks(session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 254, in exec_root_tasks
+    return await execute_root_tasks(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
+    await asyncio.gather(*root_task_coros)
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 257, in exec_chain
+    return await execute_task_chain(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 21, in execute_task_chain
+    result = await execute_task_action(task, session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 53, in execute_task_action
+    return await run_async(execute_action_until_ready(task, session))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 85, in execute_action_until_ready
+    result = await run_async(execute_action_with_retry(task, session))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 215, in execute_action_with_retry
+    raise e  # Re-raise the exception after handling fallbacks
+    ^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 178, in execute_action_with_retry
+    result = await run_async(task._exec_action(ctx))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 255, in _exec_action
+    output, new_history = await run_agent(
+                          ^^^^^^^^^^^^^^^^
+    ...<10 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run_agent.py", line 189, in run_agent
+    async for event in agent.run_stream_events(
+    ...<11 lines>...
+            await effective_event_handler(event)
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 974, in _run_stream_events
+    result = await task
+             ^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 949, in run_agent
+    return await self.run(
+           ^^^^^^^^^^^^^^^
+    ...<15 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 278, in run
+    async with node.stream(agent_run.ctx) as stream:
+               ~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 467, in stream
+    async with ctx.deps.model.request_stream(
+               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        message_history, model_settings, model_request_parameters, run_context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ) as streamed_response:
+    ^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 644, in request_stream
+    response = await self._completions_create(messages, True, model_settings_cast, model_request_parameters)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 741, in _completions_create
+    raise ModelHTTPError(status_code=status_code, model_name=self.model_name, body=e.body) from e
+pydantic_ai.exceptions.ModelHTTPError: status_code: 400, model_name: glm-4.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}
