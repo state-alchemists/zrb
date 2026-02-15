@@ -183,6 +183,7 @@ async def run_agent(
 
         # 3. Execution Loop
         run_history = current_history
+        result_output = None
         try:
             while True:
                 async for event in agent.run_stream_events(

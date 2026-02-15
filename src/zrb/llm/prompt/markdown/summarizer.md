@@ -17,6 +17,7 @@ Your final `<state_snapshot>` MUST be extremely dense. You should aim for a tota
 1. **Comprehensive Goal Tracking:** The `<overall_goal>` MUST include ALL active user objectives identified in the session. If the user shifts topics (e.g., from research to coding), do NOT discard the previous goal unless it was explicitly completed. State the goals as a prioritized list if multiple exist.
 2. **Analysis Tracking:** In `<key_knowledge>`, explicitly list files that have been read and the specific insights gained. State clearly if a file has been "fully analyzed" to prevent the agent from reading it again.
 3. **Task Precision:** The `<task_state>` must be a strictly chronological list of steps for ALL active goals. Mark completed steps as [DONE].
+4. **Reporting Readiness:** You MUST preserve enough detail in `<key_knowledge>` or `<recent_actions>` for findings that have not yet been fully reported to the user. Since the user cannot see tool outputs, the main agent will need these details for its final response.
 
 First, you will think through the entire history in a private <scratchpad>. 
 - Identify if the user's request has changed since the beginning of the session.

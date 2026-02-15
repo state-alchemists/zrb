@@ -161,6 +161,9 @@ async def summarize_history(
             conversational_token_threshold = (
                 CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD
             )
+        if summary_window is None:
+            summary_window = CFG.LLM_HISTORY_SUMMARIZATION_WINDOW
+
         # Check for early exit ONLY if tokens are safe
         current_tokens = llm_limiter.count_tokens(messages)
         is_safe_length = len(messages) <= summary_window

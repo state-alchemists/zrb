@@ -121,6 +121,7 @@ def create_delegate_to_agent_tool(
         "\n- The sub-agent is a **BLANK SLATE**. It does NOT share your history or system context."
         "\n- You MUST ALWAYS provide full, self-contained context: paths, code snippets, architectural rules, and OS/CWD details."
         "\n- Use ONLY for multi-step research or specialized analysis that would pollute your primary context."
+        "\n- **REPORTING:** The user CANNOT see the sub-agent's logs or output. You MUST extract and report all detailed findings, technical data, and relevant context in your final response to the user."
         "\n\n**AVAILABLE AGENTS:**\n"
         f"{agent_doc_section}"
         "\n\n**ARGS:**"

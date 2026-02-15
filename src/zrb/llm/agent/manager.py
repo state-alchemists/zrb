@@ -2,22 +2,21 @@ from __future__ import annotations
 
 import os
 import uuid
+import yaml
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-
-import yaml
-from pydantic_ai import Agent
-
-if TYPE_CHECKING:
-    from pydantic_ai import Tool
-    from pydantic_ai.tools import ToolFuncEither
-
-    from zrb.context.any_context import AnyContext
-
 from zrb.config.config import CFG
+from zrb.context.any_context import AnyContext
 from zrb.llm.agent.common import create_agent
 from zrb.util.load import load_module_from_path
+from zrb.llm.history_processor.summarizer import (
+    create_summarizer_history_processor,
+)
+if TYPE_CHECKING:
+    from pydantic_ai import Agent
+    from pydantic_ai import Tool
+    from pydantic_ai.tools import ToolFuncEither
 
 _IGNORE_DIRS = [
     ".git",
@@ -208,19 +207,19 @@ class SubAgentManager:
             pass
 
     def _load_agent_from_python(self, rel_path: str, full_path: str):
+        from pydantic_ai import Agent
+
         try:
             module_name = f"zrb_agent_{uuid.uuid4().hex}"
             module = load_module_from_path(module_name, full_path)
             if not module:
                 return
-
             agent_def = None
             # Look for 'agent' or 'AGENT' variable
             if hasattr(module, "agent"):
                 agent_def = getattr(module, "agent")
             elif hasattr(module, "AGENT"):
                 agent_def = getattr(module, "AGENT")
-
             if isinstance(agent_def, SubAgentDefinition):
                 self._agents[agent_def.name] = agent_def
             elif isinstance(agent_def, Agent):
@@ -331,25 +330,28 @@ class SubAgentManager:
 
     def create_agent(
         self, name: str, ctx: AnyContext | None = None
-    ) -> Agent[None, Any] | None:
+    ) -> "Agent[None, Any] | None":
         definition = self.get_agent_definition(name)
         if not definition:
             return None
-
         if definition.agent_instance:
             return definition.agent_instance
-
         if definition.agent_factory:
             try:
                 return definition.agent_factory()
             except Exception:
                 pass
-
         # Resolve Tools
         if ctx is None:
             from zrb.context.context import Context
+            from zrb.context.shared_context import SharedContext
 
-            ctx = Context()
+            ctx = Context(
+                shared_ctx=SharedContext(),
+                task_name="sub-agent-task",
+                color=0,
+                icon="🤖",
+            )
 
         resolved_tools = []
         registry = self._get_tool_registry()
@@ -370,6 +372,12 @@ class SubAgentManager:
             model=definition.model,
             system_prompt=definition.system_prompt,
             tools=resolved_tools,
+            history_processors=[
+                create_summarizer_history_processor(
+                    token_threshold=CFG.LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD,
+                    summary_window=CFG.LLM_HISTORY_SUMMARIZATION_WINDOW,
+                )
+            ]
         )
 
 
