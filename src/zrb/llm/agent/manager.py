@@ -14,8 +14,6 @@ from zrb.llm.agent.common import create_agent
 from zrb.llm.history_processor.summarizer import (
     create_summarizer_history_processor,
 )
-from zrb.util.load import load_module_from_path
-
 from zrb.llm.tool import (
     analyze_code,
     analyze_file,
@@ -34,7 +32,7 @@ from zrb.llm.tool import (
 from zrb.llm.tool.mcp import load_mcp_config
 from zrb.llm.tool.skill import create_activate_skill_tool
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
-
+from zrb.util.load import load_module_from_path
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent, Tool

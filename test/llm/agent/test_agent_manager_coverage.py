@@ -43,6 +43,7 @@ def test_sub_agent_manager_filter_delegate_tools():
     def delegate_tool():
         """Delegate tool"""
         return "nested"
+
     delegate_tool.zrb_is_delegate_tool = True
 
     manager.add_tool(regular_tool, delegate_tool)
@@ -53,7 +54,7 @@ def test_sub_agent_manager_filter_delegate_tools():
         path=".",
         description="Test",
         system_prompt="Prompt",
-        tools=["regular_tool", "delegate_tool"]
+        tools=["regular_tool", "delegate_tool"],
     )
     manager.add_agent(agent_def)
 
@@ -75,6 +76,7 @@ def test_sub_agent_manager_filter_delegate_tools_from_factory():
     def delegate_tool():
         """Delegate tool"""
         return "nested"
+
     delegate_tool.zrb_is_delegate_tool = True
 
     # Add a factory that returns a delegate tool
@@ -85,7 +87,7 @@ def test_sub_agent_manager_filter_delegate_tools_from_factory():
         path=".",
         description="Test",
         system_prompt="Prompt",
-        tools=[]
+        tools=[],
     )
     manager.add_agent(agent_def)
 
