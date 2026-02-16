@@ -2,6 +2,7 @@ import re
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Sequence
 
+from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.util.cli.style import stylize_error, stylize_yellow
@@ -13,7 +14,11 @@ else:
 
 
 async def process_message_for_summarization(
-    msg: ModelMessage, agent: Any, limiter: LLMLimiter, threshold: int
+    msg: ModelMessage,
+    agent: Any,
+    limiter: LLMLimiter,
+    message_threshold: int,
+    insanity_threshold: int,
 ) -> ModelMessage:
     from pydantic_ai.messages import ModelRequest, ToolReturnPart
 
@@ -28,7 +33,7 @@ async def process_message_for_summarization(
             new_parts.append(p)
             continue
         new_part, modified = await process_tool_return_part(
-            p, agent, limiter, threshold
+            p, agent, limiter, message_threshold, insanity_threshold
         )
         new_parts.append(new_part)
         if modified:
@@ -39,21 +44,38 @@ async def process_message_for_summarization(
 
 
 async def process_tool_return_part(
-    part: Any, agent: Any, limiter: LLMLimiter, threshold: int
+    part: Any,
+    agent: Any,
+    limiter: LLMLimiter,
+    message_threshold: int,
+    insanity_threshold: int,
 ) -> tuple[Any, bool]:
     # Safely get content with default
     content = getattr(part, "content", None)
-    # Skip if content is not a string (e.g., dict)
-    if not isinstance(content, str):
+    if content is None:
         return part, False
+
+    # Convert non-string content to string for summarization
+    content_is_string = isinstance(content, str)
+    original_content = content
+    if not content_is_string:
+        import json
+
+        try:
+            content = json.dumps(content, default=str)
+        except Exception:
+            content = str(content)
+
     # Skip if already summarized or truncated
     is_summary = content.startswith("SUMMARY of tool result:")
     is_truncated = content.startswith("TRUNCATED tool result:")
     if is_summary or is_truncated:
         return part, False
+
     content_tokens = limiter.count_tokens(content)
-    if content_tokens <= threshold:
+    if content_tokens <= message_threshold:
         return part, False
+
     zrb_print(
         stylize_yellow(f"  Summarizing fat tool result ({content_tokens} tokens)..."),
         plain=True,
@@ -61,17 +83,31 @@ async def process_tool_return_part(
     # Calculate available tokens for summary (accounting for prefix)
     prefix = "SUMMARY of tool result:\n"
     prefix_tokens = limiter.count_tokens(prefix)
-    available_tokens = threshold - prefix_tokens
+    available_tokens = message_threshold - prefix_tokens
+
+    # Go: insanity limit should adhere the conversational summarization token threshold.
+    # By capping at the conversational-level threshold, we ensure we don't spend
+    # too much time summarizing a single message, while still performing
+    # chunked summarization for messages that fit within history limits.
+    if content_tokens > insanity_threshold:
+        zrb_print(
+            stylize_yellow(
+                f"  Tool result is too large for efficient summarization ({content_tokens} tokens), truncating to {insanity_threshold} tokens first..."
+            ),
+            plain=True,
+        )
+        content = limiter.truncate_text(content, insanity_threshold)
+
     # Ensure we have positive available tokens
     if available_tokens <= 0:
         zrb_print(
             stylize_error(
-                f"  Warning: Token threshold ({threshold}) too low for summary prefix ({prefix_tokens} tokens)"
+                f"  Warning: Token threshold ({message_threshold}) too low for summary prefix ({prefix_tokens} tokens)"
             ),
             plain=True,
         )
         # Keep original but truncated
-        truncated = limiter.truncate_text(content, threshold)
+        truncated = limiter.truncate_text(content, message_threshold)
         new_part = replace(part, content=f"TRUNCATED tool result:\n{truncated}")
         return new_part, True
     try:

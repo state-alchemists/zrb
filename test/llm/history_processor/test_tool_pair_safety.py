@@ -499,10 +499,10 @@ async def test_integration_with_summarize_history():
                 conversational_token_threshold=10,  # Low threshold to trigger summarization
             )
 
-    # Should have a summary + kept messages
-    assert len(result) == 2  # Summary + last message
+    # Should have a summary + kept messages (merged due to consecutive User messages)
+    assert len(result) == 1
     assert "Summary" in str(result[0])
-    assert result[1] == messages[-1]  # Last message kept intact
+    assert "Q2" in str(result[0])
 
 
 if __name__ == "__main__":

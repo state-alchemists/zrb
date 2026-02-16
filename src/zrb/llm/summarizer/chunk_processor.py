@@ -1,9 +1,9 @@
 from typing import Any
 
 from zrb.context.any_context import zrb_print
-from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.config.limiter import LLMLimiter, llm_limiter as default_llm_limiter
 from zrb.llm.summarizer.message_converter import message_to_text
-from zrb.llm.summarizer.text_summarizer import summarize_text
+from zrb.llm.summarizer.text_summarizer import summarize_text_plain
 from zrb.util.cli.style import stylize_error, stylize_yellow
 
 
@@ -11,7 +11,6 @@ async def chunk_and_summarize(
     messages: list[Any], agent: Any, limiter: "LLMLimiter", token_threshold: int
 ) -> str:
     """Break history into chunks and summarize them iteratively."""
-
     # Pre-calculate texts
     history_texts = []
     for m in messages:
@@ -35,7 +34,11 @@ async def chunk_and_summarize(
             plain=True,
         )
         try:
-            summary = await summarize_text("\n".join(current_chunk), agent)
+            # Use summarize_text_plain for individual chunks to handle their potential size safely
+            chunk_content = "\n".join(current_chunk)
+            summary = await summarize_text_plain(
+                chunk_content, agent, limiter, token_threshold
+            )
             summaries.append(summary)
         except Exception as e:
             zrb_print(stylize_error(f"  Error summarizing chunk: {e}"), plain=True)
@@ -68,11 +71,14 @@ async def consolidate_summaries(
             plain=True,
         )
 
-    return await summarize_text(
+    # Use summarize_text_plain to safely consolidate even a large block of summaries
+    prompt = (
         "Consolidate the following conversation state snapshots into a single, cohesive "
         "<state_snapshot>.\n"
         "IMPORTANT: Be extremely concise and dense. Your goal is to fit all critical "
         f"knowledge into less than {conversational_token_threshold // 2} tokens.\n"
-        f"{summary_text}",
-        agent,
+        f"{summary_text}"
+    )
+    return await summarize_text_plain(
+        prompt, agent, default_llm_limiter, conversational_token_threshold
     )

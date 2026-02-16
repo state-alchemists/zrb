@@ -251,10 +251,11 @@ async def test_create_summarizer_history_processor_flow():
         new_history = await processor(messages)
 
     # With summary_window=0 and token threshold exceeded, we should get a summary
-    # and some kept messages. The exact number depends on the implementation.
-    # Currently, it returns 2 messages: 1 summary + 1 kept message.
-    assert len(new_history) == 2
+    # and some kept messages. 
+    # Since the last kept message is a ModelRequest, it is merged with the summary message.
+    assert len(new_history) == 1
     assert "Automated Context Restoration" in message_to_text(new_history[0])
+    assert "active turn" in message_to_text(new_history[0])
     assert msg_agent.run.called
     assert conv_agent.run.called
 
@@ -301,7 +302,7 @@ async def test_summarize_history_with_multiple_snapshots():
                 agent=agent,
                 summary_window=0,
                 limiter=limiter,
-                conversational_token_threshold=10,
+                conversational_token_threshold=100,
             )
 
     assert len(new_history) <= 3
@@ -322,7 +323,7 @@ async def test_find_safe_split_index_no_safe_split():
 @pytest.mark.asyncio
 async def test_process_message_for_summarization_non_request():
     msg = ModelResponse(parts=[TextPart(content="hi")])
-    res = await process_message_for_summarization(msg, None, None, 10)
+    res = await process_message_for_summarization(msg, None, None, 10, 20)
     assert res == msg
 
 
@@ -331,17 +332,17 @@ async def test_process_tool_return_part_edge_cases():
     limiter = MockLimiter()
     # 1. Non-string content
     part = ToolReturnPart(content={"a": 1}, tool_name="t")
-    res, mod = await process_tool_return_part(part, None, limiter, 10)
+    res, mod = await process_tool_return_part(part, None, limiter, 10, 20)
     assert mod is False
 
     # 2. Already summarized
     part = ToolReturnPart(content="SUMMARY of tool result: ...", tool_name="t")
-    res, mod = await process_tool_return_part(part, None, limiter, 10)
+    res, mod = await process_tool_return_part(part, None, limiter, 10, 20)
     assert mod is False
 
     # 3. Low threshold (Warning path)
     part = ToolReturnPart(content="Very long content...", tool_name="t")
-    res, mod = await process_tool_return_part(part, None, limiter, 5)
+    res, mod = await process_tool_return_part(part, None, limiter, 5, 20)
     assert mod is True
     assert "TRUNCATED" in res.content
 

@@ -562,7 +562,8 @@ def test_config_properties_access():
     _ = CFG.LLM_PLUGIN_DIRS
     _ = CFG.LLM_SMALL_MODEL
     _ = CFG.LLM_HISTORY_DIR
-    _ = CFG.LLM_NOTE_FILE
+    _ = CFG.LLM_JOURNAL_DIR
+    _ = CFG.LLM_JOURNAL_INDEX_FILE
 
     # RAG properties
     _ = CFG.RAG_EMBEDDING_API_KEY

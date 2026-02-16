@@ -44,9 +44,12 @@ async def summarize_short_text(
 
 
 async def summarize_long_text(
-    text: str, agent: Any, limiter: LLMLimiter, threshold: int
+    text: str, agent: Any, limiter: LLMLimiter, threshold: int, depth: int = 0
 ) -> str:
     # Chunking logic for extremely large text
+    if depth > 5:
+        return limiter.truncate_text(text, threshold)
+
     remaining_text = text
     summaries = []
     # Use 70% of threshold for chunks to leave room for consolidation
@@ -79,14 +82,23 @@ async def summarize_long_text(
     else:
         try:
             summaries_text = "\n".join(summaries)
-            prompt = (
-                "Consolidate these partial summaries into a single, cohesive summary:\n\n"
-                f"{summaries_text}"
-            )
-            consolidated = await agent.run(prompt)
-            final_summary = getattr(consolidated, "output", "")
-            if not isinstance(final_summary, str):
-                final_summary = str(final_summary) if final_summary is not None else ""
+            # If the concatenated summaries still exceed the threshold,
+            # we need to recursively summarize them to avoid crashing the consolidation agent.
+            summaries_tokens = limiter.count_tokens(summaries_text)
+            text_tokens = limiter.count_tokens(text)
+            if summaries_tokens > threshold * 0.9 and summaries_tokens < text_tokens:
+                final_summary = await summarize_long_text(
+                    summaries_text, agent, limiter, threshold, depth + 1
+                )
+            else:
+                prompt = (
+                    "Consolidate these partial summaries into a single, cohesive summary:\n\n"
+                    f"{summaries_text}"
+                )
+                consolidated = await agent.run(prompt)
+                final_summary = getattr(consolidated, "output", "")
+                if not isinstance(final_summary, str):
+                    final_summary = str(final_summary) if final_summary is not None else ""
         except Exception as e:
             zrb_print(stylize_error(f"  Error during consolidation: {e}"), plain=True)
             raise e

@@ -71,3 +71,16 @@ Zrb (Zaruba) is a Python-based task automation tool and library.
 - **Coverage Goal:** Maintain ≥75% overall code coverage.
 - **Test Structure:** Tests are organized in `test/` mirroring `src/` structure.
 - **Test Conventions:** Use pytest fixtures, mocks for external dependencies, and follow AAA pattern (Arrange-Act-Assert).
+
+## 6. LLM Summarization System
+- **Dual-Threshold Logic:**
+  - `message_threshold`: Triggers summarization of individual large messages (e.g., tool returns).
+  - `conversational_threshold`: The hard limit for conversational history. Before summarization, content exceeding this limit is aggressively truncated to avoid "insanity" (oversized prompts and token explosion).
+- **History Management:**
+  - `_ensure_alternating_roles`: Merges consecutive messages of the same role to maintain LLM compliance (User -> Assistant -> User).
+  - `find_best_effort_split`: Ensures that tool call/return pairs are not orphaned during history truncation or summarization. Safe splits occur only when a tool result is immediately followed by its corresponding tool result or when we are at a non-tool-call boundary.
+- **Long Text Summarization:**
+  - `summarize_long_text` uses recursive chunking for extremely large inputs.
+  - Includes a recursion depth guard (max 5) and a progress check (ensures summary is smaller than input) to prevent infinite loops.
+- **State Preservation:**
+  - Summarization prompts are designed to output `<state_snapshot>` tags. The summarizer extracts this content to maintain a high-signal structured state across summarization boundaries.

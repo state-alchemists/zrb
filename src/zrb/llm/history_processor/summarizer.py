@@ -59,6 +59,7 @@ def create_summarizer_history_processor(
                 agent=message_agent,
                 limiter=llm_limiter,
                 message_token_threshold=message_token_threshold,
+                conversational_token_threshold=conversational_token_threshold,
             )
         except Exception as e:
             zrb_print(
@@ -120,6 +121,7 @@ async def summarize_messages(
     agent: Any = None,
     limiter: "LLMLimiter | None" = None,
     message_token_threshold: int | None = None,
+    conversational_token_threshold: int | None = None,
 ) -> "list[ModelMessage]":
     """
     Summarizes individual tool call results (and other parts) if they exceed the threshold.
@@ -128,12 +130,20 @@ async def summarize_messages(
         llm_limiter = limiter or default_llm_limiter
         if message_token_threshold is None:
             message_token_threshold = CFG.LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD
+        if conversational_token_threshold is None:
+            conversational_token_threshold = (
+                CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD
+            )
 
         summarizer_agent = agent or create_message_summarizer_agent()
         new_messages = []
         for msg in messages:
             new_msg = await process_message_for_summarization(
-                msg, summarizer_agent, llm_limiter, message_token_threshold
+                msg,
+                summarizer_agent,
+                llm_limiter,
+                message_token_threshold,
+                conversational_token_threshold,
             )
             new_messages.append(new_msg)
         return new_messages
@@ -212,10 +222,39 @@ async def summarize_history(
         summary_message = _create_summary_model_request(summary_text)
         if summary_message is None:
             return messages
-        return [summary_message] + to_keep
+        return _ensure_alternating_roles([summary_message] + to_keep)
     except Exception as e:
         zrb_print(stylize_error(f"  Error in summarize_history: {e}"), plain=True)
         return messages
+
+
+def _ensure_alternating_roles(messages: list[Any]) -> list[Any]:
+    if not messages:
+        return messages
+
+    from pydantic_ai.messages import ModelRequest, ModelResponse
+
+    new_messages: list[Any] = []
+    for msg in messages:
+        if not new_messages:
+            new_messages.append(msg)
+            continue
+
+        last_msg = new_messages[-1]
+
+        # Case 1: Sequential ModelRequests (User -> User) - MERGE
+        if isinstance(msg, ModelRequest) and isinstance(last_msg, ModelRequest):
+            last_msg.parts.extend(msg.parts)
+            continue
+
+        # Case 2: Sequential ModelResponses (Assistant -> Assistant) - MERGE
+        if isinstance(msg, ModelResponse) and isinstance(last_msg, ModelResponse):
+            last_msg.parts.extend(msg.parts)
+            continue
+
+        new_messages.append(msg)
+
+    return new_messages
 
 
 def _create_summary_model_request(summary_text: str) -> Any:

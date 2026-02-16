@@ -207,8 +207,6 @@ class LLMLimiter:
     def _to_str(self, content: Any) -> str:
         if isinstance(content, str):
             return content
-        if isinstance(content, list):
-            return "".join(self._to_str(c) for c in content)
         if isinstance(content, (int, float, bool)) or content is None:
             return str(content)
         # Handle ModelRequest, ModelResponse, etc.
@@ -218,24 +216,23 @@ class LLMLimiter:
         # Handle UserPromptPart, TextPart, ToolReturnPart
         if hasattr(content, "content"):
             content_val = getattr(content, "content", None)
-            if isinstance(content_val, (str, list)):
-                return self._to_str(content_val)
             if content_val is not None:
-                return str(content_val)
+                return self._to_str(content_val)
         # Handle ToolCallPart
         if hasattr(content, "args"):
             args = getattr(content, "args", {})
-            if isinstance(args, (str, dict, list)):
-                return self._to_str(args)
-            return str(args)
-        if isinstance(content, dict):
-            return "".join(
-                f"{self._to_str(k)}{self._to_str(v)}" for k, v in content.items()
-            )
+            return self._to_str(args)
+        # Use JSON for collections to be more representative of payload
+        if isinstance(content, (list, dict)):
+            try:
+                return json.dumps(content, default=str)
+            except Exception:
+                pass
+        # Fallback
         try:
-            return json.dumps(content, default=str)
-        except Exception:
             return str(content)
+        except Exception:
+            return ""
 
     def _prune_logs(self):
         now = time.time()
