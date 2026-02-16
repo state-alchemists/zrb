@@ -292,9 +292,12 @@ The following environment variables are used as LLM configuration default proper
     * Default: `~/.zrb/llm-history`
     * Possible values: Any valid directory path
 
-* `ZRB_LLM_NOTE_FILE`: Path to the LLM notes JSON file.
-    * Default: `~/.zrb/notes.json`
-    * Possible values: Any valid file path
+* `ZRB_LLM_JOURNAL_DIR`: Directory for LLM journal files (directory-based journaling).
+    * Default: `~/.zrb/llm-notes/`
+    * Possible values: Any valid directory path
+* `ZRB_LLM_JOURNAL_INDEX_FILE`: Index filename for LLM journal (auto-injected into prompts).
+    * Default: `index.md`
+    * Possible values: Any valid filename
 
 * `ZRB_LLM_PROMPT_DIR`: Directory for custom LLM prompts.
     * Default: `.zrb/llm/prompt`

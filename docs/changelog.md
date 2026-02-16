@@ -1,5 +1,63 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.4.0 (February 16, 2026)
+
+- **Feature: Directory-Based Journal System with Simplified CFG Access**:
+  - **New Journal System**: Replaces old NoteManager with directory-based journaling
+    - Uses `CFG.LLM_JOURNAL_DIR` and `CFG.LLM_JOURNAL_INDEX_FILE` directly (no abstraction)
+    - Only `index.md` auto-injected into prompts via placeholder replacement (e.g., `{CFG_LLM_JOURNAL_DIR}`)
+    - Journal prompt component creates directory/file if missing
+    - Default location: `~/.zrb/llm-notes/` with `index.md` as default index file
+  - **Breaking Changes**: Removed old note system completely
+    - Deleted `src/zrb/llm/note/` directory and all related files
+    - Deleted `src/zrb/llm/tool/note.py` and `src/zrb/llm/prompt/note.py`
+    - Removed all note-related tests (9 trivial tests)
+    - **Completely removed `LLM_NOTE_FILE` configuration** (not just deprecated)
+  - **Enhanced Prompt System**: Updated prompt placeholder replacement
+    - Added `_get_prompt_replacements()` and `_replace_prompt_placeholders()` functions
+    - All prompts now support `{CFG_*}` placeholders for dynamic configuration injection
+    - Supports `{CFG_LLM_JOURNAL_DIR}`, `{CFG_LLM_JOURNAL_INDEX_FILE}`, `{CFG_ROOT_GROUP_NAME}`, `{CFG_LLM_ASSISTANT_NAME}`, `{CFG_ENV_PREFIX}`
+  - **Comprehensive Testing**: Added 6 tests for journal prompt component
+    - Covers empty journal, content injection, missing directory/file creation
+    - Includes edge case where no sections are added (line 57 coverage)
+    - All 6 tests pass with comprehensive coverage
+
+- **Improvement: Code Coverage & Testing Infrastructure**:
+  - **Achieved ≥75% Overall Code Coverage**: Improved from 74% to 75%
+    - Added tests for `src/zrb/util/cmd/remote.py` (improved from 20% to 100%)
+    - Added tests for `src/zrb/util/cli/subcommand.py` (improved from 78% to 100%)
+    - All 758 tests pass with 8 warnings
+  - **Updated Testing Documentation**: Enhanced AGENTS.md with comprehensive testing instructions
+    - Added Section 5 "Testing" with detailed command usage
+    - Test command: `source .venv/bin/activate && ./zrb-test.sh <parameter>`
+    - Coverage goal: Maintain ≥75% overall code coverage
+    - Test structure and conventions documented
+
+- **Documentation & Configuration Updates**:
+  - **Updated AGENTS.md**: Added journal system documentation (Section 3.5)
+    - Purpose: Directory-based journaling for agents to maintain context across sessions
+    - Location: `~/.zrb/llm-notes/` (configurable via `CFG.LLM_JOURNAL_DIR`)
+    - Index File: `index.md` (configurable via `CFG.LLM_JOURNAL_INDEX_FILE`) auto-injected into prompts
+    - Organization: Hierarchical structure by topic with concise index references
+    - Documentation separation: AGENTS.md for technical docs, journal for non-technical notes
+  - **Updated Mandate**: Refined context management guidelines
+    - Changed from note-based to journal-based context management
+    - Added journal system configuration details to mandate
+    - Emphasized documentation separation between AGENTS.md and journal
+  - **New Configuration Options**:
+    - `LLM_JOURNAL_DIR`: Directory for journal files (default: `~/.zrb/llm-notes/`)
+    - `LLM_JOURNAL_INDEX_FILE`: Index filename (default: `index.md`)
+  - **Removed Configuration**:
+    - `LLM_NOTE_FILE`: Old note file configuration (completely removed from source code)
+
+- **Architectural Refinements**:
+  - **Simplified Prompt Manager**: Updated `PromptManager` to use journal instead of note system
+    - Changed `include_note` parameter to `include_journal`
+    - Removed `note_manager` parameter
+    - Updated imports and middleware registration
+  - **Clean Imports**: Removed all note-related imports from `__init__.py` files
+  - **Consistent Singleton Pattern**: Updated AGENTS.md to reflect `Hook` instead of `Note` as module-level singleton
+
 ## 2.3.5 (February 15, 2026)
 
 - **Feature: Enhanced Agent System with Comprehensive Test Coverage**:

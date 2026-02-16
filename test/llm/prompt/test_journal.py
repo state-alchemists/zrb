@@ -19,26 +19,26 @@ def test_journal_prompt_with_empty_journal():
         index_file = os.path.join(journal_dir, "index.md")
         with open(index_file, "w") as f:
             f.write("")
-        
+
         # Mock CFG to use our temp directory
         with patch("zrb.llm.prompt.journal.CFG") as mock_cfg:
             mock_cfg.LLM_JOURNAL_DIR = journal_dir
             mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
-            
+
             # Create the journal prompt
             journal_prompt = create_journal_prompt()
-            
+
             # Mock next_handler
             next_handler = Mock(return_value="final_prompt")
-            
+
             # Call the journal prompt
             ctx = SharedContext()
             result = journal_prompt(ctx, "initial_prompt", next_handler)
-            
+
             # Verify the result
             assert result == "final_prompt"
             next_handler.assert_called_once()
-            
+
             # Check that the prompt includes journal system info
             call_args = next_handler.call_args[0]
             assert call_args[0] == ctx
@@ -58,26 +58,26 @@ def test_journal_prompt_with_journal_content():
         journal_content = "# Test Journal\n\nThis is test journal content."
         with open(index_file, "w") as f:
             f.write(journal_content)
-        
+
         # Mock CFG to use our temp directory
         with patch("zrb.llm.prompt.journal.CFG") as mock_cfg:
             mock_cfg.LLM_JOURNAL_DIR = journal_dir
             mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
-            
+
             # Create the journal prompt
             journal_prompt = create_journal_prompt()
-            
+
             # Mock next_handler
             next_handler = Mock(return_value="final_prompt")
-            
+
             # Call the journal prompt
             ctx = SharedContext()
             result = journal_prompt(ctx, "initial_prompt", next_handler)
-            
+
             # Verify the result
             assert result == "final_prompt"
             next_handler.assert_called_once()
-            
+
             # Check that the prompt includes journal content
             call_args = next_handler.call_args[0]
             assert call_args[0] == ctx
@@ -93,26 +93,26 @@ def test_journal_prompt_creates_missing_directory():
         # Journal directory doesn't exist yet
         journal_dir = os.path.join(temp_dir, "non_existent_journal")
         index_file = os.path.join(journal_dir, "index.md")
-        
+
         # Mock CFG to use our temp directory
         with patch("zrb.llm.prompt.journal.CFG") as mock_cfg:
             mock_cfg.LLM_JOURNAL_DIR = journal_dir
             mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
-            
+
             # Create the journal prompt
             journal_prompt = create_journal_prompt()
-            
+
             # Mock next_handler
             next_handler = Mock(return_value="final_prompt")
-            
+
             # Call the journal prompt
             ctx = SharedContext()
             result = journal_prompt(ctx, "initial_prompt", next_handler)
-            
+
             # Verify the directory was created
             assert os.path.isdir(journal_dir)
             assert os.path.isfile(index_file)
-            
+
             # Verify the result
             assert result == "final_prompt"
             next_handler.assert_called_once()
@@ -125,25 +125,25 @@ def test_journal_prompt_creates_missing_index_file():
         journal_dir = os.path.join(temp_dir, "journal")
         os.makedirs(journal_dir)
         index_file = os.path.join(journal_dir, "index.md")
-        
+
         # Mock CFG to use our temp directory
         with patch("zrb.llm.prompt.journal.CFG") as mock_cfg:
             mock_cfg.LLM_JOURNAL_DIR = journal_dir
             mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
-            
+
             # Create the journal prompt
             journal_prompt = create_journal_prompt()
-            
+
             # Mock next_handler
             next_handler = Mock(return_value="final_prompt")
-            
+
             # Call the journal prompt
             ctx = SharedContext()
             result = journal_prompt(ctx, "initial_prompt", next_handler)
-            
+
             # Verify the index file was created
             assert os.path.isfile(index_file)
-            
+
             # Verify the result
             assert result == "final_prompt"
             next_handler.assert_called_once()
@@ -159,26 +159,26 @@ def test_journal_prompt_with_custom_index_filename():
         journal_content = "# Custom Journal"
         with open(index_file, "w") as f:
             f.write(journal_content)
-        
+
         # Mock CFG to use our temp directory with custom filename
         with patch("zrb.llm.prompt.journal.CFG") as mock_cfg:
             mock_cfg.LLM_JOURNAL_DIR = journal_dir
             mock_cfg.LLM_JOURNAL_INDEX_FILE = "custom_index.md"
-            
+
             # Create the journal prompt
             journal_prompt = create_journal_prompt()
-            
+
             # Mock next_handler
             next_handler = Mock(return_value="final_prompt")
-            
+
             # Call the journal prompt
             ctx = SharedContext()
             result = journal_prompt(ctx, "initial_prompt", next_handler)
-            
+
             # Verify the result
             assert result == "final_prompt"
             next_handler.assert_called_once()
-            
+
             # Check that the prompt includes custom filename
             call_args = next_handler.call_args[0]
             assert call_args[0] == ctx
@@ -196,32 +196,34 @@ def test_journal_prompt_edge_case_no_sections():
         index_file = os.path.join(journal_dir, "index.md")
         with open(index_file, "w") as f:
             f.write("")
-        
+
         # Mock CFG to use our temp directory
         with patch("zrb.llm.prompt.journal.CFG") as mock_cfg:
             mock_cfg.LLM_JOURNAL_DIR = journal_dir
             mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
-            
+
             # Create the journal prompt
             journal_prompt = create_journal_prompt()
-            
+
             # Mock next_handler
             next_handler = Mock(return_value="final_prompt")
-            
+
             # We need to patch make_markdown_section to return None or empty string
             # to simulate the edge case where no sections are created
-            with patch("zrb.llm.prompt.journal.make_markdown_section") as mock_make_section:
+            with patch(
+                "zrb.llm.prompt.journal.make_markdown_section"
+            ) as mock_make_section:
                 # Make it return empty string for both calls
                 mock_make_section.return_value = ""
-                
+
                 # Call the journal prompt
                 ctx = SharedContext()
                 result = journal_prompt(ctx, "initial_prompt", next_handler)
-                
+
                 # Verify the result - should still call next_handler
                 assert result == "final_prompt"
                 next_handler.assert_called_once()
-                
+
                 # Check that it called next_handler with the original prompt
                 call_args = next_handler.call_args[0]
                 assert call_args[0] == ctx

@@ -10,8 +10,8 @@ from typing import Callable
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
-
 from zrb.util.markdown import make_markdown_section
+
 
 def create_journal_prompt():
     def journal_prompt(
@@ -55,5 +55,5 @@ def create_journal_prompt():
             return next_handler(ctx, f"{current_prompt}\n\n{combined_sections}")
         # If no sections were added, just pass through
         return next_handler(ctx, current_prompt)
-    
+
     return journal_prompt

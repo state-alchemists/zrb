@@ -1,85 +1,118 @@
 🔖 [Home](../../README.md) > [Documentation](../README.md)
 
-# LLM Notes & Context (Technical Specification)
+# LLM Journal System (Technical Specification)
 
-Zrb provides a mechanism for maintaining persistent, location-aware notes and context that are automatically provided to the LLM. This allows the assistant to remember project-specific details, user preferences, and local environment information.
+Zrb provides a directory-based journal system for maintaining persistent context across LLM sessions. This allows the assistant to remember project-specific details, user preferences, and local environment information through a hierarchical file system structure.
 
 ## 1. Overview
 
-The system manages a collection of "Notes" associated with specific directory paths. When an LLM task is executed, it retrieves all notes relevant to the current working directory (including those from parent directories) and injects them into the system prompt.
+The journal system replaces the old JSON-based note system with a more flexible directory-based approach. It provides a structured way to maintain context through Markdown files organized hierarchically by topic or project.
 
 ## 2. Storage Mechanism
 
-Notes are stored in a single, global JSON file.
+Journal entries are stored in a directory structure with a central index file.
 
--   **File Location**: Defined by the `ZRB_LLM_NOTE_FILE` environment variable.
--   **Default Path**: `~/.zrb/notes.json`
--   **Structure**: A simple JSON object where keys are normalized paths and values are strings containing the note content.
+-   **Journal Directory**: Defined by the `ZRB_LLM_JOURNAL_DIR` environment variable.
+-   **Default Path**: `~/.zrb/llm-notes/`
+-   **Index File**: Defined by the `ZRB_LLM_JOURNAL_INDEX_FILE` environment variable.
+-   **Default Index**: `index.md`
+-   **Structure**: Hierarchical directory structure with Markdown files
 
-### Path Normalization
-Paths are normalized to ensure consistency across different environments:
--   Paths inside the user's home directory are stored with a tilde (e.g., `~/projects/zrb`).
--   Paths outside the home directory are stored as absolute paths (e.g., `/etc/nginx`).
--   The user's home directory itself is stored as `~`.
-
-### Example `notes.json`:
-```json
-{
-  "~": "The user prefers Python and likes concise answers.",
-  "~/projects/zrb": "This is the Zrb project. It uses Poetry for dependency management.",
-  "~/projects/zrb/src": "This directory contains the core library source code."
-}
+### Directory Organization
+Users can organize journal entries hierarchically by topic or project:
+```
+~/.zrb/llm-notes/
+├── index.md                    # Main index file (auto-injected into prompts)
+├── project-a/
+│   ├── design.md              # Design decisions for project A
+│   ├── meeting-notes.md       # Meeting notes for project A
+│   └── api-spec.md           # API specifications for project A
+├── project-b/
+│   ├── requirements.md        # Requirements for project B
+│   └── architecture.md       # Architecture decisions for project B
+└── user-preferences.md       # Global user preferences
 ```
 
-## 3. Resolution Logic (Cascading Context)
+### Index File Structure
+The `index.md` file should be concise and reference other files:
+```markdown
+# Journal Index
 
-When an LLM task is executed from a directory (e.g., `/home/user/projects/zrb/src`), the system retrieves notes using a **cascading** approach:
+## Project A
+- [Design Decisions](project-a/design.md)
+- [Meeting Notes](project-a/meeting-notes.md)
+- [API Specifications](project-a/api-spec.md)
 
-1.  **Identify Ancestors**: The system identifies all ancestor directories of the current path up to the root or home directory.
-2.  **Retrieve Notes**: It looks up each ancestor path in the global `notes.json` file.
-3.  **Aggregate**: All found notes are collected.
+## Project B  
+- [Requirements](project-b/requirements.md)
+- [Architecture](project-b/architecture.md)
 
-### Example Resolution:
-If the current directory is `~/projects/zrb/src`:
--   It checks `~`
--   It checks `~/projects`
--   It checks `~/projects/zrb`
--   It checks `~/projects/zrb/src`
+## Global Preferences
+- [User Preferences](user-preferences.md)
+```
 
-All content found for these keys is aggregated into a single "Notes & Context" block.
+## 3. Prompt Injection
 
-## 4. Prompt Injection
-
-The aggregated notes are formatted into a Markdown section and appended to the LLM's system prompt:
+Only the `index.md` file content is automatically injected into the LLM's system prompt via placeholder replacement (e.g., `{CFG_LLM_JOURNAL_DIR}`). The system also includes journal configuration information:
 
 ```markdown
-### Notes & Context
-**~**:
-The user prefers Python and likes concise answers.
+### Journal & Notes
+[Content from index.md]
 
-**~/projects/zrb**:
-This is the Zrb project. It uses Poetry for dependency management.
+### Journal System
+**Journal System Configuration:**
+- **Journal Directory:** `~/.zrb/llm-notes/`
+- **Index File:** `index.md`
 
-**~/projects/zrb/src**:
-This directory contains the core library source code.
+**Documentation Guidelines:**
+- Technical information about project architecture, conventions, and patterns should be maintained in `AGENTS.md`
+- User preferences, non-technical context, and session notes can be added to the journal directory
+- At the end of significant interactions, consider updating relevant documentation
 ```
 
-## 5. Management
+## 4. Automatic Creation
 
-Notes can be managed programmatically via the `NoteManager` class or by the LLM itself using tools.
+The journal system automatically creates the journal directory and index file if they don't exist:
 
-### Programmatic Access
 ```python
-from zrb.llm.note.manager import NoteManager
-
-manager = NoteManager()
-
-# Write a note
-manager.write("~/my-project", "This project uses FastAPI.")
-
-# Read all relevant notes for a path
-notes = manager.read_all("~/my-project/app")
+# Journal prompt component creates directory/file if missing
+effective_journal_dir = os.path.abspath(os.path.expanduser(CFG.LLM_JOURNAL_DIR))
+if not os.path.isdir(effective_journal_dir):
+    os.makedirs(effective_journal_dir, exist_ok=True)
+index_path = os.path.join(effective_journal_dir, CFG.LLM_JOURNAL_INDEX_FILE)
+if not os.path.isfile(index_path):
+    with open(index_path, "w") as f:
+        f.write("")  # Create empty index file
 ```
 
-### LLM Tools
-The `zrb llm chat` command provides the LLM with tools to read and write these notes, allowing it to "remember" facts about the project it is working on.
+## 5. Configuration Placeholders
+
+The journal system uses configuration placeholders that are automatically replaced in prompts:
+
+- `{CFG_LLM_JOURNAL_DIR}`: Journal directory path
+- `{CFG_LLM_JOURNAL_INDEX_FILE}`: Index filename
+- `{CFG_ROOT_GROUP_NAME}`: Root group name (e.g., "zrb")
+- `{CFG_LLM_ASSISTANT_NAME}`: Assistant name
+- `{CFG_ENV_PREFIX}`: Environment variable prefix
+
+## 6. Documentation Separation
+
+- **AGENTS.md**: For technical documentation only (project architecture, conventions, patterns)
+- **Journal**: For non-technical notes, reflections, and project context
+
+## 7. Migration from Old Note System
+
+The old JSON-based note system (`NoteManager`, `LLM_NOTE_FILE`) has been completely removed in version 2.4.0. Users should migrate their notes to the new directory-based journal system by:
+
+1. Creating the journal directory: `mkdir -p ~/.zrb/llm-notes/`
+2. Creating an `index.md` file with references to their notes
+3. Organizing notes into appropriate subdirectories and Markdown files
+
+## 8. Management
+
+Journal entries are managed directly through the file system. Users can:
+- Create/edit Markdown files in the journal directory
+- Update the `index.md` file to reference new entries
+- Organize entries hierarchically by project or topic
+
+The LLM can reference journal content in its responses and suggest updates to the journal based on significant interactions.

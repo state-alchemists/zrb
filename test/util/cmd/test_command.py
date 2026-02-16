@@ -99,7 +99,7 @@ def test_get_remote_cmd_script_basic():
     """Test basic SSH command generation."""
     cmd = "ls -la"
     result = get_remote_cmd_script(cmd, host="example.com", port=22, user="user")
-    assert "ssh -t -p \"22\" \"user@example.com\" 'ls -la'" in result
+    assert 'ssh -t -p "22" "user@example.com" \'ls -la\'' in result
 
 
 def test_get_remote_cmd_script_with_ssh_key():
@@ -108,7 +108,7 @@ def test_get_remote_cmd_script_with_ssh_key():
     result = get_remote_cmd_script(
         cmd, host="example.com", port=22, user="user", ssh_key="/path/to/key"
     )
-    assert "ssh -t -p \"22\" -i \"/path/to/key\" \"user@example.com\" 'ls -la'" in result
+    assert 'ssh -t -p "22" -i "/path/to/key" "user@example.com" \'ls -la\'' in result
 
 
 def test_get_remote_cmd_script_with_password():
@@ -137,11 +137,14 @@ def test_get_remote_cmd_script_with_ssh_key_and_password():
         use_password=True,
         ssh_key="/path/to/key",
     )
-    assert 'sshpass -p "pass123" ssh -t -p "22" -i "/path/to/key" "user@example.com" \'ls -la\'' in result
+    assert (
+        'sshpass -p "pass123" ssh -t -p "22" -i "/path/to/key" "user@example.com" \'ls -la\''
+        in result
+    )
 
 
 def test_get_remote_cmd_script_custom_port():
     """Test SSH command generation with custom port."""
     cmd = "ls -la"
     result = get_remote_cmd_script(cmd, host="example.com", port=2222, user="user")
-    assert "ssh -t -p \"2222\" \"user@example.com\" 'ls -la'" in result
+    assert 'ssh -t -p "2222" "user@example.com" \'ls -la\'' in result
