@@ -1,5 +1,22 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.4.2 (February 16, 2026)
+
+- **Improvement: LLM Limiter Token Counting Optimization**:
+  - **Performance Enhancement**: Refactored `LLMLimiter._to_str()` method to avoid JSON serialization overhead for large collections, implementing direct string concatenation for lists and dictionaries.
+  - **Memory Efficiency**: Added `skip_instructions` parameter to align with Pydantic AI's behavior of only counting current instructions (historical instructions are not replayed to the model).
+  - **Reduced Overhead**: Updated test expectations to reflect reduced string length from ~20k to <10k characters for nested structures, demonstrating significant performance improvement.
+  - **Better Pydantic AI Integration**: Enhanced handling of complex message structures with separate processing for parts, instructions, content, and args fields.
+
+- **Improvement: Agent Delegation & Operational Clarity**:
+  - **Enhanced Persona**: Updated agent persona from "Polymath Agent" to "Lead Architect and Polymath Orchestrator" with stronger emphasis on strategic command and surgical delegation.
+  - **Refined Mandate**: Clarified DEEP PATH delegation with explicit "SURGICAL SCOPE" directive, requiring narrow, atomic tasks for sub-agents and prohibiting "explore and fix" patterns.
+  - **Improved Recovery Protocol**: Enhanced delegation failure handling with better context management and redundant history purging during forced execution.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.4.2 in `pyproject.toml`.
+  - **Dependency Normalization**: Minor version format updates in `poetry.lock` for consistency.
+
 ## 2.4.1 (February 16, 2026)
 
 - **Feature: Robust LLM Summarization & History Management**:

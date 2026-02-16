@@ -204,31 +204,67 @@ class LLMLimiter:
         # Fallback approximation (char/3)
         return len(text) // 3
 
-    def _to_str(self, content: Any) -> str:
+    def _to_str(self, content: Any, skip_instructions: bool = False) -> str:
         if isinstance(content, str):
             return content
         if isinstance(content, (int, float, bool)) or content is None:
             return str(content)
-        # Handle ModelRequest, ModelResponse, etc.
+
+        # Handle collections to avoid json.dumps/str() overhead on large objects
+        if isinstance(content, list):
+            res = "".join(
+                self._to_str(item, skip_instructions=True) for item in content
+            )
+            # If counting a list of messages, only count the latest instructions.
+            # This aligns with Pydantic AI's behavior where only the current instructions
+            # are sent to the model, and historical instructions are not replayed.
+            if not skip_instructions:
+                for item in reversed(content):
+                    if hasattr(item, "instructions"):
+                        instr = getattr(item, "instructions", None)
+                        if instr:
+                            res += self._to_str(instr, skip_instructions=True)
+                            break
+            return res
+
+        if isinstance(content, dict):
+            return "".join(
+                self._to_str(k, skip_instructions=skip_instructions)
+                + self._to_str(v, skip_instructions=skip_instructions)
+                for k, v in content.items()
+            )
+
+        # Handle Pydantic AI objects
+        res = ""
+        # 1. Handle parts (ModelRequest, ModelResponse)
         if hasattr(content, "parts"):
-            parts = getattr(content, "parts", [])
-            return self._to_str(parts)
-        # Handle UserPromptPart, TextPart, ToolReturnPart
+            res += self._to_str(
+                getattr(content, "parts", []), skip_instructions=skip_instructions
+            )
+
+        # 2. instructions field (ModelRequest)
+        # Only count if not skipping (i.e. it's considered the "latest" context)
+        if not skip_instructions and hasattr(content, "instructions"):
+            instr = getattr(content, "instructions", None)
+            if instr:
+                res += self._to_str(instr, skip_instructions=True)
+
+        # 3. content (UserPromptPart, TextPart, ToolReturnPart, SystemPromptPart, etc.)
         if hasattr(content, "content"):
-            content_val = getattr(content, "content", None)
-            if content_val is not None:
-                return self._to_str(content_val)
-        # Handle ToolCallPart
+            res += self._to_str(
+                getattr(content, "content", None), skip_instructions=skip_instructions
+            )
+
+        # 4. args (ToolCallPart)
         if hasattr(content, "args"):
-            args = getattr(content, "args", {})
-            return self._to_str(args)
-        # Use JSON for collections to be more representative of payload
-        if isinstance(content, (list, dict)):
-            try:
-                return json.dumps(content, default=str)
-            except Exception:
-                pass
-        # Fallback
+            res += self._to_str(
+                getattr(content, "args", {}), skip_instructions=skip_instructions
+            )
+
+        if res:
+            return res
+
+        # Fallback for other objects
         try:
             return str(content)
         except Exception:
