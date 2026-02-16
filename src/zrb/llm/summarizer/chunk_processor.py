@@ -1,7 +1,8 @@
 from typing import Any
 
 from zrb.context.any_context import zrb_print
-from zrb.llm.config.limiter import LLMLimiter, llm_limiter as default_llm_limiter
+from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.summarizer.message_converter import message_to_text
 from zrb.llm.summarizer.text_summarizer import summarize_text_plain
 from zrb.util.cli.style import stylize_error, stylize_yellow

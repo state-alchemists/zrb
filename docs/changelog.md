@@ -1,5 +1,32 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.4.1 (February 16, 2026)
+
+- **Feature: Robust LLM Summarization & History Management**:
+  - **Dual-Threshold Summarization Logic**: Implemented separate thresholds for individual large messages and total conversational history to prevent context window overflows and "insanity" during long sessions.
+  - **Role Alternation Enforcement**: Added `_ensure_alternating_roles` to the history processor, ensuring that the conversation history always follows the User -> Assistant pattern required by LLM providers.
+  - **Recursive Guard & Loop Prevention**: Added a recursion depth guard (max 5) and progress verification to `summarize_long_text` to prevent infinite summarization loops.
+  - **Safe Tool-Call Splitting**: Enhanced history splitting logic to ensure tool call/result pairs are never orphaned, maintaining the integrity of Pydantic AI message sequences.
+
+- **Improvement: Token Counting Efficiency & Performance**:
+  - **Fixed O(N²) Token Counting**: Refactored `LLMLimiter._to_str` to use `json.dumps` for collections, resolving a critical performance bottleneck that caused exponential latency as history grew.
+  - **Accurate Token Estimation**: Improved handling of complex message structures to ensure rate limiting remains precise even with large tool outputs.
+
+- **Refinement: Summarizer Prompt & State Logic**:
+  - **Goal Evolution System**: Updated `summarizer.md` with logic to detect when objectives are met and pivot the agent's focus, preventing "conclusion loops."
+  - **XML Safety & Formatting**: Wrapped state snapshot components in CDATA sections to prevent XML parsing errors and ensured "Silent Thinking" for more reliable structured output.
+  - **Explicit Security Rules**: Hardened the summarizer prompt against adversarial content and formatting distractions within the history.
+
+- **Maintenance & Test Infrastructure**:
+  - **Expanded Coverage**: Added 4 new specialized test suites:
+    - `test_dual_threshold.py`: Verifies message-level vs context-level summarization.
+    - `test_sequence_alternation.py`: Confirms role-alternation compliance.
+    - `test_integration_summarization.py`: Validates end-to-end history distilling.
+    - `test_limiter_explosion.py`: Stress-tests the token counting performance fix.
+  - **Agent Guide Update**: Updated `AGENTS.md` (Section 6) with detailed technical documentation of the summarization system.
+  - **Version Bump**: Updated to version 2.4.1 in `pyproject.toml`.
+  - **Stabilized Config Tests**: Fixed stale tests in `test/config/test_config.py` related to journal directory settings.
+
 ## 2.4.0 (February 16, 2026)
 
 - **Feature: Directory-Based Journal System with Simplified CFG Access**:

@@ -251,7 +251,7 @@ async def test_create_summarizer_history_processor_flow():
         new_history = await processor(messages)
 
     # With summary_window=0 and token threshold exceeded, we should get a summary
-    # and some kept messages. 
+    # and some kept messages.
     # Since the last kept message is a ModelRequest, it is merged with the summary message.
     assert len(new_history) == 1
     assert "Automated Context Restoration" in message_to_text(new_history[0])

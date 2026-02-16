@@ -98,7 +98,9 @@ async def summarize_long_text(
                 consolidated = await agent.run(prompt)
                 final_summary = getattr(consolidated, "output", "")
                 if not isinstance(final_summary, str):
-                    final_summary = str(final_summary) if final_summary is not None else ""
+                    final_summary = (
+                        str(final_summary) if final_summary is not None else ""
+                    )
         except Exception as e:
             zrb_print(stylize_error(f"  Error during consolidation: {e}"), plain=True)
             raise e

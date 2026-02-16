@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 try:
     from pydantic_ai.messages import ModelRequest, ToolReturnPart, UserPromptPart
 except ImportError:
@@ -77,12 +76,12 @@ async def test_integration_dual_threshold_flow():
 
     # Total tokens = 75 + 5 = 80 (below 200 conversational threshold)
 
-    with patch(
-        "zrb.llm.summarizer.message_processor.zrb_print"
-    ), patch("zrb.llm.history_processor.summarizer.zrb_print"):
+    with patch("zrb.llm.summarizer.message_processor.zrb_print"), patch(
+        "zrb.llm.history_processor.summarizer.zrb_print"
+    ):
         new_history = await processor(history)
 
-    # EXPECTED: 
+    # EXPECTED:
     # - Fat message should be summarized because it's > 50
     # - Conversational summarization should NOT be triggered because 80 < 200
     assert len(new_history) == 2
@@ -113,7 +112,9 @@ async def test_integration_dual_threshold_flow():
     assert len(new_history) == 1
     assert "SUMMARY" in new_history[0].parts[0].content
     assert msg_agent.run.called
-    
+
     # Check if insanity print was called
     printed_texts = [call.args[0] for call in mock_msg_print.call_args_list]
-    assert any("too large for efficient summarization" in text for text in printed_texts)
+    assert any(
+        "too large for efficient summarization" in text for text in printed_texts
+    )
