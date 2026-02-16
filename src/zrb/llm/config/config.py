@@ -53,8 +53,10 @@ class LLMConfig:
         if self._small_model is not None:
             return self._small_model
 
-        model_name = CFG.LLM_SMALL_MODEL or "openai:gpt-4o-mini"
-        return self._resolve_model_by_name(model_name)
+        model = CFG.LLM_SMALL_MODEL or self.model
+        if isinstance(model, str):
+            return self._resolve_model_by_name(model)
+        return model
 
     @small_model.setter
     def small_model(self, value: "str | Model"):

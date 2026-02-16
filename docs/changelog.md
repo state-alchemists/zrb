@@ -1,5 +1,25 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.5.0 (February 16, 2026)
+
+- **Feature: Sub-Agent System Refactoring with Automatic Discovery**:
+  - **Automatic Agent Discovery**: Replaced manual `create_sub_agent_tool()` with automatic discovery of agents defined in JSON/YAML files within the `agents/` directory. SubAgentManager now automatically loads agent definitions from the filesystem.
+  - **Unified Delegation Tool**: Enhanced `DelegateToAgent` tool to work with the new agent discovery system. Added `zrb_is_delegate_tool` flag to prevent infinite recursion in nested delegation scenarios.
+  - **Tool Filtering & Recursion Prevention**: SubAgentManager now filters out delegate tools from sub-agents to prevent infinite recursion loops. Added comprehensive tests for tool filtering behavior.
+  - **Configuration Cleanup**: Removed deprecated `LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD` environment variable, consolidating to use only `LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD`.
+  - **Default Tool Integration**: SubAgentManager automatically includes standard tools (file operations, web search, etc.) while maintaining separate tool instances from the main agent to prevent state conflicts.
+  - **Documentation Updates**: Rewrote LLM task documentation to showcase new agent definition format with JSON/YAML examples. Updated configuration documentation with simplified environment variables.
+
+- **Breaking Changes**:
+  - **Removed `create_sub_agent_tool()`**: Function is completely removed. Users must migrate to JSON/YAML agent definitions in the `agents/` directory.
+  - **Removed `LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`**: Environment variable is no longer supported. Use `LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD` instead.
+  - **Changed Default Behavior**: Manual tool registration for sub-agents is replaced with automatic discovery and filtering.
+
+- **Migration Path**:
+  1. Move sub-agent definitions to JSON/YAML files in `agents/` directory.
+  2. Update code to use `DelegateToAgent` tool instead of `create_sub_agent_tool`.
+  3. Update environment variables to remove deprecated `LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD`.
+
 ## 2.4.2 (February 16, 2026)
 
 - **Improvement: LLM Limiter Token Counting Optimization**:

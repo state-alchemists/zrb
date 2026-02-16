@@ -31,8 +31,8 @@ async def test_delegate_tool_agent_not_found(mock_sub_agent_manager):
     mock_sub_agent_manager.create_agent.return_value = None
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
 
-    result = await tool("non-existent", "task")
-    assert "Error: Sub-agent 'non-existent' not found" in result
+    with pytest.raises(ValueError, match="Sub-agent 'non-existent' not found."):
+        await tool("non-existent", "task")
 
 
 @pytest.mark.asyncio

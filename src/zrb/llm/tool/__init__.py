@@ -14,7 +14,6 @@ from zrb.llm.tool.file import (
 from zrb.llm.tool.mcp import load_mcp_config
 from zrb.llm.tool.rag import create_rag_from_directory
 from zrb.llm.tool.skill import create_activate_skill_tool
-from zrb.llm.tool.sub_agent import create_sub_agent_tool
 from zrb.llm.tool.web import open_web_page, search_internet
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
 
@@ -33,7 +32,6 @@ __all__ = [
     "load_mcp_config",
     "create_rag_from_directory",
     "create_activate_skill_tool",
-    "create_sub_agent_tool",
     "open_web_page",
     "search_internet",
     "create_list_zrb_task_tool",

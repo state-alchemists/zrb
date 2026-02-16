@@ -3,7 +3,6 @@ from zrb.builtin.llm.chat_tool_policy import approve_if_path_inside_cwd
 from zrb.config.config import CFG
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
-from zrb.llm.agent.manager import sub_agent_manager
 from zrb.llm.custom_command import get_skill_custom_command
 from zrb.llm.history_processor.summarizer import create_summarizer_history_processor
 from zrb.llm.prompt.manager import PromptManager
@@ -68,7 +67,7 @@ llm_chat = LLMChatTask(
     interactive="{ctx.input.interactive}",
     history_processors=[
         create_summarizer_history_processor(
-            token_threshold=CFG.LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD,
+            token_threshold=CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD,
             summary_window=CFG.LLM_HISTORY_SUMMARIZATION_WINDOW,
         )
     ],
@@ -101,7 +100,6 @@ tools = [
     open_web_page,
 ]
 llm_chat.add_tool(*tools)
-sub_agent_manager.add_tool(*tools)
 
 # Add tool factories
 tool_factories = [
@@ -111,7 +109,6 @@ tool_factories = [
     lambda ctx: create_delegate_to_agent_tool(),
 ]
 llm_chat.add_tool_factory(*tool_factories)
-sub_agent_manager.add_tool_factory(*tool_factories)
 
 # Add argument formatter (show arguments when asking for user confirmation)
 llm_chat.add_argument_formatter(
