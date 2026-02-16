@@ -40,7 +40,7 @@ def system_context(
         )
     # Combine sections
     full_context_block = make_markdown_section(
-        "System Context", "\n".join(context_parts)
+        "System Context (Always Up To Date)", "\n".join(context_parts)
     )
     return next_handler(ctx, f"{current_prompt}\n\n{full_context_block}")
 
