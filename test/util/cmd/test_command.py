@@ -6,6 +6,7 @@ import psutil
 import pytest
 
 from zrb.util.cmd.command import check_unrecommended_commands, kill_pid, run_command
+from zrb.util.cmd.remote import get_remote_cmd_script
 
 
 def test_check_unrecommended_commands():
@@ -92,3 +93,55 @@ async def test_kill_pid():
         not psutil.pid_exists(pid)
         or psutil.Process(pid).status() == psutil.STATUS_ZOMBIE
     )
+
+
+def test_get_remote_cmd_script_basic():
+    """Test basic SSH command generation."""
+    cmd = "ls -la"
+    result = get_remote_cmd_script(cmd, host="example.com", port=22, user="user")
+    assert "ssh -t -p \"22\" \"user@example.com\" 'ls -la'" in result
+
+
+def test_get_remote_cmd_script_with_ssh_key():
+    """Test SSH command generation with SSH key."""
+    cmd = "ls -la"
+    result = get_remote_cmd_script(
+        cmd, host="example.com", port=22, user="user", ssh_key="/path/to/key"
+    )
+    assert "ssh -t -p \"22\" -i \"/path/to/key\" \"user@example.com\" 'ls -la'" in result
+
+
+def test_get_remote_cmd_script_with_password():
+    """Test SSH command generation with password authentication."""
+    cmd = "ls -la"
+    result = get_remote_cmd_script(
+        cmd,
+        host="example.com",
+        port=22,
+        user="user",
+        password="pass123",
+        use_password=True,
+    )
+    assert 'sshpass -p "pass123" ssh -t -p "22" "user@example.com" \'ls -la\'' in result
+
+
+def test_get_remote_cmd_script_with_ssh_key_and_password():
+    """Test SSH command generation with both SSH key and password."""
+    cmd = "ls -la"
+    result = get_remote_cmd_script(
+        cmd,
+        host="example.com",
+        port=22,
+        user="user",
+        password="pass123",
+        use_password=True,
+        ssh_key="/path/to/key",
+    )
+    assert 'sshpass -p "pass123" ssh -t -p "22" -i "/path/to/key" "user@example.com" \'ls -la\'' in result
+
+
+def test_get_remote_cmd_script_custom_port():
+    """Test SSH command generation with custom port."""
+    cmd = "ls -la"
+    result = get_remote_cmd_script(cmd, host="example.com", port=2222, user="user")
+    assert "ssh -t -p \"2222\" \"user@example.com\" 'ls -la'" in result

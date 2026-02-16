@@ -15,6 +15,7 @@ Zrb (Zaruba) is a Python-based task automation tool and library.
 | `config/` | **Configuration**. See `config.py` for `CFG` singleton and defaults. |
 | `llm/tool/` | **LLM Tools**. Python functions callable by the LLM. Example: `llm/tool/search/searxng.py` implements the `search_internet` tool used by the agent. |
 | `llm/prompt/` | **System Prompts**. Logic for constructing LLM context. |
+| `llm/prompt/journal.py` | **Journal Prompt Component**. Directory-based journaling with auto-injected index file. |
 | `task/` | **Task Engine**. Base classes (`Task`, `CmdTask`) and runners. |
 | `runner/` | **Entry Points**. CLI (`cli.py`) and Web Server (`web.py`). |
 
@@ -47,7 +48,26 @@ Zrb (Zaruba) is a Python-based task automation tool and library.
 - **Ordering:** Detailed helper functions should be located below the functions that call them (caller top, callee bottom).
 - **Dependencies:** Organize imports cleanly at the top.
 
+### 3.5. Journal System
+- **Purpose:** Directory-based journaling for agents to maintain context across sessions.
+- **Location:** `~/.zrb/llm-notes/` (configurable via `CFG.LLM_JOURNAL_DIR`)
+- **Index File:** `index.md` (configurable via `CFG.LLM_JOURNAL_INDEX_FILE`) is auto-injected into system prompts.
+- **Organization:** Create hierarchical structure by topic (e.g., `project-a/design.md`, `project-b/meeting-notes.md`)
+- **Integration:** Only the index file is injected, not all journal files. Keep index concise with references.
+- **Documentation:** Use AGENTS.md for technical documentation only. Use journal for non-technical notes, reflections, and project context.
+
 ## 4. Key Patterns
 - **White-Labeling:** Use `CFG.ROOT_GROUP_NAME` instead of hardcoding "zrb" in strings displayed to users.
 - **Lazy Loading:** Tasks and tools are often loaded lazily to speed up CLI startup.
-- **Singletons:** Managers (Skill, Note) are module-level singletons.
+- **Singletons:** Managers (Skill, Hook) are module-level singletons.
+- **Journal System:** Directory-based journaling with auto-injected index for agent context.
+
+## 5. Testing
+- **Test Command:** Run `source .venv/bin/activate && ./zrb-test.sh <parameter>` where `<parameter>` can be:
+  - Empty: Runs all tests
+  - Test file path: Runs specific test file (e.g., `test/llm/prompt/test_journal.py`)
+  - Test directory: Runs all tests in directory (e.g., `test/llm/prompt/`)
+  - Test function: Runs specific test (e.g., `test/llm/prompt/test_journal.py::test_journal_prompt_with_empty_journal`)
+- **Coverage Goal:** Maintain ≥75% overall code coverage.
+- **Test Structure:** Tests are organized in `test/` mirroring `src/` structure.
+- **Test Conventions:** Use pytest fixtures, mocks for external dependencies, and follow AAA pattern (Arrange-Act-Assert).

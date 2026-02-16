@@ -3,14 +3,12 @@ from typing import Callable
 
 from zrb.attr.type import StrListAttr
 from zrb.context.any_context import AnyContext
-from zrb.llm.note.manager import NoteManager
-from zrb.llm.note.manager import note_manager as default_note_manager
 from zrb.llm.prompt.claude import (
     create_claude_skills_prompt,
     create_project_context_prompt,
 )
 from zrb.llm.prompt.cli import create_cli_skills_prompt
-from zrb.llm.prompt.note import create_note_prompt
+from zrb.llm.prompt.journal import create_journal_prompt
 from zrb.llm.prompt.prompt import get_mandate_prompt, get_persona_prompt
 from zrb.llm.prompt.system_context import system_context
 from zrb.llm.skill.manager import SkillManager
@@ -33,11 +31,10 @@ class PromptManager:
         include_persona: bool = True,
         include_mandate: bool = True,
         include_system_context: bool = True,
-        include_note: bool = True,
+        include_journal: bool = True,
         include_claude_skills: bool = True,
         include_cli_skills: bool = False,
         include_project_context: bool = True,
-        note_manager: NoteManager | None = None,
         skill_manager: SkillManager | None = None,
         active_skills: StrListAttr | None = None,
         render_active_skills: bool = True,
@@ -48,11 +45,10 @@ class PromptManager:
         self._include_persona = include_persona
         self._include_mandate = include_mandate
         self._include_system_context = include_system_context
-        self._include_note = include_note
+        self._include_journal = include_journal
         self._include_claude_skills = include_claude_skills
         self._include_cli_skills = include_cli_skills
         self._include_project_context = include_project_context
-        self._note_manager = note_manager or default_note_manager
         self._skill_manager = skill_manager or default_skill_manager
         self._active_skills = active_skills
         self._render_active_skills = render_active_skills
@@ -73,8 +69,8 @@ class PromptManager:
             middlewares.append(new_prompt(lambda: get_mandate_prompt()))
         if self._include_system_context:
             middlewares.append(system_context)
-        if self._include_note and self._note_manager:
-            middlewares.append(create_note_prompt(self._note_manager))
+        if self._include_journal:
+            middlewares.append(create_journal_prompt())
         if self._include_project_context:
             middlewares.append(create_project_context_prompt())
         if self._include_claude_skills and self._skill_manager:

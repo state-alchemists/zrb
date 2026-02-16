@@ -7,11 +7,9 @@ from zrb.llm.config.limiter import LLMLimiter
 from zrb.util.cli.style import stylize_error, stylize_yellow
 
 if TYPE_CHECKING:
-    from pydantic_ai.messages import ModelMessage, ModelRequest, ToolReturnPart
+    from pydantic_ai.messages import ModelMessage
 else:
     ModelMessage = Any
-    ModelRequest = Any
-    ToolReturnPart = Any
 
 
 async def process_message_for_summarization(

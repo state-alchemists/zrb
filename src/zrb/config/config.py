@@ -90,6 +90,8 @@ class Config:
         self.DEFAULT_LLM_UI_COMMAND_SET_MODEL: str = "/model"
         self.DEFAULT_LLM_HISTORY_DIR: str = ""
         self.DEFAULT_LLM_NOTE_FILE: str = ""
+        self.DEFAULT_LLM_JOURNAL_DIR: str = ""
+        self.DEFAULT_LLM_JOURNAL_INDEX_FILE: str = "index.md"
         self.DEFAULT_LLM_MODEL: str = ""
         self.DEFAULT_LLM_BASE_URL: str = ""
         self.DEFAULT_LLM_API_KEY: str = ""
@@ -889,6 +891,35 @@ class Config:
     @LLM_NOTE_FILE.setter
     def LLM_NOTE_FILE(self, value: str):
         os.environ[f"{self.ENV_PREFIX}_LLM_NOTE_FILE"] = value
+
+    @property
+    def LLM_JOURNAL_DIR(self) -> str:
+        default = self.DEFAULT_LLM_JOURNAL_DIR
+        if default == "":
+            default = os.path.expanduser(
+                os.path.join("~", f".{self.ROOT_GROUP_NAME}", "llm-notes")
+            )
+        return get_env(
+            "LLM_JOURNAL_DIR",
+            default,
+            self.ENV_PREFIX,
+        )
+
+    @LLM_JOURNAL_DIR.setter
+    def LLM_JOURNAL_DIR(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_JOURNAL_DIR"] = value
+
+    @property
+    def LLM_JOURNAL_INDEX_FILE(self) -> str:
+        return get_env(
+            "LLM_JOURNAL_INDEX_FILE",
+            self.DEFAULT_LLM_JOURNAL_INDEX_FILE,
+            self.ENV_PREFIX,
+        )
+
+    @LLM_JOURNAL_INDEX_FILE.setter
+    def LLM_JOURNAL_INDEX_FILE(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_JOURNAL_INDEX_FILE"] = value
 
     @property
     def LLM_MODEL(self) -> str | None:

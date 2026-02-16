@@ -26,12 +26,6 @@ from zrb.llm.tool import (
 )
 from zrb.llm.tool.delegate import create_delegate_to_agent_tool
 from zrb.llm.tool.mcp import load_mcp_config
-from zrb.llm.tool.note import (
-    create_read_contextual_note_tool,
-    create_read_long_term_note_tool,
-    create_write_contextual_note_tool,
-    create_write_long_term_note_tool,
-)
 from zrb.llm.tool.skill import create_activate_skill_tool
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
 from zrb.llm.tool_call import (
@@ -115,10 +109,6 @@ tool_factories = [
     lambda ctx: create_run_zrb_task_tool(),
     lambda ctx: create_activate_skill_tool(),
     lambda ctx: create_delegate_to_agent_tool(),
-    lambda ctx: create_read_contextual_note_tool(),
-    lambda ctx: create_read_long_term_note_tool(),
-    lambda ctx: create_write_contextual_note_tool(),
-    lambda ctx: create_write_long_term_note_tool(),
 ]
 llm_chat.add_tool_factory(*tool_factories)
 sub_agent_manager.add_tool_factory(*tool_factories)

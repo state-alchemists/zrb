@@ -1,4 +1,5 @@
 import os
+from typing import Dict
 
 from zrb.config.config import CFG
 from zrb.util.string.conversion import to_snake_case
@@ -9,35 +10,51 @@ def get_persona_prompt(assistant_name: str | None = None) -> str:
         assistant_name if assistant_name else CFG.LLM_ASSISTANT_NAME
     )
     prompt = get_default_prompt("persona")
-    return prompt.replace("{ASSISTANT_NAME}", effective_assistant_name)
+    replacements = _get_prompt_replacements()
+    replacements["{ASSISTANT_NAME}"] = effective_assistant_name
+    return _replace_prompt_placeholders(prompt, replacements)
 
 
 def get_mandate_prompt() -> str:
-    return get_default_prompt("mandate")
+    prompt = get_default_prompt("mandate")
+    replacements = _get_prompt_replacements()
+    return _replace_prompt_placeholders(prompt, replacements)
 
 
 def get_summarizer_system_prompt() -> str:
-    return get_default_prompt("summarizer")
+    prompt = get_default_prompt("summarizer")
+    replacements = _get_prompt_replacements()
+    return _replace_prompt_placeholders(prompt, replacements)
 
 
 def get_conversational_summarizer_system_prompt() -> str:
-    return get_default_prompt("conversational_summarizer")
+    prompt = get_default_prompt("conversational_summarizer")
+    replacements = _get_prompt_replacements()
+    return _replace_prompt_placeholders(prompt, replacements)
 
 
 def get_message_summarizer_system_prompt() -> str:
-    return get_default_prompt("message_summarizer")
+    prompt = get_default_prompt("message_summarizer")
+    replacements = _get_prompt_replacements()
+    return _replace_prompt_placeholders(prompt, replacements)
 
 
 def get_file_extractor_system_prompt() -> str:
-    return get_default_prompt("file_extractor")
+    prompt = get_default_prompt("file_extractor")
+    replacements = _get_prompt_replacements()
+    return _replace_prompt_placeholders(prompt, replacements)
 
 
 def get_repo_extractor_system_prompt() -> str:
-    return get_default_prompt("repo_extractor")
+    prompt = get_default_prompt("repo_extractor")
+    replacements = _get_prompt_replacements()
+    return _replace_prompt_placeholders(prompt, replacements)
 
 
 def get_repo_summarizer_system_prompt() -> str:
-    return get_default_prompt("repo_summarizer")
+    prompt = get_default_prompt("repo_summarizer")
+    replacements = _get_prompt_replacements()
+    return _replace_prompt_placeholders(prompt, replacements)
 
 
 def get_default_prompt(name: str) -> str:
@@ -85,3 +102,30 @@ def _get_default_prompt_search_path() -> list[str]:
     except ValueError:
         pass
     return search_paths
+
+
+def _get_prompt_replacements() -> Dict[str, str]:
+    """Get all configuration values that should be replaced in prompts."""
+    replacements = {}
+    # Add CFG values with {CFG_*} pattern
+    cfg_attributes = [
+        "LLM_JOURNAL_DIR",
+        "LLM_JOURNAL_INDEX_FILE",
+        "ROOT_GROUP_NAME",
+        "LLM_ASSISTANT_NAME",
+        "ENV_PREFIX",
+    ]
+    for attr in cfg_attributes:
+        if hasattr(CFG, attr):
+            value = getattr(CFG, attr)
+            if value is not None:
+                placeholder = f"{{CFG_{attr}}}"
+                replacements[placeholder] = str(value)
+    return replacements
+
+
+def _replace_prompt_placeholders(prompt: str, replacements: Dict[str, str]) -> str:
+    """Replace all placeholders in a prompt string."""
+    for placeholder, value in replacements.items():
+        prompt = prompt.replace(placeholder, value)
+    return prompt

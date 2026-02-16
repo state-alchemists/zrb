@@ -12,12 +12,6 @@ from zrb.llm.tool.file import (
     write_files,
 )
 from zrb.llm.tool.mcp import load_mcp_config
-from zrb.llm.tool.note import (
-    create_read_contextual_note_tool,
-    create_read_long_term_note_tool,
-    create_write_contextual_note_tool,
-    create_write_long_term_note_tool,
-)
 from zrb.llm.tool.rag import create_rag_from_directory
 from zrb.llm.tool.skill import create_activate_skill_tool
 from zrb.llm.tool.sub_agent import create_sub_agent_tool
@@ -37,10 +31,6 @@ __all__ = [
     "search_files",
     "analyze_file",
     "load_mcp_config",
-    "create_read_contextual_note_tool",
-    "create_read_long_term_note_tool",
-    "create_write_contextual_note_tool",
-    "create_write_long_term_note_tool",
     "create_rag_from_directory",
     "create_activate_skill_tool",
     "create_sub_agent_tool",
