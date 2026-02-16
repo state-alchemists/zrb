@@ -22,6 +22,6 @@ def test_limiter_to_str_nested_list():
     # This shouldn't explode, but let's see what it produces
     text = limiter._to_str(nested)
     # "content" is 7 chars. 7 * 10 * 10 * 10 = 7000 chars.
-    # json.dumps adds overhead (quotes, commas, brackets, spaces)
-    assert len(text) > 7000
-    assert len(text) < 20000
+    # We now join strings directly without json.dumps overhead.
+    assert len(text) >= 7000
+    assert len(text) < 10000
