@@ -331,7 +331,7 @@ The following environment variables are used as LLM configuration default proper
     * Default: `cl100k_base`
     * Possible values: Any valid Tiktoken encoding name (e.g., `cl100k_base`, `p50k_base`)
 
-* `ZRB_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD`: Token threshold for summarizing entire conversation history into structured XML state snapshots. Also accepts `ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD` for backward compatibility.
+* `ZRB_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD`: Token threshold for summarizing entire conversation history into structured XML state snapshots.
     * Default: 60% of the model's maximum context window.
     * Possible values: Any positive integer
 

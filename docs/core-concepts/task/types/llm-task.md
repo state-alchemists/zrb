@@ -81,30 +81,33 @@ cli.add_task(weather_chat)
 
 ### Subagents: Agents as Tools
 
-You can delegate complex sub-problems to specialized agents using subagent tools.
+You can delegate complex sub-problems to specialized agents. Zrb automatically discovers agents defined in your `agents/` directory and makes them available to the main LLM via the `delegate_to_agent` tool.
+
+1.  **Define a Subagent**: Create an agent definition in `agents/researcher.json` (or any `.json` or `.yaml` file in your agents directory):
+    ```json
+    {
+      "name": "researcher",
+      "description": "An expert research assistant that can search the web and read documentation.",
+      "system_prompt": "You are a professional researcher. Provide detailed and well-sourced reports.",
+      "tools": ["search_internet", "read_file"]
+    }
+    ```
+
+2.  **Use the Delegate Tool**: The main LLM can now use the `delegate_to_agent` tool (which is included by default in `LLMChatTask`) to invoke your subagent.
 
 ```python
 from zrb import LLMTask, cli
-from zrb.llm.tool.sub_agent import create_sub_agent_tool
-from zrb.llm.tool.web import open_web_page
+from zrb.llm.agent.manager import sub_agent_manager
+from zrb.llm.tool.delegate import DelegateToAgent
 
-# Create a subagent tool that is an expert at fetching news
-it_news_fetcher_tool = create_sub_agent_tool(
-    name="it_news_fetcher",
-    description="Fetches the latest IT news from Hacker News.",
-    system_prompt="You are a Hacker News fetcher. You load and curate news from http://news.ycombinator.com.",
-    tools=[open_web_page]
+# The delegate_to_agent tool is usually provided by default,
+# but you can also add it explicitly to an LLMTask:
+llm_task = LLMTask(
+    name="complex-job",
+    description="A task that might need research",
+    tools=[DelegateToAgent(sub_agent_manager)]
 )
-
-# Create a main LLMTask that can use the subagent
-llm_chat_with_subagent = cli.add_task(
-    LLMTask(
-        name="llm-chat-subagent",
-        description="Chat with an LLM that can fetch IT news",
-        message="What is the latest IT news?",
-        tools=[it_news_fetcher_tool]
-    )
-)
+cli.add_task(llm_task)
 ```
 
 ## Global LLM Configuration

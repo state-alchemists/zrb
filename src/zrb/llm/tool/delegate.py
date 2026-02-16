@@ -82,7 +82,7 @@ def create_delegate_to_agent_tool(
         # 1. Load Agent
         sub_agent = sub_agent_manager.create_agent(agent_name)
         if not sub_agent:
-            return f"Error: Sub-agent '{agent_name}' not found."
+            raise ValueError(f"Sub-agent '{agent_name}' not found.")
 
         # 2. Prepare Message
         full_message = task
@@ -111,9 +111,12 @@ def create_delegate_to_agent_tool(
                 f"Sub-agent '{agent_name}' completed the task:\n\n{indented_result}\n"
             )
 
+        except (ValueError, RecursionError):
+            raise
         except Exception as e:
             return f"Error executing sub-agent '{agent_name}': {e}"
 
+    delegate_to_agent.zrb_is_delegate_tool = True
     delegate_to_agent.__name__ = "DelegateToAgent"
     delegate_to_agent.__doc__ = (
         "Delegates a complex task to a specialized sub-agent. "

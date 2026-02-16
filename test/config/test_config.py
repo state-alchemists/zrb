@@ -404,10 +404,10 @@ def test_llm_throttle_sleep(monkeypatch):
     assert config.LLM_THROTTLE_SLEEP == 2.0
 
 
-def test_llm_history_summarization_token_threshold(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD", "30000")
+def test_llm_conversational_summarization_token_threshold(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD", "30000")
     config = Config()
-    assert config.LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD == 30000
+    assert config.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD == 30000
 
 
 def test_llm_repo_analysis_extraction_token_threshold(monkeypatch):
@@ -489,7 +489,7 @@ def test_llm_configs_types():
     assert isinstance(config.LLM_MAX_TOKEN_PER_REQUEST, int)
     assert isinstance(config.LLM_THROTTLE_SLEEP, float)
 
-    assert isinstance(config.LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD, int)
+    assert isinstance(config.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD, int)
     assert isinstance(config.LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD, int)
     assert isinstance(config.LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD, int)
     assert isinstance(config.LLM_FILE_ANALYSIS_TOKEN_THRESHOLD, int)
@@ -551,7 +551,7 @@ def test_config_properties_access():
     _ = CFG.LLM_MAX_TOKEN_PER_MINUTE
     _ = CFG.LLM_MAX_TOKEN_PER_REQUEST
     _ = CFG.LLM_THROTTLE_SLEEP
-    _ = CFG.LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD
+    _ = CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD
     _ = CFG.LLM_HISTORY_SUMMARIZATION_WINDOW
     _ = CFG.LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD
     _ = CFG.LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD

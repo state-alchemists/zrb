@@ -16,6 +16,26 @@ from zrb.llm.history_processor.summarizer import (
 )
 from zrb.util.load import load_module_from_path
 
+from zrb.llm.tool import (
+    analyze_code,
+    analyze_file,
+    glob_files,
+    list_files,
+    open_web_page,
+    read_file,
+    read_files,
+    replace_in_file,
+    run_shell_command,
+    search_files,
+    search_internet,
+    write_file,
+    write_files,
+)
+from zrb.llm.tool.mcp import load_mcp_config
+from zrb.llm.tool.skill import create_activate_skill_tool
+from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
+
+
 if TYPE_CHECKING:
     from pydantic_ai import Agent, Tool
     from pydantic_ai.tools import ToolFuncEither
@@ -360,14 +380,18 @@ class SubAgentManager:
         # Add tools from registry
         for tool_name in definition.tools:
             if tool_name in registry:
-                resolved_tools.append(registry[tool_name])
+                tool = registry[tool_name]
+                if not getattr(tool, "zrb_is_delegate_tool", False):
+                    resolved_tools.append(tool)
 
         # Add tools from factories
         for factory in self._tool_factories:
             tool = factory(ctx)
             if isinstance(tool, list):
-                resolved_tools.extend(tool)
-            else:
+                for single_tool in tool:
+                    if not getattr(single_tool, "zrb_is_delegate_tool", False):
+                        resolved_tools.append(single_tool)
+            elif not getattr(tool, "zrb_is_delegate_tool", False):
                 resolved_tools.append(tool)
 
         return create_agent(
@@ -376,7 +400,7 @@ class SubAgentManager:
             tools=resolved_tools,
             history_processors=[
                 create_summarizer_history_processor(
-                    token_threshold=CFG.LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD,
+                    token_threshold=CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD,
                     summary_window=CFG.LLM_HISTORY_SUMMARIZATION_WINDOW,
                 )
             ],
@@ -384,3 +408,27 @@ class SubAgentManager:
 
 
 sub_agent_manager = SubAgentManager(auto_load=True)
+
+# Add tools
+sub_agent_manager.add_tool(
+    run_shell_command,
+    analyze_code,
+    list_files,
+    glob_files,
+    read_file,
+    read_files,
+    write_file,
+    write_files,
+    replace_in_file,
+    search_files,
+    analyze_file,
+    search_internet,
+    open_web_page,
+)
+
+# Add tool factories
+sub_agent_manager.add_tool_factory(
+    lambda ctx: create_list_zrb_task_tool(),
+    lambda ctx: create_run_zrb_task_tool(),
+    lambda ctx: create_activate_skill_tool(),
+)

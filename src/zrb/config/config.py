@@ -1038,14 +1038,6 @@ class Config:
         os.environ[f"{self.ENV_PREFIX}_LLM_HISTORY_SUMMARIZATION_WINDOW"] = str(value)
 
     @property
-    def LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
-        return self.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD
-
-    @LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD.setter
-    def LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD(self, value: int):
-        self.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD = value
-
-    @property
     def LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD(self) -> int:
         default = self.DEFAULT_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD
         if default == "":
@@ -1053,10 +1045,7 @@ class Config:
 
         threshold = int(
             get_env(
-                [
-                    "LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD",
-                    "LLM_HISTORY_SUMMARIZATION_TOKEN_THRESHOLD",
-                ],
+                "LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD",
                 default,
                 self.ENV_PREFIX,
             )
