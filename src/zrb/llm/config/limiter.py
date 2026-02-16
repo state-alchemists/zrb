@@ -212,7 +212,9 @@ class LLMLimiter:
 
         # Handle collections to avoid json.dumps/str() overhead on large objects
         if isinstance(content, list):
-            res = "".join(self._to_str(item, skip_instructions=True) for item in content)
+            res = "".join(
+                self._to_str(item, skip_instructions=True) for item in content
+            )
             # If counting a list of messages, only count the latest instructions.
             # This aligns with Pydantic AI's behavior where only the current instructions
             # are sent to the model, and historical instructions are not replayed.
