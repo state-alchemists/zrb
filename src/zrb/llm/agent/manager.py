@@ -85,7 +85,9 @@ class SubAgentManager:
         self._tool_registry = tool_registry if tool_registry is not None else {}
         self._tool_factories: list[Callable[[AnyContext], Tool | ToolFuncEither]] = []
         self._toolsets: list[AbstractToolset[None]] = []
-        self._toolset_factories: list[Callable[[AnyContext], AbstractToolset[None]]] = []
+        self._toolset_factories: list[Callable[[AnyContext], AbstractToolset[None]]] = (
+            []
+        )
         self._root_dir = root_dir
         self._search_dirs = search_dirs
         self._max_depth = max_depth
@@ -128,7 +130,9 @@ class SubAgentManager:
         """
         self.append_tool_factory(*factory)
 
-    def append_tool_factory(self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]):
+    def append_tool_factory(
+        self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]
+    ):
         """
         Append tool factories.
         """
