@@ -8,9 +8,9 @@ from zrb.llm.prompt.claude import (
     create_project_context_prompt,
 )
 from zrb.llm.prompt.cli import create_cli_skills_prompt
-from zrb.llm.prompt.journal import create_journal_prompt
 from zrb.llm.prompt.prompt import (
     get_git_mandate_prompt,
+    get_journal_prompt,
     get_mandate_prompt,
     get_persona_prompt,
 )
@@ -78,7 +78,7 @@ class PromptManager:
         if self._include_system_context:
             middlewares.append(system_context)
         if self._include_journal:
-            middlewares.append(create_journal_prompt())
+            middlewares.append(new_prompt(lambda: get_journal_prompt()))
         if self._include_project_context:
             middlewares.append(create_project_context_prompt())
         if self._include_claude_skills and self._skill_manager:

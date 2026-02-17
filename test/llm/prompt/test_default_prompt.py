@@ -94,8 +94,8 @@ def test_get_default_prompt_fallback_to_package_default(mock_cfg):
     ):
 
         content = get_default_prompt("persona")
-        assert "You are" in content
-        assert "assistant" in content.lower()
+        assert "You ARE" in content
+        assert "Polymath Executor" in content
 
 
 def test_get_default_prompt_env_override(mock_cfg, monkeypatch):

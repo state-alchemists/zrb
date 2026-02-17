@@ -1,5 +1,17 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.5.3 (February 17, 2026)
+
+- **Refactor: Journal Prompt System Migration to Markdown Templates**:
+  - **Static Template Replacement**: Replaced dynamic `create_journal_prompt()` function with static `journal.md` markdown template, aligning with existing prompt system pattern (persona.md, mandate.md).
+  - **Prompt Manager Update**: Updated `PromptManager` to use `get_journal_prompt()` instead of middleware factory, simplifying journal prompt implementation.
+  - **Enhanced Tool Policies**: Added auto-approve policies for Write, WriteMany, and Edit tools when operating within journal directory, enabling seamless journal maintenance.
+  - **Persona Refinement**: Updated "Polymath Executor" persona with stronger emphasis on hands-on, brownfield development expertise and reduced strategic delegation bias.
+  - **Test Migration**: Migrated journal prompt tests from `test_journal.py` to `test_prompt_journal.py` with comprehensive coverage for new markdown-based implementation.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.5.3 in `pyproject.toml`.
+
 ## 2.5.2 (February 17, 2026)
 
 - **Fix: Circular Dependency Resolution in LLM Tool Imports**:
