@@ -50,7 +50,7 @@ ulid-py = "^1.1.0"
 psutil = "^7.0.0"
 
 # NOTE: Look at https://github.com/pydantic/pydantic-ai/blob/main/pydantic_ai_slim/pyproject.toml
-pydantic-ai-slim = "~1.57.0"
+pydantic-ai-slim = "~1.60.0"
 
 # Constrain transitive dependency griffe to be <2.0 for compatibility
 griffe = "<2.0"

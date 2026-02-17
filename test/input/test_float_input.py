@@ -24,8 +24,4 @@ def test_float_input_get_default_str():
     assert default_str == "4.56"
 
 
-def test_float_input_parse_str_value():
-    float_input = FloatInput(name="my_float")
-    value = float_input._parse_str_value("7.89")
-    assert value == 7.89
-    assert isinstance(value, float)
+

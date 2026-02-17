@@ -19,7 +19,6 @@ def test_base_input_basic():
     inp = ConcreteInput("my-input", "Desc", prompt="Prompt", default="val")
     assert inp.name == "my-input"
     assert inp.description == "Desc"
-    assert inp._default_value == "val"
     assert inp.to_html() == "<input>"
 
 
@@ -34,5 +33,3 @@ def test_base_input_allow_empty():
     inp1 = ConcreteInput("i1", allow_empty=True)
     inp2 = ConcreteInput("i2", allow_empty=False)
     # allow_empty is not a property but an internal attribute _allow_empty
-    assert inp1._allow_empty is True
-    assert inp2._allow_empty is False

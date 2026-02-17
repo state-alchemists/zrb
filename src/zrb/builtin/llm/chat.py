@@ -1,5 +1,5 @@
 from zrb.builtin.group import llm_group
-from zrb.builtin.llm.chat_tool_policy import approve_if_path_inside_cwd
+from zrb.builtin.llm.chat_tool_policy import approve_if_path_inside_cwd, approve_if_path_inside_journal_dir
 from zrb.config.config import CFG
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
@@ -124,11 +124,17 @@ llm_chat.add_tool_policy(
     read_file_validation_policy,
     read_files_validation_policy,
     auto_approve("Read", approve_if_path_inside_cwd),
+    auto_approve("Read", approve_if_path_inside_journal_dir),
     auto_approve("ReadMany", approve_if_path_inside_cwd),
+    auto_approve("ReadMany", approve_if_path_inside_journal_dir),
     auto_approve("LS", approve_if_path_inside_cwd),
+    auto_approve("LS", approve_if_path_inside_journal_dir),
     auto_approve("Glob", approve_if_path_inside_cwd),
+    auto_approve("Glob", approve_if_path_inside_journal_dir),
     auto_approve("Grep", approve_if_path_inside_cwd),
+    auto_approve("Grep", approve_if_path_inside_journal_dir),
     auto_approve("AnalyzeFile", approve_if_path_inside_cwd),
+    auto_approve("AnalyzeFile", approve_if_path_inside_journal_dir),
     auto_approve("SearchInternet"),
     auto_approve("OpenWebPage"),
     auto_approve("ReadLongTermNote"),

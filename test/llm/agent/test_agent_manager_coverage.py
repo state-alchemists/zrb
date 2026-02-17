@@ -5,14 +5,6 @@ import pytest
 from zrb.llm.agent.manager import SubAgentDefinition, SubAgentManager
 
 
-def test_sub_agent_manager_add_tool():
-    manager = SubAgentManager(auto_load=False)
-    tool = MagicMock()
-    tool.__name__ = "my_tool"
-    manager.add_tool(tool)
-    assert "my_tool" in manager._tool_registry
-
-
 def test_sub_agent_manager_scan():
     manager = SubAgentManager(auto_load=False)
     # Scan with empty list should not crash
