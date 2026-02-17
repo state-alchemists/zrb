@@ -1,5 +1,8 @@
 from zrb.builtin.group import llm_group
-from zrb.builtin.llm.chat_tool_policy import approve_if_path_inside_cwd, approve_if_path_inside_journal_dir
+from zrb.builtin.llm.chat_tool_policy import (
+    approve_if_path_inside_cwd,
+    approve_if_path_inside_journal_dir,
+)
 from zrb.config.config import CFG
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput

@@ -1,4 +1,5 @@
 import os
+
 from zrb.config.config import CFG
 
 
@@ -27,6 +28,8 @@ def _path_inside_parent(path: str, parent_path: str) -> bool:
     try:
         abs_path = os.path.abspath(os.path.expanduser(path))
         abs_parent_path = os.path.abspath(os.path.expanduser(parent_path))
-        return abs_path == abs_parent_path or abs_path.startswith(f"{abs_parent_path}{os.sep}")
+        return abs_path == abs_parent_path or abs_path.startswith(
+            f"{abs_parent_path}{os.sep}"
+        )
     except Exception:
         return False

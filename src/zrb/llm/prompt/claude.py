@@ -97,9 +97,7 @@ def _summarize_markdown(
 
     if not matches:
         # If no headers, just truncate the whole content
-        return (
-            content[:max_len] + "... (more)" if len(content) > max_len else content
-        )
+        return content[:max_len] + "... (more)" if len(content) > max_len else content
 
     for i, match in enumerate(matches):
         header = match.group(0).strip()
