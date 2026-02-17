@@ -47,7 +47,12 @@ def create_project_context_prompt():
                 summary = _summarize_markdown(content, max_len=10000)
                 doc_section = (
                     f"## Summary of {filename}\n"
-                    "The following is a summary. Use the 'Read' tool to get the full content of the file when needed.\n\n"
+                    "**YOU MUST ALWAYS READ THE FULL FILE WHEN:**\n"
+                    "1. Encountering project-specific commands or conventions (e.g., `zrb-test.sh`)\n"
+                    "2. Making implementation decisions affecting project architecture\n"
+                    "3. Uncertain about testing procedures or development standards\n"
+                    "4. Following project-specific patterns or directory structures\n\n"
+                    "Failure to read the full documentation when needed violates project conventions and may result in incorrect implementations.\n\n"
                     f"{summary}"
                 )
                 project_docs.append(doc_section)

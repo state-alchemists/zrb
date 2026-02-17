@@ -63,6 +63,12 @@ def get_repo_summarizer_system_prompt() -> str:
     return _replace_prompt_placeholders(prompt, replacements)
 
 
+def get_web_summarizer_system_prompt() -> str:
+    prompt = get_default_prompt("web_summarizer")
+    replacements = _get_prompt_replacements()
+    return _replace_prompt_placeholders(prompt, replacements)
+
+
 def get_default_prompt(name: str) -> str:
     # 1. Check for local project override (configured via LLM_PROMPT_DIR)
     prompt_dir = getattr(CFG, "LLM_PROMPT_DIR", ".zrb/llm/prompt")

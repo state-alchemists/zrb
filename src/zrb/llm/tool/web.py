@@ -1,21 +1,42 @@
+import json
+
 from zrb.config.config import CFG
+from zrb.llm.agent import create_agent, run_agent
+from zrb.llm.config.config import llm_config
+from zrb.llm.config.limiter import llm_limiter
+from zrb.llm.prompt.prompt import get_web_summarizer_system_prompt
 
 
-async def open_web_page(url: str) -> dict:
+async def open_web_page(url: str, summarize: bool = True) -> dict:
     """
     Downloads and converts a web page into Markdown.
 
     **RESEARCH MANDATE:**
     - You MUST ALWAYS use this to **VERIFY** information from search results.
     - Snippets are insufficient; you MUST read full content for precise analysis.
+    - When `summarize=True` (default), the content will be processed by a sub-agent to extract high-signal information while preserving references.
 
     **ARGS:**
     - `url`: The full web address.
+    - `summarize`: Whether to summarize the content using a sub-agent (default: True).
     """
     try:
         html_content, links = await _fetch_page_content(url)
         markdown_content = _convert_html_to_markdown(html_content)
-        return {"content": markdown_content, "links_on_page": links}
+
+        if summarize:
+            summarized_content = await _summarize_web_content(markdown_content, url)
+            return {
+                "content": summarized_content,
+                "links_on_page": links,
+                "summarized": True,
+            }
+
+        return {
+            "content": markdown_content,
+            "links_on_page": links,
+            "summarized": False,
+        }
     except Exception as e:
         return {"error": f"Failed to fetch content from {url}: {str(e)}"}
 
@@ -100,6 +121,33 @@ def _convert_html_to_markdown(html_text: str) -> str:
     ):
         tag.decompose()
     return md(str(soup))
+
+
+async def _summarize_web_content(markdown_content: str, url: str) -> str:
+    """Summarize web content using an agent while preserving references."""
+    # Create the summarization agent
+    agent = create_agent(
+        model=llm_config.model,
+        system_prompt=get_web_summarizer_system_prompt(),
+    )
+
+    # Prepare the prompt data
+    prompt_data = {
+        "url": url,
+        "content": markdown_content,
+        "instruction": "Extract high-signal information from this web page content while preserving all essential references and citations. Focus on technical details, specifications, and actionable information.",
+    }
+
+    # Run the agent
+    message = json.dumps(prompt_data)
+    result, _ = await run_agent(
+        agent=agent,
+        message=message,
+        message_history=[],  # Stateless
+        limiter=llm_limiter,
+    )
+
+    return str(result)
 
 
 search_internet.__name__ = "SearchInternet"

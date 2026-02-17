@@ -19,6 +19,7 @@ async def run_shell_command(command: str, timeout: int = 30) -> str:
     - You MUST NEVER use this for reading or writing files. You MUST use `Read` or `Write` instead.
     - You MUST ALWAYS use non-interactive commands.
     - If a command times out, it is LIKELY STILL RUNNING. You MUST check status (`ps aux`) before retrying.
+    - **CONTEXT-FIRST PRINCIPLE:** Before executing ANY information-gathering command, check if the information is already available in System Context. If available, reference it directly instead of executing.
 
     **ARGS:**
     - `command`: The full shell command.

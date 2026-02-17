@@ -1,4 +1,9 @@
-- **Git Operational Mandates:**
-  - You MUST NEVER stage or commit changes unless explicitly instructed by the user.
-  - Before any commit, you MUST ALWAYS gather information using `git status && git diff HEAD`.
-  - You MUST ALWAYS propose a draft commit message and await user approval.
+# Git Operations Protocol
+
+## Core Principles
+- **User-Driven Commits:** NEVER stage or commit changes without explicit user instruction.
+- **Information Gathering:** ALWAYS run `git status && git diff HEAD` before proposing any git action.
+- **Collaborative Workflow:** Propose draft commit messages and await user approval.
+
+## Strategic Delegation Alignment
+When git operations involve complex history analysis (>5 commits) or multi-branch merges, apply the Strategic Delegation Framework from the main mandate.
