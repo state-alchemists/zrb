@@ -1,10 +1,7 @@
 import datetime
 import os
-import shutil
 from unittest.mock import MagicMock, patch
-
 import pytest
-
 from zrb.builtin.todo import (
     add_todo,
     archive_todo,
@@ -13,7 +10,8 @@ from zrb.builtin.todo import (
     list_todo,
     log_todo,
 )
-from zrb.config.config import CFG
+from zrb.session.session import Session
+from zrb.context.shared_context import SharedContext
 
 
 @pytest.fixture
@@ -22,51 +20,57 @@ def temp_todo_dir(tmp_path):
     d.mkdir()
     # Mocking environment variable is safer for these properties
     with patch.dict(os.environ, {"ZRB_TODO_DIR": str(d)}):
-        # We need to make sure CFG reflects this change
-        # Since it reads from os.environ, it should be fine if we use it after patch
         yield str(d)
 
 
-@pytest.mark.asyncio
-async def test_add_todo_task(temp_todo_dir):
-    ctx = MagicMock()
-    ctx.input.priority = "A"
-    ctx.input.description = "Test Task"
-    ctx.input.context = "work"
-    ctx.input.project = "zrb"
-    ctx.input.filter = ""
+@pytest.fixture
+def mock_print():
+    return MagicMock()
 
-    # add_todo is a BaseTask, so we call its _exec_action or action
-    res = await add_todo._exec_action(ctx)
+
+@pytest.fixture
+def session(mock_print):
+    shared_ctx = SharedContext(print_fn=mock_print)
+    return Session(shared_ctx=shared_ctx, state_logger=MagicMock())
+
+
+@pytest.mark.asyncio
+async def test_add_todo_task(temp_todo_dir, session):
+    # Execute publicly
+    res = await add_todo.async_run(
+        session=session,
+        kwargs={
+            "priority": "A",
+            "description": "Test Task",
+            "context": "work",
+            "project": "zrb",
+            "filter": ""
+        }
+    )
     assert "Test Task" in res
     assert os.path.exists(os.path.join(temp_todo_dir, "todo.txt"))
 
 
 @pytest.mark.asyncio
-async def test_list_todo_task(temp_todo_dir):
+async def test_list_todo_task(temp_todo_dir, session):
     todo_file = os.path.join(temp_todo_dir, "todo.txt")
     with open(todo_file, "w") as f:
         f.write("(A) Test Task +zrb @work\n")
 
-    ctx = MagicMock()
-    ctx.input.filter = ""
-
-    res = await list_todo._exec_action(ctx)
+    res = await list_todo.async_run(session=session, kwargs={"filter": ""})
     assert "Test Task" in res
 
 
 @pytest.mark.asyncio
-async def test_complete_todo_task(temp_todo_dir):
+async def test_complete_todo_task(temp_todo_dir, session):
     todo_file = os.path.join(temp_todo_dir, "todo.txt")
     with open(todo_file, "w") as f:
         f.write("(A) Test Task\n")
 
-    ctx = MagicMock()
-    # keyword is used in select_todo_task
-    ctx.input.keyword = "Test"
-    ctx.input.filter = ""
-
-    res = await complete_todo._exec_action(ctx)
+    res = await complete_todo.async_run(
+        session=session,
+        kwargs={"keyword": "Test", "filter": ""}
+    )
     assert "Test Task" in res
     with open(todo_file, "r") as f:
         content = f.read()
@@ -74,7 +78,7 @@ async def test_complete_todo_task(temp_todo_dir):
 
 
 @pytest.mark.asyncio
-async def test_archive_todo_task(temp_todo_dir):
+async def test_archive_todo_task(temp_todo_dir, session):
     todo_file = os.path.join(temp_todo_dir, "todo.txt")
     # Creation date should be old enough to be archived (default retention 2w)
     old_date = (datetime.date.today() - datetime.timedelta(weeks=3)).strftime(
@@ -83,39 +87,40 @@ async def test_archive_todo_task(temp_todo_dir):
     with open(todo_file, "w") as f:
         f.write(f"x {old_date} {old_date} Old Task\n")
 
-    ctx = MagicMock()
-    ctx.input.filter = ""
-
-    res = await archive_todo._exec_action(ctx)
+    res = await archive_todo.async_run(session=session, kwargs={"filter": ""})
     assert "Old Task" not in res
     assert os.path.exists(os.path.join(temp_todo_dir, "archive.txt"))
 
 
 @pytest.mark.asyncio
-async def test_log_todo_task(temp_todo_dir):
+async def test_log_todo_task(temp_todo_dir, session):
     todo_file = os.path.join(temp_todo_dir, "todo.txt")
     with open(todo_file, "w") as f:
         f.write("(A) Task to log id:1\n")
 
-    ctx = MagicMock()
-    ctx.input.keyword = "Task"
-    ctx.input.log = "Worked on it"
-    ctx.input.duration = "1h"
-    ctx.input.stop = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    ctx.input.filter = ""
-
-    res = await log_todo._exec_action(ctx)
+    res = await log_todo.async_run(
+        session=session,
+        kwargs={
+            "keyword": "Task",
+            "log": "Worked on it",
+            "duration": "1h",
+            "stop": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "filter": ""
+        }
+    )
     assert "Task to log" in res
     assert "Worked on it" in res
 
 
 @pytest.mark.asyncio
-async def test_edit_todo_task(temp_todo_dir):
-    ctx = MagicMock()
-    ctx.input.text = "(A) New content\n(B) Second task"
-    ctx.input.filter = ""
-
-    res = await edit_todo._exec_action(ctx)
+async def test_edit_todo_task(temp_todo_dir, session):
+    res = await edit_todo.async_run(
+        session=session,
+        kwargs={
+            "text": "(A) New content\n(B) Second task",
+            "filter": ""
+        }
+    )
     assert "New content" in res
     assert "Second task" in res
 

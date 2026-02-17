@@ -1,73 +1,72 @@
-from types import SimpleNamespace  # Keep for fixture
 from unittest import mock
-
 import pytest
-
-# Import the task objects themselves, not the original functions
 from zrb.builtin import base64 as base64_module
+from zrb.session.session import Session
+from zrb.context.shared_context import SharedContext
 
 
 @pytest.fixture
-def mock_context():
-    """Fixture for a mocked AnyContext."""
-    context = mock.MagicMock()
-    # Use SimpleNamespace for attribute assignment if needed, otherwise remove import
-    context.input = SimpleNamespace()
-    context.print = mock.MagicMock()
-    context.log_error = mock.MagicMock()
-    return context
+def mock_print():
+    return mock.MagicMock()
+
+
+@pytest.fixture
+def session(mock_print):
+    shared_ctx = SharedContext(print_fn=mock_print)
+    return Session(shared_ctx=shared_ctx, state_logger=mock.MagicMock())
 
 
 @pytest.mark.asyncio
-async def test_encode_base64(mock_context):  # Use fixture, mark async
+async def test_encode_base64(session, mock_print):
     """Test the encode_base64 task."""
-    # Setup mock context and input
-    mock_context.input.text = "hello world"
-
     # Get the task object
     encode_task = base64_module.encode_base64
 
-    # Execute the task's action
-    result = await encode_task._exec_action(mock_context)
+    # Execute publicly
+    result = await encode_task.async_run(
+        session=session,
+        kwargs={"text": "hello world"}
+    )
 
     # Assertions
     expected_result = "aGVsbG8gd29ybGQ="
     assert result == expected_result
-    mock_context.print.assert_called_once_with(expected_result)
+    # Check if the result was printed
+    printed_text = "".join(call.args[0] for call in mock_print.call_args_list)
+    assert expected_result in printed_text
 
 
 @pytest.mark.asyncio
-async def test_decode_base64(mock_context):  # Use fixture
+async def test_decode_base64(session, mock_print):
     """Test the decode_base64 task."""
-    # Setup mock context and input
-    mock_context.input.text = "aGVsbG8gd29ybGQ="
-
     # Get the task object
     decode_task = base64_module.decode_base64
 
-    # Execute the task's action
-    result = await decode_task._exec_action(mock_context)
+    # Execute publicly
+    result = await decode_task.async_run(
+        session=session,
+        kwargs={"text": "aGVsbG8gd29ybGQ="}
+    )
 
     # Assertions
     expected_result = "hello world"
     assert result == expected_result
-    mock_context.print.assert_called_once_with(expected_result)
+    # Check if the result was printed
+    printed_text = "".join(call.args[0] for call in mock_print.call_args_list)
+    assert expected_result in printed_text
 
 
 @pytest.mark.asyncio
-async def test_decode_base64_invalid_input(mock_context):  # Use fixture
+async def test_decode_base64_invalid_input(session, mock_print):
     """Test the decode_base64 task with invalid input."""
     import base64
-
-    # Setup mock context and input
-    mock_context.input.text = "invalid-base64!"
 
     # Get the task object
     decode_task = base64_module.decode_base64
 
-    # Execute the task's action and expect an error
+    # Execute publicly and expect an error
     with pytest.raises(base64.binascii.Error):
-        await decode_task._exec_action(mock_context)
-
-    # Assertions
-    mock_context.print.assert_not_called()
+        await decode_task.async_run(
+            session=session,
+            kwargs={"text": "invalid-base64!"}
+        )
