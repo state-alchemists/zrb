@@ -37,6 +37,7 @@ from zrb.util.load import load_module_from_path
 if TYPE_CHECKING:
     from pydantic_ai import Agent, Tool
     from pydantic_ai.tools import ToolFuncEither
+    from pydantic_ai.toolsets import AbstractToolset
 
 _IGNORE_DIRS = [
     ".git",
@@ -83,6 +84,8 @@ class SubAgentManager:
     ):
         self._tool_registry = tool_registry if tool_registry is not None else {}
         self._tool_factories: list[Callable[[AnyContext], Tool | ToolFuncEither]] = []
+        self._toolsets: list[AbstractToolset[None]] = []
+        self._toolset_factories: list[Callable[[AnyContext], AbstractToolset[None]]] = []
         self._root_dir = root_dir
         self._search_dirs = search_dirs
         self._max_depth = max_depth
@@ -94,9 +97,26 @@ class SubAgentManager:
     def _get_tool_registry(self) -> dict[str, Callable]:
         return self._tool_registry
 
+    def _get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
+        """Get all toolsets including those resolved from factories."""
+        all_toolsets = list(self._toolsets)
+        for factory in self._toolset_factories:
+            toolset = factory(ctx)
+            if isinstance(toolset, list):
+                all_toolsets.extend(toolset)
+            else:
+                all_toolsets.append(toolset)
+        return all_toolsets
+
     def add_tool(self, *tool: Callable):
         """
         Register tools.
+        """
+        self.append_tool(*tool)
+
+    def append_tool(self, *tool: Callable):
+        """
+        Append tools.
         """
         for single_tool in tool:
             tool_name = getattr(single_tool, "__name__", str(single_tool))
@@ -106,8 +126,42 @@ class SubAgentManager:
         """
         Register tool factories.
         """
+        self.append_tool_factory(*factory)
+
+    def append_tool_factory(self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]):
+        """
+        Append tool factories.
+        """
         for single_factory in factory:
             self._tool_factories.append(single_factory)
+
+    def add_toolset(self, *toolset: AbstractToolset[None]):
+        """
+        Register toolsets.
+        """
+        self.append_toolset(*toolset)
+
+    def append_toolset(self, *toolset: AbstractToolset[None]):
+        """
+        Append toolsets.
+        """
+        self._toolsets += list(toolset)
+
+    def add_toolset_factory(
+        self, *factory: Callable[[AnyContext], AbstractToolset[None]]
+    ):
+        """
+        Register toolset factories.
+        """
+        self.append_toolset_factory(*factory)
+
+    def append_toolset_factory(
+        self, *factory: Callable[[AnyContext], AbstractToolset[None]]
+    ):
+        """
+        Append toolset factories.
+        """
+        self._toolset_factories += list(factory)
 
     def scan(
         self, search_dirs: list[str | Path] | None = None
@@ -392,10 +446,14 @@ class SubAgentManager:
             elif not getattr(tool, "zrb_is_delegate_tool", False):
                 resolved_tools.append(tool)
 
+        # Get all toolsets including those from factories
+        resolved_toolsets = self._get_all_toolsets(ctx)
+
         return create_agent(
             model=definition.model,
             system_prompt=definition.system_prompt,
             tools=resolved_tools,
+            toolsets=resolved_toolsets,
             history_processors=[
                 create_summarizer_history_processor(
                     token_threshold=CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD,
@@ -429,4 +487,9 @@ sub_agent_manager.add_tool_factory(
     lambda ctx: create_list_zrb_task_tool(),
     lambda ctx: create_run_zrb_task_tool(),
     lambda ctx: create_activate_skill_tool(),
+)
+
+# Add toolset factories
+sub_agent_manager.add_toolset_factory(
+    lambda ctx: load_mcp_config(),
 )

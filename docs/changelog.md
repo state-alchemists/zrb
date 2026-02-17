@@ -1,5 +1,20 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.5.1 (February 17, 2026)
+
+- **Feature: Enhanced SubAgentManager API Consistency**:
+  - **append_tool Methods**: Added `append_tool()` and `append_tool_factory()` methods to `SubAgentManager` to match the `LLMTask` pattern, ensuring API consistency across the codebase.
+  - **Toolset Support**: Enhanced `SubAgentManager` with comprehensive toolset management including `append_toolset()`, `append_toolset_factory()`, and `_get_all_toolsets()` methods for better toolset integration.
+  - **Backward Compatibility**: Refactored existing `add_tool()` and `add_tool_factory()` methods to delegate to their `append_*` counterparts, maintaining full backward compatibility.
+  - **Delegate Tool Export**: Added `create_delegate_to_agent_tool` to public exports in `src/zrb/llm/tool/__init__.py` for easier access.
+
+- **Improvement: Persona Refinement**:
+  - **Typo Fix**: Corrected "Orchstrator" to "Orchestrator" in the agent persona for better professionalism and clarity.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.5.1 in `pyproject.toml`.
+  - **Dependency Updates**: Updated poetry.lock with Poetry 2.3.1 and minor dependency specifier changes for consistency.
+
 ## 2.5.0 (February 16, 2026)
 
 - **Feature: Sub-Agent System Refactoring with Automatic Discovery**:

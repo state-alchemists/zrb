@@ -16,6 +16,7 @@ from zrb.llm.tool.rag import create_rag_from_directory
 from zrb.llm.tool.skill import create_activate_skill_tool
 from zrb.llm.tool.web import open_web_page, search_internet
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
+from zrb.llm.tool.delegate import create_delegate_to_agent_tool
 
 __all__ = [
     "run_shell_command",
@@ -36,4 +37,5 @@ __all__ = [
     "search_internet",
     "create_list_zrb_task_tool",
     "create_run_zrb_task_tool",
+    "create_delegate_to_agent_tool"
 ]
