@@ -20,8 +20,8 @@ def test_limiter_to_str_nested_list():
     # Nested lists
     nested = [[["content"] * 10] * 10] * 10
     # This shouldn't explode, but let's see what it produces
-    text = limiter._to_str(nested)
+    tokens = limiter.count_tokens(nested)
     # "content" is 7 chars. 7 * 10 * 10 * 10 = 7000 chars.
-    # We now join strings directly without json.dumps overhead.
-    assert len(text) >= 7000
-    assert len(text) < 10000
+    # Using len(text) // 3 as an approximation without tiktoken
+    assert tokens > 2300
+    assert tokens < 2500

@@ -1,7 +1,9 @@
 import datetime
 import os
 from unittest.mock import MagicMock, patch
+
 import pytest
+
 from zrb.builtin.todo import (
     add_todo,
     archive_todo,
@@ -10,8 +12,8 @@ from zrb.builtin.todo import (
     list_todo,
     log_todo,
 )
-from zrb.session.session import Session
 from zrb.context.shared_context import SharedContext
+from zrb.session.session import Session
 
 
 @pytest.fixture
@@ -44,8 +46,8 @@ async def test_add_todo_task(temp_todo_dir, session):
             "description": "Test Task",
             "context": "work",
             "project": "zrb",
-            "filter": ""
-        }
+            "filter": "",
+        },
     )
     assert "Test Task" in res
     assert os.path.exists(os.path.join(temp_todo_dir, "todo.txt"))
@@ -68,8 +70,7 @@ async def test_complete_todo_task(temp_todo_dir, session):
         f.write("(A) Test Task\n")
 
     res = await complete_todo.async_run(
-        session=session,
-        kwargs={"keyword": "Test", "filter": ""}
+        session=session, kwargs={"keyword": "Test", "filter": ""}
     )
     assert "Test Task" in res
     with open(todo_file, "r") as f:
@@ -105,8 +106,8 @@ async def test_log_todo_task(temp_todo_dir, session):
             "log": "Worked on it",
             "duration": "1h",
             "stop": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "filter": ""
-        }
+            "filter": "",
+        },
     )
     assert "Task to log" in res
     assert "Worked on it" in res
@@ -116,10 +117,7 @@ async def test_log_todo_task(temp_todo_dir, session):
 async def test_edit_todo_task(temp_todo_dir, session):
     res = await edit_todo.async_run(
         session=session,
-        kwargs={
-            "text": "(A) New content\n(B) Second task",
-            "filter": ""
-        }
+        kwargs={"text": "(A) New content\n(B) Second task", "filter": ""},
     )
     assert "New content" in res
     assert "Second task" in res

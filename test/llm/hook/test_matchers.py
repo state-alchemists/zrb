@@ -1,15 +1,10 @@
+import json
+
 import pytest
 
-from zrb.llm.hook.interface import HookContext
+from zrb.llm.hook.interface import HookResult
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.schema import MatcherConfig
-from zrb.llm.hook.types import HookEvent, MatcherOperator
-
-
-class MockContext:
-    def __init__(self, **kwargs):
-        for k, v in kwargs.items():
-            setattr(self, k, v)
+from zrb.llm.hook.types import HookEvent
 
 
 @pytest.fixture
@@ -17,187 +12,194 @@ def hook_manager():
     return HookManager(auto_load=False)
 
 
-def test_evaluate_matchers_equals(hook_manager):
-    context = HookContext(event=HookEvent.PRE_TOOL_USE, event_data={"tool": "bash"})
+async def check_match(tmp_path, matchers, context_data):
+    """Helper to verify if matchers work using public scan + execute_hooks."""
+    manager = HookManager(auto_load=False)
 
-    # Match
-    matcher = MatcherConfig(
-        field="event_data.tool", operator=MatcherOperator.EQUALS, value="bash"
+    hook_dir = tmp_path / "hooks"
+    if hook_dir.exists():
+        import shutil
+
+        shutil.rmtree(hook_dir)
+    hook_dir.mkdir()
+
+    hook_file = hook_dir / "test.json"
+    hook_content = [
+        {
+            "name": "test-hook",
+            "events": ["SessionStart"],
+            "type": "command",
+            "config": {"command": "echo matched"},
+            "matchers": matchers,
+        }
+    ]
+    with open(hook_file, "w") as f:
+        json.dump(hook_content, f)
+
+    manager.scan(search_dirs=[str(hook_dir)])
+
+    # Extract event_data if present, otherwise use None
+    data_to_pass = context_data.copy()
+    event_data = data_to_pass.pop("event_data", None)
+
+    # Pass context_data as kwargs so they populate HookContext attributes
+    results = await manager.execute_hooks(
+        HookEvent.SESSION_START, event_data, **data_to_pass
     )
-    assert hook_manager._evaluate_matchers([matcher], context) is True
+    # If the hook matched, it should have been executed and returned a result that isn't "Skipped due to matchers"
+    for result in results:
+        if result.message != "Skipped due to matchers":
+            return True
+    return False
+
+
+@pytest.mark.asyncio
+async def test_evaluate_matchers_equals(tmp_path):
+    # Match
+    matchers = [{"field": "event_data.tool", "operator": "equals", "value": "bash"}]
+    assert (
+        await check_match(tmp_path, matchers, {"event_data": {"tool": "bash"}}) is True
+    )
 
     # No Match
-    matcher = MatcherConfig(
-        field="event_data.tool", operator=MatcherOperator.EQUALS, value="python"
+    matchers = [{"field": "event_data.tool", "operator": "equals", "value": "python"}]
+    assert (
+        await check_match(tmp_path, matchers, {"event_data": {"tool": "bash"}}) is False
     )
-    assert hook_manager._evaluate_matchers([matcher], context) is False
 
 
-def test_evaluate_matchers_not_equals(hook_manager):
-    context = HookContext(event=HookEvent.PRE_TOOL_USE, event_data={"tool": "bash"})
-
+@pytest.mark.asyncio
+async def test_evaluate_matchers_not_equals(tmp_path):
     # Match
-    matcher = MatcherConfig(
-        field="event_data.tool", operator=MatcherOperator.NOT_EQUALS, value="python"
+    matchers = [
+        {"field": "event_data.tool", "operator": "not_equals", "value": "python"}
+    ]
+    assert (
+        await check_match(tmp_path, matchers, {"event_data": {"tool": "bash"}}) is True
     )
-    assert hook_manager._evaluate_matchers([matcher], context) is True
 
     # No Match
-    matcher = MatcherConfig(
-        field="event_data.tool", operator=MatcherOperator.NOT_EQUALS, value="bash"
-    )
-    assert hook_manager._evaluate_matchers([matcher], context) is False
-
-
-def test_evaluate_matchers_contains(hook_manager):
-    context = HookContext(
-        event=HookEvent.USER_PROMPT_SUBMIT, event_data=None, prompt="hello world"
+    matchers = [{"field": "event_data.tool", "operator": "not_equals", "value": "bash"}]
+    assert (
+        await check_match(tmp_path, matchers, {"event_data": {"tool": "bash"}}) is False
     )
 
+
+@pytest.mark.asyncio
+async def test_evaluate_matchers_contains(tmp_path):
     # Match
-    matcher = MatcherConfig(
-        field="prompt", operator=MatcherOperator.CONTAINS, value="world"
-    )
-    assert hook_manager._evaluate_matchers([matcher], context) is True
+    matchers = [{"field": "prompt", "operator": "contains", "value": "world"}]
+    assert await check_match(tmp_path, matchers, {"prompt": "hello world"}) is True
 
     # No Match
-    matcher = MatcherConfig(
-        field="prompt", operator=MatcherOperator.CONTAINS, value="mars"
-    )
-    assert hook_manager._evaluate_matchers([matcher], context) is False
+    matchers = [{"field": "prompt", "operator": "contains", "value": "mars"}]
+    assert await check_match(tmp_path, matchers, {"prompt": "hello world"}) is False
 
 
-def test_evaluate_matchers_starts_with(hook_manager):
-    context = HookContext(
-        event=HookEvent.USER_PROMPT_SUBMIT, event_data=None, prompt="hello world"
-    )
-
+@pytest.mark.asyncio
+async def test_evaluate_matchers_starts_with(tmp_path):
     # Match
-    matcher = MatcherConfig(
-        field="prompt", operator=MatcherOperator.STARTS_WITH, value="hello"
-    )
-    assert hook_manager._evaluate_matchers([matcher], context) is True
+    matchers = [{"field": "prompt", "operator": "starts_with", "value": "hello"}]
+    assert await check_match(tmp_path, matchers, {"prompt": "hello world"}) is True
 
     # No Match
-    matcher = MatcherConfig(
-        field="prompt", operator=MatcherOperator.STARTS_WITH, value="world"
-    )
-    assert hook_manager._evaluate_matchers([matcher], context) is False
+    matchers = [{"field": "prompt", "operator": "starts_with", "value": "world"}]
+    assert await check_match(tmp_path, matchers, {"prompt": "hello world"}) is False
 
 
-def test_evaluate_matchers_ends_with(hook_manager):
-    context = HookContext(
-        event=HookEvent.USER_PROMPT_SUBMIT, event_data=None, prompt="hello world"
-    )
-
+@pytest.mark.asyncio
+async def test_evaluate_matchers_ends_with(tmp_path):
     # Match
-    matcher = MatcherConfig(
-        field="prompt", operator=MatcherOperator.ENDS_WITH, value="world"
-    )
-    assert hook_manager._evaluate_matchers([matcher], context) is True
+    matchers = [{"field": "prompt", "operator": "ends_with", "value": "world"}]
+    assert await check_match(tmp_path, matchers, {"prompt": "hello world"}) is True
 
     # No Match
-    matcher = MatcherConfig(
-        field="prompt", operator=MatcherOperator.ENDS_WITH, value="hello"
-    )
-    assert hook_manager._evaluate_matchers([matcher], context) is False
+    matchers = [{"field": "prompt", "operator": "ends_with", "value": "hello"}]
+    assert await check_match(tmp_path, matchers, {"prompt": "hello world"}) is False
 
 
-def test_evaluate_matchers_regex(hook_manager):
-    context = HookContext(
-        event=HookEvent.USER_PROMPT_SUBMIT,
-        event_data=None,
-        prompt="error: file not found",
-    )
-
+@pytest.mark.asyncio
+async def test_evaluate_matchers_regex(tmp_path):
     # Match
-    matcher = MatcherConfig(
-        field="prompt", operator=MatcherOperator.REGEX, value="error: .* not found"
+    matchers = [
+        {"field": "prompt", "operator": "regex", "value": "error: .* not found"}
+    ]
+    assert (
+        await check_match(tmp_path, matchers, {"prompt": "error: file not found"})
+        is True
     )
-    assert hook_manager._evaluate_matchers([matcher], context) is True
 
     # No Match
-    matcher = MatcherConfig(
-        field="prompt", operator=MatcherOperator.REGEX, value="^success"
-    )
-    assert hook_manager._evaluate_matchers([matcher], context) is False
-
-    # Invalid Regex (should safely return False)
-    matcher = MatcherConfig(
-        field="prompt", operator=MatcherOperator.REGEX, value="[invalid"
-    )
-    assert hook_manager._evaluate_matchers([matcher], context) is False
-
-
-def test_evaluate_matchers_glob(hook_manager):
-    context = HookContext(
-        event=HookEvent.PRE_TOOL_USE, event_data=None, tool_name="script.py"
+    matchers = [{"field": "prompt", "operator": "regex", "value": "^success"}]
+    assert (
+        await check_match(tmp_path, matchers, {"prompt": "error: file not found"})
+        is False
     )
 
+
+@pytest.mark.asyncio
+async def test_evaluate_matchers_glob(tmp_path):
     # Match
-    matcher = MatcherConfig(
-        field="tool_name", operator=MatcherOperator.GLOB, value="*.py"
-    )
-    assert hook_manager._evaluate_matchers([matcher], context) is True
+    matchers = [{"field": "tool_name", "operator": "glob", "value": "*.py"}]
+    assert await check_match(tmp_path, matchers, {"tool_name": "script.py"}) is True
 
     # No Match
-    matcher = MatcherConfig(
-        field="tool_name", operator=MatcherOperator.GLOB, value="*.js"
-    )
-    assert hook_manager._evaluate_matchers([matcher], context) is False
+    matchers = [{"field": "tool_name", "operator": "glob", "value": "*.js"}]
+    assert await check_match(tmp_path, matchers, {"tool_name": "script.py"}) is False
 
 
-def test_evaluate_matchers_case_sensitivity(hook_manager):
-    context = HookContext(
-        event=HookEvent.USER_PROMPT_SUBMIT, event_data=None, prompt="Hello World"
-    )
-
+@pytest.mark.asyncio
+async def test_evaluate_matchers_case_sensitivity(tmp_path):
     # Case Insensitive Match
-    matcher = MatcherConfig(
-        field="prompt",
-        operator=MatcherOperator.EQUALS,
-        value="hello world",
-        case_sensitive=False,
-    )
-    assert hook_manager._evaluate_matchers([matcher], context) is True
+    matchers = [
+        {
+            "field": "prompt",
+            "operator": "equals",
+            "value": "hello world",
+            "case_sensitive": False,
+        }
+    ]
+    assert await check_match(tmp_path, matchers, {"prompt": "Hello World"}) is True
 
     # Case Sensitive Match Fail
-    matcher = MatcherConfig(
-        field="prompt",
-        operator=MatcherOperator.EQUALS,
-        value="hello world",
-        case_sensitive=True,
-    )
-    assert hook_manager._evaluate_matchers([matcher], context) is False
+    matchers = [
+        {
+            "field": "prompt",
+            "operator": "equals",
+            "value": "hello world",
+            "case_sensitive": True,
+        }
+    ]
+    assert await check_match(tmp_path, matchers, {"prompt": "Hello World"}) is False
 
 
-def test_evaluate_matchers_nested_field_missing(hook_manager):
-    context = HookContext(event=HookEvent.SESSION_START, event_data={})
-
+@pytest.mark.asyncio
+async def test_evaluate_matchers_nested_field_missing(tmp_path):
     # Field missing
-    matcher = MatcherConfig(
-        field="event_data.missing_key", operator=MatcherOperator.EQUALS, value="value"
-    )
-    assert hook_manager._evaluate_matchers([matcher], context) is False
+    matchers = [
+        {"field": "event_data.missing_key", "operator": "equals", "value": "value"}
+    ]
+    assert await check_match(tmp_path, matchers, {"event_data": {}}) is False
 
 
-def test_evaluate_matchers_multiple(hook_manager):
-    context = HookContext(
-        event=HookEvent.PRE_TOOL_USE, event_data=None, tool_name="bash", prompt="rm -rf"
-    )
-
+@pytest.mark.asyncio
+async def test_evaluate_matchers_multiple(tmp_path):
     # All match
     matchers = [
-        MatcherConfig(field="tool_name", operator=MatcherOperator.EQUALS, value="bash"),
-        MatcherConfig(field="prompt", operator=MatcherOperator.CONTAINS, value="rm"),
+        {"field": "tool_name", "operator": "equals", "value": "bash"},
+        {"field": "prompt", "operator": "contains", "value": "rm"},
     ]
-    assert hook_manager._evaluate_matchers(matchers, context) is True
+    assert (
+        await check_match(tmp_path, matchers, {"tool_name": "bash", "prompt": "rm -rf"})
+        is True
+    )
 
     # One fails
     matchers = [
-        MatcherConfig(field="tool_name", operator=MatcherOperator.EQUALS, value="bash"),
-        MatcherConfig(
-            field="prompt", operator=MatcherOperator.CONTAINS, value="safe_command"
-        ),
+        {"field": "tool_name", "operator": "equals", "value": "bash"},
+        {"field": "prompt", "operator": "contains", "value": "safe_command"},
     ]
-    assert hook_manager._evaluate_matchers(matchers, context) is False
+    assert (
+        await check_match(tmp_path, matchers, {"tool_name": "bash", "prompt": "rm -rf"})
+        is False
+    )

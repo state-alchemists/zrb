@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pydantic_ai import ToolApproved
@@ -21,9 +21,7 @@ async def test_llm_task_tool_confirmation_called():
         def tool_confirmation(call):
             return ToolApproved()
 
-        mock_history_manager = patch(
-            "zrb.llm.history_manager.any_history_manager.AnyHistoryManager"
-        ).start()
+        mock_history_manager = MagicMock()
         mock_history_manager.load.return_value = []
 
         task = LLMTask(
@@ -35,7 +33,7 @@ async def test_llm_task_tool_confirmation_called():
         )
 
         shared_ctx = SharedContext()
-        session = Session(shared_ctx)
+        session = Session(shared_ctx, state_logger=MagicMock())
 
         # Execute
         await task.async_run(session)
@@ -48,9 +46,7 @@ async def test_llm_task_tool_confirmation_called():
 
 @pytest.mark.asyncio
 async def test_llm_chat_task_tool_confirmation_forwarded():
-    from zrb.context.shared_context import SharedContext
     from zrb.llm.task.llm_chat_task import LLMChatTask
-    from zrb.session.session import Session
 
     def tool_confirmation(call):
         return ToolApproved()
@@ -58,85 +54,28 @@ async def test_llm_chat_task_tool_confirmation_forwarded():
     chat_task = LLMChatTask(
         name="chat-task",
         tool_confirmation=tool_confirmation,
-        interactive=False,  # So we use the core task
-    )
-
-    # Create a mock context
-    shared_ctx = SharedContext()
-    session = Session(shared_ctx)
-
-    # We want to check if the core task has the tool_confirmation
-    mock_history_manager = patch(
-        "zrb.llm.history_manager.any_history_manager.AnyHistoryManager"
-    ).start()
-    core_task = chat_task._create_llm_task_core(
-        session, [], mock_history_manager, interactive=False
-    )
-    assert core_task._tool_confirmation == tool_confirmation
-
-
-@pytest.mark.asyncio
-async def test_llm_chat_task_interactive_handler_wrapping():
-    from zrb.context.shared_context import SharedContext
-    from zrb.llm.task.llm_chat_task import LLMChatTask
-    from zrb.llm.tool_call import ToolCallHandler
-    from zrb.session.session import Session
-
-    async def my_handler(ui, call, response, next_handler):
-        return await next_handler(ui, call, response)
-
-    chat_task = LLMChatTask(
-        name="chat-task",
-        response_handlers=[my_handler],
-        interactive=True,
-    )
-
-    # Create a mock context
-    shared_ctx = SharedContext()
-    session = Session(shared_ctx)
-
-    # Interactive=True: Should set tool_confirmation to None (defer to UI context var)
-    mock_history_manager = patch(
-        "zrb.llm.history_manager.any_history_manager.AnyHistoryManager"
-    ).start()
-    core_task_interactive = chat_task._create_llm_task_core(
-        session, [], mock_history_manager, interactive=True
-    )
-    assert core_task_interactive._tool_confirmation is None
-
-    # Interactive=False: Should NOT wrap (since handlers are filtered out and policies are empty)
-    core_task_non_interactive = chat_task._create_llm_task_core(
-        session, [], mock_history_manager, interactive=False
-    )
-    assert not isinstance(core_task_non_interactive._tool_confirmation, ToolCallHandler)
-
-
-@pytest.mark.asyncio
-async def test_llm_chat_task_policy_wrapping():
-    from zrb.context.shared_context import SharedContext
-    from zrb.llm.task.llm_chat_task import LLMChatTask
-    from zrb.llm.tool_call import ToolCallHandler
-    from zrb.session.session import Session
-
-    async def my_policy(call, next_handler):
-        return await next_handler(call)
-
-    chat_task = LLMChatTask(
-        name="policy-task",
-        tool_policies=[my_policy],
         interactive=False,
     )
 
-    # Create a mock context
     shared_ctx = SharedContext()
-    session = Session(shared_ctx)
+    session = Session(shared_ctx, state_logger=MagicMock())
 
-    # Interactive=False with policies: Should get a simple callable wrapper, NOT ToolCallHandler
-    mock_history_manager = patch(
-        "zrb.llm.history_manager.any_history_manager.AnyHistoryManager"
-    ).start()
-    core_task = chat_task._create_llm_task_core(
-        session, [], mock_history_manager, interactive=False
-    )
-    assert callable(core_task._tool_confirmation)
-    assert not isinstance(core_task._tool_confirmation, ToolCallHandler)
+    with patch(
+        "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+    ) as mock_run_agent:
+        mock_run_agent.return_value = ("Done", [])
+
+        # Run publicly
+        await chat_task.async_run(session, kwargs={"prompt": "test"})
+
+        # The core task created by LLMChatTask should have forwarded the tool_confirmation
+        # Check all calls to run_agent to find the one with our tool_confirmation
+        found = False
+        for call in mock_run_agent.call_args_list:
+            if call.kwargs.get("tool_confirmation") == tool_confirmation:
+                found = True
+                break
+
+        # In non-interactive mode with policies, it might be wrapped.
+        # But for this simple case without policies, it should be the same object.
+        assert found

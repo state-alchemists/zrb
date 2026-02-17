@@ -20,17 +20,20 @@ def mock_context():
 # --- Tests for hash_md5 ---
 
 
-from zrb.session.session import Session
 from zrb.context.shared_context import SharedContext
+from zrb.session.session import Session
+
 
 @pytest.fixture
 def mock_print():
     return mock.MagicMock()
 
+
 @pytest.fixture
 def session(mock_print):
     shared_ctx = SharedContext(print_fn=mock_print)
     return Session(shared_ctx=shared_ctx, state_logger=mock.MagicMock())
+
 
 @pytest.mark.asyncio
 async def test_hash_md5_success(session, mock_print):
@@ -58,11 +61,13 @@ async def test_sum_md5_success(session, mock_print):
     """Test sum_md5 correctly calculates the checksum of file content."""
     file_path = "test_file.txt"
     expected_hash = "d10b4c3ff123b26dc068d43a8bef2d23"  # Correct MD5 of b"file content"
-    
+
     # Get the task object
     sum_task = md5_module.sum_md5
 
-    with mock.patch("builtins.open", mock.mock_open(read_data=b"file content")) as mock_open:
+    with mock.patch(
+        "builtins.open", mock.mock_open(read_data=b"file content")
+    ) as mock_open:
         # Execute publicly
         result = await sum_task.async_run(session=session, kwargs={"file": file_path})
 
@@ -81,7 +86,9 @@ async def test_sum_md5_file_not_found(session, mock_print):
     # Get the task object
     sum_task = md5_module.sum_md5
 
-    with mock.patch("builtins.open", side_effect=FileNotFoundError("File not found")) as mock_open:
+    with mock.patch(
+        "builtins.open", side_effect=FileNotFoundError("File not found")
+    ) as mock_open:
         # Execute publicly
         with pytest.raises(FileNotFoundError, match="File not found"):
             await sum_task.async_run(session=session, kwargs={"file": file_path})

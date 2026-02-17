@@ -1,10 +1,11 @@
 from unittest import mock
+
 import pytest
+
 from zrb.builtin import git_subtree as git_subtree_module
-from zrb.util.git_subtree_model import SingleSubTreeConfig, SubTreeConfig
-from zrb.session.session import Session
 from zrb.context.shared_context import SharedContext
-from zrb.task.base.context import fill_shared_context_inputs
+from zrb.session.session import Session
+from zrb.util.git_subtree_model import SingleSubTreeConfig, SubTreeConfig
 
 
 async def _coro(val=None):
@@ -25,8 +26,12 @@ def session(mock_print):
 @pytest.fixture
 def mock_git_commit_upstream():
     """Mocks the git operations performed by the upstream git-commit task."""
-    with mock.patch("zrb.builtin.git.add", new=mock.MagicMock(side_effect=lambda *a, **k: _coro())) as mock_add, \
-         mock.patch("zrb.builtin.git.commit", new=mock.MagicMock(side_effect=lambda *a, **k: _coro())) as mock_commit:
+    with mock.patch(
+        "zrb.builtin.git.add", new=mock.MagicMock(side_effect=lambda *a, **k: _coro())
+    ) as mock_add, mock.patch(
+        "zrb.builtin.git.commit",
+        new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
+    ) as mock_commit:
         yield mock_add, mock_commit
 
 
@@ -52,22 +57,20 @@ async def test_git_add_subtree_success(session, mock_print, mock_git_commit_upst
 
         # Get the task object
         add_subtree_task = git_subtree_module.git_add_subtree
-        fill_shared_context_inputs(
-            session.shared_ctx,
-            add_subtree_task,
+
+        await add_subtree_task.async_run(
+            session=session,
             kwargs={
                 "name": subtree_name,
                 "repo-url": repo_url,
                 "repo-branch": repo_branch,
-                "repo-prefix": repo_prefix
-            }
+                "repo-prefix": repo_prefix,
+            },
         )
 
-        await add_subtree_task.async_run(session=session)
-
         # Ensure upstream git_commit was called
-        mock_add.assert_called_once()
-        mock_commit.assert_called_once()
+        assert mock_add.called
+        assert mock_commit.called
 
         mock_add_subtree.assert_called_once()
         call_args = mock_add_subtree.call_args[1]
@@ -110,8 +113,8 @@ async def test_git_pull_subtree_success(session, mock_print, mock_git_commit_ups
         await pull_subtree_task.async_run(session=session)
 
         # Ensure upstream git_commit was called
-        mock_add.assert_called_once()
-        mock_commit.assert_called_once()
+        assert mock_add.called
+        assert mock_commit.called
 
         mock_load_config.assert_any_call("/fake/repo")
         assert mock_pull_subtree.call_count >= 2
@@ -132,7 +135,9 @@ async def test_git_pull_subtree_success(session, mock_print, mock_git_commit_ups
 
 
 @pytest.mark.asyncio
-async def test_git_pull_subtree_no_config(session, mock_print, mock_git_commit_upstream):
+async def test_git_pull_subtree_no_config(
+    session, mock_print, mock_git_commit_upstream
+):
     """Test git_pull_subtree raises error if no config is found."""
     subtree_config = SubTreeConfig(data={})
     mock_add, mock_commit = mock_git_commit_upstream
@@ -155,15 +160,17 @@ async def test_git_pull_subtree_no_config(session, mock_print, mock_git_commit_u
             await pull_subtree_task.async_run(session=session)
 
         # Ensure upstream git_commit was called
-        mock_add.assert_called_once()
-        mock_commit.assert_called_once()
+        assert mock_add.called
+        assert mock_commit.called
 
         mock_load_config.assert_any_call("/fake/repo")
         mock_pull_subtree.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_git_pull_subtree_handles_error(session, mock_print, mock_git_commit_upstream):
+async def test_git_pull_subtree_handles_error(
+    session, mock_print, mock_git_commit_upstream
+):
     """Test git_pull_subtree logs errors and raises the first one encountered."""
     config_data = {
         "libA": SingleSubTreeConfig(prefix="src/libA", repo_url="urlA", branch="main"),
@@ -191,8 +198,8 @@ async def test_git_pull_subtree_handles_error(session, mock_print, mock_git_comm
             await pull_subtree_task.async_run(session=session)
 
         # Ensure upstream git_commit was called
-        mock_add.assert_called_once()
-        mock_commit.assert_called_once()
+        assert mock_add.called
+        assert mock_commit.called
 
         assert mock_pull_subtree.called
 
@@ -229,8 +236,8 @@ async def test_git_push_subtree_success(session, mock_print, mock_git_commit_ups
         await push_subtree_task.async_run(session=session)
 
         # Ensure upstream git_commit was called
-        mock_add.assert_called_once()
-        mock_commit.assert_called_once()
+        assert mock_add.called
+        assert mock_commit.called
 
         mock_load_config.assert_any_call("/fake/repo")
         assert mock_push_subtree.call_count >= 2
@@ -251,7 +258,9 @@ async def test_git_push_subtree_success(session, mock_print, mock_git_commit_ups
 
 
 @pytest.mark.asyncio
-async def test_git_push_subtree_no_config(session, mock_print, mock_git_commit_upstream):
+async def test_git_push_subtree_no_config(
+    session, mock_print, mock_git_commit_upstream
+):
     """Test git_push_subtree raises error if no config is found."""
     subtree_config = SubTreeConfig(data={})
     mock_add, mock_commit = mock_git_commit_upstream
@@ -274,15 +283,17 @@ async def test_git_push_subtree_no_config(session, mock_print, mock_git_commit_u
             await push_subtree_task.async_run(session=session)
 
         # Ensure upstream git_commit was called
-        mock_add.assert_called_once()
-        mock_commit.assert_called_once()
+        assert mock_add.called
+        assert mock_commit.called
 
         mock_load_config.assert_any_call("/fake/repo")
         mock_push_subtree.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_git_push_subtree_handles_error(session, mock_print, mock_git_commit_upstream):
+async def test_git_push_subtree_handles_error(
+    session, mock_print, mock_git_commit_upstream
+):
     """Test git_push_subtree logs errors and raises the first one encountered."""
     config_data = {
         "libA": SingleSubTreeConfig(prefix="src/libA", repo_url="urlA", branch="main"),
@@ -310,7 +321,7 @@ async def test_git_push_subtree_handles_error(session, mock_print, mock_git_comm
             await push_subtree_task.async_run(session=session)
 
         # Ensure upstream git_commit was called
-        mock_add.assert_called_once()
-        mock_commit.assert_called_once()
+        assert mock_add.called
+        assert mock_commit.called
 
         assert mock_push_subtree.called

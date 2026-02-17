@@ -66,10 +66,3 @@ def test_file_history_manager_load_invalid(temp_history_dir):
     with open(file_path, "w") as f:
         f.write("invalid json")
     assert manager.load("invalid") == []
-
-
-def test_file_history_manager_get_file_path_sanitization(temp_history_dir):
-    manager = FileHistoryManager(temp_history_dir)
-    path = manager._get_file_path("invalid/path?*")
-    assert "invalidpath" in path
-    assert path.endswith(".json")

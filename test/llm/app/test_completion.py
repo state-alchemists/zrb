@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -67,25 +68,6 @@ def test_load_completion(completer, complete_event):
     assert any(c.text == "session2" for c in completions)
 
 
-def test_file_completion_at(completer, complete_event):
-    # We need to mock _get_recursive_files or similar
-    with patch.object(completer, "_get_recursive_files") as mock_files:
-        mock_files.return_value = ["foo.py", "bar/baz.py"]
-
-        doc = Document(text="@fo", cursor_position=3)
-        completions = list(completer.get_completions(doc, complete_event))
-        assert any(c.text == "foo.py" for c in completions)
-
-
-def test_attach_completion(completer, complete_event):
-    with patch.object(completer, "_get_recursive_files") as mock_files:
-        mock_files.return_value = ["foo.py", "bar/baz.py", "ignored_dir/"]
-
-        doc = Document(text="/attach ba", cursor_position=10)
-        completions = list(completer.get_completions(doc, complete_event))
-        assert any(c.text == "bar/baz.py" for c in completions)
-
-
 def test_different_prefix_completion(mock_history_manager, complete_event):
     completer = InputCompleter(
         history_manager=mock_history_manager,
@@ -94,3 +76,44 @@ def test_different_prefix_completion(mock_history_manager, complete_event):
     doc = Document(text=">o", cursor_position=2)
     completions = list(completer.get_completions(doc, complete_event))
     assert any(c.text == ">out" for c in completions)
+
+
+@pytest.mark.asyncio
+async def test_file_completion_public_api(completer, complete_event):
+    """Test public file completion behavior via get_completions."""
+    with patch("os.walk") as mock_os_walk:
+        # Simulate a file system with a few files and directories
+        mock_os_walk.return_value = [
+            (".", ["dir1", "dir2"], ["file1.txt", "file2.py"]),
+            ("dir1", [], ["nested_file.md"]),
+            ("dir2", ["sub_dir"], []),
+            ("dir2/sub_dir", [], ["another.txt"]),
+        ]
+
+        # Test completion for "@f"
+        doc = Document(text="@f", cursor_position=2)
+        completions = list(completer.get_completions(doc, complete_event))
+        assert any(c.text == "file1.txt" for c in completions)
+        assert any(c.text == "file2.py" for c in completions)
+        assert not any(
+            c.text == "dir1/" for c in completions
+        )  # Directories should not be completed when only files are expected
+
+        # Test completion for "@dir1/"
+        doc = Document(text="@dir1/", cursor_position=6)
+        completions = list(completer.get_completions(doc, complete_event))
+        assert any(c.text == "dir1/nested_file.md" for c in completions)
+
+        # Test completion for "/attach f"
+        doc = Document(text="/attach f", cursor_position=9)
+        completions = list(completer.get_completions(doc, complete_event))
+        assert any(c.text == "file1.txt" for c in completions)
+        assert any(c.text == "file2.py" for c in completions)
+        assert not any(
+            c.text == "dir1/" for c in completions
+        )  # Directories should not be completed for attach command
+
+        # Test completion for "/attach dir2/sub_dir/"
+        doc = Document(text="/attach dir2/sub_dir/", cursor_position=21)
+        completions = list(completer.get_completions(doc, complete_event))
+        assert any(c.text == "dir2/sub_dir/another.txt" for c in completions)

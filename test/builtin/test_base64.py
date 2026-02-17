@@ -1,8 +1,10 @@
 from unittest import mock
+
 import pytest
+
 from zrb.builtin import base64 as base64_module
-from zrb.session.session import Session
 from zrb.context.shared_context import SharedContext
+from zrb.session.session import Session
 
 
 @pytest.fixture
@@ -24,8 +26,7 @@ async def test_encode_base64(session, mock_print):
 
     # Execute publicly
     result = await encode_task.async_run(
-        session=session,
-        kwargs={"text": "hello world"}
+        session=session, kwargs={"text": "hello world"}
     )
 
     # Assertions
@@ -44,8 +45,7 @@ async def test_decode_base64(session, mock_print):
 
     # Execute publicly
     result = await decode_task.async_run(
-        session=session,
-        kwargs={"text": "aGVsbG8gd29ybGQ="}
+        session=session, kwargs={"text": "aGVsbG8gd29ybGQ="}
     )
 
     # Assertions
@@ -66,7 +66,4 @@ async def test_decode_base64_invalid_input(session, mock_print):
 
     # Execute publicly and expect an error
     with pytest.raises(base64.binascii.Error):
-        await decode_task.async_run(
-            session=session,
-            kwargs={"text": "invalid-base64!"}
-        )
+        await decode_task.async_run(session=session, kwargs={"text": "invalid-base64!"})

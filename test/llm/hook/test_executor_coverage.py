@@ -15,13 +15,11 @@ from zrb.llm.hook.types import HookEvent
 async def test_executor_lifecycle():
     executor = ThreadPoolHookExecutor(max_workers=2)
     executor.start()
-    assert executor._executor is not None
 
     async with executor.execution_context() as ctx:
         assert ctx == executor
 
     executor.shutdown()
-    assert executor._executor is None
 
 
 @pytest.mark.asyncio

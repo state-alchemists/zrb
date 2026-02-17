@@ -1,9 +1,10 @@
+import json
+
 import pytest
 
 from zrb.llm.hook.executor import HookResult
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.schema import CommandHookConfig, HookConfig, MatcherConfig
-from zrb.llm.hook.types import HookEvent, HookType
+from zrb.llm.hook.types import HookEvent
 
 
 def test_hook_result_modifications_mapping():
@@ -17,22 +18,28 @@ def test_hook_result_modifications_mapping():
 
 
 @pytest.mark.asyncio
-async def test_hook_manager_operators():
-    manager = HookManager()
+async def test_hook_manager_operators(tmp_path):
+    manager = HookManager(auto_load=False)
 
-    # Test Glob operator
-    config_glob = HookConfig(
-        name="glob-test",
-        events=[HookEvent.PRE_TOOL_USE],
-        type=HookType.COMMAND,
-        config=CommandHookConfig(command="echo hello"),
-        matchers=[MatcherConfig(field="tool_name", operator="glob", value="*.sh")],
-    )
-    hook_callable = manager._hydrate_hook(config_glob)
-    manager.register(hook_callable, config_glob.events, config_glob)
+    # Create a dummy hook file to test matcher via public scan method
+    hook_dir = tmp_path / "hooks"
+    hook_dir.mkdir()
+    hook_file = hook_dir / "test.json"
+    hook_content = [
+        {
+            "name": "glob-test",
+            "events": ["PreToolUse"],
+            "type": "command",
+            "config": {"command": "echo hello"},
+            "matchers": [{"field": "tool_name", "operator": "glob", "value": "*.sh"}],
+        }
+    ]
+    with open(hook_file, "w") as f:
+        json.dump(hook_content, f)
+
+    manager.scan(search_dirs=[str(hook_dir)])
 
     # Match: should run and return a successful execution result
-    # We pass tool_name explicitly because HookContext uses it
     results = await manager.execute_hooks(
         HookEvent.PRE_TOOL_USE, "some data", tool_name="test.sh"
     )
@@ -49,19 +56,28 @@ async def test_hook_manager_operators():
 
 
 @pytest.mark.asyncio
-async def test_hook_manager_nested_field_access():
-    manager = HookManager()
-    config = HookConfig(
-        name="nested-test",
-        events=[HookEvent.PRE_TOOL_USE],
-        type=HookType.COMMAND,
-        config=CommandHookConfig(command="echo hello"),
-        matchers=[
-            MatcherConfig(field="metadata.user_id", operator="equals", value="123")
-        ],
-    )
-    hook_callable = manager._hydrate_hook(config)
-    manager.register(hook_callable, config.events, config)
+async def test_hook_manager_nested_field_access(tmp_path):
+    manager = HookManager(auto_load=False)
+
+    # Create a dummy hook file to test nested field access via public scan method
+    hook_dir = tmp_path / "hooks"
+    hook_dir.mkdir(exist_ok=True)
+    hook_file = hook_dir / "nested.json"
+    hook_content = [
+        {
+            "name": "nested-test",
+            "events": ["PreToolUse"],
+            "type": "command",
+            "config": {"command": "echo hello"},
+            "matchers": [
+                {"field": "metadata.user_id", "operator": "equals", "value": "123"}
+            ],
+        }
+    ]
+    with open(hook_file, "w") as f:
+        json.dump(hook_content, f)
+
+    manager.scan(search_dirs=[str(hook_dir)])
 
     results = await manager.execute_hooks(
         HookEvent.PRE_TOOL_USE, "data", metadata={"user_id": "123"}

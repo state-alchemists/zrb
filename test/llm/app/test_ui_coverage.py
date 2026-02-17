@@ -24,9 +24,16 @@ def mock_ui_deps():
 def test_ui_public_methods(mock_ui_deps):
     ui = UI(**mock_ui_deps)
     # Test toggle_yolo
-    initial_yolo = ui._yolo  # Using internal check to verify public toggle
+    # Test toggle_yolo
+    assert (
+        not mock_ui_deps["ctx"].xcom.get(mock_ui_deps["yolo_xcom_key"], {}).get(False)
+    )
     ui.toggle_yolo()
-    assert ui._yolo != initial_yolo
+    assert mock_ui_deps["ctx"].xcom.get(mock_ui_deps["yolo_xcom_key"], {}).get(False)
+    ui.toggle_yolo()
+    assert (
+        not mock_ui_deps["ctx"].xcom.get(mock_ui_deps["yolo_xcom_key"], {}).get(False)
+    )
 
     # Test append_to_output
     ui.output_buffer = MagicMock()

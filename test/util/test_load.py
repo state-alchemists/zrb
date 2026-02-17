@@ -19,7 +19,7 @@ def temp_script():
 def test_load_file_success(temp_script):
     # Capture original PYTHONPATH
     original_pythonpath = os.environ.get("PYTHONPATH")
-    
+
     try:
         module = load_file(temp_script)
         assert module is not None
@@ -28,7 +28,7 @@ def test_load_file_success(temp_script):
         # Check path manipulation
         script_dir = os.path.dirname(temp_script)
         assert script_dir in sys.path
-        
+
         # Check PYTHONPATH update
         current_pythonpath = os.environ.get("PYTHONPATH", "")
         assert script_dir in current_pythonpath.split(os.pathsep)

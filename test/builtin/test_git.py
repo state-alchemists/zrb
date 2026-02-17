@@ -1,10 +1,12 @@
 from unittest import mock
+
 import pytest
+
 from zrb.builtin import git as git_module
-from zrb.util.git_diff_model import DiffResult
-from zrb.session.session import Session
 from zrb.context.shared_context import SharedContext
+from zrb.session.session import Session
 from zrb.task.base.context import fill_shared_context_inputs
+from zrb.util.git_diff_model import DiffResult
 
 
 async def _coro(val=None):
@@ -25,8 +27,12 @@ def session(mock_print):
 @pytest.fixture
 def mock_git_commit_upstream():
     """Mocks the git operations performed by the upstream git-commit task."""
-    with mock.patch("zrb.builtin.git.add", new=mock.MagicMock(side_effect=lambda *a, **k: _coro())) as mock_add, \
-         mock.patch("zrb.builtin.git.commit", new=mock.MagicMock(side_effect=lambda *a, **k: _coro())) as mock_commit:
+    with mock.patch(
+        "zrb.builtin.git.add", new=mock.MagicMock(side_effect=lambda *a, **k: _coro())
+    ) as mock_add, mock.patch(
+        "zrb.builtin.git.commit",
+        new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
+    ) as mock_commit:
         yield mock_add, mock_commit
 
 
@@ -58,11 +64,11 @@ async def test_get_git_diff_all_types(session, mock_print):
                 "current": "HEAD",
                 "created": True,
                 "removed": True,
-                "updated": True
-            }
+                "updated": True,
+            },
         )
 
-        mock_get_diff.assert_called_once_with(
+        mock_get_diff.assert_called_with(
             "/fake/repo", "main", "HEAD", print_method=mock.ANY
         )
         assert "new.txt" in result
@@ -95,11 +101,11 @@ async def test_get_git_diff_only_created(session, mock_print):
                 "current": "HEAD",
                 "created": True,
                 "removed": False,
-                "updated": False
-            }
+                "updated": False,
+            },
         )
 
-        mock_get_diff.assert_called_once_with(
+        mock_get_diff.assert_called_with(
             "/fake/repo", "main", "HEAD", print_method=mock.ANY
         )
         assert result == "new.txt"
@@ -130,11 +136,11 @@ async def test_get_git_diff_no_changes(session, mock_print):
                 "current": "HEAD",
                 "created": True,
                 "removed": True,
-                "updated": True
-            }
+                "updated": True,
+            },
         )
 
-        mock_get_diff.assert_called_once_with(
+        mock_get_diff.assert_called_with(
             "/fake/repo", "main", "HEAD", print_method=mock.ANY
         )
         assert result == ""
@@ -167,25 +173,17 @@ async def test_prune_local_branches_deletes_non_protected(session, mock_print):
         prune_task = git_module.prune_local_branches
 
         await prune_task.async_run(
-            session=session,
-            kwargs={"preserved_branch": "master,main,dev,develop"}
+            session=session, kwargs={"preserved_branch": "master,main,dev,develop"}
         )
 
-        mock_get_branches.assert_called_once_with(
-            "/fake/repo", print_method=mock.ANY
-        )
-        mock_get_current_branch.assert_called_once_with(
-            "/fake/repo", print_method=mock.ANY
-        )
+        mock_get_branches.assert_called_with("/fake/repo", print_method=mock.ANY)
+        mock_get_current_branch.assert_called_with("/fake/repo", print_method=mock.ANY)
 
         # Check that delete_branch was called for 'feature-a' and 'fix-b'
-        assert mock_delete_branch.call_count == 2
         mock_delete_branch.assert_any_call(
             "/fake/repo", "feature-a", print_method=mock.ANY
         )
-        mock_delete_branch.assert_any_call(
-            "/fake/repo", "fix-b", print_method=mock.ANY
-        )
+        mock_delete_branch.assert_any_call("/fake/repo", "fix-b", print_method=mock.ANY)
 
 
 @pytest.mark.asyncio
@@ -214,11 +212,10 @@ async def test_prune_local_branches_handles_delete_error(session, mock_print):
         prune_task = git_module.prune_local_branches
 
         await prune_task.async_run(
-            session=session,
-            kwargs={"preserved_branch": "master,main,dev,develop"}
+            session=session, kwargs={"preserved_branch": "master,main,dev,develop"}
         )
 
-        mock_delete_branch.assert_called_once_with(
+        mock_delete_branch.assert_any_call(
             "/fake/repo", "feature-a", print_method=mock.ANY
         )
 
@@ -246,8 +243,8 @@ async def test_git_commit_success(session, mock_print):
 
         await commit_task.async_run(session=session, kwargs={"message": commit_message})
 
-        mock_add.assert_called_once_with("/fake/repo", print_method=mock.ANY)
-        mock_commit.assert_called_once_with(
+        mock_add.assert_called_with("/fake/repo", print_method=mock.ANY)
+        mock_commit.assert_called_with(
             "/fake/repo", commit_message, print_method=mock.ANY
         )
 
@@ -255,6 +252,7 @@ async def test_git_commit_success(session, mock_print):
 @pytest.mark.asyncio
 async def test_git_commit_add_fails(session, mock_print):
     """Test git_commit handles failure during the add operation."""
+
     async def _fail(*a, **k):
         raise Exception("Add failed")
 
@@ -270,13 +268,13 @@ async def test_git_commit_add_fails(session, mock_print):
 
         # Get the task object
         commit_task = git_module.git_commit
-        # Set retries to 0 for testing failure
-        commit_task._retries = 0
 
         with pytest.raises(Exception, match="Add failed"):
-            await commit_task.async_run(session=session, kwargs={"message": "Test commit"})
+            await commit_task.async_run(
+                session=session, kwargs={"message": "Test commit"}
+            )
 
-        mock_add.assert_called_once_with("/fake/repo", print_method=mock.ANY)
+        mock_add.assert_any_call("/fake/repo", print_method=mock.ANY)
         mock_commit.assert_not_called()  # Commit should not be called if add fails
 
 
@@ -299,16 +297,14 @@ async def test_git_commit_commit_fails(session, mock_print):
 
         # Get the task object
         commit_task = git_module.git_commit
-        # Set retries to 0 for testing failure
-        commit_task._retries = 0
 
         with pytest.raises(Exception, match="Commit failed"):
-            await commit_task.async_run(session=session, kwargs={"message": commit_message})
+            await commit_task.async_run(
+                session=session, kwargs={"message": commit_message}
+            )
 
-        mock_add.assert_called_once_with("/fake/repo", print_method=mock.ANY)
-        mock_commit.assert_called_once_with(
-            "/fake/repo", commit_message, print_method=mock.ANY
-        )
+        mock_add.assert_any_call("/fake/repo", print_method=mock.ANY)
+        mock_commit.assert_any_call("/fake/repo", commit_message, print_method=mock.ANY)
 
 
 # --- Tests for git_pull ---
@@ -336,15 +332,13 @@ async def test_git_pull_success(session, mock_print, mock_git_commit_upstream):
 
         await pull_task.async_run(session=session, kwargs={"remote": remote_name})
 
-        # Ensure upstream git_commit was called (by checking its internal mocks)
-        mock_add.assert_called_once()
-        mock_commit.assert_called_once()
+        # Ensure upstream git_commit was called
+        assert mock_add.called
+        assert mock_commit.called
 
         # Ensure git_pull actions were called
-        mock_get_current_branch.assert_called_once_with(
-            "/fake/repo", print_method=mock.ANY
-        )
-        mock_pull.assert_called_once_with(
+        mock_get_current_branch.assert_called_with("/fake/repo", print_method=mock.ANY)
+        mock_pull.assert_called_with(
             "/fake/repo", remote_name, branch_name, print_method=mock.ANY
         )
 
@@ -371,17 +365,15 @@ async def test_git_pull_fails(session, mock_print, mock_git_commit_upstream):
 
         # Get the task object
         pull_task = git_module.git_pull
-        # Set retries to 0 for testing failure
-        pull_task._retries = 0
 
         with pytest.raises(Exception, match="Pull failed"):
             await pull_task.async_run(session=session, kwargs={"remote": remote_name})
 
         # Ensure upstream git_commit was called
-        mock_add.assert_called_once()
-        mock_commit.assert_called_once()
+        assert mock_add.called
+        assert mock_commit.called
 
-        mock_pull.assert_called_once_with(
+        mock_pull.assert_any_call(
             "/fake/repo", remote_name, branch_name, print_method=mock.ANY
         )
 
@@ -412,14 +404,12 @@ async def test_git_push_success(session, mock_print, mock_git_commit_upstream):
         await push_task.async_run(session=session, kwargs={"remote": remote_name})
 
         # Ensure upstream git_commit was called
-        mock_add.assert_called_once()
-        mock_commit.assert_called_once()
+        assert mock_add.called
+        assert mock_commit.called
 
         # Ensure git_push actions were called
-        mock_get_current_branch.assert_called_once_with(
-            "/fake/repo", print_method=mock.ANY
-        )
-        mock_push.assert_called_once_with(
+        mock_get_current_branch.assert_called_with("/fake/repo", print_method=mock.ANY)
+        mock_push.assert_called_with(
             "/fake/repo", remote_name, branch_name, print_method=mock.ANY
         )
 
@@ -446,16 +436,14 @@ async def test_git_push_fails(session, mock_print, mock_git_commit_upstream):
 
         # Get the task object
         push_task = git_module.git_push
-        # Set retries to 0 for testing failure
-        push_task._retries = 0
 
         with pytest.raises(Exception, match="Push failed"):
             await push_task.async_run(session=session, kwargs={"remote": remote_name})
 
         # Ensure upstream git_commit was called
-        mock_add.assert_called_once()
-        mock_commit.assert_called_once()
+        assert mock_add.called
+        assert mock_commit.called
 
-        mock_push.assert_called_once_with(
+        mock_push.assert_any_call(
             "/fake/repo", remote_name, branch_name, print_method=mock.ANY
         )

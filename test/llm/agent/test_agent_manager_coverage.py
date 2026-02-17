@@ -7,10 +7,26 @@ from zrb.llm.agent.manager import SubAgentDefinition, SubAgentManager
 
 def test_sub_agent_manager_add_tool():
     manager = SubAgentManager(auto_load=False)
-    tool = MagicMock()
-    tool.__name__ = "my_tool"
-    manager.add_tool(tool)
-    assert "my_tool" in manager._tool_registry
+
+    def my_tool():
+        """My tool"""
+        return "ok"
+
+    manager.add_tool(my_tool)
+
+    agent_def = SubAgentDefinition(
+        name="test-agent",
+        path=".",
+        description="Test",
+        system_prompt="Prompt",
+        tools=["my_tool"],
+    )
+    manager.add_agent(agent_def)
+
+    with patch("zrb.llm.agent.manager.create_agent") as mock_create_agent:
+        manager.create_agent("test-agent")
+        resolved_tools = mock_create_agent.call_args.kwargs["tools"]
+        assert my_tool in resolved_tools
 
 
 def test_sub_agent_manager_scan():

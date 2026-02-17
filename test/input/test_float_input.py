@@ -26,6 +26,8 @@ def test_float_input_get_default_str():
 
 def test_float_input_parse_str_value():
     float_input = FloatInput(name="my_float")
-    value = float_input._parse_str_value("7.89")
+    shared_ctx = SharedContext()
+    float_input.update_shared_context(shared_ctx, str_value="7.89")
+    value = shared_ctx.input.my_float
     assert value == 7.89
     assert isinstance(value, float)

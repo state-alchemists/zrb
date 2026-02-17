@@ -27,7 +27,8 @@ def test_password_input_prompt_cli_str(mock_getpass):
         default="default-pass",
     )
     shared_ctx = SharedContext(env={})
-    value = password_input._prompt_cli_str(shared_ctx)
+    # Use public method
+    value = password_input.prompt_cli_str(shared_ctx)
     assert value == "user-input"
     mock_getpass.assert_called_with("Enter your password: ")
 
@@ -39,8 +40,10 @@ def test_password_input_prompt_cli_str_empty_uses_default(mock_getpass):
         name="my_password",
         prompt="Enter your password",
         default="default-pass",
+        allow_empty=True,  # Ensure it doesn't loop if empty
     )
     shared_ctx = SharedContext(env={})
-    value = password_input._prompt_cli_str(shared_ctx)
+    # Use public method
+    value = password_input.prompt_cli_str(shared_ctx)
     assert value == "default-pass"
     mock_getpass.assert_called_with("Enter your password: ")
