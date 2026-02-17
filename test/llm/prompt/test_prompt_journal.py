@@ -31,12 +31,12 @@ def test_get_journal_prompt_with_local_override():
         local_content = "# Local Journal Override\n\nThis is a local override."
         with open(local_journal_path, "w") as f:
             f.write(local_content)
-        
+
         # Mock CFG to use our temp directory
         with patch("zrb.llm.prompt.prompt.CFG") as mock_cfg:
             mock_cfg.LLM_PROMPT_DIR = ".zrb/llm/prompt"
             mock_cfg.ENV_PREFIX = "ZRB"
-            
+
             # Change to temp directory and get prompt
             original_cwd = os.getcwd()
             os.chdir(temp_dir)
@@ -52,13 +52,13 @@ def test_get_journal_prompt_with_environment_variable():
     """Test get_journal_prompt uses environment variable when set."""
     # Set environment variable
     os.environ["ZRB_LLM_PROMPT_JOURNAL"] = "# Env Journal\n\nFrom environment variable."
-    
+
     try:
         # Mock CFG
         with patch("zrb.llm.prompt.prompt.CFG") as mock_cfg:
             mock_cfg.ENV_PREFIX = "ZRB"
             mock_cfg.LLM_PROMPT_DIR = ".zrb/llm/prompt"
-            
+
             prompt = get_journal_prompt()
             assert "Env Journal" in prompt
             assert "From environment variable" in prompt
@@ -73,7 +73,7 @@ def test_get_journal_prompt_replaces_placeholders():
         mock_cfg.LLM_JOURNAL_DIR = "/test/journal/dir"
         mock_cfg.LLM_JOURNAL_INDEX_FILE = "test_index.md"
         mock_cfg.ENV_PREFIX = "ZRB"
-        
+
         prompt = get_journal_prompt()
         assert "/test/journal/dir" in prompt
         assert "test_index.md" in prompt
@@ -87,10 +87,10 @@ def test_get_journal_prompt_returns_empty_string_when_missing():
     # Temporarily rename the journal.md file
     journal_path = "src/zrb/llm/prompt/markdown/journal.md"
     temp_path = "src/zrb/llm/prompt/markdown/journal.md.bak"
-    
+
     if os.path.exists(journal_path):
         os.rename(journal_path, temp_path)
-    
+
     try:
         prompt = get_journal_prompt()
         assert prompt == ""

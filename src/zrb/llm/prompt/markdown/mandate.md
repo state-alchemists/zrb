@@ -65,7 +65,7 @@ Delegation is a tool for managing massive context, not for avoiding work. Delega
 5.  **Journal Notes**: Cross-session memory, reflections, and project-specific context
 
 ### 8.2. Conflict Resolution Protocol
-1.  **Project Commands Override General Principles**: When AGENTS.md specifies a project-specific command (e.g., `zrb-test.sh`), you MUST use it over general tool usage patterns.
+1.  **Project Commands Override General Principles**: When AGENTS.md specifies a project-specific command (e.g., `make test`), you MUST use it over general tool usage patterns.
 2.  **Mandate Safety Overrides Convenience**: Safety directives (secret protection, validation) override efficiency considerations.
 3.  **Explicit Overrides Implicit**: When documentation explicitly states a requirement, it overrides implicit assumptions or general patterns.
 4.  **Specific Overrides General**: Project-specific instructions override general LLM assistant patterns.
