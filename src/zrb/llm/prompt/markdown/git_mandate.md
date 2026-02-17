@@ -1,0 +1,4 @@
+- **Git Operational Mandates:**
+  - You MUST NEVER stage or commit changes unless explicitly instructed by the user.
+  - Before any commit, you MUST ALWAYS gather information using `git status && git diff HEAD`.
+  - You MUST ALWAYS propose a draft commit message and await user approval.

@@ -9,7 +9,11 @@ from zrb.llm.prompt.claude import (
 )
 from zrb.llm.prompt.cli import create_cli_skills_prompt
 from zrb.llm.prompt.journal import create_journal_prompt
-from zrb.llm.prompt.prompt import get_mandate_prompt, get_persona_prompt
+from zrb.llm.prompt.prompt import (
+    get_git_mandate_prompt,
+    get_mandate_prompt,
+    get_persona_prompt,
+)
 from zrb.llm.prompt.system_context import system_context
 from zrb.llm.skill.manager import SkillManager
 from zrb.llm.skill.manager import skill_manager as default_skill_manager
@@ -30,6 +34,7 @@ class PromptManager:
         assistant_name: str | Callable[[AnyContext], str] | None = None,
         include_persona: bool = True,
         include_mandate: bool = True,
+        include_git_mandate: bool = True,
         include_system_context: bool = True,
         include_journal: bool = True,
         include_claude_skills: bool = True,
@@ -44,6 +49,7 @@ class PromptManager:
         self._assistant_name = assistant_name
         self._include_persona = include_persona
         self._include_mandate = include_mandate
+        self._include_git_mandate = include_git_mandate
         self._include_system_context = include_system_context
         self._include_journal = include_journal
         self._include_claude_skills = include_claude_skills
@@ -67,6 +73,8 @@ class PromptManager:
             )
         if self._include_mandate:
             middlewares.append(new_prompt(lambda: get_mandate_prompt()))
+        if self._include_git_mandate:
+            middlewares.append(new_prompt(lambda: get_git_mandate_prompt()))
         if self._include_system_context:
             middlewares.append(system_context)
         if self._include_journal:

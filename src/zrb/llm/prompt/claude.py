@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from typing import Callable, List, Optional
 
@@ -37,51 +38,89 @@ def create_project_context_prompt():
         next_handler: Callable[[AnyContext, str], str],
     ) -> str:
         search_dirs = _get_search_directories()
-
-        # 1. Try to read and inject content directly
-        injected_content = []
-        total_length = 0
+        project_docs = []
+        found_files_paths = []
 
         for filename in ["CLAUDE.md", "AGENTS.md"]:
             content = _get_combined_content(filename, search_dirs)
             if content:
-                injected_content.append(f"## Content of {filename}\n{content}")
-                total_length += len(content)
+                summary = _summarize_markdown(content, max_len=10000)
+                doc_section = (
+                    f"## Summary of {filename}\n"
+                    "The following is a summary. Use the 'Read' tool to get the full content of the file when needed.\n\n"
+                    f"{summary}"
+                )
+                project_docs.append(doc_section)
 
-        # If content is reasonably small, inject it directly
-        if 0 < total_length < 10000:
-            return next_handler(
-                ctx,
-                f"{current_prompt}\n\n{make_markdown_section('Project Documentation (Loaded)', '\n\n'.join(injected_content))}",
-            )
-
-        # 2. Fallback: List files if too large or empty (but found)
-        # Scan for context files again (since we might have skipped injection due to size)
-        found_files = []
-        for filename in ["CLAUDE.md", "AGENTS.md"]:
+            # Track found file paths for fallback message
             for directory in search_dirs:
                 file_path = directory / filename
                 if file_path.exists() and file_path.is_file():
-                    found_files.append(f"- `{file_path}`")
-                    break  # Stop searching for this file once found
+                    found_files_paths.append(f"- `{file_path}`")
+                    break
 
-        if not found_files:
+        if project_docs:
+            # Content was found and summarized
+            return next_handler(
+                ctx,
+                f"{current_prompt}\n\n{make_markdown_section('Project Documentation Summary', '\n\n'.join(project_docs))}",
+            )
+        elif found_files_paths:
+            # Files were found but might be empty or content could not be processed
+            context_message = (
+                "The following project documentation files are available. "
+                "You MUST ALWAYS `Read` them if you need to understand "
+                "project conventions, architectural patterns, or specific guidelines. "
+                "NEVER assume project structure without verifying these files:\n"
+                + "\n".join(found_files_paths)
+            )
+            return next_handler(
+                ctx,
+                f"{current_prompt}\n\n{make_markdown_section('Project Documentation', context_message)}",
+            )
+        else:
+            # No documentation found
             return next_handler(ctx, current_prompt)
 
-        context_message = (
-            "The following project documentation files are available. "
-            "You MUST ALWAYS `Read` them if you need to understand "
-            "project conventions, architectural patterns, or specific guidelines. "
-            "NEVER assume project structure without verifying these files:\n"
-            + "\n".join(found_files)
-        )
-
-        return next_handler(
-            ctx,
-            f"{current_prompt}\n\n{make_markdown_section('Project Documentation', context_message)}",
-        )
-
     return project_context
+
+
+def _summarize_markdown(
+    content: str, max_len: int = 10000, snippet_len: int = 250
+) -> str:
+    summary = []
+    total_length = 0
+
+    # Regex to find markdown headers
+    header_pattern = re.compile(r"(^|\n)(#+)\s+(.*)")
+    matches = list(header_pattern.finditer(content))
+
+    if not matches:
+        # If no headers, just truncate the whole content
+        return (
+            content[:max_len] + "... (more)" if len(content) > max_len else content
+        )
+
+    for i, match in enumerate(matches):
+        header = match.group(0).strip()
+        summary.append(header)
+        total_length += len(header)
+
+        # Get the content between this header and the next
+        start_pos = match.end()
+        end_pos = matches[i + 1].start() if i + 1 < len(matches) else len(content)
+        snippet = content[start_pos:end_pos].strip()
+
+        if snippet:
+            if len(snippet) > snippet_len:
+                snippet = snippet[:snippet_len].strip() + "... (more)"
+            summary.append(snippet)
+            total_length += len(snippet)
+
+        if total_length > max_len:
+            break
+
+    return "\n\n".join(summary)[:max_len]
 
 
 def _get_search_directories() -> list[Path]:

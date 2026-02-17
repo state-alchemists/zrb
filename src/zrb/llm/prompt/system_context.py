@@ -46,36 +46,48 @@ def system_context(
 
 
 def _get_project_files() -> str:
-    high_signal_files = [
-        "README.md",
-        "AGENTS.md",
-        "CLAUDE.md",
-        "pyproject.toml",
-        "requirements.txt",
-        "poetry.lock",
-        "setup.py",
-        "package.json",
-        "package-lock.json",
-        "pnpm-lock.yaml",
-        "yarn.lock",
-        "go.mod",
-        "Cargo.toml",
-        "pom.xml",
-        "build.gradle",
-        "Gemfile",
-        "Gemfile.lock",
-        "Rakefile",
-        "composer.json",
-        "composer.lock",
-        "Dockerfile",
-        "docker-compose.yml",
-        "Makefile",
-        ".env",
-        "template.env",
-        f"{CFG.ROOT_GROUP_NAME}_init.py",
-    ]
-    found = [f for f in high_signal_files if os.path.exists(f)]
-    return ", ".join(found) if found else ""
+    # Define file categories for semantic grouping
+    file_categories = {
+        "Documentation": ["README.md", "AGENTS.md", "CLAUDE.md"],
+        "Python": [
+            "pyproject.toml",
+            "requirements.txt",
+            "setup.py",
+            f"{CFG.ROOT_GROUP_NAME}_init.py",
+        ],
+        "JavaScript/Node.js": [
+            "package.json",
+            "pnpm-lock.yaml",
+            "yarn.lock",
+            "webpack.config.js",
+            "babel.config.js",
+        ],
+        "Go": ["go.mod", "go.sum"],
+        "Rust": ["Cargo.toml", "Cargo.lock"],
+        "Java": ["pom.xml", "build.gradle"],
+        "Ruby": ["Gemfile", "Rakefile"],
+        "PHP": ["composer.json"],
+        "Containerization": ["Dockerfile", "docker-compose.yml", ".dockerignore"],
+        "Infrastructure & CI/CD": ["Makefile", ".gitlab-ci.yml", ".travis.yml"],
+        "Configuration": [".env", "template.env"],
+    }
+
+    found_by_category = {}
+    for category, files in file_categories.items():
+        found = [f for f in files if os.path.exists(f)]
+        if found:
+            found_by_category[category] = found
+
+    if not found_by_category:
+        return ""
+
+    # Format the output
+    output_lines = []
+    for category, files in found_by_category.items():
+        files_str = ", ".join(files)
+        output_lines.append(f"  - **{category}**: {files_str}")
+
+    return "\n" + "\n".join(output_lines)
 
 
 def _get_runtime_info() -> str:
@@ -95,8 +107,6 @@ def _get_runtime_info() -> str:
         version = _get_tool_version(cmd, args)
         if version:
             info_lines.append(f"- **{label}**: {version}")
-        else:
-            info_lines.append(f"- **{label}**: Not installed")
 
     return "\n".join(info_lines)
 
@@ -139,13 +149,6 @@ def _get_git_info() -> str:
         status_summary = (
             "Clean" if not status_res.stdout.strip() else "Dirty (Uncommitted changes)"
         )
-        return (
-            f"- **Branch:** {branch}\n"
-            f"- **Status:** {status_summary}\n"
-            "- **Git Operational Mandates:**\n"
-            "  - You MUST NEVER stage or commit changes unless explicitly instructed by the user.\n"
-            "  - Before any commit, you MUST ALWAYS gather information using `git status && git diff HEAD`.\n"
-            "  - You MUST ALWAYS propose a draft commit message and await user approval."
-        )
+        return f"- **Branch:** {branch}\n- **Status:** {status_summary}"
     except Exception:
         return ""

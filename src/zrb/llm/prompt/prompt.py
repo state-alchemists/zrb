@@ -21,6 +21,12 @@ def get_mandate_prompt() -> str:
     return _replace_prompt_placeholders(prompt, replacements)
 
 
+def get_git_mandate_prompt() -> str:
+    prompt = get_default_prompt("git_mandate")
+    replacements = _get_prompt_replacements()
+    return _replace_prompt_placeholders(prompt, replacements)
+
+
 def get_summarizer_system_prompt() -> str:
     prompt = get_default_prompt("summarizer")
     replacements = _get_prompt_replacements()
