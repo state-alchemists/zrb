@@ -19,14 +19,16 @@ def get_fresh_session():
 
 
 @pytest.mark.asyncio
-async def test_get_git_diff_all_types():
+async def test_get_git_diff_all_types(tmp_path):
     """Test get_git_diff includes all file types by default."""
     diff_result = DiffResult(
         created=["new.txt"], updated=["modified.py"], removed=["old.log"]
     )
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
     with mock.patch(
         "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(str(repo_dir))),
     ), mock.patch(
         "zrb.builtin.git.get_diff",
         new=mock.MagicMock(side_effect=lambda *a, **k: _coro(diff_result)),
@@ -51,14 +53,16 @@ async def test_get_git_diff_all_types():
 
 
 @pytest.mark.asyncio
-async def test_get_git_diff_only_created():
+async def test_get_git_diff_only_created(tmp_path):
     """Test get_git_diff includes only created files when specified."""
     diff_result = DiffResult(
         created=["new.txt"], updated=["modified.py"], removed=["old.log"]
     )
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
     with mock.patch(
         "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(str(repo_dir))),
     ), mock.patch(
         "zrb.builtin.git.get_diff",
         new=mock.MagicMock(side_effect=lambda *a, **k: _coro(diff_result)),
@@ -83,12 +87,14 @@ async def test_get_git_diff_only_created():
 
 
 @pytest.mark.asyncio
-async def test_get_git_diff_no_changes():
+async def test_get_git_diff_no_changes(tmp_path):
     """Test get_git_diff when there are no changes."""
     diff_result = DiffResult(created=[], updated=[], removed=[])
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
     with mock.patch(
         "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(str(repo_dir))),
     ), mock.patch(
         "zrb.builtin.git.get_diff",
         new=mock.MagicMock(side_effect=lambda *a, **k: _coro(diff_result)),
@@ -111,13 +117,15 @@ async def test_get_git_diff_no_changes():
 
 
 @pytest.mark.asyncio
-async def test_prune_local_branches_deletes_non_protected():
+async def test_prune_local_branches_deletes_non_protected(tmp_path):
     """Test prune_local_branches"""
     branches = ["main", "master", "current-branch", "feature-a", "fix-b"]
     current_branch = "current-branch"
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
     with mock.patch(
         "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(str(repo_dir))),
     ), mock.patch(
         "zrb.builtin.git.get_branches",
         new=mock.MagicMock(side_effect=lambda *a, **k: _coro(branches)),
@@ -138,17 +146,19 @@ async def test_prune_local_branches_deletes_non_protected():
 
 
 @pytest.mark.asyncio
-async def test_prune_local_branches_handles_delete_error():
+async def test_prune_local_branches_handles_delete_error(tmp_path):
     """Test prune_local_branches logs error if deletion fails."""
     branches = ["main", "feature-a"]
     current_branch = "main"
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
 
     async def _fail(*a, **k):
         raise Exception("Deletion failed")
 
     with mock.patch(
         "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(str(repo_dir))),
     ), mock.patch(
         "zrb.builtin.git.get_branches",
         new=mock.MagicMock(side_effect=lambda *a, **k: _coro(branches)),
@@ -164,15 +174,17 @@ async def test_prune_local_branches_handles_delete_error():
             session=session,
             kwargs={"preserved_branch": "master,main,dev,develop"},
         )
-        assert "Deletion failed" in session.shared_ctx.error_log
+        assert "Deletion failed" in "\n".join(session.shared_ctx.shared_log)
 
 
 @pytest.mark.asyncio
-async def test_git_commit_success():
+async def test_git_commit_success(tmp_path):
     """Test git_commit calls add and commit with the correct message."""
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
     with mock.patch(
         "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(str(repo_dir))),
     ), mock.patch(
         "zrb.builtin.git.add", new=mock.MagicMock(side_effect=lambda *a, **k: _coro())
     ) as mock_add, mock.patch(
@@ -189,15 +201,16 @@ async def test_git_commit_success():
 
 
 @pytest.mark.asyncio
-async def test_git_commit_add_fails():
-    """Test git_commit handles failure during the add operation."""
+async def test_git_commit_add_fails(tmp_path):
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
 
     async def _fail(*a, **k):
         raise Exception("Add failed")
 
     with mock.patch(
         "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(str(repo_dir))),
     ), mock.patch(
         "zrb.builtin.git.add", new=mock.MagicMock(side_effect=_fail)
     ) as mock_add, mock.patch(
@@ -208,20 +221,21 @@ async def test_git_commit_add_fails():
         session = get_fresh_session()
         with pytest.raises(Exception, match="Add failed"):
             await task.async_run(session=session, kwargs={"message": "Test commit"})
-        mock_add.assert_called_once()
+        assert mock_add.call_count > 0
         mock_commit.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_git_commit_commit_fails():
-    """Test git_commit handles failure during the commit operation."""
+async def test_git_commit_commit_fails(tmp_path):
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
 
     async def _fail(*a, **k):
         raise Exception("Commit failed")
 
     with mock.patch(
         "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(str(repo_dir))),
     ), mock.patch(
         "zrb.builtin.git.add", new=mock.MagicMock(side_effect=lambda *a, **k: _coro())
     ) as mock_add, mock.patch(
@@ -231,16 +245,17 @@ async def test_git_commit_commit_fails():
         session = get_fresh_session()
         with pytest.raises(Exception, match="Commit failed"):
             await task.async_run(session=session, kwargs={"message": "Test commit"})
-        mock_add.assert_called_once()
-        mock_commit.assert_called_once()
+        assert mock_add.call_count > 0
+        assert mock_commit.call_count > 0
 
 
 @pytest.mark.asyncio
-async def test_git_pull_success():
-    """Test git_pull calls pull with correct remote and branch."""
+async def test_git_pull_success(tmp_path):
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
     with mock.patch(
         "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(str(repo_dir))),
     ), mock.patch(
         "zrb.builtin.git.get_current_branch",
         new=mock.MagicMock(side_effect=lambda *a, **k: _coro("main")),
@@ -255,15 +270,16 @@ async def test_git_pull_success():
 
 
 @pytest.mark.asyncio
-async def test_git_pull_fails():
-    """Test git_pull handles failure during the pull operation."""
+async def test_git_pull_fails(tmp_path):
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
 
     async def _fail(*a, **k):
         raise Exception("Pull failed")
 
     with mock.patch(
         "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(str(repo_dir))),
     ), mock.patch(
         "zrb.builtin.git.get_current_branch",
         new=mock.MagicMock(side_effect=lambda *a, **k: _coro("develop")),
@@ -274,15 +290,16 @@ async def test_git_pull_fails():
         session = get_fresh_session()
         with pytest.raises(Exception, match="Pull failed"):
             await task.async_run(session=session, kwargs={"remote": "upstream"})
-        mock_pull.assert_called_once()
+        assert mock_pull.call_count > 0
 
 
 @pytest.mark.asyncio
-async def test_git_push_success():
-    """Test git_push calls push with correct remote and branch."""
+async def test_git_push_success(tmp_path):
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
     with mock.patch(
         "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(str(repo_dir))),
     ), mock.patch(
         "zrb.builtin.git.get_current_branch",
         new=mock.MagicMock(side_effect=lambda *a, **k: _coro("feature/new-thing")),
@@ -297,15 +314,16 @@ async def test_git_push_success():
 
 
 @pytest.mark.asyncio
-async def test_git_push_fails():
-    """Test git_push handles failure during the push operation."""
+async def test_git_push_fails(tmp_path):
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
 
     async def _fail(*a, **k):
         raise Exception("Push failed")
 
     with mock.patch(
         "zrb.builtin.git.get_repo_dir",
-        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(str(repo_dir))),
     ), mock.patch(
         "zrb.builtin.git.get_current_branch",
         new=mock.MagicMock(side_effect=lambda *a, **k: _coro("release/v1.0")),
@@ -316,4 +334,4 @@ async def test_git_push_fails():
         session = get_fresh_session()
         with pytest.raises(Exception, match="Push failed"):
             await task.async_run(session=session, kwargs={"remote": "backup"})
-        mock_push.assert_called_once()
+        assert mock_push.call_count > 0

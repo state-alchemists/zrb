@@ -25,25 +25,26 @@ async def test_hash_md5_success():
 
 
 @pytest.mark.asyncio
-@mock.patch("builtins.open", new_callable=mock.mock_open, read_data=b"file content")
-async def test_sum_md5_success(mock_open):
+async def test_sum_md5_success(tmp_path):
     """Test sum_md5 correctly calculates the checksum of file content."""
+    file_path = tmp_path / "test_file.txt"
+    file_path.write_bytes(b"file content")
+
     task = md5_module.sum_md5
     session = get_fresh_session()
     session.set_main_task(task)
-    await task.async_run(session=session, kwargs={"file": "test_file.txt"})
+    await task.async_run(session=session, kwargs={"file": str(file_path)})
     expected_hash = "d10b4c3ff123b26dc068d43a8bef2d23"
     assert session.final_result == expected_hash
-    mock_open.assert_called_once_with("test_file.txt", mode="rb")
 
 
 @pytest.mark.asyncio
-@mock.patch("builtins.open", side_effect=FileNotFoundError("File not found"))
-async def test_sum_md5_file_not_found(mock_open):
+async def test_sum_md5_file_not_found(tmp_path):
     """Test sum_md5 handles FileNotFoundError."""
+    file_path = tmp_path / "nonexistent_file.txt"
+
     task = md5_module.sum_md5
     session = get_fresh_session()
     session.set_main_task(task)
     with pytest.raises(FileNotFoundError, match="File not found"):
-        await task.async_run(session=session, kwargs={"file": "nonexistent_file.txt"})
-    mock_open.assert_called_once_with("nonexistent_file.txt", mode="rb")
+        await task.async_run(session=session, kwargs={"file": str(file_path)})
