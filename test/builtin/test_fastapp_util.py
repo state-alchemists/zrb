@@ -4,6 +4,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from zrb.builtin.project.add.fastapp.fastapp_util import (
+    _get_import_load_file_code,
+    _get_load_app_name_task_code,
     is_in_project_app_dir,
     is_project_zrb_init_file,
 )
@@ -28,3 +30,14 @@ def test_is_project_zrb_init_file(mock_ctx):
     zrb_init = os.path.abspath("/path/to/project/zrb_init.py")
     assert is_project_zrb_init_file(mock_ctx, zrb_init) is True
     assert is_project_zrb_init_file(mock_ctx, "/path/to/project/main.py") is False
+
+
+def test_get_import_load_file_code():
+    assert _get_import_load_file_code("some code") == "from zrb import load_file"
+    assert _get_import_load_file_code("from zrb import load_file\nmore code") is None
+
+
+def test_get_load_app_name_task_code():
+    code = _get_load_app_name_task_code("MyApp")
+    assert "my_app = load_file" in code
+    assert 'os.path.join(_DIR, "my_app", "_zrb", "task.py")' in code

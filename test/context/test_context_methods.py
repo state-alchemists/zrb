@@ -21,6 +21,7 @@ def mock_shared_ctx():
 
 def test_context_init(mock_shared_ctx):
     ctx = Context(mock_shared_ctx, "task1", 32, "icon")
+    assert ctx._task_name == "task1"
     assert repr(ctx) == f"<Context shared_ctx={mock_shared_ctx}>"
 
 

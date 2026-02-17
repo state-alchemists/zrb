@@ -40,4 +40,23 @@ def test_load_module_fail():
         load_module("non_existent_module_xyz")
 
 
+def test_get_new_python_path():
+    original = os.environ.get("PYTHONPATH")
+    try:
+        # Case 1: Empty
+        if "PYTHONPATH" in os.environ:
+            del os.environ["PYTHONPATH"]
+        assert _get_new_python_path("/foo") == "/foo"
 
+        # Case 2: Append
+        os.environ["PYTHONPATH"] = "/bar"
+        assert _get_new_python_path("/foo") == "/bar:/foo"
+
+        # Case 3: Exists
+        os.environ["PYTHONPATH"] = "/bar:/foo"
+        assert _get_new_python_path("/foo") == "/bar:/foo"
+    finally:
+        if original:
+            os.environ["PYTHONPATH"] = original
+        elif "PYTHONPATH" in os.environ:
+            del os.environ["PYTHONPATH"]

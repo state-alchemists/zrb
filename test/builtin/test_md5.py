@@ -1,50 +1,74 @@
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
 
+# Import task objects from the module
 from zrb.builtin import md5 as md5_module
-from zrb.context.shared_context import SharedContext
-from zrb.session.session import Session
 
 
-def get_fresh_session():
-    shared_ctx = SharedContext()
-    session = Session(shared_ctx=shared_ctx)
-    return session
+@pytest.fixture
+def mock_context():
+    """Fixture for a mocked AnyContext."""
+    context = mock.MagicMock()
+    context.input = SimpleNamespace()
+    context.print = mock.MagicMock()
+    context.log_error = mock.MagicMock()  # Keep for consistency, might be needed later
+    return context
+
+
+# --- Tests for hash_md5 ---
 
 
 @pytest.mark.asyncio
-async def test_hash_md5_success():
+async def test_hash_md5_success(mock_context):
     """Test hash_md5 correctly hashes the input text."""
-    task = md5_module.hash_md5
-    session = get_fresh_session()
-    session.set_main_task(task)
-    await task.async_run(session=session, kwargs={"text": "hello world"})
+    input_text = "hello world"
     expected_hash = "5eb63bbbe01eeed093cb22bb8f5acdc3"
-    assert session.final_result == expected_hash
+    mock_context.input.text = input_text
+
+    # Get the task object
+    hash_task = md5_module.hash_md5
+
+    result = await hash_task._exec_action(mock_context)
+
+    assert result == expected_hash
+    mock_context.print.assert_called_once_with(expected_hash)
+
+
+# --- Tests for sum_md5 ---
 
 
 @pytest.mark.asyncio
-async def test_sum_md5_success(tmp_path):
+@mock.patch("builtins.open", new_callable=mock.mock_open, read_data=b"file content")
+async def test_sum_md5_success(mock_open, mock_context):
     """Test sum_md5 correctly calculates the checksum of file content."""
-    file_path = tmp_path / "test_file.txt"
-    file_path.write_bytes(b"file content")
+    file_path = "test_file.txt"
+    expected_hash = "d10b4c3ff123b26dc068d43a8bef2d23"  # Correct MD5 of b"file content"
+    mock_context.input.file = file_path
 
-    task = md5_module.sum_md5
-    session = get_fresh_session()
-    session.set_main_task(task)
-    await task.async_run(session=session, kwargs={"file": str(file_path)})
-    expected_hash = "d10b4c3ff123b26dc068d43a8bef2d23"
-    assert session.final_result == expected_hash
+    # Get the task object
+    sum_task = md5_module.sum_md5
+
+    result = await sum_task._exec_action(mock_context)
+
+    mock_open.assert_called_once_with(file_path, mode="rb")
+    assert result == expected_hash
+    mock_context.print.assert_called_once_with(expected_hash)
 
 
 @pytest.mark.asyncio
-async def test_sum_md5_file_not_found(tmp_path):
+@mock.patch("builtins.open", side_effect=FileNotFoundError("File not found"))
+async def test_sum_md5_file_not_found(mock_open, mock_context):
     """Test sum_md5 handles FileNotFoundError."""
-    file_path = tmp_path / "nonexistent_file.txt"
+    file_path = "nonexistent_file.txt"
+    mock_context.input.file = file_path
 
-    task = md5_module.sum_md5
-    session = get_fresh_session()
-    session.set_main_task(task)
+    # Get the task object
+    sum_task = md5_module.sum_md5
+
     with pytest.raises(FileNotFoundError, match="File not found"):
-        await task.async_run(session=session, kwargs={"file": str(file_path)})
+        await sum_task._exec_action(mock_context)
+
+    mock_open.assert_called_once_with(file_path, mode="rb")
+    mock_context.print.assert_not_called()

@@ -20,7 +20,7 @@ def _approve_if_path_inside_parent(args: dict[str, any], parent_path: str) -> bo
         if isinstance(paths, list):
             return all(_path_inside_parent(str(p), parent_path) for p in paths)
         return False
-    return False
+    return True
 
 
 def _path_inside_parent(path: str, parent_path: str) -> bool:

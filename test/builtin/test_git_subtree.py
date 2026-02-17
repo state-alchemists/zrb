@@ -2,9 +2,8 @@ from unittest import mock
 
 import pytest
 
+# Import task objects from the module
 from zrb.builtin import git_subtree as git_subtree_module
-from zrb.context.shared_context import SharedContext
-from zrb.session.session import Session
 from zrb.util.git_subtree_model import SingleSubTreeConfig, SubTreeConfig
 
 
@@ -12,40 +11,73 @@ async def _coro(val=None):
     return val
 
 
-def get_fresh_session():
-    shared_ctx = SharedContext()
-    session = Session(shared_ctx=shared_ctx)
-    return session
+@pytest.fixture
+def mock_context():
+    """Fixture for a mocked AnyContext."""
+    context = mock.MagicMock()
+    # Use MagicMock for input to support both attribute and item access easily
+    context.input = mock.MagicMock()
+    context.print = mock.MagicMock()
+    context.log_error = mock.MagicMock()
+    return context
+
+
+# --- Tests for git_add_subtree ---
 
 
 @pytest.mark.asyncio
-async def test_git_add_subtree_success(tmp_path):
+async def test_git_add_subtree_success(mock_context):
     """Test git_add_subtree calls add_subtree with correct arguments."""
-    repo_dir = tmp_path / "repo"
-    repo_dir.mkdir()
+    subtree_name = "libs"
+    repo_url = "git@github.com:user/libs.git"
+    repo_branch = "main"
+    repo_prefix = "src/libs"
+
+    # Set values on the input mock
+    mock_context.input.name = subtree_name
+    # Configure __getitem__ for dictionary-style access
+
+    def getitem_side_effect(key):
+        if key == "repo-url":
+            return repo_url
+        if key == "repo-branch":
+            return repo_branch
+        if key == "repo-prefix":
+            return repo_prefix
+        raise KeyError(key)
+
+    mock_context.input.__getitem__.side_effect = getitem_side_effect
+
     with mock.patch(
         "zrb.builtin.git_subtree.get_repo_dir",
-        new=mock.Mock(side_effect=lambda *a, **k: _coro(str(repo_dir))),
+        new=mock.Mock(side_effect=lambda *a, **k: _coro("/fake/repo")),
     ), mock.patch(
         "zrb.builtin.git_subtree.add_subtree",
         new=mock.Mock(side_effect=lambda *a, **k: _coro()),
     ) as mock_add_subtree:
-        task = git_subtree_module.git_add_subtree
-        session = get_fresh_session()
-        await task.async_run(
-            session=session,
-            kwargs={
-                "name": "libs",
-                "repo_url": "git@github.com:user/libs.git",
-                "repo_branch": "main",
-                "repo_prefix": "src/libs",
-            },
+
+        # Get the task object
+        add_subtree_task = git_subtree_module.git_add_subtree
+
+        await add_subtree_task._exec_action(mock_context)
+
+        mock_add_subtree.assert_called_once_with(
+            repo_dir="/fake/repo",
+            name=subtree_name,
+            repo_url=repo_url,
+            branch=repo_branch,
+            prefix=repo_prefix,
+            print_method=mock_context.print,
         )
-        assert mock_add_subtree.call_count > 0
+        # Check print calls for status updates
+        assert mock_context.print.call_count == 2
+
+
+# --- Tests for git_pull_subtree ---
 
 
 @pytest.mark.asyncio
-async def test_git_pull_subtree_success(tmp_path):
+async def test_git_pull_subtree_success(mock_context):
     """Test git_pull_subtree calls pull_subtree for each configured subtree."""
     config_data = {
         "libA": SingleSubTreeConfig(prefix="src/libA", repo_url="urlA", branch="main"),
@@ -54,12 +86,10 @@ async def test_git_pull_subtree_success(tmp_path):
         ),
     }
     subtree_config = SubTreeConfig(data=config_data)
-    repo_dir = tmp_path / "repo"
-    repo_dir.mkdir()
 
     with mock.patch(
         "zrb.builtin.git_subtree.get_repo_dir",
-        new=mock.Mock(side_effect=lambda *a, **k: _coro(str(repo_dir))),
+        new=mock.Mock(side_effect=lambda *a, **k: _coro("/fake/repo")),
     ), mock.patch(
         "zrb.builtin.git_subtree.load_config",
         return_value=subtree_config,
@@ -67,24 +97,40 @@ async def test_git_pull_subtree_success(tmp_path):
         "zrb.builtin.git_subtree.pull_subtree",
         new=mock.Mock(side_effect=lambda *a, **k: _coro()),
     ) as mock_pull_subtree:
-        task = git_subtree_module.git_pull_subtree
-        session = get_fresh_session()
-        await task.async_run(session=session)
 
-        assert mock_load_config.call_count > 0
+        # Get the task object
+        pull_subtree_task = git_subtree_module.git_pull_subtree
+
+        await pull_subtree_task._exec_action(mock_context)
+
+        mock_load_config.assert_called_once_with("/fake/repo")
         assert mock_pull_subtree.call_count == 2
+        mock_pull_subtree.assert_any_call(
+            repo_dir="/fake/repo",
+            prefix="src/libA",
+            repo_url="urlA",
+            branch="main",
+            print_method=mock_context.print,
+        )
+        mock_pull_subtree.assert_any_call(
+            repo_dir="/fake/repo",
+            prefix="src/libB",
+            repo_url="urlB",
+            branch="develop",
+            print_method=mock_context.print,
+        )
+        # Check print calls for status updates (repo_dir + each subtree)
+        assert mock_context.print.call_count == 3
 
 
 @pytest.mark.asyncio
-async def test_git_pull_subtree_no_config(tmp_path):
+async def test_git_pull_subtree_no_config(mock_context):
     """Test git_pull_subtree raises error if no config is found."""
     subtree_config = SubTreeConfig(data={})
-    repo_dir = tmp_path / "repo"
-    repo_dir.mkdir()
 
     with mock.patch(
         "zrb.builtin.git_subtree.get_repo_dir",
-        new=mock.Mock(side_effect=lambda *a, **k: _coro(str(repo_dir))),
+        new=mock.Mock(side_effect=lambda *a, **k: _coro("/fake/repo")),
     ), mock.patch(
         "zrb.builtin.git_subtree.load_config",
         return_value=subtree_config,
@@ -92,47 +138,67 @@ async def test_git_pull_subtree_no_config(tmp_path):
         "zrb.builtin.git_subtree.pull_subtree",
         new=mock.Mock(side_effect=lambda *a, **k: _coro()),
     ) as mock_pull_subtree:
-        task = git_subtree_module.git_pull_subtree
-        session = get_fresh_session()
-        with pytest.raises(ValueError, match="No subtree config found"):
-            await task.async_run(session=session)
 
-        assert mock_load_config.call_count > 0
+        # Get the task object
+        pull_subtree_task = git_subtree_module.git_pull_subtree
+
+        with pytest.raises(ValueError, match="No subtree config found"):
+            await pull_subtree_task._exec_action(mock_context)
+
+        mock_load_config.assert_called_once_with("/fake/repo")
         mock_pull_subtree.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_git_pull_subtree_handles_error(tmp_path):
+async def test_git_pull_subtree_handles_error(mock_context):
     """Test git_pull_subtree logs errors and raises the first one encountered."""
     config_data = {
         "libA": SingleSubTreeConfig(prefix="src/libA", repo_url="urlA", branch="main"),
     }
     subtree_config = SubTreeConfig(data=config_data)
-    repo_dir = tmp_path / "repo"
-    repo_dir.mkdir()
 
     async def _fail(*a, **k):
         raise Exception("Pull failed")
 
     with mock.patch(
         "zrb.builtin.git_subtree.get_repo_dir",
-        new=mock.Mock(side_effect=lambda *a, **k: _coro(str(repo_dir))),
+        new=mock.Mock(side_effect=lambda *a, **k: _coro("/fake/repo")),
     ), mock.patch(
         "zrb.builtin.git_subtree.load_config",
         return_value=subtree_config,
     ), mock.patch(
         "zrb.builtin.git_subtree.pull_subtree", new=mock.Mock(side_effect=_fail)
     ) as mock_pull_subtree:
-        task = git_subtree_module.git_pull_subtree
-        session = get_fresh_session()
-        with pytest.raises(Exception, match="Pull failed"):
-            await task.async_run(session=session)
 
-        assert mock_pull_subtree.call_count > 0
+        # Get the task object
+        pull_subtree_task = git_subtree_module.git_pull_subtree
+
+        with pytest.raises(Exception, match="Pull failed"):
+            await pull_subtree_task._exec_action(mock_context)
+
+        mock_pull_subtree.assert_called_once()  # Called once before failing
+        # Check that log_error was called with the specific "Pull failed" exception
+        assert mock_context.log_error.called, "log_error was not called"
+        found_expected_pull_log = False
+        for call_args in mock_context.log_error.call_args_list:
+            args, _ = call_args
+            if (
+                args
+                and isinstance(args[0], Exception)
+                and str(args[0]) == "Pull failed"
+            ):
+                found_expected_pull_log = True
+                break
+        assert (
+            found_expected_pull_log
+        ), "log_error was not called with Exception('Pull failed')"
+
+
+# --- Tests for git_push_subtree ---
 
 
 @pytest.mark.asyncio
-async def test_git_push_subtree_success(tmp_path):
+async def test_git_push_subtree_success(mock_context):
     """Test git_push_subtree calls push_subtree for each configured subtree."""
     config_data = {
         "libA": SingleSubTreeConfig(prefix="src/libA", repo_url="urlA", branch="main"),
@@ -141,12 +207,10 @@ async def test_git_push_subtree_success(tmp_path):
         ),
     }
     subtree_config = SubTreeConfig(data=config_data)
-    repo_dir = tmp_path / "repo"
-    repo_dir.mkdir()
 
     with mock.patch(
         "zrb.builtin.git_subtree.get_repo_dir",
-        new=mock.Mock(side_effect=lambda *a, **k: _coro(str(repo_dir))),
+        new=mock.Mock(side_effect=lambda *a, **k: _coro("/fake/repo")),
     ), mock.patch(
         "zrb.builtin.git_subtree.load_config",
         return_value=subtree_config,
@@ -154,24 +218,40 @@ async def test_git_push_subtree_success(tmp_path):
         "zrb.builtin.git_subtree.push_subtree",
         new=mock.Mock(side_effect=lambda *a, **k: _coro()),
     ) as mock_push_subtree:
-        task = git_subtree_module.git_push_subtree
-        session = get_fresh_session()
-        await task.async_run(session=session)
 
-        assert mock_load_config.call_count > 0
+        # Get the task object
+        push_subtree_task = git_subtree_module.git_push_subtree
+
+        await push_subtree_task._exec_action(mock_context)
+
+        mock_load_config.assert_called_once_with("/fake/repo")
         assert mock_push_subtree.call_count == 2
+        mock_push_subtree.assert_any_call(
+            repo_dir="/fake/repo",
+            prefix="src/libA",
+            repo_url="urlA",
+            branch="main",
+            print_method=mock_context.print,
+        )
+        mock_push_subtree.assert_any_call(
+            repo_dir="/fake/repo",
+            prefix="src/libB",
+            repo_url="urlB",
+            branch="develop",
+            print_method=mock_context.print,
+        )
+        # Check print calls for status updates (repo_dir + each subtree)
+        assert mock_context.print.call_count == 3
 
 
 @pytest.mark.asyncio
-async def test_git_push_subtree_no_config(tmp_path):
+async def test_git_push_subtree_no_config(mock_context):
     """Test git_push_subtree raises error if no config is found."""
     subtree_config = SubTreeConfig(data={})
-    repo_dir = tmp_path / "repo"
-    repo_dir.mkdir()
 
     with mock.patch(
         "zrb.builtin.git_subtree.get_repo_dir",
-        new=mock.Mock(side_effect=lambda *a, **k: _coro(str(repo_dir))),
+        new=mock.Mock(side_effect=lambda *a, **k: _coro("/fake/repo")),
     ), mock.patch(
         "zrb.builtin.git_subtree.load_config",
         return_value=subtree_config,
@@ -179,40 +259,57 @@ async def test_git_push_subtree_no_config(tmp_path):
         "zrb.builtin.git_subtree.push_subtree",
         new=mock.Mock(side_effect=lambda *a, **k: _coro()),
     ) as mock_push_subtree:
-        task = git_subtree_module.git_push_subtree
-        session = get_fresh_session()
-        with pytest.raises(ValueError, match="No subtree config found"):
-            await task.async_run(session=session)
 
-        assert mock_load_config.call_count > 0
+        # Get the task object
+        push_subtree_task = git_subtree_module.git_push_subtree
+
+        with pytest.raises(ValueError, match="No subtree config found"):
+            await push_subtree_task._exec_action(mock_context)
+
+        mock_load_config.assert_called_once_with("/fake/repo")
         mock_push_subtree.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_git_push_subtree_handles_error(tmp_path):
-    """Test git_push_subtree logs errors, raises the first one encountered."""
+async def test_git_push_subtree_handles_error(mock_context):
+    """Test git_push_subtree logs errors and raises the first one encountered."""
     config_data = {
         "libA": SingleSubTreeConfig(prefix="src/libA", repo_url="urlA", branch="main"),
     }
     subtree_config = SubTreeConfig(data=config_data)
-    repo_dir = tmp_path / "repo"
-    repo_dir.mkdir()
 
     async def _fail(*a, **k):
         raise Exception("Push failed")
 
     with mock.patch(
         "zrb.builtin.git_subtree.get_repo_dir",
-        new=mock.Mock(side_effect=lambda *a, **k: _coro(str(repo_dir))),
+        new=mock.Mock(side_effect=lambda *a, **k: _coro("/fake/repo")),
     ), mock.patch(
         "zrb.builtin.git_subtree.load_config",
         return_value=subtree_config,
     ), mock.patch(
         "zrb.builtin.git_subtree.push_subtree", new=mock.Mock(side_effect=_fail)
     ) as mock_push_subtree:
-        task = git_subtree_module.git_push_subtree
-        session = get_fresh_session()
-        with pytest.raises(Exception, match="Push failed"):
-            await task.async_run(session=session)
 
-        assert mock_push_subtree.call_count > 0
+        # Get the task object
+        push_subtree_task = git_subtree_module.git_push_subtree
+
+        with pytest.raises(Exception, match="Push failed"):
+            await push_subtree_task._exec_action(mock_context)
+
+        mock_push_subtree.assert_called_once()  # Called once before failing
+        # Check that log_error was called with the specific "Push failed" exception
+        assert mock_context.log_error.called, "log_error was not called"
+        found_expected_push_log = False
+        for call_args in mock_context.log_error.call_args_list:
+            args, _ = call_args
+            if (
+                args
+                and isinstance(args[0], Exception)
+                and str(args[0]) == "Push failed"
+            ):
+                found_expected_push_log = True
+                break
+        assert (
+            found_expected_push_log
+        ), "log_error was not called with Exception('Push failed')"
