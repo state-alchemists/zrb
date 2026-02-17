@@ -14,23 +14,22 @@ from zrb.llm.agent.common import create_agent
 from zrb.llm.history_processor.summarizer import (
     create_summarizer_history_processor,
 )
-from zrb.llm.tool import (
-    analyze_code,
+from zrb.llm.tool.bash import run_shell_command
+from zrb.llm.tool.code import analyze_code
+from zrb.llm.tool.file import (
     analyze_file,
     glob_files,
     list_files,
-    open_web_page,
     read_file,
     read_files,
     replace_in_file,
-    run_shell_command,
     search_files,
-    search_internet,
     write_file,
     write_files,
 )
 from zrb.llm.tool.mcp import load_mcp_config
 from zrb.llm.tool.skill import create_activate_skill_tool
+from zrb.llm.tool.web import open_web_page, search_internet
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
 from zrb.util.load import load_module_from_path
 

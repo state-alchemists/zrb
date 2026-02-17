@@ -1,5 +1,18 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.5.2 (February 17, 2026)
+
+- **Fix: Circular Dependency Resolution in LLM Tool Imports**:
+  - **Circular Dependency Elimination**: Reorganized LLM tool imports in `src/zrb/llm/agent/manager.py` to resolve circular dependency issues by moving tools from a flat import structure to specialized modules:
+    - `analyze_code` → `zrb.llm.tool.code`
+    - File-related tools (`analyze_file`, `glob_files`, `list_files`, `read_file`, `read_files`, `replace_in_file`, `search_files`, `write_file`, `write_files`) → `zrb.llm.tool.file`
+    - `run_shell_command` → `zrb.llm.tool.bash`
+    - `open_web_page` and `search_internet` → `zrb.llm.tool.web`
+  - **Backward Compatibility**: Maintained full functionality while preventing import cycles that could cause runtime errors.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.5.2 in `pyproject.toml`.
+
 ## 2.5.1 (February 17, 2026)
 
 - **Feature: Enhanced SubAgentManager API Consistency**:
