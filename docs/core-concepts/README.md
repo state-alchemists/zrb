@@ -77,6 +77,9 @@ A **Session** represents a single execution of a task workflow. During a session
 ### [LLM Assistant (Pollux)](./task/types/llm-task.md)
 Zrb features a powerful, stateful AI assistant that can execute tools, manage project-specific context, and help you automate complex engineering tasks via natural language.
 
+### [LLM Summarization Logic](./summarization-logic.md)
+Dive deep into how Zrb manages conversation history, ensuring context is preserved and provider constraints (like alternating roles and tool integrity) are respected even during aggressive summarization.
+
 ### [Built-in Tasks](./builtin-tasks.md)
 Zrb comes with a rich library of pre-built tasks for common operations like managing Git repositories, making HTTP requests, generating random data, and more. These save you time and effort by providing ready-to-use solutions.
 
