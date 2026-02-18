@@ -7,6 +7,7 @@ from typing import Callable
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
+from zrb.llm.prompt.util import is_inside_git_dir
 from zrb.util.markdown import make_markdown_section
 
 
@@ -131,12 +132,7 @@ def _get_tool_version(cmd: str, args: list[str]) -> str:
 def _get_git_info() -> str:
     try:
         # Check if inside git repo
-        res = subprocess.run(
-            ["git", "rev-parse", "--is-inside-work-tree"],
-            capture_output=True,
-            text=True,
-        )
-        if res.returncode != 0:
+        if not is_inside_git_dir():
             return ""
         # Get basic info
         branch_res = subprocess.run(

@@ -44,15 +44,11 @@ def create_project_context_prompt():
         for filename in ["CLAUDE.md", "AGENTS.md"]:
             content = _get_combined_content(filename, search_dirs)
             if content:
-                summary = _summarize_markdown(content, max_len=10000)
+                summary = _summarize_markdown(content, max_len=5000)
                 doc_section = (
                     f"## Summary of {filename}\n"
-                    "**YOU MUST ALWAYS READ THE FULL FILE WHEN:**\n"
-                    "1. Encountering project-specific commands or conventions (e.g., `zrb-test.sh`)\n"
-                    "2. Making implementation decisions affecting project architecture\n"
-                    "3. Uncertain about testing procedures or development standards\n"
-                    "4. Following project-specific patterns or directory structures\n\n"
-                    "Failure to read the full documentation when needed violates project conventions and may result in incorrect implementations.\n\n"
+                    "**Read the full file if you need to understand project-specific commands, conventions, or architecture.**\n"
+                    "Failure to do so may result in incorrect implementations.\n\n"
                     f"{summary}"
                 )
                 project_docs.append(doc_section)
@@ -91,8 +87,11 @@ def create_project_context_prompt():
 
 
 def _summarize_markdown(
-    content: str, max_len: int = 10000, snippet_len: int = 250
+    content: str, max_len: int = 10000, snippet_len: int = 1000
 ) -> str:
+    if len(content) <= max_len:
+        return content
+
     summary = []
     total_length = 0
 

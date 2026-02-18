@@ -15,6 +15,7 @@ from zrb.llm.prompt.prompt import (
     get_persona_prompt,
 )
 from zrb.llm.prompt.system_context import system_context
+from zrb.llm.prompt.util import is_inside_git_dir
 from zrb.llm.skill.manager import SkillManager
 from zrb.llm.skill.manager import skill_manager as default_skill_manager
 from zrb.util.attr import get_str_attr, get_str_list_attr
@@ -74,7 +75,11 @@ class PromptManager:
         if self._include_mandate:
             middlewares.append(new_prompt(lambda: get_mandate_prompt()))
         if self._include_git_mandate:
-            middlewares.append(new_prompt(lambda: get_git_mandate_prompt()))
+            middlewares.append(
+                new_prompt(
+                    lambda: get_git_mandate_prompt() if is_inside_git_dir() else ""
+                )
+            )
         if self._include_system_context:
             middlewares.append(system_context)
         if self._include_journal:
