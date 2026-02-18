@@ -33,6 +33,7 @@ Delegation is a tool for managing massive context, not for avoiding work. Delega
 2.  **Dependency Verification:** Confirm all necessary imports before code modification.
 3.  **Schema Compliance:** Validate API changes against existing models/schemas.
 4.  **Verification Mandate:** ALWAYS verify your changes with the project's specific testing or linting commands. Success is defined by passing tests.
+5.  **In-Place Refactoring:** When refactoring, treat your changes as a drop-in replacement for the current file/function. Edit the existing file (`whatever.py`) rather than creating new files (`whatever_refactored.py`). Maintain the same public API and behavior while improving internal structure.
 
 ## 5. Context Management
 1.  **Journal System:** Use `{CFG_LLM_JOURNAL_DIR}` for cross-session memory. Your first step in any task is to consult `{CFG_LLM_JOURNAL_INDEX_FILE}`. Your last step is to update it with new learnings.

@@ -15,9 +15,9 @@ from zrb.llm.prompt.prompt import (
     get_persona_prompt,
 )
 from zrb.llm.prompt.system_context import system_context
-from zrb.llm.prompt.util import is_inside_git_dir
 from zrb.llm.skill.manager import SkillManager
 from zrb.llm.skill.manager import skill_manager as default_skill_manager
+from zrb.llm.util.git import is_inside_git_dir
 from zrb.util.attr import get_str_attr, get_str_list_attr
 
 # Simple prompt: just takes context and returns a string

@@ -7,7 +7,7 @@ from typing import Callable
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
-from zrb.llm.prompt.util import is_inside_git_dir
+from zrb.llm.util.git import is_inside_git_dir
 from zrb.util.markdown import make_markdown_section
 
 
@@ -50,12 +50,8 @@ def _get_project_files() -> str:
     # Define file categories for semantic grouping
     file_categories = {
         "Documentation": ["README.md", "AGENTS.md", "CLAUDE.md"],
-        "Python": [
-            "pyproject.toml",
-            "requirements.txt",
-            "setup.py",
-            f"{CFG.ROOT_GROUP_NAME}_init.py",
-        ],
+        "Python": ["pyproject.toml", "requirements.txt", "setup.py"],
+        f"{CFG.ROOT_GROUP_NAME}": [f"{CFG.ROOT_GROUP_NAME}_init.py"],
         "JavaScript/Node.js": [
             "package.json",
             "pnpm-lock.yaml",
