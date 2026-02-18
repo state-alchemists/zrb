@@ -49,7 +49,8 @@ When `zrb` needs a system prompt, it first checks `ZRB_LLM_PROMPT_DIR` for a cor
 Available prompt names (file names) include:
 - `persona.md`: Defines the AI assistant's personality and role.
 - `mandate.md`: Defines the core rules and safety constraints.
-- `summarizer.md`: System prompt for summarizing conversation history.
+- `conversational_summarizer.md`: System prompt for summarizing conversation history.
+- `message_summarizer.md`: System prompt for summarizing individual messages or tool outputs.
 - `file_extractor.md`: System prompt for extracting information from files.
 - `repo_extractor.md`: System prompt for extracting repository structures.
 - `repo_summarizer.md`: System prompt for summarizing repository analysis.
