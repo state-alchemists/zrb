@@ -76,19 +76,17 @@ except ImportError:
         url: str
 
 
-from zrb.llm.history_processor.summarizer import (
-    create_summarizer_history_processor,
-    summarize_history,
-    summarize_messages,
-)
 from zrb.llm.summarizer import (
+    create_summarizer_history_processor,
     find_safe_split_index,
     message_to_text,
     model_request_to_text,
     model_response_to_text,
     process_message_for_summarization,
     process_tool_return_part,
+    summarize_history,
     summarize_long_text,
+    summarize_messages,
     summarize_text_plain,
 )
 from zrb.llm.summarizer.text_summarizer import summarize_short_text
@@ -250,12 +248,13 @@ async def test_create_summarizer_history_processor_flow():
     ):
         new_history = await processor(messages)
 
-    # With summary_window=0 and token threshold exceeded, we should get a summary
-    # and some kept messages.
-    # Since the last kept message is a ModelRequest, it is merged with the summary message.
+    # With summary_window=0 and token threshold exceeded, we should get a summary.
+    # Since no safe split is found (mock limiter returns high token count),
+    # it falls back to summarizing everything.
     assert len(new_history) == 1
     assert "Automated Context Restoration" in message_to_text(new_history[0])
-    assert "active turn" in message_to_text(new_history[0])
+    # active turn is summarized into "conv summary"
+    assert "conv summary" in message_to_text(new_history[0])
     assert msg_agent.run.called
     assert conv_agent.run.called
 
@@ -392,11 +391,11 @@ async def test_summarize_heavy_recent_history():
     # Assert
     # With the new safer logic that NEVER breaks complete tool pairs:
     # - No tool pairs exist in these messages
-    # - find_best_effort_split will find a split that keeps the last message
-    # So we get 2 messages: summary + last message
-    assert len(new_history) == 2
+    # - But threshold is too low (10) for any message (mocked as 1000 tokens)
+    # So find_best_effort_split returns full summarization (messages, [])
+    # We get 1 message: summary
+    assert len(new_history) == 1
     assert isinstance(new_history[0], ModelRequest)  # Summary
-    assert new_history[1] == msg2  # Last message kept intact
 
     # Verify agent was called
     assert agent.run.called
@@ -613,3 +612,71 @@ async def test_summarize_text_with_snapshot():
 
     result = await summarize_text("history", agent)
     assert result == "<state_snapshot>Important data</state_snapshot>"
+
+
+@pytest.mark.asyncio
+async def test_last_user_intent_instruction_injection():
+    class MockInstructionLimiter:
+        def count_tokens(self, content):
+            if hasattr(content, "parts"):
+                return 1000
+            if isinstance(content, list):
+                return 3000
+            return len(str(content))
+
+        def truncate_text(self, text, limit):
+            return text[:limit]
+
+    # Setup
+    limiter = MockInstructionLimiter()
+    agent = MagicMock()
+    agent.last_prompt = None
+
+    # Capture the prompt passed to agent
+    mock_run = AsyncMock()
+
+    async def side_effect(prompt):
+        result = MagicMock()
+        result.output = "Summary"
+        agent.last_prompt = prompt
+        return result
+
+    mock_run.side_effect = side_effect
+    agent.run = mock_run
+
+    # Create messages
+    messages = [
+        ModelRequest(parts=[UserPromptPart(content="User message 1")]),
+        ModelResponse(parts=[TextPart(content="AI message 1")]),
+        ModelRequest(parts=[UserPromptPart(content="User message 2 - IMPORTANT")]),
+    ]
+
+    # Mock is_turn_start to prevent finding safe split
+    # Mock validate_tool_pair_integrity to return True
+    with patch("zrb.llm.config.limiter.is_turn_start", return_value=False):
+        with patch(
+            "zrb.llm.summarizer.history_splitter.validate_tool_pair_integrity",
+            return_value=(True, []),
+        ):
+            await summarize_history(
+                messages,
+                agent=agent,
+                limiter=limiter,
+                summary_window=0,
+                conversational_token_threshold=500,
+            )
+
+    # Check if the instruction was added to ANY prompt passed to the agent
+    found_instruction = False
+    for call in agent.run.call_args_list:
+        args, _ = call
+        if args and isinstance(args[0], str):
+            prompt = args[0]
+            if (
+                "IMPORTANT: The last part of this history contains the user's latest request"
+                in prompt
+            ):
+                found_instruction = True
+                break
+
+    assert found_instruction, "Instruction not found in any agent call"

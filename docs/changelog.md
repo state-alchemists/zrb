@@ -1,5 +1,17 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.6.0 (February 18, 2026)
+
+- **Feature: Robust LLM History Summarization**:
+  - **Role Alternation Enforcement**: Implemented strict role alternation (User/Assistant) in `history_summarizer` to comply with LLM provider constraints (e.g., Pydantic AI), preventing consecutive same-role messages by merging them.
+  - **Tool Call/Return Integrity**: Enhanced history splitting logic to ensure Tool Call and Tool Return pairs are never separated during summarization or truncation, preventing orphaned tool returns.
+  - **Redundant Prompt Removal**: Deprecated and removed `summarizer.md` in favor of `conversational_summarizer.md`, consolidating prompt logic.
+  - **Summarization Refactor**: Moved core summarization logic from `history_processor` to `llm.summarizer` package for better organization.
+
+- **Quality Assurance**:
+  - **Test Coverage Expansion**: Added comprehensive test suites (`test_role_alternation.py`, `test_summarizer_extra.py`) covering edge cases in summarization, tool pairing, and text chunking, achieving >75% code coverage.
+  - **Utility Tests**: Added extra tests for `banner`, `callable`, `load`, `yaml`, and `todo` utilities.
+
 ## 2.5.3 (February 17, 2026)
 
 - **Refactor: Journal Prompt System Migration to Markdown Templates**:

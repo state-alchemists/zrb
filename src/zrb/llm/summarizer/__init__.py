@@ -10,6 +10,11 @@ from zrb.llm.summarizer.history_splitter import (
     is_split_safe,
     split_history,
 )
+from zrb.llm.summarizer.history_summarizer import (
+    create_summarizer_history_processor,
+    summarize_history,
+    summarize_messages,
+)
 from zrb.llm.summarizer.message_converter import (
     message_to_text,
     model_request_to_text,
@@ -28,6 +33,9 @@ from zrb.llm.summarizer.text_summarizer import (
 __all__ = [
     "chunk_and_summarize",
     "consolidate_summaries",
+    "create_summarizer_history_processor",
+    "summarize_history",
+    "summarize_messages",
     "find_safe_split_index",
     "get_tool_pairs",
     "is_split_safe",

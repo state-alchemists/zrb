@@ -23,7 +23,7 @@ except ImportError:
         content: Any
 
 
-from zrb.llm.history_processor.summarizer import create_summarizer_history_processor
+from zrb.llm.summarizer import create_summarizer_history_processor
 
 
 class MockLimiter:
@@ -77,7 +77,7 @@ async def test_integration_dual_threshold_flow():
     # Total tokens = 75 + 5 = 80 (below 200 conversational threshold)
 
     with patch("zrb.llm.summarizer.message_processor.zrb_print"), patch(
-        "zrb.llm.history_processor.summarizer.zrb_print"
+        "zrb.llm.summarizer.history_summarizer.zrb_print"
     ):
         new_history = await processor(history)
 
@@ -103,7 +103,7 @@ async def test_integration_dual_threshold_flow():
 
     with patch(
         "zrb.llm.summarizer.message_processor.zrb_print"
-    ) as mock_msg_print, patch("zrb.llm.history_processor.summarizer.zrb_print"):
+    ) as mock_msg_print, patch("zrb.llm.summarizer.history_summarizer.zrb_print"):
         new_history = await processor(history)
 
     # EXPECTED:

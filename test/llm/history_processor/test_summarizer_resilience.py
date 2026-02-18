@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from pydantic_ai.messages import ModelRequest, ToolReturnPart, UserPromptPart
 
-from zrb.llm.history_processor.summarizer import (
+from zrb.llm.summarizer import (
     create_summarizer_history_processor,
     summarize_history,
     summarize_messages,

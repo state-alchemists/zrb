@@ -28,9 +28,7 @@ def get_git_mandate_prompt() -> str:
 
 
 def get_summarizer_system_prompt() -> str:
-    prompt = get_default_prompt("summarizer")
-    replacements = _get_prompt_replacements()
-    return _replace_prompt_placeholders(prompt, replacements)
+    return get_conversational_summarizer_system_prompt()
 
 
 def get_conversational_summarizer_system_prompt() -> str:

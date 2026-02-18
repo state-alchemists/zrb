@@ -17,12 +17,12 @@ from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limitter
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
-from zrb.llm.history_processor.summarizer import (
-    summarize_history,
-)
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.summarizer import (
+    summarize_history,
+)
 from zrb.llm.util.attachment import get_attachments
 from zrb.llm.util.stream_response import (
     create_event_handler,
