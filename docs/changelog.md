@@ -1,5 +1,26 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.6.2 (February 19, 2026)
+
+- **Improvement: Enhanced Prompt Expansion with Path-Specific Warnings**:
+  - **Modular Refactoring**: Refactored `expand_prompt()` utility into modular functions (`_get_path_references`, `_process_path_reference`, `_create_appendix_entry`, `_create_appendix_header`) for better maintainability and testability.
+  - **Path-Specific Warnings**: Added intelligent warning messages that differentiate between file and directory references. File references now warn against using `read_file`, while directory references warn against using `list_files`, improving agent guidance.
+  - **Comprehensive Testing**: Added 6 new test cases (`test/util/llm/test_prompt_util.py`) covering file-specific warnings, directory-specific warnings, mixed references, and edge cases.
+
+- **Improvement: Streamlined Documentation & Prompt Refinements**:
+  - **Concise Documentation Summaries**: Reduced maximum summary length from 10,000 to 5,000 characters in `create_project_context_prompt()` and simplified warning text for better clarity.
+  - **Mandate Simplification**: Streamlined strategic reasoning section and added "In-Place Refactoring" principle emphasizing direct file modification over creating new files.
+  - **Persona Refinement**: Condensed persona description for better token efficiency while maintaining core identity as "Brownfield Specialist" and "Pragmatic Doer".
+  - **Journal System Enhancement**: Renamed to "Journal System: The Polymath's Codex" with emphasis on "Rhizomatic Linking" and proactive knowledge capture as a "Living Knowledge Base".
+
+- **Feature: Git-Aware System Context**:
+  - **New Git Utility**: Added `is_inside_git_dir()` function in `src/zrb/llm/util/git.py` for checking git repository status without redundant subprocess calls.
+  - **Conditional Git Mandate**: Updated `PromptManager` to only include git mandate when inside a git repository, preventing unnecessary content in non-git contexts.
+  - **Optimized System Context**: Enhanced `system_context.py` to use new git utility and improve file categorization logic.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.6.2 in `pyproject.toml`.
+
 ## 2.6.1 (February 18, 2026)
 
 - **Fix: Pydantic-AI Toolset Integration Compatibility**:
