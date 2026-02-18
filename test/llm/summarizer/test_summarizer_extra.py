@@ -24,7 +24,12 @@ from zrb.llm.summarizer.history_summarizer import (
     summarize_messages,
 )
 from zrb.llm.summarizer.message_converter import message_to_text
-from zrb.llm.summarizer.text_summarizer import summarize_text, summarize_text_plain
+from zrb.llm.summarizer.text_summarizer import (
+    summarize_long_text,
+    summarize_short_text,
+    summarize_text,
+    summarize_text_plain,
+)
 
 
 class MockLimiter:
@@ -32,8 +37,12 @@ class MockLimiter:
         if isinstance(content, str):
             return len(content)
         if isinstance(content, list):
+            # Return a value that depends on content to avoid short-circuiting logic
+            # but keep it simple.
             return sum(self.count_tokens(m) for m in content)
-        return 10
+        if hasattr(content, "parts"):
+            return 10
+        return 1
 
     def truncate_text(self, text, limit):
         return text[:limit]
@@ -46,10 +55,7 @@ async def test_get_split_index_empty():
 
 @pytest.mark.asyncio
 async def test_summarize_messages_exception():
-    # Trigger exception in summarize_messages inner loop
-    # by passing something that causes process_message_for_summarization to fail
     messages = ["invalid message object"]
-    # It catches exception and returns original
     result = await summarize_messages(messages)
     assert result == messages
 
@@ -57,23 +63,19 @@ async def test_summarize_messages_exception():
 @pytest.mark.asyncio
 async def test_summarize_history_exception():
     limiter = MockLimiter()
-    # Trigger exception by passing None as messages
     result = await summarize_history(None, limiter=limiter)
     assert result is None
 
 
 @pytest.mark.asyncio
 async def test_validate_tool_pair_integrity_edge_cases():
-    # Message without parts
     class BadMsg:
         pass
 
     is_valid, problems = validate_tool_pair_integrity([BadMsg()])
     assert is_valid == True
 
-    # Tool call without ID
-    msg = ModelResponse(parts=[ToolCallPart(tool_name="t", args={})])
-    # Manually remove tool_call_id if possible or mock it
+    msg = ModelResponse(parts=[ToolCallPart(tool_name="t", args={}, tool_call_id="1")])
     del msg.parts[0].tool_call_id
     is_valid, problems = validate_tool_pair_integrity([msg])
     assert is_valid == True
@@ -96,12 +98,10 @@ async def test_message_to_text_unexpected_type():
 async def test_summarize_text_plain_edge_cases():
     limiter = MockLimiter()
     agent = MagicMock()
-    # Threshold 0
     assert (
         await summarize_text_plain("text", agent, limiter, 0)
         == "[Threshold too low for summarization]"
     )
-    # Non-string text
     assert await summarize_text_plain(123, agent, limiter, 100) == "123"
 
 
@@ -120,12 +120,8 @@ async def test_summarize_text_with_snapshot_extraction():
 
 @pytest.mark.asyncio
 async def test_summarize_history_no_summarize():
-    # If to_summarize is empty
     limiter = MockLimiter()
     messages = [ModelRequest(parts=[UserPromptPart("hi")])]
-    # Mock split_history to return empty to_summarize
-    from unittest.mock import patch
-
     with patch(
         "zrb.llm.summarizer.history_summarizer.split_history",
         return_value=([], messages),
@@ -136,13 +132,10 @@ async def test_summarize_history_no_summarize():
 
 @pytest.mark.asyncio
 async def test_summarize_long_text_depth_limit():
-    from zrb.llm.summarizer.text_summarizer import summarize_long_text
-
     limiter = MockLimiter()
     agent = MagicMock()
-    # Test depth > 5
     result = await summarize_long_text("Very long text", agent, limiter, 5, depth=6)
-    assert result == "Very "  # Truncated to 5 (threshold)
+    assert result == "Very "
 
 
 @pytest.mark.asyncio
@@ -164,9 +157,6 @@ async def test_create_summarizer_history_processor_exception_path():
     processor = create_summarizer_history_processor(
         limiter=limiter, conversational_token_threshold=10
     )
-
-    # Trigger exception in the inner process_history
-    # by passing something that causes count_tokens to fail
     with patch.object(limiter, "count_tokens", side_effect=Exception("Count error")):
         messages = [ModelRequest(parts=[UserPromptPart("hi")])]
         result = await processor(messages)
