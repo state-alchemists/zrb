@@ -71,12 +71,12 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
 
     class SafeToolsetWrapper(WrapperToolset):
         async def call_tool(
-            self, tool_name: str, tool_input: Any, ctx: Any
-        ) -> ToolReturn:
+            self, name: str, tool_args: dict[str, Any], ctx: Any, tool: Any
+        ) -> Any:
             try:
-                return await super().call_tool(tool_name, tool_input, ctx)
+                return await super().call_tool(name, tool_args, ctx, tool)
             except Exception as e:
-                return ToolReturn(f"Error executing tool {tool_name}: {e}")
+                return ToolReturn(f"Error executing tool {name}: {e}")
 
     return SafeToolsetWrapper(toolset)
 

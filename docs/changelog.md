@@ -1,5 +1,12 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.6.1 (February 18, 2026)
+
+- **Fix: Pydantic-AI Toolset Integration Compatibility**:
+  - **Signature Mismatch Resolution**: Fixed `TypeError` when adding MCP toolsets to `llm_chat` by updating `SafeToolsetWrapper.call_tool()` signature to match pydantic-ai's `WrapperToolset` base class (version 1.60.0).
+  - **Parameter Alignment**: Changed signature from `(self, tool_name: str, tool_input: Any, ctx: Any) → ToolReturn` to `(self, name: str, tool_args: dict[str, Any], ctx: Any, tool: Any) → Any`.
+  - **MCP Toolset Support**: Resolves errors when loading MCP toolsets via `load_mcp_config()` and adding them to LLM chat sessions, ensuring proper forwarding of all arguments to parent toolset implementations.
+
 ## 2.6.0 (February 18, 2026)
 
 - **Feature: Robust LLM History Summarization**:
