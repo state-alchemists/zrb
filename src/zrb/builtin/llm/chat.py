@@ -7,9 +7,9 @@ from zrb.config.config import CFG
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.llm.custom_command import get_skill_custom_command
-from zrb.llm.history_processor.summarizer import create_summarizer_history_processor
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.skill.manager import skill_manager
+from zrb.llm.summarizer import create_summarizer_history_processor
 from zrb.llm.task.llm_chat_task import LLMChatTask
 from zrb.llm.tool import (
     analyze_code,

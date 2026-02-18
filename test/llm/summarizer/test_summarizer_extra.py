@@ -1,0 +1,173 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from pydantic_ai.messages import (
+    ModelRequest,
+    ModelResponse,
+    TextPart,
+    ToolCallPart,
+    ToolReturnPart,
+    UserPromptPart,
+)
+
+from zrb.llm.summarizer.history_splitter import (
+    find_best_effort_split,
+    find_safe_split_index,
+    get_split_index,
+    get_tool_pairs,
+    is_split_safe,
+    validate_tool_pair_integrity,
+)
+from zrb.llm.summarizer.history_summarizer import (
+    create_summarizer_history_processor,
+    summarize_history,
+    summarize_messages,
+)
+from zrb.llm.summarizer.message_converter import message_to_text
+from zrb.llm.summarizer.text_summarizer import summarize_text, summarize_text_plain
+
+
+class MockLimiter:
+    def count_tokens(self, content):
+        if isinstance(content, str):
+            return len(content)
+        if isinstance(content, list):
+            return sum(self.count_tokens(m) for m in content)
+        return 10
+
+    def truncate_text(self, text, limit):
+        return text[:limit]
+
+
+@pytest.mark.asyncio
+async def test_get_split_index_empty():
+    assert get_split_index([], 1) == -1
+
+
+@pytest.mark.asyncio
+async def test_summarize_messages_exception():
+    # Trigger exception in summarize_messages inner loop
+    # by passing something that causes process_message_for_summarization to fail
+    messages = ["invalid message object"]
+    # It catches exception and returns original
+    result = await summarize_messages(messages)
+    assert result == messages
+
+
+@pytest.mark.asyncio
+async def test_summarize_history_exception():
+    limiter = MockLimiter()
+    # Trigger exception by passing None as messages
+    result = await summarize_history(None, limiter=limiter)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_validate_tool_pair_integrity_edge_cases():
+    # Message without parts
+    class BadMsg:
+        pass
+
+    is_valid, problems = validate_tool_pair_integrity([BadMsg()])
+    assert is_valid == True
+
+    # Tool call without ID
+    msg = ModelResponse(parts=[ToolCallPart(tool_name="t", args={})])
+    # Manually remove tool_call_id if possible or mock it
+    del msg.parts[0].tool_call_id
+    is_valid, problems = validate_tool_pair_integrity([msg])
+    assert is_valid == True
+
+
+@pytest.mark.asyncio
+async def test_find_best_effort_split_no_messages():
+    limiter = MockLimiter()
+    to_sum, to_keep = find_best_effort_split([], limiter, 100)
+    assert to_sum == []
+    assert to_keep == []
+
+
+@pytest.mark.asyncio
+async def test_message_to_text_unexpected_type():
+    assert message_to_text("not a message") == "not a message"
+
+
+@pytest.mark.asyncio
+async def test_summarize_text_plain_edge_cases():
+    limiter = MockLimiter()
+    agent = MagicMock()
+    # Threshold 0
+    assert (
+        await summarize_text_plain("text", agent, limiter, 0)
+        == "[Threshold too low for summarization]"
+    )
+    # Non-string text
+    assert await summarize_text_plain(123, agent, limiter, 100) == "123"
+
+
+@pytest.mark.asyncio
+async def test_summarize_text_with_snapshot_extraction():
+    agent = MagicMock()
+    mock_result = MagicMock()
+    mock_result.output = (
+        "Random text <state_snapshot>Actual Snapshot</state_snapshot> more text"
+    )
+    agent.run = AsyncMock(return_value=mock_result)
+
+    result = await summarize_text("history", agent)
+    assert result == "<state_snapshot>Actual Snapshot</state_snapshot>"
+
+
+@pytest.mark.asyncio
+async def test_summarize_history_no_summarize():
+    # If to_summarize is empty
+    limiter = MockLimiter()
+    messages = [ModelRequest(parts=[UserPromptPart("hi")])]
+    # Mock split_history to return empty to_summarize
+    from unittest.mock import patch
+
+    with patch(
+        "zrb.llm.summarizer.history_summarizer.split_history",
+        return_value=([], messages),
+    ):
+        result = await summarize_history(messages, limiter=limiter)
+        assert result == messages
+
+
+@pytest.mark.asyncio
+async def test_summarize_long_text_depth_limit():
+    from zrb.llm.summarizer.text_summarizer import summarize_long_text
+
+    limiter = MockLimiter()
+    agent = MagicMock()
+    # Test depth > 5
+    result = await summarize_long_text("Very long text", agent, limiter, 5, depth=6)
+    assert result == "Very "  # Truncated to 5 (threshold)
+
+
+@pytest.mark.asyncio
+async def test_chunk_and_summarize_exception():
+    from zrb.llm.summarizer.chunk_processor import chunk_and_summarize
+
+    limiter = MockLimiter()
+    agent = MagicMock()
+    agent.run = AsyncMock(side_effect=Exception("Agent error"))
+
+    messages = [ModelRequest(parts=[UserPromptPart("hi")])]
+    with pytest.raises(Exception):
+        await chunk_and_summarize(messages, agent, limiter, 100)
+
+
+@pytest.mark.asyncio
+async def test_create_summarizer_history_processor_exception_path():
+    limiter = MockLimiter()
+    processor = create_summarizer_history_processor(
+        limiter=limiter, conversational_token_threshold=10
+    )
+
+    # Trigger exception in the inner process_history
+    # by passing something that causes count_tokens to fail
+    with patch.object(limiter, "count_tokens", side_effect=Exception("Count error")):
+        messages = [ModelRequest(parts=[UserPromptPart("hi")])]
+        result = await processor(messages)
+        assert result == messages

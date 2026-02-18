@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserPromptPart
 
-from zrb.llm.history_processor.summarizer import summarize_history
+from zrb.llm.summarizer import summarize_history
 
 
 class MockLimiter:

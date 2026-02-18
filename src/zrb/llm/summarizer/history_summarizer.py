@@ -202,7 +202,11 @@ async def summarize_history(
         # 2. Iterative Summarization of Historical turns
         summarizer_agent = agent or create_conversational_summarizer_agent()
         summary_text = await chunk_and_summarize(
-            to_summarize, summarizer_agent, llm_limiter, conversational_token_threshold
+            to_summarize,
+            summarizer_agent,
+            llm_limiter,
+            conversational_token_threshold,
+            include_last_user_intent_instruction=(len(to_keep) == 0),
         )
         # 3. Final Aggregation and potential re-summarization
         final_summary_tokens = llm_limiter.count_tokens(summary_text)

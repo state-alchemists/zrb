@@ -20,10 +20,10 @@ from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
-from zrb.llm.history_processor.summarizer import (
+from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.summarizer import (
     create_summarizer_history_processor,
 )
-from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.tool_call import (
     ArgumentFormatter,

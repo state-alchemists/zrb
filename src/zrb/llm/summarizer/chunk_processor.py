@@ -9,7 +9,11 @@ from zrb.util.cli.style import stylize_error, stylize_yellow
 
 
 async def chunk_and_summarize(
-    messages: list[Any], agent: Any, limiter: "LLMLimiter", token_threshold: int
+    messages: list[Any],
+    agent: Any,
+    limiter: "LLMLimiter",
+    token_threshold: int,
+    include_last_user_intent_instruction: bool = False,
 ) -> str:
     """Break history into chunks and summarize them iteratively."""
     # Pre-calculate texts
@@ -27,7 +31,7 @@ async def chunk_and_summarize(
     current_chunk_tokens = 0
     chunk_token_limit = max(1, int(token_threshold * 0.9))
 
-    async def _flush_chunk():
+    async def _flush_chunk(is_last_chunk: bool = False):
         if not current_chunk:
             return
         zrb_print(
@@ -37,6 +41,14 @@ async def chunk_and_summarize(
         try:
             # Use summarize_text_plain for individual chunks to handle their potential size safely
             chunk_content = "\n".join(current_chunk)
+
+            if is_last_chunk and include_last_user_intent_instruction:
+                chunk_content += (
+                    "\n\nIMPORTANT: The last part of this history contains the user's latest request. "
+                    "Ensure the <state_snapshot> explicitly captures this request in <overall_goal> or <task_state> "
+                    "so the next agent knows exactly what to do."
+                )
+
             summary = await summarize_text_plain(
                 chunk_content, agent, limiter, token_threshold
             )
@@ -48,12 +60,12 @@ async def chunk_and_summarize(
     for text in history_texts:
         text_tokens = limiter.count_tokens(text)
         if current_chunk and (current_chunk_tokens + text_tokens > chunk_token_limit):
-            await _flush_chunk()
+            await _flush_chunk(is_last_chunk=False)
             current_chunk = []
             current_chunk_tokens = 0
         current_chunk.append(text)
         current_chunk_tokens += text_tokens
-    await _flush_chunk()
+    await _flush_chunk(is_last_chunk=True)
 
     return "\n\n".join(summaries) if summaries else "[No summaries generated]"
 

@@ -105,7 +105,7 @@ chat_task.add_argument_formatter(my_formatter)
 History processors can modify the conversation history before it's sent to the model. The most common use is automatic summarization.
 
 ```python
-from zrb.llm.history_processor.summarizer import create_summarizer_history_processor
+from zrb.llm.summarizer import create_summarizer_history_processor
 
 chat_task.add_history_processor(
     create_summarizer_history_processor(token_threshold=5000)

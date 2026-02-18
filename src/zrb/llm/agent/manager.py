@@ -11,7 +11,7 @@ import yaml
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.agent.common import create_agent
-from zrb.llm.history_processor.summarizer import (
+from zrb.llm.summarizer import (
     create_summarizer_history_processor,
 )
 from zrb.llm.tool.bash import run_shell_command

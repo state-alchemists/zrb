@@ -264,10 +264,10 @@ def test_is_split_safe_orphaned_return():
 
     tool_pairs = get_tool_pairs(messages)
 
-    # Split before orphaned return (index 1) - should be safe (orphaned returns don't block)
-    assert is_split_safe(messages, 1, tool_pairs) == True
+    # Split before orphaned return (index 1) - should NOT be safe (orphaned returns MUST be summarized/removed)
+    assert is_split_safe(messages, 1, tool_pairs) == False
 
-    # Split after orphaned return (index 2) - should also be safe
+    # Split after orphaned return (index 2) - should be safe
     assert is_split_safe(messages, 2, tool_pairs) == True
 
 
@@ -454,7 +454,7 @@ async def test_integration_with_summarize_history():
     """Integration test with the actual summarize_history function."""
     from unittest.mock import AsyncMock, patch
 
-    from zrb.llm.history_processor.summarizer import summarize_history
+    from zrb.llm.summarizer import summarize_history
 
     limiter = MockLimiter()
     agent = MagicMock()
@@ -496,7 +496,7 @@ async def test_integration_with_summarize_history():
                 agent=agent,
                 summary_window=1,  # Keep only last message
                 limiter=limiter,
-                conversational_token_threshold=10,  # Low threshold to trigger summarization
+                conversational_token_threshold=100,  # Enough threshold to trigger summarization but keep Q2
             )
 
     # Should have a summary + kept messages (merged due to consecutive User messages)

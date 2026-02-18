@@ -49,8 +49,11 @@ def split_history(
 
 
 def get_split_index(messages: list[Any], summary_window: int) -> int:
-    """Find the last clean turn start before the summary window."""
-    start_search_idx = max(0, len(messages) - summary_window - 1)
+    """Find the last clean turn start before or at the summary window boundary."""
+    if not messages:
+        return -1
+    # Search from the window boundary backwards, bounded by message count
+    start_search_idx = min(len(messages) - 1, max(0, len(messages) - summary_window))
     for i in range(start_search_idx, -1, -1):
         if is_turn_start(messages[i]):
             return i
@@ -293,14 +296,14 @@ def find_best_effort_split(
             )
         return to_summarize, to_keep
     else:
-        # Last resort: keep only the last message
+        # Last resort: Summarize everything
         zrb_print(
             stylize_yellow(
-                "  Warning: Could not find any split that preserves tool call/return pairs, keeping only last message"
+                "  Warning: Could not find any split that preserves tool call/return pairs. Summarizing entire history."
             ),
             plain=True,
         )
-        return messages[:-1], messages[-1:]
+        return messages, []
 
 
 def is_split_safe(
@@ -331,7 +334,7 @@ def is_split_safe(
             # Tool call without return - if it's before split, we'd lose it
             # If it's after split, it stays in kept messages without return (also problematic)
             # Actually, a call without return in kept messages is OK - the return might come later
-            # But if call is before split and we summarize it, we lose the call context
+            # But if call is before split and we summarize it, we lose the tool call context
             if call_idx < split_idx:
                 # Call would be summarized away - we lose the tool call context
                 return False
@@ -339,11 +342,9 @@ def is_split_safe(
 
         # If we have only a return (no call)
         elif call_idx is None and return_idx is not None:
-            # Orphaned return - already broken, but we should try to keep it with context
-            # Don't reject split just because of orphaned return
-            # However, if the return is before split, it will be summarized away
-            # If it's after split, it stays as orphaned in kept messages
-            # Neither case breaks new tool calls, so we allow it
-            pass
+            # Orphaned return - MUST NOT be kept
+            if return_idx >= split_idx:
+                # If we keep an orphan, the history remains broken
+                return False
 
     return True
