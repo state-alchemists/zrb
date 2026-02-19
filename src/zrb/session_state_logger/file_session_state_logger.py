@@ -18,7 +18,7 @@ class FileSessionStateLogger(AnySessionStateLogger):
 
     def _get_session_log_dir(self) -> str:
         """Get the session log directory as a string.
-        
+
         If session_log_dir was provided as a callable, it will be called.
         If it was provided as a string, it will be returned directly.
         """
@@ -56,7 +56,9 @@ class FileSessionStateLogger(AnySessionStateLogger):
 
         matching_sessions = []
         # Traverse the timeline directory and filter sessions
-        timeline_dir = os.path.join(self._get_session_log_dir(), "_timeline", *task_path)
+        timeline_dir = os.path.join(
+            self._get_session_log_dir(), "_timeline", *task_path
+        )
         if not os.path.exists(timeline_dir):
             return {"total": 0, "data": []}
         for root, _, files in os.walk(timeline_dir):
