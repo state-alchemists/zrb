@@ -1,6 +1,6 @@
 import datetime
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Union
 
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 from zrb.util.file import read_file, write_file
@@ -13,8 +13,18 @@ if TYPE_CHECKING:
 
 
 class FileSessionStateLogger(AnySessionStateLogger):
-    def __init__(self, session_log_dir: str):
-        self._session_log_dir = session_log_dir
+    def __init__(self, session_log_dir: Union[str, Callable[[], str]]):
+        self._session_log_dir_param = session_log_dir
+
+    def _get_session_log_dir(self) -> str:
+        """Get the session log directory as a string.
+        
+        If session_log_dir was provided as a callable, it will be called.
+        If it was provided as a string, it will be returned directly.
+        """
+        if callable(self._session_log_dir_param):
+            return self._session_log_dir_param()
+        return self._session_log_dir_param
 
     def write(self, session_log: "SessionStateLog"):
         session_file_path = self._get_session_file_path(session_log.name)
@@ -46,7 +56,7 @@ class FileSessionStateLogger(AnySessionStateLogger):
 
         matching_sessions = []
         # Traverse the timeline directory and filter sessions
-        timeline_dir = os.path.join(self._session_log_dir, "_timeline", *task_path)
+        timeline_dir = os.path.join(self._get_session_log_dir(), "_timeline", *task_path)
         if not os.path.exists(timeline_dir):
             return {"total": 0, "data": []}
         for root, _, files in os.walk(timeline_dir):
@@ -70,7 +80,7 @@ class FileSessionStateLogger(AnySessionStateLogger):
         return SessionStateLogList(total=total, data=data)
 
     def _get_session_file_path(self, session_name: str) -> str:
-        return os.path.join(self._session_log_dir, f"{session_name}.json")
+        return os.path.join(self._get_session_log_dir(), f"{session_name}.json")
 
     def _get_timeline_dir_path(self, session_log: "SessionStateLog") -> str:
         start_time = self._get_start_time(session_log)
@@ -88,7 +98,7 @@ class FileSessionStateLogger(AnySessionStateLogger):
             f"{minute}",
             f"{second}",
         ]
-        return os.path.join(self._session_log_dir, "_timeline", *paths)
+        return os.path.join(self._get_session_log_dir(), "_timeline", *paths)
 
     def _get_start_time(self, session_log: "SessionStateLog") -> datetime.datetime:
         return datetime.datetime.strptime(
