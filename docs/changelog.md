@@ -2,6 +2,12 @@
 
 ## 2.6.2 (February 19, 2026)
 
+- **Feature: Dynamic Session Log Directory Resolution**:
+  - **Flexible Directory Configuration**: Enhanced `FileSessionStateLogger` to accept both string and callable for `session_log_dir` parameter, enabling dynamic directory resolution at runtime.
+  - **Backward Compatibility**: Maintained full backward compatibility with existing string inputs while adding support for callable functions that return directory paths.
+  - **Factory Integration**: Updated `session_state_logger_factory.py` to use lambda wrapper for `CFG.SESSION_LOG_DIR`, demonstrating callable usage pattern.
+  - **Clean Abstraction**: Added `_get_session_log_dir()` method to abstract evaluation logic, ensuring consistent path resolution throughout the class.
+
 - **Improvement: Enhanced Prompt Expansion with Path-Specific Warnings**:
   - **Modular Refactoring**: Refactored `expand_prompt()` utility into modular functions (`_get_path_references`, `_process_path_reference`, `_create_appendix_entry`, `_create_appendix_header`) for better maintainability and testability.
   - **Path-Specific Warnings**: Added intelligent warning messages that differentiate between file and directory references. File references now warn against using `read_file`, while directory references warn against using `list_files`, improving agent guidance.
