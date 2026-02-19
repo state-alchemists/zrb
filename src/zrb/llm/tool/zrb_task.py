@@ -44,7 +44,8 @@ def create_run_zrb_task_tool():
     ) -> str:
         """ """
         # Construct command
-        cmd_parts = ["zrb"] + task_name.split()
+        zrb_cmd = CFG.ROOT_GROUP_NAME
+        cmd_parts = [zrb_cmd] + task_name.split()
 
         for key, val in args.items():
             cmd_parts.append(f"--{key}")
