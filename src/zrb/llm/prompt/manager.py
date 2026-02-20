@@ -72,6 +72,10 @@ class PromptManager:
             middlewares.append(
                 new_prompt(lambda: get_persona_prompt(assistant_name=assistant_name))
             )
+        # 1. Facts: Current environmental state
+        if self._include_system_context:
+            middlewares.append(system_context)
+        # 2. Rules: Core operational behavior
         if self._include_mandate:
             middlewares.append(new_prompt(lambda: get_mandate_prompt()))
         if self._include_git_mandate:
@@ -80,10 +84,9 @@ class PromptManager:
                     lambda: get_git_mandate_prompt() if is_inside_git_dir() else ""
                 )
             )
-        if self._include_system_context:
-            middlewares.append(system_context)
         if self._include_journal:
             middlewares.append(new_prompt(lambda: get_journal_prompt()))
+        # 3. Context: Project specific documentation and skills
         if self._include_project_context:
             middlewares.append(create_project_context_prompt())
         if self._include_claude_skills and self._skill_manager:
@@ -95,6 +98,7 @@ class PromptManager:
             )
         if self._include_cli_skills:
             middlewares.append(create_cli_skills_prompt())
+        # 4. User: Custom prompts
         middlewares.extend(self._middlewares)
         return middlewares
 

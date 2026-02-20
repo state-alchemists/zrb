@@ -108,3 +108,59 @@ async def test_post_confirmation_middleware():
     result = await handler.handle(ui, call)
 
     assert isinstance(result, ToolDenied)
+
+
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+from pydantic_ai import ToolApproved, ToolDenied
+
+from zrb.llm.tool_call import ToolCallHandler
+
+
+@pytest.mark.asyncio
+async def test_handler_explicit_approval():
+    ui = MagicMock()
+    ui.ask_user = AsyncMock(return_value="y")
+    call = MagicMock()
+    call.tool_name = "test_tool"
+    call.args = {}
+
+    handler = ToolCallHandler()
+    result = await handler.handle(ui, call)
+
+    assert isinstance(result, ToolApproved)
+
+
+@pytest.mark.asyncio
+async def test_handler_explicit_denial():
+    ui = MagicMock()
+    ui.ask_user = AsyncMock(return_value="n")
+    call = MagicMock()
+    call.tool_name = "test_tool"
+    call.args = {}
+
+    handler = ToolCallHandler()
+    result = await handler.handle(ui, call)
+
+    assert isinstance(result, ToolDenied)
+    assert result.message == "User denied"
+
+
+@pytest.mark.asyncio
+async def test_handler_feedback_denial():
+    ui = MagicMock()
+    # Simulate user typing a reason
+    ui.ask_user = AsyncMock(return_value="I don't think this is safe")
+    call = MagicMock()
+    call.tool_name = "test_tool"
+    call.args = {}
+
+    handler = ToolCallHandler()
+    result = await handler.handle(ui, call)
+
+    assert isinstance(result, ToolDenied)
+    assert (
+        "User denied execution with message: I don't think this is safe"
+        in result.message
+    )
