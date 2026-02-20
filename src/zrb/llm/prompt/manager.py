@@ -69,17 +69,49 @@ class PromptManager:
         assistant_name = (
             get_str_attr(ctx, self._assistant_name) if self._assistant_name else None
         )
-        
+
         # Get effective values (use config defaults if None)
-        include_persona = self._include_persona if self._include_persona is not None else CFG.LLM_INCLUDE_PERSONA
-        include_mandate = self._include_mandate if self._include_mandate is not None else CFG.LLM_INCLUDE_MANDATE
-        include_git_mandate = self._include_git_mandate if self._include_git_mandate is not None else CFG.LLM_INCLUDE_GIT_MANDATE
-        include_system_context = self._include_system_context if self._include_system_context is not None else CFG.LLM_INCLUDE_SYSTEM_CONTEXT
-        include_journal = self._include_journal if self._include_journal is not None else CFG.LLM_INCLUDE_JOURNAL
-        include_claude_skills = self._include_claude_skills if self._include_claude_skills is not None else CFG.LLM_INCLUDE_CLAUDE_SKILLS
-        include_cli_skills = self._include_cli_skills if self._include_cli_skills is not None else CFG.LLM_INCLUDE_CLI_SKILLS
-        include_project_context = self._include_project_context if self._include_project_context is not None else CFG.LLM_INCLUDE_PROJECT_CONTEXT
-        
+        include_persona = (
+            self._include_persona
+            if self._include_persona is not None
+            else CFG.LLM_INCLUDE_PERSONA
+        )
+        include_mandate = (
+            self._include_mandate
+            if self._include_mandate is not None
+            else CFG.LLM_INCLUDE_MANDATE
+        )
+        include_git_mandate = (
+            self._include_git_mandate
+            if self._include_git_mandate is not None
+            else CFG.LLM_INCLUDE_GIT_MANDATE
+        )
+        include_system_context = (
+            self._include_system_context
+            if self._include_system_context is not None
+            else CFG.LLM_INCLUDE_SYSTEM_CONTEXT
+        )
+        include_journal = (
+            self._include_journal
+            if self._include_journal is not None
+            else CFG.LLM_INCLUDE_JOURNAL
+        )
+        include_claude_skills = (
+            self._include_claude_skills
+            if self._include_claude_skills is not None
+            else CFG.LLM_INCLUDE_CLAUDE_SKILLS
+        )
+        include_cli_skills = (
+            self._include_cli_skills
+            if self._include_cli_skills is not None
+            else CFG.LLM_INCLUDE_CLI_SKILLS
+        )
+        include_project_context = (
+            self._include_project_context
+            if self._include_project_context is not None
+            else CFG.LLM_INCLUDE_PROJECT_CONTEXT
+        )
+
         if include_persona:
             middlewares.append(
                 new_prompt(lambda: get_persona_prompt(assistant_name=assistant_name))

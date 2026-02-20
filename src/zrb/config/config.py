@@ -1475,7 +1475,9 @@ class Config:
 
     @LLM_INCLUDE_SYSTEM_CONTEXT.setter
     def LLM_INCLUDE_SYSTEM_CONTEXT(self, value: bool):
-        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_SYSTEM_CONTEXT"] = "1" if value else "0"
+        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_SYSTEM_CONTEXT"] = (
+            "1" if value else "0"
+        )
 
     @property
     def LLM_INCLUDE_JOURNAL(self) -> bool:
@@ -1503,7 +1505,9 @@ class Config:
 
     @LLM_INCLUDE_CLAUDE_SKILLS.setter
     def LLM_INCLUDE_CLAUDE_SKILLS(self, value: bool):
-        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_CLAUDE_SKILLS"] = "1" if value else "0"
+        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_CLAUDE_SKILLS"] = (
+            "1" if value else "0"
+        )
 
     @property
     def LLM_INCLUDE_CLI_SKILLS(self) -> bool:
@@ -1531,7 +1535,9 @@ class Config:
 
     @LLM_INCLUDE_PROJECT_CONTEXT.setter
     def LLM_INCLUDE_PROJECT_CONTEXT(self, value: bool):
-        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_PROJECT_CONTEXT"] = "1" if value else "0"
+        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_PROJECT_CONTEXT"] = (
+            "1" if value else "0"
+        )
 
     @property
     def USE_TIKTOKEN(self) -> bool:

@@ -46,10 +46,7 @@ def create_project_context_prompt():
             if content:
                 summary = _summarize_markdown(content, max_len=5000)
                 if summary == content:
-                    doc_section = (
-                        f"## Content of {filename}\n\n"
-                        f"{summary}"
-                    )
+                    doc_section = f"## Content of {filename}\n\n" f"{summary}"
                 else:
                     doc_section = (
                         f"## Summary of {filename}\n"
