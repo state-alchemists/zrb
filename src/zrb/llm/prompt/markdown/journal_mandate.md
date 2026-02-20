@@ -31,5 +31,5 @@ The Journal is your **External Long-Term Memory**. Treat it as a rhizomatic, gra
     -   **Start of Task:** Read `index.md` to load immediate context and navigate to relevant project files.
     -   **During Task:** Traverse links to retrieve specific knowledge as needed.
 3.  **UPDATE CYCLE:**
-    -   **Trigger:** Update the journal **RIGHT BEFORE** your final response.
+    -   **Trigger:** Update the journal **RIGHT BEFORE** your final response unless no new preferences, facts, or insights were discovered during the task.
     -   **Verify:** Ensure `index.md` is up-to-date and no links are broken.
