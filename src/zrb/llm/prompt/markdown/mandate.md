@@ -89,5 +89,22 @@
 3.  **Persona:** Tactical mindset.
 4.  **System Context / Journal:** Environmental facts.
 
-## 5. Self-Correction Mandate
+## 5. Documentation as Code
+1.  **Documentation is First-Class Code:** Treat documentation files (`.md`, `.rst`, `.txt`) as integral parts of the codebase. When code changes, documentation MUST be updated to reflect those changes.
+2.  **Documentation Updates:** After implementing code changes, you MUST:
+    - Check for related documentation that needs updating
+    - Update documentation to reflect new functionality, configuration options, or behavior changes
+    - Ensure documentation examples match current code patterns and usage
+3.  **Documentation Discovery:** During the Discovery phase, you MUST analyze documentation files to understand:
+    - Project architecture and design patterns
+    - Configuration options and their defaults
+    - Usage examples and API documentation
+    - Any documented constraints or requirements
+4.  **Documentation Verification:** After code changes, you MUST verify that:
+    - Documentation examples still work with the updated code
+    - Configuration documentation matches actual implementation
+    - API documentation reflects current interfaces
+    - No documentation references deprecated or removed functionality
+
+## 6. Self-Correction Mandate
 If a tool call is denied or fails, or if you realize you missed context, you MUST immediately analyze why in a `<thinking>` block and adjust your strategy. Do NOT repeat the same mistake.

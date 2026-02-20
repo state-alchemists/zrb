@@ -367,6 +367,38 @@ The following environment variables are used as LLM configuration default proper
     * Default: `off`
     * Possible values: `on`, `off`
 
+* `ZRB_LLM_INCLUDE_PERSONA`: Whether to include persona prompt in PromptManager.
+    * Default: `1` (true)
+    * Possible values: `0` (false), `1` (true)
+
+* `ZRB_LLM_INCLUDE_MANDATE`: Whether to include mandate prompt in PromptManager.
+    * Default: `1` (true)
+    * Possible values: `0` (false), `1` (true)
+
+* `ZRB_LLM_INCLUDE_GIT_MANDATE`: Whether to include git mandate prompt in PromptManager (when inside git repository).
+    * Default: `1` (true)
+    * Possible values: `0` (false), `1` (true)
+
+* `ZRB_LLM_INCLUDE_SYSTEM_CONTEXT`: Whether to include system context prompt in PromptManager.
+    * Default: `1` (true)
+    * Possible values: `0` (false), `1` (true)
+
+* `ZRB_LLM_INCLUDE_JOURNAL`: Whether to include journal prompt in PromptManager.
+    * Default: `1` (true)
+    * Possible values: `0` (false), `1` (true)
+
+* `ZRB_LLM_INCLUDE_CLAUDE_SKILLS`: Whether to include Claude skills prompt in PromptManager.
+    * Default: `1` (true)
+    * Possible values: `0` (false), `1` (true)
+
+* `ZRB_LLM_INCLUDE_CLI_SKILLS`: Whether to include CLI skills prompt in PromptManager.
+    * Default: `0` (false)
+    * Possible values: `0` (false), `1` (true)
+
+* `ZRB_LLM_INCLUDE_PROJECT_CONTEXT`: Whether to include project context prompt in PromptManager.
+    * Default: `1` (true)
+    * Possible values: `0` (false), `1` (true)
+
 ### LLM UI Configuration (Pollux)
 
 These variables control the appearance and behavior of the LLM chat interface.
