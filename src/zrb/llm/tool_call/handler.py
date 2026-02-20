@@ -95,11 +95,13 @@ class ToolCallHandler:
                         from pydantic_ai import ToolApproved
 
                         return ToolApproved()
-                    if r in ("n", "no", "deny", "cancel", "🛑"):
-                        from pydantic_ai import ToolDenied
 
+                    from pydantic_ai import ToolDenied
+
+                    if r in ("n", "no", "deny", "cancel", "🛑"):
                         return ToolDenied("User denied")
-                    return None
+
+                    return ToolDenied(f"User denied execution with message: {response}")
 
                 handler = self._response_handlers[index]
                 return await handler(

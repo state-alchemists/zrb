@@ -45,12 +45,15 @@ def create_project_context_prompt():
             content = _get_combined_content(filename, search_dirs)
             if content:
                 summary = _summarize_markdown(content, max_len=5000)
-                doc_section = (
-                    f"## Summary of {filename}\n"
-                    "**Read the full file if you need to understand project-specific commands, conventions, or architecture.**\n"
-                    "Failure to do so may result in incorrect implementations.\n\n"
-                    f"{summary}"
-                )
+                if summary == content:
+                    doc_section = f"## Content of {filename}\n\n" f"{summary}"
+                else:
+                    doc_section = (
+                        f"## Summary of {filename}\n"
+                        "**Read the full file if you need to understand project-specific commands, conventions, or architecture.**\n"
+                        "Failure to do so may result in incorrect implementations.\n\n"
+                        f"{summary}"
+                    )
                 project_docs.append(doc_section)
 
             # Track found file paths for fallback message

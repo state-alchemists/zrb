@@ -108,6 +108,14 @@ class Config:
         self.DEFAULT_LLM_PLUGIN_DIRS: str = ""
         self.DEFAULT_LLM_SHOW_TOOL_CALL_DETAIL: str = "off"
         self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT: str = "off"
+        self.DEFAULT_LLM_INCLUDE_PERSONA: str = "1"
+        self.DEFAULT_LLM_INCLUDE_MANDATE: str = "1"
+        self.DEFAULT_LLM_INCLUDE_GIT_MANDATE: str = "1"
+        self.DEFAULT_LLM_INCLUDE_SYSTEM_CONTEXT: str = "1"
+        self.DEFAULT_LLM_INCLUDE_JOURNAL: str = "1"
+        self.DEFAULT_LLM_INCLUDE_CLAUDE_SKILLS: str = "1"
+        self.DEFAULT_LLM_INCLUDE_CLI_SKILLS: str = "0"
+        self.DEFAULT_LLM_INCLUDE_PROJECT_CONTEXT: str = "1"
         self.DEFAULT_ASCII_ART_DIR: str = ""
         self.DEFAULT_LLM_SMALL_MODEL: str = ""
         self.DEFAULT_RAG_EMBEDDING_API_KEY: str = ""
@@ -1410,6 +1418,124 @@ class Config:
     @LLM_SHOW_TOOL_CALL_RESULT.setter
     def LLM_SHOW_TOOL_CALL_RESULT(self, value: bool):
         os.environ[f"{self.ENV_PREFIX}_LLM_SHOW_TOOL_CALL_RESULT"] = (
+            "1" if value else "0"
+        )
+
+    @property
+    def LLM_INCLUDE_PERSONA(self) -> bool:
+        return to_boolean(
+            get_env(
+                "LLM_INCLUDE_PERSONA",
+                self.DEFAULT_LLM_INCLUDE_PERSONA,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_INCLUDE_PERSONA.setter
+    def LLM_INCLUDE_PERSONA(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_PERSONA"] = "1" if value else "0"
+
+    @property
+    def LLM_INCLUDE_MANDATE(self) -> bool:
+        return to_boolean(
+            get_env(
+                "LLM_INCLUDE_MANDATE",
+                self.DEFAULT_LLM_INCLUDE_MANDATE,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_INCLUDE_MANDATE.setter
+    def LLM_INCLUDE_MANDATE(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_MANDATE"] = "1" if value else "0"
+
+    @property
+    def LLM_INCLUDE_GIT_MANDATE(self) -> bool:
+        return to_boolean(
+            get_env(
+                "LLM_INCLUDE_GIT_MANDATE",
+                self.DEFAULT_LLM_INCLUDE_GIT_MANDATE,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_INCLUDE_GIT_MANDATE.setter
+    def LLM_INCLUDE_GIT_MANDATE(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_GIT_MANDATE"] = "1" if value else "0"
+
+    @property
+    def LLM_INCLUDE_SYSTEM_CONTEXT(self) -> bool:
+        return to_boolean(
+            get_env(
+                "LLM_INCLUDE_SYSTEM_CONTEXT",
+                self.DEFAULT_LLM_INCLUDE_SYSTEM_CONTEXT,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_INCLUDE_SYSTEM_CONTEXT.setter
+    def LLM_INCLUDE_SYSTEM_CONTEXT(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_SYSTEM_CONTEXT"] = (
+            "1" if value else "0"
+        )
+
+    @property
+    def LLM_INCLUDE_JOURNAL(self) -> bool:
+        return to_boolean(
+            get_env(
+                "LLM_INCLUDE_JOURNAL",
+                self.DEFAULT_LLM_INCLUDE_JOURNAL,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_INCLUDE_JOURNAL.setter
+    def LLM_INCLUDE_JOURNAL(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_JOURNAL"] = "1" if value else "0"
+
+    @property
+    def LLM_INCLUDE_CLAUDE_SKILLS(self) -> bool:
+        return to_boolean(
+            get_env(
+                "LLM_INCLUDE_CLAUDE_SKILLS",
+                self.DEFAULT_LLM_INCLUDE_CLAUDE_SKILLS,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_INCLUDE_CLAUDE_SKILLS.setter
+    def LLM_INCLUDE_CLAUDE_SKILLS(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_CLAUDE_SKILLS"] = (
+            "1" if value else "0"
+        )
+
+    @property
+    def LLM_INCLUDE_CLI_SKILLS(self) -> bool:
+        return to_boolean(
+            get_env(
+                "LLM_INCLUDE_CLI_SKILLS",
+                self.DEFAULT_LLM_INCLUDE_CLI_SKILLS,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_INCLUDE_CLI_SKILLS.setter
+    def LLM_INCLUDE_CLI_SKILLS(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_CLI_SKILLS"] = "1" if value else "0"
+
+    @property
+    def LLM_INCLUDE_PROJECT_CONTEXT(self) -> bool:
+        return to_boolean(
+            get_env(
+                "LLM_INCLUDE_PROJECT_CONTEXT",
+                self.DEFAULT_LLM_INCLUDE_PROJECT_CONTEXT,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_INCLUDE_PROJECT_CONTEXT.setter
+    def LLM_INCLUDE_PROJECT_CONTEXT(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_PROJECT_CONTEXT"] = (
             "1" if value else "0"
         )
 

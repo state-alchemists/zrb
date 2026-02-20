@@ -68,7 +68,7 @@ def get_web_summarizer_system_prompt() -> str:
 
 
 def get_journal_prompt() -> str:
-    prompt = get_default_prompt("journal")
+    prompt = get_default_prompt("journal_mandate")
     replacements = _get_prompt_replacements()
     return _replace_prompt_placeholders(prompt, replacements)
 

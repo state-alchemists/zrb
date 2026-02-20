@@ -1,5 +1,18 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.6.4 (February 21, 2026)
+
+- **Feature: PromptManager Configuration Defaults**:
+  - **Configurable Prompt Components**: Added 8 new configuration properties to `CFG` for controlling PromptManager behavior: `LLM_INCLUDE_PERSONA`, `LLM_INCLUDE_MANDATE`, `LLM_INCLUDE_GIT_MANDATE`, `LLM_INCLUDE_SYSTEM_CONTEXT`, `LLM_INCLUDE_JOURNAL`, `LLM_INCLUDE_CLAUDE_SKILLS`, `LLM_INCLUDE_CLI_SKILLS`, `LLM_INCLUDE_PROJECT_CONTEXT`.
+  - **Flexible Parameter Handling**: Updated `PromptManager.__init__()` to accept `None` for boolean parameters, allowing them to fall back to configuration defaults while preserving explicit override capability.
+  - **Backward Compatibility**: Maintains full compatibility with existing code - explicit `True`/`False` values continue to work as before.
+  - **Environment Variable Support**: All properties can be configured via environment variables (e.g., `ZRB_LLM_INCLUDE_PERSONA=0`) using standard "1"/"0" or "on"/"off" string format.
+
+- **Improvement: Documentation as Code**:
+  - **Updated Mandate**: Added "Documentation as Code" section to mandate, requiring documentation to be treated as first-class code that must be updated when code changes.
+  - **Configuration Documentation**: Added new configuration options to official documentation with clear defaults and usage examples.
+  - **Customization Guide Update**: Enhanced customizing AI assistant documentation with information about PromptManager configuration defaults.
+
 ## 2.6.3 (February 19, 2026)
 
 - **Feature: Dynamic Session Log Directory Resolution**:

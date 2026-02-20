@@ -2,6 +2,7 @@ import inspect
 from typing import Callable
 
 from zrb.attr.type import StrListAttr
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.prompt.claude import (
     create_claude_skills_prompt,
@@ -33,14 +34,14 @@ class PromptManager:
         self,
         prompts: list[PromptMiddleware | str] | None = None,
         assistant_name: str | Callable[[AnyContext], str] | None = None,
-        include_persona: bool = True,
-        include_mandate: bool = True,
-        include_git_mandate: bool = True,
-        include_system_context: bool = True,
-        include_journal: bool = True,
-        include_claude_skills: bool = True,
-        include_cli_skills: bool = False,
-        include_project_context: bool = True,
+        include_persona: bool | None = None,
+        include_mandate: bool | None = None,
+        include_git_mandate: bool | None = None,
+        include_system_context: bool | None = None,
+        include_journal: bool | None = None,
+        include_claude_skills: bool | None = None,
+        include_cli_skills: bool | None = None,
+        include_project_context: bool | None = None,
         skill_manager: SkillManager | None = None,
         active_skills: StrListAttr | None = None,
         render_active_skills: bool = True,
@@ -68,33 +69,80 @@ class PromptManager:
         assistant_name = (
             get_str_attr(ctx, self._assistant_name) if self._assistant_name else None
         )
-        if self._include_persona:
+
+        # Get effective values (use config defaults if None)
+        include_persona = (
+            self._include_persona
+            if self._include_persona is not None
+            else CFG.LLM_INCLUDE_PERSONA
+        )
+        include_mandate = (
+            self._include_mandate
+            if self._include_mandate is not None
+            else CFG.LLM_INCLUDE_MANDATE
+        )
+        include_git_mandate = (
+            self._include_git_mandate
+            if self._include_git_mandate is not None
+            else CFG.LLM_INCLUDE_GIT_MANDATE
+        )
+        include_system_context = (
+            self._include_system_context
+            if self._include_system_context is not None
+            else CFG.LLM_INCLUDE_SYSTEM_CONTEXT
+        )
+        include_journal = (
+            self._include_journal
+            if self._include_journal is not None
+            else CFG.LLM_INCLUDE_JOURNAL
+        )
+        include_claude_skills = (
+            self._include_claude_skills
+            if self._include_claude_skills is not None
+            else CFG.LLM_INCLUDE_CLAUDE_SKILLS
+        )
+        include_cli_skills = (
+            self._include_cli_skills
+            if self._include_cli_skills is not None
+            else CFG.LLM_INCLUDE_CLI_SKILLS
+        )
+        include_project_context = (
+            self._include_project_context
+            if self._include_project_context is not None
+            else CFG.LLM_INCLUDE_PROJECT_CONTEXT
+        )
+
+        if include_persona:
             middlewares.append(
                 new_prompt(lambda: get_persona_prompt(assistant_name=assistant_name))
             )
-        if self._include_mandate:
+        # 1. Facts: Current environmental state
+        if include_system_context:
+            middlewares.append(system_context)
+        # 2. Rules: Core operational behavior
+        if include_mandate:
             middlewares.append(new_prompt(lambda: get_mandate_prompt()))
-        if self._include_git_mandate:
+        if include_git_mandate:
             middlewares.append(
                 new_prompt(
                     lambda: get_git_mandate_prompt() if is_inside_git_dir() else ""
                 )
             )
-        if self._include_system_context:
-            middlewares.append(system_context)
-        if self._include_journal:
+        if include_journal:
             middlewares.append(new_prompt(lambda: get_journal_prompt()))
-        if self._include_project_context:
+        # 3. Context: Project specific documentation and skills
+        if include_project_context:
             middlewares.append(create_project_context_prompt())
-        if self._include_claude_skills and self._skill_manager:
+        if include_claude_skills and self._skill_manager:
             active_skills = get_str_list_attr(
                 ctx, self._active_skills, self._render_active_skills
             )
             middlewares.append(
                 create_claude_skills_prompt(self._skill_manager, active_skills)
             )
-        if self._include_cli_skills:
+        if include_cli_skills:
             middlewares.append(create_cli_skills_prompt())
+        # 4. User: Custom prompts
         middlewares.extend(self._middlewares)
         return middlewares
 

@@ -48,6 +48,21 @@ chat_task.prompt_manager.add_prompt(
 )
 ```
 
+### Configuration Defaults
+
+`PromptManager` supports configuration defaults for its boolean parameters. When a parameter is set to `None`, it uses the corresponding configuration value from `CFG`:
+
+- `include_persona`: Uses `CFG.LLM_INCLUDE_PERSONA` (default: `True`)
+- `include_mandate`: Uses `CFG.LLM_INCLUDE_MANDATE` (default: `True`)
+- `include_git_mandate`: Uses `CFG.LLM_INCLUDE_GIT_MANDATE` (default: `True`)
+- `include_system_context`: Uses `CFG.LLM_INCLUDE_SYSTEM_CONTEXT` (default: `True`)
+- `include_journal`: Uses `CFG.LLM_INCLUDE_JOURNAL` (default: `True`)
+- `include_claude_skills`: Uses `CFG.LLM_INCLUDE_CLAUDE_SKILLS` (default: `True`)
+- `include_cli_skills`: Uses `CFG.LLM_INCLUDE_CLI_SKILLS` (default: `False`)
+- `include_project_context`: Uses `CFG.LLM_INCLUDE_PROJECT_CONTEXT` (default: `True`)
+
+These can be configured via environment variables (e.g., `ZRB_LLM_INCLUDE_PERSONA=0`) or by setting the properties on `CFG` in your `zrb_init.py`.
+
 ## 3. Adding Tools
 
 You can equip your assistant with custom Python functions.

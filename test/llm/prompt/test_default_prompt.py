@@ -94,8 +94,10 @@ def test_get_default_prompt_fallback_to_package_default(mock_cfg):
     ):
 
         content = get_default_prompt("persona")
-        assert "You ARE" in content
-        assert "Polymath Executor" in content
+        assert isinstance(content, str)
+        assert len(content) > 0
+        # Should contain placeholder (not replaced in get_default_prompt)
+        assert "{ASSISTANT_NAME}" in content
 
 
 def test_get_default_prompt_env_override(mock_cfg, monkeypatch):
