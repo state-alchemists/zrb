@@ -51,12 +51,11 @@ except ImportError:
         tool_call_id: str
 
 
+from zrb.llm.message import get_tool_pairs, validate_tool_pair_integrity
 from zrb.llm.summarizer.history_splitter import (
     find_best_effort_split,
     find_safe_split_index,
-    get_tool_pairs,
     is_split_safe,
-    validate_tool_pair_integrity,
 )
 
 

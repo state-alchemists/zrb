@@ -9,7 +9,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 
-from zrb.llm.summarizer.history_summarizer import _ensure_alternating_roles
+from zrb.llm.message import ensure_alternating_roles
 
 
 def test_alternating_roles_merge_user_requests():
@@ -17,7 +17,7 @@ def test_alternating_roles_merge_user_requests():
     req1 = ModelRequest(parts=[UserPromptPart(content="Hello")])
     req2 = ModelRequest(parts=[UserPromptPart(content="World")])
 
-    result = _ensure_alternating_roles([req1, req2])
+    result = ensure_alternating_roles([req1, req2])
 
     assert len(result) == 1
     assert isinstance(result[0], ModelRequest)
@@ -33,7 +33,7 @@ def test_alternating_roles_merge_model_responses():
     )
     res2 = ModelResponse(parts=[TextPart(content="Answer")], timestamp=datetime.now())
 
-    result = _ensure_alternating_roles([res1, res2])
+    result = ensure_alternating_roles([res1, res2])
 
     assert len(result) == 1
     assert isinstance(result[0], ModelResponse)
@@ -51,7 +51,7 @@ def test_alternating_roles_mixed_sequence():
     req3 = ModelRequest(parts=[UserPromptPart(content="5")])
     req4 = ModelRequest(parts=[UserPromptPart(content="6")])
 
-    result = _ensure_alternating_roles([req1, res1, req2, res2, req3, req4])
+    result = ensure_alternating_roles([req1, res1, req2, res2, req3, req4])
 
     assert len(result) == 5
     assert result[0].parts[0].content == "1"
@@ -78,7 +78,7 @@ def test_alternating_roles_tool_call_flow():
     res2 = ModelResponse(parts=[TextPart(content="Done")], timestamp=datetime.now())
     req3 = ModelRequest(parts=[UserPromptPart(content="Thx")])
 
-    result = _ensure_alternating_roles([req1, res1, req2, res2, req3])
+    result = ensure_alternating_roles([req1, res1, req2, res2, req3])
 
     assert len(result) == 5
     assert isinstance(result[0], ModelRequest)
@@ -89,10 +89,10 @@ def test_alternating_roles_tool_call_flow():
 
 
 def test_alternating_roles_empty_and_single():
-    assert _ensure_alternating_roles([]) == []
+    assert ensure_alternating_roles([]) == []
 
     req = ModelRequest(parts=[UserPromptPart(content="Hi")])
-    assert _ensure_alternating_roles([req]) == [req]
+    assert ensure_alternating_roles([req]) == [req]
 
 
 def test_alternating_roles_tool_return_and_user_prompt():
@@ -103,7 +103,7 @@ def test_alternating_roles_tool_return_and_user_prompt():
     req1 = ModelRequest(parts=[ToolReturnPart(tool_name="x", content="res")])
     req2 = ModelRequest(parts=[UserPromptPart(content="Next")])
 
-    result = _ensure_alternating_roles([req1, req2])
+    result = ensure_alternating_roles([req1, req2])
 
     assert len(result) == 1
     assert isinstance(result[0], ModelRequest)

@@ -51,3 +51,13 @@
 - **Safety**: `find_best_effort_split` ensures tool call/return pairs are not broken during truncation/summarization.
 - **Efficiency**: `summarize_long_text` uses recursive chunking with a recursion depth guard.
 - **Context Preservation**: Extracts `<state_snapshot>` tags from summaries to maintain structured state.
+### 3.3. LLM Message Safety
+- **Core Principle**: Zrb enforces strict message structure rules to satisfy LLM API requirements (especially Anthropic/OpenAI via Pydantic AI).
+- **Role Alternation**:
+  - **Rule**: Messages must strictly alternate between `user` and `model` roles.
+  - **Enforcement**: `zrb.llm.message.ensure_alternating_roles` merges consecutive same-role messages.
+  - **Exceptions**: Tool calls and returns are treated as part of the `model` or `user` flow but must be paired correctly.
+- **Tool Integrity**:
+  - **Rule**: Every `ToolCall` must have a corresponding `ToolReturn`. They must never be separated by history splitting or summarization.
+  - **Validation**: `zrb.llm.message.validate_tool_pair_integrity` checks for orphaned calls or returns.
+  - **Splitting Strategy**: History splitters use `get_tool_pairs` to ensure splits happen *outside* of tool call/return blocks.

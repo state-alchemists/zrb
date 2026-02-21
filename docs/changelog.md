@@ -1,5 +1,18 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.6.5 (February 21, 2026)
+
+- **Refactor: Centralized LLM Message Safety**:
+  - **Unified Message Logic**: Created `src/zrb/llm/message.py` to centralize message validation and manipulation logic, removing duplication across the codebase.
+  - **Strict Role Alternation**: Implemented `ensure_alternating_roles` to automatically merge consecutive messages of the same role (e.g., User -> User), ensuring strict compliance with LLM API requirements (especially Anthropic).
+  - **Tool Pair Integrity**: Centralized `get_tool_pairs` and `validate_tool_pair_integrity` to ensure `ToolCall` and `ToolReturn` messages are never separated during history processing or summarization.
+  - **Workflow Integration**: Integrated these safety checks directly into `run_agent` and `history_summarizer` to prevent API errors at the source.
+
+- **Cleanup & Optimization**:
+  - **Codebase cleanup**: Removed unused imports and redundant logic in `message_processor.py` and `history_splitter.py`.
+  - **Test Suite Optimization**: Removed obsolete `test_role_alternation.py` in favor of comprehensive new tests in `test/llm/test_message.py`.
+  - **Documentation**: Updated `AGENTS.md` with a new "LLM Message Safety" section detailing the core principles of role alternation and tool integrity.
+
 ## 2.6.4 (February 21, 2026)
 
 - **Feature: PromptManager Configuration Defaults**:

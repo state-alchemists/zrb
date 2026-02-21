@@ -44,9 +44,10 @@ async def test_process_tool_return_part_dual_thresholds():
     part = ToolReturnPart(content=fat_content)
 
     with patch(
-        "zrb.llm.summarizer.text_summarizer.summarize_text_plain",
-        AsyncMock(return_value="Short Summary"),
+        "zrb.llm.summarizer.message_processor.summarize_text_plain",
+        new_callable=AsyncMock,
     ) as mock_sum:
+        mock_sum.return_value = "Short Summary"
         res, modified = await process_tool_return_part(
             part,
             agent,
@@ -66,9 +67,10 @@ async def test_process_tool_return_part_dual_thresholds():
     part = ToolReturnPart(content=insane_content)
 
     with patch(
-        "zrb.llm.summarizer.text_summarizer.summarize_text_plain",
-        AsyncMock(return_value="Short Summary"),
+        "zrb.llm.summarizer.message_processor.summarize_text_plain",
+        new_callable=AsyncMock,
     ) as mock_sum:
+        mock_sum.return_value = "Short Summary"
         res, modified = await process_tool_return_part(
             part,
             agent,

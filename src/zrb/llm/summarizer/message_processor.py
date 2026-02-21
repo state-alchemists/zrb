@@ -1,10 +1,10 @@
-import re
+import json
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
-from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
 from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.summarizer.text_summarizer import summarize_text_plain
 from zrb.util.cli.style import stylize_error, stylize_yellow
 
 if TYPE_CHECKING:
@@ -54,18 +54,13 @@ async def process_tool_return_part(
     content = getattr(part, "content", None)
     if content is None:
         return part, False
-
     # Convert non-string content to string for summarization
     content_is_string = isinstance(content, str)
-    original_content = content
     if not content_is_string:
-        import json
-
         try:
             content = json.dumps(content, default=str)
         except Exception:
             content = str(content)
-
     # Skip if already summarized or truncated
     is_summary = content.startswith("SUMMARY of tool result:")
     is_truncated = content.startswith("TRUNCATED tool result:")
@@ -85,7 +80,6 @@ async def process_tool_return_part(
     prefix_tokens = limiter.count_tokens(prefix)
     available_tokens = message_threshold - prefix_tokens
 
-    # Go: insanity limit should adhere the conversational summarization token threshold.
     # By capping at the conversational-level threshold, we ensure we don't spend
     # too much time summarizing a single message, while still performing
     # chunked summarization for messages that fit within history limits.
@@ -111,8 +105,6 @@ async def process_tool_return_part(
         new_part = replace(part, content=f"TRUNCATED tool result:\n{truncated}")
         return new_part, True
     try:
-        from zrb.llm.summarizer.text_summarizer import summarize_text_plain
-
         summary = await summarize_text_plain(content, agent, limiter, available_tokens)
         new_part = replace(part, content=f"SUMMARY of tool result:\n{summary}")
         return new_part, True

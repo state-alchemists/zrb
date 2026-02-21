@@ -10,8 +10,8 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 
+from zrb.llm.message import get_tool_pairs
 from zrb.llm.summarizer.history_splitter import (
-    get_tool_pairs,
     is_split_safe,
     split_history,
 )

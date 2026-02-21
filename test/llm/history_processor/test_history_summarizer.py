@@ -530,7 +530,7 @@ async def test_find_best_effort_split_complex():
 
 def test_validate_tool_pair_integrity_problems():
     """Test validate_tool_pair_integrity with problematic history."""
-    from zrb.llm.summarizer.history_splitter import validate_tool_pair_integrity
+    from zrb.llm.message import validate_tool_pair_integrity
 
     # 1. Call without return
     messages = [
@@ -655,7 +655,7 @@ async def test_last_user_intent_instruction_injection():
     # Mock validate_tool_pair_integrity to return True
     with patch("zrb.llm.config.limiter.is_turn_start", return_value=False):
         with patch(
-            "zrb.llm.summarizer.history_splitter.validate_tool_pair_integrity",
+            "zrb.llm.summarizer.history_summarizer.validate_tool_pair_integrity",
             return_value=(True, []),
         ):
             await summarize_history(

@@ -9,6 +9,7 @@ from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.message import ensure_alternating_roles
 from zrb.llm.util.attachment import normalize_attachments
 from zrb.llm.util.prompt import expand_prompt
 
@@ -131,6 +132,9 @@ async def run_agent(
         if hasattr(agent, "history_processors"):
             for processor in agent.history_processors:
                 processed_history = await processor(processed_history)
+
+        # Safety Check: Ensure alternating roles in history
+        processed_history = ensure_alternating_roles(processed_history)
 
         # EMERGENCY FAILSAFE: If summarization failed to reduce size below limit
         # (e.g. resulted in a 1M token summary), we must hard-prune to avoid API crash.

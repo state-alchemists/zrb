@@ -10,6 +10,7 @@ from zrb.llm.agent.summarizer import (
 )
 from zrb.llm.config.limiter import LLMLimiter, is_turn_start
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
+from zrb.llm.message import ensure_alternating_roles, validate_tool_pair_integrity
 from zrb.llm.summarizer.chunk_processor import (
     chunk_and_summarize,
     consolidate_summaries,
@@ -187,7 +188,6 @@ async def summarize_history(
             return messages
 
         # Validate tool pair integrity in kept messages
-        from zrb.llm.summarizer.history_splitter import validate_tool_pair_integrity
         from zrb.util.cli.style import stylize_yellow
 
         is_valid, problems = validate_tool_pair_integrity(to_keep)
@@ -226,39 +226,10 @@ async def summarize_history(
         summary_message = _create_summary_model_request(summary_text)
         if summary_message is None:
             return messages
-        return _ensure_alternating_roles([summary_message] + to_keep)
+        return ensure_alternating_roles([summary_message] + to_keep)
     except Exception as e:
         zrb_print(stylize_error(f"  Error in summarize_history: {e}"), plain=True)
         return messages
-
-
-def _ensure_alternating_roles(messages: list[Any]) -> list[Any]:
-    if not messages:
-        return messages
-
-    from pydantic_ai.messages import ModelRequest, ModelResponse
-
-    new_messages: list[Any] = []
-    for msg in messages:
-        if not new_messages:
-            new_messages.append(msg)
-            continue
-
-        last_msg = new_messages[-1]
-
-        # Case 1: Sequential ModelRequests (User -> User) - MERGE
-        if isinstance(msg, ModelRequest) and isinstance(last_msg, ModelRequest):
-            last_msg.parts.extend(msg.parts)
-            continue
-
-        # Case 2: Sequential ModelResponses (Assistant -> Assistant) - MERGE
-        if isinstance(msg, ModelResponse) and isinstance(last_msg, ModelResponse):
-            last_msg.parts.extend(msg.parts)
-            continue
-
-        new_messages.append(msg)
-
-    return new_messages
 
 
 def _create_summary_model_request(summary_text: str) -> Any:
