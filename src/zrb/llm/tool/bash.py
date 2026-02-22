@@ -11,19 +11,11 @@ from zrb.util.cli.style import stylize_faint
 
 async def run_shell_command(command: str, timeout: int = 30) -> str:
     """
-    Executes a shell command.
+    Executes a non-interactive shell command.
 
-    **OPERATIONAL MANDATE:**
-    - You MUST ALWAYS use this to **VERIFY** changes (run tests, linters).
-    - You MUST ALWAYS use this to check system state (installed packages, processes).
-    - You MUST NEVER use this for reading or writing files. You MUST use `Read` or `Write` instead.
-    - You MUST ALWAYS use non-interactive commands.
-    - If a command times out, it is LIKELY STILL RUNNING. You MUST check status (`ps aux`) before retrying.
-    - **CONTEXT-FIRST PRINCIPLE:** Before executing ANY information-gathering command, check if the information is already available in System Context. If available, reference it directly instead of executing.
-
-    **ARGS:**
-    - `command`: The full shell command.
-    - `timeout`: Max wait time in seconds (default 30).
+    MANDATES:
+    - NEVER use for reading/writing files; use file tools instead.
+    - If timeout occurs, process likely runs in background; check `ps aux` before retrying.
     """
     cwd = os.getcwd()
     is_windows = platform.system() == "Windows"

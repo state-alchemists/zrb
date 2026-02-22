@@ -1,6 +1,6 @@
 ---
 name: review
-description: Perform a rigorous code review of recent changes. Identifies bugs, security flaws, and deviations from project standards.
+description: Perform a rigorous code review of recent changes. Identifies bugs, security flaws, and deviations from project standards. Use when asked to review code, check for vulnerabilities, or ensure style compliance.
 user-invocable: true
 ---
 # Skill: review

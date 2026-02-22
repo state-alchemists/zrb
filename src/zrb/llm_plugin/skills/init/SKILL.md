@@ -1,6 +1,6 @@
 ---
 name: init
-description: Initialize a new project or workspace for Claude Code compatibility. Generates a CLAUDE.md guide based on codebase analysis.
+description: Initialize a new project or workspace for Claude Code compatibility. Generates a CLAUDE.md guide based on codebase analysis. Use when setting up a new project or generating AI assistant guidelines.
 disable-model-invocation: true
 user-invocable: true
 ---

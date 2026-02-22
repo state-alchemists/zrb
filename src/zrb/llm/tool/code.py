@@ -61,20 +61,10 @@ async def analyze_code(
     exclude_patterns: list[str] | None = None,
 ) -> str:
     """
-    Performs a deep, semantic analysis of an entire codebase or directory.
+    Semantic analysis of a directory using an LLM sub-agent.
 
-    **EFFICIENCY MANDATE:**
-    - This tool is **VERY SLOW** and token-intensive.
-    - You MUST ALWAYS use `extensions`, `include_patterns`, and `exclude_patterns` to strictly limit the search space.
-    - You MUST ONLY use this for system-wide architectural questions or cross-file flows.
-    - You MUST NEVER use this if the specific path or pattern is known. Use `Read` or `Grep` instead.
-
-    **ARGS:**
-    - `path`: Path to the directory or repository.
-    - `query`: A clear, specific question or analysis goal.
-    - `extensions`: File extensions to include (e.g., ["py", "ts"]).
-    - `include_patterns`: Glob patterns to include (e.g., ["src/**", "tests/*.py"]).
-    - `exclude_patterns`: Glob patterns to ignore (e.g., ["node_modules/**"]).
+    MANDATES:
+    - ALWAYS limit scope via `extensions`, `include_patterns`, and `exclude_patterns`.
     """
     if extensions is None:
         extensions = _DEFAULT_EXTENSIONS

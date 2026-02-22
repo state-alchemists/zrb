@@ -133,12 +133,12 @@ class PromptManager:
         # 3. Context: Project specific documentation and skills
         if include_project_context:
             middlewares.append(create_project_context_prompt())
-        if include_claude_skills and self._skill_manager:
+        if self._skill_manager:
             active_skills = get_str_list_attr(
                 ctx, self._active_skills, self._render_active_skills
             )
             middlewares.append(
-                create_claude_skills_prompt(self._skill_manager, active_skills)
+                create_claude_skills_prompt(self._skill_manager, active_skills, include_claude_skills)
             )
         if include_cli_skills:
             middlewares.append(create_cli_skills_prompt())

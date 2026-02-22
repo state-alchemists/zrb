@@ -8,7 +8,7 @@ from zrb.util.markdown import make_markdown_section
 
 
 def create_claude_skills_prompt(
-    skill_manager: SkillManager, active_skills: Optional[List[str]] = None
+    skill_manager: SkillManager, active_skills: Optional[List[str]] = None, include_claude_skills: bool = True
 ):
     def claude_compatibility(
         ctx: AnyContext,
@@ -20,7 +20,7 @@ def create_claude_skills_prompt(
 
         # 1. Available Claude Skills
         skills_section = _get_skills_section(
-            skill_manager, search_dirs, active_skills=active_skills
+            skill_manager, search_dirs, active_skills=active_skills, include_claude_skills=include_claude_skills
         )
         if skills_section:
             additional_context.append(skills_section)
@@ -168,6 +168,7 @@ def _get_skills_section(
     skill_manager: SkillManager,
     search_dirs: list[Path],
     active_skills: Optional[List[str]] = None,
+    include_claude_skills: bool = True,
 ) -> Optional[str]:
     # Use SkillManager's built-in search directories logic
     skills = skill_manager.scan(search_dirs=skill_manager.get_search_directories())
@@ -183,6 +184,8 @@ def _get_skills_section(
             skill_obj = skill_manager.get_skill(skill_name)
 
             if skill_obj and skill_obj.model_invocable:
+                if not include_claude_skills and not skill_name.startswith("core_mandate_"):
+                    continue
                 # Get the full skill content
                 skill_content = skill_manager.get_skill_content(skill_name)
                 if skill_content:
@@ -200,6 +203,8 @@ def _get_skills_section(
     )
     for skill in skills:
         if skill.model_invocable:
+            if not include_claude_skills and not skill.name.startswith("core_mandate_"):
+                continue
             # Skip skills that are already active
             if active_skills and skill.name in active_skills:
                 continue

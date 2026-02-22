@@ -1,6 +1,6 @@
 ---
 name: pr
-description: Prepare a comprehensive Pull Request (PR) description.
+description: Prepare a comprehensive Pull Request (PR) description. Use when asked to summarize changes for a PR or prepare a pull request.
 disable-model-invocation: true
 user-invocable: true
 ---

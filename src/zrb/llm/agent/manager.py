@@ -186,7 +186,6 @@ class SubAgentManager:
         search_dirs: list[str | Path] = []
         zrb_agent_dir_name = f".{CFG.ROOT_GROUP_NAME}/agents"
 
-        # 0. Plugins (Default Plugin -> User Plugins)
         # Default Plugin
         default_plugin_path = (
             Path(os.path.dirname(__file__)).parent.parent / "llm_plugin"

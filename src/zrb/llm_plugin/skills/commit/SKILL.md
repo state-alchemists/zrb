@@ -1,6 +1,6 @@
 ---
 name: commit
-description: Prepare a high-quality git commit message.
+description: Prepare a high-quality git commit message. Use when asked to draft a commit message for staged or recent changes.
 disable-model-invocation: true
 user-invocable: true
 ---

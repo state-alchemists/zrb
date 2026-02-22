@@ -1,5 +1,36 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.6.6 (February 22, 2026)
+
+- **Architectural: Modular Core Mandate Skills**:
+  - **Brownfield Protocol Skill**: Extracted detailed brownfield discovery and execution protocol from the main mandate into `core_mandate_brownfield` skill, providing step-by-step guidance for safe codebase modifications.
+  - **Documentation Skill**: Created `core_mandate_documentation` skill encapsulating documentation-as-code principles, ensuring documentation stays synchronized with code changes.
+  - **Mandate Streamlining**: Simplified main mandate to reference skills instead of containing verbose protocols, improving token efficiency while maintaining functionality.
+
+- **Documentation: AGENTS.md Complete Restructuring**:
+  - **Practical Guide Focus**: Transformed from detailed technical documentation to concise, actionable development guide with clear "What the Project Is", "Development Setup", and "Where to Find Files" sections.
+  - **Removed Redundant Sections**: Eliminated verbose LLM-specific technical details (summarization system, message safety) that are better covered in code or specialized skills.
+  - **Enhanced Readability**: Organized into logical sections with improved navigation and clearer development conventions.
+
+- **Tool Documentation Standardization**:
+  - **Consistent MANDATES Format**: Updated all LLM tool docstrings (`bash.py`, `code.py`, `file.py`, `web.py`, `delegate.py`, `skill.py`, `zrb_task.py`) to use concise "MANDATES:" format instead of verbose operational guidance.
+  - **Improved Clarity**: Each tool now has clear, scannable mandates that communicate essential constraints without overwhelming detail.
+  - **Backward Compatibility**: Maintains full functionality while improving agent comprehension and token efficiency.
+
+- **Agent System Refinements**:
+  - **Enhanced Agent Descriptions**: Added "Delegate to this agent for..." context to all agent definitions (`coder`, `explorer`, `generalist`, `planner`, `researcher`, `reviewer`) for clearer delegation guidance.
+  - **Note Tool Removal**: Removed deprecated note tools (`ReadContextualNote`, `WriteContextualNote`, `ReadLongTermNote`, `WriteLongTermNote`) from agent tool lists, aligning with journal-based context management.
+  - **Skill Description Improvements**: Added "Use when..." context to all skill descriptions for better user guidance.
+
+- **Configuration & Bug Fixes**:
+  - **Tool Policy Fix**: Fixed `_approve_if_path_inside_parent` in `chat_tool_policy.py` to return `True` when no path is found, preventing unnecessary denials.
+  - **PromptManager Enhancement**: Updated to properly handle `include_claude_skills` parameter and filter core mandate skills appropriately.
+  - **Code Cleanup**: Removed redundant comments and simplified `SubAgentManager` initialization logic.
+
+- **Test Updates**:
+  - **Simplified Prompt Tests**: Removed path-specific warning tests from `test_prompt_util.py` as warnings are now handled at the skill level.
+  - **Maintenance**: Updated test expectations to align with new tool documentation format.
+
 ## 2.6.5 (February 21, 2026)
 
 - **Refactor: Centralized LLM Message Safety**:

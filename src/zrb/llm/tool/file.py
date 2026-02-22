@@ -37,17 +37,6 @@ def list_files(
 ) -> dict[str, list[str]]:
     """
     Recursively explores and lists files.
-
-    **EFFICIENCY MANDATE:**
-    - You MUST NEVER use this if you already know the file name or path.
-    - You MUST use `Read` or `Glob` for targeted access.
-    - Use this ONLY for initial, broad project structure discovery.
-
-    **ARGS:**
-    - `path`: The root directory.
-    - `include_hidden`: If True, includes hidden files.
-    - `depth`: Maximum recursion depth.
-    - `excluded_patterns`: List of glob patterns to ignore.
     """
     all_files: list[str] = []
     abs_path = os.path.abspath(os.path.expanduser(path))
@@ -93,17 +82,7 @@ def glob_files(
     excluded_patterns: list[str] | None = None,
 ) -> list[str]:
     """
-    Finds files matching specific glob patterns.
-
-    **EFFICIENCY MANDATE:**
-    - Use ALWAYS when looking for specific file types (e.g., `**/*.py`) or named files.
-    - You MUST use this instead of `LS` for targeted discovery.
-
-    **ARGS:**
-    - `pattern`: The glob pattern to match (e.g., `**/*.md`).
-    - `path`: The root directory.
-    - `include_hidden`: Whether to include hidden files/dirs.
-    - `excluded_patterns`: List of glob patterns to ignore.
+    Finds files matching glob patterns (e.g., `**/*.py`).
     """
     found_files = []
     abs_path = os.path.abspath(os.path.expanduser(path))
@@ -149,18 +128,6 @@ def read_file(
 ) -> str:
     """
     Reads content from a file.
-
-    **EFFICIENCY MANDATE:**
-    - You MUST ALWAYS use this tool directly when the path is known.
-    - You MUST NEVER call `LS` or `Glob` if you already have the path.
-    - Prefer reading the **entire file** for full context unless it exceeds ~2000 lines.
-
-    **ARGS:**
-    - `path`: Path to the file.
-    - `start_line`: 1-based start line.
-    - `end_line`: 1-based end line.
-    - `limit`: Max lines to read.
-    - `offset`: 0-based start line index.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
 
@@ -286,13 +253,7 @@ def _format_read_header(
 
 def read_files(paths: list[str]) -> dict[str, str]:
     """
-    Reads content from multiple files simultaneously.
-
-    **USAGE:**
-    - Use this when you need context from several related files (e.g., a class definition and its tests).
-
-    **ARGS:**
-    - `paths`: List of file paths to read.
+    Reads multiple files. Use to gather context from related files simultaneously.
     """
     results = {}
     for path in paths:
@@ -302,18 +263,10 @@ def read_files(paths: list[str]) -> dict[str, str]:
 
 def write_file(path: str, content: str, mode: str = "w") -> str:
     """
-    Writes or appends content to a file.
+    Writes/appends content to a file.
 
-    **OPERATIONAL MANDATE:**
-    - You MUST ALWAYS verify changes (run code, check output) after writing.
-    - **CHUNKING:** You MUST NEVER write more than 4000 characters per call.
-    - To write large files, you MUST use `mode="w"` for the FIRST chunk and `mode="a"` for all SUBSEQUENT chunks.
-    - For existing files, you MUST prefer `Edit` (replace_in_file) to maintain precision.
-
-    **ARGS:**
-    - `path`: Target file path.
-    - `content`: Text content.
-    - `mode`: "w" (overwrite/first chunk) or "a" (append/subsequent chunks).
+    MANDATES:
+    - NEVER write >4000 chars per call. Use mode="w" for first chunk, mode="a" for subsequent chunks.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     try:
@@ -327,13 +280,7 @@ def write_file(path: str, content: str, mode: str = "w") -> str:
 
 def write_files(files: list[dict[str, str]]) -> dict[str, str]:
     """
-    Performs batch write operations to multiple files.
-
-    **ARGS:**
-    - `files`: A list of dictionaries, each containing:
-        - `path` (str): Target file path.
-        - `content` (str): Text to write.
-        - `mode` (str, optional): "w" (overwrite, default) or "a" (append).
+    Batch write multiple files. 'files' arg takes dicts with 'path', 'content', and optional 'mode'.
     """
     results = {}
     for file_info in files:
@@ -351,18 +298,8 @@ def replace_in_file(path: str, old_text: str, new_text: str, count: int = -1) ->
     """
     Replaces exact text sequences within a file.
 
-    **OPERATIONAL MANDATE:**
-    - You MUST ALWAYS prefer this tool over `Write` when modifying existing files.
-    - You MUST ALWAYS `Read` the file content BEFORE calling this tool.
-    - `old_text` MUST match the file content EXACTLY (including whitespace).
-    - You MUST ALWAYS include 2-3 lines of context in `old_text` to ensure uniqueness.
-    - After editing, you MUST ALWAYS verify the changes.
-
-    **ARGS:**
-    - `path`: Path to the file.
-    - `old_text`: The exact literal text to be replaced.
-    - `new_text`: The replacement text.
-    - `count`: Number of occurrences to replace.
+    MANDATES:
+    - `old_text` MUST match file content EXACTLY (with whitespace) and include 2-3 context lines for uniqueness.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
@@ -394,17 +331,10 @@ def search_files(
     include_hidden: bool = True,
 ) -> dict[str, Any]:
     """
-    Searches for a regular expression pattern within files.
+    Searches for a regex pattern in files.
 
-    **EFFICIENCY MANDATE:**
-    - You MUST ALWAYS use this for cross-file string or pattern discovery.
-    - You MUST ALWAYS use specific `regex` and `file_pattern` (e.g., `*.py`) to limit the search scope and minimize noise.
-
-    **ARGS:**
-    - `path`: Root directory to search.
-    - `regex`: A standard Python regular expression.
-    - `file_pattern`: Optional glob to restrict the search.
-    - `include_hidden`: Whether to search in hidden files.
+    MANDATES:
+    - ALWAYS limit scope via specific `regex` and `file_pattern` to minimize noise.
     """
     try:
         pattern = re.compile(regex)
@@ -494,16 +424,10 @@ def _get_file_matches(
 
 async def analyze_file(path: str, query: str) -> str:
     """
-    Delegates deep analysis of a specific file to a specialized sub-agent.
+    Deep semantic analysis of a specific file via sub-agent.
 
-    **EFFICIENCY MANDATE:**
-    - This tool is **SLOW** and resource-intensive.
-    - You MUST ONLY use this for complex architectural questions or deep logic understanding.
-    - You MUST NEVER use this for simple data retrieval or when `Read` or `Grep` are sufficient.
-
-    **ARGS:**
-    - `path`: Path to the file to analyze.
-    - `query`: The specific analytical question or instruction.
+    MANDATES:
+    - SLOW and resource-intensive.
     """
     # Lazy imports to avoid circular dependencies
     from zrb.config.config import CFG

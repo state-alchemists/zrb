@@ -11,14 +11,8 @@ async def open_web_page(url: str, summarize: bool = True) -> dict:
     """
     Downloads and converts a web page into Markdown.
 
-    **RESEARCH MANDATE:**
-    - You MUST ALWAYS use this to **VERIFY** information from search results.
-    - Snippets are insufficient; you MUST read full content for precise analysis.
-    - When `summarize=True` (default), the content will be processed by a sub-agent to extract high-signal information while preserving references.
-
-    **ARGS:**
-    - `url`: The full web address.
-    - `summarize`: Whether to summarize the content using a sub-agent (default: True).
+    MANDATES:
+    - If summarize=True (default), a sub-agent extracts high-signal info.
     """
     try:
         html_content, links = await _fetch_page_content(url)
@@ -46,16 +40,7 @@ async def search_internet(
     page: int = 1,
 ) -> dict:
     """
-    Performs a broad internet search.
-
-    **RESEARCH MANDATE:**
-    - Search snippets are for **DISCOVERY ONLY**.
-    - You MUST ALWAYS use `OpenWebPage` on relevant URLs to extract full content.
-    - Reports MUST include a 'Sources' or 'References' section listing all verified URLs.
-
-    **ARGS:**
-    - `query`: The search string.
-    - `page`: Result page number (default 1).
+    Performs an internet search.
     """
     if (
         CFG.SEARCH_INTERNET_METHOD.strip().lower() == "serpapi"

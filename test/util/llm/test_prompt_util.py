@@ -28,23 +28,19 @@ def test_expand_prompt_multiple_files(tmp_path):
     assert "content 2" in expanded
 
 
-def test_expand_prompt_file_specific_warning(tmp_path):
-    """Test that file references generate specific read_file warning."""
+def test_expand_prompt_file_reference(tmp_path):
+    """Test that file references expand correctly."""
     f = tmp_path / "test.txt"
     f.write_text("file content")
     prompt = f"read @{f}"
     expanded = expand_prompt(prompt)
 
-    # Should have specific read_file warning (full phrase with formatting)
-    assert "> **DO NOT** use `read_file` to read this path again." in expanded
-    # Should NOT have list_files warning for files
-    assert "> **DO NOT** use `list_files` to read this path again." not in expanded
     # Should contain file content
     assert "file content" in expanded
 
 
-def test_expand_prompt_directory_specific_warning(tmp_path):
-    """Test that directory references generate specific list_files warning."""
+def test_expand_prompt_directory_reference(tmp_path):
+    """Test that directory references expand correctly."""
     # Create a directory with a file
     subdir = tmp_path / "subdir"
     subdir.mkdir()
@@ -54,10 +50,6 @@ def test_expand_prompt_directory_specific_warning(tmp_path):
     prompt = f"list @{tmp_path}"
     expanded = expand_prompt(prompt)
 
-    # Should have specific list_files warning (full phrase with formatting)
-    assert "> **DO NOT** use `list_files` to read this path again." in expanded
-    # Should NOT have read_file warning for directories
-    assert "> **DO NOT** use `read_file` to read this path again." not in expanded
     # Should contain directory listing
     assert "subdir" in expanded or "(Empty directory)" in expanded
 
@@ -77,9 +69,6 @@ def test_expand_prompt_mixed_references(tmp_path):
     prompt = f"check @{f} and @{subdir}"
     expanded = expand_prompt(prompt)
 
-    # Should have both warnings in their respective sections (full phrases with formatting)
-    assert "> **DO NOT** use `read_file` to read this path again." in expanded
-    assert "> **DO NOT** use `list_files` to read this path again." in expanded
     # Should contain both contents
     assert "file content" in expanded
     assert "docs" in expanded

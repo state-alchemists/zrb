@@ -1,6 +1,6 @@
 ---
 name: test
-description: Identify, generate, and run tests for the codebase.
+description: Identify, generate, and run tests for the codebase. Use when asked to write tests, fix failing tests, or increase test coverage.
 user-invocable: true
 ---
 # Skill: test

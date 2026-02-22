@@ -119,17 +119,11 @@ def create_delegate_to_agent_tool(
     delegate_to_agent.zrb_is_delegate_tool = True
     delegate_to_agent.__name__ = "DelegateToAgent"
     delegate_to_agent.__doc__ = (
-        "Delegates a complex task to a specialized sub-agent. "
-        "\n\n**OPERATIONAL MANDATE:**"
-        "\n- The sub-agent is a **BLANK SLATE**. It does NOT share your history or system context."
-        "\n- You MUST ALWAYS provide full, self-contained context: paths, code snippets, architectural rules, and OS/CWD details."
-        "\n- Use ONLY for multi-step research or specialized analysis that would pollute your primary context."
-        "\n- **REPORTING:** The user CANNOT see the sub-agent's logs or output. You MUST extract and report all detailed findings, technical data, and relevant context in your final response to the user."
-        "\n\n**AVAILABLE AGENTS:**\n"
-        f"{agent_doc_section}"
-        "\n\n**ARGS:**"
-        "\n- `agent_name`: The name of the sub-agent to activate."
-        "\n- `task`: The specific, detailed instruction for the sub-agent."
-        "\n- `additional_context`: MANDATORY self-contained context required for the task."
+        "Delegates a complex task to a specialized sub-agent.\n\n"
+        "MANDATES:\n"
+        "- Sub-agent is a BLANK SLATE without your history/context. Provide ALL self-contained context (paths, rules, code).\n"
+        "- ONLY use for multi-step research/analysis to avoid polluting primary context.\n"
+        "- User CANNOT see sub-agent output. You MUST extract and report all findings in your final response.\n\n"
+        f"AVAILABLE AGENTS:\n{agent_doc_section}"
     )
     return delegate_to_agent

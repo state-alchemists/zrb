@@ -19,7 +19,7 @@ When this skill is activated, you enter **Architect Mode**. Your primary objecti
 ### 2. Discovery & Research
 - **Technical**: Map out all files, symbols, and dependencies using read-only tools.
 - **General**: Use `SearchInternet` and `OpenWebPage` to verify facts, prices, locations, or best practices.
-- **Context**: Read `CLAUDE.md`, `ReadLongTermNote`, and `ReadContextualNote`.
+- **Context**: Read `CLAUDE.md`, `AGENTS.md`, and the Journal (using `Read` or `ReadMany`).
 
 ### 3. Strategy Design
 - Break the objective into discrete, numbered steps.
