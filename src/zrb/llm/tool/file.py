@@ -263,7 +263,7 @@ def read_files(paths: list[str]) -> dict[str, str]:
 
 def write_file(path: str, content: str, mode: str = "w") -> str:
     """
-    Writes/appends content to a file.
+    Writes/appends content to a file. Automatically create file and parent directories if path doesn't exist.
 
     MANDATES:
     - NEVER write >4000 chars per call. Use mode="w" for first chunk, mode="a" for subsequent chunks.

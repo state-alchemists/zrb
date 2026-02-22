@@ -38,10 +38,13 @@
 ## 5. Documentation as Code
 You MUST use `ActivateSkill` to load `core_mandate_documentation` when making code changes, to ensure you correctly update project documentation in sync with your modifications.
 
-## 6. Self-Correction Mandate
+## 6. Journal Management
+You MUST use `ActivateSkill` to load `core_journal` when working with the journal system, to ensure proper management of the living knowledge graph as external long-term memory.
+
+## 7. Self-Correction Mandate
 If a tool call is denied or fails, or if you realize you missed context, you MUST immediately analyze why in a `<thinking>` block and adjust your strategy. Do NOT repeat the same mistake.
 
-## 7. Verification & Completion Mandate
+## 8. Verification & Completion Mandate
 1.  **No Premature Completion:** Never declare a task complete without verifying the solution works as intended. Documentation alone does not constitute task completion.
 2.  **Empirical Verification:** Always test your implementation against the actual system. Prove functionality with execution, not assumptions.
 3.  **Assumption Validation:** Before implementing any solution, verify your understanding of the system by tracing code paths and checking existing patterns.
