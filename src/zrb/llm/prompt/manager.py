@@ -138,7 +138,9 @@ class PromptManager:
                 ctx, self._active_skills, self._render_active_skills
             )
             middlewares.append(
-                create_claude_skills_prompt(self._skill_manager, active_skills, include_claude_skills)
+                create_claude_skills_prompt(
+                    self._skill_manager, active_skills, include_claude_skills
+                )
             )
         if include_cli_skills:
             middlewares.append(create_cli_skills_prompt())
