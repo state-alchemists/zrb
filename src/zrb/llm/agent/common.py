@@ -50,16 +50,28 @@ def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
 
 
 def _create_safe_wrapper(func: Callable) -> Callable:
-    """Create a wrapper that catches exceptions and returns error messages."""
+    """Create a wrapper that catches exceptions and returns ToolReturn objects."""
+    from pydantic_ai import ToolReturn
 
     @wraps(func)
     async def wrapper(*args, **kwargs):
         try:
             if inspect.iscoroutinefunction(func):
-                return await func(*args, **kwargs)
-            return func(*args, **kwargs)
+                result = await func(*args, **kwargs)
+            else:
+                result = func(*args, **kwargs)
+
+            # If result is already a ToolReturn, return it as-is
+            if isinstance(result, ToolReturn):
+                return result
+
+            # Otherwise wrap successful result in ToolReturn
+            return ToolReturn(return_value=result, content=result, metadata={})
         except Exception as e:
-            return f"Error executing tool {func.__name__}: {e}"
+            error_msg = f"Error executing tool {func.__name__}: {e}"
+            return ToolReturn(
+                return_value=None, content=error_msg, metadata={"error": True}
+            )
 
     return wrapper
 
@@ -76,7 +88,10 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
             try:
                 return await super().call_tool(name, tool_args, ctx, tool)
             except Exception as e:
-                return ToolReturn(f"Error executing tool {name}: {e}")
+                error_msg = f"Error executing tool {name}: {e}"
+                return ToolReturn(
+                    return_value=None, content=error_msg, metadata={"error": True}
+                )
 
     return SafeToolsetWrapper(toolset)
 

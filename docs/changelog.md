@@ -1,5 +1,23 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.6.7 (February 22, 2026)
+
+- **Improvement: Enhanced Agent Tool Safety & Error Handling**:
+  - **Robust ToolReturn Wrapping**: Updated `_create_safe_wrapper()` in `src/zrb/llm/agent/common.py` to consistently return proper `ToolReturn` objects for both successful executions and errors, ensuring compatibility with pydantic-ai's structured response handling.
+  - **Toolset Error Consistency**: Enhanced `_wrap_toolset()` to wrap toolset errors in `ToolReturn` objects with error metadata, maintaining consistent error reporting across all tool execution paths.
+  - **Backward Compatibility**: Successful tool results are automatically wrapped in `ToolReturn` objects when not already wrapped, while preserving existing `ToolReturn` instances.
+
+- **Improvement: Mandate Refinement & Operational Rigor**:
+  - **System Awareness Directive**: Added explicit "System Awareness" principle to CONTEXT-FIRST mandate, requiring agents to discover existing similar functionality before creating new mechanisms, preventing redundant implementations.
+  - **Pattern Recognition Principle**: Added "Pattern Recognition" directive mandating agents to identify and follow existing system patterns, avoiding introduction of new patterns without explicit approval.
+  - **Discovery First Protocol**: Enhanced Brownfield Protocol to explicitly require "Discovery First" approach, forbidding implementation without empirical verification of system behavior.
+  - **Assumption Checking Standard**: Added "Assumption Checking" to Implementation Standards, requiring verification of naming patterns, file locations, and system behavior through code path tracing.
+  - **Verification & Completion Mandate**: Introduced new Section 7 with four core principles: No Premature Completion, Empirical Verification, Assumption Validation, and Solution Testing, ensuring rigorous validation before task completion.
+
+- **Test Improvement: Pydantic-AI Type Safety**:
+  - **Real Callable Functions**: Updated `test_llm_chat_task_coverage.py` to use real async callable functions instead of `MagicMock` objects, preventing pydantic-ai type inspection errors and improving test reliability.
+  - **Tool Factory Testing**: Enhanced tool factory tests to work with actual function objects rather than mocks, ensuring proper tool resolution during agent execution.
+
 ## 2.6.6 (February 22, 2026)
 
 - **Architectural: Modular Core Mandate Skills**:

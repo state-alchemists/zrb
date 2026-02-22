@@ -47,10 +47,17 @@ async def test_llm_chat_task_interactive_ui_trigger():
 @pytest.mark.asyncio
 async def test_llm_chat_task_tool_factories():
     """Test tool and toolset factory resolution via public execution."""
-    mock_tool = MagicMock(__name__="mock_tool", __qualname__="mock_tool")
-    mock_tool_in_toolset = MagicMock(
-        __name__="mock_tool_in_toolset", __qualname__="mock_tool_in_toolset"
-    )
+
+    # Create a real callable function instead of MagicMock
+    async def mock_tool_func():
+        return "mock_tool_result"
+
+    async def mock_tool_in_toolset_func():
+        return "mock_toolset_result"
+
+    # Create proper mock objects with required attributes
+    mock_tool = mock_tool_func
+    mock_tool_in_toolset = mock_tool_in_toolset_func
 
     task = LLMChatTask(
         name="factory-task",
@@ -69,21 +76,24 @@ async def test_llm_chat_task_tool_factories():
 
         # Verify that tools from factories were passed to run_agent
         assert mock_run_agent.called
-        agent = mock_run_agent.call_args.kwargs["agent"]
-        # Check if our mock_tool is in agent.tools or mock_toolset in agent.toolsets
-        # This depends on how create_agent works, but we are checking the public result.
-        pass
+        # The test passes if we reach here without pydantic-ai type inspection errors
 
 
 @pytest.mark.asyncio
 async def test_llm_chat_task_setters():
     """Test various setter methods of LLMChatTask via public execution."""
+
+    # Create real callable functions instead of MagicMock
+    async def setter_tool_func():
+        return "setter_tool_result"
+
+    async def setter_toolset_func():
+        return "setter_toolset_result"
+
     task = LLMChatTask(name="setter-task", interactive=False)
 
-    task.add_tool(MagicMock(__name__="setter_tool", __qualname__="setter_tool"))
-    task.add_toolset(
-        MagicMock(__name__="setter_toolset", __qualname__="setter_toolset")
-    )
+    task.add_tool(setter_tool_func)
+    task.add_toolset(setter_toolset_func)
     task.add_history_processor(MagicMock())
     task.add_trigger(lambda: None)
     task.add_custom_command(MagicMock())
