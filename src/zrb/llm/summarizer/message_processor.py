@@ -1,3 +1,4 @@
+import copy
 import json
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any
@@ -43,6 +44,26 @@ async def process_message_for_summarization(
     return msg
 
 
+def _safe_copy_for_summarization(content: Any) -> Any:
+    """Create a safe copy of content for summarization to prevent mutation.
+
+    Deep copies mutable objects but returns immutable objects as-is.
+    This prevents pydantic-ai from modifying original tool results.
+    """
+    if content is None:
+        return None
+    if isinstance(content, (str, int, float, bool)):
+        return content
+    if isinstance(content, (list, dict, set)):
+        return copy.deepcopy(content)
+    # For other types, try deep copy
+    try:
+        return copy.deepcopy(content)
+    except Exception:
+        # If deepcopy fails, return as-is
+        return content
+
+
 async def process_tool_return_part(
     part: Any,
     agent: Any,
@@ -51,16 +72,22 @@ async def process_tool_return_part(
     insanity_threshold: int,
 ) -> tuple[Any, bool]:
     # Safely get content with default
-    content = getattr(part, "content", None)
-    if content is None:
+    original_content = getattr(part, "content", None)
+    if original_content is None:
         return part, False
+
+    # Create a safe copy to prevent mutation during processing
+    safe_content = _safe_copy_for_summarization(original_content)
+
     # Convert non-string content to string for summarization
-    content_is_string = isinstance(content, str)
+    content_is_string = isinstance(safe_content, str)
     if not content_is_string:
         try:
-            content = json.dumps(content, default=str)
+            content = json.dumps(safe_content, default=str)
         except Exception:
-            content = str(content)
+            content = str(safe_content)
+    else:
+        content = safe_content
     # Skip if already summarized or truncated
     is_summary = content.startswith("SUMMARY of tool result:")
     is_truncated = content.startswith("TRUNCATED tool result:")
@@ -75,6 +102,45 @@ async def process_tool_return_part(
         stylize_yellow(f"  Summarizing fat tool result ({content_tokens} tokens)..."),
         plain=True,
     )
+    # DEBUG: Show sample of content
+    if content_tokens > 10000:
+        original_content = getattr(part, "content", None)
+        zrb_print(
+            stylize_yellow(f"  DEBUG: Original content type: {type(original_content)}"),
+            plain=True,
+        )
+        if isinstance(original_content, list):
+            zrb_print(
+                stylize_yellow(
+                    f"  DEBUG: Original content is list with {len(original_content)} items"
+                ),
+                plain=True,
+            )
+            for i, item in enumerate(original_content[:3]):  # Show first 3 items
+                zrb_print(
+                    stylize_yellow(
+                        f"  DEBUG: Item {i} type: {type(item)}, length: {len(str(item))}"
+                    ),
+                    plain=True,
+                )
+            # DEBUG: Show list object ID to track mutations
+            zrb_print(
+                stylize_yellow(f"  DEBUG: List object id: {id(original_content)}"),
+                plain=True,
+            )
+            # DEBUG: Show actual list reference and first few chars of each item
+            for i, item in enumerate(original_content[:3]):
+                item_str = str(item)
+                preview = item_str[:100] + "..." if len(item_str) > 100 else item_str
+                zrb_print(
+                    stylize_yellow(f"  DEBUG: Item {i} preview: {preview}"),
+                    plain=True,
+                )
+        sample = str(content)[:500] if len(str(content)) > 500 else str(content)
+        zrb_print(
+            stylize_yellow(f"  DEBUG: Content sample (first 500 chars): {sample}"),
+            plain=True,
+        )
     # Calculate available tokens for summary (accounting for prefix)
     prefix = "SUMMARY of tool result:\n"
     prefix_tokens = limiter.count_tokens(prefix)

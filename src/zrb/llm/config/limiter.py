@@ -228,11 +228,13 @@ class LLMLimiter:
             return res
 
         if isinstance(content, dict):
-            return "".join(
-                self._to_str(k, skip_instructions=skip_instructions)
-                + self._to_str(v, skip_instructions=skip_instructions)
-                for k, v in content.items()
-            )
+            # Join key-value pairs with spaces for better token counting
+            items = []
+            for k, v in content.items():
+                key_str = self._to_str(k, skip_instructions=skip_instructions)
+                val_str = self._to_str(v, skip_instructions=skip_instructions)
+                items.append(f"{key_str}: {val_str}")
+            return " ".join(items)
 
         # Handle Pydantic AI objects
         res = ""

@@ -150,9 +150,13 @@ def find_best_effort_split(
                 if call_idx < split_idx:
                     broken_incomplete_pairs += 1
             elif call_idx is None and return_idx is not None:
-                # Return without call (orphaned) - if return is before split, we lose it
-                if return_idx < split_idx:
-                    broken_incomplete_pairs += 1
+                # Return without call (orphaned) - MUST NOT be kept
+                if return_idx >= split_idx:
+                    # If we keep an orphan, the history remains broken - reject this split
+                    would_break_complete_pair = True
+                    break
+                # Orphaned return is before split (will be summarized away)
+                broken_incomplete_pairs += 1
 
         if would_break_complete_pair:
             # Cannot use this split - it violates Pydantic AI requirements

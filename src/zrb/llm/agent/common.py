@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import inspect
 from collections.abc import Callable
 from functools import wraps
@@ -49,6 +50,29 @@ def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
         return _create_safe_wrapper(tool)
 
 
+def _safe_copy_result(result: Any) -> Any:
+    """Create a safe copy of a tool result to prevent mutation.
+
+    Deep copies mutable objects (lists, dicts, sets) but returns immutable
+    objects (strings, numbers, None) as-is. This prevents pydantic-ai from
+    modifying the original tool results during processing.
+    """
+    if result is None:
+        return None
+    if isinstance(result, (str, int, float, bool)):
+        return result
+    if isinstance(result, (list, dict, set)):
+        return copy.deepcopy(result)
+    # For other types (including tuples which may contain mutable elements),
+    # perform a deep copy to be safe
+    try:
+        return copy.deepcopy(result)
+    except Exception:
+        # If deepcopy fails (e.g., for complex objects), return as-is
+        # This maintains backward compatibility while fixing the common cases
+        return result
+
+
 def _create_safe_wrapper(func: Callable) -> Callable:
     """Create a wrapper that catches exceptions and returns ToolReturn objects."""
     from pydantic_ai import ToolReturn
@@ -65,8 +89,13 @@ def _create_safe_wrapper(func: Callable) -> Callable:
             if isinstance(result, ToolReturn):
                 return result
 
+            # Create a safe copy to prevent mutation by pydantic-ai
+            safe_result = _safe_copy_result(result)
+
             # Otherwise wrap successful result in ToolReturn
-            return ToolReturn(return_value=result, content=result, metadata={})
+            return ToolReturn(
+                return_value=safe_result, content=safe_result, metadata={}
+            )
         except Exception as e:
             error_msg = f"Error executing tool {func.__name__}: {e}"
             return ToolReturn(
@@ -86,7 +115,15 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
             self, name: str, tool_args: dict[str, Any], ctx: Any, tool: Any
         ) -> Any:
             try:
-                return await super().call_tool(name, tool_args, ctx, tool)
+                result = await super().call_tool(name, tool_args, ctx, tool)
+                # If result is already a ToolReturn, return it as-is
+                if isinstance(result, ToolReturn):
+                    return result
+                # Create a safe copy to prevent mutation by pydantic-ai
+                safe_result = _safe_copy_result(result)
+                return ToolReturn(
+                    return_value=safe_result, content=safe_result, metadata={}
+                )
             except Exception as e:
                 error_msg = f"Error executing tool {name}: {e}"
                 return ToolReturn(

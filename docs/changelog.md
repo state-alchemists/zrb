@@ -1,5 +1,24 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.6.8 (February 22, 2026)
+
+- **Fix: Summarizer Deep Copy Protection & Mutation Prevention**:
+  - **Tool Result Safety**: Added `_safe_copy_result()` function in `src/zrb/llm/agent/common.py` to create deep copies of mutable tool results (lists, dicts, sets) while returning immutable objects (strings, numbers, None) as-is, preventing pydantic-ai from modifying original tool results during processing.
+  - **ToolReturn Wrapper Enhancement**: Updated `_create_safe_wrapper()` and `_wrap_toolset()` to use safe copies when creating `ToolReturn` objects, ensuring tool results remain immutable throughout agent execution.
+  - **Summarization Safety**: Added `_safe_copy_for_summarization()` function in `src/zrb/llm/summarizer/message_processor.py` to create safe copies of content before summarization processing, preventing mutation during JSON serialization and string conversion.
+  - **Debug Logging**: Added comprehensive debug logging for large content (>10000 tokens) to help diagnose summarization issues with detailed type information and content samples.
+
+- **Fix: History Splitter Orphaned Return Handling**:
+  - **Orphaned Return Logic**: Fixed `find_best_effort_split()` in `src/zrb/llm/summarizer/history_splitter.py` to properly handle orphaned returns (returns without corresponding calls) by rejecting splits that would keep orphaned returns in the history, ensuring Pydantic AI requirements are met.
+  - **Pair Integrity Enforcement**: Enhanced logic to detect when orphaned returns would be preserved after a split and reject such splits to maintain tool call/return pair integrity.
+
+- **Improvement: Token Counting Accuracy for Dictionaries**:
+  - **Enhanced Dict Processing**: Updated `_to_str()` method in `src/zrb/llm/config/limiter.py` to join key-value pairs with spaces (`"key: value"`) instead of concatenation, improving token counting accuracy for dictionary content.
+  - **Better Token Estimation**: The new format provides more realistic token counts for structured data, ensuring rate limiting and context window management work correctly with complex tool results.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.6.8 in `pyproject.toml`.
+
 ## 2.6.7 (February 22, 2026)
 
 - **Improvement: Enhanced Agent Tool Safety & Error Handling**:
