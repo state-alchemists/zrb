@@ -72,7 +72,7 @@ def test_file_history_manager_load_validation_error(temp_history_dir):
     """Test that ValidationError from pydantic triggers auto-recovery."""
     manager = FileHistoryManager(temp_history_dir)
     file_path = os.path.join(temp_history_dir, "corrupted.json")
-    
+
     # Create a corrupted JSON file that will cause ValidationError
     # This simulates the bug where UserPromptPart.content contains dictionaries
     # Note: pydantic-ai uses "kind" for message type and "part_kind" for part type
@@ -82,31 +82,36 @@ def test_file_history_manager_load_validation_error(temp_history_dir):
             "parts": [
                 {
                     "part_kind": "user-prompt",
-                    "content": {"summary": "test", "results": []},  # Dictionary instead of string/Sequence
-                    "timestamp": "2026-02-23T09:25:23.369273Z"
+                    "content": {
+                        "summary": "test",
+                        "results": [],
+                    },  # Dictionary instead of string/Sequence
+                    "timestamp": "2026-02-23T09:25:23.369273Z",
                 }
             ],
             "timestamp": None,
             "instructions": None,
             "run_id": None,
-            "metadata": None
+            "metadata": None,
         }
     ]
-    
+
     with open(file_path, "w") as f:
         json.dump(corrupted_data, f)
-    
+
     # With auto-recovery, should recover the corrupted data
     result = manager.load("corrupted")
     assert len(result) == 1
-    assert result[0].parts[0].content == '{"summary": "test", "results": []}'  # Converted to JSON string
+    assert (
+        result[0].parts[0].content == '{"summary": "test", "results": []}'
+    )  # Converted to JSON string
 
 
 def test_file_history_manager_load_validation_error_boolean(temp_history_dir):
     """Test ValidationError for boolean in UserPromptPart.content triggers auto-recovery."""
     manager = FileHistoryManager(temp_history_dir)
     file_path = os.path.join(temp_history_dir, "corrupted_bool.json")
-    
+
     # Create a corrupted JSON file with boolean in content
     corrupted_data = [
         {
@@ -115,19 +120,19 @@ def test_file_history_manager_load_validation_error_boolean(temp_history_dir):
                 {
                     "part_kind": "user-prompt",
                     "content": True,  # Boolean instead of string/Sequence
-                    "timestamp": "2026-02-23T09:25:23.369273Z"
+                    "timestamp": "2026-02-23T09:25:23.369273Z",
                 }
             ],
             "timestamp": None,
             "instructions": None,
             "run_id": None,
-            "metadata": None
+            "metadata": None,
         }
     ]
-    
+
     with open(file_path, "w") as f:
         json.dump(corrupted_data, f)
-    
+
     # With auto-recovery, should recover the corrupted data
     result = manager.load("corrupted_bool")
     assert len(result) == 1
@@ -138,7 +143,7 @@ def test_file_history_manager_load_validation_error_number(temp_history_dir):
     """Test ValidationError for number in UserPromptPart.content triggers auto-recovery."""
     manager = FileHistoryManager(temp_history_dir)
     file_path = os.path.join(temp_history_dir, "corrupted_number.json")
-    
+
     # Create a corrupted JSON file with number in content
     corrupted_data = [
         {
@@ -147,19 +152,19 @@ def test_file_history_manager_load_validation_error_number(temp_history_dir):
                 {
                     "part_kind": "user-prompt",
                     "content": 42,  # Number instead of string/Sequence
-                    "timestamp": "2026-02-23T09:25:23.369273Z"
+                    "timestamp": "2026-02-23T09:25:23.369273Z",
                 }
             ],
             "timestamp": None,
             "instructions": None,
             "run_id": None,
-            "metadata": None
+            "metadata": None,
         }
     ]
-    
+
     with open(file_path, "w") as f:
         json.dump(corrupted_data, f)
-    
+
     # With auto-recovery, should recover the corrupted data
     result = manager.load("corrupted_number")
     assert len(result) == 1
@@ -169,24 +174,24 @@ def test_file_history_manager_load_validation_error_number(temp_history_dir):
 def test_file_history_manager_save_with_corrupted_data(temp_history_dir):
     """Test that save() handles corrupted data with auto-recovery."""
     manager = FileHistoryManager(temp_history_dir)
-    
+
     # Create messages with corrupted content (simulating the bug)
     from pydantic_ai.messages import ModelRequest, UserPromptPart
-    
+
     # Create a corrupted message (this would normally fail validation)
     # We'll simulate the corruption by creating a message with dictionary content
     # In reality, this would come from a bug in pydantic-ai
     messages = [
         ModelRequest(parts=[UserPromptPart(content="normal message")]),
     ]
-    
+
     manager.update("test_session", messages)
     manager.save("test_session")
-    
+
     # Verify the file was saved
     file_path = os.path.join(temp_history_dir, "test_session.json")
     assert os.path.exists(file_path)
-    
+
     # Load it back
     loaded = manager.load("test_session")
     assert len(loaded) == 1
@@ -196,43 +201,43 @@ def test_file_history_manager_save_with_corrupted_data(temp_history_dir):
 def test_file_history_manager_clean_corrupted_content_method(temp_history_dir):
     """Test the _clean_corrupted_content method directly."""
     manager = FileHistoryManager(temp_history_dir)
-    
+
     # Test dictionary conversion
     data = {
         "part_kind": "user-prompt",
         "content": {"key": "value", "nested": {"inner": "data"}},
-        "timestamp": "2026-02-23T09:25:23.369273Z"
+        "timestamp": "2026-02-23T09:25:23.369273Z",
     }
     cleaned = manager._clean_corrupted_content(data)
     assert cleaned["content"] == '{"key": "value", "nested": {"inner": "data"}}'
-    
+
     # Test boolean conversion
     data = {
         "part_kind": "user-prompt",
         "content": True,
-        "timestamp": "2026-02-23T09:25:23.369273Z"
+        "timestamp": "2026-02-23T09:25:23.369273Z",
     }
     cleaned = manager._clean_corrupted_content(data)
     assert cleaned["content"] == "True"
-    
+
     # Test number conversion
     data = {
         "part_kind": "user-prompt",
         "content": 123.45,
-        "timestamp": "2026-02-23T09:25:23.369273Z"
+        "timestamp": "2026-02-23T09:25:23.369273Z",
     }
     cleaned = manager._clean_corrupted_content(data)
     assert cleaned["content"] == "123.45"
-    
+
     # Test that valid content is not changed
     data = {
         "part_kind": "user-prompt",
         "content": "normal string",
-        "timestamp": "2026-02-23T09:25:23.369273Z"
+        "timestamp": "2026-02-23T09:25:23.369273Z",
     }
     cleaned = manager._clean_corrupted_content(data)
     assert cleaned["content"] == "normal string"
-    
+
     # Test nested structures
     data = [
         {
@@ -241,18 +246,18 @@ def test_file_history_manager_clean_corrupted_content_method(temp_history_dir):
                 {
                     "part_kind": "user-prompt",
                     "content": {"summary": "test"},
-                    "timestamp": "2026-02-23T09:25:23.369273Z"
+                    "timestamp": "2026-02-23T09:25:23.369273Z",
                 },
                 {
                     "part_kind": "text",
                     "content": "normal text",
-                    "timestamp": "2026-02-23T09:25:23.369273Z"
-                }
+                    "timestamp": "2026-02-23T09:25:23.369273Z",
+                },
             ],
             "timestamp": None,
             "instructions": None,
             "run_id": None,
-            "metadata": None
+            "metadata": None,
         }
     ]
     cleaned = manager._clean_corrupted_content(data)
