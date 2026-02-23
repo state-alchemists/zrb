@@ -28,10 +28,10 @@ def split_history(
 
     # 1. Search backwards from target_idx to find a safe turn start (keeping MORE messages)
     # Ensure split_idx is within [0, len(messages)) for range, but target_idx might be len(messages)
-    # Actually if summary_window=0, target_idx = len(messages). 
+    # Actually if summary_window=0, target_idx = len(messages).
     # messages[len(messages)] would be out of bounds.
     start_idx = min(target_idx, len(messages) - 1)
-    
+
     for split_idx in range(start_idx, 0, -1):
         to_keep = messages[split_idx:]
         tokens_to_keep = limiter.count_tokens(to_keep)

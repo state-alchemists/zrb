@@ -31,7 +31,10 @@ def ensure_alternating_roles(messages: list[Any]) -> list[Any]:
         # Case 2: Sequential ModelResponses (Assistant -> Assistant) - MERGE
         if isinstance(msg, ModelResponse) and isinstance(last_msg, ModelResponse):
             from dataclasses import replace
-            new_last_msg = replace(last_msg, parts=list(last_msg.parts) + list(msg.parts))
+
+            new_last_msg = replace(
+                last_msg, parts=list(last_msg.parts) + list(msg.parts)
+            )
             new_messages[-1] = new_last_msg
             continue
 

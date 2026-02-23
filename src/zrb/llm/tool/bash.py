@@ -204,8 +204,12 @@ def _format_output(
         exit_code_str = "(timed out)"
         stderr_str += f"\nError: Command timed out after {timeout} seconds."
 
-    stdout_str = _truncate_output(stdout_str, preserved_head_lines, preserved_tail_lines)
-    stderr_str = _truncate_output(stderr_str, preserved_head_lines, preserved_tail_lines)
+    stdout_str = _truncate_output(
+        stdout_str, preserved_head_lines, preserved_tail_lines
+    )
+    stderr_str = _truncate_output(
+        stderr_str, preserved_head_lines, preserved_tail_lines
+    )
 
     # Analyze for suggestions
     suggestion = ""
