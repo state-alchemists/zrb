@@ -5,7 +5,7 @@ then
     TEST="$1"
 fi
 
-pytest -vv \
+pytest \
     --ignore-glob="**/template/**" \
     --ignore-glob="**/fastapp_template/**" \
     --ignore="playground" \
@@ -13,6 +13,5 @@ pytest -vv \
     --cov=zrb \
     --cov-config=".coveragerc" \
     --cov-report="html" \
-    --cov-report="term" \
-    --cov-report="term-missing" \
+    --cov-report="term-missing:skip-covered" \
     "$TEST"

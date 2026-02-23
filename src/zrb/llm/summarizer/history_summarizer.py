@@ -187,18 +187,6 @@ async def summarize_history(
         if not to_summarize:
             return messages
 
-        # Validate tool pair integrity in kept messages
-        from zrb.util.cli.style import stylize_yellow
-
-        is_valid, problems = validate_tool_pair_integrity(to_keep)
-        if not is_valid and problems:
-            zrb_print(
-                stylize_yellow(
-                    f"  Warning: Kept messages have tool pair issues: {', '.join(problems[:3])}"
-                    + ("..." if len(problems) > 3 else "")
-                ),
-                plain=True,
-            )
         # 2. Iterative Summarization of Historical turns
         summarizer_agent = agent or create_conversational_summarizer_agent()
         summary_text = await chunk_and_summarize(
@@ -226,6 +214,23 @@ async def summarize_history(
         summary_message = _create_summary_model_request(summary_text)
         if summary_message is None:
             return messages
+
+        if not to_keep:
+            return [summary_message]
+
+        # Validate tool pair integrity in kept messages
+        from zrb.util.cli.style import stylize_yellow
+
+        is_valid, problems = validate_tool_pair_integrity(to_keep)
+        if not is_valid and problems:
+            zrb_print(
+                stylize_yellow(
+                    f"  Warning: Kept messages have tool pair issues: {', '.join(problems[:3])}"
+                    + ("..." if len(problems) > 3 else "")
+                ),
+                plain=True,
+            )
+
         return ensure_alternating_roles([summary_message] + to_keep)
     except Exception as e:
         zrb_print(stylize_error(f"  Error in summarize_history: {e}"), plain=True)

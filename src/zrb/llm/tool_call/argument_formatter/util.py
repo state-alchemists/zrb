@@ -125,6 +125,8 @@ def format_diff(
 
     for line in diff_lines:
         if line.startswith("---") or line.startswith("+++"):
+            # Include file header lines as-is
+            formatted_lines.append(line.rstrip("\n"))
             continue
 
         if line.startswith("@@"):

@@ -1,5 +1,33 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.6.9 (February 23, 2026)
+
+- **Improvement: History Summarizer Algorithm Overhaul**:
+  - **Four-Phase Splitting Strategy**: Complete rewrite of `split_history()` in `src/zrb/llm/summarizer/history_splitter.py` with sophisticated 4-phase approach: (1) Search backwards from target window, (2) Search forwards for any safe split, (3) Find largest safe split under 80% token threshold, (4) Best-effort scoring-based approach.
+  - **Enhanced Tool Pair Safety**: New `is_split_safe()` function with detailed logic for complete pairs (must stay together), incomplete calls (can be summarized), and orphaned returns (must not be kept). Replaces simpler `validate_tool_pair_integrity`.
+  - **Best-Effort Scoring**: `find_best_effort_split()` now uses scoring system to minimize damage to incomplete tool pairs while never breaking complete pairs.
+  - **Comprehensive Test Coverage**: Added `test/llm/summarizer/test_summarizer_history_splitter.py` with tests for safe split detection, best-effort splitting, and window-based splitting.
+
+- **Fix: Message Merging Immutability**:
+  - **Immutable Message Creation**: Updated `ensure_alternating_roles()` in `src/zrb/llm/message.py` to create new message objects instead of mutating existing ones: `ModelRequest(parts=list(last_msg.parts) + list(msg.parts))` for user messages and `dataclasses.replace()` for assistant messages.
+  - **Tool Pair Detection**: Enhanced `get_tool_pairs()` to accurately identify tool call/return relationships for safe split validation.
+
+- **Improvement: File Tool Truncation System**:
+  - **Unified Truncation Logic**: Extended head/tail truncation mechanism from `bash.py` to all file tools (`list_files`, `glob_files`, `read_file`, `search_files`, `read_files`) with consistent `preserved_head_lines` and `preserved_tail_lines` parameters.
+  - **Intelligent Defaults**: Defaults: 100+150 lines for read operations, 50+50 for search matches, 100+100 for file listings. Search truncation applies at both file-level and within-file matches.
+  - **Critical Fix**: Files are now sorted BEFORE truncating (not after) to ensure consistent head/tail selection across executions.
+
+- **Documentation Updates**:
+  - **Summarization Logic Documentation**: Updated `docs/core-concepts/summarization-logic.md` to reflect new 4-phase splitting strategy, tool pair safety logic, and immutable message merging.
+  - **AGENTS.md Corrections**: Fixed development setup commands and testing guidelines.
+
+- **Test Infrastructure**:
+  - **Pytest Output Format**: Simplified `zrb-test.sh` output to `--cov-report="term-missing:skip-covered"` for cleaner test reporting.
+  - **Enhanced File History Tests**: Expanded `test_file_history_manager.py` with comprehensive auto-recovery validation tests.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.6.9 in `pyproject.toml`.
+
 ## 2.6.8 (February 22, 2026)
 
 - **Fix: Summarizer Deep Copy Protection & Mutation Prevention**:

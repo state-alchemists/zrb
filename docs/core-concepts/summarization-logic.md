@@ -25,11 +25,19 @@ The system calculates the total token count of the (possibly message-summarized)
 
 ### 3. History Splitting (The "Safe Split")
 If summarization is triggered, the history is split into two segments: `to_summarize` (oldest) and `to_keep` (newest).
-- **Goal**: Maximize `to_summarize` to free up space, but keep at least `summary_window` messages in `to_keep`.
-- **Constraint**: **Tool Pair Integrity**.
-  - A split MUST NOT occur between a `ToolCall` and its corresponding `ToolReturn`.
-  - If a split point would break a pair, the system moves the split index earlier (to keep the pair in `to_keep`) or later (to include the pair in `to_summarize`), prioritizing safety.
-- **Fallback**: If no safe split is found (e.g., a massive tool loop), it falls back to a "best effort" split or summarizes everything except the last user message.
+
+**Four-Phase Splitting Strategy:**
+1. **Phase 1 - Search Backwards from Target Window**: Starting from the ideal split point (keeping `summary_window` messages), search backwards to find a safe split at a conversation turn boundary that stays under 70% of token threshold.
+2. **Phase 2 - Search Forwards if No Turn Start**: If no turn start is found, search forwards from the target window to find any safe split (even if not at a turn boundary).
+3. **Phase 3 - Find Largest Safe Split**: If no safe split is found near the window, find the largest safe split that stays under 80% of token threshold.
+4. **Phase 4 - Best-Effort Approach**: If no safe split exists, use a scoring-based best-effort approach that minimizes damage to incomplete tool pairs.
+
+**Tool Pair Integrity Constraints:**
+- **Complete Pairs (Call + Return)**: MUST NOT be separated. Both must be either summarized or kept together.
+- **Incomplete Calls (Call without Return)**: Can be summarized if necessary, but prefer to keep them.
+- **Orphaned Returns (Return without Call)**: MUST NOT be kept in `to_keep` segment. These indicate corrupted history.
+
+**Safety Validation**: The `is_split_safe()` function validates each potential split point against tool pair relationships using `get_tool_pairs()` to identify call/return relationships.
 
 ### 4. Chunked Summarization
 The `to_summarize` segment is converted to text and processed.
@@ -44,10 +52,10 @@ The final summary is wrapped in a system message:
 ### 6. Role Alternation Enforcement
 Modern LLMs (like Anthropic's Claude or OpenAI's GPT-4 via strict APIs) require alternating roles: `User` -> `Assistant` -> `User`.
 - **Problem**: Summarization or tool usage can sometimes result in consecutive `User` messages (e.g., `User` prompt -> `ToolReturn` (counts as User in some schemas) -> `User` summary).
-- **Solution**: The `_ensure_alternating_roles` function scans the final message list:
-  - **User + User**: Merges content into a single `User` message with multiple parts.
-  - **Assistant + Assistant**: Merges content into a single `Assistant` message.
-  - **Tool Sequences**: Preserves `User` (prompt) -> `Assistant` (call) -> `User` (return) flows correctly.
+- **Solution**: The `ensure_alternating_roles` function scans the final message list with **immutability preservation**:
+  - **Sequential ModelRequests (User → User)**: Creates a new `ModelRequest` with combined parts: `ModelRequest(parts=list(last_msg.parts) + list(msg.parts))`
+  - **Sequential ModelResponses (Assistant → Assistant)**: Uses `dataclasses.replace()` to create a new `ModelResponse` with combined parts
+  - **Tool Sequences**: Preserves `User` (prompt) -> `Assistant` (call) -> `User` (return) flows correctly while maintaining message object immutability.
 
 ## Flowchart
 
@@ -57,12 +65,23 @@ flowchart TD
     MsgSum --> CheckTokens{Tokens > Threshold?}
     
     CheckTokens -- No --> End[Return Original History]
-    CheckTokens -- Yes --> Split[2. Split History]
+    CheckTokens -- Yes --> Split[2. Four-Phase History Split]
     
-    Split --> Integrity{Tool Pair Integrity?}
-    Integrity -- Fail --> AdjustSplit[Adjust Split Index]
-    AdjustSplit --> Integrity
-    Integrity -- Pass --> Chunking[3. Chunk & Summarize Oldest]
+    Split --> Phase1[Phase 1: Search Backwards<br/>from Target Window]
+    Phase1 --> FoundTurnStart{Found Safe<br/>Turn Start?}
+    
+    FoundTurnStart -- Yes --> Chunking[3. Chunk & Summarize Oldest]
+    FoundTurnStart -- No --> Phase2[Phase 2: Search Forwards<br/>for Any Safe Split]
+    
+    Phase2 --> FoundAnySafe{Found Any<br/>Safe Split?}
+    FoundAnySafe -- Yes --> Chunking
+    FoundAnySafe -- No --> Phase3[Phase 3: Find Largest<br/>Safe Split Under 80%]
+    
+    Phase3 --> FoundLargest{Found Largest<br/>Safe Split?}
+    FoundLargest -- Yes --> Chunking
+    FoundLargest -- No --> Phase4[Phase 4: Best-Effort Split<br/>with Scoring]
+    
+    Phase4 --> Chunking
     
     Chunking --> Consolidate[4. Consolidate Summaries]
     Consolidate --> CreateSnap[Create Snapshot Message]
@@ -71,7 +90,7 @@ flowchart TD
     Merge --> RoleCheck[5. Role Alternation Check]
     
     RoleCheck --> MergeRoles{Consecutive Roles?}
-    MergeRoles -- Yes --> Combine[Combine Messages]
+    MergeRoles -- Yes --> Combine[Combine Messages<br/>(Immutable)]
     MergeRoles -- No --> Final[Final History]
     Combine --> RoleCheck
     
@@ -82,7 +101,9 @@ flowchart TD
 
 | Case | Handling Strategy |
 | :--- | :--- |
-| **Orphaned Tool Return** | `validate_tool_pair_integrity` detects if a `ToolReturn` exists without its `ToolCall`. The splitter adjusts to include the call or exclude the return. |
+| **Orphaned Tool Return** | `is_split_safe()` rejects any split that would keep an orphaned return (return without call) in the `to_keep` segment. Orphaned returns must be summarized away. |
+| **Incomplete Tool Call** | `find_best_effort_split()` allows breaking incomplete calls (call without return) but scores splits to minimize such breaks. Complete pairs are never separated. |
+| **No Safe Split Possible** | The four-phase strategy ensures at least some split is found. Phase 4's best-effort approach uses scoring to select the least damaging split when no perfect safe split exists. |
 | **Infinite Summarization Loop** | `summarize_long_text` has a strict `depth` limit (default: 5). If max depth is reached, text is forcibly truncated. |
 | **Massive Tool Output** | Handled in Step 1. If strict truncation is needed, `limiter.truncate_text` is used before LLM processing. |
 | **Mixed Content (Images/Binary)** | `message_to_text` converts complex parts to placeholder text (e.g., `[Image URL: ...]`) to save tokens while preserving semantic awareness. |

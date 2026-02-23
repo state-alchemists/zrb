@@ -6,7 +6,7 @@ Zrb is a Python-based task automation tool. The core logic, built-in tasks, and 
 ## 2. Development Setup
 To set up the project, initialize the virtual environment, install dependencies (via poetry), and configure your shell, run:
 ```bash
-source project.sh
+source .venv/bin/activate && poetry lock && poetry install
 ```
 
 ## 3. Where to Find Files
@@ -38,7 +38,7 @@ source project.sh
 - **Error Handling (Tools)**: Return actionable error messages, including `[SYSTEM SUGGESTION]` for user guidance.
 
 ## 5. Testing Guidelines
-- **Command**: `source project.sh && ./zrb-test.sh [parameter]`
+- **Command**: `source .venv/bin/activate && ./zrb-test.sh [parameter]`
 - **Parameters**:
   - `(empty)`: Runs all tests.
   - `<file_path>`: Runs tests in a specific file (e.g., `test/llm/prompt/test_journal.py`).
