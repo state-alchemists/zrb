@@ -34,6 +34,8 @@ def list_files(
     include_hidden: bool = False,
     depth: int = 3,
     excluded_patterns: list[str] | None = None,
+    preserved_head_lines: int = 100,
+    preserved_tail_lines: int = 150,
 ) -> dict[str, list[str]]:
     """
     Recursively explores and lists files.
@@ -72,7 +74,20 @@ def list_files(
                 rel_full_path = os.path.relpath(full_path, abs_path)
                 if not is_path_excluded(rel_full_path, patterns_to_exclude):
                     all_files.append(rel_full_path)
-    return {"files": sorted(all_files)}
+    
+    # Sort files first, then apply truncation
+    sorted_files = sorted(all_files)
+    
+    # Apply truncation if needed
+    if len(sorted_files) > preserved_head_lines + preserved_tail_lines:
+        truncated_files = sorted_files[:preserved_head_lines] + sorted_files[-preserved_tail_lines:]
+        omitted = len(sorted_files) - preserved_head_lines - preserved_tail_lines
+        return {
+            "files": truncated_files,
+            "truncation_notice": f"[TRUNCATED {omitted} files. Showing first {preserved_head_lines} and last {preserved_tail_lines} files.]"
+        }
+    
+    return {"files": sorted_files}
 
 
 def glob_files(
@@ -80,6 +95,8 @@ def glob_files(
     path: str = ".",
     include_hidden: bool = False,
     excluded_patterns: list[str] | None = None,
+    preserved_head_lines: int = 100,
+    preserved_tail_lines: int = 150,
 ) -> list[str]:
     """
     Finds files matching glob patterns (e.g., `**/*.py`).
@@ -116,7 +133,16 @@ def glob_files(
 
         found_files.append(rel_path)
 
-    return sorted(found_files)
+    sorted_files = sorted(found_files)
+    
+    # Apply truncation if needed
+    if len(sorted_files) > preserved_head_lines + preserved_tail_lines:
+        truncated_files = sorted_files[:preserved_head_lines] + sorted_files[-preserved_tail_lines:]
+        omitted = len(sorted_files) - preserved_head_lines - preserved_tail_lines
+        truncated_files.append(f"[TRUNCATED {omitted} files. Showing first {preserved_head_lines} and last {preserved_tail_lines} files.]")
+        return truncated_files
+    
+    return sorted_files
 
 
 def read_file(
@@ -125,6 +151,8 @@ def read_file(
     end_line: int | None = None,
     limit: int | None = None,
     offset: int | None = None,
+    preserved_head_lines: int = 100,
+    preserved_tail_lines: int = 150,
 ) -> str:
     """
     Reads content from a file.
@@ -148,8 +176,21 @@ def read_file(
             total_lines, start_line, end_line, limit, offset
         )
 
-        selected_lines = lines[start_idx:end_idx]
-        content_result = "".join(selected_lines)
+        # Check if we should apply head/tail truncation
+        # Only apply head/tail if no explicit bounds are specified and file is large
+        if (start_line is None and end_line is None and limit is None and offset is None and 
+            total_lines > preserved_head_lines + preserved_tail_lines):
+            # Use head/tail truncation
+            head_lines = lines[:preserved_head_lines]
+            tail_lines = lines[-preserved_tail_lines:]
+            content_result = "".join(head_lines) + f"\n...[TRUNCATED {total_lines - preserved_head_lines - preserved_tail_lines} lines]...\n\n" + "".join(tail_lines)
+            truncated = True
+            start_idx = 0
+            end_idx = preserved_head_lines + preserved_tail_lines
+        else:
+            # Use normal slicing
+            selected_lines = lines[start_idx:end_idx]
+            content_result = "".join(selected_lines)
 
         header = _format_read_header(path, start_idx, end_idx, total_lines, truncated)
         return f"{header}{content_result}"
@@ -201,7 +242,6 @@ def _calculate_read_bounds(
     offset: int | None,
 ) -> tuple[int, int, bool]:
     """Calculates the start and end indices for reading lines."""
-    DEFAULT_LIMIT = 2000
     truncated = False
 
     final_start_idx = 0
@@ -217,11 +257,6 @@ def _calculate_read_bounds(
     elif end_line is not None:
         final_end_idx = end_line
 
-    if start_line is None and end_line is None and limit is None and offset is None:
-        if total_lines > DEFAULT_LIMIT:
-            final_end_idx = DEFAULT_LIMIT
-            truncated = True
-
     # Bounds checking
     if final_start_idx < 0:
         final_start_idx = 0
@@ -231,6 +266,19 @@ def _calculate_read_bounds(
         final_start_idx = final_end_idx
 
     return final_start_idx, final_end_idx, truncated
+
+
+def _truncate_output(text: str, head_lines: int, tail_lines: int) -> str:
+    """Truncates string to keep the specified number of head and tail lines."""
+    lines = text.splitlines(keepends=True)
+    if len(lines) > head_lines + tail_lines:
+        omitted = len(lines) - head_lines - tail_lines
+        return (
+            "".join(lines[:head_lines])
+            + f"\n...[TRUNCATED {omitted} lines]...\n\n"
+            + "".join(lines[-tail_lines:])
+        )
+    return text
 
 
 def _format_read_header(
@@ -251,13 +299,29 @@ def _format_read_header(
     return ""
 
 
-def read_files(paths: list[str]) -> dict[str, str]:
+def read_files(
+    paths: list[str],
+    start_line: int | None = None,
+    end_line: int | None = None,
+    limit: int | None = None,
+    offset: int | None = None,
+    preserved_head_lines: int = 100,
+    preserved_tail_lines: int = 150,
+) -> dict[str, str]:
     """
     Reads multiple files. Use to gather context from related files simultaneously.
     """
     results = {}
     for path in paths:
-        results[path] = read_file(path)
+        results[path] = read_file(
+            path, 
+            start_line=start_line, 
+            end_line=end_line, 
+            limit=limit, 
+            offset=offset,
+            preserved_head_lines=preserved_head_lines,
+            preserved_tail_lines=preserved_tail_lines
+        )
     return results
 
 
@@ -329,6 +393,8 @@ def search_files(
     regex: str,
     file_pattern: str | None = None,
     include_hidden: bool = True,
+    preserved_head_lines: int = 50,
+    preserved_tail_lines: int = 50,
 ) -> dict[str, Any]:
     """
     Searches for a regex pattern in files.
@@ -367,16 +433,26 @@ def search_files(
                 searched_file_count += 1
 
                 try:
-                    matches = _get_file_matches(file_path, pattern)
+                    matches = _get_file_matches(file_path, pattern, preserved_head_lines=preserved_head_lines, preserved_tail_lines=preserved_tail_lines)
                     if matches:
                         file_match_count += 1
-                        match_count += len(matches)
+                        # Count actual matches, excluding truncation notices (line_number == 0)
+                        actual_matches = [m for m in matches if m.get("line_number", 0) > 0]
+                        match_count += len(actual_matches)
                         search_results["results"].append(
                             {"file": rel_file_path, "matches": matches}
                         )
                 except Exception:
                     # Ignore read errors for binary files etc
                     pass
+
+        # Apply truncation to results if needed
+        results = search_results["results"]
+        if len(results) > preserved_head_lines + preserved_tail_lines:
+            truncated_results = results[:preserved_head_lines] + results[-preserved_tail_lines:]
+            omitted = len(results) - preserved_head_lines - preserved_tail_lines
+            search_results["results"] = truncated_results
+            search_results["truncation_notice"] = f"[TRUNCATED {omitted} result files. Showing first {preserved_head_lines} and last {preserved_tail_lines} files with matches.]"
 
         if match_count == 0:
             search_results["summary"] = (
@@ -398,6 +474,8 @@ def _get_file_matches(
     file_path: str,
     pattern: re.Pattern,
     context_lines: int = 2,
+    preserved_head_lines: int = 50,
+    preserved_tail_lines: int = 50,
 ) -> list[dict[str, any]]:
     """Search for regex matches in a file with context."""
     with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
@@ -419,6 +497,21 @@ def _get_file_matches(
                 ],
             }
             matches.append(match_data)
+    
+    # Apply truncation to matches within a file if there are too many
+    if len(matches) > preserved_head_lines + preserved_tail_lines:
+        truncated_matches = matches[:preserved_head_lines] + matches[-preserved_tail_lines:]
+        omitted = len(matches) - preserved_head_lines - preserved_tail_lines
+        # Add a truncation notice as a special match entry
+        truncation_notice = {
+            "line_number": 0,
+            "line_content": f"[TRUNCATED {omitted} matches in this file. Showing first {preserved_head_lines} and last {preserved_tail_lines} matches.]",
+            "context_before": [],
+            "context_after": []
+        }
+        truncated_matches.append(truncation_notice)
+        return truncated_matches
+    
     return matches
 
 
@@ -440,8 +533,8 @@ async def analyze_file(path: str, query: str) -> str:
     if not os.path.exists(abs_path):
         return f"Error: File not found: {path}"
 
-    # Read content
-    content = read_file(abs_path)
+    # Read content with truncation
+    content = read_file(abs_path, preserved_head_lines=100, preserved_tail_lines=150)
     if content.startswith("Error:"):
         return content
 

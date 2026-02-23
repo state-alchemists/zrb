@@ -50,7 +50,7 @@ async def test_summarize_history_consecutive_user_messages():
             agent=agent,
             summary_window=2,
             limiter=limiter,
-            conversational_token_threshold=25,
+            conversational_token_threshold=30,
         )
 
     # High-level structure check

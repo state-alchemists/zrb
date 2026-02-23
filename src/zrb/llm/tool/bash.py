@@ -9,7 +9,12 @@ from zrb.context.any_context import zrb_print
 from zrb.util.cli.style import stylize_faint
 
 
-async def run_shell_command(command: str, timeout: int = 30) -> str:
+async def run_shell_command(
+    command: str,
+    timeout: int = 30,
+    preserved_head_lines: int = 100,
+    preserved_tail_lines: int = 150,
+) -> str:
     """
     Executes a non-interactive shell command.
 
@@ -55,6 +60,8 @@ async def run_shell_command(command: str, timeout: int = 30) -> str:
             bg_pids,
             timed_out,
             timeout,
+            preserved_head_lines,
+            preserved_tail_lines,
         )
 
     except Exception as e:
@@ -84,7 +91,8 @@ def _prepare_command(command: str, is_windows: bool) -> tuple[str, str | None]:
 async def _start_process(command: str, is_windows: bool) -> asyncio.subprocess.Process:
     """Starts the subprocess with appropriate settings."""
     # start_new_session=True (via os.setsid) ensures the shell gets its own process group,
-    # allowing us to use `pgrep -g` effectively to find all processes in this tool's execution scope.
+    # allowing us to use `pgrep -g` effectively to find all processes
+    # in this tool's execution scope.
     return await asyncio.create_subprocess_shell(
         command,
         stdout=asyncio.subprocess.PIPE,
@@ -108,10 +116,10 @@ async def _read_stream(stream: asyncio.StreamReader, lines_list: list[str]):
             break
         decoded = line.decode(errors="replace")
         if decoded:
-            shown = ANSI_ESCAPE.sub("", decoded)
-            shown = stylize_faint(shown)
+            stripped = ANSI_ESCAPE.sub("", decoded)
+            shown = stylize_faint(stripped)
             zrb_print(f"  {shown}", end="", plain=True)  # Stream to console
-            lines_list.append(decoded)
+            lines_list.append(stripped)
 
 
 async def _terminate_process(process: asyncio.subprocess.Process, is_windows: bool):
@@ -165,6 +173,19 @@ def _cleanup_temp_file(temp_pid_file: str | None):
             pass
 
 
+def _truncate_output(text: str, head_lines: int, tail_lines: int) -> str:
+    """Truncates string to keep the specified number of head and tail lines."""
+    lines = text.splitlines(keepends=True)
+    if len(lines) > head_lines + tail_lines:
+        omitted = len(lines) - head_lines - tail_lines
+        return (
+            "".join(lines[:head_lines])
+            + f"\n...[TRUNCATED {omitted} lines]...\n\n"
+            + "".join(lines[-tail_lines:])
+        )
+    return text
+
+
 def _format_output(
     command: str,
     cwd: str,
@@ -174,12 +195,18 @@ def _format_output(
     bg_pids: list[int],
     timed_out: bool,
     timeout: int,
+    preserved_head_lines: int,
+    preserved_tail_lines: int,
 ) -> str:
     """Formats the command execution result into a readable string."""
     exit_code_str = str(returncode) if returncode is not None else "(none)"
     if timed_out:
         exit_code_str = "(timed out)"
         stderr_str += f"\nError: Command timed out after {timeout} seconds."
+
+    stdout_str = _truncate_output(stdout_str, preserved_head_lines, preserved_tail_lines)
+    stderr_str = _truncate_output(stderr_str, preserved_head_lines, preserved_tail_lines)
+
     # Analyze for suggestions
     suggestion = ""
     combined_output = (stdout_str + stderr_str).lower()
@@ -187,7 +214,8 @@ def _format_output(
         suggestion = (
             "[SYSTEM SUGGESTION]: The command timed out. "
             "This often means the process is still running in the background. "
-            "Use 'ps aux | grep <process_name>' to check its status before retrying or killing it."
+            "Use 'ps aux | grep <process_name>' to check its status "
+            "before retrying or killing it."
         )
     elif "lock" in combined_output and (
         "apt" in command or "brew" in command or "dpkg" in command
@@ -200,7 +228,8 @@ def _format_output(
     elif "permission denied" in combined_output:
         suggestion = (
             "[SYSTEM SUGGESTION]: Permission denied. "
-            "Consider if this command requires user usage of 'sudo' (if available) or check file permissions."
+            "Consider if this command requires user usage of 'sudo' "
+            "(if available) or check file permissions."
         )
     output_parts = [
         f"Command: {command}",

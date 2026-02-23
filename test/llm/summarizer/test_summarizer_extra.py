@@ -14,7 +14,6 @@ from zrb.llm.message import get_tool_pairs, validate_tool_pair_integrity
 from zrb.llm.summarizer.history_splitter import (
     find_best_effort_split,
     find_safe_split_index,
-    get_split_index,
     is_split_safe,
 )
 from zrb.llm.summarizer.history_summarizer import (
@@ -45,11 +44,6 @@ class MockLimiter:
 
     def truncate_text(self, text, limit):
         return text[:limit]
-
-
-@pytest.mark.asyncio
-async def test_get_split_index_empty():
-    assert get_split_index([], 1) == -1
 
 
 @pytest.mark.asyncio
