@@ -69,7 +69,7 @@ def test_file_history_manager_load_invalid(temp_history_dir):
 
 
 def test_file_history_manager_load_validation_error(temp_history_dir):
-    """Test that ValidationError from pydantic triggers auto-recovery."""
+    """Test that dictionary in UserPromptPart.content is proactively cleaned to JSON string."""
     manager = FileHistoryManager(temp_history_dir)
     file_path = os.path.join(temp_history_dir, "corrupted.json")
 
@@ -99,7 +99,7 @@ def test_file_history_manager_load_validation_error(temp_history_dir):
     with open(file_path, "w") as f:
         json.dump(corrupted_data, f)
 
-    # With auto-recovery, should recover the corrupted data
+    # With proactive cleaning, dictionary should be converted to JSON string
     result = manager.load("corrupted")
     assert len(result) == 1
     assert (
@@ -108,7 +108,7 @@ def test_file_history_manager_load_validation_error(temp_history_dir):
 
 
 def test_file_history_manager_load_validation_error_boolean(temp_history_dir):
-    """Test ValidationError for boolean in UserPromptPart.content triggers auto-recovery."""
+    """Test that boolean in UserPromptPart.content is proactively cleaned to string."""
     manager = FileHistoryManager(temp_history_dir)
     file_path = os.path.join(temp_history_dir, "corrupted_bool.json")
 
@@ -133,14 +133,14 @@ def test_file_history_manager_load_validation_error_boolean(temp_history_dir):
     with open(file_path, "w") as f:
         json.dump(corrupted_data, f)
 
-    # With auto-recovery, should recover the corrupted data
+    # With proactive cleaning, boolean should be converted to string
     result = manager.load("corrupted_bool")
     assert len(result) == 1
     assert result[0].parts[0].content == "True"  # Converted to string
 
 
 def test_file_history_manager_load_validation_error_number(temp_history_dir):
-    """Test ValidationError for number in UserPromptPart.content triggers auto-recovery."""
+    """Test that number in UserPromptPart.content is proactively cleaned to string."""
     manager = FileHistoryManager(temp_history_dir)
     file_path = os.path.join(temp_history_dir, "corrupted_number.json")
 
@@ -165,7 +165,7 @@ def test_file_history_manager_load_validation_error_number(temp_history_dir):
     with open(file_path, "w") as f:
         json.dump(corrupted_data, f)
 
-    # With auto-recovery, should recover the corrupted data
+    # With proactive cleaning, number should be converted to string
     result = manager.load("corrupted_number")
     assert len(result) == 1
     assert result[0].parts[0].content == "42"  # Converted to string
@@ -263,3 +263,44 @@ def test_file_history_manager_clean_corrupted_content_method(temp_history_dir):
     cleaned = manager._clean_corrupted_content(data)
     assert cleaned[0]["parts"][0]["content"] == '{"summary": "test"}'
     assert cleaned[0]["parts"][1]["content"] == "normal text"
+
+
+def test_file_history_manager_proactive_cleaning_comprehensive(temp_history_dir):
+    """Test comprehensive proactive cleaning of various content types."""
+    manager = FileHistoryManager(temp_history_dir)
+
+    # Test None content
+    data = {
+        "part_kind": "user-prompt",
+        "content": None,
+        "timestamp": "2026-02-23T09:25:23.369273Z",
+    }
+    cleaned = manager._clean_corrupted_content(data)
+    assert cleaned["content"] == ""  # None should be converted to empty string
+
+    # Test list content (non-string list)
+    data = {
+        "part_kind": "user-prompt",
+        "content": [1, 2, 3],
+        "timestamp": "2026-02-23T09:25:23.369273Z",
+    }
+    cleaned = manager._clean_corrupted_content(data)
+    assert cleaned["content"] == "[1, 2, 3]"  # List should be converted to JSON string
+
+    # Test float content
+    data = {
+        "part_kind": "user-prompt",
+        "content": 3.14159,
+        "timestamp": "2026-02-23T09:25:23.369273Z",
+    }
+    cleaned = manager._clean_corrupted_content(data)
+    assert cleaned["content"] == "3.14159"  # Float should be converted to string
+
+    # Test boolean False
+    data = {
+        "part_kind": "user-prompt",
+        "content": False,
+        "timestamp": "2026-02-23T09:25:23.369273Z",
+    }
+    cleaned = manager._clean_corrupted_content(data)
+    assert cleaned["content"] == "False"  # Boolean False should be converted to string

@@ -127,6 +127,17 @@ async def run_agent(
         prompt_content = _get_prompt_content(effective_message, attachments, print_fn)
 
         # 1. Prune & Throttle
+        # Hook: PreCompact - invoked before history processing/summarization
+        await effective_hook_manager.execute_hooks(
+            HookEvent.PRE_COMPACT,
+            {
+                "history": message_history,
+                "token_count": limiter.count_tokens(message_history),
+                "message_count": len(message_history),
+                "has_history_processors": hasattr(agent, "history_processors"),
+            },
+        )
+
         # Process history first (e.g. summarization)
         processed_history = message_history
         if hasattr(agent, "history_processors"):
@@ -223,14 +234,6 @@ async def run_agent(
                     current_message = None
                     current_history = run_history
                     continue
-
-                # Hook: PreCompact (if history is getting long)
-                # This is a simplified check
-                if len(run_history) > 10:
-                    await effective_hook_manager.execute_hooks(
-                        HookEvent.PRE_COMPACT,
-                        {"history": run_history},
-                    )
 
                 # Hook: SessionEnd
                 await effective_hook_manager.execute_hooks(

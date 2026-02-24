@@ -20,29 +20,45 @@ class FileHistoryManager(AnyHistoryManager):
     def _clean_corrupted_content(self, data: Any) -> Any:
         """Recursively clean corrupted content in message data.
 
-        Specifically handles UserPromptPart.content that contains invalid types
-        (dictionaries, booleans, etc.) by converting them to strings.
+        Handles any part with content field that contains invalid types
+        (dictionaries, booleans, numbers, etc.) by converting them to strings.
         """
         if isinstance(data, dict):
-            # Check if this is a UserPromptPart with corrupted content
+            # Check if this is any part with a content field that could be corrupted
             # pydantic-ai uses "part_kind" for part type
-            if data.get("part_kind") == "user-prompt":
+            part_kind = data.get("part_kind")
+            # Parts that have content fields: user-prompt, text, system-prompt,
+            # thinking, tool-return, etc.
+            if part_kind in [
+                "user-prompt",
+                "text",
+                "system-prompt",
+                "thinking",
+                "tool-return",
+            ]:
                 content = data.get("content")
-                if content is not None:
-                    # UserPromptPart.content should be str | Sequence[UserContent]
-                    # If it's not a string or list, convert it to string
-                    if not isinstance(content, (str, list)):
-                        if isinstance(content, dict):
-                            # Convert dictionary to JSON string
-                            try:
-                                data["content"] = json.dumps(
-                                    content, ensure_ascii=False
-                                )
-                            except (TypeError, ValueError):
-                                data["content"] = str(content)
-                        else:
-                            # Convert boolean, number, etc. to string
-                            data["content"] = str(content)
+                # Handle None content by converting to empty string
+                if content is None:
+                    data["content"] = ""
+                else:
+                    # Content should typically be str | Sequence[UserContent] for user-prompt,
+                    # str for text/system-prompt/thinking, str for tool-return
+                    # If it's not a string or list (for user-prompt), convert it to string
+                    if part_kind == "user-prompt":
+                        # UserPromptPart.content can be str | Sequence[UserContent]
+                        # If it's a list, we need to check if it's a valid Sequence[UserContent]
+                        # For now, if it's a list of non-strings, convert the whole list to JSON string
+                        if isinstance(content, list):
+                            # Check if list contains only valid UserContent (strings or dicts with text)
+                            # For simplicity, if any item is not a string, convert whole list to JSON string
+                            if any(not isinstance(item, str) for item in content):
+                                data["content"] = self._convert_to_string(content)
+                        elif not isinstance(content, str):
+                            data["content"] = self._convert_to_string(content)
+                    else:
+                        # Other parts: content should be string
+                        if not isinstance(content, str):
+                            data["content"] = self._convert_to_string(content)
 
             # Recursively clean all values
             return {k: self._clean_corrupted_content(v) for k, v in data.items()}
@@ -52,6 +68,18 @@ class FileHistoryManager(AnyHistoryManager):
 
         else:
             return data
+
+    def _convert_to_string(self, value: Any) -> str:
+        """Convert any value to string, handling special cases."""
+        if isinstance(value, dict):
+            # Convert dictionary to JSON string
+            try:
+                return json.dumps(value, ensure_ascii=False)
+            except (TypeError, ValueError):
+                return str(value)
+        else:
+            # Convert boolean, number, None, etc. to string
+            return str(value)
 
     def _get_file_path(self, conversation_name: str) -> str:
         # Sanitize conversation name to be safe for filename
@@ -80,29 +108,23 @@ class FileHistoryManager(AnyHistoryManager):
                     return []
                 data = json.loads(content)
 
-                # First, try to validate the original data
-                messages = ModelMessagesTypeAdapter.validate_python(data)
+                # ALWAYS clean data before validation to prevent boolean corruption
+                # This is critical because pydantic_ai validation might allow boolean values
+                # which will cause TypeError in Google model's _map_user_prompt
+                cleaned_data = self._clean_corrupted_content(data)
+
+                # Validate the cleaned data
+                messages = ModelMessagesTypeAdapter.validate_python(cleaned_data)
                 self._cache[conversation_name] = messages
                 return messages
 
         except ValidationError as e:
-            # If validation fails, try to clean corrupted data and retry
-            try:
-                cleaned_data = self._clean_corrupted_content(data)
-                messages = ModelMessagesTypeAdapter.validate_python(cleaned_data)
-                zrb_print(
-                    f"Info: Successfully recovered corrupted history for {conversation_name}",
-                    plain=True,
-                )
-                self._cache[conversation_name] = messages
-                return messages
-            except ValidationError as e2:
-                # Even after cleaning, validation failed
-                zrb_print(
-                    f"Warning: Failed to load history for {conversation_name} even after cleanup: {e2}",
-                    plain=True,
-                )
-                return []
+            # If validation fails even after cleaning, log and return empty
+            zrb_print(
+                f"Warning: Failed to load history for {conversation_name} even after cleanup: {e}",
+                plain=True,
+            )
+            return []
 
         except (json.JSONDecodeError, OSError) as e:
             # Log error or warn? For now, return empty list or re-raise.
@@ -130,37 +152,25 @@ class FileHistoryManager(AnyHistoryManager):
             # First, try to serialize the messages
             data = ModelMessagesTypeAdapter.dump_python(messages, mode="json")
 
-            # Try to validate the serialized data
-            ModelMessagesTypeAdapter.validate_python(data)
+            # ALWAYS clean data before saving to prevent boolean corruption
+            # This ensures that even if pydantic_ai validation allows boolean values,
+            # we convert them to strings before saving to disk
+            cleaned_data = self._clean_corrupted_content(data)
 
-            # If validation passes, save the data
+            # Validate the cleaned data
+            ModelMessagesTypeAdapter.validate_python(cleaned_data)
+
+            # Save the cleaned data
             with open(file_path, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2)
+                json.dump(cleaned_data, f, indent=2)
 
         except ValidationError as e:
-            # If validation fails, try to clean the data and save cleaned version
-            try:
-                cleaned_data = self._clean_corrupted_content(data)
-                ModelMessagesTypeAdapter.validate_python(cleaned_data)
-
-                with open(file_path, "w", encoding="utf-8") as f:
-                    json.dump(cleaned_data, f, indent=2)
-
-                zrb_print(
-                    f"Info: Successfully cleaned and saved history for {conversation_name}",
-                    plain=True,
-                )
-
-            except (ValidationError, OSError) as e2:
-                # Even after cleaning, validation failed or file error
-                error_type = (
-                    "validation" if isinstance(e2, ValidationError) else "file system"
-                )
-                zrb_print(
-                    f"Warning: Failed to save history for {conversation_name} due to {error_type} error: {e2}",
-                    plain=True,
-                )
-                # Don't save corrupted data
+            # If validation fails even after cleaning, log and don't save
+            zrb_print(
+                f"Warning: Failed to save history for {conversation_name} due to validation error: {e}",
+                plain=True,
+            )
+            # Don't save corrupted data
 
         except OSError as e:
             zrb_print(

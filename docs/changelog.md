@@ -1,5 +1,22 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.6.10 (February 24, 2026)
+
+- **Fix: PRE_COMPACT Hook Timing**:
+  - **Correct Hook Invocation**: Fixed `run_agent.py` to invoke PRE_COMPACT hook BEFORE history summarization/processing, not after agent execution. Hook now receives comprehensive context: `token_count` (calculated via limiter), `message_count`, and `has_history_processors` flag.
+  - **Removed Simplistic Check**: Eliminated simplistic message count check (`len(run_history) > 10`) and moved hook invocation to history processing section where it belongs.
+  - **Claude Code Compatibility**: Aligns with Claude Code compatibility for hook events, ensuring hooks can prepare/modify history before summarization occurs.
+  - **Comprehensive Testing**: All 265 LLM tests pass including 33 hook tests, verifying the fix maintains system stability.
+
+- **Fix: Pydantic AI Boolean Content Corruption**:
+  - **Proactive Content Cleaning**: Enhanced `FileHistoryManager` to proactively clean corrupted content (boolean, number, dict, list, None) before validation, not just on ValidationError. Updated `_clean_corrupted_content()` to handle all part types with content fields and added proper None handling (convert to empty string).
+  - **Always Clean Strategy**: Implemented "always clean" approach: always clean in `load()` before validation, always clean in `save()` before validation/saving. This prevents boolean corruption issues where pydantic-ai validation might allow boolean values that later cause serialization problems.
+  - **Comprehensive Test Updates**: Updated test descriptions from "ValidationError triggers auto-recovery" to "proactively cleaned to string" to reflect new proactive cleaning behavior. Added comprehensive test for None, list, float, and boolean False content conversion.
+  - **Test Verification**: All 822 tests pass including comprehensive tests for file history manager corruption handling.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.6.10 in `pyproject.toml`.
+
 ## 2.6.9 (February 23, 2026)
 
 - **Improvement: History Summarizer Algorithm Overhaul**:
