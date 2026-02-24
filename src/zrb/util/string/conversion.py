@@ -1,4 +1,5 @@
 import re
+from typing import Any
 
 NON_ALPHA_NUM = re.compile(r"[^a-zA-Z0-9]+")
 TRUE_STRS = ["true", "1", "yes", "y", "active", "on", "okay", "ok"]
@@ -228,3 +229,17 @@ def _to_space_separated(text: str | None) -> str:
         if new_part != "":
             new_parts.append(new_part)
     return " ".join(new_parts).strip(" ")
+
+
+def to_string(value: Any) -> str:
+    """
+    Convert any value to a string, safely handling dictionaries and lists via JSON.
+    """
+    if isinstance(value, (dict, list)):
+        import json
+
+        try:
+            return json.dumps(value, ensure_ascii=False)
+        except (TypeError, ValueError):
+            return str(value)
+    return str(value)

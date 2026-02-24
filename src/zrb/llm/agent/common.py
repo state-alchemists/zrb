@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.util.prompt import expand_prompt
+from zrb.util.string.conversion import to_string
 
 if TYPE_CHECKING:
     from pydantic_ai import (
@@ -94,7 +95,7 @@ def _create_safe_wrapper(func: Callable) -> Callable:
 
             # Otherwise wrap successful result in ToolReturn
             return ToolReturn(
-                return_value=safe_result, content=safe_result, metadata={}
+                return_value=safe_result, content=to_string(safe_result), metadata={}
             )
         except Exception as e:
             error_msg = f"Error executing tool {func.__name__}: {e}"
@@ -122,7 +123,9 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
                 # Create a safe copy to prevent mutation by pydantic-ai
                 safe_result = _safe_copy_result(result)
                 return ToolReturn(
-                    return_value=safe_result, content=safe_result, metadata={}
+                    return_value=safe_result,
+                    content=to_string(safe_result),
+                    metadata={},
                 )
             except Exception as e:
                 error_msg = f"Error executing tool {name}: {e}"

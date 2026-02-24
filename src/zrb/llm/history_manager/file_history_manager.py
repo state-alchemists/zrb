@@ -8,6 +8,7 @@ if TYPE_CHECKING:
 from zrb.context.any_context import zrb_print
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.util.match import fuzzy_match
+from zrb.util.string.conversion import to_string
 
 
 class FileHistoryManager(AnyHistoryManager):
@@ -52,13 +53,13 @@ class FileHistoryManager(AnyHistoryManager):
                             # Check if list contains only valid UserContent (strings or dicts with text)
                             # For simplicity, if any item is not a string, convert whole list to JSON string
                             if any(not isinstance(item, str) for item in content):
-                                data["content"] = self._convert_to_string(content)
+                                data["content"] = to_string(content)
                         elif not isinstance(content, str):
-                            data["content"] = self._convert_to_string(content)
+                            data["content"] = to_string(content)
                     else:
                         # Other parts: content should be string
                         if not isinstance(content, str):
-                            data["content"] = self._convert_to_string(content)
+                            data["content"] = to_string(content)
 
             # Recursively clean all values
             return {k: self._clean_corrupted_content(v) for k, v in data.items()}
@@ -68,18 +69,6 @@ class FileHistoryManager(AnyHistoryManager):
 
         else:
             return data
-
-    def _convert_to_string(self, value: Any) -> str:
-        """Convert any value to string, handling special cases."""
-        if isinstance(value, dict):
-            # Convert dictionary to JSON string
-            try:
-                return json.dumps(value, ensure_ascii=False)
-            except (TypeError, ValueError):
-                return str(value)
-        else:
-            # Convert boolean, number, None, etc. to string
-            return str(value)
 
     def _get_file_path(self, conversation_name: str) -> str:
         # Sanitize conversation name to be safe for filename
