@@ -257,6 +257,10 @@ class UI:
             return await self._application.run_async()
         finally:
             self._capture.stop()
+            # Print buffered output after UI closes
+            buffered_output = self._capture.get_buffered_output()
+            if buffered_output:
+                print(buffered_output, end="")
 
             if self._process_messages_task:
                 self._process_messages_task.cancel()

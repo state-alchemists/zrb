@@ -247,47 +247,41 @@ class HookManager:
             reverse=True,  # Higher priority first
         )
 
-        # Execute hooks with thread pool and timeout controls
-        tasks = []
-        for hook in hooks_to_run:
+        # Execute hooks sequentially to support blocking/continue logic
+        for i, hook in enumerate(hooks_to_run):
             # Get timeout from config if available
             timeout = None
             if hook in self._hook_to_config:
                 config = self._hook_to_config[hook]
                 timeout = config.timeout
 
-            task = self._executor.execute_hook(hook, context, timeout=timeout)
-            tasks.append(task)
-
-        # Wait for all hooks to complete
-        hook_results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        for i, result in enumerate(hook_results):
-            if isinstance(result, Exception):
+            try:
+                result = await self._executor.execute_hook(
+                    hook, context, timeout=timeout
+                )
+                results.append(result)
+            except Exception as e:
                 logger.error(
-                    f"Error executing hook {i} for event {event}: {result}",
+                    f"Error executing hook {i} for event {event}: {e}",
                     exc_info=True,
                 )
                 results.append(
-                    HookExecutionResult(success=False, error=str(result), exit_code=1)
+                    HookExecutionResult(success=False, error=str(e), exit_code=1)
                 )
-            else:
-                results.append(result)
+                # Continue to next hook even if this one failed
+                continue
 
-                # Check for blocking decisions (exit code 2)
-                if result.blocked or result.exit_code == 2:
-                    logger.info(
-                        f"Hook blocked execution. Stopping further hooks for event {event}."
-                    )
-                    # Return only results up to this point
-                    return results[: i + 1]
+            # Check for blocking decisions (exit code 2)
+            if results[-1].blocked or results[-1].exit_code == 2:
+                logger.info(
+                    f"Hook blocked execution. Stopping further hooks for event {event}."
+                )
+                return results
 
-                # Check for continue=false
-                if not result.continue_execution:
-                    logger.info(
-                        f"Hook requested stop of all processing for event {event}."
-                    )
-                    return results[: i + 1]
+            # Check for continue=false
+            if not results[-1].continue_execution:
+                logger.info(f"Hook requested stop of all processing for event {event}.")
+                return results
 
         return results
 

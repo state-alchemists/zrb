@@ -15,6 +15,8 @@ class GlobalStreamCapture:
         self.thread: threading.Thread | None = None
         self.pipe_r = None
         self.pipe_w = None
+        # Buffer to store captured output instead of sending to UI
+        self._buffer: list[str] = []
 
     def start(self):
         if self.capturing:
@@ -92,16 +94,11 @@ class GlobalStreamCapture:
                 os.dup2(self.pipe_w, sys.stderr.fileno())
 
     def _reader(self, pipe_r):
-        from prompt_toolkit.application import get_app
-
         with os.fdopen(pipe_r, "r", errors="replace", buffering=1) as f:
             for line in f:
                 if line:
-                    self.ui_callback(line.expandtabs(4), end="")
-                    try:
-                        get_app().invalidate()
-                    except Exception:
-                        pass
+                    # Buffer the line instead of sending to UI
+                    self._buffer.append(line.expandtabs(4))
 
     def get_original_stdout(self) -> TextIO:
         """Returns a file object connected to the original stdout (terminal)."""
@@ -113,3 +110,11 @@ class GlobalStreamCapture:
             errors="replace",
             closefd=True,
         )
+
+    def get_buffered_output(self) -> str:
+        """Returns all buffered output as a single string."""
+        return "".join(self._buffer)
+
+    def clear_buffer(self):
+        """Clears the buffer."""
+        self._buffer.clear()

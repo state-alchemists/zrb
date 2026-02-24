@@ -178,6 +178,12 @@ class ThreadPoolHookExecutor:
             success=result.success, message=result.output, data=result.data or {}
         )
 
+        # Set error field and exit_code when success is False
+        if not result.success:
+            if result.output:
+                exec_result.error = result.output
+            exec_result.exit_code = 1
+
         # Check for blocking decisions
         if result.should_stop:
             exec_result.blocked = True
