@@ -482,30 +482,24 @@ class LLMChatTask(BaseTask):
     ) -> LLMTask:
         """Create the inner LLMTask that handles the actual processing."""
         from zrb.llm.agent.std_ui import StdUI
-        from zrb.llm.tool_call import check_tool_policies
+        from zrb.llm.tool_call.handler import ToolCallHandler
 
         # Determine the tool confirmation and ui to use
         tool_confirmation = self._tool_confirmation
         ui = None
 
-        # If we have tool policies, response handlers, or argument formatters,
-        # create a ToolCallHandler (or simple policy checker) that wraps existing config
-        tool_policies = self._tool_policies
-        response_handlers = self._response_handlers if interactive else []
-        argument_formatters = self._argument_formatters if interactive else []
-
         if interactive:
             # Interactive mode: Let the UI handle everything
             tool_confirmation = None
             ui = None
-        elif tool_policies:
-            # Non-interactive: Use simple policy checker, with StdUI
+        elif self._tool_policies or self._response_handlers or self._argument_formatters:
+            # Non-interactive: Use ToolCallHandler, with StdUI
             ui = StdUI()
-
-            async def _simple_policy_checker(call):
-                return await check_tool_policies(tool_policies, ui, call)
-
-            tool_confirmation = _simple_policy_checker
+            tool_confirmation = ToolCallHandler(
+                tool_policies=self._tool_policies,
+                argument_formatters=self._argument_formatters,
+                response_handlers=self._response_handlers,
+            )
 
         # Get all tools and toolsets including those from factories
         resolved_tools = self._get_all_tools(ctx)
