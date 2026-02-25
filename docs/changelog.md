@@ -1,5 +1,15 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.6.14 (February 26, 2026)
+
+- **Fix: Non-Interactive UI Tool Confirmation for Edit Command**:
+  - **ToolCallHandler Integration**: Fixed editing in non-interactive mode by replacing simple policy checker with `ToolCallHandler` in `LLMChatTask._create_llm_task_core()`. The previous implementation used `check_tool_policies()` which only handled tool policies, not response handlers or argument formatters.
+  - **Complete Tool Handling**: The fix switches to `ToolCallHandler` which properly handles all three components (tool policies, argument formatters, response handlers) and includes the 'e' (edit) option in the confirmation prompt.
+  - **Key Change**: In `src/zrb/llm/task/llm_chat_task.py`, non-interactive mode now uses `ToolCallHandler(tool_policies=self._tool_policies, argument_formatters=self._argument_formatters, response_handlers=self._response_handlers)` instead of a simple async wrapper around `check_tool_policies()`.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.6.14 in `pyproject.toml`.
+
 ## 2.6.13 (February 25, 2026)
 
 - **Improvement: SearxNG Configuration Refactoring & Automatic Management**:

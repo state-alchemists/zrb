@@ -492,7 +492,9 @@ class LLMChatTask(BaseTask):
             # Interactive mode: Let the UI handle everything
             tool_confirmation = None
             ui = None
-        elif self._tool_policies or self._response_handlers or self._argument_formatters:
+        elif (
+            self._tool_policies or self._response_handlers or self._argument_formatters
+        ):
             # Non-interactive: Use ToolCallHandler, with StdUI
             ui = StdUI()
             tool_confirmation = ToolCallHandler(
