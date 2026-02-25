@@ -1,5 +1,16 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.6.13 (February 25, 2026)
+
+- **Improvement: SearxNG Configuration Refactoring & Automatic Management**:
+  - **Streamlined Configuration File**: Remove `settings.yml` searxng file.
+  - **Automatic Configuration Setup**: Added `copy_searxng_setting` task that automatically copies SearxNG configuration to `~/.config/searxng/` directory if it doesn't exist, ensuring proper configuration management without manual intervention.
+  - **Improved Docker Volume Mounting**: Changed working directory from project directory to user home directory (`os.path.expanduser("~")`) for better Docker volume mounting compatibility, allowing the `./config/` volume to correctly map to the user's configuration directory.
+  - **Task Integration**: Made `copy_searxng_setting` an upstream dependency of the `start-searxng` task, ensuring configuration is always available before starting the SearxNG container.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.6.13 in `pyproject.toml`.
+
 ## 2.6.12 (February 24, 2026)
 
 - **Improvement: UI Output Redirection Buffering**:
