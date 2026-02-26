@@ -131,7 +131,7 @@ async def test_summarize_fat_tool_results():
     )
 
     assert len(new_messages) == 1
-    assert "SUMMARY of tool result:" in new_messages[0].parts[0].content
+    assert "SUMMARY OF TOOL RESULT:" in new_messages[0].parts[0].content
     assert "Short summary" in new_messages[0].parts[0].content
 
 
@@ -335,7 +335,7 @@ async def test_process_tool_return_part_edge_cases():
     assert mod is False
 
     # 2. Already summarized
-    part = ToolReturnPart(content="SUMMARY of tool result: ...", tool_name="t")
+    part = ToolReturnPart(content="SUMMARY OF TOOL RESULT: ...", tool_name="t")
     res, mod = await process_tool_return_part(part, None, limiter, 10, 20)
     assert mod is False
 

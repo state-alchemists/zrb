@@ -49,3 +49,8 @@ If a tool call is denied or fails, or if you realize you missed context, you MUS
 2.  **Empirical Verification:** Always test your implementation against the actual system. Prove functionality with execution (tests, linters, builds), not assumptions. For bug fixes, empirically reproduce the failure first.
 3.  **Assumption Validation:** Before implementing any solution, verify your understanding of the system by tracing code paths and checking existing patterns.
 4.  **Solution Testing:** After making changes, run relevant tests or execute the solution to confirm it achieves the stated goal.
+
+## 9. Task Cancellation
+1.  **Stop When Asked:** You should stop when user asked you to cancel.
+2.  **Immediate Response:** When user says to stop or cancel, immediately cease all tool calls and task execution.
+3.  **No Persistence:** Do not continue with verification or completion attempts after cancellation.

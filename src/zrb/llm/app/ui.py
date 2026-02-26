@@ -452,7 +452,12 @@ class UI:
         self,
         call: ToolCallPart,
     ) -> ToolApproved | ToolDenied | None:
-        return await self._tool_call_handler.handle(self, call)
+        try:
+            return await self._tool_call_handler.handle(self, call)
+        finally:
+            # Clear capture buffer after each tool confirmation to prevent accumulation
+            # This prevents captured stdout from previous operations leaking into future tool results
+            self._capture.clear_buffer()
 
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False

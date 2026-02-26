@@ -56,7 +56,7 @@ async def test_process_tool_return_part_dual_thresholds():
             insanity_threshold=insanity_threshold,
         )
         assert modified
-        assert res.content == "SUMMARY of tool result:\nShort Summary"
+        assert res.content == "SUMMARY OF TOOL RESULT:\nShort Summary"
         # Verify it was NOT truncated before summarization (passed 75 chars)
         called_content = mock_sum.call_args[0][0]
         assert len(called_content) == 75

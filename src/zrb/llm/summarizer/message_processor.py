@@ -13,6 +13,10 @@ if TYPE_CHECKING:
 else:
     ModelMessage = Any
 
+# Constants for message prefixes to avoid brittle string matching
+SUMMARY_PREFIX = "SUMMARY OF TOOL RESULT:"
+TRUNCATED_PREFIX = "TRUNCATED TOOL RESULT:"
+
 
 async def process_message_for_summarization(
     msg: ModelMessage,
@@ -71,6 +75,8 @@ async def process_tool_return_part(
     message_threshold: int,
     insanity_threshold: int,
 ) -> tuple[Any, bool]:
+    from pydantic_ai import ToolApproved, ToolDenied
+
     # Safely get content with default
     original_content = getattr(part, "content", None)
     if original_content is None:
@@ -88,10 +94,12 @@ async def process_tool_return_part(
             content = str(safe_content)
     else:
         content = safe_content
-    # Skip if already summarized or truncated
-    is_summary = content.startswith("SUMMARY of tool result:")
-    is_truncated = content.startswith("TRUNCATED tool result:")
-    if is_summary or is_truncated:
+
+    # Skip if already summarized, truncated, or a tool denial/approval message
+    is_tool_response = isinstance(safe_content, (ToolDenied, ToolApproved))
+    is_summary = content.startswith(SUMMARY_PREFIX)
+    is_truncated = content.startswith(TRUNCATED_PREFIX)
+    if is_summary or is_truncated or is_tool_response:
         return part, False
 
     content_tokens = limiter.count_tokens(content)
@@ -102,47 +110,9 @@ async def process_tool_return_part(
         stylize_yellow(f"  Summarizing fat tool result ({content_tokens} tokens)..."),
         plain=True,
     )
-    # DEBUG: Show sample of content
-    if content_tokens > 10000:
-        original_content = getattr(part, "content", None)
-        zrb_print(
-            stylize_yellow(f"  DEBUG: Original content type: {type(original_content)}"),
-            plain=True,
-        )
-        if isinstance(original_content, list):
-            zrb_print(
-                stylize_yellow(
-                    f"  DEBUG: Original content is list with {len(original_content)} items"
-                ),
-                plain=True,
-            )
-            for i, item in enumerate(original_content[:3]):  # Show first 3 items
-                zrb_print(
-                    stylize_yellow(
-                        f"  DEBUG: Item {i} type: {type(item)}, length: {len(str(item))}"
-                    ),
-                    plain=True,
-                )
-            # DEBUG: Show list object ID to track mutations
-            zrb_print(
-                stylize_yellow(f"  DEBUG: List object id: {id(original_content)}"),
-                plain=True,
-            )
-            # DEBUG: Show actual list reference and first few chars of each item
-            for i, item in enumerate(original_content[:3]):
-                item_str = str(item)
-                preview = item_str[:100] + "..." if len(item_str) > 100 else item_str
-                zrb_print(
-                    stylize_yellow(f"  DEBUG: Item {i} preview: {preview}"),
-                    plain=True,
-                )
-        sample = str(content)[:500] if len(str(content)) > 500 else str(content)
-        zrb_print(
-            stylize_yellow(f"  DEBUG: Content sample (first 500 chars): {sample}"),
-            plain=True,
-        )
+
     # Calculate available tokens for summary (accounting for prefix)
-    prefix = "SUMMARY of tool result:\n"
+    prefix = f"{SUMMARY_PREFIX}\n"
     prefix_tokens = limiter.count_tokens(prefix)
     available_tokens = message_threshold - prefix_tokens
 
@@ -168,11 +138,11 @@ async def process_tool_return_part(
         )
         # Keep original but truncated
         truncated = limiter.truncate_text(content, message_threshold)
-        new_part = replace(part, content=f"TRUNCATED tool result:\n{truncated}")
+        new_part = replace(part, content=f"{TRUNCATED_PREFIX}\n{truncated}")
         return new_part, True
     try:
         summary = await summarize_text_plain(content, agent, limiter, available_tokens)
-        new_part = replace(part, content=f"SUMMARY of tool result:\n{summary}")
+        new_part = replace(part, content=f"{SUMMARY_PREFIX}\n{summary}")
         return new_part, True
     except Exception as e:
         zrb_print(stylize_error(f"  Error summarizing tool result: {e}"), plain=True)

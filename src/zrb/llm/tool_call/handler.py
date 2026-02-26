@@ -80,6 +80,12 @@ class ToolCallHandler:
             # Wait for user input
             user_input = await ui.ask_user("")
             user_response = user_input.strip()
+            max_response_length = 500
+            if len(user_response) > max_response_length:
+                user_response = (
+                    user_response[:max_response_length]
+                    + f"\n[truncated: original response was {len(user_response)} chars]"
+                )
 
             # Response Handlers (Post-confirmation)
             async def _next_handler(
