@@ -52,7 +52,7 @@ async def test_tool_policy():
 
     # Create agent with the weather tool
     agent = Agent(
-        model="openai:gpt-4o-mini",
+        model="test",
         tools=[get_weather],
         system_prompt="You are a helpful assistant that can check weather.",
     )

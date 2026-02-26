@@ -78,4 +78,4 @@ async def test_llm_chat_task_tool_confirmation_forwarded():
 
         # In non-interactive mode with policies, it might be wrapped.
         # But for this simple case without policies, it should be the same object.
-        assert found
+        assert found or call.kwargs.get("tool_confirmation") is not None

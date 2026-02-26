@@ -9,14 +9,21 @@ class StdUI:
         """Prompt user via CLI input."""
         import sys
 
-        if prompt:
-            sys.stderr.write(prompt)
-            sys.stderr.flush()
+        from prompt_toolkit import PromptSession
+        from prompt_toolkit.output import create_output
 
-        # Use asyncio.to_thread to avoid blocking the event loop
-        loop = asyncio.get_event_loop()
-        user_input = await loop.run_in_executor(None, input, "")
-        return user_input.strip()
+        # Always output to stderr to avoid polluting stdout
+        output = create_output(stdout=sys.stderr)
+        session = PromptSession(output=output)
+
+        try:
+            user_input = await session.prompt_async(prompt)
+            return user_input.strip()
+        except KeyboardInterrupt:
+            # Let it propagate so the task runner can catch it or exit gracefully
+            raise
+        except EOFError:
+            return ""
 
     def append_to_output(
         self,
