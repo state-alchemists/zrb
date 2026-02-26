@@ -20,6 +20,7 @@ async def run_shell_command(
 
     MANDATES:
     - NEVER use for reading/writing files; use file tools instead.
+    - ALWAYS prefer non-interactive flags (e.g., `-y`, `--yes`, `--watch=false`, `CI=true`) for scaffolding tools or test runners to avoid persistent watch modes hanging the execution.
     - If timeout occurs, process likely runs in background; check `ps aux` before retrying.
     """
     cwd = os.getcwd()
@@ -219,7 +220,7 @@ def _format_output(
             "[SYSTEM SUGGESTION]: The command timed out. "
             "This often means the process is still running in the background. "
             "Use 'ps aux | grep <process_name>' to check its status "
-            "before retrying or killing it."
+            "before retrying or killing it. Next time ensure you use non-interactive flags like '-y' or 'CI=true'."
         )
     elif "lock" in combined_output and (
         "apt" in command or "brew" in command or "dpkg" in command
