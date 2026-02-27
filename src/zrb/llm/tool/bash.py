@@ -7,6 +7,7 @@ import tempfile
 
 from zrb.context.any_context import zrb_print
 from zrb.util.cli.style import stylize_faint
+from zrb.util.truncate import truncate_output
 
 
 async def run_shell_command(
@@ -174,19 +175,6 @@ def _cleanup_temp_file(temp_pid_file: str | None):
             pass
 
 
-def _truncate_output(text: str, head_lines: int, tail_lines: int) -> str:
-    """Truncates string to keep the specified number of head and tail lines."""
-    lines = text.splitlines(keepends=True)
-    if len(lines) > head_lines + tail_lines:
-        omitted = len(lines) - head_lines - tail_lines
-        return (
-            "".join(lines[:head_lines])
-            + f"\n...[TRUNCATED {omitted} lines]...\n\n"
-            + "".join(lines[-tail_lines:])
-        )
-    return text
-
-
 def _format_output(
     command: str,
     cwd: str,
@@ -205,12 +193,8 @@ def _format_output(
         exit_code_str = "(timed out)"
         stderr_str += f"\nError: Command timed out after {timeout} seconds."
 
-    stdout_str = _truncate_output(
-        stdout_str, preserved_head_lines, preserved_tail_lines
-    )
-    stderr_str = _truncate_output(
-        stderr_str, preserved_head_lines, preserved_tail_lines
-    )
+    stdout_str = truncate_output(stdout_str, preserved_head_lines, preserved_tail_lines)
+    stderr_str = truncate_output(stderr_str, preserved_head_lines, preserved_tail_lines)
 
     # Analyze for suggestions
     suggestion = ""

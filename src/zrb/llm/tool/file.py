@@ -4,7 +4,10 @@ import os
 import re
 from typing import Any
 
-from zrb.util.file import is_path_excluded, read_file, write_file
+from zrb.util.file import is_path_excluded
+from zrb.util.file import read_file as util_read_file
+from zrb.util.file import write_file as util_write_file
+from zrb.util.truncate import truncate_output
 
 DEFAULT_EXCLUDED_PATTERNS = [
     "__pycache__",
@@ -207,6 +210,11 @@ def read_file(
             selected_lines = lines[start_idx:end_idx]
             content_result = "".join(selected_lines)
 
+        # Ensure individual lines are not too long
+        content_result = truncate_output(
+            content_result, len(lines), 0
+        )  # This will only apply line-length truncation if we don't want to re-truncate head/tail
+
         header = _format_read_header(path, start_idx, end_idx, total_lines, truncated)
         return f"{header}{content_result}"
 
@@ -281,19 +289,6 @@ def _calculate_read_bounds(
         final_start_idx = final_end_idx
 
     return final_start_idx, final_end_idx, truncated
-
-
-def _truncate_output(text: str, head_lines: int, tail_lines: int) -> str:
-    """Truncates string to keep the specified number of head and tail lines."""
-    lines = text.splitlines(keepends=True)
-    if len(lines) > head_lines + tail_lines:
-        omitted = len(lines) - head_lines - tail_lines
-        return (
-            "".join(lines[:head_lines])
-            + f"\n...[TRUNCATED {omitted} lines]...\n\n"
-            + "".join(lines[-tail_lines:])
-        )
-    return text
 
 
 def _format_read_header(
@@ -502,7 +497,8 @@ def _get_file_matches(
     context_lines: int = 2,
     preserved_head_lines: int = 50,
     preserved_tail_lines: int = 50,
-) -> list[dict[str, any]]:
+    max_line_length: int = 1000,
+) -> list[dict[str, Any]]:
     """Search for regex matches in a file with context."""
     with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
         lines = f.readlines()
@@ -512,14 +508,21 @@ def _get_file_matches(
             line_num = line_idx + 1
             context_start = max(0, line_idx - context_lines)
             context_end = min(len(lines), line_idx + context_lines + 1)
+
+            def _truncate(s: str) -> str:
+                s = s.rstrip()
+                if len(s) > max_line_length:
+                    return s[:max_line_length] + " [TRUNCATED]"
+                return s
+
             match_data = {
                 "line_number": line_num,
-                "line_content": line.rstrip(),
+                "line_content": _truncate(line),
                 "context_before": [
-                    lines[j].rstrip() for j in range(context_start, line_idx)
+                    _truncate(lines[j]) for j in range(context_start, line_idx)
                 ],
                 "context_after": [
-                    lines[j].rstrip() for j in range(line_idx + 1, context_end)
+                    _truncate(lines[j]) for j in range(line_idx + 1, context_end)
                 ],
             }
             matches.append(match_data)

@@ -2,6 +2,27 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 
+def truncate_output(
+    text: str, head_lines: int, tail_lines: int, max_line_length: int = 1000
+) -> str:
+    """Truncates string to keep the specified number of head and tail lines."""
+
+    def _safe_line(line: str) -> str:
+        if len(line) > max_line_length:
+            return line[:max_line_length] + " [LINE TRUNCATED]\n"
+        return line
+
+    lines = text.splitlines(keepends=True)
+    if len(lines) > head_lines + tail_lines:
+        omitted = len(lines) - head_lines - tail_lines
+        head = [_safe_line(l) for l in lines[:head_lines]]
+        tail = [_safe_line(l) for l in lines[-tail_lines:]]
+        return (
+            "".join(head) + f"\n...[TRUNCATED {omitted} lines]...\n\n" + "".join(tail)
+        )
+    return "".join([_safe_line(l) for l in lines])
+
+
 def truncate_str(value: Any, limit: int):
     # If value is a string, truncate
     if isinstance(value, str):
