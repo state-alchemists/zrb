@@ -183,8 +183,8 @@ class LLMLimiter:
             except (ImportError, Exception):
                 # Fallback if tiktoken fails for any reason
                 pass
-        # Fallback approximation (char/3) for when tiktoken is not used or fails
-        estimated_chars = max_tokens * 3
+        # Fallback approximation (char/4) for when tiktoken is not used or fails
+        estimated_chars = max_tokens * 4
         if len(text) > estimated_chars:
             return text[:estimated_chars]
         return text
@@ -201,8 +201,8 @@ class LLMLimiter:
                 return len(enc.encode(text))
             except ImportError:
                 pass
-        # Fallback approximation (char/3)
-        return len(text) // 3
+        # Fallback approximation (char/4)
+        return len(text) // 4
 
     def _to_str(self, content: Any, skip_instructions: bool = False) -> str:
         if isinstance(content, str):

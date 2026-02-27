@@ -19,7 +19,7 @@ async def test_llm_limiter_truncate_text():
     limiter = LLMLimiter()
     text = "A" * 30
     truncated = limiter.truncate_text(text, 5)
-    assert len(truncated) <= 15
+    assert len(truncated) <= 20
 
 
 @pytest.mark.asyncio
@@ -36,11 +36,11 @@ async def test_llm_limiter_fit_context_window():
     new_msg = "I am fine"
 
     # Pruning logic in fit_context_window uses _count_tokens
-    # which for non-tiktoken is len(text) // 3.
-    # msg1 tokens = 5 // 3 = 1
-    # msg2 tokens = 12 // 3 = 4
-    # new_msg tokens = 9 // 3 = 3
-    # Total = 1 + 4 + 3 = 8. Limit = 2 * 0.95 = 1.9.
+    # which for non-tiktoken is len(text) // 4.
+    # msg1 tokens = 5 // 4 = 1
+    # msg2 tokens = 12 // 4 = 3
+    # new_msg tokens = 9 // 4 = 2
+    # Total = 1 + 3 + 2 = 6. Limit = 2 * 0.95 = 1.9.
     # It must prune.
 
     with patch("zrb.llm.config.limiter.is_turn_start", side_effect=[False, True]):

@@ -1369,3 +1369,5 @@
 # 1.0.0
 
 - 💥 Big rewrite, there are major incaompatibility with version `0.x.x`
+
+🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog v1](README.md)
