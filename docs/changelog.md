@@ -1,5 +1,22 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.6.19 (February 27, 2026)
+
+- **Improvement: Reusable Truncation Logic**:
+  - **Centralized Logic**: Extracted line-length limit and head/tail preservation logic into `truncate_output` in `src/zrb/util/truncate.py`.
+  - **Tool Consolidation**: Refactored `Grep`, `Read`, and `Bash` tools to import and use this shared utility, ensuring consistent and robust output truncation across the system.
+
+- **Fix: Unbounded Line Lengths in Tool Outputs**:
+  - **Grep Tool Truncation**: Addressed issue where matching against massive single-line files (e.g., minified JS or JSON dumps) would return megabytes of data. `_get_file_matches` in `src/zrb/llm/tool/file.py` now enforces a 1,000-character limit per line.
+  - **Bash Tool Truncation**: Similarly updated `src/zrb/llm/tool/bash.py` to prevent giant single-line outputs from bloating the history.
+  - **Read Tool Truncation**: Updated `read_file` to ensure individual lines are safely truncated when returning specific file line ranges.
+
+- **Fix: Tool Execution Rejection Reason Truncation**:
+  - **Preserved User Context**: Removed the hardcoded 500-character truncation limit for user rejection reasons in `src/zrb/llm/tool_call/handler.py`. Detailed feedback and code snippets provided during tool execution rejection are now passed to the AI exactly as is.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.6.19 in `pyproject.toml`.
+
 ## 2.6.18 (February 27, 2026)
 
 - **Optimization: System Prompt Token Efficiency & Directive Strength**:
