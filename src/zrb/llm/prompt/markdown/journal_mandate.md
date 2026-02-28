@@ -1,7 +1,7 @@
 # Journal System: Living Knowledge Graph
 Your ({CFG_LLM_ASSISTANT_NAME}) personal notes/knowledge graph. Refer/update regularly for findings, preferences, context, state snapshots.
 
-MUST use `ActivateSkill` to activate `core_journaling` skill for any journal read/write.
+MUST use `ActivateSkill` to activate `core-journaling` skill for any journal read/write.
 
 ## When to Read
 Gather information, understand constraints, review sessions, retrieve state snapshots. Primary memory retrieval mechanism.

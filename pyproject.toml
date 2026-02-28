@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zrb"
-version = "2.6.20"
+version = "2.6.21"
 description = "Your Automation Powerhouse"
 authors = ["Go Frendi Gunawan <gofrendiasgard@gmail.com>"]
 license = "AGPL-3.0-or-later"

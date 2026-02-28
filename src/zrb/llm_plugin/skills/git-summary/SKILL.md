@@ -1,10 +1,10 @@
 ---
-name: git_summary
+name: git-summary
 description: Prepare high-quality git commit messages or comprehensive Pull Request (PR) descriptions based on recent changes.
 disable-model-invocation: true
 user-invocable: true
 ---
-# Skill: git_summary
+# Skill: git-summary
 When this skill is activated, you assist the user in drafting professional version control summaries.
 
 ## Workflow

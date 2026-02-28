@@ -1,9 +1,9 @@
 ---
-name: core_journaling
+name: core-journaling
 description: Core mandate for managing the LLM journal system as a living knowledge graph.
 user-invocable: false
 ---
-# Skill: core_journaling
+# Skill: core-journaling
 When working with the journal system, you MUST follow this protocol to maintain an organized, accessible knowledge graph.
 
 ## Core Philosophy
@@ -126,7 +126,7 @@ The journal supports nested directory structures for better organization:
 
 ### 0. Timing Rule: Update Before Any Response
 **BEFORE SENDING ANY RESPONSE TO THE USER**, you MUST:
-1. **Activate this skill** using `ActivateSkill` to load core_journaling instructions
+1. **Activate this skill** using `ActivateSkill` to load core-journaling instructions
 2. **Review new information:** Check if any new preferences, facts, or insights were discovered
 3. **Update the journal:** If new information exists, update following the protocol below
 4. **Skip if no changes:** If no new information was discovered, you may skip journal updates

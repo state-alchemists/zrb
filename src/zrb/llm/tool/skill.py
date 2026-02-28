@@ -27,6 +27,7 @@ def create_activate_skill_tool(skill_manager: SkillManager | None = None):
         "Activates specialized expertise 'skill' instructions.\n\n"
         "MANDATES:\n"
         "- MUST follow the returned instructions strictly.\n"
-        "- ALWAYS use as soon as a task matches an available skill."
+        "- ALWAYS use as soon as a task matches an available skill.\n"
+        "- RELOAD REQUIRED: If the conversation is long, history summarization may cause you to forget these instructions. If you feel you have lost the exact details of an active skill, call this tool again to reload it into your context."
     )
     return activate_skill_impl

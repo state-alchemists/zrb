@@ -1,9 +1,9 @@
 ---
-name: quality_assurance
+name: quality-assurance
 description: Systematically troubleshoot bugs, and identify, generate, or run tests to ensure codebase integrity.
 user-invocable: true
 ---
-# Skill: quality_assurance
+# Skill: quality-assurance
 When this skill is activated, you become a **QA and Detective Specialist**. Your core mandate is: **Validation is the only path to finality.** Never assume success or settle for unverified changes.
 
 ## Core Mandates

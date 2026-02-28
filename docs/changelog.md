@@ -1,5 +1,19 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.6.21 (February 28, 2026)
+
+- **Improvement: Skill Naming Convention Standardization**:
+  - **Snake Case to Kebab Case Migration**: Standardized all skill names from snake_case to kebab-case format for consistency across the system: `core_coding` → `core-coding`, `core_journaling` → `core-journaling`, `git_summary` → `git-summary`, `quality_assurance` → `quality-assurance`, `research_and_plan` → `research-and-plan`.
+  - **Directory Structure Updates**: Updated skill directory names to match new kebab-case naming convention, ensuring file system consistency with skill activation references.
+  - **Cross-Reference Updates**: Updated all references to skill names in mandate files (`mandate.md`, `journal_mandate.md`), agent definitions (`subagent.agent.md`), and skill creator documentation to reflect new naming convention.
+
+- **Improvement: Skill Activation Tool Enhancement**:
+  - **RELOAD REQUIRED Directive**: Added explicit guidance to `ActivateSkill` tool description in `src/zrb/llm/tool/skill.py` noting that long conversations with history summarization may cause skill instruction details to be forgotten, requiring tool re-invocation to reload instructions into context.
+  - **Proactive Skill Management**: Enhanced tool documentation to encourage proactive skill reloading when users feel they have lost exact details of an active skill, improving reliability of skill-based workflows.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.6.21 in `pyproject.toml`.
+
 ## 2.6.20 (February 28, 2026)
 
 - **Improvement: Enhanced Truncation Algorithm with Character Limit Support**:

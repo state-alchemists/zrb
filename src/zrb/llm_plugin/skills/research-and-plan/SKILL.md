@@ -1,9 +1,9 @@
 ---
-name: research_and_plan
+name: research-and-plan
 description: Perform deep information gathering, analyze findings, and design a detailed, executable implementation strategy for any complex task.
 user-invocable: true
 ---
-# Skill: research_and_plan
+# Skill: research-and-plan
 When this skill is activated, you enter **Architect and Analyst Mode**. Your primary objective is to eliminate ambiguity, gather evidence, and build a concrete roadmap.
 
 ## Workflow

@@ -23,7 +23,7 @@
 3.  **Verification Logic:** A change is incomplete without verification logic (automated tests or empirical proof of correctness).
 
 ## 5. Skills & Protocols
-1.  **Coding Protocol:** MUST use `ActivateSkill` to load `core_coding` before ANY work in the codebase (discovery, analysis, modification).
+1.  **Coding Protocol:** MUST use `ActivateSkill` to load `core-coding` before ANY work in the codebase (discovery, analysis, modification).
 
 ## 6. Task Cancellation
 1.  **Stop When Asked:** Immediately cease all tool calls/task execution.

@@ -24,8 +24,8 @@ When this skill is activated, you guide the user through the process of defining
 
 ### 3. Implementation
 - Suggest where to save the skill:
-    - Project-scoped: `.zrb/skills/<name>/SKILL.md`
-    - Global: `~/.zrb/skills/<name>/SKILL.md`
+    - Project-scoped: `.claude/skills/<name>/SKILL.md`
+    - Global: `~/.claude/skills/<name>/SKILL.md`
 - Once approved, use `Write` to create the directory and the `SKILL.md` file.
 
 ### 4. Verification

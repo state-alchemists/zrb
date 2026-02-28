@@ -1,9 +1,9 @@
 ---
-name: core_coding
+name: core-coding
 description: Tactical workflow for safe, maintainable, and high-quality codebase creation/modification. Enforces top-notch engineering standards for all coding-related tasks.
 user-invocable: false
 ---
-# Skill: core_coding
+# Skill: core-coding
 
 When working on any coding or development task, you MUST follow this `Research -> Strategy -> Execution` workflow to ensure safety, maintainability, and seamless integration.
 
@@ -33,6 +33,8 @@ e.  **Formulate a Grounded Plan:**
     - **Pattern Matching**: Your strategy MUST match existing project guidelines and patterns exactly (inferred from the code). The new code should be well integrated into the existing system, looking as though it were written by the original author.
     - **Reuse Over Reinvention**: Identify if existing helper or utility functions can be leveraged. If it makes sense to use them, do so instead of creating new ones.
     - **Design Principles**: Apply SOLID and DRY principles as much as possible.
+    - **Complexity Management**: Strictly avoid creating "God Classes" or "God Functions". You must keep **Cyclomatic Complexity** and **Cognitive Complexity** low.
+    - **Modularity**: Break down complex logic into small, single-responsibility helper functions. Avoid deep nesting (e.g., more than 2-3 levels of indentation).
     - Do not introduce new architectural patterns without explicit approval.
     - Define your testing strategy (how you will empirically verify the code change).
     - Plan updates to the documentation if the codebase change affects APIs, configurations, or behaviors.
@@ -51,6 +53,7 @@ f.  **Act (Surgical Implementation):**
         NEVER delete a functioning component before its replacement is fully integrated and validated.
     - **Code Smell Reporting**: If you encounter existing code smells or poorly structured code during your work, report it to the user.
     - **Update Documentation**: Keep documentation files in sync with code changes. Update configuration options, behavior, and verify that examples match the new implementation. Remove references to deprecated/removed functionality.
+    - **Boundary Check**: Your job ends at modifying and verifying the files. **NEVER use shell commands to stage (`git add`) or commit changes** after you are done. Leave version control to the user unless they explicitly ask for a git summary.
 
 g.  **Validate (Zero-Regression & Verification):**
     - **Validation is the only path to finality.** You must always make sure nothing breaks with your fix/update.
