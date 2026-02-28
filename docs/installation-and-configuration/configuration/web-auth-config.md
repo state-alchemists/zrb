@@ -54,17 +54,17 @@ web_auth_config.guest_accessible_tasks = ["throw-dice", "shuffle"]
 ### `secret_key`
 - **Description**: The secret key for token generation.
 - **Type**: `str`
-- **Environment Variable**: `ZRB_WEB_SECRET`
+- **Environment Variable**: `ZRB_WEB_SECRET_KEY`
 
 ### `access_token_expire_minutes`
 - **Description**: The expiration time for access tokens in minutes.
 - **Type**: `int`
-- **Environment Variable**: `ZRB_WEB_ACCESS_TOKEN_EXPIRE_MINUTES`
+- **Environment Variable**: `ZRB_WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES`
 
 ### `refresh_token_expire_minutes`
 - **Description**: The expiration time for refresh tokens in minutes.
 - **Type**: `int`
-- **Environment Variable**: `ZRB_WEB_REFRESH_TOKEN_EXPIRE_MINUTES`
+- **Environment Variable**: `ZRB_WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES`
 
 ### `access_token_cookie_name`
 - **Description**: The name of the access token cookie.

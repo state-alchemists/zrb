@@ -76,6 +76,15 @@ def create_summarizer_history_processor(
             is_within_tokens = current_tokens <= conversational_token_threshold
             if is_short_enough and is_within_tokens:
                 return messages
+            to_summarize, _ = split_history(
+                messages, summary_window, llm_limiter, conversational_token_threshold
+            )
+            if (
+                is_within_tokens
+                and len(to_summarize) < 0.3 * conversational_token_threshold
+            ):
+                # There is no need to summarize if we cannot save a leat 0.3 of context window
+                return messages
 
             zrb_print(
                 stylize_yellow(
@@ -174,19 +183,12 @@ async def summarize_history(
             )
         if summary_window is None:
             summary_window = CFG.LLM_HISTORY_SUMMARIZATION_WINDOW
-
-        # Check for early exit ONLY if tokens are safe
-        current_tokens = llm_limiter.count_tokens(messages)
-        is_safe_length = len(messages) <= summary_window
-        is_safe_tokens = current_tokens <= conversational_token_threshold
-        if is_safe_length and is_safe_tokens:
-            return messages
+        # Ensure we have things to summarize
         to_summarize, to_keep = split_history(
             messages, summary_window, llm_limiter, conversational_token_threshold
         )
         if not to_summarize:
             return messages
-
         # 2. Iterative Summarization of Historical turns
         summarizer_agent = agent or create_conversational_summarizer_agent()
         summary_text = await chunk_and_summarize(
@@ -214,12 +216,9 @@ async def summarize_history(
         summary_message = _create_summary_model_request(summary_text)
         if summary_message is None:
             return messages
-
         if not to_keep:
             return [summary_message]
-
         # Validate tool pair integrity in kept messages
-        from zrb.util.cli.style import stylize_yellow
 
         is_valid, problems = validate_tool_pair_integrity(to_keep)
         if not is_valid and problems:

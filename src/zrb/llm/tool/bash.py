@@ -13,8 +13,9 @@ from zrb.util.truncate import truncate_output
 async def run_shell_command(
     command: str,
     timeout: int = 30,
-    preserved_head_lines: int = 100,
-    preserved_tail_lines: int = 150,
+    preserved_head_lines: int = 500,
+    preserved_tail_lines: int = 500,
+    max_chars: int = 100000,
 ) -> str:
     """
     Executes a non-interactive shell command.
@@ -64,6 +65,7 @@ async def run_shell_command(
             timeout,
             preserved_head_lines,
             preserved_tail_lines,
+            max_chars,
         )
 
     except Exception as e:
@@ -186,6 +188,7 @@ def _format_output(
     timeout: int,
     preserved_head_lines: int,
     preserved_tail_lines: int,
+    max_chars: int,
 ) -> str:
     """Formats the command execution result into a readable string."""
     exit_code_str = str(returncode) if returncode is not None else "(none)"
@@ -193,8 +196,12 @@ def _format_output(
         exit_code_str = "(timed out)"
         stderr_str += f"\nError: Command timed out after {timeout} seconds."
 
-    stdout_str = truncate_output(stdout_str, preserved_head_lines, preserved_tail_lines)
-    stderr_str = truncate_output(stderr_str, preserved_head_lines, preserved_tail_lines)
+    stdout_str, _ = truncate_output(
+        stdout_str, preserved_head_lines, preserved_tail_lines, 1000, max_chars
+    )
+    stderr_str, _ = truncate_output(
+        stderr_str, preserved_head_lines, preserved_tail_lines, 1000, max_chars
+    )
 
     # Analyze for suggestions
     suggestion = ""

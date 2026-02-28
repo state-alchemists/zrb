@@ -37,8 +37,8 @@ def list_files(
     include_hidden: bool = False,
     depth: int = 3,
     excluded_patterns: list[str] | None = None,
-    preserved_head_lines: int = 100,
-    preserved_tail_lines: int = 150,
+    preserved_head_lines: int = 500,
+    preserved_tail_lines: int = 500,
 ) -> dict[str, list[str]]:
     """
     Recursively explores and lists files.
@@ -100,8 +100,8 @@ def glob_files(
     path: str = ".",
     include_hidden: bool = False,
     excluded_patterns: list[str] | None = None,
-    preserved_head_lines: int = 100,
-    preserved_tail_lines: int = 150,
+    preserved_head_lines: int = 500,
+    preserved_tail_lines: int = 500,
 ) -> list[str]:
     """
     Finds files matching glob patterns (e.g., `**/*.py`).
@@ -160,8 +160,9 @@ def read_file(
     end_line: int | None = None,
     limit: int | None = None,
     offset: int | None = None,
-    preserved_head_lines: int = 100,
-    preserved_tail_lines: int = 150,
+    preserved_head_lines: int = 1000,
+    preserved_tail_lines: int = 1000,
+    max_chars: int = 100000,
 ) -> str:
     """
     Reads content from a file.
@@ -194,26 +195,30 @@ def read_file(
             and offset is None
             and total_lines > preserved_head_lines + preserved_tail_lines
         ):
-            # Use head/tail truncation
-            head_lines = lines[:preserved_head_lines]
-            tail_lines = lines[-preserved_tail_lines:]
-            content_result = (
-                "".join(head_lines)
-                + f"\n...[TRUNCATED {total_lines - preserved_head_lines - preserved_tail_lines} lines]...\n\n"
-                + "".join(tail_lines)
+            # Use head/tail truncation via truncate_output
+            # Get the selected lines (all lines in this case)
+            selected_lines = lines[start_idx:end_idx]
+            content_result = "".join(selected_lines)
+            # Let truncate_output handle head/tail truncation
+            content_result, truncation_info = truncate_output(
+                content_result,
+                preserved_head_lines,
+                preserved_tail_lines,
+                1000,
+                max_chars,
             )
-            truncated = True
-            start_idx = 0
-            end_idx = preserved_head_lines + preserved_tail_lines
+            truncated = truncation_info["truncation_type"] != "none"
+            # Update end_idx to reflect actual lines shown
+            end_idx = start_idx + truncation_info["truncated_lines"]
         else:
             # Use normal slicing
             selected_lines = lines[start_idx:end_idx]
             content_result = "".join(selected_lines)
-
-        # Ensure individual lines are not too long
-        content_result = truncate_output(
-            content_result, len(lines), 0
-        )  # This will only apply line-length truncation if we don't want to re-truncate head/tail
+            # Ensure individual lines are not too long
+            content_result, truncation_info = truncate_output(
+                content_result, len(lines), 0, 1000, max_chars
+            )  # This will only apply line-length truncation if we don't want to re-truncate head/tail
+            truncated = truncation_info["truncation_type"] != "none"
 
         header = _format_read_header(path, start_idx, end_idx, total_lines, truncated)
         return f"{header}{content_result}"
@@ -315,8 +320,9 @@ def read_files(
     end_line: int | None = None,
     limit: int | None = None,
     offset: int | None = None,
-    preserved_head_lines: int = 100,
-    preserved_tail_lines: int = 150,
+    preserved_head_lines: int = 1000,
+    preserved_tail_lines: int = 1000,
+    max_chars: int = 100000,
 ) -> dict[str, str]:
     """
     Reads multiple files. Use to gather context from related files simultaneously.
@@ -331,6 +337,7 @@ def read_files(
             offset=offset,
             preserved_head_lines=preserved_head_lines,
             preserved_tail_lines=preserved_tail_lines,
+            max_chars=max_chars,
         )
     return results
 
@@ -403,8 +410,8 @@ def search_files(
     regex: str,
     file_pattern: str | None = None,
     include_hidden: bool = True,
-    preserved_head_lines: int = 50,
-    preserved_tail_lines: int = 50,
+    preserved_head_lines: int = 250,
+    preserved_tail_lines: int = 250,
 ) -> dict[str, Any]:
     """
     Searches for a regex pattern in files.
@@ -495,8 +502,8 @@ def _get_file_matches(
     file_path: str,
     pattern: re.Pattern,
     context_lines: int = 2,
-    preserved_head_lines: int = 50,
-    preserved_tail_lines: int = 50,
+    preserved_head_lines: int = 250,
+    preserved_tail_lines: int = 250,
     max_line_length: int = 1000,
 ) -> list[dict[str, Any]]:
     """Search for regex matches in a file with context."""
@@ -510,10 +517,17 @@ def _get_file_matches(
             context_end = min(len(lines), line_idx + context_lines + 1)
 
             def _truncate(s: str) -> str:
-                s = s.rstrip()
-                if len(s) > max_line_length:
-                    return s[:max_line_length] + " [TRUNCATED]"
-                return s
+                # Use truncate_output directly for consistent truncation
+                # For a single line, we use head_lines=1, tail_lines=0
+                # and max_chars=max_line_length to ensure it's truncated properly
+                truncated_str, _ = truncate_output(
+                    s.rstrip(),
+                    head_lines=1,
+                    tail_lines=0,
+                    max_line_length=max_line_length,
+                    max_chars=max_line_length,
+                )
+                return truncated_str
 
             match_data = {
                 "line_number": line_num,
@@ -565,7 +579,7 @@ async def analyze_file(path: str, query: str) -> str:
         return f"Error: File not found: {path}"
 
     # Read content with truncation
-    content = read_file(abs_path, preserved_head_lines=100, preserved_tail_lines=150)
+    content = read_file(abs_path, preserved_head_lines=1000, preserved_tail_lines=1000)
     if content.startswith("Error:"):
         return content
 
@@ -574,9 +588,12 @@ async def analyze_file(path: str, query: str) -> str:
     # Simple character-based approximation (1 token ~ 4 chars)
     char_limit = token_threshold * 4
 
-    clipped_content = content
-    if len(content) > char_limit:
-        clipped_content = content[:char_limit] + "\n...[TRUNCATED]..."
+    # Use truncate_output for consistent truncation
+    # We want to preserve as much as possible, so use large head/tail values
+    # but let the algorithm decide how to truncate within char_limit
+    clipped_content, _ = truncate_output(
+        content, head_lines=1000, tail_lines=1000, max_chars=char_limit
+    )
 
     system_prompt = get_file_extractor_system_prompt()
 

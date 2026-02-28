@@ -1,5 +1,33 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.6.20 (February 28, 2026)
+
+- **Improvement: Enhanced Truncation Algorithm with Character Limit Support**:
+  - **Multi-Stage Truncation Algorithm**: Enhanced `truncate_output` function in `src/zrb/util/truncate.py` with comprehensive character limit support following a multi-stage algorithm: (1) If content ≤ max_chars, return as-is; (2) Apply max_line_length truncation to all lines first; (3) If still > max_chars and line count > head_lines + tail_lines, remove lines from middle; (4) If still > max_chars, remove lines from tail (from top of tail section); (5) If still > max_chars, remove lines from head (from bottom of head section); (6) Insert truncation message only at end at location of removed lines.
+  - **Character Truncation as Last Resort**: Added character-level truncation as final fallback with proper size accounting (available_for_content = max_chars - message_size) and edge case handling for very small max_chars (<15) returning minimal "..." indicator.
+  - **Accurate Truncation Metadata**: Enhanced function to return tuple `(truncated_string, TruncationInfo)` with accurate truncation metrics (original/truncated lines/chars, omitted lines/chars, truncation_type) for precise truncation notices in tool outputs.
+  - **Refactored for Maintainability**: Broke down 200+ line monolithic function into 7 focused helper functions (`_truncate_line`, `_apply_line_length_truncation`, `_remove_lines_from_middle`, `_remove_lines_from_tail`, `_remove_lines_from_head`, `_build_result_with_truncation_message`, `_apply_character_truncation`) while preserving exact algorithm and public API.
+
+- **Improvement: Web Authentication Configuration Standardization**:
+  - **Environment Variable Consistency**: Standardized web authentication environment variables: `ZRB_WEB_SECRET` → `ZRB_WEB_SECRET_KEY`, `ZRB_WEB_ACCESS_TOKEN_EXPIRE_MINUTES` → `ZRB_WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES`, `ZRB_WEB_REFRESH_TOKEN_EXPIRE_MINUTES` → `ZRB_WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES`.
+  - **Configuration Property Updates**: Updated `Config` class properties and setters in `src/zrb/config/config.py` to match new environment variable names while maintaining backward compatibility through proper environment variable mapping.
+  - **Documentation Updates**: Updated configuration documentation in `docs/installation-and-configuration/configuration/README.md`, `docs/installation-and-configuration/configuration/llm-integration.md`, and `docs/installation-and-configuration/configuration/web-auth-config.md` to reflect new variable names and provide clearer guidance.
+
+- **Improvement: Enhanced Prompt Customization Hierarchy**:
+  - **Multi-Level Prompt Override System**: Enhanced prompt loading in `src/zrb/llm/prompt/prompt.py` with four-level hierarchy: (1) `ZRB_LLM_PROMPT_DIR` (highest priority), (2) Environment variable direct override (`ZRB_LLM_PROMPT_{name}`), (3) `ZRB_LLM_BASE_PROMPT_DIR` (organization-wide), (4) Package default (lowest priority).
+  - **New Configuration Option**: Added `ZRB_LLM_BASE_PROMPT_DIR` environment variable and `Config.LLM_BASE_PROMPT_DIR` property for organization-wide prompt overrides that apply across multiple projects.
+  - **Documentation Enhancement**: Updated LLM integration documentation with clear search order explanation and examples for multi-level prompt customization.
+
+- **Improvement: Core Mandate & Skill System Refinements**:
+  - **Mandate Restructuring**: Reorganized `mandate.md` with clearer Universal Principles (Structured Thinking, Context-First, No Destructive Assumptions) and Absolute Directives focusing on secret protection and self-correction.
+  - **Git Mandate Strengthening**: Enhanced `git_mandate.md` with "ABSOLUTE RULES" format, explicit prohibition examples, and strict approval protocol emphasizing "Assist, don't autonomously manage git."
+  - **Skill System Consolidation**: Consolidated and renamed skills for better clarity: `core_journal` → `core_journaling`, `test` → `quality_assurance`, `research` → `research_and_plan`, `debug` → integrated into `quality_assurance`, removed redundant skills (`commit`, `core_mandate_brownfield`, `core_mandate_documentation`, `plan`, `pr`).
+  - **Agent Simplification**: Consolidated multiple specialized agents into single `subagent.agent.md` for general delegation tasks, removing `coder.agent.md`, `explorer.agent.md`, `planner.agent.md`, `researcher.agent.md`, `reviewer.agent.md`.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.6.20 in `pyproject.toml`.
+  - **Test Updates**: Updated `test/config/test_config.py` to reflect new environment variable names for web authentication configuration.
+
 ## 2.6.19 (February 27, 2026)
 
 - **Improvement: Reusable Truncation Logic**:

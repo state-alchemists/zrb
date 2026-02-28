@@ -303,7 +303,7 @@ def test_web_refresh_token_cookie_name(monkeypatch):
 
 
 def test_web_secret_key(monkeypatch):
-    monkeypatch.setenv("ZRB_WEB_SECRET", "my-secret")
+    monkeypatch.setenv("ZRB_WEB_SECRET_KEY", "my-secret")
     config = Config()
     assert config.WEB_SECRET_KEY == "my-secret"
 
@@ -315,13 +315,13 @@ def test_web_enable_auth(monkeypatch):
 
 
 def test_web_auth_access_token_expire_minutes(monkeypatch):
-    monkeypatch.setenv("ZRB_WEB_ACCESS_TOKEN_EXPIRE_MINUTES", "60")
+    monkeypatch.setenv("ZRB_WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES", "60")
     config = Config()
     assert config.WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES == 60
 
 
 def test_web_auth_refresh_token_expire_minutes(monkeypatch):
-    monkeypatch.setenv("ZRB_WEB_REFRESH_TOKEN_EXPIRE_MINUTES", "120")
+    monkeypatch.setenv("ZRB_WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES", "120")
     config = Config()
     assert config.WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES == 120
 

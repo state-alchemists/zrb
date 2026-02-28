@@ -228,7 +228,7 @@ Some Environment variables like `ZRB_WEB_GUEST_USERNAME` and `ZRB_WEB_SUPER_ADMI
     * Default: `refresh_token`
     * Possible values: Any valid cookie name
 
-* `ZRB_WEB_SECRET`: Secret key for web interface.
+* `ZRB_WEB_SECRET_KEY`: Secret key for web interface.
     * Default: `zrb`
     * Possible values: Any string (longer strings provide better security)
 
@@ -236,11 +236,11 @@ Some Environment variables like `ZRB_WEB_GUEST_USERNAME` and `ZRB_WEB_SUPER_ADMI
     * Default: `0` (false)
     * Possible values: `0` (false), `1` (true)
 
-* `ZRB_WEB_ACCESS_TOKEN_EXPIRE_MINUTES`: Expiration time for access token in minutes.
+* `ZRB_WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES`: Expiration time for access token in minutes.
     * Default: `30`
     * Possible values: Any positive integer
 
-* `ZRB_WEB_REFRESH_TOKEN_EXPIRE_MINUTES`: Expiration time for refresh token in minutes.
+* `ZRB_WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES`: Expiration time for refresh token in minutes.
     * Default: `60`
     * Possible values: Any positive integer
 
@@ -299,8 +299,12 @@ The following environment variables are used as LLM configuration default proper
     * Default: `index.md`
     * Possible values: Any valid filename
 
-* `ZRB_LLM_PROMPT_DIR`: Directory for custom LLM prompts.
+* `ZRB_LLM_PROMPT_DIR`: Directory for custom LLM prompts (highest priority).
     * Default: `.zrb/llm/prompt`
+    * Possible values: Any valid directory path
+
+* `ZRB_LLM_BASE_PROMPT_DIR`: Base directory for organization-wide prompt overrides (checked after environment variables, before package defaults).
+    * Default: None (empty)
     * Possible values: Any valid directory path
 
 * `ZRB_LLM_PLUGIN_DIRS`: Colon-separated list of directories containing custom LLM plugins (agents and skills).

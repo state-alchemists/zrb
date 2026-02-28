@@ -32,7 +32,7 @@ class Config:
         self.DEFAULT_ENV_PREFIX: str = "ZRB"
         self.DEFAULT_SHELL: str = ""
         self.DEFAULT_EDITOR: str = "nano"
-        self.DEFAULT_EDIT_COMMAND_TPL: str = ""
+        self.DEFAULT_DIFF_EDIT_COMMAND_TPL: str = ""
         self.DEFAULT_INIT_MODULES: str = ""
         self.DEFAULT_ROOT_GROUP_NAME: str = "zrb"
         self.DEFAULT_ROOT_GROUP_DESCRIPTION: str = "Your Automation Powerhouse"
@@ -105,6 +105,7 @@ class Config:
         self.DEFAULT_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_PROMPT_DIR: str = ""
+        self.DEFAULT_LLM_BASE_PROMPT_DIR: str = ""
         self.DEFAULT_LLM_PLUGIN_DIRS: str = ""
         self.DEFAULT_LLM_SHOW_TOOL_CALL_DETAIL: str = "off"
         self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT: str = "off"
@@ -182,8 +183,8 @@ class Config:
         return get_env(
             "DIFF_EDIT_COMMAND",
             (
-                self.DEFAULT_EDIT_COMMAND_TPL
-                if self.DEFAULT_EDIT_COMMAND_TPL != ""
+                self.DEFAULT_DIFF_EDIT_COMMAND_TPL
+                if self.DEFAULT_DIFF_EDIT_COMMAND_TPL != ""
                 else get_default_diff_edit_command(self.EDITOR)
             ),
             self.ENV_PREFIX,
@@ -478,11 +479,11 @@ class Config:
 
     @property
     def WEB_SECRET_KEY(self) -> str:
-        return get_env("WEB_SECRET", self.DEFAULT_WEB_SECRET_KEY, self.ENV_PREFIX)
+        return get_env("WEB_SECRET_KEY", self.DEFAULT_WEB_SECRET_KEY, self.ENV_PREFIX)
 
     @WEB_SECRET_KEY.setter
     def WEB_SECRET_KEY(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_WEB_SECRET"] = value
+        os.environ[f"{self.ENV_PREFIX}_WEB_SECRET_KEY"] = value
 
     @property
     def WEB_ENABLE_AUTH(self) -> bool:
@@ -498,7 +499,7 @@ class Config:
     def WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES(self) -> int:
         return int(
             get_env(
-                "WEB_ACCESS_TOKEN_EXPIRE_MINUTES",
+                "WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES",
                 self.DEFAULT_WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES,
                 self.ENV_PREFIX,
             )
@@ -506,13 +507,15 @@ class Config:
 
     @WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES.setter
     def WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_WEB_ACCESS_TOKEN_EXPIRE_MINUTES"] = str(value)
+        os.environ[f"{self.ENV_PREFIX}_WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES"] = str(
+            value
+        )
 
     @property
     def WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES(self) -> int:
         return int(
             get_env(
-                "WEB_REFRESH_TOKEN_EXPIRE_MINUTES",
+                "WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES",
                 self.DEFAULT_WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES,
                 self.ENV_PREFIX,
             )
@@ -520,7 +523,9 @@ class Config:
 
     @WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES.setter
     def WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_WEB_REFRESH_TOKEN_EXPIRE_MINUTES"] = str(value)
+        os.environ[f"{self.ENV_PREFIX}_WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES"] = str(
+            value
+        )
 
     @property
     def WEB_TITLE(self) -> str:
@@ -1187,6 +1192,18 @@ class Config:
     @LLM_PROMPT_DIR.setter
     def LLM_PROMPT_DIR(self, value: str):
         os.environ[f"{self.ENV_PREFIX}_LLM_PROMPT_DIR"] = value
+
+    @property
+    def LLM_BASE_PROMPT_DIR(self) -> str:
+        return get_env(
+            "LLM_BASE_PROMPT_DIR",
+            self.DEFAULT_LLM_BASE_PROMPT_DIR,
+            self.ENV_PREFIX,
+        )
+
+    @LLM_BASE_PROMPT_DIR.setter
+    def LLM_BASE_PROMPT_DIR(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_BASE_PROMPT_DIR"] = value
 
     @property
     def LLM_PLUGIN_DIRS(self) -> list[str]:

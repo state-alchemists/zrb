@@ -119,10 +119,9 @@ def create_delegate_to_agent_tool(
     delegate_to_agent.zrb_is_delegate_tool = True
     delegate_to_agent.__name__ = "DelegateToAgent"
     delegate_to_agent.__doc__ = (
-        "Delegates a complex task to a specialized sub-agent.\n\n"
+        "Delegates a task to a sub-agent. Use primarily for context isolation on massive tasks (e.g., parsing huge logs, deep research) to avoid polluting your primary context window, or when a user explicitly requests a specific custom agent.\n\n"
         "MANDATES:\n"
         "- Sub-agent is a BLANK SLATE without your history/context. Provide ALL self-contained context (paths, rules, code).\n"
-        "- ONLY use for multi-step research/analysis to avoid polluting primary context.\n"
         "- User CANNOT see sub-agent output. You MUST extract and report all findings in your final response.\n\n"
         f"AVAILABLE AGENTS:\n{agent_doc_section}"
     )

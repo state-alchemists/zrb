@@ -75,7 +75,7 @@ def get_journal_prompt() -> str:
 
 def get_default_prompt(name: str) -> str:
     # 1. Check for local project override (configured via LLM_PROMPT_DIR)
-    prompt_dir = getattr(CFG, "LLM_PROMPT_DIR", ".zrb/llm/prompt")
+    prompt_dir = CFG.LLM_PROMPT_DIR
     for search_path in _get_default_prompt_search_path():
         local_prompt_path = os.path.abspath(
             os.path.join(search_path, prompt_dir, f"{name}.md")
@@ -86,14 +86,22 @@ def get_default_prompt(name: str) -> str:
                     return f.read()
             except Exception:
                 pass
-
     # 2. Load from environment
     env_prefix = CFG.ENV_PREFIX
     env_value = os.getenv(f"{env_prefix}_LLM_PROMPT_{to_snake_case(name).upper()}", "")
     if env_value:
         return env_value
-
-    # 3. Fallback to package default
+    # 3. Check for base prompt directory (configured via LLM_BASE_PROMPT_DIR)
+    base_prompt_dir = CFG.LLM_BASE_PROMPT_DIR
+    if base_prompt_dir:
+        base_prompt_path = os.path.abspath(os.path.join(base_prompt_dir, f"{name}.md"))
+        if os.path.exists(base_prompt_path):
+            try:
+                with open(base_prompt_path, "r", encoding="utf-8") as f:
+                    return f.read()
+            except Exception:
+                pass
+    # 4. Fallback to package default
     cwd = os.path.dirname(__file__)
     file_path = os.path.join(cwd, "markdown", f"{name}.md")
     if not os.path.isfile(file_path):

@@ -38,13 +38,21 @@ See the [Provider-Specific Configurations](#provider-specific-configurations) se
 
 ## Prompt Customization
 
-`zrb` allows you to override its built-in system prompts by creating a custom prompt directory.
+`zrb` allows you to override its built-in system prompts by creating custom prompt directories at multiple levels.
 
-- **`ZRB_LLM_PROMPT_DIR`**: The directory where custom prompts are stored (default: `.zrb/llm/prompt` in your project root).
+- **`ZRB_LLM_PROMPT_DIR`**: The directory where custom prompts are stored (default: `.zrb/llm/prompt` in your project root). This takes highest priority.
+- **`ZRB_LLM_BASE_PROMPT_DIR`**: A base directory for organization-wide prompt overrides. This is checked after environment variables but before package defaults.
 
 ### How it Works
 
-When `zrb` needs a system prompt, it first checks `ZRB_LLM_PROMPT_DIR` for a corresponding `.md` file. If the file exists, it overrides the default built-in prompt.
+When `zrb` needs a system prompt, it searches in this order:
+
+1. **`ZRB_LLM_PROMPT_DIR`**: User-specified directory (highest priority)
+2. **Environment variable**: Direct override via `ZRB_LLM_PROMPT_{name}` (e.g., `ZRB_LLM_PROMPT_persona`)
+3. **`ZRB_LLM_BASE_PROMPT_DIR`**: Organization-wide base directory
+4. **Package default**: Built-in prompts (lowest priority)
+
+For each directory, `zrb` looks for a corresponding `.md` file (e.g., `persona.md`). If the file exists, it overrides the default built-in prompt.
 
 Available prompt names (file names) include:
 - `persona.md`: Defines the AI assistant's personality and role.
@@ -183,6 +191,7 @@ OPENAI_API_KEY=sk-your-openai-key
 
 # Prompt Customization
 ZRB_LLM_PROMPT_DIR=.zrb/llm/prompt
+# ZRB_LLM_BASE_PROMPT_DIR=/path/to/organization/prompts
 
 # Plugin Directories
 # ZRB_LLM_PLUGIN_DIRS=/path/to/plugins:/another/path
