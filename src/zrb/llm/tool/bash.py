@@ -24,6 +24,11 @@ async def run_shell_command(
     - NEVER use for reading/writing files; use file tools instead.
     - ALWAYS prefer non-interactive flags (e.g., `-y`, `--yes`, `--watch=false`, `CI=true`) for scaffolding tools or test runners to avoid persistent watch modes hanging the execution.
     - If timeout occurs, process likely runs in background; check `ps aux` before retrying.
+    - Default timeout: 30 seconds, maximum: 10 minutes (configured by system).
+    - Output is automatically truncated to prevent token overflow.
+    - Use for system commands, scaffolding, test runners, or package management only.
+    - For file operations, ALWAYS use specialized file tools (Read, Edit, Write, etc.).
+    - Batch independent commands when possible to minimize round trips.
     """
     cwd = os.getcwd()
     is_windows = platform.system() == "Windows"

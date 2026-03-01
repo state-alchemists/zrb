@@ -65,6 +65,11 @@ async def analyze_code(
 
     MANDATES:
     - ALWAYS limit scope via `extensions`, `include_patterns`, and `exclude_patterns`.
+    - SLOW and resource-intensive (uses LLM sub-agent).
+    - Default extensions include common programming languages and config files.
+    - File contents are automatically truncated to token limits.
+    - For single file analysis, use `AnalyzeFile` instead.
+    - For simple file listing, use `LS` or `Glob`.
     """
     if extensions is None:
         extensions = _DEFAULT_EXTENSIONS

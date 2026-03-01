@@ -22,6 +22,10 @@ The system calculates the total token count of the (possibly message-summarized)
 - **Triggers**: Summarization is triggered if:
   - Total tokens > `conversational_token_threshold`.
   - OR Number of messages > `summary_window`.
+- **Cost-Benefit Optimization**: Even if triggers are met, summarization is **skipped** if:
+  - Tokens are within threshold (`is_within_tokens = True`)
+  - AND the portion to summarize (`to_summarize`) is less than 30% of the conversational token threshold
+  - **Rationale**: No need to summarize if we can't save at least 30% of the context window
 
 ### 3. History Splitting (The "Safe Split")
 If summarization is triggered, the history is split into two segments: `to_summarize` (oldest) and `to_keep` (newest).
@@ -108,10 +112,35 @@ flowchart TD
 | **Massive Tool Output** | Handled in Step 1. If strict truncation is needed, `limiter.truncate_text` is used before LLM processing. |
 | **Mixed Content (Images/Binary)** | `message_to_text` converts complex parts to placeholder text (e.g., `[Image URL: ...]`) to save tokens while preserving semantic awareness. |
 | **Prompt Injection** | User input inside the history is treated as data. The system prompts explicitly instruct the LLM to treat the content as "conversation history" to be summarized, minimizing injection risks. |
+| **Cost-Benefit Optimization** | Summarization is skipped if tokens are within threshold AND the portion to summarize is less than 30% of the conversational token threshold. Prevents unnecessary summarization when little context would be saved. |
 
 ## Configuration
 
 Control the behavior via `.env` or `config.py`:
-- `ZRB_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD`: Max tokens before full summarization triggers.
-- `ZRB_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD`: Max tokens for a single message part.
-- `ZRB_LLM_HISTORY_SUMMARIZATION_WINDOW`: Number of recent messages to ideally keep.
+- `ZRB_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD`: Max tokens before full summarization triggers (default: 60% of max context window).
+- `ZRB_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD`: Max tokens for a single message part (default: 50% of conversational threshold).
+- `ZRB_LLM_HISTORY_SUMMARIZATION_WINDOW`: Number of recent messages to ideally keep (default: 100).
+
+These environment variables are accessed in code via `CFG.LLM_*` properties (e.g., `CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD`).
+
+## Constants
+
+Key constants used in the summarization system:
+- `SUMMARY_PREFIX = "SUMMARY OF TOOL RESULT:"` - Prefix for summarized tool results
+- `TRUNCATED_PREFIX = "TRUNCATED TOOL RESULT:"` - Prefix for truncated tool results
+
+## Message Conversion for Summarization
+
+Different message parts are converted to text representations for summarization:
+- `ImageUrl` → `[Image URL: {url}]`
+- `BinaryContent` → `[Binary Content: {media_type}]`
+- `AudioUrl`/`VideoUrl`/`DocumentUrl` → `[Audio/Video/Document URL: {url}]`
+- `ToolCallPart` → `AI Tool Call [{tool_call_id}]: {tool_name}({args})`
+- `ToolReturnPart` → `Tool Result ({tool_name}): {content}`
+
+## Safety Mechanisms
+
+- **Safe Copy**: `_safe_copy_for_summarization()` creates deep copies of mutable content to prevent pydantic-ai from modifying original tool results
+- **Tool Response Skipping**: `ToolDenied` and `ToolApproved` messages are skipped from summarization
+- **Depth Limiting**: Recursive summarization has a maximum depth of 5 to prevent infinite loops
+- **Backward Compatibility**: `create_summarizer_history_processor()` supports legacy parameters (`agent`, `token_threshold`) for backward compatibility

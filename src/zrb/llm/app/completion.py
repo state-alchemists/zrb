@@ -1,4 +1,5 @@
 import os
+import subprocess
 import time
 from datetime import datetime
 from typing import Callable, Iterable, get_args
@@ -65,6 +66,9 @@ class InputCompleter(Completer):
         self._file_cache: list[str] | None = None
         self._file_cache_time = 0
         self._cmd_history = self._get_cmd_history()
+        # Cache for Ollama models
+        self._ollama_models_cache: list[str] | None = None
+        self._ollama_cache_time = 0
 
     def get_completions(
         self, document: Document, complete_event: CompleteEvent
@@ -355,9 +359,14 @@ class InputCompleter(Completer):
         Yields:
             Completion objects for model names.
         """
+        # Combine known models with Ollama models
+        all_models = list(self._known_models)
+        ollama_models = self._get_ollama_models()
+        all_models.extend(ollama_models)
+
         yield from self._get_fuzzy_completions(
             arg_prefix,
-            self._known_models,
+            all_models,
             only_files=False,
             display_meta="Model Name",
         )
@@ -535,6 +544,40 @@ class InputCompleter(Completer):
         # Return top 20
         for _, f in matches[:20]:
             yield Completion(f, start_position=-len(text), display_meta=display_meta)
+
+    def _get_ollama_models(self) -> list[str]:
+        """Get Ollama models with caching.
+
+        Returns:
+            List of Ollama model names prefixed with "ollama:".
+        """
+        now = time.time()
+        if self._ollama_models_cache is not None and now - self._ollama_cache_time < 30:
+            return self._ollama_models_cache
+
+        models = []
+        try:
+            result = subprocess.run(
+                ["ollama", "ls"],
+                capture_output=True,
+                text=True,
+                timeout=5,  # 5 second timeout
+            )
+            if result.returncode == 0:
+                lines = result.stdout.strip().split("\n")
+                for line in lines[1:]:  # Skip header line
+                    parts = line.split()
+                    if parts:
+                        model_name = parts[0]
+                        # Format as "ollama:<model-name>" for pydantic-ai compatibility
+                        models.append(f"ollama:{model_name}")
+        except (subprocess.SubprocessError, FileNotFoundError, TimeoutError):
+            # If ollama is not installed or command fails, return empty list
+            pass
+
+        self._ollama_models_cache = models
+        self._ollama_cache_time = now
+        return models
 
     def _get_recursive_files(self, root: str = ".", limit: int = 5000) -> list[str]:
         now = time.time()

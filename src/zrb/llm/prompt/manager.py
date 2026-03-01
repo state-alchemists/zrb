@@ -165,6 +165,62 @@ class PromptManager:
         self._active_skills = value
 
     @property
+    def include_persona(self):
+        return self._include_persona
+
+    @include_persona.setter
+    def include_persona(self, value: bool):
+        self._include_persona = value
+
+    @property
+    def include_mandate(self):
+        return self._include_mandate
+
+    @include_mandate.setter
+    def include_mandate(self, value: bool):
+        self._include_mandate = value
+
+    @property
+    def include_git_mandate(self):
+        return self._include_git_mandate
+
+    @include_git_mandate.setter
+    def include_git_mandate(self, value: bool):
+        self._include_git_mandate = value
+
+    @property
+    def include_system_context(self):
+        return self._include_system_context
+
+    @include_system_context.setter
+    def include_system_context(self, value: bool):
+        self._include_system_context = value
+
+    @property
+    def include_journal(self):
+        return self._include_journal
+
+    @include_journal.setter
+    def include_journal(self, value: bool):
+        self._include_journal = value
+
+    @property
+    def include_claude_skills(self):
+        return self._include_claude_skills
+
+    @include_claude_skills.setter
+    def include_claude_skills(self, value: bool):
+        self._include_claude_skills = value
+
+    @property
+    def include_cli_skills(self):
+        return self._include_cli_skills
+
+    @include_cli_skills.setter
+    def include_cli_skills(self, value: bool):
+        self._include_cli_skills = value
+
+    @property
     def include_project_context(self):
         return self._include_project_context
 

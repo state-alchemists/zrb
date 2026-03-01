@@ -42,6 +42,13 @@ def list_files(
 ) -> dict[str, list[str]]:
     """
     Recursively explores and lists files.
+
+    MANDATES:
+    - Use `depth` parameter to limit recursion depth (default: 3).
+    - Use `excluded_patterns` to filter out system/development files (default exclusions include `.git`, `node_modules`, etc.).
+    - Results are sorted alphabetically and automatically truncated for large directories.
+    - Use `preserved_head_lines` and `preserved_tail_lines` to control truncation.
+    - For targeted file discovery, prefer `Glob` over `LS`.
     """
     all_files: list[str] = []
     abs_path = os.path.abspath(os.path.expanduser(path))
@@ -105,6 +112,13 @@ def glob_files(
 ) -> list[str]:
     """
     Finds files matching glob patterns (e.g., `**/*.py`).
+
+    MANDATES:
+    - Patterns support recursive globbing with `**` (e.g., `**/*.py` for all Python files).
+    - Use `excluded_patterns` to filter results (default exclusions include `.git`, `node_modules`, etc.).
+    - Results are sorted alphabetically and automatically truncated for large result sets.
+    - Use `preserved_head_lines` and `preserved_tail_lines` to control truncation.
+    - For directory listing without patterns, use `LS` instead.
     """
     found_files = []
     abs_path = os.path.abspath(os.path.expanduser(path))
@@ -166,6 +180,14 @@ def read_file(
 ) -> str:
     """
     Reads content from a file.
+
+    MANDATES:
+    - Use `preserved_head_lines` and `preserved_tail_lines` for large files (default: 1000 each).
+    - Supports line range selection with `start_line`/`end_line` (1-indexed, inclusive).
+    - Use `limit` and `offset` for pagination within the file.
+    - Output is automatically truncated to prevent token overflow (max_chars: 100000).
+    - For reading multiple related files, prefer `ReadMany` over multiple `Read` calls.
+    - Always read files before editing to understand context.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
 
@@ -326,6 +348,14 @@ def read_files(
 ) -> dict[str, str]:
     """
     Reads multiple files. Use to gather context from related files simultaneously.
+
+    MANDATES:
+    - Returns error if NONE of the specified files exist.
+    - Individual file errors don't stop batch processing (other files are still read).
+    - Use for reading related files (e.g., config files, test files, source files).
+    - Same truncation and line selection parameters as `Read`.
+    - ALWAYS prefer `ReadMany` over multiple sequential `Read` calls for efficiency.
+    - Batch reading reduces round trips and improves context gathering.
     """
     results = {}
     for path in paths:
@@ -348,6 +378,11 @@ def write_file(path: str, content: str, mode: str = "w") -> str:
 
     MANDATES:
     - NEVER write >4000 chars per call. Use mode="w" for first chunk, mode="a" for subsequent chunks.
+    - Creates parent directories automatically if they don't exist.
+    - Use mode="w" to overwrite, mode="a" to append to existing file.
+    - For editing existing files, prefer `Edit` over `Write` for precision.
+    - For batch writing multiple files, use `WriteMany`.
+    - Always verify file content with `Read` after writing.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     try:
@@ -362,6 +397,14 @@ def write_file(path: str, content: str, mode: str = "w") -> str:
 def write_files(files: list[dict[str, str]]) -> dict[str, str]:
     """
     Batch write multiple files. 'files' arg takes dicts with 'path', 'content', and optional 'mode'.
+
+    MANDATES:
+    - Each file dict must contain 'path' and 'content' keys.
+    - Optional 'mode' key defaults to "w" (overwrite), use "a" for append.
+    - Creates parent directories automatically if they don't exist.
+    - Use for writing related files (e.g., templates, configs, generated code).
+    - Batch writing reduces round trips compared to multiple `Write` calls.
+    - Each file follows the same 4000-character limit as `Write`.
     """
     results = {}
     for file_info in files:
@@ -381,6 +424,11 @@ def replace_in_file(path: str, old_text: str, new_text: str, count: int = -1) ->
 
     MANDATES:
     - `old_text` MUST match file content EXACTLY (with whitespace) and include 2-3 context lines for uniqueness.
+    - ALWAYS read the file first with `Read` to verify context before editing.
+    - Use `count` parameter to limit replacements (default: -1 for all occurrences).
+    - Returns success message or specific error if text not found.
+    - For creating new files, use `Write` instead.
+    - ALWAYS verify changes with `Read` after editing.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
@@ -418,6 +466,11 @@ def search_files(
 
     MANDATES:
     - ALWAYS limit scope via specific `regex` and `file_pattern` to minimize noise.
+    - Supports Python regex syntax for pattern matching.
+    - Use `file_pattern` to restrict search to specific file types (e.g., `*.py`).
+    - Results include line numbers and context around matches.
+    - Output is automatically truncated for large result sets.
+    - For simple file listing without pattern matching, use `LS` or `Glob`.
     """
     try:
         pattern = re.compile(regex)
@@ -565,7 +618,11 @@ async def analyze_file(path: str, query: str) -> str:
     Deep semantic analysis of a specific file via sub-agent.
 
     MANDATES:
-    - SLOW and resource-intensive.
+    - SLOW and resource-intensive (uses LLM sub-agent).
+    - File content is automatically truncated to token limits.
+    - Best for complex analysis tasks requiring deep understanding.
+    - For simple file reading, use `Read` instead.
+    - For directory analysis, use `AnalyzeCode`.
     """
     # Lazy imports to avoid circular dependencies
     from zrb.config.config import CFG

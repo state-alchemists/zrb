@@ -13,6 +13,10 @@ async def open_web_page(url: str, summarize: bool = True) -> dict:
 
     MANDATES:
     - If summarize=True (default), a sub-agent extracts high-signal info.
+    - Returns both raw Markdown and summarized content when summarize=True.
+    - Includes links found on the page for navigation.
+    - For internet searches, use `SearchInternet` instead.
+    - Summarization reduces token usage and extracts key information.
     """
     try:
         html_content, links = await _fetch_page_content(url)
@@ -41,6 +45,13 @@ async def search_internet(
 ) -> dict:
     """
     Performs an internet search.
+
+    MANDATES:
+    - Requires SERPAPI_KEY or BRAVE_API_KEY configuration for search functionality.
+    - Use `page` parameter for pagination (default: 1).
+    - Results include titles, URLs, and snippets from search engines.
+    - Configure search method via CFG.SEARCH_INTERNET_METHOD ("serpapi" or "brave").
+    - For reading specific web pages, use `OpenWebPage` instead.
     """
     if (
         CFG.SEARCH_INTERNET_METHOD.strip().lower() == "serpapi"
