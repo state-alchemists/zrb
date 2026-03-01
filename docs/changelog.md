@@ -1,5 +1,40 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.6.22 (March 2, 2026)
+
+- **Documentation Enhancement: Summarization Logic Documentation**:
+  - **Cost-Benefit Optimization**: Added documentation explaining that summarization is skipped if tokens are within threshold AND the portion to summarize is less than 30% of the conversational token threshold. Prevents unnecessary summarization when little context would be saved.
+  - **Configuration Clarity**: Updated configuration section with default values (60% of max context window for conversational threshold, 50% of conversational threshold for message threshold, 100 for summary window) and clarified that environment variables are accessed in code via `CFG.LLM_*` properties.
+  - **Constants Documentation**: Added section documenting `SUMMARY_PREFIX` and `TRUNCATED_PREFIX` constants used in the summarization system.
+  - **Message Conversion Details**: Added section explaining how different message parts (ImageUrl, BinaryContent, AudioUrl, ToolCallPart, ToolReturnPart) are converted to text representations for summarization.
+  - **Safety Mechanisms**: Documented safety mechanisms including safe copy for mutable content, tool response skipping for ToolDenied/ToolApproved messages, depth limiting (max 5), and backward compatibility support.
+
+- **Improvement: Ollama Model Auto-Completion**:
+  - **Ollama Integration**: Added Ollama model auto-completion to zrb UI, enabling users to select from locally available Ollama models.
+  - **Dynamic Model Fetching**: Created `_get_ollama_models()` method that dynamically fetches available models via `ollama ls` command with 30-second caching to avoid repeated shell calls.
+  - **Pydantic-AI Compatibility**: Models are formatted as `ollama:<model-name>` for seamless compatibility with pydantic-ai's Ollama integration.
+
+- **Improvement: PromptManager Enhancement**:
+  - **Property Accessors**: Added property getters and setters for `include_persona`, `include_mandate`, `include_git_mandate`, `include_system_context`, `include_journal`, `include_claude_skills`, and `include_cli_skills` to enable dynamic configuration of prompt components.
+
+- **Improvement: Tool Docstring MANDATES Enhancement**:
+  - **Bash Tool**: Enhanced with timeout guidance (default 30s, max 10min), truncation notice, and batch command optimization tips.
+  - **AnalyzeCode Tool**: Clarified as LLM sub-agent with resource-intensity warnings and guidance for single file vs directory analysis.
+  - **File Tools Comprehensive MANDATES**: Added detailed MANDATES sections to all file tools:
+    - **LS**: Depth limiting, excluded patterns, truncation controls, Glob preference guidance.
+    - **Glob**: Pattern syntax, result truncation, LS alternative guidance.
+    - **Read**: Line range selection, pagination, truncation limits, ReadMany preference.
+    - **ReadMany**: Error handling, batch processing, efficiency guidance.
+    - **Write**: Directory creation, mode usage, Edit preference, verification steps.
+    - **WriteMany**: File dict format, mode defaults, batch efficiency.
+    - **Edit**: Context verification, count parameter, error handling, Write alternative.
+    - **Grep**: Python regex syntax, file_pattern restrictions, truncation, alternative tools.
+    - **AnalyzeFile**: Resource intensity, truncation, Read/AnalyzeCode alternatives.
+  - **Web Tools MANDATES**: Enhanced OpenWebPage with summarization behavior and links documentation; enhanced SearchInternet with API key requirements, pagination, and configuration options.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.6.22 in `pyproject.toml`.
+
 ## 2.6.21 (February 28, 2026)
 
 - **Improvement: Skill Naming Convention Standardization**:
