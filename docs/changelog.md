@@ -1,5 +1,15 @@
 🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
 
+## 2.6.23 (March 2, 2026)
+
+- **Fix: Missing `_remove_lines_from_middle` Function in Truncation Algorithm**:
+  - **Bug Resolution**: Added the missing `_remove_lines_from_middle()` function to `src/zrb/util/truncate.py` that was being called at line 91 but never defined. The function properly removes lines from the middle section when content exceeds head+tail line limits.
+  - **Truncation Algorithm Completion**: The multi-stage truncation algorithm now has all required helper functions: `_remove_lines_from_middle`, `_remove_lines_from_tail`, and `_remove_lines_from_head` for complete head-tail preservation logic.
+  - **Test Verification**: Verified the fix works correctly with test cases showing proper head lines, truncation message, and tail lines in output.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.6.23 in `pyproject.toml`.
+
 ## 2.6.22 (March 2, 2026)
 
 - **Documentation Enhancement: Summarization Logic Documentation**:

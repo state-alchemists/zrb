@@ -167,6 +167,49 @@ def truncate_output(
     return result, info
 
 
+def _remove_lines_from_middle(
+    lines: list[str],
+    head_lines: int,
+    tail_lines: int,
+) -> tuple[list[str], int]:
+    """Remove lines from the middle if we have more lines than head+tail.
+
+    Returns:
+        tuple: (kept_lines, lines_removed_from_middle)
+    """
+    lines_removed_from_middle = 0
+    target_line_count = head_lines + tail_lines
+
+    if len(lines) <= target_line_count:
+        return lines, lines_removed_from_middle
+
+    # Keep head and tail sections, remove from middle
+    head_section = lines[:head_lines] if head_lines > 0 else []
+    tail_section = lines[-tail_lines:] if tail_lines > 0 else []
+
+    # Calculate how many lines to remove from middle
+    lines_to_remove = len(lines) - target_line_count
+
+    # Middle section is everything between head and tail
+    middle_section = (
+        lines[head_lines:-tail_lines] if tail_lines > 0 else lines[head_lines:]
+    )
+
+    if len(middle_section) <= lines_to_remove:
+        # Remove all middle lines
+        lines_removed_from_middle = len(middle_section)
+        middle_section = []
+    else:
+        # Remove from middle, keeping some lines
+        lines_removed_from_middle = lines_to_remove
+        middle_section = (
+            middle_section[:-lines_to_remove] if lines_to_remove > 0 else middle_section
+        )
+
+    kept_lines = head_section + middle_section + tail_section
+    return kept_lines, lines_removed_from_middle
+
+
 def _remove_lines_from_tail(
     kept_lines: list[str],
     head_lines: int,
