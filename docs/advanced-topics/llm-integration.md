@@ -1,12 +1,12 @@
 🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > LLM Integration
 
-# LLM Integration (AI Assistant "Pollux")
+# LLM Integration (AI Assistant)
 
-Zrb comes with a powerful, built-in AI assistant named "Pollux" that can understand your codebase, perform actions on your behalf, and automate complex software engineering tasks.
+Zrb comes with a powerful, built-in AI assistant that can understand your codebase, perform actions on your behalf, and automate complex software engineering tasks.
 
 ## Interactive Chat (`zrb llm chat`)
 
-The primary way to interact with Pollux is through an interactive terminal user interface (TUI).
+The primary way to interact with AI Assistang is through an interactive terminal user interface (TUI).
 
 ```bash
 zrb llm chat "Can you help me refactor the user authentication service?"
@@ -86,7 +86,7 @@ Zrb can automatically discover and manage sub-agents defined in JSON or YAML fil
 
 ## Context Management
 
-Pollux is designed for long-running, complex tasks and has a sophisticated context management system.
+The AI Assistant is designed for long-running, complex tasks and has a sophisticated context management system.
 
 ### Two-Tier Summarization System
 To avoid exceeding the context window of the underlying LLM, Zrb uses a two-tier summarization system:

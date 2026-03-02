@@ -57,7 +57,7 @@ The test suite uses `pytest` fixtures and `unittest.mock.patch` (as decorators o
 
 ## Evaluating and Improving the LLM Agent
 
-To maintain and improve the quality of the Zrb LLM agent ("Pollux"), the project uses a set of automated evaluation challenges located in the `llm-challenges/` directory. The goal is to ensure the agent can handle various software engineering tasks by iteratively improving its system prompts and tool definitions.
+To maintain and improve the quality of the Zrb LLM agent, the project uses a set of automated evaluation challenges located in the `llm-challenges/` directory. The goal is to ensure the agent can handle various software engineering tasks by iteratively improving its system prompts and tool definitions.
 
 The full instructions for the evaluation protocol are in `llm-challenges/AGENTS.md`. The core process is as follows:
 

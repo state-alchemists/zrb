@@ -61,7 +61,7 @@ Zrb automatically triggers background summarization agents when conversation his
 
 You can heavily customize the LLM's behavior and identity by overriding its system prompts. Zrb looks for `.md` files (like `persona.md` or `mandate.md`) in specified directories.
 
-*   `ZRB_LLM_ASSISTANT_NAME`: The name displayed for the AI assistant (e.g., "Pollux").
+*   `ZRB_LLM_ASSISTANT_NAME`: The name displayed for the AI assistant.
     *   Default: The root group name (e.g., `zrb`).
 *   `ZRB_LLM_ASSISTANT_JARGON`: A tagline or motto for the AI assistant.
     *   Default: The root group description.
