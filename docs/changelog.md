@@ -1,4 +1,4 @@
-🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)
+🔖 [Documentation Home](../README.md)
 
 ## 2.6.23 (March 2, 2026)
 
@@ -189,65 +189,8 @@
 - **Maintenance**:
   - **Version Bump**: Updated to version 2.6.15 in `pyproject.toml`.
 
-## 2.6.14 (February 26, 2026)
-
-- **Fix: Non-Interactive UI Tool Confirmation for Edit Command**:
-  - **ToolCallHandler Integration**: Fixed editing in non-interactive mode by replacing simple policy checker with `ToolCallHandler` in `LLMChatTask._create_llm_task_core()`. The previous implementation used `check_tool_policies()` which only handled tool policies, not response handlers or argument formatters.
-  - **Complete Tool Handling**: The fix switches to `ToolCallHandler` which properly handles all three components (tool policies, argument formatters, response handlers) and includes the 'e' (edit) option in the confirmation prompt.
-  - **Key Change**: In `src/zrb/llm/task/llm_chat_task.py`, non-interactive mode now uses `ToolCallHandler(tool_policies=self._tool_policies, argument_formatters=self._argument_formatters, response_handlers=self._response_handlers)` instead of a simple async wrapper around `check_tool_policies()`.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.14 in `pyproject.toml`.
-
-## 2.6.13 (February 25, 2026)
-
-- **Improvement: SearxNG Configuration Refactoring & Automatic Management**:
-  - **Streamlined Configuration File**: Remove `settings.yml` searxng file.
-  - **Automatic Configuration Setup**: Added `copy_searxng_setting` task that automatically copies SearxNG configuration to `~/.config/searxng/` directory if it doesn't exist, ensuring proper configuration management without manual intervention.
-  - **Improved Docker Volume Mounting**: Changed working directory from project directory to user home directory (`os.path.expanduser("~")`) for better Docker volume mounting compatibility, allowing the `./config/` volume to correctly map to the user's configuration directory.
-  - **Task Integration**: Made `copy_searxng_setting` an upstream dependency of the `start-searxng` task, ensuring configuration is always available before starting the SearxNG container.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.13 in `pyproject.toml`.
-
-## 2.6.12 (February 24, 2026)
-
-- **Improvement: UI Output Redirection Buffering**:
-  - **Buffered Stream Capture**: Modified `GlobalStreamCapture` in `src/zrb/llm/app/redirection.py` to buffer stdout/stderr output instead of immediately sending to UI via `ui_callback`. Added `_buffer` list, `get_buffered_output()`, and `clear_buffer()` methods for controlled output management.
-  - **Delayed Output Display**: Updated `run_async()` in `src/zrb/llm/app/ui.py` to print buffered output after UI closes (`self._capture.stop()`), providing cleaner UI experience with output appearing after interaction completion.
-  - **Tool Streaming Preservation**: Bash tool output continues to stream to UI in real-time via `zrb_print(..., plain=True)` → `append_to_output` direct path (bypasses capture), maintaining responsive tool feedback while buffering library `print()` output.
-
-- **Fix: Hook System Error Handling & Sequential Execution**:
-  - **Proper Error Propagation**: Updated `_parse_hook_result()` in `src/zrb/llm/hook/executor.py` to set `error=result.output` and `exit_code=1` when `success=False`, ensuring proper error reporting for failed hook executions.
-  - **Sequential Hook Execution**: Changed `execute_hooks()` in `src/zrb/llm/hook/manager.py` from concurrent (`asyncio.gather`) to sequential execution, enabling proper blocking behavior and `continue_execution=False` logic to work correctly.
-  - **Enhanced Hook Result Processing**: Improved error handling with proper exception wrapping and continuation logic for failed hooks, maintaining Claude Code compatibility with exit code 2 for blocking decisions.
-
-- **Test Infrastructure: Comprehensive Test Suites**:
-  - **OptionInput Test Coverage**: Created comprehensive test suite for `OptionInput` in `test/input/test_option_input.py` with 7 test cases covering public API (initialization, HTML generation, default values, context updates), improving coverage from 25% to 40%.
-  - **Lexer ANSI Escape Testing**: Added comprehensive test suite for `CLIStyleLexer` in `test/llm/app/test_lexer.py` with 13 tests covering ANSI escape sequence tokenization (colors, bold, background colors, reset sequences, literal escapes).
-  - **Redirection Buffer Testing**: Created comprehensive test suite for `GlobalStreamCapture` in `test/llm/app/test_redirection.py` with 8 test cases covering public API (initialization, start/stop lifecycle, buffer management, pause context manager, original stdout retrieval).
-  - **Hook Manager Comprehensive Coverage**: Added extensive test suite in `test/llm/hook/test_manager_comprehensive_coverage.py` with 49 tests covering edge cases, error handling, blocking logic, timeout scenarios, and Claude Code compatibility.
-
-- **Test Results**: All 866 tests pass with 31% overall coverage. Hook test suite passes 49/49 tests after fixes.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.12 in `pyproject.toml`.
-
-## 2.6.11 (February 24, 2026)
-
-- **Refactor: Centralized String Conversion Utility**:
-  - **Shared to_string() Function**: Created centralized `to_string()` utility in `src/zrb/util/string/conversion.py` to handle complex data structure conversion to strings with proper JSON serialization for dictionaries and lists.
-  - **Eliminated Code Duplication**: Removed `FileHistoryManager._convert_to_string()` method and replaced all `str()` calls in tool return content with `to_string()` for consistent string conversion behavior.
-  - **Enhanced Tool Return Safety**: Updated `_create_safe_wrapper()` and `_wrap_toolset()` in `src/zrb/llm/agent/common.py` to use `to_string()` for tool return content, ensuring proper handling of non-string tool results.
-  - **Proactive Content Cleaning**: Enhanced `FileHistoryManager._clean_corrupted_content()` to use centralized `to_string()` utility, maintaining proactive cleaning of boolean, number, dict, list, and None values before validation.
-  - **JSON Serialization Safety**: The new utility safely handles dictionaries and lists via `json.dumps()` with proper error fallback to `str()` for serialization failures.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.11 in `pyproject.toml`.
-
 # Older Changelog
 
 - [Changelog v2](./changelog-v2.md)
 - [Changelog v1](./changelog-v1.md)
 
-🔗 [Home](../../README.md) > [Documentation](../README.md) > [Changelog](README.md)

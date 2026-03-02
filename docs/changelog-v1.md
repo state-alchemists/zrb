@@ -1,4 +1,4 @@
-🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog v1](README.md)
+🔖 [Documentation Home](../README.md)
 
 ## 1.21.43
 
@@ -1370,4 +1370,4 @@
 
 - 💥 Big rewrite, there are major incaompatibility with version `0.x.x`
 
-🔖 [Home](../../README.md) > [Documentation](../README.md) > [Changelog v1](README.md)
+🔖 [Home](../../../README.md) > [Documentation](../../README.md) > [Changelog v1](README.md)

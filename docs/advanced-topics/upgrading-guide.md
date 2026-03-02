@@ -1,4 +1,4 @@
-🔖 [Home](../../README.md) > [Documentation](../README.md) > [Advanced Topics](./README.md) > Upgrading Guide
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Upgrading Guide
 
 # Upgrading Guide from 0.x.x to 1.x.x
 
@@ -243,7 +243,7 @@ cli.add_task(task2)
 # cli.add_task(task2)
 ```
 
-## 7. CmdPath is now a class
+## 7. `CmdPath` is now a class
 
 **0.x.x:**
 ```python
@@ -258,75 +258,3 @@ from zrb import CmdTask, CmdPath
 
 task = CmdTask(cmd=CmdPath(os.path.join("dir", "command.sh")))
 ```
-
-## Available Task Types
-
-Zrb 1.x.x provides several built-in task types to handle various operations:
-
-*   [`CmdTask`](./task/types/cmd-task.md): For executing shell commands.
-*   [`HttpCheck`](./task/types/http-check.md): For performing HTTP health checks.
-*   [`LLMTask`](./task/types/llm-task.md): For integrating with Language Model APIs.
-*   [`RsyncTask`](./task/types/rsync-task.md): For synchronizing files and directories using rsync.
-*   [`Scaffolder`](./task/types/scaffolder.md): For generating files from templates.
-*   [`Task`](./task/types/task.md): The base class for creating custom Python tasks (used with `@make_task`).
-*   [`TcpCheck`](./task/types/tcp_check.md): For performing TCP port health checks.
-
-
-### Migrating from DockerComposeTask
-
-The `DockerComposeTask` from 0.x.x has been removed in 1.x.x. You can achieve the same functionality by using the `CmdTask` to execute `docker compose` commands.
-
-**0.x.x:**
-```python
-from zrb import DockerComposeTask, runner
-
-# Assuming a docker-compose.yml file exists
-docker_up_task = DockerComposeTask(
-    name="docker-up",
-    command="up"
-)
-
-runner.register(docker_up_task)
-```
-
-**1.x.x:**
-```python
-from zrb import CmdTask, cli
-
-# Assuming a docker-compose.yml file exists
-docker_up_task = cli.add_task(
-    CmdTask(
-        name="docker-up",
-        cmd="docker compose up -d"
-    )
-)
-```
-
-## Using LlmTask for Migration Assistance
-
-Zrb 1.x.x introduces the `LlmTask`, which can be used to interact with Language Model APIs. This can be a powerful tool to assist with migrating your existing 0.x.x tasks to the 1.x.x format.
-
-You could define an `LlmTask` that takes your 0.x.x task definition code as input and uses an LLM to generate the equivalent 1.x.x code. While this requires setting up the `LlmTask` and potentially configuring access to an LLM API, it can automate repetitive migration tasks, especially for large projects.
-
-Example (conceptual):
-```python
-from zrb import LLMTask, cli, StrInput
-from zrb.llm.tool.file import list_files, read_file, search_files, write_file
-
-migration_task = cli.add_task(
-    LLMTask(
-        name="migrate-task",
-        input=StrInput(name="old_task_code", description="Paste your 0.x.x task code here"),
-        # Configure your LLM API and prompt here
-        message="Convert the following Zrb 0.x.x task definition to 1.x.x:\n\n{{ctx.input.old_task_code}}.",
-        tools=[
-            list_files, read_file, search_files, write_file
-        ],
-        # ... other LLMTask parameters
-    )
-)
-```
-
-This is just a conceptual example. The actual implementation would depend on the specific LLM API and the complexity of your task definitions.
-
-🔖 [Documentation Home](../README.md)

@@ -1,95 +1,122 @@
-🔖 [Home](../../README.md) > [Documentation](../README.md) > [Advanced Topics](README.md) > [Hooks](hooks.md)
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Hook System
 
-# Zrb Hook System
+# Zrb Hook System (Claude Code Compatible)
 
-The Zrb Hook System allows you to extend and customize the behavior of LLM agents by executing shell commands or Python functions at specific points in their lifecycle.
+The Zrb Hook System provides a powerful way to intercept and modify the execution of LLM agents. You can execute shell commands, run LLM prompts, or trigger specific scripts at key lifecycle events. 
 
-This system is compatible with **Claude Code hooks**, allowing you to use your existing Claude configurations with Zrb.
+Zrb's hook system is **100% compatible with Claude Code hooks**.
 
-## Lifecycle Events
+## 1. Lifecycle Events
 
-Hooks can be registered for the following events:
+Hooks can attach to the following agent events:
+- `SessionStart` / `SessionEnd`
+- `UserPromptSubmit` (Before the LLM processes your text)
+- `PreToolUse` (Before a tool executes. *Can modify arguments or block execution!*)
+- `PostToolUse` / `PostToolUseFailure`
+- `PreCompact` (Before history summarization triggers)
 
-| Event | Description |
-|-------|-------------|
-| `SessionStart` | Triggered when a new conversation session begins. |
-| `UserPromptSubmit` | Triggered after a user submits a prompt, but before LLM processing. |
-| `PreToolUse` | Triggered before a tool is executed. Can modify tool arguments or cancel execution. |
-| `PostToolUse` | Triggered after a tool executes successfully. |
-| `PostToolUseFailure` | Triggered after a tool execution fails. |
-| `PreCompact` | Triggered before conversation history is compacted/summarized. |
-| `Notification` | Triggered when the agent sends a notification to the UI. |
-| `Stop` | Triggered when the agent execution is stopped (e.g., via Esc or Ctrl+C). |
-| `SessionEnd` | Triggered when a conversation session ends. |
+---
 
-## Configuration (Claude Code Compatibility)
+## 2. Configuration via JSON
 
-You can define hooks using JSON or YAML files. Zrb automatically scans for these files in:
-1.  `~/.zrb/hooks.json` or `~/.zrb/hooks/*.json`
-2.  `./.zrb/hooks.json` or `./.zrb/hooks/*.json`
+Hooks are defined declaratively in JSON/YAML. Zrb discovers them automatically in:
+- `~/.zrb/hooks.json` or `~/.zrb/hooks/*.json`
+- `./.zrb/hooks.json` (Project specific)
+- `~/.claude/hooks.json` (Claude compatibility)
 
-*(Note: If you have customized `ZRB_ROOT_GROUP_NAME`, replace `.zrb` with your custom name, e.g., `.mycli`)*
-
-### JSON Example (`~/.zrb/hooks.json`)
-
+### Example 1: Simple Command Hook
+Log every time a session starts.
 ```json
 [
   {
-    "name": "git-auto-commit",
-    "description": "Auto-commit changes after tool use",
-    "events": ["PostToolUse"],
+    "name": "session-logger",
+    "events": ["SessionStart"],
     "type": "command",
     "config": {
-      "command": "git add . && git commit -m 'Auto-commit after tool execution'",
+      "command": "echo 'Started session $CLAUDE_SESSION_ID at $(date)' >> session.log",
       "shell": true
     }
   }
 ]
 ```
 
-### Hook Configuration Fields
+### Example 2: Blocking Dangerous Tools (Security Hook)
+Prevent the LLM from executing destructive bash commands by intercepting `PreToolUse`. Hooks that return exit code `2` block the execution.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | Unique name for the hook. |
-| `events` | array | List of lifecycle events to trigger this hook. |
-| `type` | string | Hook type: `command`, `prompt`, or `agent`. |
-| `config` | object | Type-specific configuration (e.g., `command` string). |
-| `matchers` | array | Optional list of matchers to filter when the hook runs. |
-| `async` | boolean | Whether to run the hook asynchronously (non-blocking). |
-| `enabled` | boolean | Whether the hook is active. |
-| `priority` | integer | Execution order (lower runs first). |
+```json
+[
+  {
+    "name": "block-rm-rf",
+    "events": ["PreToolUse"],
+    "type": "command",
+    "priority": 100,
+    "matchers": [
+      {
+        "field": "tool_name",
+        "operator": "equals",
+        "value": "run_shell_command"
+      }
+    ],
+    "config": {
+      "command": "if [[ \"$CLAUDE_TOOL_INPUT\" == *\"rm -rf\"* ]]; then echo '{\"decision\": \"block\", \"reason\": \"Destructive command blocked\"}'; exit 2; fi",
+      "shell": true
+    }
+  }
+]
+```
+*(Notice the `matchers` array: The hook only runs if the tool being called is `run_shell_command`!)*
 
-## Defining Hooks in Python
+### Example 3: Prompt-based Hook
+Use an LLM to review user prompts before execution.
 
-You can also register Python functions as hooks programmatically in your `zrb_init.py`.
-
-```python
-from zrb.llm.hook import hook_manager, HookContext, HookResult, HookEvent
-
-async def my_python_hook(context: HookContext) -> HookResult:
-    print(f"Hook triggered for event: {context.event}")
-    return HookResult(success=True)
-
-# Register for specific events
-hook_manager.register(my_python_hook, events=[HookEvent.SESSION_START])
-
-# Register as a global hook (runs on all events)
-hook_manager.register(my_python_hook)
+```json
+[
+  {
+    "name": "safety-review",
+    "events": ["UserPromptSubmit"],
+    "type": "prompt",
+    "config": {
+      "user_prompt_template": "Review this prompt for safety: {{prompt}}",
+      "system_prompt": "You are a safety filter.",
+      "model": "openai:gpt-4o-mini"
+    }
+  }
+]
 ```
 
-## Environment Variables
-
-The following variables control the hook system:
-
-*   `ZRB_HOOKS_ENABLED`: Whether to enable the hook system.
-    *   Default: `1` (true)
-*   `ZRB_HOOKS_DIRS`: Colon-separated list of additional directories to scan for hook configs.
-    *   Default: Empty
-*   `ZRB_HOOKS_TIMEOUT`: Default timeout for sync hooks in seconds.
-    *   Default: `30`
-*   `ZRB_HOOKS_LOG_LEVEL`: Logging level for hook execution.
-    *   Default: `INFO`
-
 ---
-🔖 [Home](../../README.md) > [Documentation](../README.md) > [Advanced Topics](README.md) > [Hooks](hooks.md)
+
+## 3. Defining Hooks Programmatically (Python)
+
+If JSON isn't enough, you can define hooks directly in your `zrb_init.py` using Python.
+
+```python
+from zrb.llm.hook.manager import hook_manager
+from zrb.llm.hook.interface import HookContext, HookResult
+from zrb.llm.hook.types import HookEvent
+
+async def block_production_writes(context: HookContext) -> HookResult:
+    # Check context event data
+    if context.event_data.get("tool") == "write_file":
+        path = context.event_data.get("path", "")
+        if "prod_config" in path:
+            # Block the tool execution!
+            return HookResult(
+                success=False, 
+                blocked=True, 
+                reason="Cannot modify production config."
+            )
+            
+    return HookResult(success=True)
+
+# Register the hook to the event
+hook_manager.register(block_production_writes, events=[HookEvent.PRE_TOOL_USE])
+```
+
+## 4. Environment Variables
+
+Command hooks receive a rich set of environment variables injected automatically:
+- `CLAUDE_HOOK_EVENT`: The event name (e.g., `PreToolUse`)
+- `CLAUDE_TOOL_NAME`: Name of the tool being executed
+- `CLAUDE_TOOL_INPUT`: JSON string of the arguments being passed to the tool
+- `CLAUDE_PROMPT`: The user's input text (for `UserPromptSubmit`)

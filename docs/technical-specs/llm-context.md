@@ -1,4 +1,4 @@
-🔖 [Home](../../README.md) > [Documentation](../README.md)
+🔖 [Documentation Home](../../README.md) > [Technical Specs](./llm-context.md)
 
 # LLM Journal System (Technical Specification)
 

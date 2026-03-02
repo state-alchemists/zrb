@@ -214,7 +214,7 @@ class LLMTask(BaseTask):
         user_message = get_attr(ctx, self._message, "", self._render_message)
         user_attachments = get_attachments(ctx, self._attachment)
 
-        if await self._should_summarize(
+        if await self._handle_summarization(
             ctx, history_manager, conversation_name, user_message, message_history
         ):
             return "Conversation history compressed."
@@ -253,7 +253,7 @@ class LLMTask(BaseTask):
             return self._history_manager
         return FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
 
-    async def _should_summarize(
+    async def _handle_summarization(
         self,
         ctx: AnyContext,
         history_manager: AnyHistoryManager,

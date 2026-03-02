@@ -1,4 +1,4 @@
-🔖 [Home](../../README.md) > [Documentation](../README.md) > [Advanced Topics](README.md) > [Claude Code Compatibility](claude-compatibility.md)
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Claude Code Compatibility
 
 # Claude Code Compatibility
 
@@ -6,7 +6,7 @@ Zrb is designed to be highly compatible with **Claude Code** configurations. Thi
 
 ## 1. Project Instructions (CLAUDE.md)
 
-Zrb automatically detects and includes instructions from `CLAUDE.md` files. It searches from the filesystem root down to your current working directory, ensuring that all relevant project context is loaded into the LLM's system prompt.
+Zrb automatically detects and includes instructions from `CLAUDE.md` and `AGENTS.md` files. It searches from the filesystem root down to your current working directory, ensuring that all relevant project context is loaded into the LLM's system prompt.
 
 ## 2. Skills (SKILL.md)
 
@@ -62,7 +62,7 @@ You are an expert coder specializing in...
 
 ## 4. Hooks (hooks.json)
 
-As of version 2.2.0, Zrb supports Claude-compatible lifecycle hooks.
+Zrb supports Claude-compatible lifecycle hooks.
 
 ### Discovery Paths
 -   `~/.claude/hooks.json` or `~/.claude/hooks/*.json`
@@ -77,4 +77,3 @@ See the [Hooks Guide](./hooks.md) for more details.
 Zrb's plugin system is built on top of these compatibility layers. By setting `ZRB_LLM_PLUGIN_DIRS` to a colon-separated list of paths, you can distribute and share collections of agents and skills that follow the Claude standard.
 
 ---
-🔖 [Home](../../README.md) > [Documentation](../README.md) > [Advanced Topics](README.md) > [Claude Code Compatibility](claude-compatibility.md)

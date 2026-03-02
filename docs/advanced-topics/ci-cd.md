@@ -1,25 +1,30 @@
-🔖 [Home](../../README.md) > [Documentation](../README.md) > [Advanced Topics](./README.md) > CI/CD Integration
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > CI/CD Integration
 
 # CI/CD Integration for Zrb Projects
 
-This guide provides examples of how to set up Continuous Integration and Continuous Deployment (CI/CD) pipelines for your Zrb projects using popular platforms like GitHub Actions and GitLab CI.
+Zrb is perfectly suited for Continuous Integration and Continuous Deployment (CI/CD) pipelines. By integrating your Zrb tasks into your CI/CD workflows, you ensure consistency, reliability, and automation across your development lifecycle.
 
-The key principle is to leverage the official Zrb Docker image (`stalchmst/zrb`) which comes pre-installed with Zrb and its dependencies.
+The key principle is to leverage the official Zrb Docker image (`stalchmst/zrb`), which comes pre-installed with Zrb and its dependencies.
 
-## Using the Official Zrb Docker Image
+---
 
-The recommended way to run Zrb commands in a CI/CD environment is by using the official Docker image: `stalchmst/zrb`. You should specify a version tag (e.g., `stalchmst/zrb:2.0.0`) for reproducible builds, rather than using `latest`.
+## 1. Using the Official Zrb Docker Image
+
+The recommended way to run Zrb commands in a CI/CD environment is by using the official Docker image: `stalchmst/zrb`. Always specify a version tag (e.g., `stalchmst/zrb:2.0.0`) for reproducible builds, rather than using `latest`.
 
 Find available tags on [Docker Hub](https://hub.docker.com/r/stalchmst/zrb/tags).
 
-## GitHub Actions
+---
+
+## 2. GitHub Actions
 
 GitHub Actions allow you to automate workflows directly within your GitHub repository.
 
+### Setup
 1.  **Create Workflow Directory:** Create a directory named `.github/workflows` in the root of your repository if it doesn't exist.
 2.  **Create Workflow File:** Inside `.github/workflows`, create a YAML file (e.g., `main.yml` or `ci.yml`).
 
-**Example `.github/workflows/ci.yml`:**
+### Example `.github/workflows/ci.yml`
 
 This example demonstrates a basic workflow that runs Zrb tasks (like tests or linting) on every push to the `main` branch and on pull requests targeting `main`.
 
@@ -82,18 +87,20 @@ jobs:
 *   `jobs`: Contains the sequence of tasks to run.
 *   `run-zrb-tasks`: The name of the job.
 *   `runs-on: ubuntu-latest`: Specifies the type of machine to run the job on.
-*   `container.image`: Specifies the Docker image to use for the job steps. We use the official Zrb image.
+*   `container.image`: Specifies the Docker image to use for the job steps (our official Zrb image).
 *   `steps`: A list of individual tasks within the job.
     *   `actions/checkout@v4`: Checks out your repository code into the runner environment.
-    *   `run`: Executes shell commands. We use this to run `zrb --version` and your specific Zrb tasks (e.g., `zrb test`, `zrb lint`).
+    *   `run`: Executes shell commands (e.g., `zrb --version`, `zrb test`).
     *   `shell: bash`: Ensures commands run using the bash shell within the container.
 *   **Secrets:** For deployment or tasks requiring credentials, use [GitHub Secrets](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions) and reference them using the `secrets` context (e.g., `${{ secrets.YOUR_SECRET_NAME }}`). Pass them as environment variables to the `run` step.
 
-## GitLab CI/CD
+---
+
+## 3. GitLab CI/CD
 
 GitLab CI/CD uses a `.gitlab-ci.yml` file in the root of your repository to define pipelines.
 
-**Example `.gitlab-ci.yml`:**
+### Example `.gitlab-ci.yml`
 
 This example sets up a simple pipeline with stages for testing and linting.
 
@@ -175,11 +182,13 @@ run_linting:
     *   `allow_failure`: If `true`, the pipeline continues even if this job fails.
     *   `environment`: Used for GitLab Environments, helpful for tracking deployments.
 
-## Bitbucket Pipelines
+---
+
+## 4. Bitbucket Pipelines
 
 Bitbucket Pipelines uses a `bitbucket-pipelines.yml` file in the root of your repository to define CI/CD workflows.
 
-**Example `bitbucket-pipelines.yml`:**
+### Example `bitbucket-pipelines.yml`
 
 This example sets up a simple pipeline with steps for testing and linting using the Zrb Docker image.
 
@@ -234,6 +243,8 @@ pipelines:
   - `deployment`: Marks the step as a deployment (optional).
   - `variables`: Defines environment variables. Use Bitbucket's [Pipelines Variables](https://support.atlassian.com/bitbucket-cloud/docs/variables-and-secrets/) for secrets.
 
-## Choosing the Right Zrb Image Version
+---
+
+## 5. Choosing the Right Zrb Image Version
 
 Always pin your CI/CD pipeline to a specific version of the `stalchmst/zrb` image (e.g., `stalchmst/zrb:2.0.0`). This ensures that your builds are reproducible and won't break unexpectedly if a new `latest` version introduces changes. Update the version tag deliberately when you are ready to adopt newer Zrb features or fixes.
