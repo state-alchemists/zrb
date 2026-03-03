@@ -56,40 +56,49 @@ _DEFAULT_EXTENSIONS = [
 async def analyze_code(
     path: str,
     query: str,
-    extensions: list[str] | None = None,
-    include_patterns: list[str] | None = None,
+    file_pattern: str | None = None,
     exclude_patterns: list[str] | None = None,
 ) -> str:
     """
     Semantic analysis of a directory using an LLM sub-agent.
 
+    Automatically excludes common directories (`.git`, `node_modules`, `__pycache__`, etc.).
+    When `file_pattern=None`, intelligently detects project type and scans appropriately.
+    File contents are automatically truncated to token limits.
+
     MANDATES:
-    - ALWAYS limit scope via `extensions`, `include_patterns`, and `exclude_patterns`.
     - SLOW and resource-intensive (uses LLM sub-agent).
-    - Default extensions include common programming languages and config files.
-    - File contents are automatically truncated to token limits.
     - For single file analysis, use `AnalyzeFile` instead.
     - For simple file listing, use `LS` or `Glob`.
+    - Use `file_pattern` parameter to limit search scope (e.g., `*.py` for Python files).
+    - Use `exclude_patterns` parameter to override default exclusions (e.g., `[]` to include all files).
     """
-    if extensions is None:
-        extensions = _DEFAULT_EXTENSIONS
-    if exclude_patterns is None:
-        exclude_patterns = DEFAULT_EXCLUDED_PATTERNS
-
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
         return f"Error: Path not found: {path}"
 
-    # 1. Gather files
+    extensions = _DEFAULT_EXTENSIONS
+    exclude_patterns = exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
+
+    include_patterns = None
+    if file_pattern is not None:
+        if file_pattern.startswith("*."):
+            ext = file_pattern[2:]
+            if ext in extensions:
+                extensions = [ext]
+            else:
+                include_patterns = [file_pattern]
+        else:
+            include_patterns = [file_pattern]
+
     file_metadatas = _get_file_metadatas(
         abs_path, extensions, include_patterns, exclude_patterns
     )
     if not file_metadatas:
-        return "No files found matching the criteria."
+        return "No files found matching the criteria. [SYSTEM SUGGESTION]: Try using a different file_pattern or check if the directory contains code files."
 
     zrb_print(f"\n  📝 Extraction ({len(file_metadatas)} files)", plain=True)
 
-    # 2. Extract Info
     extraction_token_threshold = CFG.LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD
     extracted_infos = await _extract_info(
         file_metadatas=file_metadatas,
@@ -98,12 +107,11 @@ async def analyze_code(
     )
 
     if not extracted_infos:
-        return "No information could be extracted from the files."
+        return "No information could be extracted from the files. [SYSTEM SUGGESTION]: Try rephrasing your query to be more specific about what you're looking for."
 
     if len(extracted_infos) == 1:
         return extracted_infos[0]
 
-    # 3. Summarize Info (Reduce)
     summarization_token_threshold = CFG.LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD
     summarized_infos = extracted_infos
 
@@ -125,7 +133,8 @@ def _get_file_metadatas(
     exclude_patterns: list[str],
 ) -> list[dict[str, str]]:
     metadata_list = []
-    for root, _, files in os.walk(dir_path):
+    for root, dirs, files in os.walk(dir_path):
+        dirs[:] = [d for d in dirs if not any(pattern in d for pattern in exclude_patterns)]
         files.sort()
         for file in files:
             if not any(file.endswith(f".{ext}") for ext in extensions):

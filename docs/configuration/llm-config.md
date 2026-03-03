@@ -54,6 +54,7 @@ Zrb automatically triggers background summarization agents when conversation his
     *   Default: 50% of `ZRB_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD`.
 *   `ZRB_LLM_HISTORY_SUMMARIZATION_WINDOW`: Number of recent messages to keep completely verbatim in the conversation history during summarization.
     *   Default: `100`
+    *   Note: Zrb also implements a 30% retention policy that keeps the latest 30% of messages when token thresholds are exceeded, whichever is more conservative.
 
 ---
 

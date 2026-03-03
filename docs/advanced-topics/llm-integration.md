@@ -93,5 +93,14 @@ To avoid exceeding the context window of the underlying LLM, Zrb uses a two-tier
 1.  **Message-level Summarization**: If a single tool output (like a large file or a long command output) is too large, it is summarized before being added to the history.
 2.  **Conversational Summarization**: As the overall conversation history grows, older parts of the conversation are summarized into a concise XML `<state_snapshot>`. This snapshot preserves key knowledge, user goals, and recent actions, ensuring the assistant doesn't lose track of the mission.
 
+### 30% Retention Policy
+Zrb implements a 30% retention policy for conversation history. When summarization triggers, the system:
+- Compresses the oldest 70% of messages into a state snapshot
+- Retains the most recent 30% of messages verbatim
+- Ensures tool call/return pairs are never separated during compression
+- Prefers splitting at conversation turn boundaries
+
+This policy ensures summarization happens infrequently while maintaining full context for recent interactions.
+
 ### Journal System
 For persistent, long-term memory, Zrb uses a journal system. This is a directory of Markdown files (by default in `~/.zrb/llm-notes/`) where the assistant can keep notes. The `index.md` file from this directory is automatically included in the assistant's context on every turn.

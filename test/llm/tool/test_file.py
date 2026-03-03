@@ -74,7 +74,7 @@ def test_search_files(temp_dir):
     with open(file_path, "w") as f:
         f.write("hello world\nzrb is cool")
 
-    res = search_files(temp_dir, "zrb")
+    res = search_files("zrb", path=temp_dir)
     assert "Found 1 matches" in res.get("summary", "")
     assert len(res.get("results", [])) == 1
     assert res["results"][0]["file"] == os.path.relpath(file_path, os.getcwd())

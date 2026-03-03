@@ -1,9 +1,9 @@
 # Git Operations Protocol: ABSOLUTE RULES
 
 ## 1. ABSOLUTE PROHIBITIONS
-1.  **NEVER modify git state without EXPLICIT VERBAL approval.** No staging, committing, pushing, pulling, checking out, resetting, merging, tagging, or stashing.
+1.  **🚨 ABSOLUTE PROHIBITION: NEVER execute ANY git command that changes repository state without EXPLICIT VERBAL approval for THAT SPECIFIC command.** This includes but is not limited to: `git add` (STAGING - this is a state change!), `git commit`, `git push`/`git pull`, `git checkout`/`git reset`, `git merge`/`git rebase`, `git tag`/`git stash`.
 2.  **Task completion NEVER includes git ops.** "Update docs" ≠ permission to stage/commit docs.
-3.  **Each git op requires SEPARATE approval.** Staging ≠ permission to commit.
+3.  **Each git operation requires SEPARATE approval.** Stage files" ≠ permission to commit. "Update code" ≠ permission to stage.
 
 ## 2. PERMITTED (READ-ONLY)
 - `git status`, `git diff`, `git log`, `git show`, `git branch` (info only)

@@ -16,20 +16,20 @@ def split_history(
     Split history into messages to summarize and messages to keep.
 
     Strategy:
-    1. Try to find a SAFE split point near `summary_window` that is under token limits.
-    2. If no safe split is found near the window, find the largest safe split under limits.
-    3. If no safe split is found under token limits, use a best-effort approach.
+    1. Retain latest 30% of messages (summarize 70%) as the target.
+    2. Find a SAFE split point near 30% mark that respects tool pairs and turn boundaries.
+    3. If no safe split at 30%, adjust while staying close to the 30% retention policy.
+    4. Fallback to best-effort if no safe split exists.
     """
     if not messages:
         return [], []
 
     tool_pairs = get_tool_pairs(messages)
-    target_idx = max(0, len(messages) - summary_window)
+    retention_ratio = 0.3
+    min_keep_count = max(1, int(len(messages) * retention_ratio))
+    target_idx = len(messages) - min_keep_count
 
     # 1. Search backwards from target_idx to find a safe turn start (keeping MORE messages)
-    # Ensure split_idx is within [0, len(messages)) for range, but target_idx might be len(messages)
-    # Actually if summary_window=0, target_idx = len(messages).
-    # messages[len(messages)] would be out of bounds.
     start_idx = min(target_idx, len(messages) - 1)
 
     for split_idx in range(start_idx, 0, -1):
@@ -37,14 +37,13 @@ def split_history(
         tokens_to_keep = limiter.count_tokens(to_keep)
 
         if tokens_to_keep > conversational_token_threshold * 0.7:
-            # We hit the token limit, stop searching backwards
             break
 
         if is_split_safe(messages, split_idx, tool_pairs):
             if is_turn_start(messages[split_idx]):
                 return messages[:split_idx], messages[split_idx:]
 
-    # 2. If no turn start found by searching backwards, search forwards (keeping FEWER messages)
+    # 2. Search forwards from target_idx (keeping FEWER messages)
     best_safe_idx = -1
     for split_idx in range(target_idx, len(messages)):
         to_keep = messages[split_idx:]
@@ -57,7 +56,6 @@ def split_history(
                 if is_turn_start(messages[split_idx]):
                     return messages[:split_idx], messages[split_idx:]
 
-    # If we found any safe split (even if not a turn start), use it
     if best_safe_idx != -1:
         return messages[:best_safe_idx], messages[best_safe_idx:]
 
@@ -73,8 +71,6 @@ def split_history(
         messages, limiter, conversational_token_threshold, tool_pairs
     )
     if not to_summarize and not to_keep and messages:
-        # Fallback for find_best_effort_split returning ([], [])
-        # We protect at least the last 2 messages if possible
         split_idx = max(0, len(messages) - 2)
         return messages[:split_idx], messages[split_idx:]
 

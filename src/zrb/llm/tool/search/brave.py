@@ -10,6 +10,7 @@ def search_internet(
     page: int = 1,
     safe_search: str | None = None,
     language: str | None = None,
+    api_key: str | None = None,
 ) -> dict[str, Any]:
     """
     Performs a live internet search using Brave Search to retrieve up-to-date information, news, or documentation.
@@ -22,11 +23,20 @@ def search_internet(
     **ARGS:**
     - `query`: The search string or question.
     - `page`: Result page number (default 1).
+    - `api_key`: Brave API key. Falls back to default if not provided.
     """
     if safe_search is None:
         safe_search = CFG.BRAVE_API_SAFE
     if language is None:
         language = CFG.BRAVE_API_LANG
+
+    effective_api_key = api_key if api_key is not None else CFG.BRAVE_API_KEY
+
+    if not effective_api_key:
+        raise Exception(
+            "Error: Brave API key not configured. "
+            "[SYSTEM SUGGESTION]: Ask the user to provide their Brave API key. Pass it via the 'api_key' parameter in your next search_internet call."
+        )
 
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
 
@@ -35,7 +45,7 @@ def search_internet(
         headers={
             "User-Agent": user_agent,
             "Accept": "application/json",
-            "x-subscription-token": CFG.BRAVE_API_KEY,
+            "x-subscription-token": effective_api_key,
         },
         params={
             "q": query,
@@ -47,7 +57,29 @@ def search_internet(
         },
     )
     if response.status_code != 200:
-        raise Exception(
-            f"Error: Unable to retrieve search results (status code: {response.status_code})"
-        )
+        error_body = response.text[:500] if response.text else "No error details provided"
+        if response.status_code == 401:
+            raise Exception(
+                f"Error: Brave Search authentication failed (status code: {response.status_code}). "
+                f"Response: {error_body}. "
+                f"[SYSTEM SUGGESTION]: The API key is invalid or expired. Ask the user to verify their Brave API key at https://brave.com/search/api/ and provide a valid one via the 'api_key' parameter."
+            )
+        elif response.status_code == 429:
+            raise Exception(
+                f"Error: Brave Search rate limit exceeded (status code: {response.status_code}). "
+                f"Response: {error_body}. "
+                f"[SYSTEM SUGGESTION]: You have exceeded your Brave Search plan limits. Wait before retrying, or ask the user to upgrade their plan."
+            )
+        elif 400 <= response.status_code < 500:
+            raise Exception(
+                f"Error: Brave Search request failed (status code: {response.status_code}). "
+                f"Response: {error_body}. "
+                f"[SYSTEM SUGGESTION]: Check your search parameters. The 'language', 'safe_search', or 'query' may be invalid. Try simplifying the query or using default parameters."
+            )
+        else:
+            raise Exception(
+                f"Error: Brave Search server error (status code: {response.status_code}). "
+                f"Response: {error_body}. "
+                f"[SYSTEM SUGGESTION]: This is likely a temporary Brave Search server issue. Retry the search, or inform the user and try again later."
+            )
     return response.json()

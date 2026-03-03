@@ -40,9 +40,9 @@ def create_rag_from_directory(
     overlap: int | None = None,
     max_result_count: int | None = None,
     file_reader: list[RAGFileReader] = [],
-    openai_api_key: str | None = None,
-    openai_base_url: str | None = None,
-    openai_embedding_model: str | None = None,
+    model_api_key: str | None = None,
+    model_base_url: str | None = None,
+    model_name: str | None = None,
 ):
     """
     Create a powerful RAG (Retrieval-Augmented Generation) tool for querying a local
@@ -70,76 +70,91 @@ def create_rag_from_directory(
         max_result_count (int, optional): The maximum number of search results to return.
         file_reader (list[RAGFileReader], optional): A list of custom file readers for
             specific file types.
-        openai_api_key (str, optional): Your OpenAI API key for generating embeddings.
-        openai_base_url (str, optional): An optional base URL for the OpenAI API.
-        openai_embedding_model (str, optional): The embedding model to use.
+        model_api_key (str, optional): Your API key for generating embeddings.
+        model_base_url (str, optional): An optional base URL for the OpenAI API.
+        model_name (str, optional): The embedding model to use.
 
     Returns:
         An asynchronous function that serves as the RAG tool.
     """
 
-    async def retrieve(query: str) -> dict[str, Any]:
-        # Docstring will be set dynamically below
-        from chromadb import PersistentClient
-        from chromadb.config import Settings
-        from openai import OpenAI
+    async def retrieve(
+        query: str,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        embedding_model: str | None = None,
+    ) -> dict[str, Any]:
+        try:
+            from chromadb import PersistentClient
+            from chromadb.config import Settings
+            from openai import OpenAI
+        except ImportError as e:
+            return {
+                "error": f"Missing required dependency: {e}. [SYSTEM SUGGESTION]: Ask the user to install the required packages: pip install chromadb openai"
+            }
 
-        # Initialize OpenAI client with custom URL if provided
-        client_args = {}
-        # Initialize OpenAI client with custom URL if provided
-        client_args = {}
-        api_key_val = (
-            openai_api_key if openai_api_key is not None else CFG.RAG_EMBEDDING_API_KEY
-        )
-        base_url_val = (
-            openai_base_url
-            if openai_base_url is not None
-            else CFG.RAG_EMBEDDING_BASE_URL
-        )
-        embedding_model_val = (
-            openai_embedding_model
-            if openai_embedding_model is not None
-            else CFG.RAG_EMBEDDING_MODEL
-        )
+        api_key_val = api_key if api_key is not None else model_api_key if model_api_key is not None else CFG.RAG_EMBEDDING_API_KEY
+        base_url_val = base_url if base_url is not None else model_base_url if model_base_url is not None else CFG.RAG_EMBEDDING_BASE_URL
+        embedding_model_val = embedding_model if embedding_model is not None else model_name if model_name is not None else CFG.RAG_EMBEDDING_MODEL
         chunk_size_val = chunk_size if chunk_size is not None else CFG.RAG_CHUNK_SIZE
         overlap_val = overlap if overlap is not None else CFG.RAG_OVERLAP
-        max_result_count_val = (
-            max_result_count
-            if max_result_count is not None
-            else CFG.RAG_MAX_RESULT_COUNT
-        )
+        max_result_count_val = max_result_count if max_result_count is not None else CFG.RAG_MAX_RESULT_COUNT
 
-        if api_key_val:
-            client_args["api_key"] = api_key_val
+        if not api_key_val:
+            return {
+                "error": "Embedding API key not configured. [SYSTEM SUGGESTION]: Ask the user for their embedding API provider key and pass it via the 'api_key' parameter. If using a non-OpenAI provider (e.g., Ollama, vLLM), also provide 'base_url' (e.g., 'http://localhost:11434') and 'embedding_model' name."
+            }
+
+        client_args = {"api_key": api_key_val}
         if base_url_val:
             client_args["base_url"] = base_url_val
-        # Initialize OpenAI client for embeddings
-        openai_client = OpenAI(**client_args)
-        # Initialize ChromaDB client
-        chroma_client = PersistentClient(
-            path=vector_db_path, settings=Settings(allow_reset=True)
-        )
-        collection = chroma_client.get_or_create_collection(vector_db_collection)
-        # Track file changes using a hash-based approach
+
+        try:
+            openai_client = OpenAI(**client_args)
+        except Exception as e:
+            return {
+                "error": f"Failed to initialize embedding client: {e}. [SYSTEM SUGGESTION]: The 'base_url' may be unreachable or the 'api_key' invalid. Ask the user to verify their embedding provider URL and credentials, then retry with correct values."
+            }
+
+        try:
+            chroma_client = PersistentClient(
+                path=vector_db_path, settings=Settings(allow_reset=True)
+            )
+            collection = chroma_client.get_or_create_collection(vector_db_collection)
+        except Exception as e:
+            return {
+                "error": f"Failed to initialize ChromaDB: {e}. [SYSTEM SUGGESTION]: Ask the user to check if the vector_db_path ('{vector_db_path}') is accessible and writable. They may need to delete the directory to reset the database."
+            }
+
         hash_file_path = os.path.join(vector_db_path, "file_hashes.json")
-        previous_hashes = _load_hashes(hash_file_path)
+        try:
+            previous_hashes = _load_hashes(hash_file_path)
+        except Exception as e:
+            zrb_print(stylize_error(f"Error loading file hashes: {e}"), plain=True)
+            previous_hashes = {}
+
         current_hashes = {}
-        # Get updated_files
         updated_files = []
+
+        if not os.path.exists(document_dir_path):
+            return {
+                "error": f"Document directory not found: {document_dir_path}. [SYSTEM SUGGESTION]: Ask the user to verify the document_dir_path. The directory may have been moved, deleted, or the path may be wrong."
+            }
+
         for root, _, files in os.walk(document_dir_path):
             for file in files:
                 file_path = os.path.join(root, file)
-                file_hash = _compute_file_hash(file_path)
-                relative_path = os.path.relpath(file_path, document_dir_path)
-                current_hashes[relative_path] = file_hash
-                if previous_hashes.get(relative_path) != file_hash:
-                    updated_files.append(file_path)
-        # Upsert updated_files to vector db
+                try:
+                    file_hash = _compute_file_hash(file_path)
+                    relative_path = os.path.relpath(file_path, document_dir_path)
+                    current_hashes[relative_path] = file_hash
+                    if previous_hashes.get(relative_path) != file_hash:
+                        updated_files.append(file_path)
+                except Exception as e:
+                    zrb_print(stylize_error(f"Error hashing file {file_path}: {e}"), plain=True)
+
         if updated_files:
-            zrb_print(
-                stylize_faint(f"Updating {len(updated_files)} changed files"),
-                plain=True,
-            )
+            zrb_print(stylize_faint(f"Updating {len(updated_files)} changed files"), plain=True)
             for file_path in updated_files:
                 try:
                     relative_path = os.path.relpath(file_path, document_dir_path)
@@ -150,13 +165,7 @@ def create_rag_from_directory(
                         chunk = content[i : i + chunk_size_val]
                         if chunk:
                             chunk_id = ulid.new().str
-                            zrb_print(
-                                stylize_faint(
-                                    f"Vectorizing {relative_path} chunk {chunk_id}"
-                                ),
-                                plain=True,
-                            )
-                            # Get embeddings using OpenAI
+                            zrb_print(stylize_faint(f"Vectorizing {relative_path} chunk {chunk_id}"), plain=True)
                             embedding_response = openai_client.embeddings.create(
                                 input=chunk, model=embedding_model_val
                             )
@@ -165,34 +174,48 @@ def create_rag_from_directory(
                                 ids=[chunk_id],
                                 embeddings=[vector],
                                 documents=[chunk],
-                                metadatas={
-                                    "file_path": relative_path,
-                                    "file_id": file_id,
-                                },
+                                metadatas={"file_path": relative_path, "file_id": file_id},
                             )
                 except Exception as e:
-                    zrb_print(
-                        stylize_error(f"Error processing {file_path}: {e}"), plain=True
-                    )
+                    zrb_print(stylize_error(f"Error processing {file_path}: {e}"), plain=True)
             _save_hashes(hash_file_path, current_hashes)
         else:
-            zrb_print(
-                stylize_faint("No changes detected. Skipping database update."),
-                plain=True,
-            )
-        # Vectorize query and get related document chunks
+            zrb_print(stylize_faint("No changes detected. Skipping database update."), plain=True)
+
         zrb_print(stylize_faint("Vectorizing query"), plain=True)
-        # Get embeddings using OpenAI
-        embedding_response = openai_client.embeddings.create(
-            input=query, model=embedding_model_val
-        )
-        query_vector = embedding_response.data[0].embedding
+
+        try:
+            embedding_response = openai_client.embeddings.create(
+                input=query, model=embedding_model_val
+            )
+            query_vector = embedding_response.data[0].embedding
+        except Exception as e:
+            error_msg = str(e)
+            if "401" in error_msg or "Unauthorized" in error_msg:
+                return {
+                    "error": f"Embedding API authentication failed: {e}. [SYSTEM SUGGESTION]: The 'api_key' is invalid. Ask the user to provide a valid API key and retry the query."
+                }
+            elif "429" in error_msg or "rate limit" in error_msg.lower():
+                return {
+                    "error": f"Embedding API rate limit exceeded: {e}. [SYSTEM SUGGESTION]: Wait before retrying, or ask the user to check their API plan limits."
+                }
+            else:
+                return {
+                    "error": f"Failed to generate query embedding: {e}. [SYSTEM SUGGESTION]: The 'embedding_model' name may be invalid or the provider unreachable. Ask the user to verify the model name and base_url, then retry."
+                }
+
         zrb_print(stylize_faint("Searching documents"), plain=True)
-        results = collection.query(
-            query_embeddings=query_vector,
-            n_results=max_result_count_val,
-        )
-        return dict(results)
+
+        try:
+            results = collection.query(
+                query_embeddings=query_vector,
+                n_results=max_result_count_val,
+            )
+            return dict(results)
+        except Exception as e:
+            return {
+                "error": f"Failed to search documents: {e}. [SYSTEM SUGGESTION]: Ask the user to delete the ChromaDB directory ('{vector_db_path}') to reset the collection. This will force re-indexing of all documents on the next query."
+            }
 
     retrieve.__name__ = tool_name
     retrieve.__doc__ = dedent(
@@ -203,6 +226,9 @@ def create_rag_from_directory(
 
         **ARGS:**
         - `query` (str): The semantic search query or question.
+        - `api_key` (str, optional): Embedding API key. Falls back to tool default or CFG.RAG_EMBEDDING_API_KEY.
+        - `base_url` (str, optional): Embedding API base URL. Falls back to tool default or CFG.RAG_EMBEDDING_BASE_URL.
+        - `embedding_model` (str, optional): Embedding model name. Falls back to tool default or CFG.RAG_EMBEDDING_MODEL.
 
         **RETURNS:**
         - A dictionary containing matching document chunks ("documents") and their metadata.
