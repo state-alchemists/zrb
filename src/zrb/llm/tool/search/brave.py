@@ -57,7 +57,9 @@ def search_internet(
         },
     )
     if response.status_code != 200:
-        error_body = response.text[:500] if response.text else "No error details provided"
+        error_body = (
+            response.text[:500] if response.text else "No error details provided"
+        )
         if response.status_code == 401:
             raise Exception(
                 f"Error: Brave Search authentication failed (status code: {response.status_code}). "

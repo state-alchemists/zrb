@@ -1,5 +1,20 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.6.24 (March 3, 2026)
+
+- **Fix: LLM Tool API Breakage & Mandate Improvements**:
+  - **API Breakage Resolution**: Fixed `analyze_file` API breakage by adding `auto_truncate: bool = True` parameter. The function was calling `read_file()` without the required `auto_truncate` parameter after recent file tool simplifications. Maintains backward compatibility with sensible default.
+  - **Tool Mandate Rewrite**: Rewrote tool mandates in `src/zrb/llm/tool/file.py` and `src/zrb/llm/tool/code.py` to provide LLM usage guidance instead of implementation details. Mandates now focus on when/how to use tools (general exploration, targeted discovery, etc.) rather than describing internal implementation. Mandates are included in prompts via pydantic-ai and should guide LLM usage.
+  - **Flexible Exclusion Control**: Added `exclude_patterns` parameter to `list_files`, `glob_files`, `search_files`, and `analyze_code` functions. Users can pass `[]` to include all files or custom patterns to override default exclusions. Maintains `DEFAULT_EXCLUDED_PATTERNS` as sensible default while providing flexibility for `.venv` and other directory inclusion.
+  - **Enhanced Git Mandate**: Updated `src/zrb/llm/prompt/markdown/git_mandate.md` with assertive language to prevent violations. Added 🚨 visual alert, explicitly calls out `git add` as "STAGING - this is a state change!", clarifies "EACH operation requires SEPARATE approval", and provides concrete examples of what doesn't count as approval ("Stage files" ≠ permission to commit, "Update code" ≠ permission to stage).
+
+- **Test Verification**:
+  - **Comprehensive Test Suite**: All 37 tool-related tests pass with updated architecture.
+  - **Backward Compatibility**: All changes maintain backward compatibility with sensible defaults (`auto_truncate=True`, `exclude_patterns=None` defaults to `DEFAULT_EXCLUDED_PATTERNS`).
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.6.24 in `pyproject.toml`.
+
 ## 2.6.23 (March 2, 2026)
 
 - **Fix: Missing `_remove_lines_from_middle` Function in Truncation Algorithm**:

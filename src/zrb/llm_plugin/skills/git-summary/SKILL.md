@@ -1,7 +1,6 @@
 ---
 name: git-summary
 description: Prepare high-quality git commit messages or comprehensive Pull Request (PR) descriptions based on recent changes.
-disable-model-invocation: true
 user-invocable: true
 ---
 # Skill: git-summary

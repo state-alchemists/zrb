@@ -78,7 +78,9 @@ async def analyze_code(
         return f"Error: Path not found: {path}"
 
     extensions = _DEFAULT_EXTENSIONS
-    exclude_patterns = exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
+    exclude_patterns = (
+        exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
+    )
 
     include_patterns = None
     if file_pattern is not None:
@@ -134,7 +136,9 @@ def _get_file_metadatas(
 ) -> list[dict[str, str]]:
     metadata_list = []
     for root, dirs, files in os.walk(dir_path):
-        dirs[:] = [d for d in dirs if not any(pattern in d for pattern in exclude_patterns)]
+        dirs[:] = [
+            d for d in dirs if not any(pattern in d for pattern in exclude_patterns)
+        ]
         files.sort()
         for file in files:
             if not any(file.endswith(f".{ext}") for ext in extensions):

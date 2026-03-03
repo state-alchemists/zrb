@@ -55,7 +55,9 @@ def list_files(
         raise FileNotFoundError(f"Path does not exist: {path}")
 
     depth = 3
-    patterns_to_exclude = exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
+    patterns_to_exclude = (
+        exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
+    )
     preserved_head_lines = 500
     preserved_tail_lines = 500
 
@@ -68,12 +70,13 @@ def list_files(
         dirs[:] = [
             d
             for d in dirs
-            if not d.startswith(".")
-            and not is_path_excluded(d, patterns_to_exclude)
+            if not d.startswith(".") and not is_path_excluded(d, patterns_to_exclude)
         ]
 
         for filename in files:
-            if not filename.startswith(".") and not is_path_excluded(filename, patterns_to_exclude):
+            if not filename.startswith(".") and not is_path_excluded(
+                filename, patterns_to_exclude
+            ):
                 full_path = os.path.join(root, filename)
                 rel_full_path = os.path.relpath(full_path, abs_path)
                 if not is_path_excluded(rel_full_path, patterns_to_exclude):
@@ -81,7 +84,10 @@ def list_files(
 
     sorted_files = sorted(all_files)
 
-    if auto_truncate and len(sorted_files) > preserved_head_lines + preserved_tail_lines:
+    if (
+        auto_truncate
+        and len(sorted_files) > preserved_head_lines + preserved_tail_lines
+    ):
         truncated_files = (
             sorted_files[:preserved_head_lines] + sorted_files[-preserved_tail_lines:]
         )
@@ -118,7 +124,9 @@ def glob_files(
     if not os.path.exists(abs_path):
         return f"Error: Path does not exist: {path}"
 
-    patterns_to_exclude = exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
+    patterns_to_exclude = (
+        exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
+    )
     preserved_head_lines = 500
     preserved_tail_lines = 500
 
@@ -141,7 +149,10 @@ def glob_files(
 
     sorted_files = sorted(found_files)
 
-    if auto_truncate and len(sorted_files) > preserved_head_lines + preserved_tail_lines:
+    if (
+        auto_truncate
+        and len(sorted_files) > preserved_head_lines + preserved_tail_lines
+    ):
         truncated_files = (
             sorted_files[:preserved_head_lines] + sorted_files[-preserved_tail_lines:]
         )
@@ -395,11 +406,18 @@ def search_files(
     preserved_head_lines = 250
     preserved_tail_lines = 250
 
-    patterns_to_exclude = exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
-    
+    patterns_to_exclude = (
+        exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
+    )
+
     try:
         for root, dirs, files in os.walk(abs_path):
-            dirs[:] = [d for d in dirs if not d.startswith(".") and not is_path_excluded(d, patterns_to_exclude)]
+            dirs[:] = [
+                d
+                for d in dirs
+                if not d.startswith(".")
+                and not is_path_excluded(d, patterns_to_exclude)
+            ]
             for filename in files:
                 if filename.startswith("."):
                     continue

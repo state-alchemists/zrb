@@ -93,12 +93,36 @@ def create_rag_from_directory(
                 "error": f"Missing required dependency: {e}. [SYSTEM SUGGESTION]: Ask the user to install the required packages: pip install chromadb openai"
             }
 
-        api_key_val = api_key if api_key is not None else model_api_key if model_api_key is not None else CFG.RAG_EMBEDDING_API_KEY
-        base_url_val = base_url if base_url is not None else model_base_url if model_base_url is not None else CFG.RAG_EMBEDDING_BASE_URL
-        embedding_model_val = embedding_model if embedding_model is not None else model_name if model_name is not None else CFG.RAG_EMBEDDING_MODEL
+        api_key_val = (
+            api_key
+            if api_key is not None
+            else (
+                model_api_key
+                if model_api_key is not None
+                else CFG.RAG_EMBEDDING_API_KEY
+            )
+        )
+        base_url_val = (
+            base_url
+            if base_url is not None
+            else (
+                model_base_url
+                if model_base_url is not None
+                else CFG.RAG_EMBEDDING_BASE_URL
+            )
+        )
+        embedding_model_val = (
+            embedding_model
+            if embedding_model is not None
+            else model_name if model_name is not None else CFG.RAG_EMBEDDING_MODEL
+        )
         chunk_size_val = chunk_size if chunk_size is not None else CFG.RAG_CHUNK_SIZE
         overlap_val = overlap if overlap is not None else CFG.RAG_OVERLAP
-        max_result_count_val = max_result_count if max_result_count is not None else CFG.RAG_MAX_RESULT_COUNT
+        max_result_count_val = (
+            max_result_count
+            if max_result_count is not None
+            else CFG.RAG_MAX_RESULT_COUNT
+        )
 
         if not api_key_val:
             return {
@@ -151,10 +175,16 @@ def create_rag_from_directory(
                     if previous_hashes.get(relative_path) != file_hash:
                         updated_files.append(file_path)
                 except Exception as e:
-                    zrb_print(stylize_error(f"Error hashing file {file_path}: {e}"), plain=True)
+                    zrb_print(
+                        stylize_error(f"Error hashing file {file_path}: {e}"),
+                        plain=True,
+                    )
 
         if updated_files:
-            zrb_print(stylize_faint(f"Updating {len(updated_files)} changed files"), plain=True)
+            zrb_print(
+                stylize_faint(f"Updating {len(updated_files)} changed files"),
+                plain=True,
+            )
             for file_path in updated_files:
                 try:
                     relative_path = os.path.relpath(file_path, document_dir_path)
@@ -165,7 +195,12 @@ def create_rag_from_directory(
                         chunk = content[i : i + chunk_size_val]
                         if chunk:
                             chunk_id = ulid.new().str
-                            zrb_print(stylize_faint(f"Vectorizing {relative_path} chunk {chunk_id}"), plain=True)
+                            zrb_print(
+                                stylize_faint(
+                                    f"Vectorizing {relative_path} chunk {chunk_id}"
+                                ),
+                                plain=True,
+                            )
                             embedding_response = openai_client.embeddings.create(
                                 input=chunk, model=embedding_model_val
                             )
@@ -174,13 +209,21 @@ def create_rag_from_directory(
                                 ids=[chunk_id],
                                 embeddings=[vector],
                                 documents=[chunk],
-                                metadatas={"file_path": relative_path, "file_id": file_id},
+                                metadatas={
+                                    "file_path": relative_path,
+                                    "file_id": file_id,
+                                },
                             )
                 except Exception as e:
-                    zrb_print(stylize_error(f"Error processing {file_path}: {e}"), plain=True)
+                    zrb_print(
+                        stylize_error(f"Error processing {file_path}: {e}"), plain=True
+                    )
             _save_hashes(hash_file_path, current_hashes)
         else:
-            zrb_print(stylize_faint("No changes detected. Skipping database update."), plain=True)
+            zrb_print(
+                stylize_faint("No changes detected. Skipping database update."),
+                plain=True,
+            )
 
         zrb_print(stylize_faint("Vectorizing query"), plain=True)
 
