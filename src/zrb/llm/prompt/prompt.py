@@ -145,20 +145,28 @@ def _get_prompt_replacements() -> Dict[str, str]:
             if value is not None:
                 placeholder = f"{{CFG_{attr}}}"
                 replacements[placeholder] = str(value)
-    replacements["{JOURNAL_INDEX_CONTENT}"] = _get_journal_index_content()
-    return replacements
-
-
-def _get_journal_index_content() -> str:
+    # Add file existence status
+    journal_dir = os.path.abspath(os.path.expanduser(CFG.LLM_JOURNAL_DIR))
     journal_index_file = os.path.abspath(
         os.path.expanduser(
             os.path.join(CFG.LLM_JOURNAL_DIR, CFG.LLM_JOURNAL_INDEX_FILE),
         )
     )
+    replacements["{CFG_LLM_JOURNAL_DIR_STATUS}"] = (
+        "exists" if os.path.exists(journal_dir) else "inexist"
+    )
+    replacements["{CFG_LLM_JOURNAL_INDEX_FILE_STATUS}"] = (
+        "exists" if os.path.isfile(journal_index_file) else "inexist"
+    )
+    # Index content
+    replacements["{JOURNAL_INDEX_CONTENT}"] = "<Empty>"
     if os.path.isfile(journal_index_file):
-        with open(journal_index_file, "r") as f:
-            return f.read()
-    return "<Empty>"
+        with open(journal_index_file) as f:
+            content = f.read()
+            if len(content) > 1000:
+                content = content[:1000] + " (...more)"
+            replacements["{JOURNAL_INDEX_CONTENT}"] = content
+    return replacements
 
 
 def _replace_prompt_placeholders(prompt: str, replacements: Dict[str, str]) -> str:

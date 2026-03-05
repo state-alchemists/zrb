@@ -183,9 +183,9 @@ class LLMChatTask(BaseTask):
                 include_cli_skills=False,
                 include_project_context=False,
             )
+        self._prompt_manager = prompt_manager
         self._system_prompt = system_prompt
         self._render_system_prompt = render_system_prompt
-        self._prompt_manager = prompt_manager
         self._active_skills = active_skills
         self._render_active_skills = render_active_skills
         self._tools = tools if tools is not None else []
@@ -200,8 +200,6 @@ class LLMChatTask(BaseTask):
         self._history_processors = (
             history_processors if history_processors is not None else []
         )
-        if not self._history_processors:
-            self._history_processors.append(create_summarizer_history_processor())
         self._model = model
         self._render_model = render_model
         self._model_settings = model_settings
@@ -529,7 +527,8 @@ class LLMChatTask(BaseTask):
             render_active_skills=self._render_active_skills,
             tools=resolved_tools,
             toolsets=resolved_toolsets,
-            history_processors=self._history_processors,
+            history_processors=self._history_processors
+            + [create_summarizer_history_processor()],
             llm_config=self._llm_config,
             llm_limitter=self._llm_limitter,
             history_manager=history_manager,

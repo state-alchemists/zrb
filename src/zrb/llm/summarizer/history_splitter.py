@@ -16,18 +16,18 @@ def split_history(
     Split history into messages to summarize and messages to keep.
 
     Strategy:
-    1. Retain latest 30% of messages (summarize 70%) as the target.
-    2. Find a SAFE split point near 30% mark that respects tool pairs and turn boundaries.
-    3. If no safe split at 30%, adjust while staying close to the 30% retention policy.
+    1. Retain latest `summary_window` messages (or fewer if token limit forces).
+    2. Find a SAFE split point near the target that respects tool pairs and turn boundaries.
+    3. If no safe split at target, adjust while staying close to the retention policy.
     4. Fallback to best-effort if no safe split exists.
     """
     if not messages:
         return [], []
 
     tool_pairs = get_tool_pairs(messages)
-    retention_ratio = 0.3
-    min_keep_count = max(1, int(len(messages) * retention_ratio))
-    target_idx = len(messages) - min_keep_count
+    # Try to keep summary_window messages, but at least 1 and at most all messages
+    target_keep_count = min(summary_window, len(messages))
+    target_idx = len(messages) - target_keep_count
 
     # 1. Search backwards from target_idx to find a safe turn start (keeping MORE messages)
     start_idx = min(target_idx, len(messages) - 1)

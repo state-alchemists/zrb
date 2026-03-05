@@ -1,4 +1,3 @@
-import re
 from pathlib import Path
 from typing import Callable, List, Optional
 
@@ -43,94 +42,62 @@ def create_project_context_prompt():
         next_handler: Callable[[AnyContext, str], str],
     ) -> str:
         search_dirs = _get_search_directories()
-        project_docs = []
-        found_files_paths = []
+        found_files = []
 
-        for filename in ["CLAUDE.md", "AGENTS.md"]:
-            content = _get_combined_content(filename, search_dirs)
-            if content:
-                summary = _summarize_markdown(content, max_len=5000)
-                if summary == content:
-                    doc_section = f"## Content of {filename}\n\n" f"{summary}"
-                else:
-                    doc_section = (
-                        f"## Summary of {filename}\n"
-                        "**Read the full file if you need to understand project-specific commands, conventions, or architecture.**\n"
-                        "Failure to do so may result in incorrect implementations.\n\n"
-                        f"{summary}"
-                    )
-                project_docs.append(doc_section)
-
-            # Track found file paths for fallback message
+        for filename in ["CLAUDE.md", "AGENTS.md", "README.md", "GEMINI.md"]:
             for directory in search_dirs:
                 file_path = directory / filename
                 if file_path.exists() and file_path.is_file():
-                    found_files_paths.append(f"- `{file_path}`")
-                    break
+                    # Check if file has content
+                    try:
+                        with open(file_path, "r", encoding="utf-8") as f:
+                            content = f.read().strip()
+                            status = (
+                                "exists (has content)" if content else "exists (empty)"
+                            )
+                    except Exception:
+                        status = "exists (unreadable)"
 
-        if project_docs:
-            # Content was found and summarized
-            return next_handler(
-                ctx,
-                f"{current_prompt}\n\n{make_markdown_section('Project Documentation Summary', '\n\n'.join(project_docs))}",
-            )
-        elif found_files_paths:
-            # Files were found but might be empty or content could not be processed
+                    found_files.append(f"- `{file_path}` ({status})")
+                    break  # Only list first occurrence in search hierarchy
+
+        if found_files:
             context_message = (
-                "The following project documentation files are available. "
-                "You MUST ALWAYS `Read` them if you need to understand "
-                "project conventions, architectural patterns, or specific guidelines. "
-                "NEVER assume project structure without verifying these files:\n"
-                + "\n".join(found_files_paths)
+                "## Project Documentation Guidelines\n\n"
+                "The following project documentation files are available:\n\n"
+                + "\n".join(found_files)
+                + "\n\n"
+                "**SMART DOCUMENTATION USAGE RULES:**\n\n"
+                "1. **READ WHEN WORKING ON PROJECT:** Only and always load project documentation "
+                "when you need to do anything with the current project. This includes:\n"
+                "   - Modifying code or project structure\n"
+                "   - Adding tests or changing dependencies\n"
+                "   - Making architectural decisions\n"
+                "   - Understanding project conventions or patterns\n\n"
+                "2. **DO NOT READ when:**\n"
+                "   - Having general conversation (e.g., 'what time is it?')\n"
+                "   - Answering questions unrelated to project work\n"
+                "   - When documentation is not relevant to the current task\n\n"
+                "3. **DOCUMENTATION HIERARCHY (TRUTH SOURCE ORDER):**\n"
+                "   - **AGENTS.md:** Project laws - OVERRIDES all other documentation (AI Agent documentation)\n"
+                "   - **CLAUDE.md/GEMINI.md:** Same as AGENTS.md but built with Claude/Gemini in mind\n"
+                "   - **README.md:** For humans, but LLM should read with this consideration\n"
+                "   - **NEVER** assume project conventions without explicit verification from these files\n\n"
+                "4. **ACTIVE READING REQUIRED:** If documentation is not in system prompt and you need "
+                "to work with the project, you MUST use `Read` tool to load it. Documentation must "
+                "always be loaded when needed to work with the current project.\n\n"
+                "5. **VERIFICATION & CITATION:** After reading project documentation, you should "
+                "reference which documentation informed your approach when relevant."
             )
             return next_handler(
                 ctx,
-                f"{current_prompt}\n\n{make_markdown_section('Project Documentation', context_message)}",
+                f"{current_prompt}\n\n{make_markdown_section('Project Documentation Guidelines', context_message)}",
             )
         else:
             # No documentation found
             return next_handler(ctx, current_prompt)
 
     return project_context
-
-
-def _summarize_markdown(
-    content: str, max_len: int = 10000, snippet_len: int = 1000
-) -> str:
-    if len(content) <= max_len:
-        return content
-
-    summary = []
-    total_length = 0
-
-    # Regex to find markdown headers
-    header_pattern = re.compile(r"(^|\n)(#+)\s+(.*)")
-    matches = list(header_pattern.finditer(content))
-
-    if not matches:
-        # If no headers, just truncate the whole content
-        return content[:max_len] + "... (more)" if len(content) > max_len else content
-
-    for i, match in enumerate(matches):
-        header = match.group(0).strip()
-        summary.append(header)
-        total_length += len(header)
-
-        # Get the content between this header and the next
-        start_pos = match.end()
-        end_pos = matches[i + 1].start() if i + 1 < len(matches) else len(content)
-        snippet = content[start_pos:end_pos].strip()
-
-        if snippet:
-            if len(snippet) > snippet_len:
-                snippet = snippet[:snippet_len].strip() + "... (more)"
-            summary.append(snippet)
-            total_length += len(snippet)
-
-        if total_length > max_len:
-            break
-
-    return "\n\n".join(summary)[:max_len]
 
 
 def _get_search_directories() -> list[Path]:
@@ -152,21 +119,6 @@ def _get_search_directories() -> list[Path]:
     except Exception:
         pass
     return search_dirs
-
-
-def _get_combined_content(filename: str, search_dirs: list[Path]) -> str:
-    contents = []
-    for directory in search_dirs:
-        file_path = directory / filename
-        if file_path.exists() and file_path.is_file():
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    content = f.read().strip()
-                    if content:
-                        contents.append(content)
-            except Exception:
-                pass
-    return "\n\n".join(contents)
 
 
 def _get_skills_section(

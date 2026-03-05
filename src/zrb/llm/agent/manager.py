@@ -456,12 +456,7 @@ class SubAgentManager:
             system_prompt=definition.system_prompt,
             tools=resolved_tools,
             toolsets=resolved_toolsets,
-            history_processors=[
-                create_summarizer_history_processor(
-                    token_threshold=CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD,
-                    summary_window=CFG.LLM_HISTORY_SUMMARIZATION_WINDOW,
-                )
-            ],
+            history_processors=[create_summarizer_history_processor()],
         )
 
 

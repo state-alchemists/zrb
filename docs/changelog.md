@@ -1,208 +1,28 @@
 🔖 [Documentation Home](../README.md)
 
-## 2.6.24 (March 3, 2026)
+## 2.7.0 (March 5, 2026)
 
-- **Fix: LLM Tool API Breakage & Mandate Improvements**:
-  - **API Breakage Resolution**: Fixed `analyze_file` API breakage by adding `auto_truncate: bool = True` parameter. The function was calling `read_file()` without the required `auto_truncate` parameter after recent file tool simplifications. Maintains backward compatibility with sensible default.
-  - **Tool Mandate Rewrite**: Rewrote tool mandates in `src/zrb/llm/tool/file.py` and `src/zrb/llm/tool/code.py` to provide LLM usage guidance instead of implementation details. Mandates now focus on when/how to use tools (general exploration, targeted discovery, etc.) rather than describing internal implementation. Mandates are included in prompts via pydantic-ai and should guide LLM usage.
-  - **Flexible Exclusion Control**: Added `exclude_patterns` parameter to `list_files`, `glob_files`, `search_files`, and `analyze_code` functions. Users can pass `[]` to include all files or custom patterns to override default exclusions. Maintains `DEFAULT_EXCLUDED_PATTERNS` as sensible default while providing flexibility for `.venv` and other directory inclusion.
-  - **Enhanced Git Mandate**: Updated `src/zrb/llm/prompt/markdown/git_mandate.md` with assertive language to prevent violations. Added 🚨 visual alert, explicitly calls out `git add` as "STAGING - this is a state change!", clarifies "EACH operation requires SEPARATE approval", and provides concrete examples of what doesn't count as approval ("Stage files" ≠ permission to commit, "Update code" ≠ permission to stage).
+- **Major: Core Prompt System Simplification & Mandate Restructuring**:
+  - **Project Context Prompt Overhaul**: Completely redesigned `src/zrb/llm/prompt/claude.py` to provide clear "Project Documentation Guidelines" instead of attempting to summarize documentation files. The new approach lists available documentation files with status indicators and provides SMART documentation usage rules for LLMs.
+  - **Mandate Simplification**: Streamlined all core mandate files with clearer, more direct language:
+    - **Git Mandate**: Restructured as "🐙 Absolute Git Rule" with clear prohibitions, approval protocol, and violation response. Removed verbose examples in favor of concise, actionable rules.
+    - **Journal Mandate**: Restructured as "📓 Absolute Journaling Rule" with clear activation requirements, smart reading guidelines, and update guidelines. Emphasizes journal as single source of truth.
+    - **Core Mandate**: Reorganized into clear "Core Directives" focusing on Plan Before Acting, Context-First, Empirical Verification, Clarify Intent, Context Efficiency, Secret Protection, and Self-Correction.
+  - **Prompt Placeholder Enhancement**: Updated `src/zrb/llm/prompt/prompt.py` to include file existence status indicators (`{CFG_LLM_JOURNAL_DIR_STATUS}` and `{CFG_LLM_JOURNAL_INDEX_FILE_STATUS}`) and improved journal content handling with truncation for large files.
 
-- **Test Verification**:
-  - **Comprehensive Test Suite**: All 37 tool-related tests pass with updated architecture.
-  - **Backward Compatibility**: All changes maintain backward compatibility with sensible defaults (`auto_truncate=True`, `exclude_patterns=None` defaults to `DEFAULT_EXCLUDED_PATTERNS`).
+- **Improvement: Summarizer Configuration Simplification**:
+  - **Default History Processor**: Simplified summarizer usage across the system by removing explicit token threshold and summary window parameters in favor of default configuration. Updated `src/zrb/builtin/llm/chat.py`, `src/zrb/llm/agent/manager.py`, and `src/zrb/llm/task/llm_chat_task.py` to use `create_summarizer_history_processor()` without parameters.
+  - **History Splitter Logic Update**: Modified `src/zrb/llm/summarizer/history_splitter.py` to use `summary_window` parameter directly instead of calculating retention ratio, improving clarity and consistency.
 
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.24 in `pyproject.toml`.
-
-## 2.6.23 (March 2, 2026)
-
-- **Fix: Missing `_remove_lines_from_middle` Function in Truncation Algorithm**:
-  - **Bug Resolution**: Added the missing `_remove_lines_from_middle()` function to `src/zrb/util/truncate.py` that was being called at line 91 but never defined. The function properly removes lines from the middle section when content exceeds head+tail line limits.
-  - **Truncation Algorithm Completion**: The multi-stage truncation algorithm now has all required helper functions: `_remove_lines_from_middle`, `_remove_lines_from_tail`, and `_remove_lines_from_head` for complete head-tail preservation logic.
-  - **Test Verification**: Verified the fix works correctly with test cases showing proper head lines, truncation message, and tail lines in output.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.23 in `pyproject.toml`.
-
-## 2.6.22 (March 2, 2026)
-
-- **Documentation Enhancement: Summarization Logic Documentation**:
-  - **Cost-Benefit Optimization**: Added documentation explaining that summarization is skipped if tokens are within threshold AND the portion to summarize is less than 30% of the conversational token threshold. Prevents unnecessary summarization when little context would be saved.
-  - **Configuration Clarity**: Updated configuration section with default values (60% of max context window for conversational threshold, 50% of conversational threshold for message threshold, 100 for summary window) and clarified that environment variables are accessed in code via `CFG.LLM_*` properties.
-  - **Constants Documentation**: Added section documenting `SUMMARY_PREFIX` and `TRUNCATED_PREFIX` constants used in the summarization system.
-  - **Message Conversion Details**: Added section explaining how different message parts (ImageUrl, BinaryContent, AudioUrl, ToolCallPart, ToolReturnPart) are converted to text representations for summarization.
-  - **Safety Mechanisms**: Documented safety mechanisms including safe copy for mutable content, tool response skipping for ToolDenied/ToolApproved messages, depth limiting (max 5), and backward compatibility support.
-
-- **Improvement: Ollama Model Auto-Completion**:
-  - **Ollama Integration**: Added Ollama model auto-completion to zrb UI, enabling users to select from locally available Ollama models.
-  - **Dynamic Model Fetching**: Created `_get_ollama_models()` method that dynamically fetches available models via `ollama ls` command with 30-second caching to avoid repeated shell calls.
-  - **Pydantic-AI Compatibility**: Models are formatted as `ollama:<model-name>` for seamless compatibility with pydantic-ai's Ollama integration.
-
-- **Improvement: PromptManager Enhancement**:
-  - **Property Accessors**: Added property getters and setters for `include_persona`, `include_mandate`, `include_git_mandate`, `include_system_context`, `include_journal`, `include_claude_skills`, and `include_cli_skills` to enable dynamic configuration of prompt components.
-
-- **Improvement: Tool Docstring MANDATES Enhancement**:
-  - **Bash Tool**: Enhanced with timeout guidance (default 30s, max 10min), truncation notice, and batch command optimization tips.
-  - **AnalyzeCode Tool**: Clarified as LLM sub-agent with resource-intensity warnings and guidance for single file vs directory analysis.
-  - **File Tools Comprehensive MANDATES**: Added detailed MANDATES sections to all file tools:
-    - **LS**: Depth limiting, excluded patterns, truncation controls, Glob preference guidance.
-    - **Glob**: Pattern syntax, result truncation, LS alternative guidance.
-    - **Read**: Line range selection, pagination, truncation limits, ReadMany preference.
-    - **ReadMany**: Error handling, batch processing, efficiency guidance.
-    - **Write**: Directory creation, mode usage, Edit preference, verification steps.
-    - **WriteMany**: File dict format, mode defaults, batch efficiency.
-    - **Edit**: Context verification, count parameter, error handling, Write alternative.
-    - **Grep**: Python regex syntax, file_pattern restrictions, truncation, alternative tools.
-    - **AnalyzeFile**: Resource intensity, truncation, Read/AnalyzeCode alternatives.
-  - **Web Tools MANDATES**: Enhanced OpenWebPage with summarization behavior and links documentation; enhanced SearchInternet with API key requirements, pagination, and configuration options.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.22 in `pyproject.toml`.
-
-## 2.6.21 (February 28, 2026)
-
-- **Improvement: Skill Naming Convention Standardization**:
-  - **Snake Case to Kebab Case Migration**: Standardized all skill names from snake_case to kebab-case format for consistency across the system: `core_coding` → `core-coding`, `core_journaling` → `core-journaling`, `git_summary` → `git-summary`, `quality_assurance` → `quality-assurance`, `research_and_plan` → `research-and-plan`.
-  - **Directory Structure Updates**: Updated skill directory names to match new kebab-case naming convention, ensuring file system consistency with skill activation references.
-  - **Cross-Reference Updates**: Updated all references to skill names in mandate files (`mandate.md`, `journal_mandate.md`), agent definitions (`subagent.agent.md`), and skill creator documentation to reflect new naming convention.
-
-- **Improvement: Skill Activation Tool Enhancement**:
-  - **RELOAD REQUIRED Directive**: Added explicit guidance to `ActivateSkill` tool description in `src/zrb/llm/tool/skill.py` noting that long conversations with history summarization may cause skill instruction details to be forgotten, requiring tool re-invocation to reload instructions into context.
-  - **Proactive Skill Management**: Enhanced tool documentation to encourage proactive skill reloading when users feel they have lost exact details of an active skill, improving reliability of skill-based workflows.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.21 in `pyproject.toml`.
-
-## 2.6.20 (February 28, 2026)
-
-- **Improvement: Enhanced Truncation Algorithm with Character Limit Support**:
-  - **Multi-Stage Truncation Algorithm**: Enhanced `truncate_output` function in `src/zrb/util/truncate.py` with comprehensive character limit support following a multi-stage algorithm: (1) If content ≤ max_chars, return as-is; (2) Apply max_line_length truncation to all lines first; (3) If still > max_chars and line count > head_lines + tail_lines, remove lines from middle; (4) If still > max_chars, remove lines from tail (from top of tail section); (5) If still > max_chars, remove lines from head (from bottom of head section); (6) Insert truncation message only at end at location of removed lines.
-  - **Character Truncation as Last Resort**: Added character-level truncation as final fallback with proper size accounting (available_for_content = max_chars - message_size) and edge case handling for very small max_chars (<15) returning minimal "..." indicator.
-  - **Accurate Truncation Metadata**: Enhanced function to return tuple `(truncated_string, TruncationInfo)` with accurate truncation metrics (original/truncated lines/chars, omitted lines/chars, truncation_type) for precise truncation notices in tool outputs.
-  - **Refactored for Maintainability**: Broke down 200+ line monolithic function into 7 focused helper functions (`_truncate_line`, `_apply_line_length_truncation`, `_remove_lines_from_middle`, `_remove_lines_from_tail`, `_remove_lines_from_head`, `_build_result_with_truncation_message`, `_apply_character_truncation`) while preserving exact algorithm and public API.
-
-- **Improvement: Web Authentication Configuration Standardization**:
-  - **Environment Variable Consistency**: Standardized web authentication environment variables: `ZRB_WEB_SECRET` → `ZRB_WEB_SECRET_KEY`, `ZRB_WEB_ACCESS_TOKEN_EXPIRE_MINUTES` → `ZRB_WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES`, `ZRB_WEB_REFRESH_TOKEN_EXPIRE_MINUTES` → `ZRB_WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES`.
-  - **Configuration Property Updates**: Updated `Config` class properties and setters in `src/zrb/config/config.py` to match new environment variable names while maintaining backward compatibility through proper environment variable mapping.
-  - **Documentation Updates**: Updated configuration documentation in `docs/installation-and-configuration/configuration/README.md`, `docs/installation-and-configuration/configuration/llm-integration.md`, and `docs/installation-and-configuration/configuration/web-auth-config.md` to reflect new variable names and provide clearer guidance.
-
-- **Improvement: Enhanced Prompt Customization Hierarchy**:
-  - **Multi-Level Prompt Override System**: Enhanced prompt loading in `src/zrb/llm/prompt/prompt.py` with four-level hierarchy: (1) `ZRB_LLM_PROMPT_DIR` (highest priority), (2) Environment variable direct override (`ZRB_LLM_PROMPT_{name}`), (3) `ZRB_LLM_BASE_PROMPT_DIR` (organization-wide), (4) Package default (lowest priority).
-  - **New Configuration Option**: Added `ZRB_LLM_BASE_PROMPT_DIR` environment variable and `Config.LLM_BASE_PROMPT_DIR` property for organization-wide prompt overrides that apply across multiple projects.
-  - **Documentation Enhancement**: Updated LLM integration documentation with clear search order explanation and examples for multi-level prompt customization.
-
-- **Improvement: Core Mandate & Skill System Refinements**:
-  - **Mandate Restructuring**: Reorganized `mandate.md` with clearer Universal Principles (Structured Thinking, Context-First, No Destructive Assumptions) and Absolute Directives focusing on secret protection and self-correction.
-  - **Git Mandate Strengthening**: Enhanced `git_mandate.md` with "ABSOLUTE RULES" format, explicit prohibition examples, and strict approval protocol emphasizing "Assist, don't autonomously manage git."
-  - **Skill System Consolidation**: Consolidated and renamed skills for better clarity: `core_journal` → `core_journaling`, `test` → `quality_assurance`, `research` → `research_and_plan`, `debug` → integrated into `quality_assurance`, removed redundant skills (`commit`, `core_mandate_brownfield`, `core_mandate_documentation`, `plan`, `pr`).
-  - **Agent Simplification**: Consolidated multiple specialized agents into single `subagent.agent.md` for general delegation tasks, removing `coder.agent.md`, `explorer.agent.md`, `planner.agent.md`, `researcher.agent.md`, `reviewer.agent.md`.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.20 in `pyproject.toml`.
-  - **Test Updates**: Updated `test/config/test_config.py` to reflect new environment variable names for web authentication configuration.
-
-## 2.6.19 (February 27, 2026)
-
-- **Improvement: Reusable Truncation Logic**:
-  - **Centralized Logic**: Extracted line-length limit and head/tail preservation logic into `truncate_output` in `src/zrb/util/truncate.py`.
-  - **Tool Consolidation**: Refactored `Grep`, `Read`, and `Bash` tools to import and use this shared utility, ensuring consistent and robust output truncation across the system.
-
-- **Fix: Unbounded Line Lengths in Tool Outputs**:
-  - **Grep Tool Truncation**: Addressed issue where matching against massive single-line files (e.g., minified JS or JSON dumps) would return megabytes of data. `_get_file_matches` in `src/zrb/llm/tool/file.py` now enforces a 1,000-character limit per line.
-  - **Bash Tool Truncation**: Similarly updated `src/zrb/llm/tool/bash.py` to prevent giant single-line outputs from bloating the history.
-  - **Read Tool Truncation**: Updated `read_file` to ensure individual lines are safely truncated when returning specific file line ranges.
-
-- **Fix: Tool Execution Rejection Reason Truncation**:
-  - **Preserved User Context**: Removed the hardcoded 500-character truncation limit for user rejection reasons in `src/zrb/llm/tool_call/handler.py`. Detailed feedback and code snippets provided during tool execution rejection are now passed to the AI exactly as is.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.19 in `pyproject.toml`.
-
-## 2.6.18 (February 27, 2026)
-
-- **Optimization: System Prompt Token Efficiency & Directive Strength**:
-  - **Comprehensive Prompt Optimization**: Reduced system prompt from ~7K to ~5.8K tokens (17% overall reduction) while maintaining all critical directives and enforcement strength.
-  - **Mandate.md Optimization**: Reduced from ~1,500 to ~800 tokens (47% reduction) by removing redundancies, tightening language, and eliminating filler while preserving Brownfield Protocol, Execution Framework, and safety directives.
-  - **Persona.md Optimization**: Reduced from ~300 to ~200 tokens (33% reduction) with concise phrasing while maintaining "Brownfield Specialist" and "Pragmatic Doer" core identity.
-  - **Journal Mandate Optimization**: Reduced from ~500 to ~350 tokens (30% reduction) by removing redundant phrasing and tightening "When to Read/Update" sections while keeping critical timing rules.
-  - **Git Mandate Optimization**: Reduced from ~400 to ~280 tokens (30% reduction) by shortening verbose operation lists and consolidating "Core Principles" with tighter phrasing.
-  - **Brownfield Protocol Analysis**: Documented AI's "knowing-doing gap" violation of mandate 2.2 (not activating core_mandate_brownfield before codebase work) and strengthened enforcement language.
-
-- **Improvement: Token Estimation Accuracy**:
-  - **Char-to-Token Ratio Correction**: Updated fallback token estimation from `char // 3` to `char // 4` in `LLMLimiter._count_tokens()` for more accurate token counting when tiktoken is not available.
-  - **Truncation Logic Update**: Changed `truncate_text()` fallback from `max_tokens * 3` to `max_tokens * 4` to match the improved character-to-token ratio.
-  - **Test Updates**: Updated test expectations in `test_limiter_coverage.py` and `test_limiter_explosion.py` to reflect the more accurate token estimation.
-
-- **Improvement: Sequential Execution Enforcement**:
-  - **Strategic Tool Selection**: Emphasized surgical tool usage with conservative limits and scopes for better context efficiency.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.18 in `pyproject.toml`.
-
-## 2.6.17 (February 26, 2026)
-
-- **Fix: Summarizer Brittle String Prefix Detection & Tool Denial Leakage**:
-  - **Robust Type-Based Detection**: Replaced brittle string prefix checking in `src/zrb/llm/summarizer/message_processor.py` with type-based detection using `isinstance(safe_content, (ToolDenied, ToolApproved))` from pydantic_ai. This prevents summarization failures when tool denial/approval message wording changes.
-  - **Module-Level Constants**: Added `SUMMARY_PREFIX = "SUMMARY OF TOOL RESULT:"` and `TRUNCATED_PREFIX = "TRUNCATED TOOL RESULT:"` as module-level constants, eliminating hardcoded string matching and ensuring consistent prefix usage across generation and detection.
-  - **Tool Denial Message Handling**: Enhanced summarizer to skip processing for tool denial/approval messages, preventing wasted processing time on non-tool-result content.
-  - **Uppercase Prefix Standardization**: Updated all prefix strings to uppercase format for consistency and clarity.
-
-- **Fix: Tool Confirmation Output Leakage Prevention**:
-  - **Buffer Clearance After Tool Confirmation**: Added `self._capture.clear_buffer()` in a `finally` block in `UI.confirm_tool_call()` (`src/zrb/llm/app/ui.py`) to prevent captured stdout from previous operations leaking into future tool results.
-  - **User Response Truncation**: Added 500-character limit for user responses in tool confirmation prompts (`src/zrb/llm/tool_call/handler.py`) with truncation notification to prevent excessively long responses from overwhelming the system.
-
-- **Improvement: Core Mandate Task Cancellation Protocol**:
-  - **Explicit Cancellation Rules**: Added Task Cancellation section to `mandate.md` with clear rules: (1) Stop when user asks to cancel, (2) Immediate cessation of all tool calls and task execution, (3) No persistence with verification or completion attempts after cancellation.
-  - **Tool Denial Response Enforcement**: Enhanced journal documentation with explicit "Tool Denial Response" preference requiring immediate cessation of tool calls when user denies execution with any message.
-
-- **Test Updates**:
-  - **Prefix Consistency**: Updated test expectations in `test/llm/summarizer/test_dual_threshold.py` and `test/llm/history_processor/test_history_summarizer.py` to expect uppercase prefixes (`SUMMARY OF TOOL RESULT:` instead of `SUMMARY of tool result:`).
-  - **Comprehensive Validation**: All 49 summarizer-related tests pass with updated architecture.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.17 in `pyproject.toml`.
-
-## 2.6.16 (February 26, 2026)
-
-- **Fix: Thread-Safe Interactive Input Handling**:
-  - **Graceful Interruption**: Refactored `StdUI.ask_user()` in `src/zrb/llm/agent/std_ui.py` to use `prompt_toolkit.PromptSession().prompt_async()` instead of `asyncio.to_thread(input)`. This prevents the application from hanging indefinitely when a user presses `Ctrl+C` (KeyboardInterrupt) during non-interactive mode tool confirmations. The previous thread-based implementation swallowed signals and blocked the shutdown process.
-  - **EOF Error Handling**: Added proper handling for `EOFError` during input, returning an empty string to allow graceful fallback instead of crashing the process.
-
-- **Test Infrastructure Updates**:
-  - **Model Mocking**: Fixed an integration test that relied on live API calls by properly mocking the model `openai:gpt-4o-mini` to `test` in `test_tool_policy_integration.py`, preventing timeout errors on network interruptions.
-  - **Assertion Resilience**: Updated assertions in `test_llm_task_tool_confirmation.py` to correctly evaluate dynamically wrapped callbacks during tool confirmation tests.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.16 in `pyproject.toml`.
-
-## 2.6.15 (February 26, 2026)
-
-- **Improvement: Core Prompt Refinements & Agent Identity Enhancement**:
-  - **Mandate Restructuring**: Updated `mandate.md` with clearer CONTEXT EFFICIENCY principles, better distinction between Directives (action requests) and Inquiries (analysis requests), and improved Execution Framework with explicit Research → Strategy → Execution flow.
-  - **Persona Enhancement**: Enhanced `persona.md` with "interactive CLI agent" identity, added High-Signal Output principles (avoid conversational filler, focus on intent), Concise & Direct communication style (aim for <3 lines per response), and Explain Before Acting requirement for state-modifying actions.
-  - **Journal Mandate Clarification**: Improved `journal_mandate.md` with clearer guidance on when to read/update journal, emphasis on state snapshots and active constraints, and refined journal curation principles.
-
-- **Improvement: Skill System Overhaul with Validation-First Philosophy**:
-  - **Test Skill Enhancement**: Major overhaul of test skill with emphasis on "Validation is the only path to finality" mandate. Added detailed Environment & Pattern Audit workflow, comprehensive test generation guidelines, and Exhaustive Verification requirements (build, lint, type-check in addition to tests).
-  - **Debug Skill Refinement**: Enhanced debug skill with Empirical Reproduction First mandate, structured scientific workflow, and improved debugging checklist focusing on empirical verification and surgical fixes.
-  - **Brownfield Skill Updates**: Various refinements to core_mandate_brownfield skill for better discovery and execution protocols.
-
-- **Improvement: Tool Safety & Non-Interactive Execution**:
-  - **Bash Tool Safety Enhancement**: Added mandate to ALWAYS prefer non-interactive flags (`-y`, `--yes`, `--watch=false`, `CI=true`) for scaffolding tools or test runners to avoid persistent watch modes hanging execution.
-  - **Improved Timeout Guidance**: Enhanced timeout error messages with specific guidance on using non-interactive flags to prevent background process issues.
-
-- **Improvement: Agent Guidance Refinements**:
-  - **Coder Agent Updates**: Enhanced guidance for safe integration into complex legacy codebases with emphasis on pattern matching and surgical changes.
-  - **Generalist & Researcher Agent Refinements**: Updated agent guidance with improved workflow patterns and context efficiency principles.
+- **Cleanup: Removal of Unused Thinking Tag Utilities**:
+  - **Code Removal**: Removed `src/zrb/util/string/thinking.py` and `test/util/string/test_thinking.py` as the thinking tag removal functionality was no longer being used in `src/zrb/llm/task/llm_task.py`.
+  - **Simplified Output Processing**: Updated `LLMTask._clean_output()` to only remove ANSI escape codes, eliminating unnecessary processing step for thinking tags.
 
 - **Dependency Updates**:
-  - **Core Framework**: pydantic-ai-slim updated from 1.62.0 to 1.63.0.
-  - **LLM Providers**: anthropic (>=0.78.0 → >=0.80.0), cohere (>=5.18.0 → >=5.20.6), huggingface-hub (>=0.33.5,<1.0.0 → >=1.3.4,<2.0.0), voyageai (>=0.3.2 → >=0.3.7).
-  - **Various transitive dependencies** updated for security and compatibility.
+  - **Core Framework**: pydantic-ai-slim updated from ~1.63.0 to ~1.65.0, bringing latest improvements and bug fixes from the pydantic-ai framework.
 
 - **Maintenance**:
-  - **Version Bump**: Updated to version 2.6.15 in `pyproject.toml`.
+  - **Version Bump**: Updated to version 2.7.0 in `pyproject.toml`, marking a significant release with major prompt system improvements.
 
 # Older Changelog
 

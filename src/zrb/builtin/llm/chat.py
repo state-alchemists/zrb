@@ -9,7 +9,6 @@ from zrb.input.str_input import StrInput
 from zrb.llm.custom_command import get_skill_custom_command
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.skill.manager import skill_manager
-from zrb.llm.summarizer import create_summarizer_history_processor
 from zrb.llm.task.llm_chat_task import LLMChatTask
 from zrb.llm.tool import (
     analyze_code,
@@ -68,12 +67,7 @@ llm_chat = LLMChatTask(
     message="{ctx.input.message}",
     conversation_name="{ctx.input.session}",
     interactive="{ctx.input.interactive}",
-    history_processors=[
-        create_summarizer_history_processor(
-            token_threshold=CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD,
-            summary_window=CFG.LLM_HISTORY_SUMMARIZATION_WINDOW,
-        )
-    ],
+    history_processors=[],
     prompt_manager=PromptManager(
         assistant_name=lambda ctx: CFG.LLM_ASSISTANT_NAME,
     ),
