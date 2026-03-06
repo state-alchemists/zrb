@@ -160,7 +160,7 @@ def create_agent(
     final_output_type = output_type
     effective_toolsets = list(safe_toolsets)
     if safe_tools:
-        effective_toolsets.append(FunctionToolset(tools=safe_tools))
+        effective_toolsets.append(FunctionToolset(tools=safe_tools, max_retries=3))
 
     if yolo is not True:
         final_output_type = output_type | DeferredToolRequests

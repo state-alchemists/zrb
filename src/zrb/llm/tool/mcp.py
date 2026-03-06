@@ -85,11 +85,13 @@ def _create_mcp_servers(merged_servers: dict[str, Any]) -> list[Any]:
                     k: _expand_env_vars(v) for k, v in config.get("env", {}).items()
                 } or None
 
-                servers.append(MCPServerStdio(command=command, args=args, env=env))
+                servers.append(
+                    MCPServerStdio(command=command, args=args, env=env, max_retries=3)
+                )
             elif "url" in config:
                 # SSE
                 url = _expand_env_vars(config["url"])
-                servers.append(MCPServerSSE(url=url))
+                servers.append(MCPServerSSE(url=url, max_retries=3))
         except Exception as e:
             zrb_print(
                 f"Warning: Failed to create MCP server '{server_name}': {e}", plain=True
