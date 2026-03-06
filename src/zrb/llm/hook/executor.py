@@ -112,7 +112,9 @@ class ThreadPoolHookExecutor:
 
         try:
             # Run hook in thread pool with timeout
-            loop = asyncio.get_event_loop()
+            # Use get_running_loop() for Python 3.14+ compatibility
+            # (get_event_loop() raises RuntimeError if no loop exists in 3.14+)
+            loop = asyncio.get_running_loop()
             result = await asyncio.wait_for(
                 loop.run_in_executor(
                     self._executor, self._run_hook_sync, hook, context
@@ -278,22 +280,27 @@ class ThreadPoolHookExecutor:
         )
 
 
-# Singleton instance
+# Singleton instance and lock for free-threaded Python (no-GIL) safety
 _hook_executor: ThreadPoolHookExecutor | None = None
+_executor_lock = threading.Lock()
 
 
 def get_hook_executor() -> ThreadPoolHookExecutor:
-    """Get or create the singleton hook executor."""
+    """Get or create the singleton hook executor (thread-safe)."""
     global _hook_executor
     if _hook_executor is None:
-        _hook_executor = ThreadPoolHookExecutor()
-        _hook_executor.start()
+        with _executor_lock:
+            # Double-checked locking for free-threaded Python safety
+            if _hook_executor is None:
+                _hook_executor = ThreadPoolHookExecutor()
+                _hook_executor.start()
     return _hook_executor
 
 
 def shutdown_hook_executor(wait: bool = True):
-    """Shutdown the singleton hook executor."""
+    """Shutdown the singleton hook executor (thread-safe)."""
     global _hook_executor
-    if _hook_executor is not None:
-        _hook_executor.shutdown(wait=wait)
-        _hook_executor = None
+    with _executor_lock:
+        if _hook_executor is not None:
+            _hook_executor.shutdown(wait=wait)
+            _hook_executor = None
