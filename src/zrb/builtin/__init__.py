@@ -11,8 +11,6 @@ from zrb.builtin.http import generate_curl, http_request
 from zrb.builtin.jwt import decode_jwt, encode_jwt, validate_jwt
 from zrb.builtin.llm.chat import llm_chat
 from zrb.builtin.md5 import hash_md5, sum_md5, validate_md5
-from zrb.builtin.project.add.fastapp.fastapp_task import add_fastapp_to_project
-from zrb.builtin.project.create.project_task import create_project
 from zrb.builtin.python import format_python_code
 from zrb.builtin.random import shuffle_values, throw_dice
 from zrb.builtin.searxng.start import start_searxng
@@ -66,8 +64,6 @@ __all__ = [
     "hash_md5",
     "sum_md5",
     "validate_md5",
-    "add_fastapp_to_project",
-    "create_project",
     "format_python_code",
     "shuffle_values",
     "throw_dice",
