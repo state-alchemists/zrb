@@ -55,8 +55,26 @@ def test_write_file_mode(tmp_path):
     write_file(str(f), "hello")
     write_file(str(f), " world", mode="a")
 
-    with open(f, "r") as file:
+    with open(f, "r", encoding="utf-8") as file:
         assert file.read() == "hello world"
+
+
+def test_write_file_unicode_emoji(tmp_path):
+    """Test that write_file handles unicode and emoji characters correctly.
+
+    This test ensures the file is written with utf-8 encoding, which is
+    necessary for cross-platform compatibility (especially Windows where
+    the default encoding is cp1252 and cannot handle emoji characters).
+    """
+    d = tmp_path / "test_unicode"
+    d.mkdir()
+    f = d / "test.txt"
+    # Content with emoji and unicode characters
+    content = "Hello 🐭 World! 你好世界 🎉\nSpecial chars: café, naïve, résumé"
+    write_file(str(f), content)
+
+    with open(f, "r", encoding="utf-8") as file:
+        assert file.read() == content
 
 
 def test_list_files_depth(tmp_path):

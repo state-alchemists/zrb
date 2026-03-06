@@ -238,7 +238,7 @@ def run_single_experiment(
         if verbose:
             print(f"{model} Running command...")
             # For verbose mode, we can capture and show output in real-time
-            with open(log_file, "w") as f:
+            with open(log_file, "w", encoding="utf-8") as f:
                 process = subprocess.Popen(
                     cmd,
                     cwd=workdir,

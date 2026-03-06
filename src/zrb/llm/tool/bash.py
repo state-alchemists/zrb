@@ -159,7 +159,7 @@ def _collect_background_pids(temp_pid_file: str | None, process_pid: int) -> lis
     bg_pids = []
     if temp_pid_file and os.path.exists(temp_pid_file):
         try:
-            with open(temp_pid_file, "r") as f:
+            with open(temp_pid_file, "r", encoding="utf-8") as f:
                 for line in f:
                     clean_line = line.strip()
                     if clean_line.isdigit():

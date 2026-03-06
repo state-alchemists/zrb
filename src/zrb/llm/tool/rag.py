@@ -290,13 +290,13 @@ def _compute_file_hash(file_path: str) -> str:
 
 def _load_hashes(file_path: str) -> dict:
     if os.path.exists(file_path):
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
 
 
 def _save_hashes(file_path: str, hashes: dict):
-    with open(file_path, "w") as f:
+    with open(file_path, "w", encoding="utf-8") as f:
         json.dump(hashes, f)
 
 

@@ -56,7 +56,7 @@ async def replace_in_file_response_handler(
         await ui.run_interactive_command(cmd, shell=True)
 
         # Read back new content
-        with open(new_path, "r") as f:
+        with open(new_path, "r", encoding="utf-8") as f:
             edited_new_text = f.read()
 
         if edited_new_text != new_text:

@@ -498,7 +498,7 @@ class HookManager:
     def _load_file(self, file_path: Path):
         logger.debug(f"Loading hooks from {file_path}")
         try:
-            with open(file_path, "r") as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 if file_path.suffix == ".json":
                     data = json.load(f)
                 else:

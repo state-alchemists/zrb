@@ -101,7 +101,7 @@ async def _wait_edit_content(
     # Edit and wait
     # We use run_interactive_command to ensure vim/editor has direct terminal access
     await ui.run_interactive_command([text_editor, tf_path], shell=False)
-    with open(tf_path, "r") as tf:
+    with open(tf_path, "r", encoding="utf-8") as tf:
         new_content = tf.read()
     os.remove(tf_path)
 

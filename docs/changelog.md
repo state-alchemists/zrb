@@ -1,5 +1,26 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.7.2 (March 6, 2026)
+
+- **Compatibility: Cross-Platform UTF-8 Encoding**:
+  - **Explicit UTF-8 Encoding**: Added `encoding="utf-8"` parameter to all file operations across the codebase to ensure consistent behavior across different operating systems, particularly Windows where the default encoding is cp1252.
+  - **Files Updated**:
+    - `src/zrb/util/file.py`: Core file writing utility
+    - `src/zrb/llm/tool/rag.py`: RAG hash file operations (both read and write)
+    - `src/zrb/llm/tool/bash.py`: Background PID collection
+    - `src/zrb/llm/hook/manager.py`: Hook configuration file loading
+    - `src/zrb/llm/tool_call/response_handler/default.py`: Content editor response handler
+    - `src/zrb/llm/tool_call/response_handler/replace_in_file_response_handler.py`: Replace-in-file response handler
+    - `llm-challenges/runner.py`: Log file writing
+
+- **Testing: Unicode and Emoji Support**:
+  - **New Test Coverage**: Added `test_write_file_unicode_emoji()` to verify that `write_file()` properly handles unicode characters, emoji, and special characters (e.g., café, naïve, résumé, 🐭, 🎉, 你好世界).
+  - **Test Modernization**: Updated existing `test_write_file_mode()` to use explicit UTF-8 encoding for consistency.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.7.2 in `pyproject.toml`.
+
+
 ## 2.7.1 (March 6, 2026)
 
 - **Performance: Battery Drain Reduction & UI Optimization**:

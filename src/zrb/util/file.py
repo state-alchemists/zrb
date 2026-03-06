@@ -73,7 +73,7 @@ def write_file(
     content = content.rstrip("\n")
     if should_add_eol:
         content += "\n"
-    with open(abs_file_path, mode) as f:
+    with open(abs_file_path, mode, encoding="utf-8") as f:
         f.write(content)
 
 
