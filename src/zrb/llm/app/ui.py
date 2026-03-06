@@ -254,6 +254,8 @@ class UI:
 
         try:
             self._capture.start()
+            # Perform initial system info update
+            await self._update_system_info()
             return await self._application.run_async()
         finally:
             self._capture.stop()
@@ -295,7 +297,7 @@ class UI:
                     self._scroll_output_to_bottom()
             except Exception:
                 pass
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(5.0)
 
     def _scroll_output_to_bottom(self):
         """Scroll output field to the bottom."""
@@ -375,18 +377,22 @@ class UI:
         """Periodically update CWD and Git info."""
         while True:
             try:
-                self._cwd = self._get_cwd_display()
-                branch, status = await self._get_git_info()
-                if branch:
-                    self._git_info = f"{branch}{status}"
-                else:
-                    self._git_info = "Not a git repo"
-                get_app().invalidate()
+                await self._update_system_info()
             except asyncio.CancelledError:
                 break
             except Exception:
                 pass
-            await asyncio.sleep(2)
+            await asyncio.sleep(60)
+
+    async def _update_system_info(self):
+        """Update CWD and Git info."""
+        self._cwd = self._get_cwd_display()
+        branch, status = await self._get_git_info()
+        if branch:
+            self._git_info = f"{branch}{status}"
+        else:
+            self._git_info = "Not a git repo"
+        get_app().invalidate()
 
     def _get_cwd_display(self) -> str:
         cwd = os.getcwd()
@@ -523,7 +529,7 @@ class UI:
             style=style,
             full_screen=True,
             mouse_support=True,
-            refresh_interval=0.05,
+            refresh_interval=0.5,
             output=create_output(stdout=self._capture.get_original_stdout()),
             clipboard=clipboard,
         )
@@ -851,6 +857,7 @@ class UI:
         finally:
             self._is_thinking = False
             self._running_llm_task = None
+            await self._update_system_info()
             get_app().invalidate()
 
     def toggle_yolo(self):
@@ -1170,6 +1177,7 @@ class UI:
         finally:
             self._is_thinking = False
             self._running_llm_task = None
+            await self._update_system_info()
             get_app().invalidate()
 
     def _create_sesion_for_llm_task(
