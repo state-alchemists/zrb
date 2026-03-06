@@ -1,5 +1,43 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.8.0 (March 6, 2026)
+
+- **Breaking: FastApp Removal**:
+  - **Deprecation**: Removed the entire FastApp module (`src/zrb/builtin/project/add/fastapp/`) and project creation task (`src/zrb/builtin/project/create/project_task.py`). FastApp was a legacy feature that is no longer actively maintained.
+  - **Code Modification Utilities Removed**: Deleted the `src/zrb/util/codemod/` directory containing AST-based code modification utilities (`modify_class.py`, `modify_method.py`, `modify_function.py`, etc.) that were exclusively used by FastApp.
+  - **Dependency Cleanup**: Removed FastApp-related dependencies from `pyproject.toml`:
+    - Removed `libcst` from core dependencies
+    - Removed `alembic` from dev dependencies
+    - Removed `sqlmodel` from dev dependencies
+  - **Module Exports Updated**: Removed `add_fastapp_to_project` and `create_project` from `src/zrb/builtin/__init__.py` exports.
+  - **Tests Removed**: Deleted all FastApp-related test files (`test/builtin/test_fastapp_task.py`, `test/builtin/test_fastapp_util.py`, and all codemod tests).
+
+- **Compatibility: Python 3.14+ Support**:
+  - **Event Loop API Fix**: Changed `asyncio.get_event_loop()` to `asyncio.get_running_loop()` in `src/zrb/llm/hook/executor.py` and test files (`test/task/test_http_check.py`, `test/task/test_tcp_check.py`). The deprecated `get_event_loop()` raises `RuntimeError` in Python 3.14+ when no loop is running.
+  - **Free-Threaded Python Safety**: Added thread-safe singleton pattern with `threading.Lock` for hook executor initialization in `src/zrb/llm/hook/executor.py`, ensuring atomic initialization for free-threaded Python (no-GIL) builds.
+  - **Version Requirement**: Updated Python version from `>=3.11.0,<3.14.0` to `>=3.11.0,<3.15.0` in `pyproject.toml`.
+  - **Python Version File**: Added `.python-version` file specifying Python 3.14 for development environment.
+
+- **Platform: Windows Installation Support**:
+  - **PowerShell Installation Script**: Added `install.ps1` script for Windows users with guided installation process including:
+    - Python detection with installation guidance
+    - Optional Poetry installation
+    - Optional virtual environment creation at `~/.local-venv`
+    - PowerShell profile registration for automatic venv activation
+    - User-level PATH management
+  - **Installation Documentation**: Added comprehensive Windows installation section to `docs/installation/installation.md` covering:
+    - Multiple Python installation methods (winget, python.org, Microsoft Store)
+    - Script execution instructions
+    - Manual installation alternatives
+    - Windows-specific notes (PowerShell profile locations, activation scripts)
+
+- **Dependency: VoyageAI Python 3.14 Constraint**:
+  - Added `python = "<3.14"` constraint for voyageai optional dependency in `pyproject.toml` since the package doesn't yet support Python 3.14.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.8.0 in `pyproject.toml`.
+
+
 ## 2.7.2 (March 6, 2026)
 
 - **Compatibility: Cross-Platform UTF-8 Encoding**:
