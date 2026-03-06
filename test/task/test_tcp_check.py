@@ -85,7 +85,7 @@ async def test_tcp_check_exception(mock_session):
     async def mock_sleep_coro(delay):
         # Create a future that never completes
         # This allows wait_for to timeout naturally
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         fut = loop.create_future()
         try:
             await fut
