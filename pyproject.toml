@@ -41,7 +41,6 @@ python = ">=3.11.0,<3.14.0"
 python-dotenv = "^1.1.1"
 black = "^25.11.0"
 isort = "^7.0.0"
-libcst = "^1.8.6"
 beautifulsoup4 = "^4.14.2"
 pdfplumber = "^0.11.7"
 fastapi = {extras = ["standard"], version = "^0.123.10"}
@@ -108,13 +107,11 @@ voyageai = ["voyageai"]
 all = ["chromadb", "playwright", "cohere", "google-auth", "google-genai", "anthropic", "groq", "mistral", "bedrock", "huggingface", "xai", "voyageai"]
 
 [tool.poetry.group.dev.dependencies]
-alembic = "^1.18.2" # FastApp dependencies
 autopep8 = "^2.3.2"
 flake8 = "^7.2.0"
 pytest = "^8.3.5"
 pytest-cov = "^6.1.0"
 pytest-asyncio = "^0.26.0"
-sqlmodel = "^0.0.24" # FastApp dependencies
 tomlkit = "^0.13.3"
 
 [tool.pytest.ini_options]
