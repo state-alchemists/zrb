@@ -50,6 +50,57 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/mai
 
 The script handles Termux-specific installations (changing repos, `termux-setup-storage`, `pkg install` for various tools) if it detects an Android environment.
 
+### Windows Installation
+
+For Windows users, Zrb provides a PowerShell installation script (`install.ps1`) that simplifies setup.
+
+**Prerequisites:**
+-   Python 3.11 or later (install before running the script)
+
+**Install Python on Windows (if needed):**
+
+```powershell
+# Option 1: Using winget (recommended)
+winget install Python.Python.3.13
+
+# Option 2: Download from python.org
+# Visit: https://www.python.org/downloads/
+
+# Option 3: Microsoft Store
+# Search for "Python 3.13" in Microsoft Store
+```
+
+**Run the Installation Script:**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install.ps1
+```
+
+**What the Script Does:**
+-   Checks for Python installation (prompts with instructions if not found)
+-   Offers to install Poetry (optional)
+-   Offers to create a virtual environment at `~/.local-venv` (optional)
+-   Installs Zrb via pip
+
+**Manual Windows Installation:**
+
+If you prefer manual installation or already have Python set up:
+
+```powershell
+# Basic installation
+pip install --pre zrb
+
+# Create a virtual environment (optional)
+python -m venv ~/.local-venv
+~/.local-venv/Scripts/Activate.ps1
+pip install --pre zrb
+```
+
+**Windows-Specific Notes:**
+-   The PowerShell profile location is `$PROFILE` (typically `Documents\PowerShell\Microsoft.PowerShell_profile.ps1`)
+-   For virtual environment activation, use `.ps1` scripts (e.g., `Scripts\Activate.ps1`)
+-   If using PowerShell 7+, the profile path may differ from Windows PowerShell 5.1
+
 ---
 
 ## 2. Advanced Installation Methods
