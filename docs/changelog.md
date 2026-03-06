@@ -1,5 +1,21 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.7.1 (March 6, 2026)
+
+- **Performance: Battery Drain Reduction & UI Optimization**:
+  - **Reduced CPU Usage**: Significantly decreased UI refresh frequency from 0.05s to 0.5s (`refresh_interval=0.5`) in `src/zrb/llm/app/ui.py`, reducing continuous CPU consumption during idle periods.
+  - **Optimized System Info Updates**: Changed system information (CWD and Git status) update frequency from every 2 seconds to every 60 seconds, eliminating unnecessary background polling.
+  - **Improved Output Scrolling**: Reduced output scrolling check frequency from 0.1s to 5.0s, minimizing UI thread activity.
+  - **Refactored Update Logic**: Extracted system info update into dedicated `_update_system_info()` method and added initial update on UI startup for better responsiveness.
+
+- **Reliability: Tool Call & MCP Server Retry Mechanisms**:
+  - **Function Toolset Retry**: Added `max_retries=3` parameter to `FunctionToolset` initialization in `src/zrb/llm/agent/common.py` to handle transient tool execution failures gracefully.
+  - **MCP Server Retry Support**: Enhanced MCP server creation in `src/zrb/llm/tool/mcp.py` with retry capabilities:
+    - Added `max_retries=3` to `MCPServerStdio` instances for stdio-based servers
+    - Added `max_retries=3` to `MCPServerSSE` instances for SSE-based servers
+  - **Post-Task System Updates**: Added `await self._update_system_info()` calls after LLM task completion to ensure UI reflects current system state.
+
+
 ## 2.7.0 (March 5, 2026)
 
 - **Major: Core Prompt System Simplification & Mandate Restructuring**:
