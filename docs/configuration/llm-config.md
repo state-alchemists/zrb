@@ -26,8 +26,8 @@ These variables define which LLM Zrb uses for its primary reasoning and how it c
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_MODEL` | Primary LLM model (`provider:model-name`) | None |
-| `ZRB_LLM_SMALL_MODEL` | Faster model for background tasks | `openai:gpt-4o-mini` |
+| `ZRB_LLM_MODEL` | Primary LLM model (`provider:model-name`) | `openai:gpt-4o` (if unset) |
+| `ZRB_LLM_SMALL_MODEL` | Faster model for background tasks | Falls back to `ZRB_LLM_MODEL` |
 | `ZRB_LLM_API_KEY` | API key for your LLM provider | None |
 | `ZRB_LLM_BASE_URL` | Custom endpoint URL | None |
 
@@ -54,7 +54,7 @@ To prevent runaway AI loops, manage API costs, and stay within provider limits, 
 | `ZRB_LLM_MAX_TOKEN_PER_MINUTE` | Max tokens processed per minute | `128000` |
 | `ZRB_LLM_MAX_TOKEN_PER_REQUEST` | Hard context window limit | `128000` |
 | `ZRB_LLM_THROTTLE_SLEEP` | Seconds to pause when rate-limited | `1.0` |
-| `ZRB_USE_TIKTOKEN` | Use tiktoken for accurate counting | `1` |
+| `ZRB_USE_TIKTOKEN` | Use tiktoken for accurate counting | `off` (false) |
 | `ZRB_TIKTOKEN_ENCODING` | Tiktoken encoding scheme | `cl100k_base` |
 
 ---
@@ -81,8 +81,8 @@ You can heavily customize the LLM's behavior and identity by overriding its syst
 |----------|-------------|---------|
 | `ZRB_LLM_ASSISTANT_NAME` | Display name for AI assistant | Root group name |
 | `ZRB_LLM_ASSISTANT_JARGON` | Tagline or motto | Root group description |
-| `ZRB_LLM_ASSISTANT_ASCII_ART` | ASCII banner art | `default` (built-in) |
-| `ZRB_ASCII_ART_DIR` | Directory for custom ASCII art | `.zrb/llm/prompt` |
+| `ZRB_LLM_ASSISTANT_ASCII_ART` | ASCII banner art name | `default` (built-in) |
+| `ZRB_ASCII_ART_DIR` | Directory for custom ASCII art files | `.zrb/ascii-art` |
 
 ### Prompt Customization Hierarchy
 

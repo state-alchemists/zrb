@@ -44,7 +44,7 @@ Zrb can be heavily customized using environment variables. These control everyth
 | `ZRB_INIT_SCRIPTS` | Colon-separated list of Python scripts to always load | — |
 | `ZRB_INIT_MODULES` | Colon-separated list of Python modules to force-load on startup | — |
 | `ZRB_LOAD_BUILTIN` | Whether to load pre-packaged tasks (Git, UUID, base64, etc.) | `1` (true) |
-| `ZRB_WARN_UNRECOMMENDED_COMMAND` | Show warnings for potentially unsafe shell commands | `1` (true) |
+| `ZRB_WARN_UNRECOMMENDED_COMMAND` | Show warnings for potentially unsafe shell commands | `on` (true) |
 
 ---
 

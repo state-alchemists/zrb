@@ -557,7 +557,7 @@ class Config:
     def ASCII_ART_DIR(self) -> str:
         default = self.DEFAULT_ASCII_ART_DIR
         if default == "":
-            default = os.path.join(f".{self.ROOT_GROUP_NAME}", "llm", "prompt")
+            default = os.path.join(f".{self.ROOT_GROUP_NAME}", "ascii-art")
         return get_env(
             "ASCII_ART_DIR",
             default,
