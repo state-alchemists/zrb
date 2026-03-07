@@ -6,6 +6,40 @@ Getting Zrb set up is straightforward, but it offers a few powerful options depe
 
 ---
 
+## 🚀 Quick Start
+
+**Already have Python installed? Get started in seconds:**
+
+```bash
+pip install zrb
+zrb --version
+```
+
+**New to Python or setting up a fresh system?** Use our one-liner installer:
+
+```bash
+# Linux/macOS
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh)"
+
+# Windows (PowerShell)
+powershell -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/state-alchemists/zrb/main/install.ps1'))"
+```
+
+---
+
+## Which Method Should I Choose?
+
+| Situation | Recommended Method | Why |
+|-----------|-------------------|-----|
+| ✅ Python already installed | `pip install zrb` | Fastest, simplest |
+| 🆕 Fresh system / No Python | Installation script | Handles Python setup automatically |
+| 🪟 Windows | PowerShell script | Native Windows support |
+| 🐳 CI/CD pipelines | Docker image | Reproducible, isolated environment |
+| 📱 Android / Mobile | Termux + Proot | Run automation on your phone |
+| 🍎 Apple Silicon (M1/M2/M3) | `pip install` or Docker | Fully supported |
+
+---
+
 ## 1. Standard Installation Methods
 
 For most users, installing Zrb with `pip` or using the provided installation script is the recommended approach.
@@ -20,37 +54,54 @@ pip install zrb
 # pip install --pre zrb
 ```
 
-### Using the Installation Script (Recommended for New Python/System Setups)
+### Using the Installation Script - Bash (Recommended for New Python/System Setups)
 
 The `install.sh` script is a powerful helper that automates the installation of Zrb and its common prerequisites, including Python environment management (like `pyenv` or a local virtual environment). This is especially useful if your system doesn't have Python set up optimally or you want a self-contained Zrb environment.
 
-**How it Works:**
-The script is interactive and will ask for your consent to install various components:
--   **Python Environment:** It can install `pyenv` to manage Python versions (and then install Python 3.13.0 globally) or create a local virtual environment in `~/.local-venv`.
--   **System Prerequisites:** It attempts to install necessary build tools and libraries (`build-essential`, `libssl-dev`, etc.) using your OS's package manager (`brew` on macOS, `apt`, `yum`, `dnf`, `pacman`, `apk` on Linux).
--   **Poetry:** It can install the Poetry package manager.
--   **Zrb:** Finally, it installs Zrb itself using `pip`.
+**What it sets up:**
+-   **Python Environment:** Installs `pyenv` to manage Python versions (and sets Python 3.13.0 globally) or creates a local virtual environment in `~/.local-venv`.
+-   **System Prerequisites:** Installs build tools and libraries (`build-essential`, `libssl-dev`, etc.) using your OS's package manager (`brew` on macOS, `apt`, `yum`, `dnf`, `pacman`, `apk` on Linux).
+-   **Poetry:** Optionally installs the Poetry package manager.
+-   **Zrb:** Installs Zrb itself using `pip`.
+
+> 💡 **Tip:** The script is interactive and will ask for your consent before each change.
+
+**Run from GitHub (recommended):**
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh)"
 ```
 
-**What the Script Does (Detailed Breakdown):**
--   **`command_exists`**: Utility to check if a command is available.
--   **`log_info`**: Formatted info messages.
--   **`confirm`**: Prompts for `y/N` confirmation before making changes.
--   **`try_sudo`**: Executes commands with `sudo` if available.
--   **`register_pyenv`**: Adds `pyenv` initialization lines to your shell's rc file (`.zshrc`, `.bashrc`).
--   **`register_local_venv`**: Adds lines to activate a `~/.local-venv` and generate autocompletion scripts for Zrb.
--   **`create_and_register_local_venv`**: Creates `~/.local-venv`, activates it, and registers it to your shell.
--   **`install_pyenv`**: Installs `pyenv` via `curl https://pyenv.run | bash` and registers it.
--   **`install_python_on_pyenv`**: Installs Python 3.13.0 and sets it as global using `pyenv`.
--   **`install_poetry`**: Installs Poetry using `pip`.
--   **`install_zrb`**: Installs Zrb using `pip install --pre zrb`.
+**Run locally:**
 
-The script handles Termux-specific installations (changing repos, `termux-setup-storage`, `pkg install` for various tools) if it detects an Android environment.
+```bash
+bash install.sh
+```
 
-### Windows Installation
+<details>
+<summary>📜 Script Functions Reference</summary>
+
+The script includes these helper functions:
+
+| Function | Purpose |
+|----------|---------|
+| `command_exists` | Check if a command is available |
+| `log_info` | Format and display info messages |
+| `confirm` | Prompt for `y/N` confirmation before changes |
+| `try_sudo` | Execute commands with `sudo` if available |
+| `register_pyenv` | Add `pyenv` init lines to shell rc file |
+| `register_local_venv` | Register `~/.local-venv` activation in shell |
+| `create_and_register_local_venv` | Create and activate virtual environment |
+| `install_pyenv` | Install pyenv via `curl https://pyenv.run \| bash` |
+| `install_python_on_pyenv` | Install Python 3.13.0 and set as global |
+| `install_poetry` | Install Poetry package manager |
+| `install_zrb` | Install Zrb via `pip install --pre zrb` |
+
+</details>
+
+> ⚠️ **Note:** The script handles Termux-specific installations (Android) automatically if detected.
+
+### Using the Installation Script - PowerShell (Windows)
 
 For Windows users, Zrb provides a PowerShell installation script (`install.ps1`) that simplifies setup.
 
@@ -70,19 +121,20 @@ winget install Python.Python.3.13
 # Search for "Python 3.13" in Microsoft Store
 ```
 
-**Run the Installation Script:**
+**Run from GitHub (recommended):**
+
+```powershell
+powershell -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/state-alchemists/zrb/main/install.ps1'))"
+```
+
+**Run locally:**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File install.ps1
 ```
 
-**What the Script Does:**
--   Checks for Python installation (prompts with instructions if not found)
--   Offers to install Poetry (optional)
--   Offers to create a virtual environment at `~/.local-venv` (optional)
--   Installs Zrb via pip
-
-**Manual Windows Installation:**
+<details>
+<summary>📝 Manual Windows Installation</summary>
 
 If you prefer manual installation or already have Python set up:
 
@@ -101,6 +153,8 @@ pip install --pre zrb
 -   For virtual environment activation, use `.ps1` scripts (e.g., `Scripts\Activate.ps1`)
 -   If using PowerShell 7+, the profile path may differ from Windows PowerShell 5.1
 
+</details>
+
 ---
 
 ## 2. Advanced Installation Methods
@@ -111,84 +165,212 @@ For specialized use cases like CI/CD pipelines or running automation on the go, 
 
 Zrb provides container images for sandboxed, reproducible, and portable execution. This is ideal for consistent environments and CI/CD integration (see [CI/CD Integration](../advanced-topics/ci-cd.md)).
 
--   **Standard Image**: For general-purpose automation. It comes with Zrb and its basic Python dependencies.
-    ```bash
-    docker run -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:2.0.0 zrb
-    ```
-    *Explanation*:
-    -   `-v ${HOME}:/zrb-home`: Mounts your host machine's home directory into the container at `/zrb-home`. This allows Zrb inside the container to access your `zrb_init.py` files, project directories, and any LLM history/journal files.
-    -   `-it`: Interactive and pseudo-TTY.
-    -   `--rm`: Automatically remove the container when it exits.
-    -   `stalchmst/zrb:2.0.0`: The official Zrb Docker image (always pin to a specific version!).
-    -   `zrb`: The command to execute inside the container.
+**Standard Image** (general-purpose automation):
 
--   **DIND (Docker-in-Docker) Image**: For tasks that need to execute Docker commands *from within* the Zrb pipeline (e.g., building new Docker images, running `docker compose`).
-    ```bash
-    docker run 
-        -v ${HOME}:/zrb-home 
-        -v /var/run/docker.sock:/var/run/docker.sock 
-        -it --rm stalchmst/zrb:2.0.0-dind docker ps
-    ```
-    *Explanation (additional to Standard Image)*:
-    -   `-v /var/run/docker.sock:/var/run/docker.sock`: This crucial mount allows the Docker client inside the Zrb container to communicate with the Docker daemon running on your host machine. This enables "Docker-in-Docker" functionality.
-    -   `stalchmst/zrb:2.0.0-dind`: The DIND-enabled Zrb Docker image.
+```bash
+docker run -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:2.0.0 zrb
+```
+
+**DIND (Docker-in-Docker) Image** (for tasks that need Docker commands):
+
+```bash
+docker run \
+    -v ${HOME}:/zrb-home \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -it --rm stalchmst/zrb:2.0.0-dind docker ps
+```
+
+<details>
+<summary>🔧 Docker Options Explained</summary>
+
+| Option | Purpose |
+|--------|---------|
+| `-v ${HOME}:/zrb-home` | Mount home directory for access to `zrb_init.py` files |
+| `-it` | Interactive mode with TTY |
+| `--rm` | Remove container on exit |
+| `-v /var/run/docker.sock:...` | Enable Docker-in-Docker functionality |
+
+> 💡 **Tip:** Always pin to a specific version (e.g., `2.0.0`) for reproducibility.
+
+</details>
+
+> ⚠️ **Apple Silicon:** Use `--platform linux/amd64` if you encounter architecture issues:
+> ```bash
+> docker run --platform linux/amd64 -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:2.0.0 zrb
+> ```
 
 ### Running Zrb on Android (via Termux and Proot)
 
 You can run Zrb on your Android device using Termux (a terminal emulator and Linux environment) and Proot (a chroot-like environment). This turns your phone into a portable automation powerhouse.
 
-**Prerequisites for Android:**
-*   An Android device with an internet connection.
-*   **Termux:** Download and install the [F-Droid](https://f-droid.org/en/packages/com.termux/) client, then install Termux from there. The Google Play Store version is outdated.
-*   **Optional Termux Packages:** `Termux-Styling`, `Termux-API`, `Termux-Storage` (from F-Droid).
+**Prerequisites:**
+-   An Android device with an internet connection
+-   **Termux:** Install from [F-Droid](https://f-droid.org/en/packages/com.termux/) (NOT Google Play - outdated version)
 
-**Step-by-Step Android Setup:**
+**Quick Setup:**
 
-1.  **Update Termux Packages:**
-    Open Termux and run:
-    ```bash
-    pkg update && pkg upgrade -y
-    ```
+```bash
+# 1. Update Termux
+pkg update && pkg upgrade -y
 
-2.  **Install Proot and a Linux Distribution (e.g., Ubuntu):**
-    Proot allows you to run a full Linux distribution within Termux.
-    ```bash
-    pkg install proot proot-distro -y
-    proot-distro install ubuntu
-    ```
-    *(Note: Proot Linux distributions have better software compatibility than bare Termux, but some limitations exist, e.g., Docker is challenging due to Android's kernel.)*
+# 2. Install Proot and Ubuntu
+pkg install proot proot-distro -y
+proot-distro install ubuntu
 
-3.  **Login to Ubuntu Environment:**
-    ```bash
-    proot-distro login ubuntu
-    ```
-    Your terminal prompt will change to indicate you are now inside Ubuntu.
+# 3. Login to Ubuntu
+proot-distro login ubuntu
 
-4.  **Install Python and Pip (inside Ubuntu):**
-    ```bash
-    apt update
-    apt install python3 python3-pip python3-venv -y
-    ```
-    Verify: `python3 --version` and `pip3 --version`.
+# 4. Install Python (inside Ubuntu)
+apt update && apt install python3 python3-pip python3-venv -y
 
-5.  **Install Zrb (inside Ubuntu):**
-    ```bash
-    pip3 install zrb
-    ```
-    Verify: `zrb --version`.
+# 5. Install Zrb
+pip3 install zrb
 
-6.  **Using Zrb on Android:**
-    -   You can now use `zrb` commands as usual.
-    -   To access your phone's internal storage, you might need to navigate to `/data/data/com.termux/files/home/storage/shared` within the Ubuntu environment.
-    -   To exit Ubuntu: `exit`. To exit Termux: `exit` again.
+# 6. Verify
+zrb --version
+```
+
+<details>
+<summary>📖 Detailed Android Setup</summary>
+
+**Optional Termux Packages:** `Termux-Styling`, `Termux-API`, `Termux-Storage` (from F-Droid)
+
+**Using Zrb on Android:**
+-   Access phone storage at `/data/data/com.termux/files/home/storage/shared`
+-   Exit Ubuntu: `exit`
+-   Exit Termux: `exit` again
+
+> ⚠️ **Note:** Docker is challenging on Android due to kernel limitations. Proot Linux distributions have better software compatibility than bare Termux.
+
+</details>
 
 ---
 
-## 3. General Configuration
+## 3. Verify Installation
+
+After installing Zrb, verify everything is working:
+
+```bash
+# Check version
+zrb --version
+
+# View help
+zrb --help
+
+# Quick test - create a simple task
+echo 'from zrb import cli, CmdTask
+cli.add_task(CmdTask(name="hello", cmd="echo Hello from Zrb!"))' > zrb_init.py
+
+# Run the task
+zrb hello
+```
+
+**Expected output:**
+```
+Hello from Zrb!
+```
+
+---
+
+## 4. Upgrade Zrb
+
+**Upgrade with pip:**
+
+```bash
+pip install --upgrade zrb
+
+# For latest pre-release:
+pip install --upgrade --pre zrb
+```
+
+**Upgrade with Docker:**
+
+Pull the latest image:
+```bash
+docker pull stalchmst/zrb:2.0.0
+# Or for latest:
+docker pull stalchmst/zrb:latest
+```
+
+---
+
+## 5. Uninstall Zrb
+
+**Uninstall with pip:**
+
+```bash
+pip uninstall zrb
+```
+
+**Clean up virtual environment (if created by install script):**
+
+```bash
+rm -rf ~/.local-venv
+```
+
+**Remove pyenv (if installed by script):**
+
+```bash
+# Remove pyenv directory
+rm -rf ~/.pyenv
+
+# Remove pyenv lines from your shell rc file (~/.bashrc, ~/.zshrc, etc.)
+# Look for and delete lines containing 'pyenv'
+```
+
+---
+
+## 6. Troubleshooting
+
+### Common Issues
+
+| Problem | Solution |
+|---------|----------|
+| `zrb: command not found` | Ensure `~/.local/bin` (or your Python bin directory) is in your `PATH` |
+| `Permission denied` errors | Use `pip install --user zrb` or run install script without `sudo` |
+| Python version too old | Zrb requires Python 3.11+. Check with `python --version` |
+| `pip not found` | Install pip: `python -m ensurepip --upgrade` or use install script |
+| Docker container exits immediately | Add `-it` flags: `docker run -it ...` |
+| Module not found errors | Reinstall: `pip uninstall zrb && pip install zrb` |
+
+### Platform-Specific Issues
+
+**Windows:**
+```powershell
+# If PowerShell execution policy blocks scripts
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+# If pip is not recognized
+python -m pip install zrb
+```
+
+**macOS (Apple Silicon):**
+```bash
+# If you see architecture warnings
+arch -arm64 pip install zrb
+
+# For Docker on Apple Silicon
+docker run --platform linux/amd64 ...
+```
+
+**Linux:**
+```bash
+# If you get SSL certificate errors
+pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org zrb
+```
+
+### Getting Help
+
+If you're still having trouble:
+-   Check [GitHub Issues](https://github.com/state-alchemists/zrb/issues) for similar problems
+-   Open a new issue with your OS, Python version, and full error message
+-   Join discussions on [GitHub Discussions](https://github.com/state-alchemists/zrb/discussions)
+
+---
+
+## 7. General Configuration
 
 Zrb's behavior can be customized further using environment variables. This includes everything from logging levels to default editors and web UI settings. For a complete, exhaustive list of all configurable environment variables, please refer to the dedicated configuration guides:
 
 -   [Environment Variables & Overrides](../configuration/env-vars.md)
 -   [LLM & Rate Limiter Configuration](../configuration/llm-config.md)
-
----

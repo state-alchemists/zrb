@@ -4,9 +4,21 @@
 
 Zrb comes with a powerful, built-in AI assistant that can understand your codebase, perform actions on your behalf, and automate complex software engineering tasks.
 
+---
+
+## Table of Contents
+
+- [Interactive Chat](#interactive-chat-zrb-llm-chat)
+- [Programmatic Usage](#programmatic-usage-llmtask-and-llmchattask)
+- [Custom Tools and Sub-agents](#custom-tools-and-sub-agents)
+- [Context Management](#context-management)
+- [Quick Reference](#quick-reference)
+
+---
+
 ## Interactive Chat (`zrb llm chat`)
 
-The primary way to interact with AI Assistang is through an interactive terminal user interface (TUI).
+The primary way to interact with AI Assistant is through an interactive terminal user interface (TUI).
 
 ```bash
 zrb llm chat "Can you help me refactor the user authentication service?"
@@ -14,29 +26,32 @@ zrb llm chat "Can you help me refactor the user authentication service?"
 
 This launches a full-screen chat application where you can have a conversation with the assistant.
 
-### Key TUI Commands
+### TUI Commands
 
-Within the TUI, you can use several slash (`/`) and bang (`!`) commands to control the session:
+| Command | Description |
+|---------|-------------|
+| `/q`, `/bye`, `/quit`, `/exit` | Exit the application |
+| `/info`, `/help` | Show all available commands |
+| `/compress`, `/compact` | Summarize conversation to free context |
+| `/model <name>` | Switch LLM model (e.g., `/model openai:gpt-4o`) |
+| `/yolo` | Toggle auto-execute mode (⚠️ use with caution!) |
+| `/load <name>` | Load a named session |
+| `/save <name>` | Save current session |
+| `/attach <file_path>` | Attach a file to next message |
+| `>` or `/redirect <file_path>` | Save last response to file |
+| `!` or `/exec <shell_cmd>` | Execute shell command |
 
-*   `/q`, `/bye`, `/quit`, `/exit`: Exit the application.
-*   `/info`, `/help`: Show the help message with all available commands.
-*   `/compress`, `/compact`: Summarize the current conversation history to free up context window space.
-*   `/model <name>`: Switch the LLM model for the current session (e.g., `/model openai:gpt-4o`).
-*   `/yolo`: Toggles "YOLO mode." When enabled, the assistant will execute all tool calls (like file edits or shell commands) without asking for your permission. Use with caution!
-*   `/load <name>`: Switches the current conversation to a named session. If the session doesn't exist, a new empty session history will be created implicitly.
-*   `/save <name>`: Saves the current conversation history to a new named session.
-*   `/attach <file_path>`: Attaches a file to your next message.
-*   `>` or `/redirect <file_path>`: Saves the assistant's last response to the specified file.
-*   `!` or `/exec <shell_command>`: Executes a shell command directly from the TUI. The output will be streamed into the chat window.
+> 💡 **Tip:** Any `/command` that matches a loaded skill will be executed as a skill.
 
-Any other `/command` that matches a loaded skill will be executed as a skill.
+---
 
 ## Programmatic Usage (`LLMTask` and `LLMChatTask`)
 
 You can also integrate the LLM directly into your automated workflows using two specialized task types.
 
 ### `LLMTask` (Single-Shot)
-Use `LLMTask` for single-shot requests where you need the LLM to process some input and return a result without a conversational history.
+
+Use `LLMTask` for single-shot requests where you need the LLM to process input and return a result without conversational history.
 
 ```python
 from zrb import LLMTask, cli
@@ -51,6 +66,7 @@ summarize_task = cli.add_task(
 ```
 
 ### `LLMChatTask` (Conversational)
+
 Use `LLMChatTask` to create your own fully customizable, interactive chat interfaces.
 
 ```python
@@ -66,12 +82,24 @@ custom_chat = cli.add_task(
 )
 ```
 
+### Comparison
+
+| Feature | `LLMTask` | `LLMChatTask` |
+|---------|-----------|---------------|
+| **Use case** | Single-shot processing | Interactive chat |
+| **History** | None | Persistent session |
+| **TUI** | No | Yes |
+| **Custom tools** | Yes | Yes |
+
+---
+
 ## Custom Tools and Sub-agents
 
 You can extend the assistant's capabilities with your own Python functions.
 
 ### Custom Python Tools
-Any Python function can be registered as a tool. Just add it to an `LLMChatTask`. The assistant will automatically understand the function's purpose from its docstring and arguments.
+
+Any Python function can be registered as a tool. The assistant automatically understands the function's purpose from its docstring and arguments.
 
 ```python
 def get_weather(location: str) -> str:
@@ -82,25 +110,51 @@ my_chat_task.add_tool(get_weather)
 ```
 
 ### Sub-agents
-Zrb can automatically discover and manage sub-agents defined in JSON or YAML files within an `agents/` directory. The primary assistant can then delegate complex tasks to these specialized agents using the built-in `delegate_to_agent` tool. This is useful for isolating context and keeping the main conversation history clean.
+
+Zrb can automatically discover and manage sub-agents defined in JSON or YAML files within an `agents/` directory. The primary assistant can then delegate complex tasks to these specialized agents using the built-in `delegate_to_agent` tool.
+
+> 💡 **Benefit:** Sub-agents isolate context and keep the main conversation history clean.
+
+---
 
 ## Context Management
 
 The AI Assistant is designed for long-running, complex tasks and has a sophisticated context management system.
 
-### Two-Tier Summarization System
-To avoid exceeding the context window of the underlying LLM, Zrb uses a two-tier summarization system:
-1.  **Message-level Summarization**: If a single tool output (like a large file or a long command output) is too large, it is summarized before being added to the history.
-2.  **Conversational Summarization**: As the overall conversation history grows, older parts of the conversation are summarized into a concise XML `<state_snapshot>`. This snapshot preserves key knowledge, user goals, and recent actions, ensuring the assistant doesn't lose track of the mission.
+### Two-Tier Summarization
+
+| Level | Trigger | Action |
+|-------|---------|--------|
+| **Message-level** | Single tool output too large | Summarize before adding to history |
+| **Conversational** | Overall history grows too large | Compress older messages to `<state_snapshot>` |
 
 ### 30% Retention Policy
-Zrb implements a 30% retention policy for conversation history. When summarization triggers, the system:
-- Compresses the oldest 70% of messages into a state snapshot
-- Retains the most recent 30% of messages verbatim
-- Ensures tool call/return pairs are never separated during compression
-- Prefers splitting at conversation turn boundaries
 
-This policy ensures summarization happens infrequently while maintaining full context for recent interactions.
+When summarization triggers, the system:
+
+| Action | Description |
+|--------|-------------|
+| Compress | Oldest 70% → state snapshot |
+| Retain | Most recent 30% verbatim |
+| Preserve | Tool call/return pairs never separated |
+| Split | At conversation turn boundaries |
 
 ### Journal System
-For persistent, long-term memory, Zrb uses a journal system. This is a directory of Markdown files (by default in `~/.zrb/llm-notes/`) where the assistant can keep notes. The `index.md` file from this directory is automatically included in the assistant's context on every turn.
+
+For persistent, long-term memory, Zrb uses a journal system—a directory of Markdown files (default: `~/.zrb/llm-notes/`) where the assistant can keep notes. The `index.md` file is automatically included in every context.
+
+---
+
+## Quick Reference
+
+| Command | Description |
+|---------|-------------|
+| `zrb llm chat` | Start interactive chat |
+| `zrb llm chat "message"` | Start with initial message |
+
+| Task Type | Import | Use Case |
+|-----------|--------|----------|
+| `LLMTask` | `from zrb import LLMTask` | Single processing |
+| `LLMChatTask` | `from zrb import LLMChatTask` | Interactive chat |
+
+---

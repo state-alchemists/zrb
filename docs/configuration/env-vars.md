@@ -6,80 +6,142 @@ Zrb can be heavily customized using environment variables. These control everyth
 
 > **Note on White-labeling:** If you have customized `_ZRB_ENV_PREFIX` (e.g., in `__main__.py` for a custom CLI), remember to replace `ZRB_` with your custom prefix (e.g., `ACME_LOGGING_LEVEL`).
 
+---
+
+## Table of Contents
+
+- [Core Configuration](#core-configuration)
+- [File Discovery & Loading](#file-discovery--loading)
+- [Directories and Files](#directories-and-files)
+- [Web UI Configuration](#web-ui-configuration-experimental)
+- [Interactive Editing](#interactive-editing-diff-tools)
+
+---
+
 ## Core Configuration
 
-*   `ZRB_SHELL`: Sets the shell used by `CmdTask`.
-    *   Default: Auto-detected based on your system (`zsh`, `bash`, `PowerShell`).
-*   `ZRB_EDITOR`: Default text editor for interactive prompts (e.g., when editing multi-line input).
-    *   Default: `nano`
-    *   Possible values: Any installed text editor (`nvim`, `code`, `vim`, etc.).
-*   `ZRB_LOGGING_LEVEL`: Controls the verbosity of Zrb's internal logs.
-    *   Default: `WARNING`
-    *   Possible values: `CRITICAL`, `ERROR`, `WARN`, `WARNING`, `INFO`, `DEBUG`, `NOTSET`.
-*   `ZRB_BANNER`: Custom ASCII art or text displayed when the Zrb CLI starts.
-    *   Default: Standard Zrb ASCII art.
-    *   Possible values: Any string (supports f-string formatting with `{VERSION}`).
-*   `ZRB_ROOT_GROUP_NAME`: Sets the name of the root command group displayed in help menus.
-    *   Default: `zrb`
-*   `ZRB_ROOT_GROUP_DESCRIPTION`: Sets the description for the root command group.
-    *   Default: `Your Automation Powerhouse`
-*   `_ZRB_CUSTOM_VERSION`: Overrides the displayed Zrb version string. Note: This is an internal variable primarily for white-labeling.
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_SHELL` | Shell used by `CmdTask` | Auto-detected (`zsh`, `bash`, `PowerShell`) |
+| `ZRB_EDITOR` | Default text editor for interactive prompts | `nano` |
+| `ZRB_LOGGING_LEVEL` | Verbosity of Zrb's internal logs | `WARNING` |
+| `ZRB_BANNER` | Custom ASCII art or text displayed at CLI start | Standard Zrb ASCII art |
+| `ZRB_ROOT_GROUP_NAME` | Name of root command group in help menus | `zrb` |
+| `ZRB_ROOT_GROUP_DESCRIPTION` | Description for root command group | `Your Automation Powerhouse` |
+| `_ZRB_CUSTOM_VERSION` | Overrides displayed version string (internal) | — |
+
+> 💡 **Logging Levels:** `CRITICAL`, `ERROR`, `WARN`, `WARNING`, `INFO`, `DEBUG`, `NOTSET`
+
+> 💡 **Banner Formatting:** Supports f-string formatting with `{VERSION}`
+
+---
 
 ## File Discovery & Loading
 
-*   `ZRB_INIT_FILE_NAME`: The filename Zrb searches for (recursively up parent directories) to load tasks and groups.
-    *   Default: `zrb_init.py`
-*   `ZRB_INIT_SCRIPTS`: A colon-separated list of absolute paths to specific Python scripts that Zrb will *always* load, regardless of directory location.
-*   `ZRB_INIT_MODULES`: A colon-separated list of Python modules that Zrb will force-load on startup.
-*   `ZRB_LOAD_BUILTIN`: Controls whether Zrb's pre-packaged tasks (Git, UUID, base64, etc.) are loaded.
-    *   Default: `1` (true)
-*   `ZRB_WARN_UNRECOMMENDED_COMMAND`: Whether to show warnings for shell commands that might be considered unsafe or unrecommended.
-    *   Default: `1` (true)
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_INIT_FILE_NAME` | Filename to search for (recursive up parent directories) | `zrb_init.py` |
+| `ZRB_INIT_SCRIPTS` | Colon-separated list of Python scripts to always load | — |
+| `ZRB_INIT_MODULES` | Colon-separated list of Python modules to force-load on startup | — |
+| `ZRB_LOAD_BUILTIN` | Whether to load pre-packaged tasks (Git, UUID, base64, etc.) | `1` (true) |
+| `ZRB_WARN_UNRECOMMENDED_COMMAND` | Show warnings for potentially unsafe shell commands | `1` (true) |
+
+---
 
 ## Directories and Files
 
-*   `ZRB_SESSION_LOG_DIR`: Directory where Zrb stores session-specific logs and history.
-    *   Default: `~/.zrb/session`
-*   `ZRB_TODO_DIR`: Directory where the `todo.txt` file (used by built-in `todo` tasks) is stored.
-    *   Default: `~/todo`
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_SESSION_LOG_DIR` | Directory for session-specific logs and history | `~/.zrb/session` |
+| `ZRB_TODO_DIR` | Directory for `todo.txt` file | `~/todo` |
 
-### Todo List Specific
-*   `ZRB_TODO_FILTER`: A filter string applied to `todo` task listings.
-*   `ZRB_TODO_RETENTION`: How long completed `todo` items are kept before being archived (e.g., `2w` for 2 weeks, `1m` for 1 month).
-    *   Default: `2w`
+### Todo List Settings
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_TODO_FILTER` | Filter string applied to `todo` task listings | — |
+| `ZRB_TODO_RETENTION` | How long completed items are kept before archiving | `2w` |
+
+> 💡 **Retention Format:** Use `2w` for 2 weeks, `1m` for 1 month, etc.
+
+---
 
 ## Web UI Configuration (Experimental)
 
 Zrb's experimental Web UI has dedicated configuration options.
 
-*   `ZRB_WEB_HTTP_PORT`: The port on which the Zrb Web UI server listens.
-    *   Default: `21213`
-*   `ZRB_WEB_ENABLE_AUTH`: Set to `1` (true) to enable username/password authentication for the Web UI.
-    *   Default: `0` (false)
-*   `ZRB_WEB_SECRET_KEY`: A secret key used for generating and signing authentication tokens. **Crucial for production security.**
-    *   Default: `zrb`
-*   `ZRB_WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES`: Expiration time for access tokens in minutes. Default: `30`.
-*   `ZRB_WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES`: Expiration time for refresh tokens in minutes. Default: `60`.
-*   `ZRB_WEB_ACCESS_TOKEN_COOKIE_NAME`: Cookie name for the access token. Default: `access_token`.
-*   `ZRB_WEB_REFRESH_TOKEN_COOKIE_NAME`: Cookie name for the refresh token. Default: `refresh_token`.
-*   `ZRB_WEB_GUEST_USERNAME`: Username for guest users. Default: `user`.
-*   `ZRB_WEB_SUPER_ADMIN_USERNAME`: Username for the super admin account. Also supports `ZRB_WEB_SUPERADMIN_USERNAME`. Default: `admin`.
-*   `ZRB_WEB_SUPER_ADMIN_PASSWORD`: Password for the super admin account. Also supports `ZRB_WEB_SUPERADMIN_PASSWORD`. Default: `admin`.
-*   `ZRB_WEB_TITLE`: Title displayed in the browser tab for the Web UI.
-    *   Default: `Zrb`
-*   `ZRB_WEB_JARGON`: A tagline or motto displayed on the Web UI homepage.
-    *   Default: `Your Automation PowerHouse`
-*   `ZRB_WEB_HOMEPAGE_INTRO`: Introductory text for the Web UI homepage.
-    *   Default: `Welcome to Zrb Web Interface`
-*   `ZRB_WEB_FAVICON_PATH`: Path to a custom favicon for the Web UI.
-*   `ZRB_WEB_CSS_PATH`: Colon-separated list of paths to custom CSS files to apply to the Web UI.
-*   `ZRB_WEB_JS_PATH`: Colon-separated list of paths to custom JavaScript files to apply to the Web UI.
-*   `ZRB_WEB_COLOR`: A Pico CSS theme color to use for the Web UI (e.g., `amber`, `red`, `blue`). See [Pico CSS docs](https://picocss.com/docs/version-picker) for options.
+### Server Settings
 
-## Interactive Editing (Diff tools)
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_WEB_HTTP_PORT` | Port for Web UI server | `21213` |
+| `ZRB_WEB_ENABLE_AUTH` | Enable username/password authentication | `0` (false) |
+| `ZRB_WEB_SECRET_KEY` | Secret key for authentication tokens ⚠️ **Change for production!** | `zrb` |
 
-*   `ZRB_DIFF_EDIT_COMMAND`: Template command used when the LLM assistant asks you to interactively edit a file replacement (e.g., in YOLO-off mode). Zrb uses this to launch a diff editor.
-    *   Default: Automatically generated based on your `ZRB_EDITOR` with support for `code` (VSCode), `cursor`, `zed`, `emacs`, `nvim`/`vim`, falling back to `vimdiff`.
-    *   Template variables: `{old}` (path to a temporary file with the original content), `{new}` (path to a temporary file with the new content).
+### Authentication Tokens
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES` | Access token expiration time | `30` |
+| `ZRB_WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES` | Refresh token expiration time | `60` |
+| `ZRB_WEB_ACCESS_TOKEN_COOKIE_NAME` | Cookie name for access token | `access_token` |
+| `ZRB_WEB_REFRESH_TOKEN_COOKIE_NAME` | Cookie name for refresh token | `refresh_token` |
+
+### User Accounts
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_WEB_GUEST_USERNAME` | Username for guest users | `user` |
+| `ZRB_WEB_SUPER_ADMIN_USERNAME` | Super admin username (also supports `ZRB_WEB_SUPERADMIN_USERNAME`) | `admin` |
+| `ZRB_WEB_SUPER_ADMIN_PASSWORD` | Super admin password (also supports `ZRB_WEB_SUPERADMIN_PASSWORD`) | `admin` |
+
+> ⚠️ **Security Warning:** Change default credentials before deploying to production!
+
+### Appearance
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_WEB_TITLE` | Browser tab title | `Zrb` |
+| `ZRB_WEB_JARGON` | Tagline displayed on homepage | `Your Automation PowerHouse` |
+| `ZRB_WEB_HOMEPAGE_INTRO` | Introductory text on homepage | `Welcome to Zrb Web Interface` |
+| `ZRB_WEB_FAVICON_PATH` | Path to custom favicon | — |
+| `ZRB_WEB_CSS_PATH` | Colon-separated list of custom CSS file paths | — |
+| `ZRB_WEB_JS_PATH` | Colon-separated list of custom JavaScript file paths | — |
+| `ZRB_WEB_COLOR` | Pico CSS theme color (`amber`, `red`, `blue`, etc.) | — |
+
+> 💡 **Theme Colors:** See [Pico CSS docs](https://picocss.com/docs/version-picker) for available color options.
+
+---
+
+## Interactive Editing (Diff Tools)
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_DIFF_EDIT_COMMAND` | Template command for interactive file editing (used by LLM assistant) | Auto-generated based on `ZRB_EDITOR` |
+
+> **Template Variables:**
+> - `{old}` — Path to temporary file with original content
+> - `{new}` — Path to temporary file with new content
+
+> 💡 **Supported Editors:** `code` (VSCode), `cursor`, `zed`, `emacs`, `nvim`/`vim`, falling back to `vimdiff`
+
+---
+
+## Quick Reference
+
+```bash
+# Essential settings
+export ZRB_LOGGING_LEVEL=DEBUG          # Verbose logging
+export ZRB_EDITOR=nvim                  # Use neovim for editing
+export ZRB_INIT_FILE_NAME=tasks.py      # Use custom init file name
+
+# Web UI (production)
+export ZRB_WEB_ENABLE_AUTH=1
+export ZRB_WEB_SECRET_KEY="your-secure-secret-key"
+export ZRB_WEB_SUPER_ADMIN_PASSWORD="secure-password"
+
+# Disable builtin tasks for cleaner environment
+export ZRB_LOAD_BUILTIN=0
+```
 
 ---

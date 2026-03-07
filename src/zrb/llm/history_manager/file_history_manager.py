@@ -70,6 +70,33 @@ class FileHistoryManager(AnyHistoryManager):
         else:
             return data
 
+    def _filter_empty_responses(self, data: Any) -> Any:
+        """Filter out empty responses (responses with no parts) from history data.
+        
+        Empty responses can cause "invalid message content type: <nil>" errors
+        with certain models like GLM-5 via Ollama when the history is sent to the model.
+        """
+        if isinstance(data, list):
+            filtered_list = []
+            for item in data:
+                if isinstance(item, dict):
+                    kind = item.get("kind")
+                    parts = item.get("parts")
+                    # Filter out empty responses
+                    if kind == "response" and (parts is None or parts == []):
+                        continue  # Skip this empty response
+                    # Recursively filter nested structures
+                    filtered_item = self._filter_empty_responses(item)
+                    filtered_list.append(filtered_item)
+                else:
+                    filtered_list.append(item)
+            return filtered_list
+        elif isinstance(data, dict):
+            # Recursively filter all values in the dictionary
+            return {k: self._filter_empty_responses(v) for k, v in data.items()}
+        else:
+            return data
+
     def _get_file_path(self, conversation_name: str) -> str:
         # Sanitize conversation name to be safe for filename
         safe_name = "".join(
@@ -101,9 +128,14 @@ class FileHistoryManager(AnyHistoryManager):
                 # This is critical because pydantic_ai validation might allow boolean values
                 # which will cause TypeError in Google model's _map_user_prompt
                 cleaned_data = self._clean_corrupted_content(data)
+                
+                # Filter out empty responses (responses with no parts) before validation
+                # Empty responses can cause "invalid message content type: <nil>" errors
+                # with certain models like GLM-5 via Ollama
+                filtered_data = self._filter_empty_responses(cleaned_data)
 
-                # Validate the cleaned data
-                messages = ModelMessagesTypeAdapter.validate_python(cleaned_data)
+                # Validate the cleaned and filtered data
+                messages = ModelMessagesTypeAdapter.validate_python(filtered_data)
                 self._cache[conversation_name] = messages
                 return messages
 
@@ -145,13 +177,18 @@ class FileHistoryManager(AnyHistoryManager):
             # This ensures that even if pydantic_ai validation allows boolean values,
             # we convert them to strings before saving to disk
             cleaned_data = self._clean_corrupted_content(data)
+            
+            # Filter out empty responses before saving to prevent future issues
+            # Empty responses can cause "invalid message content type: <nil>" errors
+            # with certain models like GLM-5 via Ollama
+            filtered_data = self._filter_empty_responses(cleaned_data)
 
-            # Validate the cleaned data
-            ModelMessagesTypeAdapter.validate_python(cleaned_data)
+            # Validate the cleaned and filtered data
+            ModelMessagesTypeAdapter.validate_python(filtered_data)
 
-            # Save the cleaned data
+            # Save the cleaned and filtered data
             with open(file_path, "w", encoding="utf-8") as f:
-                json.dump(cleaned_data, f, indent=2)
+                json.dump(filtered_data, f, indent=2)
 
         except ValidationError as e:
             # If validation fails even after cleaning, log and don't save

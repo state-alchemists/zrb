@@ -2,30 +2,53 @@
 
 # Zrb Hook System (Claude Code Compatible)
 
-The Zrb Hook System provides a powerful way to intercept and modify the execution of LLM agents. You can execute shell commands, run LLM prompts, or trigger specific scripts at key lifecycle events. 
+The Zrb Hook System provides a powerful way to intercept and modify the execution of LLM agents. You can execute shell commands, run LLM prompts, or trigger specific scripts at key lifecycle events.
 
 Zrb's hook system is **100% compatible with Claude Code hooks**.
+
+---
+
+## Table of Contents
+
+- [Lifecycle Events](#1-lifecycle-events)
+- [Configuration via JSON](#2-configuration-via-json)
+- [Defining Hooks Programmatically](#3-defining-hooks-programmatically-python)
+- [Environment Variables](#4-environment-variables)
+- [Quick Reference](#quick-reference)
+
+---
 
 ## 1. Lifecycle Events
 
 Hooks can attach to the following agent events:
-- `SessionStart` / `SessionEnd`
-- `UserPromptSubmit` (Before the LLM processes your text)
-- `PreToolUse` (Before a tool executes. *Can modify arguments or block execution!*)
-- `PostToolUse` / `PostToolUseFailure`
-- `PreCompact` (Before history summarization triggers)
+
+| Event | Description | Can Block? |
+|-------|-------------|------------|
+| `SessionStart` | Session begins | No |
+| `SessionEnd` | Session ends | No |
+| `UserPromptSubmit` | Before LLM processes text | No |
+| `PreToolUse` | Before a tool executes | **Yes** |
+| `PostToolUse` | After tool succeeds | No |
+| `PostToolUseFailure` | After tool fails | No |
+| `PreCompact` | Before history summarization | No |
 
 ---
 
 ## 2. Configuration via JSON
 
 Hooks are defined declaratively in JSON/YAML. Zrb discovers them automatically in:
-- `~/.zrb/hooks.json` or `~/.zrb/hooks/*.json`
-- `./.zrb/hooks.json` (Project specific)
-- `~/.claude/hooks.json` (Claude compatibility)
+
+| Location | Purpose |
+|----------|---------|
+| `~/.zrb/hooks.json` | User-level hooks |
+| `~/.zrb/hooks/*.json` | User-level hooks directory |
+| `./.zrb/hooks.json` | Project-specific hooks |
+| `~/.claude/hooks.json` | Claude compatibility |
 
 ### Example 1: Simple Command Hook
+
 Log every time a session starts.
+
 ```json
 [
   {
@@ -41,6 +64,7 @@ Log every time a session starts.
 ```
 
 ### Example 2: Blocking Dangerous Tools (Security Hook)
+
 Prevent the LLM from executing destructive bash commands by intercepting `PreToolUse`. Hooks that return exit code `2` block the execution.
 
 ```json
@@ -64,9 +88,11 @@ Prevent the LLM from executing destructive bash commands by intercepting `PreToo
   }
 ]
 ```
-*(Notice the `matchers` array: The hook only runs if the tool being called is `run_shell_command`!)*
+
+> 💡 **Tip:** The `matchers` array ensures the hook only runs when the tool being called is `run_shell_command`.
 
 ### Example 3: Prompt-based Hook
+
 Use an LLM to review user prompts before execution.
 
 ```json
@@ -113,10 +139,33 @@ async def block_production_writes(context: HookContext) -> HookResult:
 hook_manager.register(block_production_writes, events=[HookEvent.PRE_TOOL_USE])
 ```
 
+---
+
 ## 4. Environment Variables
 
 Command hooks receive a rich set of environment variables injected automatically:
-- `CLAUDE_HOOK_EVENT`: The event name (e.g., `PreToolUse`)
-- `CLAUDE_TOOL_NAME`: Name of the tool being executed
-- `CLAUDE_TOOL_INPUT`: JSON string of the arguments being passed to the tool
-- `CLAUDE_PROMPT`: The user's input text (for `UserPromptSubmit`)
+
+| Variable | Description |
+|----------|-------------|
+| `CLAUDE_HOOK_EVENT` | The event name (e.g., `PreToolUse`) |
+| `CLAUDE_TOOL_NAME` | Name of the tool being executed |
+| `CLAUDE_TOOL_INPUT` | JSON string of tool arguments |
+| `CLAUDE_PROMPT` | User's input text (for `UserPromptSubmit`) |
+| `CLAUDE_SESSION_ID` | Unique session identifier |
+
+---
+
+## Quick Reference
+
+| Hook Type | Use Case |
+|-----------|----------|
+| `command` | Run shell scripts |
+| `prompt` | Invoke LLM for analysis |
+
+| Matcher Operator | Description |
+|------------------|-------------|
+| `equals` | Exact match |
+| `contains` | Substring match |
+| `regex` | Pattern match |
+
+---

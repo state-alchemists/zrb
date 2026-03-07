@@ -4,87 +4,136 @@
 
 This guide is for developers who contribute to or maintain the Zrb project itself. It outlines the project's architecture, conventions, and release process.
 
+---
+
+## Table of Contents
+
+- [Publishing Zrb](#publishing-zrb)
+- [Inspecting Import Performance](#inspecting-import-performance)
+- [Profiling Zrb](#profiling-zrb)
+- [Testing Strategies](#testing-strategies)
+- [Evaluating the LLM Agent](#evaluating-and-improving-the-llm-agent)
+- [Quick Reference](#quick-reference)
+
+---
+
 ## Publishing Zrb
 
-To publish Zrb, you need a `Pypi` account and an API token.
+To publish Zrb, you need a PyPI account and an API token.
 
--   **Pypi**: Register at [https://pypi.org/](https://pypi.org/)
--   **TestPypi**: Register at [https://test.pypi.org/](https://test.pypi.org/)
+### Prerequisites
 
-Configure poetry with your token:
+| Platform | URL |
+|----------|-----|
+| PyPI | https://pypi.org/ |
+| TestPyPI | https://test.pypi.org/ |
+
+### Configuration
+
 ```bash
 poetry config pypi-token.pypi <your-api-token>
 ```
 
-Then, run the publishing command:
+### Publishing
+
 ```bash
 source ./project.sh
 docker login -U stalchmst
 zrb publish all
 ```
 
+---
+
 ## Inspecting Import Performance
 
 To inspect import performance and decide if a module should be lazy-loaded:
+
 ```bash
 pip install benchmark-imports
 python -m benchmark_imports zrb
 ```
 
+---
+
 ## Profiling Zrb
 
 To diagnose performance issues, generate a profile and visualize it.
 
-**1. Generate Profile:**
+### Generate Profile
+
 ```bash
 python -m cProfile -o .cprofile.prof -m zrb --help
 ```
 
-**2. Visualize Profile:**
--   **`snakeviz` (interactive HTML):**
-    ```bash
-    pip install snakeviz
-    snakeviz .cprofile.prof
-    ```
--   **`flameprof` (terminal flame graph):**
-    ```bash
-    pip install flameprof
-    flameprof .cprofile.prof > flamegraph.svg
-    ```
+### Visualization Options
+
+| Tool | Output | Command |
+|------|--------|---------|
+| `snakeviz` | Interactive HTML | `pip install snakeviz && snakeviz .cprofile.prof` |
+| `flameprof` | Flame graph SVG | `pip install flameprof && flameprof .cprofile.prof > flamegraph.svg` |
+
+---
 
 ## Testing Strategies
-The test suite uses `pytest` fixtures and `unittest.mock.patch` (as decorators or context managers) to isolate components and ensure correctness. Refer to existing tests in the `test/` directory for examples.
+
+The test suite uses `pytest` fixtures and `unittest.mock.patch` (as decorators or context managers) to isolate components and ensure correctness.
+
+Refer to existing tests in the `test/` directory for examples.
+
+---
 
 ## Evaluating and Improving the LLM Agent
 
-To maintain and improve the quality of the Zrb LLM agent, the project uses a set of automated evaluation challenges located in the `llm-challenges/` directory. The goal is to ensure the agent can handle various software engineering tasks by iteratively improving its system prompts and tool definitions.
+To maintain and improve the quality of the Zrb LLM agent, the project uses a set of automated evaluation challenges located in the `llm-challenges/` directory.
 
-The full instructions for the evaluation protocol are in `llm-challenges/AGENTS.md`. The core process is as follows:
+> 💡 **See:** `llm-challenges/AGENTS.md` for full evaluation protocol instructions.
 
-### 1. Execute Challenges
-A Python runner script orchestrates the entire evaluation. It runs `zrb llm chat` for every combination of model and challenge, executes automated verification scripts, and generates a report.
+### Process Overview
+
+| Step | Action |
+|------|--------|
+| 1. Execute | Run challenges for all model combinations |
+| 2. Analyze | Review generated REPORT.md for failures |
+| 3. Optimize | Refactor prompts or tools |
+| 4. Verify | Re-run challenges to confirm improvements |
+
+### Running Challenges
 
 ```bash
-# Navigate to the challenges directory
 cd llm-challenges/
 
-# Run a quick verification test
+# Quick verification test
 python runner.py --models openai:gpt-4o google-gla:gemini-1.5-pro --timeout 120 --verbose
 
-# Run the full test suite (example)
+# Full test suite
 python runner.py --timeout 3600 --parallelism 12 --verbose --models <model-list>
 ```
 
-### 2. Analyze the Report
-The runner generates a detailed `REPORT.md` and `results.json` in the `llm-challenges/experiment/` directory. Review this report to identify any failures (marked with ⚠️ or ❌).
+### Analyzing Results
 
-### 3. Optimize and Fix
-If a challenge fails, analyze the detailed logs linked in the report to find the root cause. Then, refactor the core framework files:
-*   **Prompts**: Modify files in `src/zrb/llm/prompt/markdown/`.
-*   **Tools**: Modify tool definitions in `src/zrb/llm/tool/`.
+| Output | Location |
+|--------|----------|
+| Report | `llm-challenges/experiment/REPORT.md` |
+| Results | `llm-challenges/experiment/results.json` |
 
-After applying a fix, run the challenges again to verify the improvement.
+### Optimization Targets
+
+| Target | Location |
+|--------|----------|
+| Prompts | `src/zrb/llm/prompt/markdown/` |
+| Tools | `src/zrb/llm/tool/` |
 
 ---
-This iterative process ensures that the agent's capabilities are continuously tested and enhanced in a systematic way.
 
+## Quick Reference
+
+| Task | Command |
+|------|---------|
+| Publish | `zrb publish all` |
+| Profile imports | `python -m benchmark_imports zrb` |
+| Generate profile | `python -m cProfile -o .cprofile.prof -m zrb --help` |
+| Visualize (snakeviz) | `snakeviz .cprofile.prof` |
+| Visualize (flame) | `flameprof .cprofile.prof > flamegraph.svg` |
+| Run LLM challenges | `python runner.py --models <list> --verbose` |
+
+---

@@ -1,5 +1,32 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.8.1 (March 7, 2026)
+
+- **Fix: Empty Response Filtering for Model Compatibility**:
+  - **Empty Response Filter**: Added `_filter_empty_responses()` method to `FileHistoryManager` in `src/zrb/llm/history_manager/file_history_manager.py` to filter out responses with empty or `None` parts from conversation history before loading and saving.
+  - **GLM-5 Compatibility**: Empty responses were causing "invalid message content type: <nil>" errors with certain models like GLM-5 via Ollama when the conversation history was sent to the model. This filter prevents those errors by removing empty responses during history loading and saving operations.
+  - **Test Coverage**: Added comprehensive test `test_file_history_manager_filter_empty_responses()` in `test/llm/history_manager/test_file_history_manager.py` covering empty responses, `None` parts, and nested structures.
+
+- **Documentation: Comprehensive Documentation Overhaul**:
+  - **Table of Contents**: Added navigable Table of Contents to all 19 documentation files with anchor links for improved discoverability.
+  - **Quick Reference Tables**: Added quick reference summary tables at the end of each documentation file for fast lookups.
+  - **Consistent Navigation**: Added breadcrumb navigation headers (🔖 Documentation Home > Section > Topic) to all documentation pages.
+  - **Better Structure**: Reorganized documentation with clearer section hierarchies and improved visual formatting.
+  - **Callout Boxes**: Added 💡 Tip and ⚠️ Warning callout boxes throughout documentation to highlight important information.
+  - **Enhanced Tables**: Converted dense bullet-point lists to scannable tables in configuration and API reference documents.
+  - **Files Updated**:
+    - Core Concepts: `cli-and-groups.md`, `inputs.md`, `environments.md`, `session-and-context.md`, `tasks-and-lifecycle.md`
+    - Task Types: `basic-tasks.md`, `builtin-helpers.md`, `file-ops.md`, `readiness-checks.md`, `triggers-and-schedulers.md`
+    - Advanced Topics: `hooks.md`, `web-ui.md`, `white-labeling.md`, `ci-cd.md`, `claude-compatibility.md`, `llm-integration.md`, `upgrading-guide.md`, `maintainer-guide.md`
+    - Configuration: `env-vars.md`, `llm-config.md`
+    - Technical Specs: `llm-context.md`
+    - Installation: `installation.md`
+    - Root: `README.md`
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.8.1 in `pyproject.toml`.
+
+
 ## 2.8.0 (March 6, 2026)
 
 - **Breaking: FastApp Removal**:

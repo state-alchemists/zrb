@@ -6,7 +6,19 @@ Inputs make your tasks interactive and dynamic. They allow you to pass parameter
 
 Inputs are distinct from environment variables; think of them as function arguments for your tasks, designed for values that change with each run.
 
-**Crucial Concept:** Inputs are inherited recursively. If Task B depends on Task A, Task B has access to all inputs defined by Task A. When you run Task B, the CLI will prompt for the required inputs of *both* tasks.
+> ⚠️ **Important:** Inputs are inherited recursively. If Task B depends on Task A, Task B has access to all inputs defined by Task A. When you run Task B, the CLI will prompt for the required inputs of *both* tasks.
+
+---
+
+## Table of Contents
+
+- [Basic Usage](#basic-usage)
+- [Providing Inputs](#providing-inputs)
+- [Available Input Types](#available-input-types)
+- [Input Type Reference](#input-type-reference)
+- [BoolInput Behavior](#boolinput-behavior)
+
+---
 
 ## Basic Usage
 
@@ -28,20 +40,26 @@ cli.add_task(
 )
 ```
 
-### Providing Inputs
+---
+
+## Providing Inputs
 
 Zrb gives you two ways to provide inputs:
 
-**1. Command-Line Flags**
+### 1. Command-Line Flags
+
 Zrb automatically generates CLI flags based on the input names.
-```sh
+
+```bash
 zrb hello --name Edward --prefix Mr.
 # Output: Hello Mr. Edward
 ```
 
-**2. Interactive Prompt**
+### 2. Interactive Prompt
+
 If you run the task without providing the required inputs, Zrb uses `prompt_toolkit` to automatically prompt you for them.
-```sh
+
+```bash
 $ zrb hello
 ? The name to greet: › Edward
 ? A title to use (Mr./Ms.): › Dr.
@@ -54,16 +72,20 @@ Hello Dr. Edward
 
 Zrb provides concrete input classes for different data types. Always use these specific classes rather than the abstract `AnyInput` base class.
 
-*   **`StrInput`**: For standard string text.
-*   **`IntInput`**: Ensures the user provides a valid integer.
-*   **`FloatInput`**: Ensures the user provides a valid floating-point number.
-*   **`BoolInput`**: For true/false flags.
-*   **`PasswordInput`**: Hides the characters as the user types them during interactive prompts.
-*   **`OptionInput`**: Forces the user to choose from a predefined list of options, providing an interactive menu.
+| Input Type | Description | Use Case |
+|------------|-------------|----------|
+| `StrInput` | Standard string text | Names, messages, paths |
+| `IntInput` | Integer validation | Counts, ports, iterations |
+| `FloatInput` | Floating-point numbers | Ratios, thresholds |
+| `BoolInput` | Boolean flags | Enable/disable options |
+| `PasswordInput` | Hidden input | Passwords, secrets, API keys |
+| `OptionInput` | Selection from list | Predefined choices |
+
+---
+
+## Input Type Reference
 
 ### Comprehensive Example
-
-This example demonstrates every major input type.
 
 ```python
 from zrb import Task, StrInput, IntInput, FloatInput, BoolInput, PasswordInput, OptionInput, cli
@@ -89,19 +111,30 @@ task = cli.add_task(
 )
 ```
 
-### `BoolInput` Behavior
+---
+
+## BoolInput Behavior
 
 `BoolInput` has specific command-line behavior.
 
--   To set it to `True`, provide the flag without a value:
-    ```bash
-    zrb create-user --username "alice" --is-admin
-    # is-admin is now True
-    ```
--   To set it to `False`, you must explicitly provide a "falsey" value:
-    ```bash
-gofrendi@MacBook-Pro zrb % zrb new-doc-by-gemini/core-concepts/inputs.md
-    zrb create-user --username "alice" --is-admin false
-    # is-admin is now False
-    ```
--   The `--no-<flag>` syntax is **not** supported.
+| To set | Command | Result |
+|--------|---------|--------|
+| `True` | `zrb create-user --username alice --is-admin` | Flag present = `True` |
+| `False` | `zrb create-user --username alice --is-admin false` | Explicit value required |
+
+> ⚠️ **Note:** The `--no-<flag>` syntax is **not** supported. Use `--flag false` instead.
+
+---
+
+## Quick Reference
+
+| Input Type | Required Parameters | Optional Parameters |
+|------------|-------------------|---------------------|
+| `StrInput` | `name` | `description`, `default`, `prompt` |
+| `IntInput` | `name` | `description`, `default`, `min`, `max` |
+| `FloatInput` | `name` | `description`, `default`, `min`, `max` |
+| `BoolInput` | `name` | `description`, `default` |
+| `PasswordInput` | `name` | `description` |
+| `OptionInput` | `name`, `options` | `description`, `default` |
+
+---

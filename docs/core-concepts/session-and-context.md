@@ -4,11 +4,26 @@
 
 To understand how data flows through a Zrb pipeline, you must understand the relationship between a `Session`, a `Context`, and `XCom`.
 
+---
+
+## Table of Contents
+
+- [What's the Difference?](#whats-the-difference)
+- [The Context (`ctx`)](#the-context-ctx)
+- [XCom (Cross-Communication)](#xcom-cross-communication)
+- [Quick Reference](#quick-reference)
+
+---
+
 ## What's the Difference?
 
-- **`Session`**: The entire factory floor. It manages a single run of a workflow from start to finish, resolving dependencies and tracking task states (pending, running, completed, failed).
-- **`Context` (`ctx`)**: The specific workbench for a single task. It contains only what the current task needs to do its job: inputs, environments, logging utilities, and the XCom mailbox.
-- **`XCom`**: The conveyor belt between workbenches. It allows Task A to send a piece of data to Task B.
+| Concept | Analogy | Purpose |
+|---------|---------|--------|
+| **Session** | Factory floor | Manages a single workflow run from start to finish |
+| **Context** (`ctx`) | Workbench | Contains everything a single task needs |
+| **XCom** | Conveyor belt | Allows tasks to pass data to each other |
+
+
 
 ---
 
@@ -17,16 +32,25 @@ To understand how data flows through a Zrb pipeline, you must understand the rel
 When a task executes its `action`, Zrb passes it a `Context` object, universally referred to as `ctx`.
 
 ### Shared Data Plane
-The context holds information that is aggregated from the task and all its upstreams:
-- `ctx.input`: Access parsed user inputs.
-- `ctx.env`: Access resolved environment variables.
-- `ctx.xcom`: Access the data-sharing queues.
+
+The context holds information aggregated from the task and all its upstreams:
+
+| Attribute | Description |
+|-----------|-------------|
+| `ctx.input` | Access parsed user inputs |
+| `ctx.env` | Access resolved environment variables |
+| `ctx.xcom` | Access the data-sharing queues |
 
 ### Task-Specific Utilities
-The context provides methods specific to the currently executing task:
-- `ctx.print(*values)`: Formatted printing (includes the task's color and name).
-- `ctx.log_info(msg)`, `ctx.log_error(msg)`: Logs messages to the shared session log.
-- `ctx.render(template_string)`: Renders a Jinja2 f-string against the context variables.
+
+| Method | Description |
+|--------|-------------|
+| `ctx.print(*values)` | Formatted printing (includes task's color and name) |
+| `ctx.log_info(msg)` | Log info message to session log |
+| `ctx.log_error(msg)` | Log error message to session log |
+| `ctx.render(template)` | Render a Jinja2 template against context variables |
+
+### Example
 
 ```python
 from zrb import Task, cli, StrInput
@@ -51,8 +75,12 @@ def demo(ctx):
 
 ### Automatic Data Flow
 
-1. **Pushing**: The `return` value of a task's `action` is *automatically* pushed into that task's XCom queue.
-2. **Popping**: Downstream tasks can access this data by requesting it from the upstream task's queue name.
+| Step | What Happens |
+|------|--------------|
+| 1. Pushing | The `return` value of a task's `action` is *automatically* pushed to XCom |
+| 2. Popping | Downstream tasks access data via the upstream task's queue name |
+
+### Example: Automatic Transfer
 
 ```python
 from zrb import cli, CmdTask, Task
@@ -74,11 +102,16 @@ show_magic_number = cli.add_task(
 
 ### Manual XCom Manipulation
 
-You can manually interact with XCom queues within a Python task.
-- `ctx.xcom['task-name'].push(val)`: Add to the queue.
-- `ctx.xcom['task-name'].pop()`: Remove and return the oldest item.
-- `ctx.xcom['task-name'].peek()`: Look at the oldest item without removing it.
-- `ctx.xcom['task-name'].get()`: Safe retrieval; returns `None` if the queue is empty.
+You can manually interact with XCom queues within a Python task:
+
+| Method | Description |
+|--------|-------------|
+| `ctx.xcom['task-name'].push(val)` | Add to the queue |
+| `ctx.xcom['task-name'].pop()` | Remove and return oldest item |
+| `ctx.xcom['task-name'].peek()` | Look at oldest item without removing |
+| `ctx.xcom['task-name'].get()` | Safe retrieval; returns `None` if empty |
+
+### Example: Manual Transfer
 
 ```python
 @make_task(name="task1", group=cli)
@@ -92,3 +125,17 @@ def task2(ctx):
     data = ctx.xcom["task1"].pop()
     ctx.print(f"Received: {data}")
 ```
+
+---
+
+## Quick Reference
+
+| Component | How to Access |
+|-----------|---------------|
+| Inputs | `ctx.input.<name>` |
+| Env vars | `ctx.env.<name>` |
+| XCom data | `ctx.xcom['task-name'].pop()` |
+| Task name | `ctx.task_name` |
+| Session ID | `ctx.session_id` |
+
+---

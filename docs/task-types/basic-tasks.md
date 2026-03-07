@@ -4,16 +4,31 @@
 
 Zrb provides two primary building blocks for creating automations: `Task` (for Python code) and `CmdTask` (for shell commands).
 
+---
+
+## Table of Contents
+
+- [`Task` (Python Code)](#1-task-or-basetask)
+- [`CmdTask` (Shell Commands)](#2-cmdtask)
+- [Quick Comparison](#quick-comparison)
+
+---
+
 ## 1. `Task` (or `BaseTask`)
 
 The `Task` class is the workhorse for running custom Python code within your Zrb workflows. It is an alias for the foundational `BaseTask` class.
 
-### When to use
-Use `Task` whenever your logic requires complex calculations, data manipulation, API calls via Python libraries, or any custom action that doesn't fit cleanly into a single shell command.
+### When to Use
 
-### Usage Examples
+| Use Case | Example |
+|----------|--------|
+| Complex calculations | Mathematical transformations |
+| Data manipulation | Processing JSON, filtering lists |
+| API calls via Python | Using `requests`, `httpx` |
+| Custom logic | Any action not fitting a single shell command |
 
-**Using the `@make_task` decorator (Recommended)**
+### Using the `@make_task` Decorator (Recommended)
+
 ```python
 from zrb import make_task, cli, IntInput
 
@@ -28,10 +43,11 @@ from zrb import make_task, cli, IntInput
 def calculate_perimeter(ctx):
     result = 2 * (ctx.input.height + ctx.input.width)
     ctx.print(f"Perimeter is {result}")
-    return result # Automatically pushed to XCom
+    return result  # Automatically pushed to XCom
 ```
 
-**Using direct instantiation with a lambda**
+### Using Direct Instantiation with Lambda
+
 ```python
 from zrb import Task, cli
 
@@ -49,19 +65,25 @@ calculate = cli.add_task(
 
 The `CmdTask` is your go-to tool for running shell commands. It seamlessly integrates Zrb's context (inputs, envs, xcom) directly into the shell execution environment.
 
-### When to use
-Whenever you need to run an external program, build script, docker command, or system administration tool.
+### When to Use
 
-### Usage Examples
+| Use Case | Example |
+|----------|--------|
+| External programs | `docker`, `kubectl`, `git` |
+| Build scripts | `make`, `npm run build` |
+| System administration | Shell utilities |
+| Quick one-liners | `echo`, `cp`, `mv` |
 
-**Simple Command**
+### Simple Command
+
 ```python
 from zrb import CmdTask, cli
 
 echo_task = cli.add_task(CmdTask(name="echo", cmd="echo 'Hello, World!'"))
 ```
 
-**Command with Input and Jinja Templating**
+### Command with Input and Templating
+
 You can inject context variables directly into the command string using `{ }` syntax.
 
 ```python
@@ -76,7 +98,8 @@ figlet_task = cli.add_task(
 )
 ```
 
-**Command with Environment Variables**
+### Command with Environment Variables
+
 `CmdTask` automatically injects defined `Env` variables into the OS environment of the subprocess.
 
 ```python
@@ -85,19 +108,35 @@ from zrb import CmdTask, Env, cli
 api_call_task = cli.add_task(
     CmdTask(
         name="api-call",
-        env=[Env(name="API_KEY", is_secret=True)], # Will prompt if not in OS
+        env=[Env(name="API_KEY", is_secret=True)],  # Will prompt if not in OS
         # The curl command can access $API_KEY directly from the shell environment
-        cmd="curl -H \"Authorization: Bearer $API_KEY\" https://api.example.com/data"
+        cmd='curl -H "Authorization: Bearer $API_KEY" https://api.example.com/data'
     )
 )
 ```
 
 ### Background Processes
+
 If you are running a long-lived server, you can background it in bash using `&`, but it's often better to pair it with a [Readiness Check](./readiness-checks.md).
 
 ```python
 start_server = CmdTask(
     name="start-server",
-    cmd="python -m http.server 8000 &" # Runs in background
+    cmd="python -m http.server 8000 &"  # Runs in background
 )
 ```
+
+---
+
+## Quick Comparison
+
+| Feature | `Task` | `CmdTask` |
+|---------|--------|-----------|
+| **Purpose** | Python code | Shell commands |
+| **Syntax** | `action=lambda ctx: ...` | `cmd="shell command"` |
+| **Templating** | Python string formatting | Jinja2 `{ctx.input.x}` |
+| **Return value** | Explicit `return` | stdout captured to XCom |
+| **Environment** | Via `os.environ` | Auto-injected into shell |
+| **Best for** | Complex logic, APIs | External tools, scripts |
+
+---

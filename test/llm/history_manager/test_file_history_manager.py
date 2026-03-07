@@ -304,3 +304,113 @@ def test_file_history_manager_proactive_cleaning_comprehensive(temp_history_dir)
     }
     cleaned = manager._clean_corrupted_content(data)
     assert cleaned["content"] == "False"  # Boolean False should be converted to string
+
+
+def test_file_history_manager_filter_empty_responses(temp_history_dir):
+    """Test filtering out empty responses from history data."""
+    manager = FileHistoryManager(temp_history_dir)
+
+    # Test filtering empty responses
+    data = [
+        {
+            "kind": "request",
+            "parts": [
+                {
+                    "part_kind": "user-prompt",
+                    "content": "Hello",
+                    "timestamp": "2026-02-23T09:25:23.369273Z",
+                }
+            ],
+            "timestamp": None,
+            "instructions": None,
+            "run_id": None,
+            "metadata": None,
+        },
+        {
+            "kind": "response",
+            "parts": [],  # Empty response that should be filtered out
+            "usage": {
+                "input_tokens": 0,
+                "cache_write_tokens": 0,
+                "cache_read_tokens": 0,
+                "output_tokens": 0,
+            },
+            "model_name": "glm-5:cloud",
+            "timestamp": "2026-03-07T10:13:06.791202Z",
+            "provider_name": "ollama",
+            "provider_url": "http://localhost:11434/v1/",
+            "provider_details": {
+                "timestamp": "2026-03-07T10:13:06Z",
+                "finish_reason": "stop"
+            },
+            "provider_response_id": "chatcmpl-725",
+            "finish_reason": "stop",
+            "run_id": "c38dba6b-f0fe-4696-a34f-1fa273095318",
+            "metadata": None,
+        },
+        {
+            "kind": "response",
+            "parts": [
+                {
+                    "part_kind": "text",
+                    "content": "Hi there!",
+                    "id": None,
+                    "provider_name": None,
+                    "provider_details": None,
+                }
+            ],
+            "usage": {
+                "input_tokens": 100,
+                "cache_write_tokens": 0,
+                "cache_read_tokens": 0,
+                "output_tokens": 50,
+            },
+            "model_name": "glm-5:cloud",
+            "timestamp": "2026-03-07T10:13:07.791202Z",
+            "provider_name": "ollama",
+            "provider_url": "http://localhost:11434/v1/",
+            "provider_details": {
+                "timestamp": "2026-03-07T10:13:07Z",
+                "finish_reason": "stop"
+            },
+            "provider_response_id": "chatcmpl-726",
+            "finish_reason": "stop",
+            "run_id": "c38dba6b-f0fe-4696-a34f-1fa273095318",
+            "metadata": None,
+        },
+    ]
+
+    filtered = manager._filter_empty_responses(data)
+    assert len(filtered) == 2  # Should have 2 items (request + non-empty response)
+    assert filtered[0]["kind"] == "request"
+    assert filtered[1]["kind"] == "response"
+    assert len(filtered[1]["parts"]) == 1  # Non-empty response should be kept
+    assert filtered[1]["parts"][0]["content"] == "Hi there!"
+
+    # Test with None parts
+    data_with_none_parts = [
+        {
+            "kind": "response",
+            "parts": None,  # None parts should also be filtered out
+            "timestamp": "2026-03-07T10:13:06.791202Z",
+        }
+    ]
+    filtered = manager._filter_empty_responses(data_with_none_parts)
+    assert len(filtered) == 0  # Should be filtered out
+
+    # Test nested structures
+    nested_data = {
+        "conversation": [
+            {
+                "kind": "request",
+                "parts": [{"part_kind": "user-prompt", "content": "Test"}],
+            },
+            {
+                "kind": "response",
+                "parts": [],  # Should be filtered out
+            },
+        ]
+    }
+    filtered = manager._filter_empty_responses(nested_data)
+    assert len(filtered["conversation"]) == 1
+    assert filtered["conversation"][0]["kind"] == "request"

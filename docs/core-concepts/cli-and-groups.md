@@ -6,6 +6,15 @@ Zrb is fundamentally designed for the command line. You don't just build a pipel
 
 ---
 
+## Table of Contents
+
+- [The `cli` Object](#the-cli-object)
+- [Grouping Tasks (`Group`)](#grouping-tasks-group)
+- [Group & Task Aliases](#group--task-aliases)
+- [Removing Tasks and Groups](#removing-tasks-and-groups)
+
+---
+
 ## The `cli` Object
 
 The `cli` object (imported via `from zrb import cli`) is the root of your application. When you type `zrb` in your terminal, it executes this root group.
@@ -19,7 +28,8 @@ cli.add_task(
     CmdTask(name="deploy_app", cmd="echo 'Deploying!'")
 )
 ```
-*(Notice how Zrb automatically converts `snake_case` task names to `kebab-case` CLI commands!)*
+
+> 💡 **Tip:** Zrb automatically converts `snake_case` task names to `kebab-case` CLI commands!
 
 ```bash
 zrb deploy-app
@@ -33,6 +43,8 @@ As your automation grows, having 50 commands at the root level becomes messy. Zr
 
 Groups act like sub-commands in standard CLI applications (e.g., `git commit`, `git push`, where `git` is the root, and `commit`/`push` are commands inside a group).
 
+### Basic Grouping
+
 ```python
 from zrb import cli, Group, CmdTask
 
@@ -44,7 +56,7 @@ docker_group.add_task(CmdTask(name="build", cmd="docker build ."))
 docker_group.add_task(CmdTask(name="run", cmd="docker run my-app"))
 ```
 
-Now, your CLI is beautifully organized into subcommands:
+Now your CLI is organized into subcommands:
 
 ```bash
 zrb docker build
@@ -52,6 +64,7 @@ zrb docker run
 ```
 
 ### Deep Nesting
+
 Groups can be nested infinitely. You can add a group inside another group!
 
 ```python
@@ -62,7 +75,8 @@ aws_group = cloud_group.add_group(Group(name="aws"))
 
 aws_group.add_task(CmdTask(name="deploy", cmd="aws s3 sync ..."))
 ```
-Execution: `zrb cloud aws deploy`
+
+**Execution:** `zrb cloud aws deploy`
 
 ---
 
@@ -78,11 +92,18 @@ task = CmdTask(name="remove-all-containers", cmd="docker rm -f $(docker ps -aq)"
 # Add to CLI with an alias
 cli.add_task(task, alias="rm-all")
 ```
-Now you can execute it quickly via `zrb rm-all`.
+
+Now you can execute it quickly:
+
+```bash
+zrb rm-all
+```
+
+---
 
 ## Removing Tasks and Groups
 
-If you are overriding a default `zrb_init.py` (e.g. from a parent directory) and want to hide certain inherited commands, you can remove them:
+If you are overriding a default `zrb_init.py` (e.g., from a parent directory) and want to hide certain inherited commands, you can remove them:
 
 ```python
 from zrb import cli
@@ -91,3 +112,18 @@ from zrb import cli
 cli.remove_task("legacy-deploy")
 cli.remove_group("old-tools")
 ```
+
+---
+
+## Quick Reference
+
+| Operation | Code |
+|-----------|------|
+| Add task to root | `cli.add_task(task)` |
+| Create group | `cli.add_group(Group(name="name"))` |
+| Add task to group | `group.add_task(task)` |
+| Add task with alias | `cli.add_task(task, alias="short")` |
+| Remove task | `cli.remove_task("task-name")` |
+| Remove group | `cli.remove_group("group-name")` |
+
+---

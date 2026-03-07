@@ -6,12 +6,25 @@ Zrb provides specialized tasks for manipulating and synchronizing the filesystem
 
 ---
 
+## Table of Contents
+
+- [`Scaffolder`](#1-scaffolder)
+- [`RsyncTask`](#2-rsynctask)
+- [Quick Comparison](#quick-comparison)
+
+---
+
 ## 1. `Scaffolder`
 
-The `Scaffolder` task is a powerful templating engine. It copies an entire directory structure from a source to a destination, performing find-and-replace text transformations on the file contents and even the filenames themselves.
+The `Scaffolder` task is a powerful templating engine. It copies an entire directory structure from a source to a destination, performing find-and-replace text transformations on the file contents **and even the filenames themselves**.
 
-### When to use
-Perfect for creating "new project" wizards, generating boilerplate code modules, or establishing standardized configuration templates across a team.
+### When to Use
+
+| Use Case | Description |
+|----------|-------------|
+| Project scaffolding | Create "new project" wizards |
+| Boilerplate generation | Generate standardized code modules |
+| Configuration templates | Establish team-wide config standards |
 
 ### Example
 
@@ -38,6 +51,7 @@ create_project = cli.add_task(
     )
 )
 ```
+
 When a user runs `zrb create-project --project-name my-cool-app`, Zrb creates the new directory and injects `my-cool-app` wherever the placeholder existed in the templates.
 
 ---
@@ -46,8 +60,13 @@ When a user runs `zrb create-project --project-name my-cool-app`, Zrb creates th
 
 The `RsyncTask` provides a strongly-typed Python interface over the battle-tested `rsync` command-line utility. It handles complex synchronization between local folders or remote servers via SSH.
 
-### When to use
-Use `RsyncTask` for backups, mirror deployments, or syncing build artifacts to remote testing environments.
+### When to Use
+
+| Use Case | Description |
+|----------|-------------|
+| Backups | Sync local folders |
+| Mirror deployments | Deploy to remote servers |
+| Artifact sync | Transfer build outputs |
 
 ### Local to Local Sync
 
@@ -65,7 +84,7 @@ sync_local = cli.add_task(
 
 ### Local to Remote Sync (Push via SSH)
 
-You can sync files directly to a remote server. While SSH keys are the recommended authentication method, `RsyncTask` also securely handles password authentication via environment variables if needed.
+You can sync files directly to a remote server. While SSH keys are the recommended authentication method, `RsyncTask` also securely handles password authentication via environment variables.
 
 ```python
 from zrb import RsyncTask, Env, cli
@@ -78,13 +97,27 @@ deploy_remote = cli.add_task(
         remote_user="deploy_user",
         remote_destination_path="/var/www/html/",
         
-        # Optional advanced configurations:
-        # remote_port=2222,
-        # remote_ssh_key="~/.ssh/id_rsa_deploy",
-        # exclude_from=".rsyncignore",
+        # Optional advanced configurations
+        remote_port=2222,
+        remote_ssh_key="~/.ssh/id_rsa_deploy",
+        exclude_from=".rsyncignore",
         
-        # If using password auth (SSHPASS is picked up by rsync under the hood)
+        # Password auth (SSHPASS is picked up by rsync)
         env=[Env(name="SSHPASS", is_secret=True)] 
     )
 )
 ```
+
+---
+
+## Quick Comparison
+
+| Feature | `Scaffolder` | `RsyncTask` |
+|---------|--------------|-------------|
+| **Purpose** | Template generation | File synchronization |
+| **Direction** | Source → Destination (one-way) | Bidirectional or one-way |
+| **Transformations** | Yes (find/replace) | No (exact copy) |
+| **Remote support** | No | Yes (via SSH) |
+| **Best for** | New projects, boilerplate | Backups, deployments |
+
+---

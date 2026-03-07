@@ -10,6 +10,22 @@ Whether you're running tasks from the terminal or a sleek web UI, Zrb streamline
 
 ---
 
+## 📑 Table of Contents
+
+- [🔥 Why Choose Zrb?](#-why-choose-zrb)
+- [🚀 Quickstart Part 1: Your First Basic Pipeline](#-quickstart-part-1-your-first-basic-pipeline-in--2-minutes)
+- [🚀 Quickstart Part 2: AI-Powered Workflow](#-quickstart-part-2-your-first-ai-powered-workflow-in--5-minutes)
+- [🖥️ Try the Web UI](#️-try-the-web-ui)
+- [💬 Interact with an LLM Directly](#-interact-with-an-llm-directly)
+- [⚙️ Installation & Configuration](#️-installation--configuration)
+- [🤝 CI/CD Integration](#-cicd-integration)
+- [🗺️ Documentation Directory](#️-documentation-directory)
+- [🎥 Demo Video](#-demo-video)
+- [💖 Support Zrb](#-support-zrb)
+- [🎉 Fun Fact](#-fun-fact)
+
+---
+
 ## 🔥 Why Choose Zrb?
 
 Zrb is designed to be powerful yet intuitive, offering a unique blend of features:

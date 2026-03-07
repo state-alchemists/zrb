@@ -8,9 +8,22 @@ The key principle is to leverage the official Zrb Docker image (`stalchmst/zrb`)
 
 ---
 
+## Table of Contents
+
+- [Using the Official Docker Image](#1-using-the-official-zrb-docker-image)
+- [GitHub Actions](#2-github-actions)
+- [GitLab CI/CD](#3-gitlab-cicd)
+- [Bitbucket Pipelines](#4-bitbucket-pipelines)
+- [Best Practices](#5-choosing-the-right-zrb-image-version)
+- [Quick Reference](#quick-reference)
+
+---
+
 ## 1. Using the Official Zrb Docker Image
 
-The recommended way to run Zrb commands in a CI/CD environment is by using the official Docker image: `stalchmst/zrb`. Always specify a version tag (e.g., `stalchmst/zrb:2.0.0`) for reproducible builds, rather than using `latest`.
+The recommended way to run Zrb commands in a CI/CD environment is by using the official Docker image: `stalchmst/zrb`.
+
+> ⚠️ **Important:** Always specify a version tag (e.g., `stalchmst/zrb:2.0.0`) for reproducible builds, rather than using `latest`.
 
 Find available tags on [Docker Hub](https://hub.docker.com/r/stalchmst/zrb/tags).
 
@@ -21,12 +34,11 @@ Find available tags on [Docker Hub](https://hub.docker.com/r/stalchmst/zrb/tags)
 GitHub Actions allow you to automate workflows directly within your GitHub repository.
 
 ### Setup
-1.  **Create Workflow Directory:** Create a directory named `.github/workflows` in the root of your repository if it doesn't exist.
-2.  **Create Workflow File:** Inside `.github/workflows`, create a YAML file (e.g., `main.yml` or `ci.yml`).
 
-### Example `.github/workflows/ci.yml`
+1. Create directory: `.github/workflows/`
+2. Create workflow file: `ci.yml`
 
-This example demonstrates a basic workflow that runs Zrb tasks (like tests or linting) on every push to the `main` branch and on pull requests targeting `main`.
+### Example Workflow
 
 ```yaml
 name: Zrb CI Pipeline
@@ -41,156 +53,93 @@ jobs:
   run-zrb-tasks:
     runs-on: ubuntu-latest
     container:
-      # Use a specific version for consistency
       image: stalchmst/zrb:2.0.0
 
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v4 # Use the latest version of checkout action
+        uses: actions/checkout@v4
 
       - name: Show Environment Info
         run: |
           echo "🏃 Triggered by: ${{ github.actor }}"
           echo "🎉 Event: ${{ github.event_name }}"
-          echo "🐧 Runner OS: ${{ runner.os }}"
           echo "🌲 Branch/Ref: ${{ github.ref }}"
-          echo "📦 Zrb Version:"
           zrb --version
         shell: bash
 
-      - name: Run Zrb Tests (Example)
-        # Replace 'zrb test' with your actual test or linting command
+      - name: Run Tests
         run: zrb test 
         shell: bash
 
-      - name: Run Zrb Lint (Example)
-        # Replace 'zrb lint' with your actual test or linting command
+      - name: Run Lint
         run: zrb lint
         shell: bash
-
-      # Add more steps for building, deploying, etc.
-      # - name: Build Project
-      #   run: zrb build
-      #   shell: bash
-
-      # - name: Deploy to Staging
-      #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      #   run: zrb deploy staging
-      #   shell: bash
-      #   env:
-      #     DEPLOY_KEY: ${{ secrets.STAGING_DEPLOY_KEY }} # Example secret
 ```
 
-**Explanation:**
+### GitHub Actions Reference
 
-*   `on`: Defines the triggers for the workflow (pushes and pull requests to `main`).
-*   `jobs`: Contains the sequence of tasks to run.
-*   `run-zrb-tasks`: The name of the job.
-*   `runs-on: ubuntu-latest`: Specifies the type of machine to run the job on.
-*   `container.image`: Specifies the Docker image to use for the job steps (our official Zrb image).
-*   `steps`: A list of individual tasks within the job.
-    *   `actions/checkout@v4`: Checks out your repository code into the runner environment.
-    *   `run`: Executes shell commands (e.g., `zrb --version`, `zrb test`).
-    *   `shell: bash`: Ensures commands run using the bash shell within the container.
-*   **Secrets:** For deployment or tasks requiring credentials, use [GitHub Secrets](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions) and reference them using the `secrets` context (e.g., `${{ secrets.YOUR_SECRET_NAME }}`). Pass them as environment variables to the `run` step.
+| Key | Description |
+|-----|-------------|
+| `on` | Triggers (push, pull_request) |
+| `container.image` | Docker image to use |
+| `steps[].run` | Shell commands to execute |
+| `shell: bash` | Ensure bash shell in container |
 
 ---
 
 ## 3. GitLab CI/CD
 
-GitLab CI/CD uses a `.gitlab-ci.yml` file in the root of your repository to define pipelines.
+GitLab CI/CD uses a `.gitlab-ci.yml` file in the root of your repository.
 
-### Example `.gitlab-ci.yml`
-
-This example sets up a simple pipeline with stages for testing and linting.
+### Example Pipeline
 
 ```yaml
-# Use the official Zrb Docker image
 image: stalchmst/zrb:2.0.0
 
 stages:
   - setup
   - test
   - lint
-  # Add more stages like build, deploy, etc.
-
-variables:
-  # Optional: Define variables accessible in scripts
-  # MY_VARIABLE: "my-value"
 
 before_script:
-  # Commands run before each job
   - echo "🚀 Starting CI/CD pipeline..."
-  - echo "📦 Zrb Version:"
   - zrb --version
 
 show_info:
   stage: setup
   script:
     - echo "🏃 Triggered by: $GITLAB_USER_LOGIN"
-    - echo "🎉 Event: $CI_PIPELINE_SOURCE"
-    - echo "🌲 Branch/Ref: $CI_COMMIT_REF_NAME"
-    - echo "📦 Zrb Version:"
-    - zrb --version
+    - echo "🌲 Branch: $CI_COMMIT_REF_NAME"
 
 run_tests:
   stage: test
   script:
     - echo "🧪 Running tests..."
-    # Replace 'zrb test' with your actual test command
     - zrb test
-  # Optional: Define rules for when the job runs
-  # rules:
-  #   - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-  #   - if: '$CI_COMMIT_BRANCH == "main"'
 
 run_linting:
   stage: lint
   script:
     - echo "✨ Running linters..."
-    # Replace 'zrb lint' with your actual linting command
     - zrb lint
-  # Optional: Allow this job to fail without failing the pipeline
-  # allow_failure: true
-
-# Example Deployment Job (uncomment and adapt)
-# deploy_staging:
-#   stage: deploy
-#   script:
-#     - echo "🚀 Deploying to Staging..."
-#     - zrb deploy staging # Replace with your deployment task
-#   environment:
-#     name: staging
-#     url: https://staging.example.com # Optional: Link to deployed environment
-#   rules:
-#     - if: '$CI_COMMIT_BRANCH == "main"' # Only run on pushes to main
-#   variables:
-#     # Use GitLab CI/CD Variables for secrets
-#     DEPLOY_KEY: $STAGING_DEPLOY_KEY 
 ```
 
-**Explanation:**
+### GitLab CI/CD Reference
 
-*   `image`: Specifies the default Docker image for all jobs (`stalchmst/zrb:2.0.0`).
-*   `stages`: Defines the order of execution for jobs. Jobs in the same stage can run in parallel.
-*   `variables`: Defines CI/CD variables. Use GitLab's [CI/CD Variables](https://docs.gitlab.com/ee/ci/variables/) settings for secrets (mark them as "Protected" and "Masked" where appropriate).
-*   `before_script`: Commands executed before each job.
-*   `job_name` (e.g., `run_tests`): Defines a specific job.
-    *   `stage`: Assigns the job to a specific stage.
-    *   `script`: The shell commands to execute for the job.
-    *   `rules`: Control when jobs are added to a pipeline.
-    *   `allow_failure`: If `true`, the pipeline continues even if this job fails.
-    *   `environment`: Used for GitLab Environments, helpful for tracking deployments.
+| Key | Description |
+|-----|-------------|
+| `image` | Docker image for all jobs |
+| `stages` | Order of execution |
+| `before_script` | Commands before each job |
+| `variables` | CI/CD variables (use for secrets) |
 
 ---
 
 ## 4. Bitbucket Pipelines
 
-Bitbucket Pipelines uses a `bitbucket-pipelines.yml` file in the root of your repository to define CI/CD workflows.
+Bitbucket Pipelines uses a `bitbucket-pipelines.yml` file.
 
-### Example `bitbucket-pipelines.yml`
-
-This example sets up a simple pipeline with steps for testing and linting using the Zrb Docker image.
+### Example Pipeline
 
 ```yaml
 image: stalchmst/zrb:2.0.0
@@ -201,50 +150,52 @@ pipelines:
         name: "Show Environment Info"
         script:
           - echo "🚀 Starting CI/CD pipeline..."
-          - echo "📦 Zrb Version:"
           - zrb --version
-          - echo "🏃 Triggered by: $BITBUCKET_STEP_TRIGGERER_UUID"
-          - echo "🎉 Event: $BITBUCKET_TRIGGER"
-          - echo "🌲 Branch/Ref: $BITBUCKET_BRANCH"
+          - echo "🌲 Branch: $BITBUCKET_BRANCH"
 
     - step:
-        name: "Run Zrb Tests"
+        name: "Run Tests"
         script:
           - echo "🧪 Running tests..."
-          # Replace 'zrb test' with your actual test command
           - zrb test
 
     - step:
-        name: "Run Zrb Lint"
+        name: "Run Lint"
         script:
           - echo "✨ Running linters..."
-          # Replace 'zrb lint' with your actual linting command
           - zrb lint
-
-    # Example Deployment Step (uncomment and adapt)
-    # - step:
-    #     name: "Deploy to Staging"
-    #     script:
-    #       - echo "🚀 Deploying to Staging..."
-    #       - zrb deploy staging # Replace with your deployment task
-    #     deployment: staging
-    #     variables:
-    #       # Use Bitbucket Pipelines Variables for secrets
-    #       DEPLOY_KEY: $DEPLOY_KEY
 ```
 
-**Explanation:**
+### Bitbucket Pipelines Reference
 
-- `image`: Specifies the Docker image to use for all steps (`stalchmst/zrb:2.0.0`).
-- `pipelines.default`: Defines the default pipeline that runs on every push.
-- `step`: Each step represents a task in the pipeline.
-  - `name`: A descriptive name for the step.
-  - `script`: The shell commands to execute for the step.
-  - `deployment`: Marks the step as a deployment (optional).
-  - `variables`: Defines environment variables. Use Bitbucket's [Pipelines Variables](https://support.atlassian.com/bitbucket-cloud/docs/variables-and-secrets/) for secrets.
+| Key | Description |
+|-----|-------------|
+| `image` | Docker image for all steps |
+| `pipelines.default` | Default pipeline on every push |
+| `step.name` | Descriptive step name |
+| `step.script` | Shell commands |
 
 ---
 
 ## 5. Choosing the Right Zrb Image Version
 
-Always pin your CI/CD pipeline to a specific version of the `stalchmst/zrb` image (e.g., `stalchmst/zrb:2.0.0`). This ensures that your builds are reproducible and won't break unexpectedly if a new `latest` version introduces changes. Update the version tag deliberately when you are ready to adopt newer Zrb features or fixes.
+> 💡 **Best Practice:** Pin your CI/CD pipeline to a specific version.
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| `stalchmst/zrb:2.0.0` | Reproducible builds | Manual updates needed |
+| `stalchmst/zrb:latest` | Always newest | May break unexpectedly |
+
+Update the version tag deliberately when ready to adopt newer features or fixes.
+
+---
+
+## Quick Reference
+
+| Platform | Config File | Image |
+|----------|-------------|-------|
+| GitHub Actions | `.github/workflows/ci.yml` | `stalchmst/zrb:VERSION` |
+| GitLab CI/CD | `.gitlab-ci.yml` | `stalchmst/zrb:VERSION` |
+| Bitbucket | `bitbucket-pipelines.yml` | `stalchmst/zrb:VERSION` |
+
+---
