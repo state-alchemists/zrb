@@ -341,7 +341,7 @@ def test_file_history_manager_filter_empty_responses(temp_history_dir):
             "provider_url": "http://localhost:11434/v1/",
             "provider_details": {
                 "timestamp": "2026-03-07T10:13:06Z",
-                "finish_reason": "stop"
+                "finish_reason": "stop",
             },
             "provider_response_id": "chatcmpl-725",
             "finish_reason": "stop",
@@ -371,7 +371,7 @@ def test_file_history_manager_filter_empty_responses(temp_history_dir):
             "provider_url": "http://localhost:11434/v1/",
             "provider_details": {
                 "timestamp": "2026-03-07T10:13:07Z",
-                "finish_reason": "stop"
+                "finish_reason": "stop",
             },
             "provider_response_id": "chatcmpl-726",
             "finish_reason": "stop",

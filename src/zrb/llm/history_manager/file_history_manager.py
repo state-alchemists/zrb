@@ -72,7 +72,7 @@ class FileHistoryManager(AnyHistoryManager):
 
     def _filter_empty_responses(self, data: Any) -> Any:
         """Filter out empty responses (responses with no parts) from history data.
-        
+
         Empty responses can cause "invalid message content type: <nil>" errors
         with certain models like GLM-5 via Ollama when the history is sent to the model.
         """
@@ -128,7 +128,7 @@ class FileHistoryManager(AnyHistoryManager):
                 # This is critical because pydantic_ai validation might allow boolean values
                 # which will cause TypeError in Google model's _map_user_prompt
                 cleaned_data = self._clean_corrupted_content(data)
-                
+
                 # Filter out empty responses (responses with no parts) before validation
                 # Empty responses can cause "invalid message content type: <nil>" errors
                 # with certain models like GLM-5 via Ollama
@@ -177,7 +177,7 @@ class FileHistoryManager(AnyHistoryManager):
             # This ensures that even if pydantic_ai validation allows boolean values,
             # we convert them to strings before saving to disk
             cleaned_data = self._clean_corrupted_content(data)
-            
+
             # Filter out empty responses before saving to prevent future issues
             # Empty responses can cause "invalid message content type: <nil>" errors
             # with certain models like GLM-5 via Ollama
