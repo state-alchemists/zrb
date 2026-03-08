@@ -24,7 +24,20 @@ from zrb.llm.tool import (
     search_internet,
     write_file,
     write_files,
+    # Planning tools
+    write_todos,
+    get_todos,
+    update_todo,
+    clear_todos,
+    # Virtual filesystem tools
+    vfs_write,
+    vfs_read,
+    vfs_list,
+    vfs_delete,
+    vfs_clear,
+    vfs_stats,
 )
+from zrb.llm.lsp.tools import create_lsp_tools
 from zrb.llm.tool.delegate import create_delegate_to_agent_tool
 from zrb.llm.tool.mcp import load_mcp_config
 from zrb.llm.tool.skill import create_activate_skill_tool
@@ -81,6 +94,9 @@ llm_chat = LLMChatTask(
 llm_chat.add_toolset(*load_mcp_config())
 
 # Add tools
+lsp_tools = create_lsp_tools()
+plan_tools = [write_todos, get_todos, update_todo, clear_todos]
+vfs_tools = [vfs_write, vfs_read, vfs_list, vfs_delete, vfs_clear, vfs_stats]
 tools = [
     run_shell_command,
     analyze_code,
@@ -95,6 +111,9 @@ tools = [
     analyze_file,
     search_internet,
     open_web_page,
+    *lsp_tools,
+    *plan_tools,
+    *vfs_tools,
 ]
 llm_chat.add_tool(*tools)
 
@@ -141,6 +160,28 @@ llm_chat.add_tool_policy(
     auto_approve("ReadContextualNote"),
     auto_approve("ActivateSkill"),
     auto_approve("DelegateToAgent"),
+    # LSP tools - read-only, safe to auto-approve
+    auto_approve("LspFindDefinition"),
+    auto_approve("LspFindReferences"),
+    auto_approve("LspGetDiagnostics"),
+    auto_approve("LspGetDocumentSymbols"),
+    auto_approve("LspGetWorkspaceSymbols"),
+    auto_approve("LspGetHoverInfo"),
+    auto_approve("LspListServers"),
+    # Planning tools - safe to auto-approve (just state management)
+    auto_approve("WriteTodos"),
+    auto_approve("GetTodos"),
+    auto_approve("UpdateTodo"),
+    auto_approve("ClearTodos"),
+    # Virtual filesystem tools - safe to auto-approve (isolated storage)
+    auto_approve("VfsWrite"),
+    auto_approve("VfsRead"),
+    auto_approve("VfsList"),
+    auto_approve("VfsDelete"),
+    auto_approve("VfsClear"),
+    auto_approve("VfsStats"),
+    # Note: LspRenameSymbol uses dry_run by default, but requires user approval
+    # when dry_run=False (actual file modifications)
 )
 
 # Add custom command (slash commands)

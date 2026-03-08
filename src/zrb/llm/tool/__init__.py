@@ -13,8 +13,10 @@ from zrb.llm.tool.file import (
     write_files,
 )
 from zrb.llm.tool.mcp import load_mcp_config
+from zrb.llm.tool.plan import create_plan_tools, write_todos, get_todos, update_todo, clear_todos
 from zrb.llm.tool.rag import create_rag_from_directory
 from zrb.llm.tool.skill import create_activate_skill_tool
+from zrb.llm.tool.virtfs import create_vfs_tools, vfs_write, vfs_read, vfs_list, vfs_delete, vfs_clear, vfs_stats
 from zrb.llm.tool.web import open_web_page, search_internet
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
 
@@ -38,4 +40,18 @@ __all__ = [
     "create_list_zrb_task_tool",
     "create_run_zrb_task_tool",
     "create_delegate_to_agent_tool",
+    # Planning tools
+    "create_plan_tools",
+    "write_todos",
+    "get_todos",
+    "update_todo",
+    "clear_todos",
+    # Virtual filesystem tools
+    "create_vfs_tools",
+    "vfs_write",
+    "vfs_read",
+    "vfs_list",
+    "vfs_delete",
+    "vfs_clear",
+    "vfs_stats",
 ]

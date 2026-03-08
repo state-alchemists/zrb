@@ -251,6 +251,7 @@ Pre-packaged operations you can use immediately.
 ### III. Advanced Features
 Taking your automation to the next level.
 - [LLM Assistant (Pollux) & AI Tasks](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/llm-integration.md)
+- [LSP Support (Language Server Protocol)](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/lsp-support.md)
 - [Hook System (Claude Code Compatible)](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/hooks.md)
 - [White-labeling: Create a Custom CLI](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/white-labeling.md)
 - [CI/CD Integration](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/ci-cd.md)
