@@ -15,10 +15,10 @@ from zrb.llm.lsp.tools import (
     find_references,
     get_diagnostics,
     get_document_symbols,
-    get_workspace_symbols,
-    rename_symbol,
     get_hover_info,
+    get_workspace_symbols,
     list_available_servers,
+    rename_symbol,
 )
 
 __all__ = [

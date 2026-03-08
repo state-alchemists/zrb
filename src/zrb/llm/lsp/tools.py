@@ -224,6 +224,7 @@ async def list_available_servers() -> dict:
     language_support = {}
     for name, path in servers.items():
         from zrb.llm.lsp.server import LSP_SERVER_CONFIGS
+
         config = LSP_SERVER_CONFIGS.get(name)
         if config:
             for lang in config.language_ids:
@@ -237,7 +238,7 @@ async def list_available_servers() -> dict:
         "message": f"Found {len(servers)} LSP server(s) installed.",
         "suggestion": "Install LSP servers for unsupported languages: "
         "pyright/pylsp (Python), gopls (Go), typescript-language-server (TypeScript), "
-        "rust-analyzer (Rust), clangd (C/C++), etc."
+        "rust-analyzer (Rust), clangd (C/C++), etc.",
     }
 
 

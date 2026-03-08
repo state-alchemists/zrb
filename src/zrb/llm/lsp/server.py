@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Optional, Union
 from urllib.parse import unquote, urlparse
 
+from zrb.context.any_context import zrb_print
 from zrb.llm.lsp.protocol import (
     JSONRPCMessage,
     LSPError,
@@ -21,7 +22,6 @@ from zrb.llm.lsp.protocol import (
     LSPServerError,
     LSPTimeoutError,
 )
-from zrb.context.any_context import zrb_print
 
 
 @dataclass
@@ -296,14 +296,19 @@ class LSPServer:
             # Initialize the server
             await self._initialize()
 
-            zrb_print(f"  ✓ LSP server '{self.config.name}' started for {self.root_path}", plain=True)
+            zrb_print(
+                f"  ✓ LSP server '{self.config.name}' started for {self.root_path}",
+                plain=True,
+            )
             return True
 
         except FileNotFoundError:
             zrb_print(f"  ✗ LSP server '{self.config.name}' not found", plain=True)
             return False
         except Exception as e:
-            zrb_print(f"  ✗ Failed to start LSP server '{self.config.name}': {e}", plain=True)
+            zrb_print(
+                f"  ✗ Failed to start LSP server '{self.config.name}': {e}", plain=True
+            )
             return False
 
     async def stop(self):
@@ -319,14 +324,22 @@ class LSPServer:
             try:
                 # Send shutdown request
                 if self.writer:
-                    shutdown_msg = JSONRPCMessage.create_request("shutdown", None, self._next_id())
-                    self.writer.write(JSONRPCMessage.create_content_length_header(shutdown_msg).encode())
+                    shutdown_msg = JSONRPCMessage.create_request(
+                        "shutdown", None, self._next_id()
+                    )
+                    self.writer.write(
+                        JSONRPCMessage.create_content_length_header(
+                            shutdown_msg
+                        ).encode()
+                    )
                     await self.writer.drain()
 
                 # Send exit notification
                 if self.writer:
                     exit_msg = JSONRPCMessage.create_notification("exit")
-                    self.writer.write(JSONRPCMessage.create_content_length_header(exit_msg).encode())
+                    self.writer.write(
+                        JSONRPCMessage.create_content_length_header(exit_msg).encode()
+                    )
                     await self.writer.drain()
                     self.writer.close()
                     await self.writer.wait_closed()
@@ -392,14 +405,18 @@ class LSPServer:
         self.pending_requests[request_id] = future
 
         try:
-            self.writer.write(JSONRPCMessage.create_content_length_header(message).encode())
+            self.writer.write(
+                JSONRPCMessage.create_content_length_header(message).encode()
+            )
             await self.writer.drain()
 
             result = await asyncio.wait_for(future, timeout=self.config.timeout)
             return result
         except asyncio.TimeoutError:
             self.pending_requests.pop(request_id, None)
-            raise LSPTimeoutError(f"Request {request_id} timed out after {self.config.timeout}s")
+            raise LSPTimeoutError(
+                f"Request {request_id} timed out after {self.config.timeout}s"
+            )
         except Exception as e:
             self.pending_requests.pop(request_id, None)
             raise e
@@ -439,8 +456,8 @@ class LSPServer:
                             break
 
                     if len(buffer) >= body_start + content_length:
-                        body = buffer[body_start:body_start + content_length]
-                        buffer = buffer[body_start + content_length:]
+                        body = buffer[body_start : body_start + content_length]
+                        buffer = buffer[body_start + content_length :]
                         self._handle_message(body)
                     else:
                         break
@@ -463,11 +480,13 @@ class LSPServer:
                 if future and not future.done():
                     if "error" in msg:
                         error = msg["error"]
-                        future.set_exception(LSPServerError(
-                            error.get("code", -1),
-                            error.get("message", "Unknown error"),
-                            error.get("data")
-                        ))
+                        future.set_exception(
+                            LSPServerError(
+                                error.get("code", -1),
+                                error.get("message", "Unknown error"),
+                                error.get("data"),
+                            )
+                        )
                     elif "result" in msg:
                         future.set_result(msg["result"])
 
@@ -514,7 +533,11 @@ class LSPServer:
         return None
 
     async def find_references(
-        self, file_path: str, line: int, character: int, include_declaration: bool = True
+        self,
+        file_path: str,
+        line: int,
+        character: int,
+        include_declaration: bool = True,
     ) -> Optional[list[dict]]:
         """Find all references to symbol at position."""
         if not self.initialized:
@@ -585,9 +608,7 @@ class LSPServer:
         result = await self._send_request_raw(request)
         return result if isinstance(result, list) else None
 
-    async def hover(
-        self, file_path: str, line: int, character: int
-    ) -> Optional[dict]:
+    async def hover(self, file_path: str, line: int, character: int) -> Optional[dict]:
         """Get hover information at position."""
         if not self.initialized:
             return None

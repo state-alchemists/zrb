@@ -216,12 +216,14 @@ class Hover:
     def from_dict(cls, data: dict) -> "Hover":
         return cls(
             contents=data["contents"],
-            range=Range(
-                start=Position(**data["range"]["start"]),
-                end=Position(**data["range"]["end"]),
-            )
-            if data.get("range")
-            else None,
+            range=(
+                Range(
+                    start=Position(**data["range"]["start"]),
+                    end=Position(**data["range"]["end"]),
+                )
+                if data.get("range")
+                else None
+            ),
         )
 
 
@@ -251,7 +253,9 @@ class JSONRPCMessage:
         return json.dumps(message)
 
     @staticmethod
-    def parse_response(data: str) -> tuple[Optional[Union[str, int]], Any, Optional[dict]]:
+    def parse_response(
+        data: str,
+    ) -> tuple[Optional[Union[str, int]], Any, Optional[dict]]:
         """Parse a JSON-RPC response.
 
         Returns:
@@ -308,13 +312,14 @@ class LSPProtocol:
         """Create parameters for initialize request."""
         from pathlib import Path
         from urllib.parse import quote
+
         # Convert to file URI
-        
+
         def path_to_uri(p: str) -> str:
             abs_path = Path(p).absolute()
             # Properly encode the path as a file URI
             return "file://" + quote(str(abs_path), safe="/")
-        
+
         return {
             "processId": None,
             "rootUri": path_to_uri(root_path),
@@ -328,6 +333,7 @@ class LSPProtocol:
         """Create TextDocumentIdentifier for a file."""
         from pathlib import Path
         from urllib.parse import quote
+
         abs_path = Path(file_path).absolute()
         return {"uri": "file://" + quote(str(abs_path), safe="/")}
 

@@ -7,12 +7,15 @@ from zrb.config.config import CFG
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.llm.custom_command import get_skill_custom_command
+from zrb.llm.lsp.tools import create_lsp_tools
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.skill.manager import skill_manager
 from zrb.llm.task.llm_chat_task import LLMChatTask
-from zrb.llm.tool import (
+from zrb.llm.tool import (  # Planning tools; Virtual filesystem tools
     analyze_code,
     analyze_file,
+    clear_todos,
+    get_todos,
     glob_files,
     list_files,
     open_web_page,
@@ -22,22 +25,17 @@ from zrb.llm.tool import (
     run_shell_command,
     search_files,
     search_internet,
+    update_todo,
+    vfs_clear,
+    vfs_delete,
+    vfs_list,
+    vfs_read,
+    vfs_stats,
+    vfs_write,
     write_file,
     write_files,
-    # Planning tools
     write_todos,
-    get_todos,
-    update_todo,
-    clear_todos,
-    # Virtual filesystem tools
-    vfs_write,
-    vfs_read,
-    vfs_list,
-    vfs_delete,
-    vfs_clear,
-    vfs_stats,
 )
-from zrb.llm.lsp.tools import create_lsp_tools
 from zrb.llm.tool.delegate import create_delegate_to_agent_tool
 from zrb.llm.tool.mcp import load_mcp_config
 from zrb.llm.tool.skill import create_activate_skill_tool

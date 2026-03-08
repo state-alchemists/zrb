@@ -8,8 +8,9 @@ import asyncio
 import os
 import weakref
 from pathlib import Path
-from typing import Optional, Any
+from typing import Any, Optional
 
+from zrb.context.any_context import zrb_print
 from zrb.llm.lsp.protocol import (
     Diagnostic,
     DocumentSymbol,
@@ -18,14 +19,13 @@ from zrb.llm.lsp.protocol import (
     SymbolKind,
 )
 from zrb.llm.lsp.server import (
+    LSP_SERVER_CONFIGS,
     LSPServer,
     LSPServerConfig,
-    LSP_SERVER_CONFIGS,
     detect_available_lsp_servers,
-    get_lsp_config_for_file,
     detect_language_from_file,
+    get_lsp_config_for_file,
 )
-from zrb.context.any_context import zrb_print
 
 
 class LSPManager:
@@ -41,7 +41,7 @@ class LSPManager:
     """
 
     _instance: Optional["LSPManager"] = None
-    _servers: dict[str, LSPServer]   # key: "language:root_path"
+    _servers: dict[str, LSPServer]  # key: "language:root_path"
     _lock: asyncio.Lock
     _project_roots: dict[str, str]  # file_path -> detected root
     _idle_tasks: dict[str, asyncio.Task]
@@ -290,18 +290,24 @@ class LSPManager:
                 if position:
                     line, character = position
 
-            refs = await server.find_references(file_path, line, character, include_declaration)
+            refs = await server.find_references(
+                file_path, line, character, include_declaration
+            )
             if refs:
                 locations = []
                 for ref in refs:
                     uri = ref.get("uri", "")
                     range_info = ref.get("range", {})
-                    locations.append({
-                        "uri": uri,
-                        "path": self._uri_to_path(uri),
-                        "line": range_info.get("start", {}).get("line", 0) + 1,
-                        "character": range_info.get("start", {}).get("character", 0),
-                    })
+                    locations.append(
+                        {
+                            "uri": uri,
+                            "path": self._uri_to_path(uri),
+                            "line": range_info.get("start", {}).get("line", 0) + 1,
+                            "character": range_info.get("start", {}).get(
+                                "character", 0
+                            ),
+                        }
+                    )
                 return {
                     "found": True,
                     "symbol": symbol_name,
@@ -343,7 +349,9 @@ class LSPManager:
             diagnostics = await server.get_diagnostics(file_path)
             if diagnostics:
                 severity_map = {"error": 1, "warning": 2, "info": 3, "hint": 4}
-                severity_filter = severity_map.get(severity.lower()) if severity else None
+                severity_filter = (
+                    severity_map.get(severity.lower()) if severity else None
+                )
 
                 results = []
                 for diag in diagnostics:
@@ -352,16 +360,22 @@ class LSPManager:
                         continue
 
                     range_info = diag.get("range", {})
-                    results.append({
-                        "severity": ["error", "warning", "info", "hint"][diag_severity - 1]
-                        if 1 <= diag_severity <= 4
-                        else "unknown",
-                        "message": diag.get("message", ""),
-                        "line": range_info.get("start", {}).get("line", 0) + 1,
-                        "character": range_info.get("start", {}).get("character", 0),
-                        "source": diag.get("source", ""),
-                        "code": diag.get("code"),
-                    })
+                    results.append(
+                        {
+                            "severity": (
+                                ["error", "warning", "info", "hint"][diag_severity - 1]
+                                if 1 <= diag_severity <= 4
+                                else "unknown"
+                            ),
+                            "message": diag.get("message", ""),
+                            "line": range_info.get("start", {}).get("line", 0) + 1,
+                            "character": range_info.get("start", {}).get(
+                                "character", 0
+                            ),
+                            "source": diag.get("source", ""),
+                            "code": diag.get("code"),
+                        }
+                    )
 
                 return {
                     "found": True,
@@ -440,13 +454,15 @@ class LSPManager:
                 results = []
                 for sym in symbols[:50]:  # Limit to 50 results
                     location = sym.get("location", {})
-                    results.append({
-                        "name": sym.get("name", ""),
-                        "kind": SymbolKind.name_for_kind(sym.get("kind", 0)),
-                        "uri": location.get("uri", ""),
-                        "path": self._uri_to_path(location.get("uri", "")),
-                        "container": sym.get("containerName", ""),
-                    })
+                    results.append(
+                        {
+                            "name": sym.get("name", ""),
+                            "kind": SymbolKind.name_for_kind(sym.get("kind", 0)),
+                            "uri": location.get("uri", ""),
+                            "path": self._uri_to_path(location.get("uri", "")),
+                            "container": sym.get("containerName", ""),
+                        }
+                    )
                 return {
                     "found": True,
                     "query": query,
@@ -549,7 +565,9 @@ class LSPManager:
                 if position:
                     line, character = position
 
-            result = await server.rename(file_path, line, character, new_name, dry_run=dry_run)
+            result = await server.rename(
+                file_path, line, character, new_name, dry_run=dry_run
+            )
             if result:
                 changes = result.get("documentChanges") or result.get("changes", {})
                 total_edits = 0
@@ -585,6 +603,7 @@ class LSPManager:
         """Convert file URI to path."""
         if uri.startswith("file://"):
             from urllib.parse import unquote, urlparse
+
             return unquote(urlparse(uri).path)
         return uri
 
@@ -608,6 +627,7 @@ class LSPManager:
         # Fallback: Grep for the symbol
         try:
             import re
+
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                 for i, line in enumerate(f):
                     # Try various patterns
@@ -636,15 +656,19 @@ class LSPManager:
                 selection_range = sym.get("selectionRange", {})
                 detail = sym.get("detail", "")
 
-                results.append({
-                    "name": name,
-                    "kind": SymbolKind.name_for_kind(kind),
-                    "line": selection_range.get("start", {}).get("line", 0) + 1,
-                    "end_line": range_info.get("end", {}).get("line", 0) + 1,
-                    "character": selection_range.get("start", {}).get("character", 0),
-                    "detail": detail,
-                    "depth": depth,
-                })
+                results.append(
+                    {
+                        "name": name,
+                        "kind": SymbolKind.name_for_kind(kind),
+                        "line": selection_range.get("start", {}).get("line", 0) + 1,
+                        "end_line": range_info.get("end", {}).get("line", 0) + 1,
+                        "character": selection_range.get("start", {}).get(
+                            "character", 0
+                        ),
+                        "detail": detail,
+                        "depth": depth,
+                    }
+                )
 
                 # Recursively format children
                 children = sym.get("children", [])

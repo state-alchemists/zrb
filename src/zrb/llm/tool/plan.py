@@ -55,7 +55,9 @@ class TodoManager:
     def _get_todo_file(self, session_name: str) -> Path:
         """Get the file path for a session's todos."""
         # Sanitize session name for filesystem
-        safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in session_name)
+        safe_name = "".join(
+            c if c.isalnum() or c in "-_" else "_" for c in session_name
+        )
         return self._todo_dir / f"{safe_name}.json"
 
     def _load_todos(self, session_name: str) -> dict[str, Any] | None:
@@ -71,7 +73,9 @@ class TodoManager:
                     self._todos[session_name] = data
                     return data
             except Exception as e:
-                zrb_print(f"Warning: Failed to load todos for {session_name}: {e}", plain=True)
+                zrb_print(
+                    f"Warning: Failed to load todos for {session_name}: {e}", plain=True
+                )
         return None
 
     def _save_todos(self, session_name: str) -> None:
@@ -84,7 +88,9 @@ class TodoManager:
             with open(todo_file, "w", encoding="utf-8") as f:
                 json.dump(self._todos[session_name], f, indent=2)
         except Exception as e:
-            zrb_print(f"Warning: Failed to save todos for {session_name}: {e}", plain=True)
+            zrb_print(
+                f"Warning: Failed to save todos for {session_name}: {e}", plain=True
+            )
 
     def write_todos(
         self,
@@ -107,7 +113,9 @@ class TodoManager:
 
         # Load existing if merging
         existing = self._load_todos(session_name) if not replace else None
-        existing_todos = {t["id"]: t for t in existing.get("todos", [])} if existing else {}
+        existing_todos = (
+            {t["id"]: t for t in existing.get("todos", [])} if existing else {}
+        )
 
         # Process new todos
         new_todos = []
@@ -115,19 +123,25 @@ class TodoManager:
             todo_id = todo.get("id") or str(i + 1)
             if todo_id in existing_todos and not replace:
                 # Merge: update existing
-                existing_todos[todo_id].update({
-                    "content": todo.get("content", existing_todos[todo_id]["content"]),
-                    "status": todo.get("status", existing_todos[todo_id]["status"]),
-                })
+                existing_todos[todo_id].update(
+                    {
+                        "content": todo.get(
+                            "content", existing_todos[todo_id]["content"]
+                        ),
+                        "status": todo.get("status", existing_todos[todo_id]["status"]),
+                    }
+                )
                 new_todos.append(existing_todos[todo_id])
             else:
                 # New todo
-                new_todos.append({
-                    "id": todo_id,
-                    "content": todo.get("content", ""),
-                    "status": todo.get("status", "pending"),
-                    "created_at": now,
-                })
+                new_todos.append(
+                    {
+                        "id": todo_id,
+                        "content": todo.get("content", ""),
+                        "status": todo.get("status", "pending"),
+                        "created_at": now,
+                    }
+                )
 
         # If merging, include todos not in the update
         if not replace and existing:
@@ -141,6 +155,7 @@ class TodoManager:
                 return (0, int(t["id"]))
             except (ValueError, TypeError):
                 return (1, t["id"])
+
         new_todos.sort(key=sort_key)
 
         result = {
@@ -208,10 +223,18 @@ class TodoManager:
             return None
 
         # Update counts
-        todos_data["completed"] = sum(1 for t in todos_data["todos"] if t["status"] == "completed")
-        todos_data["in_progress"] = sum(1 for t in todos_data["todos"] if t["status"] == "in_progress")
-        todos_data["pending"] = sum(1 for t in todos_data["todos"] if t["status"] == "pending")
-        todos_data["cancelled"] = sum(1 for t in todos_data["todos"] if t["status"] == "cancelled")
+        todos_data["completed"] = sum(
+            1 for t in todos_data["todos"] if t["status"] == "completed"
+        )
+        todos_data["in_progress"] = sum(
+            1 for t in todos_data["todos"] if t["status"] == "in_progress"
+        )
+        todos_data["pending"] = sum(
+            1 for t in todos_data["todos"] if t["status"] == "pending"
+        )
+        todos_data["cancelled"] = sum(
+            1 for t in todos_data["todos"] if t["status"] == "cancelled"
+        )
         todos_data["updated_at"] = now
 
         self._todos[session_name] = todos_data
@@ -241,17 +264,18 @@ todo_manager = TodoManager()
 def get_current_context_session() -> str:
     """
     Get the current session name from execution context.
-    
+
     This is used as a fallback when session is not provided.
     We use a thread-local context to track the current session.
     """
     import threading
-    
+
     _thread_local = threading.local()
     return getattr(_thread_local, "current_session", "default")
 
 
 # Tool functions for LLM integration
+
 
 async def write_todos(
     todos: list[dict[str, Any]],
@@ -296,13 +320,15 @@ async def write_todos(
         ```
     """
     session_name = session or get_current_context_session()
-    
+
     result = todo_manager.write_todos(session_name, todos, replace)
 
     # Format for LLM readability
     lines = ["## Todo List Updated\n"]
     lines.append(f"**Session:** {session_name}")
-    lines.append(f"**Total:** {result['total']} | **Completed:** {result['completed']} | **In Progress:** {result['in_progress']} | **Pending:** {result['pending']}")
+    lines.append(
+        f"**Total:** {result['total']} | **Completed:** {result['completed']} | **In Progress:** {result['in_progress']} | **Pending:** {result['pending']}"
+    )
     lines.append("")
     lines.append("### Todos:")
     for todo in result["todos"]:
@@ -312,7 +338,9 @@ async def write_todos(
             "pending": "⏳",
             "cancelled": "❌",
         }.get(todo["status"], "⏳")
-        lines.append(f"{status_icon} [{todo['id']}] {todo['content']} ({todo['status']})")
+        lines.append(
+            f"{status_icon} [{todo['id']}] {todo['content']} ({todo['status']})"
+        )
 
     lines.append("")
     lines.append("Use `update_todo` to change status as you progress through tasks.")
@@ -350,7 +378,9 @@ async def get_todos(session: str | None = None) -> str:
     # Format for LLM readability
     lines = ["## Current Todo List\n"]
     lines.append(f"**Session:** {session_name}")
-    lines.append(f"**Total:** {result['total']} | **Completed:** {result['completed']} | **In Progress:** {result['in_progress']} | **Pending:** {result['pending']}")
+    lines.append(
+        f"**Total:** {result['total']} | **Completed:** {result['completed']} | **In Progress:** {result['in_progress']} | **Pending:** {result['pending']}"
+    )
     lines.append(f"**Created:** {result.get('created_at', 'N/A')}")
     lines.append(f"**Last Updated:** {result.get('updated_at', 'N/A')}")
     lines.append("")
@@ -362,11 +392,13 @@ async def get_todos(session: str | None = None) -> str:
             "pending": "⏳",
             "cancelled": "❌",
         }.get(todo["status"], "⏳")
-        lines.append(f"{status_icon} [{todo['id']}] {todo['content']} ({todo['status']})")
+        lines.append(
+            f"{status_icon} [{todo['id']}] {todo['content']} ({todo['status']})"
+        )
 
     # Calculate progress percentage
-    if result['total'] > 0:
-        progress = (result['completed'] / result['total']) * 100
+    if result["total"] > 0:
+        progress = (result["completed"] / result["total"]) * 100
         lines.append("")
         lines.append(f"**Progress:** {progress:.1f}%")
 
@@ -433,16 +465,24 @@ async def update_todo(
 
     # Format for LLM readability
     lines = ["## Todo Updated\n"]
-    status_icon = {
-        "completed": "✅",
-        "in_progress": "🔄",
-        "pending": "⏳",
-        "cancelled": "❌",
-    }.get(updated_todo["status"], "⏳") if updated_todo else "❓"
+    status_icon = (
+        {
+            "completed": "✅",
+            "in_progress": "🔄",
+            "pending": "⏳",
+            "cancelled": "❌",
+        }.get(updated_todo["status"], "⏳")
+        if updated_todo
+        else "❓"
+    )
 
-    lines.append(f"{status_icon} [{todo_id}] {updated_todo['content']} → **{updated_todo['status']}**")
+    lines.append(
+        f"{status_icon} [{todo_id}] {updated_todo['content']} → **{updated_todo['status']}**"
+    )
     lines.append("")
-    lines.append(f"**Progress:** {result['completed']}/{result['total']} completed ({result['in_progress']} in progress)")
+    lines.append(
+        f"**Progress:** {result['completed']}/{result['total']} completed ({result['in_progress']} in progress)"
+    )
 
     # Show remaining tasks
     pending = [t for t in result["todos"] if t["status"] == "pending"]
@@ -478,7 +518,7 @@ async def clear_todos(session: str | None = None) -> str:
         Success message
     """
     session_name = session or get_current_context_session()
-    
+
     success = todo_manager.clear_todos(session_name)
 
     if success:
