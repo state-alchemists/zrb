@@ -11,7 +11,7 @@ from zrb.llm.lsp.tools import create_lsp_tools
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.skill.manager import skill_manager
 from zrb.llm.task.llm_chat_task import LLMChatTask
-from zrb.llm.tool import (  # Planning tools; Virtual filesystem tools
+from zrb.llm.tool import (
     analyze_code,
     analyze_file,
     clear_todos,
@@ -26,12 +26,6 @@ from zrb.llm.tool import (  # Planning tools; Virtual filesystem tools
     search_files,
     search_internet,
     update_todo,
-    vfs_clear,
-    vfs_delete,
-    vfs_list,
-    vfs_read,
-    vfs_stats,
-    vfs_write,
     write_file,
     write_files,
     write_todos,
@@ -94,7 +88,6 @@ llm_chat.add_toolset(*load_mcp_config())
 # Add tools
 lsp_tools = create_lsp_tools()
 plan_tools = [write_todos, get_todos, update_todo, clear_todos]
-vfs_tools = [vfs_write, vfs_read, vfs_list, vfs_delete, vfs_clear, vfs_stats]
 tools = [
     run_shell_command,
     analyze_code,
@@ -111,7 +104,6 @@ tools = [
     open_web_page,
     *lsp_tools,
     *plan_tools,
-    *vfs_tools,
 ]
 llm_chat.add_tool(*tools)
 
@@ -171,13 +163,6 @@ llm_chat.add_tool_policy(
     auto_approve("GetTodos"),
     auto_approve("UpdateTodo"),
     auto_approve("ClearTodos"),
-    # Virtual filesystem tools - safe to auto-approve (isolated storage)
-    auto_approve("VfsWrite"),
-    auto_approve("VfsRead"),
-    auto_approve("VfsList"),
-    auto_approve("VfsDelete"),
-    auto_approve("VfsClear"),
-    auto_approve("VfsStats"),
     # Note: LspRenameSymbol uses dry_run by default, but requires user approval
     # when dry_run=False (actual file modifications)
 )
