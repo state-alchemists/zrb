@@ -1,4 +1,6 @@
 import asyncio
+import platform
+import sys
 from typing import Any, TextIO
 
 
@@ -7,13 +9,20 @@ class StdUI:
 
     async def ask_user(self, prompt: str) -> str:
         """Prompt user via CLI input."""
-        import sys
-
         from prompt_toolkit import PromptSession
         from prompt_toolkit.output import create_output
 
-        # Always output to stderr to avoid polluting stdout
-        output = create_output(stdout=sys.stderr)
+        # Create output - handle Windows console compatibility
+        # On Windows, prompt_toolkit needs proper console handles.
+        # sys.__stderr__ works better than fd-based approaches.
+        try:
+            if platform.system() == "Windows":
+                output = create_output(stdout=sys.__stderr__)
+            else:
+                output = create_output(stdout=sys.stderr)
+        except Exception:
+            output = create_output(stdout=sys.__stderr__)
+
         session = PromptSession(output=output)
 
         try:
@@ -34,8 +43,6 @@ class StdUI:
         flush: bool = False,
     ):
         """Print output to stderr."""
-        import sys
-
         # Always print to stderr as per requirements
         print(*values, sep=sep, end=end, file=sys.stderr, flush=flush)
 

@@ -4,9 +4,11 @@ import asyncio
 import inspect
 import logging
 import os
+import platform
 import re
 import shlex
 import subprocess
+import sys
 from collections.abc import AsyncIterable, Callable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, TextIO
@@ -523,6 +525,18 @@ class UI:
 
             clipboard = InMemoryClipboard()
 
+        # Create output - handle Windows console compatibility
+        # On Windows, prompt_toolkit needs a proper console handle.
+        # Using os.fdopen() doesn't work well with Windows Console APIs,
+        # so we use sys.__stdout__ directly on Windows.
+        try:
+            if platform.system() == "Windows":
+                output = create_output(stdout=sys.__stdout__)
+            else:
+                output = create_output(stdout=self._capture.get_original_stdout())
+        except Exception:
+            output = create_output(stdout=sys.__stdout__)
+
         return Application(
             layout=layout,
             key_bindings=keybindings,
@@ -530,7 +544,7 @@ class UI:
             full_screen=True,
             mouse_support=True,
             refresh_interval=0.5,
-            output=create_output(stdout=self._capture.get_original_stdout()),
+            output=output,
             clipboard=clipboard,
         )
 
