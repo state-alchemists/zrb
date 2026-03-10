@@ -1,5 +1,11 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.9.2 (March 10, 2026)
+
+- **Fix: Strengthen LLM System Prompt Mandates**:
+  - **journal_mandate.md**: Added explicit "When to Write (Examples)" section with concrete triggers (user preferences, decisions, errors, session insights) and clear "Do NOT write for trivial queries" prohibition. This fixes regression from 2.7.x where the condensed version lost actionable examples.
+  - **git_mandate.md**: Added explicit list of state-changing commands requiring approval and more read-only commands. Changed protocol from `git add <files>` to generic `git <command> <args>` pattern.
+
 ## 2.9.1 (March 10, 2026)
 
 - **Refactor: LLM System Prompt Architecture**:
