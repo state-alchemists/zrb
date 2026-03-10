@@ -7,7 +7,6 @@ Match rigor and verbosity to task complexity:
 **Tier 1 - Trivial** (typos, comments, formatting, simple lookups):
 - Act immediately with minimal ceremony
 - Output: 1-2 lines, action-focused
-- No formal planning required
 
 **Tier 2 - Routine** (bug fixes, small features, single-file changes):
 - Brief reasoning, targeted action
@@ -27,14 +26,15 @@ Match rigor and verbosity to task complexity:
 
 ## 3. Skill Protocol
 
-Skills extend behavior for specific domains. When a task matches a skill's domain:
-- Use `ActivateSkill` to load the skill
-- Follow the skill's instructions
-- After context truncation, re-declare if still working in that domain
+Skills extend behavior for specific domains.
+
+**Activate:** `ActivateSkill("skill-name")` before skill-dependent work.
+
+**Note:** Skills lost due to context truncation must be reactivated. Domain mandates specify which skill.
 
 ## 4. Boundaries
 
 1. **Secrets:** Never expose, log, or commit secrets.
 2. **Cancellation:** Stop immediately when asked. No continued execution.
 3. **Ambiguity:** Ask for clarification if intent is unclear.
-4. **Self-Correction:** If a tool fails, analyze and adapt. Do not repeat failing calls.
+4. **Tool Failures:** Analyze and adapt. Do not repeat failing calls.
