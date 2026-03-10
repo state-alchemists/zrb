@@ -1,5 +1,46 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.8.4 (March 10, 2026)
+
+- **Fix: Windows Encoding Error in Journal Index Reading**:
+  - **UTF-8 Encoding Fix**: Added explicit `encoding="utf-8"` to journal index file reading in `src/zrb/llm/prompt/prompt.py` to prevent `UnicodeDecodeError` on Windows where the default encoding is `cp1252`.
+  - **Shell History Encoding**: Added explicit `encoding="utf-8"` to shell history file reading in `src/zrb/llm/app/completion.py` for consistent cross-platform behavior.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.8.4 in `pyproject.toml`.
+
+
+## 2.8.3 (March 10, 2026)
+
+- **Fix: Windows Terminal Size Detection**:
+  - **Robust Terminal Size Utility**: Added `src/zrb/util/cli/terminal.py` with `get_terminal_size()` function that gracefully handles terminal size detection across platforms, especially Windows where standard methods fail when stdout is redirected.
+  - **Windows CONOUT$ Support**: Enhanced `get_original_stdout()` in `src/zrb/llm/app/redirection.py` to use Windows `CONOUT$` device for more reliable terminal access when file descriptors are redirected.
+  - **UI Crash Prevention**: Wrapped `output.get_size()` in `src/zrb/llm/app/ui.py` with a robust fallback that prevents crashes on Windows when prompt_toolkit cannot detect console dimensions.
+  - **Multi-Method Detection**: Terminal size detection now tries `sys.__stdout__`, `sys.__stderr__`, `sys.__stdin__`, Windows `CONOUT$`, and finally falls back to `shutil.get_terminal_size()` with environment variable support.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.8.3 in `pyproject.toml`.
+
+
+## 2.8.2 (March 7, 2026)
+
+- **Documentation: Configuration Default Value Corrections**:
+  - **Environment Variable Defaults**: Fixed incorrect default values in configuration documentation:
+    - `ZRB_WARN_UNRECOMMENDED_COMMAND`: Corrected default from `"1"` to `"on"` (true)
+    - `ZRB_USE_TIKTOKEN`: Corrected default from `"1"` to `"off"` (false)
+    - `ZRB_LLM_MODEL`: Clarified default is `"openai:gpt-4o"` when unset (via `llm_config.py`)
+    - `ZRB_LLM_SMALL_MODEL`: Updated to indicate it falls back to main model instead of `"gpt-4o-mini"`
+  - **ASCII Art Configuration**: Clarified that `ZRB_LLM_ASSISTANT_ASCII_ART` refers to the ASCII art name, not the content itself.
+
+- **Configuration: ASCII Art Directory Rename**:
+  - **Directory Path Change**: Renamed default `ASCII_ART_DIR` from `.zrb/llm/prompt` to `.zrb/ascii-art` to avoid confusion with `LLM_PROMPT_DIR`.
+  - **Code Update**: Modified `src/zrb/config/config.py` to use the new directory path for ASCII art file storage.
+  - **Documentation Sync**: Updated `docs/configuration/llm-config.md` to reflect the new default directory location.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.8.2 in `pyproject.toml`.
+
+
 ## 2.8.1 (March 7, 2026)
 
 - **Fix: Empty Response Filtering for Model Compatibility**:
@@ -63,68 +104,6 @@
 
 - **Maintenance**:
   - **Version Bump**: Updated to version 2.8.0 in `pyproject.toml`.
-
-
-## 2.7.2 (March 6, 2026)
-
-- **Compatibility: Cross-Platform UTF-8 Encoding**:
-  - **Explicit UTF-8 Encoding**: Added `encoding="utf-8"` parameter to all file operations across the codebase to ensure consistent behavior across different operating systems, particularly Windows where the default encoding is cp1252.
-  - **Files Updated**:
-    - `src/zrb/util/file.py`: Core file writing utility
-    - `src/zrb/llm/tool/rag.py`: RAG hash file operations (both read and write)
-    - `src/zrb/llm/tool/bash.py`: Background PID collection
-    - `src/zrb/llm/hook/manager.py`: Hook configuration file loading
-    - `src/zrb/llm/tool_call/response_handler/default.py`: Content editor response handler
-    - `src/zrb/llm/tool_call/response_handler/replace_in_file_response_handler.py`: Replace-in-file response handler
-    - `llm-challenges/runner.py`: Log file writing
-
-- **Testing: Unicode and Emoji Support**:
-  - **New Test Coverage**: Added `test_write_file_unicode_emoji()` to verify that `write_file()` properly handles unicode characters, emoji, and special characters (e.g., café, naïve, résumé, 🐭, 🎉, 你好世界).
-  - **Test Modernization**: Updated existing `test_write_file_mode()` to use explicit UTF-8 encoding for consistency.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.7.2 in `pyproject.toml`.
-
-
-## 2.7.1 (March 6, 2026)
-
-- **Performance: Battery Drain Reduction & UI Optimization**:
-  - **Reduced CPU Usage**: Significantly decreased UI refresh frequency from 0.05s to 0.5s (`refresh_interval=0.5`) in `src/zrb/llm/app/ui.py`, reducing continuous CPU consumption during idle periods.
-  - **Optimized System Info Updates**: Changed system information (CWD and Git status) update frequency from every 2 seconds to every 60 seconds, eliminating unnecessary background polling.
-  - **Improved Output Scrolling**: Reduced output scrolling check frequency from 0.1s to 5.0s, minimizing UI thread activity.
-  - **Refactored Update Logic**: Extracted system info update into dedicated `_update_system_info()` method and added initial update on UI startup for better responsiveness.
-
-- **Reliability: Tool Call & MCP Server Retry Mechanisms**:
-  - **Function Toolset Retry**: Added `max_retries=3` parameter to `FunctionToolset` initialization in `src/zrb/llm/agent/common.py` to handle transient tool execution failures gracefully.
-  - **MCP Server Retry Support**: Enhanced MCP server creation in `src/zrb/llm/tool/mcp.py` with retry capabilities:
-    - Added `max_retries=3` to `MCPServerStdio` instances for stdio-based servers
-    - Added `max_retries=3` to `MCPServerSSE` instances for SSE-based servers
-  - **Post-Task System Updates**: Added `await self._update_system_info()` calls after LLM task completion to ensure UI reflects current system state.
-
-
-## 2.7.0 (March 5, 2026)
-
-- **Major: Core Prompt System Simplification & Mandate Restructuring**:
-  - **Project Context Prompt Overhaul**: Completely redesigned `src/zrb/llm/prompt/claude.py` to provide clear "Project Documentation Guidelines" instead of attempting to summarize documentation files. The new approach lists available documentation files with status indicators and provides SMART documentation usage rules for LLMs.
-  - **Mandate Simplification**: Streamlined all core mandate files with clearer, more direct language:
-    - **Git Mandate**: Restructured as "🐙 Absolute Git Rule" with clear prohibitions, approval protocol, and violation response. Removed verbose examples in favor of concise, actionable rules.
-    - **Journal Mandate**: Restructured as "📓 Absolute Journaling Rule" with clear activation requirements, smart reading guidelines, and update guidelines. Emphasizes journal as single source of truth.
-    - **Core Mandate**: Reorganized into clear "Core Directives" focusing on Plan Before Acting, Context-First, Empirical Verification, Clarify Intent, Context Efficiency, Secret Protection, and Self-Correction.
-  - **Prompt Placeholder Enhancement**: Updated `src/zrb/llm/prompt/prompt.py` to include file existence status indicators (`{CFG_LLM_JOURNAL_DIR_STATUS}` and `{CFG_LLM_JOURNAL_INDEX_FILE_STATUS}`) and improved journal content handling with truncation for large files.
-
-- **Improvement: Summarizer Configuration Simplification**:
-  - **Default History Processor**: Simplified summarizer usage across the system by removing explicit token threshold and summary window parameters in favor of default configuration. Updated `src/zrb/builtin/llm/chat.py`, `src/zrb/llm/agent/manager.py`, and `src/zrb/llm/task/llm_chat_task.py` to use `create_summarizer_history_processor()` without parameters.
-  - **History Splitter Logic Update**: Modified `src/zrb/llm/summarizer/history_splitter.py` to use `summary_window` parameter directly instead of calculating retention ratio, improving clarity and consistency.
-
-- **Cleanup: Removal of Unused Thinking Tag Utilities**:
-  - **Code Removal**: Removed `src/zrb/util/string/thinking.py` and `test/util/string/test_thinking.py` as the thinking tag removal functionality was no longer being used in `src/zrb/llm/task/llm_task.py`.
-  - **Simplified Output Processing**: Updated `LLMTask._clean_output()` to only remove ANSI escape codes, eliminating unnecessary processing step for thinking tags.
-
-- **Dependency Updates**:
-  - **Core Framework**: pydantic-ai-slim updated from ~1.63.0 to ~1.65.0, bringing latest improvements and bug fixes from the pydantic-ai framework.
-
-- **Maintenance**:
-  - **Version Bump**: Updated to version 2.7.0 in `pyproject.toml`, marking a significant release with major prompt system improvements.
 
 # Older Changelog
 

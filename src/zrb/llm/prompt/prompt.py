@@ -161,7 +161,7 @@ def _get_prompt_replacements() -> Dict[str, str]:
     # Index content
     replacements["{JOURNAL_INDEX_CONTENT}"] = "<Empty>"
     if os.path.isfile(journal_index_file):
-        with open(journal_index_file) as f:
+        with open(journal_index_file, encoding="utf-8") as f:
             content = f.read()
             if len(content) > 1000:
                 content = content[:1000] + " (...more)"
