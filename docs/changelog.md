@@ -1,5 +1,31 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.8.3 (March 10, 2026)
+
+- **Fix: Windows Terminal Size Detection**:
+  - **Robust Terminal Size Utility**: Added `src/zrb/util/cli/terminal.py` with `get_terminal_size()` function that gracefully handles terminal size detection across platforms, especially Windows where standard methods fail when stdout is redirected.
+  - **Windows CONOUT$ Support**: Enhanced `get_original_stdout()` in `src/zrb/llm/app/redirection.py` to use Windows `CONOUT$` device for more reliable terminal access when file descriptors are redirected.
+  - **UI Crash Prevention**: Wrapped `output.get_size()` in `src/zrb/llm/app/ui.py` with a robust fallback that prevents crashes on Windows when prompt_toolkit cannot detect console dimensions.
+  - **Multi-Method Detection**: Terminal size detection now tries `sys.__stdout__`, `sys.__stderr__`, `sys.__stdin__`, Windows `CONOUT$`, and finally falls back to `shutil.get_terminal_size()` with environment variable support.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.8.3 in `pyproject.toml`.
+
+
+## 2.8.2 (March 9, 2026)
+
+- **Configuration: Default Value Updates**:
+  - **LLM Model Defaults**: Updated documentation to reflect that `ZRB_LLM_MODEL` now defaults to `openai:gpt-4o` when unset, and `ZRB_LLM_SMALL_MODEL` falls back to `ZRB_LLM_MODEL` instead of having a hardcoded default.
+  - **Tiktoken Default Changed**: Changed `ZRB_USE_TIKTOKEN` default from `1` to `off` (false) in documentation, reflecting the actual runtime behavior for better out-of-box experience.
+  - **ASCII Art Directory**: Changed default `ZRB_ASCII_ART_DIR` from `.zrb/llm/prompt` to `.zrb/ascii-art` in `src/zrb/config/config.py` for clearer organization and separation of concerns.
+
+- **Documentation Corrections**:
+  - **Default Value Fixes**: Corrected several default value descriptions in `docs/configuration/env-vars.md` and `docs/configuration/llm-config.md` to accurately reflect current behavior.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.8.2 in `pyproject.toml`.
+
+
 ## 2.8.1 (March 7, 2026)
 
 - **Fix: Empty Response Filtering for Model Compatibility**:
