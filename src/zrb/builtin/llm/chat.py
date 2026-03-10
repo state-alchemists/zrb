@@ -7,12 +7,15 @@ from zrb.config.config import CFG
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.llm.custom_command import get_skill_custom_command
+from zrb.llm.lsp.tools import create_lsp_tools
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.skill.manager import skill_manager
 from zrb.llm.task.llm_chat_task import LLMChatTask
 from zrb.llm.tool import (
     analyze_code,
     analyze_file,
+    clear_todos,
+    get_todos,
     glob_files,
     list_files,
     open_web_page,
@@ -22,8 +25,10 @@ from zrb.llm.tool import (
     run_shell_command,
     search_files,
     search_internet,
+    update_todo,
     write_file,
     write_files,
+    write_todos,
 )
 from zrb.llm.tool.delegate import create_delegate_to_agent_tool
 from zrb.llm.tool.mcp import load_mcp_config
@@ -81,6 +86,8 @@ llm_chat = LLMChatTask(
 llm_chat.add_toolset(*load_mcp_config())
 
 # Add tools
+lsp_tools = create_lsp_tools()
+plan_tools = [write_todos, get_todos, update_todo, clear_todos]
 tools = [
     run_shell_command,
     analyze_code,
@@ -95,6 +102,8 @@ tools = [
     analyze_file,
     search_internet,
     open_web_page,
+    *lsp_tools,
+    *plan_tools,
 ]
 llm_chat.add_tool(*tools)
 
@@ -141,6 +150,21 @@ llm_chat.add_tool_policy(
     auto_approve("ReadContextualNote"),
     auto_approve("ActivateSkill"),
     auto_approve("DelegateToAgent"),
+    # LSP tools - read-only, safe to auto-approve
+    auto_approve("LspFindDefinition"),
+    auto_approve("LspFindReferences"),
+    auto_approve("LspGetDiagnostics"),
+    auto_approve("LspGetDocumentSymbols"),
+    auto_approve("LspGetWorkspaceSymbols"),
+    auto_approve("LspGetHoverInfo"),
+    auto_approve("LspListServers"),
+    # Planning tools - safe to auto-approve (just state management)
+    auto_approve("WriteTodos"),
+    auto_approve("GetTodos"),
+    auto_approve("UpdateTodo"),
+    auto_approve("ClearTodos"),
+    # Note: LspRenameSymbol uses dry_run by default, but requires user approval
+    # when dry_run=False (actual file modifications)
 )
 
 # Add custom command (slash commands)
