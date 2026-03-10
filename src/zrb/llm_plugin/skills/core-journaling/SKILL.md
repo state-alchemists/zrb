@@ -124,32 +124,34 @@ The journal supports nested directory structures for better organization:
 
 ## Implementation Protocol
 
-### 0. Timing Rule: Update Before Any Response
+### 1. Timing Rule: Update Before Any Response (MANDATORY)
 **BEFORE SENDING ANY RESPONSE TO THE USER**, you MUST:
 1. **Activate this skill** using `ActivateSkill` to load core-journaling instructions
 2. **Review new information:** Check if any new preferences, facts, or insights were discovered
 3. **Update the journal:** If new information exists, update following the protocol below
-4. **Skip if no changes:** If no new information was discovered, you may skip journal updates
+4. **Skip if no changes:** ONLY skip if genuinely no new information was discovered
 
-**CRITICAL:**
+**CRITICAL - THESE ARE NOT OPTIONAL:**
 - **NEVER** update during task execution (breaks flow)
 - **ALWAYS** update right before sending any message to the user
 - **EVERY RESPONSE COUNTS:** Includes greetings, answers, task reports, all communication
+- **NO DEFERRAL:** "I'll journal this later" = "I will forget this forever"
 - **YOU ARE THE CURATOR:** Maintain a dense, high-signal knowledge graph
+- **VIOLATION = FAILURE:** Not journaling discoveries is a task failure, not an oversight
 
-### 1. Creating & Organizing Content
+### 2. Creating & Organizing Content
 - **User Preferences:** Save critical preferences to outer `index.md`; detailed preferences to appropriate directories.
 - **Project Facts:** Create/Update project-specific files in appropriate directories and ensure they're linked from directory indexes.
 - **Learned Insights:** Document solutions to complex problems in appropriate directories, linked from directory indexes.
 - **Activity Logs:** Create dated activity logs in `activity-log/YYYY/YYYY-MM/YYYY-MM-DD/` structure with index files at each level.
 
-### 2. Directory & File Management
+### 3. Directory & File Management
 - **New Directories:** Create directories as needed for organizing knowledge. Each directory MUST have an `index.md` file.
 - **File Placement:** Place files in the most appropriate directory based on content type.
 - **Index Maintenance:** Ensure every directory index links to ALL files in its directory.
 - **Cross-Linking:** Create rhizomatic links between related concepts across directories.
 
-### 3. Structure Verification
+### 4. Structure Verification
 - **No Orphans Check:** Verify every file is linked from a directory index.
 - **Hierarchy Validation:** Ensure outer `index.md` links only to directory indexes, not individual files.
 - **Link Integrity:** Check all relative links work correctly.

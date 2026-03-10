@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import re
-import warnings
 from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -31,7 +29,7 @@ from zrb.llm.util.stream_response import (
 )
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
-from zrb.util.attr import get_attr, get_bool_attr, get_str_list_attr
+from zrb.util.attr import get_attr, get_bool_attr
 from zrb.util.cli.style import remove_style
 from zrb.util.string.name import get_random_name
 

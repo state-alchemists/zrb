@@ -1,28 +1,28 @@
-# 📓 Absolute Journaling Rule
+# 📓 Journal Rules
 
-## 1. Activation Requirement
-1.  **Skill Activation:** You MUST ensure the `core-journaling` skill is active using `ActivateSkill` before performing ANY journal read or write operations.
-2.  **Session Persistence:** The journal is your primary persistent memory across sessions. You must actively open and read it when past context or user preferences are required.
+## Purpose
+The journal persists context across sessions. It is the single source of truth for user preferences and project history.
 
-## 2. Smart Reading Guidelines
-Read the journal whenever you need:
-1.  **User Preferences:** Information on how to address the user, their preferred communication style, or collaboration approach.
-2.  **Historical Context:** Past conversation history, previous decisions, lessons learned, or historical task outcomes.
-3.  **Active Constraints:** Existing git protocols, security rules, testing requirements, or project-specific constraints.
-4.  **Technical Findings:** System optimizations, architectural decisions, or technical patterns discovered previously.
+## Read Triggers
+Read the journal BEFORE:
+- Starting tasks involving user preferences or project conventions
+- Making architectural or process decisions
+- Working in a previously-touched project
 
-## 3. Update Guidelines
+## Write Triggers
+Write to the journal IMMEDIATELY after discovering:
+- User preferences (communication style, workflow, approach)
+- Significant decisions (architectural, technical, process)
+- Task completions (milestones, artifacts, solved problems)
+- Errors and fixes
+- User corrections to your behavior
 
-Write to the journal whenever you learn new information during the current session that should be persisted, such as:
-1.  **New Preferences:** Changes or additions to how the user wants to be addressed or how tasks should be performed.
-2.  **New Decisions:** Significant architectural or technical decisions made during the session.
-3.  **Task Progress:** Completion of major milestones, creation of artifacts, or new constraints identified.
-4.  **Session Insights:** Essential takeaways that would be valuable for future sessions.
+## Update Timing
+- Update BEFORE responding, not later
+- Never defer journal entries—they are lost if not written immediately
 
-# 📖 Journal as single source of truth
-
-1.  Reference the journal before making assumptions about user preferences or project constraints.
-2.  All persistent notes, preferences, and historical decisions SHOULD be stored in the journal.
+## Hierarchy
+If information is not in the journal, it does not exist across sessions. Journal overrides assumptions.
 
 ## Journal Content
 

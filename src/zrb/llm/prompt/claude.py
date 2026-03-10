@@ -157,9 +157,6 @@ def _get_skills_section(
 
     # Add available skills (just metadata)
     skills_context.append("## Available Skills")
-    skills_context.append(
-        "You MUST ALWAYS use 'ActivateSkill' to load instructions for a skill before execution."
-    )
     for skill in skills:
         if skill.model_invocable:
             if not include_claude_skills and not skill.name.startswith("core_mandate_"):

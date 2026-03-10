@@ -26,14 +26,6 @@ async def find_definition(
     - Works best for code symbols (classes, functions, methods, variables).
     - Symbol kind hints: "class", "function", "method", "variable", "constant".
     - Returns the file path, line number, and context.
-
-    Args:
-        symbol_name: Name of the symbol to find (e.g., "LLMChatTask", "process_data")
-        file_path: Path to any file in the project for context (used to detect project root)
-        symbol_kind: Optional hint about symbol type ("class", "function", etc.)
-
-    Returns:
-        Dict with location information or error message.
     """
     return await lsp_manager.find_definition(symbol_name, file_path, symbol_kind)
 
@@ -55,16 +47,6 @@ async def find_references(
     - Use when you need to understand where/how a symbol is used.
     - Great for impact analysis before refactoring.
     - If line/character are unknown, pass 0 - the tool will attempt to find it.
-
-    Args:
-        symbol_name: Name of the symbol to find references for
-        file_path: Path to a file where the symbol is defined or used
-        line: Line number if known (0-based, default 0 for auto-detect)
-        character: Character position if known (0-based)
-        include_declaration: Whether to include the symbol's declaration
-
-    Returns:
-        Dict with list of references (file, line, character) or error message.
     """
     return await lsp_manager.find_references(
         symbol_name, file_path, line, character, include_declaration
@@ -85,13 +67,6 @@ async def get_diagnostics(
     - Use to check for type errors, syntax errors, linting issues.
     - Use after making edits to verify the code is still valid.
     - Severity can filter: "error", "warning", "info", "hint".
-
-    Args:
-        file_path: Path to the file to check
-        severity: Optional filter by severity level
-
-    Returns:
-        Dict with list of diagnostics or empty list if no issues.
     """
     return await lsp_manager.get_diagnostics(file_path, severity)
 
@@ -107,12 +82,6 @@ async def get_document_symbols(file_path: str) -> dict:
     - Use for quick file overview without reading full content.
     - Shows class hierarchy, function signatures, imports, etc.
     - Much faster than reading and parsing the file manually.
-
-    Args:
-        file_path: Path to the file to analyze
-
-    Returns:
-        Dict with list of symbols (name, kind, line, etc.) or error message.
     """
     return await lsp_manager.get_document_symbols(file_path)
 
@@ -131,13 +100,6 @@ async def get_workspace_symbols(
     - Use when you know a symbol name but not which file it's in.
     - Query can be partial - supports fuzzy matching.
     - file_path provides project context (can be any file in project).
-
-    Args:
-        query: Symbol name or pattern to search for (supports partial matching)
-        file_path: Path to any file in the project for context (default: ".")
-
-    Returns:
-        Dict with list of matching symbols or error message.
     """
     return await lsp_manager.get_workspace_symbols(query, file_path)
 
@@ -157,14 +119,6 @@ async def get_hover_info(
     - Use to understand the type of a variable or expression.
     - Use to see function signatures and parameters.
     - Line and character are 0-based indices.
-
-    Args:
-        file_path: Path to the file
-        line: Line number (0-based)
-        character: Character position in the line (0-based)
-
-    Returns:
-        Dict with hover information or error message.
     """
     return await lsp_manager.get_hover_info(file_path, line, character)
 
@@ -188,17 +142,6 @@ async def rename_symbol(
     - Use instead of Edit for symbol renaming (catches all references).
     - Works for variables, functions, classes, methods, etc.
     - If line/character are unknown, pass 0 for auto-detection.
-
-    Args:
-        symbol_name: Current name of the symbol (for context)
-        new_name: New name for the symbol
-        file_path: Path to a file containing the symbol
-        line: Line number if known (0-based, default 0 for auto-detect)
-        character: Character position if known (0-based)
-        dry_run: If True, preview changes without applying (default: True)
-
-    Returns:
-        Dict with rename preview or result.
     """
     return await lsp_manager.rename_symbol(
         symbol_name, new_name, file_path, line, character, dry_run
@@ -216,9 +159,6 @@ async def list_available_servers() -> dict:
     - Use to check if LSP servers are installed.
     - Helpful for debugging "No LSP server available" errors.
     - Install missing LSP servers to enable semantic code intelligence.
-
-    Returns:
-        Dict mapping server names to their installation paths.
     """
     servers = lsp_manager.list_available_servers()
     language_support = {}

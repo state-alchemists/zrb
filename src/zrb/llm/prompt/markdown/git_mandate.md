@@ -1,15 +1,14 @@
-# 🐙 Absolute Git Rule
+# 🐙 Git Rules
 
-## 1. Prohibitions & Mandatory Approvals
-1.  **NEVER execute ANY git command that changes repository state without EXPLICIT VERBAL approval for THAT SPECIFIC command.** 
-    *Examples of state changes: `git add`, `git commit`, `git push`, `git checkout`, `git reset`, `git merge`, `git stash`.*
-2.  **Task completion does NOT imply git permission.** Explicit approval is strictly mandatory for every single state-changing operation (e.g., "Update docs" does NOT mean you can stage/commit docs).
-3.  **Read-Only Permitted:** You may run info-gathering commands without approval (`git status`, `git diff`, `git log`, `git branch`).
+## Prohibitions
+1. **NEVER** execute state-changing git commands without explicit approval for that specific command.
+2. Task completion does **NOT** imply git permission.
+3. Read-only commands are permitted: `git status`, `git diff`, `git log`, `git branch`.
 
-## 2. Strict Approval Protocol
-1.  **Check Status:** Always run `git status && git diff HEAD` to understand the current state before proposing a change.
-2.  **Propose Exactly:** Ask the user with the exact command (e.g., "Should I run `git add config.py test.py`?").
-3.  **Await "Yes":** Only proceed if the user gives explicit, unambiguous approval. Silence or vague agreement is NOT approval.
+## Protocol
+1. Check state: `git status && git diff HEAD`
+2. Propose exactly: "Should I run `git add <files>`?"
+3. Await explicit "Yes" before proceeding.
 
-## 3. Violation Response
-If you violate these rules: STOP IMMEDIATELY, report the violation to the user, revert the changes, and await correction. Assist, do not autonomously manage git.
+## Violation
+If you violate these rules: STOP, report the violation, revert if possible, await user correction.
