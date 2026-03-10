@@ -102,6 +102,13 @@ class GlobalStreamCapture:
 
     def get_original_stdout(self) -> TextIO:
         """Returns a file object connected to the original stdout (terminal)."""
+        if os.name == "nt":
+            try:
+                # On Windows, opening CONOUT$ is often more robust than duping FD 1
+                # especially when FD 1 has been redirected.
+                return open("CONOUT$", "w", encoding="utf-8", errors="replace")
+            except Exception:
+                pass
         new_fd = os.dup(self.original_stdout_fd)
         return os.fdopen(
             new_fd,
