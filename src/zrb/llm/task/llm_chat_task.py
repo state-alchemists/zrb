@@ -190,6 +190,7 @@ class LLMChatTask(BaseTask):
         self._render_active_skills = render_active_skills
         self._tools = tools if tools is not None else []
         self._toolsets = toolsets if toolsets is not None else []
+        # LLMChatTask-specific factories that resolve using parent context
         self._tool_factories = tool_factories if tool_factories is not None else []
         self._toolset_factories = (
             toolset_factories if toolset_factories is not None else []
@@ -367,12 +368,23 @@ class LLMChatTask(BaseTask):
         # 2. Resolve UI Commands
         ui_commands = self._get_ui_commands()
 
-        # 3. Create core LLM task
+        # 3. Resolve tools/toolsets from factories using parent context
+        # LLMChatTask factories use the parent (LLMChatTask) context
+        resolved_tools = self._get_all_tools(ctx)
+        resolved_toolsets = self._get_all_toolsets(ctx)
+
+        # 4. Create core LLM task
         llm_task_core = self._create_llm_task_core(
-            ctx, ui_commands["summarize"], history_manager, interactive
+            ctx,
+            ui_commands["summarize"],
+            history_manager,
+            interactive,
+            resolved_tools,
+            resolved_toolsets,
         )
 
-        # 4. Run Interactive or Non-Interactive
+        # 5. Run Interactive or Non-Interactive
+        # Note: AsyncExitStack for toolsets is handled by LLMTask._exec_action
         if not interactive:
             return await self._run_non_interactive_session(
                 ctx=ctx,
@@ -395,7 +407,7 @@ class LLMChatTask(BaseTask):
         )
 
     def _get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
-        """Get all tools including those resolved from factories."""
+        """Get all tools including those resolved from factories using parent context."""
         all_tools = list(self._tools)
         for factory in self._tool_factories:
             tool = factory(ctx)
@@ -406,7 +418,7 @@ class LLMChatTask(BaseTask):
         return all_tools
 
     def _get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
-        """Get all toolsets including those resolved from factories."""
+        """Get all toolsets including those resolved from factories using parent context."""
         all_toolsets = list(self._toolsets)
         for factory in self._toolset_factories:
             toolset = factory(ctx)
@@ -477,6 +489,8 @@ class LLMChatTask(BaseTask):
         summarize_commands: list[str],
         history_manager: AnyHistoryManager,
         interactive: bool,
+        resolved_tools: list[Tool | ToolFuncEither],
+        resolved_toolsets: list[AbstractToolset[None]],
     ) -> LLMTask:
         """Create the inner LLMTask that handles the actual processing."""
         from zrb.llm.agent.std_ui import StdUI
@@ -501,15 +515,12 @@ class LLMChatTask(BaseTask):
                 response_handlers=self._response_handlers,
             )
 
-        # Get all tools and toolsets including those from factories
-        resolved_tools = self._get_all_tools(ctx)
-        resolved_toolsets = self._get_all_toolsets(ctx)
-
         def check_yolo(*args, **kwargs):
             if self._yolo_xcom_key not in ctx.xcom:
                 return False
             return ctx.xcom[self._yolo_xcom_key].get(False)
 
+        # Pass resolved tools/toolsets to LLMTask (no factories needed since already resolved)
         return LLMTask(
             name=f"{self.name}-process",
             input=[
@@ -527,6 +538,7 @@ class LLMChatTask(BaseTask):
             render_active_skills=self._render_active_skills,
             tools=resolved_tools,
             toolsets=resolved_toolsets,
+            # No factories passed - tools/toolsets already resolved with parent context
             history_processors=self._history_processors
             + [create_summarizer_history_processor()],
             llm_config=self._llm_config,
@@ -553,25 +565,20 @@ class LLMChatTask(BaseTask):
         initial_yolo: bool,
         initial_attachments: list[UserContent],
     ) -> Any:
-        async with AsyncExitStack() as stack:
-            # Enter context for all toolsets that support it
-            for toolset in self._get_all_toolsets(ctx):
-                if hasattr(toolset, "__aenter__"):
-                    await stack.enter_async_context(toolset)
-
-            session_input = {
-                "message": initial_message,
-                "session": initial_conversation_name,
-                "yolo": initial_yolo,
-                "attachments": initial_attachments,
-                "model": self._get_model(ctx),
-            }
-            shared_ctx = SharedContext(
-                input=session_input,
-                print_fn=ctx.shared_print,  # Use current task's print function
-            )
-            session = Session(shared_ctx)
-            return await llm_task_core.async_run(session)
+        # AsyncExitStack is handled by LLMTask._exec_action
+        session_input = {
+            "message": initial_message,
+            "session": initial_conversation_name,
+            "yolo": initial_yolo,
+            "attachments": initial_attachments,
+            "model": self._get_model(ctx),
+        }
+        shared_ctx = SharedContext(
+            input=session_input,
+            print_fn=ctx.shared_print,  # Use current task's print function
+        )
+        session = Session(shared_ctx)
+        return await llm_task_core.async_run(session)
 
     async def _run_interactive_ui(
         self,
@@ -597,58 +604,53 @@ class LLMChatTask(BaseTask):
             ctx, self._ui_ascii_art_name, "", self._render_ui_ascii_art_name
         )
 
-        async with AsyncExitStack() as stack:
-            # Enter context for all toolsets that support it
-            for toolset in self._get_all_toolsets(ctx):
-                if hasattr(toolset, "__aenter__"):
-                    await stack.enter_async_context(toolset)
-
-            # Resolve custom commands
-            resolved_custom_commands: list[AnyCustomCommand] = []
-            for cmd in self._custom_commands:
-                if callable(cmd):
-                    res = cmd()
-                    if isinstance(res, list):
-                        resolved_custom_commands.extend(res)
-                    else:
-                        resolved_custom_commands.append(res)
+        # Resolve custom commands
+        resolved_custom_commands: list[AnyCustomCommand] = []
+        for cmd in self._custom_commands:
+            if callable(cmd):
+                res = cmd()
+                if isinstance(res, list):
+                    resolved_custom_commands.extend(res)
                 else:
-                    resolved_custom_commands.append(cmd)
+                    resolved_custom_commands.append(res)
+            else:
+                resolved_custom_commands.append(cmd)
 
-            ui = UI(
-                ctx=ctx,
-                yolo_xcom_key=self._yolo_xcom_key,
-                greeting=ui_greeting,
-                assistant_name=ui_assistant_name,
-                ascii_art=ascii_art,
-                jargon=ui_jargon,
-                output_lexer=CLIStyleLexer(),
-                llm_task=llm_task_core,
-                history_manager=history_manager,
-                initial_message=initial_message,
-                initial_attachments=initial_attachments,
-                conversation_session_name=initial_conversation_name,
-                yolo=initial_yolo,
-                triggers=self._triggers,
-                response_handlers=self._response_handlers,
-                tool_policies=self._tool_policies,
-                argument_formatters=self._argument_formatters,
-                markdown_theme=self._markdown_theme,
-                summarize_commands=ui_commands["summarize"],
-                attach_commands=ui_commands["attach"],
-                exit_commands=ui_commands["exit"],
-                info_commands=ui_commands["info"],
-                save_commands=ui_commands["save"],
-                load_commands=ui_commands["load"],
-                yolo_toggle_commands=ui_commands["yolo_toggle"],
-                set_model_commands=ui_commands["set_model"],
-                redirect_output_commands=ui_commands["redirect_output"],
-                exec_commands=ui_commands["exec"],
-                custom_commands=resolved_custom_commands,
-                model=self._get_model(ctx),
-            )
-            await ui.run_async()
-            return ui.last_output
+        # Note: AsyncExitStack is handled by LLMTask._exec_action
+        ui = UI(
+            ctx=ctx,
+            yolo_xcom_key=self._yolo_xcom_key,
+            greeting=ui_greeting,
+            assistant_name=ui_assistant_name,
+            ascii_art=ascii_art,
+            jargon=ui_jargon,
+            output_lexer=CLIStyleLexer(),
+            llm_task=llm_task_core,
+            history_manager=history_manager,
+            initial_message=initial_message,
+            initial_attachments=initial_attachments,
+            conversation_session_name=initial_conversation_name,
+            yolo=initial_yolo,
+            triggers=self._triggers,
+            response_handlers=self._response_handlers,
+            tool_policies=self._tool_policies,
+            argument_formatters=self._argument_formatters,
+            markdown_theme=self._markdown_theme,
+            summarize_commands=ui_commands["summarize"],
+            attach_commands=ui_commands["attach"],
+            exit_commands=ui_commands["exit"],
+            info_commands=ui_commands["info"],
+            save_commands=ui_commands["save"],
+            load_commands=ui_commands["load"],
+            yolo_toggle_commands=ui_commands["yolo_toggle"],
+            set_model_commands=ui_commands["set_model"],
+            redirect_output_commands=ui_commands["redirect_output"],
+            exec_commands=ui_commands["exec"],
+            custom_commands=resolved_custom_commands,
+            model=self._get_model(ctx),
+        )
+        await ui.run_async()
+        return ui.last_output
 
     def _get_conversation_name(self, ctx: AnyContext) -> str:
         conversation_name = str(

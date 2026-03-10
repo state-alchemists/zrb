@@ -78,6 +78,7 @@ from zrb.task.any_task import AnyTask
 from zrb.util.ascii_art.banner import create_banner
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_error, stylize_faint
+from zrb.util.cli.terminal import get_terminal_size
 from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
 
@@ -523,6 +524,23 @@ class UI:
 
             clipboard = InMemoryClipboard()
 
+        output = create_output(stdout=self._capture.get_original_stdout())
+
+        # Wrap output to make get_size more robust
+        # This prevents crashes on Windows when the console is not correctly detected
+        original_get_size = output.get_size
+
+        def robust_get_size():
+            try:
+                return original_get_size()
+            except Exception:
+                from prompt_toolkit.data_structures import Size
+
+                size = get_terminal_size()
+                return Size(rows=size.lines, columns=size.columns)
+
+        output.get_size = robust_get_size
+
         return Application(
             layout=layout,
             key_bindings=keybindings,
@@ -530,7 +548,7 @@ class UI:
             full_screen=True,
             mouse_support=True,
             refresh_interval=0.5,
-            output=create_output(stdout=self._capture.get_original_stdout()),
+            output=output,
             clipboard=clipboard,
         )
 
@@ -606,10 +624,7 @@ class UI:
         )
 
         # 2. Manual centering and clearing
-        try:
-            total_cols = get_app().output.get_size().columns
-        except Exception:
-            total_cols = 80
+        total_cols = get_terminal_size().columns
 
         def center_line(html_text: str) -> str:
             # Calculate visible width (fragment_list_width needs list of fragments)
@@ -1202,7 +1217,7 @@ class UI:
 
     def _get_output_field_width(self) -> int | None:
         try:
-            width = get_app().output.get_size().columns - 4
+            width = get_terminal_size().columns - 4
             if width < 10:
                 width = None
         except Exception:

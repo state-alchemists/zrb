@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import warnings
+from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.attr.type import BoolAttr, StrAttr, StrListAttr, fstring
@@ -62,8 +63,14 @@ class LLMTask(BaseTask):
         hook_manager: HookManager | None = None,
         active_skills: StrListAttr | None = None,
         render_active_skills: bool = True,
-        tools: list[Tool | ToolFuncEither] = [],
-        toolsets: list[AbstractToolset[None]] = [],
+        tools: list[Tool | ToolFuncEither] | None = None,
+        toolsets: list[AbstractToolset[None]] | None = None,
+        tool_factories: (
+            list[Callable[[AnyContext], Tool | ToolFuncEither]] | None
+        ) = None,
+        toolset_factories: (
+            list[Callable[[AnyContext], AbstractToolset[None]]] | None
+        ) = None,
         message: StrAttr | None = None,
         render_message: bool = True,
         attachment: (
@@ -72,7 +79,7 @@ class LLMTask(BaseTask):
             | Callable[[AnyContext], UserContent | list[UserContent]]
             | None
         ) = None,  # noqa
-        history_processors: list[HistoryProcessor] = [],
+        history_processors: list[HistoryProcessor] | None = None,
         llm_config: LLMConfig | None = None,
         llm_limitter: LLMLimiter | None = None,
         model: (
@@ -89,7 +96,7 @@ class LLMTask(BaseTask):
         ui: UIProtocol | None = None,
         yolo: BoolAttr = False,
         dynamic_yolo: Callable[..., bool] | None = None,
-        summarize_command: list[str] = [],
+        summarize_command: list[str] | None = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 2,
         retry_period: float = 0,
@@ -153,12 +160,18 @@ class LLMTask(BaseTask):
         )
         self._active_skills = active_skills
         self._render_active_skills = render_active_skills
-        self._tools = tools
-        self._toolsets = toolsets
+        self._tools = tools if tools is not None else []
+        self._toolsets = toolsets if toolsets is not None else []
+        self._tool_factories = tool_factories if tool_factories is not None else []
+        self._toolset_factories = (
+            toolset_factories if toolset_factories is not None else []
+        )
         self._message = message
         self._render_message = render_message
         self._attachment = attachment
-        self._history_processors = history_processors
+        self._history_processors = (
+            history_processors if history_processors is not None else []
+        )
         self._model = model
         self._render_model = render_model
         self._model_settings = model_settings
@@ -169,7 +182,9 @@ class LLMTask(BaseTask):
         self._ui = ui
         self._yolo = yolo
         self._dynamic_yolo = dynamic_yolo
-        self._summarize_command = summarize_command
+        self._summarize_command = (
+            summarize_command if summarize_command is not None else []
+        )
 
     @property
     def prompt_manager(self) -> PromptManager:
@@ -194,11 +209,29 @@ class LLMTask(BaseTask):
     def append_toolset(self, *toolset: AbstractToolset):
         self._toolsets += list(toolset)
 
+    def add_toolset_factory(
+        self, *factory: Callable[[AnyContext], AbstractToolset[None]]
+    ):
+        self.append_toolset_factory(*factory)
+
+    def append_toolset_factory(
+        self, *factory: Callable[[AnyContext], AbstractToolset[None]]
+    ):
+        self._toolset_factories += list(factory)
+
     def add_tool(self, *tool: Tool | ToolFuncEither):
         self.append_tool(*tool)
 
     def append_tool(self, *tool: Tool | ToolFuncEither):
         self._tools += list(tool)
+
+    def add_tool_factory(self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]):
+        self.append_tool_factory(*factory)
+
+    def append_tool_factory(
+        self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]
+    ):
+        self._tool_factories += list(factory)
 
     def add_history_processor(self, *processor: HistoryProcessor):
         self.append_history_processor(*processor)
@@ -206,7 +239,38 @@ class LLMTask(BaseTask):
     def append_history_processor(self, *processor: HistoryProcessor):
         self._history_processors += list(processor)
 
+    def _get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
+        """Get all tools including those resolved from factories."""
+        all_tools = list(self._tools)
+        for factory in self._tool_factories:
+            tool = factory(ctx)
+            if isinstance(tool, list):
+                all_tools.extend(tool)
+            else:
+                all_tools.append(tool)
+        return all_tools
+
+    def _get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
+        """Get all toolsets including those resolved from factories."""
+        all_toolsets = list(self._toolsets)
+        for factory in self._toolset_factories:
+            toolset = factory(ctx)
+            if isinstance(toolset, list):
+                all_toolsets.extend(toolset)
+            else:
+                all_toolsets.append(toolset)
+        return all_toolsets
+
     async def _exec_action(self, ctx: AnyContext) -> Any:
+        async with AsyncExitStack() as stack:
+            # Enter context for all toolsets that support it
+            for toolset in self._get_all_toolsets(ctx):
+                if hasattr(toolset, "__aenter__"):
+                    await stack.enter_async_context(toolset)
+
+            return await self._exec_action_inner(ctx)
+
+    async def _exec_action_inner(self, ctx: AnyContext) -> Any:
         conversation_name = self._get_conversation_name(ctx)
         history_manager = self._get_history_manager(ctx)
         message_history = history_manager.load(conversation_name)
@@ -279,11 +343,14 @@ class LLMTask(BaseTask):
         )
         system_prompt = self._get_system_prompt(ctx)
         ctx.log_debug(f"SYSTEM PROMPT: {system_prompt}")
+        # Get all tools and toolsets including those from factories
+        resolved_tools = self._get_all_tools(ctx)
+        resolved_toolsets = self._get_all_toolsets(ctx)
         return create_agent(
             model=self._get_model(ctx),
             system_prompt=system_prompt,
-            tools=self._tools,
-            toolsets=self._toolsets,
+            tools=resolved_tools,
+            toolsets=resolved_toolsets,
             model_settings=self._get_model_settings(ctx),
             history_processors=self._history_processors,
             yolo=yolo,
