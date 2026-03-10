@@ -123,7 +123,7 @@ class InputCompleter(Completer):
             if not os.path.exists(hist_file):
                 continue
             try:
-                with open(hist_file, "r", errors="ignore") as f:
+                with open(hist_file, "r", encoding="utf-8", errors="ignore") as f:
                     for line in f:
                         line = line.strip()
                         if not line:

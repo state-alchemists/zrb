@@ -1,5 +1,27 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.8.4 (March 10, 2026)
+
+- **Fix: Windows Encoding Error in Journal Index Reading**:
+  - **UTF-8 Encoding Fix**: Added explicit `encoding="utf-8"` to journal index file reading in `src/zrb/llm/prompt/prompt.py` to prevent `UnicodeDecodeError` on Windows where the default encoding is `cp1252`.
+  - **Shell History Encoding**: Added explicit `encoding="utf-8"` to shell history file reading in `src/zrb/llm/app/completion.py` for consistent cross-platform behavior.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.8.4 in `pyproject.toml`.
+
+
+## 2.8.3 (March 10, 2026)
+
+- **Fix: Windows Terminal Size Detection**:
+  - **Robust Terminal Size Utility**: Added `src/zrb/util/cli/terminal.py` with `get_terminal_size()` function that gracefully handles terminal size detection across platforms, especially Windows where standard methods fail when stdout is redirected.
+  - **Windows CONOUT$ Support**: Enhanced `get_original_stdout()` in `src/zrb/llm/app/redirection.py` to use Windows `CONOUT$` device for more reliable terminal access when file descriptors are redirected.
+  - **UI Crash Prevention**: Wrapped `output.get_size()` in `src/zrb/llm/app/ui.py` with a robust fallback that prevents crashes on Windows when prompt_toolkit cannot detect console dimensions.
+  - **Multi-Method Detection**: Terminal size detection now tries `sys.__stdout__`, `sys.__stderr__`, `sys.__stdin__`, Windows `CONOUT$`, and finally falls back to `shutil.get_terminal_size()` with environment variable support.
+
+- **Maintenance**:
+  - **Version Bump**: Updated to version 2.8.3 in `pyproject.toml`.
+
+
 ## 2.8.2 (March 7, 2026)
 
 - **Documentation: Configuration Default Value Corrections**:
