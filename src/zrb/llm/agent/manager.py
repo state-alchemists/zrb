@@ -11,6 +11,7 @@ import yaml
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.agent.common import create_agent
+from zrb.llm.lsp.tools import create_lsp_tools
 from zrb.llm.summarizer import (
     create_summarizer_history_processor,
 )
@@ -27,7 +28,6 @@ from zrb.llm.tool.file import (
     write_file,
     write_files,
 )
-from zrb.llm.lsp.tools import create_lsp_tools
 from zrb.llm.tool.mcp import load_mcp_config
 from zrb.llm.tool.skill import create_activate_skill_tool
 from zrb.llm.tool.web import open_web_page, search_internet
@@ -458,10 +458,12 @@ class SubAgentManager:
         else:
             # Use dynamic YOLO checker that reads from parent's xcom via context
             # This allows YOLO toggles during sub-agent execution to be honored
-            from zrb.llm.agent.run_agent import current_yolo
             from zrb.context.any_context import AnyContext
+            from zrb.llm.agent.run_agent import current_yolo
 
-            def check_yolo_inheritance(ctx_or_none: Any = None, *args, **kwargs) -> bool:
+            def check_yolo_inheritance(
+                ctx_or_none: Any = None, *args, **kwargs
+            ) -> bool:
                 """Check if YOLO mode is active by reading from multiple sources.
 
                 Priority:
@@ -536,9 +538,12 @@ sub_agent_manager.add_toolset_factory(
 # Add LSP tools
 sub_agent_manager.add_tool(*create_lsp_tools())
 
+
 # Add planning/todo tools (lazy import to avoid circular dependency)
 def _get_todo_tools():
     from zrb.llm.tool.plan import clear_todos, get_todos, update_todo, write_todos
+
     return [write_todos, get_todos, update_todo, clear_todos]
+
 
 sub_agent_manager.add_tool(*_get_todo_tools())

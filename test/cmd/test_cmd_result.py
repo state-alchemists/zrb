@@ -1,4 +1,5 @@
 """Tests for CmdResult class."""
+
 from zrb.cmd.cmd_result import CmdResult
 
 

@@ -1,4 +1,5 @@
 """Tests for Callback class."""
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -74,9 +75,7 @@ async def test_callback_async_run_success(mock_task, mock_session, mock_parent_s
         render_input_mapping=False,
     )
 
-    with patch(
-        "zrb.callback.callback.get_str_dict_attr"
-    ) as mock_get_attr:
+    with patch("zrb.callback.callback.get_str_dict_attr") as mock_get_attr:
         mock_get_attr.return_value = {"input_key": "rendered_value"}
         result = await callback.async_run(mock_parent_session, mock_session)
 
@@ -101,9 +100,7 @@ async def test_callback_async_run_with_xcom_mapping(
     # Set up parent xcom
     mock_parent_session.shared_ctx.xcom["parent_xcom"] = "parent_value"
 
-    with patch(
-        "zrb.callback.callback.get_str_dict_attr"
-    ) as mock_get_attr:
+    with patch("zrb.callback.callback.get_str_dict_attr") as mock_get_attr:
         mock_get_attr.return_value = {}
         await callback.async_run(mock_parent_session, mock_session)
 
@@ -124,9 +121,7 @@ async def test_callback_async_run_publishes_session_name(
         session_name_queue="session_names",
     )
 
-    with patch(
-        "zrb.callback.callback.get_str_dict_attr"
-    ) as mock_get_attr:
+    with patch("zrb.callback.callback.get_str_dict_attr") as mock_get_attr:
         mock_get_attr.return_value = {}
         await callback.async_run(mock_parent_session, mock_session)
 
@@ -148,9 +143,7 @@ async def test_callback_async_run_publishes_result(
         result_queue="results",
     )
 
-    with patch(
-        "zrb.callback.callback.get_str_dict_attr"
-    ) as mock_get_attr:
+    with patch("zrb.callback.callback.get_str_dict_attr") as mock_get_attr:
         mock_get_attr.return_value = {}
         await callback.async_run(mock_parent_session, mock_session)
 
@@ -176,9 +169,7 @@ async def test_callback_async_run_handles_error(
         error_queue="errors",
     )
 
-    with patch(
-        "zrb.callback.callback.get_str_dict_attr"
-    ) as mock_get_attr:
+    with patch("zrb.callback.callback.get_str_dict_attr") as mock_get_attr:
         mock_get_attr.return_value = {}
         result = await callback.async_run(mock_parent_session, mock_session)
 

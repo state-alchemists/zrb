@@ -1,10 +1,11 @@
 """Tests for agent common utilities."""
+
 import copy
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.agent.common import _safe_copy_result, _create_safe_wrapper
+from zrb.llm.agent.common import _create_safe_wrapper, _safe_copy_result
 
 
 def test_safe_copy_result_none():

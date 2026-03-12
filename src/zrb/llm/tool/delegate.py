@@ -273,7 +273,9 @@ def create_parallel_delegate_tool(
             if error:
                 combined_results.append(f"Sub-agent '{agent_name}' failed: {error}")
             else:
-                indented_result = "\n".join(["  " + line for line in result.splitlines()])
+                indented_result = "\n".join(
+                    ["  " + line for line in result.splitlines()]
+                )
                 combined_results.append(
                     f"Sub-agent '{agent_name}' completed:\n{indented_result}"
                 )

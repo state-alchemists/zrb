@@ -1,4 +1,4 @@
-from zrb.util.truncate import truncate_str, truncate_output
+from zrb.util.truncate import truncate_output, truncate_str
 
 
 def test_truncate_str_string():
@@ -74,7 +74,9 @@ def test_truncate_output_no_truncation():
 def test_truncate_output_line_length_truncation():
     """Test truncate_output with long lines that need truncation."""
     text = "A" * 2000 + "\n"  # Very long line
-    result, info = truncate_output(text, head_lines=1, tail_lines=1, max_line_length=100)
+    result, info = truncate_output(
+        text, head_lines=1, tail_lines=1, max_line_length=100
+    )
     assert "LINE TRUNCATED" in result
     assert info["truncation_type"] == "line_length"
 

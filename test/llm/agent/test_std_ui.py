@@ -1,4 +1,5 @@
 """Tests for StdUI class."""
+
 import asyncio
 import sys
 from io import StringIO
@@ -84,16 +85,12 @@ async def test_stdui_ask_user_success():
     ui = StdUI()
 
     # Patch PromptSession at the prompt_toolkit module level
-    with patch(
-        "prompt_toolkit.PromptSession", create=True
-    ) as mock_session_class:
+    with patch("prompt_toolkit.PromptSession", create=True) as mock_session_class:
         mock_session = MagicMock()
         mock_session.prompt_async = AsyncMock(return_value="user input  ")
         mock_session_class.return_value = mock_session
 
-        with patch(
-            "prompt_toolkit.output.create_output"
-        ) as mock_create_output:
+        with patch("prompt_toolkit.output.create_output") as mock_create_output:
             mock_create_output.return_value = MagicMock()
 
             result = await ui.ask_user("Enter something: ")
@@ -106,16 +103,12 @@ async def test_stdui_ask_user_eof():
     """Test StdUI ask_user handles EOFError."""
     ui = StdUI()
 
-    with patch(
-        "prompt_toolkit.PromptSession", create=True
-    ) as mock_session_class:
+    with patch("prompt_toolkit.PromptSession", create=True) as mock_session_class:
         mock_session = MagicMock()
         mock_session.prompt_async = AsyncMock(side_effect=EOFError())
         mock_session_class.return_value = mock_session
 
-        with patch(
-            "prompt_toolkit.output.create_output"
-        ) as mock_create_output:
+        with patch("prompt_toolkit.output.create_output") as mock_create_output:
             mock_create_output.return_value = MagicMock()
 
             result = await ui.ask_user("Enter something: ")
@@ -128,16 +121,12 @@ async def test_stdui_ask_user_keyboard_interrupt():
     """Test StdUI ask_user propagates KeyboardInterrupt."""
     ui = StdUI()
 
-    with patch(
-        "prompt_toolkit.PromptSession", create=True
-    ) as mock_session_class:
+    with patch("prompt_toolkit.PromptSession", create=True) as mock_session_class:
         mock_session = MagicMock()
         mock_session.prompt_async = AsyncMock(side_effect=KeyboardInterrupt())
         mock_session_class.return_value = mock_session
 
-        with patch(
-            "prompt_toolkit.output.create_output"
-        ) as mock_create_output:
+        with patch("prompt_toolkit.output.create_output") as mock_create_output:
             mock_create_output.return_value = MagicMock()
 
             with pytest.raises(KeyboardInterrupt):

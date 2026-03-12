@@ -179,6 +179,7 @@ def test_lex_document_complex_sequence():
 
 # Additional tests for uncovered lines
 
+
 def test_lex_document_with_italic():
     """Test lexing with italic ANSI sequence."""
     lexer = CLIStyleLexer()
@@ -254,27 +255,47 @@ def test_lex_document_with_reset_underline():
 def test_lex_document_with_all_standard_colors():
     """Test lexing with all 8 standard foreground colors (30-37)."""
     lexer = CLIStyleLexer()
-    colors = [(30, "#000000"), (31, "#ff0000"), (32, "#00ff00"), (33, "#ffff00"),
-              (34, "#0000ff"), (35, "#ff00ff"), (36, "#00ffff"), (37, "#ffffff")]
+    colors = [
+        (30, "#000000"),
+        (31, "#ff0000"),
+        (32, "#00ff00"),
+        (33, "#ffff00"),
+        (34, "#0000ff"),
+        (35, "#ff00ff"),
+        (36, "#00ffff"),
+        (37, "#ffffff"),
+    ]
 
     for code, expected_color in colors:
         document = Document(text=f"\x1b[{code}mText")
         get_line = lexer.lex_document(document)
         tokens = get_line(0)
-        assert expected_color in tokens[0][0], f"Color {code} should be {expected_color}"
+        assert (
+            expected_color in tokens[0][0]
+        ), f"Color {code} should be {expected_color}"
 
 
 def test_lex_document_with_all_standard_bg_colors():
     """Test lexing with all 8 standard background colors (40-47)."""
     lexer = CLIStyleLexer()
-    colors = [(40, "#000000"), (41, "#ff0000"), (42, "#00ff00"), (43, "#ffff00"),
-              (44, "#0000ff"), (45, "#ff00ff"), (46, "#00ffff"), (47, "#ffffff")]
+    colors = [
+        (40, "#000000"),
+        (41, "#ff0000"),
+        (42, "#00ff00"),
+        (43, "#ffff00"),
+        (44, "#0000ff"),
+        (45, "#ff00ff"),
+        (46, "#00ffff"),
+        (47, "#ffffff"),
+    ]
 
     for code, expected_color in colors:
         document = Document(text=f"\x1b[{code}mText")
         get_line = lexer.lex_document(document)
         tokens = get_line(0)
-        assert f"bg:{expected_color}" in tokens[0][0], f"BG color {code} should contain bg:{expected_color}"
+        assert (
+            f"bg:{expected_color}" in tokens[0][0]
+        ), f"BG color {code} should contain bg:{expected_color}"
 
 
 def test_lex_document_with_reset_fg():
@@ -303,14 +324,24 @@ def test_lex_document_with_reset_bg():
 def test_lex_document_with_all_bright_colors():
     """Test lexing with all bright colors (90-97)."""
     lexer = CLIStyleLexer()
-    colors = [(90, "#555555"), (91, "#ff5555"), (92, "#55ff55"), (93, "#ffff55"),
-              (94, "#5555ff"), (95, "#ff55ff"), (96, "#55ffff"), (97, "#ffffff")]
+    colors = [
+        (90, "#555555"),
+        (91, "#ff5555"),
+        (92, "#55ff55"),
+        (93, "#ffff55"),
+        (94, "#5555ff"),
+        (95, "#ff55ff"),
+        (96, "#55ffff"),
+        (97, "#ffffff"),
+    ]
 
     for code, expected_color in colors:
         document = Document(text=f"\x1b[{code}mText")
         get_line = lexer.lex_document(document)
         tokens = get_line(0)
-        assert expected_color in tokens[0][0], f"Bright color {code} should be {expected_color}"
+        assert (
+            expected_color in tokens[0][0]
+        ), f"Bright color {code} should be {expected_color}"
 
 
 def test_lex_document_with_rgb_foreground():

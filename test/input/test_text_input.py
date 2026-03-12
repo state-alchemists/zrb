@@ -1,10 +1,11 @@
 """Tests for TextInput class."""
+
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from zrb.input.text_input import TextInput
 from zrb.context.any_shared_context import AnySharedContext
+from zrb.input.text_input import TextInput
 
 
 def test_text_input_init():

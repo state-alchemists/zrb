@@ -1,4 +1,5 @@
 """Tests for ContentTransformer class."""
+
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -64,9 +65,7 @@ def test_content_transformer_transform_file_dict():
     ctx = MagicMock(spec=AnyContext)
     ctx.render = MagicMock(return_value="new")
 
-    with patch(
-        "zrb.content_transformer.content_transformer.read_file"
-    ) as mock_read:
+    with patch("zrb.content_transformer.content_transformer.read_file") as mock_read:
         mock_read.return_value = "Hello old world"
         with patch(
             "zrb.content_transformer.content_transformer.write_file"

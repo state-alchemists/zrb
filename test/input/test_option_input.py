@@ -154,7 +154,9 @@ def test_option_input_option_completer_get_completions():
         options=["apple", "apricot", "banana", "cherry"],
     )
 
-    completer = option_input._get_option_completer(["apple", "apricot", "banana", "cherry"])
+    completer = option_input._get_option_completer(
+        ["apple", "apricot", "banana", "cherry"]
+    )
 
     # Test with "ap" prefix
     document = Document(text="ap", cursor_position=2)

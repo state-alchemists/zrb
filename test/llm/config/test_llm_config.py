@@ -1,4 +1,5 @@
 """Tests for LLMConfig class."""
+
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -117,7 +118,7 @@ def test_llm_config_resolve_model_by_name_with_api_key():
     """Test _resolve_model_by_name with API key set."""
     config = LLMConfig()
     config.api_key = "test-key"
-    
+
     # Provider should resolve to OpenAIProvider when api_key is set
     result = config._resolve_model_by_name("openai:gpt-4")
     # Should return a model (either string or OpenAIChatModel)
@@ -148,7 +149,7 @@ def test_llm_config_provider_returns_openai_by_default():
     config._api_key = None
     config._base_url = None
     config._provider = None
-    
+
     result = config.provider
     assert result == "openai"
 
@@ -160,7 +161,7 @@ def test_llm_config_model_default():
     config._api_key = None
     config._base_url = None
     config._provider = None
-    
+
     with patch("zrb.llm.config.config.CFG") as mock_cfg:
         mock_cfg.LLM_MODEL = "openai:gpt-4o"
         mock_cfg.LLM_API_KEY = None

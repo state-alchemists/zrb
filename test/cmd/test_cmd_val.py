@@ -1,4 +1,5 @@
 """Tests for CmdVal classes."""
+
 from unittest.mock import MagicMock, patch
 
 import pytest

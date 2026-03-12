@@ -1,10 +1,11 @@
 """Tests for BoolInput class."""
+
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from zrb.input.bool_input import BoolInput
 from zrb.context.any_shared_context import AnySharedContext
+from zrb.input.bool_input import BoolInput
 
 
 def test_bool_input_init():
