@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING
 
+import jwt
+
 from zrb.config.web_auth_config import WebAuthConfig
 from zrb.runner.web_schema.user import User
 
@@ -51,12 +53,11 @@ def _get_user_from_token(
     if token is None:
         return None
     try:
-        from jose import jwt
-
         payload = jwt.decode(
             token,
             web_auth_config.secret_key,
-            options={"require_sub": True, "require_exp": True},
+            algorithms=["HS256"],
+            options={"require": ["exp", "sub"]},
         )
         username: str | None = payload.get("sub")
         if username is None:
@@ -65,5 +66,5 @@ def _get_user_from_token(
         if user is None:
             return None
         return user
-    except Exception:
+    except jwt.InvalidTokenError:
         return None
