@@ -1,6 +1,9 @@
 from zrb.llm.tool.bash import run_shell_command
 from zrb.llm.tool.code import analyze_code
-from zrb.llm.tool.delegate import create_delegate_to_agent_tool
+from zrb.llm.tool.delegate import (
+    create_delegate_to_agent_tool,
+    create_parallel_delegate_tool,
+)
 from zrb.llm.tool.file import (
     analyze_file,
     glob_files,
@@ -45,6 +48,7 @@ __all__ = [
     "create_list_zrb_task_tool",
     "create_run_zrb_task_tool",
     "create_delegate_to_agent_tool",
+    "create_parallel_delegate_tool",
     # Planning tools
     "create_plan_tools",
     "write_todos",

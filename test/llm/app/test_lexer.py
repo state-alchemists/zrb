@@ -175,3 +175,220 @@ def test_lex_document_complex_sequence():
     assert tokens[0][1] == "Bold Red"
     # Second: green (reset+green doesn't create separate token)
     assert tokens[1] == ("#00ff00", " Green")
+
+
+# Additional tests for uncovered lines
+
+def test_lex_document_with_italic():
+    """Test lexing with italic ANSI sequence."""
+    lexer = CLIStyleLexer()
+    # \x1B[3m is italic
+    document = Document(text="\x1b[3mItalic text")
+    get_line = lexer.lex_document(document)
+
+    tokens = get_line(0)
+    assert len(tokens) == 1
+    assert "italic" in tokens[0][0]
+
+
+def test_lex_document_with_underline():
+    """Test lexing with underline ANSI sequence."""
+    lexer = CLIStyleLexer()
+    # \x1B[4m is underline
+    document = Document(text="\x1b[4mUnderline text")
+    get_line = lexer.lex_document(document)
+
+    tokens = get_line(0)
+    assert len(tokens) == 1
+    assert "underline" in tokens[0][0]
+
+
+def test_lex_document_with_faint():
+    """Test lexing with faint ANSI sequence."""
+    lexer = CLIStyleLexer()
+    # \x1B[2m is faint
+    document = Document(text="\x1b[2mFaint text")
+    get_line = lexer.lex_document(document)
+
+    tokens = get_line(0)
+    assert len(tokens) == 1
+    assert "class:faint" in tokens[0][0]
+
+
+def test_lex_document_with_reset_bold():
+    """Test resetting bold/faint with code 22."""
+    lexer = CLIStyleLexer()
+    # Bold then reset
+    document = Document(text="\x1b[1mBold\x1b[22m Normal")
+    get_line = lexer.lex_document(document)
+
+    tokens = get_line(0)
+    assert "bold" in tokens[0][0]
+    assert tokens[0][1] == "Bold"
+    # After reset
+    assert tokens[1][0] == ""
+
+
+def test_lex_document_with_reset_italic():
+    """Test resetting italic with code 23."""
+    lexer = CLIStyleLexer()
+    # Italic then reset
+    document = Document(text="\x1b[3mItalic\x1b[23m Normal")
+    get_line = lexer.lex_document(document)
+
+    tokens = get_line(0)
+    assert "italic" in tokens[0][0]
+
+
+def test_lex_document_with_reset_underline():
+    """Test resetting underline with code 24."""
+    lexer = CLIStyleLexer()
+    # Underline then reset
+    document = Document(text="\x1b[4mUnder\x1b[24m Normal")
+    get_line = lexer.lex_document(document)
+
+    tokens = get_line(0)
+    assert "underline" in tokens[0][0]
+
+
+def test_lex_document_with_all_standard_colors():
+    """Test lexing with all 8 standard foreground colors (30-37)."""
+    lexer = CLIStyleLexer()
+    colors = [(30, "#000000"), (31, "#ff0000"), (32, "#00ff00"), (33, "#ffff00"),
+              (34, "#0000ff"), (35, "#ff00ff"), (36, "#00ffff"), (37, "#ffffff")]
+
+    for code, expected_color in colors:
+        document = Document(text=f"\x1b[{code}mText")
+        get_line = lexer.lex_document(document)
+        tokens = get_line(0)
+        assert expected_color in tokens[0][0], f"Color {code} should be {expected_color}"
+
+
+def test_lex_document_with_all_standard_bg_colors():
+    """Test lexing with all 8 standard background colors (40-47)."""
+    lexer = CLIStyleLexer()
+    colors = [(40, "#000000"), (41, "#ff0000"), (42, "#00ff00"), (43, "#ffff00"),
+              (44, "#0000ff"), (45, "#ff00ff"), (46, "#00ffff"), (47, "#ffffff")]
+
+    for code, expected_color in colors:
+        document = Document(text=f"\x1b[{code}mText")
+        get_line = lexer.lex_document(document)
+        tokens = get_line(0)
+        assert f"bg:{expected_color}" in tokens[0][0], f"BG color {code} should contain bg:{expected_color}"
+
+
+def test_lex_document_with_reset_fg():
+    """Test resetting foreground color with code 39."""
+    lexer = CLIStyleLexer()
+    document = Document(text="\x1b[31mRed\x1b[39m Normal")
+    get_line = lexer.lex_document(document)
+
+    tokens = get_line(0)
+    assert "#ff0000" in tokens[0][0]
+    assert tokens[0][1] == "Red"
+    # After reset, no color
+    assert tokens[1][0] == ""
+
+
+def test_lex_document_with_reset_bg():
+    """Test resetting background color with code 49."""
+    lexer = CLIStyleLexer()
+    document = Document(text="\x1b[41mBG\x1b[49m Normal")
+    get_line = lexer.lex_document(document)
+
+    tokens = get_line(0)
+    assert "bg:#ff0000" in tokens[0][0]
+
+
+def test_lex_document_with_all_bright_colors():
+    """Test lexing with all bright colors (90-97)."""
+    lexer = CLIStyleLexer()
+    colors = [(90, "#555555"), (91, "#ff5555"), (92, "#55ff55"), (93, "#ffff55"),
+              (94, "#5555ff"), (95, "#ff55ff"), (96, "#55ffff"), (97, "#ffffff")]
+
+    for code, expected_color in colors:
+        document = Document(text=f"\x1b[{code}mText")
+        get_line = lexer.lex_document(document)
+        tokens = get_line(0)
+        assert expected_color in tokens[0][0], f"Bright color {code} should be {expected_color}"
+
+
+def test_lex_document_with_rgb_foreground():
+    """Test lexing with RGB foreground color (38;2;r;g;b)."""
+    lexer = CLIStyleLexer()
+    # \x1B[38;2;255;128;64m is RGB color
+    document = Document(text="\x1b[38;2;255;128;64mText")
+    get_line = lexer.lex_document(document)
+
+    tokens = get_line(0)
+    assert "#ff8040" in tokens[0][0]
+
+
+def test_lex_document_with_rgb_background():
+    """Test lexing with RGB background color (48;2;r;g;b)."""
+    lexer = CLIStyleLexer()
+    # \x1B[48;2;255;128;64m is RGB background
+    document = Document(text="\x1b[48;2;255;128;64mText")
+    get_line = lexer.lex_document(document)
+
+    tokens = get_line(0)
+    assert "bg:#ff8040" in tokens[0][0]
+
+
+def test_lex_document_with_256_color():
+    """Test lexing with 256 color mode (38;5;n)."""
+    lexer = CLIStyleLexer()
+    # \x1B[38;5;1m is 256 color mode
+    document = Document(text="\x1b[38;5;1mText")
+    get_line = lexer.lex_document(document)
+
+    tokens = get_line(0)
+    # Should handle 256 color mode (it skips the color index)
+    assert tokens[0][1] == "Text"
+
+
+def test_lex_document_with_256_bg_color():
+    """Test lexing with 256 background color mode (48;5;n)."""
+    lexer = CLIStyleLexer()
+    document = Document(text="\x1b[48;5;1mText")
+    get_line = lexer.lex_document(document)
+
+    tokens = get_line(0)
+    assert tokens[0][1] == "Text"
+
+
+def test_lex_document_empty_codes():
+    """Test lexing with empty ANSI codes."""
+    lexer = CLIStyleLexer()
+    # \x1B[m is treated as reset
+    document = Document(text="\x1b[mText")
+    get_line = lexer.lex_document(document)
+
+    tokens = get_line(0)
+    # Empty codes are treated as reset
+    assert tokens[0][0] == ""
+    assert tokens[0][1] == "Text"
+
+
+def test_lex_document_multiple_codes_in_one_sequence():
+    """Test multiple codes in a single ANSI sequence."""
+    lexer = CLIStyleLexer()
+    # Bold, faint, italic all together
+    document = Document(text="\x1b[1;2;3mStyled")
+    get_line = lexer.lex_document(document)
+
+    tokens = get_line(0)
+    assert "bold" in tokens[0][0]
+    assert "class:faint" in tokens[0][0]
+    assert "italic" in tokens[0][0]
+
+
+def test_lex_document_text_without_escape():
+    """Test lexing plain text without any escape sequences."""
+    lexer = CLIStyleLexer()
+    document = Document(text="Just plain text here")
+    get_line = lexer.lex_document(document)
+
+    tokens = get_line(0)
+    assert len(tokens) == 1
+    assert tokens[0] == ("", "Just plain text here")

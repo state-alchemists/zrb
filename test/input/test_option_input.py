@@ -130,11 +130,108 @@ def test_option_input_update_shared_context_with_default():
     assert shared_ctx.input.choice == ""
 
 
-# Note: We're not testing _prompt_cli_str, _get_value_from_user_input, or _get_option_completer
-# as they are private methods. The public API is already tested through
-# update_shared_context, to_html, and get_default_str.
+def test_option_input_get_option_completer():
+    """Test _get_option_completer creates a proper completer."""
+    option_input = OptionInput(
+        name="test",
+        options=["apple", "banana", "cherry"],
+    )
+
+    completer = option_input._get_option_completer(["apple", "banana", "cherry"])
+
+    # Verify it's a completer with options
+    assert hasattr(completer, "get_completions")
+    assert completer._options == ["apple", "banana", "cherry"]
 
 
-# Note: Private methods like _get_option_completer, _prompt_cli_str validation,
-# and prompt flow are not tested as they are implementation details.
-# The public API coverage is sufficient.
+def test_option_input_option_completer_get_completions():
+    """Test OptionCompleter.get_completions yields matching completions."""
+    from prompt_toolkit.completion import CompleteEvent
+    from prompt_toolkit.document import Document
+
+    option_input = OptionInput(
+        name="test",
+        options=["apple", "apricot", "banana", "cherry"],
+    )
+
+    completer = option_input._get_option_completer(["apple", "apricot", "banana", "cherry"])
+
+    # Test with "ap" prefix
+    document = Document(text="ap", cursor_position=2)
+    completions = list(completer.get_completions(document, CompleteEvent()))
+
+    # Should yield completions that match "ap"
+    completion_texts = [c.text for c in completions]
+    assert "apple" in completion_texts or "apricot" in completion_texts
+
+
+def test_option_input_option_completer_empty_search():
+    """Test OptionCompleter with empty search pattern."""
+    from prompt_toolkit.completion import CompleteEvent
+    from prompt_toolkit.document import Document
+
+    option_input = OptionInput(
+        name="test",
+        options=["apple", "banana"],
+    )
+
+    completer = option_input._get_option_completer(["apple", "banana"])
+
+    # Test with empty prefix - should match all options
+    document = Document(text="", cursor_position=0)
+    completions = list(completer.get_completions(document, CompleteEvent()))
+
+    # Should yield all options when search is empty
+    completion_texts = [c.text for c in completions]
+    assert "apple" in completion_texts
+    assert "banana" in completion_texts
+
+
+def test_option_input_to_html_callable_options():
+    """Test to_html with callable options."""
+    option_input = OptionInput(
+        name="test",
+        options=lambda ctx: ["dynamic1", "dynamic2"],
+    )
+
+    shared_ctx = SharedContext(env={})
+
+    with patch("zrb.input.option_input.get_str_list_attr") as mock_get_list:
+        mock_get_list.return_value = ["dynamic1", "dynamic2"]
+        html = option_input.to_html(shared_ctx)
+
+        assert '<option value="dynamic1"' in html
+        assert '<option value="dynamic2"' in html
+
+
+def test_option_input_auto_render_false():
+    """Test OptionInput with auto_render=False."""
+    option_input = OptionInput(
+        name="test",
+        options=["a", "b"],
+        auto_render=False,
+    )
+
+    shared_ctx = SharedContext(env={})
+
+    with patch("zrb.input.option_input.get_str_list_attr") as mock_get_list:
+        mock_get_list.return_value = ["a", "b"]
+        html = option_input.to_html(shared_ctx)
+
+        mock_get_list.assert_called_once()
+
+
+def test_option_input_to_html_description_none():
+    """Test to_html when description is None."""
+    option_input = OptionInput(
+        name="test",
+        description=None,
+        options=["a", "b"],
+    )
+
+    shared_ctx = SharedContext(env={})
+    html = option_input.to_html(shared_ctx)
+
+    # When description is None, it should use the name as placeholder
+    assert '<select name="test"' in html
+    assert 'placeholder="test"' in html

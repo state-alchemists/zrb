@@ -287,6 +287,12 @@ class LLMTask(BaseTask):
         )
 
         try:
+            # Compute YOLO status for context propagation
+            yolo_value = (
+                self._dynamic_yolo(ctx, None, {})
+                if callable(self._dynamic_yolo)
+                else get_bool_attr(ctx, self._yolo, False)
+            )
             output, new_history = await run_agent(
                 agent=agent,
                 message=effective_message,
@@ -298,6 +304,7 @@ class LLMTask(BaseTask):
                 tool_confirmation=self._tool_confirmation,
                 hook_manager=self._hook_manager,
                 ui=self._ui,
+                yolo=yolo_value,
             )
         except Exception as e:
             self._handle_run_error(ctx, history_manager, conversation_name, e)
