@@ -30,7 +30,10 @@ from zrb.llm.tool import (
     write_files,
     write_todos,
 )
-from zrb.llm.tool.delegate import create_delegate_to_agent_tool
+from zrb.llm.tool.delegate import (
+    create_delegate_to_agent_tool,
+    create_parallel_delegate_tool,
+)
 from zrb.llm.tool.mcp import load_mcp_config
 from zrb.llm.tool.skill import create_activate_skill_tool
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
@@ -113,6 +116,7 @@ tool_factories = [
     lambda ctx: create_run_zrb_task_tool(),
     lambda ctx: create_activate_skill_tool(),
     lambda ctx: create_delegate_to_agent_tool(),
+    lambda ctx: create_parallel_delegate_tool(),
 ]
 llm_chat.add_tool_factory(*tool_factories)
 
@@ -150,6 +154,7 @@ llm_chat.add_tool_policy(
     auto_approve("ReadContextualNote"),
     auto_approve("ActivateSkill"),
     auto_approve("DelegateToAgent"),
+    auto_approve("DelegateToAgentsParallel"),
     # LSP tools - read-only, safe to auto-approve
     auto_approve("LspFindDefinition"),
     auto_approve("LspFindReferences"),

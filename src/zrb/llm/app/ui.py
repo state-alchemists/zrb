@@ -167,8 +167,10 @@ class UI:
             response_handlers=response_handlers + [default_response_handler],
         )
         # Confirmation state (Used by ask_user and keybindings)
-        self._waiting_for_confirmation = False
-        self._confirmation_future: asyncio.Future[str] | None = None
+        # Queue for pending confirmation requests to handle parallel tool approvals
+        # Each item is a tuple of (future, prompt)
+        self._confirmation_queue: list[tuple[asyncio.Future[str], str]] = []
+        self._current_confirmation: asyncio.Future[str] | None = None
         # Output Capture
         self._capture = GlobalStreamCapture(self.append_to_output)
         # UI Styles
@@ -440,27 +442,70 @@ class UI:
         self._submit_user_message(self._llm_task, self._initial_message)
 
     async def ask_user(self, prompt: str) -> str:
-        """Prompts the user for input via the main input field, blocking until provided."""
-        self._waiting_for_confirmation = True
-        self._confirmation_future = asyncio.Future()
+        """Prompts the user for input via the main input field, blocking until provided.
 
-        if prompt:
-            self.append_to_output(prompt, end="")
+        This method queues confirmation requests to handle multiple concurrent callers
+        (e.g., parallel delegate agents). Each caller waits for its turn in the queue.
+        """
+        # Create a future for this confirmation request
+        future: asyncio.Future[str] = asyncio.Future()
 
-        get_app().invalidate()
+        # Add to queue with prompt
+        self._confirmation_queue.append((future, prompt))
+
+        # Check if we can become current immediately
+        became_current = False
+        if self._current_confirmation is None:
+            self._current_confirmation = future
+            became_current = True
+            # Show the prompt only when we become current
+            if prompt:
+                self.append_to_output(prompt, end="")
+            get_app().invalidate()
+        # If there's already a current confirmation, this one waits in queue
+        # (prompt will be shown when it becomes current)
 
         try:
-            return await self._confirmation_future
+            # Wait for the future to be resolved
+            result = await future
+            return result
         finally:
-            self._waiting_for_confirmation = False
-            self._confirmation_future = None
+            # Remove this future from queue (in case of cancellation)
+            self._confirmation_queue = [
+                (f, p) for f, p in self._confirmation_queue if f is not future
+            ]
+            if self._current_confirmation is future:
+                self._current_confirmation = None
+                # Activate next confirmation in queue
+                self._activate_next_confirmation()
+
+    def _activate_next_confirmation(self):
+        """Activate the next confirmation in the queue after one completes."""
+        # Remove completed futures
+        self._confirmation_queue = [
+            (f, p) for f, p in self._confirmation_queue if not f.done()
+        ]
+
+        if self._confirmation_queue and self._current_confirmation is None:
+            # Activate the next one
+            future, prompt = self._confirmation_queue[0]
+            self._current_confirmation = future
+            # Show the prompt for this confirmation
+            if prompt:
+                self.append_to_output(prompt, end="")
+            get_app().invalidate()
 
     async def _confirm_tool_execution(
         self,
         call: ToolCallPart,
     ) -> ToolApproved | ToolDenied | None:
         try:
-            return await self._tool_call_handler.handle(self, call)
+            # Use current_ui context variable to get the correct UI (e.g., BufferedUI for parallel agents)
+            # instead of self, which is the captured main UI
+            from zrb.llm.agent.run_agent import current_ui
+
+            ui = current_ui.get() or self
+            return await self._tool_call_handler.handle(ui, call)
         finally:
             # Clear capture buffer after each tool confirmation to prevent accumulation
             # This prevents captured stdout from previous operations leaking into future tool results
@@ -927,11 +972,14 @@ class UI:
     def _handle_confirmation(self, event) -> bool:
         buff = event.current_buffer
         text = buff.text
-        if self._waiting_for_confirmation and self._confirmation_future:
+        if self._current_confirmation is not None:
             # Echo the user input
             self.append_to_output(text + "\n")
-            if not self._confirmation_future.done():
-                self._confirmation_future.set_result(text)
+            if not self._current_confirmation.done():
+                self._current_confirmation.set_result(text)
+            # Clear current and activate next
+            self._current_confirmation = None
+            self._activate_next_confirmation()
             buff.reset()
             return True
         return False

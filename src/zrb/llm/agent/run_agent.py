@@ -316,6 +316,7 @@ async def _process_deferred_requests(
 ) -> "DeferredToolResults | None":
     """Handles tool approvals/denials via callback, ToolCallHandler, or CLI fallback."""
     import inspect
+    import sys
 
     from pydantic_ai import DeferredToolResults
 
