@@ -8,6 +8,7 @@ from zrb.llm.agent.run_agent import current_ui, run_agent
 from zrb.llm.agent.std_ui import StdUI
 from zrb.llm.config.limiter import llm_limiter
 from zrb.llm.tool_call.ui_protocol import UIProtocol
+from zrb.util.string.name import get_random_name
 
 
 @dataclass
@@ -21,59 +22,6 @@ class AgentTaskResult:
     @property
     def success(self) -> bool:
         return self.error is None or self.error == ""
-
-
-class IndentedUI(UIProtocol):
-    """UI wrapper that indents all output."""
-
-    def __init__(self, wrapped_ui: UIProtocol, indent: str = "  "):
-        self._wrapped = wrapped_ui
-        self._indent = indent
-        self._last_char = "\n"
-        self._first_time = True
-
-    async def ask_user(self, prompt: str) -> str:
-        indented_prompt = self._indent_text(prompt)
-        return await self._wrapped.ask_user(indented_prompt)
-
-    def append_to_output(
-        self,
-        *values: object,
-        sep: str = " ",
-        end: str = "\n",
-        file: TextIO | None = None,
-        flush: bool = False,
-    ):
-        if self._first_time:
-            self._wrapped.append_to_output("\n", end="", file=file, flush=flush)
-            self._first_time = False
-        text = sep.join(str(v) for v in values) + end
-        indented_text = self._indent_text(text)
-        self._wrapped.append_to_output(indented_text, end="", file=file, flush=flush)
-
-    async def run_interactive_command(
-        self, cmd: str | list[str], shell: bool = False
-    ) -> Any:
-        return await self._wrapped.run_interactive_command(cmd, shell)
-
-    def _indent_text(self, text: str) -> str:
-        if not text:
-            return text
-        result = []
-        for char in text:
-            if self._last_char == "\n":
-                result.append(self._indent)
-            if char == "\r":
-                result.append("\r" + self._indent)
-                self._last_char = " "
-                continue
-            if char == "\n":
-                result.append("\n")
-                self._last_char = "\n"
-                continue
-            result.append(char)
-            self._last_char = char
-        return "".join(result)
 
 
 class BufferedUI(UIProtocol):
@@ -208,15 +156,21 @@ def create_delegate_to_agent_tool(
         agent_name: str, task: str, additional_context: str = ""
     ) -> str:
         parent_ui = current_ui.get() or StdUI()
-        indented_ui = IndentedUI(parent_ui)
+        # Generate unique identifier for this agent instance
+        unique_id = get_random_name(separator="-", add_random_digit=False)
+        prefix = f"[{agent_name}:{unique_id}] "
+        buffered_ui = BufferedUI(parent_ui, prefix=prefix)
 
         task_result = await _run_agent_task(
             agent_name=agent_name,
             task=task,
             additional_context=additional_context,
             sub_agent_manager=sub_agent_manager,
-            ui=indented_ui,
+            ui=buffered_ui,
         )
+
+        # Flush any remaining buffered output
+        buffered_ui.flush_to_parent()
 
         if not task_result.success:
             # Agent not found is a critical error - raise it
@@ -224,10 +178,8 @@ def create_delegate_to_agent_tool(
                 raise ValueError(task_result.error)
             return f"Error executing sub-agent '{agent_name}': {task_result.error}"
 
-        indented_result = "\n".join(
-            ["  " + line for line in task_result.result.splitlines()]
-        )
-        return f"Sub-agent '{agent_name}' completed the task:\n\n{indented_result}\n"
+        # Return result with unique identifier for traceability
+        return f"Sub-agent '{agent_name}' ({unique_id}) completed the task:\n\n{task_result.result}\n"
 
     delegate_to_agent.zrb_is_delegate_tool = True
     delegate_to_agent.__name__ = "DelegateToAgent"
@@ -289,12 +241,15 @@ def create_parallel_delegate_tool(
         async def run_single_agent(task_spec: dict[str, str]) -> AgentTaskResult:
             task = task_spec.get("task", "")
             additional_context = task_spec.get("additional_context", "")
-            prefix = f"[{task_spec.get('agent_name', '')}] "
+            agent_name = task_spec.get("agent_name", "")
+            # Generate unique identifier for this agent instance
+            unique_id = get_random_name(separator="-", add_random_digit=False)
+            prefix = f"[{agent_name}:{unique_id}] "
             # All BufferedUI instances share the same lock for sequential user interaction
             buffered_ui = BufferedUI(parent_ui, prefix=prefix, shared_lock=ui_lock)
 
             result = await _run_agent_task(
-                agent_name=task_spec.get("agent_name", ""),
+                agent_name=agent_name,
                 task=task,
                 additional_context=additional_context,
                 sub_agent_manager=sub_agent_manager,
@@ -304,7 +259,12 @@ def create_parallel_delegate_tool(
             # After agent completes, flush any remaining buffered output under the lock
             async with ui_lock:
                 buffered_ui.flush_to_parent()
-            return result
+            # Return result with unique_id for identification
+            return AgentTaskResult(
+                f"{agent_name}:{unique_id}",
+                result.result,
+                result.error,
+            )
 
         # Run all agents in parallel (they share ui_lock for sequential user interaction)
         results = await asyncio.gather(*[run_single_agent(t) for t in tasks])
