@@ -21,13 +21,35 @@ _IGNORE_DIRS = [
 
 
 class Skill:
+    """
+    Represents a skill loaded from a SKILL.md or SKILL.py file.
+
+    Skills can be invoked by users via /slash-commands or automatically by the model.
+
+    Frontmatter fields (Claude Code spec):
+        name: Display name (max 64 chars), becomes /slash-command
+        description: Helps Claude decide when to use
+        argument-hint: Shown in autocomplete (e.g., "[filename]")
+        disable-model-invocation: Prevent auto-loading (true/false)
+        user-invocable: Hide from / menu (true/false, default: true)
+        allowed-tools: Tools usable without permission during skill (e.g., "Read, Grep")
+        model: Model override for this skill
+        context: Run in subagent (e.g., "fork")
+        agent: Agent type for forked context (e.g., "Explore")
+    """
+
     def __init__(
         self,
         name: str,
         path: str,
         description: str,
         model_invocable: bool = True,
-        user_invocable: bool = False,
+        user_invocable: bool = True,
+        argument_hint: str | None = None,
+        allowed_tools: list[str] | None = None,
+        model: str | None = None,
+        context: str | None = None,
+        agent: str | None = None,
         content: str | None = None,
         content_factory: Callable[[], str] | None = None,
     ):
@@ -36,6 +58,11 @@ class Skill:
         self.description = description
         self.model_invocable = model_invocable
         self.user_invocable = user_invocable
+        self.argument_hint = argument_hint
+        self.allowed_tools = allowed_tools or []
+        self.model = model
+        self.context = context
+        self.agent = agent
         self.content = content
         self.content_factory = content_factory
 
@@ -203,7 +230,14 @@ class SkillManager:
             name = default_name
             description = "No description"
             model_invocable = True
-            user_invocable = False
+            user_invocable = (
+                True  # Default: skills are user-invocable (visible in / menu)
+            )
+            argument_hint = None
+            allowed_tools: list[str] = []
+            model = None
+            context = None
+            agent = None
             is_name_resolved = False
 
             # 1. Parse YAML Frontmatter
@@ -213,6 +247,7 @@ class SkillManager:
                     if len(parts) >= 3:
                         frontmatter = yaml.safe_load(parts[1])
                         if frontmatter:
+                            # Basic fields
                             if "name" in frontmatter:
                                 name = frontmatter["name"]
                                 is_name_resolved = True
@@ -220,7 +255,26 @@ class SkillManager:
                             model_invocable = not frontmatter.get(
                                 "disable-model-invocation", False
                             )
-                            user_invocable = frontmatter.get("user-invocable", False)
+                            # user-invocable: false hides from / menu (for background knowledge)
+                            # Default is True (skills are visible in / menu)
+                            user_invocable = frontmatter.get("user-invocable", True)
+
+                            # Claude Code spec fields
+                            argument_hint = frontmatter.get("argument-hint")
+
+                            # allowed-tools: comma-separated string or list
+                            allowed_tools_raw = frontmatter.get("allowed-tools")
+                            if allowed_tools_raw:
+                                if isinstance(allowed_tools_raw, str):
+                                    allowed_tools = [
+                                        t.strip() for t in allowed_tools_raw.split(",")
+                                    ]
+                                elif isinstance(allowed_tools_raw, list):
+                                    allowed_tools = allowed_tools_raw
+
+                            model = frontmatter.get("model")
+                            context = frontmatter.get("context")
+                            agent = frontmatter.get("agent")
 
                             # Parse hooks if present
                             hooks_data = frontmatter.get("hooks")
@@ -256,6 +310,11 @@ class SkillManager:
                 description=description,
                 model_invocable=model_invocable,
                 user_invocable=user_invocable,
+                argument_hint=argument_hint,
+                allowed_tools=allowed_tools,
+                model=model,
+                context=context,
+                agent=agent,
             )
 
         except Exception:
