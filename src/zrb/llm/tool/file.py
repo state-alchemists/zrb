@@ -2,6 +2,7 @@ import fnmatch
 import glob
 import os
 import re
+import time
 from typing import Any
 
 from zrb.util.file import is_path_excluded
@@ -374,6 +375,7 @@ def search_files(
     file_pattern: str | None = None,
     auto_truncate: bool = True,
     exclude_patterns: list[str] | None = None,
+    timeout: float = 30.0,
 ) -> dict[str, Any]:
     """
     Searches for a regex pattern in files.
@@ -389,6 +391,7 @@ def search_files(
     - Results are automatically truncated for large result sets (250 head/tail files).
     - Use `exclude_patterns` parameter to override default exclusions (e.g., `[]` to include all files).
     """
+    start_time = time.time()
     try:
         pattern = re.compile(regex)
     except re.error as e:
@@ -412,6 +415,9 @@ def search_files(
 
     try:
         for root, dirs, files in os.walk(abs_path):
+            if time.time() - start_time > timeout:
+                search_results["warning"] = f"Search timed out after {timeout} seconds."
+                break
             dirs[:] = [
                 d
                 for d in dirs
@@ -419,6 +425,11 @@ def search_files(
                 and not is_path_excluded(d, patterns_to_exclude)
             ]
             for filename in files:
+                if time.time() - start_time > timeout:
+                    search_results["warning"] = (
+                        f"Search timed out after {timeout} seconds."
+                    )
+                    break
                 if filename.startswith("."):
                     continue
                 if is_path_excluded(filename, patterns_to_exclude):

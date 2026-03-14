@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zrb"
-version = "2.9.2"
+version = "2.10.0"
 description = "Your Automation Powerhouse"
 authors = ["Go Frendi Gunawan <gofrendiasgard@gmail.com>"]
 license = "AGPL-3.0-or-later"
@@ -39,12 +39,12 @@ exclude = [
 [tool.poetry.dependencies]
 python = ">=3.11.0,<3.15.0"
 python-dotenv = "^1.1.1"
-black = "^25.11.0"
+black = "^26.3.1"
 isort = "^7.0.0"
 beautifulsoup4 = "^4.14.2"
 pdfplumber = "^0.11.7"
 fastapi = {extras = ["standard"], version = "^0.123.10"}
-python-jose = {extras = ["cryptography"], version = "^3.5.0"}
+PyJWT = "^2.8.0"
 ulid-py = "^1.1.0"
 psutil = "^7.0.0"
 

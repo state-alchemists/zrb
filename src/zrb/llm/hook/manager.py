@@ -1,11 +1,13 @@
 import asyncio
+import fnmatch
 import json
 import logging
 import os
+import re
 import uuid
 from collections import defaultdict
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import yaml
 
@@ -27,6 +29,71 @@ from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
 from zrb.util.load import load_module_from_path
 
 logger = logging.getLogger(__name__)
+
+# --- Matcher Operator Functions ---
+# These are module-level functions to reduce cyclomatic complexity in _evaluate_matchers
+
+
+def _match_equals(value: Any, matcher_value: Any) -> bool:
+    """Check if value equals matcher value."""
+    return value == matcher_value
+
+
+def _match_not_equals(value: Any, matcher_value: Any) -> bool:
+    """Check if value does not equal matcher value."""
+    return value != matcher_value
+
+
+def _match_contains(value: Any, matcher_value: Any) -> bool:
+    """Check if value contains matcher value (string operation)."""
+    if not isinstance(value, str) or not isinstance(matcher_value, str):
+        return False
+    return matcher_value in value
+
+
+def _match_starts_with(value: Any, matcher_value: Any) -> bool:
+    """Check if value starts with matcher value (string operation)."""
+    if not isinstance(value, str) or not isinstance(matcher_value, str):
+        return False
+    return value.startswith(matcher_value)
+
+
+def _match_ends_with(value: Any, matcher_value: Any) -> bool:
+    """Check if value ends with matcher value (string operation)."""
+    if not isinstance(value, str) or not isinstance(matcher_value, str):
+        return False
+    return value.endswith(matcher_value)
+
+
+def _match_regex(value: Any, matcher_value: Any) -> bool:
+    """Check if value matches regex pattern."""
+    if not isinstance(value, str) or not isinstance(matcher_value, str):
+        return False
+    try:
+        return bool(re.search(matcher_value, value))
+    except re.error:
+        logger.warning(f"Invalid regex pattern in matcher: {matcher_value}")
+        return False
+
+
+def _match_glob(value: Any, matcher_value: Any) -> bool:
+    """Check if value matches glob pattern."""
+    if not isinstance(value, str) or not isinstance(matcher_value, str):
+        return False
+    return fnmatch.fnmatch(value, matcher_value)
+
+
+# Dispatcher dictionary for matcher operators
+_MATCHER_OPERATORS: dict[MatcherOperator, Callable[[Any, Any], bool]] = {
+    MatcherOperator.EQUALS: _match_equals,
+    MatcherOperator.NOT_EQUALS: _match_not_equals,
+    MatcherOperator.CONTAINS: _match_contains,
+    MatcherOperator.STARTS_WITH: _match_starts_with,
+    MatcherOperator.ENDS_WITH: _match_ends_with,
+    MatcherOperator.REGEX: _match_regex,
+    MatcherOperator.GLOB: _match_glob,
+}
+
 
 # Mapping from HookEvent to the field that Claude Code matchers apply to
 CLAUDE_EVENT_MATCHER_FIELDS = {
@@ -93,55 +160,13 @@ class HookManager:
             else:
                 matcher_value = matcher.value
 
-            # Evaluate based on operator
-            if matcher.operator == MatcherOperator.EQUALS:
-                if value != matcher_value:
-                    return False
-
-            elif matcher.operator == MatcherOperator.NOT_EQUALS:
-                if value == matcher_value:
-                    return False
-
-            elif matcher.operator == MatcherOperator.CONTAINS:
-                if not isinstance(value, str) or not isinstance(matcher_value, str):
-                    return False
-                if matcher_value not in value:
-                    return False
-
-            elif matcher.operator == MatcherOperator.STARTS_WITH:
-                if not isinstance(value, str) or not isinstance(matcher_value, str):
-                    return False
-                if not value.startswith(matcher_value):
-                    return False
-
-            elif matcher.operator == MatcherOperator.ENDS_WITH:
-                if not isinstance(value, str) or not isinstance(matcher_value, str):
-                    return False
-                if not value.endswith(matcher_value):
-                    return False
-
-            elif matcher.operator == MatcherOperator.REGEX:
-                import re
-
-                if not isinstance(value, str) or not isinstance(matcher_value, str):
-                    return False
-                try:
-                    if not re.search(matcher_value, value):
-                        return False
-                except re.error:
-                    logger.warning(f"Invalid regex pattern in matcher: {matcher_value}")
-                    return False
-
-            elif matcher.operator == MatcherOperator.GLOB:
-                import fnmatch
-
-                if not isinstance(value, str) or not isinstance(matcher_value, str):
-                    return False
-                if not fnmatch.fnmatch(value, matcher_value):
-                    return False
-
-            else:
+            # Evaluate using operator dispatcher
+            evaluator = _MATCHER_OPERATORS.get(matcher.operator)
+            if evaluator is None:
                 logger.warning(f"Unknown matcher operator: {matcher.operator}")
+                return False
+
+            if not evaluator(value, matcher_value):
                 return False
 
         return True

@@ -46,6 +46,7 @@ current_tool_confirmation: ContextVar[AnyToolConfirmation] = ContextVar(
 current_hook_manager: ContextVar[HookManager | None] = ContextVar(
     "current_hook_manager", default=None
 )
+current_yolo: ContextVar[bool] = ContextVar("current_yolo", default=False)
 
 
 async def run_agent(
@@ -59,6 +60,7 @@ async def run_agent(
     tool_confirmation: AnyToolConfirmation = None,
     ui: UIProtocol | None = None,
     hook_manager: HookManager | None = None,
+    yolo: bool = False,
 ) -> tuple[Any, list[Any]]:
     """
     Runs the agent with rate limiting, history management, and optional CLI confirmation loop.
@@ -66,17 +68,19 @@ async def run_agent(
     """
     from pydantic_ai import AgentRunResultEvent, DeferredToolRequests, UsageLimits
 
-    # Resolve UI, Tool Confirmation, and Hook Manager from arguments or context fallback
+    # Resolve UI, Tool Confirmation, Hook Manager, and YOLO from arguments or context fallback
     effective_ui = ui or current_ui.get() or StdUI()
     effective_tool_confirmation = tool_confirmation or current_tool_confirmation.get()
     effective_hook_manager = (
         hook_manager or current_hook_manager.get() or default_hook_manager
     )
+    effective_yolo = yolo or current_yolo.get()
 
     # Set context variables so sub-agents can inherit them
     token_ui = current_ui.set(effective_ui)
     token_confirmation = current_tool_confirmation.set(effective_tool_confirmation)
     token_hook_manager = current_hook_manager.set(effective_hook_manager)
+    token_yolo = current_yolo.set(effective_yolo)
 
     try:
         # Resolve print_fn and event_handler for streaming visibility
@@ -251,6 +255,7 @@ async def run_agent(
         current_ui.reset(token_ui)
         current_tool_confirmation.reset(token_confirmation)
         current_hook_manager.reset(token_hook_manager)
+        current_yolo.reset(token_yolo)
 
 
 def _get_prompt_content(
@@ -311,6 +316,7 @@ async def _process_deferred_requests(
 ) -> "DeferredToolResults | None":
     """Handles tool approvals/denials via callback, ToolCallHandler, or CLI fallback."""
     import inspect
+    import sys
 
     from pydantic_ai import DeferredToolResults
 

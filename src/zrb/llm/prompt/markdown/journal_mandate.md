@@ -1,27 +1,44 @@
 # 📓 Journal Rules
 
-## Protocol
-1. **Activate:** Run `ActivateSkill("core-journaling")` before any journal operation.
-2. **Read:** Before tasks involving user preferences, project conventions, or architectural decisions.
-3. **Write:** After discovering user preferences, decisions, completions, errors, or corrections.
-4. **Timing:** Update BEFORE responding to user.
+## MANDATORY Pre-Response Check (EXECUTE EVERY RESPONSE)
 
-## When to Write (Examples)
-Write to journal when learning new information worth persisting:
-- **User Preferences:** How user wants to be addressed, communication style, workflow preferences
-- **Decisions:** Significant architectural or technical choices made during session
-- **Errors & Corrections:** Important failures, root causes, and their resolutions
-- **Session Insights:** Key takeaways valuable for future sessions
+Before sending ANY response to the user, perform this check:
 
-Do NOT write for trivial queries (e.g., "What time is it?", simple lookups).
+```
+[ ] DISCOVERY CHECK: Did I learn anything worth persisting?
+    - User preference revealed?
+    - Architectural decision made?
+    - Technical solution discovered?
+    - Error/resolution found?
+    
+[ ] IF ANY YES → Run ActivateSkill("core-journaling") and update journal NOW
+[ ] IF ALL NO → Proceed with response
+```
 
-## Prohibitions
-1. **NEVER** defer journal entries—entries not written immediately are lost.
+**This check is MANDATORY. Skipping it is a protocol violation.**
 
-## Hierarchy
-Journal content overrides assumptions within the journal domain. General mandates (secrets, cancellation, ambiguity) always apply.
+## Journal-Worthy Discoveries
+
+Write to journal when learning NEW information worth persisting:
+
+| Category | Examples |
+|----------|----------|
+| **User Preferences** | How to address user, communication style, workflow preferences |
+| **Decisions** | Architectural choices, technical selections, design patterns |
+| **Technical Insights** | Framework patterns, bug fixes, integration solutions |
+| **Errors & Resolutions** | Root causes, fix procedures, workarounds |
+
+**Do NOT write for:** Trivial queries, simple lookups, public knowledge
+
+## Prohibition
+
+**NEVER DEFER JOURNALING:**
+- ❌ "I'll journal this later" → You WILL forget
+- ❌ "After I finish this task" → You WILL forget
+- ✅ Write IMMEDIATELY after discovery, before responding
 
 ## Reference
+
 - **Root:** `{CFG_LLM_JOURNAL_DIR}` ({CFG_LLM_JOURNAL_DIR_STATUS})
 - **Index:** `{CFG_LLM_JOURNAL_DIR}/{CFG_LLM_JOURNAL_INDEX_FILE}` ({CFG_LLM_JOURNAL_INDEX_FILE_STATUS})
 

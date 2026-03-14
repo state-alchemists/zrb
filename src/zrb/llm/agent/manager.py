@@ -11,6 +11,7 @@ import yaml
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.agent.common import create_agent
+from zrb.llm.lsp.tools import create_lsp_tools
 from zrb.llm.summarizer import (
     create_summarizer_history_processor,
 )
@@ -405,7 +406,7 @@ class SubAgentManager:
         return agent
 
     def create_agent(
-        self, name: str, ctx: AnyContext | None = None
+        self, name: str, ctx: AnyContext | None = None, yolo: bool | None = None
     ) -> "Agent[None, Any] | None":
         definition = self.get_agent_definition(name)
         if not definition:
@@ -451,12 +452,55 @@ class SubAgentManager:
         # Get all toolsets including those from factories
         resolved_toolsets = self._get_all_toolsets(ctx)
 
+        # Handle YOLO: if explicitly True, use True. Otherwise use dynamic checker.
+        if yolo is True:
+            effective_yolo: bool | Callable = True
+        else:
+            # Use dynamic YOLO checker that reads from parent's xcom via context
+            # This allows YOLO toggles during sub-agent execution to be honored
+            from zrb.context.any_context import AnyContext
+            from zrb.llm.agent.run_agent import current_yolo
+
+            def check_yolo_inheritance(
+                ctx_or_none: Any = None, *args, **kwargs
+            ) -> bool:
+                """Check if YOLO mode is active by reading from multiple sources.
+
+                Priority:
+                1. Parent's xcom["yolo"] if accessible (via current_ui context)
+                2. current_yolo context variable (set at delegation time)
+                3. False (default)
+                """
+                # First check context variable (set at run_agent time)
+                yolo_from_context = current_yolo.get()
+                if yolo_from_context:
+                    return True
+
+                # Try to get parent's xcom via UI context
+                # This allows dynamic YOLO toggles to propagate
+                try:
+                    from zrb.llm.agent.run_agent import current_ui
+
+                    ui = current_ui.get()
+                    if ui is not None and hasattr(ui, "_ctx"):
+                        parent_ctx = ui._ctx
+                        if parent_ctx is not None and hasattr(parent_ctx, "xcom"):
+                            if "yolo" in parent_ctx.xcom:
+                                return parent_ctx.xcom["yolo"].get(False)
+                except Exception:
+                    pass
+
+                return False
+
+            effective_yolo = check_yolo_inheritance
+
         return create_agent(
             model=definition.model,
             system_prompt=definition.system_prompt,
             tools=resolved_tools,
             toolsets=resolved_toolsets,
             history_processors=[create_summarizer_history_processor()],
+            yolo=effective_yolo,
         )
 
 
@@ -490,3 +534,16 @@ sub_agent_manager.add_tool_factory(
 sub_agent_manager.add_toolset_factory(
     lambda ctx: load_mcp_config(),
 )
+
+# Add LSP tools
+sub_agent_manager.add_tool(*create_lsp_tools())
+
+
+# Add planning/todo tools (lazy import to avoid circular dependency)
+def _get_todo_tools():
+    from zrb.llm.tool.plan import clear_todos, get_todos, update_todo, write_todos
+
+    return [write_todos, get_todos, update_todo, clear_todos]
+
+
+sub_agent_manager.add_tool(*_get_todo_tools())

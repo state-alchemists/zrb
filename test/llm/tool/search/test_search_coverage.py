@@ -41,8 +41,9 @@ def test_searxng_search_success(mock_get):
     assert result == {"results": []}
 
 
+@patch("zrb.llm.tool.search.searxng._is_docker_installed", return_value=False)
 @patch("requests.get")
-def test_searxng_search_connection_error(mock_get):
+def test_searxng_search_connection_error(mock_get, mock_docker_installed):
     mock_get.side_effect = requests.exceptions.ConnectionError("Refused")
 
     with pytest.raises(Exception) as excinfo:
