@@ -1,5 +1,5 @@
 ---
-name: subagent
+name: generalist
 description: A highly capable generalist operating in an isolated session. Delegate to this agent for massive, context-heavy tasks (like log analysis or deep research) to prevent polluting your primary context window.
 tools: [
   Bash, Read, ReadMany, Write, WriteMany, Edit,

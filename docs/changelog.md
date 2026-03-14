@@ -1,5 +1,31 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.10.1 (March 14, 2026)
+
+- **Refactor: Streamlined Prompt System**:
+  - Converted `mandate.md` and `journal_mandate.md` to concise table-based formats, reducing visual noise while preserving all rules.
+  - Added explicit "Decision Flow" section to mandate with ordered delegation check, skill activation, and execution steps.
+  - Added tier-aligned journal scope: Tier 1 skips journaling entirely, Tier 2 journals only on discoveries.
+  - Condensed project context rules in `claude.py` from 25 lines to 10 lines with clear documentation hierarchy.
+
+- **Refactor: Improved Delegate Tool Documentation**:
+  - Unified terminology: `subagent` instead of `sub-agent` throughout tool docstrings.
+  - Simplified docstring format with "USAGE" bullets pointing to mandate for delegation rules.
+  - Reference to mandate Section 5 for "WHEN TO USE" guidance.
+
+- **Refactor: Lazy Skill Manager Initialization**:
+  - Removed `auto_load` parameter from `SkillManager.__init__`.
+  - Added `_ensure_scanned()` method for lazy initialization on first access.
+  - Reduces startup overhead when skills aren't immediately needed.
+
+- **Refactor: Agent Naming**:
+  - Renamed agent from `subagent` to `generalist` for clearer semantic meaning.
+  - File renamed from `subagent.agent.md` to `generalist.agent.md`.
+
+- **Fix: Persona Delegation Wording**:
+  - Updated "Delegate only for exceptional scale" to "Delegate when context isolation is beneficial."
+  - Corrects overly narrow guidance about when to delegate.
+
 ## 2.10.0 (March 12, 2026)
 
 - **Feature: Grep Timeout Parameter**:

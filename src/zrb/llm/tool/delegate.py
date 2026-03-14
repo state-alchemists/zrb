@@ -189,10 +189,12 @@ def create_delegate_to_agent_tool(
     delegate_to_agent.zrb_is_delegate_tool = True
     delegate_to_agent.__name__ = "DelegateToAgent"
     delegate_to_agent.__doc__ = (
-        "Delegates a task to a sub-agent. Use primarily for context isolation on massive tasks (e.g., parsing huge logs, deep research) to avoid polluting your primary context window, or when a user explicitly requests a specific custom agent.\n\n"
-        "MANDATES:\n"
-        "- Sub-agent is a BLANK SLATE without your history/context. Provide ALL self-contained context (paths, rules, code).\n"
-        "- User CANNOT see sub-agent output. You MUST extract and report all findings in your final response.\n\n"
+        "Delegates a task to a subagent for isolated execution.\n\n"
+        "USAGE:\n"
+        "- Provide complete, self-contained context (subagent has NO access to your conversation history)\n"
+        "- User cannot see subagent output—you must report all findings\n"
+        "- For parallel tasks, use `DelegateToAgentsParallel` instead\n\n"
+        "WHEN TO USE: See Delegation Rules in mandate (Section 5).\n\n"
         f"AVAILABLE AGENTS:\n{agent_doc_section}"
     )
     return delegate_to_agent
@@ -292,16 +294,17 @@ def create_parallel_delegate_tool(
     parallel_delegate_to_agents.zrb_is_delegate_tool = True
     parallel_delegate_to_agents.__name__ = "DelegateToAgentsParallel"
     parallel_delegate_to_agents.__doc__ = (
-        "Delegate tasks to multiple sub-agents in parallel for improved throughput.\n\n"
-        "MANDATES:\n"
-        "- Each sub-agent is a BLANK SLATE without your history/context. Provide ALL self-contained context (paths, rules, code).\n"
-        "- User CANNOT see sub-agent outputs directly. You MUST extract and report all findings in your final response.\n"
-        "- Tool approvals are processed sequentially to prevent UI conflicts.\n\n"
+        "Delegates multiple tasks to subagents in parallel for throughput.\n\n"
+        "USAGE:\n"
+        "- Each subagent has NO access to your conversation history—provide complete context\n"
+        "- User cannot see subagent outputs—you must report all findings\n"
+        "- Tool approvals are processed sequentially (may pause for user input)\n\n"
         "Args:\n"
-        "    tasks: List of task dicts, each with:\n"
-        "        - agent_name: Name of the sub-agent\n"
+        "    tasks: List of dicts, each with:\n"
+        "        - agent_name: Name of the subagent\n"
         "        - task: Task description\n"
         "        - additional_context: (optional) Additional context\n\n"
+        "WHEN TO USE: See Delegation Rules in mandate (Section 5).\n\n"
         f"AVAILABLE AGENTS:\n{agent_doc_section}"
     )
     return parallel_delegate_to_agents

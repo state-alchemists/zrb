@@ -70,7 +70,6 @@ class Skill:
 class SkillManager:
     def __init__(
         self,
-        auto_load: bool = True,
         root_dir: str = ".",
         search_dirs: list[str | Path] | None = None,
         max_depth: int = 2,
@@ -81,8 +80,12 @@ class SkillManager:
         self._max_depth = max_depth
         self._skills: dict[str, Skill] = {}
         self._ignore_dirs = _IGNORE_DIRS if ignore_dirs is None else ignore_dirs
-        if auto_load:
-            self.scan(self._search_dirs)
+        self._scanned = False
+
+    def _ensure_scanned(self):
+        """Auto-scan on first access if not already scanned."""
+        if not self._scanned:
+            self.scan()
 
     def scan(self, search_dirs: list[str | Path] | None = None) -> list[Skill]:
         self._skills = {}
@@ -97,6 +100,7 @@ class SkillManager:
         # We iterate in normal order to allow later skills (project) to override earlier ones (global)
         for search_dir in target_search_dirs:
             self._scan_dir(search_dir, max_depth=self._max_depth)
+        self._scanned = True
         return list(self._skills.values())
 
     def get_search_directories(self) -> list[str | Path]:
@@ -331,6 +335,7 @@ class SkillManager:
         self._skills[skill.name] = skill
 
     def get_skill(self, name: str) -> Skill | None:
+        self._ensure_scanned()
         skill = self._skills.get(name)
         if not skill:
             # Try partial match or path match
@@ -341,6 +346,7 @@ class SkillManager:
         return skill
 
     def get_skill_content(self, name: str) -> str | None:
+        self._ensure_scanned()
         skill = self.get_skill(name)
         if not skill:
             return None
