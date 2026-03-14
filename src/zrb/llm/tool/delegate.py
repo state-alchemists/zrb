@@ -45,7 +45,11 @@ class BufferedUI(UIProtocol):
         async with self._lock:
             # Flush buffered output so user can see what they're being asked about
             self.flush_to_parent()
-            prefixed_prompt = f"{self._prefix}{prompt}" if self._prefix else prompt
+            prefixed_prompt = (
+                f"{self._prefix}{prompt}"
+                if self._prefix and prompt.strip() != ""
+                else prompt
+            )
             return await self._wrapped.ask_user(prefixed_prompt)
 
     def append_to_output(
@@ -75,7 +79,8 @@ class BufferedUI(UIProtocol):
         if output:
             if self._prefix:
                 indented = "\n".join(
-                    f"{self._prefix}{line}" for line in output.split("\n")
+                    f"{self._prefix}{line}" if line.strip() != "" else ""
+                    for line in output.split("\n")
                 )
                 self._wrapped.append_to_output(indented)
             else:
@@ -157,7 +162,7 @@ def create_delegate_to_agent_tool(
     ) -> str:
         parent_ui = current_ui.get() or StdUI()
         # Generate unique identifier for this agent instance
-        unique_id = get_random_name(separator="-", add_random_digit=False)
+        unique_id = get_random_name(separator="-", add_random_digit=True)
         prefix = f"[{agent_name}:{unique_id}] "
         buffered_ui = BufferedUI(parent_ui, prefix=prefix)
 
@@ -243,7 +248,7 @@ def create_parallel_delegate_tool(
             additional_context = task_spec.get("additional_context", "")
             agent_name = task_spec.get("agent_name", "")
             # Generate unique identifier for this agent instance
-            unique_id = get_random_name(separator="-", add_random_digit=False)
+            unique_id = get_random_name(separator="-", add_random_digit=True)
             prefix = f"[{agent_name}:{unique_id}] "
             # All BufferedUI instances share the same lock for sequential user interaction
             buffered_ui = BufferedUI(parent_ui, prefix=prefix, shared_lock=ui_lock)
