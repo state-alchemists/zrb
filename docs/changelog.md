@@ -18,6 +18,12 @@
   - Updated `create_event_handler` in `stream_response.py` with `status_event` parameter for tool call/result notifications.
   - Subagent tool calls and results now display immediately in parent UI instead of waiting for task completion.
 
+- **Fix: Duplicate Tool Call Display in Deferred Tool Flow**:
+  - Fixed issue where tool call notifications (e.g., `🧰 call_xxx | DelegateToAgent...`) appeared twice in output when using deferred tool approvals.
+  - Root cause: pydantic-ai fires `FunctionToolCallEvent` twice with identical `tool_call_id` - once when tool is deferred, once when executed.
+  - Added `printed_tool_call_ids: set[str]` tracking in `create_event_handler()` to deduplicate prints.
+  - Tool call/result events now use `status_fn` (bypasses buffer) for immediate visibility in subagent output.
+
 ## 2.10.1 (March 14, 2026)
 
 - **Refactor: Streamlined Prompt System**:
