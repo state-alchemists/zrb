@@ -46,7 +46,9 @@ def create_event_handler(
     was_tool_call_delta = False
     event_prefix = indentation
 
-    def fprint(content: str, preserve_leading_newline: bool = False, use_status: bool = False):
+    def fprint(
+        content: str, preserve_leading_newline: bool = False, use_status: bool = False
+    ):
         """Format and print content with proper indentation.
 
         Args:
