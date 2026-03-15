@@ -325,15 +325,23 @@ class UI:
                     await asyncio.sleep(0.1)
 
                 # Create task for current job
-                self._running_llm_task = asyncio.create_task(job())
+                current_task = asyncio.create_task(job())
+                self._running_llm_task = current_task
 
                 try:
-                    await self._running_llm_task
+                    await current_task
                 except asyncio.CancelledError:
-                    # Task was cancelled (e.g. via UI), move to next job
-                    pass
+                    # Task was cancelled (e.g. via UI)
+                    # Wait for task to fully complete its cancellation
+                    try:
+                        await current_task
+                    except asyncio.CancelledError:
+                        pass  # Task is now fully cancelled
+                    # Continue to next job
                 except Exception as e:
                     logger.error(f"Error executing job: {e}")
+                finally:
+                    self._running_llm_task = None
 
                 self._message_queue.task_done()
 
@@ -712,6 +720,10 @@ class UI:
             if buffer.text != "":
                 buffer.reset()
                 return
+            # Cancel running task if any (similar to escape key)
+            if self._running_llm_task and not self._running_llm_task.done():
+                self._running_llm_task.cancel()
+                self.append_to_output("\n<Esc> Canceled")
             # Hook: Stop
             _execute_hooks_safe(
                 HookEvent.STOP,
@@ -912,6 +924,7 @@ class UI:
 
         except asyncio.CancelledError:
             self.append_to_output("\n[Cancelled]\n")
+            raise  # Re-raise to allow proper task cancellation
         except Exception as e:
             self.append_to_output(f"\n[Error: {e}]\n")
         finally:
@@ -1186,6 +1199,22 @@ class UI:
         )
         get_app().invalidate()
 
+    def stream_to_parent(
+        self,
+        *values: object,
+        sep: str = " ",
+        end: str = "\n",
+        file: TextIO | None = None,
+        flush: bool = False,
+    ):
+        """Stream output immediately to parent UI (same as append_to_output for main UI).
+
+        For the main UI class, there's no buffering, so this is identical to
+        append_to_output. This method exists to support the UIProtocol interface,
+        where BufferedUI overrides it to bypass the buffer for status messages.
+        """
+        self.append_to_output(*values, sep=sep, end=end, file=file, flush=flush)
+
     def _submit_user_message(self, llm_task: AnyTask, user_message: str):
         timestamp = datetime.now().strftime("%H:%M")
         # 1. Render User Message
@@ -1235,6 +1264,7 @@ class UI:
 
         except asyncio.CancelledError:
             self.append_to_output("\n[Cancelled]\n")
+            raise  # Re-raise to allow proper task cancellation
         except Exception as e:
             self.append_to_output(f"\n[Error: {e}]\n")
         finally:

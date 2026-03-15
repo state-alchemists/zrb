@@ -39,6 +39,20 @@ class StdUI:
         # Always print to stderr as per requirements
         print(*values, sep=sep, end=end, file=sys.stderr, flush=flush)
 
+    def stream_to_parent(
+        self,
+        *values: object,
+        sep: str = " ",
+        end: str = "\n",
+        file: TextIO | None = None,
+        flush: bool = False,
+    ):
+        """Stream output immediately (same as append_to_output for StdUI).
+
+        For StdUI, there's no buffering, so this is identical to append_to_output.
+        """
+        self.append_to_output(*values, sep=sep, end=end, file=file, flush=flush)
+
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False
     ) -> Any:

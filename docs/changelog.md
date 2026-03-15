@@ -1,5 +1,23 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.10.2 (March 15, 2026)
+
+- **Fix: Ctrl+C Cancellation Propagation**:
+  - Fixed issue where pressing Ctrl+C required multiple presses to cancel running tasks.
+  - The `c-c` keybinding in `ui.py` now cancels `_running_llm_task` before calling `event.app.exit()`, matching the Escape key behavior.
+  - Eliminates "Task was destroyed but it is pending!" errors when cancelling LLM operations.
+
+- **Fix: Task Cancellation Cleanup**:
+  - Added double-await pattern in `_process_messages_loop` to ensure cancelled tasks complete before continuing.
+  - Re-raises `CancelledError` in `_stream_ai_response` and `_run_shell_command` for proper cancellation propagation.
+  - Added explicit `stream.aclose()` in `run_agent.py` finally block to close async generators on cancellation.
+
+- **Feature: Subagent Status Streaming**:
+  - Added `stream_to_parent` method to `UIProtocol` interface for bypassing BufferedUI buffer during subagent execution.
+  - Implemented `stream_to_parent` in `UI`, `StdUI`, and `BufferedUI` classes.
+  - Updated `create_event_handler` in `stream_response.py` with `status_event` parameter for tool call/result notifications.
+  - Subagent tool calls and results now display immediately in parent UI instead of waiting for task completion.
+
 ## 2.10.1 (March 14, 2026)
 
 - **Refactor: Streamlined Prompt System**:

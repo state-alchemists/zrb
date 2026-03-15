@@ -91,6 +91,28 @@ class BufferedUI(UIProtocol):
         """Clear the buffer without flushing."""
         self._buffer.clear()
 
+    def stream_to_parent(
+        self,
+        *values: object,
+        sep: str = " ",
+        end: str = "\n",
+        file: TextIO | None = None,
+        flush: bool = False,
+    ) -> None:
+        """Immediately stream output to parent UI, bypassing the buffer.
+
+        Use this for high-priority status messages that should be visible
+        immediately, such as tool call notifications during subagent execution.
+        """
+        text = sep.join(str(v) for v in values) + end
+        if self._prefix:
+            # Add prefix to each non-empty line
+            lines = text.split("\n")
+            text = "\n".join(
+                f"{self._prefix}{line}" if line.strip() else "" for line in lines
+            )
+        self._wrapped.append_to_output(text)
+
 
 async def _run_agent_task(
     agent_name: str,

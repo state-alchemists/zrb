@@ -98,10 +98,16 @@ async def run_agent(
             )
 
             print_event = create_faint_printer(effective_print_fn)
+            # For status events (tool calls, results), use stream_to_parent if available
+            # to bypass buffering in subagents (BufferedUI)
+            status_fn = None
+            if effective_ui and hasattr(effective_ui, "stream_to_parent"):
+                status_fn = create_faint_printer(effective_ui.stream_to_parent)
             effective_event_handler = create_event_handler(
                 print_event,
                 show_tool_call_detail=CFG.LLM_SHOW_TOOL_CALL_DETAIL,
                 show_tool_result=CFG.LLM_SHOW_TOOL_CALL_RESULT,
+                status_event=status_fn,
             )
 
         # Hook: SessionStart
@@ -203,21 +209,28 @@ async def run_agent(
         # 3. Execution Loop
         run_history = current_history
         result_output = None
+        stream = None
         try:
             while True:
-                async for event in agent.run_stream_events(
+                stream = agent.run_stream_events(
                     current_message,
                     message_history=current_history,
                     deferred_tool_results=current_results,
                     usage_limits=UsageLimits(request_limit=None),
-                ):
-                    await asyncio.sleep(0)
-                    if isinstance(event, AgentRunResultEvent):
-                        result = event.result
-                        result_output = result.output
-                        run_history = result.all_messages()
-                    if effective_event_handler:
-                        await effective_event_handler(event)
+                )
+                try:
+                    async for event in stream:
+                        await asyncio.sleep(0)
+                        if isinstance(event, AgentRunResultEvent):
+                            result = event.result
+                            result_output = result.output
+                            run_history = result.all_messages()
+                        if effective_event_handler:
+                            await effective_event_handler(event)
+                finally:
+                    # Ensure stream is closed on cancellation or completion
+                    if stream is not None and hasattr(stream, "aclose"):
+                        await stream.aclose()
 
                 # Handle Deferred Calls
                 if isinstance(result_output, DeferredToolRequests):
@@ -246,6 +259,9 @@ async def run_agent(
                 )
 
                 return result_output, run_history
+        except asyncio.CancelledError:
+            # Propagate cancellation to allow proper cleanup
+            raise
         except Exception as e:
             if not hasattr(e, "zrb_history"):
                 setattr(e, "zrb_history", run_history)

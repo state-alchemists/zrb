@@ -15,6 +15,15 @@ class UIProtocol(Protocol):
         flush: bool = False,
     ): ...
 
+    def stream_to_parent(
+        self,
+        *values: object,
+        sep: str = " ",
+        end: str = "\n",
+        file: TextIO | None = None,
+        flush: bool = False,
+    ): ...
+
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False
     ) -> Any: ...
