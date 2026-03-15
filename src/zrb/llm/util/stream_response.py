@@ -45,6 +45,9 @@ def create_event_handler(
     progress_char_index = 0
     was_tool_call_delta = False
     event_prefix = indentation
+    # Track printed tool calls to avoid duplicate prints in deferred tool flow
+    # (FunctionToolCallEvent fires twice: once when deferred, once when executed)
+    printed_tool_call_ids: set[str] = set()
 
     def fprint(
         content: str, preserve_leading_newline: bool = False, use_status: bool = False
@@ -126,12 +129,18 @@ def create_event_handler(
                 status_fn("\r")
                 # event_prefix will naturally overwrite it if it's on the same line
 
-            # Use status_fn for tool call notifications (bypass buffer for subagent visibility)
-            fprint(
-                f"{event_prefix}🧰 {event.part.tool_call_id} | {event.part.tool_name} {args}\n",
-                preserve_leading_newline=True,
-                use_status=True,
-            )
+            # Deduplicate tool call prints: in pydantic-ai's deferred tool flow,
+            # FunctionToolCallEvent fires twice (once when deferred, once when executed).
+            # Only print if we haven't seen this tool_call_id before.
+            tool_call_id = event.part.tool_call_id
+            if tool_call_id not in printed_tool_call_ids:
+                printed_tool_call_ids.add(tool_call_id)
+                # Use status_fn for tool call notifications (bypass buffer for subagent visibility)
+                fprint(
+                    f"{event_prefix}🧰 {tool_call_id} | {event.part.tool_name} {args}\n",
+                    preserve_leading_newline=True,
+                    use_status=True,
+                )
             was_tool_call_delta = False
         elif isinstance(event, FunctionToolResultEvent):
             if show_tool_result:
