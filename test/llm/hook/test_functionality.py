@@ -10,7 +10,7 @@ from zrb.llm.hook.types import HookEvent, HookType
 
 @pytest.mark.asyncio
 async def test_python_hook_execution():
-    manager = HookManager(auto_load=False)
+    manager = HookManager()
     executed = []
 
     async def my_hook(context: HookContext) -> HookResult:
@@ -43,7 +43,8 @@ async def test_config_file_loading_and_hydration(tmp_path):
         json.dump(hook_config, f)
 
     # Initialize manager pointing to this dir
-    manager = HookManager(auto_load=True, search_dirs=[hooks_dir])
+    # Hooks will be lazily loaded on first execute_hooks call
+    manager = HookManager(search_dirs=[hooks_dir])
 
     # Execute hooks using simple method for backward compatibility
     results = await manager.execute_hooks_simple(HookEvent.SESSION_START, {})
@@ -60,7 +61,7 @@ async def test_config_file_loading_and_hydration(tmp_path):
 
 @pytest.mark.asyncio
 async def test_pre_tool_use_modification():
-    manager = HookManager(auto_load=False)
+    manager = HookManager()
 
     async def modifier_hook(context: HookContext) -> HookResult:
         if context.event_data.get("tool") == "my_tool":

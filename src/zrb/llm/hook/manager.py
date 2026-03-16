@@ -115,11 +115,11 @@ _IGNORE_DIRS = []
 class HookManager:
     def __init__(
         self,
-        auto_load: bool = True,
         search_dirs: list[str | Path] | None = None,
         max_depth: int = 1,
         ignore_dirs: list[str] | None = None,
     ):
+        # Lightweight: just assign properties, no heavy operations
         self._hooks: dict[HookEvent, list[HookCallable]] = defaultdict(list)
         self._global_hooks: list[HookCallable] = []
         self._executor: ThreadPoolHookExecutor = get_hook_executor()
@@ -129,8 +129,32 @@ class HookManager:
         )  # hook -> config mapping
         self._max_depth = max_depth
         self._ignore_dirs = _IGNORE_DIRS if ignore_dirs is None else ignore_dirs
-        if auto_load:
-            self.scan(search_dirs)
+        self._search_dirs: list[str | Path] | None = search_dirs
+        self._loaded: bool = False  # Track if hooks have been loaded
+
+    def _ensure_loaded(self):
+        """Lazy load hooks on first access. No-op if already loaded."""
+        if not self._loaded:
+            self._scan_and_load()
+            self._loaded = True
+
+    def reload(self):
+        """Force re-scan hooks. Use after CFG changes or hook file updates."""
+        self._loaded = False
+        self._hooks = defaultdict(list)
+        self._global_hooks = []
+        self._hook_configs = {}
+        self._hook_to_config = {}
+        self._ensure_loaded()
+
+    def _scan_and_load(self):
+        """Internal: scan filesystem and load hooks without resetting existing ones."""
+        target_search_dirs = self._search_dirs
+        if target_search_dirs is None:
+            target_search_dirs = self.get_search_directories()
+
+        for search_dir in target_search_dirs:
+            self._load_from_path(search_dir)
 
     def _evaluate_matchers(
         self, matchers: list[MatcherConfig], context: HookContext
@@ -229,6 +253,9 @@ class HookManager:
         Execute all hooks registered for the given event with thread safety.
         Returns a list of HookExecutionResult objects with Claude Code compatibility.
         """
+        # Lazy load hooks on first execution
+        self._ensure_loaded()
+
         if metadata is None:
             metadata = {}
 
@@ -371,15 +398,17 @@ class HookManager:
     def scan(self, search_dirs: list[str | Path] | None = None):
         """
         Scan for hooks in default locations and provided directories.
+        This method can be called manually to add filesystem hooks.
+        Does NOT clear manually registered hooks.
         """
-        self._hooks = defaultdict(list)
-        self._global_hooks = []
         target_search_dirs = search_dirs
         if target_search_dirs is None:
             target_search_dirs = self.get_search_directories()
 
         for search_dir in target_search_dirs:
             self._load_from_path(search_dir)
+
+        self._loaded = True
 
     def get_search_directories(self) -> list[str | Path]:
         search_dirs: list[str | Path] = []
@@ -1073,4 +1102,5 @@ class HookManager:
         return agent_hook
 
 
-hook_manager = HookManager(auto_load=CFG.HOOKS_ENABLED, search_dirs=CFG.HOOKS_DIRS)
+# Module-level singleton - lightweight, hooks loaded on first execute_hooks() call
+hook_manager = HookManager()

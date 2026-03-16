@@ -75,13 +75,13 @@ class SubAgentDefinition:
 class SubAgentManager:
     def __init__(
         self,
-        auto_load: bool = True,
         tool_registry: dict[str, Callable] | None = None,
         root_dir: str = ".",
         search_dirs: list[str | Path] | None = None,
         max_depth: int = 1,
         ignore_dirs: list[str] | None = None,
     ):
+        # Lightweight: just assign properties, no heavy operations
         self._tool_registry = tool_registry if tool_registry is not None else {}
         self._tool_factories: list[Callable[[AnyContext], Tool | ToolFuncEither]] = []
         self._toolsets: list[AbstractToolset[None]] = []
@@ -93,8 +93,28 @@ class SubAgentManager:
         self._max_depth = max_depth
         self._agents: dict[str, SubAgentDefinition] = {}
         self._ignore_dirs = _IGNORE_DIRS if ignore_dirs is None else ignore_dirs
-        if auto_load:
-            self.scan(self._search_dirs)
+        self._loaded: bool = False  # Track if agents have been loaded
+
+    def _ensure_loaded(self):
+        """Lazy load agents on first access. No-op if already loaded."""
+        if not self._loaded:
+            self._scan_and_load()
+            self._loaded = True
+
+    def reload(self):
+        """Force re-scan agents. Use after CFG changes or agent file updates."""
+        self._loaded = False
+        self._agents = {}
+        self._ensure_loaded()
+
+    def _scan_and_load(self):
+        """Internal: scan filesystem and load agents without resetting existing ones."""
+        target_search_dirs = self._search_dirs
+        if target_search_dirs is None:
+            target_search_dirs = self.get_search_directories()
+        # Scan in order of precedence: global -> project
+        for search_dir in target_search_dirs:
+            self._scan_dir(search_dir, max_depth=self._max_depth)
 
     def _get_tool_registry(self) -> dict[str, Callable]:
         return self._tool_registry
@@ -170,7 +190,11 @@ class SubAgentManager:
     def scan(
         self, search_dirs: list[str | Path] | None = None
     ) -> list[SubAgentDefinition]:
-        self._agents = {}
+        """
+        Scan for agents in default locations and provided directories.
+        This method can be called manually to add filesystem agents.
+        Does NOT clear manually registered agents.
+        """
         target_search_dirs = search_dirs
         if target_search_dirs is None:
             target_search_dirs = (
@@ -181,6 +205,7 @@ class SubAgentManager:
         # Scan in order of precedence: global -> project
         for search_dir in target_search_dirs:
             self._scan_dir(search_dir, max_depth=self._max_depth)
+        self._loaded = True
         return list(self._agents.values())
 
     def get_search_directories(self) -> list[str | Path]:
@@ -396,6 +421,7 @@ class SubAgentManager:
         self._tool_registry = tool_registry
 
     def get_agent_definition(self, name: str) -> SubAgentDefinition | None:
+        self._ensure_loaded()
         agent = self._agents.get(name)
         if not agent:
             # Try partial match or path match
@@ -504,7 +530,8 @@ class SubAgentManager:
         )
 
 
-sub_agent_manager = SubAgentManager(auto_load=True)
+# Module-level singleton - lightweight, agents loaded on first access
+sub_agent_manager = SubAgentManager()
 
 # Add tools
 sub_agent_manager.add_tool(

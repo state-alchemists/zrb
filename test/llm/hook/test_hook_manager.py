@@ -12,7 +12,7 @@ from zrb.llm.hook.types import HookEvent, HookType
 
 @pytest.fixture
 def manager():
-    return HookManager(auto_load=False)
+    return HookManager()
 
 
 @pytest.mark.asyncio

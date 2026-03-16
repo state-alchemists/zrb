@@ -27,7 +27,7 @@ from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
 @pytest.mark.asyncio
 async def test_execute_hooks_with_exception_in_hook():
     """Test execute_hooks when a hook raises an exception."""
-    manager = HookManager(auto_load=False)
+    manager = HookManager()
 
     async def failing_hook(ctx):
         raise ValueError("Intentional test failure")
@@ -45,7 +45,7 @@ async def test_execute_hooks_with_exception_in_hook():
 @pytest.mark.asyncio
 async def test_execute_hooks_blocking_exit_code_2():
     """Test execute_hooks with blocking hook (exit_code=2)."""
-    manager = HookManager(auto_load=False)
+    manager = HookManager()
 
     executed = []
 
@@ -72,7 +72,7 @@ async def test_execute_hooks_blocking_exit_code_2():
 @pytest.mark.asyncio
 async def test_execute_hooks_continue_false():
     """Test execute_hooks with continue_execution=False."""
-    manager = HookManager(auto_load=False)
+    manager = HookManager()
 
     executed = []
 
@@ -98,7 +98,7 @@ async def test_execute_hooks_continue_false():
 @pytest.mark.asyncio
 async def test_execute_hooks_with_timeout():
     """Test execute_hooks with hook timeout."""
-    manager = HookManager(auto_load=False)
+    manager = HookManager()
 
     async def slow_hook(ctx):
         await asyncio.sleep(2)  # Longer than timeout
@@ -125,7 +125,7 @@ async def test_execute_hooks_with_timeout():
 @pytest.mark.asyncio
 async def test_execute_hooks_with_kwargs_population():
     """Test execute_hooks with kwargs that populate HookContext attributes."""
-    manager = HookManager(auto_load=False)
+    manager = HookManager()
 
     captured_context = None
 
@@ -154,7 +154,7 @@ async def test_execute_hooks_with_kwargs_population():
 @pytest.mark.asyncio
 async def test_register_with_config_and_priority():
     """Test register method with config and verify priority sorting."""
-    manager = HookManager(auto_load=False)
+    manager = HookManager()
 
     order = []
 
@@ -208,7 +208,7 @@ async def test_register_with_config_and_priority():
 
 def test_register_global_hook():
     """Test registering a global hook (no events specified)."""
-    manager = HookManager(auto_load=False)
+    manager = HookManager()
 
     async def global_hook(ctx):
         return HookResult(success=True)
@@ -223,7 +223,7 @@ def test_register_global_hook():
 
 def test_register_with_events():
     """Test registering a hook with specific events."""
-    manager = HookManager(auto_load=False)
+    manager = HookManager()
 
     async def specific_hook(ctx):
         return HookResult(success=True)
@@ -240,7 +240,7 @@ def test_register_with_events():
 @pytest.mark.asyncio
 async def test_scan_with_json_file(tmp_path):
     """Test scan method with JSON hook file."""
-    manager = HookManager(auto_load=False)
+    manager = HookManager()
 
     # Create a JSON hook file
     hook_dir = tmp_path / "hooks"
@@ -279,7 +279,7 @@ async def test_scan_with_json_file(tmp_path):
 @pytest.mark.asyncio
 async def test_scan_with_yaml_file(tmp_path):
     """Test scan method with YAML hook file."""
-    manager = HookManager(auto_load=False)
+    manager = HookManager()
 
     # Create a YAML hook file
     hook_dir = tmp_path / "hooks"
@@ -314,7 +314,7 @@ async def test_scan_with_yaml_file(tmp_path):
 @pytest.mark.asyncio
 async def test_scan_with_claude_format(tmp_path):
     """Test scan method with Claude format hook file."""
-    manager = HookManager(auto_load=False)
+    manager = HookManager()
 
     # Create a Claude format hook file
     hook_dir = tmp_path / "hooks"
@@ -360,7 +360,7 @@ async def test_scan_with_claude_format(tmp_path):
 @pytest.mark.asyncio
 async def test_scan_with_invalid_file(tmp_path):
     """Test scan method with invalid file (should not crash)."""
-    manager = HookManager(auto_load=False)
+    manager = HookManager()
 
     # Create an invalid file
     hook_dir = tmp_path / "hooks"
@@ -380,7 +380,7 @@ async def test_scan_with_invalid_file(tmp_path):
 
 def test_get_search_directories():
     """Test get_search_directories method."""
-    manager = HookManager(auto_load=False)
+    manager = HookManager()
 
     dirs = manager.get_search_directories()
 
@@ -395,7 +395,7 @@ def test_get_search_directories():
 @pytest.mark.asyncio
 async def test_matcher_edge_cases(tmp_path):
     """Test matcher evaluation with edge cases."""
-    manager = HookManager(auto_load=False)
+    manager = HookManager()
 
     # Create a hook with matchers
     hook_dir = tmp_path / "hooks"
@@ -430,7 +430,7 @@ async def test_matcher_edge_cases(tmp_path):
 @pytest.mark.asyncio
 async def test_matcher_with_nested_field(tmp_path):
     """Test matcher with nested field access."""
-    manager = HookManager(auto_load=False)
+    manager = HookManager()
 
     # Create a hook with nested field matcher
     hook_dir = tmp_path / "hooks"
@@ -473,7 +473,7 @@ async def test_matcher_with_nested_field(tmp_path):
 @pytest.mark.asyncio
 async def test_matcher_case_insensitive(tmp_path):
     """Test case-insensitive matcher."""
-    manager = HookManager(auto_load=False)
+    manager = HookManager()
 
     # Create a hook with case-insensitive matcher
     hook_dir = tmp_path / "hooks"

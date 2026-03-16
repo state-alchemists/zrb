@@ -6,7 +6,7 @@ from zrb.llm.agent.manager import SubAgentDefinition, SubAgentManager
 
 
 def test_sub_agent_manager_add_tool():
-    manager = SubAgentManager(auto_load=False)
+    manager = SubAgentManager()
 
     def my_tool():
         """My tool"""
@@ -30,7 +30,7 @@ def test_sub_agent_manager_add_tool():
 
 
 def test_sub_agent_manager_scan():
-    manager = SubAgentManager(auto_load=False)
+    manager = SubAgentManager()
     # Scan with empty list should not crash
     manager.scan([])
     assert isinstance(manager.get_search_directories(), list)
@@ -48,7 +48,7 @@ def test_sub_agent_manager_create_agent_config():
 
 
 def test_sub_agent_manager_filter_delegate_tools():
-    manager = SubAgentManager(auto_load=False)
+    manager = SubAgentManager()
 
     # 1. Create a regular tool
     def regular_tool():
@@ -87,7 +87,7 @@ def test_sub_agent_manager_filter_delegate_tools():
 
 
 def test_sub_agent_manager_filter_delegate_tools_from_factory():
-    manager = SubAgentManager(auto_load=False)
+    manager = SubAgentManager()
 
     def delegate_tool():
         """Delegate tool"""

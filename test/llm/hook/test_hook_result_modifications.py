@@ -19,7 +19,7 @@ def test_hook_result_modifications_mapping():
 
 @pytest.mark.asyncio
 async def test_hook_manager_operators(tmp_path):
-    manager = HookManager(auto_load=False)
+    manager = HookManager()
 
     # Create a dummy hook file to test matcher via public scan method
     hook_dir = tmp_path / "hooks"
@@ -57,7 +57,7 @@ async def test_hook_manager_operators(tmp_path):
 
 @pytest.mark.asyncio
 async def test_hook_manager_nested_field_access(tmp_path):
-    manager = HookManager(auto_load=False)
+    manager = HookManager()
 
     # Create a dummy hook file to test nested field access via public scan method
     hook_dir = tmp_path / "hooks"

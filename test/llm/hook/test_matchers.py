@@ -9,12 +9,12 @@ from zrb.llm.hook.types import HookEvent
 
 @pytest.fixture
 def hook_manager():
-    return HookManager(auto_load=False)
+    return HookManager()
 
 
 async def check_match(tmp_path, matchers, context_data):
     """Helper to verify if matchers work using public scan + execute_hooks."""
-    manager = HookManager(auto_load=False)
+    manager = HookManager()
 
     hook_dir = tmp_path / "hooks"
     if hook_dir.exists():

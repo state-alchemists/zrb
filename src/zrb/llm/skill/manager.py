@@ -87,6 +87,12 @@ class SkillManager:
         if not self._scanned:
             self.scan()
 
+    def reload(self):
+        """Force re-scan skills. Use after CFG changes or skill file updates."""
+        self._scanned = False
+        self._skills = {}
+        self._ensure_scanned()
+
     def scan(self, search_dirs: list[str | Path] | None = None) -> list[Skill]:
         self._skills = {}
         target_search_dirs = search_dirs
