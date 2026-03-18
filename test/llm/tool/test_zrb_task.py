@@ -1,7 +1,8 @@
 """Tests for zrb_task.py - Zrb task tools."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
 
@@ -72,6 +73,7 @@ class TestRunZrbTaskTool:
     def test_function_is_async(self):
         """Test that the returned function is async."""
         import inspect
+
         func = create_run_zrb_task_tool()
         assert inspect.iscoroutinefunction(func)
 
@@ -93,9 +95,7 @@ class TestRunZrbTaskTool:
 
         # This will fail because the task doesn't exist
         result = await func(
-            task_name="nonexistent_task",
-            args={"arg1": "value1"},
-            timeout=5
+            task_name="nonexistent_task", args={"arg1": "value1"}, timeout=5
         )
         assert isinstance(result, str)
 

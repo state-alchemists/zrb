@@ -325,8 +325,8 @@ class SkillManager:
                 model=model,
                 context=context,
                 agent=agent,
+                content=content,  # Persist content to avoid re-reading
             )
-
         except Exception:
             pass
 

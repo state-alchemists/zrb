@@ -1,7 +1,8 @@
 """Tests for task/base/operators.py - Task operator handling."""
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 class TestHandleRshift:

@@ -2,8 +2,9 @@
 
 import os
 import tempfile
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 
 class MockUI:
@@ -74,10 +75,12 @@ class TestWriteFileFormatter:
         )
 
         ui = MockUI()
-        call = MockCall({
-            "path": "/tmp/newfile.txt",
-            "content": "Hello World",
-        })
+        call = MockCall(
+            {
+                "path": "/tmp/newfile.txt",
+                "content": "Hello World",
+            }
+        )
 
         with patch(
             "zrb.llm.tool_call.argument_formatter.write_file_formatter.format_diff"
@@ -109,10 +112,12 @@ class TestWriteFileFormatter:
             temp_path = f.name
 
         try:
-            call = MockCall({
-                "path": temp_path,
-                "content": "new content",
-            })
+            call = MockCall(
+                {
+                    "path": temp_path,
+                    "content": "new content",
+                }
+            )
 
             with patch(
                 "zrb.llm.tool_call.argument_formatter.write_file_formatter.format_diff"
@@ -144,11 +149,13 @@ class TestWriteFileFormatter:
             temp_path = f.name
 
         try:
-            call = MockCall({
-                "path": temp_path,
-                "content": " appended",
-                "mode": "a",
-            })
+            call = MockCall(
+                {
+                    "path": temp_path,
+                    "content": " appended",
+                    "mode": "a",
+                }
+            )
 
             with patch(
                 "zrb.llm.tool_call.argument_formatter.write_file_formatter.format_diff"
@@ -227,11 +234,14 @@ class TestWriteFilesFormatter:
         )
 
         ui = MockUI()
-        call = MockCall({
-            "files": [
-                {"path": "/tmp/file1.txt", "content": "content1"},
-            ]
-        }, tool_name="WriteMany")
+        call = MockCall(
+            {
+                "files": [
+                    {"path": "/tmp/file1.txt", "content": "content1"},
+                ]
+            },
+            tool_name="WriteMany",
+        )
 
         with patch(
             "zrb.llm.tool_call.argument_formatter.write_file_formatter.format_diff"
@@ -254,12 +264,15 @@ class TestWriteFilesFormatter:
         )
 
         ui = MockUI()
-        call = MockCall({
-            "files": [
-                {"path": "/tmp/file1.txt", "content": "content1"},
-                {"path": "/tmp/file2.txt", "content": "content2"},
-            ]
-        }, tool_name="WriteMany")
+        call = MockCall(
+            {
+                "files": [
+                    {"path": "/tmp/file1.txt", "content": "content1"},
+                    {"path": "/tmp/file2.txt", "content": "content2"},
+                ]
+            },
+            tool_name="WriteMany",
+        )
 
         with patch(
             "zrb.llm.tool_call.argument_formatter.write_file_formatter.format_diff"
@@ -283,11 +296,14 @@ class TestWriteFilesFormatter:
         )
 
         ui = MockUI()
-        call = MockCall({
-            "files": [
-                {"content": "content without path"},  # Missing path
-            ]
-        }, tool_name="WriteMany")
+        call = MockCall(
+            {
+                "files": [
+                    {"content": "content without path"},  # Missing path
+                ]
+            },
+            tool_name="WriteMany",
+        )
 
         result = await write_files_formatter(ui, call, "")
         # Should skip the entry with missing path
@@ -301,11 +317,14 @@ class TestWriteFilesFormatter:
         )
 
         ui = MockUI()
-        call = MockCall({
-            "files": [
-                {"path": "/tmp/test.txt"},  # Missing content
-            ]
-        }, tool_name="WriteMany")
+        call = MockCall(
+            {
+                "files": [
+                    {"path": "/tmp/test.txt"},  # Missing content
+                ]
+            },
+            tool_name="WriteMany",
+        )
 
         result = await write_files_formatter(ui, call, "")
         # Should skip the entry with missing content
@@ -432,7 +451,6 @@ class TestFormatSingleWrite:
         finally:
             os.unlink(temp_path)
 
-
     def test_expand_home_path(self):
         """Test that ~ is expanded in path."""
         from zrb.llm.tool_call.argument_formatter.write_file_formatter import (
@@ -452,8 +470,6 @@ class TestFormatSingleWrite:
                 mock_render.return_value = "rendered"
 
                 # Path with ~ will be expanded
-                result = _format_single_write(
-                    "~/some_file.txt", "content", "w", ui
-                )
+                result = _format_single_write("~/some_file.txt", "content", "w", ui)
                 # Should work (file won't exist)
                 assert result is not None

@@ -11,14 +11,14 @@ class TestTaskStatusConstants:
     def test_status_constants_exist(self):
         """Test that all status constants are defined."""
         from zrb.task_status.task_status import (
-            TASK_STARTED,
-            TASK_READY,
             TASK_COMPLETED,
-            TASK_SKIPPED,
             TASK_FAILED,
             TASK_PERMANENTLY_FAILED,
-            TASK_TERMINATED,
+            TASK_READY,
             TASK_RESET,
+            TASK_SKIPPED,
+            TASK_STARTED,
+            TASK_TERMINATED,
         )
 
         assert TASK_STARTED == "started"
@@ -64,7 +64,7 @@ class TestTaskStatusMarking:
 
     def test_mark_as_started(self):
         """Test marking task as started."""
-        from zrb.task_status.task_status import TaskStatus, TASK_STARTED
+        from zrb.task_status.task_status import TASK_STARTED, TaskStatus
 
         status = TaskStatus()
         status.mark_as_started()
@@ -85,7 +85,7 @@ class TestTaskStatusMarking:
 
     def test_mark_as_failed(self):
         """Test marking task as failed."""
-        from zrb.task_status.task_status import TaskStatus, TASK_FAILED
+        from zrb.task_status.task_status import TASK_FAILED, TaskStatus
 
         status = TaskStatus()
         status.mark_as_failed()
@@ -95,7 +95,7 @@ class TestTaskStatusMarking:
 
     def test_mark_as_ready(self):
         """Test marking task as ready."""
-        from zrb.task_status.task_status import TaskStatus, TASK_READY
+        from zrb.task_status.task_status import TASK_READY, TaskStatus
 
         status = TaskStatus()
         status.mark_as_ready()
@@ -105,7 +105,7 @@ class TestTaskStatusMarking:
 
     def test_mark_as_completed(self):
         """Test marking task as completed."""
-        from zrb.task_status.task_status import TaskStatus, TASK_COMPLETED
+        from zrb.task_status.task_status import TASK_COMPLETED, TaskStatus
 
         status = TaskStatus()
         status.mark_as_completed()
@@ -115,7 +115,7 @@ class TestTaskStatusMarking:
 
     def test_mark_as_skipped(self):
         """Test marking task as skipped."""
-        from zrb.task_status.task_status import TaskStatus, TASK_SKIPPED
+        from zrb.task_status.task_status import TASK_SKIPPED, TaskStatus
 
         status = TaskStatus()
         status.mark_as_skipped()
@@ -125,7 +125,7 @@ class TestTaskStatusMarking:
 
     def test_mark_as_permanently_failed(self):
         """Test marking task as permanently failed."""
-        from zrb.task_status.task_status import TaskStatus, TASK_PERMANENTLY_FAILED
+        from zrb.task_status.task_status import TASK_PERMANENTLY_FAILED, TaskStatus
 
         status = TaskStatus()
         status.mark_as_permanently_failed()
@@ -135,7 +135,7 @@ class TestTaskStatusMarking:
 
     def test_mark_as_terminated(self):
         """Test marking task as terminated."""
-        from zrb.task_status.task_status import TaskStatus, TASK_TERMINATED
+        from zrb.task_status.task_status import TASK_TERMINATED, TaskStatus
 
         status = TaskStatus()
         status.mark_as_terminated()
@@ -145,7 +145,7 @@ class TestTaskStatusMarking:
 
     def test_mark_as_terminated_idempotent(self):
         """Test that mark_as_terminated is idempotent."""
-        from zrb.task_status.task_status import TaskStatus, TASK_TERMINATED
+        from zrb.task_status.task_status import TASK_TERMINATED, TaskStatus
 
         status = TaskStatus()
         status.mark_as_terminated()
@@ -199,7 +199,7 @@ class TestTaskStatusReset:
 
     def test_reset(self):
         """Test reset method."""
-        from zrb.task_status.task_status import TaskStatus, TASK_RESET
+        from zrb.task_status.task_status import TASK_RESET, TaskStatus
 
         status = TaskStatus()
         status.mark_as_started()

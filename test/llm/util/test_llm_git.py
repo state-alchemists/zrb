@@ -1,7 +1,7 @@
 """Tests for llm/util/git.py - Git utility functions."""
 
 import subprocess
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -72,8 +72,9 @@ class TestIsInsideGitDir:
 
     def test_actually_inside_git_repo(self):
         """Test is_inside_git_dir in actual git repo (integration test)."""
-        from zrb.llm.util.git import is_inside_git_dir
         import os
+
+        from zrb.llm.util.git import is_inside_git_dir
 
         # This test runs in the actual repo directory
         # It should return True since we're inside a git repo

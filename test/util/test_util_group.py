@@ -1,7 +1,8 @@
 """Tests for util/group.py - Group utility functions."""
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 
 class TestNodeNotFoundError:
@@ -59,7 +60,7 @@ class TestExtractNodeFromArgs:
 
     def test_extract_nonexistent_raises(self):
         """Test that nonexistent node raises NodeNotFoundError."""
-        from zrb.util.group import extract_node_from_args, NodeNotFoundError
+        from zrb.util.group import NodeNotFoundError, extract_node_from_args
 
         root = MagicMock()
         root.name = "root"
@@ -106,8 +107,8 @@ class TestGetNodePath:
 
     def test_get_node_path_subtask(self):
         """Test get_node_path finding a subtask."""
-        from zrb.util.group import get_node_path
         from zrb.task.any_task import AnyTask
+        from zrb.util.group import get_node_path
 
         group = MagicMock()
         # Create a spec mock that passes isinstance check

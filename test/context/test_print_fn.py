@@ -15,8 +15,13 @@ class TestPrintFnProtocol:
         from zrb.context.print_fn import PrintFn
 
         # A simple print function should match the protocol
-        def my_print(*values: object, sep: str = " ", end: str = "\n",
-                     file: TextIO | None = None, flush: bool = False) -> None:
+        def my_print(
+            *values: object,
+            sep: str = " ",
+            end: str = "\n",
+            file: TextIO | None = None,
+            flush: bool = False
+        ) -> None:
             pass
 
         # Just verify it's callable and matches protocol signature
@@ -28,8 +33,13 @@ class TestPrintFnProtocol:
 
         output = StringIO()
 
-        def custom_print(*values: object, sep: str = " ", end: str = "\n",
-                         file: TextIO | None = None, flush: bool = False) -> None:
+        def custom_print(
+            *values: object,
+            sep: str = " ",
+            end: str = "\n",
+            file: TextIO | None = None,
+            flush: bool = False
+        ) -> None:
             target = file if file is not None else sys.stdout
             target.write(sep.join(str(v) for v in values) + end)
 
@@ -43,8 +53,13 @@ class TestPrintFnProtocol:
 
         output = StringIO()
 
-        def flushing_print(*values: object, sep: str = " ", end: str = "\n",
-                          file: TextIO | None = None, flush: bool = False) -> None:
+        def flushing_print(
+            *values: object,
+            sep: str = " ",
+            end: str = "\n",
+            file: TextIO | None = None,
+            flush: bool = False
+        ) -> None:
             target = file if file is not None else sys.stdout
             target.write(sep.join(str(v) for v in values) + end)
             if flush:
@@ -57,8 +72,13 @@ class TestPrintFnProtocol:
         """Test print function with custom separator and end."""
         output = StringIO()
 
-        def custom_print(*values: object, sep: str = " ", end: str = "\n",
-                         file: TextIO | None = None, flush: bool = False) -> None:
+        def custom_print(
+            *values: object,
+            sep: str = " ",
+            end: str = "\n",
+            file: TextIO | None = None,
+            flush: bool = False
+        ) -> None:
             target = file if file is not None else sys.stdout
             target.write(sep.join(str(v) for v in values) + end)
 

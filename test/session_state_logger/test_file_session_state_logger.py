@@ -37,11 +37,11 @@ class TestFileSessionStateLogger:
 
     def test_write_creates_file(self, tmp_path):
         """Test that write creates a session file."""
-        from zrb.session_state_logger.file_session_state_logger import (
-            FileSessionStateLogger,
-        )
         from zrb.session_state_log.session_state_log import (
             SessionStateLog,
+        )
+        from zrb.session_state_logger.file_session_state_logger import (
+            FileSessionStateLogger,
         )
 
         logger = FileSessionStateLogger(str(tmp_path))
@@ -67,11 +67,11 @@ class TestFileSessionStateLogger:
 
     def test_read_session(self, tmp_path):
         """Test reading a session."""
-        from zrb.session_state_logger.file_session_state_logger import (
-            FileSessionStateLogger,
-        )
         from zrb.session_state_log.session_state_log import (
             SessionStateLog,
+        )
+        from zrb.session_state_logger.file_session_state_logger import (
+            FileSessionStateLogger,
         )
 
         logger = FileSessionStateLogger(str(tmp_path))
@@ -164,11 +164,11 @@ class TestFileSessionStateLoggerWriteRead:
 
     def test_write_creates_directory(self, tmp_path):
         """Test that write creates directory if needed."""
-        from zrb.session_state_logger.file_session_state_logger import (
-            FileSessionStateLogger,
-        )
         from zrb.session_state_log.session_state_log import (
             SessionStateLog,
+        )
+        from zrb.session_state_logger.file_session_state_logger import (
+            FileSessionStateLogger,
         )
 
         nested_path = tmp_path / "nested" / "dir"
@@ -194,11 +194,11 @@ class TestFileSessionStateLoggerWriteRead:
 
     def test_empty_start_time_skips_timeline(self, tmp_path):
         """Test that empty start_time skips timeline creation."""
-        from zrb.session_state_logger.file_session_state_logger import (
-            FileSessionStateLogger,
-        )
         from zrb.session_state_log.session_state_log import (
             SessionStateLog,
+        )
+        from zrb.session_state_logger.file_session_state_logger import (
+            FileSessionStateLogger,
         )
 
         logger = FileSessionStateLogger(str(tmp_path))
@@ -246,11 +246,11 @@ class TestFileSessionStateLoggerTimeline:
 
     def test_write_with_start_time_creates_timeline(self, tmp_path):
         """Test that write with start_time creates timeline entry."""
-        from zrb.session_state_logger.file_session_state_logger import (
-            FileSessionStateLogger,
-        )
         from zrb.session_state_log.session_state_log import (
             SessionStateLog,
+        )
+        from zrb.session_state_logger.file_session_state_logger import (
+            FileSessionStateLogger,
         )
 
         logger = FileSessionStateLogger(str(tmp_path))
@@ -271,7 +271,16 @@ class TestFileSessionStateLoggerTimeline:
 
         # Check timeline directory was created
         timeline_path = (
-            tmp_path / "_timeline" / "group" / "task" / "2024" / "1" / "15" / "10" / "30" / "0"
+            tmp_path
+            / "_timeline"
+            / "group"
+            / "task"
+            / "2024"
+            / "1"
+            / "15"
+            / "10"
+            / "30"
+            / "0"
         )
         # Timeline marker file should exist
         marker_file = timeline_path / "with_timeline"
@@ -279,11 +288,11 @@ class TestFileSessionStateLoggerTimeline:
 
     def test_list_sessions_with_data(self, tmp_path):
         """Test listing sessions with existing timeline."""
-        from zrb.session_state_logger.file_session_state_logger import (
-            FileSessionStateLogger,
-        )
         from zrb.session_state_log.session_state_log import (
             SessionStateLog,
+        )
+        from zrb.session_state_logger.file_session_state_logger import (
+            FileSessionStateLogger,
         )
 
         logger = FileSessionStateLogger(str(tmp_path))
@@ -320,11 +329,11 @@ class TestFileSessionStateLoggerTimeline:
 
     def test_list_sessions_pagination(self, tmp_path):
         """Test list pagination."""
-        from zrb.session_state_logger.file_session_state_logger import (
-            FileSessionStateLogger,
-        )
         from zrb.session_state_log.session_state_log import (
             SessionStateLog,
+        )
+        from zrb.session_state_logger.file_session_state_logger import (
+            FileSessionStateLogger,
         )
 
         logger = FileSessionStateLogger(str(tmp_path))

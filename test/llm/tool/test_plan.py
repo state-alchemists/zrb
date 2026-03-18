@@ -317,26 +317,29 @@ class TestAsyncFunctions:
 
         # Write initial with explicit IDs
         await write_todos(
-            [{"id": "1", "content": "Task 1"}], session="merge_session_replace", replace=True
+            [{"id": "1", "content": "Task 1"}],
+            session="merge_session_replace",
+            replace=True,
         )
 
         # Now write with replace=False - need to use same IDs to merge
         # Note: The singleton todo_manager has its own _todo_dir, so we need to clear that too
         import uuid
+
         unique_session = f"merge_{uuid.uuid4().hex[:8]}"
-        
+
         # First write with explicit IDs
         await write_todos(
-            [{"id": "1", "content": "Task 1", "status": "pending"}], 
-            session=unique_session, 
-            replace=True
+            [{"id": "1", "content": "Task 1", "status": "pending"}],
+            session=unique_session,
+            replace=True,
         )
 
         # Second write with merge - add a new task
         result = await write_todos(
-            [{"id": "2", "content": "Task 2", "status": "pending"}], 
-            session=unique_session, 
-            replace=False
+            [{"id": "2", "content": "Task 2", "status": "pending"}],
+            session=unique_session,
+            replace=False,
         )
 
         # Verify both tasks are present (merged)
@@ -430,7 +433,9 @@ class TestAsyncFunctions:
         await write_todos([{"content": "Task 1"}], session="notfound_session")
 
         # Try to update non-existent
-        result = await update_todo("999", status="completed", session="notfound_session")
+        result = await update_todo(
+            "999", status="completed", session="notfound_session"
+        )
 
         assert "Error" in result
         assert "not found" in result
@@ -511,8 +516,9 @@ class TestTodoStatusValues:
         manager = TodoManager()
         manager._todo_dir = tmp_path
         manager._todos = {}
-        
+
         import uuid
+
         unique_session = f"counts_{uuid.uuid4().hex[:8]}"
 
         todos = [

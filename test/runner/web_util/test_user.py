@@ -1,8 +1,12 @@
 """Tests for web_util/user.py."""
+
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import jwt
 import pytest
+
 from zrb.runner.web_util import user as user_module
+
 
 @pytest.fixture
 def mock_web_auth_config():
@@ -15,9 +19,10 @@ def mock_web_auth_config():
     # Create a test user
     test_user = MagicMock(username="testuser")
     test_user.is_password_match = MagicMock(return_value=True)
-    
+
     config.find_user_by_username = MagicMock(return_value=test_user)
     return config
+
 
 class TestGetUserByCredentials:
     """Tests for get_user_by_credentials function."""
@@ -50,6 +55,7 @@ class TestGetUserByCredentials:
         )
         assert result is None
 
+
 class TestGetUserFromRequest:
     """Tests for get_user_from_request function."""
 
@@ -61,7 +67,9 @@ class TestGetUserFromRequest:
         assert result == mock_web_auth_config.default_user
 
     @pytest.mark.asyncio
-    async def test_get_user_from_request_with_valid_bearer_token(self, mock_web_auth_config):
+    async def test_get_user_from_request_with_valid_bearer_token(
+        self, mock_web_auth_config
+    ):
         mock_web_auth_config.enable_auth = True
         token = jwt.encode(
             {"sub": "testuser", "exp": 9999999999},
@@ -77,11 +85,15 @@ class TestGetUserFromRequest:
 
         with patch("fastapi.security.OAuth2PasswordBearer") as mock_oauth:
             mock_oauth.return_value = mock_get_bearer_token
-            result = await user_module.get_user_from_request(mock_web_auth_config, request)
+            result = await user_module.get_user_from_request(
+                mock_web_auth_config, request
+            )
             assert result == test_user
 
     @pytest.mark.asyncio
-    async def test_get_user_from_request_with_invalid_bearer_token(self, mock_web_auth_config):
+    async def test_get_user_from_request_with_invalid_bearer_token(
+        self, mock_web_auth_config
+    ):
         mock_web_auth_config.enable_auth = True
         request = MagicMock()
         request.cookies = {}
@@ -91,7 +103,9 @@ class TestGetUserFromRequest:
 
         with patch("fastapi.security.OAuth2PasswordBearer") as mock_oauth:
             mock_oauth.return_value = mock_get_bearer_token
-            result = await user_module.get_user_from_request(mock_web_auth_config, request)
+            result = await user_module.get_user_from_request(
+                mock_web_auth_config, request
+            )
             assert result == mock_web_auth_config.default_user
 
     @pytest.mark.asyncio
@@ -112,11 +126,15 @@ class TestGetUserFromRequest:
 
         with patch("fastapi.security.OAuth2PasswordBearer") as mock_oauth:
             mock_oauth.return_value = mock_get_bearer_token
-            result = await user_module.get_user_from_request(mock_web_auth_config, request)
+            result = await user_module.get_user_from_request(
+                mock_web_auth_config, request
+            )
             assert result == test_user
 
     @pytest.mark.asyncio
-    async def test_get_user_from_request_no_token_returns_default(self, mock_web_auth_config):
+    async def test_get_user_from_request_no_token_returns_default(
+        self, mock_web_auth_config
+    ):
         mock_web_auth_config.enable_auth = True
         request = MagicMock()
         request.cookies = {}
@@ -126,5 +144,7 @@ class TestGetUserFromRequest:
 
         with patch("fastapi.security.OAuth2PasswordBearer") as mock_oauth:
             mock_oauth.return_value = mock_get_bearer_token
-            result = await user_module.get_user_from_request(mock_web_auth_config, request)
+            result = await user_module.get_user_from_request(
+                mock_web_auth_config, request
+            )
             assert result == mock_web_auth_config.default_user

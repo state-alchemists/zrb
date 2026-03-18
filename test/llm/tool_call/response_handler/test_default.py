@@ -12,8 +12,9 @@ class TestDefaultResponseHandler:
     @pytest.mark.asyncio
     async def test_response_yes(self):
         """Test 'yes' response approves execution."""
-        from zrb.llm.tool_call.response_handler.default import default_response_handler
         from pydantic_ai import ToolApproved
+
+        from zrb.llm.tool_call.response_handler.default import default_response_handler
 
         ui = MagicMock()
         ui.append_to_output = MagicMock()
@@ -28,8 +29,9 @@ class TestDefaultResponseHandler:
     @pytest.mark.asyncio
     async def test_response_y(self):
         """Test 'y' response approves execution."""
-        from zrb.llm.tool_call.response_handler.default import default_response_handler
         from pydantic_ai import ToolApproved
+
+        from zrb.llm.tool_call.response_handler.default import default_response_handler
 
         ui = MagicMock()
         ui.append_to_output = MagicMock()
@@ -44,8 +46,9 @@ class TestDefaultResponseHandler:
     @pytest.mark.asyncio
     async def test_response_okay(self):
         """Test 'okay' response approves execution."""
-        from zrb.llm.tool_call.response_handler.default import default_response_handler
         from pydantic_ai import ToolApproved
+
+        from zrb.llm.tool_call.response_handler.default import default_response_handler
 
         ui = MagicMock()
         ui.append_to_output = MagicMock()
@@ -60,8 +63,9 @@ class TestDefaultResponseHandler:
     @pytest.mark.asyncio
     async def test_response_empty_string(self):
         """Test empty string response approves execution."""
-        from zrb.llm.tool_call.response_handler.default import default_response_handler
         from pydantic_ai import ToolApproved
+
+        from zrb.llm.tool_call.response_handler.default import default_response_handler
 
         ui = MagicMock()
         ui.append_to_output = MagicMock()
@@ -76,8 +80,9 @@ class TestDefaultResponseHandler:
     @pytest.mark.asyncio
     async def test_response_no(self):
         """Test 'no' response denies execution."""
-        from zrb.llm.tool_call.response_handler.default import default_response_handler
         from pydantic_ai import ToolDenied
+
+        from zrb.llm.tool_call.response_handler.default import default_response_handler
 
         ui = MagicMock()
         ui.append_to_output = MagicMock()
@@ -92,8 +97,9 @@ class TestDefaultResponseHandler:
     @pytest.mark.asyncio
     async def test_response_n(self):
         """Test 'n' response denies execution."""
-        from zrb.llm.tool_call.response_handler.default import default_response_handler
         from pydantic_ai import ToolDenied
+
+        from zrb.llm.tool_call.response_handler.default import default_response_handler
 
         ui = MagicMock()
         ui.append_to_output = MagicMock()
@@ -108,8 +114,9 @@ class TestDefaultResponseHandler:
     @pytest.mark.asyncio
     async def test_response_custom_message(self):
         """Test custom message denies execution."""
-        from zrb.llm.tool_call.response_handler.default import default_response_handler
         from pydantic_ai import ToolDenied
+
+        from zrb.llm.tool_call.response_handler.default import default_response_handler
 
         ui = MagicMock()
         ui.append_to_output = MagicMock()
@@ -117,7 +124,9 @@ class TestDefaultResponseHandler:
         call = MagicMock()
         call.args = {"command": "test"}
 
-        result = await default_response_handler(ui, call, "I don't want to", AsyncMock())
+        result = await default_response_handler(
+            ui, call, "I don't want to", AsyncMock()
+        )
 
         assert isinstance(result, ToolDenied)
         assert "I don't want to" in result.message
@@ -125,8 +134,9 @@ class TestDefaultResponseHandler:
     @pytest.mark.asyncio
     async def test_response_case_insensitive(self):
         """Test case insensitive responses."""
-        from zrb.llm.tool_call.response_handler.default import default_response_handler
         from pydantic_ai import ToolApproved
+
+        from zrb.llm.tool_call.response_handler.default import default_response_handler
 
         ui = MagicMock()
         ui.append_to_output = MagicMock()

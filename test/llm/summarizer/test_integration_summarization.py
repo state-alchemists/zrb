@@ -1,17 +1,31 @@
 """Tests for LLM history summarizer logic."""
-import pytest
+
 from unittest.mock import AsyncMock, MagicMock, patch
-from pydantic_ai.messages import ModelRequest, ModelResponse, ToolCallPart, UserPromptPart
+
+import pytest
+from pydantic_ai.messages import (
+    ModelRequest,
+    ModelResponse,
+    ToolCallPart,
+    UserPromptPart,
+)
+
+from zrb.llm.summarizer.history_splitter import find_best_effort_split
 from zrb.llm.summarizer.history_summarizer import summarize_history, summarize_messages
 from zrb.llm.summarizer.text_summarizer import summarize_text, summarize_text_plain
-from zrb.llm.summarizer.history_splitter import find_best_effort_split
+
 
 class MockLimiter:
     def count_tokens(self, content):
-        if isinstance(content, str): return len(content)
-        if isinstance(content, list): return sum(self.count_tokens(m) for m in content)
+        if isinstance(content, str):
+            return len(content)
+        if isinstance(content, list):
+            return sum(self.count_tokens(m) for m in content)
         return 10
-    def truncate_text(self, text, limit): return text[:limit]
+
+    def truncate_text(self, text, limit):
+        return text[:limit]
+
 
 @pytest.mark.asyncio
 async def test_summarize_messages_resilience():
@@ -20,11 +34,13 @@ async def test_summarize_messages_resilience():
     result = await summarize_messages(messages)
     assert result == messages
 
+
 @pytest.mark.asyncio
 async def test_summarize_history_handles_none():
     limiter = MockLimiter()
     result = await summarize_history(None, limiter=limiter)
     assert result is None
+
 
 @pytest.mark.asyncio
 async def test_summarize_text_extracts_snapshot():
@@ -37,6 +53,7 @@ async def test_summarize_text_extracts_snapshot():
     result = await summarize_text("history", agent)
     assert result == "<state_snapshot>Important State</state_snapshot>"
 
+
 @pytest.mark.asyncio
 async def test_summarize_text_plain_edge_cases():
     limiter = MockLimiter()
@@ -47,6 +64,7 @@ async def test_summarize_text_plain_edge_cases():
     # Non-string input
     res = await summarize_text_plain(123, agent, limiter, 100)
     assert res == "123"
+
 
 @pytest.mark.asyncio
 async def test_find_best_effort_split_empty():

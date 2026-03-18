@@ -1,9 +1,3 @@
-"""
-LSP Manager - Singleton that manages LSP server instances.
-
-Provides lazy initialization, auto-detection, and lifecycle management for LSP servers.
-"""
-
 import asyncio
 import os
 import weakref
@@ -213,9 +207,10 @@ class LSPManager:
         server = await self.get_server(file_path)
         if server is None:
             return {
+                "found": False,
                 "error": f"No LSP server available for file: {file_path}. "
                 f"[SUGGESTION]: Install an LSP server for this language. "
-                f"Available servers: {list(self.list_available_servers().keys())}"
+                f"Available servers: {list(self.list_available_servers().keys())}",
             }
 
         # Try workspace symbols first (works without position)
@@ -279,8 +274,9 @@ class LSPManager:
         server = await self.get_server(file_path)
         if server is None:
             return {
+                "found": False,
                 "error": f"No LSP server available for file: {file_path}. "
-                f"Available servers: {list(self.list_available_servers().keys())}"
+                f"Available servers: {list(self.list_available_servers().keys())}",
             }
 
         try:
@@ -341,8 +337,9 @@ class LSPManager:
         server = await self.get_server(file_path)
         if server is None:
             return {
+                "found": False,
                 "error": f"No LSP server available for file: {file_path}. "
-                f"Available servers: {list(self.list_available_servers().keys())}"
+                f"Available servers: {list(self.list_available_servers().keys())}",
             }
 
         try:
@@ -407,8 +404,9 @@ class LSPManager:
         server = await self.get_server(file_path)
         if server is None:
             return {
+                "found": False,
                 "error": f"No LSP server available for file: {file_path}. "
-                f"Available servers: {list(self.list_available_servers().keys())}"
+                f"Available servers: {list(self.list_available_servers().keys())}",
             }
 
         try:
@@ -444,8 +442,9 @@ class LSPManager:
         server = await self.get_server(file_path)
         if server is None:
             return {
+                "found": False,
                 "error": f"No LSP server available for file: {file_path}. "
-                f"Available servers: {list(self.list_available_servers().keys())}"
+                f"Available servers: {list(self.list_available_servers().keys())}",
             }
 
         try:
@@ -497,8 +496,9 @@ class LSPManager:
         server = await self.get_server(file_path)
         if server is None:
             return {
+                "found": False,
                 "error": f"No LSP server available for file: {file_path}. "
-                f"Available servers: {list(self.list_available_servers().keys())}"
+                f"Available servers: {list(self.list_available_servers().keys())}",
             }
 
         try:
@@ -554,8 +554,9 @@ class LSPManager:
         server = await self.get_server(file_path)
         if server is None:
             return {
+                "success": False,
                 "error": f"No LSP server available for file: {file_path}. "
-                f"Available servers: {list(self.list_available_servers().keys())}"
+                f"Available servers: {list(self.list_available_servers().keys())}",
             }
 
         try:

@@ -231,10 +231,10 @@ async def test_run_command_with_env():
 async def test_run_command_with_print_method():
     """Test run_command with custom print method."""
     printed_lines = []
-    
+
     def capture_print(msg, **kwargs):
         printed_lines.append(msg)
-    
+
     cmd = ["echo", "test"]
     result, return_code = await run_command(cmd, print_method=capture_print)
     assert return_code == 0
@@ -259,12 +259,12 @@ def test_kill_pid_with_print_method():
     """Test kill_pid with custom print method."""
     proc = subprocess.Popen(["sleep", "3"])
     pid = proc.pid
-    
+
     printed_messages = []
-    
+
     def capture_print(msg, **kwargs):
         printed_messages.append(msg)
-    
+
     kill_pid(pid, print_method=capture_print)
-    
+
     assert any(f"process {pid}" in msg.lower() for msg in printed_messages)

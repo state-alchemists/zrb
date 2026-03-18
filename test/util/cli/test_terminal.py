@@ -2,7 +2,7 @@
 
 import os
 import sys
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -70,7 +70,7 @@ class TestGetTerminalSize:
 
     def test_returns_terminal_size(self):
         """Test that get_terminal_size returns TerminalSize."""
-        from zrb.util.cli.terminal import get_terminal_size, TerminalSize
+        from zrb.util.cli.terminal import TerminalSize, get_terminal_size
 
         # The function should return a TerminalSize
         size = get_terminal_size()
@@ -121,7 +121,9 @@ class TestGetTerminalSize:
         with patch.object(sys, "__stdout__", mock_stdout):
             with patch.object(sys, "__stderr__", None):
                 with patch.object(sys, "__stdin__", None):
-                    with patch("os.get_terminal_size", side_effect=ValueError("Bad fd")):
+                    with patch(
+                        "os.get_terminal_size", side_effect=ValueError("Bad fd")
+                    ):
                         with patch("shutil.get_terminal_size") as mock_shutil:
                             mock_shutil.return_value.columns = 80
                             mock_shutil.return_value.lines = 24

@@ -123,9 +123,11 @@ async def test_open_web_page_error():
 @pytest.mark.asyncio
 async def test_open_web_page_with_summarization():
     # Mock playwright and LLM orchestrators
-    with patch("playwright.async_api.async_playwright") as mock_playwright_ctx, \
-         patch("zrb.llm.tool.web.create_agent") as mock_create_agent, \
-         patch("zrb.llm.tool.web.run_agent", new_callable=AsyncMock) as mock_run_agent:
+    with patch("playwright.async_api.async_playwright") as mock_playwright_ctx, patch(
+        "zrb.llm.tool.web.create_agent"
+    ) as mock_create_agent, patch(
+        "zrb.llm.tool.web.run_agent", new_callable=AsyncMock
+    ) as mock_run_agent:
 
         mock_p = AsyncMock()
         mock_browser = AsyncMock()

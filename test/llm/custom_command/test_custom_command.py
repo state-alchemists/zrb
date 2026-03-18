@@ -246,11 +246,13 @@ class TestCustomCommandArgOrder:
             args=["first", "second", "third"],
         )
 
-        result = cmd.get_prompt({
-            "first": "A",
-            "second": "B",
-            "third": "C",
-        })
+        result = cmd.get_prompt(
+            {
+                "first": "A",
+                "second": "B",
+                "third": "C",
+            }
+        )
 
         assert "A" in result
         assert "B" in result

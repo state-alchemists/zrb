@@ -1,7 +1,8 @@
 """Tests for llm/tool/skill.py - Skill activation tool."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 
 class TestCreateActivateSkillTool:
@@ -33,6 +34,7 @@ class TestCreateActivateSkillTool:
     def test_function_is_async(self):
         """Test that the returned function is async."""
         import inspect
+
         from zrb.llm.tool.skill import create_activate_skill_tool
 
         func = create_activate_skill_tool()
@@ -134,9 +136,7 @@ class TestDefaultSkillManager:
     @pytest.mark.asyncio
     async def test_uses_default_manager_when_none_provided(self):
         """Test that default manager is used when none provided."""
-        with patch(
-            "zrb.llm.tool.skill.default_skill_manager"
-        ) as mock_default_manager:
+        with patch("zrb.llm.tool.skill.default_skill_manager") as mock_default_manager:
             mock_default_manager.get_skill.return_value = None
 
             from zrb.llm.tool.skill import create_activate_skill_tool

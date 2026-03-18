@@ -305,6 +305,7 @@ class TestDurationFunctions:
 
     def test_format_duration_zero(self):
         from zrb.util.todo import _format_duration
+
         assert _format_duration(0) == "0s"
 
 
@@ -313,11 +314,13 @@ class TestDateToStr:
 
     def test_date_to_str_none(self):
         from zrb.util.todo import _date_to_str
+
         result = _date_to_str(None)
         assert result == "".ljust(14)
 
     def test_date_to_str_valid(self):
         from zrb.util.todo import _date_to_str
+
         result = _date_to_str(datetime.date(2023, 10, 26))
         assert "2023-10-26" in result
 
@@ -326,7 +329,8 @@ class TestGetLineStr:
     """Tests for _get_line_str with different terminal widths."""
 
     def test_full_width(self):
-        from zrb.util.todo import _get_line_str, _GAP_WIDTH
+        from zrb.util.todo import _GAP_WIDTH, _get_line_str
+
         result = _get_line_str(
             terminal_width=200,
             description_width=50,
@@ -343,6 +347,7 @@ class TestGetLineStr:
 
     def test_medium_width(self):
         from zrb.util.todo import _get_line_str
+
         result = _get_line_str(
             terminal_width=120,
             description_width=50,
@@ -358,6 +363,7 @@ class TestGetLineStr:
 
     def test_narrow_width(self):
         from zrb.util.todo import _get_line_str
+
         result = _get_line_str(
             terminal_width=30,
             description_width=10,
@@ -377,7 +383,8 @@ class TestVisualTodoLineTruncation:
     """Tests for description truncation in visual todo line."""
 
     def test_long_description_truncation(self):
-        from zrb.util.todo import get_visual_todo_line, _MAX_DESCRIPTION_WIDTH
+        from zrb.util.todo import _MAX_DESCRIPTION_WIDTH, get_visual_todo_line
+
         long_task = TodoTaskModel(
             description="A" * 100,  # Very long description
             completed=False,

@@ -2,8 +2,9 @@
 
 import os
 import tempfile
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 
 class MockUI:
@@ -87,11 +88,13 @@ class TestReplaceInFileFormatter:
         )
 
         ui = MockUI()
-        call = MockCall({
-            "path": "/nonexistent/path/to/file.txt",
-            "old_text": "a",
-            "new_text": "b",
-        })
+        call = MockCall(
+            {
+                "path": "/nonexistent/path/to/file.txt",
+                "old_text": "a",
+                "new_text": "b",
+            }
+        )
 
         result = await replace_in_file_formatter(ui, call, "")
         assert result is None
@@ -111,11 +114,13 @@ class TestReplaceInFileFormatter:
             temp_path = f.name
 
         try:
-            call = MockCall({
-                "path": temp_path,
-                "old_text": "nonexistent text",
-                "new_text": "replacement",
-            })
+            call = MockCall(
+                {
+                    "path": temp_path,
+                    "old_text": "nonexistent text",
+                    "new_text": "replacement",
+                }
+            )
 
             result = await replace_in_file_formatter(ui, call, "")
             assert result is None
@@ -137,11 +142,13 @@ class TestReplaceInFileFormatter:
             temp_path = f.name
 
         try:
-            call = MockCall({
-                "path": temp_path,
-                "old_text": "World",
-                "new_text": "Universe",
-            })
+            call = MockCall(
+                {
+                    "path": temp_path,
+                    "old_text": "World",
+                    "new_text": "Universe",
+                }
+            )
 
             with patch(
                 "zrb.llm.tool_call.argument_formatter.replace_in_file_formatter.format_diff"
@@ -174,7 +181,9 @@ class TestReplaceInFileFormatter:
             temp_path = f.name
 
         try:
-            args_str = '{"path": "' + temp_path + '", "old_text": "Test", "new_text": "New"}'
+            args_str = (
+                '{"path": "' + temp_path + '", "old_text": "Test", "new_text": "New"}'
+            )
             call = MockCall(args_str)
 
             with patch(
@@ -208,12 +217,14 @@ class TestReplaceInFileFormatter:
             temp_path = f.name
 
         try:
-            call = MockCall({
-                "path": temp_path,
-                "old_text": "test",
-                "new_text": "demo",
-                "count": 1,  # Replace only first occurrence
-            })
+            call = MockCall(
+                {
+                    "path": temp_path,
+                    "old_text": "test",
+                    "new_text": "demo",
+                    "count": 1,  # Replace only first occurrence
+                }
+            )
 
             with patch(
                 "zrb.llm.tool_call.argument_formatter.replace_in_file_formatter.format_diff"
@@ -245,11 +256,13 @@ class TestReplaceInFileFormatter:
             temp_path = f.name
 
         try:
-            call = MockCall({
-                "path": temp_path,
-                "old_text": "same",
-                "new_text": "same",  # Same as old
-            })
+            call = MockCall(
+                {
+                    "path": temp_path,
+                    "old_text": "same",
+                    "new_text": "same",  # Same as old
+                }
+            )
 
             result = await replace_in_file_formatter(ui, call, "")
             # Content unchanged should return None
@@ -265,11 +278,13 @@ class TestReplaceInFileFormatter:
         )
 
         ui = MockUI()
-        call = MockCall({
-            "path": "/some/path",
-            "old_text": "a",
-            "new_text": "b",
-        })
+        call = MockCall(
+            {
+                "path": "/some/path",
+                "old_text": "a",
+                "new_text": "b",
+            }
+        )
 
         # Force an exception by having invalid JSON
         call.args = "{invalid json"
@@ -290,11 +305,13 @@ class TestReplaceInFileFormatterEdgeCases:
 
         ui = MockUI()
         # This tests path expansion but won't actually find the file
-        call = MockCall({
-            "path": "~/nonexistent_file.txt",
-            "old_text": "a",
-            "new_text": "b",
-        })
+        call = MockCall(
+            {
+                "path": "~/nonexistent_file.txt",
+                "old_text": "a",
+                "new_text": "b",
+            }
+        )
 
         result = await replace_in_file_formatter(ui, call, "")
         # Path should be expanded, but file won't exist

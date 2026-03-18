@@ -1,13 +1,17 @@
 import shlex
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
+
 from zrb.builtin.http import generate_curl, http_request
 from zrb.context.shared_context import SharedContext
 from zrb.session.session import Session
 
+
 @pytest.fixture
 def session():
     return Session(shared_ctx=SharedContext(), state_logger=MagicMock())
+
 
 @pytest.mark.asyncio
 async def test_http_request(session):
@@ -30,6 +34,7 @@ async def test_http_request(session):
             },
         )
         assert res == mock_response
+
 
 @pytest.mark.asyncio
 async def test_generate_curl(session):
