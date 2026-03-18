@@ -148,3 +148,123 @@ def test_get_remote_cmd_script_custom_port():
     cmd = "ls -la"
     result = get_remote_cmd_script(cmd, host="example.com", port=2222, user="user")
     assert 'ssh -t -p "2222" "user@example.com" \'ls -la\'' in result
+
+
+def test_check_unrecommended_commands_process_substitution():
+    """Test detection of process substitution."""
+    violations = check_unrecommended_commands("cat <(echo hello)")
+    assert "<(" in violations
+
+
+def test_check_unrecommended_commands_column():
+    """Test detection of column command."""
+    violations = check_unrecommended_commands("cat file | column")
+    assert "column" in violations
+
+
+def test_check_unrecommended_commands_eval():
+    """Test detection of eval command."""
+    violations = check_unrecommended_commands("eval 'echo hello'")
+    assert "eval" in violations
+
+
+def test_check_unrecommended_commands_realpath():
+    """Test detection of realpath command."""
+    violations = check_unrecommended_commands("realpath file.txt")
+    assert "realpath" in violations
+
+
+def test_check_unrecommended_commands_source():
+    """Test detection of source command."""
+    violations = check_unrecommended_commands("source script.sh")
+    assert "source" in violations
+
+
+def test_check_unrecommended_commands_which():
+    """Test detection of which command."""
+    violations = check_unrecommended_commands("which python")
+    assert "which" in violations
+
+
+def test_check_unrecommended_commands_grep_y():
+    """Test detection of grep -y."""
+    violations = check_unrecommended_commands("grep -y pattern file")
+    assert r"grep.* -y" in violations
+
+
+def test_check_unrecommended_commands_grep_P():
+    """Test detection of grep -P."""
+    violations = check_unrecommended_commands("grep -P pattern file")
+    assert r"grep.* -P" in violations
+
+
+def test_check_unrecommended_commands_grep_long():
+    """Test detection of grep long options."""
+    violations = check_unrecommended_commands("grep --color pattern file")
+    assert r"grep[^|]+--\w{2,}" in violations
+
+
+def test_check_unrecommended_commands_sort_V():
+    """Test detection of sort -V."""
+    violations = check_unrecommended_commands("sort -V file")
+    assert r"sort.*-V" in violations
+
+
+def test_check_unrecommended_commands_multiple_violations():
+    """Test detection of multiple violations."""
+    violations = check_unrecommended_commands("echo hello | sort -V")
+    assert "echo" in violations
+    assert r"sort.*-V" in violations
+
+
+@pytest.mark.asyncio
+async def test_run_command_with_env():
+    """Test run_command with custom environment."""
+    cmd = ["env"]
+    env_map = {"MY_VAR": "my_value"}
+    result, return_code = await run_command(cmd, env_map=env_map)
+    assert return_code == 0
+    assert "MY_VAR=my_value" in result.output
+
+
+@pytest.mark.asyncio
+async def test_run_command_with_print_method():
+    """Test run_command with custom print method."""
+    printed_lines = []
+    
+    def capture_print(msg, **kwargs):
+        printed_lines.append(msg)
+    
+    cmd = ["echo", "test"]
+    result, return_code = await run_command(cmd, print_method=capture_print)
+    assert return_code == 0
+    assert "test" in printed_lines
+
+
+@pytest.mark.asyncio
+async def test_run_command_nonzero_exit():
+    """Test run_command with non-zero exit code."""
+    cmd = ["bash", "-c", "exit 42"]
+    result, return_code = await run_command(cmd)
+    assert return_code == 42
+
+
+def test_kill_pid_nonexistent():
+    """Test kill_pid with nonexistent process."""
+    # Use a PID that's very unlikely to exist
+    kill_pid(9999999)  # Should not raise
+
+
+def test_kill_pid_with_print_method():
+    """Test kill_pid with custom print method."""
+    proc = subprocess.Popen(["sleep", "3"])
+    pid = proc.pid
+    
+    printed_messages = []
+    
+    def capture_print(msg, **kwargs):
+        printed_messages.append(msg)
+    
+    kill_pid(pid, print_method=capture_print)
+    
+    assert any(f"process {pid}" in msg.lower() for msg in printed_messages)

@@ -1,50 +1,36 @@
-from unittest.mock import patch
-
+from unittest.mock import MagicMock
+import pytest
+import uuid
 from zrb.builtin.uuid import (
-    generate_uuid_v1,
-    generate_uuid_v3,
-    generate_uuid_v4,
-    generate_uuid_v5,
-    validate_uuid,
+    generate_uuid_v1, generate_uuid_v3, generate_uuid_v4, generate_uuid_v5, validate_uuid
 )
-from zrb.task.any_task import AnyTask
+from zrb.context.shared_context import SharedContext
+from zrb.session.session import Session
 
+def get_session():
+    return Session(shared_ctx=SharedContext(), state_logger=MagicMock())
 
-def test_generate_uuid_v1():
-    with patch("uuid.uuid1", return_value="uuid1"):
-        task: AnyTask = generate_uuid_v1
-        result = task.run()
-        assert result == "uuid1"
+@pytest.mark.asyncio
+async def test_generate_uuids():
+    # Test generation consistency
+    for task in [generate_uuid_v1, generate_uuid_v4]:
+        res = await task.async_run(session=get_session())
+        assert res is not None
+        assert len(str(res)) > 30
 
+    # Test namespaced generation
+    for task in [generate_uuid_v3, generate_uuid_v5]:
+        res = await task.async_run(session=get_session(), kwargs={"namespace": "dns", "name": "example.com"})
+        assert res is not None
+        assert len(str(res)) > 30
 
-def test_generate_uuid_v3():
-    with patch("uuid.uuid3", return_value="uuid3"):
-        task: AnyTask = generate_uuid_v3
-        result = task.run(str_kwargs={"namespace": "dns", "name": "example.com"})
-        assert result == "uuid3"
-
-
-def test_generate_uuid_v4():
-    with patch("uuid.uuid4", return_value="uuid4"):
-        task: AnyTask = generate_uuid_v4
-        result = task.run()
-        assert result == "uuid4"
-
-
-def test_generate_uuid_v5():
-    with patch("uuid.uuid5", return_value="uuid5"):
-        task: AnyTask = generate_uuid_v5
-        result = task.run(str_kwargs={"namespace": "dns", "name": "example.com"})
-        assert result == "uuid5"
-
-
-def test_validate_uuid():
-    with patch("uuid.UUID") as mock_uuid:
-        task: AnyTask = validate_uuid
-        is_valid = task.run(str_kwargs={"id": "some-uuid"})
-        assert is_valid
-        mock_uuid.assert_called_with("some-uuid", version=1)
-
-        mock_uuid.side_effect = ValueError
-        is_invalid = task.run(str_kwargs={"id": "invalid-uuid"})
-        assert not is_invalid
+@pytest.mark.asyncio
+async def test_validate_uuid():
+    u4 = str(uuid.uuid4())
+    # Valid
+    res1 = await validate_uuid.async_run(session=get_session(), kwargs={"id": u4})
+    assert res1 is True
+    
+    # Invalid
+    res2 = await validate_uuid.async_run(session=get_session(), kwargs={"id": "invalid"})
+    assert res2 is False

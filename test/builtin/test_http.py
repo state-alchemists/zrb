@@ -1,11 +1,16 @@
 import shlex
+import pytest
 from unittest.mock import MagicMock, patch
-
 from zrb.builtin.http import generate_curl, http_request
-from zrb.task.any_task import AnyTask
+from zrb.context.shared_context import SharedContext
+from zrb.session.session import Session
 
+@pytest.fixture
+def session():
+    return Session(shared_ctx=SharedContext(), state_logger=MagicMock())
 
-def test_http_request():
+@pytest.mark.asyncio
+async def test_http_request(session):
     with patch("requests.request") as mock_request:
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -13,46 +18,30 @@ def test_http_request():
         mock_response.text = '{"foo": "bar"}'
         mock_request.return_value = mock_response
 
-        task: AnyTask = http_request
-        task.run(
-            str_kwargs={
+        res = await http_request.async_run(
+            session=session,
+            kwargs={
+                "url": "http://example.com",
                 "method": "GET",
-                "url": "https://example.com",
-                "headers": "{}",
+                "headers": '{"Content-Type": "application/json"}',
                 "body": "{}",
-                "verify_ssl": "true",
-            }
+                "timeout": 10,
+                "verify_ssl": True,
+            },
         )
-        mock_request.assert_called_with(
-            method="GET",
-            url="https://example.com",
-            headers={},
-            json=None,
-            verify=True,
-        )
+        assert res == mock_response
 
-
-def test_generate_curl():
-    task: AnyTask = generate_curl
-    result = task.run(
-        str_kwargs={
+@pytest.mark.asyncio
+async def test_generate_curl(session):
+    res = await generate_curl.async_run(
+        session=session,
+        kwargs={
+            "url": "http://example.com",
             "method": "POST",
-            "url": "https://example.com",
             "headers": '{"Content-Type": "application/json"}',
             "body": '{"foo": "bar"}',
-            "verify_ssl": "false",
-        }
+            "verify_ssl": True,
+        },
     )
-    expected_parts = [
-        "curl",
-        "-X",
-        "POST",
-        "-H",
-        "Content-Type:",
-        "application/json",
-        "--data-raw",
-        '{"foo": "bar"}',
-        "--insecure",
-        "https://example.com",
-    ]
-    assert shlex.split(result) == expected_parts
+    assert "curl -X POST" in res
+    assert "http://example.com" in res

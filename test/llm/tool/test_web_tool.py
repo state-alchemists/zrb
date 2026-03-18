@@ -99,13 +99,14 @@ async def test_open_web_page_requests_fallback():
         )
         mock_get.return_value = mock_response
 
-        result = await open_web_page("https://example.com")
+        result = await open_web_page("https://example.com", summarize=False)
 
         assert "content" in result
         assert "Fallback" in result["content"]
         assert "links_on_page" in result
         # urljoin logic check
         assert "https://example.com/link" in result["links_on_page"]
+        assert result["summarized"] == False
 
 
 @pytest.mark.asyncio
@@ -121,10 +122,10 @@ async def test_open_web_page_error():
 
 @pytest.mark.asyncio
 async def test_open_web_page_with_summarization():
-    # Mock playwright
-    with patch("playwright.async_api.async_playwright") as mock_playwright_ctx, patch(
-        "zrb.llm.tool.web._summarize_web_content"
-    ) as mock_summarize:
+    # Mock playwright and LLM orchestrators
+    with patch("playwright.async_api.async_playwright") as mock_playwright_ctx, \
+         patch("zrb.llm.tool.web.create_agent") as mock_create_agent, \
+         patch("zrb.llm.tool.web.run_agent", new_callable=AsyncMock) as mock_run_agent:
 
         mock_p = AsyncMock()
         mock_browser = AsyncMock()
@@ -137,14 +138,14 @@ async def test_open_web_page_with_summarization():
         mock_page.content.return_value = "<html><body><h1>Title</h1><p>Content with lots of details that should be summarized.</p></body></html>"
         mock_page.eval_on_selector_all.return_value = ["https://example.com/link"]
 
-        # Mock summarization to return concise content
-        mock_summarize.return_value = "## Summary\nConcise summary of the page.\n\n## Key Points\n1. Main point\n\n## References\n- https://example.com"
+        # Mock LLM response
+        mock_run_agent.return_value = ("Concise summary", [])
 
         result = await open_web_page("https://example.com", summarize=True)
 
         assert "content" in result
-        assert "summarized" in result
         assert result["summarized"] == True
-        assert "Concise summary" in result["content"]  # From mocked summary
+        assert "Concise summary" in result["content"]
         assert "links_on_page" in result
-        mock_summarize.assert_called_once()
+        mock_create_agent.assert_called_once()
+        mock_run_agent.assert_called_once()

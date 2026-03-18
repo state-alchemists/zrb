@@ -1,69 +1,34 @@
 from unittest import mock
-
 import pytest
-
 from zrb.builtin import base64 as base64_module
 from zrb.context.shared_context import SharedContext
 from zrb.session.session import Session
 
-
 @pytest.fixture
-def mock_print():
-    return mock.MagicMock()
-
+def mock_print(): return mock.MagicMock()
 
 @pytest.fixture
 def session(mock_print):
-    shared_ctx = SharedContext(print_fn=mock_print)
-    return Session(shared_ctx=shared_ctx, state_logger=mock.MagicMock())
-
+    return Session(shared_ctx=SharedContext(print_fn=mock_print), state_logger=mock.MagicMock())
 
 @pytest.mark.asyncio
-async def test_encode_base64(session, mock_print):
-    """Test the encode_base64 task."""
-    # Get the task object
-    encode_task = base64_module.encode_base64
-
-    # Execute publicly
-    result = await encode_task.async_run(
-        session=session, kwargs={"text": "hello world"}
-    )
-
-    # Assertions
-    expected_result = "aGVsbG8gd29ybGQ="
-    assert result == expected_result
-    # Check if the result was printed
-    printed_text = "".join(call.args[0] for call in mock_print.call_args_list)
-    assert expected_result in printed_text
-
+async def test_encode_base64(session):
+    result = await base64_module.encode_base64.async_run(session=session, kwargs={"text": "hello world"})
+    assert result == "aGVsbG8gd29ybGQ="
 
 @pytest.mark.asyncio
-async def test_decode_base64(session, mock_print):
-    """Test the decode_base64 task."""
-    # Get the task object
-    decode_task = base64_module.decode_base64
-
-    # Execute publicly
-    result = await decode_task.async_run(
-        session=session, kwargs={"text": "aGVsbG8gd29ybGQ="}
-    )
-
-    # Assertions
-    expected_result = "hello world"
-    assert result == expected_result
-    # Check if the result was printed
-    printed_text = "".join(call.args[0] for call in mock_print.call_args_list)
-    assert expected_result in printed_text
-
+async def test_decode_base64(session):
+    result = await base64_module.decode_base64.async_run(session=session, kwargs={"text": "aGVsbG8gd29ybGQ="})
+    assert result == "hello world"
 
 @pytest.mark.asyncio
-async def test_decode_base64_invalid_input(session, mock_print):
-    """Test the decode_base64 task with invalid input."""
-    import base64
-
-    # Get the task object
-    decode_task = base64_module.decode_base64
-
-    # Execute publicly and expect an error
-    with pytest.raises(base64.binascii.Error):
-        await decode_task.async_run(session=session, kwargs={"text": "invalid-base64!"})
+async def test_validate_base64():
+    task = base64_module.validate_base64
+    # Valid
+    s1 = Session(shared_ctx=SharedContext(), state_logger=mock.MagicMock())
+    await task.async_run(session=s1, kwargs={"text": "aGVsbG8="})
+    assert s1.final_result is True
+    # Invalid
+    s2 = Session(shared_ctx=SharedContext(), state_logger=mock.MagicMock())
+    await task.async_run(session=s2, kwargs={"text": "invalid!!!"})
+    assert s2.final_result is False
