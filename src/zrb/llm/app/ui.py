@@ -1050,6 +1050,17 @@ class UI:
                 if not name:
                     continue
                 self._conversation_session_name = name
+                # Load and display the conversation history
+                try:
+                    history = self._history_manager.load(name)
+                    from zrb.llm.util.history_formatter import format_history_as_text
+
+                    history_text = format_history_as_text(history)
+                    self.append_to_output(stylize_faint(f"\n{history_text}\n"))
+                except Exception as e:
+                    self.append_to_output(
+                        stylize_error(f"\n  ❌ Failed to load history: {e}\n")
+                    )
                 self.append_to_output(
                     stylize_faint(f"\n  📂 Conversation session switched to: {name}\n")
                 )

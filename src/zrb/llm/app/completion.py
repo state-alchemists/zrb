@@ -315,7 +315,7 @@ class InputCompleter(Completer):
             )
 
     def _get_save_command_completions(self, arg_prefix: str) -> Iterable[Completion]:
-        """Get completions for save command arguments (timestamp).
+        """Get completions for save command arguments (existing sessions + timestamp).
 
         Args:
             arg_prefix: The prefix of the argument being typed.
@@ -323,12 +323,22 @@ class InputCompleter(Completer):
         Yields:
             Completion objects for save command.
         """
+        # First, suggest existing session names (for overwriting)
+        results = self._history_manager.search(arg_prefix)
+        for res in results[:10]:
+            yield Completion(
+                res,
+                start_position=-len(arg_prefix),
+                display_meta="Existing Session",
+            )
+
+        # Also suggest a timestamp-based name for new sessions
         ts = datetime.now().strftime("%Y-%m-%d-%H-%M")
         if ts.startswith(arg_prefix):
             yield Completion(
                 ts,
                 start_position=-len(arg_prefix),
-                display_meta="Session Name",
+                display_meta="New Session",
             )
 
     def _get_redirect_command_completions(
