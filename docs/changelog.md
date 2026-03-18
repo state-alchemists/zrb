@@ -1,5 +1,31 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.10.3 (March 18, 2026)
+
+- **Feature: Conversation History Display on Load**:
+  - Added `history_formatter.py` utility to format pydantic-ai conversation history as human-readable text.
+  - `/load` command now displays loaded conversation history in the UI, matching the streaming style (💬/🤖 icons with timestamps).
+  - Format: User messages show `💬 {time} >> {content}`, assistant messages show `🤖 {time} >>` with indented content.
+  - Tool calls/returns shown inline with 🧰/🔠 icons.
+
+- **Feature: Timestamped Session Backups**:
+  - `FileHistoryManager.save()` now creates timestamped backup files in addition to the main session file.
+  - Backup naming: `<session-name>-YYYY-MM-DD-HH-MM-SS.json` (with sequence numbers for conflicts).
+  - Session names with existing timestamps are normalized (base name extracted) for cleaner backup file names.
+
+- **Feature: Save Command Autocomplete**:
+  - `/save` command autocomplete now shows existing session names (labeled "Existing Session") for easy overwriting.
+  - Also shows timestamp-based name (labeled "New Session") for creating new sessions.
+
+- **Security: CVE-2026-23491 (pyasn1 DoS Vulnerability)**:
+  - Fixed uncontrolled recursion vulnerability in `pyasn1` (transitive dependency via `google-auth`).
+  - Added explicit `pyasn1 >= 0.6.3` constraint to enforce patched version.
+  - Vulnerability: Crafted ASN.1 payloads could cause DoS via recursion crash or OOM.
+
+- **Refactor: Improved Test Coverage**:
+  - Added comprehensive tests for `history_formatter.py`, `file_history_manager.py` backup functionality, and LSP manager.
+  - Reorganized test file naming for clarity (removed `_coverage` suffix from test files).
+
 ## 2.10.2 (March 15, 2026)
 
 - **Fix: Ctrl+C Cancellation Propagation**:
