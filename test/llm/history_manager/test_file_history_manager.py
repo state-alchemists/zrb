@@ -414,3 +414,133 @@ def test_file_history_manager_filter_empty_responses(temp_history_dir):
     filtered = manager._filter_empty_responses(nested_data)
     assert len(filtered["conversation"]) == 1
     assert filtered["conversation"][0]["kind"] == "request"
+
+
+def test_extract_base_name(temp_history_dir):
+    """Test extracting base session name from timestamped names."""
+    manager = FileHistoryManager(temp_history_dir)
+
+    # Without timestamp
+    assert manager._extract_base_name("my-session") == "my-session"
+    assert manager._extract_base_name("simple") == "simple"
+
+    # With full timestamp (YYYY-MM-DD-HH-MM-SS)
+    assert manager._extract_base_name("my-session-2024-03-18-10-30-00") == "my-session"
+    assert manager._extract_base_name("project-2024-12-31-23-59-59") == "project"
+
+    # With partial timestamp (YYYY-MM-DD-HH-MM)
+    assert manager._extract_base_name("session-2024-03-18-10-30") == "session"
+    assert manager._extract_base_name("test-2024-01-01-00-00") == "test"
+
+    # Edge cases - timestamp without base name stays as-is (no hyphen prefix)
+    assert manager._extract_base_name("") == ""
+    # "2024-03-18-10-30-00" has no base name before the timestamp, so it stays
+    assert manager._extract_base_name("2024-03-18-10-30-00") == "2024-03-18-10-30-00"
+
+
+def test_get_backup_file_path(temp_history_dir):
+    """Test generating backup file paths with timestamps."""
+    manager = FileHistoryManager(temp_history_dir)
+
+    from datetime import datetime
+
+    # First backup should work
+    ts = datetime(2024, 3, 18, 10, 30, 0)
+    backup_path = manager._get_backup_file_path("my-session", ts)
+    assert backup_path.endswith("my-session-2024-03-18-10-30-00.json")
+
+    # Create the file
+    with open(backup_path, "w") as f:
+        f.write("{}")
+
+    # Second call with same timestamp should add -1
+    backup_path2 = manager._get_backup_file_path("my-session", ts)
+    assert backup_path2.endswith("my-session-2024-03-18-10-30-00-1.json")
+
+    # Create that file too
+    with open(backup_path2, "w") as f:
+        f.write("{}")
+
+    # Third call should add -2
+    backup_path3 = manager._get_backup_file_path("my-session", ts)
+    assert backup_path3.endswith("my-session-2024-03-18-10-30-00-2.json")
+
+
+def test_save_creates_backup(temp_history_dir):
+    """Test that save() creates both main file and timestamped backup."""
+    import re
+
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        TextPart,
+        UserPromptPart,
+    )
+
+    manager = FileHistoryManager(temp_history_dir)
+
+    messages = [
+        ModelRequest(parts=[UserPromptPart(content="hello")]),
+        ModelResponse(parts=[TextPart(content="hi")]),
+    ]
+
+    manager.update("my-session", messages)
+    manager.save("my-session")
+
+    # Check main file exists
+    main_file = os.path.join(temp_history_dir, "my-session.json")
+    assert os.path.exists(main_file)
+
+    # Check backup file exists (with timestamp pattern)
+    files = os.listdir(temp_history_dir)
+    backup_pattern = re.compile(
+        r"my-session-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d+)?\.json"
+    )
+    backup_files = [f for f in files if backup_pattern.match(f)]
+    assert len(backup_files) == 1, f"Expected 1 backup file, found: {backup_files}"
+
+
+def test_save_with_timestamped_session_name(temp_history_dir):
+    """Test that save() correctly handles session names with timestamps."""
+    import re
+
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        TextPart,
+        UserPromptPart,
+    )
+
+    manager = FileHistoryManager(temp_history_dir)
+
+    messages = [
+        ModelRequest(parts=[UserPromptPart(content="hello")]),
+        ModelResponse(parts=[TextPart(content="hi")]),
+    ]
+
+    # Session name already has a timestamp
+    manager.update("my-session-2024-03-18-10-30-00", messages)
+    manager.save("my-session-2024-03-18-10-30-00")
+
+    # Check main file exists with the full name
+    main_file = os.path.join(temp_history_dir, "my-session-2024-03-18-10-30-00.json")
+    assert os.path.exists(main_file)
+
+    # Check backup uses the base name (without the timestamp)
+    files = os.listdir(temp_history_dir)
+    # Backup should be my-session-<timestamp>.json, NOT my-session-2024-03-18-10-30-00-<timestamp>.json
+    backup_pattern = re.compile(
+        r"my-session-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d+)?\.json"
+    )
+    backup_files = [f for f in files if backup_pattern.match(f)]
+
+    # Should have 2 files: the main one and the backup
+    # The main file name matches the backup pattern, so we check for my-session-<timestamp>.json
+    # that is NOT the main file
+    timestamp_pattern = re.compile(
+        r"my-session-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}\.json"
+    )
+    main_files = [f for f in files if timestamp_pattern.match(f)]
+
+    # There should be exactly 2 files: main (with timestamp in name) and backup (with new timestamp)
+    assert len(main_files) == 2, f"Expected 2 files (main + backup), found: {files}"

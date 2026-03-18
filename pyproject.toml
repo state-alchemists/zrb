@@ -82,6 +82,11 @@ voyageai = {version = ">=0.3.7", optional = true, python = "<3.14"}
 
 pyperclip = "^1.11.0"
 
+# Security fix: CVE-2026-23491 - DoS via uncontrolled recursion in ASN.1 decoding
+# pyasn1 is a transitive dependency via google-auth -> pyasn1-modules and google-auth -> rsa.
+# We pin >=0.6.3 to ensure the patched version is used.
+pyasn1 = ">=0.6.3"
+
 [tool.poetry.extras]
 # Install all extras:
 # - poetry install --all-extras

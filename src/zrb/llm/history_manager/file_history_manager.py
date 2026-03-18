@@ -1,5 +1,7 @@
 import json
 import os
+import re
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -9,6 +11,9 @@ from zrb.context.any_context import zrb_print
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.util.match import fuzzy_match
 from zrb.util.string.conversion import to_string
+
+# Pattern to match timestamp suffix like -2024-03-18-10-30-00 or -2024-03-18-10-30
+_TIMESTAMP_PATTERN = re.compile(r"-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d{2})?$")
 
 
 class FileHistoryManager(AnyHistoryManager):
@@ -106,6 +111,61 @@ class FileHistoryManager(AnyHistoryManager):
             safe_name = "default"
         return os.path.join(self._history_dir, f"{safe_name}.json")
 
+    def _extract_base_name(self, conversation_name: str) -> str:
+        """Extract base session name by removing timestamp suffix if present.
+
+        For example:
+        - "my-session-2024-03-18-10-30-00" -> "my-session"
+        - "my-session-2024-03-18-10-30" -> "my-session"
+        - "my-session" -> "my-session"
+        """
+        # Remove timestamp suffix if present
+        return _TIMESTAMP_PATTERN.sub("", conversation_name)
+
+    def _get_backup_file_path(self, base_name: str, timestamp: datetime) -> str:
+        """Get a backup file path with timestamp, handling conflicts.
+
+        Creates files like: <name>-2024-03-18-10-30-00.json
+        If that exists: <name>-2024-03-18-10-30-00-1.json
+        If that exists: <name>-2024-03-18-10-30-00-2.json
+        etc.
+        """
+        ts_str = timestamp.strftime("%Y-%m-%d-%H-%M-%S")
+        base_path = os.path.join(self._history_dir, f"{base_name}-{ts_str}")
+
+        # Check if the base backup path exists
+        candidate = f"{base_path}.json"
+        if not os.path.exists(candidate):
+            return candidate
+
+        # Find next available sequence number
+        counter = 1
+        while True:
+            candidate = f"{base_path}-{counter}.json"
+            if not os.path.exists(candidate):
+                return candidate
+            counter += 1
+            # Safety limit
+            if counter > 1000:
+                # Fallback to using microseconds
+                ts_str_with_us = timestamp.strftime("%Y-%m-%d-%H-%M-%S-%f")
+                return os.path.join(
+                    self._history_dir, f"{base_name}-{ts_str_with_us}.json"
+                )
+
+    def _save_data_to_file(self, file_path: str, data: Any) -> bool:
+        """Save filtered data to a file.
+
+        Returns True if successful, False otherwise.
+        """
+        try:
+            with open(file_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+            return True
+        except OSError as e:
+            zrb_print(f"Error: Failed to save history to {file_path}: {e}", plain=True)
+            return False
+
     def load(self, conversation_name: str) -> "list[ModelMessage]":
         from pydantic import ValidationError
         from pydantic_ai.messages import ModelMessagesTypeAdapter
@@ -186,9 +246,15 @@ class FileHistoryManager(AnyHistoryManager):
             # Validate the cleaned and filtered data
             ModelMessagesTypeAdapter.validate_python(filtered_data)
 
-            # Save the cleaned and filtered data
-            with open(file_path, "w", encoding="utf-8") as f:
-                json.dump(filtered_data, f, indent=2)
+            # Save the main history file
+            self._save_data_to_file(file_path, filtered_data)
+
+            # Create a timestamped backup
+            base_name = self._extract_base_name(conversation_name)
+            timestamp = datetime.now()
+            backup_path = self._get_backup_file_path(base_name, timestamp)
+            if backup_path:
+                self._save_data_to_file(backup_path, filtered_data)
 
         except ValidationError as e:
             # If validation fails even after cleaning, log and don't save
