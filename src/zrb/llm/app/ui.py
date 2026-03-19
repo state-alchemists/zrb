@@ -300,7 +300,11 @@ class UI:
                     self._scroll_output_to_bottom()
             except Exception:
                 pass
-            await asyncio.sleep(5.0)
+            try:
+                await asyncio.sleep(5.0)
+            except RuntimeError:
+                # Event loop closed during shutdown
+                break
 
     def _scroll_output_to_bottom(self):
         """Scroll output field to the bottom."""
@@ -347,10 +351,18 @@ class UI:
 
             except asyncio.CancelledError:
                 break
+            except RuntimeError as e:
+                # Event loop closed during shutdown - exit immediately
+                logger.error(f"RuntimeError in message queue loop: {e}")
+                break
             except Exception as e:
                 logger.error(f"Error in message queue loop: {e}")
-                # Don't break loop on error
-                await asyncio.sleep(1)
+                # Don't break loop on error, but handle event loop closure
+                try:
+                    await asyncio.sleep(1)
+                except RuntimeError:
+                    # Event loop closed - exit
+                    break
 
     async def _trigger_loop(
         self,
@@ -393,7 +405,11 @@ class UI:
                 break
             except Exception:
                 pass
-            await asyncio.sleep(60)
+            try:
+                await asyncio.sleep(60)
+            except RuntimeError:
+                # Event loop closed during shutdown
+                break
 
     async def _update_system_info(self):
         """Update CWD and Git info."""
