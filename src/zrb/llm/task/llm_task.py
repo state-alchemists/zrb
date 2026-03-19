@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     from pydantic_ai.tools import ToolFuncEither
     from pydantic_ai.toolsets import AbstractToolset
 
+    from zrb.llm.approval.channel import ApprovalChannel
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
@@ -94,6 +95,7 @@ class LLMTask(BaseTask):
         ui: UIProtocol | None = None,
         yolo: BoolAttr = False,
         dynamic_yolo: Callable[..., bool] | None = None,
+        approval_channel: ApprovalChannel | None = None,
         summarize_command: list[str] | None = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 2,
@@ -180,6 +182,7 @@ class LLMTask(BaseTask):
         self._ui = ui
         self._yolo = yolo
         self._dynamic_yolo = dynamic_yolo
+        self._approval_channel = approval_channel
         self._summarize_command = (
             summarize_command if summarize_command is not None else []
         )
@@ -200,6 +203,14 @@ class LLMTask(BaseTask):
     @tool_confirmation.setter
     def tool_confirmation(self, value: AnyToolConfirmation):
         self._tool_confirmation = value
+
+    @property
+    def approval_channel(self) -> ApprovalChannel | None:
+        return self._approval_channel
+
+    @approval_channel.setter
+    def approval_channel(self, value: ApprovalChannel | None):
+        self._approval_channel = value
 
     def add_toolset(self, *toolset: AbstractToolset):
         self.append_toolset(*toolset)
@@ -305,6 +316,7 @@ class LLMTask(BaseTask):
                 hook_manager=self._hook_manager,
                 ui=self._ui,
                 yolo=yolo_value,
+                approval_channel=self._approval_channel,
             )
         except Exception as e:
             self._handle_run_error(ctx, history_manager, conversation_name, e)

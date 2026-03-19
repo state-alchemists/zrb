@@ -519,6 +519,21 @@ class UI:
                 self.append_to_output(prompt, end="")
             get_app().invalidate()
 
+    def _cancel_pending_confirmations(self):
+        """Cancel all pending confirmation futures and clear the queue.
+
+        This is called when the user presses Ctrl+C or Escape to ensure
+        that any blocked ask_user() calls are properly released.
+        """
+        # Cancel all futures in the queue
+        for future, _ in self._confirmation_queue:
+            if not future.done():
+                future.cancel()
+        # Clear the queue
+        self._confirmation_queue.clear()
+        # Reset current confirmation
+        self._current_confirmation = None
+
     async def _confirm_tool_execution(
         self,
         call: ToolCallPart,
@@ -736,6 +751,8 @@ class UI:
             if buffer.text != "":
                 buffer.reset()
                 return
+            # Cancel any pending confirmation futures
+            self._cancel_pending_confirmations()
             # Cancel running task if any (similar to escape key)
             if self._running_llm_task and not self._running_llm_task.done():
                 self._running_llm_task.cancel()
@@ -758,6 +775,8 @@ class UI:
 
         @app_keybindings.add("escape")
         def _(event):
+            # Cancel any pending confirmation futures
+            self._cancel_pending_confirmations()
             if self._running_llm_task and not self._running_llm_task.done():
                 self._running_llm_task.cancel()
                 # Hook: Stop
