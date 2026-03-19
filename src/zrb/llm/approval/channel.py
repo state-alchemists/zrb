@@ -127,8 +127,9 @@ class TerminalApprovalChannel:
     ) -> ApprovalResult:
         """Request approval via terminal."""
         # Format the approval message
-        from zrb.llm.tool_call.handler import ToolCallHandler
         from pydantic_ai import ToolCallPart
+
+        from zrb.llm.tool_call.handler import ToolCallHandler
 
         # Create a mock ToolCallPart for formatting
         call = ToolCallPart(
@@ -152,7 +153,9 @@ class TerminalApprovalChannel:
         if r in ("n", "no", "deny", "cancel", "🛑"):
             return ApprovalResult(approved=False, message="User denied")
 
-        return ApprovalResult(approved=False, message=f"User denied with: {user_response}")
+        return ApprovalResult(
+            approved=False, message=f"User denied with: {user_response}"
+        )
 
     async def notify(
         self,
