@@ -1,5 +1,20 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.10.4 (March 19, 2026)
+
+- **Fix: WriteMany Tool Permission Check**:
+  - Fixed `chat_tool_policy.py` to properly validate paths for `WriteMany` tool calls.
+  - The permission check now inspects the `files` parameter (list of dicts with `path` key) in addition to `path` and `paths`.
+  - Previously, WriteMany calls to journal directories would fail auto-approval because only `path`/`paths` were checked.
+
+- **Fix: Event Loop Closure During Shutdown**:
+  - Fixed `RuntimeError` exceptions when the UI event loop closes during shutdown.
+  - All `asyncio.sleep()` calls in `_scroll_output_loop`, `_process_messages_loop`, and `_trigger_loop` now catch `RuntimeError` and break cleanly.
+  - Prevents "Event loop is closed" errors when exiting the application.
+
+- **Refactor: Remove Unused Imports**:
+  - Removed unused `warnings` and `AsyncExitStack` imports from `llm_chat_task.py`.
+
 ## 2.10.3 (March 18, 2026)
 
 - **Feature: Conversation History Display on Load**:
