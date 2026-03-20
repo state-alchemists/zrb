@@ -1,8 +1,7 @@
 """Tests for the approval channel system."""
 
-import asyncio
 from dataclasses import asdict
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from pydantic_ai import ToolApproved, ToolDenied
@@ -14,7 +13,6 @@ from zrb.llm.approval import (
     NullApprovalChannel,
     TerminalApprovalChannel,
     current_approval_channel,
-    load_approval_channel,
 )
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 
@@ -239,41 +237,6 @@ class TestCurrentApprovalChannelContextVar:
             assert result is mock_channel
         finally:
             current_approval_channel.reset(token)
-
-
-class TestLoadApprovalChannel:
-    """Tests for load_approval_channel factory function."""
-
-    def test_load_returns_none_when_not_configured(self):
-        """Test that load_approval_channel returns None when no factory configured."""
-        with patch("zrb.llm.approval.factory.CFG") as mock_cfg:
-            mock_cfg.LLM_APPROVAL_CHANNEL_FACTORY = None
-
-            result = load_approval_channel()
-            assert result is None
-
-    def test_load_raises_on_invalid_path(self):
-        """Test that load_approval_channel raises on invalid module path."""
-        with patch("zrb.llm.approval.factory.CFG") as mock_cfg:
-            mock_cfg.LLM_APPROVAL_CHANNEL_FACTORY = "nonexistent_module.factory"
-
-            with pytest.raises(ImportError):
-                load_approval_channel()
-
-    def test_load_raises_on_missing_function(self):
-        """Test that load_approval_channel raises when function doesn't exist."""
-        with patch("zrb.llm.approval.factory.CFG") as mock_cfg:
-            # Use a module that exists but doesn't have the function
-            mock_cfg.LLM_APPROVAL_CHANNEL_FACTORY = "os.nonexistent_function"
-
-            with pytest.raises(AttributeError):
-                load_approval_channel()
-
-    def test_load_raises_on_wrong_return_type(self):
-        """Test that load_approval_channel raises when factory returns wrong type."""
-        # This test requires complex module mocking - skipped for now
-        # The actual TypeError check in factory.py handles this at runtime
-        pytest.skip("Requires complex module mocking setup")
 
 
 class TestApprovalChannelProtocol:

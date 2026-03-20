@@ -13,7 +13,6 @@ from zrb.llm.approval.channel import (
     TerminalApprovalChannel,
     current_approval_channel,
 )
-from zrb.llm.approval.factory import load_approval_channel
 
 __all__ = [
     "ApprovalChannel",
@@ -22,5 +21,4 @@ __all__ = [
     "current_approval_channel",
     "NullApprovalChannel",
     "TerminalApprovalChannel",
-    "load_approval_channel",
 ]

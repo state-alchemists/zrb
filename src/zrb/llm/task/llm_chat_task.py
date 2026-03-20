@@ -48,6 +48,9 @@ if TYPE_CHECKING:
     from pydantic_ai.toolsets import AbstractToolset
     from rich.theme import Theme
 
+    from zrb.llm.approval.channel import ApprovalChannel
+    from zrb.llm.tool_call.ui_protocol import UIProtocol
+
 
 class LLMChatTask(BaseTask):
 
@@ -95,6 +98,8 @@ class LLMChatTask(BaseTask):
         render_conversation_name: bool = True,
         history_manager: AnyHistoryManager | None = None,
         tool_confirmation: AnyToolConfirmation = None,
+        ui: UIProtocol | None = None,
+        approval_channel: ApprovalChannel | None = None,
         yolo: BoolAttr = False,
         yolo_xcom_key: str = "yolo",
         ui_summarize_commands: list[str] | None = None,
@@ -206,6 +211,8 @@ class LLMChatTask(BaseTask):
         self._render_conversation_name = render_conversation_name
         self._history_manager = history_manager
         self._tool_confirmation = tool_confirmation
+        self._ui = ui
+        self._approval_channel = approval_channel
         self._yolo = yolo
         self._yolo_xcom_key = yolo_xcom_key
         self._ui_summarize_commands = (
@@ -269,6 +276,14 @@ class LLMChatTask(BaseTask):
         if self._prompt_manager is None:
             raise ValueError(f"Task {self.name} doesn't have prompt_manager")
         return self._prompt_manager
+
+    def set_ui(self, ui: "UIProtocol | None"):
+        """Set the UI protocol for this task."""
+        self._ui = ui
+
+    def set_approval_channel(self, approval_channel: "ApprovalChannel | None"):
+        """Set the approval channel for tool confirmations."""
+        self._approval_channel = approval_channel
 
     def add_toolset(self, *toolset: AbstractToolset):
         self.append_toolset(*toolset)
@@ -496,17 +511,18 @@ class LLMChatTask(BaseTask):
 
         # Determine the tool confirmation and ui to use
         tool_confirmation = self._tool_confirmation
-        ui = None
+        ui = self._ui  # Use programmatically set UI if provided
 
         if interactive:
             # Interactive mode: Let the UI handle everything
             tool_confirmation = None
-            ui = None
+            ui = None  # Interactive mode uses its own UI system
         elif (
             self._tool_policies or self._response_handlers or self._argument_formatters
         ):
-            # Non-interactive: Use ToolCallHandler, with StdUI
-            ui = StdUI()
+            # Non-interactive: Use ToolCallHandler, with StdUI if no UI provided
+            if ui is None:
+                ui = StdUI()
             tool_confirmation = ToolCallHandler(
                 tool_policies=self._tool_policies,
                 argument_formatters=self._argument_formatters,
@@ -544,6 +560,7 @@ class LLMChatTask(BaseTask):
             history_manager=history_manager,
             tool_confirmation=tool_confirmation,
             ui=ui,
+            approval_channel=self._approval_channel,
             message="{ctx.input.message}",
             conversation_name="{ctx.input.session}",
             yolo="{ctx.input.yolo}",

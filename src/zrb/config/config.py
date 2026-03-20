@@ -145,7 +145,6 @@ class Config:
         self.DEFAULT_HOOKS_TIMEOUT: str = "30"
         self.DEFAULT_HOOKS_DEBUG: str = "0"
         self.DEFAULT_HOOKS_LOG_LEVEL: str = "INFO"
-        self.DEFAULT_LLM_APPROVAL_CHANNEL_FACTORY: str = ""
 
     @property
     def ENV_PREFIX(self) -> str:
@@ -1635,33 +1634,6 @@ class Config:
     @HOOKS_LOG_LEVEL.setter
     def HOOKS_LOG_LEVEL(self, value: str):
         os.environ[f"{self.ENV_PREFIX}_HOOKS_LOG_LEVEL"] = value
-
-    @property
-    def LLM_APPROVAL_CHANNEL_FACTORY(self) -> str | None:
-        """
-        Module path to approval channel factory function.
-
-        Set to a Python import path like "my_module.get_telegram_channel"
-        The factory should return an ApprovalChannel instance.
-
-        If empty, defaults to TerminalApprovalChannel using the current UI.
-
-        Environment variable: ZRB_LLM_APPROVAL_CHANNEL_FACTORY
-        """
-        value = get_env(
-            "LLM_APPROVAL_CHANNEL_FACTORY",
-            self.DEFAULT_LLM_APPROVAL_CHANNEL_FACTORY,
-            self.ENV_PREFIX,
-        )
-        return None if value == "" else value
-
-    @LLM_APPROVAL_CHANNEL_FACTORY.setter
-    def LLM_APPROVAL_CHANNEL_FACTORY(self, value: str | None):
-        if value is None:
-            if f"{self.ENV_PREFIX}_LLM_APPROVAL_CHANNEL_FACTORY" in os.environ:
-                del os.environ[f"{self.ENV_PREFIX}_LLM_APPROVAL_CHANNEL_FACTORY"]
-        else:
-            os.environ[f"{self.ENV_PREFIX}_LLM_APPROVAL_CHANNEL_FACTORY"] = value
 
 
 CFG = Config()
