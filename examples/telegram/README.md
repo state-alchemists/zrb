@@ -11,22 +11,22 @@ This example shows how to run `LLMChatTask` on Telegram with both UI and approva
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────┐
-│                  Telegram Bot                    │
-│                                                 │
-│  ┌──────────────┐      ┌──────────────────┐   │
+┌────────────────────────────────────────────────┐
+│                  Telegram Bot                  │
+│                                                │
+│  ┌──────────────┐      ┌────────────────-──┐   │
 │  │ TelegramUI   │      │ TelegramApproval  │   │
 │  │              │      │ Channel           │   │
 │  │ ask_user()   │      │ request_approval()│   │
 │  │ stream_output│      │ notify()          │   │
-│  └──────┬───────┘      └────────┬─────────┘   │
+│  └──────┬───────┘      └────────┬───────-──┘   │
 │         │                       │              │
-│         │   set_ui()   set_approval_channel()  │
+│      set_ui()          set_approval_channel()  │
 │         └───────────────────────┘              │
 │                     │                          │
-│              LLMChatTask                        │
-│            (interactive=False)                  │
-└─────────────────────────────────────────────────┘
+│              LLMChatTask                       │
+│            (interactive=False)                 │
+└────────────────────────────────────────────────┘
 ```
 
 ## Setup
