@@ -2,10 +2,8 @@ from typing import Callable
 
 from prompt_toolkit.filters import (
     Condition,
-    emacs_insert_mode,
     has_completions,
     has_selection,
-    vi_insert_mode,
 )
 from prompt_toolkit.formatted_text import HTML, AnyFormattedText
 from prompt_toolkit.history import History

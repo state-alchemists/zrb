@@ -2,7 +2,6 @@ import asyncio
 import inspect
 import logging
 import os
-import re
 import shlex
 from collections.abc import AsyncIterable, Callable
 from datetime import datetime

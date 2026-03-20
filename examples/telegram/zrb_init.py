@@ -347,15 +347,9 @@ if BOT_TOKEN and CHAT_ID:
     telegram_approval = TelegramApprovalChannel(bot_token=BOT_TOKEN, chat_id=CHAT_ID)
 
     # 3. Configure it for Telegram!
-    # By setting the UI (via a factory trick since we need ctx)
-    # Actually, llm_chat.set_ui doesn't take a factory yet, so we have a slight problem.
-    # But wait, LLMChatTask now checks `if isinstance(ui, BaseUI)`.
-    # Let's override `_run_interactive_ui` instead to inject the TelegramUI since it needs the ctx.
+    # By providing a factory, we can inject the TelegramUI with the execution context (ctx).
 
-    original_run_interactive = llm_chat._run_interactive_ui
-
-    async def telegram_run_interactive(
-        self,
+    def create_telegram_ui(
         ctx,
         llm_task_core,
         history_manager,
@@ -365,7 +359,7 @@ if BOT_TOKEN and CHAT_ID:
         initial_yolo,
         initial_attachments,
     ):
-        ui = TelegramUI(
+        return TelegramUI(
             bot_token=BOT_TOKEN,
             chat_id=CHAT_ID,
             ctx=ctx,
@@ -389,11 +383,8 @@ if BOT_TOKEN and CHAT_ID:
             exec_commands=ui_commands["exec"],
             # add triggers, tool handlers etc here if needed
         )
-        llm_chat.set_ui(ui)
-        await ui.run_async()
-        return ui.last_output
 
-    llm_chat._run_interactive_ui = telegram_run_interactive.__get__(llm_chat)
+    llm_chat.set_ui_factory(create_telegram_ui)
     llm_chat.set_approval_channel(telegram_approval)
 
     print(f"🤖 Telegram hijacked llm_chat for chat ID: {CHAT_ID}")

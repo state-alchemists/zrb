@@ -12,6 +12,7 @@ from zrb.llm.hook.types import HookEvent
 from zrb.llm.message import ensure_alternating_roles
 from zrb.llm.util.attachment import normalize_attachments
 from zrb.llm.util.prompt import expand_prompt
+from zrb.llm.approval.channel import current_approval_channel
 
 if TYPE_CHECKING:
     from pydantic_ai import (
@@ -48,9 +49,6 @@ current_hook_manager: ContextVar[HookManager | None] = ContextVar(
     "current_hook_manager", default=None
 )
 current_yolo: ContextVar[bool] = ContextVar("current_yolo", default=False)
-
-# Import the canonical current_approval_channel from approval module
-from zrb.llm.approval.channel import current_approval_channel
 
 
 async def run_agent(

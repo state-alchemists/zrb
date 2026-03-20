@@ -99,6 +99,22 @@ class LLMChatTask(BaseTask):
         history_manager: AnyHistoryManager | None = None,
         tool_confirmation: AnyToolConfirmation = None,
         ui: UIProtocol | None = None,
+        ui_factory: (
+            Callable[
+                [
+                    AnyContext,
+                    LLMTask,
+                    AnyHistoryManager,
+                    dict[str, list[str]],
+                    Any,
+                    str,
+                    bool,
+                    list[UserContent],
+                ],
+                UIProtocol,
+            ]
+            | None
+        ) = None,
         approval_channel: ApprovalChannel | None = None,
         yolo: BoolAttr = False,
         yolo_xcom_key: str = "yolo",
@@ -212,6 +228,7 @@ class LLMChatTask(BaseTask):
         self._history_manager = history_manager
         self._tool_confirmation = tool_confirmation
         self._ui = ui
+        self._ui_factory = ui_factory
         self._approval_channel = approval_channel
         self._yolo = yolo
         self._yolo_xcom_key = yolo_xcom_key
@@ -280,6 +297,15 @@ class LLMChatTask(BaseTask):
     def set_ui(self, ui: "UIProtocol | None"):
         """Set the UI protocol for this task."""
         self._ui = ui
+
+    def set_ui_factory(self, ui_factory: Callable[..., "UIProtocol"] | None):
+        """Set a factory function to instantiate the UI dynamically during execution.
+
+        The factory should accept:
+        (ctx, llm_task_core, history_manager, ui_commands, initial_message,
+        initial_conversation_name, initial_yolo, initial_attachments)
+        """
+        self._ui_factory = ui_factory
 
     def set_approval_channel(self, approval_channel: "ApprovalChannel | None"):
         """Set the approval channel for tool confirmations."""
@@ -609,7 +635,21 @@ class LLMChatTask(BaseTask):
         from zrb.llm.app.base_ui import BaseUI
 
         # Note: AsyncExitStack is handled by LLMTask._exec_action
-        ui = self._ui
+
+        # 1. Resolve UI from factory if provided
+        if self._ui_factory is not None:
+            ui = self._ui_factory(
+                ctx=ctx,
+                llm_task_core=llm_task_core,
+                history_manager=history_manager,
+                ui_commands=ui_commands,
+                initial_message=initial_message,
+                initial_conversation_name=initial_conversation_name,
+                initial_yolo=initial_yolo,
+                initial_attachments=initial_attachments,
+            )
+        else:
+            ui = self._ui
 
         if isinstance(ui, BaseUI):
             # If the provided UI is already a BaseUI subclass (like TelegramUI),

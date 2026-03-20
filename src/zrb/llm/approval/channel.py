@@ -11,7 +11,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
-    from pydantic_ai import ToolApproved, ToolCallPart, ToolDenied
+    from pydantic_ai import ToolApproved, ToolDenied
+    from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
 @dataclass
@@ -187,7 +188,3 @@ class NullApprovalChannel:
     ) -> None:
         """Ignore notifications."""
         pass
-
-
-if TYPE_CHECKING:
-    from zrb.llm.tool_call.ui_protocol import UIProtocol

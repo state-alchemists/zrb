@@ -19,7 +19,7 @@ With the latest architectural improvements, you can inherit from `BaseUI` to cre
 │  │  stream_output()│         │                     │       │
 │  └────────┬────────┘         └──────────┬──────────┘       │
 │           │                             │                  │
-│           │    set_ui()      set_approval_channel()         │
+│           │    set_ui_factory()  set_approval_channel()     │
 │           └──────────────────────────────┘                  │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -80,7 +80,7 @@ See `examples/telegram/zrb_init.py` for a complete working example of how to hij
 The example demonstrates:
 1. Inheriting from `BaseUI` to handle Telegram I/O while keeping Zrb's chat commands (`/save`, `/load`, `/attach`, etc.) working seamlessly.
 2. Implementing `TelegramApprovalChannel` using Telegram's Inline Keyboard Buttons for interactive tool approvals.
-3. Overriding the `_run_interactive_ui` method to inject the custom UI with the required context.
+3. Using `set_ui_factory()` to inject the custom UI with the required runtime context dynamically.
 
 ---
 

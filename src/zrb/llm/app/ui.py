@@ -2,13 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import re
 import subprocess
 from collections.abc import AsyncIterable, Callable
 from typing import TYPE_CHECKING, Any, TextIO
-
-logger = logging.getLogger(__name__)
 
 from prompt_toolkit import Application
 from prompt_toolkit.application import get_app, run_in_terminal
@@ -29,8 +26,7 @@ from zrb.llm.app.redirection import GlobalStreamCapture
 from zrb.llm.app.style import create_style
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-from zrb.llm.hook.manager import hook_manager
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.interface import HookEvent
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.tool_call import (
     ArgumentFormatter,
@@ -45,6 +41,8 @@ if TYPE_CHECKING:
     from pydantic_ai import UserContent
     from pydantic_ai.models import Model
     from rich.theme import Theme
+
+logger = logging.getLogger(__name__)
 
 
 class UI(BaseUI):

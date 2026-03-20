@@ -2,7 +2,7 @@ import json
 import os
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
-from zrb.llm.tool_call.handler import ToolPolicy, UIProtocol
+from zrb.llm.tool_call.handler import UIProtocol
 
 if TYPE_CHECKING:
     from pydantic_ai import ToolCallPart
