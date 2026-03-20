@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from pydantic_ai import ToolApproved, ToolDenied
+
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 

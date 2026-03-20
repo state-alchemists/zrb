@@ -5,6 +5,7 @@ from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias, Union
 
 from zrb.llm.agent.std_ui import StdUI
+from zrb.llm.approval.channel import current_approval_channel
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
@@ -12,7 +13,6 @@ from zrb.llm.hook.types import HookEvent
 from zrb.llm.message import ensure_alternating_roles
 from zrb.llm.util.attachment import normalize_attachments
 from zrb.llm.util.prompt import expand_prompt
-from zrb.llm.approval.channel import current_approval_channel
 
 if TYPE_CHECKING:
     from pydantic_ai import (

@@ -342,7 +342,6 @@ if BOT_TOKEN and CHAT_ID:
 
     # We must configure telegram_ui inside a lazy factory so that
     # context is properly resolved when the task runs
-
     # 1. Create Telegram approval channel
     telegram_approval = TelegramApprovalChannel(bot_token=BOT_TOKEN, chat_id=CHAT_ID)
 

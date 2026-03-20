@@ -635,7 +635,6 @@ class LLMChatTask(BaseTask):
         from zrb.llm.app.base_ui import BaseUI
 
         # Note: AsyncExitStack is handled by LLMTask._exec_action
-
         # 1. Resolve UI from factory if provided
         if self._ui_factory is not None:
             ui = self._ui_factory(
