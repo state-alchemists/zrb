@@ -1,33 +1,12 @@
 # Telegram LLM Bot Example
 
-This example shows how to run `LLMChatTask` on Telegram with both UI and approval channel routed through Telegram.
-
-## Features
-
-- **Telegram UI**: User messages and agent responses flow through Telegram
-- **Telegram Approvals**: Tool call confirmations use inline Approve/Deny buttons
-- **Non-interactive mode**: Runs as a background bot, not terminal-based
+This example shows how to make `zrb llm chat` work on Telegram instead of the terminal.
+By setting custom UI and approval channels, the existing `llm_chat` task will use Telegram, while keeping all of its built-in tools and capabilities.
 
 ## Architecture
 
-```
-┌────────────────────────────────────────────────┐
-│                  Telegram Bot                  │
-│                                                │
-│  ┌──────────────┐      ┌────────────────-──┐   │
-│  │ TelegramUI   │      │ TelegramApproval  │   │
-│  │              │      │ Channel           │   │
-│  │ ask_user()   │      │ request_approval()│   │
-│  │ stream_output│      │ notify()          │   │
-│  └──────┬───────┘      └────────┬───────-──┘   │
-│         │                       │              │
-│      set_ui()          set_approval_channel()  │
-│         └───────────────────────┘              │
-│                     │                          │
-│              LLMChatTask                       │
-│            (interactive=False)                 │
-└────────────────────────────────────────────────┘
-```
+When you run `zrb llm chat` normally, it uses the terminal for input/output and tool approvals.
+By importing the task and setting `interactive=False`, `set_ui()`, and `set_approval_channel()`, we can "hijack" the interface and route everything to Telegram.
 
 ## Setup
 
@@ -39,14 +18,31 @@ This example shows how to run `LLMChatTask` on Telegram with both UI and approva
 
 ### 2. Get Your Chat ID
 
-1. Start a chat with your bot
-2. Visit: `https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates`
-3. Find `"chat":{"id":<YOUR_CHAT_ID>}` in the response
+1. Start a chat with your bot on Telegram
+2. Send any message to your bot
+3. (If you previously set a webhook) Delete it first:
+   ```bash
+   curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/deleteWebhook"
+   ```
+4. Visit: `https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates`
+5. Find the `"chat"` object in the response, e.g.:
+   ```json
+   {"ok":true,"result":[{"message":{"chat":{"id":123456789,...}}}]}
+   ```
+6. Copy the `id` value (this is your `TELEGRAM_CHAT_ID`)
+
+> **Note:** If `getUpdates` returns `{"ok":true,"result":[]}`, either:
+> - You haven't sent a message to your bot yet, or
+> - A webhook is already set (webhooks and `getUpdates` are mutually exclusive)
 
 ### 3. Install Dependencies
 
 ```bash
-pip install zrb[llm] python-telegram-bot
+# Install zrb with LLM support
+pip install zrb[llm]
+
+# Install python-telegram-bot for Telegram integration
+pip install python-telegram-bot>=20.0
 ```
 
 ### 4. Set Environment Variables
@@ -59,118 +55,39 @@ export OPENAI_API_KEY="your_openai_key"  # or other LLM provider
 
 ## Usage
 
-### Run as Bot
+Since `zrb_init.py` automatically loads when you run zrb in this directory, you simply run the standard `chat` command:
 
 ```bash
 cd examples/telegram
-python -m zrb run llm-telegram-chat
+zrb llm chat "Please analyze my codebase"
 ```
 
-Or run directly:
-
-```bash
-python zrb_init.py
+You should see:
+```
+🤖 Telegram hijacked llm_chat for chat ID: <your_chat_id>
+   The LLM will now interact with you on Telegram!
 ```
 
-### Programmatic Usage
+The command will run in your terminal, but all conversational output, questions, and tool approval requests will be sent to your Telegram app. You reply directly in Telegram!
+
+## How it works (in `zrb_init.py`)
 
 ```python
-import asyncio
-from zrb_init import TelegramLLMBot
+# 1. Create Telegram implementations
+telegram_ui = TelegramUI(bot_token=BOT_TOKEN, chat_id=CHAT_ID)
+telegram_approval = TelegramApprovalChannel(bot_token=BOT_TOKEN, chat_id=CHAT_ID)
 
-async def main():
-    bot = TelegramLLMBot(
-        bot_token="YOUR_BOT_TOKEN",
-        chat_id="YOUR_CHAT_ID",
-        system_prompt="You are a helpful assistant.",
-        model="openai:gpt-4o",
-    )
-    
-    await bot.start()
-    
-    # Handle a single message
-    response = await bot.handle_message("What's the weather?")
-    print(response)
-    
-    # Or run forever in polling mode
-    # await bot.run_forever()
-    
-    await bot.shutdown()
+# 2. Import the existing, fully-featured llm_chat task
+from zrb.builtin.llm.chat import llm_chat
 
-asyncio.run(main())
-```
-
-## Key Components
-
-### TelegramUI
-
-Implements `UIProtocol` for Telegram-based user interaction:
-
-- `ask_user()` - Sends question to Telegram, waits for response
-- `append_to_output()` - Buffers output for batch sending
-- `stream_to_parent()` - Sends output immediately
-- `flush_output()` - Sends all buffered output
-
-### TelegramApprovalChannel
-
-Implements `ApprovalChannel` for Telegram-based tool confirmations:
-
-- `request_approval()` - Sends message with inline Approve/Deny buttons
-- `notify()` - Sends status notifications
-
-### TelegramLLMBot
-
-Wraps everything together:
-
-- Creates and configures `LLMChatTask`
-- Sets UI and approval channel
-- Handles message routing
-
-## Customization
-
-### Different LLM Provider
-
-```python
-bot = TelegramLLMBot(
-    bot_token="...",
-    chat_id="...",
-    model="anthropic:claude-3-opus",  # Use Claude
-)
-```
-
-### Custom Timeout
-
-```python
-bot = TelegramLLMBot(
-    bot_token="...",
-    chat_id="...",
-    message_timeout=600,   # 10 min for user response
-    approval_timeout=300,  # 5 min for approvals
-)
-```
-
-### Add Tools
-
-```python
-from zrb import LLMChatTask
-from pydantic_ai import Tool
-
-def my_tool(query: str) -> str:
-    """A custom tool."""
-    return f"Result: {query}"
-
-task = LLMChatTask(
-    name="bot",
-    tools=[Tool(my_tool)],
-    interactive=False,
-)
-task.set_ui(ui)
-task.set_approval_channel(approval)
+# 3. Hijack it for Telegram!
+llm_chat.interactive = False  # Disable the terminal TUI
+llm_chat.set_ui(telegram_ui)
+llm_chat.set_approval_channel(telegram_approval)
 ```
 
 ## Notes
 
-1. **`interactive=False`** - Required for non-terminal UIs like Telegram
-2. **Both components use the same bot** - UI and approval channel share the Telegram connection
-3. **Security** - Command execution (`run_interactive_command`) is disabled from Telegram
-4. **Long messages** - Automatically truncated to fit Telegram's 4096 character limit
+1. **`interactive=False`** - Required to stop `llm_chat` from launching its fullscreen terminal UI.
+2. **Security** - Command execution (`run_interactive_command`) is disabled from Telegram for safety.
+3. **Webhook conflict** - If a webhook is set, `getUpdates` returns empty; delete webhook first.

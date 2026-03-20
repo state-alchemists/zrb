@@ -606,6 +606,18 @@ class LLMChatTask(BaseTask):
         initial_yolo: bool,
         initial_attachments: list[UserContent],
     ) -> Any:
+        from zrb.llm.app.base_ui import BaseUI
+
+        # Note: AsyncExitStack is handled by LLMTask._exec_action
+        ui = self._ui
+
+        if isinstance(ui, BaseUI):
+            # If the provided UI is already a BaseUI subclass (like TelegramUI),
+            # just run it. We assume it's already properly configured.
+            await ui.run_async()
+            return ui.last_output
+
+        # Otherwise, fall back to the default Terminal UI
         from zrb.llm.app.lexer import CLIStyleLexer
         from zrb.llm.app.ui import UI
 
@@ -631,7 +643,6 @@ class LLMChatTask(BaseTask):
             else:
                 resolved_custom_commands.append(cmd)
 
-        # Note: AsyncExitStack is handled by LLMTask._exec_action
         ui = UI(
             ctx=ctx,
             yolo_xcom_key=self._yolo_xcom_key,

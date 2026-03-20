@@ -1,12 +1,13 @@
 """
-Telegram Bot Example for Zrb LLM
+Telegram UI/Approval for Zrb LLM Chat
 
-This example shows how to run LLMChatTask on Telegram with both
-UI and approval channel routed through Telegram.
+This example shows how to make `zrb llm chat` work on Telegram instead of the terminal.
+By setting custom UI and approval channels, the existing llm_chat task will use Telegram.
 
-Requirements:
-    - python-telegram-bot>=20.0
-    - Set environment variables: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+Usage:
+    export TELEGRAM_BOT_TOKEN="your_token"
+    export TELEGRAM_CHAT_ID="your_chat_id"
+    zrb llm chat
 """
 
 import asyncio
@@ -14,29 +15,54 @@ import json
 import os
 from typing import Any
 
-from zrb import LLMChatTask
+from zrb.context.any_context import AnyContext
+from zrb.llm.app.base_ui import BaseUI
 from zrb.llm.approval import ApprovalChannel, ApprovalContext, ApprovalResult
-from zrb.llm.tool_call.ui_protocol import UIProtocol
+from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.task.llm_task import LLMTask
 
 # =============================================================================
 # Telegram UI Implementation
 # =============================================================================
 
 
-class TelegramUI(UIProtocol):
-    """UIProtocol implementation for Telegram - handles user interaction."""
+class TelegramUI(BaseUI):
+    """BaseUI implementation for Telegram.
 
-    def __init__(self, bot_token: str, chat_id: str, timeout: int = 300):
+    This inherits the full interactive chat loop (command parsing, message queue,
+    session management, tools) from BaseUI, but overrides the I/O to use Telegram.
+    """
+
+    def __init__(
+        self,
+        bot_token: str,
+        chat_id: str,
+        ctx: AnyContext,
+        yolo_xcom_key: str,
+        assistant_name: str,
+        llm_task: LLMTask,
+        history_manager: AnyHistoryManager,
+        timeout: int = 300,
+        **kwargs,
+    ):
+        super().__init__(
+            ctx=ctx,
+            yolo_xcom_key=yolo_xcom_key,
+            assistant_name=assistant_name,
+            llm_task=llm_task,
+            history_manager=history_manager,
+            **kwargs,
+        )
         self.bot_token = bot_token
         self.chat_id = chat_id
         self.timeout = timeout
         self._bot = None
         self._application = None
-        self._pending: dict[str, asyncio.Future[str]] = {}
+        self._pending_questions: dict[str, asyncio.Future[str]] = {}
         self._buffer: list[str] = []
+        self._flush_task = None
 
     async def _ensure_bot(self):
-        """Lazy initialization of Telegram bot."""
         if self._bot:
             return
         from telegram.ext import Application, MessageHandler, filters
@@ -51,68 +77,156 @@ class TelegramUI(UIProtocol):
         self._bot = self._application.bot
 
     async def _handle_message(self, update, context):
-        """Handle incoming text messages."""
+        """Handle incoming Telegram messages."""
         text = update.message.text
-        # Route message to pending question
-        for qid, future in list(self._pending.items()):
+        if not text:
+            return
+
+        # Route message to the pending ask_user() question
+        for qid, future in list(self._pending_questions.items()):
             if not future.done():
                 future.set_result(text)
-                self._pending.pop(qid, None)
+                self._pending_questions.pop(qid, None)
                 return
 
-    async def ask_user(self, prompt: str) -> str:
-        """Send a question to Telegram and wait for response."""
+        # If no pending question, check if it's a command
+        if self._handle_exit_command(text):
+            return
+        if self._handle_info_command(text):
+            return
+        if self._handle_save_command(text):
+            return
+        if self._handle_load_command(text):
+            return
+        if self._handle_redirect_command(text):
+            return
+        if self._handle_attach_command(text):
+            return
+        if self._handle_toggle_yolo(text):
+            return
+        if self._handle_set_model_command(text):
+            return
+        if self._handle_exec_command(text):
+            return
+        if self._handle_custom_command(text):
+            return
+
+        # Not a command, submit as user message to the LLM
+        self._submit_user_message(self._llm_task, text)
+
+    async def run_async(self):
+        """Run the application."""
         await self._ensure_bot()
+
+        # Start message processor
+        self._process_messages_task = asyncio.create_task(self._process_messages_loop())
+
+        # Start flush loop
+        self._flush_task = asyncio.create_task(self._flush_loop())
+
+        if self._initial_message:
+            self._submit_user_message(self._llm_task, self._initial_message)
+
+        try:
+            # Block until cancelled
+            while True:
+                await asyncio.sleep(1)
+        except asyncio.CancelledError:
+            pass
+        finally:
+            if self._process_messages_task:
+                self._process_messages_task.cancel()
+            if self._flush_task:
+                self._flush_task.cancel()
+            await self.shutdown()
+
+    async def _flush_loop(self):
+        while True:
+            await asyncio.sleep(0.5)
+            await self.flush_output()
+
+    def on_exit(self):
+        """Called when user types an exit command."""
+        self._send("Shutting down... 👋")
+        # Give it a tiny bit to send the message before hard exit
+        import sys
+        import threading
+        import time
+
+        def exit_later():
+            time.sleep(1)
+            sys.exit(0)
+
+        threading.Thread(target=exit_later).start()
+
+    async def ask_user(self, prompt: str) -> str:
+        """Wait for user input from Telegram."""
+        await self._ensure_bot()
+
+        # Send the prompt to Telegram
         await self._bot.send_message(chat_id=self.chat_id, text=f"❓ {prompt}")
 
+        # Wait for the next message in _handle_message to resolve this future
         loop = asyncio.get_event_loop()
         future: asyncio.Future[str] = loop.create_future()
-        self._pending[f"q_{id(future)}"] = future
+        self._pending_questions[f"q_{id(future)}"] = future
 
         try:
             async with asyncio.timeout(self.timeout):
                 return await future
         except asyncio.TimeoutError:
-            self._pending.clear()
-            await self._bot.send_message(chat_id=self.chat_id, text="⏰ Timed out")
+            self._pending_questions.clear()
+            await self._bot.send_message(
+                chat_id=self.chat_id, text="⏰ Timed out waiting for response."
+            )
             return ""
 
     def append_to_output(
         self, *values, sep: str = " ", end: str = "\n", file=None, flush: bool = False
     ):
-        """Buffer output for later sending."""
         self._buffer.append(sep.join(str(v) for v in values) + end)
 
     def stream_to_parent(
         self, *values, sep: str = " ", end: str = "\n", file=None, flush: bool = False
     ):
-        """Send output immediately to Telegram."""
         msg = sep.join(str(v) for v in values) + end
-        asyncio.create_task(self._send(msg))
+        self._send(msg)
 
-    async def _send(self, msg: str):
-        """Send message to Telegram (with truncation for long messages)."""
-        await self._ensure_bot()
-        if len(msg) > 4000:
-            msg = msg[:3997] + "..."
-        await self._bot.send_message(chat_id=self.chat_id, text=msg)
+    def _send(self, msg: str):
+        import asyncio
+
+        from zrb.util.cli.style import remove_style
+
+        # Remove ANSI escape codes for Telegram
+        clean_msg = remove_style(msg)
+
+        # Don't send empty messages after stripping style
+        if not clean_msg.strip():
+            return
+
+        async def do_send():
+            await self._ensure_bot()
+            msg_to_send = clean_msg
+            if len(msg_to_send) > 4000:
+                msg_to_send = msg_to_send[:3997] + "..."
+            await self._bot.send_message(chat_id=self.chat_id, text=msg_to_send)
+
+        # We need to run this task in the background since append_to_output is sync
+        asyncio.create_task(do_send())
 
     async def flush_output(self):
-        """Send all buffered output."""
         if self._buffer:
             msg = "".join(self._buffer)
             self._buffer = []
-            await self._send(msg)
+            self._send(msg)
 
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False
     ) -> Any:
-        """Run shell commands - disabled for security on Telegram."""
-        await self._send(f"⚠️ Command execution disabled from Telegram")
-        return {"error": "Command execution disabled"}
+        self._send(f"⚠️ Command execution disabled from Telegram")
+        return {"error": "Disabled"}
 
     async def shutdown(self):
-        """Clean shutdown of the bot."""
         if self._application:
             await self._application.updater.stop()
             await self._application.stop()
@@ -125,7 +239,7 @@ class TelegramUI(UIProtocol):
 
 
 class TelegramApprovalChannel(ApprovalChannel):
-    """ApprovalChannel implementation for Telegram - handles tool confirmations."""
+    """ApprovalChannel implementation for Telegram."""
 
     def __init__(self, bot_token: str, chat_id: str, timeout: int = 300):
         self.bot_token = bot_token
@@ -133,10 +247,9 @@ class TelegramApprovalChannel(ApprovalChannel):
         self.timeout = timeout
         self._bot = None
         self._application = None
-        self._pending: dict[str, asyncio.Future[ApprovalResult]] = {}
+        self._pending_approvals: dict[str, asyncio.Future[ApprovalResult]] = {}
 
     async def _ensure_bot(self):
-        """Lazy initialization of Telegram bot."""
         if self._bot:
             return
         from telegram.ext import Application, CallbackQueryHandler
@@ -149,7 +262,6 @@ class TelegramApprovalChannel(ApprovalChannel):
         self._bot = self._application.bot
 
     async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
-        """Send approval request with inline Approve/Deny buttons."""
         await self._ensure_bot()
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -167,7 +279,7 @@ class TelegramApprovalChannel(ApprovalChannel):
 
         loop = asyncio.get_event_loop()
         future: asyncio.Future[ApprovalResult] = loop.create_future()
-        self._pending[context.tool_call_id] = future
+        self._pending_approvals[context.tool_call_id] = future
 
         try:
             await self._bot.send_message(
@@ -179,22 +291,21 @@ class TelegramApprovalChannel(ApprovalChannel):
             async with asyncio.timeout(self.timeout):
                 return await future
         except asyncio.TimeoutError:
-            self._pending.pop(context.tool_call_id, None)
+            self._pending_approvals.pop(context.tool_call_id, None)
             return ApprovalResult(approved=False, message="Timeout")
 
     async def _handle_callback(self, update, context):
-        """Handle inline button press."""
         query = update.callback_query
         await query.answer()
 
         action, tool_call_id = query.data.split(":", 1)
-        if tool_call_id not in self._pending:
+        if tool_call_id not in self._pending_approvals:
             await query.edit_message_text("⚠️ Expired or invalid request")
             return
 
         approved = action == "approve"
         result = ApprovalResult(approved=approved)
-        self._pending.pop(tool_call_id).set_result(result)
+        self._pending_approvals.pop(tool_call_id).set_result(result)
 
         emoji = "✅ Approved" if approved else "❌ Denied"
         await query.edit_message_text(
@@ -202,17 +313,14 @@ class TelegramApprovalChannel(ApprovalChannel):
         )
 
     def _format_message(self, ctx: ApprovalContext) -> str:
-        """Format the approval request message."""
         args_str = json.dumps(ctx.tool_args, indent=2, default=str)
         return f"🔔 *Tool Approval Request*\n\nTool: `{ctx.tool_name}`\n\n```\n{args_str}\n```"
 
     async def notify(self, message: str, context: ApprovalContext | None = None):
-        """Send a notification message."""
         await self._ensure_bot()
         await self._bot.send_message(chat_id=self.chat_id, text=message)
 
     async def shutdown(self):
-        """Clean shutdown of the bot."""
         if self._application:
             await self._application.updater.stop()
             await self._application.stop()
@@ -220,166 +328,78 @@ class TelegramApprovalChannel(ApprovalChannel):
 
 
 # =============================================================================
-# Telegram Bot Wrapper
+# Hijack the built-in llm_chat task
 # =============================================================================
 
-
-class TelegramLLMBot:
-    """
-    Telegram bot that runs LLMChatTask with full Telegram interaction.
-
-    - UI (ask_user, output) goes through Telegram
-    - Tool approvals go through Telegram with inline buttons
-    """
-
-    def __init__(
-        self,
-        bot_token: str,
-        chat_id: str,
-        system_prompt: str = "You are a helpful assistant.",
-        model: str = "openai:gpt-4o",
-        message_timeout: int = 300,
-        approval_timeout: int = 300,
-    ):
-        self.bot_token = bot_token
-        self.chat_id = chat_id
-        self.system_prompt = system_prompt
-        self.model = model
-        self.message_timeout = message_timeout
-        self.approval_timeout = approval_timeout
-
-        self._ui: TelegramUI | None = None
-        self._approval: TelegramApprovalChannel | None = None
-        self._task: LLMChatTask | None = None
-
-    async def start(self):
-        """Initialize the bot components."""
-        self._ui = TelegramUI(
-            bot_token=self.bot_token,
-            chat_id=self.chat_id,
-            timeout=self.message_timeout,
-        )
-        self._approval = TelegramApprovalChannel(
-            bot_token=self.bot_token,
-            chat_id=self.chat_id,
-            timeout=self.approval_timeout,
-        )
-
-        # Create LLMChatTask configured for Telegram
-        self._task = LLMChatTask(
-            name="telegram_bot",
-            system_prompt=self.system_prompt,
-            model=self.model,
-            interactive=False,  # Required for non-terminal UI
-        )
-
-        # Set UI and approval channel
-        self._task.set_ui(self._ui)
-        self._task.set_approval_channel(self._approval)
-
-    async def handle_message(self, user_message: str) -> str:
-        """Process a user message and return the response."""
-        if not self._task:
-            await self.start()
-
-        from zrb.context.shared_context import SharedContext
-        from zrb.session.session import Session
-
-        # Send "thinking" status
-        await self._ui._send("🤔 Thinking...")
-
-        try:
-            # Create session context
-            shared_ctx = SharedContext(
-                input={"message": user_message},
-                print_fn=lambda *a, **k: None,
-            )
-            session = Session(shared_ctx)
-
-            # Run the task
-            result = await self._task.async_run(session)
-
-            # Flush any remaining output
-            await self._ui.flush_output()
-
-            return result or "Done."
-
-        except Exception as e:
-            await self._ui._send(f"❌ Error: {e}")
-            raise
-
-    async def run_forever(self):
-        """Run the bot in polling mode, handling all incoming messages."""
-        await self.start()
-
-        # Both UI and approval channel handle their own polling via telegram.ext
-        # This method can be extended for additional bot logic
-        await self._ui._ensure_bot()
-
-        try:
-            # Keep running until interrupted
-            await asyncio.Event().wait()
-        except asyncio.CancelledError:
-            pass
-        finally:
-            await self.shutdown()
-
-    async def shutdown(self):
-        """Clean shutdown."""
-        if self._ui:
-            await self._ui.shutdown()
-        if self._approval:
-            await self._approval.shutdown()
-
-
-# =============================================================================
-# Zrb Task Definition
-# =============================================================================
-
-# Environment variables (set these in your .env or shell)
+# Get environment variables
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-# Create the bot instance
-telegram_bot = TelegramLLMBot(
-    bot_token=BOT_TOKEN or "YOUR_BOT_TOKEN",
-    chat_id=CHAT_ID or "YOUR_CHAT_ID",
-    system_prompt="You are a helpful AI assistant.",
-    model="openai:gpt-4o",
-)
+if BOT_TOKEN and CHAT_ID:
 
-# Create a Zrb task for CLI testing
-llm_telegram_chat = LLMChatTask(
-    name="llm-telegram-chat",
-    system_prompt="You are a helpful AI assistant.",
-    interactive=False,
-)
+    # 2. Import the existing, fully-featured llm_chat task
+    from zrb.builtin.llm.chat import llm_chat
 
+    # We must configure telegram_ui inside a lazy factory so that
+    # context is properly resolved when the task runs
 
-# =============================================================================
-# Main Entry Point
-# =============================================================================
+    # 1. Create Telegram approval channel
+    telegram_approval = TelegramApprovalChannel(bot_token=BOT_TOKEN, chat_id=CHAT_ID)
 
+    # 3. Configure it for Telegram!
+    # By setting the UI (via a factory trick since we need ctx)
+    # Actually, llm_chat.set_ui doesn't take a factory yet, so we have a slight problem.
+    # But wait, LLMChatTask now checks `if isinstance(ui, BaseUI)`.
+    # Let's override `_run_interactive_ui` instead to inject the TelegramUI since it needs the ctx.
 
-async def main():
-    """Run the Telegram bot."""
-    if not BOT_TOKEN or not CHAT_ID:
-        print(
-            "Please set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID environment variables"
+    original_run_interactive = llm_chat._run_interactive_ui
+
+    async def telegram_run_interactive(
+        self,
+        ctx,
+        llm_task_core,
+        history_manager,
+        ui_commands,
+        initial_message,
+        initial_conversation_name,
+        initial_yolo,
+        initial_attachments,
+    ):
+        ui = TelegramUI(
+            bot_token=BOT_TOKEN,
+            chat_id=CHAT_ID,
+            ctx=ctx,
+            yolo_xcom_key="yolo",
+            assistant_name="Zrb Telegram Bot",
+            llm_task=llm_task_core,
+            history_manager=history_manager,
+            initial_message=initial_message,
+            conversation_session_name=initial_conversation_name,
+            initial_attachments=initial_attachments,
+            yolo=initial_yolo,
+            summarize_commands=ui_commands["summarize"],
+            attach_commands=ui_commands["attach"],
+            exit_commands=ui_commands["exit"],
+            info_commands=ui_commands["info"],
+            save_commands=ui_commands["save"],
+            load_commands=ui_commands["load"],
+            yolo_toggle_commands=ui_commands["yolo_toggle"],
+            set_model_commands=ui_commands["set_model"],
+            redirect_output_commands=ui_commands["redirect_output"],
+            exec_commands=ui_commands["exec"],
+            # add triggers, tool handlers etc here if needed
         )
-        return
+        llm_chat.set_ui(ui)
+        await ui.run_async()
+        return ui.last_output
 
-    print(f"Starting Telegram bot for chat {CHAT_ID}...")
+    llm_chat._run_interactive_ui = telegram_run_interactive.__get__(llm_chat)
+    llm_chat.set_approval_channel(telegram_approval)
 
-    await telegram_bot.start()
+    print(f"🤖 Telegram hijacked llm_chat for chat ID: {CHAT_ID}")
+    print("   The LLM will now interact with you on Telegram!")
 
-    # Example: handle one message
-    # response = await telegram_bot.handle_message("Hello!")
-    # print(f"Response: {response}")
-
-    # Run forever in polling mode
-    await telegram_bot.run_forever()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+else:
+    print(
+        "⚠️  Telegram not configured. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID environment variables."
+    )
