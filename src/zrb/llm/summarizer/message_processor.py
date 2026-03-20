@@ -146,4 +146,8 @@ async def process_tool_return_part(
         return new_part, True
     except Exception as e:
         zrb_print(stylize_error(f"  Error summarizing tool result: {e}"), plain=True)
-        return part, False
+        # Return truncated content instead of original to prevent
+        # unbounded content growth in history when summarization fails
+        truncated = limiter.truncate_text(content, message_threshold)
+        new_part = replace(part, content=f"{TRUNCATED_PREFIX}\n{truncated}")
+        return new_part, True

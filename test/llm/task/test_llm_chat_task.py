@@ -3,7 +3,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.context.shared_context import SharedContext
+from zrb.llm.approval.channel import NullApprovalChannel
 from zrb.llm.task.llm_chat_task import LLMChatTask
+from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.session.session import Session
 
 
@@ -107,3 +109,60 @@ async def test_llm_chat_task_setters():
         mock_run_agent.return_value = ("Done", [])
         await task.async_run(session)
         assert mock_run_agent.called
+
+
+def test_llm_chat_task_set_approval_channel():
+    """Test that set_approval_channel works on LLMChatTask."""
+    task = LLMChatTask(name="test-task")
+
+    assert task._approval_channel is None
+
+    # Set approval channel programmatically
+    channel = NullApprovalChannel()
+    task.set_approval_channel(channel)
+
+    assert task._approval_channel is channel
+
+
+def test_llm_chat_task_set_ui():
+    """Test that set_ui works on LLMChatTask."""
+    task = LLMChatTask(name="test-task")
+
+    assert task._ui is None
+
+    # Set UI programmatically
+    mock_ui = MagicMock(spec=UIProtocol)
+    task.set_ui(mock_ui)
+
+    assert task._ui is mock_ui
+
+
+def test_llm_chat_task_set_ui_factory():
+    """Test that set_ui_factory works on LLMChatTask."""
+    task = LLMChatTask(name="test-task")
+
+    assert task._ui_factory is None
+
+    # Set UI factory programmatically
+    def mock_factory(*args, **kwargs):
+        return MagicMock(spec=UIProtocol)
+
+    task.set_ui_factory(mock_factory)
+
+    assert task._ui_factory is mock_factory
+
+
+def test_llm_chat_task_init_with_approval_channel():
+    """Test that LLMChatTask accepts approval_channel parameter."""
+    channel = NullApprovalChannel()
+    task = LLMChatTask(name="test-task", approval_channel=channel)
+
+    assert task._approval_channel is channel
+
+
+def test_llm_chat_task_init_with_ui():
+    """Test that LLMChatTask accepts ui parameter."""
+    mock_ui = MagicMock(spec=UIProtocol)
+    task = LLMChatTask(name="test-task", ui=mock_ui)
+
+    assert task._ui is mock_ui

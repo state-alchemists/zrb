@@ -5,6 +5,7 @@ from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias, Union
 
 from zrb.llm.agent.std_ui import StdUI
+from zrb.llm.approval.channel import current_approval_channel
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
@@ -24,6 +25,7 @@ if TYPE_CHECKING:
     )
     from pydantic_ai.messages import UserPromptPart
 
+    from zrb.llm.approval.channel import ApprovalChannel
     from zrb.llm.tool_call.handler import ToolCallHandler
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
@@ -61,6 +63,7 @@ async def run_agent(
     ui: UIProtocol | None = None,
     hook_manager: HookManager | None = None,
     yolo: bool = False,
+    approval_channel: "ApprovalChannel | None" = None,
 ) -> tuple[Any, list[Any]]:
     """
     Runs the agent with rate limiting, history management, and optional CLI confirmation loop.
@@ -68,19 +71,21 @@ async def run_agent(
     """
     from pydantic_ai import AgentRunResultEvent, DeferredToolRequests, UsageLimits
 
-    # Resolve UI, Tool Confirmation, Hook Manager, and YOLO from arguments or context fallback
+    # Resolve UI, Tool Confirmation, Hook Manager, YOLO, and Approval Channel from arguments or context fallback
     effective_ui = ui or current_ui.get() or StdUI()
     effective_tool_confirmation = tool_confirmation or current_tool_confirmation.get()
     effective_hook_manager = (
         hook_manager or current_hook_manager.get() or default_hook_manager
     )
     effective_yolo = yolo or current_yolo.get()
+    effective_approval_channel = approval_channel or current_approval_channel.get()
 
     # Set context variables so sub-agents can inherit them
     token_ui = current_ui.set(effective_ui)
     token_confirmation = current_tool_confirmation.set(effective_tool_confirmation)
     token_hook_manager = current_hook_manager.set(effective_hook_manager)
     token_yolo = current_yolo.set(effective_yolo)
+    token_approval_channel = current_approval_channel.set(effective_approval_channel)
 
     try:
         # Resolve print_fn and event_handler for streaming visibility
@@ -239,6 +244,7 @@ async def run_agent(
                         effective_tool_confirmation,
                         effective_ui,
                         effective_hook_manager,
+                        effective_approval_channel,
                     )
                     if current_results is None:
                         # Hook: SessionEnd (premature end due to tool denial or wait)
@@ -272,6 +278,7 @@ async def run_agent(
         current_tool_confirmation.reset(token_confirmation)
         current_hook_manager.reset(token_hook_manager)
         current_yolo.reset(token_yolo)
+        current_approval_channel.reset(token_approval_channel)
 
 
 def _get_prompt_content(
@@ -329,13 +336,20 @@ async def _process_deferred_requests(
     effective_tool_confirmation: AnyToolConfirmation,
     ui: UIProtocol,
     hook_manager: HookManager,
+    approval_channel: "ApprovalChannel | None" = None,
 ) -> "DeferredToolResults | None":
-    """Handles tool approvals/denials via callback, ToolCallHandler, or CLI fallback."""
+    """Handles tool approvals/denials via policy, approval channel, or CLI fallback.
+
+    Priority order:
+    1. Tool confirmation handler (if provided) - for policy-based approval
+    2. Approval channel (if provided) - for remote/external approval
+    3. CLI fallback via ToolCallHandler with UI.ask_user()
+    """
     import inspect
-    import sys
 
-    from pydantic_ai import DeferredToolResults
+    from pydantic_ai import DeferredToolResults, ToolDenied
 
+    from zrb.llm.approval.channel import ApprovalContext
     from zrb.llm.tool_call.handler import ToolCallHandler
 
     all_requests = (result_output.calls or []) + (result_output.approvals or [])
@@ -364,6 +378,7 @@ async def _process_deferred_requests(
         result = None
         handled = False
 
+        # Priority 1: Tool Confirmation Handler (policy-based approval)
         if effective_tool_confirmation:
             if isinstance(effective_tool_confirmation, ToolCallHandler):
                 result = await effective_tool_confirmation.handle(ui, call)
@@ -376,19 +391,30 @@ async def _process_deferred_requests(
                 else:
                     result = res
 
+            # If policy made a decision (not None), we're done
             if result is not None:
                 handled = True
 
-        if handled:
-            current_results.approvals[call.tool_call_id] = result
-        else:
-            # CLI Fallback using StdUI logic
+        # Priority 2: Approval Channel (remote/external approval)
+        if not handled and approval_channel is not None:
+            context = ApprovalContext(
+                tool_name=call.tool_name,
+                tool_args=call.args if isinstance(call.args, dict) else {},
+                tool_call_id=call.tool_call_id,
+            )
+            approval_result = await approval_channel.request_approval(context)
+            result = approval_result.to_pydantic_result()
+            handled = True
+
+        # Priority 3: CLI Fallback using ToolCallHandler
+        if not handled:
             handler = ToolCallHandler()  # Use default handler with no policies
             result = await handler.handle(ui, call)
-            current_results.approvals[call.tool_call_id] = result
+
+        current_results.approvals[call.tool_call_id] = result
 
         # Hook: PostToolUse / PostToolUseFailure
-        from pydantic_ai import ToolApproved, ToolDenied
+        from pydantic_ai import ToolApproved
 
         if isinstance(result, ToolApproved):
             await hook_manager.execute_hooks(
