@@ -17,7 +17,7 @@ Usage:
     export TWILIO_PHONE_NUMBER="whatsapp:+14155238886"
     export TWILIO_WEBHOOK_PORT="8080"  # Optional, default 8080
 
-    # Terminal 1: Start webhook server + ngrok
+    # Terminal 1: Start ngrok
     ngrok http 8080
 
     # Terminal 2: Run llm chat
@@ -25,6 +25,7 @@ Usage:
 """
 
 import asyncio
+import json
 import os
 
 from aiohttp import web
@@ -33,6 +34,7 @@ from twilio.twiml.messaging_response import MessagingResponse
 
 from zrb.builtin.llm.chat import llm_chat
 from zrb.llm.app.base_ui import BaseUI
+from zrb.llm.approval import ApprovalChannel, ApprovalContext, ApprovalResult
 from zrb.util.cli.style import remove_style
 
 TWILIO_SID = os.environ.get("TWILIO_ACCOUNT_SID")
@@ -40,17 +42,21 @@ TWILIO_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN")
 TWILIO_PHONE = os.environ.get("TWILIO_PHONE_NUMBER")
 WEBHOOK_PORT = int(os.environ.get("TWILIO_WEBHOOK_PORT", "8080"))
 
-# Sessions for routing messages
+# Sessions for routing messages - keyed by phone number
 _sessions: dict[str, "WhatsAppUI"] = {}
+# Pending approvals - keyed by phone_number, value is dict of tool_call_id -> future
+_pending_approvals: dict[str, dict[str, asyncio.Future]] = {}
+# Waiting for approval response - keyed by phone_number, value is tool_call_id
+_waiting_for_approval: dict[str, str] = {}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# WhatsApp Client - Buffered sending
+# WhatsApp Client - Buffered sending with approval support
 # ─────────────────────────────────────────────────────────────────────────────
 
 
 class WhatsAppClient:
-    """Twilio client with buffered output."""
+    """Twilio client with buffered output and approval tracking."""
 
     def __init__(self, phone: str, flush_interval: float = 1.0):
         self.phone = phone
@@ -113,6 +119,18 @@ class WhatsAppClient:
             )
         except Exception as e:
             print(f"Send error: {e}")
+
+    async def send_approval_request(
+        self, text: str, tool_call_id: str, future: asyncio.Future
+    ):
+        """Send approval request and track it."""
+        # Register the pending approval
+        if self.phone not in _pending_approvals:
+            _pending_approvals[self.phone] = {}
+        _pending_approvals[self.phone][tool_call_id] = future
+        _waiting_for_approval[self.phone] = tool_call_id
+
+        await self.send_now(text)
 
     async def flush(self):
         """Manually flush buffer."""
@@ -185,26 +203,111 @@ class WhatsAppUI(BaseUI):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Webhook Handler
+# WhatsApp Approval Channel - Uses message replies
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-async def handle_whatsapp(request):
-    """Handle Twilio webhook."""
+class WhatsAppApprovalChannel(ApprovalChannel):
+    """Approval via WhatsApp message reply (yes/no)."""
+
+    def __init__(self, client: WhatsAppClient):
+        self.client = client
+
+    async def request_approval(self, ctx: ApprovalContext) -> ApprovalResult:
+        await self.client.flush()
+
+        # Format the approval request
+        args_str = json.dumps(ctx.tool_args, indent=2, default=str)[:800]
+        message = (
+            f"🔔 *Tool:* `{ctx.tool_name}`\n"
+            f"```\n{args_str}\n```\n"
+            f"_Reply with 'yes' to approve or 'no' to deny._"
+        )
+
+        # Create future for this approval
+        loop = asyncio.get_event_loop()
+        future = loop.create_future()
+
+        # Register pending approval
+        if self.client.phone not in _pending_approvals:
+            _pending_approvals[self.client.phone] = {}
+        _pending_approvals[self.client.phone][ctx.tool_call_id] = future
+        _waiting_for_approval[self.client.phone] = ctx.tool_call_id
+
+        # Send approval request
+        await self.client.send_now(message)
+
+        # Wait for response (with timeout)
+        try:
+            async with asyncio.timeout(300):
+                return await future
+        except asyncio.TimeoutError:
+            # Clean up on timeout
+            _pending_approvals.get(self.client.phone, {}).pop(ctx.tool_call_id, None)
+            if _waiting_for_approval.get(self.client.phone) == ctx.tool_call_id:
+                _waiting_for_approval.pop(self.client.phone, None)
+            return ApprovalResult(
+                approved=False, message="Timeout waiting for approval"
+            )
+
+    async def notify(self, msg: str, ctx=None):
+        await self.client.send_now(f"📢 {msg}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Webhook Handler - Routes messages and approval responses
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+async def handle_whatsapp(request: web.Request) -> web.Response:
+    """Handle Twilio webhook - routes messages and approval responses."""
     data = await request.post()
 
     from_number = data.get("From", "").replace("whatsapp:", "")
-    message_body = data.get("Body", "")
+    message_body = data.get("Body", "").strip().lower()
 
     if not from_number or not message_body:
         return web.Response(text="", status=400)
 
+    # Check if this is a response to an approval request
+    if from_number in _waiting_for_approval:
+        tool_call_id = _waiting_for_approval[from_number]
+        if message_body in ("yes", "y", "approve", "1"):
+            # Approved
+            if (
+                from_number in _pending_approvals
+                and tool_call_id in _pending_approvals[from_number]
+            ):
+                _pending_approvals[from_number].pop(tool_call_id).set_result(
+                    ApprovalResult(approved=True)
+                )
+            _waiting_for_approval.pop(from_number, None)
+            return web.Response(
+                text=str(MessagingResponse()), content_type="application/xml"
+            )
+        elif message_body in ("no", "n", "deny", "0"):
+            # Denied
+            if (
+                from_number in _pending_approvals
+                and tool_call_id in _pending_approvals[from_number]
+            ):
+                _pending_approvals[from_number].pop(tool_call_id).set_result(
+                    ApprovalResult(approved=False)
+                )
+            _waiting_for_approval.pop(from_number, None)
+            return web.Response(
+                text=str(MessagingResponse()), content_type="application/xml"
+            )
+
+    # Not an approval response, check for regular chat
     ui = _sessions.get(from_number)
 
     if ui:
         if ui.waiting:
+            # Response to ask_user
             asyncio.create_task(ui.respond(message_body))
         else:
+            # Regular chat message
             ui.chat(message_body)
 
     return web.Response(text=str(MessagingResponse()), content_type="application/xml")
@@ -251,6 +354,8 @@ if TWILIO_SID and TWILIO_TOKEN:
     ):
         asyncio.create_task(start_webhook_server())
 
+        # In production, you'd pass the actual phone number from the webhook
+        # For now, we use a placeholder that can be overridden
         phone = getattr(ctx, "_whatsapp_phone", None) or "+1234567890"
         client = WhatsAppClient(phone)
 
@@ -269,9 +374,39 @@ if TWILIO_SID and TWILIO_TOKEN:
             info_commands=ui_commands.get("info", ["/help"]),
         )
 
+    # Global approval channel that delegates to sessions
+    class WhatsAppGlobalApprovalChannel(ApprovalChannel):
+        """Approval channel that routes to the correct WhatsApp session."""
+
+        async def request_approval(self, ctx: ApprovalContext) -> ApprovalResult:
+            # Find the most recently active session
+            # In a production system, you'd track which session initiated the tool call
+            # For now, we use the last session that received a message
+            if not _sessions:
+                return ApprovalResult(
+                    approved=False, message="No active WhatsApp session"
+                )
+
+            # Get the last active session (most recent message)
+            # This works because _sessions is keyed by phone number
+            # and the webhook updates _sessions when a message arrives
+            last_phone = list(_sessions.keys())[-1]
+            ui = _sessions[last_phone]
+
+            # Create a per-session approval channel and delegate
+            approval_channel = WhatsAppApprovalChannel(ui.client)
+            return await approval_channel.request_approval(ctx)
+
+        async def notify(self, msg: str, ctx=None):
+            # Broadcast to all active sessions
+            for ui in _sessions.values():
+                await ui.client.send_now(f"📢 {msg}")
+
     llm_chat.set_ui_factory(create_ui)
-    print(f"🤖 WhatsApp webhook configured")
+    llm_chat.set_approval_channel(WhatsAppGlobalApprovalChannel())
+    print("🤖 WhatsApp webhook configured")
     print(f"   Configure Twilio webhook: http://your-server:{WEBHOOK_PORT}/whatsapp")
+    print("   Tool approvals: Reply 'yes' or 'no'")
 else:
     print("Set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN")
     print("Get credentials: https://twilio.com/console")
