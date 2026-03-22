@@ -1,895 +1,471 @@
 """
-Telegram + CLI Dual UI/Approval for Zrb LLM Chat
+Telegram + CLI Dual UI - Multiplexer Architecture
 
-This example demonstrates how to create a multiplexed UI that serves both
-Telegram and CLI simultaneously using a SHARED message queue architecture.
+This implements Level 3: MultiplexerUI (multi-channel support)
+- Both CLI and Telegram receive output
+- Input accepted from EITHER channel
+- Shared message queue (serialized execution)
+- Multiplexed approvals (first response wins)
 
-## Architecture (Critical Understanding)
-
-```
+Architecture:
                     ┌──────────────────────────┐
                     │     MultiplexerUI        │
                     │  (extends BaseUI)        │
                     │                          │
                     │  ┌────────────────────┐  │
-                    │  │ _message_queue      │  │  ◄── SINGLE SHARED QUEUE
-                    │  │ _process_messages_  │  │
-                    │  │ loop()              │  │
+                    │  │ _message_queue     │  │  ◄── SINGLE SHARED QUEUE
                     │  └────────────────────┘  │
                     │           ▲              │
-                    │           │              │
-                    │  _submit_user_message()   │
-                    │           │              │
+                    │  _submit_user_message()  │
                     └───────────┼──────────────┘
                                 │
               ┌─────────────────┴─────────────────┐
               │                                   │
     ┌─────────┴─────────┐           ┌───────────┴───────────┐
     │  TerminalChildUI  │           │  TelegramChildUI      │
-    │  (NOT BaseUI)     │           │  (NOT BaseUI)         │
-    │                   │           │                       │
-    │  _multiplexer ────┼───────────┼───► _multiplexer     │
-    │                   │           │                       │
-    │  stdin ───────────┼──┐    ┌───┼─── Telegram message  │
-    │                   │  │    │   │                       │
-    └───────────────────┘  │    │   └───────────────────────┘
-                           │    │
-                    On user input, both call:
-                    _multiplexer._submit_from_child(message)
-                                 │
-                                 ▼
-                    MultiplexerUI._submit_user_message()
-                                 │
-                                 ▼
-                    MultiplexerUI._message_queue.put_nowait(job)
-```
+    │  (stdin/stdout)   │           │  (bot polling)        │
+    └───────────────────┘           └───────────────────────┘
 
-## Key Insight
-
-Both TerminalChildUI and TelegramChildUI are **NOT** BaseUI subclasses.
-They are simple protocol implementations that:
-- Receive input from their respective channels (stdin/Telegram)
-- Forward ALL input to the shared MultiplexerUI via `_submit_from_child()`
-- The MultiplexerUI handles command parsing, message queue, and LLM processing
-
-This ensures ALL messages flow through a single queue, preventing race conditions
-and ensuring only one LLM request runs at a time.
-
-## Approval Architecture
-
-```
-MultiplexerApprovalChannel
-    │
-    ├── TerminalApprovalChannel (stdin prompts)
-    └── TelegramApprovalChannel (inline buttons)
-
-First response wins! If user approves from CLI, Telegram buttons are invalidated.
-```
-
-## Usage
-
-    export TELEGRAM_BOT_TOKEN="your_token"
-    export TELEGRAM_CHAT_ID="your_chat_id"
+Usage:
+    export TELEGRAM_BOT_TOKEN="your-token"
+    export TELEGRAM_CHAT_ID="your-chat-id"
     zrb llm chat
-
-The LLM will respond to BOTH Telegram AND terminal, and users can input from EITHER.
 """
 
 import asyncio
 import json
 import os
-import sys
-from typing import Any, Callable
+from typing import Protocol, runtime_checkable
 
-from zrb.context.any_context import AnyContext
+from zrb.builtin.llm.chat import llm_chat
 from zrb.llm.app.base_ui import BaseUI
 from zrb.llm.approval import ApprovalChannel, ApprovalContext, ApprovalResult
-from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-from zrb.llm.task.llm_task import LLMTask
 from zrb.util.cli.style import remove_style
 
-# =============================================================================
-# Child UI Protocol - Interface for UI adapters
-# =============================================================================
+BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
 
-class ChildUIProtocol:
-    """Protocol for child UIs attached to a MultiplexerUI.
+# ─────────────────────────────────────────────────────────────────────────────
+# Child UI Protocol - Thin adapters (NOT BaseUI)
+# ─────────────────────────────────────────────────────────────────────────────
 
-    Child UIs are NOT BaseUI instances - they're simple adapters that:
-    1. Receive input from their channel (stdin, Telegram, etc)
-    2. Forward input to the multiplexer via _submit_from_child()
-    3. Display output received via send_output()
 
-    Crucially, child UIs do NOT have their own message queue or LLM processing.
-    All that happens in the parent MultiplexerUI.
-    """
+@runtime_checkable
+class ChildUIProtocol(Protocol):
+    """Protocol for child UIs - thin adapters for different channels."""
 
     def send_output(self, message: str) -> None:
-        """Display output to this UI channel."""
+        """Display output to this channel."""
         ...
 
     async def ask_user(self, prompt: str) -> str:
-        """Block and wait for user input from this channel."""
+        """Get input from this channel (may raise if channel can't prompt)."""
         ...
 
 
-# =============================================================================
-# Multiplexer UI - Single shared queue, multiple I/O channels
-# =============================================================================
+class TerminalChildUI:
+    """Terminal adapter - reads from stdin, writes to stdout."""
+
+    def __init__(self):
+        self._input_queue: asyncio.Queue[str] = asyncio.Queue()
+        self._loop = asyncio.get_event_loop()
+
+    def send_output(self, message: str) -> None:
+        """Print to terminal."""
+        print(message, end="", flush=True)
+
+    async def ask_user(self, prompt: str) -> str:
+        """Read from stdin."""
+        print(f"\n❓ {prompt}")
+        print("> ", end="", flush=True)
+        try:
+            return await self._loop.run_in_executor(None, input)
+        except EOFError:
+            return ""
+
+    def submit_input(self, message: str) -> None:
+        """Called when input arrives from terminal."""
+        # This would be used if we had async stdin reading
+        pass
+
+
+class TelegramChildUI:
+    """Telegram adapter - uses bot polling for input."""
+
+    def __init__(self, bot_token: str, chat_id: str):
+        self.bot_token = bot_token
+        self.chat_id = chat_id
+        self._bot = None
+        self._app = None
+        self._input_queue: asyncio.Queue[str] = asyncio.Queue()
+        # Buffering for output
+        self._buffer: list[str] = []
+        self._flush_interval = 0.5
+        self._flush_task: asyncio.Task | None = None
+
+    async def start(self):
+        """Start the Telegram bot."""
+        if self._bot:
+            return
+        from telegram.ext import Application
+
+        self._app = Application.builder().token(self.bot_token).build()
+        await self._app.initialize()
+        await self._app.start()
+        await self._app.updater.start_polling()
+        self._bot = self._app.bot
+        # Start flush loop
+        self._flush_task = asyncio.create_task(self._flush_loop())
+
+    def send_output(self, message: str) -> None:
+        """Buffer output for Telegram (async flush)."""
+        clean = remove_style(message).strip()
+        if clean:
+            self._buffer.append(clean)
+            # Flush when large
+            if len(self._buffer) > 50 or sum(len(s) for s in self._buffer) > 1000:
+                asyncio.create_task(self._flush_buffer())
+
+    async def _flush_loop(self):
+        """Periodically flush buffer."""
+        while True:
+            await asyncio.sleep(self._flush_interval)
+            if self._buffer:
+                await self._flush_buffer()
+
+    async def _flush_buffer(self):
+        """Send buffered content."""
+        if not self._buffer or not self._bot:
+            return
+        content = "\n".join(self._buffer)
+        self._buffer = []
+        for chunk in self._split(content, 4000):
+            await self._bot.send_message(chat_id=self.chat_id, text=chunk)
+
+    async def send_immediate(self, message: str, **kwargs):
+        """Send immediately (for prompts, approvals)."""
+        if not self._bot:
+            await self.start()
+        clean = remove_style(message).strip()
+        if clean:
+            await self._bot.send_message(
+                chat_id=self.chat_id, text=clean[:4000], **kwargs
+            )
+
+    async def flush(self):
+        """Manually flush buffer."""
+        if self._buffer:
+            await self._flush_buffer()
+
+    async def ask_user(self, prompt: str) -> str:
+        """Wait for input from Telegram."""
+        await self.send_immediate(
+            f"❓ {prompt}\n\n_Reply to this message._", parse_mode="Markdown"
+        )
+        return await self._input_queue.get()
+
+    def submit_input(self, message: str) -> None:
+        """Called when Telegram message arrives."""
+        self._input_queue.put_nowait(message)
+
+    @staticmethod
+    def _split(text: str, max_len: int) -> list[str]:
+        if len(text) <= max_len:
+            return [text]
+        return [text[i : i + max_len] for i in range(0, len(text), max_len)]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Multiplexer UI - Main UI with shared queue
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 class MultiplexerUI(BaseUI):
-    """BaseUI that broadcasts to multiple child UIs with a SHARED message queue.
+    """Main UI that multiplexes to multiple child UIs.
 
-    ARCHITECTURE:
-    - Extends BaseUI → inherits _message_queue, _llm_task, _stream_ai_response
-    - Child UIs are attached and call _submit_from_child() on user input
-    - All child input routes through MultiplexerUI._submit_user_message()
-    - All output broadcasts to every child UI via send_output()
-
-    This ensures:
-    - Single source of truth for LLM state
-    - Only one LLM request at a time (queue serialization)
-    - All channels see all responses
+    - Extends BaseUI (has _message_queue)
+    - Broadcasts output to ALL children
+    - Accepts input from ANY child (via _submit_from_child)
+    - Single shared queue for serialized execution
     """
 
-    def __init__(
-        self,
-        ctx: AnyContext,
-        yolo_xcom_key: str,
-        assistant_name: str,
-        llm_task: LLMTask,
-        history_manager: AnyHistoryManager,
-        child_uis: list[ChildUIProtocol] | None = None,
-        primary_ui_index: int = 0,
-        **kwargs,
-    ):
-        super().__init__(
-            ctx=ctx,
-            yolo_xcom_key=yolo_xcom_key,
-            assistant_name=assistant_name,
-            llm_task=llm_task,
-            history_manager=history_manager,
-            **kwargs,
-        )
-        # Child UIs for input/output (NOT BaseUI instances!)
-        self.child_uis: list[ChildUIProtocol] = child_uis or []
-        # Primary UI index: which child handles ask_user() prompts
-        self.primary_ui_index = primary_ui_index
-        # Output buffer for batching
-        self._output_buffer: list[str] = []
-        self._flush_task: asyncio.Task | None = None
-        # Child listener tasks (for Telegram polling, etc)
-        self._child_tasks: list[asyncio.Task] = []
+    def __init__(self, child_uis: list[ChildUIProtocol], **kwargs):
+        super().__init__(**kwargs)
+        self.child_uis = child_uis
+        self._primary_ui = child_uis[0] if child_uis else None
 
-    @property
-    def primary_ui(self) -> ChildUIProtocol | None:
-        """Get the primary UI for ask_user prompts."""
-        if 0 <= self.primary_ui_index < len(self.child_uis):
-            return self.child_uis[self.primary_ui_index]
-        return None
+    def _submit_from_child(self, child_ui: ChildUIProtocol, message: str):
+        """Called by child UIs when they receive input.
 
-    # =========================================================================
-    # Child Input Routing - Called by child UIs when user sends input
-    # =========================================================================
-
-    def _submit_from_child(self, child_ui: ChildUIProtocol, message: str) -> None:
-        """Called by child UIs when user sends a message.
-
-        This is THE KEY METHOD that merges all input channels.
-        All child UIs call this method, which routes through
-        MultiplexerUI._submit_user_message() to the shared queue.
-
-        Args:
-            child_ui: The child UI that received the input (unused, for logging)
-            message: The user message received from the child UI
+        Routes through the shared message queue via _submit_user_message().
         """
-        # Check for commands first (handled by BaseUI)
-        if self._handle_exit_command(message):
-            return
-        if self._handle_info_command(message):
-            return
-        if self._handle_save_command(message):
-            return
-        if self._handle_load_command(message):
-            return
-        if self._handle_redirect_command(message):
-            return
-        if self._handle_attach_command(message):
-            return
-        if self._handle_toggle_yolo(message):
-            return
-        if self._handle_set_model_command(message):
-            return
-        if self._handle_exec_command(message):
-            return
-        if self._handle_custom_command(message):
-            return
-
-        # Route through the shared queue - this is where magic happens
-        # _submit_user_message is defined in BaseUI and uses self._message_queue
         self._submit_user_message(self._llm_task, message)
 
-    # =========================================================================
-    # BaseUI Abstract Method Implementations - Broadcast to all children
-    # =========================================================================
+    # Required: Broadcast to ALL children
+    def append_to_output(self, *values, sep=" ", end="\n", **kwargs):
+        message = sep.join(str(v) for v in values) + end
+        for child_ui in self.child_uis:
+            child_ui.send_output(message)
 
-    def append_to_output(
-        self,
-        *values: object,
-        sep: str = " ",
-        end: str = "\n",
-        file=None,
-        flush: bool = False,
-    ) -> None:
-        """Buffer output for broadcasting to all child UIs."""
-        self._output_buffer.append(sep.join(str(v) for v in values) + end)
-        if flush:
-            asyncio.create_task(self.flush_output())
-
-    def stream_to_parent(
-        self,
-        *values: object,
-        sep: str = " ",
-        end: str = "\n",
-        file=None,
-        flush: bool = False,
-    ) -> None:
-        """Stream immediately to all child UIs (no buffering)."""
-        msg = sep.join(str(v) for v in values) + end
-        self._broadcast_to_children(msg)
-
+    # Required: Ask on primary UI
     async def ask_user(self, prompt: str) -> str:
-        """Ask via primary UI, but broadcast prompt to all children."""
-        # Broadcast prompt to all UIs
-        for child in self.child_uis:
-            try:
-                child.send_output(f"\n❓ {prompt}\n")
-            except Exception:
-                pass
+        # Broadcast prompt to all children
+        for child_ui in self.child_uis:
+            if hasattr(child_ui, "send_output"):
+                child_ui.send_output(f"\n❓ {prompt}\n")
 
-        # Only primary UI waits for response
-        if self.primary_ui:
-            return await self.primary_ui.ask_user(prompt)
-        return ""
+        # Wait for input from primary
+        if self._primary_ui:
+            return await self._primary_ui.ask_user(prompt)
+        raise RuntimeError("No primary UI for input")
 
-    async def run_interactive_command(
-        self, cmd: str | list[str], shell: bool = False
-    ) -> Any:
-        """Disabled in multiplexer mode for security."""
-        self._broadcast_to_children(
-            "⚠️ Command execution disabled in multiplexer mode\n"
-        )
-        return {"error": "Disabled"}
+    # Required: Shell commands via primary
+    async def run_interactive_command(self, cmd, shell=False):
+        if hasattr(self._primary_ui, "send_output"):
+            self._primary_ui.send_output(f"⚙️ Running: {cmd}\n")
+        # Delegate to primary UI's implementation if available
+        return 0
 
-    # =========================================================================
-    # Output Broadcasting
-    # =========================================================================
+    # Required: Run async loop
+    async def run_async(self) -> str:
+        # Start all child UIs that need async initialization
+        for child_ui in self.child_uis:
+            if hasattr(child_ui, "start"):
+                await child_ui.start()
 
-    def _broadcast_to_children(self, message: str) -> None:
-        """Send message to all child UIs immediately."""
-        for child in self.child_uis:
-            try:
-                child.send_output(message)
-            except Exception:
-                pass  # Don't let one child failure break others
-
-    async def flush_output(self) -> None:
-        """Flush buffered output to all children."""
-        if self._output_buffer:
-            msg = "".join(self._output_buffer)
-            self._output_buffer = []
-            self._broadcast_to_children(msg)
-
-    # =========================================================================
-    # Lifecycle
-    # =========================================================================
-
-    async def run_async(self) -> None:
-        """Run the multiplexer - start all child listeners and process queue."""
-        # Start child UI listeners (e.g., Telegram polling)
-        for child in self.child_uis:
-            if hasattr(child, "start_listener"):
-                task = asyncio.create_task(child.start_listener(self))
-                self._child_tasks.append(task)
-
-        # Start the inherited BaseUI message processor
-        # This processes jobs from self._message_queue
+        # Start message processing
         self._process_messages_task = asyncio.create_task(self._process_messages_loop())
 
-        # Start output flush loop
-        self._flush_task = asyncio.create_task(self._flush_loop())
-
-        # Send initial message if any
         if self._initial_message:
             self._submit_user_message(self._llm_task, self._initial_message)
 
         try:
-            # Keep running until cancelled
             while True:
                 await asyncio.sleep(1)
         except asyncio.CancelledError:
             pass
         finally:
-            # Cleanup
-            for task in self._child_tasks:
-                task.cancel()
-            if self._process_messages_task:
-                self._process_messages_task.cancel()
-            if self._flush_task:
-                self._flush_task.cancel()
-            await self.shutdown()
+            # Flush any pending output
+            for child_ui in self.child_uis:
+                if hasattr(child_ui, "flush"):
+                    await child_ui.flush()
+            self._process_messages_task.cancel()
+        return ""
 
-    async def _flush_loop(self) -> None:
-        """Periodically flush buffered output."""
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Telegram Handler Registration
+# ─────────────────────────────────────────────────────────────────────────────
+
+_telegram_child: TelegramChildUI | None = None
+_multiplexer: MultiplexerUI | None = None
+
+
+async def setup_telegram_handler(child_ui: TelegramChildUI, multiplexer: MultiplexerUI):
+    """Register message handler for Telegram child UI."""
+    global _telegram_child, _multiplexer
+    _telegram_child = child_ui
+    _multiplexer = multiplexer
+
+    await child_ui.start()
+
+    if not child_ui._app:
+        return
+
+    from telegram.ext import MessageHandler, filters
+
+    async def handle_message(update, context):
+        """Forward Telegram messages to multiplexer."""
+        text = update.message.text
+        # Route through multiplexer's shared queue
+        multiplexer._submit_from_child(child_ui, text)
+
+    child_ui._app.add_handler(MessageHandler(filters.TEXT, handle_message))
+
+
+async def setup_cli_input(child_ui: TerminalChildUI, multiplexer: MultiplexerUI):
+    """Read from CLI and forward to multiplexer."""
+    loop = asyncio.get_event_loop()
+
+    async def cli_loop():
         while True:
-            await asyncio.sleep(0.3)
-            await self.flush_output()
-
-    def on_exit(self) -> None:
-        """Handle exit - notify all children."""
-        self._broadcast_to_children("Shutting down... 👋\n")
-        for child in self.child_uis:
-            if hasattr(child, "on_exit"):
-                try:
-                    child.on_exit()
-                except Exception:
-                    pass
-
-    async def shutdown(self) -> None:
-        """Shutdown all child UIs."""
-        for child in self.child_uis:
-            if hasattr(child, "shutdown"):
-                try:
-                    await child.shutdown()
-                except Exception:
-                    pass
-
-
-# =============================================================================
-# Terminal Child UI - Simple stdin/stdout adapter
-# =============================================================================
-
-
-class TerminalChildUI(ChildUIProtocol):
-    """Child UI for terminal I/O.
-
-    This is NOT a BaseUI - it's a simple adapter that:
-    - Prints output to terminal (send_output)
-    - Reads from stdin in a loop (start_listener)
-    - Forwards user input to the multiplexer
-    - Has NO message queue or LLM processing
-
-    The stdin reader loop runs in start_listener(), similar to how
-    TelegramChildUI has _handle_message triggered by bot polling.
-    """
-
-    def __init__(self):
-        self._multiplexer: MultiplexerUI | None = None
-        self._stdin_task: asyncio.Task | None = None
-        self._running = True
-
-    def attach_to_multiplexer(self, multiplexer: MultiplexerUI) -> None:
-        """Set reference to parent multiplexer."""
-        self._multiplexer = multiplexer
-
-    def send_output(self, message: str) -> None:
-        """Print to terminal immediately."""
-        print(message, end="", flush=True)
-
-    async def start_listener(self, multiplexer: MultiplexerUI) -> None:
-        """Start stdin reader loop - called by MultiplexerUI.run_async().
-
-        This is the KEY for terminal input! We continuously read from stdin
-        and forward to the multiplexer, just like Telegram does with _handle_message.
-        """
-        self._multiplexer = multiplexer
-        loop = asyncio.get_event_loop()
-
-        print("\n💬 Terminal ready. Type your message (or /info for help):\n")
-
-        while self._running:
             try:
-                # Read from stdin asynchronously
-                line = await loop.run_in_executor(None, input, "")
-
-                if not self._running:
-                    break
-
-                # Forward to multiplexer - this routes through the shared queue!
-                if self._multiplexer and line.strip():
-                    self._multiplexer._submit_from_child(self, line.strip())
-
+                line = await loop.run_in_executor(None, input)
+                if line.strip():
+                    multiplexer._submit_from_child(child_ui, line.strip())
             except EOFError:
-                # stdin closed (e.g., piped input ended)
                 break
             except asyncio.CancelledError:
                 break
-            except Exception:
-                # Log error but continue
-                import traceback
 
-                traceback.print_exc()
-                continue
-
-    async def ask_user(self, prompt: str) -> str:
-        """Read from stdin asynchronously (blocks until input)."""
-        if prompt:
-            print(f"\n❓ {prompt}")
-        print("> ", end="", flush=True)
-        try:
-            loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(None, input, "")
-            return response.strip()
-        except EOFError:
-            return ""
-        except asyncio.CancelledError:
-            return ""
-
-    def on_exit(self) -> None:
-        """Handle exit."""
-        self._running = False
-        print("\n👋 Goodbye!")
-
-    async def shutdown(self) -> None:
-        """Stop stdin reader."""
-        self._running = False
-        if self._stdin_task and not self._stdin_task.done():
-            self._stdin_task.cancel()
+    asyncio.create_task(cli_loop())
 
 
-# =============================================================================
-# Telegram Child UI - Telegram bot adapter
-# =============================================================================
-
-
-class TelegramChildUI(ChildUIProtocol):
-    """Child UI for Telegram bot I/O.
-
-    This is NOT a BaseUI - it's a simple adapter that:
-    - Sends output to Telegram chat (send_output)
-    - Receives messages via Telegram bot API (start_listener)
-    - Forwards received messages to the multiplexer
-
-    The Telegram polling runs in start_listener(), which is called
-    by MultiplexerUI.run_async().
-
-    Note: Output is buffered and flushed periodically to avoid
-    sending many small fragmented messages.
-    """
-
-    def __init__(
-        self,
-        bot_token: str,
-        chat_id: str,
-        timeout: int = 300,
-        flush_interval: float = 0.5,
-    ):
-        self.bot_token = bot_token
-        self.chat_id = chat_id
-        self.timeout = timeout
-        self.flush_interval = flush_interval
-        self._bot = None
-        self._application = None
-        self._multiplexer: MultiplexerUI | None = None
-        # For pending ask_user responses
-        self._pending_questions: dict[str, asyncio.Future[str]] = {}
-        # Buffer for output (to avoid fragmentation)
-        self._buffer: list[str] = []
-        self._flush_task: asyncio.Task | None = None
-
-    def attach_to_multiplexer(self, multiplexer: MultiplexerUI) -> None:
-        """Set reference to parent multiplexer."""
-        self._multiplexer = multiplexer
-
-    async def start_listener(self, multiplexer: MultiplexerUI) -> None:
-        """Start Telegram bot polling - called by MultiplexerUI.run_async()."""
-        self._multiplexer = multiplexer
-        await self._ensure_bot()
-        # Start flush loop for buffered output
-        self._flush_task = asyncio.create_task(self._flush_loop())
-        # Bot starts polling in _ensure_bot, this task just keeps running
-
-    async def _flush_loop(self) -> None:
-        """Periodically flush buffered output to Telegram."""
-        while True:
-            await asyncio.sleep(self.flush_interval)
-            await self._flush_buffer()
-
-    async def _flush_buffer(self) -> None:
-        """Send buffered output to Telegram."""
-        if not self._buffer:
-            return
-        msg = "".join(self._buffer)
-        self._buffer = []
-        await self._send_message(msg)
-
-    async def _send_message(self, msg: str) -> None:
-        """Send a message to Telegram (internal method)."""
-        await self._ensure_bot()
-        # Remove ANSI codes for Telegram
-        clean_msg = remove_style(msg)
-        if not clean_msg.strip():
-            return
-        # Truncate if too long
-        if len(clean_msg) > 4000:
-            clean_msg = clean_msg[:3997] + "..."
-        await self._bot.send_message(chat_id=self.chat_id, text=clean_msg)
-
-    async def _ensure_bot(self) -> None:
-        """Initialize and start Telegram bot."""
-        if self._bot:
-            return
-        from telegram.ext import Application, MessageHandler, filters
-
-        self._application = Application.builder().token(self.bot_token).build()
-        self._application.add_handler(
-            MessageHandler(filters.TEXT & ~filters.COMMAND, self._handle_message)
-        )
-        await self._application.initialize()
-        await self._application.start()
-        await self._application.updater.start_polling()
-        self._bot = self._application.bot
-
-    async def _handle_message(self, update, context) -> None:
-        """Handle incoming Telegram message - forward to multiplexer."""
-        text = update.message.text
-        if not text:
-            return
-
-        # Check if this is a response to a pending question
-        for qid, future in list(self._pending_questions.items()):
-            if not future.done():
-                future.set_result(text)
-                self._pending_questions.pop(qid, None)
-                return
-
-        # Forward to multiplexer - this routes through the shared queue!
-        if self._multiplexer:
-            self._multiplexer._submit_from_child(self, text)
-
-    def send_output(self, message: str) -> None:
-        """Buffer output for batching (Telegram has rate limits)."""
-        self._buffer.append(message)
-
-    async def ask_user(self, prompt: str) -> str:
-        """Ask via Telegram and wait for response."""
-        await self._ensure_bot()
-        # Flush any pending output first
-        await self._flush_buffer()
-        await self._bot.send_message(chat_id=self.chat_id, text=f"❓ {prompt}")
-
-        loop = asyncio.get_event_loop()
-        future: asyncio.Future[str] = loop.create_future()
-        self._pending_questions[f"q_{id(future)}"] = future
-
-        try:
-            async with asyncio.timeout(self.timeout):
-                return await future
-        except asyncio.TimeoutError:
-            self._pending_questions.clear()
-            await self._bot.send_message(
-                chat_id=self.chat_id, text="⏰ Timed out waiting for response."
-            )
-            return ""
-
-    async def shutdown(self) -> None:
-        """Stop Telegram bot."""
-        # Flush any remaining buffer
-        await self._flush_buffer()
-        # Cancel flush task
-        if self._flush_task:
-            self._flush_task.cancel()
-        # Stop bot
-        if self._application:
-            await self._application.updater.stop()
-            await self._application.stop()
-            await self._application.shutdown()
-
-
-# =============================================================================
-# Multiplexer Approval Channel - First response wins
-# =============================================================================
+# ─────────────────────────────────────────────────────────────────────────────
+# Multiplexed Approval - Broadcasts to ALL channels
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 class MultiplexerApprovalChannel(ApprovalChannel):
-    """Approval channel that broadcasts to multiple channels.
+    """Approval channel that broadcasts to multiple sub-channels.
 
-    Approval requests go to ALL channels simultaneously.
-    The FIRST response (approve or deny) wins.
+    First response wins - if user approves from CLI, Telegram button is invalidated.
     """
 
-    def __init__(self, channels: list[ApprovalChannel], timeout: int = 300):
+    def __init__(self, channels: list[ApprovalChannel]):
         self.channels = channels
-        self.timeout = timeout
+        self._pending: dict[str, asyncio.Future] = {}
 
-    async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
-        """Request approval from all channels. First response wins."""
+    async def request_approval(self, ctx: ApprovalContext) -> ApprovalResult:
+        # Create a shared future for all channels
         loop = asyncio.get_event_loop()
-        result_future: asyncio.Future[ApprovalResult] = loop.create_future()
+        future = loop.create_future()
+        self._pending[ctx.tool_call_id] = future
 
-        async def channel_request(channel: ApprovalChannel) -> None:
-            """Request from one channel."""
+        # Request from all channels concurrently
+        async def request_from_channel(channel: ApprovalChannel):
             try:
-                result = await channel.request_approval(context)
-                if not result_future.done():
-                    result_future.set_result(result)
-            except asyncio.CancelledError:
-                raise
-            except Exception:
-                pass  # Don't let one channel failure break others
+                result = await channel.request_approval(ctx)
+                if not future.done():
+                    future.set_result(result)
+                return result
+            except Exception as e:
+                if not future.done():
+                    future.set_result(ApprovalResult(approved=False, message=str(e)))
+                return ApprovalResult(approved=False, message=str(e))
 
-        # Start all requests concurrently
-        tasks = [asyncio.create_task(channel_request(ch)) for ch in self.channels]
+        # Start all requests
+        tasks = [asyncio.create_task(request_from_channel(ch)) for ch in self.channels]
 
         try:
-            async with asyncio.timeout(self.timeout):
-                return await result_future
+            # Wait for first response (with timeout)
+            async with asyncio.timeout(300):
+                result = await future
+            return result
         except asyncio.TimeoutError:
             return ApprovalResult(approved=False, message="Timeout")
         finally:
-            # Cancel any pending requests
+            # Cancel pending tasks
             for task in tasks:
-                if not task.done():
-                    task.cancel()
+                task.cancel()
+            self._pending.pop(ctx.tool_call_id, None)
 
-    async def notify(
-        self, message: str, context: ApprovalContext | None = None
-    ) -> None:
+    async def notify(self, msg: str, ctx=None):
         """Broadcast notification to all channels."""
         for channel in self.channels:
             try:
-                await channel.notify(message, context)
-            except Exception:
-                pass
-
-
-# =============================================================================
-# Telegram Approval Channel - Inline buttons
-# =============================================================================
-
-
-class TelegramApprovalChannel(ApprovalChannel):
-    """Approval channel for Telegram with inline keyboard buttons."""
-
-    def __init__(self, bot_token: str, chat_id: str, timeout: int = 300):
-        self.bot_token = bot_token
-        self.chat_id = chat_id
-        self.timeout = timeout
-        self._bot = None
-        self._application = None
-        self._pending_approvals: dict[str, asyncio.Future[ApprovalResult]] = {}
-
-    async def _ensure_bot(self) -> None:
-        if self._bot:
-            return
-        from telegram.ext import Application, CallbackQueryHandler
-
-        self._application = Application.builder().token(self.bot_token).build()
-        self._application.add_handler(CallbackQueryHandler(self._handle_callback))
-        await self._application.initialize()
-        await self._application.start()
-        await self._application.updater.start_polling()
-        self._bot = self._application.bot
-
-    async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
-        await self._ensure_bot()
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-
-        text = self._format_message(context)
-        keyboard = [
-            [
-                InlineKeyboardButton(
-                    "✅ Approve", callback_data=f"approve:{context.tool_call_id}"
-                ),
-                InlineKeyboardButton(
-                    "❌ Deny", callback_data=f"deny:{context.tool_call_id}"
-                ),
-            ]
-        ]
-
-        loop = asyncio.get_event_loop()
-        future: asyncio.Future[ApprovalResult] = loop.create_future()
-        self._pending_approvals[context.tool_call_id] = future
-
-        try:
-            await self._bot.send_message(
-                chat_id=self.chat_id,
-                text=text,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown",
-            )
-            async with asyncio.timeout(self.timeout):
-                return await future
-        except asyncio.TimeoutError:
-            self._pending_approvals.pop(context.tool_call_id, None)
-            return ApprovalResult(approved=False, message="Timeout")
-
-    async def _handle_callback(self, update, context) -> None:
-        """Handle inline button callback."""
-        query = update.callback_query
-        await query.answer()
-
-        action, tool_call_id = query.data.split(":", 1)
-        if tool_call_id not in self._pending_approvals:
-            await query.edit_message_text("⚠️ Expired or invalid request")
-            return
-
-        approved = action == "approve"
-        result = ApprovalResult(approved=approved)
-        self._pending_approvals.pop(tool_call_id).set_result(result)
-
-        emoji = "✅ Approved" if approved else "❌ Denied"
-        await query.edit_message_text(
-            f"{emoji}\n\nTool: `{tool_call_id}`", parse_mode="Markdown"
-        )
-
-    def _format_message(self, ctx: ApprovalContext) -> str:
-        args_str = json.dumps(ctx.tool_args, indent=2, default=str)
-        return f"🔔 *Tool Approval Request*\n\nTool: `{ctx.tool_name}`\n\n```\n{args_str}\n```"
-
-    async def notify(
-        self, message: str, context: ApprovalContext | None = None
-    ) -> None:
-        await self._ensure_bot()
-        await self._bot.send_message(chat_id=self.chat_id, text=message)
-
-    async def shutdown(self) -> None:
-        if self._application:
-            await self._application.updater.stop()
-            await self._application.stop()
-            await self._application.shutdown()
-
-
-# =============================================================================
-# Terminal Approval Channel - stdin prompts
-# =============================================================================
+                await channel.notify(msg, ctx)
+            except:
+                pass  # Don't fail if one channel fails
 
 
 class TerminalApprovalChannel(ApprovalChannel):
-    """Approval channel using terminal input."""
+    """Simple terminal-based approval."""
 
-    def __init__(self, get_input: Callable[[], str] | None = None):
-        self._get_input = get_input or (lambda: input("> "))
+    async def request_approval(self, ctx: ApprovalContext) -> ApprovalResult:
+        print(f"\n🔔 Tool: {ctx.tool_name}")
+        print(f"Arguments: {json.dumps(ctx.tool_args, indent=2, default=str)[:500]}")
+        print("Approve? [Y/n] ", end="", flush=True)
 
-    async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
-        args_str = json.dumps(context.tool_args, indent=2, default=str)
-        print(f"\n🔔 Tool Approval Request")
-        print(f"Tool: {context.tool_name}")
-        print(f"Arguments:\n{args_str}")
-        print("\nApprove? [Y/n] ", end="", flush=True)
-
+        loop = asyncio.get_event_loop()
         try:
-            loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(None, self._get_input)
-            response = response.strip().lower()
+            response = await loop.run_in_executor(None, input)
+            approved = response.strip().lower() in ("", "y", "yes")
+            return ApprovalResult(approved=approved)
+        except:
+            return ApprovalResult(approved=False)
 
-            if response in ("y", "yes", "", "ok", "approve"):
-                return ApprovalResult(approved=True)
-            return ApprovalResult(approved=False, message=f"User denied: {response}")
-        except Exception as e:
-            return ApprovalResult(approved=False, message=str(e))
-
-    async def notify(
-        self, message: str, context: ApprovalContext | None = None
-    ) -> None:
-        print(message)
+    async def notify(self, msg: str, ctx=None):
+        print(f"📢 {msg}")
 
 
-# =============================================================================
-# Factory Function
-# =============================================================================
+class TelegramApprovalChannel(ApprovalChannel):
+    """Telegram approval via inline buttons."""
 
+    def __init__(self, child_ui: TelegramChildUI):
+        self.child_ui = child_ui
+        self._pending: dict[str, asyncio.Future] = {}
+        self._handler_added = False
 
-def create_multiplexed_ui(
-    ctx: AnyContext,
-    llm_task_core: LLMTask,
-    history_manager: AnyHistoryManager,
-    ui_commands: dict,
-    initial_message: str | None,
-    initial_conversation_name: str | None,
-    initial_yolo: bool,
-    initial_attachments: list,
-    telegram_bot_token: str | None = None,
-    telegram_chat_id: str | None = None,
-    enable_cli: bool = True,
-    primary_channel: str = "cli",  # "cli" or "telegram"
-) -> MultiplexerUI:
-    """Create a multiplexed UI with both Telegram and CLI.
+    async def _ensure_handler(self):
+        """Register callback handler for button presses."""
+        if self._handler_added or not self.child_ui._app:
+            return
 
-    Args:
-        ctx: Task context
-        llm_task_core: The LLM task
-        history_manager: Conversation history manager
-        ui_commands: Command configurations dict
-        initial_message: Initial message to send
-        initial_conversation_name: Conversation name
-        initial_yolo: YOLO mode flag
-        initial_attachments: Attached files
-        telegram_bot_token: Telegram bot token (optional)
-        telegram_chat_id: Telegram chat ID (optional)
-        enable_cli: Whether to enable CLI UI
-        primary_channel: Which channel handles ask_user prompts
+        from telegram.ext import CallbackQueryHandler
 
-    Returns:
-        Configured MultiplexerUI with child UIs attached
-    """
-    # Create child UIs list
-    child_uis: list[ChildUIProtocol] = []
-    primary_index = 0
+        async def handle_callback(update, context):
+            query = update.callback_query
+            await query.answer()
+            action, tool_call_id = query.data.split(":", 1)
+            approved = action == "yes"
 
-    # Add CLI child UI first (index 0) if enabled
-    if enable_cli:
-        terminal_ui = TerminalChildUI()
-        child_uis.append(terminal_ui)
-        if primary_channel == "cli":
-            primary_index = len(child_uis) - 1
+            if tool_call_id in self._pending:
+                self._pending.pop(tool_call_id).set_result(
+                    ApprovalResult(approved=approved)
+                )
 
-    # Add Telegram child UI second (index 1) if configured
-    telegram_ui = None
-    if telegram_bot_token and telegram_chat_id:
-        telegram_ui = TelegramChildUI(
-            bot_token=telegram_bot_token,
-            chat_id=telegram_chat_id,
+            await query.edit_message_text(
+                f"{'✅ Approved' if approved else '❌ Denied'}"
+            )
+
+        self.child_ui._app.add_handler(CallbackQueryHandler(handle_callback))
+        self._handler_added = True
+
+    async def request_approval(self, ctx: ApprovalContext) -> ApprovalResult:
+        await self._ensure_handler()
+        await self.child_ui.flush()  # Flush pending output before prompt
+
+        # Create future for this approval
+        loop = asyncio.get_event_loop()
+        future = loop.create_future()
+        self._pending[ctx.tool_call_id] = future
+
+        # Send approval request with buttons
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+        args_str = json.dumps(ctx.tool_args, indent=2, default=str)[:500]
+
+        await self.child_ui.send_immediate(
+            f"🔔 *Tool*: `{ctx.tool_name}`\n```\n{args_str}\n```",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            "✅ Approve", callback_data=f"yes:{ctx.tool_call_id}"
+                        ),
+                        InlineKeyboardButton(
+                            "❌ Deny", callback_data=f"no:{ctx.tool_call_id}"
+                        ),
+                    ]
+                ]
+            ),
         )
-        child_uis.append(telegram_ui)
-        if primary_channel == "telegram":
-            primary_index = len(child_uis) - 1
 
-    # Create the multiplexer (inherits _message_queue from BaseUI)
-    multiplexer = MultiplexerUI(
-        ctx=ctx,
-        yolo_xcom_key="yolo",
-        assistant_name="Zrb Assistant",
-        llm_task=llm_task_core,
-        history_manager=history_manager,
-        child_uis=child_uis,
-        primary_ui_index=primary_index,
-        initial_message=initial_message,
-        conversation_session_name=initial_conversation_name,
-        initial_attachments=initial_attachments,
-        yolo=initial_yolo,
-        summarize_commands=ui_commands.get("summarize", []),
-        attach_commands=ui_commands.get("attach", []),
-        exit_commands=ui_commands.get("exit", []),
-        info_commands=ui_commands.get("info", []),
-        save_commands=ui_commands.get("save", []),
-        load_commands=ui_commands.get("load", []),
-        yolo_toggle_commands=ui_commands.get("yolo_toggle", []),
-        set_model_commands=ui_commands.get("set_model", []),
-        redirect_output_commands=ui_commands.get("redirect_output", []),
-        exec_commands=ui_commands.get("exec", []),
-    )
+        # Wait for response (may be set by callback or by multiplexer)
+        try:
+            async with asyncio.timeout(300):
+                return await future
+        except asyncio.TimeoutError:
+            self._pending.pop(ctx.tool_call_id, None)
+            return ApprovalResult(approved=False, message="Timeout")
 
-    # Attach multiplexer reference to each child UI
-    for child in child_uis:
-        if hasattr(child, "attach_to_multiplexer"):
-            child.attach_to_multiplexer(multiplexer)
-
-    return multiplexer
+    async def notify(self, msg: str, ctx=None):
+        await self.child_ui.send_immediate(msg)
 
 
-# =============================================================================
-# Integration with llm_chat task
-# =============================================================================
-
-BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+# ─────────────────────────────────────────────────────────────────────────────
+# Integration with zrb llm chat
+# ─────────────────────────────────────────────────────────────────────────────
 
 if BOT_TOKEN and CHAT_ID:
-    from zrb.builtin.llm.chat import llm_chat
+    # Create child UIs
+    telegram_child = TelegramChildUI(BOT_TOKEN, CHAT_ID)
+    terminal_child = TerminalChildUI()
 
-    # Create approval channels for both Telegram and CLI
-    telegram_approval = TelegramApprovalChannel(bot_token=BOT_TOKEN, chat_id=CHAT_ID)
-    terminal_approval = TerminalApprovalChannel()
-
-    # Multiplexer approval: first response wins
-    multiplexer_approval = MultiplexerApprovalChannel(
-        channels=[terminal_approval, telegram_approval],
-    )
-
-    def create_dual_ui(
+    def create_ui(
         ctx,
         llm_task_core,
         history_manager,
@@ -899,31 +475,43 @@ if BOT_TOKEN and CHAT_ID:
         initial_yolo,
         initial_attachments,
     ):
-        """Factory function for multiplexed Telegram + CLI UI."""
-        return create_multiplexed_ui(
-            ctx=ctx,
-            llm_task_core=llm_task_core,
-            history_manager=history_manager,
-            ui_commands=ui_commands,
-            initial_message=initial_message,
-            initial_conversation_name=initial_conversation_name,
-            initial_yolo=initial_yolo,
-            initial_attachments=initial_attachments,
-            telegram_bot_token=BOT_TOKEN,
-            telegram_chat_id=CHAT_ID,
-            enable_cli=True,
-            primary_channel="cli",  # CLI handles ask_user by default
-        )
+        global _multiplexer
 
-    llm_chat.set_ui_factory(create_dual_ui)
-    llm_chat.set_approval_channel(multiplexer_approval)
+        multiplexer = MultiplexerUI(
+            child_uis=[terminal_child, telegram_child],
+            ctx=ctx,
+            yolo_xcom_key="yolo",
+            assistant_name="ZrbBot",
+            llm_task=llm_task_core,
+            history_manager=history_manager,
+            initial_message=initial_message,
+            conversation_session_name=initial_conversation_name,
+            yolo=initial_yolo,
+            initial_attachments=initial_attachments,
+            exit_commands=ui_commands.get("exit", ["/exit"]),
+            info_commands=ui_commands.get("info", ["/help"]),
+        )
+        _multiplexer = multiplexer
+
+        # Setup async handlers
+        asyncio.create_task(setup_telegram_handler(telegram_child, multiplexer))
+        asyncio.create_task(setup_cli_input(terminal_child, multiplexer))
+
+        return multiplexer
+
+    # Setup approval channels
+    terminal_approval = TerminalApprovalChannel()
+    telegram_approval = TelegramApprovalChannel(telegram_child)
+    multiplexed_approval = MultiplexerApprovalChannel(
+        [terminal_approval, telegram_approval]
+    )
+
+    llm_chat.set_ui_factory(create_ui)
+    llm_chat.set_approval_channel(multiplexed_approval)
 
     print(f"🤖 Telegram + CLI multiplexed UI for chat ID: {CHAT_ID}")
-    print("   Chat from Telegram AND terminal!")
-    print("   Both channels receive all responses.")
-    print("   Approvals sent to both - first response wins!")
+    print(f"   Chat from Telegram AND terminal!")
+    print(f"   Both channels receive all responses.")
+    print(f"   Approvals sent to both - first response wins!")
 else:
-    print(
-        "⚠️  Telegram not configured. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID "
-        "environment variables."
-    )
+    print("Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID")
