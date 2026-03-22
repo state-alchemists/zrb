@@ -38,6 +38,80 @@ logger = logging.getLogger(__name__)
 
 
 class BaseUI:
+    """Base class for LLM Chat UI implementations.
+
+    This class provides the core chat functionality (message handling, command
+    processing, AI interaction) while delegating UI-specific rendering to subclasses.
+
+    Architecture:
+        BaseUI is designed to be subclassed for different UI backends:
+        - Terminal UI (prompt_toolkit)
+        - Telegram UI (python-telegram-bot)
+        - Web UI (WebSocket/HTTP)
+        - Simple UI (basic stdin/stdout)
+
+    Required Methods (must be implemented by subclasses):
+        - append_to_output(): Render output to user
+        - ask_user(): Block and wait for user input
+        - run_interactive_command(): Execute interactive shell commands
+        - run_async(): Run the UI event loop
+
+    Optional Methods (can be overridden):
+        - invalidate_ui(): Refresh UI state
+        - on_exit(): Clean exit handler
+        - stream_to_parent(): Stream output to parent (for multiplexed UIs)
+        - _get_output_field_width(): Custom output width
+
+    Extension Levels:
+        ┌─────────────────────────────────────────────────────────────────┐
+        │ Level 0: UIProtocol (minimal, 4 methods)                        │
+        │         - For tool confirmations only                          │
+        ├─────────────────────────────────────────────────────────────────┤
+        │ Level 1: BaseUI (base class for full implementations)          │
+        │         - Implement 4 required methods + run_async()           │
+        │         - For custom backends (Telegram, Discord, WebSocket)  │
+        ├─────────────────────────────────────────────────────────────────┤
+        │ Level 2: UI (terminal implementation)                          │
+        │         - Full TUI with prompt_toolkit                         │
+        ├─────────────────────────────────────────────────────────────────┤
+        │ Level 3: MultiplexerUI (multi-channel support)                 │
+        │         - Manages multiple child UIs                           │
+        └─────────────────────────────────────────────────────────────────┘
+
+    Example:
+        Minimal custom UI::
+
+            class MyUI(BaseUI):
+                def append_to_output(self, *values, sep=" ", end="\\n", **kwargs):
+                    print(sep.join(str(v) for v in values), end=end)
+
+                async def ask_user(self, prompt: str) -> str:
+                    if prompt:
+                        print(prompt, end="", flush=True)
+                    return await asyncio.to_thread(input)
+
+                async def run_interactive_command(self, cmd, shell=False):
+                    proc = await asyncio.create_subprocess_shell(cmd)
+                    await proc.wait()
+
+                async def run_async(self):
+                    # Start message processing loop
+                    self._process_messages_task = asyncio.create_task(
+                        self._process_messages_loop()
+                    )
+                    # Send initial message if provided
+                    if self._initial_message:
+                        self._submit_user_message(self._llm_task, self._initial_message)
+                    # Keep running until cancelled
+                    try:
+                        while True:
+                            await asyncio.sleep(1)
+                    except asyncio.CancelledError:
+                        pass
+                    finally:
+                        self._process_messages_task.cancel()
+    """
+
     def __init__(
         self,
         ctx: AnyContext,
@@ -173,7 +247,10 @@ class BaseUI:
             return ""
         return self._last_result_data
 
-    # --- ABSTRACT METHODS TO BE IMPLEMENTED BY SUBCLASSES ---
+    # =========================================================================
+    # REQUIRED METHODS - Must be implemented by subclasses
+    # =========================================================================
+
     def append_to_output(
         self,
         *values: object,
@@ -182,8 +259,114 @@ class BaseUI:
         file: TextIO | None = None,
         flush: bool = False,
     ):
-        """Must be implemented by UI. Render output to user."""
-        raise NotImplementedError()
+        """[REQUIRED] Render output to the user.
+
+        This method must be implemented by all UI subclasses to display
+        AI responses, system messages, and other output to the user.
+
+        Args:
+            *values: Objects to display (converted to string via str())
+            sep: Separator between values (default: space)
+            end: String appended after all values (default: newline)
+            file: Ignored (for print() compatibility)
+            flush: Ignored (for print() compatibility)
+
+        Example:
+            def append_to_output(self, *values, sep=" ", end="\\n", **kwargs):
+                print(sep.join(str(v) for v in values), end=end)
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} must implement append_to_output()"
+        )
+
+    async def ask_user(self, prompt: str) -> str:
+        """[REQUIRED] Block and wait for user input.
+
+        This method must be implemented by all UI subclasses to receive
+        user input. It should display the prompt (if provided) and block
+        until the user provides input.
+
+        Args:
+            prompt: Optional prompt to display before waiting for input.
+                   May be empty string if no prompt is needed.
+
+        Returns:
+            The user's input as a string.
+
+        Example:
+            async def ask_user(self, prompt: str) -> str:
+                if prompt:
+                    print(prompt, end="", flush=True)
+                return await asyncio.to_thread(input)
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} must implement ask_user()"
+        )
+
+    async def run_interactive_command(
+        self, cmd: str | list[str], shell: bool = False
+    ) -> Any:
+        """[REQUIRED] Execute an interactive shell command.
+
+        This method must be implemented by UI subclasses that support
+        running shell commands from within the chat (e.g., via /exec command).
+        For UIs that don't support this, raise NotImplementedError or return None.
+
+        Args:
+            cmd: Command to execute (string or list of arguments)
+            shell: If True, run through shell (supports pipes, etc.)
+
+        Returns:
+            Command result (implementation-dependent)
+
+        Example:
+            async def run_interactive_command(self, cmd, shell=False):
+                proc = await asyncio.create_subprocess_shell(cmd, shell=shell)
+                await proc.wait()
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} must implement run_interactive_command()"
+        )
+
+    async def run_async(self) -> str:
+        """[REQUIRED] Run the UI event loop.
+
+        This method must be implemented by all UI subclasses. It should:
+        1. Start the message processing loop (via _process_messages_loop)
+        2. Submit initial message if provided (_initial_message)
+        3. Start any trigger loops if configured
+        4. Run until the UI is closed or cancelled
+        5. Return the last output
+
+        Returns:
+            The last output from the conversation (or empty string).
+
+        Example:
+            async def run_async(self):
+                # Start background tasks
+                self._process_messages_task = asyncio.create_task(
+                    self._process_messages_loop()
+                )
+                # Send initial message if provided
+                if self._initial_message:
+                    self._submit_user_message(self._llm_task, self._initial_message)
+                # Run until cancelled or stopped
+                try:
+                    while self._running:
+                        await asyncio.sleep(0.1)
+                except asyncio.CancelledError:
+                    pass
+                finally:
+                    self._process_messages_task.cancel()
+                return self.last_output
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} must implement run_async()"
+        )
+
+    # =========================================================================
+    # OPTIONAL METHODS - Can be overridden by subclasses
+    # =========================================================================
 
     def stream_to_parent(
         self,
@@ -193,26 +376,55 @@ class BaseUI:
         file: TextIO | None = None,
         flush: bool = False,
     ):
-        """Stream output immediately to parent UI (same as append_to_output for main UI)."""
+        """[OPTIONAL] Stream output immediately to parent UI.
+
+        For main UIs, this is typically the same as append_to_output().
+        For child UIs in a multiplexer setup, this streams to the parent UI
+        instead of buffering locally.
+
+        Override this method if your UI needs to distinguish between
+        local output and output that should be immediately forwarded.
+
+        Args:
+            *values: Objects to stream
+            sep: Separator between values
+            end: String appended after all values
+            file: Ignored
+            flush: Ignored
+        """
         self.append_to_output(*values, sep=sep, end=end, file=file, flush=flush)
 
-    async def ask_user(self, prompt: str) -> str:
-        """Must be implemented by UI. Block and ask for input."""
-        raise NotImplementedError()
-
-    async def run_interactive_command(
-        self, cmd: str | list[str], shell: bool = False
-    ) -> Any:
-        """Must be implemented by UI. Execute interactive command."""
-        raise NotImplementedError()
-
     def invalidate_ui(self):
-        """Optional: Refresh the UI state if needed."""
+        """[OPTIONAL] Refresh the UI state.
+
+        Called when the UI needs to be redrawn or refreshed. Override this
+        method if your UI backend requires explicit refresh calls (e.g.,
+        terminal TUI frameworks, websockets).
+
+        Default implementation does nothing.
+        """
         pass
 
     def on_exit(self):
-        """Optional: Exit the application."""
+        """[OPTIONAL] Handle application exit.
+
+        Called when the user requests to exit the application. Override
+        this method to perform cleanup tasks (close connections, save state, etc.)
+
+        Default implementation does nothing.
+        """
         pass
+
+    def _get_output_field_width(self) -> int | None:
+        """[OPTIONAL] Get the width for text output formatting.
+
+        Override this method to provide a custom width for markdown
+        rendering and text wrapping. Return None for no width constraint.
+
+        Returns:
+            Width in characters, or None for no constraint.
+        """
+        return None
 
     # --- CORE LOGIC EXTRACTED FROM UI ---
     async def _process_messages_loop(self):
@@ -341,10 +553,6 @@ class BaseUI:
             is_web_mode=True,
         )
         return Session(shared_ctx)
-
-    def _get_output_field_width(self) -> int | None:
-        """Can be overridden by subclass."""
-        return None
 
     async def _confirm_tool_execution(
         self,
