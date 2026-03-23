@@ -127,9 +127,9 @@ class TelegramChildUI:
                 await self._flush_task
             except (asyncio.CancelledError, KeyboardInterrupt):
                 pass
-        
+
         # Skip buffer flush during shutdown (not critical)
-        
+
         # Stop the app with fast timeouts (shutdown speed matters more than graceful)
         if self._app:
             try:
@@ -137,13 +137,13 @@ class TelegramChildUI:
                     await self._app.updater.stop()
             except (asyncio.CancelledError, KeyboardInterrupt, asyncio.TimeoutError):
                 pass
-            
+
             try:
                 async with asyncio.timeout(0.5):
                     await self._app.stop()
             except (asyncio.CancelledError, KeyboardInterrupt, asyncio.TimeoutError):
                 pass
-            
+
             try:
                 async with asyncio.timeout(0.5):
                     await self._app.shutdown()
@@ -251,7 +251,7 @@ class MultiplexerUI(BaseUI):
     async def ask_user(self, prompt: str) -> str:
         if is_shutdown_requested():
             return ""  # Return empty during shutdown
-        
+
         for child_ui in self.child_uis:
             child_ui.send_output(f"\n❓ {prompt}\n")
             if hasattr(child_ui, "send_immediate"):
@@ -290,6 +290,7 @@ class MultiplexerUI(BaseUI):
                     # Second Ctrl+C - force immediate exit (bypass Python cleanup)
                     print("\n⚠️ Hard exit!")
                     import os
+
                     os._exit(1)
 
                 # First Ctrl+C - graceful shutdown
@@ -340,7 +341,7 @@ class MultiplexerUI(BaseUI):
         finally:
             await self._cleanup()
             # Signal zrb to terminate the session (stops log_session_state loop)
-            if hasattr(self._ctx, 'session') and self._ctx.session is not None:
+            if hasattr(self._ctx, "session") and self._ctx.session is not None:
                 self._ctx.session.terminate()
             # Force exit - executor threads with input() can't be cancelled gracefully
             # os._exit bypasses Python's shutdown cleanup (300s executor thread wait)
@@ -354,23 +355,28 @@ class MultiplexerUI(BaseUI):
             if self._cleanup_done:
                 return
             self._cleanup_done = True
-        
+
         print("🧹 Cleaning up...", flush=True)
-        
+
         # Signal shutdown to all components
         request_shutdown()
-        
+
         # Cancel all tasks with SHORT timeout (they may be blocked on executor)
         for task in self._tasks:
             if not task.done():
                 task.cancel()
-        
-        print(f"   Cancelling {len([t for t in self._tasks if not t.done()])} tasks...", flush=True)
-        
+
+        print(
+            f"   Cancelling {len([t for t in self._tasks if not t.done()])} tasks...",
+            flush=True,
+        )
+
         # Wait for tasks with short timeout - they might be blocked on input()
         if self._tasks:
             try:
-                async with asyncio.timeout(1.0):  # Short: executor threads can't be cancelled
+                async with asyncio.timeout(
+                    1.0
+                ):  # Short: executor threads can't be cancelled
                     await asyncio.gather(*self._tasks, return_exceptions=True)
             except (asyncio.CancelledError, KeyboardInterrupt, asyncio.TimeoutError):
                 pass
@@ -388,7 +394,11 @@ class MultiplexerUI(BaseUI):
                             try:
                                 async with asyncio.timeout(1.0):  # Short: fast cleanup
                                     await result
-                            except (asyncio.CancelledError, KeyboardInterrupt, asyncio.TimeoutError):
+                            except (
+                                asyncio.CancelledError,
+                                KeyboardInterrupt,
+                                asyncio.TimeoutError,
+                            ):
                                 pass
                 except (asyncio.CancelledError, KeyboardInterrupt):
                     pass
@@ -462,7 +472,7 @@ class MultiplexerApprovalChannel(ApprovalChannel):
     async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
         if is_shutdown_requested():
             return ApprovalResult(approved=False, message="Shutdown requested")
-        
+
         loop = asyncio.get_event_loop()
         future = loop.create_future()
         self._pending[context.tool_call_id] = future
@@ -508,7 +518,7 @@ class TerminalApprovalChannel(ApprovalChannel):
     async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
         if is_shutdown_requested():
             return ApprovalResult(approved=False, message="Shutdown requested")
-        
+
         print(f"\n🔔 Tool: {context.tool_name}")
         print(
             f"Arguments: {json.dumps(context.tool_args, indent=2, default=str)[:500]}"
@@ -561,7 +571,7 @@ class TelegramApprovalChannel(ApprovalChannel):
     async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
         if is_shutdown_requested():
             return ApprovalResult(approved=False, message="Shutdown requested")
-        
+
         await self._ensure_handler()
         await self.child_ui.flush()
 

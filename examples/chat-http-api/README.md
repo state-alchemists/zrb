@@ -75,7 +75,7 @@ pip install aiohttp
 
 ```bash
 cd examples/chat-http-api
-python zrb_init.py  # Or: zrb llm chat
+python main.py
 ```
 
 ### 3. Use the API
@@ -273,5 +273,5 @@ async def ask_user(self, prompt: str) -> str:
 
 | File | Purpose |
 |------|--------|
-| `zrb_init.py` | HttpAPIUI implementation |
+| `main.py` | HttpAPIUI implementation |
 | `README.md` | This file |

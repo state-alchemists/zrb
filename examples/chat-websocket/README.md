@@ -70,7 +70,7 @@ pip install websockets
 
 ```bash
 cd examples/chat-websocket
-zrb llm chat
+python main.py
 ```
 
 ### 3. Connect with a Client
@@ -216,5 +216,5 @@ async def run_async(self):
 
 | File | Purpose |
 |------|--------|
-| `zrb_init.py` | WebSocketUI implementation |
+| `main.py` | WebSocketUI implementation |
 | `README.md` | This file |
