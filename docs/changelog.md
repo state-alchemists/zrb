@@ -1,5 +1,34 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.12.1 (March 23, 2026)
+
+- **Bug Fix: Graceful Shutdown Handling**:
+  - Fixed `KeyboardInterrupt` handling in `log_session_state()` (`src/zrb/task/base/lifecycle.py`).
+  - Added defensive try/except blocks to prevent crashes when context is unavailable during shutdown.
+  - Added `KeyboardInterrupt` to exception handlers alongside `asyncio.CancelledError`.
+
+- **Bug Fix: Telegram Multiplexer Shutdown**:
+  - Improved shutdown handling in `examples/chat-telegram-cli/zrb_init.py`.
+  - Added `asyncio.timeout` for graceful shutdown (1s updater stop, 0.5s app stop/shutdown).
+  - Added `is_shutdown_requested()` checks to prevent operations during shutdown.
+  - Installed asyncio signal handler for graceful SIGINT handling.
+  - Fixed cleanup race conditions with `asyncio.Lock` and `_cleanup_done` flag.
+  - Force exit with `os._exit(0)` to bypass long executor thread waits.
+  - Approval channels now return `approved=False` during shutdown.
+
+- **Documentation: ASCII Diagram Formatting**:
+  - Fixed ASCII box diagram alignment across 11+ README files.
+  - Consistent box widths, aligned vertical edges, centered text.
+  - Updated examples: chat-discord, chat-http-api, chat-minimal-ui, chat-telegram-cli, chat-websocket, chat-whatsapp, web-auth, task-dependencies, trigger-scheduler.
+
+- **Examples: File Renaming**:
+  - Renamed `chat-http-api/zrb_init.py` → `main.py`.
+  - Renamed `chat-websocket/zrb_init.py` → `main.py`.
+  - Updated README references to use `python main.py` instead of `python zrb_init.py`.
+
+- **Dependency Update**:
+  - Updated `pydantic-ai-slim` from 1.67.0 to 1.70.0.
+
 ## 2.12.0 (March 23, 2026)
 
 - **Feature: Simplified UI Extension API**:
