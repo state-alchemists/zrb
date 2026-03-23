@@ -119,31 +119,41 @@ class TelegramChildUI:
         self._flush_task = asyncio.create_task(self._flush_loop())
 
     async def stop(self):
-        """Stop the Telegram bot and cleanup."""
+        """Stop the Telegram bot and cleanup - fast shutdown."""
+        # Cancel flush task first
         if self._flush_task:
             self._flush_task.cancel()
             try:
                 await self._flush_task
-            except asyncio.CancelledError:
+            except (asyncio.CancelledError, KeyboardInterrupt):
                 pass
-        if self._buffer:
-            try:
-                await self._flush_buffer()
-            except:
-                pass
+        
+        # Skip buffer flush during shutdown (not critical)
+        
+        # Stop the app with fast timeouts (shutdown speed matters more than graceful)
         if self._app:
-            for stop_func in [
-                self._app.updater.stop,
-                self._app.stop,
-                self._app.shutdown,
-            ]:
-                try:
-                    await stop_func()
-                except:
-                    pass
+            try:
+                async with asyncio.timeout(1.0):
+                    await self._app.updater.stop()
+            except (asyncio.CancelledError, KeyboardInterrupt, asyncio.TimeoutError):
+                pass
+            
+            try:
+                async with asyncio.timeout(0.5):
+                    await self._app.stop()
+            except (asyncio.CancelledError, KeyboardInterrupt, asyncio.TimeoutError):
+                pass
+            
+            try:
+                async with asyncio.timeout(0.5):
+                    await self._app.shutdown()
+            except (asyncio.CancelledError, KeyboardInterrupt, asyncio.TimeoutError):
+                pass
 
     def send_output(self, message: str) -> None:
         """Buffer output for Telegram."""
+        if is_shutdown_requested():
+            return  # Don't buffer during shutdown
         self._buffer.append(message)
         if len(self._buffer) > 100 or sum(len(s) for s in self._buffer) > 4000:
             asyncio.create_task(self._flush_buffer())
@@ -153,21 +163,25 @@ class TelegramChildUI:
         while not is_shutdown_requested():
             try:
                 await asyncio.sleep(0.5)
-                if self._buffer:
+                if self._buffer and not is_shutdown_requested():
                     await self._flush_buffer()
             except asyncio.CancelledError:
                 break
-        # Final flush on exit
-        if self._buffer:
+            except KeyboardInterrupt:
+                break
+        # Final flush on exit (only if not shutting down)
+        if self._buffer and not is_shutdown_requested():
             try:
                 await self._flush_buffer()
-            except:
+            except (asyncio.CancelledError, KeyboardInterrupt):
                 pass
 
     async def _flush_buffer(self):
         """Send buffered content as single message."""
         if not self._buffer or not self._bot:
             return
+        if is_shutdown_requested():
+            return  # Don't send during shutdown
         content = remove_style("".join(self._buffer)).strip()
         self._buffer = []
         if not content:
@@ -177,6 +191,8 @@ class TelegramChildUI:
 
     async def send_immediate(self, message: str, **kwargs):
         """Send immediately (for prompts, approvals)."""
+        if is_shutdown_requested():
+            return
         if not self._bot:
             await self.start()
         clean = remove_style(message).strip()
@@ -211,20 +227,31 @@ class MultiplexerUI(BaseUI):
         self._waiting_for_input: asyncio.Future | None = None
         # Track all tasks for cleanup
         self._tasks: list[asyncio.Task] = []
+        self._shutdown_event: asyncio.Event | None = None
+        self._cleanup_done: bool = False
+        self._shutdown_lock: asyncio.Lock = asyncio.Lock()
+        self._signal_handler_installed: bool = False
 
     def _submit_from_child(self, child_ui: ChildUIProtocol, message: str):
         """Called by child UIs when they receive input."""
+        if is_shutdown_requested():
+            return  # Ignore input during shutdown
         if self._waiting_for_input and not self._waiting_for_input.done():
             self._waiting_for_input.set_result(message)
             return
         self._submit_user_message(self._llm_task, message)
 
     def append_to_output(self, *values, sep=" ", end="\n", **kwargs):
+        if is_shutdown_requested():
+            return  # Don't output during shutdown
         message = sep.join(str(v) for v in values) + end
         for child_ui in self.child_uis:
             child_ui.send_output(message)
 
     async def ask_user(self, prompt: str) -> str:
+        if is_shutdown_requested():
+            return ""  # Return empty during shutdown
+        
         for child_ui in self.child_uis:
             child_ui.send_output(f"\n❓ {prompt}\n")
             if hasattr(child_ui, "send_immediate"):
@@ -248,8 +275,40 @@ class MultiplexerUI(BaseUI):
             child_ui.send_output(f"⚙️ Running: {cmd}\n")
         return 0
 
+    def _install_async_signal_handler(self):
+        """Install asyncio signal handler for graceful shutdown."""
+        if self._signal_handler_installed:
+            return
+        self._signal_handler_installed = True
+
+        try:
+            loop = asyncio.get_running_loop()
+
+            def handle_sigint():
+                """Handle SIGINT for graceful shutdown."""
+                if is_shutdown_requested():
+                    # Second Ctrl+C - force immediate exit (bypass Python cleanup)
+                    print("\n⚠️ Hard exit!")
+                    import os
+                    os._exit(1)
+
+                # First Ctrl+C - graceful shutdown
+                print("\n👋 Shutting down...")
+                request_shutdown()
+                if self._shutdown_event:
+                    self._shutdown_event.set()
+
+            # Use signal.SIGINT (value 2) for cross-platform compatibility
+            loop.add_signal_handler(2, handle_sigint)  # SIGINT = 2
+        except (NotImplementedError, RuntimeError, ValueError, OSError):
+            # Signal handlers not supported on this platform (e.g., Windows)
+            pass
+
     async def run_async(self) -> str:
-        self._shutdown_event: asyncio.Event = asyncio.Event()
+        self._shutdown_event = asyncio.Event()
+
+        # Install asyncio signal handler for graceful shutdown
+        self._install_async_signal_handler()
 
         # Start child UIs
         for child_ui in self.child_uis:
@@ -271,39 +330,81 @@ class MultiplexerUI(BaseUI):
             self._submit_user_message(self._llm_task, self._initial_message)
 
         try:
+            print("🔄 Waiting for shutdown signal...", flush=True)
             await self._shutdown_event.wait()
+            print("📤 Shutdown signal received, cleaning up...", flush=True)
         except asyncio.CancelledError:
-            pass
+            print("📤 Cancelled, cleaning up...", flush=True)
+        except KeyboardInterrupt:
+            print("📤 Interrupted, cleaning up...", flush=True)
         finally:
             await self._cleanup()
+            # Signal zrb to terminate the session (stops log_session_state loop)
+            if hasattr(self._ctx, 'session') and self._ctx.session is not None:
+                self._ctx.session.terminate()
+            # Force exit - executor threads with input() can't be cancelled gracefully
+            # os._exit bypasses Python's shutdown cleanup (300s executor thread wait)
+            print("🚪 Exiting...", flush=True)
+            os._exit(0)
         return ""
 
     async def _cleanup(self):
-        """Cancel all tasks and cleanup child UIs."""
-        # Cancel all tasks
+        """Cancel all tasks and cleanup child UIs with proper shutdown handling."""
+        async with self._shutdown_lock:
+            if self._cleanup_done:
+                return
+            self._cleanup_done = True
+        
+        print("🧹 Cleaning up...", flush=True)
+        
+        # Signal shutdown to all components
+        request_shutdown()
+        
+        # Cancel all tasks with SHORT timeout (they may be blocked on executor)
         for task in self._tasks:
-            task.cancel()
+            if not task.done():
+                task.cancel()
+        
+        print(f"   Cancelling {len([t for t in self._tasks if not t.done()])} tasks...", flush=True)
+        
+        # Wait for tasks with short timeout - they might be blocked on input()
+        if self._tasks:
             try:
-                await task
-            except asyncio.CancelledError:
+                async with asyncio.timeout(1.0):  # Short: executor threads can't be cancelled
+                    await asyncio.gather(*self._tasks, return_exceptions=True)
+            except (asyncio.CancelledError, KeyboardInterrupt, asyncio.TimeoutError):
                 pass
 
-        # Cleanup child UIs
+        print("   Tasks cancelled.", flush=True)
+
+        # Cleanup child UIs with short timeouts
         for child_ui in self.child_uis:
             for method in ["flush", "stop"]:
                 try:
-                    await getattr(child_ui, method)()
-                except:
+                    func = getattr(child_ui, method, None)
+                    if func:
+                        result = func()
+                        if asyncio.iscoroutine(result):
+                            try:
+                                async with asyncio.timeout(1.0):  # Short: fast cleanup
+                                    await result
+                            except (asyncio.CancelledError, KeyboardInterrupt, asyncio.TimeoutError):
+                                pass
+                except (asyncio.CancelledError, KeyboardInterrupt):
                     pass
+                except Exception:
+                    pass
+        print("✓ Cleanup complete.", flush=True)
 
     def on_exit(self):
         """Handle exit signal - trigger immediate shutdown."""
         request_shutdown()
-        if hasattr(self, "_shutdown_event"):
+        if self._shutdown_event:
             self._shutdown_event.set()
-        # Also cancel all tasks directly
+        # Cancel all tasks directly
         for task in getattr(self, "_tasks", []):
-            task.cancel()
+            if not task.done():
+                task.cancel()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -359,6 +460,9 @@ class MultiplexerApprovalChannel(ApprovalChannel):
         self._pending: dict[str, asyncio.Future] = {}
 
     async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
+        if is_shutdown_requested():
+            return ApprovalResult(approved=False, message="Shutdown requested")
+        
         loop = asyncio.get_event_loop()
         future = loop.create_future()
         self._pending[context.tool_call_id] = future
@@ -389,6 +493,8 @@ class MultiplexerApprovalChannel(ApprovalChannel):
     async def notify(
         self, message: str, context: ApprovalContext | None = None
     ) -> None:
+        if is_shutdown_requested():
+            return
         for channel in self.channels:
             try:
                 await channel.notify(message, context)
@@ -400,6 +506,9 @@ class TerminalApprovalChannel(ApprovalChannel):
     """Terminal-based approval."""
 
     async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
+        if is_shutdown_requested():
+            return ApprovalResult(approved=False, message="Shutdown requested")
+        
         print(f"\n🔔 Tool: {context.tool_name}")
         print(
             f"Arguments: {json.dumps(context.tool_args, indent=2, default=str)[:500]}"
@@ -410,7 +519,7 @@ class TerminalApprovalChannel(ApprovalChannel):
         try:
             response = await loop.run_in_executor(None, input)
             return ApprovalResult(approved=response.strip().lower() in ("", "y", "yes"))
-        except:
+        except (EOFError, KeyboardInterrupt):
             return ApprovalResult(approved=False)
 
     async def notify(
@@ -450,6 +559,9 @@ class TelegramApprovalChannel(ApprovalChannel):
         self._handler_added = True
 
     async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
+        if is_shutdown_requested():
+            return ApprovalResult(approved=False, message="Shutdown requested")
+        
         await self._ensure_handler()
         await self.child_ui.flush()
 

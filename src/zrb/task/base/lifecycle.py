@@ -182,12 +182,21 @@ async def log_session_state(task: AnyTask, session: AnySession):
             await asyncio.sleep(0)  # Log interval
         # Log one final time after termination signal
         session.state_logger.write(session.as_state_log())
-    except asyncio.CancelledError:
+    except (asyncio.CancelledError, KeyboardInterrupt):
         # Log final state on cancellation too
-        session.state_logger.write(session.as_state_log())
-        ctx = task.get_ctx(session)
-        ctx.log_debug("Session state logger cancelled.")
+        try:
+            session.state_logger.write(session.as_state_log())
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            pass  # Give up if interrupted again
+        try:
+            ctx = task.get_ctx(session)
+            ctx.log_debug("Session state logger cancelled.")
+        except Exception:
+            pass  # Context may be unavailable during shutdown
     except Exception as e:
         # Log any unexpected errors in the logger itself
-        ctx = task.get_ctx(session)
-        ctx.log_error(f"Error in session state logger: {e}")
+        try:
+            ctx = task.get_ctx(session)
+            ctx.log_error(f"Error in session state logger: {e}")
+        except Exception:
+            pass  # Context may be unavailable during shutdown
