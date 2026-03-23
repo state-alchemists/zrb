@@ -9,20 +9,20 @@ Zrb provides multiple levels for extending the UI:
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │ Level 0: UIProtocol (minimal, 4 methods)                        │
-│         - For tool confirmations only                          │
+│         - For tool confirmations only                           │
 │         - See: src/zrb/llm/tool_call/ui_protocol.py             │
 ├─────────────────────────────────────────────────────────────────┤
-│ Level 1: BaseUI (THIS EXAMPLE - base class)                    │
-│         - Implement 4 required methods + run_async()           │
-│         - For custom backends (Telegram, Discord, WebSocket)   │
-│         - See: src/zrb/llm/app/base_ui.py                      │
+│ Level 1: BaseUI (THIS EXAMPLE - base class)                     │
+│         - Implement 4 required methods + run_async()            │
+│         - For custom backends (Telegram, Discord, WebSocket)    │
+│         - See: src/zrb/llm/app/base_ui.py                       │
 ├─────────────────────────────────────────────────────────────────┤
 │ Level 2: UI (terminal implementation)                           │
-│         - Full TUI with prompt_toolkit                         │
+│         - Full TUI with prompt_toolkit                          │
 │         - See: src/zrb/llm/app/ui.py                            │
 ├─────────────────────────────────────────────────────────────────┤
-│ Level 3: MultiplexerUI (multi-channel support)                 │
-│         - Manages multiple child UIs                           │
+│ Level 3: MultiplexerUI (multi-channel support)                  │
+│         - Manages multiple child UIs                            │
 │         - See: examples/telegram-cli/ for example               │
 └─────────────────────────────────────────────────────────────────┘
 ```

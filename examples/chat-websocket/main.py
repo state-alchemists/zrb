@@ -18,13 +18,13 @@ BEFORE (BaseUI):                    AFTER (PollingUI):
 
 PATTERN: PollingUI provides queues for external systems.
 
-┌─────────────┐     WebSocket      ┌─────────────┐
-│   Client    │ ◄───────────────► │ WebSocketUI │
-└─────────────┘                    └──────┬──────┘
-                                          │
-                                   ┌──────▼──────┐
-                                   │  LLMChatTask │
-                                   └─────────────┘
+┌─────────────┐    WebSocket    ┌─────────────┐
+│   Client    │ ◄─────────────► │ WebSocketUI │
+└─────────────┘                 └──────┬──────┘
+                                      │
+                               ┌──────▼──────┐
+                               │ LLMChatTask │
+                               └─────────────┘
 
 Client polls:    ui.output_queue.get()  ← AI messages
 Client sends:    ui.input_queue.put("response")  ← User responses

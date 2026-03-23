@@ -18,16 +18,16 @@ BEFORE (BaseUI):                    AFTER (PollingUI):
 
 PATTERN: PollingUI provides queues for HTTP polling.
 
-┌─────────────┐    POST /chat     ┌─────────────┐
-│   Client    │ ───────────────► │  HttpAPIUI  │
-│             │    GET /poll     │             │
-│             │ ◄─────────────── │             │
-│             │   POST /response │             │
-└─────────────┘                  └──────┬──────┘
-                                        │
-                                 ┌──────▼──────┐
-                                 │  LLMChatTask │
-                                 └─────────────┘
+┌─────────────┐   POST /chat   ┌─────────────┐
+│   Client    │ ─────────────► │  HttpAPIUI  │
+│             │   GET /poll    │             │
+│             │ ◄───────────── │             │
+│             │ POST /response │             │
+└─────────────┘                └──────┬──────┘
+                                      │
+                               ┌──────▼──────┐
+                               │ LLMChatTask │
+                               └─────────────┘
 
 ══════════════════════════════════════════════════════════════════════════════
 

@@ -22,21 +22,21 @@ Usage:
 Extension Levels:
     ┌─────────────────────────────────────────────────────────────────┐
     │ Level 0: UIProtocol (minimal, 4 methods)                        │
-    │         - For tool confirmations only                          │
+    │         - For tool confirmations only                           │
     ├─────────────────────────────────────────────────────────────────┤
-    │ Level 1: SimpleUI (THIS EXAMPLE - simplest)                    │
-    │         - Implement 2 methods: print(), get_input()            │
-    │         - For basic backends (CLI, simple WebSocket)           │
+    │ Level 1: SimpleUI (THIS EXAMPLE - simplest)                     │
+    │         - Implement 2 methods: print(), get_input()             │
+    │         - For basic backends (CLI, simple WebSocket)            │
     ├─────────────────────────────────────────────────────────────────┤
-    │ Level 2: EventDrivenUI (event-driven)                          │
-    │         - Implement: print(), start_event_loop()               │
-    │         - Call handle_incoming_message() on events            │
-    │         - For Telegram, Discord, WhatsApp                     │
+    │ Level 2: EventDrivenUI (event-driven)                           │
+    │         - Implement: print(), start_event_loop()                │
+    │         - Call handle_incoming_message() on events              │
+    │         - For Telegram, Discord, WhatsApp                       │
     ├─────────────────────────────────────────────────────────────────┤
-    │ Level 3: PollingUI (polling-based)                             │
-    │         - Implement: print()                                   │
-    │         - Use output_queue / input_queue                       │
-    │         - For HTTP API, WebSocket polling                     │
+    │ Level 3: PollingUI (polling-based)                              │
+    │         - Implement: print()                                    │
+    │         - Use output_queue / input_queue                        │
+    │         - For HTTP API, WebSocket polling                       │
     └─────────────────────────────────────────────────────────────────┘
 """
 

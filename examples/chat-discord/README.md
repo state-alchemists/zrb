@@ -8,12 +8,12 @@ Discord uses an **event-driven** pattern:
 
 ```
 ┌─────────────────┐                    ┌─────────────────┐
-│  Discord User    │                    │   DiscordUI     │
-│  (Chat Client)  │                    │   (BaseUI)      │
+│   Discord User  │                    │    DiscordUI    │
+│  (Chat Client)  │                    │    (BaseUI)     │
 └────────┬────────┘                    └────────┬────────┘
          │                                      │
-         │  Message Event                        │
-         │ ──────────────────────────────────────>│
+         │  Message Event                       │
+         │ ─────────────────────────────────────│
          │                                      │
          │                    on_message() routes:
          │                    - ask_user response?
@@ -21,10 +21,10 @@ Discord uses an **event-driven** pattern:
          │                    - chat message?
          │                                      │
          │  Discord Message (output)            │
-         │ <─────────────────────────────────────│
+         │ ◄────────────────────────────────────│
          │                                      │
          │  Reaction (approval)                 │
-         │ ──────────────────────────────────────>│
+         │ ─────────────────────────────────────│
          │                                      │
 ```
 
@@ -43,43 +43,43 @@ Discord uses an **event-driven** pattern:
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                      Discord Bot                              │
-│                                                              │
-│  ┌────────────────────────────────────────────────────────┐  │
-│  │ on_message(message):                                     │  │
-│  │   - Check if response to ask_user (route to queue)     │  │
-│  │   - Check if command (process commands)                │  │
-│  │   - Otherwise, route to _submit_user_message()        │  │
-│  └────────────────────────────────────────────────────────┘  │
-│                            │                                  │
-│                   ┌─────────▼─────────┐                       │
-│                   │ Message Router      │                       │
-│                   │                   │                       │
-│                   │ conversations: {   │                       │
-│                   │   channel_user1: {  │                       │
-│                   │     ui: DiscordUI,  │                       │
-│                   │     waiting: false ║                      │
-│                   │   },               │                       │
-│                   │   channel_user2: {  │                       │
-│                   │     ui: DiscordUI,  │                       │
-│                   │     waiting: true   │                       │
-│                   │   }                │                       │
-│                   │ }                  │                       │
-│                   └─────────┬─────────┘                       │
-│                             │                                  │
-│                   ┌─────────▼─────────┐                       │
-│                   │   DiscordUI        │                       │
-│                   │   (BaseUI)         │                       │
-│                   │                   │                       │
-│                   │  - ask_user_queue │                       │
-│                   │  - channel.send() │                       │
-│                   └─────────┬─────────┘                       │
-│                             │                                  │
-│                   ┌─────────▼─────────┐                       │
-│                   │   LLMChatTask      │                       │
-│                   └───────────────────┘                       │
-└──────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                        Discord Bot                              │
+│                                                                 │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │ on_message(message):                                       │ │
+│  │   - Check if response to ask_user (route to queue)         │ │
+│  │   - Check if command (process commands)                    │ │
+│  │   - Otherwise, route to _submit_user_message()             │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│                              │                                  │
+│                    ┌─────────▼──────────┐                       │
+│                    │   Message Router   │                       │
+│                    │                    │                       │
+│                    │ conversations: {   │                       │
+│                    │   channel_user1: { │                       │
+│                    │     ui: DiscordUI, │                       │
+│                    │     waiting: false │                       │
+│                    │   },               │                       │
+│                    │   channel_user2: { │                       │
+│                    │     ui: DiscordUI, │                       │
+│                    │     waiting: true  │                       │
+│                    │   }                │                       │
+│                    │ }                  │                       │
+│                    └─────────┬──────────┘                       │
+│                              │                                  │
+│                    ┌─────────▼──────────┐                       │
+│                    │    DiscordUI       │                       │
+│                    │    (BaseUI)        │                       │
+│                    │                    │                       │
+│                    │ - ask_user_queue   │                       │
+│                    │ - channel.send()   │                       │
+│                    └─────────┬──────────┘                       │
+│                              │                                  │
+│                    ┌─────────▼──────────┐                       │
+│                    │   LLMChatTask      │                       │
+│                    └────────────────────┘                       │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ## Quick Start

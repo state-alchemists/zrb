@@ -52,9 +52,9 @@ zrb process-order --amount 50
 │   Task   │
 └────┬─────┘
      │
-     ├── FAIL ──> Fallback task runs
+     ├── FAIL ──► Fallback task runs
      │
-     └── SUCCESS -> Successor task runs
+     └── SUCCESS ──► Successor task runs
 ```
 
 - **Fallback**: Runs when main task fails

@@ -41,23 +41,23 @@ llm_chat.set_ui_factory(create_ui_factory(MyUI))
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ Level 1: SimpleUI (RECOMMENDED for beginners)                  │
-│         - Implement just 2 methods: print(), get_input()       │
-│         - For basic backends (CLI, simple WebSocket)          │
+│ Level 1: SimpleUI (RECOMMENDED for beginners)                   │
+│         - Implement just 2 methods: print(), get_input()        │
+│         - For basic backends (CLI, simple WebSocket)            │
 ├─────────────────────────────────────────────────────────────────┤
-│ Level 2: EventDrivenUI (for event-driven backends)             │
-│         - Implement: print(), start_event_loop()               │
-│         - Call handle_incoming_message() on events             │
-│         - For Telegram, Discord, WhatsApp                      │
+│ Level 2: EventDrivenUI (for event-driven backends)              │
+│         - Implement: print(), start_event_loop()                │
+│         - Call handle_incoming_message() on events              │
+│         - For Telegram, Discord, WhatsApp                       │
 ├─────────────────────────────────────────────────────────────────┤
-│ Level 3: PollingUI (for polling backends)                      │
+│ Level 3: PollingUI (for polling backends)                       │
 │         - Implement: print()                                    │
-│         - Use built-in output_queue/input_queue                │
-│         - For HTTP API, WebSocket polling                      │
+│         - Use built-in output_queue/input_queue                 │
+│         - For HTTP API, WebSocket polling                       │
 ├─────────────────────────────────────────────────────────────────┤
-│ Level 4: BaseUI (full control, advanced)                       │
-│         - Implement 5+ methods                                   │
-│         - For maximum flexibility                              │
+│ Level 4: BaseUI (full control, advanced)                        │
+│         - Implement 5+ methods                                  │
+│         - For maximum flexibility                               │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
