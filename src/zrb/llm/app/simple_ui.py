@@ -159,9 +159,9 @@ class SimpleUI(BaseUI):
 
     def __init__(
         self,
-        ctx: "AnyContext" = None,
-        llm_task: LLMTask = None,
-        history_manager: AnyHistoryManager = None,
+        ctx: "AnyContext | None" = None,
+        llm_task: LLMTask | None = None,
+        history_manager: AnyHistoryManager | None = None,
         config: UIConfig | None = None,
         initial_message: str = "",
         initial_attachments: list["UserContent"] | None = None,
@@ -339,6 +339,14 @@ class EventDrivenUI(SimpleUI):
         self._input_queue: asyncio.Queue[str] = asyncio.Queue()
         self._waiting_for_input = False
 
+    @property
+    def input_queue(self) -> asyncio.Queue[str]:
+        """Public accessor for input queue (backward compatibility).
+
+        Prefer using handle_incoming_message() for routing messages.
+        """
+        return self._input_queue
+
     # =========================================================================
     # Abstract method - Simplified event handling
     # =========================================================================
@@ -481,25 +489,38 @@ class PollingUI(SimpleUI):
 
     This class provides output/input queues that external systems can use:
     - output_queue: Messages from AI (external system polls this)
-    - input_queue: Responses from user (external system puts to this)
+    - handle_incoming_message(): Routes messages correctly based on LLM state
+
+    Call handle_incoming_message() when user sends a new message:
+    - If LLM is waiting for input (e.g., asking a question): answers it
+    - If LLM is idle: starts new conversation turn
 
     You need to implement:
     - print(text: str) -> None   # Just queue the output
 
     Example:
         class HttpAPIUI(PollingUI):
-            def print(self, text: str):
+            async def print(self, text: str):
                 self.output_queue.put_nowait(text)
 
         # External system uses:
         ui.output_queue.get()  # Poll for AI messages
-        ui.input_queue.put("response")  # Provide user input
+        ui.handle_incoming_message("user response")  # Provide input or start new
     """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.output_queue: asyncio.Queue[str] = asyncio.Queue()
-        self.input_queue: asyncio.Queue[str] = asyncio.Queue()
+        self._input_queue: asyncio.Queue[str] = asyncio.Queue()
+        self._waiting_for_input = False
+
+    @property
+    def input_queue(self) -> asyncio.Queue[str]:
+        """Public accessor for input queue (backward compatibility).
+
+        Prefer using handle_incoming_message() for routing messages.
+        """
+        return self._input_queue
 
     async def print(self, text: str) -> None:
         """Queue output for external polling.
@@ -510,10 +531,32 @@ class PollingUI(SimpleUI):
         self.output_queue.put_nowait(text)
 
     async def get_input(self, prompt: str) -> str:
-        """Block until external system provides input."""
+        """Block until external system provides input via handle_incoming_message()."""
         if prompt:
             await self.print(f"❓ {prompt}")
-        return await self.input_queue.get()
+        self._waiting_for_input = True
+        try:
+            return await self._input_queue.get()
+        finally:
+            self._waiting_for_input = False
+
+    def handle_incoming_message(self, text: str):
+        """Call this when a user message arrives.
+
+        Routes the message correctly:
+        - If LLM is waiting for input (get_input blocked): unblocks it
+        - If LLM is idle: starts a new conversation turn
+
+        This is the KEY method for external integration. Use it for:
+        - HTTP API: POST /chat calls this
+        - WebSocket: When a message event arrives
+        """
+        if self._waiting_for_input:
+            # LLM is blocked on get_input() waiting for user response
+            self._input_queue.put_nowait(text)
+        else:
+            # LLM is idle - start a new conversation turn
+            self._submit_user_message(self._llm_task, text)
 
 
 # =============================================================================
