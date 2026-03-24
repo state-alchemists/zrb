@@ -1,5 +1,39 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.13.0 (March 24, 2026)
+
+- **Breaking Change: SimpleUI Constructor API**:
+  - `SimpleUI.__init__` now requires `ctx`, `llm_task`, and `history_manager` parameters (previously optional).
+  - `EventDrivenUI.__init__` and `PollingUI.__init__` updated with explicit parameter signatures.
+  - Use `create_ui_factory(MyUI)` for simplified registration without manual constructor handling.
+  - Updated documentation with clearer constructor parameter descriptions.
+
+- **Feature: handle_incoming_message() Method**:
+  - Added to `EventDrivenUI` and `PollingUI` for proper message routing.
+  - Solves the common pitfall where `input_queue.put()` loses messages when LLM is idle.
+  - Routes correctly: unblocks `get_input()` when LLM waiting, or starts new turn when idle.
+  - `_waiting_for_input` flag tracks LLM state for intelligent routing.
+
+- **Feature: SSE Chat Example**:
+  - Added `examples/chat-sse/` demonstrating Server-Sent Events for real-time LLM chat.
+  - Shows proper `handle_incoming_message()` integration pattern.
+  - Includes HTTP endpoints: `POST /chat`, `GET /stream`, `GET /status`, `GET /history`.
+  - Automatic keepalive prevents timeout, no polling needed.
+
+- **Refactoring: PollingUI Internal API**:
+  - `input_queue` → `_input_queue` (internal) with `input_queue` property for backward compatibility.
+  - Public property deprecated in favor of `handle_incoming_message()` for proper routing.
+
+- **Examples Removal**:
+  - Removed `chat-discord`, `chat-whatsapp`, `chat-http-api`, `chat-websocket` examples.
+  - SSE example provides clearer pattern for HTTP-based integrations.
+
+- **Documentation: Mental Model Overhaul**:
+  - Added comprehensive architecture diagrams to `docs/advanced-topics/llm-custom-ui.md`.
+  - Method mapping tables show `BaseUI → SimpleUI` translation.
+  - Clear "What Each Level Abstracts Away" table for choosing base class.
+  - Fixed ASCII diagram alignment in `base_ui.py` comments.
+
 ## 2.12.1 (March 23, 2026)
 
 - **Bug Fix: Graceful Shutdown Handling**:
