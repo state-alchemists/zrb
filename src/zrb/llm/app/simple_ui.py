@@ -138,25 +138,35 @@ class SimpleUI(BaseUI):
     - print(text: str) -> None        # Display output
     - get_input(prompt: str) -> str   # Get user input (async)
 
+    Constructor Parameters:
+        ctx: Required context (AnyContext)
+        llm_task: Required LLM task (LLMTask)
+        history_manager: Required history manager (AnyHistoryManager)
+        config: Optional UIConfig for customizing commands and behavior
+        initial_message: Optional initial message to send
+        initial_attachments: Optional file attachments
+        model: Optional model override
+        **kwargs: Additional kwargs passed through (for subclass use)
+
     Example:
         class MyUI(SimpleUI):
-            def print(self, text: str):
+            async def print(self, text: str):
                 print(text, end="", flush=True)
 
             async def get_input(self, prompt: str) -> str:
                 return await asyncio.to_thread(input, prompt)
 
         # In your zrb_init.py:
-        llm_chat.set_ui_factory(
-            lambda ctx, task, hm, **kw: MyUI(ctx=ctx, llm_task=task, history_manager=hm)
-        )
+        from zrb.llm.app.simple_ui import create_ui_factory
+
+        llm_chat.set_ui_factory(create_ui_factory(MyUI))
     """
 
     def __init__(
         self,
-        ctx: "AnyContext | None" = None,
-        llm_task: LLMTask | None = None,
-        history_manager: AnyHistoryManager | None = None,
+        ctx: "AnyContext",
+        llm_task: LLMTask,
+        history_manager: AnyHistoryManager,
         config: UIConfig | None = None,
         initial_message: str = "",
         initial_attachments: list["UserContent"] | None = None,
@@ -346,9 +356,9 @@ class EventDrivenUI(SimpleUI):
 
     def __init__(
         self,
-        ctx: "AnyContext | None" = None,
-        llm_task: LLMTask | None = None,
-        history_manager: AnyHistoryManager | None = None,
+        ctx: "AnyContext",
+        llm_task: LLMTask,
+        history_manager: AnyHistoryManager,
         config: UIConfig | None = None,
         initial_message: str = "",
         initial_attachments: list["UserContent"] | None = None,
@@ -539,9 +549,9 @@ class PollingUI(SimpleUI):
 
     def __init__(
         self,
-        ctx: "AnyContext | None" = None,
-        llm_task: LLMTask | None = None,
-        history_manager: AnyHistoryManager | None = None,
+        ctx: "AnyContext",
+        llm_task: LLMTask,
+        history_manager: AnyHistoryManager,
         config: UIConfig | None = None,
         initial_message: str = "",
         initial_attachments: list["UserContent"] | None = None,
