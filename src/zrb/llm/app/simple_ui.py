@@ -29,11 +29,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-# =============================================================================
-# Configuration - Reduces 25+ __init__ params to a single dataclass
-# =============================================================================
-
-
 @dataclass
 class UIConfig:
     """Configuration for UI backends.
@@ -213,6 +208,13 @@ class SimpleUI(BaseUI):
         This is a simplified version of append_to_output().
         Just print/emit/send the text.
 
+        IMPORTANT: This MUST be an async method (use `async def print()`).
+        SimpleUI.append_to_output() uses asyncio.create_task() to schedule
+        this method, which requires a coroutine object.
+
+        If you need synchronous output during initialization (before the
+        event loop starts), override append_to_output() directly.
+
         Args:
             text: The text to display (already formatted)
         """
@@ -249,7 +251,15 @@ class SimpleUI(BaseUI):
     ):
         """Default implementation - calls simplified print().
 
-        Note: print() is async, so we schedule it in the event loop.
+        This method is called synchronously by BaseUI during streaming.
+        It schedules the async print() method using create_task().
+
+        Sync Fallback: If no event loop is running (e.g., during initialization
+        or in tests), this falls back to writing directly to stdout. This
+        bypasses the subclass print() method entirely.
+
+        If you need to handle output before the event loop starts, override
+        this method directly instead of print().
         """
         text = sep.join(str(v) for v in values) + end
         # Schedule the async print in the running event loop
@@ -334,8 +344,27 @@ class EventDrivenUI(SimpleUI):
                 self.handle_incoming_message(update.message.text)
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        ctx: "AnyContext | None" = None,
+        llm_task: LLMTask | None = None,
+        history_manager: AnyHistoryManager | None = None,
+        config: UIConfig | None = None,
+        initial_message: str = "",
+        initial_attachments: list["UserContent"] | None = None,
+        model: str | None = None,
+        **kwargs,
+    ):
+        super().__init__(
+            ctx=ctx,
+            llm_task=llm_task,
+            history_manager=history_manager,
+            config=config,
+            initial_message=initial_message,
+            initial_attachments=initial_attachments,
+            model=model,
+            **kwargs,
+        )
         self._input_queue: asyncio.Queue[str] = asyncio.Queue()
         self._waiting_for_input = False
 
@@ -508,8 +537,27 @@ class PollingUI(SimpleUI):
         ui.handle_incoming_message("user response")  # Provide input or start new
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        ctx: "AnyContext | None" = None,
+        llm_task: LLMTask | None = None,
+        history_manager: AnyHistoryManager | None = None,
+        config: UIConfig | None = None,
+        initial_message: str = "",
+        initial_attachments: list["UserContent"] | None = None,
+        model: str | None = None,
+        **kwargs,
+    ):
+        super().__init__(
+            ctx=ctx,
+            llm_task=llm_task,
+            history_manager=history_manager,
+            config=config,
+            initial_message=initial_message,
+            initial_attachments=initial_attachments,
+            model=model,
+            **kwargs,
+        )
         self.output_queue: asyncio.Queue[str] = asyncio.Queue()
         self._input_queue: asyncio.Queue[str] = asyncio.Queue()
         self._waiting_for_input = False

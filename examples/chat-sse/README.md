@@ -95,8 +95,51 @@ Check session status.
 ```json
 {
   "waiting_for_input": false,
-  "connected_clients": 1
+  "session_name": "random-session-name"
 }
+```
+
+### GET /history
+
+Get conversation history. Useful for resuming after disconnecting.
+
+**Query Parameters:**
+| Param | Default | Description |
+|-------|---------|-------------|
+| `session` | current | Session name to load |
+| `format` | `text` | Output format: `text` or `json` |
+| `max_length` | `10000` | Max characters (for text format) |
+
+**Text Format Response:**
+```
+💬 14:30 >> Hello!
+🤖 14:30 >>
+  Hello! How can I help you?
+
+💬 14:31 >> What is 2+2?
+🤖 14:31 >>
+  2 + 2 = 4.
+```
+
+**JSON Format Response:**
+```json
+{
+  "session_name": "my-session",
+  "message_count": 4,
+  "messages": [
+    {"kind": "request", "parts": [...]},
+    {"kind": "response", "parts": [...]}
+  ]
+}
+```
+
+**Example - Get history after reconnect:**
+```bash
+# Get current session's history as text
+curl http://localhost:8000/history
+
+# Get specific session as JSON
+curl "http://localhost:8000/history?session=my-session&format=json"
 ```
 
 ## How It Works

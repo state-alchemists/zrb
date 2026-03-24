@@ -50,6 +50,7 @@ from zrb.llm.app.simple_ui import (
     EventDrivenUI,
     create_ui_factory,
 )
+from zrb.llm.util.history_formatter import format_history_as_text
 from zrb.util.cli.style import remove_style
 
 SSE_HOST = os.environ.get("SSE_HOST", "localhost")
@@ -102,6 +103,7 @@ class SSEServer:
         self._app.router.add_post("/chat", self._handle_chat)
         self._app.router.add_get("/stream", self._handle_stream)
         self._app.router.add_get("/status", self._handle_status)
+        self._app.router.add_get("/history", self._handle_history)
 
         self._runner = web.AppRunner(self._app)
         await self._runner.setup()
@@ -111,9 +113,10 @@ class SSEServer:
         print(f"🌐 SSE Chat Server: http://{self.host}:{self.port}")
         print("")
         print("Endpoints:")
-        print("  POST /chat   - Send message")
-        print("  GET  /stream - SSE stream (stays connected)")
-        print("  GET  /status - Session status")
+        print("  POST /chat    - Send message")
+        print("  GET  /stream  - SSE stream (stays connected)")
+        print("  GET  /status  - Session status")
+        print("  GET  /history - Get conversation history")
         print("")
         print("Press CTRL+C to exit")
 
@@ -182,8 +185,70 @@ class SSEServer:
         return web.json_response(
             {
                 "waiting_for_input": self._ui_instance._waiting_for_input,
+                "session_name": self._ui_instance._conversation_session_name,
             }
         )
+
+    async def _handle_history(self, request: web.Request) -> web.Response:
+        """GET /history - Get conversation history.
+
+        Query params:
+            session: Optional session name (defaults to current session)
+            format: "text" or "json" (defaults to "text")
+
+        Returns:
+            Formatted conversation history or raw JSON
+        """
+        if not self._ui_instance:
+            return web.json_response({"error": "UI not initialized"}, status=500)
+
+        # Get session name from query param or use current session
+        session_name = request.query.get(
+            "session", self._ui_instance._conversation_session_name
+        )
+        output_format = request.query.get("format", "text")
+        max_length = int(request.query.get("max_length", "10000"))
+
+        try:
+            # Access history manager through UI instance
+            history_manager = self._ui_instance._history_manager
+            messages = history_manager.load(session_name)
+
+            if output_format == "json":
+                # Return raw message structure as JSON
+                # ModelMessage objects have .model_dump() method
+                messages_data = []
+                for msg in messages:
+                    if hasattr(msg, "model_dump"):
+                        messages_data.append(msg.model_dump())
+                    else:
+                        # Fallback for older pydantic-ai versions
+                        messages_data.append(str(msg))
+
+                return web.json_response(
+                    {
+                        "session_name": session_name,
+                        "message_count": len(messages),
+                        "messages": messages_data,
+                    }
+                )
+            else:
+                # Return formatted text
+                history_text = format_history_as_text(messages, max_length=max_length)
+                return web.Response(
+                    text=history_text,
+                    content_type="text/plain",
+                    charset="utf-8",
+                )
+
+        except FileNotFoundError:
+            return web.json_response(
+                {"error": f"Session '{session_name}' not found"}, status=404
+            )
+        except Exception as e:
+            return web.json_response(
+                {"error": f"Failed to load history: {str(e)}"}, status=500
+            )
 
 
 # =============================================================================

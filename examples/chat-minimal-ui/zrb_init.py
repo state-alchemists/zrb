@@ -65,8 +65,12 @@ class MinimalUI(SimpleUI):
         super().__init__(**kwargs)
         self._log_file = log_file
 
-    def print(self, text: str) -> None:
-        """Display output to user."""
+    async def print(self, text: str) -> None:
+        """Display output to user.
+
+        Note: This MUST be async because SimpleUI.append_to_output()
+        uses asyncio.create_task() to schedule this method.
+        """
         print(text, end="", flush=True)
 
         # Optional: Log to file

@@ -65,17 +65,17 @@ class BaseUI:
     Extension Levels:
         ┌─────────────────────────────────────────────────────────────────┐
         │ Level 0: UIProtocol (minimal, 4 methods)                        │
-        │         - For tool confirmations only                          │
+        │         - For tool confirmations only                           │
         ├─────────────────────────────────────────────────────────────────┤
-        │ Level 1: BaseUI (base class for full implementations)          │
-        │         - Implement 4 required methods + run_async()           │
-        │         - For custom backends (Telegram, Discord, WebSocket)  │
+        │ Level 1: BaseUI (base class for full implementations)           │
+        │         - Implement 4 required methods + run_async()            │
+        │         - For custom backends (Telegram, Discord, WebSocket)    │
         ├─────────────────────────────────────────────────────────────────┤
-        │ Level 2: UI (terminal implementation)                          │
-        │         - Full TUI with prompt_toolkit                         │
+        │ Level 2: UI (terminal implementation)                           │
+        │         - Full TUI with prompt_toolkit                          │
         ├─────────────────────────────────────────────────────────────────┤
-        │ Level 3: MultiplexerUI (multi-channel support)                 │
-        │         - Manages multiple child UIs                           │
+        │ Level 3: MultiplexerUI (multi-channel support)                  │
+        │         - Manages multiple child UIs                            │
         └─────────────────────────────────────────────────────────────────┘
 
     Example:
