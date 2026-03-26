@@ -679,27 +679,7 @@ class LLMChatTask(BaseTask):
             else:
                 resolved_uis.append(factory_ui)
 
-        # 2. Determine the UI to use
-        ui: "UIProtocol | None" = None
-        if resolved_uis:
-            if len(resolved_uis) == 1:
-                ui = resolved_uis[0]
-            else:
-                from zrb.llm.ui.multi_ui import MultiUI
-
-                ui = MultiUI(resolved_uis)
-
-        if ui is not None and isinstance(ui, BaseUI):
-            # If the provided UI is already a BaseUI subclass (like TelegramUI),
-            # just run it. We assume it's already properly configured.
-            await ui.run_async()
-            return ui.last_output
-
-        # Otherwise, fall back to the default Terminal UI
-        from zrb.llm.app.lexer import CLIStyleLexer
-        from zrb.llm.ui.default_ui import UI
-
-        # Resolve UI attributes
+        # 2. Resolve UI attributes for default UI
         ui_greeting = get_str_attr(ctx, self._ui_greeting, "", self._render_ui_greeting)
         ui_assistant_name = get_str_attr(
             ctx, self._ui_assistant_name, "", self._render_ui_assistant_name
@@ -721,40 +701,97 @@ class LLMChatTask(BaseTask):
             else:
                 resolved_custom_commands.append(cmd)
 
-        ui = UI(
-            ctx=ctx,
-            yolo_xcom_key=self._yolo_xcom_key,
-            greeting=ui_greeting,
-            assistant_name=ui_assistant_name,
-            ascii_art=ascii_art,
-            jargon=ui_jargon,
-            output_lexer=CLIStyleLexer(),
-            llm_task=llm_task_core,
-            history_manager=history_manager,
-            initial_message=initial_message,
-            initial_attachments=initial_attachments,
-            conversation_session_name=initial_conversation_name,
-            yolo=initial_yolo,
-            triggers=self._triggers,
-            response_handlers=self._response_handlers,
-            tool_policies=self._tool_policies,
-            argument_formatters=self._argument_formatters,
-            markdown_theme=self._markdown_theme,
-            summarize_commands=ui_commands["summarize"],
-            attach_commands=ui_commands["attach"],
-            exit_commands=ui_commands["exit"],
-            info_commands=ui_commands["info"],
-            save_commands=ui_commands["save"],
-            load_commands=ui_commands["load"],
-            yolo_toggle_commands=ui_commands["yolo_toggle"],
-            set_model_commands=ui_commands["set_model"],
-            redirect_output_commands=ui_commands["redirect_output"],
-            exec_commands=ui_commands["exec"],
-            custom_commands=resolved_custom_commands,
-            model=self._get_model(ctx),
-        )
-        await ui.run_async()
-        return ui.last_output
+        # 3. Determine the UI to use
+        from zrb.llm.app.lexer import CLIStyleLexer
+        from zrb.llm.ui.default_ui import UI
+        from zrb.llm.ui.multi_ui import MultiUI
+
+        ui: "UIProtocol | None" = None
+
+        if resolved_uis:
+            # We have factory UIs - create default UI and combine them
+            default_ui = UI(
+                ctx=ctx,
+                yolo_xcom_key=self._yolo_xcom_key,
+                greeting=ui_greeting,
+                assistant_name=ui_assistant_name,
+                ascii_art=ascii_art,
+                jargon=ui_jargon,
+                output_lexer=CLIStyleLexer(),
+                llm_task=llm_task_core,
+                history_manager=history_manager,
+                initial_message=initial_message,
+                initial_attachments=initial_attachments,
+                conversation_session_name=initial_conversation_name,
+                yolo=initial_yolo,
+                triggers=self._triggers,
+                response_handlers=self._response_handlers,
+                tool_policies=self._tool_policies,
+                argument_formatters=self._argument_formatters,
+                markdown_theme=self._markdown_theme,
+                summarize_commands=ui_commands["summarize"],
+                attach_commands=ui_commands["attach"],
+                exit_commands=ui_commands["exit"],
+                info_commands=ui_commands["info"],
+                save_commands=ui_commands["save"],
+                load_commands=ui_commands["load"],
+                yolo_toggle_commands=ui_commands["yolo_toggle"],
+                set_model_commands=ui_commands["set_model"],
+                redirect_output_commands=ui_commands["redirect_output"],
+                exec_commands=ui_commands["exec"],
+                custom_commands=resolved_custom_commands,
+                model=self._get_model(ctx),
+            )
+            # Add default UI first, then factory UIs
+            all_uis = [default_ui] + resolved_uis
+            if len(all_uis) == 1:
+                ui = default_ui
+            else:
+                ui = MultiUI(all_uis)
+        else:
+            # No factory UIs, use default UI
+            ui = UI(
+                ctx=ctx,
+                yolo_xcom_key=self._yolo_xcom_key,
+                greeting=ui_greeting,
+                assistant_name=ui_assistant_name,
+                ascii_art=ascii_art,
+                jargon=ui_jargon,
+                output_lexer=CLIStyleLexer(),
+                llm_task=llm_task_core,
+                history_manager=history_manager,
+                initial_message=initial_message,
+                initial_attachments=initial_attachments,
+                conversation_session_name=initial_conversation_name,
+                yolo=initial_yolo,
+                triggers=self._triggers,
+                response_handlers=self._response_handlers,
+                tool_policies=self._tool_policies,
+                argument_formatters=self._argument_formatters,
+                markdown_theme=self._markdown_theme,
+                summarize_commands=ui_commands["summarize"],
+                attach_commands=ui_commands["attach"],
+                exit_commands=ui_commands["exit"],
+                info_commands=ui_commands["info"],
+                save_commands=ui_commands["save"],
+                load_commands=ui_commands["load"],
+                yolo_toggle_commands=ui_commands["yolo_toggle"],
+                set_model_commands=ui_commands["set_model"],
+                redirect_output_commands=ui_commands["redirect_output"],
+                exec_commands=ui_commands["exec"],
+                custom_commands=resolved_custom_commands,
+                model=self._get_model(ctx),
+            )
+
+        # 4. Run the UI
+        if ui is not None and isinstance(ui, BaseUI):
+            await ui.run_async()
+            return ui.last_output
+        elif ui is not None and hasattr(ui, "run_async"):
+            await ui.run_async()
+            return getattr(ui, "last_output", "")
+        else:
+            raise ValueError(f"UI {type(ui)} does not implement run_async")
 
     def _get_conversation_name(self, ctx: AnyContext) -> str:
         conversation_name = str(

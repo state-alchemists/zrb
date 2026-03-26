@@ -1,10 +1,9 @@
 # Telegram + CLI Chat Example
 
-This example supports **three modes** based on environment variables:
+This example supports **two modes**:
 
 1. **CLI only** (default) - Just run `zrb llm chat`
-2. **Telegram only** - Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`
-3. **CLI + Telegram** (dual) - Both channels receive messages
+2. **Telegram + CLI** (dual) - Enable with `TELEGRAM_MODE=true`
 
 ## Setup
 
@@ -31,6 +30,7 @@ pip install python-telegram-bot>=20.0
 ### 4. Set Environment Variables
 
 ```bash
+export TELEGRAM_MODE="true"
 export TELEGRAM_BOT_TOKEN="your_bot_token"
 export TELEGRAM_CHAT_ID="your_chat_id"
 ```
@@ -44,12 +44,18 @@ zrb llm chat "Hello!"
 
 ### Modes
 
-**CLI only** (no env vars):
-```
-💬 CLI mode. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID for dual mode.
+**CLI only** (default, no env vars needed):
+```bash
+zrb llm chat
 ```
 
-**Dual mode** (with env vars):
+**Telegram + CLI dual mode** (with TELEGRAM_MODE=true):
+```bash
+export TELEGRAM_MODE="true"
+zrb llm chat
+```
+
+Output:
 ```
 🤖 Telegram + CLI dual mode for chat ID: 123456789
    Both channels receive all messages.
@@ -64,7 +70,6 @@ llm_chat.append_ui_factory(create_ui_factory(TelegramUI, bot=bot, chat_id=CHAT_I
 
 # Add Telegram approval alongside terminal approval
 llm_chat.append_approval_channel(TelegramApproval(bot, CHAT_ID))
-llm_chat.append_approval_channel(TerminalApprovalChannel())
 ```
 
 The framework automatically creates:

@@ -48,7 +48,6 @@ from zrb.llm.approval import (
     ApprovalContext,
     ApprovalResult,
     MultiplexApprovalChannel,
-    TerminalApprovalChannel,
 )
 from zrb.llm.ui.simple_ui import (
     BufferedOutputMixin,
@@ -234,16 +233,15 @@ if BOT_TOKEN and CHAT_ID:
     # Telegram + CLI mode (dual channel)
     llm_chat.append_ui_factory(create_ui_factory(TelegramUI, bot=bot, chat_id=CHAT_ID))
     llm_chat.append_approval_channel(TelegramApproval(bot, CHAT_ID))
-    llm_chat.append_approval_channel(TerminalApprovalChannel())
+    # Note: Terminal approval is handled by the default UI (BaseUI._confirm_tool_execution)
 
     print(f"🤖 Telegram + CLI dual mode for chat ID: {CHAT_ID}")
     print("   Both channels receive all messages.")
     print("   Approvals work from both - first response wins!")
 
 elif BOT_TOKEN or CHAT_ID:
-    # Partial config
-    print("⚠️  Set both TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID for Telegram")
+    print("⚠️  Set both TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID")
 
 else:
-    # CLI only (default)
-    print("💬 CLI mode. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID for dual mode.")
+    # CLI only (no telegram env vars) - this shouldn't happen for this example
+    pass

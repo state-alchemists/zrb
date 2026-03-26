@@ -561,8 +561,17 @@ class BaseUI:
         # Use current_ui context variable to get the correct UI (e.g., BufferedUI for parallel agents)
         # instead of self, which is the captured main UI
         from zrb.llm.agent.run_agent import current_ui
+        from zrb.llm.ui.multi_ui import MultiUI
 
         ui = current_ui.get() or self
+        # Handle list of UIs from outer context
+        if isinstance(ui, list):
+            if len(ui) == 0:
+                ui = self
+            elif len(ui) == 1:
+                ui = ui[0]
+            else:
+                ui = MultiUI(ui)
         return await self._tool_call_handler.handle(
             ui, call
         )  # --- SYSTEM INFO / TRIGGERS (Moved from UI) ---
