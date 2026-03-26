@@ -70,8 +70,25 @@ async def run_agent(
 
     from zrb.llm.agent.std_ui import StdUI
 
-    # Resolve UI, Tool Confirmation, Hook Manager, YOLO, and Approval Channel from arguments or context fallback
-    effective_ui = ui or current_ui.get() or StdUI()
+    # Resolve UI - handle both single UI and list of UIs
+    ui_arg = ui
+    if ui_arg is None:
+        ui_arg = current_ui.get()
+    if ui_arg is None:
+        ui_arg = StdUI()
+    # Create MultiUI if multiple UIs
+    if isinstance(ui_arg, list):
+        if len(ui_arg) == 1:
+            effective_ui = ui_arg[0]
+        elif len(ui_arg) == 0:
+            effective_ui = StdUI()
+        else:
+            from zrb.llm.ui.multi_ui import MultiUI
+
+            effective_ui = MultiUI(ui_arg)
+    else:
+        effective_ui = ui_arg
+
     effective_tool_confirmation = tool_confirmation or current_tool_confirmation.get()
     effective_hook_manager = (
         hook_manager or current_hook_manager.get() or default_hook_manager
@@ -80,7 +97,9 @@ async def run_agent(
     effective_approval_channel = approval_channel or current_approval_channel.get()
 
     # Set context variables so sub-agents can inherit them
-    token_ui = current_ui.set(effective_ui)
+    token_ui = current_ui.set(
+        effective_ui
+    )  # effective_ui is already resolved (single or MultiUI)
     token_confirmation = current_tool_confirmation.set(effective_tool_confirmation)
     token_hook_manager = current_hook_manager.set(effective_hook_manager)
     token_yolo = current_yolo.set(effective_yolo)
