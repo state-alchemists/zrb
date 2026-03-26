@@ -70,7 +70,7 @@ The simplest way to create a custom UI:
 
 ```python
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.app.simple_ui import SimpleUI, create_ui_factory
+from zrb.llm.app.ui import SimpleUI, create_ui_factory
 
 class MyUI(SimpleUI):
     async def print(self, text: str) -> None:
@@ -125,7 +125,7 @@ Choose your starting point based on your backend type:
 ```python
 import asyncio
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.app.simple_ui import SimpleUI, create_ui_factory
+from zrb.llm.app.ui import SimpleUI, create_ui_factory
 
 class CLI(SimpleUI):
     """Minimal CLI implementation."""
@@ -145,7 +145,7 @@ llm_chat.set_ui_factory(create_ui_factory(CLI))
 import asyncio
 from pathlib import Path
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.app.simple_ui import SimpleUI, create_ui_factory
+from zrb.llm.app.ui import SimpleUI, create_ui_factory
 
 class LoggingUI(SimpleUI):
     """Logs all output to file, CLI for input."""
@@ -177,7 +177,7 @@ import asyncio
 import json
 from datetime import datetime
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.app.simple_ui import SimpleUI, create_ui_factory
+from zrb.llm.app.ui import SimpleUI, create_ui_factory
 
 class StructuredLogUI(SimpleUI):
     """Outputs structured JSON for each message."""
