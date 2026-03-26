@@ -8,7 +8,7 @@ This implements Level 3: MultiplexerUI (multi-channel support)
 - Multiplexed approvals (first response wins)
 
 Architecture:
-                    ┌──────────────────────────┐
+                    ┌───────────────────────────┐
                     │      MultiplexerUI        │
                     │     (extends BaseUI)      │
                     │                           │
@@ -254,6 +254,8 @@ class MultiplexerUI(BaseUI):
         self._cleanup_done: bool = False
         self._shutdown_lock: asyncio.Lock = asyncio.Lock()
         self._signal_handler_installed: bool = False
+        self.input_allowed = asyncio.Event()
+        self.input_allowed.set()
 
     def _submit_from_child(self, child_ui: ChildUIProtocol, message: str):
         """Called by child UIs when they receive input."""
@@ -496,10 +498,21 @@ async def cli_input_loop(child_ui: TerminalChildUI, multiplexer: MultiplexerUI):
 
     while not is_shutdown_requested():
         try:
+            # Wait until input is allowed (paused during edits)
+            await multiplexer.input_allowed.wait()
+            
             # Use a thread executor for blocking input
             line = await loop.run_in_executor(None, input)
+            
             if is_shutdown_requested():
                 break
+                
+            # If input was paused while we were blocked in input(), 
+            # we shouldn't submit it as a chat message. The approval channel
+            # might have grabbed it.
+            if not multiplexer.input_allowed.is_set():
+                continue
+                
             if line.strip():
                 multiplexer._submit_from_child(child_ui, line.strip())
         except (EOFError, KeyboardInterrupt):
@@ -612,10 +625,13 @@ class TerminalApprovalChannel(ApprovalChannel):
 
             ui = _multiplexer_ui
             if ui:
+                # Tell cli_input_loop to stop submitting chat messages
+                ui.input_allowed.clear()
                 # Set up a private future just for terminal input
                 ui._terminal_approval_future = loop.create_future()
                 response = await ui._terminal_approval_future
                 ui._terminal_approval_future = None
+                ui.input_allowed.set()
             else:
                 response = await loop.run_in_executor(None, input)
 
@@ -629,6 +645,7 @@ class TerminalApprovalChannel(ApprovalChannel):
                 # Edit mode - prompt for new arguments using default text editor
                 import os
                 import tempfile
+                import subprocess
 
                 from zrb.config.config import CFG
 
@@ -660,13 +677,24 @@ class TerminalApprovalChannel(ApprovalChannel):
                     tf.write(content_str)
                     tf_path = tf.name
 
-                # We need to temporarily ignore shutdown requests during the synchronous subprocess call
-                # because the editor blocks the thread. It is safer to use os.system for a simple synchronous edit.
-                await ui.run_interactive_command([CFG.EDITOR, tf_path], shell=False)
-
-                with open(tf_path, "r", encoding="utf-8") as tf:
-                    new_content = tf.read()
-                os.remove(tf_path)
+                # We MUST pause the input loop here, otherwise Python's stdin blocks nvim's stdin.
+                if ui:
+                    ui.input_allowed.clear()
+                
+                try:
+                    # Run interactive command natively (bypasses run_interactive_command which assumes prompt_toolkit)
+                    print(f"\n⚙️ Running: {CFG.EDITOR} {tf_path}\n")
+                    # Using subprocess to directly take over terminal
+                    await loop.run_in_executor(None, lambda: subprocess.call([CFG.EDITOR, tf_path]))
+                    
+                    with open(tf_path, "r", encoding="utf-8") as tf:
+                        new_content = tf.read()
+                finally:
+                    if ui:
+                        # Small delay to let the terminal recover before resuming the input loop
+                        await asyncio.sleep(0.1)
+                        ui.input_allowed.set()
+                    os.remove(tf_path)
 
                 if new_content.strip() == content_str.strip():
                     print("ℹ️ No changes made. Edit cancelled.")
