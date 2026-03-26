@@ -267,6 +267,8 @@ class MultiplexerUI(BaseUI):
         if isinstance(child_ui, TerminalChildUI):
             terminal_future = getattr(self, "_terminal_approval_future", None)
             if terminal_future and not terminal_future.done():
+                # Pause the CLI input loop before it loops around, so it doesn't fight nvim for stdin
+                self.input_allowed.clear()
                 terminal_future.set_result(message)
                 return
 
@@ -501,17 +503,17 @@ async def cli_input_loop(child_ui: TerminalChildUI, multiplexer: MultiplexerUI):
             # Wait until input is allowed (paused during edits)
             await multiplexer.input_allowed.wait()
             
+            # If we're waiting for an approval, we need to let the approval channel take the input.
+            # We do this by temporarily disabling the input loop's read capability.
+            if getattr(multiplexer, "_terminal_approval_future", None) is not None:
+                await asyncio.sleep(0.1)
+                continue
+                
             # Use a thread executor for blocking input
             line = await loop.run_in_executor(None, input)
             
             if is_shutdown_requested():
                 break
-                
-            # If input was paused while we were blocked in input(), 
-            # we shouldn't submit it as a chat message. The approval channel
-            # might have grabbed it.
-            if not multiplexer.input_allowed.is_set():
-                continue
                 
             if line.strip():
                 multiplexer._submit_from_child(child_ui, line.strip())
@@ -625,21 +627,25 @@ class TerminalApprovalChannel(ApprovalChannel):
 
             ui = _multiplexer_ui
             if ui:
-                # Tell cli_input_loop to stop submitting chat messages
-                ui.input_allowed.clear()
                 # Set up a private future just for terminal input
                 ui._terminal_approval_future = loop.create_future()
-                response = await ui._terminal_approval_future
+                # Run the blocking input directly here, safely bypassing the cli_input_loop
+                # which is temporarily paused due to _terminal_approval_future being set.
+                response = await loop.run_in_executor(None, input)
+                ui._terminal_approval_future.set_result(response)
                 ui._terminal_approval_future = None
-                ui.input_allowed.set()
             else:
                 response = await loop.run_in_executor(None, input)
 
             r = response.strip().lower()
 
             if r in ("", "y", "yes", "ok"):
+                if ui:
+                    ui.input_allowed.set()
                 return ApprovalResult(approved=True)
             if r in ("n", "no", "deny", "cancel"):
+                if ui:
+                    ui.input_allowed.set()
                 return ApprovalResult(approved=False, message="User denied")
             if r == "e":
                 # Edit mode - prompt for new arguments using default text editor
@@ -676,10 +682,6 @@ class TerminalApprovalChannel(ApprovalChannel):
                 ) as tf:
                     tf.write(content_str)
                     tf_path = tf.name
-
-                # We MUST pause the input loop here, otherwise Python's stdin blocks nvim's stdin.
-                if ui:
-                    ui.input_allowed.clear()
                 
                 try:
                     # Run interactive command natively (bypasses run_interactive_command which assumes prompt_toolkit)
@@ -711,10 +713,14 @@ class TerminalApprovalChannel(ApprovalChannel):
                     print(f"❌ Invalid JSON: {e}")
                     return ApprovalResult(approved=False, message=f"Invalid JSON: {e}")
 
+            if ui:
+                ui.input_allowed.set()
             return ApprovalResult(
                 approved=False, message=f"Unknown response: {response}"
             )
         except (EOFError, KeyboardInterrupt):
+            if ui:
+                ui.input_allowed.set()
             return ApprovalResult(approved=False)
 
         if r in ("", "y", "yes", "ok"):
