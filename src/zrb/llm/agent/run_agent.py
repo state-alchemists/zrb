@@ -288,6 +288,8 @@ def _get_prompt_content(
     prompt_content = message
     if attachments:
         attachments = normalize_attachments(attachments, print_fn)
+        if not attachments:
+            return message if message else None
         parts: list[UserPromptPart] = []
         if message:
             parts.append(UserPromptPart(content=message))
