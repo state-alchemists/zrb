@@ -18,6 +18,8 @@ def normalize_attachments(
 
     final_attachments = []
     for item in attachments:
+        if item is None:
+            continue
         if isinstance(item, str):
             # Treat as path
             path = os.path.abspath(os.path.expanduser(item))
