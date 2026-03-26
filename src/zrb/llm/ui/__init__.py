@@ -71,6 +71,7 @@ Event-Driven (Telegram/Discord):
 
 from zrb.llm.ui.base_ui import BaseUI
 from zrb.llm.ui.default_ui import UI
+from zrb.llm.ui.multi_ui import MultiUI
 from zrb.llm.ui.simple_ui import (
     EventDrivenUI,
     PollingUI,
@@ -89,4 +90,6 @@ __all__ = [
     # Advanced API
     "BaseUI",
     "UI",
+    # Multi-channel support
+    "MultiUI",
 ]

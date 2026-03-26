@@ -1,5 +1,27 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.14.0 (March 26, 2026)
+
+- **Feature: Native Multi-UI Support**:
+  - Added `append_ui()` and `append_ui_factory()` methods to `LLMTask` and `LLMChatTask`.
+  - `set_ui()` and `set_ui_factory()` now accept lists for backward compatibility.
+  - Framework automatically creates `MultiUI` when multiple UIs are configured.
+  - Output is broadcast to all UIs; input waits for first response.
+
+- **Feature: Multi-Approval Channel Support**:
+  - Added `append_approval_channel()` method to `LLMTask` and `LLMChatTask`.
+  - Framework automatically creates `MultiplexApprovalChannel` when multiple channels.
+  - First approval response wins and cancels pending requests.
+
+- **New Classes**:
+  - `MultiUI` (`zrb.llm.ui`) - Broadcasts output to multiple UIs, waits for first input.
+  - `MultiplexApprovalChannel` (`zrb.llm.approval`) - Multiplexes approval requests across channels.
+
+- **Simplified Examples**:
+  - Merged `chat-telegram-cli/` into `chat-telegram/`.
+  - Single example now supports CLI only, Telegram only, or CLI + Telegram modes.
+  - Just use `append_ui()` and `append_approval_channel()` instead of custom MultiplexerUI.
+
 ## 2.13.0 (March 24, 2026)
 
 - **Breaking Change: SimpleUI Constructor API**:

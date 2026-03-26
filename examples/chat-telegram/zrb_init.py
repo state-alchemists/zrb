@@ -1,29 +1,33 @@
 """
-Telegram UI - Simplified with EventDrivenUI and Buffered Output
+Telegram + CLI Chat - Unified Example
 
-This example shows how to create a Telegram bot UI with minimal boilerplate
-using the new EventDrivenUI base class with BufferedOutputMixin for
-clean message batching.
+This example supports THREE modes based on environment variables:
 
-══════════════════════════════════════════════════════════════════════════════
-KEY CONCEPT: EventDrivenUI + BufferedOutputMixin
-══════════════════════════════════════════════════════════════════════════════
+1. CLI only (default):
+   - Just run `zrb llm chat`
 
-EventDrivenUI handles the queue pattern automatically:
-- When ask_user() is called, it blocks on an internal queue
-- When messages arrive, call handle_incoming_message() to route them
+2. Telegram only:
+   - Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID
+   - Interactive=False to disable terminal UI
 
-BufferedOutputMixin batches output to avoid fragmented messages:
-- Output is accumulated in a buffer
-- Flushed periodically (every 0.5s by default)
-- Or when buffer exceeds max size
-
-══════════════════════════════════════════════════════════════════════════════
+3. CLI + Telegram (dual):
+   - Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID
+   - Use MultiUI to broadcast to both channels
+   - Use MultiplexApprovalChannel for approvals from both
 
 Usage:
+    # CLI only
+    zrb llm chat
+
+    # Telegram only
     export TELEGRAM_BOT_TOKEN="your-token"
     export TELEGRAM_CHAT_ID="your-chat-id"
     zrb llm chat
+
+    # CLI + Telegram
+    export TELEGRAM_BOT_TOKEN="your-token"
+    export TELEGRAM_CHAT_ID="your-chat-id"
+    # Note: Default terminal UI + Telegram UI will both receive messages
 """
 
 import asyncio
@@ -31,30 +35,37 @@ import json
 import os
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CallbackQueryHandler, MessageHandler, filters
+from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
+    MessageHandler,
+    filters,
+)
 
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.approval import ApprovalChannel, ApprovalContext, ApprovalResult
+from zrb.llm.approval import (
+    ApprovalChannel,
+    ApprovalContext,
+    ApprovalResult,
+    MultiplexApprovalChannel,
+    TerminalApprovalChannel,
+)
 from zrb.llm.ui.simple_ui import (
     BufferedOutputMixin,
     EventDrivenUI,
-    UIConfig,
     create_ui_factory,
 )
-from zrb.util.cli.style import remove_style
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
 
 # =============================================================================
-# Telegram Bot Singleton
+# Telegram Bot
 # =============================================================================
 
 
 class TelegramBot:
-    """Shared bot instance - manages the telegram application."""
-
     _instance = None
 
     def __init__(self, token: str):
@@ -68,7 +79,6 @@ class TelegramBot:
         return cls._instance
 
     async def start(self):
-        """Initialize and start the bot."""
         self._app = Application.builder().token(self.token).build()
         await self._app.initialize()
         await self._app.start()
@@ -76,80 +86,70 @@ class TelegramBot:
         return self._app
 
     async def send(self, chat_id: str, text: str, **kwargs):
-        """Send a message (auto-splits long messages)."""
         if not self._app:
             return
+        from zrb.util.cli.style import remove_style
+
         clean = remove_style(text).strip()
         if not clean:
             return
-        for chunk in self._split(clean, 4000):
+        for chunk in _split(clean, 4000):
             await self._app.bot.send_message(chat_id=chat_id, text=chunk, **kwargs)
 
-    @staticmethod
-    def _split(text: str, max_len: int) -> list[str]:
-        if len(text) <= max_len:
-            return [text]
-        return [text[i : i + max_len] for i in range(0, len(text), max_len)]
+    async def stop(self):
+        if self._app:
+            try:
+                await asyncio.wait_for(self._app.stop(), timeout=1.0)
+            except Exception:
+                pass
+
+
+def _split(text: str, max_len: int) -> list[str]:
+    if len(text) <= max_len:
+        return [text]
+    return [text[i : i + max_len] for i in range(0, len(text), max_len)]
 
 
 # =============================================================================
-# Telegram UI - With buffered output for clean messages
+# Telegram UI
 # =============================================================================
 
 
 class TelegramUI(EventDrivenUI, BufferedOutputMixin):
-    """Telegram UI with buffered output for clean message batching.
-
-    Uses:
-    - EventDrivenUI: Automatic queue + event loop management
-    - BufferedOutputMixin: Batches output to avoid fragmented messages
-    """
-
     def __init__(self, bot: TelegramBot, chat_id: str, **kwargs):
-        # Initialize parent classes
         super().__init__(**kwargs)
         BufferedOutputMixin.__init__(self, flush_interval=0.3, max_buffer_size=3000)
         self.bot = bot
         self.chat_id = chat_id
 
     async def _send_buffered(self, text: str) -> None:
-        """Send buffered content to Telegram (called by BufferedOutputMixin)."""
         await self.bot.send(self.chat_id, text)
 
     async def print(self, text: str) -> None:
-        """Buffer output (called by append_to_output during streaming)."""
         self.buffer_output(text)
 
     async def start_event_loop(self) -> None:
-        """Start the bot and the flush loop."""
-        # Start the bot (only happens once)
         if not self.bot._app:
             await self.bot.start()
 
-        # Start the periodic flush loop
         await self.start_flush_loop()
 
-        # Register message handler
         async def handle_message(update, context):
-            """Route incoming messages to handle_incoming_message()."""
             text = update.message.text
             self.handle_incoming_message(text)
 
         self.bot._app.add_handler(MessageHandler(filters.TEXT, handle_message))
 
-        # Keep running
         while True:
             await asyncio.sleep(1)
 
 
 # =============================================================================
-# Telegram Approval Channel - Approval via inline buttons
+# Telegram Approval Channel
 # =============================================================================
 
 
 class TelegramApproval(ApprovalChannel):
-    """Handle tool approvals via Telegram inline buttons."""
-
     _instances: dict[str, "TelegramApproval"] = {}
 
     def __init__(self, bot: TelegramBot, chat_id: str):
@@ -158,7 +158,6 @@ class TelegramApproval(ApprovalChannel):
         self._pending: dict[str, asyncio.Future] = {}
 
     async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
-        """Send approval request with inline buttons."""
         await self._ensure_handler()
 
         args = json.dumps(context.tool_args, indent=2, default=str)[:3000]
@@ -196,11 +195,9 @@ class TelegramApproval(ApprovalChannel):
     async def notify(
         self, message: str, context: ApprovalContext | None = None
     ) -> None:
-        """Send notification."""
         await self.bot.send(self.chat_id, message)
 
     async def _ensure_handler(self):
-        """Register callback handler once."""
         if self.chat_id in TelegramApproval._instances:
             return
 
@@ -222,25 +219,31 @@ class TelegramApproval(ApprovalChannel):
             self.bot._app.add_handler(CallbackQueryHandler(handle_callback))
 
     def resolve(self, tool_call_id: str, approved: bool):
-        """Resolve a pending approval request."""
         if tool_call_id in self._pending:
             future = self._pending.pop(tool_call_id)
             future.set_result(ApprovalResult(approved=approved))
 
 
 # =============================================================================
-# Integration with zrb llm chat
+# Integration
 # =============================================================================
 
 bot = TelegramBot.get(BOT_TOKEN)
 
 if BOT_TOKEN and CHAT_ID:
-    # Create UI factory - ONE LINE!
-    llm_chat.set_ui_factory(create_ui_factory(TelegramUI, bot=bot, chat_id=CHAT_ID))
+    # Telegram + CLI mode (dual channel)
+    llm_chat.append_ui_factory(create_ui_factory(TelegramUI, bot=bot, chat_id=CHAT_ID))
+    llm_chat.append_approval_channel(TelegramApproval(bot, CHAT_ID))
+    llm_chat.append_approval_channel(TerminalApprovalChannel())
 
-    # Set approval channel
-    llm_chat.set_approval_channel(TelegramApproval(bot, CHAT_ID))
+    print(f"🤖 Telegram + CLI dual mode for chat ID: {CHAT_ID}")
+    print("   Both channels receive all messages.")
+    print("   Approvals work from both - first response wins!")
 
-    print(f"🤖 Telegram ready for chat: {CHAT_ID}")
+elif BOT_TOKEN or CHAT_ID:
+    # Partial config
+    print("⚠️  Set both TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID for Telegram")
+
 else:
-    print("Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID environment variables")
+    # CLI only (default)
+    print("💬 CLI mode. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID for dual mode.")

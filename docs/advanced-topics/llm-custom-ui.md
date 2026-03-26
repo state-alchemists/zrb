@@ -924,14 +924,56 @@ llm_chat.set_ui_factory(create_ui_factory(MyUI))
 
 ---
 
-## MultiplexerUI (Multi-Channel Support)
+## Multi-Channel Support (Multiple UIs)
 
-For systems that need **multiple input channels** (CLI + Telegram, Web + CLI), use `MultiplexerUI`. It combines multiple UIs and routes approvals/appropriately.
+For systems that need **multiple input channels** (CLI + Telegram, Web + CLI), you can now use `append_ui()` and `append_approval_channel()` to add multiple UIs and approval channels.
 
-See `examples/chat-telegram-cli/` for a complete implementation with:
-- Combined CLI and Telegram input
-- First-response-wins for approvals
-- Broadcast output to all channels
+### How It Works
+
+```python
+from zrb.builtin.llm.chat import llm_chat
+from zrb.llm.ui import create_ui_factory, MultiUI
+from zrb.llm.approval import MultiplexApprovalChannel, TerminalApprovalChannel
+
+# Add Telegram UI alongside default terminal UI
+llm_chat.append_ui_factory(create_ui_factory(TelegramUI, bot=bot, chat_id=CHAT_ID))
+
+# Add approval channels
+llm_chat.append_approval_channel(TelegramApprovalChannel(bot, CHAT_ID))
+llm_chat.append_approval_channel(TerminalApprovalChannel())
+```
+
+The framework automatically creates:
+- `MultiUI` when multiple UIs are configured (broadcasts output to all, waits for first input)
+- `MultiplexApprovalChannel` when multiple approval channels (first response wins)
+
+### Built-in Classes
+
+| Class | Module | Purpose |
+|-------|--------|---------|
+| `MultiUI` | `zrb.llm.ui` | Broadcasts to multiple UIs, waits for first response |
+| `MultiplexApprovalChannel` | `zrb.llm.approval` | Waits for first approval from any channel |
+
+### Example: CLI + Telegram
+
+```python
+from zrb.builtin.llm.chat import llm_chat
+from zrb.llm.ui import create_ui_factory
+from zrb.llm.approval import (
+    MultiplexApprovalChannel,
+    TerminalApprovalChannel,
+)
+
+# Default terminal UI is used automatically
+# Add Telegram on top
+llm_chat.append_ui_factory(create_ui_factory(TelegramUI, bot=bot, chat_id=CHAT_ID))
+
+# Both channels can approve/deny
+llm_chat.append_approval_channel(TelegramApprovalChannel(bot, CHAT_ID))
+llm_chat.append_approval_channel(TerminalApprovalChannel())
+```
+
+See `examples/chat-telegram/` for a complete implementation.
 
 ---
 
@@ -1024,11 +1066,8 @@ llm_chat.set_ui_factory(create_ui_factory(MyUI, config=config))
 |---------|----------|-------|---------|
 | Minimal CLI | `examples/chat-minimal-ui/` | 1 | SimpleUI |
 | Telegram Bot | `examples/chat-telegram/` | 2 | EventDrivenUI + BufferedOutputMixin |
-| Telegram + CLI | `examples/chat-telegram-cli/` | 2+ | MultiplexerUI (two channels) |
-| Discord Bot | `examples/chat-discord/` | 2 | EventDrivenUI |
-| WhatsApp Bot | `examples/chat-whatsapp/` | 2 | EventDrivenUI |
-| HTTP API | `examples/chat-http-api/` | 3 | PollingUI |
-| WebSocket | `examples/chat-websocket/` | 3 | PollingUI |
+| Telegram + CLI | `examples/chat-telegram/` | 2+ | Multi-UI (multiple channels) |
+| HTTP API | `examples/chat-sse/` | 3 | PollingUI |
 
 ---
 
@@ -1056,7 +1095,7 @@ llm_chat.set_ui_factory(create_ui_factory(MyUI, config=config))
 | External polling | `PollingUI` |
 | Rate limit protection | Add `BufferedOutputMixin` |
 | Custom event loop | `BaseUI` |
-| Multi-channel input | `MultiplexerUI` (see examples) |
+| Multi-channel input | Use `append_ui()` and `append_approval_channel()` |
 
 ---
 

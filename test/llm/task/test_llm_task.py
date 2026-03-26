@@ -60,7 +60,8 @@ class TestLLMTaskPublicAPI:
 
             # Verify the UI set via public set_ui was passed to run_agent
             args, kwargs = mock_run_agent.call_args
-            assert kwargs["ui"] == ui
+            # Now uis is passed as a list
+            assert kwargs["ui"] == [ui]
 
     def test_llm_task_properties(self):
         # Arrange

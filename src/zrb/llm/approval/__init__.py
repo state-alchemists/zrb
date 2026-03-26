@@ -44,6 +44,7 @@ from zrb.llm.approval.approval_channel import (
     ApprovalResult,
     current_approval_channel,
 )
+from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
 from zrb.llm.approval.null_approval_channel import NullApprovalChannel
 from zrb.llm.approval.terminal_approval_channel import TerminalApprovalChannel
 
@@ -52,6 +53,7 @@ __all__ = [
     "ApprovalContext",
     "ApprovalResult",
     "current_approval_channel",
+    "MultiplexApprovalChannel",
     "NullApprovalChannel",
     "TerminalApprovalChannel",
 ]
