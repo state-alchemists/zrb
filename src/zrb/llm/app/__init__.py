@@ -5,33 +5,33 @@ This module provides multiple levels of UI abstractions:
 Extension Hierarchy:
     ┌─────────────────────────────────────────────────────────────────┐
     │ Level 0: UIProtocol (minimal, 4 methods)                        │
-    │         - For tool confirmations only                          │
+    │         - For tool confirmations only                           │
     │         - See: zrb.llm.tool_call.ui_protocol                    │
     ├─────────────────────────────────────────────────────────────────┤
-    │ Level 1: SimpleUI (RECOMMENDED for beginners)                  │
-    │         - Implement just 2 methods: print(), get_input()       │
-    │         - For basic backends (CLI, simple WebSocket)          │
+    │ Level 1: SimpleUI (RECOMMENDED for beginners)                   │
+    │         - Implement just 2 methods: print(), get_input()        │
+    │         - For basic backends (CLI, simple WebSocket)            │
     │         - See: SimpleUI class below                             │
     ├─────────────────────────────────────────────────────────────────┤
-    │ Level 2: EventDrivenUI (for event-driven backends)             │
-    │         - Implement: print(), start_event_loop()               │
-    │         - Call handle_incoming_message() on events             │
-    │         - For Telegram, Discord, WhatsApp                      │
+    │ Level 2: EventDrivenUI (for event-driven backends)              │
+    │         - Implement: print(), start_event_loop()                │
+    │         - Call handle_incoming_message() on events              │
+    │         - For Telegram, Discord, WhatsApp                       │
     │         - See: EventDrivenUI class below                        │
     ├─────────────────────────────────────────────────────────────────┤
-    │ Level 3: PollingUI (for polling backends)                      │
-    │         - Implement: print()                                     │
-    │         - Use built-in output_queue/input_queue                │
-    │         - For HTTP API, WebSocket polling                      │
-    │         - See: PollingUI class below                             │
+    │ Level 3: PollingUI (for polling backends)                       │
+    │         - Implement: print()                                    │
+    │         - Use built-in output_queue/input_queue                 │
+    │         - For HTTP API, WebSocket polling                       │
+    │         - See: PollingUI class below                            │
     ├─────────────────────────────────────────────────────────────────┤
-    │ Level 4: BaseUI (full control, advanced)                       │
-    │         - Implement 5+ methods                                   │
-    │         - For maximum flexibility                              │
-    │         - See: BaseUI class below                              │
+    │ Level 4: BaseUI (full control, advanced)                        │
+    │         - Implement 5+ methods                                  │
+    │         - For maximum flexibility                               │
+    │         - See: BaseUI class below                               │
     ├─────────────────────────────────────────────────────────────────┤
-    │ Level 5: UI (terminal implementation)                          │
-    │         - Full TUI with prompt_toolkit                        │
+    │ Level 5: UI (terminal implementation)                           │
+    │         - Full TUI with prompt_toolkit                          │
     │         - See: UI class below                                   │
     └─────────────────────────────────────────────────────────────────┘
 
@@ -69,15 +69,15 @@ Event-Driven (Telegram/Discord):
     # See examples/chat-telegram/ for a complete example.
 """
 
-from zrb.llm.app.base_ui import BaseUI
-from zrb.llm.app.simple_ui import (
+from zrb.llm.app.ui import (
+    UI,
+    BaseUI,
     EventDrivenUI,
     PollingUI,
     SimpleUI,
     UIConfig,
     create_ui_factory,
 )
-from zrb.llm.app.ui import UI
 
 __all__ = [
     # Simple API (RECOMMENDED)

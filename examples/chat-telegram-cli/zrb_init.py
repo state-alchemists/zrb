@@ -39,7 +39,7 @@ import sys
 from typing import Protocol, runtime_checkable
 
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.app.base_ui import BaseUI
+from zrb.llm.app import BaseUI
 from zrb.llm.approval import ApprovalChannel, ApprovalContext, ApprovalResult
 from zrb.util.cli.style import remove_style
 
@@ -196,9 +196,32 @@ class TelegramChildUI:
         if not self._bot:
             await self.start()
         clean = remove_style(message).strip()
-        if clean:
-            for chunk in self._split(clean, 4000):
-                await self._bot.send_message(chat_id=self.chat_id, text=chunk, **kwargs)
+        if not clean:
+            return
+
+        chunks = self._split(clean, 4000)
+        for i, chunk in enumerate(chunks):
+            # Only attach reply_markup (like buttons) to the LAST chunk
+            chunk_kwargs = kwargs.copy()
+            if "reply_markup" in chunk_kwargs and i < len(chunks) - 1:
+                del chunk_kwargs["reply_markup"]
+
+            try:
+                await self._bot.send_message(
+                    chat_id=self.chat_id, text=chunk, **chunk_kwargs
+                )
+            except Exception as e:
+                # If it fails (usually due to Markdown parsing errors), try without parse_mode
+                if "parse_mode" in chunk_kwargs:
+                    del chunk_kwargs["parse_mode"]
+                    try:
+                        await self._bot.send_message(
+                            chat_id=self.chat_id, text=chunk, **chunk_kwargs
+                        )
+                    except Exception as fallback_e:
+                        print(f"Fallback send failed: {fallback_e}")
+                else:
+                    print(f"Send failed: {e}")
 
     async def flush(self):
         """Manually flush buffer."""
@@ -236,6 +259,15 @@ class MultiplexerUI(BaseUI):
         """Called by child UIs when they receive input."""
         if is_shutdown_requested():
             return  # Ignore input during shutdown
+
+        # TerminalApprovalChannel interception
+        # If terminal input is received while waiting for an approval, give it to the terminal approval future!
+        if isinstance(child_ui, TerminalChildUI):
+            terminal_future = getattr(self, "_terminal_approval_future", None)
+            if terminal_future and not terminal_future.done():
+                terminal_future.set_result(message)
+                return
+
         if self._waiting_for_input and not self._waiting_for_input.done():
             self._waiting_for_input.set_result(message)
             return
@@ -271,8 +303,16 @@ class MultiplexerUI(BaseUI):
             self._waiting_for_input = None
 
     async def run_interactive_command(self, cmd, shell=False):
-        for child_ui in self.child_uis:
-            child_ui.send_output(f"⚙️ Running: {cmd}\n")
+        import os
+
+        # Only run on terminal
+        print(f"\n⚙️ Running: {cmd}\n")
+        if isinstance(cmd, list):
+            import subprocess
+
+            subprocess.run(cmd)
+        else:
+            os.system(cmd)
         return 0
 
     def _install_async_signal_handler(self):
@@ -430,8 +470,22 @@ async def setup_telegram_handler(child_ui: TelegramChildUI, multiplexer: Multipl
     from telegram.ext import MessageHandler, filters
 
     async def handle_message(update, context):
-        if not is_shutdown_requested():
-            multiplexer._submit_from_child(child_ui, update.message.text)
+        if is_shutdown_requested():
+            return
+
+        # If this is a reply to an edit request, DO NOT send to the LLM chat
+        if update.message.reply_to_message:
+            reply_id = update.message.reply_to_message.message_id
+
+            # Use the global state tracked by TelegramApprovalChannel
+            # If the replied message ID matches a known edit request, ignore it here
+            if (
+                hasattr(multiplexer, "_edit_message_ids")
+                and reply_id in multiplexer._edit_message_ids
+            ):
+                return
+
+        multiplexer._submit_from_child(child_ui, update.message.text)
 
     child_ui._app.add_handler(MessageHandler(filters.TEXT, handle_message))
 
@@ -513,24 +567,172 @@ class MultiplexerApprovalChannel(ApprovalChannel):
 
 
 class TerminalApprovalChannel(ApprovalChannel):
-    """Terminal-based approval."""
+    """Terminal-based approval with edit support."""
+
+    def __init__(self, ui_proxy: "DeferredMultiplexedApprovalChannel" = None):
+        self.ui_proxy = ui_proxy
 
     async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
         if is_shutdown_requested():
             return ApprovalResult(approved=False, message="Shutdown requested")
 
+        def _format_args(raw):
+            try:
+                # Unwrap provider/runner wrappers for readability
+                if isinstance(raw, dict):
+                    if "args_dict" in raw:
+                        raw = raw["args_dict"]
+                    elif "args_json" in raw and isinstance(raw["args_json"], str):
+                        return json.dumps(json.loads(raw["args_json"]), indent=2, ensure_ascii=False)
+                    elif "args" in raw and isinstance(raw["args"], str):
+                        return json.dumps(json.loads(raw["args"]), indent=2, ensure_ascii=False)
+                if isinstance(raw, str):
+                    # Pretty print if it's JSON string, else return as-is
+                    try:
+                        return json.dumps(json.loads(raw), indent=2, ensure_ascii=False)
+                    except Exception:
+                        return raw
+                return json.dumps(raw, indent=2, ensure_ascii=False)
+            except Exception:
+                return str(raw)
+
         print(f"\n🔔 Tool: {context.tool_name}")
-        print(
-            f"Arguments: {json.dumps(context.tool_args, indent=2, default=str)[:500]}"
-        )
-        print("Approve? [Y/n] ", end="", flush=True)
+        print(f"Arguments:\n{_format_args(context.tool_args)[:2000]}")
+        print("Approve? [Y/n/e] ", end="", flush=True)
 
         loop = asyncio.get_event_loop()
         try:
-            response = await loop.run_in_executor(None, input)
-            return ApprovalResult(approved=response.strip().lower() in ("", "y", "yes"))
+            # We must use raw input() to read ONLY from the terminal.
+            # However, MultiplexerUI's cli_input_loop is also running input() in an executor!
+            # If two threads call input(), they race for stdin.
+            # To fix this securely without breaking multiplexing, we pause the cli_input_loop's ability to submit text
+            # Wait, we can't easily kill the blocked input() thread.
+            # A better way is to let cli_input_loop read the input, and we wait for it via MultiplexerUI's shared queue,
+            # BUT we ONLY accept inputs from the TerminalChildUI.
+
+            ui = _multiplexer_ui
+            if ui:
+                # Set up a private future just for terminal input
+                ui._terminal_approval_future = loop.create_future()
+                response = await ui._terminal_approval_future
+                ui._terminal_approval_future = None
+            else:
+                response = await loop.run_in_executor(None, input)
+
+            r = response.strip().lower()
+
+            if r in ("", "y", "yes", "ok"):
+                return ApprovalResult(approved=True)
+            if r in ("n", "no", "deny", "cancel"):
+                return ApprovalResult(approved=False, message="User denied")
+            if r == "e":
+                # Edit mode - prompt for new arguments using default text editor
+                import os
+                import tempfile
+
+                from zrb.config.config import CFG
+
+                print("\n✏️ Edit mode - opening editor...")
+
+                # Extract args securely
+                try:
+                    args = context.tool_args
+                    if isinstance(args, dict):
+                        if "args_dict" in args:
+                            args = args["args_dict"]
+                        elif "args_json" in args and isinstance(args["args_json"], str):
+                            args = json.loads(args["args_json"])
+                        elif "args" in args and isinstance(args["args"], str):
+                            args = json.loads(args["args"])
+                    if isinstance(args, str):
+                        try:
+                            args = json.loads(args)
+                        except Exception:
+                            pass
+                except Exception:
+                    args = context.tool_args
+
+                content_str = json.dumps(args, indent=2, ensure_ascii=False)
+
+                with tempfile.NamedTemporaryFile(
+                    suffix=".json", mode="w+", delete=False
+                ) as tf:
+                    tf.write(content_str)
+                    tf_path = tf.name
+
+                # We need to temporarily ignore shutdown requests during the synchronous subprocess call
+                # because the editor blocks the thread. It is safer to use os.system for a simple synchronous edit.
+                await ui.run_interactive_command([CFG.EDITOR, tf_path], shell=False)
+
+                with open(tf_path, "r", encoding="utf-8") as tf:
+                    new_content = tf.read()
+                os.remove(tf_path)
+
+                if new_content.strip() == content_str.strip():
+                    print("ℹ️ No changes made. Edit cancelled.")
+                    return ApprovalResult(approved=False, message="Edit cancelled")
+
+                try:
+                    edited_args = json.loads(new_content)
+                    print(f"✅ Approved with edited arguments.")
+                    return ApprovalResult(
+                        approved=True, 
+                        edited_args={"__local_edit__": True, "args_dict": edited_args}
+                    )
+                except json.JSONDecodeError as e:
+                    print(f"❌ Invalid JSON: {e}")
+                    return ApprovalResult(approved=False, message=f"Invalid JSON: {e}")
+
+            return ApprovalResult(
+                approved=False, message=f"Unknown response: {response}"
+            )
         except (EOFError, KeyboardInterrupt):
             return ApprovalResult(approved=False)
+
+        if r in ("", "y", "yes", "ok"):
+            return ApprovalResult(approved=True)
+        if r in ("n", "no", "deny", "cancel"):
+            return ApprovalResult(approved=False, message="User denied")
+        if r == "e":
+            # Edit mode - prompt for new arguments using default text editor
+            import os
+            import tempfile
+
+            import yaml
+
+            from zrb.config.config import CFG
+
+            print("\n✏️ Edit mode - opening editor...")
+
+            content_str = json.dumps(context.tool_args, indent=2)
+
+            with tempfile.NamedTemporaryFile(
+                suffix=".json", mode="w+", delete=False
+            ) as tf:
+                tf.write(content_str)
+                tf_path = tf.name
+
+            # We need to temporarily ignore shutdown requests during the synchronous subprocess call
+            # because the editor blocks the thread. It is safer to use os.system for a simple synchronous edit.
+            await ui.run_interactive_command([CFG.EDITOR, tf_path], shell=False)
+
+            with open(tf_path, "r", encoding="utf-8") as tf:
+                new_content = tf.read()
+            os.remove(tf_path)
+
+            if new_content.strip() == content_str.strip():
+                print("ℹ️ No changes made. Edit cancelled.")
+                return ApprovalResult(approved=False, message="Edit cancelled")
+
+            try:
+                edited_args = json.loads(new_content)
+                print(f"✅ Approved with edited arguments.")
+                return ApprovalResult(approved=True, edited_args=edited_args)
+            except json.JSONDecodeError as e:
+                print(f"❌ Invalid JSON: {e}")
+                return ApprovalResult(approved=False, message=f"Invalid JSON: {e}")
+
+        return ApprovalResult(approved=False, message=f"Unknown response: {response}")
 
     async def notify(
         self, message: str, context: ApprovalContext | None = None
@@ -539,18 +741,27 @@ class TerminalApprovalChannel(ApprovalChannel):
 
 
 class TelegramApprovalChannel(ApprovalChannel):
-    """Telegram approval via inline buttons."""
+    """Telegram approval via inline buttons with edit support."""
 
-    def __init__(self, child_ui: TelegramChildUI):
+    def __init__(self, child_ui: TelegramChildUI, multiplexer: MultiplexerUI):
         self.child_ui = child_ui
+        self.multiplexer = multiplexer
         self._pending: dict[str, asyncio.Future] = {}
+        self._edit_contexts: dict[str, ApprovalContext] = {}
+        self._edit_futures: dict[str, asyncio.Future] = {}
+        self._edit_messages: dict[int, str] = {}  # message_id -> tool_call_id
+
+        # Share edit message IDs with multiplexer to prevent message leaks
+        if not hasattr(self.multiplexer, "_edit_message_ids"):
+            self.multiplexer._edit_message_ids = set()
+
         self._handler_added = False
 
     async def _ensure_handler(self):
         if self._handler_added or not self.child_ui._app:
             return
 
-        from telegram.ext import CallbackQueryHandler
+        from telegram.ext import CallbackQueryHandler, MessageHandler, filters
 
         async def handle_callback(update, context):
             query = update.callback_query
@@ -558,15 +769,95 @@ class TelegramApprovalChannel(ApprovalChannel):
             action, tool_call_id = query.data.split(":", 1)
 
             if tool_call_id in self._pending:
-                self._pending.pop(tool_call_id).set_result(
-                    ApprovalResult(approved=(action == "yes"))
+                if action == "edit":
+                    # Start edit flow - send args as editable message
+                    future = self._pending.pop(tool_call_id)
+                    approval_context = self._edit_contexts.pop(tool_call_id, None)
+                    if approval_context:
+                        await self._start_edit_flow(
+                            query, tool_call_id, future, approval_context
+                        )
+                    else:
+                        # Fallback - shouldn't happen
+                        future.set_result(
+                            ApprovalResult(approved=False, message="Edit context lost")
+                        )
+                else:
+                    # Approve or deny
+                    approved = action == "yes"
+                    future = self._pending.pop(tool_call_id)
+                    self._edit_contexts.pop(tool_call_id, None)
+                    future.set_result(ApprovalResult(approved=approved))
+                    await query.edit_message_text(
+                        "✅ Approved" if approved else "❌ Denied"
+                    )
+
+        async def handle_edit_reply(update, context):
+            """Handle user's edited arguments reply."""
+            # Check if this is a reply to an edit request message
+            reply_to = update.message.reply_to_message
+            if not reply_to:
+                return
+
+            message_id = reply_to.message_id
+            if message_id not in self._edit_messages:
+                return
+
+            tool_call_id = self._edit_messages.pop(message_id, None)
+            if not tool_call_id or tool_call_id not in self._edit_futures:
+                return
+
+            future = self._edit_futures.pop(tool_call_id)
+
+            # Parse the edited args
+            try:
+                edited_args = json.loads(update.message.text)
+                await update.message.reply_text("✅ Arguments updated, executing...")
+                future.set_result(
+                    ApprovalResult(approved=True, edited_args=edited_args)
                 )
-            await query.edit_message_text(
-                "✅ Approved" if action == "yes" else "❌ Denied"
-            )
+                # Remove from tracking set so we don't leak memory
+                self.multiplexer._edit_message_ids.discard(message_id)
+            except json.JSONDecodeError as e:
+                await update.message.reply_text(
+                    f"❌ Invalid JSON: {e}\nPlease reply with valid JSON or type 'cancel'."
+                )
+                # Re-add the mapping so user can try again
+                self._edit_messages[message_id] = tool_call_id
+                self._edit_futures[tool_call_id] = future
 
         self.child_ui._app.add_handler(CallbackQueryHandler(handle_callback))
+        # Add the edit reply handler to group 1 so it doesn't conflict with the main chat handler in group 0
+        self.child_ui._app.add_handler(
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_edit_reply), group=1
+        )
         self._handler_added = True
+
+    async def _start_edit_flow(
+        self,
+        query,
+        tool_call_id: str,
+        future: asyncio.Future,
+        approval_context: ApprovalContext,
+    ):
+        """Send args as editable message and wait for user reply."""
+        context_json = json.dumps(approval_context.tool_args, indent=2, default=str)
+
+        # Send edit request message
+        # Don't use Markdown to prevent parsing errors dropping the message!
+        safe_text = (
+            f"✏️ Edit arguments for {approval_context.tool_name}\n\n"
+            f"Reply to this message with modified JSON:\n"
+            f"{context_json}\n\n"
+            f"Or type 'cancel' to abort."
+        )
+
+        message = await query.edit_message_text(safe_text)
+
+        # Store the mapping for reply detection
+        self._edit_messages[message.message_id] = tool_call_id
+        self._edit_futures[tool_call_id] = future
+        self.multiplexer._edit_message_ids.add(message.message_id)
 
     async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
         if is_shutdown_requested():
@@ -580,11 +871,17 @@ class TelegramApprovalChannel(ApprovalChannel):
         loop = asyncio.get_event_loop()
         future = loop.create_future()
         self._pending[context.tool_call_id] = future
+        self._edit_contexts[context.tool_call_id] = context
 
         args_str = json.dumps(context.tool_args, indent=2, default=str)[:500]
+
+        # Don't use Markdown for the arguments block, because json characters
+        # often break Telegram's strict MarkdownV2/Markdown parsers, causing
+        # the entire message (and its buttons) to be silently dropped!
+        safe_text = f"🔔 Tool: {context.tool_name}\n\n{args_str}"
+
         await self.child_ui.send_immediate(
-            f"🔔 *Tool*: `{context.tool_name}`\n```\n{args_str}\n```",
-            parse_mode="Markdown",
+            safe_text,
             reply_markup=InlineKeyboardMarkup(
                 [
                     [
@@ -593,6 +890,9 @@ class TelegramApprovalChannel(ApprovalChannel):
                         ),
                         InlineKeyboardButton(
                             "❌ Deny", callback_data=f"no:{context.tool_call_id}"
+                        ),
+                        InlineKeyboardButton(
+                            "✏️ Edit", callback_data=f"edit:{context.tool_call_id}"
                         ),
                     ]
                 ]
@@ -604,7 +904,13 @@ class TelegramApprovalChannel(ApprovalChannel):
                 return await future
         except asyncio.TimeoutError:
             self._pending.pop(context.tool_call_id, None)
+            self._edit_contexts.pop(context.tool_call_id, None)
             return ApprovalResult(approved=False, message="Timeout")
+        finally:
+            # Cleanup
+            self._pending.pop(context.tool_call_id, None)
+            self._edit_contexts.pop(context.tool_call_id, None)
+            self._edit_futures.pop(context.tool_call_id, None)
 
     async def notify(
         self, message: str, context: ApprovalContext | None = None
@@ -620,6 +926,14 @@ if BOT_TOKEN and CHAT_ID:
     telegram_child = TelegramChildUI(BOT_TOKEN, CHAT_ID)
     terminal_child = TerminalChildUI()
 
+    terminal_approval = TerminalApprovalChannel()
+
+    # We need the MultiplexerUI instance before creating TelegramApprovalChannel
+    # But create_ui needs the channels to be passed in to llm_chat.
+    # So we instantiate the UI first, THEN the channel.
+
+    _multiplexer_ui = None
+
     def create_ui(
         ctx,
         llm_task_core,
@@ -630,7 +944,8 @@ if BOT_TOKEN and CHAT_ID:
         initial_yolo,
         initial_attachments,
     ):
-        return MultiplexerUI(
+        global _multiplexer_ui
+        _multiplexer_ui = MultiplexerUI(
             child_uis=[terminal_child, telegram_child],
             ctx=ctx,
             yolo_xcom_key="yolo",
@@ -644,15 +959,39 @@ if BOT_TOKEN and CHAT_ID:
             exit_commands=ui_commands.get("exit", ["/exit"]),
             info_commands=ui_commands.get("info", ["/help"]),
         )
-
-    terminal_approval = TerminalApprovalChannel()
-    telegram_approval = TelegramApprovalChannel(telegram_child)
-    multiplexed_approval = MultiplexerApprovalChannel(
-        [terminal_approval, telegram_approval]
-    )
+        return _multiplexer_ui
 
     llm_chat.set_ui_factory(create_ui)
-    llm_chat.set_approval_channel(multiplexed_approval)
+
+    # We must delay the channel creation until the UI exists
+    # Zrb creates the UI when the LLM chat runs, which is after zrb_init.py executes.
+    # To fix this dependency loop cleanly, we pass the MultiplexerUI instance at runtime.
+
+    # A tiny proxy channel that creates the real channel on first use
+    class DeferredMultiplexedApprovalChannel(ApprovalChannel):
+        def __init__(self):
+            self.channel = None
+
+        async def _ensure(self):
+            if self.channel is None:
+                telegram_approval = TelegramApprovalChannel(
+                    telegram_child, _multiplexer_ui
+                )
+                self.channel = MultiplexerApprovalChannel(
+                    [terminal_approval, telegram_approval]
+                )
+
+        async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
+            await self._ensure()
+            return await self.channel.request_approval(context)
+
+        async def notify(
+            self, message: str, context: ApprovalContext | None = None
+        ) -> None:
+            await self._ensure()
+            return await self.channel.notify(message, context)
+
+    llm_chat.set_approval_channel(DeferredMultiplexedApprovalChannel())
 
     print(f"🤖 Telegram + CLI multiplexed UI for chat ID: {CHAT_ID}")
     print(f"   Chat from Telegram AND terminal!")

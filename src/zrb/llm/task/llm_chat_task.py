@@ -48,7 +48,7 @@ if TYPE_CHECKING:
     from pydantic_ai.toolsets import AbstractToolset
     from rich.theme import Theme
 
-    from zrb.llm.approval.channel import ApprovalChannel
+    from zrb.llm.approval import ApprovalChannel
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
@@ -543,10 +543,26 @@ class LLMChatTask(BaseTask):
             # Interactive mode: Let the UI handle everything
             tool_confirmation = None
             ui = None  # Interactive mode uses its own UI system
+        elif self._approval_channel is not None:
+            # When approval_channel is set (e.g., Telegram, SSE),
+            # only use tool_policies for auto-approve/deny.
+            # User-facing approvals go through approval_channel, not CLI.
+            if self._tool_policies:
+                # Create handler with ONLY policies (skip CLI fallback)
+                # This allows auto-approve/deny but falls through to approval_channel
+                # for user-facing approvals (skips the while-True CLI polling loop)
+                tool_confirmation = ToolCallHandler(
+                    tool_policies=self._tool_policies,
+                    argument_formatters=self._argument_formatters,
+                    response_handlers=[],
+                    skip_cli_fallback=True,
+                )
+            else:
+                tool_confirmation = None
         elif (
             self._tool_policies or self._response_handlers or self._argument_formatters
         ):
-            # Non-interactive: Use ToolCallHandler, with StdUI if no UI provided
+            # Non-interactive without approval_channel: Use ToolCallHandler with CLI polling
             if ui is None:
                 ui = StdUI()
             tool_confirmation = ToolCallHandler(
@@ -632,7 +648,7 @@ class LLMChatTask(BaseTask):
         initial_yolo: bool,
         initial_attachments: list[UserContent],
     ) -> Any:
-        from zrb.llm.app.base_ui import BaseUI
+        from zrb.llm.app.ui import BaseUI
 
         # Note: AsyncExitStack is handled by LLMTask._exec_action
         # 1. Resolve UI from factory if provided

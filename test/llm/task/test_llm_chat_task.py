@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.context.shared_context import SharedContext
-from zrb.llm.approval.channel import NullApprovalChannel
+from zrb.llm.approval import NullApprovalChannel
 from zrb.llm.task.llm_chat_task import LLMChatTask
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.session.session import Session

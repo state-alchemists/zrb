@@ -34,7 +34,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CallbackQueryHandler, MessageHandler, filters
 
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.app.simple_ui import (
+from zrb.llm.app.ui import (
     BufferedOutputMixin,
     EventDrivenUI,
     UIConfig,
@@ -82,8 +82,30 @@ class TelegramBot:
         clean = remove_style(text).strip()
         if not clean:
             return
-        for chunk in self._split(clean, 4000):
-            await self._app.bot.send_message(chat_id=chat_id, text=chunk, **kwargs)
+
+        chunks = self._split(clean, 4000)
+        for i, chunk in enumerate(chunks):
+            # Only attach reply_markup (like buttons) to the LAST chunk
+            chunk_kwargs = kwargs.copy()
+            if "reply_markup" in chunk_kwargs and i < len(chunks) - 1:
+                del chunk_kwargs["reply_markup"]
+
+            try:
+                await self._app.bot.send_message(
+                    chat_id=chat_id, text=chunk, **chunk_kwargs
+                )
+            except Exception as e:
+                # If it fails (usually due to Markdown parsing errors), try without parse_mode
+                if "parse_mode" in chunk_kwargs:
+                    del chunk_kwargs["parse_mode"]
+                    try:
+                        await self._app.bot.send_message(
+                            chat_id=chat_id, text=chunk, **chunk_kwargs
+                        )
+                    except Exception as fallback_e:
+                        print(f"Fallback send failed: {fallback_e}")
+                else:
+                    print(f"Send failed: {e}")
 
     @staticmethod
     def _split(text: str, max_len: int) -> list[str]:
@@ -132,6 +154,13 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
         # Register message handler
         async def handle_message(update, context):
             """Route incoming messages to handle_incoming_message()."""
+            # Check if this message is a reply to an edit prompt
+            # We don't want to submit edit replies as chat messages!
+            if update.message.reply_to_message:
+                reply_text = update.message.reply_to_message.text
+                if reply_text and "✏️ Edit arguments for" in reply_text:
+                    return
+
             text = update.message.text
             self.handle_incoming_message(text)
 
@@ -148,7 +177,7 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
 
 
 class TelegramApproval(ApprovalChannel):
-    """Handle tool approvals via Telegram inline buttons."""
+    """Handle tool approvals via Telegram inline buttons with edit support."""
 
     _instances: dict[str, "TelegramApproval"] = {}
 
@@ -156,13 +185,17 @@ class TelegramApproval(ApprovalChannel):
         self.bot = bot
         self.chat_id = chat_id
         self._pending: dict[str, asyncio.Future] = {}
+        self._edit_contexts: dict[str, ApprovalContext] = {}
+        self._edit_futures: dict[str, asyncio.Future] = {}
+        self._edit_messages: dict[int, str] = {}  # message_id -> tool_call_id
 
     async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
         """Send approval request with inline buttons."""
         await self._ensure_handler()
 
         args = json.dumps(context.tool_args, indent=2, default=str)[:3000]
-        text = f"🔔 Tool: `{context.tool_name}`\n```\n{args}\n```"
+        # Use plain text to avoid markdown parsing errors
+        text = f"🔔 Tool: {context.tool_name}\n\n{args}"
 
         keyboard = [
             [
@@ -172,18 +205,19 @@ class TelegramApproval(ApprovalChannel):
                 InlineKeyboardButton(
                     "❌ Deny", callback_data=f"no:{context.tool_call_id}"
                 ),
+                InlineKeyboardButton(
+                    "✏️ Edit", callback_data=f"edit:{context.tool_call_id}"
+                ),
             ]
         ]
 
         loop = asyncio.get_event_loop()
         future = loop.create_future()
         self._pending[context.tool_call_id] = future
+        self._edit_contexts[context.tool_call_id] = context
 
         await self.bot.send(
-            self.chat_id,
-            text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown",
+            self.chat_id, text, reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
         try:
@@ -191,7 +225,12 @@ class TelegramApproval(ApprovalChannel):
                 return await future
         except asyncio.TimeoutError:
             self._pending.pop(context.tool_call_id, None)
+            self._edit_contexts.pop(context.tool_call_id, None)
             return ApprovalResult(approved=False, message="Timeout")
+        finally:
+            self._pending.pop(context.tool_call_id, None)
+            self._edit_contexts.pop(context.tool_call_id, None)
+            self._edit_futures.pop(context.tool_call_id, None)
 
     async def notify(
         self, message: str, context: ApprovalContext | None = None
@@ -210,21 +249,103 @@ class TelegramApproval(ApprovalChannel):
             query = update.callback_query
             await query.answer()
             action, tool_call_id = query.data.split(":", 1)
-            approved = action == "yes"
 
             chat_id = str(query.message.chat_id)
-            if chat_id in TelegramApproval._instances:
-                TelegramApproval._instances[chat_id].resolve(tool_call_id, approved)
+            instance = TelegramApproval._instances.get(chat_id)
+            if not instance:
+                return
 
-            await query.edit_message_text("✅ Approved" if approved else "❌ Denied")
+            if action == "edit":
+                # Start edit flow - get future BEFORE popping
+                if tool_call_id not in instance._pending:
+                    return  # No pending approval for this tool_call_id
+                future = instance._pending.pop(tool_call_id)
+                approval_context = instance._edit_contexts.pop(tool_call_id, None)
+                if approval_context:
+                    await instance._start_edit_flow(
+                        query, tool_call_id, future, approval_context
+                    )
+                else:
+                    # Shouldn't happen - context should exist
+                    future.set_result(
+                        ApprovalResult(approved=False, message="Edit context lost")
+                    )
+            else:
+                approved = action == "yes"
+                instance.resolve(tool_call_id, approved)
+                await query.edit_message_text(
+                    "✅ Approved" if approved else "❌ Denied"
+                )
+
+        async def handle_edit_reply(update, context):
+            """Handle user's edited arguments reply."""
+            reply_to = update.message.reply_to_message
+            if not reply_to:
+                return
+
+            message_id = reply_to.message_id
+            chat_id = str(update.message.chat_id)
+            instance = TelegramApproval._instances.get(chat_id)
+            if not instance:
+                return
+
+            tool_call_id = instance._edit_messages.get(message_id)
+            if not tool_call_id or tool_call_id not in instance._edit_futures:
+                return
+
+            future = instance._edit_futures.pop(tool_call_id)
+            instance._edit_messages.pop(message_id, None)
+
+            try:
+                edited_args = json.loads(update.message.text)
+                await update.message.reply_text("✅ Arguments updated, executing...")
+                future.set_result(
+                    ApprovalResult(approved=True, edited_args=edited_args)
+                )
+            except json.JSONDecodeError as e:
+                await update.message.reply_text(
+                    f"❌ Invalid JSON: {e}\nPlease reply with valid JSON."
+                )
+                # Re-add for retry
+                instance._edit_messages[message_id] = tool_call_id
+                instance._edit_futures[tool_call_id] = future
 
         if self.bot._app:
             self.bot._app.add_handler(CallbackQueryHandler(handle_callback))
+            # Add to group 1 so it doesn't conflict with main chat handler in group 0
+            self.bot._app.add_handler(
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_edit_reply),
+                group=1,
+            )
+
+    async def _start_edit_flow(
+        self,
+        query,
+        tool_call_id: str,
+        future: asyncio.Future,
+        approval_context: ApprovalContext,
+    ):
+        """Send args as editable message and wait for user reply."""
+        context_json = json.dumps(approval_context.tool_args, indent=2, default=str)
+
+        # Plain text to avoid parser dropping the message
+        safe_text = (
+            f"✏️ Edit arguments for {approval_context.tool_name}\n\n"
+            f"Reply to this message with modified JSON:\n"
+            f"{context_json}\n\n"
+            f"Or type 'cancel' to abort."
+        )
+
+        message = await query.edit_message_text(safe_text)
+
+        self._edit_messages[message.message_id] = tool_call_id
+        self._edit_futures[tool_call_id] = future
 
     def resolve(self, tool_call_id: str, approved: bool):
         """Resolve a pending approval request."""
         if tool_call_id in self._pending:
             future = self._pending.pop(tool_call_id)
+            self._edit_contexts.pop(tool_call_id, None)
             future.set_result(ApprovalResult(approved=approved))
 
 
@@ -235,6 +356,9 @@ class TelegramApproval(ApprovalChannel):
 bot = TelegramBot.get(BOT_TOKEN)
 
 if BOT_TOKEN and CHAT_ID:
+    # Disable terminal TUI to let Telegram take over completely
+    llm_chat.interactive = False
+
     # Create UI factory - ONE LINE!
     llm_chat.set_ui_factory(create_ui_factory(TelegramUI, bot=bot, chat_id=CHAT_ID))
 

@@ -40,10 +40,12 @@ class ToolCallHandler:
         tool_policies: list[ToolPolicy] | None = None,
         argument_formatters: list[ArgumentFormatter] | None = None,
         response_handlers: list[ResponseHandler] | None = None,
+        skip_cli_fallback: bool = False,
     ):
         self._tool_policies = tool_policies or []
         self._argument_formatters = argument_formatters or []
         self._response_handlers = response_handlers or []
+        self._skip_cli_fallback = skip_cli_fallback
 
     def add_tool_policy(self, *policy: ToolPolicy):
         self.prepend_tool_policy(*policy)
@@ -72,6 +74,11 @@ class ToolCallHandler:
         policy_result = await self.check_policies(ui, call)
         if policy_result is not None:
             return policy_result
+
+        # If skip_cli_fallback is True, return None to let the caller
+        # (e.g., approval_channel) handle the user-facing approval.
+        if self._skip_cli_fallback:
+            return None
 
         while True:
             message = await self._get_confirm_user_message(ui, call)

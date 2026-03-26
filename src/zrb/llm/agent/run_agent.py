@@ -5,7 +5,7 @@ from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias, Union
 
 from zrb.llm.agent.std_ui import StdUI
-from zrb.llm.approval.channel import current_approval_channel
+from zrb.llm.approval import current_approval_channel
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     )
     from pydantic_ai.messages import UserPromptPart
 
-    from zrb.llm.approval.channel import ApprovalChannel
+    from zrb.llm.approval import ApprovalChannel
     from zrb.llm.tool_call.handler import ToolCallHandler
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
@@ -349,7 +349,7 @@ async def _process_deferred_requests(
 
     from pydantic_ai import DeferredToolResults, ToolDenied
 
-    from zrb.llm.approval.channel import ApprovalContext
+    from zrb.llm.approval import ApprovalContext
     from zrb.llm.tool_call.handler import ToolCallHandler
 
     all_requests = (result_output.calls or []) + (result_output.approvals or [])
@@ -396,15 +396,19 @@ async def _process_deferred_requests(
                 handled = True
 
         # Priority 2: Approval Channel (remote/external approval)
+        via_approval_channel = False
         if not handled and approval_channel is not None:
+            # Pass the RAW args as-is to the approval channel so any edit preserves
+            # the exact structure Pydantic AI expects for history sync.
             context = ApprovalContext(
                 tool_name=call.tool_name,
-                tool_args=call.args if isinstance(call.args, dict) else {},
+                tool_args=call.args,
                 tool_call_id=call.tool_call_id,
             )
             approval_result = await approval_channel.request_approval(context)
             result = approval_result.to_pydantic_result()
             handled = True
+            via_approval_channel = True
 
         # Priority 3: CLI Fallback using ToolCallHandler
         if not handled:
@@ -412,6 +416,71 @@ async def _process_deferred_requests(
             result = await handler.handle(ui, call)
 
         current_results.approvals[call.tool_call_id] = result
+
+        # Robust external-edit fix: if an edit came via ApprovalChannel,
+        # DENY with a directive so the model re-issues the tool call with new args.
+        # This guarantees the model's ToolCallPart matches execution.
+        from pydantic_ai import ToolApproved, ToolDenied
+
+        if (
+            isinstance(result, ToolApproved)
+            and getattr(result, "override_args", None) is not None
+        ):
+            if "via_approval_channel" in locals() and via_approval_channel:
+                import json
+
+                edited = result.override_args
+                try:
+                    # Unwrap for readability if wrapped
+                    if isinstance(edited, dict):
+                        if "args_dict" in edited:
+                            edited = edited["args_dict"]
+                        elif "args_json" in edited:
+                            edited = json.loads(edited["args_json"])
+                        elif "args" in edited and isinstance(edited["args"], str):
+                            edited = json.loads(edited["args"])
+                except Exception:
+                    pass
+                directive = (
+                    f"USER EDITED TOOL ARGUMENTS. You MUST call tool '{call.tool_name}' again "
+                    f"with exactly this JSON: {json.dumps(edited, ensure_ascii=False)}\n"
+                    f"Do not proceed with the previous arguments."
+                )
+                result = ToolDenied(directive)
+                current_results.approvals[call.tool_call_id] = result
+            else:
+                # Local (CLI) edit: allow and mutate call.args to keep history coherent
+                new_args = result.override_args
+                wrapped_args = new_args
+
+                def has_wrapper(d: object) -> bool:
+                    return isinstance(d, dict) and any(
+                        k in d for k in ("args_dict", "args_json", "args")
+                    )
+
+                if not has_wrapper(new_args):
+                    if isinstance(call.args, dict):
+                        if "args_dict" in call.args:
+                            wrapped_args = {"args_dict": new_args}
+                        elif "args_json" in call.args:
+                            import json
+
+                            wrapped_args = {"args_json": json.dumps(new_args)}
+                        elif "args" in call.args:
+                            import json
+
+                            wrapped_args = {"args": json.dumps(new_args)}
+                    elif isinstance(call.args, str):
+                        import json
+
+                        wrapped_args = (
+                            json.dumps(new_args)
+                            if not isinstance(new_args, str)
+                            else new_args
+                        )
+                result = ToolApproved(override_args=wrapped_args)
+                current_results.approvals[call.tool_call_id] = result
+                call.args = wrapped_args
 
         # Hook: PostToolUse / PostToolUseFailure
         from pydantic_ai import ToolApproved

@@ -563,6 +563,23 @@ class BaseUI:
         from zrb.llm.agent.run_agent import current_ui
 
         ui = current_ui.get() or self
+
+        # Check if the LLM task has an approval channel configured
+        has_approval_channel = (
+            hasattr(self._llm_task, "approval_channel")
+            and self._llm_task.approval_channel is not None
+        )
+
+        # If we have an approval channel, we should skip the CLI fallback
+        # and let the approval channel handle it, UNLESS the policy auto-approves it
+        if has_approval_channel:
+            # First just check policies without CLI fallback
+            policy_result = await self._tool_call_handler.check_policies(ui, call)
+            if policy_result is not None:
+                return policy_result
+            # Return None to let the approval channel handle it!
+            return None
+
         return await self._tool_call_handler.handle(
             ui, call
         )  # --- SYSTEM INFO / TRIGGERS (Moved from UI) ---

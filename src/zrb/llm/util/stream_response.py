@@ -143,15 +143,25 @@ def create_event_handler(
                 )
             was_tool_call_delta = False
         elif isinstance(event, FunctionToolResultEvent):
+            from pydantic_ai.messages import RetryPromptPart
+
+            is_error = isinstance(event.result, RetryPromptPart)
+            status_word = "Denied/Failed" if is_error else "Executed"
+
             if show_tool_result:
+                content = (
+                    event.result.content
+                    if hasattr(event.result, "content")
+                    else event.result.model_response()
+                )
                 fprint(
-                    f"{event_prefix}🔠 {event.tool_call_id} | Return {event.result.content}\n",
+                    f"{event_prefix}🔠 {event.tool_call_id} | {status_word}: {content}\n",
                     preserve_leading_newline=True,
                     use_status=True,
                 )
             else:
                 fprint(
-                    f"{event_prefix}🔠 {event.tool_call_id} Executed\n",
+                    f"{event_prefix}🔠 {event.tool_call_id} {status_word}\n",
                     preserve_leading_newline=True,
                     use_status=True,
                 )
