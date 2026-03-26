@@ -120,6 +120,11 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
         BufferedOutputMixin.__init__(self, flush_interval=0.3, max_buffer_size=3000)
         self.bot = bot
         self.chat_id = chat_id
+        self._approval_channel: TelegramApproval | None = None
+
+    def set_approval_channel(self, approval: "TelegramApproval"):
+        """Set the approval channel for edit routing."""
+        self._approval_channel = approval
 
     async def _send_buffered(self, text: str) -> None:
         await self.bot.send(self.chat_id, text)
@@ -135,7 +140,17 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
 
         async def handle_message(update, context):
             text = update.message.text
-            self.handle_incoming_message(text)
+
+            # Check if approval channel is waiting for edit input
+            if (
+                self._approval_channel
+                and self._approval_channel._waiting_for_edit_tool_call_id
+            ):
+                # Route to approval channel instead of LLM
+                self._approval_channel.handle_text_input(text)
+            else:
+                # Normal flow - route to LLM
+                self.handle_incoming_message(text)
 
         self.bot._app.add_handler(MessageHandler(filters.TEXT, handle_message))
 
@@ -155,11 +170,28 @@ class TelegramApproval(ApprovalChannel):
         self.bot = bot
         self.chat_id = chat_id
         self._pending: dict[str, asyncio.Future] = {}
+        self._pending_context: dict[str, ApprovalContext] = {}
+        self._waiting_for_edit: dict[str, asyncio.Future] = {}
+        self._waiting_for_edit_tool_call_id: str | None = None
 
     async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
+        print(
+            f"[DEBUG TelegramApproval] request_approval START for {context.tool_name}"
+        )
+        print(
+            f"[DEBUG TelegramApproval] tool_args: {context.tool_args}, type: {type(context.tool_args)}"
+        )
         await self._ensure_handler()
 
-        args = json.dumps(context.tool_args, indent=2, default=str)[:3000]
+        # Convert tool_args to proper dict if needed
+        tool_args = context.tool_args
+        if not isinstance(tool_args, dict):
+            print(
+                f"[DEBUG TelegramApproval] tool_args is NOT a dict, converting from {tool_args}..."
+            )
+            tool_args = {}
+
+        args = json.dumps(tool_args, indent=2, default=str)[:3000]
         text = f"🔔 Tool: `{context.tool_name}`\n```\n{args}\n```"
 
         keyboard = [
@@ -170,12 +202,21 @@ class TelegramApproval(ApprovalChannel):
                 InlineKeyboardButton(
                     "❌ Deny", callback_data=f"no:{context.tool_call_id}"
                 ),
-            ]
+            ],
+            [
+                InlineKeyboardButton(
+                    "✏️ Edit Args", callback_data=f"edit:{context.tool_call_id}"
+                ),
+            ],
         ]
 
         loop = asyncio.get_event_loop()
         future = loop.create_future()
         self._pending[context.tool_call_id] = future
+        self._pending_context[context.tool_call_id] = context
+        print(
+            f"[DEBUG TelegramApproval] Created future {id(future)}, pending count: {len(self._pending)}"
+        )
 
         await self.bot.send(
             self.chat_id,
@@ -183,18 +224,74 @@ class TelegramApproval(ApprovalChannel):
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown",
         )
+        print(f"[DEBUG TelegramApproval] Message sent, future done()={future.done()}")
 
         try:
-            async with asyncio.timeout(300):
-                return await future
-        except asyncio.TimeoutError:
-            self._pending.pop(context.tool_call_id, None)
-            return ApprovalResult(approved=False, message="Timeout")
+            print(f"[DEBUG TelegramApproval] About to await future...")
+            result = await future
+            print(
+                f"[DEBUG TelegramApproval] Future resolved! approved={result.approved}, message={result.message}"
+            )
+            return result
+        except BaseException as e:
+            print(
+                f"[DEBUG TelegramApproval] BaseException caught: {type(e).__name__}: {e}"
+            )
+            import traceback
+
+            traceback.print_exc()
+            # Don't auto-deny on cancellation - we need user input!
+            # Instead, wait indefinitely
+            print(f"[DEBUG TelegramApproval] Waiting indefinitely for user input...")
+            # Re-wait forever
+            while not future.done():
+                await asyncio.sleep(1)
+            print(f"[DEBUG TelegramApproval] Finally got result: {future.result()}")
+            return future.result()
 
     async def notify(
         self, message: str, context: ApprovalContext | None = None
     ) -> None:
         await self.bot.send(self.chat_id, message)
+
+    def handle_text_input(self, text: str):
+        """Handle text input - used when user sends text while waiting for edit."""
+        if self._waiting_for_edit_tool_call_id:
+            tool_call_id = self._waiting_for_edit_tool_call_id
+            self._waiting_for_edit_tool_call_id = None
+
+            if tool_call_id in self._waiting_for_edit:
+                future = self._waiting_for_edit.pop(tool_call_id)
+                # Parse the edited JSON/YAML
+                new_args = self._parse_edited_content(text)
+                if new_args is not None:
+                    future.set_result(
+                        ApprovalResult(approved=True, override_args=new_args)
+                    )
+                else:
+                    future.set_result(
+                        ApprovalResult(approved=False, message="Invalid format")
+                    )
+
+    def _parse_edited_content(self, content: str) -> dict | None:
+        """Parse edited content as JSON or YAML."""
+        import yaml
+
+        content = content.strip()
+
+        # Try JSON first
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            pass
+
+        # Try YAML
+        try:
+            return yaml.safe_load(content)
+        except yaml.YAMLError:
+            pass
+
+        return None
 
     async def _ensure_handler(self):
         if self.chat_id in TelegramApproval._instances:
@@ -206,13 +303,44 @@ class TelegramApproval(ApprovalChannel):
             query = update.callback_query
             await query.answer()
             action, tool_call_id = query.data.split(":", 1)
-            approved = action == "yes"
 
             chat_id = str(query.message.chat_id)
-            if chat_id in TelegramApproval._instances:
-                TelegramApproval._instances[chat_id].resolve(tool_call_id, approved)
+            if chat_id not in TelegramApproval._instances:
+                return
 
-            await query.edit_message_text("✅ Approved" if approved else "❌ Denied")
+            instance = TelegramApproval._instances[chat_id]
+
+            if action == "yes":
+                if tool_call_id in instance._pending:
+                    instance.resolve(tool_call_id, True)
+                await query.edit_message_text("✅ Approved")
+
+            elif action == "no":
+                if tool_call_id in instance._pending:
+                    instance.resolve(tool_call_id, False)
+                await query.edit_message_text("❌ Denied")
+
+            elif action == "edit":
+                # User wants to edit arguments
+                context = instance._pending_context.get(tool_call_id)
+                if context:
+                    # Ask for new arguments
+                    args = json.dumps(context.tool_args, indent=2, default=str)
+                    await instance.bot.send(
+                        chat_id,
+                        f"✏️ Editing `{context.tool_name}`\n\n"
+                        f"Send new arguments (JSON or YAML format):\n"
+                        f"```\n{args}\n```",
+                        parse_mode="Markdown",
+                    )
+                    # Mark as waiting for edit input
+                    instance._waiting_for_edit_tool_call_id = tool_call_id
+                    loop = asyncio.get_event_loop()
+                    future = loop.create_future()
+                    instance._waiting_for_edit[tool_call_id] = future
+                    # This future will be resolved by handle_text_input
+                    # We also need to update the pending future to wait for edit
+                    instance._pending[tool_call_id] = future
 
         if self.bot._app:
             self.bot._app.add_handler(CallbackQueryHandler(handle_callback))
@@ -230,14 +358,52 @@ class TelegramApproval(ApprovalChannel):
 bot = TelegramBot.get(BOT_TOKEN)
 
 if BOT_TOKEN and CHAT_ID:
-    # Telegram + CLI mode (dual channel)
-    llm_chat.append_ui_factory(create_ui_factory(TelegramUI, bot=bot, chat_id=CHAT_ID))
-    llm_chat.append_approval_channel(TelegramApproval(bot, CHAT_ID))
+    # Create approval channel first
+    telegram_approval = TelegramApproval(bot, CHAT_ID)
+
+    # Create UI factory that includes approval channel reference
+    def telegram_ui_factory(
+        ctx,
+        llm_task_core,
+        history_manager,
+        ui_commands,
+        initial_message,
+        initial_conversation_name,
+        initial_yolo,
+        initial_attachments,
+    ):
+        from zrb.llm.ui.simple_ui import UIConfig
+
+        cfg = UIConfig.default()
+        if ui_commands:
+            cfg = cfg.merge_commands(ui_commands)
+        cfg.yolo = initial_yolo
+        cfg.conversation_session_name = initial_conversation_name
+
+        ui = TelegramUI(
+            ctx=ctx,
+            llm_task=llm_task_core,
+            history_manager=history_manager,
+            config=cfg,
+            initial_message=initial_message,
+            initial_attachments=initial_attachments,
+            bot=bot,
+            chat_id=CHAT_ID,
+        )
+        # Wire up approval channel for edit routing
+        ui.set_approval_channel(telegram_approval)
+        return ui
+
+    # Register UI and approval
+    llm_chat.append_ui_factory(telegram_ui_factory)
+    llm_chat.append_approval_channel(telegram_approval)
     # Note: Terminal approval is handled by the default UI (BaseUI._confirm_tool_execution)
+    # When approval_channel is used, it takes priority over CLI confirmation
 
     print(f"🤖 Telegram + CLI dual mode for chat ID: {CHAT_ID}")
     print("   Both channels receive all messages.")
     print("   Approvals work from both - first response wins!")
+    print("   Tool argument editing available on Telegram!")
 
 elif BOT_TOKEN or CHAT_ID:
     print("⚠️  Set both TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID")

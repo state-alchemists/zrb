@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias, Union
 
@@ -95,6 +96,44 @@ async def run_agent(
     )
     effective_yolo = yolo or current_yolo.get()
     effective_approval_channel = approval_channel or current_approval_channel.get()
+
+    # If approval_channel exists but doesn't have UI for terminal, add it
+    if effective_approval_channel is not None and effective_ui is not None:
+        from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
+        from zrb.llm.approval.terminal_approval_channel import TerminalApprovalChannel
+
+        # Check if we need to add terminal approval channel
+        if not isinstance(effective_approval_channel, MultiplexApprovalChannel):
+            # Get the first UI for terminal approval (not MultiUI)
+            ui_for_terminal = effective_ui
+            if hasattr(effective_ui, "_uis") and effective_ui._uis:
+                ui_for_terminal = effective_ui._uis[0]
+            print(
+                f"[DEBUG] Creating TerminalApprovalChannel with UI: {ui_for_terminal}"
+            )
+            terminal_channel = TerminalApprovalChannel(ui_for_terminal)
+            # CLI first, then Telegram - CLI gets priority
+            effective_approval_channel = MultiplexApprovalChannel(
+                [
+                    terminal_channel,
+                    effective_approval_channel,
+                ]
+            )
+            print(f"[DEBUG] Wrapped approval channel: CLI first, then Telegram")
+
+    print(f"[DEBUG run_agent] === START ===")
+    print(f"[DEBUG run_agent] tool_confirmation param: {tool_confirmation}")
+    print(
+        f"[DEBUG run_agent] current_tool_confirmation.get(): {current_tool_confirmation.get()}"
+    )
+    print(
+        f"[DEBUG run_agent] effective_tool_confirmation: {effective_tool_confirmation}"
+    )
+    print(f"[DEBUG run_agent] approval_channel param: {approval_channel}")
+    print(
+        f"[DEBUG run_agent] current_approval_channel.get(): {current_approval_channel.get()}"
+    )
+    print(f"[DEBUG run_agent] effective_approval_channel: {effective_approval_channel}")
 
     # Set context variables so sub-agents can inherit them
     token_ui = current_ui.set(
@@ -241,12 +280,18 @@ async def run_agent(
                     deferred_tool_results=current_results,
                     usage_limits=UsageLimits(request_limit=None),
                 )
+                print(
+                    f"[DEBUG run_agent] Stream started, current_results={current_results}"
+                )
                 try:
                     async for event in stream:
                         await asyncio.sleep(0)
                         if isinstance(event, AgentRunResultEvent):
                             result = event.result
                             result_output = result.output
+                            print(
+                                f"[DEBUG run_agent] Got result event, result_output type: {type(result_output)}"
+                            )
                             run_history = result.all_messages()
                         if effective_event_handler:
                             await effective_event_handler(event)
@@ -257,12 +302,18 @@ async def run_agent(
 
                 # Handle Deferred Calls
                 if isinstance(result_output, DeferredToolRequests):
+                    print(
+                        f"[DEBUG run_agent] Got DeferredToolRequests, calling _process_deferred_requests"
+                    )
                     current_results = await _process_deferred_requests(
                         result_output,
                         effective_tool_confirmation,
                         effective_ui,
                         effective_hook_manager,
                         effective_approval_channel,
+                    )
+                    print(
+                        f"[DEBUG run_agent] _process_deferred_requests returned: {current_results}"
                     )
                     if current_results is None:
                         # Hook: SessionEnd (premature end due to tool denial or wait)
@@ -274,6 +325,9 @@ async def run_agent(
                     # Prepare next iteration
                     current_message = None
                     current_history = run_history
+                    print(
+                        f"[DEBUG run_agent] Continuing to next iteration with current_results"
+                    )
                     continue
 
                 # Hook: SessionEnd
@@ -398,38 +452,94 @@ async def _process_deferred_requests(
         result = None
         handled = False
 
-        # Priority 1: Tool Confirmation Handler (policy-based approval)
+        # Priority 1: Tool Policy (automatic approval based on rules)
         if effective_tool_confirmation:
             if isinstance(effective_tool_confirmation, ToolCallHandler):
-                result = await effective_tool_confirmation.handle(ui, call)
-            else:
-                # It's a simple callback function (or object with __call__)
-                # If it returns None, it means "I don't know", so we fallback to CLI
-                res = effective_tool_confirmation(call)
-                if inspect.isawaitable(res):
-                    result = await res
-                else:
-                    result = res
+                policy_result = await effective_tool_confirmation.check_policies(
+                    ui, call
+                )
+                if policy_result is not None:
+                    result = policy_result
+                    handled = True
 
-            # If policy made a decision (not None), we're done
-            if result is not None:
-                handled = True
-
-        # Priority 2: Approval Channel (remote/external approval)
-        if not handled and approval_channel is not None:
-            context = ApprovalContext(
-                tool_name=call.tool_name,
-                tool_args=call.args if isinstance(call.args, dict) else {},
-                tool_call_id=call.tool_call_id,
-            )
-            approval_result = await approval_channel.request_approval(context)
-            result = approval_result.to_pydantic_result()
-            handled = True
-
-        # Priority 3: CLI Fallback using ToolCallHandler
+        # Priority 2: RACE - CLI and Telegram approval concurrently (first one wins)
         if not handled:
-            handler = ToolCallHandler()  # Use default handler with no policies
-            result = await handler.handle(ui, call)
+            print(f"[DEBUG run_agent] Racing CLI and Telegram for {call.tool_name}")
+
+            # Prepare args for approval channel
+            args = {}
+            if hasattr(call, "args") and call.args:
+                if isinstance(call.args, dict):
+                    args = call.args
+                elif isinstance(call.args, str):
+                    try:
+                        args = json.loads(call.args)
+                    except json.JSONDecodeError:
+                        pass
+
+            async def get_cli_result():
+                """Get CLI approval result."""
+                print(f"[DEBUG run_agent] CLI: Starting confirmation...")
+                if isinstance(effective_tool_confirmation, ToolCallHandler):
+                    cli_result = await effective_tool_confirmation.handle(ui, call)
+                    print(f"[DEBUG run_agent] CLI: Got result: {cli_result}")
+                    return cli_result
+                elif callable(effective_tool_confirmation):
+                    res = effective_tool_confirmation(call)
+                    if inspect.isawaitable(res):
+                        cli_result = await res
+                    else:
+                        cli_result = res
+                    print(f"[DEBUG run_agent] CLI: Got result: {cli_result}")
+                    return cli_result
+                return None
+
+            async def get_telegram_result():
+                """Get Telegram approval result."""
+                if approval_channel is None:
+                    print(f"[DEBUG run_agent] Telegram: No approval channel")
+                    return None
+                print(f"[DEBUG run_agent] Telegram: Starting approval request...")
+                context = ApprovalContext(
+                    tool_name=call.tool_name,
+                    tool_args=args,
+                    tool_call_id=call.tool_call_id,
+                )
+                approval_result = await approval_channel.request_approval(context)
+                print(
+                    f"[DEBUG run_agent] Telegram: Got result: approved={approval_result.approved}"
+                )
+                return approval_result.to_pydantic_result()
+
+            # Run both concurrently and race them
+            cli_task = asyncio.create_task(get_cli_result())
+            telegram_task = asyncio.create_task(get_telegram_result())
+
+            # Wait for whichever completes first
+            done, pending = await asyncio.wait(
+                [cli_task, telegram_task], return_when=asyncio.FIRST_COMPLETED
+            )
+
+            # Get the winning result
+            for task in done:
+                result = task.result()
+                print(f"[DEBUG run_agent] Race winner result: {result}")
+                if result is not None:
+                    handled = True
+                    break
+
+            # Cancel the pending task(s)
+            for task in pending:
+                print(f"[DEBUG run_agent] Cancelling pending task")
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
+            print(
+                f"[DEBUG run_agent] Race complete, handled={handled}, result={result}"
+            )
 
         current_results.approvals[call.tool_call_id] = result
 

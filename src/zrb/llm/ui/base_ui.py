@@ -477,6 +477,14 @@ class BaseUI:
                     break
 
     def _submit_user_message(self, llm_task: AnyTask, user_message: str):
+        # Check if we have a parent MultiUI to route through
+        parent_multi_ui = getattr(self, "_multi_ui_parent", None)
+        if parent_multi_ui is not None:
+            # Route through parent MultiUI - this broadcasts to ALL UIs
+            parent_multi_ui._submit_user_message(llm_task, user_message)
+            return
+
+        # No parent - process locally (original behavior)
         timestamp = datetime.now().strftime("%H:%M")
         # 1. Render User Message
         self.append_to_output(f"\n💬 {timestamp} >> {user_message.strip()}\n")

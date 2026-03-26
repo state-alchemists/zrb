@@ -31,6 +31,11 @@ class MultiplexApprovalChannel(ApprovalChannel):
         if is_shutdown_requested():
             return ApprovalResult(approved=False, message="Shutdown requested")
 
+        print(f"[DEBUG Multiplex] request_approval START for {context.tool_name}")
+        print(
+            f"[DEBUG Multiplex] Channels: {[type(c).__name__ for c in self._channels]}"
+        )
+
         loop = asyncio.get_running_loop()
         future: asyncio.Future[ApprovalResult] = loop.create_future()
         self._pending[context.tool_call_id] = future
@@ -38,28 +43,42 @@ class MultiplexApprovalChannel(ApprovalChannel):
 
         async def request_from_channel(channel: ApprovalChannel):
             try:
+                print(f"[DEBUG Multiplex] Calling channel {type(channel).__name__}...")
                 result = await channel.request_approval(context)
+                print(
+                    f"[DEBUG Multiplex] Channel {type(channel).__name__} returned: approved={result.approved}"
+                )
                 if not future.done():
+                    print(f"[DEBUG Multiplex] Setting future result: {result}")
                     future.set_result(result)
                 return result
-            except Exception as e:
-                if not future.done():
-                    future.set_result(ApprovalResult(approved=False, message=str(e)))
-                return ApprovalResult(approved=False, message=str(e))
+            except BaseException as e:
+                import traceback
 
+                print(
+                    f"[DEBUG Multiplex] Channel {type(channel).__name__} Exception: {type(e).__name__}: {e}"
+                )
+                # Don't propagate - just wait
+                traceback.print_exc()
+                # Wait for another channel
+                return None
+
+        # Run channels sequentially to avoid telegram polling conflicts
         for ch in self._channels:
-            task = asyncio.create_task(request_from_channel(ch))
-            self._tasks[context.tool_call_id].append(task)
+            print(f"[DEBUG Multiplex] Processing channel: {type(ch).__name__}")
+            result = await request_from_channel(ch)
+            if result is not None:
+                print(
+                    f"[DEBUG Multiplex] Returning result: approved={result.approved}, message={result.message}"
+                )
+                return result
+            print(f"[DEBUG Multiplex] Channel returned None, trying next channel...")
 
-        try:
-            async with asyncio.timeout(300):
-                return await future
-        except asyncio.TimeoutError:
-            return ApprovalResult(approved=False, message="Timeout")
-        finally:
-            for task in self._tasks.pop(context.tool_call_id, []):
-                task.cancel()
-            self._pending.pop(context.tool_call_id, None)
+        # If we got here, all channels failed - wait indefinitely for user input
+        print(f"[DEBUG Multiplex] All channels failed, waiting for user input...")
+        while not future.done():
+            await asyncio.sleep(1)
+        return future.result()
 
     async def notify(
         self, message: str, context: ApprovalContext | None = None

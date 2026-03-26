@@ -561,7 +561,7 @@ class LLMChatTask(BaseTask):
         elif (
             self._tool_policies or self._response_handlers or self._argument_formatters
         ):
-            # Non-interactive: Use ToolCallHandler, with StdUI if no UI provided
+            # Non-interactive with policies/handlers/formatters: Use ToolCallHandler
             if not ui:
                 ui = StdUI()
             tool_confirmation = ToolCallHandler(
@@ -569,6 +569,11 @@ class LLMChatTask(BaseTask):
                 argument_formatters=self._argument_formatters,
                 response_handlers=self._response_handlers,
             )
+        else:
+            # Non-interactive without policies: Use UI for approval
+            if not ui:
+                ui = StdUI()
+            # tool_confirmation = None (let UI handle it via approval_channel)
 
         def check_yolo(*args, **kwargs):
             if self._yolo_xcom_key not in ctx.xcom:
@@ -585,6 +590,11 @@ class LLMChatTask(BaseTask):
             effective_approval_channel = MultiplexApprovalChannel(
                 self._approval_channels
             )
+
+        print(f"[DEBUG llm_chat_task] _create_llm_task_core:")
+        print(f"  tool_confirmation: {tool_confirmation}")
+        print(f"  effective_approval_channel: {effective_approval_channel}")
+        print(f"  _approval_channels: {self._approval_channels}")
 
         # Pass resolved tools/toolsets to LLMTask (no factories needed since already resolved)
         return LLMTask(
@@ -748,6 +758,15 @@ class LLMChatTask(BaseTask):
                 ui = default_ui
             else:
                 ui = MultiUI(all_uis)
+                # Set up approval channel for MultiUI
+                if len(self._approval_channels) == 1:
+                    ui.set_approval_channel(self._approval_channels[0])
+                elif len(self._approval_channels) > 1:
+                    from zrb.llm.approval import MultiplexApprovalChannel
+
+                    ui.set_approval_channel(
+                        MultiplexApprovalChannel(self._approval_channels)
+                    )
         else:
             # No factory UIs, use default UI
             ui = UI(

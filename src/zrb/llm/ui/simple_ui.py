@@ -485,7 +485,44 @@ class BufferedOutputMixin:
         await self._flush_buffer()
 
     def buffer_output(self, text: str):
-        """Add text to buffer. Automatically flushes when full."""
+        """Add text to buffer. Automatically flushes when full.
+
+        Filters out redundant spinner/progress messages that would otherwise
+        be duplicated in event-driven UIs (Telegram, Discord, etc.).
+        """
+        import re
+
+        # Progress characters for spinner animation
+        progress_chars = "⠇⠏⠋⠙⠹⠸⠼⠴⠦⠧⠇⠁⠂⠃"
+
+        # Pattern 1: Pure spinner update - only \r and progress chars
+        pure_spinner_pattern = re.compile(r"^\r[" + progress_chars + r"\s]*$")
+
+        if pure_spinner_pattern.match(text):
+            return
+
+        # Pattern 2: Spinner at end with message like "\r🔄 Prepare tool parameters ⠇"
+        if "\r" in text:
+            text = text.replace("\r", "")
+
+        # Pattern 3: Line ending with spinner (like "🔄 Prepare tool parameters ⠇")
+        if any(c in text for c in progress_chars):
+            text = re.sub(r"[" + progress_chars + r"]+\s*$", "", text)
+            text = text.rstrip()
+
+        # Remove remaining \r
+        text = text.replace("\r", "")
+
+        if not text.strip():
+            return
+
+        # Filter out redundant "Prepare tool parameters" messages
+        # These are progress indicators that get repeated in event-driven UIs
+        # We only want to show the actual tool call notification
+        if "Prepare tool parameters" in text:
+            # Skip this message - the tool call notification is what matters
+            return
+
         self._buffer.append(text)
 
         # Auto-flush when buffer is large
