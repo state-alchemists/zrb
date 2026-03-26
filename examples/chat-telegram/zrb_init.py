@@ -34,12 +34,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CallbackQueryHandler, MessageHandler, filters
 
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.app.ui import (
-    BufferedOutputMixin,
-    EventDrivenUI,
-    UIConfig,
-    create_ui_factory,
-)
+from zrb.llm.app.ui import BufferedOutputMixin, EventDrivenUI, create_ui_factory
 from zrb.llm.approval import ApprovalChannel, ApprovalContext, ApprovalResult
 from zrb.util.cli.style import remove_style
 
