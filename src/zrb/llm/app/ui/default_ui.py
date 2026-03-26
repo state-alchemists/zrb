@@ -19,11 +19,11 @@ from prompt_toolkit.output import create_output
 from prompt_toolkit.styles import Style
 
 from zrb.context.any_context import AnyContext
-from zrb.llm.app.ui.base_ui import BaseUI
 from zrb.llm.app.keybinding import create_output_keybindings
 from zrb.llm.app.layout import create_input_field, create_layout, create_output_field
 from zrb.llm.app.redirection import GlobalStreamCapture
 from zrb.llm.app.style import create_style
+from zrb.llm.app.ui.base_ui import BaseUI
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.interface import HookEvent

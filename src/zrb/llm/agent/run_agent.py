@@ -430,26 +430,89 @@ async def _process_deferred_requests(
                 import json
 
                 edited = result.override_args
-                try:
-                    # Unwrap for readability if wrapped
-                    if isinstance(edited, dict):
-                        if "args_dict" in edited:
-                            edited = edited["args_dict"]
-                        elif "args_json" in edited:
-                            edited = json.loads(edited["args_json"])
-                        elif "args" in edited and isinstance(edited["args"], str):
-                            edited = json.loads(edited["args"])
-                except Exception:
-                    pass
-                directive = (
-                    f"USER EDITED TOOL ARGUMENTS. You MUST call tool '{call.tool_name}' again "
-                    f"with exactly this JSON: {json.dumps(edited, ensure_ascii=False)}\n"
-                    f"Do not proceed with the previous arguments."
-                )
-                result = ToolDenied(directive)
-                current_results.approvals[call.tool_call_id] = result
+
+                # Check for __local_edit__ marker.
+                # If it's a local edit made through the terminal interface of the channel,
+                # we don't want to deny it and force a LLM retry. We want to execute it locally.
+                is_local_edit = False
+                if isinstance(edited, dict) and edited.get("__local_edit__") is True:
+                    is_local_edit = True
+                    # Unpack the actual args back out
+                    if "args_dict" in edited:
+                        edited = {"args_dict": edited["args_dict"]}
+                    elif "args_json" in edited:
+                        edited = {"args_json": edited["args_json"]}
+                    elif "args" in edited:
+                        edited = {"args": edited["args"]}
+                    elif "str_json" in edited:
+                        edited = edited["str_json"]
+                    else:
+                        # Fallback: remove the marker
+                        edited = {
+                            k: v for k, v in edited.items() if k != "__local_edit__"
+                        }
+
+                if not is_local_edit:
+                    try:
+                        # Unwrap for readability if wrapped
+                        if isinstance(edited, dict):
+                            if "args_dict" in edited:
+                                edited = edited["args_dict"]
+                            elif "args_json" in edited:
+                                edited = json.loads(edited["args_json"])
+                            elif "args" in edited and isinstance(edited["args"], str):
+                                edited = json.loads(edited["args"])
+                    except Exception:
+                        pass
+                    directive = (
+                        f"USER EDITED TOOL ARGUMENTS. You MUST call tool '{call.tool_name}' again "
+                        f"with exactly this JSON: {json.dumps(edited, ensure_ascii=False)}\n"
+                        f"Do not proceed with the previous arguments."
+                    )
+                    result = ToolDenied(directive)
+                    current_results.approvals[call.tool_call_id] = result
+                else:
+                    # It was an edit via the terminal *within* the approval channel.
+                    # We treat it exactly like a CLI local edit so it executes immediately.
+                    new_args = edited
+                    wrapped_args = new_args
+
+                    def has_wrapper(d: object) -> bool:
+                        return isinstance(d, dict) and any(
+                            k in d for k in ("args_dict", "args_json", "args")
+                        )
+
+                    if not has_wrapper(new_args):
+                        if isinstance(call.args, dict):
+                            if "args_dict" in call.args:
+                                wrapped_args = {"args_dict": new_args}
+                            elif "args_json" in call.args:
+                                import json
+
+                                wrapped_args = {
+                                    "args_json": json.dumps(
+                                        new_args, ensure_ascii=False
+                                    )
+                                }
+                            elif "args" in call.args:
+                                import json
+
+                                wrapped_args = {
+                                    "args": json.dumps(new_args, ensure_ascii=False)
+                                }
+                        elif isinstance(call.args, str):
+                            import json
+
+                            wrapped_args = (
+                                json.dumps(new_args, ensure_ascii=False)
+                                if not isinstance(new_args, str)
+                                else new_args
+                            )
+                    result = ToolApproved(override_args=wrapped_args)
+                    current_results.approvals[call.tool_call_id] = result
+                    call.args = wrapped_args
             else:
-                # Local (CLI) edit: allow and mutate call.args to keep history coherent
+                # Local (CLI) edit directly via ToolCallHandler: allow and mutate call.args
                 new_args = result.override_args
                 wrapped_args = new_args
 

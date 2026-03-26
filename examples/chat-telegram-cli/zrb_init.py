@@ -262,16 +262,6 @@ class MultiplexerUI(BaseUI):
         if is_shutdown_requested():
             return  # Ignore input during shutdown
 
-        # TerminalApprovalChannel interception
-        # If terminal input is received while waiting for an approval, give it to the terminal approval future!
-        if isinstance(child_ui, TerminalChildUI):
-            terminal_future = getattr(self, "_terminal_approval_future", None)
-            if terminal_future and not terminal_future.done():
-                # Pause the CLI input loop before it loops around, so it doesn't fight nvim for stdin
-                self.input_allowed.clear()
-                terminal_future.set_result(message)
-                return
-
         if self._waiting_for_input and not self._waiting_for_input.done():
             self._waiting_for_input.set_result(message)
             return
@@ -502,19 +492,19 @@ async def cli_input_loop(child_ui: TerminalChildUI, multiplexer: MultiplexerUI):
         try:
             # Wait until input is allowed (paused during edits)
             await multiplexer.input_allowed.wait()
-            
-            # If we're waiting for an approval, we need to let the approval channel take the input.
-            # We do this by temporarily disabling the input loop's read capability.
-            if getattr(multiplexer, "_terminal_approval_future", None) is not None:
-                await asyncio.sleep(0.1)
-                continue
-                
+
             # Use a thread executor for blocking input
             line = await loop.run_in_executor(None, input)
-            
+
             if is_shutdown_requested():
                 break
-                
+
+            # Check if this input was intended for an approval
+            approval_future = getattr(multiplexer, "_terminal_approval_future", None)
+            if approval_future and not approval_future.done():
+                approval_future.set_result(line)
+                continue
+
             if line.strip():
                 multiplexer._submit_from_child(child_ui, line.strip())
         except (EOFError, KeyboardInterrupt):
@@ -598,9 +588,13 @@ class TerminalApprovalChannel(ApprovalChannel):
                     if "args_dict" in raw:
                         raw = raw["args_dict"]
                     elif "args_json" in raw and isinstance(raw["args_json"], str):
-                        return json.dumps(json.loads(raw["args_json"]), indent=2, ensure_ascii=False)
+                        return json.dumps(
+                            json.loads(raw["args_json"]), indent=2, ensure_ascii=False
+                        )
                     elif "args" in raw and isinstance(raw["args"], str):
-                        return json.dumps(json.loads(raw["args"]), indent=2, ensure_ascii=False)
+                        return json.dumps(
+                            json.loads(raw["args"]), indent=2, ensure_ascii=False
+                        )
                 if isinstance(raw, str):
                     # Pretty print if it's JSON string, else return as-is
                     try:
@@ -617,22 +611,16 @@ class TerminalApprovalChannel(ApprovalChannel):
 
         loop = asyncio.get_event_loop()
         try:
-            # We must use raw input() to read ONLY from the terminal.
-            # However, MultiplexerUI's cli_input_loop is also running input() in an executor!
-            # If two threads call input(), they race for stdin.
-            # To fix this securely without breaking multiplexing, we pause the cli_input_loop's ability to submit text
-            # Wait, we can't easily kill the blocked input() thread.
-            # A better way is to let cli_input_loop read the input, and we wait for it via MultiplexerUI's shared queue,
-            # BUT we ONLY accept inputs from the TerminalChildUI.
+            # First, stop the CLI input loop from processing new text
+            ui = getattr(sys.modules[__name__], "_multiplexer_ui", None)
 
-            ui = _multiplexer_ui
             if ui:
-                # Set up a private future just for terminal input
+                # We tell the cli_input_loop that an approval is pending.
+                # However, python's native `input()` might already be blocked!
+                # If we just create a future and wait, we might get blocked.
+                # We need to use the multiplexer's shared input future pattern.
                 ui._terminal_approval_future = loop.create_future()
-                # Run the blocking input directly here, safely bypassing the cli_input_loop
-                # which is temporarily paused due to _terminal_approval_future being set.
-                response = await loop.run_in_executor(None, input)
-                ui._terminal_approval_future.set_result(response)
+                response = await ui._terminal_approval_future
                 ui._terminal_approval_future = None
             else:
                 response = await loop.run_in_executor(None, input)
@@ -650,26 +638,31 @@ class TerminalApprovalChannel(ApprovalChannel):
             if r == "e":
                 # Edit mode - prompt for new arguments using default text editor
                 import os
-                import tempfile
                 import subprocess
+                import tempfile
 
                 from zrb.config.config import CFG
 
                 print("\n✏️ Edit mode - opening editor...")
 
-                # Extract args securely
+                # Extract args securely and remember how they were wrapped
+                wrap_type = None
                 try:
                     args = context.tool_args
                     if isinstance(args, dict):
                         if "args_dict" in args:
                             args = args["args_dict"]
+                            wrap_type = "args_dict"
                         elif "args_json" in args and isinstance(args["args_json"], str):
                             args = json.loads(args["args_json"])
+                            wrap_type = "args_json"
                         elif "args" in args and isinstance(args["args"], str):
                             args = json.loads(args["args"])
-                    if isinstance(args, str):
+                            wrap_type = "args"
+                    elif isinstance(args, str):
                         try:
                             args = json.loads(args)
+                            wrap_type = "str_json"
                         except Exception:
                             pass
                 except Exception:
@@ -682,13 +675,19 @@ class TerminalApprovalChannel(ApprovalChannel):
                 ) as tf:
                     tf.write(content_str)
                     tf_path = tf.name
-                
+
                 try:
+                    # Clear the screen to ensure the editor draws properly
+                    # os.system('clear' if os.name == 'posix' else 'cls')
+
                     # Run interactive command natively (bypasses run_interactive_command which assumes prompt_toolkit)
                     print(f"\n⚙️ Running: {CFG.EDITOR} {tf_path}\n")
-                    # Using subprocess to directly take over terminal
-                    await loop.run_in_executor(None, lambda: subprocess.call([CFG.EDITOR, tf_path]))
-                    
+
+                    # Instead of a blocking subprocess call, we use os.system
+                    # This ensures the TTY handles the process foregrounding correctly
+                    # Subprocess sometimes detaches the TTY when run from inside an asyncio loop thread
+                    os.system(f"{CFG.EDITOR} {tf_path}")
+
                     with open(tf_path, "r", encoding="utf-8") as tf:
                         new_content = tf.read()
                 finally:
@@ -704,10 +703,32 @@ class TerminalApprovalChannel(ApprovalChannel):
 
                 try:
                     edited_args = json.loads(new_content)
+
+                    # We must not pass raw Python dicts back if Pydantic-AI expects a string wrapper!
+                    # If wrap_type was JSON string, we must return a JSON string, otherwise Pydantic-AI
+                    # validator will fail when trying to parse the dict into the expected str format.
+                    final_args = edited_args
+                    if wrap_type == "args_dict":
+                        final_args = {"args_dict": edited_args}
+                    elif wrap_type == "args_json":
+                        final_args = {
+                            "args_json": json.dumps(edited_args, ensure_ascii=False)
+                        }
+                    elif wrap_type == "args":
+                        final_args = {
+                            "args": json.dumps(edited_args, ensure_ascii=False)
+                        }
+                    elif wrap_type == "str_json":
+                        final_args = json.dumps(edited_args, ensure_ascii=False)
+
                     print(f"✅ Approved with edited arguments.")
                     return ApprovalResult(
-                        approved=True, 
-                        edited_args={"__local_edit__": True, "args_dict": edited_args}
+                        approved=True,
+                        edited_args=(
+                            {"__local_edit__": True, "args_dict": edited_args}
+                            if not wrap_type
+                            else final_args
+                        ),
                     )
                 except json.JSONDecodeError as e:
                     print(f"❌ Invalid JSON: {e}")
@@ -723,22 +744,44 @@ class TerminalApprovalChannel(ApprovalChannel):
                 ui.input_allowed.set()
             return ApprovalResult(approved=False)
 
+        # Handle the case where multiplexer isn't active (e.g. fallback behavior)
         if r in ("", "y", "yes", "ok"):
             return ApprovalResult(approved=True)
         if r in ("n", "no", "deny", "cancel"):
             return ApprovalResult(approved=False, message="User denied")
         if r == "e":
-            # Edit mode - prompt for new arguments using default text editor
+            # Fallback edit mode if UI is none
             import os
+            import subprocess
             import tempfile
-
-            import yaml
 
             from zrb.config.config import CFG
 
             print("\n✏️ Edit mode - opening editor...")
 
-            content_str = json.dumps(context.tool_args, indent=2)
+            wrap_type = None
+            try:
+                args = context.tool_args
+                if isinstance(args, dict):
+                    if "args_dict" in args:
+                        args = args["args_dict"]
+                        wrap_type = "args_dict"
+                    elif "args_json" in args and isinstance(args["args_json"], str):
+                        args = json.loads(args["args_json"])
+                        wrap_type = "args_json"
+                    elif "args" in args and isinstance(args["args"], str):
+                        args = json.loads(args["args"])
+                        wrap_type = "args"
+                elif isinstance(args, str):
+                    try:
+                        args = json.loads(args)
+                        wrap_type = "str_json"
+                    except Exception:
+                        pass
+            except Exception:
+                args = context.tool_args
+
+            content_str = json.dumps(args, indent=2, ensure_ascii=False)
 
             with tempfile.NamedTemporaryFile(
                 suffix=".json", mode="w+", delete=False
@@ -746,9 +789,8 @@ class TerminalApprovalChannel(ApprovalChannel):
                 tf.write(content_str)
                 tf_path = tf.name
 
-            # We need to temporarily ignore shutdown requests during the synchronous subprocess call
-            # because the editor blocks the thread. It is safer to use os.system for a simple synchronous edit.
-            await ui.run_interactive_command([CFG.EDITOR, tf_path], shell=False)
+            # Use synchronous os.system to ensure TTY control
+            os.system(f"{CFG.EDITOR} {tf_path}")
 
             with open(tf_path, "r", encoding="utf-8") as tf:
                 new_content = tf.read()
@@ -760,8 +802,31 @@ class TerminalApprovalChannel(ApprovalChannel):
 
             try:
                 edited_args = json.loads(new_content)
+
+                # We must not pass raw Python dicts back if Pydantic-AI expects a string wrapper!
+                # If wrap_type was JSON string, we must return a JSON string, otherwise Pydantic-AI
+                # validator will fail when trying to parse the dict into the expected str format.
+                final_args = edited_args
+                if wrap_type == "args_dict":
+                    final_args = {"args_dict": edited_args}
+                elif wrap_type == "args_json":
+                    final_args = {
+                        "args_json": json.dumps(edited_args, ensure_ascii=False)
+                    }
+                elif wrap_type == "args":
+                    final_args = {"args": json.dumps(edited_args, ensure_ascii=False)}
+                elif wrap_type == "str_json":
+                    final_args = json.dumps(edited_args, ensure_ascii=False)
+
                 print(f"✅ Approved with edited arguments.")
-                return ApprovalResult(approved=True, edited_args=edited_args)
+                return ApprovalResult(
+                    approved=True,
+                    edited_args=(
+                        {"__local_edit__": True, "args_dict": edited_args}
+                        if not wrap_type
+                        else final_args
+                    ),
+                )
             except json.JSONDecodeError as e:
                 print(f"❌ Invalid JSON: {e}")
                 return ApprovalResult(approved=False, message=f"Invalid JSON: {e}")

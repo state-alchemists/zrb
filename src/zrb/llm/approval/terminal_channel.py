@@ -35,17 +35,34 @@ class TerminalApprovalChannel:
             from zrb.util.yaml import yaml_dump
 
             self._ui.append_to_output("\n✏️ Edit mode - opening editor...\n")
-            
+
             # Format args for editing
-            args = context.tool_args
-            if isinstance(args, str):
-                try:
-                    args = json.loads(args)
-                except json.JSONDecodeError:
-                    pass
+            wrap_type = None
+            try:
+                args = context.tool_args
+                if isinstance(args, dict):
+                    if "args_dict" in args:
+                        args = args["args_dict"]
+                        wrap_type = "args_dict"
+                    elif "args_json" in args and isinstance(args["args_json"], str):
+                        args = json.loads(args["args_json"])
+                        wrap_type = "args_json"
+                    elif "args" in args and isinstance(args["args"], str):
+                        args = json.loads(args["args"])
+                        wrap_type = "args"
+                elif isinstance(args, str):
+                    try:
+                        args = json.loads(args)
+                        wrap_type = "str_json"
+                    except Exception:
+                        pass
+            except Exception:
+                args = context.tool_args
             content_str = json.dumps(args, indent=2, ensure_ascii=False)
 
-            with tempfile.NamedTemporaryFile(suffix=".json", mode="w+", delete=False) as tf:
+            with tempfile.NamedTemporaryFile(
+                suffix=".json", mode="w+", delete=False
+            ) as tf:
                 tf.write(content_str)
                 tf_path = tf.name
 
@@ -63,11 +80,28 @@ class TerminalApprovalChannel:
             try:
                 edited_args = json.loads(new_content)
                 self._ui.append_to_output("✅ Approved with edited arguments.\n")
+
+                final_args = edited_args
+                if wrap_type == "args_dict":
+                    final_args = {"args_dict": edited_args}
+                elif wrap_type == "args_json":
+                    final_args = {
+                        "args_json": json.dumps(edited_args, ensure_ascii=False)
+                    }
+                elif wrap_type == "args":
+                    final_args = {"args": json.dumps(edited_args, ensure_ascii=False)}
+                elif wrap_type == "str_json":
+                    final_args = json.dumps(edited_args, ensure_ascii=False)
+
                 # Wrap with __local_edit__ so the LLM engine knows it was edited
                 # locally, which helps properly format the override_args
                 return ApprovalResult(
-                    approved=True, 
-                    edited_args={"__local_edit__": True, "args_dict": edited_args}
+                    approved=True,
+                    edited_args=(
+                        {"__local_edit__": True, "args_dict": edited_args}
+                        if not wrap_type
+                        else final_args
+                    ),
                 )
             except json.JSONDecodeError as e:
                 self._ui.append_to_output(f"❌ Invalid JSON: {e}\n")
