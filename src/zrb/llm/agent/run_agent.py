@@ -4,13 +4,14 @@ import asyncio
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias, Union
 
-from zrb.llm.agent.std_ui import StdUI
-from zrb.llm.approval.channel import current_approval_channel
+from zrb.llm.approval.approval_channel import ApprovalChannel, current_approval_channel
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.message import ensure_alternating_roles
+from zrb.llm.tool_call.handler import ToolCallHandler
+from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.llm.util.attachment import normalize_attachments
 from zrb.llm.util.prompt import expand_prompt
 
@@ -24,10 +25,6 @@ if TYPE_CHECKING:
         ToolDenied,
     )
     from pydantic_ai.messages import UserPromptPart
-
-    from zrb.llm.approval.channel import ApprovalChannel
-    from zrb.llm.tool_call.handler import ToolCallHandler
-    from zrb.llm.tool_call.ui_protocol import UIProtocol
 
     AnyToolConfirmation: TypeAlias = Union[
         Callable[
@@ -70,6 +67,8 @@ async def run_agent(
     Returns (result_output, new_message_history).
     """
     from pydantic_ai import AgentRunResultEvent, DeferredToolRequests, UsageLimits
+
+    from zrb.llm.agent.std_ui import StdUI
 
     # Resolve UI, Tool Confirmation, Hook Manager, YOLO, and Approval Channel from arguments or context fallback
     effective_ui = ui or current_ui.get() or StdUI()
@@ -349,7 +348,7 @@ async def _process_deferred_requests(
 
     from pydantic_ai import DeferredToolResults, ToolDenied
 
-    from zrb.llm.approval.channel import ApprovalContext
+    from zrb.llm.approval.approval_channel import ApprovalContext
     from zrb.llm.tool_call.handler import ToolCallHandler
 
     all_requests = (result_output.calls or []) + (result_output.approvals or [])

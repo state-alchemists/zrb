@@ -17,9 +17,9 @@ from abc import abstractmethod
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable, TextIO
 
-from zrb.llm.app.base_ui import BaseUI
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.task.llm_task import LLMTask
+from zrb.llm.ui.base_ui import BaseUI
 
 if TYPE_CHECKING:
     from pydantic_ai import UserContent
@@ -157,7 +157,7 @@ class SimpleUI(BaseUI):
                 return await asyncio.to_thread(input, prompt)
 
         # In your zrb_init.py:
-        from zrb.llm.app.simple_ui import create_ui_factory
+        from zrb.llm.ui.simple_ui import create_ui_factory
 
         llm_chat.set_ui_factory(create_ui_factory(MyUI))
     """
@@ -655,7 +655,7 @@ def create_ui_factory(
             )
 
         # After (one liner):
-        from zrb.llm.app.simple_ui import create_ui_factory, UIConfig
+        from zrb.llm.ui.simple_ui import create_ui_factory, UIConfig
 
         config = UIConfig(assistant_name="MyBot")
         llm_chat.set_ui_factory(create_ui_factory(MyUI, config=config, bot=my_bot))

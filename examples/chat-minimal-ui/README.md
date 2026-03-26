@@ -15,11 +15,11 @@ Zrb provides multiple levels for extending the UI:
 │ Level 1: BaseUI (THIS EXAMPLE - base class)                     │
 │         - Implement 4 required methods + run_async()            │
 │         - For custom backends (Telegram, Discord, WebSocket)    │
-│         - See: src/zrb/llm/app/base_ui.py                       │
+│         - See: src/zrb/llm/ui/base_ui.py                       │
 ├─────────────────────────────────────────────────────────────────┤
 │ Level 2: UI (terminal implementation)                           │
 │         - Full TUI with prompt_toolkit                          │
-│         - See: src/zrb/llm/app/ui.py                            │
+│         - See: src/zrb/llm/ui/default_ui.py                            │
 ├─────────────────────────────────────────────────────────────────┤
 │ Level 3: MultiplexerUI (multi-channel support)                  │
 │         - Manages multiple child UIs                            │
@@ -33,7 +33,7 @@ The key insight: We **hijack** the built-in `llm_chat` task by setting our own U
 
 ```python
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.app.base_ui import BaseUI
+from zrb.llm.ui.base_ui import BaseUI
 
 class MyUI(BaseUI):
     def append_to_output(self, *values, sep=" ", end="\n", **kwargs):
@@ -97,7 +97,7 @@ When extending `BaseUI`, you must implement these 4 methods:
 
 ```python
 import asyncio
-from zrb.llm.app.base_ui import BaseUI
+from zrb.llm.ui.base_ui import BaseUI
 
 class TerminalUI(BaseUI):
     def append_to_output(self, *values, sep=" ", end="\n", **kwargs):
@@ -135,7 +135,7 @@ class TerminalUI(BaseUI):
 
 ```python
 import asyncio
-from zrb.llm.app.base_ui import BaseUI
+from zrb.llm.ui.base_ui import BaseUI
 
 class WebSocketUI(BaseUI):
     def __init__(self, websocket, *args, **kwargs):
@@ -225,13 +225,13 @@ For event-driven backends, see `examples/telegram-cli/` for the complete pattern
 
 ## Related Files
 
-- `src/zrb/llm/app/base_ui.py` - BaseUI base class
-- `src/zrb/llm/app/ui.py` - Terminal UI implementation (full TUI)
+- `src/zrb/llm/ui/base_ui.py` - BaseUI base class
+- `src/zrb/llm/ui/default_ui.py` - Terminal UI implementation (full TUI)
 - `examples/telegram-cli/zrb_init.py` - Telegram multiplexer example
 - `src/zrb/llm/approval/` - Multi-channel approval system
 
 ## Further Reading
 
-- [BaseUI Documentation](../../src/zrb/llm/app/base_ui.py) - Full API docs
+- [BaseUI Documentation](../../src/zrb/llm/ui/base_ui.py) - Full API docs
 - [UI Protocol](../../src/zrb/llm/tool_call/ui_protocol.py) - Minimal interface
 - [Approval System](../../src/zrb/llm/approval/) - Tool approval channels

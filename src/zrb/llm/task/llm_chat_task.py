@@ -48,7 +48,7 @@ if TYPE_CHECKING:
     from pydantic_ai.toolsets import AbstractToolset
     from rich.theme import Theme
 
-    from zrb.llm.approval.channel import ApprovalChannel
+    from zrb.llm.approval.approval_channel import ApprovalChannel
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
@@ -632,7 +632,7 @@ class LLMChatTask(BaseTask):
         initial_yolo: bool,
         initial_attachments: list[UserContent],
     ) -> Any:
-        from zrb.llm.app.base_ui import BaseUI
+        from zrb.llm.ui.base_ui import BaseUI
 
         # Note: AsyncExitStack is handled by LLMTask._exec_action
         # 1. Resolve UI from factory if provided
@@ -658,7 +658,7 @@ class LLMChatTask(BaseTask):
 
         # Otherwise, fall back to the default Terminal UI
         from zrb.llm.app.lexer import CLIStyleLexer
-        from zrb.llm.app.ui import UI
+        from zrb.llm.ui.default_ui import UI
 
         # Resolve UI attributes
         ui_greeting = get_str_attr(ctx, self._ui_greeting, "", self._render_ui_greeting)

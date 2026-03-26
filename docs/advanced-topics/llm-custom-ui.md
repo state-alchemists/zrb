@@ -70,7 +70,7 @@ The simplest way to create a custom UI:
 
 ```python
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.app.simple_ui import SimpleUI, create_ui_factory
+from zrb.llm.ui.simple_ui import SimpleUI, create_ui_factory
 
 class MyUI(SimpleUI):
     async def print(self, text: str) -> None:
@@ -125,7 +125,7 @@ Choose your starting point based on your backend type:
 ```python
 import asyncio
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.app.simple_ui import SimpleUI, create_ui_factory
+from zrb.llm.ui.simple_ui import SimpleUI, create_ui_factory
 
 class CLI(SimpleUI):
     """Minimal CLI implementation."""
@@ -145,7 +145,7 @@ llm_chat.set_ui_factory(create_ui_factory(CLI))
 import asyncio
 from pathlib import Path
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.app.simple_ui import SimpleUI, create_ui_factory
+from zrb.llm.ui.simple_ui import SimpleUI, create_ui_factory
 
 class LoggingUI(SimpleUI):
     """Logs all output to file, CLI for input."""
@@ -177,7 +177,7 @@ import asyncio
 import json
 from datetime import datetime
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.app.simple_ui import SimpleUI, create_ui_factory
+from zrb.llm.ui.simple_ui import SimpleUI, create_ui_factory
 
 class StructuredLogUI(SimpleUI):
     """Outputs structured JSON for each message."""
@@ -259,7 +259,7 @@ async def on_telegram_message(update, context):
 import asyncio
 from telegram.ext import Application, MessageHandler, filters
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.app.simple_ui import EventDrivenUI, create_ui_factory
+from zrb.llm.ui.simple_ui import EventDrivenUI, create_ui_factory
 
 class TelegramUI(EventDrivenUI):
     """Telegram bot using EventDrivenUI."""
@@ -325,7 +325,7 @@ llm_chat.set_ui_factory(
 import asyncio
 import discord
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.app.simple_ui import EventDrivenUI, create_ui_factory
+from zrb.llm.ui.simple_ui import EventDrivenUI, create_ui_factory
 
 class DiscordUI(EventDrivenUI):
     """Discord bot using EventDrivenUI."""
@@ -397,7 +397,7 @@ For backends where **external systems poll for messages** (HTTP API, WebSocket),
 ### Minimal Implementation
 
 ```python
-from zrb.llm.app.simple_ui import PollingUI
+from zrb.llm.ui.simple_ui import PollingUI
 
 class APIUI(PollingUI):
     """HTTP/WebSocket API using PollingUI's queues."""
@@ -414,7 +414,7 @@ import asyncio
 import uuid
 from aiohttp import web
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.app.simple_ui import PollingUI, create_ui_factory
+from zrb.llm.ui.simple_ui import PollingUI, create_ui_factory
 
 # Session storage
 sessions: dict[str, PollingUI] = {}
@@ -506,7 +506,7 @@ Use `BaseUI` when you need complete control over the message loop or have custom
 import asyncio
 import json
 from websockets.server import serve
-from zrb.llm.app.base_ui import BaseUI
+from zrb.llm.ui.base_ui import BaseUI
 from zrb.builtin.llm.chat import llm_chat
 
 class WebSocketUI(BaseUI):
@@ -605,7 +605,7 @@ With buffering:
 ### Usage Pattern
 
 ```python
-from zrb.llm.app.simple_ui import EventDrivenUI, BufferedOutputMixin
+from zrb.llm.ui.simple_ui import EventDrivenUI, BufferedOutputMixin
 
 class TelegramUI(EventDrivenUI, BufferedOutputMixin):
     """Telegram UI with output buffering to avoid rate limits."""
@@ -684,7 +684,7 @@ def __init__(
 ### The Solution: UIConfig Dataclass
 
 ```python
-from zrb.llm.app.simple_ui import UIConfig, create_ui_factory
+from zrb.llm.ui.simple_ui import UIConfig, create_ui_factory
 
 # Bundle all configuration in one object
 config = UIConfig(
@@ -759,7 +759,7 @@ llm_chat.set_ui_factory(create_my_ui)
 ### The Solution: Automatic Parameter Handling
 
 ```python
-from zrb.llm.app.simple_ui import create_ui_factory, UIConfig
+from zrb.llm.ui.simple_ui import create_ui_factory, UIConfig
 
 # One-line registration with automatic parameter mapping
 config = UIConfig(assistant_name="MyBot", yolo=True)

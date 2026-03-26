@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.context.shared_context import SharedContext
-from zrb.llm.approval.channel import NullApprovalChannel
+from zrb.llm.approval import NullApprovalChannel
 from zrb.llm.task.llm_chat_task import LLMChatTask
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.session.session import Session
@@ -33,7 +33,9 @@ async def test_llm_chat_task_non_interactive_run():
 async def test_llm_chat_task_interactive_ui_trigger():
     """Test that LLMChatTask triggers UI in interactive mode."""
     # We mock UI.run_async to avoid launching the actual terminal app
-    with patch("zrb.llm.app.ui.UI.run_async", new_callable=AsyncMock) as mock_ui_run:
+    with patch(
+        "zrb.llm.ui.default_ui.UI.run_async", new_callable=AsyncMock
+    ) as mock_ui_run:
         task = LLMChatTask(name="interactive-task", interactive=True)
 
         shared_ctx = SharedContext()

@@ -45,7 +45,7 @@ import os
 from aiohttp import web
 
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.app.simple_ui import (
+from zrb.llm.ui.simple_ui import (
     BufferedOutputMixin,
     EventDrivenUI,
     create_ui_factory,

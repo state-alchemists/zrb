@@ -72,10 +72,11 @@ llm_chat.set_ui_factory(create_ui_factory(MyUI))
 
 ## Key Files
 
-- `src/zrb/llm/app/__init__.py` - Exports all UI classes
-- `src/zrb/llm/app/simple_ui.py` - Simplified UI classes
-- `src/zrb/llm/app/base_ui.py` - Full-featured base class
-- `src/zrb/llm/app/ui.py` - Default terminal UI
+- `src/zrb/llm/app/__init__.py` - Re-exports all UI classes from ui/
+- `src/zrb/llm/ui/__init__.py` - Main UI exports
+- `src/zrb/llm/ui/simple_ui.py` - Simplified UI classes
+- `src/zrb/llm/ui/base_ui.py` - Full-featured base class
+- `src/zrb/llm/ui/default_ui.py` - Default terminal UI
 
 ## Running Examples
 

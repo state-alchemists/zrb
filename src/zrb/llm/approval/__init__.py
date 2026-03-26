@@ -38,14 +38,14 @@ Usage:
     # See examples/chat-telegram/ for a complete example.
 """
 
-from zrb.llm.approval.channel import (
+from zrb.llm.approval.approval_channel import (
     ApprovalChannel,
     ApprovalContext,
     ApprovalResult,
-    NullApprovalChannel,
-    TerminalApprovalChannel,
     current_approval_channel,
 )
+from zrb.llm.approval.null_approval_channel import NullApprovalChannel
+from zrb.llm.approval.terminal_approval_channel import TerminalApprovalChannel
 
 __all__ = [
     "ApprovalChannel",

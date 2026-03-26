@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from zrb.context.shared_context import SharedContext
-from zrb.llm.app.ui import UI
+from zrb.llm.ui.default_ui import UI
 
 
 @pytest.fixture

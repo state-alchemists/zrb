@@ -1,9 +1,3 @@
-"""Approval Channel Protocol and implementations.
-
-Provides a flexible approval system that can route tool call approvals
-through different channels (Terminal, Telegram, Web, etc.).
-"""
-
 from __future__ import annotations
 
 from contextvars import ContextVar
@@ -12,8 +6,6 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from pydantic_ai import ToolApproved, ToolDenied
-
-    from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
 @dataclass
@@ -106,86 +98,3 @@ class ApprovalChannel(Protocol):
 current_approval_channel: ContextVar[ApprovalChannel | None] = ContextVar(
     "current_approval_channel", default=None
 )
-
-
-class TerminalApprovalChannel:
-    """Default approval channel using terminal input.
-
-    This wraps the existing UIProtocol.ask_user() pattern for backward
-    compatibility while conforming to the ApprovalChannel protocol.
-    """
-
-    def __init__(self, ui: "UIProtocol"):
-        """Initialize with a UIProtocol instance.
-
-        Args:
-            ui: The UI to use for terminal interaction.
-        """
-        self._ui = ui
-
-    async def request_approval(
-        self,
-        context: ApprovalContext,
-    ) -> ApprovalResult:
-        """Request approval via terminal."""
-        # Format the approval message
-        from pydantic_ai import ToolCallPart
-
-        from zrb.llm.tool_call.handler import ToolCallHandler
-
-        # Create a mock ToolCallPart for formatting
-        call = ToolCallPart(
-            tool_name=context.tool_name,
-            args=context.tool_args,
-            tool_call_id=context.tool_call_id,
-        )
-
-        handler = ToolCallHandler()
-        message = await handler._get_confirm_user_message(self._ui, call)
-        self._ui.append_to_output(f"\n\n{message}", end="")
-
-        # Wait for user input
-        user_input = await self._ui.ask_user("")
-        user_response = user_input.strip()
-
-        # Parse response
-        r = user_response.lower().strip()
-        if r in ("y", "yes", "ok", "accept", "✅", ""):
-            return ApprovalResult(approved=True)
-        if r in ("n", "no", "deny", "cancel", "🛑"):
-            return ApprovalResult(approved=False, message="User denied")
-
-        return ApprovalResult(
-            approved=False, message=f"User denied with: {user_response}"
-        )
-
-    async def notify(
-        self,
-        message: str,
-        context: ApprovalContext | None = None,
-    ) -> None:
-        """Display notification to terminal."""
-        self._ui.append_to_output(message)
-
-
-class NullApprovalChannel:
-    """Approval channel that auto-approves everything.
-
-    Useful for YOLO mode or when running in non-interactive environments
-    where approval should be automatic.
-    """
-
-    async def request_approval(
-        self,
-        context: ApprovalContext,
-    ) -> ApprovalResult:
-        """Auto-approve all requests."""
-        return ApprovalResult(approved=True)
-
-    async def notify(
-        self,
-        message: str,
-        context: ApprovalContext | None = None,
-    ) -> None:
-        """Ignore notifications."""
-        pass

@@ -37,11 +37,11 @@ Extension Hierarchy:
 
 Quick Start:
     # SIMPLEST: Use SimpleUI with just 2 methods!
-    from zrb.llm.app import SimpleUI, create_ui_factory
+    from zrb.llm.ui import SimpleUI, create_ui_factory
     from zrb.builtin.llm.chat import llm_chat
 
     class MyUI(SimpleUI):
-        def print(self, text: str) -> None:
+        async def print(self, text: str) -> None:
             print(text, end="")
 
         async def get_input(self, prompt: str) -> str:
@@ -52,7 +52,7 @@ Quick Start:
     # See examples/chat-minimal-ui/ for a complete example.
 
 Event-Driven (Telegram/Discord):
-    from zrb.llm.app import EventDrivenUI, create_ui_factory
+    from zrb.llm.ui import EventDrivenUI, create_ui_factory
 
     class TelegramUI(EventDrivenUI):
         async def print(self, text: str) -> None:
@@ -70,6 +70,7 @@ Event-Driven (Telegram/Discord):
 """
 
 from zrb.llm.ui.base_ui import BaseUI
+from zrb.llm.ui.default_ui import UI
 from zrb.llm.ui.simple_ui import (
     EventDrivenUI,
     PollingUI,
@@ -87,4 +88,5 @@ __all__ = [
     "create_ui_factory",
     # Advanced API
     "BaseUI",
+    "UI",
 ]

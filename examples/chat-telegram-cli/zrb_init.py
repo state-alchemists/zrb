@@ -39,8 +39,8 @@ import sys
 from typing import Protocol, runtime_checkable
 
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.app.base_ui import BaseUI
 from zrb.llm.approval import ApprovalChannel, ApprovalContext, ApprovalResult
+from zrb.llm.ui.base_ui import BaseUI
 from zrb.util.cli.style import remove_style
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")

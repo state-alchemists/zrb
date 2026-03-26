@@ -19,7 +19,6 @@ from prompt_toolkit.output import create_output
 from prompt_toolkit.styles import Style
 
 from zrb.context.any_context import AnyContext
-from zrb.llm.app.base_ui import BaseUI
 from zrb.llm.app.keybinding import create_output_keybindings
 from zrb.llm.app.layout import create_input_field, create_layout, create_output_field
 from zrb.llm.app.redirection import GlobalStreamCapture
@@ -33,6 +32,7 @@ from zrb.llm.tool_call import (
     ResponseHandler,
     ToolPolicy,
 )
+from zrb.llm.ui.base_ui import BaseUI
 from zrb.task.any_task import AnyTask
 from zrb.util.ascii_art.banner import create_banner
 from zrb.util.cli.terminal import get_terminal_size
