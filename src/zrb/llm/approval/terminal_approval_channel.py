@@ -4,6 +4,7 @@ import json
 
 from zrb.config.config import CFG
 from zrb.llm.approval.approval_channel import ApprovalContext, ApprovalResult
+from zrb.llm.tool_call.edit_util import edit_content_via_editor
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
@@ -83,44 +84,28 @@ class TerminalApprovalChannel:
         )
 
     async def _handle_edit(self, context: ApprovalContext) -> ApprovalResult:
-        """Handle edit mode - ask for new arguments."""
-        import yaml
+        """Handle edit mode - open editor for new arguments."""
+        current_args = context.tool_args or {}
 
         # Show current args
-        current_args = context.tool_args or {}
         args_str = json.dumps(current_args, indent=2, default=str)
         self._ui.append_to_output(f"\n📝 Current arguments:\n```\n{args_str}\n```\n")
-        self._ui.append_to_output(
-            "Enter new arguments (JSON or YAML, or 'cancel' to abort):\n"
-        )
+        self._ui.append_to_output("Opening editor...\n")
 
-        # Get new args
-        user_input = await self._ui.ask_user("")
-        user_input = user_input.strip()
+        # Open editor via shared utility
+        new_args = await edit_content_via_editor(self._ui, current_args)
 
-        if user_input.lower() in ("cancel", "c", "abort"):
-            return ApprovalResult(approved=False, message="User cancelled edit")
+        if new_args is None:
+            return ApprovalResult(
+                approved=False, message="Failed to parse edited content"
+            )
 
-        # Try to parse as JSON
-        try:
-            new_args = json.loads(user_input)
-            self._ui.append_to_output(f"✅ Approved with edited args\n")
-            return ApprovalResult(approved=True, override_args=new_args)
-        except json.JSONDecodeError:
-            pass
+        if new_args == current_args:
+            self._ui.append_to_output("ℹ️ No changes made, approving original.\n")
+            return ApprovalResult(approved=True)
 
-        # Try to parse as YAML
-        try:
-            new_args = yaml.safe_load(user_input)
-            if isinstance(new_args, dict):
-                self._ui.append_to_output(f"✅ Approved with edited args\n")
-                return ApprovalResult(approved=True, override_args=new_args)
-        except yaml.YAMLError:
-            pass
-
-        return ApprovalResult(
-            approved=False, message="Invalid JSON/YAML format for edited args"
-        )
+        self._ui.append_to_output("✅ Approved with edited arguments.\n")
+        return ApprovalResult(approved=True, override_args=new_args)
 
     async def notify(
         self,

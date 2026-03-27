@@ -43,6 +43,7 @@ from telegram.ext import (
 )
 
 from zrb.builtin.llm.chat import llm_chat
+from zrb.config.config import CFG
 from zrb.llm.approval import (
     ApprovalChannel,
     ApprovalContext,
@@ -142,8 +143,8 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
             text = update.message.text
 
             # Check if approval channel is waiting for edit input
-            print(
-                f"[DEBUG TelegramUI] handle_message: text='{text[:50]}...', "
+            CFG.LOGGER.debug(
+                f"TelegramUI handle_message: text='{text[:50]}...', "
                 f"approval_channel={self._approval_channel is not None}, "
                 f"approval_channel_id={id(self._approval_channel) if self._approval_channel else None}, "
                 f"waiting_for_edit={self._approval_channel._waiting_for_edit_tool_call_id if self._approval_channel else None}"
@@ -153,11 +154,13 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
                 and self._approval_channel._waiting_for_edit_tool_call_id
             ):
                 # Route to approval channel instead of LLM
-                print(f"[DEBUG TelegramUI] Routing to approval channel for edit input")
+                CFG.LOGGER.debug(
+                    "TelegramUI Routing to approval channel for edit input"
+                )
                 self._approval_channel.handle_text_input(text)
             else:
                 # Normal flow - route to LLM
-                print(f"[DEBUG TelegramUI] Routing to LLM")
+                CFG.LOGGER.debug("TelegramUI Routing to LLM")
                 self.handle_incoming_message(text)
 
         self.bot._app.add_handler(MessageHandler(filters.TEXT, handle_message))
@@ -183,20 +186,20 @@ class TelegramApproval(ApprovalChannel):
         self._waiting_for_edit_tool_call_id: str | None = None
 
     async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
-        print(
-            f"[DEBUG TelegramApproval] request_approval START for {context.tool_name}"
+        CFG.LOGGER.debug(
+            f"TelegramApproval request_approval START for {context.tool_name}"
         )
-        print(f"[DEBUG TelegramApproval] tool_call_id: {context.tool_call_id}")
-        print(
-            f"[DEBUG TelegramApproval] tool_args: {context.tool_args}, type: {type(context.tool_args)}"
+        CFG.LOGGER.debug(f"TelegramApproval tool_call_id: {context.tool_call_id}")
+        CFG.LOGGER.debug(
+            f"TelegramApproval tool_args: {context.tool_args}, type: {type(context.tool_args)}"
         )
         await self._ensure_handler()
 
         # Convert tool_args to proper dict if needed
         tool_args = context.tool_args
         if not isinstance(tool_args, dict):
-            print(
-                f"[DEBUG TelegramApproval] tool_args is NOT a dict, converting from {tool_args}..."
+            CFG.LOGGER.debug(
+                f"TelegramApproval tool_args is NOT a dict, converting from {tool_args}..."
             )
             tool_args = {}
 
@@ -223,8 +226,8 @@ class TelegramApproval(ApprovalChannel):
         future = loop.create_future()
         self._pending[context.tool_call_id] = future
         self._pending_context[context.tool_call_id] = context
-        print(
-            f"[DEBUG TelegramApproval] Created future {id(future)}, pending count: {len(self._pending)}"
+        CFG.LOGGER.debug(
+            f"TelegramApproval Created future {id(future)}, pending count: {len(self._pending)}"
         )
 
         await self.bot.send(
@@ -233,19 +236,21 @@ class TelegramApproval(ApprovalChannel):
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown",
         )
-        print(
-            f"[DEBUG TelegramApproval] Message sent for tool_call_id={context.tool_call_id}, future.done()={future.done()}"
+        CFG.LOGGER.debug(
+            f"TelegramApproval Message sent for tool_call_id={context.tool_call_id}, future.done()={future.done()}"
         )
 
         try:
-            print(f"[DEBUG TelegramApproval] About to await future...")
+            CFG.LOGGER.debug("TelegramApproval About to await future...")
             result = await future
-            print(
-                f"[DEBUG TelegramApproval] Future resolved! approved={result.approved}, message={result.message}"
+            CFG.LOGGER.debug(
+                f"TelegramApproval Future resolved! approved={result.approved}, message={result.message}"
             )
             return result
         except asyncio.CancelledError:
-            print(f"[DEBUG TelegramApproval] Cancelled - another channel won the race")
+            CFG.LOGGER.debug(
+                "TelegramApproval Cancelled - another channel won the race"
+            )
             # Clean up pending state
             if context.tool_call_id in self._pending:
                 del self._pending[context.tool_call_id]
@@ -253,8 +258,8 @@ class TelegramApproval(ApprovalChannel):
                 del self._pending_context[context.tool_call_id]
             raise  # Propagate cancellation
         except BaseException as e:
-            print(
-                f"[DEBUG TelegramApproval] BaseException caught: {type(e).__name__}: {e}"
+            CFG.LOGGER.debug(
+                f"TelegramApproval BaseException caught: {type(e).__name__}: {e}"
             )
             import traceback
 
@@ -269,22 +274,22 @@ class TelegramApproval(ApprovalChannel):
 
     def handle_text_input(self, text: str):
         """Handle text input - used when user sends text while waiting for edit."""
-        print(
-            f"[DEBUG TelegramApproval] handle_text_input: text='{text[:50]}...', "
+        CFG.LOGGER.debug(
+            f"TelegramApproval handle_text_input: text='{text[:50]}...', "
             f"waiting_for_edit_tool_call_id={self._waiting_for_edit_tool_call_id}"
         )
         if self._waiting_for_edit_tool_call_id:
             tool_call_id = self._waiting_for_edit_tool_call_id
             self._waiting_for_edit_tool_call_id = None
-            print(
-                f"[DEBUG TelegramApproval] Clearing waiting flag, tool_call_id={tool_call_id}"
+            CFG.LOGGER.debug(
+                f"TelegramApproval Clearing waiting flag, tool_call_id={tool_call_id}"
             )
 
             if tool_call_id in self._waiting_for_edit:
                 future = self._waiting_for_edit.pop(tool_call_id)
                 # Parse the edited JSON/YAML
                 new_args = self._parse_edited_content(text)
-                print(f"[DEBUG TelegramApproval] Parsed args: {new_args}")
+                CFG.LOGGER.debug(f"TelegramApproval Parsed args: {new_args}")
                 if new_args is not None:
                     future.set_result(
                         ApprovalResult(approved=True, override_args=new_args)
@@ -294,12 +299,12 @@ class TelegramApproval(ApprovalChannel):
                         ApprovalResult(approved=False, message="Invalid format")
                     )
             else:
-                print(
-                    f"[DEBUG TelegramApproval] WARNING: tool_call_id {tool_call_id} not in _waiting_for_edit"
+                CFG.LOGGER.debug(
+                    f"TelegramApproval WARNING: tool_call_id {tool_call_id} not in _waiting_for_edit"
                 )
         else:
-            print(
-                f"[DEBUG TelegramApproval] WARNING: _waiting_for_edit_tool_call_id is None"
+            CFG.LOGGER.debug(
+                "TelegramApproval WARNING: _waiting_for_edit_tool_call_id is None"
             )
 
     def _parse_edited_content(self, content: str) -> dict | None:
@@ -327,8 +332,8 @@ class TelegramApproval(ApprovalChannel):
             return
 
         TelegramApproval._instances[self.chat_id] = self
-        print(
-            f"[DEBUG TelegramApproval] Registered instance {id(self)} for chat_id={self.chat_id}"
+        CFG.LOGGER.debug(
+            f"TelegramApproval Registered instance {id(self)} for chat_id={self.chat_id}"
         )
 
         async def handle_callback(update, context):
@@ -371,15 +376,15 @@ class TelegramApproval(ApprovalChannel):
                     # Mark as waiting for edit input
                     # The future in _pending stays the SAME - request_approval awaits it
                     instance._waiting_for_edit_tool_call_id = tool_call_id
-                    print(
-                        f"[DEBUG TelegramApproval] Set _waiting_for_edit_tool_call_id = {tool_call_id}"
+                    CFG.LOGGER.debug(
+                        f"TelegramApproval Set _waiting_for_edit_tool_call_id = {tool_call_id}"
                     )
                     # Store reference to the pending future so handle_text_input can resolve it
                     instance._waiting_for_edit[tool_call_id] = instance._pending.get(
                         tool_call_id
                     )
-                    print(
-                        f"[DEBUG TelegramApproval] Edit mode - waiting for text input"
+                    CFG.LOGGER.debug(
+                        "TelegramApproval Edit mode - waiting for text input"
                     )
 
         if self.bot._app:
