@@ -236,6 +236,14 @@ class TelegramApproval(ApprovalChannel):
                 f"[DEBUG TelegramApproval] Future resolved! approved={result.approved}, message={result.message}"
             )
             return result
+        except asyncio.CancelledError:
+            print(f"[DEBUG TelegramApproval] Cancelled - another channel won the race")
+            # Clean up pending state
+            if context.tool_call_id in self._pending:
+                del self._pending[context.tool_call_id]
+            if context.tool_call_id in self._pending_context:
+                del self._pending_context[context.tool_call_id]
+            raise  # Propagate cancellation
         except BaseException as e:
             print(
                 f"[DEBUG TelegramApproval] BaseException caught: {type(e).__name__}: {e}"
@@ -243,14 +251,8 @@ class TelegramApproval(ApprovalChannel):
             import traceback
 
             traceback.print_exc()
-            # Don't auto-deny on cancellation - we need user input!
-            # Instead, wait indefinitely
-            print(f"[DEBUG TelegramApproval] Waiting indefinitely for user input...")
-            # Re-wait forever
-            while not future.done():
-                await asyncio.sleep(1)
-            print(f"[DEBUG TelegramApproval] Finally got result: {future.result()}")
-            return future.result()
+            # For other exceptions, re-raise
+            raise
 
     async def notify(
         self, message: str, context: ApprovalContext | None = None

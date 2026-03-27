@@ -1,5 +1,4 @@
 import asyncio
-import json
 import sys
 
 from zrb.llm.approval.approval_channel import (
@@ -12,6 +11,7 @@ from zrb.llm.approval.approval_channel import (
 class MultiplexApprovalChannel(ApprovalChannel):
     """Approval channel that broadcasts approval requests to multiple channels.
 
+    All channels receive the approval request simultaneously.
     The first response wins and cancels pending requests on other channels.
 
     Usage:
@@ -36,6 +36,10 @@ class MultiplexApprovalChannel(ApprovalChannel):
             f"[DEBUG Multiplex] Channels: {[type(c).__name__ for c in self._channels]}"
         )
 
+        if not self._channels:
+            print(f"[DEBUG Multiplex] No channels, auto-approving")
+            return ApprovalResult(approved=True)
+
         loop = asyncio.get_running_loop()
         future: asyncio.Future[ApprovalResult] = loop.create_future()
         self._pending[context.tool_call_id] = future
@@ -52,33 +56,80 @@ class MultiplexApprovalChannel(ApprovalChannel):
                     print(f"[DEBUG Multiplex] Setting future result: {result}")
                     future.set_result(result)
                 return result
+            except asyncio.CancelledError:
+                print(f"[DEBUG Multiplex] Channel {type(channel).__name__} cancelled")
+                raise
             except BaseException as e:
                 import traceback
 
                 print(
                     f"[DEBUG Multiplex] Channel {type(channel).__name__} Exception: {type(e).__name__}: {e}"
                 )
-                # Don't propagate - just wait
                 traceback.print_exc()
-                # Wait for another channel
+                if not future.done():
+                    # Set exception result so other channels can continue
+                    future.set_result(
+                        ApprovalResult(approved=False, message=f"Channel error: {e}")
+                    )
                 return None
 
-        # Run channels sequentially to avoid telegram polling conflicts
-        for ch in self._channels:
-            print(f"[DEBUG Multiplex] Processing channel: {type(ch).__name__}")
-            result = await request_from_channel(ch)
-            if result is not None:
-                print(
-                    f"[DEBUG Multiplex] Returning result: approved={result.approved}, message={result.message}"
-                )
-                return result
-            print(f"[DEBUG Multiplex] Channel returned None, trying next channel...")
+        # Run ALL channels concurrently - first response wins
+        tasks = []
+        for channel in self._channels:
+            task = asyncio.create_task(request_from_channel(channel))
+            tasks.append(task)
+        self._tasks[context.tool_call_id] = tasks
 
-        # If we got here, all channels failed - wait indefinitely for user input
-        print(f"[DEBUG Multiplex] All channels failed, waiting for user input...")
-        while not future.done():
-            await asyncio.sleep(1)
-        return future.result()
+        print(f"[DEBUG Multiplex] Racing {len(tasks)} channels concurrently...")
+
+        try:
+            # Wait for the first channel to complete (or all to fail)
+            done, pending = await asyncio.wait(
+                tasks, return_when=asyncio.FIRST_COMPLETED
+            )
+
+            print(
+                f"[DEBUG Multiplex] Race complete, {len(done)} done, {len(pending)} pending"
+            )
+
+            # Cancel pending tasks
+            for task in pending:
+                print(f"[DEBUG Multiplex] Cancelling pending task")
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
+            # Get result from the first completed task
+            for task in done:
+                try:
+                    result = task.result()
+                    # Wait for future to be set if needed
+                    if result is None:
+                        break
+                    print(
+                        f"[DEBUG Multiplex] Returning result: approved={result.approved}, message={result.message}"
+                    )
+                    return result
+                except asyncio.CancelledError:
+                    continue
+                except Exception as e:
+                    print(f"[DEBUG Multiplex] Task exception: {e}")
+                    continue
+        except asyncio.CancelledError:
+            print(f"[DEBUG Multiplex] request_approval cancelled externally")
+            raise
+
+        # If we got here, wait for future to be set (e.g., by an external callback)
+        print(f"[DEBUG Multiplex] Waiting for future to be set...")
+        try:
+            result = await future
+            print(f"[DEBUG Multiplex] Future resolved: approved={result.approved}")
+            return result
+        except asyncio.CancelledError:
+            print(f"[DEBUG Multiplex] Future wait cancelled")
+            raise
 
     async def notify(
         self, message: str, context: ApprovalContext | None = None
