@@ -142,14 +142,22 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
             text = update.message.text
 
             # Check if approval channel is waiting for edit input
+            print(
+                f"[DEBUG TelegramUI] handle_message: text='{text[:50]}...', "
+                f"approval_channel={self._approval_channel is not None}, "
+                f"approval_channel_id={id(self._approval_channel) if self._approval_channel else None}, "
+                f"waiting_for_edit={self._approval_channel._waiting_for_edit_tool_call_id if self._approval_channel else None}"
+            )
             if (
                 self._approval_channel
                 and self._approval_channel._waiting_for_edit_tool_call_id
             ):
                 # Route to approval channel instead of LLM
+                print(f"[DEBUG TelegramUI] Routing to approval channel for edit input")
                 self._approval_channel.handle_text_input(text)
             else:
                 # Normal flow - route to LLM
+                print(f"[DEBUG TelegramUI] Routing to LLM")
                 self.handle_incoming_message(text)
 
         self.bot._app.add_handler(MessageHandler(filters.TEXT, handle_message))
@@ -261,14 +269,22 @@ class TelegramApproval(ApprovalChannel):
 
     def handle_text_input(self, text: str):
         """Handle text input - used when user sends text while waiting for edit."""
+        print(
+            f"[DEBUG TelegramApproval] handle_text_input: text='{text[:50]}...', "
+            f"waiting_for_edit_tool_call_id={self._waiting_for_edit_tool_call_id}"
+        )
         if self._waiting_for_edit_tool_call_id:
             tool_call_id = self._waiting_for_edit_tool_call_id
             self._waiting_for_edit_tool_call_id = None
+            print(
+                f"[DEBUG TelegramApproval] Clearing waiting flag, tool_call_id={tool_call_id}"
+            )
 
             if tool_call_id in self._waiting_for_edit:
                 future = self._waiting_for_edit.pop(tool_call_id)
                 # Parse the edited JSON/YAML
                 new_args = self._parse_edited_content(text)
+                print(f"[DEBUG TelegramApproval] Parsed args: {new_args}")
                 if new_args is not None:
                     future.set_result(
                         ApprovalResult(approved=True, override_args=new_args)
@@ -277,6 +293,14 @@ class TelegramApproval(ApprovalChannel):
                     future.set_result(
                         ApprovalResult(approved=False, message="Invalid format")
                     )
+            else:
+                print(
+                    f"[DEBUG TelegramApproval] WARNING: tool_call_id {tool_call_id} not in _waiting_for_edit"
+                )
+        else:
+            print(
+                f"[DEBUG TelegramApproval] WARNING: _waiting_for_edit_tool_call_id is None"
+            )
 
     def _parse_edited_content(self, content: str) -> dict | None:
         """Parse edited content as JSON or YAML."""
@@ -303,6 +327,9 @@ class TelegramApproval(ApprovalChannel):
             return
 
         TelegramApproval._instances[self.chat_id] = self
+        print(
+            f"[DEBUG TelegramApproval] Registered instance {id(self)} for chat_id={self.chat_id}"
+        )
 
         async def handle_callback(update, context):
             query = update.callback_query
@@ -327,6 +354,9 @@ class TelegramApproval(ApprovalChannel):
 
             elif action == "edit":
                 # User wants to edit arguments
+                # NOTE: We do NOT create a new future - we keep the SAME future
+                # that request_approval() is waiting on. When handle_text_input
+                # is called with edited args, it will resolve the original future.
                 context = instance._pending_context.get(tool_call_id)
                 if context:
                     # Ask for new arguments
@@ -339,13 +369,18 @@ class TelegramApproval(ApprovalChannel):
                         parse_mode="Markdown",
                     )
                     # Mark as waiting for edit input
+                    # The future in _pending stays the SAME - request_approval awaits it
                     instance._waiting_for_edit_tool_call_id = tool_call_id
-                    loop = asyncio.get_event_loop()
-                    future = loop.create_future()
-                    instance._waiting_for_edit[tool_call_id] = future
-                    # This future will be resolved by handle_text_input
-                    # We also need to update the pending future to wait for edit
-                    instance._pending[tool_call_id] = future
+                    print(
+                        f"[DEBUG TelegramApproval] Set _waiting_for_edit_tool_call_id = {tool_call_id}"
+                    )
+                    # Store reference to the pending future so handle_text_input can resolve it
+                    instance._waiting_for_edit[tool_call_id] = instance._pending.get(
+                        tool_call_id
+                    )
+                    print(
+                        f"[DEBUG TelegramApproval] Edit mode - waiting for text input"
+                    )
 
         if self.bot._app:
             self.bot._app.add_handler(CallbackQueryHandler(handle_callback))
