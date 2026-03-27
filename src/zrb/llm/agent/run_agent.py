@@ -322,6 +322,28 @@ async def run_agent(
                             {"reason": "deferred_wait", "history": run_history},
                         )
                         return result_output, run_history
+
+                    # If any tool was denied, we need to create a NEW DeferredToolResults
+                    # with empty calls (so pydantic AI doesn't execute them)
+                    from pydantic_ai import DeferredToolResults
+                    from pydantic_ai.tools import ToolDenied
+
+                    has_denials = any(
+                        isinstance(v, ToolDenied)
+                        for v in current_results.approvals.values()
+                    )
+
+                    if has_denials:
+                        # Create new results with empty calls but preserve approvals
+                        current_results = DeferredToolResults(
+                            calls={},  # Empty calls = don't execute any tools
+                            approvals=current_results.approvals,
+                            metadata=current_results.metadata,
+                        )
+                        print(
+                            f"[DEBUG run_agent] Tool was denied, clearing calls in deferred results"
+                        )
+
                     # Prepare next iteration
                     current_message = None
                     current_history = run_history
@@ -542,6 +564,18 @@ async def _process_deferred_requests(
             )
 
         current_results.approvals[call.tool_call_id] = result
+
+        # If denied, also remove from calls to prevent execution
+        from pydantic_ai import ToolDenied
+
+        if isinstance(result, ToolDenied):
+            # Remove this call from the results so pydantic AI doesn't execute it
+            if (
+                hasattr(current_results, "calls")
+                and call.tool_call_id in current_results.calls
+            ):
+                del current_results.calls[call.tool_call_id]
+            print(f"[DEBUG run_agent] Tool denied, removed from calls")
 
         # Hook: PostToolUse / PostToolUseFailure
         from pydantic_ai import ToolApproved

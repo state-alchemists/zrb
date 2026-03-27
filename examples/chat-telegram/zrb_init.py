@@ -178,6 +178,7 @@ class TelegramApproval(ApprovalChannel):
         print(
             f"[DEBUG TelegramApproval] request_approval START for {context.tool_name}"
         )
+        print(f"[DEBUG TelegramApproval] tool_call_id: {context.tool_call_id}")
         print(
             f"[DEBUG TelegramApproval] tool_args: {context.tool_args}, type: {type(context.tool_args)}"
         )
@@ -224,7 +225,9 @@ class TelegramApproval(ApprovalChannel):
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown",
         )
-        print(f"[DEBUG TelegramApproval] Message sent, future done()={future.done()}")
+        print(
+            f"[DEBUG TelegramApproval] Message sent for tool_call_id={context.tool_call_id}, future.done()={future.done()}"
+        )
 
         try:
             print(f"[DEBUG TelegramApproval] About to await future...")
