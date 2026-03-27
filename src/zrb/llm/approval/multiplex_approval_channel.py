@@ -1,6 +1,7 @@
 import asyncio
 import sys
 
+from zrb.config.config import CFG
 from zrb.llm.approval.approval_channel import (
     ApprovalChannel,
     ApprovalContext,
@@ -31,13 +32,13 @@ class MultiplexApprovalChannel(ApprovalChannel):
         if is_shutdown_requested():
             return ApprovalResult(approved=False, message="Shutdown requested")
 
-        print(f"[DEBUG Multiplex] request_approval START for {context.tool_name}")
-        print(
-            f"[DEBUG Multiplex] Channels: {[type(c).__name__ for c in self._channels]}"
+        CFG.LOGGER.debug(f"Multiplex request_approval START for {context.tool_name}")
+        CFG.LOGGER.debug(
+            f"Multiplex Channels: {[type(c).__name__ for c in self._channels]}"
         )
 
         if not self._channels:
-            print(f"[DEBUG Multiplex] No channels, auto-approving")
+            CFG.LOGGER.debug("Multiplex No channels, auto-approving")
             return ApprovalResult(approved=True)
 
         loop = asyncio.get_running_loop()
@@ -47,23 +48,27 @@ class MultiplexApprovalChannel(ApprovalChannel):
 
         async def request_from_channel(channel: ApprovalChannel):
             try:
-                print(f"[DEBUG Multiplex] Calling channel {type(channel).__name__}...")
+                CFG.LOGGER.debug(
+                    f"Multiplex Calling channel {type(channel).__name__}..."
+                )
                 result = await channel.request_approval(context)
-                print(
-                    f"[DEBUG Multiplex] Channel {type(channel).__name__} returned: approved={result.approved}"
+                CFG.LOGGER.debug(
+                    f"Multiplex Channel {type(channel).__name__} returned: approved={result.approved}"
                 )
                 if not future.done():
-                    print(f"[DEBUG Multiplex] Setting future result: {result}")
+                    CFG.LOGGER.debug(f"Multiplex Setting future result: {result}")
                     future.set_result(result)
                 return result
             except asyncio.CancelledError:
-                print(f"[DEBUG Multiplex] Channel {type(channel).__name__} cancelled")
+                CFG.LOGGER.debug(
+                    f"Multiplex Channel {type(channel).__name__} cancelled"
+                )
                 raise
             except BaseException as e:
                 import traceback
 
-                print(
-                    f"[DEBUG Multiplex] Channel {type(channel).__name__} Exception: {type(e).__name__}: {e}"
+                CFG.LOGGER.debug(
+                    f"Multiplex Channel {type(channel).__name__} Exception: {type(e).__name__}: {e}"
                 )
                 traceback.print_exc()
                 if not future.done():
@@ -80,7 +85,7 @@ class MultiplexApprovalChannel(ApprovalChannel):
             tasks.append(task)
         self._tasks[context.tool_call_id] = tasks
 
-        print(f"[DEBUG Multiplex] Racing {len(tasks)} channels concurrently...")
+        CFG.LOGGER.debug(f"Multiplex Racing {len(tasks)} channels concurrently...")
 
         try:
             # Wait for the first channel to complete (or all to fail)
@@ -88,13 +93,13 @@ class MultiplexApprovalChannel(ApprovalChannel):
                 tasks, return_when=asyncio.FIRST_COMPLETED
             )
 
-            print(
-                f"[DEBUG Multiplex] Race complete, {len(done)} done, {len(pending)} pending"
+            CFG.LOGGER.debug(
+                f"Multiplex Race complete, {len(done)} done, {len(pending)} pending"
             )
 
             # Cancel pending tasks
             for task in pending:
-                print(f"[DEBUG Multiplex] Cancelling pending task")
+                CFG.LOGGER.debug("Multiplex Cancelling pending task")
                 task.cancel()
                 try:
                     await task
@@ -108,27 +113,27 @@ class MultiplexApprovalChannel(ApprovalChannel):
                     # Wait for future to be set if needed
                     if result is None:
                         break
-                    print(
-                        f"[DEBUG Multiplex] Returning result: approved={result.approved}, message={result.message}"
+                    CFG.LOGGER.debug(
+                        f"Multiplex Returning result: approved={result.approved}, message={result.message}"
                     )
                     return result
                 except asyncio.CancelledError:
                     continue
                 except Exception as e:
-                    print(f"[DEBUG Multiplex] Task exception: {e}")
+                    CFG.LOGGER.debug(f"Multiplex Task exception: {e}")
                     continue
         except asyncio.CancelledError:
-            print(f"[DEBUG Multiplex] request_approval cancelled externally")
+            CFG.LOGGER.debug("Multiplex request_approval cancelled externally")
             raise
 
         # If we got here, wait for future to be set (e.g., by an external callback)
-        print(f"[DEBUG Multiplex] Waiting for future to be set...")
+        CFG.LOGGER.debug("Multiplex Waiting for future to be set...")
         try:
             result = await future
-            print(f"[DEBUG Multiplex] Future resolved: approved={result.approved}")
+            CFG.LOGGER.debug(f"Multiplex Future resolved: approved={result.approved}")
             return result
         except asyncio.CancelledError:
-            print(f"[DEBUG Multiplex] Future wait cancelled")
+            CFG.LOGGER.debug("Multiplex Future wait cancelled")
             raise
 
     async def notify(

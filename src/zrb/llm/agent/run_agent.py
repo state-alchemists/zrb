@@ -5,6 +5,7 @@ import json
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias, Union
 
+from zrb.config.config import CFG
 from zrb.llm.approval.approval_channel import ApprovalChannel, current_approval_channel
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.hook.manager import HookManager
@@ -108,8 +109,8 @@ async def run_agent(
             ui_for_terminal = effective_ui
             if hasattr(effective_ui, "_uis") and effective_ui._uis:
                 ui_for_terminal = effective_ui._uis[0]
-            print(
-                f"[DEBUG] Creating TerminalApprovalChannel with UI: {ui_for_terminal}"
+            CFG.LOGGER.debug(
+                f"Creating TerminalApprovalChannel with UI: {ui_for_terminal}"
             )
             terminal_channel = TerminalApprovalChannel(ui_for_terminal)
             # CLI first, then Telegram - CLI gets priority
@@ -119,21 +120,19 @@ async def run_agent(
                     effective_approval_channel,
                 ]
             )
-            print(f"[DEBUG] Wrapped approval channel: CLI first, then Telegram")
+            CFG.LOGGER.debug("Wrapped approval channel: CLI first, then Telegram")
 
-    print(f"[DEBUG run_agent] === START ===")
-    print(f"[DEBUG run_agent] tool_confirmation param: {tool_confirmation}")
-    print(
-        f"[DEBUG run_agent] current_tool_confirmation.get(): {current_tool_confirmation.get()}"
+    CFG.LOGGER.debug("run_agent === START ===")
+    CFG.LOGGER.debug(f"tool_confirmation param: {tool_confirmation}")
+    CFG.LOGGER.debug(
+        f"current_tool_confirmation.get(): {current_tool_confirmation.get()}"
     )
-    print(
-        f"[DEBUG run_agent] effective_tool_confirmation: {effective_tool_confirmation}"
+    CFG.LOGGER.debug(f"effective_tool_confirmation: {effective_tool_confirmation}")
+    CFG.LOGGER.debug(f"approval_channel param: {approval_channel}")
+    CFG.LOGGER.debug(
+        f"current_approval_channel.get(): {current_approval_channel.get()}"
     )
-    print(f"[DEBUG run_agent] approval_channel param: {approval_channel}")
-    print(
-        f"[DEBUG run_agent] current_approval_channel.get(): {current_approval_channel.get()}"
-    )
-    print(f"[DEBUG run_agent] effective_approval_channel: {effective_approval_channel}")
+    CFG.LOGGER.debug(f"effective_approval_channel: {effective_approval_channel}")
 
     # Set context variables so sub-agents can inherit them
     token_ui = current_ui.set(
@@ -153,7 +152,6 @@ async def run_agent(
 
         effective_event_handler = event_handler
         if effective_event_handler is None:
-            from zrb.config.config import CFG
             from zrb.llm.util.stream_response import (
                 create_event_handler,
                 create_faint_printer,
@@ -280,17 +278,15 @@ async def run_agent(
                     deferred_tool_results=current_results,
                     usage_limits=UsageLimits(request_limit=None),
                 )
-                print(
-                    f"[DEBUG run_agent] Stream started, current_results={current_results}"
-                )
+                CFG.LOGGER.debug(f"Stream started, current_results={current_results}")
                 try:
                     async for event in stream:
                         await asyncio.sleep(0)
                         if isinstance(event, AgentRunResultEvent):
                             result = event.result
                             result_output = result.output
-                            print(
-                                f"[DEBUG run_agent] Got result event, result_output type: {type(result_output)}"
+                            CFG.LOGGER.debug(
+                                f"Got result event, result_output type: {type(result_output)}"
                             )
                             run_history = result.all_messages()
                         if effective_event_handler:
@@ -302,8 +298,8 @@ async def run_agent(
 
                 # Handle Deferred Calls
                 if isinstance(result_output, DeferredToolRequests):
-                    print(
-                        f"[DEBUG run_agent] Got DeferredToolRequests, calling _process_deferred_requests"
+                    CFG.LOGGER.debug(
+                        "Got DeferredToolRequests, calling _process_deferred_requests"
                     )
                     current_results = await _process_deferred_requests(
                         result_output,
@@ -312,8 +308,8 @@ async def run_agent(
                         effective_hook_manager,
                         effective_approval_channel,
                     )
-                    print(
-                        f"[DEBUG run_agent] _process_deferred_requests returned: {current_results}"
+                    CFG.LOGGER.debug(
+                        f"_process_deferred_requests returned: {current_results}"
                     )
                     if current_results is None:
                         # Hook: SessionEnd (premature end due to tool denial or wait)
@@ -340,15 +336,15 @@ async def run_agent(
                             approvals=current_results.approvals,
                             metadata=current_results.metadata,
                         )
-                        print(
-                            f"[DEBUG run_agent] Tool was denied, clearing calls in deferred results"
+                        CFG.LOGGER.debug(
+                            "Tool was denied, clearing calls in deferred results"
                         )
 
                     # Prepare next iteration
                     current_message = None
                     current_history = run_history
-                    print(
-                        f"[DEBUG run_agent] Continuing to next iteration with current_results"
+                    CFG.LOGGER.debug(
+                        "Continuing to next iteration with current_results"
                     )
                     continue
 
@@ -487,7 +483,7 @@ async def _process_deferred_requests(
         # Priority 2: Approval channel handles multi-channel approval
         # (MultiplexApprovalChannel races all channels concurrently - first response wins)
         if not handled and approval_channel is not None:
-            print(f"[DEBUG run_agent] Using approval channel for {call.tool_name}")
+            CFG.LOGGER.debug(f"Using approval channel for {call.tool_name}")
 
             # Prepare args for approval channel
             args = {}
@@ -505,27 +501,27 @@ async def _process_deferred_requests(
                 tool_args=args,
                 tool_call_id=call.tool_call_id,
             )
-            print(f"[DEBUG run_agent] Calling approval_channel.request_approval()...")
+            CFG.LOGGER.debug("Calling approval_channel.request_approval()...")
             approval_result = await approval_channel.request_approval(context)
-            print(
-                f"[DEBUG run_agent] Approval channel returned: approved={approval_result.approved}"
+            CFG.LOGGER.debug(
+                f"Approval channel returned: approved={approval_result.approved}"
             )
             result = approval_result.to_pydantic_result()
             handled = True
 
         # Priority 3: CLI fallback (no approval channel, but have tool confirmation)
         if not handled:
-            print(f"[DEBUG run_agent] Using CLI fallback for {call.tool_name}")
+            CFG.LOGGER.debug(f"Using CLI fallback for {call.tool_name}")
             if isinstance(effective_tool_confirmation, ToolCallHandler):
                 result = await effective_tool_confirmation.handle(ui, call)
-                print(f"[DEBUG run_agent] CLI handler returned: {result}")
+                CFG.LOGGER.debug(f"CLI handler returned: {result}")
             elif callable(effective_tool_confirmation):
                 res = effective_tool_confirmation(call)
                 if inspect.isawaitable(res):
                     result = await res
                 else:
                     result = res
-                print(f"[DEBUG run_agent] CLI callable returned: {result}")
+                CFG.LOGGER.debug(f"CLI callable returned: {result}")
             handled = True
 
         current_results.approvals[call.tool_call_id] = result
@@ -540,7 +536,7 @@ async def _process_deferred_requests(
                 and call.tool_call_id in current_results.calls
             ):
                 del current_results.calls[call.tool_call_id]
-            print(f"[DEBUG run_agent] Tool denied, removed from calls")
+            CFG.LOGGER.debug("Tool denied, removed from calls")
 
         # Hook: PostToolUse / PostToolUseFailure
         from pydantic_ai import ToolApproved

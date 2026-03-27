@@ -591,10 +591,10 @@ class LLMChatTask(BaseTask):
                 self._approval_channels
             )
 
-        print(f"[DEBUG llm_chat_task] _create_llm_task_core:")
-        print(f"  tool_confirmation: {tool_confirmation}")
-        print(f"  effective_approval_channel: {effective_approval_channel}")
-        print(f"  _approval_channels: {self._approval_channels}")
+        CFG.LOGGER.debug("llm_chat_task _create_llm_task_core:")
+        CFG.LOGGER.debug(f"  tool_confirmation: {tool_confirmation}")
+        CFG.LOGGER.debug(f"  effective_approval_channel: {effective_approval_channel}")
+        CFG.LOGGER.debug(f"  _approval_channels: {self._approval_channels}")
 
         # Pass resolved tools/toolsets to LLMTask (no factories needed since already resolved)
         return LLMTask(

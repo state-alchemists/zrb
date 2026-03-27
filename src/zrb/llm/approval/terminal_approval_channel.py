@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 
+from zrb.config.config import CFG
 from zrb.llm.approval.approval_channel import ApprovalContext, ApprovalResult
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 
@@ -26,10 +27,12 @@ class TerminalApprovalChannel:
         context: ApprovalContext,
     ) -> ApprovalResult:
         """Request approval via terminal."""
-        print(
-            f"[DEBUG TerminalApprovalChannel] START request_approval for {context.tool_name}"
+        CFG.LOGGER.debug(
+            f"TerminalApprovalChannel START request_approval for {context.tool_name}"
         )
-        print(f"[DEBUG TerminalApprovalChannel] context.tool_args: {context.tool_args}")
+        CFG.LOGGER.debug(
+            f"TerminalApprovalChannel context.tool_args: {context.tool_args}"
+        )
 
         # Format the approval message
         from pydantic_ai import ToolCallPart
@@ -45,8 +48,8 @@ class TerminalApprovalChannel:
 
         handler = ToolCallHandler()
         message = await handler._get_confirm_user_message(self._ui, call)
-        print(
-            f"[DEBUG TerminalApprovalChannel] Got confirmation message, about to display to user"
+        CFG.LOGGER.debug(
+            "TerminalApprovalChannel Got confirmation message, about to display to user"
         )
         self._ui.append_to_output(f"\n\n{message}", end="")
         self._ui.append_to_output(
@@ -54,13 +57,15 @@ class TerminalApprovalChannel:
             end="",
         )
 
-        print(f"[DEBUG TerminalApprovalChannel] Waiting for user input via CLI...")
+        CFG.LOGGER.debug("TerminalApprovalChannel Waiting for user input via CLI...")
 
         # Wait for user input
         user_input = await self._ui.ask_user("")
         user_response = user_input.strip()
 
-        print(f"[DEBUG TerminalApprovalChannel] Got user response: '{user_response}'")
+        CFG.LOGGER.debug(
+            f"TerminalApprovalChannel Got user response: '{user_response}'"
+        )
 
         # Parse response
         r = user_response.lower().strip()

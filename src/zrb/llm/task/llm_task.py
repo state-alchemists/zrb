@@ -313,9 +313,9 @@ class LLMTask(BaseTask):
                 if callable(self._dynamic_yolo)
                 else get_bool_attr(ctx, self._yolo, False)
             )
-            print(f"[DEBUG llm_task] Calling run_agent with:")
-            print(f"  tool_confirmation: {self._tool_confirmation}")
-            print(f"  approval_channel: {self._approval_channel}")
+            CFG.LOGGER.debug("llm_task Calling run_agent with:")
+            CFG.LOGGER.debug(f"  tool_confirmation: {self._tool_confirmation}")
+            CFG.LOGGER.debug(f"  approval_channel: {self._approval_channel}")
             output, new_history = await run_agent(
                 agent=agent,
                 message=effective_message,
