@@ -393,7 +393,12 @@ class TelegramApproval(ApprovalChannel):
     def resolve(self, tool_call_id: str, approved: bool):
         if tool_call_id in self._pending:
             future = self._pending.pop(tool_call_id)
-            future.set_result(ApprovalResult(approved=approved))
+            if approved:
+                future.set_result(ApprovalResult(approved=True))
+            else:
+                future.set_result(
+                    ApprovalResult(approved=False, message="User denied execution")
+                )
 
 
 # =============================================================================
