@@ -48,7 +48,7 @@ from zrb.builtin.llm.chat import llm_chat
 from zrb.llm.ui.simple_ui import (
     BufferedOutputMixin,
     EventDrivenUI,
-    create_ui_factory,
+    create_http_ui_factory,
 )
 from zrb.llm.util.history_formatter import format_history_as_text
 from zrb.util.cli.style import remove_style
@@ -320,8 +320,13 @@ class SSEUI(EventDrivenUI, BufferedOutputMixin):
 
 server = SSEServer.get()
 
-# Create SSE UI factory
-sse_ui_factory = create_ui_factory(SSEUI, server=server)
+# Create SSE UI factory using the HTTP helper
+sse_ui_factory = create_http_ui_factory(
+    SSEUI,
+    host=SSE_HOST,
+    port=SSE_PORT,
+    server=server,
+)
 
 # Add SSE UI alongside default terminal UI (dual mode)
 # This gives you both CLI input/output AND SSE streaming

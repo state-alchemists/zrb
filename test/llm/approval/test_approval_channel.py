@@ -358,9 +358,8 @@ class TestTerminalApprovalChannelWithHandler:
         # Add a mock tool_call_handler with formatters
         mock_handler = MagicMock()
         mock_handler._argument_formatters = ["formatter1", "formatter2"]
-        mock_handler._get_confirm_user_message = AsyncMock(
-            return_value="Confirm message"
-        )
+        mock_handler.format_approval_message = AsyncMock(return_value="Confirm message")
+        mock_handler.get_response_handlers = MagicMock(return_value=[])
         mock_ui._tool_call_handler = mock_handler
 
         channel = TerminalApprovalChannel(ui=mock_ui)
@@ -374,7 +373,7 @@ class TestTerminalApprovalChannelWithHandler:
 
         assert result.approved is True
         mock_ui.ask_user.assert_called_once()
-        mock_handler._get_confirm_user_message.assert_called_once()
+        mock_handler.format_approval_message.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_edit_response_triggers_response_handler_chain(self):
@@ -388,10 +387,10 @@ class TestTerminalApprovalChannelWithHandler:
         mock_response_handler = AsyncMock()
         mock_response_handler.return_value = ToolApproved(override_args={"new": "args"})
         mock_handler = MagicMock()
-        mock_handler._response_handlers = [mock_response_handler]
-        mock_handler._get_confirm_user_message = AsyncMock(
-            return_value="Confirm message"
+        mock_handler.get_response_handlers = MagicMock(
+            return_value=[mock_response_handler]
         )
+        mock_handler.format_approval_message = AsyncMock(return_value="Confirm message")
         mock_ui._tool_call_handler = mock_handler
 
         channel = TerminalApprovalChannel(ui=mock_ui)

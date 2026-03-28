@@ -46,7 +46,6 @@ Output:
 🤖 Telegram + CLI dual mode for chat ID: 123456789
    Both channels receive all messages.
    Approvals work from both - first response wins!
-   Tool argument editing available on Telegram!
 ```
 
 ## How It Works

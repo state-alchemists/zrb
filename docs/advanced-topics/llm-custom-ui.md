@@ -106,6 +106,65 @@ Choose your starting point based on your backend type:
 
 ---
 
+## Dual Mode: CLI + External Channel
+
+For chat applications that work with **both CLI and an external channel** (Telegram, SSE, WebSocket), use `append_ui_factory()` to add multiple channels.
+
+### What You Get
+
+When you use `append_ui_factory()`:
+- **Output**: Broadcasts to ALL configured channels (CLI + Telegram, etc.)
+- **Input**: Waits for FIRST response from ANY channel
+- **Approvals**: First approval response wins (CLI or external)
+
+### Quick Start
+
+```python
+from zrb.builtin.llm.chat import llm_chat
+from zrb.llm.ui import EventDrivenUI, create_bot_ui_factory
+
+class TelegramUI(EventDrivenUI):
+    def __init__(self, bot_token, chat_id, **kwargs):
+        super().__init__(**kwargs)
+        self.bot_token = bot_token
+        self.chat_id = chat_id
+
+    async def print(self, text: str) -> None:
+        await self.bot.send_message(self.chat_id, text)
+
+    async def start_event_loop(self) -> None:
+        # Initialize bot
+        ...
+
+# Use append_ui_factory() for dual mode!
+llm_chat.append_ui_factory(
+    create_bot_ui_factory(
+        TelegramUI,
+        bot_token="TOKEN",
+        chat_id=12345
+    )
+)
+
+# Add approval channel (optional but recommended)
+llm_chat.append_approval_channel(TelegramApprovalChannel(bot, chat_id))
+```
+
+### Factory Helpers
+
+| Helper | Best For | Example |
+|--------|----------|---------|
+| `create_bot_ui_factory()` | Telegram, Discord, WhatsApp | `create_bot_ui_factory(MyBotUI, token=..., chat_id=...)` |
+| `create_http_ui_factory()` | SSE, WebSocket, REST API | `create_http_ui_factory(MyHTTPUI, host="localhost", port=8000)` |
+
+### Complete Examples
+
+| Example | Description |
+|---------|-------------|
+| `examples/chat-telegram/` | CLI + Telegram dual mode |
+| `examples/chat-sse/` | CLI + SSE (HTTP streaming) dual mode |
+
+---
+
 ## Level 1: SimpleUI (Request-Response Pattern)
 
 `SimpleUI` is for backends where you **control the event loop** and can **block on input**. You implement just 2 methods:

@@ -59,15 +59,12 @@ class TerminalApprovalChannel:
         else:
             handler = ToolCallHandler()
 
-        message = await handler._get_confirm_user_message(self._ui, call)
+        # Use public method for approval message with custom instruction
+        message = await handler.format_approval_message(self._ui, call)
         CFG.LOGGER.debug(
             "TerminalApprovalChannel Got confirmation message, about to display to user"
         )
         self._ui.append_to_output(f"\n\n{message}", end="")
-        self._ui.append_to_output(
-            "\n\n  [y] Yes  [n] No  [e] Edit args  [default: Yes]: ",
-            end="",
-        )
 
         CFG.LOGGER.debug("TerminalApprovalChannel Waiting for user input via CLI...")
 
@@ -111,16 +108,19 @@ class TerminalApprovalChannel:
         """Handle edit via response handler chain (like ToolCallHandler does)."""
         from pydantic_ai import ToolApproved, ToolDenied
 
+        # Use public getter for response handlers
+        response_handlers = handler.get_response_handlers()
+
         async def next_handler(
             ui: Any,
             c: Any,
             r: str,
             index: int,
         ) -> Any:
-            if index >= len(handler._response_handlers):
+            if index >= len(response_handlers):
                 # Default behavior - deny
                 return ToolDenied("Edit not handled")
-            resp_handler = handler._response_handlers[index]
+            resp_handler = response_handlers[index]
             return await resp_handler(
                 ui, c, r, lambda u, cc, rr: next_handler(u, cc, rr, index + 1)
             )
