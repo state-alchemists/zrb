@@ -59,7 +59,7 @@ async def run_agent(
     print_fn: Callable[[str], Any] = print,
     event_handler: Callable[[Any], Any] | None = None,
     tool_confirmation: AnyToolConfirmation = None,
-    ui: UIProtocol | None = None,
+    ui: UIProtocol | list[UIProtocol] | None = None,
     hook_manager: HookManager | None = None,
     yolo: bool = False,
     approval_channel: "ApprovalChannel | None" = None,
