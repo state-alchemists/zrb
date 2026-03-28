@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.agent.std_ui import StdUI
+from zrb.llm.ui.std_ui import StdUI
 
 
 def test_stdui_append_to_output():

@@ -70,7 +70,7 @@ async def run_agent(
     """
     from pydantic_ai import AgentRunResultEvent, DeferredToolRequests, UsageLimits
 
-    from zrb.llm.agent.std_ui import StdUI
+    from zrb.llm.ui.std_ui import StdUI
 
     # Resolve UI - handle both single UI and list of UIs
     ui_arg = ui

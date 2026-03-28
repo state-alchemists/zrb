@@ -15,7 +15,7 @@ The UI system is organized into levels based on complexity and use case:
     │   - 4 methods: ask_user, append_to_output, stream_to_parent,           │
     │                 run_interactive_command                                │
     │   - Used for tool confirmations in non-chat contexts                   │
-    │   - Implemented by: StdUI (zrb.llm.agent.std_ui)                       │
+    │   - Implemented by: StdUI (zrb.llm.ui.std_ui)                          │
     ├────────────────────────────────────────────────────────────────────────┤
     │ Chat UI Levels (for LLM chat applications)                             │
     ├────────────────────────────────────────────────────────────────────────┤

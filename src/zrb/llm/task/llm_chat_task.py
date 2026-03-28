@@ -545,8 +545,8 @@ class LLMChatTask(BaseTask):
         resolved_toolsets: list[AbstractToolset[None]],
     ) -> LLMTask:
         """Create the inner LLMTask that handles the actual processing."""
-        from zrb.llm.agent.std_ui import StdUI
         from zrb.llm.tool_call.handler import ToolCallHandler
+        from zrb.llm.ui.std_ui import StdUI
 
         # Determine the tool confirmation and ui to use
         tool_confirmation = self._tool_confirmation

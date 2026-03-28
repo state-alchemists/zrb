@@ -5,9 +5,9 @@ from typing import Any, TextIO
 from zrb.llm.agent.manager import SubAgentManager
 from zrb.llm.agent.manager import sub_agent_manager as default_sub_agent_manager
 from zrb.llm.agent.run_agent import current_ui, run_agent
-from zrb.llm.agent.std_ui import StdUI
 from zrb.llm.config.limiter import llm_limiter
 from zrb.llm.tool_call.ui_protocol import UIProtocol
+from zrb.llm.ui.std_ui import StdUI
 from zrb.util.string.name import get_random_name
 
 
