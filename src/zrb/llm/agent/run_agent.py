@@ -91,14 +91,7 @@ async def run_agent(
     else:
         effective_ui = ui_arg
 
-    import sys
     effective_tool_confirmation = tool_confirmation or current_tool_confirmation.get()
-    print(f"[run_agent] effective_tool_confirmation: type={type(effective_tool_confirmation).__name__}, id={id(effective_tool_confirmation) if effective_tool_confirmation else None}", file=sys.stderr)
-    if effective_tool_confirmation:
-        if isinstance(effective_tool_confirmation, ToolCallHandler):
-            print(f"[run_agent]   -> It's a ToolCallHandler with formatters: {[f.__name__ for f in effective_tool_confirmation._argument_formatters]}", file=sys.stderr)
-        elif callable(effective_tool_confirmation):
-            print(f"[run_agent]   -> It's a callable (method)", file=sys.stderr)
     effective_hook_manager = (
         hook_manager or current_hook_manager.get() or default_hook_manager
     )

@@ -566,15 +566,10 @@ class BaseUI:
         self,
         call: "ToolCallPart",
     ) -> "ToolApproved | ToolDenied | None":
-        import sys
         # Use current_ui context variable to get the correct UI (e.g., BufferedUI for parallel agents)
         # instead of self, which is the captured main UI
         from zrb.llm.agent.run_agent import current_ui
         from zrb.llm.ui.multi_ui import MultiUI
-
-        print(f"!!! BaseUI._confirm_tool_execution CALLED !!!", file=sys.stderr)
-        print(f"    self type={type(self).__name__}, id={id(self)}", file=sys.stderr)
-        print(f"    handler id={id(self._tool_call_handler)}, formatters={[f.__name__ for f in self._tool_call_handler._argument_formatters]}", file=sys.stderr)
 
         ui = current_ui.get() or self
         # Handle list of UIs from outer context
@@ -585,7 +580,6 @@ class BaseUI:
                 ui = ui[0]
             else:
                 ui = MultiUI(ui)
-        print(f"    ui type={type(ui).__name__}, id={id(ui)}", file=sys.stderr)
         return await self._tool_call_handler.handle(
             ui, call
         )  # --- SYSTEM INFO / TRIGGERS (Moved from UI) ---

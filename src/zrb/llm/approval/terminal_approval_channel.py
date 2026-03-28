@@ -52,10 +52,8 @@ class TerminalApprovalChannel:
         handler = None
         if hasattr(self._ui, "_tool_call_handler") and self._ui._tool_call_handler is not None:
             handler = self._ui._tool_call_handler
-            print(f"[TerminalApprovalChannel] Using UI's handler id={id(handler)}, formatters={[f.__name__ for f in handler._argument_formatters]}", file=sys.stderr)
         else:
             handler = ToolCallHandler()
-            print(f"[TerminalApprovalChannel] UI has no handler, creating new one", file=sys.stderr)
 
         message = await handler._get_confirm_user_message(self._ui, call)
         CFG.LOGGER.debug(
@@ -84,13 +82,50 @@ class TerminalApprovalChannel:
         if r in ("n", "no", "deny", "cancel", "🛑"):
             return ApprovalResult(approved=False, message="User denied")
 
-        # Handle edit mode
+        # Handle edit mode - use response handler chain if available
         if r in ("e", "edit"):
+            # Use the UI's response handlers (e.g., replace_in_file_response_handler)
+            # which shows diff and handles editing properly
+            result = await self._handle_via_response_handler(handler, call, user_response)
+            if result is not None:
+                return result
+            # Fall back to simple edit if no response handler handled it
             return await self._handle_edit(context)
 
         return ApprovalResult(
             approved=False, message=f"User denied with: {user_response}"
         )
+
+    async def _handle_via_response_handler(
+        self,
+        handler: Any,
+        call: Any,
+        response: str,
+    ) -> ApprovalResult | None:
+        """Handle edit via response handler chain (like ToolCallHandler does)."""
+        from pydantic_ai import ToolApproved, ToolDenied
+
+        async def next_handler(
+            ui: Any,
+            c: Any,
+            r: str,
+            index: int,
+        ) -> Any:
+            if index >= len(handler._response_handlers):
+                # Default behavior - deny
+                return ToolDenied("Edit not handled")
+            resp_handler = handler._response_handlers[index]
+            return await resp_handler(
+                ui, c, r, lambda u, cc, rr: next_handler(u, cc, rr, index + 1)
+            )
+
+        result = await next_handler(self._ui, call, response, 0)
+        if isinstance(result, ToolApproved):
+            return ApprovalResult(approved=True, override_args=result.override_args)
+        elif isinstance(result, ToolDenied):
+            # Response handler denied or didn't handle it
+            return None
+        return None
 
     async def _handle_edit(self, context: ApprovalContext) -> ApprovalResult:
         """Handle edit mode - open editor for new arguments."""

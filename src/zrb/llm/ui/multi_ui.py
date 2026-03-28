@@ -57,9 +57,6 @@ class MultiUI:
         This should be set to the same handler used by the default UI,
         so CLI mode in MultiUI has the same formatters as standalone CLI.
         """
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.warning(f"[MultiUI] set_tool_call_handler called, formatters: {[f.__name__ for f in handler._argument_formatters]}")
         self._tool_call_handler = handler
 
     def set_approval_channel(self, channel: Any):
@@ -184,35 +181,19 @@ class MultiUI:
         2. Fall back to winning UI's handler if available
         3. Fall back to approval channel (Telegram buttons)
         """
-        import logging
-        import sys
-        logger = logging.getLogger(__name__)
-
-        # CRITICAL: Print at the very start to ensure we see this
-        print(f"!!! MultiUI._confirm_tool_execution CALLED !!!", file=sys.stderr)
-        print(f"    id(self)={id(self)}, type={type(self).__name__}", file=sys.stderr)
-        print(f"    id(self._tool_call_handler)={id(self._tool_call_handler) if self._tool_call_handler else None}", file=sys.stderr)
-        if self._tool_call_handler:
-            print(f"    formatters={[f.__name__ for f in self._tool_call_handler._argument_formatters]}", file=sys.stderr)
-        else:
-            print(f"    _tool_call_handler is None!", file=sys.stderr)
-
         # First, try MultiUI's handler (has formatters from default UI)
         if self._tool_call_handler is not None:
-            print(f"    -> Using MultiUI's _tool_call_handler", file=sys.stderr)
             return await self._tool_call_handler.handle(self, call)
 
         # Try winning UI's handler
         winning_ui = getattr(self, "_last_winning_ui", None)
         if winning_ui is not None and hasattr(winning_ui, "_tool_call_handler"):
-            print(f"    -> Using winning_ui's _tool_call_handler", file=sys.stderr)
             return await winning_ui._tool_call_handler.handle(self, call)
 
         # Fall back to approval channel (e.g., Telegram buttons)
         if hasattr(self, "_approval_channel") and self._approval_channel is not None:
             from zrb.llm.approval.approval_channel import ApprovalContext
 
-            print(f"    -> Falling back to approval channel", file=sys.stderr)
             context = ApprovalContext(
                 tool_name=call.tool_name,
                 tool_args=call.args if isinstance(call.args, dict) else {},
@@ -223,11 +204,8 @@ class MultiUI:
 
         # Final fallback: use default handler from first UI
         if self._uis and hasattr(self._uis[0], "_tool_call_handler"):
-            print(f"    -> Using first UI's _tool_call_handler", file=sys.stderr)
             return await self._uis[0]._tool_call_handler.handle(self, call)
 
-        # Should not reach here, but raise for safety
-        logger.error("[MultiUI] No handler found!")
         raise RuntimeError("No UI available for tool confirmation")
 
     def _submit_user_message(self, llm_task: Any, user_message: str):

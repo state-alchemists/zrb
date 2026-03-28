@@ -18,42 +18,24 @@ async def write_file_formatter(
     """
     Shows a diff or content for write_file tool call.
     """
-    import logging
-    import sys
-    logger = logging.getLogger(__name__)
-
-    print(f"[write_file_formatter] CALLED! tool_name='{call.tool_name}'", file=sys.stderr)
-
-    logger.warning(f"[write_file_formatter] call.tool_name='{call.tool_name}'")
     if call.tool_name != "Write":
-        logger.warning(f"[write_file_formatter] Tool name mismatch, returning None")
         return None
 
     try:
         args = call.args
-        logger.warning(f"[write_file_formatter] args type: {type(args)}, args: {args}")
         if isinstance(args, str):
             args = json.loads(args)
-            logger.warning(f"[write_file_formatter] Parsed JSON args: {args}")
 
         path = args.get("path")
         content = args.get("content")
         mode = args.get("mode", "w")
 
-        logger.warning(f"[write_file_formatter] path={path}, content_len={len(content) if content else 0}, mode={mode}")
-
         if not path or content is None:
-            logger.warning(f"[write_file_formatter] Missing path or content, returning None")
             return None
 
-        result = _format_single_write(path, content, mode, ui)
-        logger.warning(f"[write_file_formatter] Returning: {result[:200] if result else None}...")
-        return result
+        return _format_single_write(path, content, mode, ui)
 
-    except Exception as e:
-        import traceback
-        logger.error(f"[write_file_formatter] Exception: {e}")
-        traceback.print_exc()
+    except Exception:
         return None
 
 
