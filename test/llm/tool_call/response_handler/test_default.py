@@ -151,25 +151,24 @@ class TestDefaultResponseHandler:
         assert isinstance(result, ToolApproved)
 
 
-class TestWaitEditContent:
-    """Test _wait_edit_content function."""
+class TestEditContentViaEditor:
+    """Test edit_content_via_editor function."""
 
     @pytest.mark.asyncio
-    async def test_wait_edit_content_creates_tempfile(self):
-        """Test that _wait_edit_content creates tempfile and calls editor."""
-        from zrb.llm.tool_call.response_handler.default import _wait_edit_content
+    async def test_edit_content_via_editor_creates_tempfile(self):
+        """Test that edit_content_via_editor creates tempfile and calls editor."""
+        from zrb.llm.tool_call.edit_util import edit_content_via_editor
 
         ui = MagicMock()
         ui.run_interactive_command = AsyncMock()
 
-        content = "test content"
+        content = {"command": "test", "args": ["--flag"]}
 
-        result = await _wait_edit_content(
+        result = await edit_content_via_editor(
             ui=ui,
-            text_editor="cat",  # Use cat as safe editor
             content=content,
-            extension=".txt",
+            text_editor="cat",  # Use cat as safe editor
         )
 
-        # Verify the tempfile was created and the content was read
+        # Verify the content was read back (cat just outputs the content)
         assert result == content

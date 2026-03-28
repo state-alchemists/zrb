@@ -102,7 +102,7 @@ async def test_run_agent_empty_message():
 @pytest.mark.asyncio
 async def test_run_agent_deferred_requests():
     """Test run_agent handling deferred tool requests."""
-    from pydantic_ai import DeferredToolRequests
+    from pydantic_ai import DeferredToolRequests, DeferredToolResults
 
     agent = MagicMock()
     mock_result = MagicMock()
@@ -127,11 +127,13 @@ async def test_run_agent_deferred_requests():
 
     agent.run_stream_events = mock_run_stream_events
 
-    # Mock tool resolution
+    # Mock tool resolution - return proper DeferredToolResults object
     with patch(
         "zrb.llm.agent.run_agent._process_deferred_requests", new_callable=AsyncMock
     ) as mock_process:
-        mock_process.return_value = ["Tool result"]
+        mock_deferred_results = MagicMock(spec=DeferredToolResults)
+        mock_deferred_results.approvals = {}  # Empty approvals (all tools approved)
+        mock_process.return_value = mock_deferred_results
 
         result, _ = await run_agent(
             agent=agent, message="Use tool", message_history=[], limiter=LLMLimiter()

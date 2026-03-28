@@ -1,8 +1,8 @@
 # SSE Chat Example
 
-Server-Sent Events (SSE) for real-time LLM chat. No polling, no missed messages!
+Server-Sent Events (SSE) + CLI dual mode for real-time LLM chat. No polling, no missed messages!
 
-When you run `zrb llm chat` from this directory, it starts an HTTP server with SSE streaming.
+This example provides **CLI + SSE dual mode** chat. Both terminal and SSE endpoints receive all messages and can be used to interact with the LLM.
 
 ## Architecture
 
@@ -27,7 +27,7 @@ When you run `zrb llm chat` from this directory, it starts an HTTP server with S
 ## Quick Start
 
 ```bash
-# Terminal 1: Start the server
+# Terminal 1: Start the server (requires a terminal for CLI mode)
 export OPENAI_API_KEY="your-key"
 cd /path/to/zrb/examples/chat-sse
 zrb llm chat
@@ -35,16 +35,23 @@ zrb llm chat
 # Terminal 2: Connect to SSE stream (stays connected)
 curl -N http://localhost:8000/stream
 
-# Terminal 3: Send messages
+# Terminal 3: Send messages via HTTP
 curl -X POST http://localhost:8000/chat \
   -H "Content-Type: application/json" \
   -d '{"message": "Hello!"}'
 
-# Continue conversation
-curl -X POST http://localhost:8000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message": "What is 2+2?"}'
+# Or type in Terminal 1's CLI!
 ```
+
+## Dual Mode
+
+This example uses **CLI + SSE dual mode**, similar to the Telegram example:
+
+- **CLI Input/Output**: Type directly in the terminal
+- **SSE Input**: Send messages via `POST /chat`
+- **SSE Output**: Stream all responses via `GET /stream`
+
+Both channels receive all LLM responses. Use whichever is convenient!
 
 ## Environment Variables
 

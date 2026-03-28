@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias, Union
 
+from zrb.config.config import CFG
 from zrb.llm.approval.approval_channel import ApprovalChannel, current_approval_channel
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.hook.manager import HookManager
@@ -57,7 +59,7 @@ async def run_agent(
     print_fn: Callable[[str], Any] = print,
     event_handler: Callable[[Any], Any] | None = None,
     tool_confirmation: AnyToolConfirmation = None,
-    ui: UIProtocol | None = None,
+    ui: UIProtocol | list[UIProtocol] | None = None,
     hook_manager: HookManager | None = None,
     yolo: bool = False,
     approval_channel: "ApprovalChannel | None" = None,
@@ -70,8 +72,25 @@ async def run_agent(
 
     from zrb.llm.agent.std_ui import StdUI
 
-    # Resolve UI, Tool Confirmation, Hook Manager, YOLO, and Approval Channel from arguments or context fallback
-    effective_ui = ui or current_ui.get() or StdUI()
+    # Resolve UI - handle both single UI and list of UIs
+    ui_arg = ui
+    if ui_arg is None:
+        ui_arg = current_ui.get()
+    if ui_arg is None:
+        ui_arg = StdUI()
+    # Create MultiUI if multiple UIs
+    if isinstance(ui_arg, list):
+        if len(ui_arg) == 1:
+            effective_ui = ui_arg[0]
+        elif len(ui_arg) == 0:
+            effective_ui = StdUI()
+        else:
+            from zrb.llm.ui.multi_ui import MultiUI
+
+            effective_ui = MultiUI(ui_arg)
+    else:
+        effective_ui = ui_arg
+
     effective_tool_confirmation = tool_confirmation or current_tool_confirmation.get()
     effective_hook_manager = (
         hook_manager or current_hook_manager.get() or default_hook_manager
@@ -79,8 +98,46 @@ async def run_agent(
     effective_yolo = yolo or current_yolo.get()
     effective_approval_channel = approval_channel or current_approval_channel.get()
 
+    # If approval_channel exists but doesn't have UI for terminal, add it
+    if effective_approval_channel is not None and effective_ui is not None:
+        from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
+        from zrb.llm.approval.terminal_approval_channel import TerminalApprovalChannel
+
+        # Check if we need to add terminal approval channel
+        if not isinstance(effective_approval_channel, MultiplexApprovalChannel):
+            # Get the first UI for terminal approval (not MultiUI)
+            ui_for_terminal = effective_ui
+            if hasattr(effective_ui, "_uis") and effective_ui._uis:
+                ui_for_terminal = effective_ui._uis[0]
+            CFG.LOGGER.debug(
+                f"Creating TerminalApprovalChannel with UI: {ui_for_terminal}"
+            )
+            terminal_channel = TerminalApprovalChannel(ui_for_terminal)
+            # CLI first, then Telegram - CLI gets priority
+            effective_approval_channel = MultiplexApprovalChannel(
+                [
+                    terminal_channel,
+                    effective_approval_channel,
+                ]
+            )
+            CFG.LOGGER.debug("Wrapped approval channel: CLI first, then Telegram")
+
+    CFG.LOGGER.debug("run_agent === START ===")
+    CFG.LOGGER.debug(f"tool_confirmation param: {tool_confirmation}")
+    CFG.LOGGER.debug(
+        f"current_tool_confirmation.get(): {current_tool_confirmation.get()}"
+    )
+    CFG.LOGGER.debug(f"effective_tool_confirmation: {effective_tool_confirmation}")
+    CFG.LOGGER.debug(f"approval_channel param: {approval_channel}")
+    CFG.LOGGER.debug(
+        f"current_approval_channel.get(): {current_approval_channel.get()}"
+    )
+    CFG.LOGGER.debug(f"effective_approval_channel: {effective_approval_channel}")
+
     # Set context variables so sub-agents can inherit them
-    token_ui = current_ui.set(effective_ui)
+    token_ui = current_ui.set(
+        effective_ui
+    )  # effective_ui is already resolved (single or MultiUI)
     token_confirmation = current_tool_confirmation.set(effective_tool_confirmation)
     token_hook_manager = current_hook_manager.set(effective_hook_manager)
     token_yolo = current_yolo.set(effective_yolo)
@@ -95,7 +152,6 @@ async def run_agent(
 
         effective_event_handler = event_handler
         if effective_event_handler is None:
-            from zrb.config.config import CFG
             from zrb.llm.util.stream_response import (
                 create_event_handler,
                 create_faint_printer,
@@ -222,12 +278,16 @@ async def run_agent(
                     deferred_tool_results=current_results,
                     usage_limits=UsageLimits(request_limit=None),
                 )
+                CFG.LOGGER.debug(f"Stream started, current_results={current_results}")
                 try:
                     async for event in stream:
                         await asyncio.sleep(0)
                         if isinstance(event, AgentRunResultEvent):
                             result = event.result
                             result_output = result.output
+                            CFG.LOGGER.debug(
+                                f"Got result event, result_output type: {type(result_output)}"
+                            )
                             run_history = result.all_messages()
                         if effective_event_handler:
                             await effective_event_handler(event)
@@ -238,12 +298,18 @@ async def run_agent(
 
                 # Handle Deferred Calls
                 if isinstance(result_output, DeferredToolRequests):
+                    CFG.LOGGER.debug(
+                        "Got DeferredToolRequests, calling _process_deferred_requests"
+                    )
                     current_results = await _process_deferred_requests(
                         result_output,
                         effective_tool_confirmation,
                         effective_ui,
                         effective_hook_manager,
                         effective_approval_channel,
+                    )
+                    CFG.LOGGER.debug(
+                        f"_process_deferred_requests returned: {current_results}"
                     )
                     if current_results is None:
                         # Hook: SessionEnd (premature end due to tool denial or wait)
@@ -252,9 +318,34 @@ async def run_agent(
                             {"reason": "deferred_wait", "history": run_history},
                         )
                         return result_output, run_history
+
+                    # If any tool was denied, we need to create a NEW DeferredToolResults
+                    # with empty calls (so pydantic AI doesn't execute them)
+                    from pydantic_ai import DeferredToolResults
+                    from pydantic_ai.tools import ToolDenied
+
+                    has_denials = any(
+                        isinstance(v, ToolDenied)
+                        for v in current_results.approvals.values()
+                    )
+
+                    if has_denials:
+                        # Create new results with empty calls but preserve approvals
+                        current_results = DeferredToolResults(
+                            calls={},  # Empty calls = don't execute any tools
+                            approvals=current_results.approvals,
+                            metadata=current_results.metadata,
+                        )
+                        CFG.LOGGER.debug(
+                            "Tool was denied, clearing calls in deferred results"
+                        )
+
                     # Prepare next iteration
                     current_message = None
                     current_history = run_history
+                    CFG.LOGGER.debug(
+                        "Continuing to next iteration with current_results"
+                    )
                     continue
 
                 # Hook: SessionEnd
@@ -379,40 +470,73 @@ async def _process_deferred_requests(
         result = None
         handled = False
 
-        # Priority 1: Tool Confirmation Handler (policy-based approval)
+        # Priority 1: Tool Policy (automatic approval based on rules)
         if effective_tool_confirmation:
             if isinstance(effective_tool_confirmation, ToolCallHandler):
+                policy_result = await effective_tool_confirmation.check_policies(
+                    ui, call
+                )
+                if policy_result is not None:
+                    result = policy_result
+                    handled = True
+
+        # Priority 2: Approval channel handles multi-channel approval
+        # (MultiplexApprovalChannel races all channels concurrently - first response wins)
+        if not handled and approval_channel is not None:
+            CFG.LOGGER.debug(f"Using approval channel for {call.tool_name}")
+
+            # Prepare args for approval channel
+            args = {}
+            if hasattr(call, "args") and call.args:
+                if isinstance(call.args, dict):
+                    args = call.args
+                elif isinstance(call.args, str):
+                    try:
+                        args = json.loads(call.args)
+                    except json.JSONDecodeError:
+                        pass
+
+            context = ApprovalContext(
+                tool_name=call.tool_name,
+                tool_args=args,
+                tool_call_id=call.tool_call_id,
+            )
+            CFG.LOGGER.debug("Calling approval_channel.request_approval()...")
+            approval_result = await approval_channel.request_approval(context)
+            CFG.LOGGER.debug(
+                f"Approval channel returned: approved={approval_result.approved}"
+            )
+            result = approval_result.to_pydantic_result()
+            handled = True
+
+        # Priority 3: CLI fallback (no approval channel, but have tool confirmation)
+        if not handled:
+            CFG.LOGGER.debug(f"Using CLI fallback for {call.tool_name}")
+            if isinstance(effective_tool_confirmation, ToolCallHandler):
                 result = await effective_tool_confirmation.handle(ui, call)
-            else:
-                # It's a simple callback function (or object with __call__)
-                # If it returns None, it means "I don't know", so we fallback to CLI
+                CFG.LOGGER.debug(f"CLI handler returned: {result}")
+            elif callable(effective_tool_confirmation):
                 res = effective_tool_confirmation(call)
                 if inspect.isawaitable(res):
                     result = await res
                 else:
                     result = res
-
-            # If policy made a decision (not None), we're done
-            if result is not None:
-                handled = True
-
-        # Priority 2: Approval Channel (remote/external approval)
-        if not handled and approval_channel is not None:
-            context = ApprovalContext(
-                tool_name=call.tool_name,
-                tool_args=call.args if isinstance(call.args, dict) else {},
-                tool_call_id=call.tool_call_id,
-            )
-            approval_result = await approval_channel.request_approval(context)
-            result = approval_result.to_pydantic_result()
+                CFG.LOGGER.debug(f"CLI callable returned: {result}")
             handled = True
 
-        # Priority 3: CLI Fallback using ToolCallHandler
-        if not handled:
-            handler = ToolCallHandler()  # Use default handler with no policies
-            result = await handler.handle(ui, call)
-
         current_results.approvals[call.tool_call_id] = result
+
+        # If denied, also remove from calls to prevent execution
+        from pydantic_ai import ToolDenied
+
+        if isinstance(result, ToolDenied):
+            # Remove this call from the results so pydantic AI doesn't execute it
+            if (
+                hasattr(current_results, "calls")
+                and call.tool_call_id in current_results.calls
+            ):
+                del current_results.calls[call.tool_call_id]
+            CFG.LOGGER.debug("Tool denied, removed from calls")
 
         # Hook: PostToolUse / PostToolUseFailure
         from pydantic_ai import ToolApproved

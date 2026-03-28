@@ -40,7 +40,7 @@ class UIConfig:
         config = UIConfig(
             assistant_name="MyBot",
             exit_commands=["/quit", "/bye"],
-            yolo=False,
+            is_yolo=False,
         )
         ui = MyUI(config=config, llm_task=task, history_manager=hist)
     """
@@ -60,7 +60,7 @@ class UIConfig:
     exec_commands: list[str] = field(default_factory=lambda: ["/exec"])
 
     # Behavior
-    yolo: bool = False  # Auto-approve all tool calls
+    is_yolo: bool = False  # Auto-approve all tool calls
     yolo_xcom_key: str = ""  # Empty = auto-generate
 
     # Session
@@ -111,7 +111,7 @@ class UIConfig:
             exec_commands=ui_commands.get("exec", self.exec_commands),
             summarize_commands=self.summarize_commands,
             assistant_name=self.assistant_name,
-            yolo=self.yolo,
+            is_yolo=self.is_yolo,
             yolo_xcom_key=self.yolo_xcom_key,
             conversation_session_name=self.conversation_session_name,
         )
@@ -171,6 +171,9 @@ class SimpleUI(BaseUI):
         initial_message: str = "",
         initial_attachments: list["UserContent"] | None = None,
         model: str | None = None,
+        response_handlers: list["ResponseHandler"] | None = None,
+        tool_policies: list["ToolPolicy"] | None = None,
+        argument_formatters: list["ArgumentFormatter"] | None = None,
         **kwargs,  # Accept extra kwargs for easy subclassing
     ):
         # Accept config parameter
@@ -188,11 +191,11 @@ class SimpleUI(BaseUI):
             initial_message=initial_message,
             initial_attachments=initial_attachments or [],
             conversation_session_name=self._config.conversation_session_name,
-            yolo=self._config.yolo,
+            is_yolo=self._config.is_yolo,
             triggers=[],  # Empty list for triggers
-            response_handlers=[],  # Empty list - will be merged with default_response_handler
-            tool_policies=[],  # Empty list for tool policies
-            argument_formatters=[],  # Empty list for argument formatters
+            response_handlers=response_handlers or [],
+            tool_policies=tool_policies or [],
+            argument_formatters=argument_formatters or [],
             markdown_theme=None,
             summarize_commands=self._config.summarize_commands,
             attach_commands=self._config.attach_commands,
@@ -485,7 +488,44 @@ class BufferedOutputMixin:
         await self._flush_buffer()
 
     def buffer_output(self, text: str):
-        """Add text to buffer. Automatically flushes when full."""
+        """Add text to buffer. Automatically flushes when full.
+
+        Filters out redundant spinner/progress messages that would otherwise
+        be duplicated in event-driven UIs (Telegram, Discord, etc.).
+        """
+        import re
+
+        # Progress characters for spinner animation
+        progress_chars = "⠇⠏⠋⠙⠹⠸⠼⠴⠦⠧⠇⠁⠂⠃"
+
+        # Pattern 1: Pure spinner update - only \r and progress chars
+        pure_spinner_pattern = re.compile(r"^\r[" + progress_chars + r"\s]*$")
+
+        if pure_spinner_pattern.match(text):
+            return
+
+        # Pattern 2: Spinner at end with message like "\r🔄 Prepare tool parameters ⠇"
+        if "\r" in text:
+            text = text.replace("\r", "")
+
+        # Pattern 3: Line ending with spinner (like "🔄 Prepare tool parameters ⠇")
+        if any(c in text for c in progress_chars):
+            text = re.sub(r"[" + progress_chars + r"]+\s*$", "", text)
+            text = text.rstrip()
+
+        # Remove remaining \r
+        text = text.replace("\r", "")
+
+        if not text.strip():
+            return
+
+        # Filter out redundant "Prepare tool parameters" messages
+        # These are progress indicators that get repeated in event-driven UIs
+        # We only want to show the actual tool call notification
+        if "Prepare tool parameters" in text:
+            # Skip this message - the tool call notification is what matters
+            return
+
         self._buffer.append(text)
 
         # Auto-flush when buffer is large
@@ -649,7 +689,7 @@ def create_ui_factory(
                 ctx=ctx, llm_task=llm_task_core, history_manager=history_manager,
                 initial_message=initial_message,
                 conversation_session_name=initial_conversation_name,
-                yolo=initial_yolo, initial_attachments=initial_attachments,
+                is_yolo=initial_yolo, initial_attachments=initial_attachments,
                 exit_commands=ui_commands.get("exit", ["/exit"]),
                 # ... 10+ more lines
             )
@@ -668,7 +708,7 @@ def create_ui_factory(
 
     def factory(
         ctx: AnyContext,
-        llm_task_core: LLMTask,
+        llm_task: LLMTask,
         history_manager: AnyHistoryManager,
         ui_commands: dict[str, list[str]],
         initial_message: str,
@@ -682,12 +722,12 @@ def create_ui_factory(
             cfg = cfg.merge_commands(ui_commands)
 
         # Set yolo and conversation name from parameters
-        cfg.yolo = initial_yolo
+        cfg.is_yolo = initial_yolo
         cfg.conversation_session_name = initial_conversation_name
 
         return ui_class(
             ctx=ctx,
-            llm_task=llm_task_core,
+            llm_task=llm_task,
             history_manager=history_manager,
             config=cfg,
             initial_message=initial_message,
@@ -696,3 +736,108 @@ def create_ui_factory(
         )
 
     return factory
+
+
+def create_bot_ui_factory(
+    ui_class: type,
+    config: UIConfig | None = None,
+    **bot_kwargs,
+) -> Callable:
+    """Create a UI factory for bot-based backends (Telegram, Discord, etc.).
+
+    This is a convenience wrapper around create_ui_factory that handles
+    common bot backend patterns.
+
+    Args:
+        ui_class: Your EventDrivenUI subclass
+        config: Optional UIConfig
+        **bot_kwargs: Bot-specific parameters (token, chat_id, etc.)
+
+    Returns:
+        A factory function for use with llm_chat.append_ui_factory()
+
+    Example:
+        from zrb.llm.ui import EventDrivenUI, create_bot_ui_factory
+        from zrb.builtin.llm.chat import llm_chat
+
+        class TelegramUI(EventDrivenUI):
+            def __init__(self, bot_token, chat_id, **kwargs):
+                super().__init__(**kwargs)
+                self.bot_token = bot_token
+                self.chat_id = chat_id
+
+            async def print(self, text: str) -> None:
+                await self.bot.send_message(self.chat_id, text)
+
+            async def start_event_loop(self) -> None:
+                # Initialize bot
+                ...
+
+        # Single line registration!
+        llm_chat.append_ui_factory(
+            create_bot_ui_factory(
+                TelegramUI,
+                bot_token="TOKEN",
+                chat_id=12345
+            )
+        )
+    """
+    return create_ui_factory(ui_class, config=config, **bot_kwargs)
+
+
+def create_http_ui_factory(
+    ui_class: type,
+    config: UIConfig | None = None,
+    host: str = "localhost",
+    port: int = 8000,
+    **server_kwargs,
+) -> Callable:
+    """Create a UI factory for HTTP-based backends (SSE, WebSocket, REST API).
+
+    This is a convenience wrapper around create_ui_factory that handles
+    common HTTP server patterns.
+
+    Args:
+        ui_class: Your PollingUI or EventDrivenUI subclass
+        config: Optional UIConfig
+        host: Server bind address
+        port: Server port
+        **server_kwargs: Server-specific parameters
+
+    Returns:
+        A factory function for use with llm_chat.append_ui_factory()
+
+    Example:
+        from zrb.llm.ui import EventDrivenUI, create_http_ui_factory
+        from zrb.builtin.llm.chat import llm_chat
+        from aiohttp import web
+
+        class SSEUI(EventDrivenUI):
+            def __init__(self, host, port, **kwargs):
+                super().__init__(**kwargs)
+                self.host = host
+                self.port = port
+
+            async def print(self, text: str) -> None:
+                await self.broadcast(text)
+
+            async def start_event_loop(self) -> None:
+                app = web.Application()
+                # Set up routes
+                ...
+
+        llm_chat.append_ui_factory(
+            create_http_ui_factory(
+                SSEUI,
+                host="localhost",
+                port=8000
+            )
+        )
+    """
+    return create_ui_factory(
+        ui_class,
+        config=config,
+        host=host,
+        port=port,
+        **server_kwargs,
+    )

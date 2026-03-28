@@ -343,3 +343,323 @@ def approval_context():
         tool_call_id="test_call_001",
         session_id="test_session",
     )
+
+
+class TestTerminalApprovalChannelWithHandler:
+    """Tests for TerminalApprovalChannel with UI that has _tool_call_handler."""
+
+    @pytest.mark.asyncio
+    async def test_uses_ui_handler_with_formatters(self):
+        """Test that TerminalApprovalChannel uses UI's _tool_call_handler when available."""
+        mock_ui = MagicMock(spec=UIProtocol)
+        mock_ui.ask_user = AsyncMock(return_value="y")
+        mock_ui.append_to_output = MagicMock()
+
+        # Add a mock tool_call_handler with formatters
+        mock_handler = MagicMock()
+        mock_handler._argument_formatters = ["formatter1", "formatter2"]
+        mock_handler.format_approval_message = AsyncMock(return_value="Confirm message")
+        mock_handler.get_response_handlers = MagicMock(return_value=[])
+        mock_ui._tool_call_handler = mock_handler
+
+        channel = TerminalApprovalChannel(ui=mock_ui)
+        context = ApprovalContext(
+            tool_name="Write",
+            tool_args={"path": "/tmp/test.txt", "content": "hello"},
+            tool_call_id="call_handler_001",
+        )
+
+        result = await channel.request_approval(context)
+
+        assert result.approved is True
+        mock_ui.ask_user.assert_called_once()
+        mock_handler.format_approval_message.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_edit_response_triggers_response_handler_chain(self):
+        """Test that 'e' response triggers response handler chain."""
+        mock_ui = MagicMock(spec=UIProtocol)
+        mock_ui.ask_user = AsyncMock(return_value="e")
+        mock_ui.append_to_output = MagicMock()
+        mock_ui.run_interactive_command = AsyncMock()
+
+        # Add a mock tool_call_handler with response handlers
+        mock_response_handler = AsyncMock()
+        mock_response_handler.return_value = ToolApproved(override_args={"new": "args"})
+        mock_handler = MagicMock()
+        mock_handler.get_response_handlers = MagicMock(
+            return_value=[mock_response_handler]
+        )
+        mock_handler.format_approval_message = AsyncMock(return_value="Confirm message")
+        mock_ui._tool_call_handler = mock_handler
+
+        channel = TerminalApprovalChannel(ui=mock_ui)
+        context = ApprovalContext(
+            tool_name="Edit",
+            tool_args={"path": "/tmp/test.txt", "old_text": "a", "new_text": "b"},
+            tool_call_id="call_edit_001",
+        )
+
+        result = await channel.request_approval(context)
+
+        # Should be approved with override args from response handler
+        assert result.approved is True
+        assert result.override_args == {"new": "args"}
+
+    @pytest.mark.asyncio
+    async def test_unknown_response_denies(self):
+        """Test that unknown response denies the tool."""
+        mock_ui = MagicMock(spec=UIProtocol)
+        mock_ui.ask_user = AsyncMock(return_value="unknown")
+        mock_ui.append_to_output = MagicMock()
+
+        channel = TerminalApprovalChannel(ui=mock_ui)
+        context = ApprovalContext(
+            tool_name="Bash",
+            tool_args={"command": "ls"},
+            tool_call_id="call_unknown_001",
+        )
+
+        result = await channel.request_approval(context)
+
+        assert result.approved is False
+        assert "unknown" in result.message
+
+    @pytest.mark.asyncio
+    async def test_notify_calls_ui_append_to_output(self):
+        """Test that notify method uses UI's append_to_output."""
+        mock_ui = MagicMock(spec=UIProtocol)
+        mock_ui.append_to_output = MagicMock()
+
+        channel = TerminalApprovalChannel(ui=mock_ui)
+        context = ApprovalContext(
+            tool_name="Read",
+            tool_args={},
+            tool_call_id="call_notify_001",
+        )
+
+        await channel.notify("Test message", context)
+
+        mock_ui.append_to_output.assert_called_once_with("Test message")
+
+    @pytest.mark.asyncio
+    async def test_edit_response_falls_back_to_handle_edit(self):
+        """Test that 'e' response falls back to _handle_edit when no handler."""
+        mock_ui = MagicMock(spec=UIProtocol)
+        mock_ui.ask_user = AsyncMock(return_value="e")
+        mock_ui.append_to_output = MagicMock()
+        mock_ui.run_interactive_command = AsyncMock(return_value=0)
+        mock_ui._tool_call_handler = None  # No handler
+
+        channel = TerminalApprovalChannel(ui=mock_ui)
+        context = ApprovalContext(
+            tool_name="Edit",
+            tool_args={"path": "/tmp/test.txt", "old_text": "a", "new_text": "b"},
+            tool_call_id="call_edit_fallback_001",
+        )
+
+        result = await channel.request_approval(context)
+        assert result is not None
+
+
+class TestMultiplexApprovalChannel:
+    """Tests for MultiplexApprovalChannel."""
+
+    @pytest.fixture
+    def mock_channel(self):
+        """Create a mock approval channel."""
+        channel = MagicMock(spec=ApprovalChannel)
+        channel.request_approval = AsyncMock(
+            return_value=ApprovalResult(approved=True, message="Approved")
+        )
+        channel.notify = AsyncMock(return_value=None)
+        return channel
+
+    @pytest.fixture
+    def deny_channel(self):
+        """Create a mock approval channel that denies."""
+        channel = MagicMock(spec=ApprovalChannel)
+        channel.request_approval = AsyncMock(
+            return_value=ApprovalResult(approved=False, message="Denied")
+        )
+        channel.notify = AsyncMock(return_value=None)
+        return channel
+
+    @pytest.mark.asyncio
+    async def test_multiplex_channel_returns_first_response(
+        self, mock_channel, deny_channel
+    ):
+        """Test that MultiplexApprovalChannel returns first response."""
+        from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
+
+        channel = MultiplexApprovalChannel([mock_channel, deny_channel])
+        context = ApprovalContext(
+            tool_name="Bash",
+            tool_args={"command": "ls"},
+            tool_call_id="call_mux_001",
+        )
+
+        result = await channel.request_approval(context)
+
+        # One channel should have been called
+        assert (
+            mock_channel.request_approval.called or deny_channel.request_approval.called
+        )
+
+    @pytest.mark.asyncio
+    async def test_multiplex_channel_races_channels(self, mock_channel, deny_channel):
+        """Test that channels race concurrently."""
+        import asyncio
+
+        from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
+
+        call_times = []
+
+        async def slow_channel_1(ctx):
+            await asyncio.sleep(0.1)
+            call_times.append(1)
+            return ApprovalResult(approved=True, message="Slow")
+
+        async def fast_channel_2(ctx):
+            call_times.append(2)
+            return ApprovalResult(approved=False, message="Fast deny")
+
+        mock_channel.request_approval = slow_channel_1
+        deny_channel.request_approval = fast_channel_2
+
+        channel = MultiplexApprovalChannel([mock_channel, deny_channel])
+        context = ApprovalContext(
+            tool_name="Write",
+            tool_args={"path": "/tmp/test"},
+            tool_call_id="call_mux_002",
+        )
+
+        result = await channel.request_approval(context)
+
+        # Fast channel (2) should have been called first
+        assert call_times[0] == 2
+
+    @pytest.mark.asyncio
+    async def test_multiplex_channel_cancels_pending(self, mock_channel, deny_channel):
+        """Test that pending channels are cancelled when one responds."""
+        import asyncio
+
+        from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
+
+        slow_task = None
+
+        async def slow_channel(ctx):
+            nonlocal slow_task
+            slow_task = asyncio.current_task()
+            await asyncio.sleep(1)  # Would block forever
+            return ApprovalResult(approved=True, message="Never")
+
+        async def fast_channel(ctx):
+            await asyncio.sleep(0.05)
+            return ApprovalResult(approved=True, message="Fast")
+
+        mock_channel.request_approval = slow_channel
+        deny_channel.request_approval = fast_channel
+
+        channel = MultiplexApprovalChannel([mock_channel, deny_channel])
+        context = ApprovalContext(
+            tool_name="Read",
+            tool_args={},
+            tool_call_id="call_mux_003",
+        )
+
+        result = await channel.request_approval(context)
+
+        assert result.approved is True
+        assert result.message == "Fast"
+
+    @pytest.mark.asyncio
+    async def test_multiplex_channel_empty_list_auto_approves(self):
+        """Test that empty channel list auto-approves."""
+        from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
+
+        channel = MultiplexApprovalChannel([])
+        context = ApprovalContext(
+            tool_name="Bash",
+            tool_args={},
+            tool_call_id="call_mux_004",
+        )
+
+        result = await channel.request_approval(context)
+
+        assert result.approved is True
+
+    @pytest.mark.asyncio
+    async def test_multiplex_channel_handles_exception(self):
+        """Test that exceptions in channels don't crash the multiplex."""
+        from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
+
+        async def failing_channel(ctx):
+            raise Exception("Channel error")
+
+        async def working_channel(ctx):
+            return ApprovalResult(approved=True, message="Working")
+
+        failing_mock = MagicMock(spec=ApprovalChannel)
+        failing_mock.request_approval = failing_channel
+
+        working_mock = MagicMock(spec=ApprovalChannel)
+        working_mock.request_approval = working_channel
+
+        channel = MultiplexApprovalChannel([failing_mock, working_mock])
+        context = ApprovalContext(
+            tool_name="Write",
+            tool_args={},
+            tool_call_id="call_mux_005",
+        )
+
+        # Should not raise, but result depends on race order
+        # Working channel might win the race before failing channel sets result
+        result = await channel.request_approval(context)
+
+        # At minimum, the request should complete without raising
+        assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_multiplex_notify_broadcasts(self, mock_channel, deny_channel):
+        """Test that notify broadcasts to all channels."""
+        from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
+
+        channel = MultiplexApprovalChannel([mock_channel, deny_channel])
+        context = ApprovalContext(
+            tool_name="Read",
+            tool_args={},
+            tool_call_id="call_mux_006",
+        )
+
+        await channel.notify("Test notification", context)
+
+        mock_channel.notify.assert_called_once()
+        deny_channel.notify.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_multiplex_notify_handles_exception(self, mock_channel):
+        """Test that notify handles exceptions gracefully."""
+        from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
+
+        async def failing_notify(msg, ctx):
+            raise Exception("Notify failed")
+
+        mock_channel.notify = failing_notify
+
+        deny_channel = MagicMock(spec=ApprovalChannel)
+
+        async def working_notify(msg, ctx):
+            return None
+
+        deny_channel.notify = working_notify
+
+        channel = MultiplexApprovalChannel([mock_channel, deny_channel])
+        context = ApprovalContext(
+            tool_name="Read",
+            tool_args={},
+            tool_call_id="call_mux_007",
+        )
+
+        # Should not raise
+        await channel.notify("Test", context)

@@ -68,6 +68,8 @@ class ToolCallHandler:
         ui: UIProtocol,
         call: ToolCallPart,
     ) -> ToolApproved | ToolDenied | None:
+        from pydantic_ai import ToolApproved, ToolDenied
+
         # Tool Policies (Pre-confirmation)
         policy_result = await self.check_policies(ui, call)
         if policy_result is not None:
@@ -91,15 +93,9 @@ class ToolCallHandler:
                     # Default behavior: simple y/n check
                     r = response.lower().strip()
                     if r in ("y", "yes", "ok", "accept", "✅", ""):
-                        from pydantic_ai import ToolApproved
-
                         return ToolApproved()
-
-                    from pydantic_ai import ToolDenied
-
                     if r in ("n", "no", "deny", "cancel", "🛑"):
                         return ToolDenied("User denied")
-
                     return ToolDenied(f"User denied execution with message: {response}")
 
                 handler = self._response_handlers[index]
@@ -122,11 +118,22 @@ class ToolCallHandler:
     ) -> ToolApproved | ToolDenied | None:
         return await check_tool_policies(self._tool_policies, ui, call)
 
-    async def _get_confirm_user_message(
+    async def format_approval_message(
         self,
         ui: UIProtocol,
         call: ToolCallPart,
+        approval_instruction: str | None = None,
     ) -> str:
+        """Format the approval request message for a tool call.
+
+        Args:
+            ui: The UI protocol for any async operations
+            call: The tool call being approved
+            approval_instruction: Custom approval instruction. If None, uses default.
+
+        This method is public so approval channels can use it to generate
+        consistent messages. Use this instead of the internal _get_confirm_user_message.
+        """
         args_section = ""
         if f"{call.args}" != "{}":
             args_str = self._format_args(call.args)
@@ -137,11 +144,30 @@ class ToolCallHandler:
             if new_args_section is not None:
                 args_section = new_args_section
 
+        instruction = (
+            approval_instruction or "  ❓ Allow tool Execution? (✅ Y | 🛑 n | ✏️ e)? "
+        )
+
         return (
             f"  🎰 Executing tool '{call.tool_name}'\n"
             f"{args_section}"
-            "  ❓ Allow tool Execution? (✅ Y | 🛑 n | ✏️ e)? "
+            f"{instruction}"
         )
+
+    def get_response_handlers(self) -> list[ResponseHandler]:
+        """Get the list of response handlers.
+
+        This is public so approval channels can delegate to these handlers
+        for advanced responses (like edit-in-place).
+        """
+        return self._response_handlers
+
+    async def _get_confirm_user_message(
+        self,
+        ui: UIProtocol,
+        call: ToolCallPart,
+    ) -> str:
+        return await self.format_approval_message(ui, call)
 
     def _format_args(self, args: Any) -> str:
         indent = " " * 7

@@ -227,9 +227,15 @@ class LLMChatTask(BaseTask):
         self._render_conversation_name = render_conversation_name
         self._history_manager = history_manager
         self._tool_confirmation = tool_confirmation
-        self._ui = ui
-        self._ui_factory = ui_factory
-        self._approval_channel = approval_channel
+        self._uis: list["UIProtocol"] = []
+        if ui is not None:
+            self._uis.append(ui)
+        self._ui_factories: list[Callable[..., "UIProtocol"]] = []
+        if ui_factory is not None:
+            self._ui_factories.append(ui_factory)
+        self._approval_channels: list["ApprovalChannel"] = []
+        if approval_channel is not None:
+            self._approval_channels.append(approval_channel)
         self._yolo = yolo
         self._yolo_xcom_key = yolo_xcom_key
         self._ui_summarize_commands = (
@@ -294,22 +300,29 @@ class LLMChatTask(BaseTask):
             raise ValueError(f"Task {self.name} doesn't have prompt_manager")
         return self._prompt_manager
 
-    def set_ui(self, ui: "UIProtocol | None"):
-        """Set the UI protocol for this task."""
-        self._ui = ui
+    def set_ui(self, ui: "UIProtocol | list[UIProtocol] | None"):
+        """Set the UI protocol(s) for this task."""
+        self._uis = [] if ui is None else (ui if isinstance(ui, list) else [ui])
+
+    def append_ui(self, ui: "UIProtocol") -> None:
+        """Append a UI to the list of UIs."""
+        self._uis.append(ui)
 
     def set_ui_factory(self, ui_factory: Callable[..., "UIProtocol"] | None):
-        """Set a factory function to instantiate the UI dynamically during execution.
+        """Set a factory function to instantiate the UI dynamically during execution."""
+        self._ui_factories = [] if ui_factory is None else [ui_factory]
 
-        The factory should accept:
-        (ctx, llm_task_core, history_manager, ui_commands, initial_message,
-        initial_conversation_name, initial_yolo, initial_attachments)
-        """
-        self._ui_factory = ui_factory
+    def append_ui_factory(self, factory: Callable[..., "UIProtocol"]) -> None:
+        """Append a UI factory to the list of factories."""
+        self._ui_factories.append(factory)
 
-    def set_approval_channel(self, approval_channel: "ApprovalChannel | None"):
+    def set_approval_channel(self, channel: "ApprovalChannel | None"):
         """Set the approval channel for tool confirmations."""
-        self._approval_channel = approval_channel
+        self._approval_channels = [] if channel is None else [channel]
+
+    def append_approval_channel(self, channel: "ApprovalChannel") -> None:
+        """Append an approval channel to the list."""
+        self._approval_channels.append(channel)
 
     def add_toolset(self, *toolset: AbstractToolset):
         self.append_toolset(*toolset)
@@ -434,7 +447,7 @@ class LLMChatTask(BaseTask):
                 initial_attachments=initial_attachments,
             )
 
-        return await self._run_interactive_ui(
+        return await self._run_interactive_session(
             ctx=ctx,
             llm_task_core=llm_task_core,
             history_manager=history_manager,
@@ -537,7 +550,9 @@ class LLMChatTask(BaseTask):
 
         # Determine the tool confirmation and ui to use
         tool_confirmation = self._tool_confirmation
-        ui = self._ui  # Use programmatically set UI if provided
+        ui = (
+            self._uis if self._uis else None
+        )  # Use programmatically set UIs if provided
 
         if interactive:
             # Interactive mode: Let the UI handle everything
@@ -546,19 +561,40 @@ class LLMChatTask(BaseTask):
         elif (
             self._tool_policies or self._response_handlers or self._argument_formatters
         ):
-            # Non-interactive: Use ToolCallHandler, with StdUI if no UI provided
-            if ui is None:
+            # Non-interactive with policies/handlers/formatters: Use ToolCallHandler
+            if not ui:
                 ui = StdUI()
             tool_confirmation = ToolCallHandler(
                 tool_policies=self._tool_policies,
                 argument_formatters=self._argument_formatters,
                 response_handlers=self._response_handlers,
             )
+        else:
+            # Non-interactive without policies: Use UI for approval
+            if not ui:
+                ui = StdUI()
+            # tool_confirmation = None (let UI handle it via approval_channel)
 
         def check_yolo(*args, **kwargs):
             if self._yolo_xcom_key not in ctx.xcom:
                 return False
             return ctx.xcom[self._yolo_xcom_key].get(False)
+
+        # Create MultiplexApprovalChannel if multiple channels
+        effective_approval_channel = None
+        if len(self._approval_channels) == 1:
+            effective_approval_channel = self._approval_channels[0]
+        elif len(self._approval_channels) > 1:
+            from zrb.llm.approval import MultiplexApprovalChannel
+
+            effective_approval_channel = MultiplexApprovalChannel(
+                self._approval_channels
+            )
+
+        CFG.LOGGER.debug("llm_chat_task _create_llm_task_core:")
+        CFG.LOGGER.debug(f"  tool_confirmation: {tool_confirmation}")
+        CFG.LOGGER.debug(f"  effective_approval_channel: {effective_approval_channel}")
+        CFG.LOGGER.debug(f"  _approval_channels: {self._approval_channels}")
 
         # Pass resolved tools/toolsets to LLMTask (no factories needed since already resolved)
         return LLMTask(
@@ -586,7 +622,7 @@ class LLMChatTask(BaseTask):
             history_manager=history_manager,
             tool_confirmation=tool_confirmation,
             ui=ui,
-            approval_channel=self._approval_channel,
+            approval_channel=effective_approval_channel,
             message="{ctx.input.message}",
             conversation_name="{ctx.input.session}",
             yolo="{ctx.input.yolo}",
@@ -621,7 +657,7 @@ class LLMChatTask(BaseTask):
         session = Session(shared_ctx)
         return await llm_task_core.async_run(session)
 
-    async def _run_interactive_ui(
+    async def _run_interactive_session(
         self,
         ctx: AnyContext,
         llm_task_core: LLMTask,
@@ -635,11 +671,12 @@ class LLMChatTask(BaseTask):
         from zrb.llm.ui.base_ui import BaseUI
 
         # Note: AsyncExitStack is handled by LLMTask._exec_action
-        # 1. Resolve UI from factory if provided
-        if self._ui_factory is not None:
-            ui = self._ui_factory(
+        # 1. Resolve UIs from factories
+        resolved_uis: list["UIProtocol"] = list(self._uis)
+        for factory in self._ui_factories:
+            factory_ui = factory(
                 ctx=ctx,
-                llm_task_core=llm_task_core,
+                llm_task=llm_task_core,
                 history_manager=history_manager,
                 ui_commands=ui_commands,
                 initial_message=initial_message,
@@ -647,20 +684,12 @@ class LLMChatTask(BaseTask):
                 initial_yolo=initial_yolo,
                 initial_attachments=initial_attachments,
             )
-        else:
-            ui = self._ui
+            if isinstance(factory_ui, list):
+                resolved_uis.extend(factory_ui)
+            else:
+                resolved_uis.append(factory_ui)
 
-        if isinstance(ui, BaseUI):
-            # If the provided UI is already a BaseUI subclass (like TelegramUI),
-            # just run it. We assume it's already properly configured.
-            await ui.run_async()
-            return ui.last_output
-
-        # Otherwise, fall back to the default Terminal UI
-        from zrb.llm.app.lexer import CLIStyleLexer
-        from zrb.llm.ui.default_ui import UI
-
-        # Resolve UI attributes
+        # 2. Resolve UI attributes for default UI
         ui_greeting = get_str_attr(ctx, self._ui_greeting, "", self._render_ui_greeting)
         ui_assistant_name = get_str_attr(
             ctx, self._ui_assistant_name, "", self._render_ui_assistant_name
@@ -682,40 +711,108 @@ class LLMChatTask(BaseTask):
             else:
                 resolved_custom_commands.append(cmd)
 
-        ui = UI(
-            ctx=ctx,
-            yolo_xcom_key=self._yolo_xcom_key,
-            greeting=ui_greeting,
-            assistant_name=ui_assistant_name,
-            ascii_art=ascii_art,
-            jargon=ui_jargon,
-            output_lexer=CLIStyleLexer(),
-            llm_task=llm_task_core,
-            history_manager=history_manager,
-            initial_message=initial_message,
-            initial_attachments=initial_attachments,
-            conversation_session_name=initial_conversation_name,
-            yolo=initial_yolo,
-            triggers=self._triggers,
-            response_handlers=self._response_handlers,
-            tool_policies=self._tool_policies,
-            argument_formatters=self._argument_formatters,
-            markdown_theme=self._markdown_theme,
-            summarize_commands=ui_commands["summarize"],
-            attach_commands=ui_commands["attach"],
-            exit_commands=ui_commands["exit"],
-            info_commands=ui_commands["info"],
-            save_commands=ui_commands["save"],
-            load_commands=ui_commands["load"],
-            yolo_toggle_commands=ui_commands["yolo_toggle"],
-            set_model_commands=ui_commands["set_model"],
-            redirect_output_commands=ui_commands["redirect_output"],
-            exec_commands=ui_commands["exec"],
-            custom_commands=resolved_custom_commands,
-            model=self._get_model(ctx),
-        )
-        await ui.run_async()
-        return ui.last_output
+        # 3. Determine the UI to use
+        from zrb.llm.app.lexer import CLIStyleLexer
+        from zrb.llm.ui.default_ui import UI
+        from zrb.llm.ui.multi_ui import MultiUI
+
+        ui: "UIProtocol | None" = None
+
+        if resolved_uis:
+            # We have factory UIs - create default UI and combine them
+            default_ui = UI(
+                ctx=ctx,
+                yolo_xcom_key=self._yolo_xcom_key,
+                greeting=ui_greeting,
+                assistant_name=ui_assistant_name,
+                ascii_art=ascii_art,
+                jargon=ui_jargon,
+                output_lexer=CLIStyleLexer(),
+                llm_task=llm_task_core,
+                history_manager=history_manager,
+                initial_message=initial_message,
+                initial_attachments=initial_attachments,
+                conversation_session_name=initial_conversation_name,
+                is_yolo=initial_yolo,
+                triggers=self._triggers,
+                response_handlers=self._response_handlers,
+                tool_policies=self._tool_policies,
+                argument_formatters=self._argument_formatters,
+                markdown_theme=self._markdown_theme,
+                summarize_commands=ui_commands["summarize"],
+                attach_commands=ui_commands["attach"],
+                exit_commands=ui_commands["exit"],
+                info_commands=ui_commands["info"],
+                save_commands=ui_commands["save"],
+                load_commands=ui_commands["load"],
+                yolo_toggle_commands=ui_commands["yolo_toggle"],
+                set_model_commands=ui_commands["set_model"],
+                redirect_output_commands=ui_commands["redirect_output"],
+                exec_commands=ui_commands["exec"],
+                custom_commands=resolved_custom_commands,
+                model=self._get_model(ctx),
+            )
+            # Add default UI first, then factory UIs
+            all_uis = [default_ui] + resolved_uis
+            if len(all_uis) == 1:
+                ui = default_ui
+            else:
+                ui = MultiUI(all_uis)
+                # Set up approval channel for MultiUI
+                if len(self._approval_channels) == 1:
+                    ui.set_approval_channel(self._approval_channels[0])
+                elif len(self._approval_channels) > 1:
+                    from zrb.llm.approval import MultiplexApprovalChannel
+
+                    ui.set_approval_channel(
+                        MultiplexApprovalChannel(self._approval_channels)
+                    )
+                # Set tool call handler so CLI mode has same formatters as standalone CLI
+                ui.set_tool_call_handler(default_ui.tool_call_handler)
+        else:
+            # No factory UIs, use default UI
+            ui = UI(
+                ctx=ctx,
+                yolo_xcom_key=self._yolo_xcom_key,
+                greeting=ui_greeting,
+                assistant_name=ui_assistant_name,
+                ascii_art=ascii_art,
+                jargon=ui_jargon,
+                output_lexer=CLIStyleLexer(),
+                llm_task=llm_task_core,
+                history_manager=history_manager,
+                initial_message=initial_message,
+                initial_attachments=initial_attachments,
+                conversation_session_name=initial_conversation_name,
+                is_yolo=initial_yolo,
+                triggers=self._triggers,
+                response_handlers=self._response_handlers,
+                tool_policies=self._tool_policies,
+                argument_formatters=self._argument_formatters,
+                markdown_theme=self._markdown_theme,
+                summarize_commands=ui_commands["summarize"],
+                attach_commands=ui_commands["attach"],
+                exit_commands=ui_commands["exit"],
+                info_commands=ui_commands["info"],
+                save_commands=ui_commands["save"],
+                load_commands=ui_commands["load"],
+                yolo_toggle_commands=ui_commands["yolo_toggle"],
+                set_model_commands=ui_commands["set_model"],
+                redirect_output_commands=ui_commands["redirect_output"],
+                exec_commands=ui_commands["exec"],
+                custom_commands=resolved_custom_commands,
+                model=self._get_model(ctx),
+            )
+
+        # 4. Run the UI
+        if ui is not None and isinstance(ui, BaseUI):
+            await ui.run_async()
+            return ui.last_output
+        elif ui is not None and hasattr(ui, "run_async"):
+            await ui.run_async()
+            return getattr(ui, "last_output", "")
+        else:
+            raise ValueError(f"UI {type(ui)} does not implement run_async")
 
     def _get_conversation_name(self, ctx: AnyContext) -> str:
         conversation_name = str(

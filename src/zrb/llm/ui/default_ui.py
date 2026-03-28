@@ -60,7 +60,7 @@ class UI(BaseUI):
         initial_message: Any = "",
         initial_attachments: list["UserContent"] = [],
         conversation_session_name: str = "",
-        yolo: bool = False,
+        is_yolo: bool = False,
         triggers: list[Callable[[], AsyncIterable[Any]]] = [],
         response_handlers: list[ResponseHandler] = [],
         tool_policies: list[ToolPolicy] = [],
@@ -88,7 +88,7 @@ class UI(BaseUI):
             initial_message=initial_message,
             initial_attachments=initial_attachments,
             conversation_session_name=conversation_session_name,
-            yolo=yolo,
+            is_yolo=is_yolo,
             triggers=triggers,
             response_handlers=response_handlers,
             tool_policies=tool_policies,
@@ -416,7 +416,7 @@ class UI(BaseUI):
 
         yolo_text = (
             "<style color='ansired'><b>ON </b></style>"
-            if self._yolo
+            if self.yolo
             else "<style color='ansigreen'>OFF</style>"
         )
 

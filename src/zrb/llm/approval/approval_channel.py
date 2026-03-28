@@ -34,13 +34,14 @@ class ApprovalResult:
 
     approved: bool
     message: str = ""
+    override_args: dict[str, Any] | None = None
 
     def to_pydantic_result(self) -> ToolApproved | ToolDenied:
         """Convert to Pydantic AI result types."""
         if self.approved:
             from pydantic_ai import ToolApproved
 
-            return ToolApproved()
+            return ToolApproved(override_args=self.override_args)
         else:
             from pydantic_ai import ToolDenied
 

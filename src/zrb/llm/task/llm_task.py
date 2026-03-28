@@ -179,8 +179,11 @@ class LLMTask(BaseTask):
         self._render_conversation_name = render_conversation_name
         self._history_manager = history_manager
         self._tool_confirmation = tool_confirmation
-        self._ui = ui
+        self._uis: list[UIProtocol] = []
+        if ui is not None:
+            self._uis.append(ui)
         self._yolo = yolo
+        self._ui_factories: list[Callable[..., UIProtocol]] = []
         self._dynamic_yolo = dynamic_yolo
         self._approval_channel = approval_channel
         self._summarize_command = (
@@ -194,7 +197,13 @@ class LLMTask(BaseTask):
         return self._prompt_manager
 
     def set_ui(self, ui: UIProtocol | None):
-        self._ui = ui
+        self._uis = [] if ui is None else [ui]
+
+    def append_ui(self, ui: UIProtocol) -> None:
+        self._uis.append(ui)
+
+    def get_uis(self) -> list[UIProtocol]:
+        return list(self._uis)
 
     @property
     def tool_confirmation(self) -> AnyToolConfirmation:
@@ -304,6 +313,9 @@ class LLMTask(BaseTask):
                 if callable(self._dynamic_yolo)
                 else get_bool_attr(ctx, self._yolo, False)
             )
+            CFG.LOGGER.debug("llm_task Calling run_agent with:")
+            CFG.LOGGER.debug(f"  tool_confirmation: {self._tool_confirmation}")
+            CFG.LOGGER.debug(f"  approval_channel: {self._approval_channel}")
             output, new_history = await run_agent(
                 agent=agent,
                 message=effective_message,
@@ -314,7 +326,7 @@ class LLMTask(BaseTask):
                 event_handler=handle_event,
                 tool_confirmation=self._tool_confirmation,
                 hook_manager=self._hook_manager,
-                ui=self._ui,
+                ui=self._uis,
                 yolo=yolo_value,
                 approval_channel=self._approval_channel,
             )
