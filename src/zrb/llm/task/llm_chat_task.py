@@ -36,6 +36,7 @@ from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_attr, get_bool_attr, get_str_attr
+from zrb.util.cli.style import stylize_bold_yellow, stylize_faint
 from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
 
@@ -402,7 +403,7 @@ class LLMChatTask(BaseTask):
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
         # 1. Resolve inputs/attributes
-        initial_conversation_name = self._get_conversation_name(ctx)
+        initial_conversation_name = self._get_initial_conversation_name(ctx)
         initial_yolo = get_bool_attr(ctx, self._yolo, False)
         if self._yolo_xcom_key not in ctx.xcom:
             ctx.xcom[self._yolo_xcom_key] = Xcom()
@@ -655,7 +656,9 @@ class LLMChatTask(BaseTask):
             print_fn=ctx.shared_print,  # Use current task's print function
         )
         session = Session(shared_ctx)
-        return await llm_task_core.async_run(session)
+        result = await llm_task_core.async_run(session)
+        self._print_conversation_name(ctx, initial_conversation_name)
+        return result
 
     async def _run_interactive_session(
         self,
@@ -805,22 +808,43 @@ class LLMChatTask(BaseTask):
             )
 
         # 4. Run the UI
-        if ui is not None and isinstance(ui, BaseUI):
+        if ui is None:
+            raise ValueError("No UI available")
+        if isinstance(ui, BaseUI) or hasattr(ui, "run_async"):
             await ui.run_async()
-            return ui.last_output
-        elif ui is not None and hasattr(ui, "run_async"):
-            await ui.run_async()
-            return getattr(ui, "last_output", "")
         else:
             raise ValueError(f"UI {type(ui)} does not implement run_async")
+        last_output = getattr(ui, "last_output", "")
+        final_conversation_name = self._get_ui_conversation_name(
+            ui, initial_conversation_name
+        )
+        self._print_conversation_name(ctx, final_conversation_name)
+        return last_output
 
-    def _get_conversation_name(self, ctx: AnyContext) -> str:
+    def _print_conversation_name(self, ctx: AnyContext, conversation_name: str):
+        stylized_label = stylize_faint("Session")
+        stylized_conversation_name = stylize_bold_yellow(conversation_name)
+        ctx.print(
+            stylize_faint(f"{stylized_label}: {stylized_conversation_name}"), plain=True
+        )
+
+    def _get_initial_conversation_name(self, ctx: AnyContext) -> str:
         conversation_name = str(
             get_attr(ctx, self._conversation_name, "", self._render_conversation_name)
         )
         if conversation_name.strip() == "":
             conversation_name = get_random_name()
         return conversation_name
+
+    def _get_ui_conversation_name(
+        self, ui: "UIProtocol", initial_conversation_name: str
+    ) -> str:
+        """Get the current conversation name from UI or fallback to initial name."""
+        from zrb.llm.ui.base_ui import BaseUI
+
+        if isinstance(ui, BaseUI):
+            return ui.conversation_session_name
+        return getattr(ui, "conversation_session_name", initial_conversation_name)
 
     def _get_model(self, ctx: AnyContext) -> str | Model:
         model = self._model

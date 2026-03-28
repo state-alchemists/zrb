@@ -30,6 +30,9 @@ System Context provides facts. Don't re-discover known information.
 | **LSP Find References** | Find where symbol is used |
 | **LSP Get Diagnostics** | Check for errors |
 | **Read** | Get full file content |
+| **WriteTodos** | Plan complex multi-step tasks |
+| **UpdateTodo** | Mark task progress |
+| **GetTodos** | Review current task list |
 
 **Rule**: Verify before modifying. Run tests or trace code paths.
 
