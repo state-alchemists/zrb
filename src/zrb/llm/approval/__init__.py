@@ -8,25 +8,25 @@ APPROVAL CHANNEL HIERARCHY
 ═════════════════════════════════════════════════════════════════════════════
 
     ┌────────────────────────────────────────────────────────────────────────┐
-    │ ApprovalChannel (Protocol)                                            │
-    │   - request_approval(context): Wait for user approval               │
-    │   - notify(message, context): Send informational message            │
-    │   - Implement for custom backends                                    │
+    │ ApprovalChannel (Protocol)                                             │
+    │   - request_approval(context): Wait for user approval                  │
+    │   - notify(message, context): Send informational message               │
+    │   - Implement for custom backends                                      │
     ├────────────────────────────────────────────────────────────────────────┤
-    │ Built-in Implementations:                                             │
+    │ Built-in Implementations:                                              │
     ├────────────────────────────────────────────────────────────────────────┤
-    │ TerminalApprovalChannel                                              │
-    │   - Uses UIProtocol for terminal interaction                        │
-    │   - Default when no custom channel is set                           │
+    │ TerminalApprovalChannel                                                │
+    │   - Uses UIProtocol for terminal interaction                           │
+    │   - Default when no custom channel is set                              │
     │                                                                        │
-    │ NullApprovalChannel                                                  │
-    │   - Auto-approves all tool calls (YOLO mode)                        │
-    │   - Use: llm_chat.set_approval_channel(NullApprovalChannel())       │
+    │ NullApprovalChannel                                                    │
+    │   - Auto-approves all tool calls (YOLO mode)                           │
+    │   - Use: llm_chat.set_approval_channel(NullApprovalChannel())          │
     │                                                                        │
-    │ MultiplexApprovalChannel                                             │
-    │   - Combines multiple approval channels                              │
-    │   - First response wins (any channel can approve)                   │
-    │   - Auto-created when multiple channels are added                   │
+    │ MultiplexApprovalChannel                                               │
+    │   - Combines multiple approval channels                                │
+    │   - First response wins (any channel can approve)                      │
+    │   - Auto-created when multiple channels are added                      │
     └────────────────────────────────────────────────────────────────────────┘
 
 SIMPLE APPROVAL CHANNEL
