@@ -447,7 +447,7 @@ class LLMChatTask(BaseTask):
                 initial_attachments=initial_attachments,
             )
 
-        return await self._run_interactive_ui(
+        return await self._run_interactive_session(
             ctx=ctx,
             llm_task_core=llm_task_core,
             history_manager=history_manager,
@@ -657,7 +657,7 @@ class LLMChatTask(BaseTask):
         session = Session(shared_ctx)
         return await llm_task_core.async_run(session)
 
-    async def _run_interactive_ui(
+    async def _run_interactive_session(
         self,
         ctx: AnyContext,
         llm_task_core: LLMTask,

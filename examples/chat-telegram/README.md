@@ -1,9 +1,7 @@
 # Telegram + CLI Chat Example
 
-This example supports **two modes**:
-
-1. **CLI only** (default) - Just run `zrb llm chat`
-2. **Telegram + CLI** (dual) - Enable with `TELEGRAM_MODE=true`
+This example provides **CLI + Telegram dual mode** chat.
+Both Telegram and terminal receive all messages and can respond.
 
 ## Setup
 
@@ -30,7 +28,6 @@ pip install python-telegram-bot>=20.0
 ### 4. Set Environment Variables
 
 ```bash
-export TELEGRAM_MODE="true"
 export TELEGRAM_BOT_TOKEN="your_bot_token"
 export TELEGRAM_CHAT_ID="your_chat_id"
 ```
@@ -42,43 +39,42 @@ cd examples/chat-telegram
 zrb llm chat "Hello!"
 ```
 
-### Modes
-
-**CLI only** (default, no env vars needed):
-```bash
-zrb llm chat
-```
-
-**Telegram + CLI dual mode** (with TELEGRAM_MODE=true):
-```bash
-export TELEGRAM_MODE="true"
-zrb llm chat
-```
+**Note:** Both environment variables **must** be set. If not, the example will exit with an error.
 
 Output:
 ```
 🤖 Telegram + CLI dual mode for chat ID: 123456789
    Both channels receive all messages.
    Approvals work from both - first response wins!
+   Tool argument editing available on Telegram!
 ```
 
 ## How It Works
 
+When you run `zrb llm chat` from this directory:
+
+1. The example checks for `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` environment variables
+2. If both are set, it registers a Telegram UI factory alongside the default terminal UI
+3. It also registers a Telegram approval channel alongside terminal approval
+
 ```python
-# Add Telegram UI alongside default terminal UI
-llm_chat.append_ui_factory(create_ui_factory(TelegramUI, bot=bot, chat_id=CHAT_ID))
+# Add Telegram UI alongside default terminal UI (dual mode)
+llm_chat.append_ui_factory(telegram_ui_factory)
 
 # Add Telegram approval alongside terminal approval
-llm_chat.append_approval_channel(TelegramApproval(bot, CHAT_ID))
+llm_chat.append_approval_channel(telegram_approval)
 ```
 
 The framework automatically creates:
-- `MultiUI` to broadcast output to all UIs
-- `MultiplexApprovalChannel` to wait for first approval response
+- **Dual UI**: Messages broadcast to both Telegram and terminal
+- **Multiplexed Approvals**: First response from either channel wins
+- **Edit routing**: Telegram messages route to approval channel when editing tool arguments
 
 ## Features
 
 - **Dual Output**: LLM responses appear in BOTH Telegram and terminal
 - **Dual Input**: Reply from EITHER Telegram or terminal
-- **Multiplexed Approvals**: Approve/deny from either channel
+- **Multiplexed Approvals**: Approve/deny from either channel (first response wins)
+- **Tool Argument Editing**: Edit tool arguments via Telegram with JSON/YAML support
 - **Shared History**: One conversation, synced across channels
+- **Message Splitting**: Long messages automatically split for Telegram's 4000-character limit

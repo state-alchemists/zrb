@@ -68,6 +68,8 @@ class ToolCallHandler:
         ui: UIProtocol,
         call: ToolCallPart,
     ) -> ToolApproved | ToolDenied | None:
+        from pydantic_ai import ToolApproved, ToolDenied
+
         # Tool Policies (Pre-confirmation)
         policy_result = await self.check_policies(ui, call)
         if policy_result is not None:
@@ -91,15 +93,9 @@ class ToolCallHandler:
                     # Default behavior: simple y/n check
                     r = response.lower().strip()
                     if r in ("y", "yes", "ok", "accept", "✅", ""):
-                        from pydantic_ai import ToolApproved
-
                         return ToolApproved()
-
-                    from pydantic_ai import ToolDenied
-
                     if r in ("n", "no", "deny", "cancel", "🛑"):
                         return ToolDenied("User denied")
-
                     return ToolDenied(f"User denied execution with message: {response}")
 
                 handler = self._response_handlers[index]

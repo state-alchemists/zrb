@@ -1,33 +1,26 @@
 """
-Telegram + CLI Chat - Unified Example
+Telegram + CLI Chat - Dual Mode Example
 
-This example supports THREE modes based on environment variables:
+This example provides CLI + Telegram dual mode chat.
+Both Telegram and terminal receive all messages and can respond.
 
-1. CLI only (default):
-   - Just run `zrb llm chat`
-
-2. Telegram only:
-   - Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID
-   - Interactive=False to disable terminal UI
-
-3. CLI + Telegram (dual):
-   - Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID
-   - Use MultiUI to broadcast to both channels
-   - Use MultiplexApprovalChannel for approvals from both
+Setup:
+1. Create Telegram bot via @BotFather
+2. Get your chat ID
+3. Set environment variables:
+   export TELEGRAM_BOT_TOKEN="your-bot-token"
+   export TELEGRAM_CHAT_ID="your-chat-id"
 
 Usage:
-    # CLI only
-    zrb llm chat
+    cd examples/chat-telegram
+    zrb llm chat "Hello!"
 
-    # Telegram only
-    export TELEGRAM_BOT_TOKEN="your-token"
-    export TELEGRAM_CHAT_ID="your-chat-id"
-    zrb llm chat
-
-    # CLI + Telegram
-    export TELEGRAM_BOT_TOKEN="your-token"
-    export TELEGRAM_CHAT_ID="your-chat-id"
-    # Note: Default terminal UI + Telegram UI will both receive messages
+Features:
+- Dual Output: LLM responses appear in BOTH Telegram and terminal
+- Dual Input: Reply from EITHER Telegram or terminal
+- Multiplexed Approvals: Approve/deny from either channel (first response wins)
+- Tool argument editing available on Telegram
+- Shared History: One conversation, synced across channels
 """
 
 import asyncio
@@ -48,16 +41,14 @@ from zrb.llm.approval import (
     ApprovalChannel,
     ApprovalContext,
     ApprovalResult,
-    MultiplexApprovalChannel,
 )
 from zrb.llm.ui.simple_ui import (
     BufferedOutputMixin,
     EventDrivenUI,
-    create_ui_factory,
 )
 
-BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 
 
 # =============================================================================
@@ -402,12 +393,14 @@ class TelegramApproval(ApprovalChannel):
 
 
 # =============================================================================
-# Integration
+# Integration - CLI + Telegram Dual Mode Only
 # =============================================================================
 
-bot = TelegramBot.get(BOT_TOKEN)
 
 if BOT_TOKEN and CHAT_ID:
+    # Create bot instance
+    bot = TelegramBot.get(BOT_TOKEN)
+
     # Create approval channel first
     telegram_approval = TelegramApproval(bot, CHAT_ID)
 
@@ -455,9 +448,8 @@ if BOT_TOKEN and CHAT_ID:
     print("   Approvals work from both - first response wins!")
     print("   Tool argument editing available on Telegram!")
 
-elif BOT_TOKEN or CHAT_ID:
-    print("⚠️  Set both TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID")
-
 else:
-    # CLI only (no telegram env vars) - this shouldn't happen for this example
-    pass
+    print("❌ Telegram + CLI dual mode requires both environment variables:")
+    print('   export TELEGRAM_BOT_TOKEN="your-bot-token"')
+    print('   export TELEGRAM_CHAT_ID="your-chat-id"')
+    print("\nSee README.md for setup instructions.")
