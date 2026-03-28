@@ -28,6 +28,7 @@ class TerminalApprovalChannel:
         context: ApprovalContext,
     ) -> ApprovalResult:
         """Request approval via terminal."""
+        import sys
         CFG.LOGGER.debug(
             f"TerminalApprovalChannel START request_approval for {context.tool_name}"
         )
@@ -47,7 +48,15 @@ class TerminalApprovalChannel:
             tool_call_id=context.tool_call_id,
         )
 
-        handler = ToolCallHandler()
+        # Use the UI's handler if available (has formatters), otherwise create new one
+        handler = None
+        if hasattr(self._ui, "_tool_call_handler") and self._ui._tool_call_handler is not None:
+            handler = self._ui._tool_call_handler
+            print(f"[TerminalApprovalChannel] Using UI's handler id={id(handler)}, formatters={[f.__name__ for f in handler._argument_formatters]}", file=sys.stderr)
+        else:
+            handler = ToolCallHandler()
+            print(f"[TerminalApprovalChannel] UI has no handler, creating new one", file=sys.stderr)
+
         message = await handler._get_confirm_user_message(self._ui, call)
         CFG.LOGGER.debug(
             "TerminalApprovalChannel Got confirmation message, about to display to user"

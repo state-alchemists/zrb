@@ -45,9 +45,22 @@ class MultiUI:
         self._last_result_data: str | None = None
         self._llm_task: Any = None
         self._approval_channel: Any = None  # For tool approvals
+        self._last_winning_ui: Any = None  # Track winning UI for tool confirmations
+        self._tool_call_handler: Any = None  # Handler with formatters/policies from default UI
         # Set parent reference on all child UIs so they route messages through MultiUI
         for ui in self._uis:
             ui._multi_ui_parent = self
+
+    def set_tool_call_handler(self, handler: Any):
+        """Set the tool call handler with formatters/policies.
+
+        This should be set to the same handler used by the default UI,
+        so CLI mode in MultiUI has the same formatters as standalone CLI.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"[MultiUI] set_tool_call_handler called, formatters: {[f.__name__ for f in handler._argument_formatters]}")
+        self._tool_call_handler = handler
 
     def set_approval_channel(self, channel: Any):
         """Set the approval channel for tool confirmations."""
@@ -164,16 +177,42 @@ class MultiUI:
         return Session(shared_ctx)
 
     async def _confirm_tool_execution(self, call: Any):
-        """Handle tool execution confirmation - races all UIs.
+        """Handle tool execution confirmation.
 
         Priority:
-        1. Use approval_channel (Telegram buttons, etc.) if available
-        2. Fall back to ToolCallHandler with races
+        1. Use MultiUI's handler if available (has formatters from default UI)
+        2. Fall back to winning UI's handler if available
+        3. Fall back to approval channel (Telegram buttons)
         """
-        from zrb.llm.approval.approval_channel import ApprovalContext
+        import logging
+        import sys
+        logger = logging.getLogger(__name__)
 
-        # Try approval channel first (e.g., Telegram buttons)
+        # CRITICAL: Print at the very start to ensure we see this
+        print(f"!!! MultiUI._confirm_tool_execution CALLED !!!", file=sys.stderr)
+        print(f"    id(self)={id(self)}, type={type(self).__name__}", file=sys.stderr)
+        print(f"    id(self._tool_call_handler)={id(self._tool_call_handler) if self._tool_call_handler else None}", file=sys.stderr)
+        if self._tool_call_handler:
+            print(f"    formatters={[f.__name__ for f in self._tool_call_handler._argument_formatters]}", file=sys.stderr)
+        else:
+            print(f"    _tool_call_handler is None!", file=sys.stderr)
+
+        # First, try MultiUI's handler (has formatters from default UI)
+        if self._tool_call_handler is not None:
+            print(f"    -> Using MultiUI's _tool_call_handler", file=sys.stderr)
+            return await self._tool_call_handler.handle(self, call)
+
+        # Try winning UI's handler
+        winning_ui = getattr(self, "_last_winning_ui", None)
+        if winning_ui is not None and hasattr(winning_ui, "_tool_call_handler"):
+            print(f"    -> Using winning_ui's _tool_call_handler", file=sys.stderr)
+            return await winning_ui._tool_call_handler.handle(self, call)
+
+        # Fall back to approval channel (e.g., Telegram buttons)
         if hasattr(self, "_approval_channel") and self._approval_channel is not None:
+            from zrb.llm.approval.approval_channel import ApprovalContext
+
+            print(f"    -> Falling back to approval channel", file=sys.stderr)
             context = ApprovalContext(
                 tool_name=call.tool_name,
                 tool_args=call.args if isinstance(call.args, dict) else {},
@@ -182,11 +221,14 @@ class MultiUI:
             result = await self._approval_channel.request_approval(context)
             return result.to_pydantic_result()
 
-        # Fall back to UI-based confirmation (races all UIs)
-        from zrb.llm.tool_call.handler import ToolCallHandler
+        # Final fallback: use default handler from first UI
+        if self._uis and hasattr(self._uis[0], "_tool_call_handler"):
+            print(f"    -> Using first UI's _tool_call_handler", file=sys.stderr)
+            return await self._uis[0]._tool_call_handler.handle(self, call)
 
-        handler = ToolCallHandler()
-        return await handler.handle(self, call)
+        # Should not reach here, but raise for safety
+        logger.error("[MultiUI] No handler found!")
+        raise RuntimeError("No UI available for tool confirmation")
 
     def _submit_user_message(self, llm_task: Any, user_message: str):
         """Submit user message to shared queue.
@@ -269,6 +311,9 @@ class MultiUI:
 
             completed_task = done.pop()
             winning_ui_index, winning_ui = pending_tasks[completed_task]
+
+            # Store winning UI for use in tool confirmations
+            self._last_winning_ui = winning_ui
 
             for task in pending:
                 task.cancel()

@@ -68,13 +68,18 @@ class ToolCallHandler:
         ui: UIProtocol,
         call: ToolCallPart,
     ) -> ToolApproved | ToolDenied | None:
+        import sys
         from pydantic_ai import ToolApproved, ToolDenied
+
+        print(f"[ToolCallHandler.handle] handler id={id(self)}, formatters={[f.__name__ for f in self._argument_formatters]}", file=sys.stderr)
 
         # Tool Policies (Pre-confirmation)
         policy_result = await self.check_policies(ui, call)
         if policy_result is not None:
+            print(f"[ToolCallHandler.handle] Policy returned: {policy_result}", file=sys.stderr)
             return policy_result
 
+        print(f"[ToolCallHandler.handle] No policy match, going to confirmation loop", file=sys.stderr)
         while True:
             message = await self._get_confirm_user_message(ui, call)
             ui.append_to_output(f"\n\n{message}", end="")
@@ -123,15 +128,24 @@ class ToolCallHandler:
         ui: UIProtocol,
         call: ToolCallPart,
     ) -> str:
+        import logging
+        import sys
+        logger = logging.getLogger(__name__)
+
+        print(f"[ToolCallHandler._get_confirm_user_message] handler id={id(self)}, formatters={[f.__name__ for f in self._argument_formatters]}", file=sys.stderr)
+
         args_section = ""
         if f"{call.args}" != "{}":
             args_str = self._format_args(call.args)
             args_section = f"{args_str}\n"
 
+        logger.warning(f"[ToolCallHandler] tool_name={call.tool_name}, formatters={[f.__name__ for f in self._argument_formatters]}")
+
         for formatter in self._argument_formatters:
             new_args_section = await formatter(ui, call, args_section)
             if new_args_section is not None:
                 args_section = new_args_section
+                logger.warning(f"[ToolCallHandler] Formatter {formatter.__name__} returned: {new_args_section[:200]}...")
 
         return (
             f"  🎰 Executing tool '{call.tool_name}'\n"

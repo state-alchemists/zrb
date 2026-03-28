@@ -767,6 +767,12 @@ class LLMChatTask(BaseTask):
                     ui.set_approval_channel(
                         MultiplexApprovalChannel(self._approval_channels)
                     )
+                # Set tool call handler so CLI mode has same formatters as standalone CLI
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"[LLMChatTask] Setting tool_call_handler, default_ui formatters: {[f.__name__ for f in default_ui._tool_call_handler._argument_formatters]}")
+                ui.set_tool_call_handler(default_ui._tool_call_handler)
+                logger.warning(f"[LLMChatTask] MultiUI._tool_call_handler set: {ui._tool_call_handler is default_ui._tool_call_handler}")
         else:
             # No factory UIs, use default UI
             ui = UI(

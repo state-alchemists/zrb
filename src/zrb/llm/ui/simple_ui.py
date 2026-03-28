@@ -171,6 +171,9 @@ class SimpleUI(BaseUI):
         initial_message: str = "",
         initial_attachments: list["UserContent"] | None = None,
         model: str | None = None,
+        response_handlers: list["ResponseHandler"] | None = None,
+        tool_policies: list["ToolPolicy"] | None = None,
+        argument_formatters: list["ArgumentFormatter"] | None = None,
         **kwargs,  # Accept extra kwargs for easy subclassing
     ):
         # Accept config parameter
@@ -190,9 +193,9 @@ class SimpleUI(BaseUI):
             conversation_session_name=self._config.conversation_session_name,
             yolo=self._config.yolo,
             triggers=[],  # Empty list for triggers
-            response_handlers=[],  # Empty list - will be merged with default_response_handler
-            tool_policies=[],  # Empty list for tool policies
-            argument_formatters=[],  # Empty list for argument formatters
+            response_handlers=response_handlers or [],
+            tool_policies=tool_policies or [],
+            argument_formatters=argument_formatters or [],
             markdown_theme=None,
             summarize_commands=self._config.summarize_commands,
             attach_commands=self._config.attach_commands,
