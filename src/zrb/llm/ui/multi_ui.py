@@ -46,7 +46,9 @@ class MultiUI:
         self._llm_task: Any = None
         self._approval_channel: Any = None  # For tool approvals
         self._last_winning_ui: Any = None  # Track winning UI for tool confirmations
-        self._tool_call_handler: Any = None  # Handler with formatters/policies from default UI
+        self._tool_call_handler: Any = (
+            None  # Handler with formatters/policies from default UI
+        )
         # Set parent reference on all child UIs so they route messages through MultiUI
         for ui in self._uis:
             ui._multi_ui_parent = self

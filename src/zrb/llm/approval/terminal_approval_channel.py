@@ -29,6 +29,7 @@ class TerminalApprovalChannel:
     ) -> ApprovalResult:
         """Request approval via terminal."""
         import sys
+
         CFG.LOGGER.debug(
             f"TerminalApprovalChannel START request_approval for {context.tool_name}"
         )
@@ -50,7 +51,10 @@ class TerminalApprovalChannel:
 
         # Use the UI's handler if available (has formatters), otherwise create new one
         handler = None
-        if hasattr(self._ui, "_tool_call_handler") and self._ui._tool_call_handler is not None:
+        if (
+            hasattr(self._ui, "_tool_call_handler")
+            and self._ui._tool_call_handler is not None
+        ):
             handler = self._ui._tool_call_handler
         else:
             handler = ToolCallHandler()
@@ -86,7 +90,9 @@ class TerminalApprovalChannel:
         if r in ("e", "edit"):
             # Use the UI's response handlers (e.g., replace_in_file_response_handler)
             # which shows diff and handles editing properly
-            result = await self._handle_via_response_handler(handler, call, user_response)
+            result = await self._handle_via_response_handler(
+                handler, call, user_response
+            )
             if result is not None:
                 return result
             # Fall back to simple edit if no response handler handled it
