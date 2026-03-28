@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import argparse
-import asyncio
 import json
 import os
 import re
@@ -8,7 +7,7 @@ import shutil
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -106,6 +105,15 @@ def count_tool_calls(log_content: str) -> int:
     return log_content.count("🧰")
 
 
+def sanitize_model_name_for_path(model: str) -> str:
+    """Sanitize model name for use in filesystem paths.
+
+    Replaces characters that are invalid in folder names (e.g., ':') with '-'.
+    This allows models like 'ollama:glm-5:cloud' to be stored as 'ollama-glm-5-cloud'.
+    """
+    return model.replace(":", "-")
+
+
 def run_verification(challenge_dir: Path, workdir: Path) -> tuple[int, str]:
     """Runs verify.sh or verify.py if present in the challenge dir."""
     # Copy verify scripts to workdir to ensure they run in the correct context
@@ -162,7 +170,9 @@ def run_single_experiment(
 ) -> ChallengeResult:
     """Enhanced single experiment runner with test_single.py features"""
     challenge_name = challenge_path.name
-    exp_dir = EXPERIMENT_BASE_DIR / model / challenge_name
+    # Use sanitized model name for filesystem path (colons are invalid in folder names)
+    model_safe = sanitize_model_name_for_path(model)
+    exp_dir = EXPERIMENT_BASE_DIR / model_safe / challenge_name
 
     if verbose:
         print(f"\n{'='*60}")

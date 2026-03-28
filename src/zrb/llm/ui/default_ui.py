@@ -173,16 +173,25 @@ class UI(BaseUI):
         self._process_messages_task = self._application.create_background_task(
             self._process_messages_loop()
         )
+        # Add to background tasks to prevent premature garbage collection
+        if hasattr(self, "_background_tasks"):
+            self._background_tasks.add(self._process_messages_task)
 
         # Start system info update loop
         self._system_info_task = self._application.create_background_task(
             self._update_system_info_loop()
         )
+        # Add to background tasks to prevent premature garbage collection
+        if hasattr(self, "_background_tasks"):
+            self._background_tasks.add(self._system_info_task)
 
         # Start refresh loop (fix for lagging/artifacts)
         self._refresh_task = self._application.create_background_task(
             self._refresh_loop()
         )
+        # Add to background tasks to prevent premature garbage collection
+        if hasattr(self, "_background_tasks"):
+            self._background_tasks.add(self._refresh_task)
 
         try:
             self._capture.start()
@@ -198,6 +207,15 @@ class UI(BaseUI):
 
             if self._process_messages_task:
                 self._process_messages_task.cancel()
+                try:
+                    await self._process_messages_task
+                except (asyncio.CancelledError, RuntimeError):
+                    # Task was cancelled or event loop is closed
+                    pass
+                finally:
+                    # Remove from background tasks
+                    if hasattr(self, "_background_tasks"):
+                        self._background_tasks.discard(self._process_messages_task)
 
             # Empty the queue
             while not self._message_queue.empty():
@@ -210,13 +228,33 @@ class UI(BaseUI):
             # Stop triggers
             for trigger_task in self._trigger_tasks:
                 trigger_task.cancel()
+                try:
+                    await trigger_task
+                except (asyncio.CancelledError, RuntimeError):
+                    pass
             self._trigger_tasks.clear()
 
             if self._system_info_task:
                 self._system_info_task.cancel()
+                try:
+                    await self._system_info_task
+                except (asyncio.CancelledError, RuntimeError):
+                    pass
+                finally:
+                    # Remove from background tasks
+                    if hasattr(self, "_background_tasks"):
+                        self._background_tasks.discard(self._system_info_task)
 
             if self._refresh_task:
                 self._refresh_task.cancel()
+                try:
+                    await self._refresh_task
+                except (asyncio.CancelledError, RuntimeError):
+                    pass
+                finally:
+                    # Remove from background tasks
+                    if hasattr(self, "_background_tasks"):
+                        self._background_tasks.discard(self._refresh_task)
 
     async def _refresh_loop(self):
         """Periodically invalidate UI to fix artifacts/lag."""

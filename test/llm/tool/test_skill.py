@@ -29,7 +29,7 @@ class TestCreateActivateSkillTool:
         func = create_activate_skill_tool()
         assert func.__doc__ is not None
         assert "Activates" in func.__doc__
-        assert "USAGE" in func.__doc__
+        assert "Use when" in func.__doc__
 
     def test_function_is_async(self):
         """Test that the returned function is async."""

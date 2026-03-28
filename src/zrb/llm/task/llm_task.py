@@ -301,7 +301,6 @@ class LLMTask(BaseTask):
             return "Conversation history compressed."
 
         agent = self._create_agent(ctx)
-        handle_event = self._create_event_handler(ctx)
         effective_message, effective_attachments = self._get_effective_prompt(
             ctx, user_message, user_attachments, message_history
         )
@@ -323,7 +322,7 @@ class LLMTask(BaseTask):
                 limiter=self._llm_limitter,
                 attachments=effective_attachments,
                 print_fn=lambda *args, **kwargs: ctx.print(*args, **kwargs, plain=True),
-                event_handler=handle_event,
+                event_handler=None,  # Let run_agent create the event handler with proper status_fn
                 tool_confirmation=self._tool_confirmation,
                 hook_manager=self._hook_manager,
                 ui=self._uis,
@@ -383,14 +382,6 @@ class LLMTask(BaseTask):
             model_settings=self._get_model_settings(ctx),
             history_processors=self._history_processors,
             yolo=yolo,
-        )
-
-    def _create_event_handler(self, ctx: AnyContext) -> Any:
-        print_event = create_faint_printer(ctx.shared_print)
-        return create_event_handler(
-            print_event,
-            show_tool_call_detail=CFG.LLM_SHOW_TOOL_CALL_DETAIL,
-            show_tool_result=CFG.LLM_SHOW_TOOL_CALL_RESULT,
         )
 
     def _get_effective_prompt(

@@ -1,26 +1,59 @@
 🔖 [Documentation Home](../README.md)
 
-## 2.14.0 (March 26, 2026)
+## 2.14.0 (March 28, 2026)
 
-- **Feature: Native Multi-UI Support**:
-  - Added `append_ui()` and `append_ui_factory()` methods to `LLMTask` and `LLMChatTask`.
-  - `set_ui()` and `set_ui_factory()` now accept lists for backward compatibility.
-  - Framework automatically creates `MultiUI` when multiple UIs are configured.
-  - Output is broadcast to all UIs; input waits for first response.
+- **Feature: MultiUI for Dual-Channel Support**:
+  - New `MultiUI` class in `zrb.llm.ui.multi_ui` broadcasts output to all channels and waits for first input response.
+  - Enables running CLI alongside external channels (Telegram, SSE) simultaneously.
+  - `LLMChatTask` supports multiple UIs via new `append_ui()` and `append_ui_factory()` methods.
+  - `run_agent()` accepts `list[UIProtocol]` for the `ui` parameter, auto-creating `MultiUI` when needed.
 
-- **Feature: Multi-Approval Channel Support**:
-  - Added `append_approval_channel()` method to `LLMTask` and `LLMChatTask`.
-  - Framework automatically creates `MultiplexApprovalChannel` when multiple channels.
-  - First approval response wins and cancels pending requests.
+- **Feature: MultiplexApprovalChannel**:
+  - New `MultiplexApprovalChannel` broadcasts approval requests to multiple channels.
+  - First response wins and cancels pending requests on other channels.
+  - `LLMChatTask` supports multiple approval channels via `append_approval_channel()`.
+  - Automatic `MultiplexApprovalChannel` creation when using `append_approval_channel()`.
 
-- **New Classes**:
-  - `MultiUI` (`zrb.llm.ui`) - Broadcasts output to multiple UIs, waits for first input.
-  - `MultiplexApprovalChannel` (`zrb.llm.approval`) - Multiplexes approval requests across channels.
+- **Architecture: Module Reorganization**:
+  - UI classes moved from `src/zrb/llm/app/` to `src/zrb/llm/ui/`.
+  - Approval channel classes split into dedicated modules:
+    - `approval_channel.py` - Protocol and dataclasses
+    - `terminal_approval_channel.py` - Terminal implementation
+    - `null_approval_channel.py` - Auto-approve implementation
+    - `multiplex_approval_channel.py` - Multi-channel combiner
+  - Import paths updated: `zrb.llm.ui` replaces `zrb.llm.app`.
 
-- **Simplified Examples**:
-  - Merged `chat-telegram-cli/` into `chat-telegram/`.
-  - Single example now supports CLI only, Telegram only, or CLI + Telegram modes.
-  - Just use `append_ui()` and `append_approval_channel()` instead of custom MultiplexerUI.
+- **Feature: LLMChatTask Enhanced API**:
+  - `set_ui()` now accepts single `UIProtocol` or `list[UIProtocol]`.
+  - `append_ui()` adds a UI to the existing list.
+  - `append_ui_factory()` adds a UI factory to the existing list.
+  - `append_approval_channel()` adds an approval channel to the existing list.
+  - New `_print_conversation_name()` helper for session display.
+
+- **Bug Fix: History Manager Content Sanitization**:
+  - Improved `_clean_corrupted_content()` in `FileHistoryManager` with strict field filtering.
+  - Properly handles `tool-call`, `tool-return`, `text`, `system-prompt`, `thinking`, `retry-prompt` part kinds.
+  - Removes `None` values and reconstructs minimal valid part dictionaries.
+
+- **Refactoring: run_agent Improvements**:
+  - Added debug logging for tool confirmation and approval channel resolution.
+  - Automatic `TerminalApprovalChannel` wrapping when external approval channel is provided.
+  - Better handling of single UI vs. list of UIs.
+
+- **Security: Dependency Updates**:
+  - Updated `requests` to `^2.33.0`.
+  - Added `langchain-core >= 1.2.22` as optional dependency for `voyageai` extra (CVE-2026-34070).
+
+- **Examples: Simplified Structure**:
+  - Removed `examples/chat-telegram-cli/` - dual-channel pattern now integrated into `chat-telegram/`.
+  - Updated `chat-telegram/` demonstrates `append_ui_factory()` and `append_approval_channel()` usage.
+  - Updated `chat-sse/` uses simplified dual-mode API.
+
+- **Tests: Increased Coverage**:
+  - New `test/llm/approval/test_approval_channel.py` for `MultiplexApprovalChannel`, `TerminalApprovalChannel`, `NullApprovalChannel`.
+  - New `test/llm/custom_command/test_skill_command_factory.py`.
+  - Enhanced `test/llm/app/test_ui.py` with `MultiUI` tests.
+  - New `test/runner/web_util/test_cookie.py`.
 
 ## 2.13.0 (March 24, 2026)
 

@@ -300,6 +300,9 @@ class SimpleUI(BaseUI):
         """Default implementation - handles common pattern."""
         # Start message processing
         self._process_messages_task = asyncio.create_task(self._process_messages_loop())
+        # Add to background tasks to prevent premature garbage collection
+        if hasattr(self, "_background_tasks"):
+            self._background_tasks.add(self._process_messages_task)
 
         # Send initial message if provided
         if self._initial_message:
@@ -316,6 +319,10 @@ class SimpleUI(BaseUI):
                 await self._process_messages_task
             except asyncio.CancelledError:
                 pass
+            finally:
+                # Remove from background tasks
+                if hasattr(self, "_background_tasks"):
+                    self._background_tasks.discard(self._process_messages_task)
 
         return self.last_output
 
