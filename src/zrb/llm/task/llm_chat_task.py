@@ -676,7 +676,7 @@ class LLMChatTask(BaseTask):
         for factory in self._ui_factories:
             factory_ui = factory(
                 ctx=ctx,
-                llm_task_core=llm_task_core,
+                llm_task=llm_task_core,
                 history_manager=history_manager,
                 ui_commands=ui_commands,
                 initial_message=initial_message,
@@ -733,7 +733,7 @@ class LLMChatTask(BaseTask):
                 initial_message=initial_message,
                 initial_attachments=initial_attachments,
                 conversation_session_name=initial_conversation_name,
-                yolo=initial_yolo,
+                is_yolo=initial_yolo,
                 triggers=self._triggers,
                 response_handlers=self._response_handlers,
                 tool_policies=self._tool_policies,
@@ -768,7 +768,7 @@ class LLMChatTask(BaseTask):
                         MultiplexApprovalChannel(self._approval_channels)
                     )
                 # Set tool call handler so CLI mode has same formatters as standalone CLI
-                ui.set_tool_call_handler(default_ui._tool_call_handler)
+                ui.set_tool_call_handler(default_ui.tool_call_handler)
         else:
             # No factory UIs, use default UI
             ui = UI(
@@ -784,7 +784,7 @@ class LLMChatTask(BaseTask):
                 initial_message=initial_message,
                 initial_attachments=initial_attachments,
                 conversation_session_name=initial_conversation_name,
-                yolo=initial_yolo,
+                is_yolo=initial_yolo,
                 triggers=self._triggers,
                 response_handlers=self._response_handlers,
                 tool_policies=self._tool_policies,

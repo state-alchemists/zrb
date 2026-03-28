@@ -290,7 +290,7 @@ if BOT_TOKEN and CHAT_ID:
     # Create a factory that wires up the approval channel
     def telegram_ui_factory(
         ctx,
-        llm_task_core,
+        llm_task,
         history_manager,
         ui_commands,
         initial_message,
@@ -307,7 +307,7 @@ if BOT_TOKEN and CHAT_ID:
         cfg.conversation_session_name = initial_conversation_name
         ui = TelegramUI(
             ctx=ctx,
-            llm_task=llm_task_core,
+            llm_task=llm_task,
             history_manager=history_manager,
             config=cfg,
             initial_message=initial_message,

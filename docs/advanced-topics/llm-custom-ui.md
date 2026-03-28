@@ -790,7 +790,7 @@ Without `create_ui_factory()`, you need to handle 8 parameters:
 ```python
 def create_my_ui(
     ctx,                          # Task context
-    llm_task_core,                # LLM task instance
+    llm_task,                     # LLM task instance
     history_manager,              # History manager
     ui_commands,                  # Dict of command lists
     initial_message,              # First message
@@ -800,7 +800,7 @@ def create_my_ui(
 ):
     return MyUI(
         ctx=ctx,
-        llm_task=llm_task_core,
+        llm_task=llm_task,
         history_manager=history_manager,
         initial_message=initial_message,
         conversation_session_name=initial_conversation_name,
@@ -1240,7 +1240,7 @@ The factory receives parameters from `LLMChatTask`:
 ```python
 def factory(
     ctx: AnyContext,              # Task context
-    llm_task_core: LLMTask,       # LLM task instance
+    llm_task: LLMTask,            # LLM task instance
     history_manager: HistoryManager,  # History manager
     ui_commands: dict,            # Command configuration
     initial_message: str,         # First message (if any)

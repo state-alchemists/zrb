@@ -199,6 +199,8 @@ class TestMultiUI:
     @pytest.mark.asyncio
     async def test_confirm_tool_falls_back_to_first_ui_handler(self, mock_child_ui):
         """Test _confirm_tool_execution falls back to first UI's handler."""
+        from unittest.mock import AsyncMock, PropertyMock
+
         multi_ui = MultiUI([mock_child_ui])
         multi_ui._tool_call_handler = None
         multi_ui._last_winning_ui = None
@@ -208,21 +210,23 @@ class TestMultiUI:
         mock_call.tool_name = "Write"
         mock_call.args = {}
 
-        mock_child_ui._tool_call_handler.handle.return_value = MagicMock(approved=True)
+        mock_handler = MagicMock()
+        mock_handler.handle = AsyncMock(return_value=MagicMock(approved=True))
+        type(mock_child_ui).tool_call_handler = PropertyMock(return_value=mock_handler)
 
         result = await multi_ui._confirm_tool_execution(mock_call)
-        mock_child_ui._tool_call_handler.handle.assert_called_once()
+        mock_handler.handle.assert_called_once()
 
     def test_set_llm_task_sets_on_children(self, mock_child_ui):
-        """Test set_llm_task sets _llm_task on all children."""
+        """Test set_llm_task sets llm_task on all children."""
         other_ui = MagicMock()
-        multi_ui = MultiUI([mock_child_ui, other_ui])
         mock_task = MagicMock()
 
+        multi_ui = MultiUI([mock_child_ui, other_ui])
         multi_ui.set_llm_task(mock_task)
 
-        assert mock_child_ui._llm_task is mock_task
-        assert other_ui._llm_task is mock_task
+        assert mock_child_ui.llm_task is mock_task
+        assert other_ui.llm_task is mock_task
 
     def test_create_session_for_llm_task(self, mock_child_ui):
         """Test _create_session_for_llm_task creates proper session."""
@@ -528,12 +532,12 @@ class TestUIConfig:
 
         config = UIConfig(
             assistant_name="MyBot",
-            yolo=True,
+            is_yolo=True,
             conversation_session_name="my-session",
         )
 
         assert config.assistant_name == "MyBot"
-        assert config.yolo is True
+        assert config.is_yolo is True
         assert config.conversation_session_name == "my-session"
 
 
@@ -575,7 +579,7 @@ class TestSimpleUISubclass:
 
         simple_ui_deps["config"] = UIConfig(
             assistant_name="CustomBot",
-            yolo=True,
+            is_yolo=True,
         )
 
         class TestSimpleUI(SimpleUI):
@@ -1018,7 +1022,7 @@ class TestCreateUIFactory:
 
         ui = factory(
             ctx=SharedContext(),
-            llm_task_core=MagicMock(),
+            llm_task=MagicMock(),
             history_manager=MagicMock(),
             ui_commands={},
             initial_message="Hello",
@@ -1049,7 +1053,7 @@ class TestCreateUIFactory:
 
         ui = factory(
             ctx=SharedContext(),
-            llm_task_core=MagicMock(),
+            llm_task=MagicMock(),
             history_manager=MagicMock(),
             ui_commands={},
             initial_message="",
@@ -1078,7 +1082,7 @@ class TestCreateUIFactory:
 
         ui = factory(
             ctx=SharedContext(),
-            llm_task_core=MagicMock(),
+            llm_task=MagicMock(),
             history_manager=MagicMock(),
             ui_commands={"exit": ["/quit"]},
             initial_message="",
@@ -1107,7 +1111,7 @@ class TestCreateUIFactory:
         ctx = SharedContext()
         ui = factory(
             ctx=ctx,
-            llm_task_core=MagicMock(),
+            llm_task=MagicMock(),
             history_manager=MagicMock(),
             ui_commands={},
             initial_message="Test message",
@@ -1285,11 +1289,11 @@ class TestBaseUICommandHandlers:
         """Test _handle_toggle_yolo toggles yolo mode."""
         ui = simple_ui_instance
 
-        assert ui._yolo is False
+        assert ui.yolo is False
         ui._handle_toggle_yolo("/yolo")
-        assert ui._yolo is True
+        assert ui.yolo is True
         ui._handle_toggle_yolo("/yolo")
-        assert ui._yolo is False
+        assert ui.yolo is False
 
     def test_handle_set_model_command(self, simple_ui_instance):
         """Test _handle_set_model_command changes model."""

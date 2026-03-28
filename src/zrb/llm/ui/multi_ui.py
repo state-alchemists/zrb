@@ -61,6 +61,11 @@ class MultiUI:
         """
         self._tool_call_handler = handler
 
+    @property
+    def tool_call_handler(self) -> Any:
+        """Get the tool call handler."""
+        return self._tool_call_handler
+
     def set_approval_channel(self, channel: Any):
         """Set the approval channel for tool confirmations."""
         self._approval_channel = channel
@@ -73,8 +78,8 @@ class MultiUI:
         """Set the LLM task for shared processing."""
         self._llm_task = llm_task
         for ui in self._uis:
-            if hasattr(ui, "_llm_task"):
-                ui._llm_task = llm_task
+            if hasattr(ui, "llm_task"):
+                ui.llm_task = llm_task
 
     def append_to_output(
         self,
@@ -163,10 +168,10 @@ class MultiUI:
 
         session_input = {
             "message": user_message,
-            "session": getattr(self._uis[0], "_conversation_session_name", "default"),
-            "yolo": getattr(self._uis[0], "_yolo", False),
+            "session": getattr(self._uis[0], "conversation_session_name", "default"),
+            "yolo": getattr(self._uis[0], "yolo", False),
             "attachments": attachments,
-            "model": getattr(self._uis[0], "_model", None),
+            "model": getattr(self._uis[0], "model", None),
         }
         shared_ctx = SharedContext(
             input=session_input,
@@ -205,8 +210,8 @@ class MultiUI:
             return result.to_pydantic_result()
 
         # Final fallback: use default handler from first UI
-        if self._uis and hasattr(self._uis[0], "_tool_call_handler"):
-            return await self._uis[0]._tool_call_handler.handle(self, call)
+        if self._uis and hasattr(self._uis[0], "tool_call_handler"):
+            return await self._uis[0].tool_call_handler.handle(self, call)
 
         raise RuntimeError("No UI available for tool confirmation")
 
@@ -362,8 +367,8 @@ class MultiUI:
         self._process_messages_task = asyncio.create_task(self._process_messages_loop())
 
         # Set LLM task on all UIs
-        if hasattr(self._main_ui, "_llm_task"):
-            self.set_llm_task(self._main_ui._llm_task)
+        if hasattr(self._main_ui, "llm_task"):
+            self.set_llm_task(self._main_ui.llm_task)
 
         # Start all child UIs' event loops (except main UI)
         for i, ui in enumerate(self._uis):

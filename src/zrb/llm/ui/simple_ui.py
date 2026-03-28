@@ -40,7 +40,7 @@ class UIConfig:
         config = UIConfig(
             assistant_name="MyBot",
             exit_commands=["/quit", "/bye"],
-            yolo=False,
+            is_yolo=False,
         )
         ui = MyUI(config=config, llm_task=task, history_manager=hist)
     """
@@ -60,7 +60,7 @@ class UIConfig:
     exec_commands: list[str] = field(default_factory=lambda: ["/exec"])
 
     # Behavior
-    yolo: bool = False  # Auto-approve all tool calls
+    is_yolo: bool = False  # Auto-approve all tool calls
     yolo_xcom_key: str = ""  # Empty = auto-generate
 
     # Session
@@ -111,7 +111,7 @@ class UIConfig:
             exec_commands=ui_commands.get("exec", self.exec_commands),
             summarize_commands=self.summarize_commands,
             assistant_name=self.assistant_name,
-            yolo=self.yolo,
+            is_yolo=self.is_yolo,
             yolo_xcom_key=self.yolo_xcom_key,
             conversation_session_name=self.conversation_session_name,
         )
@@ -191,7 +191,7 @@ class SimpleUI(BaseUI):
             initial_message=initial_message,
             initial_attachments=initial_attachments or [],
             conversation_session_name=self._config.conversation_session_name,
-            yolo=self._config.yolo,
+            is_yolo=self._config.is_yolo,
             triggers=[],  # Empty list for triggers
             response_handlers=response_handlers or [],
             tool_policies=tool_policies or [],
@@ -689,7 +689,7 @@ def create_ui_factory(
                 ctx=ctx, llm_task=llm_task_core, history_manager=history_manager,
                 initial_message=initial_message,
                 conversation_session_name=initial_conversation_name,
-                yolo=initial_yolo, initial_attachments=initial_attachments,
+                is_yolo=initial_yolo, initial_attachments=initial_attachments,
                 exit_commands=ui_commands.get("exit", ["/exit"]),
                 # ... 10+ more lines
             )
@@ -708,7 +708,7 @@ def create_ui_factory(
 
     def factory(
         ctx: AnyContext,
-        llm_task_core: LLMTask,
+        llm_task: LLMTask,
         history_manager: AnyHistoryManager,
         ui_commands: dict[str, list[str]],
         initial_message: str,
@@ -722,12 +722,12 @@ def create_ui_factory(
             cfg = cfg.merge_commands(ui_commands)
 
         # Set yolo and conversation name from parameters
-        cfg.yolo = initial_yolo
+        cfg.is_yolo = initial_yolo
         cfg.conversation_session_name = initial_conversation_name
 
         return ui_class(
             ctx=ctx,
-            llm_task=llm_task_core,
+            llm_task=llm_task,
             history_manager=history_manager,
             config=cfg,
             initial_message=initial_message,

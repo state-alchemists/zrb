@@ -52,8 +52,8 @@ class MyUI(BaseUI):
         # Your event loop here
         ...
 
-def create_ui(ctx, llm_task_core, history_manager, ...):
-    return MyUI(ctx, llm_task_core, history_manager, ...)
+def create_ui(ctx, llm_task, history_manager, ...):
+    return MyUI(ctx, llm_task, history_manager, ...)
 
 # Set UI factory on the built-in task
 llm_chat.set_ui_factory(create_ui)

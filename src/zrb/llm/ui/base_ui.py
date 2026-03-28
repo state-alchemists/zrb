@@ -122,7 +122,7 @@ class BaseUI:
         initial_message: Any = "",
         initial_attachments: list["UserContent"] = [],
         conversation_session_name: str = "",
-        yolo: bool = False,
+        is_yolo: bool = False,
         triggers: list[Callable[[], AsyncIterable[Any]]] = [],
         response_handlers: list[ResponseHandler] = [],
         tool_policies: list[ToolPolicy] = [],
@@ -192,6 +192,25 @@ class BaseUI:
         # Track background tasks to prevent garbage collection
         self._background_tasks: set[asyncio.Task] = set()
 
+        # Initialize yolo from parameter
+        if is_yolo:
+            self.yolo = is_yolo
+
+    @property
+    def tool_call_handler(self) -> Any:
+        """Get the tool call handler for this UI."""
+        return self._tool_call_handler
+
+    @property
+    def llm_task(self) -> Any:
+        """Get the LLM task."""
+        return self._llm_task
+
+    @llm_task.setter
+    def llm_task(self, value: Any):
+        """Set the LLM task."""
+        self._llm_task = value
+
     def execute_hook(self, event: HookEvent, event_data: Any, **kwargs) -> None:
         """
         Safely execute hooks from either sync or async context.
@@ -222,16 +241,36 @@ class BaseUI:
                 loop.close()
 
     @property
-    def _yolo(self) -> bool:
+    def yolo(self) -> bool:
         if self._yolo_xcom_key not in self._ctx.xcom:
             return False
         return self._ctx.xcom[self._yolo_xcom_key].get(False)
 
-    @_yolo.setter
-    def _yolo(self, value: bool):
+    @yolo.setter
+    def yolo(self, value: bool):
         if self._yolo_xcom_key not in self._ctx.xcom:
             self._ctx.xcom[self._yolo_xcom_key] = Xcom()
         self._ctx.xcom[self._yolo_xcom_key].set(value)
+
+    @property
+    def model(self) -> Any:
+        """Get the current model."""
+        return self._model
+
+    @model.setter
+    def model(self, value: Any):
+        """Set the model."""
+        self._model = value
+
+    @property
+    def conversation_session_name(self) -> str:
+        """Get the conversation session name."""
+        return self._conversation_session_name
+
+    @conversation_session_name.setter
+    def conversation_session_name(self, value: str):
+        """Set the conversation session name."""
+        self._conversation_session_name = value
 
     @property
     def triggers(self) -> list[Callable[[], AsyncIterable[Any]]]:
@@ -426,7 +465,6 @@ class BaseUI:
         """
         return None
 
-    # --- CORE LOGIC EXTRACTED FROM UI ---
     async def _process_messages_loop(self):
         """Process jobs from queue, ensuring only one job runs at a time."""
         while True:
@@ -551,7 +589,7 @@ class BaseUI:
         session_input = {
             "message": user_message,
             "session": self._conversation_session_name,
-            "yolo": self._yolo,
+            "yolo": self.yolo,
             "attachments": attachments,
             "model": self._model,
         }
@@ -800,7 +838,7 @@ class BaseUI:
 
     def toggle_yolo(self):
         """Toggle YOLO mode and force refresh."""
-        self._yolo = not self._yolo
+        self.yolo = not self.yolo
         self.invalidate_ui()
 
     def _handle_toggle_yolo(self, text: str) -> bool:
