@@ -315,10 +315,18 @@ class SSEUI(EventDrivenUI, BufferedOutputMixin):
 
 
 # =============================================================================
-# Integration with zrb llm chat
+# Integration with zrb llm chat - SSE + CLI Dual Mode
 # =============================================================================
 
 server = SSEServer.get()
 
-# Create UI factory - ONE LINE!
-llm_chat.set_ui_factory(create_ui_factory(SSEUI, server=server))
+# Create SSE UI factory
+sse_ui_factory = create_ui_factory(SSEUI, server=server)
+
+# Add SSE UI alongside default terminal UI (dual mode)
+# This gives you both CLI input/output AND SSE streaming
+llm_chat.append_ui_factory(sse_ui_factory)
+
+print(f"🌐 SSE + CLI dual mode enabled")
+print("   Both terminal and SSE receive all messages.")
+print("   Use terminal or POST /chat to send messages.")
