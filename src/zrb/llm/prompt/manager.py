@@ -112,25 +112,26 @@ class PromptManager:
             else CFG.LLM_INCLUDE_PROJECT_CONTEXT
         )
 
+        # 1. Identity & Always-On Rules (these must not be truncated)
         if include_persona:
             middlewares.append(
                 new_prompt(lambda: get_persona_prompt(assistant_name=assistant_name))
             )
-        # 1. Facts: Current environmental state
-        if include_system_context:
-            middlewares.append(system_context)
-        # 2. Rules: Core operational behavior
-        if include_mandate:
-            middlewares.append(new_prompt(lambda: get_mandate_prompt()))
         if include_git_mandate:
             middlewares.append(
                 new_prompt(
                     lambda: get_git_mandate_prompt() if is_inside_git_dir() else ""
                 )
             )
+        # 2. Facts: Current environmental state
+        if include_system_context:
+            middlewares.append(system_context)
+        # 3. Rules: Core operational behavior
+        if include_mandate:
+            middlewares.append(new_prompt(lambda: get_mandate_prompt()))
         if include_journal:
             middlewares.append(new_prompt(lambda: get_journal_prompt()))
-        # 3. Context: Project specific documentation and skills
+        # 4. Context: Project specific documentation and skills
         if include_project_context:
             middlewares.append(create_project_context_prompt())
         if self._skill_manager:
@@ -144,7 +145,7 @@ class PromptManager:
             )
         if include_cli_skills:
             middlewares.append(create_cli_skills_prompt())
-        # 4. User: Custom prompts
+        # 5. User: Custom prompts
         middlewares.extend(self._middlewares)
         return middlewares
 

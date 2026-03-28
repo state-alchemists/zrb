@@ -35,6 +35,22 @@ def create_claude_skills_prompt(
     return claude_compatibility
 
 
+# Max chars to load from project docs
+MAX_PROJECT_DOC_CHARS = 4000
+
+
+def _load_file_content(file_path: Path) -> tuple[str, str]:
+    """Load file content and return (content, status)."""
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+            if content.strip():
+                return content, "loaded"
+            return "", "exists (empty)"
+    except Exception:
+        return "", "exists (unreadable)"
+
+
 def create_project_context_prompt():
     def project_context(
         ctx: AnyContext,
@@ -42,49 +58,65 @@ def create_project_context_prompt():
         next_handler: Callable[[AnyContext, str], str],
     ) -> str:
         search_dirs = _get_search_directories()
-        found_files = []
 
-        for filename in ["CLAUDE.md", "AGENTS.md", "README.md", "GEMINI.md"]:
-            for directory in search_dirs:
+        # Find all doc files - collect all occurrences, not just first
+        doc_files = {
+            "AGENTS.md": [],
+            "CLAUDE.md": [],
+            "GEMINI.md": [],
+            "README.md": [],
+        }
+
+        for directory in search_dirs:
+            for filename in doc_files.keys():
                 file_path = directory / filename
                 if file_path.exists() and file_path.is_file():
-                    # Check if file has content
-                    try:
-                        with open(file_path, "r", encoding="utf-8") as f:
-                            content = f.read().strip()
-                            status = (
-                                "exists (has content)" if content else "exists (empty)"
-                            )
-                    except Exception:
-                        status = "exists (unreadable)"
+                    content, status = _load_file_content(file_path)
+                    doc_files[filename].append((file_path, content))
 
-                    found_files.append(f"- `{file_path}` ({status})")
-                    break  # Only list first occurrence in search hierarchy
+        # Load content from most specific (closest to CWD = last in search_dirs)
+        loaded_docs: list[tuple[str, str]] = []  # (section header, content)
+        listed_files: list[str] = []
 
-        if found_files:
-            context_message = (
-                "## Project Documentation Guidelines\n\n"
-                "The following project documentation files are available:\n\n"
-                + "\n".join(found_files)
-                + "\n\n"
-                "**IMPORTANT:** File paths are detected above, but file contents are NOT loaded into context.\n"
-                "You MUST read them with the `Read` tool when working on the project.\n\n"
-                "**DOCUMENTATION HIERARCHY (precedence when conflicting):**\n"
-                "1. **AGENTS.md** — Project-specific rules (highest priority)\n"
-                "2. **CLAUDE.md / GEMINI.md** — LLM-specific project rules\n"
-                "3. **README.md** — Human-facing docs (read with that context)\n\n"
-                "**USAGE RULES:**\n"
-                "- **READ** when: modifying code, adding tests, changing dependencies, or making decisions\n"
-                "- **DON'T READ** when: having general conversation or answering unrelated questions\n"
-                "- **CITE** which documentation informed your approach when relevant"
-            )
-            return next_handler(
-                ctx,
-                f"{current_prompt}\n\n{make_markdown_section('Project Documentation Guidelines', context_message)}",
-            )
-        else:
-            # No documentation found
+        for filename in doc_files.keys():
+            occurrences = doc_files[filename]
+            if not occurrences:
+                continue
+
+            # Load from most specific (last occurrence)
+            most_specific_path, content = occurrences[-1]
+            loaded_content = content[:MAX_PROJECT_DOC_CHARS] if content else ""
+
+            if loaded_content:
+                loaded_docs.append((filename, loaded_content))
+
+            # List all occurrences
+            for path, _ in occurrences:
+                listed_files.append(f"- `{path}`")
+
+        if not loaded_docs and not listed_files:
             return next_handler(ctx, current_prompt)
+
+        # Build prompt
+        parts = []
+
+        if loaded_docs:
+            parts.append("## Project Documentation (Loaded)\n")
+            for filename, content in loaded_docs:
+                parts.append(f"### {filename}\n{content}\n")
+
+        if listed_files:
+            parts.append(
+                f"## All Documentation Files\n" + "\n".join(listed_files) + "\n\n"
+                "**NOTE:** Only the most specific files above are loaded. "
+                "Read other files with `Read` tool when needed."
+            )
+
+        context_message = "\n".join(parts)
+        return next_handler(
+            ctx,
+            f"{current_prompt}\n\n{make_markdown_section('Project Documentation', context_message)}",
+        )
 
     return project_context
 

@@ -1,51 +1,47 @@
-# Mandate: Operational Rules
+# Operational Rules
 
-## 1. Task Tiers
+---
 
-Match response depth to task complexity:
+## Delegation
 
-| Tier | Examples | Approach |
-|------|-----------|----------|
-| **1-Trivial** | Typos, comments, formatting, simple lookups | Act immediately. Output: 1-2 lines. No journal. |
-| **2-Routine** | Bug fixes, small features, single-file changes | Brief reasoning + action. Verify. Journal if learning. |
-| **3-Architectural** | Refactors, new modules, breaking changes | Full plan: state → goal → approach → verify. Journal. |
+Use sub-agents when:
+- Task affects many files or would pollute your context
+- Multiple independent subtasks can run in parallel
 
-## 2. Decision Flow
+For simple tasks (typos, single-file fixes), just do it yourself.
 
-**Delegation check first:**
-- Context pollution? (>3 files, large outputs, dead ends) → Delegate
-- Self-contained? (no history needed) → Delegate
-- Multiple independent subtasks? → `DelegateToAgentsParallel`, else `DelegateToAgent`
-- All NO → Proceed with tools
+**When delegating**: Provide full context. Report findings back to user.
 
-**Then skill activation:** Relevant skill? → `ActivateSkill("name")`
+---
 
-**Then execute.**
+## Context First
 
-**Delegation context:** Subagents receive BLANK SLATE. Provide ALL context explicitly. Report all findings to user.
+System Context provides facts. Don't re-discover known information.
 
-## 3. Information Handling
+---
 
-1. **Context-First:** System Context provides facts. Don't re-discover known information.
-2. **Tool Selection:**
-   - Files by pattern → `Glob`
-   - Content by regex → `Grep`
-   - Code structure/symbols → LSP tools
-   - Full file content → `Read`
-   - Multiple files → `ReadMany` (batch)
-3. **Verification:** Trace code paths or run tests before modifications. Never assume behavior.
+## Tool Selection
 
-## 4. Skill Protocol
+| Tool | When to Use |
+|------|-------------|
+| **Glob** | Find files by name pattern |
+| **Grep** | Search content by regex |
+| **LSP Find Definition** | Go to symbol definition |
+| **LSP Find References** | Find where symbol is used |
+| **LSP Get Diagnostics** | Check for errors |
+| **Read** | Get full file content |
 
-Skills extend behavior for specific domains.
+**Rule**: Verify before modifying. Run tests or trace code paths.
 
-- **Order:** Delegation check → Skill activation → Tool use
-- **Activate:** `ActivateSkill("skill-name")` after confirming no delegation
-- **Reloading:** If context truncation occurred, reactivate lost skills
+---
 
-## 5. Boundaries
+## Skills
 
-1. **Secrets:** Never expose, log, or commit secrets
-2. **Cancellation:** Stop immediately when asked
-3. **Ambiguity:** Ask for clarification if unclear
-4. **Tool Failures:** Analyze and adapt. Don't repeat failing calls.
+Use `ActivateSkill("skill-name")` when task matches a skill's domain. Re-activate if you lose context.
+
+---
+
+## Boundaries
+
+- **Secrets**: Never expose or commit credentials
+- **Stop**: Halt immediately when asked

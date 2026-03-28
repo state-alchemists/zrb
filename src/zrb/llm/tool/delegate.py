@@ -212,11 +212,12 @@ def create_delegate_to_agent_tool(
     delegate_to_agent.__name__ = "DelegateToAgent"
     delegate_to_agent.__doc__ = (
         "Delegates a task to a subagent for isolated execution.\n\n"
-        "USAGE:\n"
-        "- Provide complete, self-contained context (subagent has NO access to your conversation history)\n"
-        "- User cannot see subagent output—you must report all findings\n"
-        "- For parallel tasks, use `DelegateToAgentsParallel` instead\n\n"
-        "WHEN TO USE: See Delegation Rules in mandate (Section 5).\n\n"
+        "Use when: task affects many files, or would pollute your context.\n"
+        "Don't use for: simple fixes (typos, single-file changes).\n\n"
+        "Provide complete context—subagent can't see your conversation history.\n"
+        "Report findings back to user.\n\n"
+        "For parallel tasks, use `DelegateToAgentsParallel`.\n\n"
+        "GIT: Ask approval before state-changing commands.\n\n"
         f"AVAILABLE AGENTS:\n{agent_doc_section}"
     )
     return delegate_to_agent
@@ -316,17 +317,16 @@ def create_parallel_delegate_tool(
     parallel_delegate_to_agents.zrb_is_delegate_tool = True
     parallel_delegate_to_agents.__name__ = "DelegateToAgentsParallel"
     parallel_delegate_to_agents.__doc__ = (
-        "Delegates multiple tasks to subagents in parallel for throughput.\n\n"
-        "USAGE:\n"
-        "- Each subagent has NO access to your conversation history—provide complete context\n"
-        "- User cannot see subagent outputs—you must report all findings\n"
-        "- Tool approvals are processed sequentially (may pause for user input)\n\n"
+        "Delegates multiple tasks to subagents in parallel.\n\n"
+        "Use when: multiple independent subtasks that can run simultaneously.\n\n"
+        "Each subagent needs full context—they can't see your conversation history.\n"
+        "Report all findings back to user.\n\n"
+        "GIT: All subagents must ask approval before state-changing commands.\n\n"
         "Args:\n"
-        "    tasks: List of dicts, each with:\n"
-        "        - agent_name: Name of the subagent\n"
+        "    tasks: List of dicts with:\n"
+        "        - agent_name: Subagent name\n"
         "        - task: Task description\n"
-        "        - additional_context: (optional) Additional context\n\n"
-        "WHEN TO USE: See Delegation Rules in mandate (Section 5).\n\n"
+        "        - additional_context: (optional) Extra context\n\n"
         f"AVAILABLE AGENTS:\n{agent_doc_section}"
     )
     return parallel_delegate_to_agents
