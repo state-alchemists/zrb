@@ -6,19 +6,27 @@ Document learning and decisions after completing tasks.
 
 ## When to Write
 
-| Task Type | Action |
-|-----------|--------|
-| Trivial (typos, lookups) | Skip |
-| Routine or complex | Write if you discovered something worth keeping |
+Journal when any of these conditions are met:
+
+| Trigger | Examples |
+|---------|----------|
+| User reveals preference | Preferred name/location, communication style |
+| Architectural decision made | Chose X over Y for reason Z |
+| Technical solution found | Solved non-obvious bug, discovered efficient approach |
+| Error resolved and non-trivial | Debugging required investigation, not just typo fix |
+
+Skip for: typos, simple lookups, routine file edits, straightforward questions.
+
+## Before Writing
+
+**Activate `core-journaling` skill first.** This loads the full protocol for maintaining the journal as a structured knowledge graph.
 
 ## What to Document
 
 - User preferences revealed
-- Architectural decisions made  
+- Architectural decisions made
 - Technical solutions found
 - Errors and how resolved
-
-Write immediately—you'll forget later.
 
 ---
 

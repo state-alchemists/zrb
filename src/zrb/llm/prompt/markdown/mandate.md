@@ -44,6 +44,12 @@ Use `ActivateSkill("skill-name")` when task matches a skill's domain. Re-activat
 
 ---
 
+## Software Engineering
+
+For any coding task (creating, modifying, or debugging code), **activate `core-coding` skill first**. This ensures consistent engineering standards, proper verification, and safe modification practices.
+
+---
+
 ## Boundaries
 
 - **Secrets**: Never expose or commit credentials

@@ -1,5 +1,13 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.14.1 (March 28, 2026)
+
+- **Enhancement: Improved LLM Prompt Guidelines**:
+  - `journal_mandate.md`: Restructured journaling triggers with clearer examples and conditions.
+  - Added mandatory `core-journaling` skill activation before writing journal entries.
+  - `mandate.md`: Added "Software Engineering" section requiring `core-coding` skill activation for coding tasks.
+  - `persona.md`: Simplified response style guidance for better clarity.
+
 ## 2.14.0 (March 28, 2026)
 
 - **Feature: MultiUI for Dual-Channel Support**:
