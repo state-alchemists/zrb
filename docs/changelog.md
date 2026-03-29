@@ -1,5 +1,18 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.14.2 (March 29, 2026)
+
+- **Bug Fix: Type Annotation Correction**:
+  - Fixed `dict[str, any]` → `dict[str, Any]` in `chat_tool_policy.py`.
+  - Added missing `from typing import Any` import.
+
+- **Code Cleanup**:
+  - Removed unused `import sys` from `terminal_approval_channel.py`.
+
+- **Security: Dependency Updates**:
+  - Pinned `cryptography = "^46.0.6"` to address CVE-2026-34073 (transitive dependency via PyJWT).
+  - Updated `langchain-core >= 1.2.22` constraint for CVE-2026-34070.
+
 ## 2.14.1 (March 28, 2026)
 
 - **Enhancement: Improved LLM Prompt Guidelines**:
