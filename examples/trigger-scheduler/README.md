@@ -59,18 +59,10 @@ zrb multi-trigger
 
 ## How It Works
 
-```
-┌─────────────┐     Push      ┌─────────────┐
-│   Action    │ ────────────> │    Queue    │
-│  Function   │               │  (Xcom)     │
-└─────────────┘               └──────┬──────┘
-                                     │
-                                     │ Pop
-                                     ▼
-                              ┌─────────────┐
-                              │  Callback   │
-                              │    Task     │
-                              └─────────────┘
+```mermaid
+flowchart LR
+    Action["Action Function"] -->|Push| Queue["Queue (Xcom)"]
+    Queue -->|Pop| Callback["Callback Task"]
 ```
 
 1. **Action** runs and pushes items to queue

@@ -47,14 +47,11 @@ zrb process-order --amount 50
 
 ## Fallback vs Successor
 
-```
-┌──────────┐
-│   Task   │
-└────┬─────┘
-     │
-     ├── FAIL ──► Fallback task runs
-     │
-     └── SUCCESS ──► Successor task runs
+```mermaid
+flowchart TB
+    Task["Task"]
+    Task -->|FAIL| Fallback["Fallback task runs"]
+    Task -->|SUCCESS| Successor["Successor task runs"]
 ```
 
 - **Fallback**: Runs when main task fails

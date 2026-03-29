@@ -184,20 +184,19 @@ When you run `zrb my-task`, here is the exact sequence of events:
 | 4 | **Action & Readiness** | Executes core `action`. Concurrently runs `readiness_check` tasks. Marks "ready" when checks pass |
 | 5 | **Resolution** | Return value pushed to XCom. If successful, triggers Successors. If failed, exhausts `retries` then triggers Fallbacks |
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Execution Lifecycle                       │
-├─────────────────────────────────────────────────────────────┤
-│  Initiation → Dependency → Guard → Action → Resolution      │
-│                           ↓                                 │
-│                     [Condition?]                            │
-│                      ↓       ↓                              │
-│                   [Skip]   [Execute]                        │
-│                                ↓                            │
-│                         [Success?]                          │
-│                          ↓       ↓                          │
-│                    [Successors] [Fallbacks]                 │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Lifecycle["Execution Lifecycle"]
+        Init[Initiation] --> Dep[Dependency] --> Guard[Guard] --> Condition{Condition?}
+        Condition -->|false| Skip[Skip]
+        Condition -->|true| Execute[Execute] --> Success{Success?}
+        Success -->|yes| Successors[Successors]
+        Success -->|no| Fallbacks[Fallbacks]
+        Successors --> Res[Resolution]
+        Fallbacks --> Res[Resolution]
+        Skip --> Res[Resolution]
+    end
+
 ```
 
 ---

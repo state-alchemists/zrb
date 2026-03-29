@@ -74,25 +74,12 @@ web_auth_config.guest_accessible_tasks = ["hello"]
 
 ## Authentication Flow
 
-```
-┌──────────┐    Request     ┌─────────────┐
-│ Browser  │ ─────────────► │   Web UI    │
-└──────────┘                └──────┬──────┘
-                                   │
-                           ┌───────▼───────┐
-                           │  Login Page   │
-                           │  (if needed)  │
-                           └───────┬───────┘
-                                   │
-                           ┌───────▼───────┐
-                           │   Check ACL   │
-                           │   for Task    │
-                           └───────┬───────┘
-                                   │
-                            ┌──────▼──────┐
-                            │  Run Task   │
-                            │  (if OK)    │
-                            └─────────────┘
+```mermaid
+flowchart TB
+    Browser -->|Request| WebUI["Web UI"]
+    WebUI --> Login["Login Page<br />(if needed)"]
+    Login --> Check["Check ACL<br />for Task"]
+    Check --> Run["Run Task<br />(if OK)"]
 ```
 
 ## Key Concepts
