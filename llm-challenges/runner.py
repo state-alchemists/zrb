@@ -218,6 +218,8 @@ def run_single_experiment(
     env = os.environ.copy()
     env["ZRB_LLM_SHOW_TOOL_CALL_RESULT"] = "true"
     env["ZRB_LLM_SHOW_TOOL_CALL_DETAIL"] = "true"
+    env["ZRB_LLM_INCLUDE_PROJECT_CONTEXT"] = "false"
+    env["ZRB_LLM_INCLUDE_JOURNAL"] = "false"
     # Hide the parent git repo from the agent to avoid confusion
     env["GIT_CEILING_DIRECTORIES"] = str(exp_dir.resolve())
 

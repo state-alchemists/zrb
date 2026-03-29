@@ -1,0 +1,22 @@
+[2m
+  🧰 fyevw65k | Write {'content': '# 🚀 Introducing Zrb-Flow:  ...', 'path': 'launch_post.md'}
+[0m[2m
+  🔠 fyevw65k | Return Successfully wrote to launch_post.md
+[0m[2m
+  🧠 I've drafted the launch announcement and saved it as `launch_post.md`. 
+     
+     The post[0m[2m uses an exciting, tech-savvy tone tailored for CLI users and DevOps folks. It highlights the Docker and Kubernetes integrations,[0m[2m puts a major spotlight on the "Self-Healing Pipelines" feature, and wraps up with a clear call-to-[0m[2maction instructing people on how to install it. 
+     
+     Let me know if you need any adjustments or additions to the draft[0m[2m![0m[2m[0m[2m
+  [2m💸 (Requests: 2 | Tool Calls: 1 | Total: 15595) Input: 13794 | Audio Input: 0 | Output: 1801 | Audio Output: 0 | Cache Read: 3961 | Cache Write: 0 | Details: {'cached_content_tokens': 3961, 'thoughts_tokens': 1104, 'text_prompt_tokens': 13794, 'text_cache_tokens': 3961}[0m
+[0m[2m[2mSession[0m: [1;33mhard-disk-0082[0m[0m
+[2mTo run again:[0m [1;33mzrb chat --message "I need a launch announcement blog post for our new tool, **Zrb-Flow**. 
+
+It's basically an AI automation thing for CLI users that hooks into Docker and K8s. One cool feature is \"Self-Healing Pipelines\" where it fixes broken scripts.
+
+Keep it exciting and tech-savvy. Don't forget to tell people to install it at the end. Save it as `launch_post.md`." --model google-gla:gemini-3.1-pro-preview --session "" --yolo true --attach "" --interactive false[0m
+I've drafted the launch announcement and saved it as `launch_post.md`. 
+
+The post uses an exciting, tech-savvy tone tailored for CLI users and DevOps folks. It highlights the Docker and Kubernetes integrations, puts a major spotlight on the "Self-Healing Pipelines" feature, and wraps up with a clear call-to-action instructing people on how to install it. 
+
+Let me know if you need any adjustments or additions to the draft!

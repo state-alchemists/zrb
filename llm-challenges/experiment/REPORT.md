@@ -1,6 +1,6 @@
 # LLM Challenge Experiment Report
 
-**Date:** 2026-02-15 10:04:34
+**Date:** 2026-03-29 07:27:57
 
 | Model | Challenge | Status | Time (s) | Tools | Verify |
 |---|---|---|---|---|---|
@@ -34,18 +34,42 @@
 | google-gla:gemini-3-pro-preview | integration-bug | EXCELLENT | 85.87 | 10 | 🌟 |
 | google-gla:gemini-3-pro-preview | refactor | EXCELLENT | 110.58 | 7 | 🌟 |
 | google-gla:gemini-3-pro-preview | research | PASS | 56.19 | 4 | ✅ |
+| google-gla:gemini-3.1-pro-preview | bug-fix | EXCELLENT | 44.03 | 4 | 🌟 |
+| google-gla:gemini-3.1-pro-preview | copywriting | EXCELLENT | 27.38 | 1 | 🌟 |
+| google-gla:gemini-3.1-pro-preview | feature | EXCELLENT | 82.42 | 7 | 🌟 |
+| google-gla:gemini-3.1-pro-preview | integration-bug | EXCELLENT | 46.28 | 7 | 🌟 |
+| google-gla:gemini-3.1-pro-preview | refactor | EXCELLENT | 59.90 | 7 | 🌟 |
+| google-gla:gemini-3.1-pro-preview | research | PASS | 45.52 | 4 | ✅ |
 | ollama:glm-4.7:cloud | bug-fix | EXCELLENT | 32.87 | 4 | 🌟 |
 | ollama:glm-4.7:cloud | copywriting | EXCELLENT | 20.97 | 1 | 🌟 |
-| ollama:glm-4.7:cloud | feature | EXECUTION_FAILED | 22.55 | 3 | 💥 |
+| ollama:glm-4.7:cloud | feature | EXCELLENT | 174.23 | 12 | 🌟 |
 | ollama:glm-4.7:cloud | integration-bug | EXCELLENT | 75.64 | 13 | 🌟 |
 | ollama:glm-4.7:cloud | refactor | EXCELLENT | 59.64 | 10 | 🌟 |
-| ollama:glm-4.7:cloud | research | EXECUTION_FAILED | 56.27 | 7 | 💥 |
+| ollama:glm-4.7:cloud | research | EXCELLENT | 110.14 | 4 | 🌟 |
+| ollama:glm-5:cloud | bug-fix | EXCELLENT | 119.18 | 5 | 🌟 |
+| ollama:glm-5:cloud | copywriting | EXCELLENT | 83.68 | 1 | 🌟 |
+| ollama:glm-5:cloud | feature | EXCELLENT | 148.16 | 7 | 🌟 |
+| ollama:glm-5:cloud | integration-bug | EXCELLENT | 207.79 | 12 | 🌟 |
+| ollama:glm-5:cloud | refactor | EXCELLENT | 227.94 | 17 | 🌟 |
+| ollama:glm-5:cloud | research | EXCELLENT | 95.84 | 4 | 🌟 |
 | ollama:kimi-k2.5:cloud | bug-fix | EXCELLENT | 30.79 | 4 | 🌟 |
 | ollama:kimi-k2.5:cloud | copywriting | EXCELLENT | 21.54 | 1 | 🌟 |
 | ollama:kimi-k2.5:cloud | feature | EXCELLENT | 51.95 | 7 | 🌟 |
 | ollama:kimi-k2.5:cloud | integration-bug | EXCELLENT | 57.46 | 8 | 🌟 |
 | ollama:kimi-k2.5:cloud | refactor | EXCELLENT | 53.45 | 8 | 🌟 |
-| ollama:kimi-k2.5:cloud | research | EXECUTION_FAILED | 42.26 | 5 | 💥 |
+| ollama:kimi-k2.5:cloud | research | EXCELLENT | 178.09 | 10 | 🌟 |
+| ollama:minimax-m2.7:cloud | bug-fix | EXCELLENT | 52.97 | 3 | 🌟 |
+| ollama:minimax-m2.7:cloud | copywriting | PASS | 58.61 | 1 | ✅ |
+| ollama:minimax-m2.7:cloud | feature | FAIL | 111.41 | 9 | ❌ |
+| ollama:minimax-m2.7:cloud | integration-bug | EXCELLENT | 107.88 | 8 | 🌟 |
+| ollama:minimax-m2.7:cloud | refactor | EXECUTION_FAILED | 72.61 | 3 | 💥 |
+| ollama:minimax-m2.7:cloud | research | EXECUTION_FAILED | 76.46 | 3 | 💥 |
+| ollama:qwen3-coder-next:cloud | bug-fix | EXCELLENT | 65.81 | 4 | 🌟 |
+| ollama:qwen3-coder-next:cloud | copywriting | EXCELLENT | 61.28 | 1 | 🌟 |
+| ollama:qwen3-coder-next:cloud | feature | FAIL | 128.23 | 6 | ❌ |
+| ollama:qwen3-coder-next:cloud | integration-bug | EXCELLENT | 182.85 | 9 | 🌟 |
+| ollama:qwen3-coder-next:cloud | refactor | EXCELLENT | 205.35 | 14 | 🌟 |
+| ollama:qwen3-coder-next:cloud | research | EXCELLENT | 268.60 | 19 | 🌟 |
 | ollama:qwen3-vl:235b-cloud | bug-fix | EXECUTION_FAILED | 82.00 | 0 | 💥 |
 | ollama:qwen3-vl:235b-cloud | copywriting | EXECUTION_FAILED | 29.72 | 0 | 💥 |
 | ollama:qwen3-vl:235b-cloud | feature | EXECUTION_FAILED | 23.03 | 0 | 💥 |
@@ -58,6 +82,12 @@
 | openai:gpt-4o | integration-bug | EXCELLENT | 51.29 | 9 | 🌟 |
 | openai:gpt-4o | refactor | EXCELLENT | 60.97 | 5 | 🌟 |
 | openai:gpt-4o | research | FAIL | 49.97 | 5 | ❌ |
+| openai:gpt-5-codex | bug-fix | EXECUTION_FAILED | 6.22 | 0 | 💥 |
+| openai:gpt-5-codex | copywriting | EXECUTION_FAILED | 6.20 | 0 | 💥 |
+| openai:gpt-5-codex | feature | EXECUTION_FAILED | 6.02 | 0 | 💥 |
+| openai:gpt-5-codex | integration-bug | EXECUTION_FAILED | 5.80 | 0 | 💥 |
+| openai:gpt-5-codex | refactor | EXECUTION_FAILED | 6.13 | 0 | 💥 |
+| openai:gpt-5-codex | research | EXECUTION_FAILED | 6.18 | 0 | 💥 |
 | openai:gpt-5.1 | bug-fix | FAIL | 20.52 | 2 | ❌ |
 | openai:gpt-5.1 | copywriting | EXCELLENT | 37.89 | 1 | 🌟 |
 | openai:gpt-5.1 | feature | FAIL | 39.78 | 4 | ❌ |
@@ -70,6 +100,12 @@
 | openai:gpt-5.2 | integration-bug | EXCELLENT | 55.37 | 10 | 🌟 |
 | openai:gpt-5.2 | refactor | EXCELLENT | 61.71 | 7 | 🌟 |
 | openai:gpt-5.2 | research | EXCELLENT | 193.81 | 19 | 🌟 |
+| openai:gpt-5.4 | bug-fix | EXCELLENT | 44.85 | 24 | 🌟 |
+| openai:gpt-5.4 | copywriting | PASS | 19.04 | 1 | ✅ |
+| openai:gpt-5.4 | feature | FAIL | 42.14 | 17 | ❌ |
+| openai:gpt-5.4 | integration-bug | EXCELLENT | 62.53 | 30 | 🌟 |
+| openai:gpt-5.4 | refactor | EXCELLENT | 70.42 | 20 | 🌟 |
+| openai:gpt-5.4 | research | FAIL | 10.12 | 1 | ❌ |
 
 
 ## Detailed Results
@@ -723,6 +759,136 @@ VERIFICATION_RESULT: PASS
 ```
 
 ---
+### google-gla:gemini-3.1-pro-preview / bug-fix
+- **Status:** EXCELLENT
+- **Duration:** 44.03s
+- **Workdir:** `experiment/google-gla-gemini-3.1-pro-preview/bug-fix/workdir`
+- **Log:** `experiment/google-gla-gemini-3.1-pro-preview/bug-fix/combined.log`
+- **Tools Used:** LS, Read, Write, Bash
+
+**Verification Output:**
+```
+PASS: Concurrency control found
+PASS: Final stock is non-negative: 1
+VERIFICATION_RESULT: EXCELLENT
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### google-gla:gemini-3.1-pro-preview / copywriting
+- **Status:** EXCELLENT
+- **Duration:** 27.38s
+- **Workdir:** `experiment/google-gla-gemini-3.1-pro-preview/copywriting/workdir`
+- **Log:** `experiment/google-gla-gemini-3.1-pro-preview/copywriting/combined.log`
+- **Tools Used:** Write
+
+**Verification Output:**
+```
+PASS: Has headings
+PASS: Contains 'Zrb-Flow'
+PASS: Contains 'AI'
+PASS: Contains 'automation'
+PASS: Contains 'CLI'
+PASS: Contains 'Docker'
+PASS: Contains 'K8s'
+PASS: Contains 'Self-Healing'
+PASS: Contains 'pipeline'
+PASS: Has call to action
+PASS: Markdown formatting
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### google-gla:gemini-3.1-pro-preview / feature
+- **Status:** EXCELLENT
+- **Duration:** 82.42s
+- **Workdir:** `experiment/google-gla-gemini-3.1-pro-preview/feature/workdir`
+- **Log:** `experiment/google-gla-gemini-3.1-pro-preview/feature/combined.log`
+- **Tools Used:** LS, ReadMany, WriteMany, Bash, Bash, Write, Bash
+
+**Verification Output:**
+```
+Verifying Modular Todo App...
+PASS: All CRUD operations verified
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### google-gla:gemini-3.1-pro-preview / integration-bug
+- **Status:** EXCELLENT
+- **Duration:** 46.28s
+- **Workdir:** `experiment/google-gla-gemini-3.1-pro-preview/integration-bug/workdir`
+- **Log:** `experiment/google-gla-gemini-3.1-pro-preview/integration-bug/combined.log`
+- **Tools Used:** LS, ReadMany, Bash, Edit, Edit, Bash, Bash
+
+**Verification Output:**
+```
+Verifying Integration Bug Fix...
+Initial Balances:
+Alice: 100
+Bob: 100
+Starting transfer: Alice -> Bob ($20)
+Starting transfer: Alice -> Bob ($20)
+Starting transfer: Alice -> Bob ($20)
+Starting transfer: Alice -> Bob ($20)
+Starting transfer: Alice -> Bob ($20)
+Transfer complete: Alice -> Bob
+Transfer complete: Alice -> Bob
+Transfer complete: Alice -> Bob
+Transfer complete: Alice -> Bob
+Transfer complete: Alice -> Bob
+
+Final Balances:
+Alice: 0
+Bob: 200
+Total: 200
+Total Money in System: 200
+PASS: System integrity maintained
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### google-gla:gemini-3.1-pro-preview / refactor
+- **Status:** EXCELLENT
+- **Duration:** 59.90s
+- **Workdir:** `experiment/google-gla-gemini-3.1-pro-preview/refactor/workdir`
+- **Log:** `experiment/google-gla-gemini-3.1-pro-preview/refactor/combined.log`
+- **Tools Used:** ActivateSkill, Read, Bash, Read, Write, Bash, Read
+
+**Verification Output:**
+```
+Verifying refactored script: etl.py
+Testing if script runs...
+PASS: Separated into functions/classes
+PASS: ETL pattern (Extract/Transform/Load)
+PASS: Configuration decoupled
+PASS: Uses regex for parsing
+PASS: Has type hints & docstrings
+PASS: Script runs successfully
+PASS: Creates report.html
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### google-gla:gemini-3.1-pro-preview / research
+- **Status:** PASS
+- **Duration:** 45.52s
+- **Workdir:** `experiment/google-gla-gemini-3.1-pro-preview/research/workdir`
+- **Log:** `experiment/google-gla-gemini-3.1-pro-preview/research/combined.log`
+- **Tools Used:** SearchInternet, SearchInternet, Write, Bash
+
+**Verification Output:**
+```
+PASS: Markdown format
+PASS: Substantial content (200+ words)
+PASS: Covers timeline/commercial viability
+PASS: Covers key players
+PASS: Covers technical hurdles
+FAIL: References/citations
+VERIFICATION_RESULT: PASS
+```
+
+---
 ### ollama:glm-4.7:cloud / bug-fix
 - **Status:** EXCELLENT
 - **Duration:** 32.87s
@@ -764,16 +930,17 @@ VERIFICATION_RESULT: EXCELLENT
 
 ---
 ### ollama:glm-4.7:cloud / feature
-- **Status:** EXECUTION_FAILED
-- **Duration:** 22.55s
-- **Workdir:** `experiment/ollama:glm-4.7:cloud/feature/workdir`
-- **Log:** `experiment/ollama:glm-4.7:cloud/feature/combined.log`
-- **Tools Used:** ReadRead, ReadRead, ReadReadLS
+- **Status:** EXCELLENT
+- **Duration:** 174.23s
+- **Workdir:** `experiment/ollama-glm-4.7-cloud/feature/workdir`
+- **Log:** `experiment/ollama-glm-4.7-cloud/feature/combined.log`
+- **Tools Used:** ActivateSkill, Read, Read, Read, Glob, ReadMany, Edit, Edit, Edit, ReadMany, Bash, Bash
 
 **Verification Output:**
 ```
 Verifying Modular Todo App...
-FAIL: POST /todos failed with 405
+PASS: All CRUD operations verified
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
@@ -835,16 +1002,152 @@ VERIFICATION_RESULT: EXCELLENT
 
 ---
 ### ollama:glm-4.7:cloud / research
-- **Status:** EXECUTION_FAILED
-- **Duration:** 56.27s
-- **Workdir:** `experiment/ollama:glm-4.7:cloud/research/workdir`
-- **Log:** `experiment/ollama:glm-4.7:cloud/research/combined.log`
-- **Tools Used:** SearchInternetSearchInternetSearchInternet, ReadLongTermNote, ActivateSkill, SearchInternet, OpenWebPageOpenWebPageOpenWebPage, ActivateSkill, SearchInternetSearchInternetSearchInternet
+- **Status:** EXCELLENT
+- **Duration:** 110.14s
+- **Workdir:** `experiment/ollama-glm-4.7-cloud/research/workdir`
+- **Log:** `experiment/ollama-glm-4.7-cloud/research/combined.log`
+- **Tools Used:** SearchInternet, SearchInternet, SearchInternet, Write
 
 **Verification Output:**
 ```
-FAIL: solid_state_battery_report.md not found and no other markdown files found
-VERIFICATION_RESULT: FAIL
+PASS: Markdown format
+PASS: Substantial content (200+ words)
+PASS: Covers timeline/commercial viability
+PASS: Covers key players
+PASS: Covers technical hurdles
+PASS: References/citations
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### ollama:glm-5:cloud / bug-fix
+- **Status:** EXCELLENT
+- **Duration:** 119.18s
+- **Workdir:** `experiment/ollama-glm-5-cloud/bug-fix/workdir`
+- **Log:** `experiment/ollama-glm-5-cloud/bug-fix/combined.log`
+- **Tools Used:** ActivateSkill, Read, Bash, Edit, Bash
+
+**Verification Output:**
+```
+PASS: Concurrency control found
+PASS: Final stock is non-negative: 1
+VERIFICATION_RESULT: EXCELLENT
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### ollama:glm-5:cloud / copywriting
+- **Status:** EXCELLENT
+- **Duration:** 83.68s
+- **Workdir:** `experiment/ollama-glm-5-cloud/copywriting/workdir`
+- **Log:** `experiment/ollama-glm-5-cloud/copywriting/combined.log`
+- **Tools Used:** Write
+
+**Verification Output:**
+```
+PASS: Has headings
+PASS: Contains 'Zrb-Flow'
+PASS: Contains 'AI'
+PASS: Contains 'automation'
+PASS: Contains 'CLI'
+PASS: Contains 'Docker'
+PASS: Contains 'K8s'
+PASS: Contains 'Self-Healing'
+PASS: Contains 'pipeline'
+PASS: Has call to action
+PASS: Markdown formatting
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### ollama:glm-5:cloud / feature
+- **Status:** EXCELLENT
+- **Duration:** 148.16s
+- **Workdir:** `experiment/ollama-glm-5-cloud/feature/workdir`
+- **Log:** `experiment/ollama-glm-5-cloud/feature/combined.log`
+- **Tools Used:** ReadMany, Read, WriteMany, Glob, Bash, Bash, Bash
+
+**Verification Output:**
+```
+Verifying Modular Todo App...
+PASS: All CRUD operations verified
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### ollama:glm-5:cloud / integration-bug
+- **Status:** EXCELLENT
+- **Duration:** 207.79s
+- **Workdir:** `experiment/ollama-glm-5-cloud/integration-bug/workdir`
+- **Log:** `experiment/ollama-glm-5-cloud/integration-bug/combined.log`
+- **Tools Used:** ActivateSkill, LS, ReadMany, Edit, Bash, Read, Edit, Bash, Read, Edit, Edit, Bash
+
+**Verification Output:**
+```
+Verifying Integration Bug Fix...
+Initial Balances:
+Alice: 100
+Bob: 100
+Starting transfer: Alice -> Bob ($20)
+Starting transfer: Alice -> Bob ($20)
+Starting transfer: Alice -> Bob ($20)
+Starting transfer: Alice -> Bob ($20)
+Starting transfer: Alice -> Bob ($20)
+Transfer complete: Alice -> Bob
+Transfer complete: Alice -> Bob
+Transfer complete: Alice -> Bob
+Transfer complete: Alice -> Bob
+Transfer complete: Alice -> Bob
+
+Final Balances:
+Alice: 0
+Bob: 200
+Total: 200
+Total Money in System: 200
+WARNING: No explicit locking found, might be lucky or uses different pattern
+PASS: System integrity maintained
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### ollama:glm-5:cloud / refactor
+- **Status:** EXCELLENT
+- **Duration:** 227.94s
+- **Workdir:** `experiment/ollama-glm-5-cloud/refactor/workdir`
+- **Log:** `experiment/ollama-glm-5-cloud/refactor/combined.log`
+- **Tools Used:** ActivateSkill, Glob, Read, WriteTodos, Write, UpdateTodo, Bash, Read, UpdateTodo, Bash, Bash, Bash, Bash, Bash, Bash, UpdateTodo, UpdateTodo
+
+**Verification Output:**
+```
+Verifying refactored script: etl.py
+Testing if script runs...
+PASS: Separated into functions/classes
+PASS: ETL pattern (Extract/Transform/Load)
+PASS: Configuration decoupled
+PASS: Uses regex for parsing
+PASS: Has type hints & docstrings
+PASS: Script runs successfully
+PASS: Creates report.html
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### ollama:glm-5:cloud / research
+- **Status:** EXCELLENT
+- **Duration:** 95.84s
+- **Workdir:** `experiment/ollama-glm-5-cloud/research/workdir`
+- **Log:** `experiment/ollama-glm-5-cloud/research/combined.log`
+- **Tools Used:** SearchInternet, SearchInternet, SearchInternet, Write
+
+**Verification Output:**
+```
+PASS: Markdown format
+PASS: Substantial content (200+ words)
+PASS: Covers timeline/commercial viability
+PASS: Covers key players
+PASS: Covers technical hurdles
+PASS: References/citations
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
@@ -960,16 +1263,275 @@ VERIFICATION_RESULT: EXCELLENT
 
 ---
 ### ollama:kimi-k2.5:cloud / research
+- **Status:** EXCELLENT
+- **Duration:** 178.09s
+- **Workdir:** `experiment/ollama-kimi-k2.5-cloud/research/workdir`
+- **Log:** `experiment/ollama-kimi-k2.5-cloud/research/combined.log`
+- **Tools Used:** SearchInternet, SearchInternet, SearchInternet, OpenWebPage, OpenWebPage, OpenWebPage, OpenWebPage, OpenWebPage, Write, Read
+
+**Verification Output:**
+```
+PASS: Markdown format
+PASS: Substantial content (200+ words)
+PASS: Covers timeline/commercial viability
+PASS: Covers key players
+PASS: Covers technical hurdles
+PASS: References/citations
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### ollama:minimax-m2.7:cloud / bug-fix
+- **Status:** EXCELLENT
+- **Duration:** 52.97s
+- **Workdir:** `experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir`
+- **Log:** `experiment/ollama-minimax-m2.7-cloud/bug-fix/combined.log`
+- **Tools Used:** Read, Edit, Bash
+
+**Verification Output:**
+```
+PASS: Concurrency control found
+PASS: Final stock is non-negative: 1
+VERIFICATION_RESULT: EXCELLENT
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### ollama:minimax-m2.7:cloud / copywriting
+- **Status:** PASS
+- **Duration:** 58.61s
+- **Workdir:** `experiment/ollama-minimax-m2.7-cloud/copywriting/workdir`
+- **Log:** `experiment/ollama-minimax-m2.7-cloud/copywriting/combined.log`
+- **Tools Used:** Write
+
+**Verification Output:**
+```
+PASS: Has headings
+PASS: Contains 'Zrb-Flow'
+PASS: Contains 'AI'
+PASS: Contains 'automation'
+PASS: Contains 'CLI'
+PASS: Contains 'Docker'
+FAIL: Contains 'K8s'
+PASS: Contains 'Self-Healing'
+PASS: Contains 'pipeline'
+PASS: Has call to action
+PASS: Markdown formatting
+VERIFICATION_RESULT: PASS
+```
+
+---
+### ollama:minimax-m2.7:cloud / feature
+- **Status:** FAIL
+- **Duration:** 111.41s
+- **Workdir:** `experiment/ollama-minimax-m2.7-cloud/feature/workdir`
+- **Log:** `experiment/ollama-minimax-m2.7-cloud/feature/combined.log`
+- **Tools Used:** ReadMany, Read, Edit, Read, Bash, Edit, Edit, Edit, Bash
+
+**Verification Output:**
+```
+Verifying Modular Todo App...
+FAIL: PUT /todos/3 failed with 422
+```
+
+---
+### ollama:minimax-m2.7:cloud / integration-bug
+- **Status:** EXCELLENT
+- **Duration:** 107.88s
+- **Workdir:** `experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir`
+- **Log:** `experiment/ollama-minimax-m2.7-cloud/integration-bug/combined.log`
+- **Tools Used:** LS, ReadMany, Edit, Edit, Bash, Read, Edit, Bash
+
+**Verification Output:**
+```
+Verifying Integration Bug Fix...
+Initial Balances:
+Alice: 100
+Bob: 100
+Starting transfer: Alice -> Bob ($20)
+Starting transfer: Alice -> Bob ($20)
+Starting transfer: Alice -> Bob ($20)
+Starting transfer: Alice -> Bob ($20)
+Starting transfer: Alice -> Bob ($20)
+Transfer complete: Alice -> Bob
+Transfer complete: Alice -> Bob
+Transfer complete: Alice -> Bob
+Transfer complete: Alice -> Bob
+Transfer complete: Alice -> Bob
+
+Final Balances:
+Alice: 0
+Bob: 200
+Total: 200
+Total Money in System: 200
+WARNING: No explicit locking found, might be lucky or uses different pattern
+PASS: System integrity maintained
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### ollama:minimax-m2.7:cloud / refactor
 - **Status:** EXECUTION_FAILED
-- **Duration:** 42.26s
-- **Workdir:** `experiment/ollama:kimi-k2.5:cloud/research/workdir`
-- **Log:** `experiment/ollama:kimi-k2.5:cloud/research/combined.log`
-- **Tools Used:** SearchInternetSearchInternetSearchInternet, ActivateSkill, SearchInternetSearchInternetSearchInternet, ActivateSkill, SearchInternetSearchInternetSearchInternet
+- **Duration:** 72.61s
+- **Workdir:** `experiment/ollama-minimax-m2.7-cloud/refactor/workdir`
+- **Log:** `experiment/ollama-minimax-m2.7-cloud/refactor/combined.log`
+- **Tools Used:** GlobGlob, LSRead, ReadGlob
+
+**Verification Output:**
+```
+Verifying refactored script: etl.py
+Testing if script runs...
+FAIL: Separated into functions/classes
+FAIL: ETL pattern (Extract/Transform/Load)
+PASS: Configuration decoupled
+FAIL: Uses regex for parsing
+FAIL: Has type hints & docstrings (Types: False, Docs: False)
+PASS: Script runs successfully
+PASS: Creates report.html
+VERIFICATION_RESULT: FAIL
+```
+
+---
+### ollama:minimax-m2.7:cloud / research
+- **Status:** EXECUTION_FAILED
+- **Duration:** 76.46s
+- **Workdir:** `experiment/ollama-minimax-m2.7-cloud/research/workdir`
+- **Log:** `experiment/ollama-minimax-m2.7-cloud/research/combined.log`
+- **Tools Used:** SearchInternetSearchInternetSearchInternet, ActivateSkillSearchInternet, SearchInternetSearchInternetSearchInternet
 
 **Verification Output:**
 ```
 FAIL: solid_state_battery_report.md not found and no other markdown files found
 VERIFICATION_RESULT: FAIL
+```
+
+---
+### ollama:qwen3-coder-next:cloud / bug-fix
+- **Status:** EXCELLENT
+- **Duration:** 65.81s
+- **Workdir:** `experiment/ollama-qwen3-coder-next-cloud/bug-fix/workdir`
+- **Log:** `experiment/ollama-qwen3-coder-next-cloud/bug-fix/combined.log`
+- **Tools Used:** Read, Edit, Bash, Bash
+
+**Verification Output:**
+```
+PASS: Concurrency control found
+PASS: Final stock is non-negative: 1
+VERIFICATION_RESULT: EXCELLENT
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### ollama:qwen3-coder-next:cloud / copywriting
+- **Status:** EXCELLENT
+- **Duration:** 61.28s
+- **Workdir:** `experiment/ollama-qwen3-coder-next-cloud/copywriting/workdir`
+- **Log:** `experiment/ollama-qwen3-coder-next-cloud/copywriting/combined.log`
+- **Tools Used:** Write
+
+**Verification Output:**
+```
+PASS: Has headings
+PASS: Contains 'Zrb-Flow'
+PASS: Contains 'AI'
+PASS: Contains 'automation'
+PASS: Contains 'CLI'
+PASS: Contains 'Docker'
+PASS: Contains 'K8s'
+PASS: Contains 'Self-Healing'
+PASS: Contains 'pipeline'
+PASS: Has call to action
+PASS: Markdown formatting
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### ollama:qwen3-coder-next:cloud / feature
+- **Status:** FAIL
+- **Duration:** 128.23s
+- **Workdir:** `experiment/ollama-qwen3-coder-next-cloud/feature/workdir`
+- **Log:** `experiment/ollama-qwen3-coder-next-cloud/feature/combined.log`
+- **Tools Used:** Read, Read, Read, Edit, Read, Bash
+
+**Verification Output:**
+```
+Verifying Modular Todo App...
+FAIL: POST /todos failed with 422
+```
+
+---
+### ollama:qwen3-coder-next:cloud / integration-bug
+- **Status:** EXCELLENT
+- **Duration:** 182.85s
+- **Workdir:** `experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir`
+- **Log:** `experiment/ollama-qwen3-coder-next-cloud/integration-bug/combined.log`
+- **Tools Used:** Read, LS, ReadMany, Edit, Bash, Edit, Read, Edit, Bash
+
+**Verification Output:**
+```
+Verifying Integration Bug Fix...
+Initial Balances:
+Alice: 100
+Bob: 100
+Starting transfer: Alice -> Bob ($20)
+Starting transfer: Alice -> Bob ($20)
+Starting transfer: Alice -> Bob ($20)
+Starting transfer: Alice -> Bob ($20)
+Starting transfer: Alice -> Bob ($20)
+Transfer complete: Alice -> Bob
+Transfer complete: Alice -> Bob
+Transfer complete: Alice -> Bob
+Transfer complete: Alice -> Bob
+Transfer complete: Alice -> Bob
+
+Final Balances:
+Alice: 0
+Bob: 200
+Total: 200
+Total Money in System: 200
+PASS: System integrity maintained
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### ollama:qwen3-coder-next:cloud / refactor
+- **Status:** EXCELLENT
+- **Duration:** 205.35s
+- **Workdir:** `experiment/ollama-qwen3-coder-next-cloud/refactor/workdir`
+- **Log:** `experiment/ollama-qwen3-coder-next-cloud/refactor/combined.log`
+- **Tools Used:** Read, LS, ActivateSkill, Write, Write, Write, Bash, Read, Bash, Bash, Bash, Bash, Write, LS
+
+**Verification Output:**
+```
+Verifying refactored script: etl.py
+Testing if script runs...
+PASS: Separated into functions/classes
+PASS: ETL pattern (Extract/Transform/Load)
+PASS: Configuration decoupled
+FAIL: Uses regex for parsing
+PASS: Has type hints & docstrings
+PASS: Script runs successfully
+PASS: Creates report.html
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### ollama:qwen3-coder-next:cloud / research
+- **Status:** EXCELLENT
+- **Duration:** 268.60s
+- **Workdir:** `experiment/ollama-qwen3-coder-next-cloud/research/workdir`
+- **Log:** `experiment/ollama-qwen3-coder-next-cloud/research/combined.log`
+- **Tools Used:** ActivateSkill, SearchInternet, SearchInternet, SearchInternet, OpenWebPage, OpenWebPage, OpenWebPage, OpenWebPage, Write, UpdateTodo, UpdateTodo, UpdateTodo, UpdateTodo, UpdateTodo, LspGetDiagnostics, Read, Edit, Edit, Edit
+
+**Verification Output:**
+```
+PASS: Markdown format
+PASS: Substantial content (200+ words)
+PASS: Covers timeline/commercial viability
+PASS: Covers key players
+PASS: Covers technical hurdles
+PASS: References/citations
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
@@ -1182,6 +1744,100 @@ VERIFICATION_RESULT: EXCELLENT
 - **Workdir:** `experiment/openai:gpt-4o/research/workdir`
 - **Log:** `experiment/openai:gpt-4o/research/combined.log`
 - **Tools Used:** ActivateSkill, SearchInternet, DelegateToAgent, SearchInternet, OpenWebPage
+
+**Verification Output:**
+```
+FAIL: solid_state_battery_report.md not found and no other markdown files found
+VERIFICATION_RESULT: FAIL
+```
+
+---
+### openai:gpt-5-codex / bug-fix
+- **Status:** EXECUTION_FAILED
+- **Duration:** 6.22s
+- **Workdir:** `experiment/openai-gpt-5-codex/bug-fix/workdir`
+- **Log:** `experiment/openai-gpt-5-codex/bug-fix/combined.log`
+- **Tools Used:** 
+
+**Verification Output:**
+```
+WARNING: No explicit asyncio.Lock found
+FAIL: Final stock is negative: -5
+VERIFICATION_RESULT: FAIL
+```
+
+---
+### openai:gpt-5-codex / copywriting
+- **Status:** EXECUTION_FAILED
+- **Duration:** 6.20s
+- **Workdir:** `experiment/openai-gpt-5-codex/copywriting/workdir`
+- **Log:** `experiment/openai-gpt-5-codex/copywriting/combined.log`
+- **Tools Used:** 
+
+**Verification Output:**
+```
+FAIL: launch_post.md not found
+VERIFICATION_RESULT: FAIL
+```
+
+---
+### openai:gpt-5-codex / feature
+- **Status:** EXECUTION_FAILED
+- **Duration:** 6.02s
+- **Workdir:** `experiment/openai-gpt-5-codex/feature/workdir`
+- **Log:** `experiment/openai-gpt-5-codex/feature/combined.log`
+- **Tools Used:** 
+
+**Verification Output:**
+```
+Verifying Modular Todo App...
+FAIL: POST /todos failed with 405
+```
+
+---
+### openai:gpt-5-codex / integration-bug
+- **Status:** EXECUTION_FAILED
+- **Duration:** 5.80s
+- **Workdir:** `experiment/openai-gpt-5-codex/integration-bug/workdir`
+- **Log:** `experiment/openai-gpt-5-codex/integration-bug/combined.log`
+- **Tools Used:** 
+
+**Verification Output:**
+```
+Verifying Integration Bug Fix...
+ERROR: unterminated string literal (detected at line 15) (bank.py, line 15)
+VERIFICATION_RESULT: FAIL
+```
+
+---
+### openai:gpt-5-codex / refactor
+- **Status:** EXECUTION_FAILED
+- **Duration:** 6.13s
+- **Workdir:** `experiment/openai-gpt-5-codex/refactor/workdir`
+- **Log:** `experiment/openai-gpt-5-codex/refactor/combined.log`
+- **Tools Used:** 
+
+**Verification Output:**
+```
+Verifying refactored script: etl.py
+Testing if script runs...
+FAIL: Separated into functions/classes
+FAIL: ETL pattern (Extract/Transform/Load)
+PASS: Configuration decoupled
+FAIL: Uses regex for parsing
+FAIL: Has type hints & docstrings (Types: False, Docs: False)
+PASS: Script runs successfully
+PASS: Creates report.html
+VERIFICATION_RESULT: FAIL
+```
+
+---
+### openai:gpt-5-codex / research
+- **Status:** EXECUTION_FAILED
+- **Duration:** 6.18s
+- **Workdir:** `experiment/openai-gpt-5-codex/research/workdir`
+- **Log:** `experiment/openai-gpt-5-codex/research/combined.log`
+- **Tools Used:** 
 
 **Verification Output:**
 ```
@@ -1445,6 +2101,131 @@ PASS: Covers key players
 PASS: Covers technical hurdles
 PASS: References/citations
 VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### openai:gpt-5.4 / bug-fix
+- **Status:** EXCELLENT
+- **Duration:** 44.85s
+- **Workdir:** `experiment/openai-gpt-5.4/bug-fix/workdir`
+- **Log:** `experiment/openai-gpt-5.4/bug-fix/combined.log`
+- **Tools Used:** ActivateSkill, ListZrbTasks, WriteTodos, Glob, Glob, Glob, Read, LspGetDocumentSymbols, Bash, UpdateTodo, UpdateTodo, Edit, ReadMany, UpdateTodo, UpdateTodo, Write, ReadMany, UpdateTodo, UpdateTodo, Bash, Bash, Bash, Bash, UpdateTodo
+
+**Verification Output:**
+```
+PASS: Concurrency control found
+PASS: Final stock is non-negative: 1
+VERIFICATION_RESULT: EXCELLENT
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### openai:gpt-5.4 / copywriting
+- **Status:** PASS
+- **Duration:** 19.04s
+- **Workdir:** `experiment/openai-gpt-5.4/copywriting/workdir`
+- **Log:** `experiment/openai-gpt-5.4/copywriting/combined.log`
+- **Tools Used:** Write
+
+**Verification Output:**
+```
+PASS: Has headings
+PASS: Contains 'Zrb-Flow'
+PASS: Contains 'AI'
+PASS: Contains 'automation'
+PASS: Contains 'CLI'
+PASS: Contains 'Docker'
+FAIL: Contains 'K8s'
+PASS: Contains 'Self-Healing'
+PASS: Contains 'pipeline'
+PASS: Has call to action
+PASS: Markdown formatting
+VERIFICATION_RESULT: PASS
+```
+
+---
+### openai:gpt-5.4 / feature
+- **Status:** FAIL
+- **Duration:** 42.14s
+- **Workdir:** `experiment/openai-gpt-5.4/feature/workdir`
+- **Log:** `experiment/openai-gpt-5.4/feature/combined.log`
+- **Tools Used:** ActivateSkill, WriteTodos, Glob, Grep, Glob, ReadMany, UpdateTodo, UpdateTodo, Edit, Read, UpdateTodo, UpdateTodo, Glob, Bash, Bash, LspGetDiagnostics, UpdateTodo
+
+**Verification Output:**
+```
+Verifying Modular Todo App...
+FAIL: POST /todos failed with 422
+```
+
+---
+### openai:gpt-5.4 / integration-bug
+- **Status:** EXCELLENT
+- **Duration:** 62.53s
+- **Workdir:** `experiment/openai-gpt-5.4/integration-bug/workdir`
+- **Log:** `experiment/openai-gpt-5.4/integration-bug/combined.log`
+- **Tools Used:** ActivateSkill, WriteTodos, LS, Glob, ReadMany, ReadMany, Bash, Read, Edit, Bash, UpdateTodo, UpdateTodo, Bash, Bash, Edit, Edit, Edit, Edit, UpdateTodo, UpdateTodo, Write, ReadMany, LspGetDiagnostics, UpdateTodo, UpdateTodo, Bash, Bash, UpdateTodo, Grep, ReadMany
+
+**Verification Output:**
+```
+Verifying Integration Bug Fix...
+Initial Balances:
+Alice: 100
+Bob: 100
+Starting transfer: Alice -> Bob ($20)
+Starting transfer: Alice -> Bob ($20)
+Starting transfer: Alice -> Bob ($20)
+Starting transfer: Alice -> Bob ($20)
+Starting transfer: Alice -> Bob ($20)
+Transfer complete: Alice -> Bob
+Transfer complete: Alice -> Bob
+Transfer complete: Alice -> Bob
+Transfer complete: Alice -> Bob
+Transfer complete: Alice -> Bob
+
+Final Balances:
+Alice: 0
+Bob: 200
+Total: 200
+Total Money in System: 200
+WARNING: No explicit locking found, might be lucky or uses different pattern
+PASS: System integrity maintained
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### openai:gpt-5.4 / refactor
+- **Status:** EXCELLENT
+- **Duration:** 70.42s
+- **Workdir:** `experiment/openai-gpt-5.4/refactor/workdir`
+- **Log:** `experiment/openai-gpt-5.4/refactor/combined.log`
+- **Tools Used:** ActivateSkill, WriteTodos, Glob, Grep, Read, Bash, UpdateTodo, UpdateTodo, Write, Read, Write, Write, UpdateTodo, Bash, Bash, LspGetDiagnostics, Grep, Bash, UpdateTodo, UpdateTodo
+
+**Verification Output:**
+```
+Verifying refactored script: etl.py
+Testing if script runs...
+PASS: Separated into functions/classes
+PASS: ETL pattern (Extract/Transform/Load)
+PASS: Configuration decoupled
+PASS: Uses regex for parsing
+PASS: Has type hints & docstrings
+PASS: Script runs successfully
+PASS: Creates report.html
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### openai:gpt-5.4 / research
+- **Status:** FAIL
+- **Duration:** 10.12s
+- **Workdir:** `experiment/openai-gpt-5.4/research/workdir`
+- **Log:** `experiment/openai-gpt-5.4/research/combined.log`
+- **Tools Used:** ActivateSkill
+
+**Verification Output:**
+```
+FAIL: solid_state_battery_report.md not found and no other markdown files found
+VERIFICATION_RESULT: FAIL
 ```
 
 ---

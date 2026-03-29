@@ -1,0 +1,134 @@
+[2m
+  🧰 call_zp7ghxoi | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_zp7ghxoi | Return import asyncio
+     import random
+     
+     
+     class Inventory:
+         def __init__(self):
+             self.stock = 10
+     
+         async def purchase(self, user_id, amount):
+             print(f"User {user_id} checking stock...")
+     
+             # BUG: This check and decrement is NOT atomic.
+             # Simultaneous purchases can lead to negative stock.
+             if self.stock >= amount:
+                 # Simulate some processing/DB latency
+                 await asyncio.sleep(0.1)
+                 self.stock -= amount
+                 print(f"User {user_id} purchased {amount}. Remaining: {self.stock}")
+                 return True
+             else:
+                 print(f"User {user_id} failed to purchase. Stock low.")
+                 return False
+     
+     
+     async def main():
+         inventory = Inventory()
+     
+         # 5 users trying to buy 3 items each simultaneously.
+         # Total demand = 15, Stock = 10.
+         # If not handled correctly, stock will go to -5.
+         tasks = [inventory.purchase(i, 3) for i in range(5)]
+     
+         await asyncio.gather(*tasks)
+     
+         print(f"Final Stock: {inventory.stock}")
+     
+     
+     if __name__ == "__main__":
+         asyncio.run(main())
+     
+[0m[2m
+  🧠 I[0m[2m can[0m[2m see[0m[2m the[0m[2m problem[0m[2m.[0m[2m The[0m[2m code[0m[2m has[0m[2m a[0m[2m **[0m[2mrace[0m[2m condition[0m[2m**[0m[2m -[0m[2m the[0m[2m stock[0m[2m check[0m[2m (`[0m[2mself[0m[2m.stock[0m[2m >=[0m[2m amount[0m[2m`)[0m[2m and[0m[2m the stock[0m[2m decrement[0m[2m (`[0m[2mself[0m[2m.stock[0m[2m -=[0m[2m amount[0m[2m`)[0m[2m are[0m[2m not[0m[2m atomic[0m[2m.[0m[2m When[0m[2m multiple[0m[2m async[0m[2m tasks[0m[2m run[0m[2m concurrently[0m[2m,[0m[2m they[0m[2m can[0m[2m all[0m[2m pass[0m[2m the[0m[2m check[0m[2m before[0m[2m any[0m[2m of[0m[2m them[0m[2m decre[0m[2mments[0m[2m the[0m[2m stock[0m[2m,[0m[2m leading[0m[2m to[0m[2m negative[0m[2m stock[0m[2m.[0m[2m
+     
+     Let[0m[2m me[0m[2m fix[0m[2m this[0m[2m by[0m[2m adding[0m[2m an[0m[2m `[0m[2masync[0m[2mio[0m[2m.Lock[0m[2m`[0m[2m to[0m[2m make[0m[2m the[0m[2m operation[0m[2m atomic[0m[2m:[0m[2m
+  🧰 call_40cufz4q | Edit {'path': '/Users/gofrendigunawan/zrb ...', 'old_text': 'import asyncio\nimport rand ...', 'new_text': 'import asyncio\nimport rand ...'}
+[0m[2m
+  🔠 call_40cufz4q | Return Successfully updated /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/bug-fix/workdir/inventory_system.py
+[0m[2m
+  🧠 Let[0m[2m me[0m[2m run[0m[2m the[0m[2m code[0m[2m to[0m[2m verify[0m[2m the[0m[2m fix[0m[2m works[0m[2m:[0m[2m
+  🧰 call_4scfxpt1 | Bash {'command': 'cd /Users/gofrendigunawan/ ...'}
+[0m  [2mUser 0 checking stock...
+[0m  [2mUser 0 purchased 3. Remaining: 7
+[0m  [2mUser 1 checking stock...
+[0m  [2mUser 1 purchased 3. Remaining: 4
+[0m  [2mUser 2 checking stock...
+[0m  [2mUser 2 purchased 3. Remaining: 1
+[0m  [2mUser 3 checking stock...
+[0m  [2mUser 3 failed to purchase. Stock low.
+[0m  [2mUser 4 checking stock...
+[0m  [2mUser 4 failed to purchase. Stock low.
+[0m  [2mFinal Stock: 1
+[0m[2m
+  🔠 call_4scfxpt1 | Return Command: cd /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/bug-fix/workdir && python inventory_system.py
+     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/bug-fix/workdir
+     Stdout:
+     User 0 checking stock...
+     User 0 purchased 3. Remaining: 7
+     User 1 checking stock...
+     User 1 purchased 3. Remaining: 4
+     User 2 checking stock...
+     User 2 purchased 3. Remaining: 1
+     User 3 checking stock...
+     User 3 failed to purchase. Stock low.
+     User 4 checking stock...
+     User 4 failed to purchase. Stock low.
+     Final Stock: 1
+     Stderr:
+     (empty)
+     Exit Code: 0
+     Background PIDs: (none)
+[0m[2m
+  🧠 The[0m[2m fix[0m[2m works[0m[2m.[0m[2m Let[0m[2m me[0m[2m run[0m[2m it[0m[2m a[0m[2m few[0m[2m more[0m[2m times[0m[2m to[0m[2m confirm[0m[2m there[0m[2m's[0m[2m no[0m[2m race[0m[2m condition[0m[2m:[0m[2m
+  🧰 call_6qvx1pw5 | Bash {'command': 'cd /Users/gofrendigunawan/ ...'}
+[0m  [2m=== Run 1 ===
+[0m  [2mFinal Stock: 1
+[0m  [2m=== Run 2 ===
+[0m  [2mFinal Stock: 1
+[0m  [2m=== Run 3 ===
+[0m  [2mFinal Stock: 1
+[0m  [2m=== Run 4 ===
+[0m  [2mFinal Stock: 1
+[0m  [2m=== Run 5 ===
+[0m  [2mFinal Stock: 1
+[0m[2m
+  🔠 call_6qvx1pw5 | Return Command: cd /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/bug-fix/workdir && for i in {1..5}; do echo "=== Run $i ==="; python inventory_system.py | grep "Final Stock"; done
+     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/bug-fix/workdir
+     Stdout:
+     === Run 1 ===
+     Final Stock: 1
+     === Run 2 ===
+     Final Stock: 1
+     === Run 3 ===
+     Final Stock: 1
+     === Run 4 ===
+     Final Stock: 1
+     === Run 5 ===
+     Final Stock: 1
+     Stderr:
+     (empty)
+     Exit Code: 0
+     Background PIDs: (none)
+[0m[2m
+  🧠 Confirmed[0m[2m -[0m[2m the[0m[2m fix[0m[2m is[0m[2m working[0m[2m consistently[0m[2m.[0m[2m The[0m[2m stock[0m[2m never[0m[2m goes[0m[2m below[0m[2m zero[0m[2m.[0m[2m
+     
+     ##[0m[2m Summary[0m[2m
+     
+     **[0m[2mProblem[0m[2m**:[0m[2m Race[0m[2m condition[0m[2m in[0m[2m the[0m[2m `[0m[2mpurchase[0m[2m`[0m[2m method[0m[2m.[0m[2m The[0m[2m stock[0m[2m check[0m[2m (`[0m[2mif[0m[2m self[0m[2m.stock[0m[2m >=[0m[2m amount[0m[2m`)[0m[2m and[0m[2m decrement[0m[2m (`[0m[2mself[0m[2m.stock[0m[2m -=[0m[2m amount[0m[2m`)[0m[2m were[0m[2m not[0m[2m atomic[0m[2m.[0m[2m Multiple[0m[2m concurrent[0m[2m users[0m[2m could[0m[2m all[0m[2m read[0m[2m the[0m[2m same[0m[2m stock[0m[2m value[0m[2m,[0m[2m pass[0m[2m the[0m[2m check[0m[2m,[0m[2m and[0m[2m then[0m[2m all[0m[2m decrement[0m[2m -[0m[2m resulting[0m[2m in[0m[2m negative[0m[2m stock[0m[2m.[0m[2m
+     
+     **[0m[2mFix[0m[2m**:[0m[2m Added[0m[2m an[0m[2m `[0m[2masync[0m[2mio[0m[2m.Lock[0m[2m`[0m[2m (`[0m[2mself[0m[2m._[0m[2mlock[0m[2m`)[0m[2m and[0m[2m wrapped[0m[2m the[0m[2m critical[0m[2m section[0m[2m with[0m[2m `[0m[2masync[0m[2m with[0m[2m self[0m[2m._[0m[2mlock[0m[2m:`[0m[2m.[0m[2m This[0m[2m ensures[0m[2m only[0m[2m one[0m[2m coroutine[0m[2m can[0m[2m execute[0m[2m the[0m[2m check[0m[2m-and[0m[2m-de[0m[2mcrement[0m[2m sequence[0m[2m at[0m[2m a[0m[2m time[0m[2m,[0m[2m making[0m[2m the[0m[2m operation[0m[2m atomic[0m[2m.[0m[2m
+  [2m💸 (Requests: 5 | Tool Calls: 4 | Total: 42327) Input: 41524 | Audio Input: 0 | Output: 803 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}[0m
+[0m[2m[2mSession[0m: [1;33mtall-coal-8221[0m[0m
+[2mTo run again:[0m [1;33mzrb chat --message "The inventory system in `inventory_system.py` is failing intermittently. Sometimes we sell more items than we have in stock, especially during flash sales. 
+
+We need to make sure the stock never goes below zero. Figure out what's wrong and fix it." --model ollama:qwen3-coder-next:cloud --session "" --yolo true --attach "" --interactive false[0m
+Confirmed - the fix is working consistently. The stock never goes below zero.
+
+## Summary
+
+**Problem**: Race condition in the `purchase` method. The stock check (`if self.stock >= amount`) and decrement (`self.stock -= amount`) were not atomic. Multiple concurrent users could all read the same stock value, pass the check, and then all decrement - resulting in negative stock.
+
+**Fix**: Added an `asyncio.Lock` (`self._lock`) and wrapped the critical section with `async with self._lock:`. This ensures only one coroutine can execute the check-and-decrement sequence at a time, making the operation atomic.
