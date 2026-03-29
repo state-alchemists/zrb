@@ -2,7 +2,7 @@
 
 Server-Sent Events (SSE) + CLI dual mode for real-time LLM chat. No polling, no missed messages!
 
-This example provides **CLI + SSE dual mode** chat. Both terminal and SSE endpoints receive all messages and can be used to interact with the LLM.
+This example provides **CLI + SSE dual mode** chat with full tool approval support (approve/deny/edit).
 
 ## Architecture
 
@@ -30,10 +30,14 @@ flowchart LR
 export OPENAI_API_KEY="your-key"
 cd /path/to/zrb/examples/chat-sse
 zrb llm chat
+```
 
+```bash
 # Terminal 2: Connect to SSE stream (stays connected)
 curl -N http://localhost:8000/stream
+```
 
+```bash
 # Terminal 3: Send messages via HTTP
 curl -X POST http://localhost:8000/chat \
   -H "Content-Type: application/json" \
@@ -41,16 +45,6 @@ curl -X POST http://localhost:8000/chat \
 
 # Or type in Terminal 1's CLI!
 ```
-
-## Dual Mode
-
-This example uses **CLI + SSE dual mode**, similar to the Telegram example:
-
-- **CLI Input/Output**: Type directly in the terminal
-- **SSE Input**: Send messages via `POST /chat`
-- **SSE Output**: Stream all responses via `GET /stream`
-
-Both channels receive all LLM responses. Use whichever is convenient!
 
 ## Environment Variables
 
@@ -63,7 +57,7 @@ Both channels receive all LLM responses. Use whichever is convenient!
 
 ### POST /chat
 
-Send a message to the LLM.
+Send a message to the LLM or respond to tool approval prompts.
 
 **Request:**
 ```json
@@ -73,6 +67,16 @@ Send a message to the LLM.
 **Response:**
 ```json
 {"status": "sent", "message": "Hello!"}
+```
+
+**Response when handling approval:**
+```json
+{"status": "approval_handled", "message": "y"}
+```
+
+**Response when editing tool args:**
+```json
+{"status": "edit_received", "message": {"path": "/home/user"}}
 ```
 
 ### GET /stream
@@ -116,37 +120,229 @@ Get conversation history. Useful for resuming after disconnecting.
 | `format` | `text` | Output format: `text` or `json` |
 | `max_length` | `10000` | Max characters (for text format) |
 
-**Text Format Response:**
-```
-💬 14:30 >> Hello!
-🤖 14:30 >>
-  Hello! How can I help you?
+### GET /pending
 
-💬 14:31 >> What is 2+2?
-🤖 14:31 >>
-  2 + 2 = 4.
-```
+Get pending tool approvals that require user action.
 
-**JSON Format Response:**
+**Response:**
 ```json
 {
-  "session_name": "my-session",
-  "message_count": 4,
-  "messages": [
-    {"kind": "request", "parts": [...]},
-    {"kind": "response", "parts": [...]}
+  "pending_approvals": [
+    {
+      "tool_call_id": "call_abc123",
+      "tool_name": "Read",
+      "tool_args": {"path": "/path/to/file.txt"}
+    }
   ]
 }
 ```
 
-**Example - Get history after reconnect:**
-```bash
-# Get current session's history as text
-curl http://localhost:8000/history
+---
 
-# Get specific session as JSON
-curl "http://localhost:8000/history?session=my-session&format=json"
+## Tool Approval (Complete Guide)
+
+When the LLM wants to use a tool, the SSE stream shows:
+
 ```
+data: "🎰 Tool 'LS'"
+data: "Args:"
+data: "```json"
+data: "{"
+data: "  \"path\": \"/tmp\""
+data: "}"
+data: "```"
+data: "❓ Approve? (y/yes = approve, n/no = deny, e/edit = edit args)"
+```
+
+### Quick Reference
+
+| Response | Action |
+|----------|--------|
+| `y` or `yes` or `ok` or empty | Approve and execute |
+| `n` or `no` or `deny` | Deny, tool not executed |
+| `e` or `edit` | Enter edit mode |
+
+### Approve Tool
+
+**SSE shows:** `❓ Approve? (y/yes = approve, n/no = deny, e/edit = edit args)`
+
+**You send:**
+```bash
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "y"}'
+```
+
+**SSE confirms:** `✅ Tool 'LS' approved`
+
+### Deny Tool
+
+**SSE shows:** `❓ Approve? (y/yes = approve, n/no = deny, e/edit = edit args)`
+
+**You send:**
+```bash
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "n"}'
+```
+
+**SSE confirms:** `🛑 Tool 'LS' denied`
+
+### Edit Tool Arguments (Two-Step Flow)
+
+**IMPORTANT:** Never send JSON args directly. Always follow the two-step flow:
+
+1. First send `"e"` to enter edit mode
+2. Then send the JSON args
+
+Sending JSON without first sending `"e"` will result in an error.
+
+**Step 1: Request edit mode**
+
+**SSE shows:** `❓ Approve? (y/yes = approve, n/no = deny, e/edit = edit args)`
+
+**You send:**
+```bash
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "e"}'
+```
+
+**Step 2: Server shows current args with edit instructions**
+
+SSE broadcasts something like:
+```
+✏️ Editing tool 'LS'
+
+Current args:
+```json
+{
+  "path": "/tmp"
+}
+```
+
+Send modified args as JSON object:
+```
+curl -X POST http://localhost:8000/chat \
+  -H 'Content-Type: application/json' \
+  -d '{"message": {"path": "/tmp"}}'
+```
+
+Modify the values inside `message` as needed.
+```
+
+**Step 3: Send modified args**
+
+Copy the curl command from SSE and modify the values:
+
+```bash
+# Change path from /tmp to /home/user
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": {"path": "/home/user"}}'
+```
+
+**SSE confirms:** `✅ Tool 'LS' approved` (with modified args)
+
+---
+
+## Complete Example: Reading a File
+
+### Terminal 1: Start Server
+```bash
+export OPENAI_API_KEY="your-key"
+cd examples/chat-sse
+zrb llm chat
+```
+
+### Terminal 2: Watch SSE Stream
+```bash
+curl -N http://localhost:8000/stream
+```
+
+### Terminal 3: Interact
+
+**1. Ask LLM to list a directory:**
+```bash
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Please list the contents of /tmp"}'
+```
+
+**2. SSE shows approval request:**
+```
+data: "🎰 Tool 'LS'"
+data: "Args:"
+data: "```json"
+data: "{"
+data: "  \"path\": \"/tmp\""
+data: "}"
+data: "```"
+data: "❓ Approve? (y/yes = approve, n/no = deny, e/edit = edit args)"
+```
+
+**3. Approve:**
+```bash
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "y"}'
+```
+
+**Or: Edit the path first:**
+```bash
+# Step 1: Request edit
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "e"}'
+
+# Step 2: Send modified args (change path to /home)
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": {"path": "/home"}}'
+```
+
+---
+
+## Troubleshooting
+
+### "Tool denied: e" or unexpected denial
+
+You might have typed in Terminal 1 (CLI) which interfered with the SSE approval. 
+
+**Solution:** When using SSE for approvals, don't type in the CLI terminal. Or use CLI exclusively for approvals.
+
+### Tool args not updated after edit
+
+Make sure you're sending the **complete args object**, not just the changed field:
+
+```bash
+# ✅ Correct - complete args
+-d '{"message": {"path": "/home", "exclude_patterns": ["*.log"]}}'
+
+# ❌ Wrong - only partial args (missing path)
+-d '{"message": {"exclude_patterns": ["*.log"]}}'
+```
+
+### Check pending approvals
+
+If unsure what the server is waiting for:
+```bash
+curl http://localhost:8000/pending
+```
+
+---
+
+## Comparison with Telegram Example
+
+| Feature | Telegram | SSE |
+|---------|----------|-----|
+| **Approve** | ✅ Inline button | ✅ `{"message": "y"}` |
+| **Deny** | ✅ Inline button | ✅ `{"message": "n"}` |
+| **Edit** | ✅ Inline button + text | ✅ `{"message": "e"}` then `{"message": {...}}` |
+| **Pending Queue** | ✅ Broadcasts all pending | ✅ `GET /pending` |
+| **UI** | Rich buttons | Text-based |
+
+---
 
 ## How It Works
 
@@ -161,19 +357,50 @@ class SSEUI(EventDrivenUI, BufferedOutputMixin):
         server.set_ui(self)
     
     async def _send_buffered(self, text: str) -> None:
-        """Broadcast buffered content to all SSE clients."""
         await self.server.broadcast(text)
     
     async def print(self, text: str) -> None:
-        """Buffer output (called during streaming)."""
         self.buffer_output(text)
     
     async def start_event_loop(self) -> None:
-        """Start the SSE server."""
         await self.server.start()
         await self.start_flush_loop()
         while True:
             await asyncio.sleep(3600)
+```
+
+### SSEApproval Channel
+
+The `SSEApproval` class implements `ApprovalChannel` to handle tool approvals via text messages:
+
+```python
+class SSEApproval(ApprovalChannel):
+    async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
+        # Broadcast tool call details
+        # Wait for user response via /chat
+        # Return ApprovalResult(approved=True/False, override_args=...)
+```
+
+**Approval Flow:**
+
+```
+LLM calls tool → SSEApproval.request_approval() → Broadcast prompt
+                                                    ↓
+User sends response ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ←
+        ↓
+handle_response() → ApprovalResult → Tool executes or denied
+```
+
+**Edit Flow:**
+
+```
+User sends "e" → _apply_response() → Sets _waiting_for_edit_tool_call_id
+                                         ↓
+                                   Broadcasts current args + curl template
+                                         ↓
+User sends modified args ← ← ← ← ← ← ← ←
+        ↓
+handle_edit_response_obj() → ApprovalResult(override_args=new_args) → Tool executes with new args
 ```
 
 ### handle_incoming_message() Pattern
@@ -190,23 +417,7 @@ ui.input_queue.put_nowait(message)
 ui.handle_incoming_message(message)
 ```
 
-This method checks `_waiting_for_input`:
-- `True` → LLM is blocked on `get_input()`, put to `_input_queue`
-- `False` → LLM is idle, start a new conversation turn
-
-## Comparison with Other Patterns
-
-| Pattern | Real-time? | Missed messages? | Complexity |
-|---------|------------|------------------|------------|
-| **SSE** (this) | ✅ Yes | ❌ No | Low |
-| HTTP Polling | ❌ No | ⚠️ Yes | Medium |
-| WebSocket | ✅ Yes | ❌ No | High |
-
-**Why SSE over WebSocket:**
-- Simpler protocol (HTTP-based)
-- Automatic reconnection in browsers
-- No need for bidirectional (we use POST for sending)
-- Native JavaScript support (`EventSource`)
+---
 
 ## Browser Example
 
@@ -217,24 +428,43 @@ const eventSource = new EventSource('http://localhost:8000/stream');
 eventSource.onmessage = (event) => {
     const text = JSON.parse(event.data);
     console.log('Received:', text);
+    
+    // Check for approval requests
+    if (text.includes('Approve?')) {
+        showApprovalButtons();
+    }
+    
     // Add to your chat UI
     addMessageToUI(text);
 };
 
-eventSource.onerror = (error) => {
-    console.error('SSE Error:', error);
-    // Browser will auto-reconnect
-};
-
 // Send messages
-async function sendMessage(text) {
+async function sendMessage(message) {
     await fetch('http://localhost:8000/chat', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({message: text})
+        body: JSON.stringify({message})
     });
 }
+
+// Approve tool
+async function approveTool() {
+    await sendMessage('y');
+}
+
+// Deny tool
+async function denyTool() {
+    await sendMessage('n');
+}
+
+// Edit tool args (two-step)
+async function editTool(newArgs) {
+    await sendMessage('e');           // Step 1: Request edit
+    await sendMessage(newArgs);        // Step 2: Send new args object
+}
 ```
+
+---
 
 ## Session Management
 

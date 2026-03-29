@@ -36,20 +36,36 @@ Usage:
     curl -X POST http://localhost:8000/chat \
         -H "Content-Type: application/json" \
         -d '{"message": "What is 2+2?"}'
+    
+    # Approve tool call
+    curl -X POST http://localhost:8000/chat \
+        -H "Content-Type: application/json" \
+        -d '{"message": "y"}'
+
+    curl -X POST http://localhost:8000/chat \
+        -H "Content-Type: application/json" \
+        -d '{"message": "n"}'
+
+    curl -X POST http://localhost:8000/chat \
+        -H "Content-Type: application/json" \
+        -d '{"message": "e"}'
+    
+    # Edit tool call args (when prompted)
+    curl -X POST http://localhost:8000/chat \
+        -H "Content-Type: application/json" \
+        -d '{"message": {"file_path": "/new/path/file.txt"}}'
 """
 
 import asyncio
 import json
 import os
+from typing import Any
 
 from aiohttp import web
 
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.ui.simple_ui import (
-    BufferedOutputMixin,
-    EventDrivenUI,
-    create_http_ui_factory,
-)
+from zrb.llm.approval import ApprovalChannel, ApprovalContext, ApprovalResult
+from zrb.llm.ui.simple_ui import BufferedOutputMixin, EventDrivenUI
 from zrb.llm.util.history_formatter import format_history_as_text
 from zrb.util.cli.style import remove_style
 
@@ -75,6 +91,7 @@ class SSEServer:
         self._site: web.TCPSite | None = None
         self._ui_instance: "SSEUI | None" = None
         self._output_queue: asyncio.Queue[str] = asyncio.Queue()
+        self._approval_channel: "SSEApproval | None" = None
 
     @classmethod
     def get(cls) -> "SSEServer":
@@ -86,12 +103,12 @@ class SSEServer:
         """Set the UI instance for message routing."""
         self._ui_instance = ui
 
-    async def broadcast(self, text: str) -> None:
-        """Queue text for broadcast to all SSE clients.
+    def set_approval_channel(self, approval: "SSEApproval") -> None:
+        """Set the approval channel for tool approvals."""
+        self._approval_channel = approval
 
-        Messages are sent via _output_queue and delivered to ONE client
-        (first to request). For multi-client broadcast, use per-client queues.
-        """
+    async def broadcast(self, text: str) -> None:
+        """Queue text for broadcast to all SSE clients."""
         clean = remove_style(text).strip()
         if not clean:
             return
@@ -104,6 +121,7 @@ class SSEServer:
         self._app.router.add_get("/stream", self._handle_stream)
         self._app.router.add_get("/status", self._handle_status)
         self._app.router.add_get("/history", self._handle_history)
+        self._app.router.add_get("/pending", self._handle_pending)
 
         self._runner = web.AppRunner(self._app)
         await self._runner.setup()
@@ -117,6 +135,7 @@ class SSEServer:
         print("  GET  /stream  - SSE stream (stays connected)")
         print("  GET  /status  - Session status")
         print("  GET  /history - Get conversation history")
+        print("  GET  /pending - Get pending tool approvals")
         print("")
         print("Press CTRL+C to exit")
 
@@ -131,11 +150,52 @@ class SSEServer:
             return web.json_response({"error": "Invalid JSON"}, status=400)
 
         message = data.get("message", "")
-        if not message:
+
+        # Accept both string and dict/object for message
+        if isinstance(message, dict):
+            # Message is already a JSON object - convert to string for processing
+            message_json = message
+            message_str = json.dumps(message)
+        elif not message:
             return web.json_response({"error": "Message required"}, status=400)
+        else:
+            # Message is a string
+            message_str = message
+            message_json = None
+
+        # Check if approval channel is waiting for input
+        if self._approval_channel:
+            # Handle edit input - accept both dict and string
+            if self._approval_channel.is_waiting_for_edit():
+                if message_json is not None:
+                    # Direct JSON object - use directly
+                    self._approval_channel.handle_edit_response_obj(message_json)
+                else:
+                    # String - parse as JSON/YAML
+                    self._approval_channel.handle_edit_response(message_str)
+                return web.json_response(
+                    {"status": "edit_received", "message": message}
+                )
+
+            # If message is a dict but we're not waiting for edit, it's an error
+            if message_json is not None:
+                return web.json_response(
+                    {
+                        "error": "Unexpected JSON args - not in edit mode. Send 'e' first."
+                    },
+                    status=400,
+                )
+
+            # Handle approval response (y/n/e) if there's a pending tool call
+            if self._approval_channel.has_pending_approvals():
+                handled = self._approval_channel.handle_response(message_str)
+                if handled:
+                    return web.json_response(
+                        {"status": "approval_handled", "message": message}
+                    )
 
         # Route through handle_incoming_message()
-        self._ui_instance.handle_incoming_message(message)
+        self._ui_instance.handle_incoming_message(message_str)
 
         return web.json_response({"status": "sent", "message": message})
 
@@ -190,19 +250,10 @@ class SSEServer:
         )
 
     async def _handle_history(self, request: web.Request) -> web.Response:
-        """GET /history - Get conversation history.
-
-        Query params:
-            session: Optional session name (defaults to current session)
-            format: "text" or "json" (defaults to "text")
-
-        Returns:
-            Formatted conversation history or raw JSON
-        """
+        """GET /history - Get conversation history."""
         if not self._ui_instance:
             return web.json_response({"error": "UI not initialized"}, status=500)
 
-        # Get session name from query param or use current session
         session_name = request.query.get(
             "session", self._ui_instance._conversation_session_name
         )
@@ -210,19 +261,15 @@ class SSEServer:
         max_length = int(request.query.get("max_length", "10000"))
 
         try:
-            # Access history manager through UI instance
             history_manager = self._ui_instance._history_manager
             messages = history_manager.load(session_name)
 
             if output_format == "json":
-                # Return raw message structure as JSON
-                # ModelMessage objects have .model_dump() method
                 messages_data = []
                 for msg in messages:
                     if hasattr(msg, "model_dump"):
                         messages_data.append(msg.model_dump())
                     else:
-                        # Fallback for older pydantic-ai versions
                         messages_data.append(str(msg))
 
                 return web.json_response(
@@ -233,7 +280,6 @@ class SSEServer:
                     }
                 )
             else:
-                # Return formatted text
                 history_text = format_history_as_text(messages, max_length=max_length)
                 return web.Response(
                     text=history_text,
@@ -250,6 +296,283 @@ class SSEServer:
                 {"error": f"Failed to load history: {str(e)}"}, status=500
             )
 
+    async def _handle_pending(self, request: web.Request) -> web.Response:
+        """GET /pending - Get pending tool approvals."""
+        if not self._approval_channel:
+            return web.json_response(
+                {"error": "Approval channel not initialized"}, status=500
+            )
+
+        pending = self._approval_channel.get_pending_approvals()
+        return web.json_response({"pending_approvals": pending})
+
+
+# =============================================================================
+# SSE Approval Channel - Handle tool approvals via text messages
+# =============================================================================
+
+
+class SSEApproval(ApprovalChannel):
+    """SSE approval channel supporting approve/deny/edit via text messages.
+
+    Similar to TelegramApproval but using plain text responses:
+    - "y" / "yes" / "" -> Approve
+    - "n" / "no" -> Deny
+    - "e" / "edit" -> Edit (prompts for new args via next message)
+
+    Edit flow:
+    1. User sends "e" or "edit"
+    2. Server broadcasts current args and sets waiting state
+    3. User sends JSON/YAML args via next /chat message
+    4. Server parses and approves with modified args
+    """
+
+    def __init__(self, server: SSEServer):
+        self.server = server
+        self._pending: dict[str, asyncio.Future[ApprovalResult]] = {}
+        self._pending_context: dict[str, ApprovalContext] = {}
+        self._waiting_for_edit_tool_call_id: str | None = None
+
+    def is_waiting_for_edit(self) -> bool:
+        """Check if waiting for edit input."""
+        return self._waiting_for_edit_tool_call_id is not None
+
+    def has_pending_approvals(self) -> bool:
+        """Check if there are pending tool approvals waiting for response."""
+        return len(self._pending) > 0
+
+    def get_pending_approvals(self) -> list[dict[str, Any]]:
+        """Get list of pending tool approvals."""
+        result = []
+        for tool_call_id, ctx in self._pending_context.items():
+            result.append(
+                {
+                    "tool_call_id": tool_call_id,
+                    "tool_name": ctx.tool_name,
+                    "tool_args": ctx.tool_args,
+                }
+            )
+        return result
+
+    async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
+        """Request approval for a tool call."""
+        loop = asyncio.get_running_loop()
+        future = loop.create_future()
+        self._pending[context.tool_call_id] = future
+        self._pending_context[context.tool_call_id] = context
+
+        # Broadcast tool call info for user to approve
+        args_json = json.dumps(context.tool_args, indent=2, default=str)
+        message = (
+            f"🎰 Tool '{context.tool_name}'\n"
+            f"Args:\n```json\n{args_json}\n```\n"
+            f"❓ Approve? (y/yes = approve, n/no = deny, e/edit = edit args)"
+        )
+        await self.server.broadcast(message)
+
+        try:
+            return await future
+        except asyncio.CancelledError:
+            if context.tool_call_id in self._pending:
+                del self._pending[context.tool_call_id]
+            if context.tool_call_id in self._pending_context:
+                del self._pending_context[context.tool_call_id]
+            raise
+
+    async def notify(
+        self, message: str, context: ApprovalContext | None = None
+    ) -> None:
+        """Notify user (broadcast via SSE)."""
+        await self.server.broadcast(message)
+
+    def handle_response(self, response: str, tool_call_id: str | None = None) -> bool:
+        """Handle a response from the user.
+
+        Returns True if handled, False if not waiting for input.
+        """
+        # If we're waiting for edit input, route to edit handler
+        if self._waiting_for_edit_tool_call_id:
+            self._handle_edit_response(response)
+            return True
+
+        # Check if this is a pending tool call
+        if tool_call_id and tool_call_id in self._pending:
+            self._apply_response(tool_call_id, response)
+            return True
+
+        # If only one pending tool call, apply response to it
+        if len(self._pending) == 1:
+            only_tool_call_id = list(self._pending.keys())[0]
+            self._apply_response(only_tool_call_id, response)
+            return True
+
+        return False
+
+    def handle_edit_response(
+        self, response: str, tool_call_id: str | None = None
+    ) -> None:
+        """Handle edit response (new args as JSON/YAML string)."""
+        if not self._waiting_for_edit_tool_call_id:
+            return
+
+        tool_call_id = tool_call_id or self._waiting_for_edit_tool_call_id
+        self._waiting_for_edit_tool_call_id = None
+
+        if tool_call_id not in self._pending:
+            return
+
+        context = self._pending_context.get(tool_call_id)
+        new_args = self._parse_edited_content(response)
+        future = self._pending.pop(tool_call_id)
+        del self._pending_context[tool_call_id]
+
+        if new_args is not None:
+            asyncio.create_task(
+                self.server.broadcast(
+                    f"✅ Tool '{context.tool_name}' approved (with edited args)"
+                )
+            )
+            future.set_result(ApprovalResult(approved=True, override_args=new_args))
+        else:
+            asyncio.create_task(
+                self.server.broadcast(
+                    f"🛑 Tool '{context.tool_name}' denied: Invalid JSON/YAML format"
+                )
+            )
+            future.set_result(
+                ApprovalResult(approved=False, message="Invalid JSON/YAML format")
+            )
+
+    def handle_edit_response_obj(
+        self, args: dict, tool_call_id: str | None = None
+    ) -> None:
+        """Handle edit response when args are already a dict (from JSON object message)."""
+        if not self._waiting_for_edit_tool_call_id:
+            return
+
+        tool_call_id = tool_call_id or self._waiting_for_edit_tool_call_id
+        self._waiting_for_edit_tool_call_id = None
+
+        if tool_call_id not in self._pending:
+            return
+
+        context = self._pending_context.get(tool_call_id)
+        future = self._pending.pop(tool_call_id)
+        del self._pending_context[tool_call_id]
+
+        # Args are already a dict, use directly
+        asyncio.create_task(
+            self.server.broadcast(
+                f"✅ Tool '{context.tool_name}' approved (with edited args)"
+            )
+        )
+        future.set_result(ApprovalResult(approved=True, override_args=args))
+
+    def _handle_edit_response(self, response: str) -> None:
+        """Internal handler for edit response."""
+        self.handle_edit_response(response)
+
+    def _apply_response(self, tool_call_id: str, response: str) -> None:
+        """Apply response to a pending tool call."""
+        if tool_call_id not in self._pending:
+            return
+
+        # Handle non-string responses (shouldn't happen, but be defensive)
+        if not isinstance(response, str):
+            asyncio.create_task(
+                self.server.broadcast(
+                    f"🛑 Unexpected response type: {type(response).__name__}"
+                )
+            )
+            future = self._pending.pop(tool_call_id)
+            del self._pending_context[tool_call_id]
+            future.set_result(
+                ApprovalResult(approved=False, message="Invalid response type")
+            )
+            return
+
+        response_lower = response.lower().strip()
+        future = self._pending.pop(tool_call_id)
+        context = self._pending_context.pop(tool_call_id)
+
+        if response_lower in ("y", "yes", "ok", "okay", ""):
+            # Approve
+            asyncio.create_task(
+                self.server.broadcast(f"✅ Tool '{context.tool_name}' approved")
+            )
+            future.set_result(ApprovalResult(approved=True))
+        elif response_lower in ("n", "no", "deny", "cancel"):
+            # Deny
+            asyncio.create_task(
+                self.server.broadcast(f"🛑 Tool '{context.tool_name}' denied")
+            )
+            future.set_result(ApprovalResult(approved=False, message="User denied"))
+        elif response_lower in ("e", "edit"):
+            # Edit - DO NOT resolve future yet, just set waiting state
+            # The future will be resolved when user sends JSON args
+            self._pending[tool_call_id] = future
+            self._pending_context[tool_call_id] = context
+            self._waiting_for_edit_tool_call_id = tool_call_id
+
+            # Broadcast current args in copy-paste friendly format
+            args_json = json.dumps(context.tool_args, indent=2, ensure_ascii=False)
+
+            # Create a curl-ready JSON payload
+            message_payload = json.dumps(
+                {"message": context.tool_args}, ensure_ascii=False
+            )
+
+            message = (
+                f"✏️ Editing tool '{context.tool_name}'\n\n"
+                f"Current args:\n```json\n{args_json}\n```\n\n"
+                f"Send modified args as JSON object:\n"
+                f"```\n"
+                f"curl -X POST http://{self.server.host}:{self.server.port}/chat \\\n"
+                f"  -H 'Content-Type: application/json' \\\n"
+                f"  -d '{message_payload}'\n"
+                f"```\n\n"
+                f"Modify the values inside `message` as needed."
+            )
+            asyncio.create_task(self.server.broadcast(message))
+            # DO NOT resolve future here - wait for JSON args
+        else:
+            # Treat as denial with reason
+            asyncio.create_task(
+                self.server.broadcast(
+                    f"🛑 Tool '{context.tool_name}' denied: {response}"
+                )
+            )
+            future.set_result(
+                ApprovalResult(approved=False, message=f"User denied: {response}")
+            )
+
+    def _parse_edited_content(self, content: str) -> dict | None:
+        """Parse edited content as JSON or YAML."""
+        content = content.strip()
+        # Remove markdown code blocks if present
+        if content.startswith("```"):
+            lines = content.split("\n")
+            # Remove first and last line (code block markers)
+            content = "\n".join(lines[1:-1] if lines[-1] == "```" else lines[1:])
+
+        try:
+            result = json.loads(content)
+            if isinstance(result, dict):
+                return result
+            return None
+        except json.JSONDecodeError:
+            pass
+        try:
+            import yaml
+
+            result = yaml.safe_load(content)
+            if isinstance(result, dict):
+                return result
+            return None
+        except yaml.YAMLError:
+            pass
+        return None
+
 
 # =============================================================================
 # SSE UI - EventDrivenUI with SSE Broadcasting
@@ -257,18 +580,7 @@ class SSEServer:
 
 
 class SSEUI(EventDrivenUI, BufferedOutputMixin):
-    """SSE UI using EventDrivenUI with buffered output broadcasting.
-
-    Uses:
-    - EventDrivenUI: Automatic queue + event loop management
-    - BufferedOutputMixin: Batches output to avoid fragmented messages
-    - SSEServer: Broadcasts to all connected SSE clients
-
-    Message flow:
-    - POST /chat calls handle_incoming_message()
-    - print() buffers output and sends via SSE to all clients
-    - get_input() asks via SSE and waits for _input_queue
-    """
+    """SSE UI using EventDrivenUI with buffered output broadcasting."""
 
     def __init__(self, server: SSEServer, **kwargs):
         super().__init__(**kwargs)
@@ -285,12 +597,8 @@ class SSEUI(EventDrivenUI, BufferedOutputMixin):
         self.buffer_output(text)
 
     async def get_input(self, prompt: str) -> str:
-        """Send question via SSE and wait for response.
-
-        Overrides EventDrivenUI.get_input() to broadcast the question.
-        """
+        """Send question via SSE and wait for response."""
         if prompt:
-            # Broadcast the question to all clients
             clean_prompt = remove_style(prompt).strip()
             if clean_prompt:
                 await self.server.broadcast(f"❓ {clean_prompt}")
@@ -303,13 +611,8 @@ class SSEUI(EventDrivenUI, BufferedOutputMixin):
 
     async def start_event_loop(self) -> None:
         """Start the SSE server and flush loop."""
-        # Start the HTTP/SSE server
         await self.server.start()
-
-        # Start the periodic flush loop
         await self.start_flush_loop()
-
-        # Keep running forever
         while True:
             await asyncio.sleep(3600)
 
@@ -319,19 +622,53 @@ class SSEUI(EventDrivenUI, BufferedOutputMixin):
 # =============================================================================
 
 server = SSEServer.get()
+sse_approval = SSEApproval(server)
+server.set_approval_channel(sse_approval)
 
-# Create SSE UI factory using the HTTP helper
-sse_ui_factory = create_http_ui_factory(
-    SSEUI,
-    host=SSE_HOST,
-    port=SSE_PORT,
-    server=server,
-)
+
+def sse_ui_factory(
+    ctx,
+    llm_task,
+    history_manager,
+    ui_commands,
+    initial_message,
+    initial_conversation_name,
+    initial_yolo,
+    initial_attachments,
+):
+    from zrb.llm.ui.simple_ui import UIConfig
+
+    cfg = UIConfig.default()
+    if ui_commands:
+        cfg = cfg.merge_commands(ui_commands)
+    cfg.yolo = initial_yolo
+    cfg.conversation_session_name = initial_conversation_name
+
+    ui = SSEUI(
+        ctx=ctx,
+        llm_task=llm_task,
+        history_manager=history_manager,
+        config=cfg,
+        initial_message=initial_message,
+        initial_attachments=initial_attachments,
+        server=server,
+    )
+    return ui
+
 
 # Add SSE UI alongside default terminal UI (dual mode)
-# This gives you both CLI input/output AND SSE streaming
 llm_chat.append_ui_factory(sse_ui_factory)
 
-print(f"🌐 SSE + CLI dual mode enabled")
+# Add approval channels:
+# - SSE first (gets priority in race conditions)
+# - Terminal second (fallback for CLI users)
+llm_chat.append_approval_channel(sse_approval)
+
+print("🌐 SSE + CLI dual mode enabled")
 print("   Both terminal and SSE receive all messages.")
 print("   Use terminal or POST /chat to send messages.")
+print("")
+print("Tool Approval:")
+print("  y/yes  - Approve tool call")
+print("  n/no   - Deny tool call")
+print("  e/edit - Edit tool args (then send JSON/YAML)")
