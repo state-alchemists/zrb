@@ -9,8 +9,7 @@ from zrb.util.file import read_file
 from zrb.util.string.format import fstring_format
 
 if TYPE_CHECKING:
-    from fastapi import FastAPI
-    from fastapi import Request
+    from fastapi import FastAPI, Request
 
 
 _DIR = os.path.dirname(__file__)
@@ -46,5 +45,17 @@ def serve_chat_page(
         user = await get_user_from_request(web_auth_config, request)
         return await get_chat_page_html(user)
 
-    app.add_api_route("/chat", chat_page_ui, response_class=HTMLResponse, include_in_schema=False, methods=["GET"])
-    app.add_api_route("/chat/", chat_page_ui, response_class=HTMLResponse, include_in_schema=False, methods=["GET"])
+    app.add_api_route(
+        "/chat",
+        chat_page_ui,
+        response_class=HTMLResponse,
+        include_in_schema=False,
+        methods=["GET"],
+    )
+    app.add_api_route(
+        "/chat/",
+        chat_page_ui,
+        response_class=HTMLResponse,
+        include_in_schema=False,
+        methods=["GET"],
+    )

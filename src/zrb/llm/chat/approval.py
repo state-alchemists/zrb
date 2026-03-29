@@ -75,8 +75,7 @@ class ChatApprovalChannel(ApprovalChannel):
 
             if ui:
                 await ui.on_approval_resolved(
-                    context.tool_call_id,
-                    "approved" if result.approved else "denied"
+                    context.tool_call_id, "approved" if result.approved else "denied"
                 )
 
             return result

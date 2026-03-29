@@ -131,7 +131,9 @@ class ChatSessionManager:
         if not session:
             raise ValueError(f"Session {session_id} not found")
 
-        future: asyncio.Future["ApprovalResult"] = asyncio.get_event_loop().create_future()
+        future: asyncio.Future["ApprovalResult"] = (
+            asyncio.get_event_loop().create_future()
+        )
         pending = PendingApproval(
             tool_call_id=context.tool_call_id,
             tool_name=context.tool_name,
@@ -217,14 +219,38 @@ class ChatSessionManager:
     def _generate_name(self) -> str:
         """Generate a random conversation name."""
         adjectives = [
-            "calm", "happy", "bright", "swift", "wise",
-            "gentle", "bold", "clear", "keen", "warm",
-            "cool", "pure", "fine", "soft", "strong",
+            "calm",
+            "happy",
+            "bright",
+            "swift",
+            "wise",
+            "gentle",
+            "bold",
+            "clear",
+            "keen",
+            "warm",
+            "cool",
+            "pure",
+            "fine",
+            "soft",
+            "strong",
         ]
         nouns = [
-            "river", "mountain", "forest", "ocean", "meadow",
-            "valley", "canyon", "desert", "island", "plain",
-            "sunset", "dawn", "star", "moon", "cloud",
+            "river",
+            "mountain",
+            "forest",
+            "ocean",
+            "meadow",
+            "valley",
+            "canyon",
+            "desert",
+            "island",
+            "plain",
+            "sunset",
+            "dawn",
+            "star",
+            "moon",
+            "cloud",
         ]
         import random
 

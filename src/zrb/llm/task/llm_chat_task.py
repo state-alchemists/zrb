@@ -403,7 +403,9 @@ class LLMChatTask(BaseTask):
         self._custom_commands += list(custom_command)
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
-        print(f"[DEBUG] LLMChatTask._exec_action called, ctx={type(ctx)}, ctx is None: {ctx is None}")
+        print(
+            f"[DEBUG] LLMChatTask._exec_action called, ctx={type(ctx)}, ctx is None: {ctx is None}"
+        )
         # 1. Resolve inputs/attributes
         initial_conversation_name = self._get_initial_conversation_name(ctx)
         initial_yolo = get_bool_attr(ctx, self._yolo, False)
@@ -579,7 +581,9 @@ class LLMChatTask(BaseTask):
             # tool_confirmation = None (let UI handle it via approval_channel)
 
         def check_yolo(*args, **kwargs):
-            print(f"[DEBUG] check_yolo called, ctx={type(ctx)}, captured ctx={type(ctx)}, captured ctx is None: {ctx is None}")
+            print(
+                f"[DEBUG] check_yolo called, ctx={type(ctx)}, captured ctx={type(ctx)}, captured ctx is None: {ctx is None}"
+            )
             if self._yolo_xcom_key not in ctx.xcom:
                 return False
             return ctx.xcom[self._yolo_xcom_key].get(False)

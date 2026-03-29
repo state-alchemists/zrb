@@ -259,7 +259,9 @@ class LLMTask(BaseTask):
 
     def _get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
         """Get all tools including those resolved from factories."""
-        print(f"[DEBUG] LLMTask._get_all_tools called, ctx={type(ctx)}, ctx is None: {ctx is None}")
+        print(
+            f"[DEBUG] LLMTask._get_all_tools called, ctx={type(ctx)}, ctx is None: {ctx is None}"
+        )
         all_tools = list(self._tools)
         for factory in self._tool_factories:
             tool = factory(ctx)
@@ -271,7 +273,9 @@ class LLMTask(BaseTask):
 
     def _get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
         """Get all toolsets including those resolved from factories."""
-        print(f"[DEBUG] LLMTask._get_all_toolsets called, ctx={type(ctx)}, ctx is None: {ctx is None}")
+        print(
+            f"[DEBUG] LLMTask._get_all_toolsets called, ctx={type(ctx)}, ctx is None: {ctx is None}"
+        )
         all_toolsets = list(self._toolsets)
         for factory in self._toolset_factories:
             toolset = factory(ctx)
@@ -282,7 +286,9 @@ class LLMTask(BaseTask):
         return all_toolsets
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
-        print(f"[DEBUG] LLMTask._exec_action called, ctx={type(ctx)}, ctx is None: {ctx is None}")
+        print(
+            f"[DEBUG] LLMTask._exec_action called, ctx={type(ctx)}, ctx is None: {ctx is None}"
+        )
         async with AsyncExitStack() as stack:
             # Enter context for all toolsets that support it
             for toolset in self._get_all_toolsets(ctx):
@@ -292,7 +298,9 @@ class LLMTask(BaseTask):
             return await self._exec_action_inner(ctx)
 
     async def _exec_action_inner(self, ctx: AnyContext) -> Any:
-        print(f"[DEBUG] LLMTask._exec_action_inner called, ctx={type(ctx)}, ctx is None: {ctx is None}")
+        print(
+            f"[DEBUG] LLMTask._exec_action_inner called, ctx={type(ctx)}, ctx is None: {ctx is None}"
+        )
         conversation_name = self._get_conversation_name(ctx)
         history_manager = self._get_history_manager(ctx)
         message_history = history_manager.load(conversation_name)

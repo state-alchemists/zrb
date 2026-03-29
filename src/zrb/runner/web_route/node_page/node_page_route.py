@@ -51,4 +51,10 @@ def serve_node_page(
             return show_group_page(user, root_group, node, url)
         return show_error_page(user, root_group, 404, "Not found")
 
-    app.add_api_route("/ui/{path:path}", ui_page, response_class=HTMLResponse, include_in_schema=False, methods=["GET"])
+    app.add_api_route(
+        "/ui/{path:path}",
+        ui_page,
+        response_class=HTMLResponse,
+        include_in_schema=False,
+        methods=["GET"],
+    )

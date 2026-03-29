@@ -8,9 +8,9 @@ from typing import TYPE_CHECKING, Any, TextIO
 from zrb.llm.ui.simple_ui import PollingUI
 
 if TYPE_CHECKING:
+    from zrb.context.any_context import AnyContext
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.task.llm_task import LLMTask
-    from zrb.context.any_context import AnyContext
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +83,9 @@ class ChatSSEUI(PollingUI):
     async def _broadcast(self, event_type: str, data: Any):
         """Send event to all connected SSE clients."""
         message = json.dumps({"type": event_type, "data": data}, ensure_ascii=False)
-        print(f"[ChatSSEUI DEBUG] _broadcast called: type={event_type}, data={str(data)[:100]}...")
+        print(
+            f"[ChatSSEUI DEBUG] _broadcast called: type={event_type}, data={str(data)[:100]}..."
+        )
         if self._broadcast_fn:
             print(f"[ChatSSEUI DEBUG] Calling _broadcast_fn")
             await self._broadcast_fn(message)
@@ -101,10 +103,13 @@ class ChatSSEUI(PollingUI):
 
     async def _broadcast_approval_resolved(self, tool_call_id: str, action: str):
         """Send approval resolution to all SSE clients."""
-        await self._broadcast("approval_resolved", {
-            "tool_call_id": tool_call_id,
-            "action": action,
-        })
+        await self._broadcast(
+            "approval_resolved",
+            {
+                "tool_call_id": tool_call_id,
+                "action": action,
+            },
+        )
 
     async def _broadcast_status(self, status: dict):
         """Send status update to all SSE clients."""
@@ -130,7 +135,9 @@ class ChatSSEUI(PollingUI):
         text = sep.join(str(v) for v in values) + end
         print(f"[ChatSSEUI DEBUG] append_to_output called: {text[:100]}...")
         self._output_queue.put_nowait(text)
-        print(f"[ChatSSEUI DEBUG] append_to_output queued, queue size now: {self._output_queue.qsize()}")
+        print(
+            f"[ChatSSEUI DEBUG] append_to_output queued, queue size now: {self._output_queue.qsize()}"
+        )
 
     async def print(self, text: str) -> None:
         """Process queued output via SSE."""
@@ -145,7 +152,9 @@ class ChatSSEUI(PollingUI):
     async def _run_loop(self):
         """Process queued output and handle SSE client connections."""
         print(f"[ChatSSEUI DEBUG] _run_loop started for session {self._session_id}")
-        await self._broadcast_status({"connected": True, "session_id": self._session_id})
+        await self._broadcast_status(
+            {"connected": True, "session_id": self._session_id}
+        )
         while True:
             try:
                 text = await asyncio.wait_for(self._output_queue.get(), timeout=0.1)
