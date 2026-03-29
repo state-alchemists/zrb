@@ -6,26 +6,22 @@ This example demonstrates how to create custom UI backends for Zrb's LLM Chat us
 
 Zrb provides multiple levels for extending the UI:
 
+```mermaid
+flowchart TB
+    Level0["Level 0: UIProtocol<br/>Minimal (4 methods) - tool confirmations only"]
+    Level1["Level 1: BaseUI<br/>THIS EXAMPLE - 4 methods + run_async()"]
+    Level2["Level 2: UI<br/>Terminal implementation with prompt_toolkit"]
+    Level3["Level 3: MultiplexerUI<br/>Multi-channel support"]
+
+    Level0 --> Level1 --> Level2 --> Level3
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│ Level 0: UIProtocol (minimal, 4 methods)                        │
-│         - For tool confirmations only                           │
-│         - See: src/zrb/llm/tool_call/ui_protocol.py             │
-├─────────────────────────────────────────────────────────────────┤
-│ Level 1: BaseUI (THIS EXAMPLE - base class)                     │
-│         - Implement 4 required methods + run_async()            │
-│         - For custom backends (Telegram, Discord, WebSocket)    │
-│         - See: src/zrb/llm/ui/base_ui.py                       │
-├─────────────────────────────────────────────────────────────────┤
-│ Level 2: UI (terminal implementation)                           │
-│         - Full TUI with prompt_toolkit                          │
-│         - See: src/zrb/llm/ui/default_ui.py                            │
-├─────────────────────────────────────────────────────────────────┤
-│ Level 3: MultiplexerUI (multi-channel support)                  │
-│         - Manages multiple child UIs                            │
-│         - See: examples/telegram-cli/ for example               │
-└─────────────────────────────────────────────────────────────────┘
-```
+
+| Level | Base Class | Description |
+|-------|------------|-------------|
+| **0** | `UIProtocol` | Minimal 4 methods - tool confirmations only |
+| **1** | `BaseUI` | THIS EXAMPLE - 4 methods + run_async() |
+| **2** | `UI` | Terminal implementation with prompt_toolkit |
+| **3** | `MultiplexerUI` | Multi-channel support |
 
 ## How It Works
 

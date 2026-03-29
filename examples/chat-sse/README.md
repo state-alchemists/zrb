@@ -6,13 +6,12 @@ This example provides **CLI + SSE dual mode** chat. Both terminal and SSE endpoi
 
 ## Architecture
 
-```
-┌──────────────┐     POST /chat      ┌──────────────┐     handle_incoming_message()     ┌──────────────┐
-│    Client    │ ──────────────────► │  SSE Server  │ ─────────────────────────────────►│     LLM      │
-│              │                     │              │                                    │              │
-│              │     GET /stream     │              │         broadcast(SSE)            │              │
-│              │ ◄────────────────── │◄─────────────│◄──────────────────────────────────│              │
-└──────────────┘   (SSE stream)      └──────────────┘                                    └──────────────┘
+```mermaid
+flowchart LR
+    Client[Client] -->|POST /chat| SSE[SSE Server]
+    SSE -->|handle_incoming_message| LLM[LLM]
+    LLM -->|broadcast SSE| SSE
+    SSE -->|GET /stream| Client
 ```
 
 **Key: `handle_incoming_message()` routes correctly:**

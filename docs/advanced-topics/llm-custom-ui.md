@@ -8,36 +8,25 @@ Zrb's LLM tasks support custom UI and approval channels for non-terminal interfa
 
 Every UI implementation shares the same underlying architecture:
 
-```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│                           BaseUI (Core Logic)                           │
-│                                                                         │
-│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────────┐  │
-│  │ User Message    │    │ Message Queue   │    │ LLM Response        │  │
-│  │                 │───>│                 │───>│                     │  │
-│  │ submit_user_    │    │ process_        │    │ stream_ai_response  │  │
-│  │ message()       │    │ messages_loop() │    │                     │  │
-│  └─────────────────┘    └─────────────────┘    └─────────────────────┘  │
-│         │                                              │                │
-│         │                                              ▼                │
-│         │                                    ┌──────────────────────┐   │
-│         │                                    │ append_to_output()   │   │
-│         │                                    │ (display to user)    │   │
-│         │                                    └──────────────────────┘   │
-│         │                                                               │
-│         │         ┌──────────────────────────────────────────┐          │
-│         └──────>  │ ask_user() (when approval/prompt needed) │          │
-│                   └──────────────────────────────────────────┘          │
-│                                                                         │
-│  ═════════════════════════════════════════════════════════════════════  │
-│  What subclasses implement (the "I/O boundary"):                        │
-│                                                                         │
-│  BaseUI:        append_to_output(), ask_user(), run_interactive_cmd()   │
-│  SimpleUI:      print(), get_input()  (simpler interface)               │
-│  EventDrivenUI: print(), start_event_loop() + handle_incoming_message() │
-│  PollingUI:     print() + (uses built-in input/output queues)           │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph BaseUI["BaseUI (Core Logic)"]
+        UserMsg["User Message\nsubmit_user_message()"]
+        MsgQueue["Message Queue\nprocess_messages_loop()"]
+        LLMResp["LLM Response\nstream_ai_response()"]
+        Output["append_to_output()\n(display to user)"]
+        AskUser["ask_user()\n(when approval/prompt needed)"]
+
+        UserMsg --> MsgQueue --> LLMResp --> Output
+        UserMsg --> AskUser
+    end
+
+    subgraph Implement["What subclasses implement"]
+        BaseImpl["BaseUI: append_to_output(), ask_user(), run_interactive_cmd()"]
+        SimpleImpl["SimpleUI: print(), get_input()"]
+        EventImpl["EventDrivenUI: print(), start_event_loop() + handle_incoming_message()"]
+        PollImpl["PollingUI: print() + built-in queues"]
+    end
 ```
 
 ### Method Mapping: BaseUI → SimpleUI
@@ -268,27 +257,24 @@ For backends where **messages arrive via callbacks/handlers** (Telegram, Discord
 
 ### The Input Queue Pattern
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                     EventDrivenUI                               │
-│                                                                 │
-│  External Handler          Internal Queue          Your Code    │
-│                                                                 │
-│  on_message(text)  ───>   handle_incoming_   ───>  get_input()  │
-│  (callback)               message(text)            (blocks)     │
-│                                                                 │
-│                           ┌─────────────────┐                   │
-│                           │  input_queue    │                   │
-│                           │  (asyncio.Queue)│                   │
-│                           └─────────────────┘                   │
-│                                                                 │
-│  If NOT waiting for input:                                      │
-│      handle_incoming_message() → submit as new LLM message      │
-│  If waiting for input (ask_user blocked):                       │
-│      handle_incoming_message() → put to input_queue             │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph External["External Handler"]
+        OnMsg["on_message(text)\n(callback)"]
+    end
+
+    subgraph EventDrivenUI["EventDrivenUI"]
+        Handle["handle_incoming_message(text)"]
+        Queue["input_queue\n(asyncio.Queue)"]
+        GetInput["get_input()\n(blocks)"]
+    end
+
+    OnMsg --> Handle --> Queue --> GetInput
 ```
+
+**Routing Logic:**
+- If NOT waiting for input → `handle_incoming_message()` submits as new LLM message
+- If waiting for input (ask_user blocked) → `handle_incoming_message()` puts to input_queue
 
 ### Methods to Implement
 
@@ -436,21 +422,21 @@ For backends where **external systems poll for messages** (HTTP API, WebSocket),
 
 ### Built-in Queues
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                        PollingUI                                │
-│                                                                 │
-│  External Code                    Internal Flow                 │
-│                                                                 │
-│  ui.output_queue.get()  <───     print() queues output          │
-│  (poll for AI responses)                                        │
-│                                                                 │
-│  ui.input_queue.put(text)  ──>   get_input() receives it        │
-│  (provide user responses)                                       │
-│                                                                 │
-│  ui.run_async()  ──> Starts the LLM message loop                │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph PollingUI["PollingUI"]
+        Print["print()"]
+        Queue["output_queue"]
+        GetInput["get_input()"]
+        InputQ["input_queue"]
+        RunAsync["run_async()"]
+    end
+
+    Print -->|"queues output"| Queue
+    Queue -->|"poll for AI responses"| External["External Code"]
+    External -->|"put user responses"| InputQ
+    InputQ -->|"receives"| GetInput
+    RunAsync -->|"starts"| GetInput
 ```
 
 ### Minimal Implementation
@@ -650,15 +636,17 @@ For backends with **rate limits on message frequency** (Telegram: ~30 messages/s
 
 ### Why Buffering?
 
-```text
-Without buffering (fragmented):
-  LLM streams: "H" → send → "e" → send → "l" → send → "l" → send → "o" → send
-  Result: 5 API calls, hits rate limits
+```mermaid
+flowchart LR
+    subgraph Without["Without buffering (fragmented)"]
+        LLM1["LLM streams"] --> S1["H → send"] --> S2["e → send"] --> S3["l → send"] --> S4["l → send"] --> S5["o → send"]
+        Result1["5 API calls, hits rate limits"]
+    end
 
-With buffering:
-  LLM streams: "H" → buffer → "e" → buffer → "l" → buffer → "l" → buffer → "o" → buffer
-  After 0.5s: flush → send "Hello"
-  Result: 1 API call
+    subgraph With["With buffering"]
+        LLM2["LLM streams"] --> B1["H → buffer"] --> B2["e → buffer"] --> B3["l → buffer"] --> B4["l → buffer"] --> B5["o → buffer"] --> Flush["0.5s: flush → send 'Hello'"]
+        Result2["1 API call"]
+    end
 ```
 
 ### Usage Pattern
@@ -840,32 +828,24 @@ For advanced use cases that need complete control, inherit from `BaseUI` directl
 
 ### Architecture Overview
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                     LLMChatTask                                 │
-│                                                                 │
-│  ┌─────────────────────┐     ┌──────────────────────┐           │
-│  │      BaseUI         │     │  ApprovalChannel     │           │
-│  │  (Inherit from)     │     │  (Inject separately) │           │
-│  │                     │     │                      │           │
-│  │  _process_messages_ │     │  request_approval()  │           │
-│  │  loop()             │     │  notify()            │           │
-│  │  _submit_user_      │     │                      │           │
-│  │  message()          │     └──────────────────────┘           │
-│  │  _stream_ai_        │                                        │
-│  │  response()         │                                        │
-│  │  _handle_*_cmd()    │                                        │
-│  │                     │                                        │
-│  │  ─────────────────  │                                        │
-│  │  YOU IMPLEMENT:     │                                        │
-│  │  append_to_output() │                                        │
-│  │  ask_user()         │                                        │
-│  │  run_interactive_   │                                        │
-│  │  command()          │                                        │
-│  │  run_async()        │                                        │
-│  └─────────────────────┘                                        │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph LLMChatTask["LLMChatTask"]
+        subgraph BaseUI["BaseUI (Inherit from)"]
+            ProcLoop["_process_messages_loop()"]
+            Submit["_submit_user_message()"]
+            Stream["_stream_ai_response()"]
+            Handle["_handle_*_cmd()"]
+            Impl["YOU IMPLEMENT:\nappend_to_output()\nask_user()\nrun_interactive_command()\nrun_async()"]
+        end
+
+        subgraph ApprovalChannel["ApprovalChannel (Inject separately)"]
+            Request["request_approval()"]
+            Notify["notify()"]
+        end
+
+        ProcLoop --> Submit --> Stream --> Impl
+    end
 ```
 
 ### When to Use BaseUI vs SimpleUI

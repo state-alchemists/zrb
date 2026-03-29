@@ -224,24 +224,11 @@ await lsp_manager.shutdown_all()
 
 ### Architecture
 
-```
-┌─────────────────┐     ┌─────────────────────┐
-│   LSP Tools     │ ←→  │    LSP Manager      │
-│  (LspGetInfo)   │     │   (Singleton)        │
-└─────────────────┘     └─────────────────────┘
-                               │
-                               │ spawns
-                               ↓
-                    ┌─────────────────────┐
-                    │    LSP Server        │
-                    │  (pylsp, gopls...)   │
-                    └─────────────────────┘
-                               │
-                               │ JSON-RPC
-                               ↓
-                    ┌─────────────────────┐
-                    │    Your Codebase     │
-                    └─────────────────────┘
+```mermaid
+flowchart TB
+    Tools["LSP Tools<br />(LspGetInfo)"] <--> Manager["LSP Manager<br />(Singleton)"]
+    Manager -->|spawns| Server["LSP Server<br />(pylsp, gopls...)"]
+    Server -->|JSON-RPC| Codebase["Your Codebase"]
 ```
 
 ### Symbol-Based API
