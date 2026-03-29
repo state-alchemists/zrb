@@ -80,11 +80,15 @@ boto3 = {version = ">=1.42.14", optional = true}
 huggingface-hub = {version = ">=1.3.4,<2.0.0", extras = ["inference"], optional = true}
 voyageai = {version = ">=0.3.7", optional = true, python = "<3.14"}
 
+pyperclip = "^1.11.0"
+
 # Security fix: CVE-2026-34070
 # langchain-core is a transitive dependency via voyageai
 langchain-core = {version = ">=1.2.22", optional = true}
 
-pyperclip = "^1.11.0"
+# Security fix: CVE-2026-34073
+# cryptography is a transitive dependency via PyJWT
+cryptography = "^46.0.6"
 
 # Security fix: CVE-2026-23491 - DoS via uncontrolled recursion in ASN.1 decoding
 # pyasn1 is a transitive dependency via google-auth -> pyasn1-modules and google-auth -> rsa.
