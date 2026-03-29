@@ -1,0 +1,107 @@
+[2m
+  🧰 hup72tek | LS {}
+[0m[2m
+  🔠 hup72tek | Return {'files': ['inventory_system.py']}
+[0m[2m
+  🧰 b3i30dpm | Read {'path': 'inventory_system.py'}
+[0m[2m
+  🔠 b3i30dpm | Return import asyncio
+     import random
+     
+     
+     class Inventory:
+         def __init__(self):
+             self.stock = 10
+     
+         async def purchase(self, user_id, amount):
+             print(f"User {user_id} checking stock...")
+     
+             # BUG: This check and decrement is NOT atomic.
+             # Simultaneous purchases can lead to negative stock.
+             if self.stock >= amount:
+                 # Simulate some processing/DB latency
+                 await asyncio.sleep(0.1)
+                 self.stock -= amount
+                 print(f"User {user_id} purchased {amount}. Remaining: {self.stock}")
+                 return True
+             else:
+                 print(f"User {user_id} failed to purchase. Stock low.")
+                 return False
+     
+     
+     async def main():
+         inventory = Inventory()
+     
+         # 5 users trying to buy 3 items each simultaneously.
+         # Total demand = 15, Stock = 10.
+         # If not handled correctly, stock will go to -5.
+         tasks = [inventory.purchase(i, 3) for i in range(5)]
+     
+         await asyncio.gather(*tasks)
+     
+         print(f"Final Stock: {inventory.stock}")
+     
+     
+     if __name__ == "__main__":
+         asyncio.run(main())
+     
+[0m[2m
+  🧰 iiolc6x4 | Write {'content': 'import asyncio\nimport rand ...', 'path': 'inventory_system.py'}
+[0m[2m
+  🔠 iiolc6x4 | Return Successfully wrote to inventory_system.py
+[0m[2m
+  🧰 7y45w6g3 | Bash {'command': 'python inventory_system.py'}
+[0m  [2mUser 0 checking stock...
+[0m  [2mUser 1 checking stock...
+[0m  [2mUser 2 checking stock...
+[0m  [2mUser 3 checking stock...
+[0m  [2mUser 4 checking stock...
+[0m  [2mUser 0 purchased 3. Remaining: 7
+[0m  [2mUser 1 purchased 3. Remaining: 4
+[0m  [2mUser 2 purchased 3. Remaining: 1
+[0m  [2mUser 3 failed to purchase. Stock low.
+[0m  [2mUser 4 failed to purchase. Stock low.
+[0m  [2mFinal Stock: 1
+[0m[2m
+  🔠 7y45w6g3 | Return Command: python inventory_system.py
+     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3.1-pro-preview/bug-fix/workdir
+     Stdout:
+     User 0 checking stock...
+     User 1 checking stock...
+     User 2 checking stock...
+     User 3 checking stock...
+     User 4 checking stock...
+     User 0 purchased 3. Remaining: 7
+     User 1 purchased 3. Remaining: 4
+     User 2 purchased 3. Remaining: 1
+     User 3 failed to purchase. Stock low.
+     User 4 failed to purchase. Stock low.
+     Final Stock: 1
+     Stderr:
+     (empty)
+     Exit Code: 0
+     Background PIDs: (none)
+[0m[2m
+  🧠 I've fixed the issue in `inventory_system.py[0m[2m`.
+     
+     **The Problem:**
+     The system was suffering from a classic race condition. Because `self.stock -= amount` happened[0m[2m after an `await asyncio.sleep(0.1)`, multiple user requests could simultaneously pass the `if self.stock >=[0m[2m amount:` check before any of them actually decremented the stock. This led to negative inventory during concurrent purchases (like in[0m[2m a flash sale).
+     
+     **The Solution:**
+     I added an `asyncio.Lock()` to the `Inventory` class and[0m[2m wrapped the stock checking and deduction logic inside an `async with self.lock:` block. This makes the check-and[0m[2m-decrement operation atomic, ensuring that only one request can process an order at a time, and the stock is correctly validated against[0m[2m concurrent updates. 
+     
+     I've tested the code, and the final stock now correctly halts at 1 (preventing the[0m[2m negative balance of -5) while the 4th and 5th users are properly rejected for low stock.[0m[2m[0m[2m
+  [2m💸 (Requests: 5 | Tool Calls: 4 | Total: 37300) Input: 35793 | Audio Input: 0 | Output: 1507 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {'thoughts_tokens': 931, 'text_prompt_tokens': 35793}[0m
+[0m[2m[2mSession[0m: [1;33mloud-cube-0439[0m[0m
+[2mTo run again:[0m [1;33mzrb chat --message "The inventory system in `inventory_system.py` is failing intermittently. Sometimes we sell more items than we have in stock, especially during flash sales. 
+
+We need to make sure the stock never goes below zero. Figure out what's wrong and fix it." --model google-gla:gemini-3.1-pro-preview --session "" --yolo true --attach "" --interactive false[0m
+I've fixed the issue in `inventory_system.py`.
+
+**The Problem:**
+The system was suffering from a classic race condition. Because `self.stock -= amount` happened after an `await asyncio.sleep(0.1)`, multiple user requests could simultaneously pass the `if self.stock >= amount:` check before any of them actually decremented the stock. This led to negative inventory during concurrent purchases (like in a flash sale).
+
+**The Solution:**
+I added an `asyncio.Lock()` to the `Inventory` class and wrapped the stock checking and deduction logic inside an `async with self.lock:` block. This makes the check-and-decrement operation atomic, ensuring that only one request can process an order at a time, and the stock is correctly validated against concurrent updates. 
+
+I've tested the code, and the final stock now correctly halts at 1 (preventing the negative balance of -5) while the 4th and 5th users are properly rejected for low stock.

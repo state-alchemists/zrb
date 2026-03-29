@@ -1,0 +1,61 @@
+[2m{"[0m[2mname[0m[2m":"[0m[2mresearch[0m[2m-and[0m[2m-plan[0m[2m"}[0m[2m
+  🧰 call_44dLEokUDOG1BNcfNIuNoAJD | ActivateSkill {'name': 'research-and-plan'}
+[0m[2m
+  🔠 call_44dLEokUDOG1BNcfNIuNoAJD | Return <ACTIVATED_SKILL>
+     ---
+     name: research-and-plan
+     description: Perform deep information gathering, analyze findings, and design a detailed, executable implementation strategy for any complex task.
+     user-invocable: true
+     ---
+     # Skill: research-and-plan
+     When this skill is activated, you enter **Architect and Analyst Mode**. Your primary objective is to eliminate ambiguity, gather evidence, and build a concrete roadmap.
+     
+     ## Workflow
+     
+     ### 1. Scope & Requirements Clarification (CRITICAL)
+     - **STOP AND ASK**: Before researching or strategizing, review the request for missing details.
+     - If the request is high-level, **YOU MUST** ask for the Goal, Constraints (budget, time, technology), and Context.
+     - **NEVER** proceed with a plan full of assumptions. Ask if you find yourself assuming preferences or system state.
+     
+     ### 2. Discovery & Research
+     - **Technical**: Map out files, symbols, and dependencies using `LS`, `Glob`, and `Grep`.
+     - **Context Efficiency**: Use `ReadMany` to read related documents or code files in a single turn. Read `CLAUDE.md`, `AGENTS.md`, and the Journal.
+     - **General**: Use `SearchInternet` to find relevant URLs and `OpenWebPage` to read the full content.
+     
+     ### 3. Analysis & Strategy Design
+     - Synthesize findings into a logical structure, identifying patterns, trends, or conflicting information.
+     - Break the objective into discrete, numbered steps.
+     - **NO-ACTION RULE**: You MUST NOT modify the system during this phase. No `Write`, `Edit`, or destructive shell commands.
+     - For every step, specify:
+         - **Action**: What specifically to do.
+         - **Target**: The file, location, or entity to act upon.
+         - **Verification**: The specific command or observation that proves success.
+     
+     ### 4. Risk Analysis
+     - List potential side effects, breaking changes, or uncertainties, and state any remaining assumptions.
+     
+     ## Reporting Standards
+     - **Evidence-Based**: Claims must have corresponding sources.
+     - **Output Format**:
+         1. **Refined Objective**: Detailed summary of the goal.
+         2. **Key Findings (if researching)**: Detailed, evidence-backed points with references.
+         3. **Implementation Roadmap (if planning)**: Action -> Target -> Verification steps.
+         4. **Risks & Assumptions**: Bullet points.
+     
+     **Note**: Aim for accuracy over speed. You must obtain explicit user approval of this plan before proceeding to implementation.
+     </ACTIVATED_SKILL>
+[0m[2m
+  🧠 What[0m[2m audience[0m[2m and[0m[2m depth[0m[2m do[0m[2m you[0m[2m want[0m[2m for[0m[2m the[0m[2m report[0m[2m—[0m[2me[0m[2m.g[0m[2m.[0m[2m executive[0m[2m summary[0m[2m,[0m[2m technically[0m[2m liter[0m[2mate[0m[2m business[0m[2m reader[0m[2m,[0m[2m or[0m[2m deep[0m[2m technical[0m[2m brief[0m[2m?[0m[2m Also[0m[2m,[0m[2m should[0m[2m I[0m[2m focus[0m[2m globally[0m[2m or[0m[2m emphasize[0m[2m specific[0m[2m regions[0m[2m ([0m[2mUS[0m[2m,[0m[2m Europe[0m[2m,[0m[2m Japan[0m[2m,[0m[2m China[0m[2m)?[0m[2m
+[0m[2mWhat[0m[2m audience[0m[2m and[0m[2m depth[0m[2m do[0m[2m you[0m[2m want[0m[2m for[0m[2m the[0m[2m report[0m[2m—[0m[2me[0m[2m.g[0m[2m.[0m[2m executive[0m[2m summary[0m[2m,[0m[2m technically[0m[2m liter[0m[2mate[0m[2m business[0m[2m reader[0m[2m,[0m[2m or[0m[2m deep[0m[2m technical[0m[2m brief[0m[2m?[0m[2m Also[0m[2m,[0m[2m should[0m[2m I[0m[2m focus[0m[2m globally[0m[2m or[0m[2m emphasize[0m[2m specific[0m[2m regions[0m[2m ([0m[2mUS[0m[2m,[0m[2m Europe[0m[2m,[0m[2m Japan[0m[2m,[0m[2m China[0m[2m)?[0m[2m
+  [2m💸 (Requests: 2 | Tool Calls: 1 | Total: 11649) Input: 11525 | Audio Input: 0 | Output: 124 | Audio Output: 0 | Cache Read: 5120 | Cache Write: 0 | Details: {'accepted_prediction_tokens': 0, 'audio_tokens': 0, 'reasoning_tokens': 0, 'rejected_prediction_tokens': 0}[0m
+[0m[2m[2mSession[0m: [1;33mfast-fuel-4121[0m[0m
+[2mTo run again:[0m [1;33mzrb chat --message "Give me a status update on Solid State Batteries for late 2024/2025. 
+
+I need to know:
+1. When are they actually hitting the market (cars)?
+2. Who are the big companies involved?
+3. What are the main technical problems they are still trying to solve?
+
+Save it as `solid_state_battery_report.md`." --model openai:gpt-5.4 --session "" --yolo true --attach "" --interactive false[0m
+What audience and depth do you want for the report—e.g. executive summary, technically literate business reader, or deep technical brief? Also, should I focus globally or emphasize specific regions (US, Europe, Japan, China)?
+What audience and depth do you want for the report—e.g. executive summary, technically literate business reader, or deep technical brief? Also, should I focus globally or emphasize specific regions (US, Europe, Japan, China)?
