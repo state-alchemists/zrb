@@ -1,18 +1,19 @@
 import os
+from typing import Any
 
 from zrb.config.config import CFG
 
 
-def approve_if_path_inside_cwd(args: dict[str, any]) -> bool:
+def approve_if_path_inside_cwd(args: dict[str, Any]) -> bool:
     cwd = os.getcwd()
     return _approve_if_path_inside_parent(args, cwd)
 
 
-def approve_if_path_inside_journal_dir(args: dict[str, any]) -> bool:
+def approve_if_path_inside_journal_dir(args: dict[str, Any]) -> bool:
     return _approve_if_path_inside_parent(args, CFG.LLM_JOURNAL_DIR)
 
 
-def _approve_if_path_inside_parent(args: dict[str, any], parent_path: str) -> bool:
+def _approve_if_path_inside_parent(args: dict[str, Any], parent_path: str) -> bool:
     path = args.get("path")
     paths = args.get("paths")
     files = args.get("files")  # For WriteMany (write_files)

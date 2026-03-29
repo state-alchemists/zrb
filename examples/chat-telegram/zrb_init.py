@@ -36,11 +36,8 @@ from telegram.ext import (
 
 from zrb.builtin.llm.chat import llm_chat
 from zrb.llm.approval import ApprovalChannel, ApprovalContext, ApprovalResult
-from zrb.llm.ui.simple_ui import (
-    BufferedOutputMixin,
-    EventDrivenUI,
-    create_bot_ui_factory,
-)
+from zrb.llm.ui.simple_ui import BufferedOutputMixin, EventDrivenUI
+
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")

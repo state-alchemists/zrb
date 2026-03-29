@@ -28,8 +28,6 @@ class TerminalApprovalChannel:
         context: ApprovalContext,
     ) -> ApprovalResult:
         """Request approval via terminal."""
-        import sys
-
         CFG.LOGGER.debug(
             f"TerminalApprovalChannel START request_approval for {context.tool_name}"
         )
