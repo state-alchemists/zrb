@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING
 from zrb.config.config import CFG
 from zrb.config.web_auth_config import WebAuthConfig
 from zrb.group.any_group import AnyGroup
+from zrb.runner.web_route.chat_page.chat_api import router as chat_router
+from zrb.runner.web_route.chat_page.chat_page_route import serve_chat_page
 from zrb.runner.web_route.docs_route import serve_docs
 from zrb.runner.web_route.error_page.serve_default_404 import serve_default_404
 from zrb.runner.web_route.home_page.home_page_route import serve_home_page
@@ -61,6 +63,7 @@ def create_web_app(
     serve_home_page(app, root_group, web_auth_config)
     serve_login_page(app, root_group, web_auth_config)
     serve_logout_page(app, root_group, web_auth_config)
+    serve_chat_page(app, web_auth_config)
     serve_node_page(app, root_group, web_auth_config)
     serve_login_api(app, web_auth_config)
     serve_logout_api(app, web_auth_config)
@@ -69,4 +72,5 @@ def create_web_app(
     serve_task_session_api(
         app, root_group, web_auth_config, session_state_logger, _COROS
     )
+    app.include_router(chat_router)
     return app

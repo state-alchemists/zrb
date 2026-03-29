@@ -238,6 +238,7 @@ class LLMChatTask(BaseTask):
         if approval_channel is not None:
             self._approval_channels.append(approval_channel)
         self._yolo = yolo
+        self._print_fn = print_fn
         self._yolo_xcom_key = yolo_xcom_key
         self._ui_summarize_commands = (
             ui_summarize_commands if ui_summarize_commands is not None else []
@@ -402,6 +403,7 @@ class LLMChatTask(BaseTask):
         self._custom_commands += list(custom_command)
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
+        print(f"[DEBUG] LLMChatTask._exec_action called, ctx={type(ctx)}, ctx is None: {ctx is None}")
         # 1. Resolve inputs/attributes
         initial_conversation_name = self._get_initial_conversation_name(ctx)
         initial_yolo = get_bool_attr(ctx, self._yolo, False)
@@ -577,6 +579,7 @@ class LLMChatTask(BaseTask):
             # tool_confirmation = None (let UI handle it via approval_channel)
 
         def check_yolo(*args, **kwargs):
+            print(f"[DEBUG] check_yolo called, ctx={type(ctx)}, captured ctx={type(ctx)}, captured ctx is None: {ctx is None}")
             if self._yolo_xcom_key not in ctx.xcom:
                 return False
             return ctx.xcom[self._yolo_xcom_key].get(False)
@@ -623,6 +626,7 @@ class LLMChatTask(BaseTask):
             history_manager=history_manager,
             tool_confirmation=tool_confirmation,
             ui=ui,
+            print_fn=self._print_fn,
             approval_channel=effective_approval_channel,
             message="{ctx.input.message}",
             conversation_name="{ctx.input.session}",
@@ -653,7 +657,7 @@ class LLMChatTask(BaseTask):
         }
         shared_ctx = SharedContext(
             input=session_input,
-            print_fn=ctx.shared_print,  # Use current task's print function
+            print_fn=self._print_fn if self._print_fn else ctx.shared_print,
         )
         session = Session(shared_ctx)
         result = await llm_task_core.async_run(session)
