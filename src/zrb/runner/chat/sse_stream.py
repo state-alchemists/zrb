@@ -21,8 +21,14 @@ class SSEStreamResponse(StreamingResponse):
 
             while True:
                 try:
-                    text = await asyncio.wait_for(self._queue.get(), timeout=60)
-                    yield f"data: {json.dumps({'text': text}, ensure_ascii=False)}\n\n"
+                    item = await asyncio.wait_for(self._queue.get(), timeout=60)
+                    if isinstance(item, dict):
+                        text = item.get("text", "")
+                        kind = item.get("kind", "text")
+                    else:
+                        text = item
+                        kind = "text"
+                    yield f"data: {json.dumps({'type': kind, 'text': text}, ensure_ascii=False)}\n\n"
                 except asyncio.TimeoutError:
                     yield ": keepalive\n\n"
                 except asyncio.CancelledError:

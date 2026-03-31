@@ -7,7 +7,7 @@ from zrb.llm.approval.approval_channel import (
     ApprovalContext,
     ApprovalResult,
 )
-from zrb.llm.ui.simple_ui import BufferedOutputMixin, EventDrivenUI, UIConfig
+from zrb.llm.ui.simple_ui import EventDrivenUI, UIConfig
 from zrb.util.cli.style import remove_style
 
 if TYPE_CHECKING:
@@ -238,7 +238,7 @@ class HTTPChatApprovalChannel(ApprovalChannel):
         return None
 
 
-class HTTPChatUI(EventDrivenUI, BufferedOutputMixin):
+class HTTPChatUI(EventDrivenUI):
     def __init__(
         self,
         session_manager: "ChatSessionManager",
@@ -250,27 +250,32 @@ class HTTPChatUI(EventDrivenUI, BufferedOutputMixin):
         self.session_id = session_id
         self._approval_channel = approval_channel
         super().__init__(**kwargs)
-        BufferedOutputMixin.__init__(self, flush_interval=0.3, max_buffer_size=3000)
         self._waiting_for_input = False
         self._input_queue: asyncio.Queue[str] = asyncio.Queue()
+        self._streaming_started = False
 
     @property
     def conversation_session_name(self) -> str:
         return self.session_id
 
-    async def _send_buffered(self, text: str) -> None:
+    async def print(self, text: str, kind: str = "text") -> None:
+        if kind == "streaming":
+            self._streaming_started = True
+        elif kind == "text":
+            if self._streaming_started:
+                # Skip: final markdown render duplicates already-streamed content
+                self._streaming_started = False
+                return
         clean = remove_style(text)
         if not clean.strip():
             return
-        await self.session_manager.broadcast(self.session_id, clean)
-
-    async def print(self, text: str) -> None:
-        self.buffer_output(text)
+        await self.session_manager.broadcast(self.session_id, clean, kind=kind)
 
     def handle_incoming_message(self, text: str):
         if self._waiting_for_input:
             self._input_queue.put_nowait(text)
         else:
+            self._streaming_started = False
             self._submit_user_message(self._llm_task, text)
 
     async def get_input(self, prompt: str) -> str:
@@ -301,7 +306,6 @@ class HTTPChatUI(EventDrivenUI, BufferedOutputMixin):
         return result.to_pydantic_result()
 
     async def start_event_loop(self) -> None:
-        await self.start_flush_loop()
         while True:
             await asyncio.sleep(3600)
 

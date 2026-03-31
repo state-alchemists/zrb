@@ -152,22 +152,15 @@ async def run_agent(
 
         effective_event_handler = event_handler
         if effective_event_handler is None:
-            from zrb.llm.util.stream_response import (
-                create_event_handler,
-                create_faint_printer,
-            )
+            from zrb.llm.util.stream_response import create_event_handler
 
-            print_event = create_faint_printer(effective_print_fn)
-            # For status events (tool calls, results), use stream_to_parent if available
-            # to bypass buffering in subagents (BufferedUI)
-            status_fn = None
-            if effective_ui and hasattr(effective_ui, "stream_to_parent"):
-                status_fn = create_faint_printer(effective_ui.stream_to_parent)
+            def _event_print_fn(text: str, kind: str) -> None:
+                effective_ui.append_to_output(text, end="", kind=kind)
+
             effective_event_handler = create_event_handler(
-                print_event,
+                _event_print_fn,
                 show_tool_call_detail=CFG.LLM_SHOW_TOOL_CALL_DETAIL,
                 show_tool_result=CFG.LLM_SHOW_TOOL_CALL_RESULT,
-                status_event=status_fn,
             )
 
         # Hook: SessionStart

@@ -93,6 +93,63 @@
     border: 1px solid var(--pico-border-color);
 }
 
+/* streaming: live tokens being typed — slightly faint until complete */
+.message.assistant.streaming {
+    border-style: dashed;
+    opacity: 0.7;
+}
+
+/* thinking: chain-of-thought / reasoning — visually distinct block */
+.message.assistant.thinking {
+    background: transparent;
+    border: none;
+    border-left: 3px solid var(--pico-muted-border-color);
+    padding: 0.3rem 0.75rem;
+    font-size: 0.88em;
+    font-style: italic;
+    opacity: 0.55;
+}
+
+/* tool_call: tool invocation lines — monospace code-like appearance */
+.message.tool-call {
+    margin-right: auto;
+    background: transparent;
+    border: none;
+    border-left: 3px solid var(--pico-primary-focus-background-color);
+    padding: 0.2rem 0.75rem;
+    font-size: 0.82em;
+    opacity: 0.65;
+    font-family: monospace;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* usage: token cost stats — tiny footer line */
+.message.usage {
+    margin-right: auto;
+    background: transparent;
+    border: none;
+    padding: 0.15rem 0.75rem;
+    font-size: 0.72em;
+    opacity: 0.4;
+    font-style: italic;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* activity / progress: ephemeral spinner */
+.message.activity {
+    margin-right: auto;
+    background: transparent;
+    border: none;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.85em;
+    opacity: 0.5;
+    font-style: italic;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
 .message-content {
     white-space: pre-wrap;
     word-wrap: break-word;

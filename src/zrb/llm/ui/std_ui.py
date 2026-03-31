@@ -32,12 +32,19 @@ class StdUI:
         end: str = "\n",
         file: TextIO | None = None,
         flush: bool = False,
+        kind: str = "text",
     ):
         """Print output to stderr."""
         import sys
 
-        # Always print to stderr as per requirements
-        print(*values, sep=sep, end=end, file=sys.stderr, flush=flush)
+        from zrb.util.cli.style import stylize_faint
+
+        content = sep.join(str(v) for v in values) + end
+        if kind != "text":
+            content = stylize_faint(content)
+        sys.stderr.write(content)
+        if flush:
+            sys.stderr.flush()
 
     def stream_to_parent(
         self,
@@ -46,12 +53,15 @@ class StdUI:
         end: str = "\n",
         file: TextIO | None = None,
         flush: bool = False,
+        kind: str = "text",
     ):
         """Stream output immediately (same as append_to_output for StdUI).
 
         For StdUI, there's no buffering, so this is identical to append_to_output.
         """
-        self.append_to_output(*values, sep=sep, end=end, file=file, flush=flush)
+        self.append_to_output(
+            *values, sep=sep, end=end, file=file, flush=flush, kind=kind
+        )
 
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False

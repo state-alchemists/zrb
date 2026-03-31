@@ -357,31 +357,32 @@ def _create_http_ui_factory(
 ):
     from zrb.llm.approval.approval_channel import ApprovalContext
     from zrb.llm.ui.simple_ui import (
-        BufferedOutputMixin,
         EventDrivenUI,
         UIConfig,
     )
     from zrb.util.cli.style import remove_style
 
-    class HTTPUI(EventDrivenUI, BufferedOutputMixin):
+    class HTTPUI(EventDrivenUI):
         def __init__(self, **kwargs):
             self._session_manager = session_manager
             self._session_id = session_id
             self._approval_channel = approval_channel
             super().__init__(**kwargs)
-            BufferedOutputMixin.__init__(
-                self, flush_interval=0.05, max_buffer_size=1000
-            )
             self._input_queue: asyncio.Queue[str] = asyncio.Queue()
+            self._streaming_started = False
 
-        async def _send_buffered(self, text: str) -> None:
+        async def print(self, text: str, kind: str = "text") -> None:
+            if kind == "streaming":
+                self._streaming_started = True
+            elif kind == "text":
+                if self._streaming_started:
+                    self._streaming_started = False
+                    return
             clean = remove_style(text)
-            if not clean.strip():
-                return
-            await self._session_manager.broadcast(self._session_id, clean)
-
-        async def print(self, text: str) -> None:
-            self.buffer_output(text)
+            if clean.strip():
+                await self._session_manager.broadcast(
+                    self._session_id, clean, kind=kind
+                )
 
         async def get_input(self, prompt: str) -> str:
             if prompt:
@@ -411,14 +412,10 @@ def _create_http_ui_factory(
 
         async def _run_loop(self) -> None:
             """Process one message then return (enables multi-turn via session runner)."""
-            await self.start_flush_loop()
-            try:
-                # Wait for the submitted message to be fully processed by the LLM.
-                # _message_queue.join() blocks until task_done() is called for every
-                # item that was put() into the queue.
-                await self._message_queue.join()
-            finally:
-                await self.stop_flush_loop()
+            # Wait for the submitted message to be fully processed by the LLM.
+            # _message_queue.join() blocks until task_done() is called for every
+            # item that was put() into the queue.
+            await self._message_queue.join()
 
         async def run_async(self) -> str:
             """Override to re-raise CancelledError so server shutdown propagates."""

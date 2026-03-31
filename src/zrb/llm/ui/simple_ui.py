@@ -135,8 +135,8 @@ class SimpleUI(BaseUI):
     - Flexible __init__ that accepts **kwargs for easy subclassing
 
     You only need to implement:
-    - print(text: str) -> None        # Display output
-    - get_input(prompt: str) -> str   # Get user input (async)
+    - print(text: str, kind: str) -> None  # Display output
+    - get_input(prompt: str) -> str        # Get user input (async)
 
     Constructor Parameters:
         ctx: Required context (AnyContext)
@@ -150,7 +150,7 @@ class SimpleUI(BaseUI):
 
     Example:
         class MyUI(SimpleUI):
-            async def print(self, text: str):
+            async def print(self, text: str, kind: str) -> None:
                 print(text, end="", flush=True)
 
             async def get_input(self, prompt: str) -> str:
@@ -215,11 +215,11 @@ class SimpleUI(BaseUI):
     # =========================================================================
 
     @abstractmethod
-    async def print(self, text: str) -> None:
+    async def print(self, text: str, kind: str) -> None:
         """Display output to user.
 
         This is a simplified version of append_to_output().
-        Just print/emit/send the text.
+        Just print/emit/send the text, using ``kind`` for visual distinction.
 
         IMPORTANT: This MUST be an async method (use `async def print()`).
         SimpleUI.append_to_output() uses asyncio.create_task() to schedule
@@ -229,7 +229,10 @@ class SimpleUI(BaseUI):
         event loop starts), override append_to_output() directly.
 
         Args:
-            text: The text to display (already formatted)
+            text: The text to display (already formatted).
+            kind: Output kind — one of "text", "progress", "tool_call",
+                  "usage", or "thinking".  Use this to apply visual
+                  distinction (e.g. faint/italic for non-"text" kinds).
         """
         raise NotImplementedError(f"{self.__class__.__name__} must implement print()")
 
@@ -261,6 +264,7 @@ class SimpleUI(BaseUI):
         end: str = "\n",
         file: TextIO | None = None,
         flush: bool = False,
+        kind: str = "text",
     ):
         """Default implementation - calls simplified print().
 
@@ -278,7 +282,7 @@ class SimpleUI(BaseUI):
         # Schedule the async print in the running event loop
         try:
             loop = asyncio.get_running_loop()
-            loop.create_task(self.print(text))
+            loop.create_task(self.print(text, kind))
         except RuntimeError:
             # No running event loop - fall back to synchronous print
             # This can happen during initialization or in edge cases
@@ -293,7 +297,9 @@ class SimpleUI(BaseUI):
 
     async def run_interactive_command(self, cmd: str | list[str], shell: bool = False):
         """Default implementation - not supported in SimpleUI."""
-        await self.print("\n⚠️ Interactive commands not supported in this UI\n")
+        await self.print(
+            "\n⚠️ Interactive commands not supported in this UI\n", kind="text"
+        )
         return 1
 
     async def run_async(self) -> str:
@@ -346,14 +352,14 @@ class EventDrivenUI(SimpleUI):
     - ask_user() blocks on an internal queue until user responds
 
     You need to implement:
-    - print(text: str) -> None              # Send to user
+    - print(text: str, kind: str) -> None   # Send to user
     - start_event_loop()                    # Start listening for events
 
     And call handle_incoming_message() when messages arrive.
 
     Example:
         class TelegramUI(EventDrivenUI):
-            async def print(self, text: str):
+            async def print(self, text: str, kind: str) -> None:
                 await self.bot.send_message(self.chat_id, text)
 
             async def start_event_loop(self):
@@ -434,7 +440,7 @@ class EventDrivenUI(SimpleUI):
     async def get_input(self, prompt: str) -> str:
         """Blocks until handle_incoming_message() receives a response."""
         if prompt:
-            await self.print(f"❓ {prompt}")
+            await self.print(f"❓ {prompt}", kind="text")
         self._waiting_for_input = True
         try:
             return await self._input_queue.get()
@@ -470,7 +476,9 @@ class BufferedOutputMixin:
             async def send_text(self, text: str):
                 await self.bot.send_message(self.chat_id, text)
 
-    The print() method will buffer output and flush periodically.
+    The print(text, kind) method will buffer output and flush periodically.
+    Subclasses can use ``kind`` to decide whether to buffer or send immediately
+    (e.g. send ``kind="progress"`` immediately without buffering).
     """
 
     def __init__(self, flush_interval: float = 0.5, max_buffer_size: int = 2000):
@@ -581,12 +589,12 @@ class PollingUI(SimpleUI):
     - If LLM is waiting for input (e.g., asking a question): answers it
     - If LLM is idle: starts new conversation turn
 
-    You need to implement:
-    - print(text: str) -> None   # Just queue the output
+    You need to implement nothing — print(text, kind) is already implemented
+    by PollingUI to queue all output. Override if you want kind-aware behaviour.
 
     Example:
         class HttpAPIUI(PollingUI):
-            async def print(self, text: str):
+            async def print(self, text: str, kind: str = "text") -> None:
                 self.output_queue.put_nowait(text)
 
         # External system uses:
@@ -627,7 +635,7 @@ class PollingUI(SimpleUI):
         """
         return self._input_queue
 
-    async def print(self, text: str) -> None:
+    async def print(self, text: str, kind: str = "text") -> None:
         """Queue output for external polling.
 
         Note: This is async for consistency with the base class, but
@@ -638,7 +646,7 @@ class PollingUI(SimpleUI):
     async def get_input(self, prompt: str) -> str:
         """Block until external system provides input via handle_incoming_message()."""
         if prompt:
-            await self.print(f"❓ {prompt}")
+            await self.print(f"❓ {prompt}", kind="text")
         self._waiting_for_input = True
         try:
             return await self._input_queue.get()
@@ -773,7 +781,7 @@ def create_bot_ui_factory(
                 self.bot_token = bot_token
                 self.chat_id = chat_id
 
-            async def print(self, text: str) -> None:
+            async def print(self, text: str, kind: str = "text") -> None:
                 await self.bot.send_message(self.chat_id, text)
 
             async def start_event_loop(self) -> None:
@@ -825,8 +833,8 @@ def create_http_ui_factory(
                 self.host = host
                 self.port = port
 
-            async def print(self, text: str) -> None:
-                await self.broadcast(text)
+            async def print(self, text: str, kind: str = "text") -> None:
+                await self.broadcast(text, kind=kind)
 
             async def start_event_loop(self) -> None:
                 app = web.Application()

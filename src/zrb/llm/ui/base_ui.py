@@ -82,8 +82,9 @@ class BaseUI:
         Minimal custom UI::
 
             class MyUI(BaseUI):
-                def append_to_output(self, *values, sep=" ", end="\\n", **kwargs):
-                    print(sep.join(str(v) for v in values), end=end)
+                def append_to_output(self, *values, sep=" ", end="\\n", kind="text", **kwargs):
+                    text = sep.join(str(v) for v in values) + end
+                    print(text, end="")
 
                 async def ask_user(self, prompt: str) -> str:
                     if prompt:
@@ -297,6 +298,7 @@ class BaseUI:
         end: str = "\n",
         file: TextIO | None = None,
         flush: bool = False,
+        kind: str = "text",
     ):
         """[REQUIRED] Render output to the user.
 
@@ -309,10 +311,16 @@ class BaseUI:
             end: String appended after all values (default: newline)
             file: Ignored (for print() compatibility)
             flush: Ignored (for print() compatibility)
+            kind: Output kind — "text", "progress", "tool_call", "usage", or
+                  "thinking". Use this to apply visual distinction (e.g. faint
+                  styling for non-"text" kinds in terminal, CSS classes in web).
 
         Example:
-            def append_to_output(self, *values, sep=" ", end="\\n", **kwargs):
-                print(sep.join(str(v) for v in values), end=end)
+            def append_to_output(self, *values, sep=" ", end="\\n", kind="text", **kwargs):
+                text = sep.join(str(v) for v in values) + end
+                if kind != "text":
+                    text = stylize_faint(text)
+                print(text, end="")
         """
         raise NotImplementedError(
             f"{self.__class__.__name__} must implement append_to_output()"
@@ -414,6 +422,7 @@ class BaseUI:
         end: str = "\n",
         file: TextIO | None = None,
         flush: bool = False,
+        kind: str = "text",
     ):
         """[OPTIONAL] Stream output immediately to parent UI.
 
@@ -430,8 +439,11 @@ class BaseUI:
             end: String appended after all values
             file: Ignored
             flush: Ignored
+            kind: Output kind — "text", "progress", "tool_call", "usage", or "thinking".
         """
-        self.append_to_output(*values, sep=sep, end=end, file=file, flush=flush)
+        self.append_to_output(
+            *values, sep=sep, end=end, file=file, flush=flush, kind=kind
+        )
 
     def invalidate_ui(self):
         """[OPTIONAL] Refresh the UI state.

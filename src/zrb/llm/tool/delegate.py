@@ -59,6 +59,7 @@ class BufferedUI(UIProtocol):
         end: str = "\n",
         file: TextIO | None = None,
         flush: bool = False,
+        kind: str = "text",
     ):
         # Buffer output
         text = sep.join(str(v) for v in values) + end
@@ -98,6 +99,7 @@ class BufferedUI(UIProtocol):
         end: str = "\n",
         file: TextIO | None = None,
         flush: bool = False,
+        kind: str = "text",
     ) -> None:
         """Immediately stream output to parent UI, bypassing the buffer.
 
@@ -111,7 +113,7 @@ class BufferedUI(UIProtocol):
             text = "\n".join(
                 f"{self._prefix}{line}" if line.strip() else "" for line in lines
             )
-        self._wrapped.append_to_output(text)
+        self._wrapped.append_to_output(text, kind=kind)
 
 
 async def _run_agent_task(

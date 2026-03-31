@@ -4,6 +4,8 @@ let pendingApproval = null;
 let currentPage = 1;
 let totalPages = 1;
 let isInEditMode = false;
+let streamingBubble = null;
+let thinkingBubble = null;
 
 async function loadSessions(page = 1) {
     currentPage = page;
@@ -145,23 +147,95 @@ function connectSSE() {
         
         if (data.text) {
             const messagesDiv = document.getElementById('messages');
-            const lastMsg = messagesDiv.lastElementChild;
-            
-            if (lastMsg && lastMsg.classList.contains('assistant')) {
-                const msgContent = lastMsg.querySelector('.message-content');
-                // Use text node to avoid innerHTML re-parsing
-                const textNode = document.createTextNode(data.text);
-                msgContent.appendChild(textNode);
+            const kind = data.type || 'text';
+
+            if (kind === 'streaming') {
+                // Remove ephemeral progress spinner
+                const spinner = document.getElementById('sse-progress');
+                if (spinner) spinner.remove();
+                // Append to streaming bubble, creating it if needed
+                if (!streamingBubble || !messagesDiv.contains(streamingBubble)) {
+                    streamingBubble = document.createElement('div');
+                    streamingBubble.className = 'message assistant streaming';
+                    const content = document.createElement('div');
+                    content.className = 'message-content';
+                    streamingBubble.appendChild(content);
+                    messagesDiv.appendChild(streamingBubble);
+                }
+                streamingBubble.querySelector('.message-content').appendChild(
+                    document.createTextNode(data.text)
+                );
+
+            } else if (kind === 'thinking') {
+                // Remove ephemeral progress spinner
+                const spinner = document.getElementById('sse-progress');
+                if (spinner) spinner.remove();
+                // Append to thinking bubble, creating it if needed
+                if (!thinkingBubble || !messagesDiv.contains(thinkingBubble)) {
+                    thinkingBubble = document.createElement('div');
+                    thinkingBubble.className = 'message assistant thinking';
+                    const content = document.createElement('div');
+                    content.className = 'message-content';
+                    thinkingBubble.appendChild(content);
+                    messagesDiv.appendChild(thinkingBubble);
+                }
+                thinkingBubble.querySelector('.message-content').appendChild(
+                    document.createTextNode(data.text)
+                );
+
+            } else if (kind === 'tool_call') {
+                // Persistent tool call row (not ephemeral)
+                const row = document.createElement('div');
+                row.className = 'message tool-call';
+                const content = document.createElement('div');
+                content.className = 'message-content';
+                content.textContent = data.text;
+                row.appendChild(content);
+                messagesDiv.appendChild(row);
+
+            } else if (kind === 'usage') {
+                // Usage stats footer row
+                const row = document.createElement('div');
+                row.className = 'message usage';
+                const content = document.createElement('div');
+                content.className = 'message-content';
+                content.textContent = data.text;
+                row.appendChild(content);
+                messagesDiv.appendChild(row);
+
+            } else if (kind === 'progress') {
+                // Ephemeral spinner — replaced in place
+                let spinner = document.getElementById('sse-progress');
+                if (!spinner) {
+                    spinner = document.createElement('div');
+                    spinner.id = 'sse-progress';
+                    spinner.className = 'message activity';
+                    messagesDiv.appendChild(spinner);
+                }
+                spinner.textContent = data.text;
+
             } else {
-                const msgDiv = document.createElement('div');
-                msgDiv.className = 'message assistant';
-                const msgContent = document.createElement('div');
-                msgContent.className = 'message-content';
-                msgContent.appendChild(document.createTextNode(data.text));
-                msgDiv.appendChild(msgContent);
-                messagesDiv.appendChild(msgDiv);
+                // kind === 'text' or unknown: normal assistant message
+                const spinner = document.getElementById('sse-progress');
+                if (spinner) spinner.remove();
+                const lastMsg = messagesDiv.lastElementChild;
+                if (lastMsg && lastMsg.classList.contains('assistant') &&
+                    !lastMsg.classList.contains('tool-call') &&
+                    !lastMsg.classList.contains('usage')) {
+                    lastMsg.querySelector('.message-content').appendChild(
+                        document.createTextNode(data.text)
+                    );
+                } else {
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = 'message assistant';
+                    const msgContent = document.createElement('div');
+                    msgContent.className = 'message-content';
+                    msgContent.appendChild(document.createTextNode(data.text));
+                    msgDiv.appendChild(msgContent);
+                    messagesDiv.appendChild(msgDiv);
+                }
             }
-            
+
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
         // Don't call checkApproval() here - polling handles it
@@ -183,7 +257,11 @@ async function sendMessage() {
     }
     
     input.value = '';
-    
+
+    // Reset streaming state for new response
+    streamingBubble = null;
+    thinkingBubble = null;
+
     const messagesDiv = document.getElementById('messages');
     messagesDiv.innerHTML += `<div class="message user"><div class="message-content">${escapeHtml(message)}</div></div>`;
     messagesDiv.scrollTop = messagesDiv.scrollHeight;

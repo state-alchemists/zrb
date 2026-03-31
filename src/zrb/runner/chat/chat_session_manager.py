@@ -229,11 +229,11 @@ class ChatSessionManager:
             )
         return result
 
-    async def broadcast(self, session_id: str, text: str) -> bool:
+    async def broadcast(self, session_id: str, text: str, kind: str = "text") -> bool:
         session = self._sessions.get(session_id)
         if session is None:
             return False
-        await session.output_queue.put(text)
+        await session.output_queue.put({"text": text, "kind": kind})
         return True
 
     async def send_input(self, session_id: str, text: str) -> bool:

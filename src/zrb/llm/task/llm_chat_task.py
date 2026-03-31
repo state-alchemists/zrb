@@ -763,10 +763,6 @@ class LLMChatTask(BaseTask):
             all_uis = [default_ui] + resolved_uis
             if len(all_uis) == 1:
                 ui = default_ui
-            elif len(resolved_uis) == 1:
-                # Only one factory UI (e.g., HTTP UI) - use it directly
-                # The factory UI has _confirm_tool_execution for tool approvals
-                ui = resolved_uis[0]
             else:
                 ui = MultiUI(all_uis)
                 # Set up approval channel for MultiUI

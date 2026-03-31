@@ -562,7 +562,7 @@ class TestSimpleUISubclass:
         from zrb.llm.ui.simple_ui import SimpleUI
 
         class TestSimpleUI(SimpleUI):
-            async def print(self, text: str):
+            async def print(self, text: str, kind: str = "text"):
                 pass
 
             async def get_input(self, prompt: str) -> str:
@@ -583,7 +583,7 @@ class TestSimpleUISubclass:
         )
 
         class TestSimpleUI(SimpleUI):
-            async def print(self, text: str):
+            async def print(self, text: str, kind: str = "text"):
                 pass
 
             async def get_input(self, prompt: str) -> str:
@@ -600,7 +600,7 @@ class TestSimpleUISubclass:
         simple_ui_deps["config"] = UIConfig(yolo_xcom_key="")
 
         class TestSimpleUI(SimpleUI):
-            async def print(self, text: str):
+            async def print(self, text: str, kind: str = "text"):
                 pass
 
             async def get_input(self, prompt: str) -> str:
@@ -618,7 +618,7 @@ class TestSimpleUISubclass:
         simple_ui_deps["response_handlers"] = [mock_handler]
 
         class TestSimpleUI(SimpleUI):
-            async def print(self, text: str):
+            async def print(self, text: str, kind: str = "text"):
                 pass
 
             async def get_input(self, prompt: str) -> str:
@@ -636,7 +636,7 @@ class TestSimpleUISubclass:
         simple_ui_deps["argument_formatters"] = [mock_formatter]
 
         class TestSimpleUI(SimpleUI):
-            async def print(self, text: str):
+            async def print(self, text: str, kind: str = "text"):
                 pass
 
             async def get_input(self, prompt: str) -> str:
@@ -653,7 +653,7 @@ class TestSimpleUISubclass:
         simple_ui_deps["custom_param"] = "custom_value"
 
         class TestSimpleUI(SimpleUI):
-            async def print(self, text: str):
+            async def print(self, text: str, kind: str = "text"):
                 pass
 
             async def get_input(self, prompt: str) -> str:
@@ -671,7 +671,7 @@ class TestSimpleUISubclass:
         from zrb.llm.ui.simple_ui import SimpleUI
 
         class TestSimpleUI(SimpleUI):
-            async def print(self, text: str):
+            async def print(self, text: str, kind: str = "text"):
                 pass
 
             async def get_input(self, prompt: str) -> str:
@@ -705,7 +705,7 @@ class TestEventDrivenUI:
         from zrb.llm.ui.simple_ui import EventDrivenUI
 
         class TestEventUI(EventDrivenUI):
-            async def print(self, text: str):
+            async def print(self, text: str, kind: str = "text"):
                 pass
 
             async def start_event_loop(self):
@@ -721,7 +721,7 @@ class TestEventDrivenUI:
         from zrb.llm.ui.simple_ui import EventDrivenUI
 
         class TestEventUI(EventDrivenUI):
-            async def print(self, text: str):
+            async def print(self, text: str, kind: str = "text"):
                 pass
 
             async def start_event_loop(self):
@@ -737,7 +737,7 @@ class TestEventDrivenUI:
         from zrb.llm.ui.simple_ui import EventDrivenUI
 
         class TestEventUI(EventDrivenUI):
-            async def print(self, text: str):
+            async def print(self, text: str, kind: str = "text"):
                 pass
 
             async def start_event_loop(self):
@@ -757,7 +757,7 @@ class TestEventDrivenUI:
         from zrb.llm.ui.simple_ui import EventDrivenUI
 
         class TestEventUI(EventDrivenUI):
-            async def print(self, text: str):
+            async def print(self, text: str, kind: str = "text"):
                 pass
 
             async def start_event_loop(self):
@@ -1010,7 +1010,7 @@ class TestCreateUIFactory:
         from zrb.llm.ui.simple_ui import SimpleUI, UIConfig, create_ui_factory
 
         class TestSimpleUI(SimpleUI):
-            async def print(self, text: str):
+            async def print(self, text: str, kind: str = "text"):
                 pass
 
             async def get_input(self, prompt: str) -> str:
@@ -1040,7 +1040,7 @@ class TestCreateUIFactory:
         from zrb.llm.ui.simple_ui import SimpleUI, UIConfig, create_ui_factory
 
         class TestSimpleUI(SimpleUI):
-            async def print(self, text: str):
+            async def print(self, text: str, kind: str = "text"):
                 pass
 
             async def get_input(self, prompt: str) -> str:
@@ -1069,7 +1069,7 @@ class TestCreateUIFactory:
         from zrb.llm.ui.simple_ui import SimpleUI, UIConfig, create_ui_factory
 
         class TestSimpleUI(SimpleUI):
-            async def print(self, text: str):
+            async def print(self, text: str, kind: str = "text"):
                 pass
 
             async def get_input(self, prompt: str) -> str:
@@ -1098,7 +1098,7 @@ class TestCreateUIFactory:
         from zrb.llm.ui.simple_ui import SimpleUI, create_ui_factory
 
         class TestSimpleUI(SimpleUI):
-            async def print(self, text: str):
+            async def print(self, text: str, kind: str = "text"):
                 pass
 
             async def get_input(self, prompt: str) -> str:
@@ -1136,7 +1136,7 @@ class TestBaseUICommandHandlers:
         from zrb.llm.ui.simple_ui import SimpleUI, UIConfig
 
         class TestSimpleUI(SimpleUI):
-            async def print(self, text: str):
+            async def print(self, text: str, kind: str = "text"):
                 pass
 
             async def get_input(self, prompt: str) -> str:

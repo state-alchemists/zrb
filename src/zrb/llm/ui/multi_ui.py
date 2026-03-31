@@ -88,13 +88,13 @@ class MultiUI:
         end="\n",
         file: TextIO | None = None,
         flush: bool = False,
-        **kwargs,
+        kind: str = "text",
     ):
         """Broadcast output to ALL child UIs."""
         for ui in self._uis:
             try:
                 ui.append_to_output(
-                    *values, sep=sep, end=end, file=file, flush=flush, **kwargs
+                    *values, sep=sep, end=end, file=file, flush=flush, kind=kind
                 )
             except Exception:
                 pass
@@ -334,12 +334,12 @@ class MultiUI:
         end="\n",
         file: TextIO | None = None,
         flush: bool = False,
-        **kwargs,
+        kind: str = "text",
     ):
         for ui in self._uis:
             try:
                 ui.stream_to_parent(
-                    *values, sep=sep, end=end, file=file, flush=flush, **kwargs
+                    *values, sep=sep, end=end, file=file, flush=flush, kind=kind
                 )
             except Exception:
                 pass

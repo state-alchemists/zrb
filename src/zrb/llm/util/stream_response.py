@@ -1,5 +1,5 @@
 import json
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 from zrb.context.any_context import AnyContext
 from zrb.util.cli.style import stylize_faint
@@ -7,23 +7,23 @@ from zrb.util.cli.style import stylize_faint
 if TYPE_CHECKING:
     from pydantic_ai import AgentStreamEvent
 
+PrintKind = Literal["text", "streaming", "progress", "tool_call", "usage", "thinking"]
+
 
 def create_event_handler(
-    print_event: Callable[..., None],
+    print_fn: Callable[[str, str], Any],
     indent_level: int = 1,
     show_tool_call_detail: bool = False,
     show_tool_result: bool = False,
-    status_event: Callable[..., None] | None = None,
 ):
     """Create an event handler for agent stream events.
 
     Args:
-        print_event: Function to print regular output (buffered for subagents).
+        print_fn: Function to print output. Called as print_fn(text, kind) where
+                  kind is one of "text", "progress", "tool_call", "usage", "thinking".
         indent_level: Indentation level for nested output.
         show_tool_call_detail: Whether to show detailed tool call parameters.
         show_tool_result: Whether to show tool result content.
-        status_event: Optional function to print status messages (bypasses buffer for subagents).
-                      If None, falls back to print_event.
     """
     from pydantic_ai import (
         AgentRunResultEvent,
@@ -37,9 +37,6 @@ def create_event_handler(
         ToolCallPartDelta,
     )
 
-    # Use status_event if provided, otherwise fall back to print_event
-    status_fn = status_event if status_event is not None else print_event
-
     indentation = indent_level * 2 * " "
     progress_char_list = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
     progress_char_index = 0
@@ -50,15 +47,11 @@ def create_event_handler(
     printed_tool_call_ids: set[str] = set()
 
     def fprint(
-        content: str, preserve_leading_newline: bool = False, use_status: bool = False
+        content: str,
+        preserve_leading_newline: bool = False,
+        kind: PrintKind = "text",
     ):
-        """Format and print content with proper indentation.
-
-        Args:
-            content: The content to print.
-            preserve_leading_newline: Whether to preserve leading newlines.
-            use_status: If True, use status_fn (bypasses buffer); otherwise use print_event.
-        """
+        """Format and print content with proper indentation."""
         # Handle trailing newline specially
         has_trailing_newline = content.endswith("\n")
         if has_trailing_newline:
@@ -66,56 +59,60 @@ def create_event_handler(
 
         if preserve_leading_newline:
             if content.startswith("\n"):
-                # Already has newline, preserve it
                 result = "\n" + content[1:].replace("\n", f"\n{indentation}   ")
             else:
-                # Need to add newline
                 result = "\n" + content.replace("\n", f"\n{indentation}   ")
         else:
             result = content.replace("\n", f"\n{indentation}   ")
 
-        # Add back trailing newline without indentation
         if has_trailing_newline:
             result += "\n"
 
-        # Choose the appropriate function based on use_status
-        print_fn = status_fn if use_status else print_event
-        return print_fn(result)
+        return print_fn(result, kind)
 
     async def handle_event(event: "AgentStreamEvent"):
         from pydantic_ai import ToolCallPart
+        from pydantic_ai.messages import TextPart
 
         nonlocal progress_char_index, was_tool_call_delta, event_prefix
         if isinstance(event, PartStartEvent):
-            # Skip ToolCallPart start, we handle it in Deltas/CallEvent
             if isinstance(event.part, ToolCallPart):
                 return
-            content = _get_event_part_content(event)
-            # Use preserve_leading_newline=True because event_prefix contains the correctly indented newline
-            fprint(f"{event_prefix}🧠 {content}", preserve_leading_newline=True)
+            if isinstance(event.part, TextPart):
+                content = _get_event_part_content(event)
+                if content:
+                    fprint(
+                        f"{event_prefix}{content}",
+                        preserve_leading_newline=True,
+                        kind="streaming",
+                    )
+            else:
+                content = _get_event_part_content(event)
+                fprint(
+                    f"{event_prefix}🧠 {content}",
+                    preserve_leading_newline=True,
+                    kind="thinking",
+                )
             was_tool_call_delta = False
+
         elif isinstance(event, PartDeltaEvent):
             if isinstance(event.delta, TextPartDelta):
-                # Standard fprint for deltas to ensure wrapping indentation
-                fprint(f"{event.delta.content_delta}")
+                fprint(f"{event.delta.content_delta}", kind="streaming")
                 was_tool_call_delta = False
             elif isinstance(event.delta, ThinkingPartDelta):
-                fprint(f"{event.delta.content_delta}")
+                fprint(f"{event.delta.content_delta}", kind="thinking")
                 was_tool_call_delta = False
             elif isinstance(event.delta, ToolCallPartDelta):
                 if show_tool_call_detail:
-                    fprint(f"{event.delta.args_delta}")
+                    fprint(f"{event.delta.args_delta}", kind="tool_call")
                     was_tool_call_delta = True
                 else:
                     progress_char = progress_char_list[progress_char_index]
                     if not was_tool_call_delta:
-                        # Print newline for tool param spinner
-                        fprint("\n")
-
-                    # Combine \r with text to ensure proper handling by UI._append_to_output
-                    # Use status_fn for progress updates (should bypass buffer)
-                    status_fn(
-                        f"\r{indentation}🔄 Prepare tool parameters {progress_char}"
+                        fprint("\n", kind="progress")
+                    print_fn(
+                        f"\r{indentation}🔄 Prepare tool parameters {progress_char}",
+                        "progress",
                     )
                     progress_char_index += 1
                     if progress_char_index >= len(progress_char_list):
@@ -123,23 +120,16 @@ def create_event_handler(
                     was_tool_call_delta = True
         elif isinstance(event, FunctionToolCallEvent):
             args = _get_truncated_event_part_args(event)
-            # If we were showing 'prepare parameters', clear that line first
             if was_tool_call_delta and not show_tool_call_detail:
-                # Clear the line with \r before printing tool call
-                status_fn("\r")
-                # event_prefix will naturally overwrite it if it's on the same line
+                print_fn("\r", "progress")
 
-            # Deduplicate tool call prints: in pydantic-ai's deferred tool flow,
-            # FunctionToolCallEvent fires twice (once when deferred, once when executed).
-            # Only print if we haven't seen this tool_call_id before.
             tool_call_id = event.part.tool_call_id
             if tool_call_id not in printed_tool_call_ids:
                 printed_tool_call_ids.add(tool_call_id)
-                # Use status_fn for tool call notifications (bypass buffer for subagent visibility)
                 fprint(
                     f"{event_prefix}🧰 {tool_call_id} | {event.part.tool_name} {args}\n",
                     preserve_leading_newline=True,
-                    use_status=True,
+                    kind="tool_call",
                 )
             was_tool_call_delta = False
         elif isinstance(event, FunctionToolResultEvent):
@@ -147,13 +137,13 @@ def create_event_handler(
                 fprint(
                     f"{event_prefix}🔠 {event.tool_call_id} | Return {event.result.content}\n",
                     preserve_leading_newline=True,
-                    use_status=True,
+                    kind="tool_call",
                 )
             else:
                 fprint(
                     f"{event_prefix}🔠 {event.tool_call_id} Executed\n",
                     preserve_leading_newline=True,
-                    use_status=True,
+                    kind="tool_call",
                 )
             was_tool_call_delta = False
         elif isinstance(event, AgentRunResultEvent):
@@ -174,9 +164,9 @@ def create_event_handler(
                 ]
             )
             fprint(
-                f"{event_prefix}{stylize_faint(usage_msg)}\n",
+                f"{event_prefix}{usage_msg}\n",
                 preserve_leading_newline=True,
-                use_status=True,
+                kind="usage",
             )
             was_tool_call_delta = False
         elif isinstance(event, FinalResultEvent):
@@ -186,16 +176,7 @@ def create_event_handler(
     return handle_event
 
 
-def create_faint_printer(print_fn: Callable[..., None]):
-    def faint_print(content: str, end: str = ""):
-        message = stylize_faint(content)
-        print_fn(message, end=end)
-
-    return faint_print
-
-
 def _get_truncated_event_part_args(event: "AgentStreamEvent") -> Any:
-    # Handle empty arguments across different providers
     if not hasattr(event, "part"):
         return {}
     part = getattr(event, "part")
@@ -205,7 +186,6 @@ def _get_truncated_event_part_args(event: "AgentStreamEvent") -> Any:
     if args == "" or args is None:
         return {}
     if isinstance(args, str):
-        # Some providers might send "null" or "{}" as a string
         if args.strip() in ["null", "{}"]:
             return {}
         try:
@@ -214,7 +194,6 @@ def _get_truncated_event_part_args(event: "AgentStreamEvent") -> Any:
                 return _truncate_kwargs(obj)
         except json.JSONDecodeError:
             pass
-    # Handle dummy property if present (from our schema sanitization)
     if isinstance(args, dict):
         return _truncate_kwargs(args)
     return args
@@ -236,5 +215,4 @@ def _get_event_part_content(event: "AgentStreamEvent") -> str:
     part = getattr(event, "part")
     if hasattr(part, "content"):
         return getattr(part, "content")
-    # For parts without content (like ToolCallPart, though we skip it now), return empty or simple repr
     return ""

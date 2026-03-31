@@ -13,6 +13,7 @@ class UIProtocol(Protocol):
         end: str = "\n",
         file: TextIO | None = None,
         flush: bool = False,
+        kind: str = "text",
     ): ...
 
     def stream_to_parent(
@@ -22,6 +23,7 @@ class UIProtocol(Protocol):
         end: str = "\n",
         file: TextIO | None = None,
         flush: bool = False,
+        kind: str = "text",
     ): ...
 
     async def run_interactive_command(

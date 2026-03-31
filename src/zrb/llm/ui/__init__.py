@@ -70,7 +70,7 @@ Single Channel (CLI only):
     from zrb.builtin.llm.chat import llm_chat
 
     class MyUI(SimpleUI):
-        async def print(self, text: str) -> None:
+        async def print(self, text: str, kind: str = "text") -> None:
             print(text, end="")
 
         async def get_input(self, prompt: str) -> str:
@@ -103,7 +103,7 @@ Dual Mode (CLI + Telegram):
     from zrb.builtin.llm.chat import llm_chat
 
     class TelegramUI(EventDrivenUI):
-        async def print(self, text: str) -> None:
+        async def print(self, text: str, kind: str = "text") -> None:
             await self.bot.send_message(self.chat_id, text)
 
         async def start_event_loop(self) -> None:
