@@ -317,6 +317,10 @@ class LLMChatTask(BaseTask):
         """Append a UI factory to the list of factories."""
         self._ui_factories.append(factory)
 
+    def set_history_manager(self, history_manager: "AnyHistoryManager") -> None:
+        """Set the history manager for this task."""
+        self._history_manager = history_manager
+
     def set_approval_channel(self, channel: "ApprovalChannel | None"):
         """Set the approval channel for tool confirmations."""
         self._approval_channels = [] if channel is None else [channel]
@@ -759,6 +763,10 @@ class LLMChatTask(BaseTask):
             all_uis = [default_ui] + resolved_uis
             if len(all_uis) == 1:
                 ui = default_ui
+            elif len(resolved_uis) == 1:
+                # Only one factory UI (e.g., HTTP UI) - use it directly
+                # The factory UI has _confirm_tool_execution for tool approvals
+                ui = resolved_uis[0]
             else:
                 ui = MultiUI(all_uis)
                 # Set up approval channel for MultiUI

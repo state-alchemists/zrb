@@ -1,0 +1,330 @@
+let currentSessionId = null;
+let eventSource = null;
+let pendingApproval = null;
+let currentPage = 1;
+let totalPages = 1;
+
+async function loadSessions(page = 1) {
+    currentPage = page;
+    const response = await fetch(`/api/v1/chat/sessions?page=${page}&limit=10`);
+    const data = await response.json();
+    const sessionList = document.getElementById('session-list');
+    totalPages = data.total_pages || 1;
+    
+    if (data.sessions.length === 0 && page === 1) {
+        sessionList.innerHTML = '<p>No sessions yet. Create one to start chatting!</p>';
+    } else {
+        sessionList.innerHTML = data.sessions.map(session => `
+            <div class="session-item" data-session-id="${session.session_id}">
+                <span class="session-name">${session.session_name}</span>
+                <span class="session-info">
+                    ${session.is_processing ? '⏳ ' : ''}
+                    ${session.message_count} messages
+                </span>
+            </div>
+        `).join('');
+    }
+    
+    sessionList.querySelectorAll('.session-item').forEach(item => {
+        item.addEventListener('click', () => {
+            selectSession(item.dataset.sessionId);
+        });
+    });
+    
+    renderPagination(data.page, totalPages);
+}
+
+function renderPagination(page, total) {
+    const pagination = document.getElementById('pagination');
+    if (!pagination) return;
+    
+    let html = '';
+    if (total > 1) {
+        html += `<button id="prev-btn" ${page <= 1 ? 'disabled' : ''}>← Prev</button>`;
+        html += `<span>Page ${page} of ${total}</span>`;
+        html += `<button id="next-btn" ${page >= total ? 'disabled' : ''}>Next →</button>`;
+    }
+    pagination.innerHTML = html;
+    
+    // Attach event listeners
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            if (page > 1) loadSessions(page - 1);
+        });
+    }
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            if (page < total) loadSessions(page + 1);
+        });
+    }
+}
+
+async function selectSession(sessionId) {
+    currentSessionId = sessionId;
+    document.getElementById('session-selector').classList.add('hidden');
+    document.getElementById('chat-container').classList.remove('hidden');
+    document.getElementById('current-session-name').textContent = sessionId;
+    
+    await loadMessages();
+    connectSSE();
+    pollApproval();
+}
+
+function backToSessions() {
+    if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+    }
+    currentSessionId = null;
+    document.getElementById('chat-container').classList.add('hidden');
+    document.getElementById('session-selector').classList.remove('hidden');
+    loadSessions();
+}
+
+async function createNewSession() {
+    const response = await fetch('/api/v1/chat/sessions', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({})
+    });
+    const data = await response.json();
+    selectSession(data.session_id);
+}
+
+async function deleteSession() {
+    if (!currentSessionId) return;
+    if (!confirm('Delete this session?')) return;
+    
+    await fetch(`/api/v1/chat/sessions/${currentSessionId}`, {
+        method: 'DELETE'
+    });
+    backToSessions();
+}
+
+async function loadMessages() {
+    if (!currentSessionId) return;
+    
+    const response = await fetch(`/api/v1/chat/sessions/${currentSessionId}/messages`);
+    const data = await response.json();
+    
+    const messagesDiv = document.getElementById('messages');
+    messagesDiv.innerHTML = data.messages.map(msg => {
+        const role = msg.role === 'user' ? 'user' : 'assistant';
+        const content = escapeHtml(msg.content || '');
+        return `<div class="message ${role}"><div class="message-content">${content}</div></div>`;
+    }).join('');
+    
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML.replace(/\n/g, '<br>');
+}
+
+function connectSSE() {
+    if (eventSource) {
+        eventSource.close();
+    }
+    
+    eventSource = new EventSource(`/api/v1/chat/sessions/${currentSessionId}/streaming`);
+    
+    eventSource.onmessage = async (event) => {
+        const data = JSON.parse(event.data);
+        console.log('SSE message:', data);
+        
+        if (data.status === 'connected') {
+            console.log('SSE connected');
+            return;
+        }
+        
+        if (data.text) {
+            const messagesDiv = document.getElementById('messages');
+            const lastMsg = messagesDiv.lastElementChild;
+            
+            if (lastMsg && lastMsg.classList.contains('assistant')) {
+                const msgContent = lastMsg.querySelector('.message-content');
+                // Use text node to avoid innerHTML re-parsing
+                const textNode = document.createTextNode(data.text);
+                msgContent.appendChild(textNode);
+            } else {
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'message assistant';
+                const msgContent = document.createElement('div');
+                msgContent.className = 'message-content';
+                msgContent.appendChild(document.createTextNode(data.text));
+                msgDiv.appendChild(msgContent);
+                messagesDiv.appendChild(msgDiv);
+            }
+            
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        // Don't call checkApproval() here - polling handles it
+    };
+    
+    eventSource.onerror = (error) => {
+        console.log('SSE error, reconnecting...', error);
+        setTimeout(connectSSE, 3000);
+    };
+}
+
+async function sendMessage() {
+    const input = document.getElementById('message-input');
+    const message = input.value.trim();
+    
+    if (!message || !currentSessionId) {
+        console.log('sendMessage: empty message or no session');
+        return;
+    }
+    
+    input.value = '';
+    
+    const messagesDiv = document.getElementById('messages');
+    messagesDiv.innerHTML += `<div class="message user"><div class="message-content">${escapeHtml(message)}</div></div>`;
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    
+    try {
+        const response = await fetch(`/api/v1/chat/sessions/${currentSessionId}/messages`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({message})
+        });
+        console.log('sendMessage response:', response.status, await response.json());
+    } catch (e) {
+        console.error('sendMessage error:', e);
+    }
+}
+
+async function checkApproval() {
+    if (!currentSessionId) return;
+    
+    const response = await fetch(`/api/v1/chat/sessions/${currentSessionId}/approval`);
+    const data = await response.json();
+    
+    console.log('checkApproval response:', JSON.stringify(data));
+    
+    if (data.pending_approvals.length > 0 || data.is_waiting_for_edit) {
+        pendingApproval = data;
+        showApprovalPanel(data);
+    } else {
+        pendingApproval = null;
+        hideApprovalPanel();
+    }
+}
+
+function showApprovalPanel(data) {
+    const panel = document.getElementById('approval-panel');
+    const content = document.getElementById('approval-content');
+    const editPanel = document.getElementById('edit-panel');
+    const editArgsInput = document.getElementById('edit-args');
+    
+    console.log('showApprovalPanel called:', {
+        is_waiting_for_edit: data.is_waiting_for_edit,
+        editing_args: data.editing_args,
+        pending_count: data.pending_approvals.length
+    });
+    
+    if (data.is_waiting_for_edit) {
+        content.innerHTML = '<p>Edit the tool arguments and submit:</p>';
+        editPanel.classList.remove('hidden');
+        // Populate textarea with editing args from server
+        if (data.editing_args) {
+            const jsonStr = JSON.stringify(data.editing_args, null, 2);
+            console.log('Setting textarea to:', jsonStr);
+            editArgsInput.value = jsonStr;
+        } else {
+            console.log('editing_args is null/undefined, leaving textarea empty');
+            editArgsInput.value = '';
+        }
+    } else if (data.pending_approvals.length > 0) {
+        const approval = data.pending_approvals[0];
+        content.innerHTML = `
+            <p><strong>Tool:</strong> ${approval.tool_name}</p>
+            <p><strong>Args:</strong></p>
+            <pre>${JSON.stringify(approval.tool_args, null, 2)}</pre>
+        `;
+        editPanel.classList.add('hidden');
+        editArgsInput.value = '';
+    }
+    
+    panel.classList.remove('hidden');
+}
+
+function hideApprovalPanel() {
+    document.getElementById('approval-panel').classList.add('hidden');
+    document.getElementById('edit-panel').classList.add('hidden');
+    document.getElementById('edit-args').value = '';
+    pendingApproval = null;
+}
+
+async function handleApproval(action) {
+    if (!currentSessionId) return;
+    
+    let message;
+    let isApprovalAction = false;
+    
+    if (action === 'edit') {
+        const args = document.getElementById('edit-args').value;
+        if (args.trim()) {
+            try {
+                const parsed = JSON.parse(args);
+                message = parsed;
+                isApprovalAction = true;
+            } catch (e) {
+                message = args;
+                isApprovalAction = true;
+            }
+        } else {
+            message = "edit";
+            isApprovalAction = true;
+        }
+    } else {
+        // y, n, or other approval actions
+        message = action;
+        isApprovalAction = true;
+    }
+    
+    await fetch(`/api/v1/chat/sessions/${currentSessionId}/messages`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            message,
+            isApprovalAction: isApprovalAction
+        })
+    });
+    
+    hideApprovalPanel();
+}
+
+function pollApproval() {
+    setInterval(async () => {
+        if (currentSessionId) {
+            await checkApproval();
+        }
+    }, 2000);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('new-session-btn').addEventListener('click', createNewSession);
+    document.getElementById('back-to-sessions').addEventListener('click', backToSessions);
+    document.getElementById('delete-session-btn').addEventListener('click', deleteSession);
+    document.getElementById('send-btn').addEventListener('click', sendMessage);
+    document.getElementById('approve-btn').addEventListener('click', () => handleApproval('y'));
+    document.getElementById('deny-btn').addEventListener('click', () => handleApproval('n'));
+    document.getElementById('edit-btn').addEventListener('click', () => handleApproval('edit'));
+    document.getElementById('submit-edit-btn').addEventListener('click', () => handleApproval('edit'));
+    
+    const input = document.getElementById('message-input');
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    
+    loadSessions();
+});
