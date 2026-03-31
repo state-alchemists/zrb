@@ -259,8 +259,8 @@ class HTTPChatUI(EventDrivenUI, BufferedOutputMixin):
         return self.session_id
 
     async def _send_buffered(self, text: str) -> None:
-        clean = remove_style(text).strip()
-        if not clean:
+        clean = remove_style(text)
+        if not clean.strip():
             return
         await self.session_manager.broadcast(self.session_id, clean)
 

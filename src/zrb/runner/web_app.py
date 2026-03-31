@@ -1,5 +1,4 @@
 import asyncio
-import signal
 import sys
 from typing import TYPE_CHECKING
 
@@ -39,7 +38,6 @@ def create_web_app(
     from fastapi import FastAPI
 
     _COROS = []
-    _shutdown_event = asyncio.Event()
 
     async def _cleanup_sessions():
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
@@ -58,27 +56,6 @@ def create_web_app(
         ]:
             print(line, file=sys.stderr)
 
-        # Set up signal handlers for graceful shutdown (only if not in pytest)
-        loop = asyncio.get_running_loop()
-        shutdown_complete = False
-
-        def signal_handler():
-            nonlocal shutdown_complete
-            if not shutdown_complete:
-                shutdown_complete = True
-                print("\nShutting down...", file=sys.stderr)
-                asyncio.create_task(_cleanup_sessions())
-
-        # Only add signal handlers if not running in pytest
-        # (pytest handles signals differently)
-        if "pytest" not in sys.modules:
-            for sig in (signal.SIGINT, signal.SIGTERM):
-                try:
-                    loop.add_signal_handler(sig, signal_handler)
-                except NotImplementedError:
-                    # Windows doesn't support add_signal_handler
-                    pass
-
         yield
 
         # Cleanup on shutdown
@@ -90,7 +67,6 @@ def create_web_app(
                 timeout=SHUTDOWN_TIMEOUT,
             )
         await _cleanup_sessions()
-        _shutdown_event.set()
 
     app = FastAPI(
         title=CFG.WEB_TITLE,

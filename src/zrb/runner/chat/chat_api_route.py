@@ -375,8 +375,8 @@ def _create_http_ui_factory(
             self._input_queue: asyncio.Queue[str] = asyncio.Queue()
 
         async def _send_buffered(self, text: str) -> None:
-            clean = remove_style(text).strip()
-            if not clean:
+            clean = remove_style(text)
+            if not clean.strip():
                 return
             await self._session_manager.broadcast(self._session_id, clean)
 
@@ -406,12 +406,49 @@ def _create_http_ui_factory(
             return result.to_pydantic_result()
 
         async def start_event_loop(self) -> None:
+            # No-op: _run_loop is overridden directly
+            pass
+
+        async def _run_loop(self) -> None:
+            """Process one message then return (enables multi-turn via session runner)."""
             await self.start_flush_loop()
-            while True:
+            try:
+                # Wait for the submitted message to be fully processed by the LLM.
+                # _message_queue.join() blocks until task_done() is called for every
+                # item that was put() into the queue.
+                await self._message_queue.join()
+            finally:
+                await self.stop_flush_loop()
+
+        async def run_async(self) -> str:
+            """Override to re-raise CancelledError so server shutdown propagates."""
+            self._process_messages_task = asyncio.create_task(
+                self._process_messages_loop()
+            )
+            if hasattr(self, "_background_tasks"):
+                self._background_tasks.add(self._process_messages_task)
+
+            if self._initial_message:
+                self._submit_user_message(self._llm_task, self._initial_message)
+
+            _was_cancelled = False
+            try:
+                await self._run_loop()
+            except asyncio.CancelledError:
+                _was_cancelled = True
+            finally:
+                self._process_messages_task.cancel()
                 try:
-                    await asyncio.sleep(3600)
+                    await self._process_messages_task
                 except asyncio.CancelledError:
-                    break
+                    pass
+                finally:
+                    if hasattr(self, "_background_tasks"):
+                        self._background_tasks.discard(self._process_messages_task)
+
+            if _was_cancelled:
+                raise asyncio.CancelledError()
+            return self.last_output
 
     def http_ui_factory(
         ctx,

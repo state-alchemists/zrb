@@ -3,6 +3,7 @@ let eventSource = null;
 let pendingApproval = null;
 let currentPage = 1;
 let totalPages = 1;
+let isInEditMode = false;
 
 async function loadSessions(page = 1) {
     currentPage = page;
@@ -231,14 +232,11 @@ function showApprovalPanel(data) {
     if (data.is_waiting_for_edit) {
         content.innerHTML = '<p>Edit the tool arguments and submit:</p>';
         editPanel.classList.remove('hidden');
-        // Populate textarea with editing args from server
-        if (data.editing_args) {
+        // Only populate textarea on first entry into edit mode to avoid overwriting user edits
+        if (!isInEditMode && data.editing_args) {
             const jsonStr = JSON.stringify(data.editing_args, null, 2);
-            console.log('Setting textarea to:', jsonStr);
             editArgsInput.value = jsonStr;
-        } else {
-            console.log('editing_args is null/undefined, leaving textarea empty');
-            editArgsInput.value = '';
+            isInEditMode = true;
         }
     } else if (data.pending_approvals.length > 0) {
         const approval = data.pending_approvals[0];
@@ -259,6 +257,7 @@ function hideApprovalPanel() {
     document.getElementById('edit-panel').classList.add('hidden');
     document.getElementById('edit-args').value = '';
     pendingApproval = null;
+    isInEditMode = false;
 }
 
 async function handleApproval(action) {
