@@ -23,6 +23,7 @@ Features:
 """
 
 import asyncio
+import html
 import json
 import os
 
@@ -53,8 +54,14 @@ class TelegramBot:
 
     @classmethod
     def get(cls, token: str | None = None) -> "TelegramBot":
+        resolved = token or BOT_TOKEN
         if cls._instance is None:
-            cls._instance = cls(token or BOT_TOKEN)
+            cls._instance = cls(resolved)
+        elif cls._instance.token != resolved:
+            raise ValueError(
+                "TelegramBot singleton already created with a different token. "
+                "Restart the process to use a new token."
+            )
         return cls._instance
 
     async def start(self):
@@ -64,12 +71,15 @@ class TelegramBot:
         await self._app.updater.start_polling()
         return self._app
 
-    async def send(self, chat_id: str, text: str, **kwargs):
+    async def send(self, chat_id: str, text: str, raw: bool = False, **kwargs):
         if not self._app:
             return
-        from zrb.util.cli.style import remove_style
+        if raw:
+            clean = text.strip()
+        else:
+            from zrb.util.cli.style import remove_style
 
-        clean = remove_style(text).strip()
+            clean = remove_style(text).strip()
         if not clean:
             return
         for chunk in _split(clean, 4000):
@@ -91,10 +101,12 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
 
     def __init__(self, bot: TelegramBot, chat_id: str, **kwargs):
         super().__init__(**kwargs)
-        BufferedOutputMixin.__init__(self, flush_interval=0.3, max_buffer_size=3000)
+        BufferedOutputMixin.__init__(self, flush_interval=1.0, max_buffer_size=3000)
         self.bot = bot
         self.chat_id = chat_id
         self._approval_channel: TelegramApproval | None = None
+        self._stop_event = asyncio.Event()
+        self._message_handler_registered = False
 
     def set_approval_channel(self, approval: "TelegramApproval"):
         """Set the approval channel for edit routing."""
@@ -113,6 +125,8 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
         await self.start_flush_loop()
 
         async def handle_message(update, context):
+            if str(update.message.chat_id) != self.chat_id:
+                return
             text = update.message.text
             # Check if approval channel is waiting for edit input
             if (
@@ -123,16 +137,22 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
             else:
                 self.handle_incoming_message(text)
 
-        self.bot.add_handler(MessageHandler(filters.TEXT, handle_message))
+        if not self._message_handler_registered:
+            self.bot.add_handler(MessageHandler(filters.TEXT, handle_message))
+            self._message_handler_registered = True
 
-        while True:
-            await asyncio.sleep(1)
+        await self._stop_event.wait()
+
+    def stop_event_loop(self) -> None:
+        """Signal the event loop to exit cleanly."""
+        self._stop_event.set()
 
 
 class TelegramApproval(ApprovalChannel):
     """Telegram approval channel with inline keyboard buttons."""
 
     _instances: dict[str, "TelegramApproval"] = {}
+    _callback_handler_registered: bool = False
 
     def __init__(self, bot: TelegramBot, chat_id: str):
         self.bot = bot
@@ -146,8 +166,10 @@ class TelegramApproval(ApprovalChannel):
 
         import json
 
-        args = json.dumps(context.tool_args, indent=2, default=str)[:3000]
-        text = f"🔔 Tool: `{context.tool_name}`\n```\n{args}\n```"
+        args = html.escape(json.dumps(context.tool_args, indent=2, default=str)[:3000])
+        text = (
+            f"🔔 Tool: <code>{html.escape(context.tool_name)}</code>\n<pre>{args}</pre>"
+        )
 
         keyboard = InlineKeyboardMarkup(
             [
@@ -175,8 +197,9 @@ class TelegramApproval(ApprovalChannel):
         await self.bot.send(
             self.chat_id,
             text,
+            raw=True,
             reply_markup=keyboard,
-            parse_mode="Markdown",
+            parse_mode="HTML",
         )
 
         try:
@@ -192,10 +215,10 @@ class TelegramApproval(ApprovalChannel):
         await self.bot.send(self.chat_id, message)
 
     async def _ensure_handler(self):
-        if self.chat_id in TelegramApproval._instances:
-            return
-
         TelegramApproval._instances[self.chat_id] = self
+        if TelegramApproval._callback_handler_registered:
+            return
+        TelegramApproval._callback_handler_registered = True
 
         async def handle_callback(update, context):
             query = update.callback_query
@@ -229,17 +252,23 @@ class TelegramApproval(ApprovalChannel):
                         instance._pending_context.get(tool_call_id)
                     )
                     context_obj = instance._pending_context.get(tool_call_id)
-                    args = json.dumps(
-                        context_obj.tool_args if context_obj else {},
-                        indent=2,
-                        default=str,
+                    args = html.escape(
+                        json.dumps(
+                            context_obj.tool_args if context_obj else {},
+                            indent=2,
+                            default=str,
+                        )
+                    )
+                    tool_name = html.escape(
+                        context_obj.tool_name if context_obj else "tool"
                     )
                     await instance.bot.send(
                         chat_id,
-                        f"✏️ Editing `{context_obj.tool_name if context_obj else 'tool'}`\n\n"
+                        f"✏️ Editing <code>{tool_name}</code>\n\n"
                         f"Send new arguments (JSON or YAML format):\n"
-                        f"```\n{args}\n```",
-                        parse_mode="Markdown",
+                        f"<pre>{args}</pre>",
+                        raw=True,
+                        parse_mode="HTML",
                     )
                     # Mark as waiting for edit input
                     instance._waiting_for_edit_tool_call_id = tool_call_id
