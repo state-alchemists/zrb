@@ -118,7 +118,7 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
         await self.bot.send(self.chat_id, text, raw=True, parse_mode="HTML")
 
     async def print(self, text: str, kind: str = "text") -> None:
-        if kind in ("progress", "streaming"):
+        if kind == "progress":
             return  # Skip transient spinner
         clean = remove_style(text)
         if kind in ("tool_call", "usage"):
@@ -126,7 +126,7 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
             if stripped:
                 # Monospace code block with tool icon
                 self.buffer_output(f"\n<i>{html.escape(stripped)}</i>\n\n")
-        elif kind == "thinking":
+        elif kind in ("thinking", "streaming"):
             # Italic for chain-of-thought reasoning
             self.buffer_output(f"<i>{html.escape(clean)}</i>")
         else:
