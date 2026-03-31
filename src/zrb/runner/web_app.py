@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import sys
 from typing import TYPE_CHECKING
 
@@ -26,6 +27,29 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
 
 SHUTDOWN_TIMEOUT = 10
+
+
+class CancelledErrorFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.exc_info and record.exc_info[0] is asyncio.CancelledError:
+            return False
+        msg = record.getMessage()
+        if "Cancel" in msg and "running task" in msg:
+            return False
+        return True
+
+
+def configure_uvicorn_logging() -> None:
+    cancelled_filter = CancelledErrorFilter()
+    for logger_name in [
+        "uvicorn",
+        "uvicorn.error",
+        "uvicorn.protocols.http.httptools_impl",
+        "uvicorn.protocols.http.h11_impl",
+    ]:
+        logger = logging.getLogger(logger_name)
+        if not any(isinstance(f, CancelledErrorFilter) for f in logger.filters):
+            logger.addFilter(cancelled_filter)
 
 
 def create_web_app(
