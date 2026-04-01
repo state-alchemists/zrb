@@ -164,6 +164,7 @@ class ChatSessionManager:
     async def create_session(
         self,
         session_id: str | None = None,
+        session_name: str | None = None,
         llm_chat_task: Any = None,
         chat_ui: Any = None,
         approval_channel: Any = None,
@@ -173,9 +174,10 @@ class ChatSessionManager:
                 session_id = get_random_name()
             if session_id in self._sessions:
                 return self._sessions[session_id]
+            final_name = session_name if session_name else session_id
             session = ChatSession(
                 session_id=session_id,
-                session_name=session_id,
+                session_name=final_name,
                 llm_chat_task=llm_chat_task,
                 chat_ui=chat_ui,
                 approval_channel=approval_channel,

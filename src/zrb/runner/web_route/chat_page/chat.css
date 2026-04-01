@@ -11,18 +11,57 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 1rem;
+    gap: 0.25rem;
     margin: 1rem 0;
+    flex-wrap: wrap;
 }
 
-.pagination button {
-    padding: 0.5rem 1rem;
+.pagination-btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+    min-width: 2.5rem;
     cursor: pointer;
 }
 
-.pagination button:disabled {
-    opacity: 0.5;
+.pagination-btn:disabled {
+    opacity: 0.4;
     cursor: not-allowed;
+}
+
+.pagination-btn.active {
+    font-weight: bold;
+    background: var(--pico-primary-focus-background-color);
+}
+
+.pagination-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.new-session {
+    display: flex;
+    gap: 0.5rem;
+    margin: 1rem 0;
+    align-items: stretch;
+}
+
+#new-session-name {
+    flex: 1;
+    height: 100%;
+}
+
+.new-session button {
+    height: 100%;
+}
+
+.new-session {
+    display: flex;
+    gap: 0.5rem;
+    margin: 1rem 0;
+}
+
+#new-session-name {
+    flex: 1;
 }
 
 .session-item {
@@ -93,21 +132,28 @@
     border: 1px solid var(--pico-border-color);
 }
 
-/* streaming: live tokens being typed — slightly faint until complete */
+/* streaming: live tokens being typed — same style as thinking */
 .message.assistant.streaming {
-    border-style: dashed;
-    opacity: 0.7;
+    background: transparent;
+    border: none;
+    padding: 0.15rem 0.75rem;
+    font-size: 0.72em;
+    font-style: italic;
+    opacity: 0.4;
+    white-space: pre-wrap;
+    word-wrap: break-word;
 }
 
-/* thinking: chain-of-thought / reasoning — visually distinct block */
+/* thinking: chain-of-thought / reasoning — italic pre style like usage */
 .message.assistant.thinking {
     background: transparent;
     border: none;
-    border-left: 3px solid var(--pico-muted-border-color);
-    padding: 0.3rem 0.75rem;
-    font-size: 0.88em;
+    padding: 0.15rem 0.75rem;
+    font-size: 0.72em;
     font-style: italic;
-    opacity: 0.55;
+    opacity: 0.4;
+    white-space: pre-wrap;
+    word-wrap: break-word;
 }
 
 /* tool_call: tool invocation lines — monospace code-like appearance */
@@ -185,11 +231,17 @@
     gap: 0.5rem;
     padding: 1rem 0;
     border-top: 1px solid var(--pico-border-color);
+    align-items: stretch;
 }
 
 #message-input {
     flex: 1;
     resize: none;
+    height: auto;
+}
+
+#send-btn {
+    height: auto;
 }
 
 .hidden {

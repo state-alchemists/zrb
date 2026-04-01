@@ -4,7 +4,7 @@
         <p>{web_jargon}</p>
         <nav>
             <ul>
-                <li><a href="/docs">💻 API Documentation</a></li>
+                <li><a href="/docs">📚 Docs</a></li>
                 <li><a href="/ui">🏠 Home</a></li>
             </ul>
             <ul>
@@ -16,20 +16,21 @@
 <main class="container">
     <div id="session-selector" class="session-selector">
         <h2>Chat Sessions</h2>
+        <div class="new-session">
+            <input type="text" id="new-session-name" placeholder="Session name (optional)" />
+            <button id="new-session-btn" class="secondary">➕ New Chat</button>
+        </div>
         <div class="session-list" id="session-list">
             <p>Loading sessions...</p>
         </div>
         <div id="pagination" class="pagination"></div>
-        <div class="new-session">
-            <button id="new-session-btn" class="secondary">+ New Chat</button>
-        </div>
     </div>
     
     <div id="chat-container" class="chat-container hidden">
         <div class="chat-header">
-            <button id="back-to-sessions" class="secondary">← Back</button>
+            <button id="back-to-sessions" class="secondary">⬅️ Back</button>
             <h3 id="current-session-name">Chat</h3>
-            <button id="delete-session-btn" class="secondary">Delete</button>
+            <button id="delete-session-btn" class="secondary">🗑️ Delete</button>
         </div>
         
         <div id="messages" class="messages">
@@ -38,19 +39,19 @@
         <div id="approval-panel" class="approval-panel hidden">
             <div id="approval-content"></div>
             <div class="approval-buttons">
-                <button id="approve-btn" class="secondary">✓ Approve (y)</button>
-                <button id="deny-btn" class="secondary">✗ Deny (n)</button>
+                <button id="approve-btn" class="secondary">✅ Approve (y)</button>
+                <button id="deny-btn" class="secondary">❌ Deny (n)</button>
                 <button id="edit-btn" class="secondary">✏️ Edit (e)</button>
             </div>
             <div id="edit-panel" class="edit-panel hidden">
                 <textarea id="edit-args" placeholder="Edit JSON arguments..."></textarea>
-                <button id="submit-edit-btn" class="primary">Submit</button>
+                <button id="submit-edit-btn" class="primary">📤 Submit</button>
             </div>
         </div>
         
         <div class="input-area">
             <textarea id="message-input" placeholder="Type your message..." rows="1"></textarea>
-            <button id="send-btn">Send</button>
+            <button id="send-btn">📤 Send</button>
         </div>
     </div>
 </main>

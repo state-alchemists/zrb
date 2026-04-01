@@ -63,7 +63,10 @@ def serve_chat_api(
         await get_user_from_request(web_auth_config, request)
         data = await request.json() if request.method == "POST" else {}
         session_id = data.get("session_id")
-        session = await session_manager.create_session(session_id=session_id)
+        session_name = data.get("session_name")
+        session = await session_manager.create_session(
+            session_id=session_id, session_name=session_name
+        )
         return JSONResponse(
             content={
                 "session_id": session.session_id,
@@ -277,6 +280,7 @@ async def _run_chat_session(
         saved_ui_factories = list(llm_chat_task._ui_factories)
         saved_approval_channels = list(llm_chat_task._approval_channels)
         saved_history_manager = llm_chat_task._history_manager
+        saved_include_default_ui = llm_chat_task._include_default_ui
 
         try:
             llm_chat_task.set_history_manager(session_manager._history_manager)
@@ -284,12 +288,15 @@ async def _run_chat_session(
             approval_channel = session.approval_channel
 
             http_ui_factory = _create_http_ui_factory(
-                session_manager, session.session_id, approval_channel
+                session_manager,
+                session.session_id,
+                session.session_name,
+                approval_channel,
             )
             llm_chat_task._ui_factories = [http_ui_factory]
             llm_chat_task._approval_channels = [approval_channel]
+            llm_chat_task._include_default_ui = False
 
-            session.session_name = session.session_id
             session_manager.set_processing(session.session_id, False)
 
             while True:
@@ -315,7 +322,7 @@ async def _run_chat_session(
                 shared_ctx = SharedContext(
                     input={
                         "message": message,
-                        "session": session.session_id,
+                        "session": session.session_name,
                         "yolo": "false",
                         "attachments": "",
                         "model": "",
@@ -339,6 +346,7 @@ async def _run_chat_session(
             llm_chat_task._ui_factories = saved_ui_factories
             llm_chat_task._approval_channels = saved_approval_channels
             llm_chat_task._history_manager = saved_history_manager
+            llm_chat_task._include_default_ui = saved_include_default_ui
     except asyncio.CancelledError:
         raise
     except Exception as e:
@@ -353,6 +361,7 @@ async def _run_chat_session(
 def _create_http_ui_factory(
     session_manager: ChatSessionManager,
     session_id: str,
+    session_name: str,
     approval_channel: HTTPChatApprovalChannel,
 ):
     from zrb.llm.approval.approval_channel import ApprovalContext
@@ -461,7 +470,7 @@ def _create_http_ui_factory(
         if ui_commands:
             cfg = cfg.merge_commands(ui_commands)
         cfg.is_yolo = initial_yolo
-        cfg.conversation_session_name = session_id
+        cfg.conversation_session_name = session_name
 
         ui = HTTPUI(
             ctx=ctx,

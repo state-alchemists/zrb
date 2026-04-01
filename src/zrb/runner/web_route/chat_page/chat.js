@@ -18,7 +18,7 @@ async function loadSessions(page = 1) {
         sessionList.innerHTML = '<p>No sessions yet. Create one to start chatting!</p>';
     } else {
         sessionList.innerHTML = data.sessions.map(session => `
-            <div class="session-item" data-session-id="${session.session_id}">
+            <div class="session-item" data-session-id="${session.session_id}" data-session-name="${session.session_name}">
                 <span class="session-name">${session.session_name}</span>
                 <span class="session-info">
                     ${session.is_processing ? '⏳ ' : ''}
@@ -30,7 +30,7 @@ async function loadSessions(page = 1) {
     
     sessionList.querySelectorAll('.session-item').forEach(item => {
         item.addEventListener('click', () => {
-            selectSession(item.dataset.sessionId);
+            selectSession(item.dataset.sessionId, item.dataset.sessionName);
         });
     });
     
@@ -43,34 +43,47 @@ function renderPagination(page, total) {
     
     let html = '';
     if (total > 1) {
-        html += `<button id="prev-btn" ${page <= 1 ? 'disabled' : ''}>← Prev</button>`;
-        html += `<span>Page ${page} of ${total}</span>`;
-        html += `<button id="next-btn" ${page >= total ? 'disabled' : ''}>Next →</button>`;
+        const maxVisible = 5;
+        let start = Math.max(1, page - Math.floor(maxVisible / 2));
+        let end = Math.min(total, start + maxVisible - 1);
+        
+        if (end - start < maxVisible - 1) {
+            start = Math.max(1, end - maxVisible + 1);
+        }
+        
+        html += `<button class="pagination-btn first-btn" ${page <= 1 ? 'disabled' : ''}>⏮ First</button>`;
+        html += `<button class="pagination-btn prev-btn" ${page <= 1 ? 'disabled' : ''}>◀ Prev</button>`;
+        
+        for (let i = start; i <= end; i++) {
+            html += `<button class="pagination-btn page-btn" data-page="${i}" ${i === page ? 'disabled' : ''}>${i}</button>`;
+        }
+        
+        html += `<button class="pagination-btn next-btn" ${page >= total ? 'disabled' : ''}>Next ▶</button>`;
+        html += `<button class="pagination-btn last-btn" ${page >= total ? 'disabled' : ''}>Last ⏭</button>`;
     }
     pagination.innerHTML = html;
     
-    // Attach event listeners
-    const prevBtn = document.getElementById('prev-btn');
-    const nextBtn = document.getElementById('next-btn');
-    
-    if (prevBtn) {
-        prevBtn.addEventListener('click', () => {
-            if (page > 1) loadSessions(page - 1);
+    pagination.querySelectorAll('.pagination-btn:not([disabled])').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const p = btn.dataset.page;
+            if (p) {
+                loadSessions(parseInt(p));
+            } else {
+                if (btn.classList.contains('first-btn') && page > 1) loadSessions(1);
+                if (btn.classList.contains('prev-btn') && page > 1) loadSessions(page - 1);
+                if (btn.classList.contains('next-btn') && page < total) loadSessions(page + 1);
+                if (btn.classList.contains('last-btn') && page < total) loadSessions(total);
+            }
         });
-    }
-    if (nextBtn) {
-        nextBtn.addEventListener('click', () => {
-            if (page < total) loadSessions(page + 1);
-        });
-    }
+    });
 }
 
-async function selectSession(sessionId) {
+async function selectSession(sessionId, sessionName) {
     currentSessionId = sessionId;
     document.getElementById('session-selector').classList.add('hidden');
     document.getElementById('chat-container').classList.remove('hidden');
-    document.getElementById('current-session-name').textContent = sessionId;
-    
+    document.getElementById('current-session-name').textContent = sessionName || sessionId;
+
     await loadMessages();
     connectSSE();
     pollApproval();
@@ -88,13 +101,16 @@ function backToSessions() {
 }
 
 async function createNewSession() {
+    const nameInput = document.getElementById('new-session-name');
+    const sessionName = nameInput.value.trim();
+    nameInput.value = '';
     const response = await fetch('/api/v1/chat/sessions', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({})
+        body: JSON.stringify({session_name: sessionName || undefined})
     });
     const data = await response.json();
-    selectSession(data.session_id);
+    selectSession(data.session_id, data.session_name);
 }
 
 async function deleteSession() {
