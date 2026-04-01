@@ -134,10 +134,18 @@ Rich interactive TUI:
 
 ### Zrb
 
-`prompt_toolkit`-based TUI:
-- Multi-line input support
-- Command history
-- Custom slash-command palette (`/`)
+`prompt_toolkit`-based TUI (`src/zrb/llm/ui/`):
+- Multi-line input support (trailing `\` continuation)
+- Command history with reverse search
+- **`!` bash prefix** — `! cmd` or `/exec cmd` runs shell and injects output (`base_ui.py:879`)
+- **`@` file mention** — `@path/to/file` in message body expands to file reference; autocomplete via `completion.py:105`
+- **`/` slash-command palette** — full built-in set + custom skill commands (`config.py:81–90`)
+- `/attach` — explicit file attachment command
+- `/model` — switch model mid-conversation
+- `/yolo` — toggle YOLO mode
+- `/save` / `/load` — persist/restore sessions
+- `/compress` / `/compact` — summarize conversation
+- `>` / `/redirect` — save last output to file
 - Session persistence
 - Configurable greeting, ASCII art, jargon
 - Tool approval dialogs with formatted output
@@ -145,23 +153,21 @@ Rich interactive TUI:
 
 **Status**: 🟡 **Partially supported**
 
-**Gap**: Zrb has a functional TUI via `prompt_toolkit` but is missing: Vim mode, voice input, `!` bash prefix, `@` file mention with autocomplete, image paste from clipboard, permission mode cycling (Shift+Tab), model switching mid-conversation, extended thinking toggle, background task management (Ctrl+B), task list toggle, checkpoint/rewind menu, prompt suggestions from git history, PR review status footer, transcript viewer, color themes, status line, side questions (`/btw`), session branching.
+**Gap**: Zrb has a functional TUI with `!`, `@`, and `/` all implemented. Missing: Vim mode, voice input, image paste from clipboard, permission mode cycling (Shift+Tab), extended thinking toggle, background task management (Ctrl+B), task list toggle (Ctrl+T), checkpoint/rewind menu (Esc+Esc), prompt suggestions from git history, PR review status footer, transcript viewer, color themes, configurable status line, side questions (`/btw`), session branching (`/branch`/`/fork`).
 
 **Effort to close**:
-- **High** (6–10 weeks): Many require `prompt_toolkit` extensions or custom keybinding handlers. Priority order:
-  1. `!` bash prefix (1–2 days) — easy; run shell and inject output
-  2. `@` file mention with completion (3–5 days) — `prompt_toolkit` completer
-  3. Shift+Tab permission mode cycling (1 day) — keyboard binding
-  4. Model switch mid-conversation (1 day)
-  5. Background bash tasks (1 week)
-  6. Prompt suggestions (1 week) — git history integration
-  7. Vim mode (2–3 weeks) — significant `prompt_toolkit` work
-  8. `/btw` side questions (3–4 days)
-  9. Checkpoint/rewind (see §14)
-  10. PR status footer (1–2 days) — `gh` CLI integration
-  11. Voice input (2–3 weeks) — requires speech-to-text library
-  12. Image paste (1 week) — multimodal input pipeline
-  13. Color themes (1–2 days)
+- **Medium** (3–5 weeks): Core interactive features are already present. Remaining items are enhancements:
+  1. `/model` switch — already exists ✅
+  2. Shift+Tab permission mode cycling (1 day) — keyboard binding
+  3. Background bash tasks / Ctrl+B (1 week)
+  4. Prompt suggestions from git history (1 week)
+  5. Vim mode (2–3 weeks) — significant `prompt_toolkit` work
+  6. `/btw` side questions (3–4 days)
+  7. Checkpoint/rewind (see §14)
+  8. PR status footer (1–2 days) — `gh` CLI integration
+  9. Voice input (2–3 weeks) — requires speech-to-text library
+  10. Image paste (1 week) — multimodal input pipeline
+  11. Color themes (1–2 days)
 
 ---
 
@@ -188,9 +194,18 @@ Custom commands via `CustomCommand` class:
 - Skills become slash commands via their `name` metadata
 - Interactive command palette (via `prompt_toolkit`)
 
-Built-in slash commands (limited):
+Built-in slash commands (from `config.py:81–90` and `base_ui.py`):
 - `/compress` / `/compact` — summarize conversation
-- Custom session UI commands configurable via CFG
+- `/attach` — attach file to next message
+- `/q`, `/bye`, `/quit`, `/exit` — exit session
+- `/info`, `/help` — show help
+- `/save` — save conversation
+- `/load` — load conversation
+- `/yolo` — toggle YOLO mode
+- `>`, `/redirect` — save last output to file
+- `!`, `/exec` — execute shell command and inject output
+- `/model` — set model mid-conversation
+- Custom skill commands auto-registered from skill files
 
 **Status**: 🟡 **Partially supported**
 
@@ -230,30 +245,45 @@ Built-in slash commands (limited):
 
 ### Zrb
 
-**Journal system** (closest analog to CLAUDE.md):
-- `LLM_JOURNAL_DIR` (`~/.zrb/journal/`) — persistent notes
-- Injected into LLM context via `PromptManager`
-- Read/write via `journal` tools
-- Auto-approve for reading/writing journal dir
+**CLAUDE.md / AGENTS.md / GEMINI.md / README.md auto-loading** (`src/zrb/llm/prompt/claude.py:54`):
+- `create_project_context_prompt()` is included in `PromptManager` by default (`CFG.LLM_INCLUDE_PROJECT_CONTEXT=1`)
+- Search path: `~/.claude/` → filesystem root → … → CWD (all parents + CWD)
+- Loads `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `README.md` from every directory in hierarchy
+- Content: most specific occurrence (closest to CWD) loaded, up to `MAX_PROJECT_DOC_CHARS = 4000` chars
+- All occurrences listed; model told to `Read` others on demand
+- At startup, full hierarchy is walked — no lazy-loading per subdirectory
+
+**Journal system** (analog to Claude Code's auto memory):
+- `LLM_JOURNAL_DIR` (`~/.zrb/journal/`) — persistent notes written by LLM or user
+- Injected into LLM context via `PromptManager` (`include_journal=True`)
+- Read/write/search via journal tools; auto-approved for journal dir
 
 **Skill/prompt system**:
-- Skills from `.zrb/skills/`, `~/.zrb/skills/`, `.claude/skills/`, `~/.claude/skills/` (multi-source)
-- System prompt via `PromptManager` with `LLM_PROMPT_DIR` override
+- Skills from `.zrb/skills/`, `~/.zrb/skills/`, `.claude/skills/`, `~/.claude/skills/`
 - `CFG.LLM_INCLUDE_PERSONA`, `CFG.LLM_INCLUDE_JOURNAL`, `CFG.LLM_INCLUDE_CLAUDE_SKILLS` flags
-
-**CLAUDE.md**: `CFG.LLM_INCLUDE_CLAUDE_SKILLS` suggests reading `.claude/skills/` already; no explicit CLAUDE.md loading found.
 
 **Status**: 🟡 **Partially supported**
 
-**Gap**: Zrb has journal-based persistent memory (analogous to auto memory) and skill loading. However: no explicit CLAUDE.md/AGENTS.md auto-loading from project hierarchy, no path-scoped rules (`.claude/rules/` with `paths:` frontmatter), no `@import` syntax for memory files, no auto memory that Claude writes to during conversation (Zrb's journal is more manual), no managed/enterprise policy memory layer.
+**Gap**: CLAUDE.md/AGENTS.md auto-loading is implemented and enabled by default. Missing vs Claude Code:
+- 4000-char truncation limit per file (Claude Code has no such hard limit)
+- `@import` syntax for chaining memory files (max 5 hops)
+- `.claude/rules/` path-scoped rules with YAML `paths:` frontmatter
+- `claudeMdExcludes` to skip files
+- `<!-- comments -->` stripping before injection
+- Subdirectory lazy-loading (only triggered when LLM reads a file in that dir)
+- System-wide managed/enterprise policy (`/Library/Application Support/ClaudeCode/CLAUDE.md`)
+- `/memory` command to list/toggle/edit memory files interactively
+- Zrb's journal is tool-mediated (LLM must call write tool); Claude Code's auto memory is written by the model directly as a side effect of conversation
 
 **Effort to close**:
-- **Medium** (2–3 weeks):
-  1. Add CLAUDE.md/AGENTS.md loader to `PromptManager`: walk from `~/` → project root → CWD, load and inject (3–5 days)
-  2. Implement `@import` syntax in memory file loader (1–2 days)
-  3. Add `.claude/rules/` path-scoped rule loading (3–5 days)
-  4. Formalize auto-memory: already have journal; expose `/memory` command to manage it (2–3 days)
-  5. Managed/enterprise policy layer (1 week for org deployment scenarios)
+- **Low-Medium** (1–2 weeks):
+  1. Raise or remove 4000-char limit (`MAX_PROJECT_DOC_CHARS`) — or make it configurable (1 day)
+  2. `<!-- comments -->` stripping in file loader (1 day)
+  3. Implement `@import` syntax in file loader (2–3 days)
+  4. Add `.claude/rules/` path-scoped rule loading (3–5 days)
+  5. Subdirectory lazy-loading via hook when LLM reads a file outside CWD (2–3 days)
+  6. `/memory` interactive management command (2–3 days)
+  7. Managed/enterprise policy layer (1 week for org deployment scenarios)
 
 ---
 
@@ -1069,17 +1099,38 @@ IDE-based diagnostics via built-in IDE MCP server (`mcp__ide__getDiagnostics`).
 
 ### Zrb
 
-- History summarization in `FileHistoryManager`
-- `/compress` / `/compact` UI commands (configurable via `CFG.LLM_UI_COMMAND_SUMMARIZE`)
-- `LLM_HISTORY_SUMMARIZE_THRESHOLD` triggers auto-summarization
-- Pre/post compaction hooks exist (`pre_agent_run`, `post_agent_run` approximate this)
+Zrb has a **two-layer** auto-summarization system (`src/zrb/llm/summarizer/`):
+
+**Layer 1 — Per-message (tool result) summarization** (`message_processor.py`):
+- Individual tool results exceeding `LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD` (default: 50% of conversational threshold) are summarized in-place before the next turn
+- Truncates "insanely large" results first, then LLM-summarizes the rest
+
+**Layer 2 — Conversational history summarization** (`history_summarizer.py`):
+- `create_summarizer_history_processor()` runs before every agent turn
+- Triggers when `len(messages) > LLM_HISTORY_SUMMARIZATION_WINDOW` (default: 100) OR total tokens > `LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD` (default: 60% of model max)
+- Intelligent split strategy: respects tool call/return pairs, prefers turn boundaries
+- Chunk-and-summarize for very large histories with `<state_snapshot>` consolidation
+- Summary prepended as `SYSTEM: Automated Context Restoration` user message
+
+**Manual compaction**: `/compress` / `/compact` commands send the keyword to `_handle_summarization()` in `llm_task.py:344`, which calls `summarize_history()` directly and saves the result.
+
+**Config equivalents**:
+- `LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD` → `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` equivalent ✅
+- `LLM_HISTORY_SUMMARIZATION_WINDOW` → message count limit ✅
+- `LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD` → individual message limit ✅
 
 **Status**: 🟡 **Partially supported**
 
-**Gap**: Core compaction exists. Missing: `PreCompact`/`PostCompact` hook events, focus instructions for compaction, `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` equivalent, per-turn compaction trigger vs threshold-based.
+**Gap**: Core auto-compaction is robustly implemented and enabled by default. Missing vs Claude Code:
+- `PreCompact` / `PostCompact` hook events (Zrb fires no dedicated compaction hooks)
+- Focus instructions for manual compact (e.g., `/compact focus on the auth changes` — Zrb's `/compress` takes no argument)
+- Rewind-from-point as alternative to summarization (see §14)
+- Original transcript preservation in `.jsonl` for post-hoc replay (Zrb saves summarized history in place)
 
 **Effort to close**:
-- **Low** (3–5 days): Add `PreCompact`/`PostCompact` hook events, add focus instructions parameter to compress command.
+- **Low** (3–5 days):
+  1. Add `PreCompact`/`PostCompact` hook events around summarization calls (2 days)
+  2. Accept optional focus-instructions argument in `/compress [instructions]` and pass to summarizer prompt (1–2 days)
 
 ---
 
@@ -1210,9 +1261,9 @@ No `CronCreate`/`CronDelete`/`CronList` as LLM-callable tools within a chat sess
 | Category | Status | Priority |
 |----------|--------|----------|
 | CLI Flags | 🟡 ~30% coverage | High |
-| Interactive TUI | 🟡 ~40% coverage | High |
-| Slash Commands | 🟡 ~20% built-in | High |
-| Memory/CLAUDE.md | 🟡 ~60% | High |
+| Interactive TUI | 🟡 ~60% coverage (`!`, `@`, `/` all present; missing vim/voice/themes) | Medium |
+| Slash Commands | 🟡 ~40% built-in (core set present; ~50 management cmds missing) | Medium |
+| Memory/CLAUDE.md | 🟡 ~75% (auto-loading ✅, @import/rules/lazy-load missing) | Low-Medium |
 | Hooks | 🟡 ~35% | High |
 | MCP | 🟡 ~60% | High |
 | Subagents | 🟡 ~50% | High |
@@ -1232,7 +1283,7 @@ No `CronCreate`/`CronDelete`/`CronList` as LLM-callable tools within a chat sess
 | Rate Limiting | 🟡 ~70% (Zrb better) | Low |
 | Platform Support | 🟡 ~80% | Low |
 | LSP | ✅ Zrb advantage | — |
-| Context Compaction | 🟡 ~70% | Low |
+| Context Compaction | 🟡 ~85% (two-layer auto-summ ✅; PreCompact hooks + focus args missing) | Low |
 | Vim Mode | ❌ 0% | Low |
 | Voice Input | ❌ 0% | Low |
 | Diff Viewer | ❌ 0% | Low |
@@ -1263,15 +1314,13 @@ These are features Zrb has that Claude Code does not:
 
 These close the most important gaps with reasonable effort:
 
-1. **CLAUDE.md / AGENTS.md auto-loading** from project hierarchy (2–3 days) — makes Zrb work in Claude Code workflows
+1. **CLAUDE.md / AGENTS.md auto-loading** — already implemented ✅ (`create_project_context_prompt()`, `LLM_INCLUDE_PROJECT_CONTEXT=1`). Remaining gaps: raise 4000-char limit, add `@import`, `.claude/rules/`, lazy subdir loading (3–5 days total)
 2. **Extended CLI flags**: `--permission-mode`, `--max-turns`, `--system-prompt`, `--resume`, `--output-format json` (1 week)
-3. **`!` bash prefix** in TUI (1–2 days) — high-frequency use
-4. **`@` file mention** with autocomplete (3–5 days)
-5. **Named permission modes**: add `plan`, `acceptEdits`, `dontAsk` to existing YOLO/non-YOLO (1 week)
-6. **Shift+Tab mode cycling** (1 day)
-7. **Built-in slash commands**: `/clear`, `/model`, `/config`, `/cost`, `/compact`, `/export`, `/help`, `/permissions` (1 week for core set)
-8. **`PreCompact`/`PostCompact` + missing hook events** (1 week)
-9. **JSON settings files** with scope hierarchy (1 week)
+3. **Named permission modes**: add `plan`, `acceptEdits`, `dontAsk` to existing YOLO/non-YOLO (1 week)
+4. **Shift+Tab mode cycling** (1 day)
+5. **Additional built-in slash commands**: `/clear`, `/config`, `/cost`, `/export`, `/permissions`, `/diff`, `/btw` (1 week — `/model`, `/compact`, `/attach`, `!` already exist ✅)
+6. **`PreCompact`/`PostCompact` hook events + `/compress [focus]` argument** (3–5 days — core auto-compaction already works ✅)
+7. **JSON settings files** with scope hierarchy (1 week)
 10. **MCP prompts as slash commands** (3 days)
 
 #### Phase 2: Medium-Impact, Medium Effort (6–10 weeks)
