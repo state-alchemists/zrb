@@ -25,6 +25,11 @@ if TYPE_CHECKING:
     from pydantic_ai import UserContent
 
     from zrb.context.any_context import AnyContext
+    from zrb.llm.tool_call.middleware import (
+        ArgumentFormatter,
+        ResponseHandler,
+        ToolPolicy,
+    )
 
 logger = logging.getLogger(__name__)
 
