@@ -1,10 +1,13 @@
 import asyncio
+import logging
 import sys
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.config.web_auth_config import WebAuthConfig
 from zrb.group.any_group import AnyGroup
+from zrb.runner.chat.chat_api_route import serve_chat_api
+from zrb.runner.web_route.chat_page.chat_page_route import serve_chat_page
 from zrb.runner.web_route.docs_route import serve_docs
 from zrb.runner.web_route.error_page.serve_default_404 import serve_default_404
 from zrb.runner.web_route.home_page.home_page_route import serve_home_page
@@ -23,6 +26,31 @@ if TYPE_CHECKING:
     # We want fastapi to only be loaded when necessary to decrease footprint
     from fastapi import FastAPI
 
+SHUTDOWN_TIMEOUT = 10
+
+
+class CancelledErrorFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.exc_info and record.exc_info[0] is asyncio.CancelledError:
+            return False
+        msg = record.getMessage()
+        if "Cancel" in msg and "running task" in msg:
+            return False
+        return True
+
+
+def configure_uvicorn_logging() -> None:
+    cancelled_filter = CancelledErrorFilter()
+    for logger_name in [
+        "uvicorn",
+        "uvicorn.error",
+        "uvicorn.protocols.http.httptools_impl",
+        "uvicorn.protocols.http.h11_impl",
+    ]:
+        logger = logging.getLogger(logger_name)
+        if not any(isinstance(f, CancelledErrorFilter) for f in logger.filters):
+            logger.addFilter(cancelled_filter)
+
 
 def create_web_app(
     root_group: AnyGroup,
@@ -35,6 +63,15 @@ def create_web_app(
 
     _COROS = []
 
+    async def _cleanup_sessions():
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        # Skip aggressive cleanup in pytest mode
+        if "pytest" in sys.modules:
+            return
+        session_mgr = ChatSessionManager.get_instance_sync()
+        await session_mgr.cancel_all_sessions()
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         capitalized_group_name = CFG.ROOT_GROUP_NAME.capitalize()
@@ -42,10 +79,18 @@ def create_web_app(
             f"{capitalized_group_name} Server running on http://localhost:{CFG.WEB_HTTP_PORT}"
         ]:
             print(line, file=sys.stderr)
+
         yield
+
+        # Cleanup on shutdown
         for coro in _COROS:
             coro.cancel()
-        asyncio.gather(*_COROS)
+        if _COROS:
+            await asyncio.wait_for(
+                asyncio.gather(*_COROS, return_exceptions=True),
+                timeout=SHUTDOWN_TIMEOUT,
+            )
+        await _cleanup_sessions()
 
     app = FastAPI(
         title=CFG.WEB_TITLE,
@@ -61,6 +106,8 @@ def create_web_app(
     serve_home_page(app, root_group, web_auth_config)
     serve_login_page(app, root_group, web_auth_config)
     serve_logout_page(app, root_group, web_auth_config)
+    serve_chat_api(app, root_group, web_auth_config)
+    serve_chat_page(app, root_group, web_auth_config)
     serve_node_page(app, root_group, web_auth_config)
     serve_login_api(app, web_auth_config)
     serve_logout_api(app, web_auth_config)

@@ -65,7 +65,7 @@ from aiohttp import web
 
 from zrb.builtin.llm.chat import llm_chat
 from zrb.llm.approval import ApprovalChannel, ApprovalContext, ApprovalResult
-from zrb.llm.ui.simple_ui import BufferedOutputMixin, EventDrivenUI
+from zrb.llm.ui.simple_ui import EventDrivenUI
 from zrb.llm.util.history_formatter import format_history_as_text
 from zrb.util.cli.style import remove_style
 
@@ -107,12 +107,12 @@ class SSEServer:
         """Set the approval channel for tool approvals."""
         self._approval_channel = approval
 
-    async def broadcast(self, text: str) -> None:
+    async def broadcast(self, text: str, kind: str = "text") -> None:
         """Queue text for broadcast to all SSE clients."""
         clean = remove_style(text).strip()
         if not clean:
             return
-        await self._output_queue.put(clean)
+        await self._output_queue.put({"text": clean, "kind": kind})
 
     async def start(self) -> None:
         """Start the HTTP/SSE server."""
@@ -223,10 +223,17 @@ class SSEServer:
                 try:
                     # Wait for output with timeout for keepalive
                     async with asyncio.timeout(30):
-                        text = await self._output_queue.get()
+                        item = await self._output_queue.get()
+                        if isinstance(item, dict):
+                            payload = {
+                                "type": item.get("kind", "text"),
+                                "text": item.get("text", ""),
+                            }
+                        else:
+                            payload = {"type": "text", "text": item}
                         # Use ensure_ascii=False to preserve Unicode (emojis, etc.)
                         await response.write(
-                            f"data: {json.dumps(text, ensure_ascii=False)}\n\n".encode()
+                            f"data: {json.dumps(payload, ensure_ascii=False)}\n\n".encode()
                         )
                 except asyncio.TimeoutError:
                     # Send keepalive comment
@@ -579,22 +586,30 @@ class SSEApproval(ApprovalChannel):
 # =============================================================================
 
 
-class SSEUI(EventDrivenUI, BufferedOutputMixin):
-    """SSE UI using EventDrivenUI with buffered output broadcasting."""
+class SSEUI(EventDrivenUI):
+    """SSE UI that broadcasts each event immediately with its kind."""
 
     def __init__(self, server: SSEServer, **kwargs):
         super().__init__(**kwargs)
-        BufferedOutputMixin.__init__(self, flush_interval=0.3, max_buffer_size=3000)
         self.server = server
+        self._streaming_started = False
         server.set_ui(self)
 
-    async def _send_buffered(self, text: str) -> None:
-        """Broadcast buffered content to all SSE clients."""
-        await self.server.broadcast(text)
+    def handle_incoming_message(self, text: str) -> None:
+        self._streaming_started = False
+        super().handle_incoming_message(text)
 
-    async def print(self, text: str) -> None:
-        """Buffer output (called by append_to_output during streaming)."""
-        self.buffer_output(text)
+    async def print(self, text: str, kind: str = "text") -> None:
+        """Broadcast each event with its kind for visual distinction."""
+        if kind == "streaming":
+            self._streaming_started = True
+        elif kind == "text":
+            if self._streaming_started:
+                self._streaming_started = False
+                return
+        clean = remove_style(text).strip()
+        if clean:
+            await self.server.broadcast(clean, kind=kind)
 
     async def get_input(self, prompt: str) -> str:
         """Send question via SSE and wait for response."""
@@ -610,9 +625,8 @@ class SSEUI(EventDrivenUI, BufferedOutputMixin):
             self._waiting_for_input = False
 
     async def start_event_loop(self) -> None:
-        """Start the SSE server and flush loop."""
+        """Start the SSE server."""
         await self.server.start()
-        await self.start_flush_loop()
         while True:
             await asyncio.sleep(3600)
 

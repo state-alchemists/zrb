@@ -41,7 +41,7 @@ Quick Start:
     from zrb.builtin.llm.chat import llm_chat
 
     class MyUI(SimpleUI):
-        def print(self, text: str) -> None:
+        async def print(self, text: str, kind: str = "text") -> None:
             print(text, end="")
 
         async def get_input(self, prompt: str) -> str:
@@ -55,7 +55,7 @@ Event-Driven (Telegram/Discord):
     from zrb.llm.app import EventDrivenUI, create_ui_factory
 
     class TelegramUI(EventDrivenUI):
-        async def print(self, text: str) -> None:
+        async def print(self, text: str, kind: str = "text") -> None:
             await self.bot.send_message(self.chat_id, text)
 
         async def start_event_loop(self) -> None:

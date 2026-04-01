@@ -38,6 +38,7 @@ from telegram.ext import (
 from zrb.builtin.llm.chat import llm_chat
 from zrb.llm.approval import ApprovalChannel, ApprovalContext, ApprovalResult
 from zrb.llm.ui.simple_ui import BufferedOutputMixin, EventDrivenUI
+from zrb.util.cli.style import remove_style
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
@@ -101,7 +102,7 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
 
     def __init__(self, bot: TelegramBot, chat_id: str, **kwargs):
         super().__init__(**kwargs)
-        BufferedOutputMixin.__init__(self, flush_interval=1.0, max_buffer_size=3000)
+        BufferedOutputMixin.__init__(self, flush_interval=2.0, max_buffer_size=3000)
         self.bot = bot
         self.chat_id = chat_id
         self._approval_channel: TelegramApproval | None = None
@@ -113,10 +114,24 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
         self._approval_channel = approval
 
     async def _send_buffered(self, text: str) -> None:
-        await self.bot.send(self.chat_id, text)
+        # Send pre-formatted HTML content directly (no ANSI stripping needed)
+        await self.bot.send(self.chat_id, text, raw=True, parse_mode="HTML")
 
-    async def print(self, text: str) -> None:
-        self.buffer_output(text)
+    async def print(self, text: str, kind: str = "text") -> None:
+        if kind == "progress":
+            return  # Skip transient spinner
+        clean = remove_style(text)
+        if kind in ("tool_call", "usage"):
+            stripped = clean.strip()
+            if stripped:
+                # Monospace code block with tool icon
+                self.buffer_output(f"\n<i>{html.escape(stripped)}</i>\n\n")
+        elif kind in ("thinking", "streaming"):
+            # Italic for chain-of-thought reasoning
+            self.buffer_output(f"<i>{html.escape(clean)}</i>")
+        else:
+            # streaming / text: plain HTML-escaped response content
+            self.buffer_output(html.escape(clean))
 
     async def start_event_loop(self) -> None:
         if not self.bot._app:

@@ -149,6 +149,7 @@ class LLMChatTask(BaseTask):
         tool_policies: list[ToolPolicy] | None = None,
         argument_formatters: list[ArgumentFormatter] | None = None,
         markdown_theme: "Theme | None" = None,
+        include_default_ui: bool = True,
         interactive: BoolAttr = True,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 0,
@@ -293,6 +294,7 @@ class LLMChatTask(BaseTask):
             write_files_formatter,
         ]
         self._markdown_theme = markdown_theme
+        self._include_default_ui = include_default_ui
         self._interactive = interactive
 
     @property
@@ -316,6 +318,10 @@ class LLMChatTask(BaseTask):
     def append_ui_factory(self, factory: Callable[..., "UIProtocol"]) -> None:
         """Append a UI factory to the list of factories."""
         self._ui_factories.append(factory)
+
+    def set_history_manager(self, history_manager: "AnyHistoryManager") -> None:
+        """Set the history manager for this task."""
+        self._history_manager = history_manager
 
     def set_approval_channel(self, channel: "ApprovalChannel | None"):
         """Set the approval channel for tool confirmations."""
@@ -721,7 +727,21 @@ class LLMChatTask(BaseTask):
 
         ui: "UIProtocol | None" = None
 
-        if resolved_uis:
+        if resolved_uis and not self._include_default_ui:
+            # Factory UIs only — skip the default CLI UI entirely
+            if len(resolved_uis) == 1:
+                ui = resolved_uis[0]
+            else:
+                ui = MultiUI(resolved_uis)
+                if len(self._approval_channels) == 1:
+                    ui.set_approval_channel(self._approval_channels[0])
+                elif len(self._approval_channels) > 1:
+                    from zrb.llm.approval import MultiplexApprovalChannel
+
+                    ui.set_approval_channel(
+                        MultiplexApprovalChannel(self._approval_channels)
+                    )
+        elif resolved_uis:
             # We have factory UIs - create default UI and combine them
             default_ui = UI(
                 ctx=ctx,

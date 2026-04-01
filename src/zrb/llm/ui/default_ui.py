@@ -654,6 +654,7 @@ class UI(BaseUI):
         end: str = "\n",
         file: TextIO | None = None,
         flush: bool = False,
+        kind: str = "text",
     ):
         # Helper to safely append to read-only buffer
         current_text = self._output_field.text
@@ -679,8 +680,12 @@ class UI(BaseUI):
 
         should_scroll_to_end = is_input_focused or is_at_last_line
 
-        # Construct the new content
+        # Construct the new content, applying faint styling for non-text kinds
         content = sep.join([str(value) for value in values]) + end
+        if kind != "text":
+            from zrb.util.cli.style import stylize_faint
+
+            content = stylize_faint(content)
         # Handle carriage returns (\r) for status updates
         if "\r" in content:
             # Find the start of the last line in the current text

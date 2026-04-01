@@ -73,18 +73,16 @@ class TestIsInsideGitDir:
     def test_actually_inside_git_repo(self):
         """Test is_inside_git_dir in actual git repo (integration test)."""
         import os
+        from pathlib import Path
 
         from zrb.llm.util.git import is_inside_git_dir
 
-        # This test runs in the actual repo directory
-        # It should return True since we're inside a git repo
         original_cwd = os.getcwd()
         try:
-            # Just make sure we're in the repo root
-            os.chdir("/home/gofrendi/zrb")
-            # The function should detect we're in a git repo
+            test_file = Path(__file__).resolve()
+            repo_root = test_file.parent.parent.parent
+            os.chdir(repo_root)
             result = is_inside_git_dir()
-            # Since we're running tests in a git repo, should be True
             assert result is True
         finally:
             os.chdir(original_cwd)

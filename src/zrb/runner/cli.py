@@ -187,8 +187,13 @@ server_group = cli.add_group(
 async def start_server(_: AnyContext):
     from uvicorn import Config, Server
 
-    from zrb.runner.web_app import create_web_app
+    from zrb.runner.web_app import (
+        SHUTDOWN_TIMEOUT,
+        configure_uvicorn_logging,
+        create_web_app,
+    )
 
+    configure_uvicorn_logging()
     app = create_web_app(cli, web_auth_config, session_state_logger)
     server = Server(
         Config(
@@ -196,6 +201,7 @@ async def start_server(_: AnyContext):
             host="0.0.0.0",
             port=CFG.WEB_HTTP_PORT,
             loop="asyncio",
+            timeout_graceful_shutdown=SHUTDOWN_TIMEOUT,
         )
     )
     await server.serve()

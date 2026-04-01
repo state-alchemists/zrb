@@ -359,7 +359,7 @@ class SSEUI(EventDrivenUI, BufferedOutputMixin):
     async def _send_buffered(self, text: str) -> None:
         await self.server.broadcast(text)
     
-    async def print(self, text: str) -> None:
+    async def print(self, text: str, kind: str = "text") -> None:
         self.buffer_output(text)
     
     async def start_event_loop(self) -> None:

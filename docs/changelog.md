@@ -1,5 +1,61 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.15.0 (April 1, 2026)
+
+- **Feature: HTTP Chat API**:
+  - New `/api/v1/chat/` endpoints for programmatic chat access.
+  - `GET /api/v1/chat/sessions` - List chat sessions with pagination.
+  - `POST /api/v1/chat/sessions` - Create new session.
+  - `DELETE /api/v1/chat/sessions/{session_id}` - Delete session.
+  - `GET /api/v1/chat/sessions/{session_id}/messages` - Get session messages.
+  - `POST /api/v1/chat/sessions/{session_id}/messages` - Send message to session.
+  - `GET /api/v1/chat/sessions/{session_id}/stream` - SSE stream for real-time responses.
+  - `GET /api/v1/chat/sessions/{session_id}/history` - Get conversation history.
+  - `DELETE /api/v1/chat/sessions/{session_id}/history` - Clear session history.
+  - `GET /api/v1/chat/sessions/{session_id}/yolo` - Get YOLO mode status.
+  - `POST /api/v1/chat/sessions/{session_id}/yolo` - Toggle YOLO mode.
+  - Requires web auth configuration.
+
+- **Feature: Chat Session Management**:
+  - `ChatSessionManager` provides persistent session storage with SQLite.
+  - Sessions store: session_id, session_name, created_at, updated_at.
+  - Messages stored with: role, content, tool_calls, timestamp.
+  - Page/limit pagination support for session and message listing.
+
+- **Feature: Web Chat UI**:
+  - New `/chat/` web route with full interactive chat interface.
+  - Modern JavaScript-based UI with real-time streaming.
+  - Session management (create, delete, switch).
+  - Message history with tool call visualization.
+  - YOLO mode toggle.
+  - Styled with CSS for responsive design.
+
+- **Feature: Stream Response Handling**:
+  - Improved `StreamResponseHandler` in `src/zrb/llm/util/stream_response.py`.
+  - Better handling of tool calls during streaming.
+  - Proper message part accumulation for complex responses.
+
+- **Refactoring: UI Module Cleanup**:
+  - Removed unused `is_model_auto_stop` parameter from multiple UI classes.
+  - Simplified `BaseUI`, `SimpleUI`, `DefaultUI`, `StdUI` constructors.
+  - Deprecated unused `input_queue` property in favor of `handle_incoming_message()`.
+
+- **Refactoring: LLM Task Improvements**:
+  - `LLMChatTask` and `LLMTask` now support `None` values for optional parameters.
+  - Better default handling for `timeout` and `model` parameters.
+  - Removed deprecated `llm_task_core` parameter from various methods.
+
+- **Bug Fix: Delegate Tool Error Handling**:
+  - Fixed `DelegateTool` to properly return error messages instead of raising exceptions.
+
+- **Documentation: LLM Custom UI Guide**:
+  - Updated `docs/advanced-topics/llm-custom-ui.md` with new patterns and examples.
+
+- **Tests: Comprehensive Coverage**:
+  - New `test/runner/chat/` test suite for HTTP Chat API.
+  - New `test/llm/ui/` test suite for SimpleUI and MultiUI.
+  - Enhanced existing UI and agent tests.
+
 ## 2.14.2 (March 29, 2026)
 
 - **Bug Fix: Type Annotation Correction**:

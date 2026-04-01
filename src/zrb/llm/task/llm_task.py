@@ -23,10 +23,7 @@ from zrb.llm.summarizer import (
     summarize_history,
 )
 from zrb.llm.util.attachment import get_attachments
-from zrb.llm.util.stream_response import (
-    create_event_handler,
-    create_faint_printer,
-)
+from zrb.llm.util.stream_response import create_event_handler
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_attr, get_bool_attr

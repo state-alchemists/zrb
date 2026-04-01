@@ -62,7 +62,7 @@ from zrb.builtin.llm.chat import llm_chat
 from zrb.llm.ui.simple_ui import SimpleUI, create_ui_factory
 
 class MyUI(SimpleUI):
-    async def print(self, text: str) -> None:
+    async def print(self, text: str, kind: str = "text") -> None:
         """Display output to user. Called when AI responds or system messages."""
         print(text, end="", flush=True)
 
@@ -118,7 +118,7 @@ class TelegramUI(EventDrivenUI):
         self.bot_token = bot_token
         self.chat_id = chat_id
 
-    async def print(self, text: str) -> None:
+    async def print(self, text: str, kind: str = "text") -> None:
         await self.bot.send_message(self.chat_id, text)
 
     async def start_event_loop(self) -> None:
@@ -178,7 +178,7 @@ from zrb.llm.ui.simple_ui import SimpleUI, create_ui_factory
 class CLI(SimpleUI):
     """Minimal CLI implementation."""
 
-    async def print(self, text: str) -> None:
+    async def print(self, text: str, kind: str = "text") -> None:
         print(text, end="", flush=True)
 
     async def get_input(self, prompt: str) -> str:
@@ -202,7 +202,7 @@ class LoggingUI(SimpleUI):
         super().__init__(**kwargs)
         self.log_path = Path(log_file)
 
-    async def print(self, text: str) -> None:
+    async def print(self, text: str, kind: str = "text") -> None:
         # Display to terminal
         print(text, end="", flush=True)
         # Append to log file
@@ -234,7 +234,7 @@ class StructuredLogUI(SimpleUI):
         super().__init__(**kwargs)
         self.output_file = output_file
 
-    async def print(self, text: str) -> None:
+    async def print(self, text: str, kind: str = "text") -> None:
         record = {
             "timestamp": datetime.now().isoformat(),
             "type": "output",
@@ -316,7 +316,7 @@ class TelegramUI(EventDrivenUI):
         self._app = None
         super().__init__(**kwargs)
 
-    async def print(self, text: str) -> None:
+    async def print(self, text: str, kind: str = "text") -> None:
         """Send AI response to Telegram."""
         if self._app:
             # Telegram has 4096 char limit per message
@@ -381,7 +381,7 @@ class DiscordUI(EventDrivenUI):
         self._client = None
         super().__init__(**kwargs)
 
-    async def print(self, text: str) -> None:
+    async def print(self, text: str, kind: str = "text") -> None:
         """Send AI response to Discord."""
         if self._client:
             channel = self._client.get_channel(self.channel_id)
@@ -667,7 +667,7 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
         self.chat_id = chat_id
         self._app = None
 
-    async def print(self, text: str) -> None:
+    async def print(self, text: str, kind: str = "text") -> None:
         """Buffer output instead of sending immediately."""
         self.buffer_output(text)
 
@@ -949,7 +949,7 @@ class MyUI(BaseUI):
 
 ```python
 class MyUI(SimpleUI):
-    async def print(self, text: str) -> None:
+    async def print(self, text: str, kind: str = "text") -> None:
         print(text, end="", flush=True)
 
     async def get_input(self, prompt: str) -> str:
@@ -1147,7 +1147,7 @@ Both `print()` and `get_input()` **must be async**. The base class schedules `pr
 ```python
 # CORRECT - async methods
 class MyUI(SimpleUI):
-    async def print(self, text: str) -> None:  # ✓ async
+    async def print(self, text: str, kind: str = "text") -> None:  # ✓ async
         await some_async_send(text)
 
     async def get_input(self, prompt: str) -> str:  # ✓ async
@@ -1166,7 +1166,7 @@ Remote UIs (Telegram, Discord, etc.) don't support terminal ANSI codes. Use `rem
 ```python
 from zrb.util.cli.style import remove_style
 
-async def print(self, text: str) -> None:
+async def print(self, text: str, kind: str = "text") -> None:
     clean_text = remove_style(text)  # Strip ANSI codes
     await self.bot.send_message(self.chat_id, clean_text)
 ```
