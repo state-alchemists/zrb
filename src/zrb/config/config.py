@@ -106,7 +106,6 @@ class Config:
         self.DEFAULT_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_PROMPT_DIR: str = ""
         self.DEFAULT_LLM_BASE_PROMPT_DIR: str = ""
-        self.DEFAULT_LLM_PLUGIN_DIRS: str = ""
         self.DEFAULT_LLM_SHOW_TOOL_CALL_DETAIL: str = "off"
         self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT: str = "off"
         self.DEFAULT_LLM_INCLUDE_PERSONA: str = "1"
@@ -117,6 +116,14 @@ class Config:
         self.DEFAULT_LLM_INCLUDE_CLAUDE_SKILLS: str = "1"
         self.DEFAULT_LLM_INCLUDE_CLI_SKILLS: str = "0"
         self.DEFAULT_LLM_INCLUDE_PROJECT_CONTEXT: str = "1"
+        # LLM Search Configuration
+        self.DEFAULT_LLM_SEARCH_UPWARD: str = "on"
+        self.DEFAULT_LLM_SEARCH_HOME: str = "on"
+        self.DEFAULT_LLM_UPWARD_ROOT_PATTERNS: str = ""  # Computed dynamically
+        self.DEFAULT_LLM_ROOT_DIRS: str = ""
+        self.DEFAULT_LLM_SKILL_DIRS: str = ""
+        self.DEFAULT_LLM_AGENT_DIRS: str = ""
+        self.DEFAULT_LLM_PLUGIN_DIRS: str = ""
         self.DEFAULT_ASCII_ART_DIR: str = ""
         self.DEFAULT_LLM_SMALL_MODEL: str = ""
         self.DEFAULT_RAG_EMBEDDING_API_KEY: str = ""
@@ -1555,6 +1562,109 @@ class Config:
         os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_PROJECT_CONTEXT"] = (
             "1" if value else "0"
         )
+
+    # =========================================================================
+    # LLM Search Configuration Properties
+    # =========================================================================
+
+    @property
+    def LLM_SEARCH_UPWARD(self) -> bool:
+        """Enable/disable upward traversal search for .claude/, .zrb/ directories."""
+        return to_boolean(
+            get_env(
+                "LLM_SEARCH_UPWARD",
+                self.DEFAULT_LLM_SEARCH_UPWARD,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_SEARCH_UPWARD.setter
+    def LLM_SEARCH_UPWARD(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_SEARCH_UPWARD"] = "on" if value else "off"
+
+    @property
+    def LLM_SEARCH_HOME(self) -> bool:
+        """Enable/disable home directory search (~/.claude/, ~/.zrb/)."""
+        return to_boolean(
+            get_env(
+                "LLM_SEARCH_HOME",
+                self.DEFAULT_LLM_SEARCH_HOME,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_SEARCH_HOME.setter
+    def LLM_SEARCH_HOME(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_SEARCH_HOME"] = "on" if value else "off"
+
+    @property
+    def LLM_UPWARD_ROOT_PATTERNS(self) -> list[str]:
+        """Root patterns for upward traversal (colon-separated). Default: ['.claude', '.{ROOT_GROUP_NAME}']."""
+        default_patterns = f".claude:.{self.ROOT_GROUP_NAME}"
+        patterns_str = get_env(
+            "LLM_UPWARD_ROOT_PATTERNS",
+            (
+                self.DEFAULT_LLM_UPWARD_ROOT_PATTERNS
+                if self.DEFAULT_LLM_UPWARD_ROOT_PATTERNS
+                else default_patterns
+            ),
+            self.ENV_PREFIX,
+        )
+        if patterns_str == "":
+            patterns_str = default_patterns
+        return [p.strip() for p in patterns_str.split(":") if p.strip()]
+
+    @LLM_UPWARD_ROOT_PATTERNS.setter
+    def LLM_UPWARD_ROOT_PATTERNS(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UPWARD_ROOT_PATTERNS"] = ":".join(value)
+
+    @property
+    def LLM_ROOT_DIRS(self) -> list[str]:
+        """Additional root directories containing skills/, agents/, plugins/ (colon-separated)."""
+        dirs_str = get_env(
+            "LLM_ROOT_DIRS",
+            self.DEFAULT_LLM_ROOT_DIRS,
+            self.ENV_PREFIX,
+        )
+        if dirs_str != "":
+            return [p.strip() for p in dirs_str.split(":") if p.strip()]
+        return []
+
+    @LLM_ROOT_DIRS.setter
+    def LLM_ROOT_DIRS(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_LLM_ROOT_DIRS"] = ":".join(value)
+
+    @property
+    def LLM_SKILL_DIRS(self) -> list[str]:
+        """Additional direct skill directories (colon-separated)."""
+        dirs_str = get_env(
+            "LLM_SKILL_DIRS",
+            self.DEFAULT_LLM_SKILL_DIRS,
+            self.ENV_PREFIX,
+        )
+        if dirs_str != "":
+            return [p.strip() for p in dirs_str.split(":") if p.strip()]
+        return []
+
+    @LLM_SKILL_DIRS.setter
+    def LLM_SKILL_DIRS(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_LLM_SKILL_DIRS"] = ":".join(value)
+
+    @property
+    def LLM_AGENT_DIRS(self) -> list[str]:
+        """Additional direct agent directories (colon-separated)."""
+        dirs_str = get_env(
+            "LLM_AGENT_DIRS",
+            self.DEFAULT_LLM_AGENT_DIRS,
+            self.ENV_PREFIX,
+        )
+        if dirs_str != "":
+            return [p.strip() for p in dirs_str.split(":") if p.strip()]
+        return []
+
+    @LLM_AGENT_DIRS.setter
+    def LLM_AGENT_DIRS(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_LLM_AGENT_DIRS"] = ":".join(value)
 
     @property
     def USE_TIKTOKEN(self) -> bool:
