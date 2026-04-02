@@ -290,15 +290,15 @@ def read_files(
 
 def write_file(path: str, content: str, mode: str = "w") -> str:
     """
-    Writes/appends content to a file. Automatically create file and parent directories if path doesn't exist.
+    Writes or appends content to a file. Creates the file and any missing parent directories automatically.
 
     MANDATES:
-    - NEVER write >4000 chars per call. Use mode="w" for first chunk, mode="a" for subsequent chunks.
-    - Creates parent directories automatically if they don't exist.
-    - Use mode="w" to overwrite, mode="a" to append to existing file.
-    - For editing existing files, prefer `Edit` over `Write` for precision.
-    - For batch writing multiple files, use `WriteMany`.
-    - Always verify file content with `Read` after writing.
+    - For editing existing files, prefer `Edit` (surgical replacement) over `Write` (full overwrite).
+    - For large files, write in chunks: use mode="w" for the first chunk, mode="a" for each
+      subsequent chunk. Keep each call under 4000 characters to stay within model token limits.
+    - Use mode="w" to overwrite, mode="a" to append.
+    - For writing multiple files at once, use `WriteMany`.
+    - Always verify the result with `Read` after writing.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     try:
@@ -312,15 +312,17 @@ def write_file(path: str, content: str, mode: str = "w") -> str:
 
 def write_files(files: list[dict[str, str]]) -> dict[str, str]:
     """
-    Batch write multiple files. 'files' arg takes dicts with 'path', 'content', and optional 'mode'.
+    Batch write multiple files in a single call.
+
+    Each entry in `files` must be a dict with:
+    - `path` (str): Destination file path.
+    - `content` (str): File content to write.
+    - `mode` (str, optional): "w" to overwrite (default), "a" to append.
 
     MANDATES:
-    - Each file dict must contain 'path' and 'content' keys.
-    - Optional 'mode' key defaults to "w" (overwrite), use "a" for append.
     - Creates parent directories automatically if they don't exist.
-    - Use for writing related files (e.g., templates, configs, generated code).
-    - Batch writing reduces round trips compared to multiple `Write` calls.
-    - Each file follows the same 4000-character limit as `Write`.
+    - Prefer `WriteMany` over multiple sequential `Write` calls for related files.
+    - Each file follows the same chunking guidance as `Write` (keep content under 4000 chars per entry).
     """
     results = {}
     for file_info in files:
@@ -339,12 +341,13 @@ def replace_in_file(path: str, old_text: str, new_text: str, count: int = -1) ->
     Replaces exact text sequences within a file.
 
     MANDATES:
-    - `old_text` MUST match file content EXACTLY (with whitespace) and include 2-3 context lines for uniqueness.
-    - ALWAYS read the file first with `Read` to verify context before editing.
-    - Use `count` parameter to limit replacements (default: -1 for all occurrences).
-    - Returns success message or specific error if text not found.
+    - ALWAYS read the file first with `Read` to copy the exact text before editing.
+    - `old_text` MUST match file content byte-for-byte (including all whitespace and indentation).
+      Include 2-3 surrounding lines as context to make the match unique.
+    - If `old_text` still matches multiple locations, expand the context further or use
+      `count=1` to replace only the first occurrence.
     - For creating new files, use `Write` instead.
-    - ALWAYS verify changes with `Read` after editing.
+    - ALWAYS verify the result with `Read` after editing.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):

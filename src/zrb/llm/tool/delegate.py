@@ -217,9 +217,8 @@ def create_delegate_to_agent_tool(
         "Use when: task affects many files, or would pollute your context.\n"
         "Don't use for: simple fixes (typos, single-file changes).\n\n"
         "Provide complete context—subagent can't see your conversation history.\n"
-        "Report findings back to user.\n\n"
+        "Report all findings back to user; they cannot see subagent output directly.\n\n"
         "For parallel tasks, use `DelegateToAgentsParallel`.\n\n"
-        "GIT: Ask approval before state-changing commands.\n\n"
         f"AVAILABLE AGENTS:\n{agent_doc_section}"
     )
     return delegate_to_agent
@@ -322,8 +321,8 @@ def create_parallel_delegate_tool(
         "Delegates multiple tasks to subagents in parallel.\n\n"
         "Use when: multiple independent subtasks that can run simultaneously.\n\n"
         "Each subagent needs full context—they can't see your conversation history.\n"
-        "Report all findings back to user.\n\n"
-        "GIT: All subagents must ask approval before state-changing commands.\n\n"
+        "Report all findings back to user; they cannot see subagent output directly.\n\n"
+        "Tool approvals are processed sequentially to prevent UI conflicts.\n\n"
         "Args:\n"
         "    tasks: List of dicts with:\n"
         "        - agent_name: Subagent name\n"

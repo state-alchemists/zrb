@@ -17,6 +17,7 @@ When this skill is activated, you enter **Architect and Analyst Mode**. Your pri
 - **Technical**: Map out files, symbols, and dependencies using `LS`, `Glob`, and `Grep`.
 - **Context Efficiency**: Use `ReadMany` to read related documents or code files in a single turn. Read `CLAUDE.md`, `AGENTS.md`, and the Journal.
 - **General**: Use `SearchInternet` to find relevant URLs and `OpenWebPage` to read the full content.
+- **Offload large research tasks**: If web research would consume significant context, delegate to the `researcher` agent: `DelegateToAgent('researcher', '<research question>', '<context>')`. It returns a structured report without polluting your context.
 
 ### 3. Analysis & Strategy Design
 - Synthesize findings into a logical structure, identifying patterns, trends, or conflicting information.

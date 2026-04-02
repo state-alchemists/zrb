@@ -1,5 +1,40 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.15.1 (April 2, 2026)
+
+- **Enhancement: New Skills for Development Workflow**:
+  - `debug` skill: Systematic diagnosis for build failures and behavioral issues.
+  - `refactor` skill: Safe structural refactoring preserving behavior.
+  - `testing` skill: Comprehensive TDD workflow (RED→GREEN→REFACTOR).
+  - Deprecated `quality-assurance` skill (replaced by specialized skills).
+
+- **Enhancement: Improved init Skill**:
+  - Now generates universal `AGENTS.md` (works with any LLM: Claude, Gemini, GPT).
+  - Systematic codebase analysis with exact command extraction.
+  - Convention extraction from actual code patterns.
+
+- **Enhancement: New Agents**:
+  - `code-reviewer.agent.md`: Read-only code review specialist with severity-rated findings.
+  - `researcher.agent.md`: Web and codebase research agent for deep investigation.
+
+- **Improvement: Prompt Documentation**:
+  - `mandate.md`: Added Scope Discipline, Verification, Security, and Confirmation sections.
+  - `persona.md`: Simplified to essentials.
+  - `journal_mandate.md`: Added tiered protocol (Tier 1 direct write, Tier 2 full protocol).
+
+- **Improvement: Tool Docstrings**:
+  - Enhanced documentation for `Bash`, `Write`, `WriteMany`, `Edit` tools.
+  - Clearer mandates for file operations and command execution.
+
+- **Improvement: review Skill**:
+  - Added OWASP Top 10 security checklist integration.
+  - Severity ratings (CRITICAL → HIGH → MEDIUM → LOW → INFO).
+  - Structured output format with findings and verdicts.
+
+- **Improvement: core-coding Skill**:
+  - Integration signals for `testing`, `debug`, `refactor`, and `review` skills.
+  - Test-First workflow guidance for new behavior.
+
 ## 2.15.0 (April 1, 2026)
 
 - **Feature: HTTP Chat API**:
