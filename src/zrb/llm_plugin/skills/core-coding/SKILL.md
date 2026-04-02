@@ -46,19 +46,23 @@ f.  **Act (Surgical Implementation):**
     - Write code that is easy to trace and easy to test.
     - Consolidate logic into clean abstractions rather than threading state across unrelated layers.
     - Prefer to only use existing libraries and established patterns. NEVER introduce new technical debt.
+    - **Test-First for New Behavior**: When adding new functionality, activate the `testing` skill (TDD mode) to drive implementation with a failing test before writing any production code.
     - **Transition Safety (Strangler Pattern)**: The codebase must remain in a stable, runnable state throughout all phases of modification. When replacing or significantly refactoring an existing component (e.g., a file, function, or module), use a progressive approach:
         1. Create the new component alongside the old
         2. Update and verify all references to point to the new component
         3. Only then remove the old component.
         NEVER delete a functioning component before its replacement is fully integrated and validated.
+    - **Structural Improvement**: If you identify a structural problem (duplication, high complexity, God functions) that is out of scope for the current task, report it. If it must be fixed now, activate the `refactor` skill.
     - **Code Smell Reporting**: If you encounter existing code smells or poorly structured code during your work, report it to the user.
     - **Update Documentation**: Keep documentation files in sync with code changes. Update configuration options, behavior, and verify that examples match the new implementation. Remove references to deprecated/removed functionality.
     - **Boundary Check**: Your job ends at modifying and verifying the files. **NEVER use shell commands to stage (`git add`) or commit changes** after you are done. Leave version control to the user unless they explicitly ask for a git summary.
 
 g.  **Validate (Zero-Regression & Verification):**
     - **Validation is the only path to finality.** You must always make sure nothing breaks with your fix/update.
-    - For bug fixes: Empirically reproduce the failure BEFORE applying the fix.
+    - For bug fixes: Empirically reproduce the failure BEFORE applying the fix. If the root cause is unclear after initial investigation, activate the `debug` skill.
     - After changes: Run relevant tests, linters, and type-checkers to confirm success. A code change is incomplete without automated verification.
-    - **Test Maintenance**: If a test fails (whether a new one or an existing one affected by your change), you MUST fix it.
+    - **Build or test failures**: If the build, type-checker, or a test fails and the cause is unclear, activate the `debug` skill — it covers both build error resolution and behavioral root cause analysis.
+    - **Test Maintenance**: If a test fails (whether a new one or an existing one affected by your change), you MUST fix it. If generating new tests, activate the `testing` skill.
     - If validation fails, diagnose the failure in a `<thinking>` block and adjust your strategy. Do not blindly repeat actions.
-h.  **Synthesis:** Update your journal with learned insights before your final response.
+    - **Security check**: If the code touches user input, authentication, authorization, file I/O, or sensitive data, activate `review` for a security audit after implementation.
+h.  **Synthesis:** Before your final response, journal any non-trivial discoveries per the Journaling Protocol.
