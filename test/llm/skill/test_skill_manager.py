@@ -57,11 +57,11 @@ Legacy content
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
         mock_cfg.ROOT_GROUP_NAME = "zrb"
         mock_cfg.LLM_SEARCH_HOME = True
-        mock_cfg.LLM_SEARCH_UPWARD = True
-        mock_cfg.LLM_UPWARD_ROOT_PATTERNS = [".claude", ".zrb"]
+        mock_cfg.LLM_SEARCH_PROJECT = True
+        mock_cfg.LLM_CONFIG_DIR_NAMES = [".claude", ".zrb"]
         mock_cfg.LLM_PLUGIN_DIRS = []
-        mock_cfg.LLM_ROOT_DIRS = []
-        mock_cfg.LLM_SKILL_DIRS = []
+        mock_cfg.LLM_BASE_SEARCH_DIRS = []
+        mock_cfg.LLM_EXTRA_SKILL_DIRS = []
 
         yield project_dir
 
@@ -343,8 +343,8 @@ def test_skill_manager_get_search_directories_project_hierarchy(tmp_path):
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
         mock_cfg.ROOT_GROUP_NAME = "zrb"
         mock_cfg.LLM_SEARCH_HOME = True
-        mock_cfg.LLM_SEARCH_UPWARD = True
-        mock_cfg.LLM_UPWARD_ROOT_PATTERNS = [".claude", ".zrb"]
+        mock_cfg.LLM_SEARCH_PROJECT = True
+        mock_cfg.LLM_CONFIG_DIR_NAMES = [".claude", ".zrb"]
         dirs = [str(d) for d in manager.get_search_directories()]
         assert any("root/.zrb/skills" in d for d in dirs)
         assert any("mid/.claude/skills" in d for d in dirs)
@@ -352,7 +352,7 @@ def test_skill_manager_get_search_directories_project_hierarchy(tmp_path):
 
 
 def test_skill_manager_get_search_directories_plugins(skill_manager, tmp_path):
-    # Test with direct skill directories (LLM_SKILL_DIRS)
+    # Test with direct skill directories (LLM_EXTRA_SKILL_DIRS)
     skill_dir = tmp_path / "my_skills"
     (skill_dir / "test-skill").mkdir(parents=True)
     (skill_dir / "test-skill" / "SKILL.md").write_text("# Test Skill")
@@ -360,9 +360,9 @@ def test_skill_manager_get_search_directories_plugins(skill_manager, tmp_path):
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
         mock_cfg.ROOT_GROUP_NAME = "zrb"
         mock_cfg.LLM_SEARCH_HOME = True
-        mock_cfg.LLM_SEARCH_UPWARD = True
-        mock_cfg.LLM_UPWARD_ROOT_PATTERNS = [".claude", ".zrb"]
-        mock_cfg.LLM_SKILL_DIRS = [str(skill_dir)]
+        mock_cfg.LLM_SEARCH_PROJECT = True
+        mock_cfg.LLM_CONFIG_DIR_NAMES = [".claude", ".zrb"]
+        mock_cfg.LLM_EXTRA_SKILL_DIRS = [str(skill_dir)]
         dirs = skill_manager.get_search_directories()
         assert any(str(skill_dir) == str(d) for d in dirs)
 
@@ -379,8 +379,8 @@ def test_skill_manager_get_search_directories_with_plugins(skill_manager, tmp_pa
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
         mock_cfg.ROOT_GROUP_NAME = "zrb"
         mock_cfg.LLM_SEARCH_HOME = True
-        mock_cfg.LLM_SEARCH_UPWARD = True
-        mock_cfg.LLM_UPWARD_ROOT_PATTERNS = [".claude", ".zrb"]
+        mock_cfg.LLM_SEARCH_PROJECT = True
+        mock_cfg.LLM_CONFIG_DIR_NAMES = [".claude", ".zrb"]
         mock_cfg.LLM_PLUGIN_DIRS = [str(plugin_root)]
         dirs = skill_manager.get_search_directories()
         # Should find skills inside plugins

@@ -215,10 +215,10 @@ class SubAgentManager:
 
         Priority (high → low):
         1. User home (~/.claude/, ~/.zrb/)
-        2. Upward traversal (root → cwd for each pattern)
-        3. Plugins (from home, upward, root dirs, and configured plugin dirs)
-        4. Additional root directories
-        5. Additional direct directories
+        2. Project traversal (filesystem root → cwd for each config dir name)
+        3. Plugins from configured plugin dirs
+        4. Base search directories
+        5. Extra direct agent directories
         6. Builtin (always included, lowest priority)
         """
         search_dirs: list[str | Path] = []
@@ -226,7 +226,7 @@ class SubAgentManager:
 
         # 1. USER HOME
         if CFG.LLM_SEARCH_HOME:
-            for pattern in CFG.LLM_UPWARD_ROOT_PATTERNS:
+            for pattern in CFG.LLM_CONFIG_DIR_NAMES:
                 root = home / pattern
                 if root.exists() and root.is_dir():
                     agent_path = root / "agents"
@@ -241,10 +241,10 @@ class SubAgentManager:
                             if agent_path.exists() and agent_path.is_dir():
                                 search_dirs.append(agent_path)
 
-        # 2. UPWARD TRAVERSAL (root → cwd for each pattern)
-        if CFG.LLM_SEARCH_UPWARD:
+        # 2. PROJECT TRAVERSAL (filesystem root → cwd for each config dir name)
+        if CFG.LLM_SEARCH_PROJECT:
             for project_dir in self._get_upward_dirs():
-                for pattern in CFG.LLM_UPWARD_ROOT_PATTERNS:
+                for pattern in CFG.LLM_CONFIG_DIR_NAMES:
                     root = project_dir / pattern
                     if root.exists() and root.is_dir():
                         agent_path = root / "agents"
@@ -258,7 +258,7 @@ class SubAgentManager:
                                 if agent_path.exists() and agent_path.is_dir():
                                     search_dirs.append(agent_path)
 
-        # 4. PLUGINS from configured directories
+        # 3. PLUGINS from configured directories
         for plugin_path_str in CFG.LLM_PLUGIN_DIRS:
             plugin_path = Path(plugin_path_str)
             if plugin_path.exists() and plugin_path.is_dir():
@@ -267,8 +267,8 @@ class SubAgentManager:
                     if agent_path.exists() and agent_path.is_dir():
                         search_dirs.append(agent_path)
 
-        # 5. ADDITIONAL ROOT DIRECTORIES
-        for root_str in CFG.LLM_ROOT_DIRS:
+        # 4. BASE SEARCH DIRECTORIES
+        for root_str in CFG.LLM_BASE_SEARCH_DIRS:
             root = Path(root_str)
             if root.exists() and root.is_dir():
                 agent_path = root / "agents"
@@ -282,8 +282,8 @@ class SubAgentManager:
                         if agent_path.exists() and agent_path.is_dir():
                             search_dirs.append(agent_path)
 
-        # 6. ADDITIONAL DIRECT DIRECTORIES
-        for dir_str in CFG.LLM_AGENT_DIRS:
+        # 5. EXTRA DIRECT AGENT DIRECTORIES
+        for dir_str in CFG.LLM_EXTRA_AGENT_DIRS:
             dir_path = Path(dir_str)
             if dir_path.exists() and dir_path.is_dir():
                 search_dirs.append(dir_path)

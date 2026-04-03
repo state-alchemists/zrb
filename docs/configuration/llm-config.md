@@ -210,12 +210,12 @@ These variables control where Zrb searches for skills and agents.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_SEARCH_UPWARD` | Search upward from cwd for `.claude/`, `.zrb/` | `on` |
+| `ZRB_LLM_SEARCH_PROJECT` | Search project dirs (filesystem root → cwd) for config dir names | `on` |
 | `ZRB_LLM_SEARCH_HOME` | Search home directory (`~/.claude/`, `~/.zrb/`) | `on` |
-| `ZRB_LLM_UPWARD_ROOT_PATTERNS` | Root patterns for upward search (colon-separated) | `.claude:.zrb` |
-| `ZRB_LLM_ROOT_DIRS` | Additional root directories with `skills/`, `agents/`, `plugins/` | (empty) |
-| `ZRB_LLM_SKILL_DIRS` | Additional direct skill directories | (empty) |
-| `ZRB_LLM_AGENT_DIRS` | Additional direct agent directories | (empty) |
+| `ZRB_LLM_CONFIG_DIR_NAMES` | Config subdirectory names to look for in each dir (colon-separated) | `.claude:.zrb` |
+| `ZRB_LLM_BASE_SEARCH_DIRS` | Explicit base dirs containing `skills/`, `agents/`, `plugins/` | (empty) |
+| `ZRB_LLM_EXTRA_SKILL_DIRS` | Additional direct skill directories | (empty) |
+| `ZRB_LLM_EXTRA_AGENT_DIRS` | Additional direct agent directories | (empty) |
 | `ZRB_LLM_PLUGIN_DIRS` | Additional plugin directories | (empty) |
 
 ### Search Priority
@@ -223,10 +223,10 @@ These variables control where Zrb searches for skills and agents.
 Zrb searches for skills/agents in this order (highest to lowest priority):
 
 1. **User Home** - `~/.claude/`, `~/.zrb/` + plugins within
-2. **Upward Traversal** - Root → cwd for each pattern + plugins within
+2. **Project Traversal** - Filesystem root → cwd for each config dir name + plugins within
 3. **Configured Plugins** - Directories in `ZRB_LLM_PLUGIN_DIRS`
-4. **Additional Roots** - Directories in `ZRB_LLM_ROOT_DIRS` + plugins within
-5. **Direct Directories** - `ZRB_LLM_SKILL_DIRS`, `ZRB_LLM_AGENT_DIRS`
+4. **Base Search Dirs** - Directories in `ZRB_LLM_BASE_SEARCH_DIRS` + plugins within
+5. **Extra Direct Dirs** - `ZRB_LLM_EXTRA_SKILL_DIRS`, `ZRB_LLM_EXTRA_AGENT_DIRS`
 6. **Builtin** - Built-in skills/agents (always included)
 
 ### Directory Structure

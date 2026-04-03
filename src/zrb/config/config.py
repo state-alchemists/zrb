@@ -117,12 +117,12 @@ class Config:
         self.DEFAULT_LLM_INCLUDE_CLI_SKILLS: str = "0"
         self.DEFAULT_LLM_INCLUDE_PROJECT_CONTEXT: str = "1"
         # LLM Search Configuration
-        self.DEFAULT_LLM_SEARCH_UPWARD: str = "on"
+        self.DEFAULT_LLM_SEARCH_PROJECT: str = "on"
         self.DEFAULT_LLM_SEARCH_HOME: str = "on"
-        self.DEFAULT_LLM_UPWARD_ROOT_PATTERNS: str = ""  # Computed dynamically
-        self.DEFAULT_LLM_ROOT_DIRS: str = ""
-        self.DEFAULT_LLM_SKILL_DIRS: str = ""
-        self.DEFAULT_LLM_AGENT_DIRS: str = ""
+        self.DEFAULT_LLM_CONFIG_DIR_NAMES: str = ""  # Computed dynamically
+        self.DEFAULT_LLM_BASE_SEARCH_DIRS: str = ""
+        self.DEFAULT_LLM_EXTRA_SKILL_DIRS: str = ""
+        self.DEFAULT_LLM_EXTRA_AGENT_DIRS: str = ""
         self.DEFAULT_LLM_PLUGIN_DIRS: str = ""
         self.DEFAULT_ASCII_ART_DIR: str = ""
         self.DEFAULT_LLM_SMALL_MODEL: str = ""
@@ -1568,19 +1568,19 @@ class Config:
     # =========================================================================
 
     @property
-    def LLM_SEARCH_UPWARD(self) -> bool:
-        """Enable/disable upward traversal search for .claude/, .zrb/ directories."""
+    def LLM_SEARCH_PROJECT(self) -> bool:
+        """Enable/disable project directory search (traversal from filesystem root to cwd)."""
         return to_boolean(
             get_env(
-                "LLM_SEARCH_UPWARD",
-                self.DEFAULT_LLM_SEARCH_UPWARD,
+                "LLM_SEARCH_PROJECT",
+                self.DEFAULT_LLM_SEARCH_PROJECT,
                 self.ENV_PREFIX,
             )
         )
 
-    @LLM_SEARCH_UPWARD.setter
-    def LLM_SEARCH_UPWARD(self, value: bool):
-        os.environ[f"{self.ENV_PREFIX}_LLM_SEARCH_UPWARD"] = "on" if value else "off"
+    @LLM_SEARCH_PROJECT.setter
+    def LLM_SEARCH_PROJECT(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_SEARCH_PROJECT"] = "on" if value else "off"
 
     @property
     def LLM_SEARCH_HOME(self) -> bool:
@@ -1598,73 +1598,73 @@ class Config:
         os.environ[f"{self.ENV_PREFIX}_LLM_SEARCH_HOME"] = "on" if value else "off"
 
     @property
-    def LLM_UPWARD_ROOT_PATTERNS(self) -> list[str]:
-        """Root patterns for upward traversal (colon-separated). Default: ['.claude', '.{ROOT_GROUP_NAME}']."""
-        default_patterns = f".claude:.{self.ROOT_GROUP_NAME}"
-        patterns_str = get_env(
-            "LLM_UPWARD_ROOT_PATTERNS",
+    def LLM_CONFIG_DIR_NAMES(self) -> list[str]:
+        """Config subdirectory names to look for in each traversed dir (colon-separated). Default: ['.claude', '.{ROOT_GROUP_NAME}']."""
+        default_names = f".claude:.{self.ROOT_GROUP_NAME}"
+        names_str = get_env(
+            "LLM_CONFIG_DIR_NAMES",
             (
-                self.DEFAULT_LLM_UPWARD_ROOT_PATTERNS
-                if self.DEFAULT_LLM_UPWARD_ROOT_PATTERNS
-                else default_patterns
+                self.DEFAULT_LLM_CONFIG_DIR_NAMES
+                if self.DEFAULT_LLM_CONFIG_DIR_NAMES
+                else default_names
             ),
             self.ENV_PREFIX,
         )
-        if patterns_str == "":
-            patterns_str = default_patterns
-        return [p.strip() for p in patterns_str.split(":") if p.strip()]
+        if names_str == "":
+            names_str = default_names
+        return [p.strip() for p in names_str.split(":") if p.strip()]
 
-    @LLM_UPWARD_ROOT_PATTERNS.setter
-    def LLM_UPWARD_ROOT_PATTERNS(self, value: list[str]):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UPWARD_ROOT_PATTERNS"] = ":".join(value)
+    @LLM_CONFIG_DIR_NAMES.setter
+    def LLM_CONFIG_DIR_NAMES(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_LLM_CONFIG_DIR_NAMES"] = ":".join(value)
 
     @property
-    def LLM_ROOT_DIRS(self) -> list[str]:
-        """Additional root directories containing skills/, agents/, plugins/ (colon-separated)."""
+    def LLM_BASE_SEARCH_DIRS(self) -> list[str]:
+        """Explicit base directories containing skills/, agents/, plugins/ subdirs (colon-separated)."""
         dirs_str = get_env(
-            "LLM_ROOT_DIRS",
-            self.DEFAULT_LLM_ROOT_DIRS,
+            "LLM_BASE_SEARCH_DIRS",
+            self.DEFAULT_LLM_BASE_SEARCH_DIRS,
             self.ENV_PREFIX,
         )
         if dirs_str != "":
             return [p.strip() for p in dirs_str.split(":") if p.strip()]
         return []
 
-    @LLM_ROOT_DIRS.setter
-    def LLM_ROOT_DIRS(self, value: list[str]):
-        os.environ[f"{self.ENV_PREFIX}_LLM_ROOT_DIRS"] = ":".join(value)
+    @LLM_BASE_SEARCH_DIRS.setter
+    def LLM_BASE_SEARCH_DIRS(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_LLM_BASE_SEARCH_DIRS"] = ":".join(value)
 
     @property
-    def LLM_SKILL_DIRS(self) -> list[str]:
+    def LLM_EXTRA_SKILL_DIRS(self) -> list[str]:
         """Additional direct skill directories (colon-separated)."""
         dirs_str = get_env(
-            "LLM_SKILL_DIRS",
-            self.DEFAULT_LLM_SKILL_DIRS,
+            "LLM_EXTRA_SKILL_DIRS",
+            self.DEFAULT_LLM_EXTRA_SKILL_DIRS,
             self.ENV_PREFIX,
         )
         if dirs_str != "":
             return [p.strip() for p in dirs_str.split(":") if p.strip()]
         return []
 
-    @LLM_SKILL_DIRS.setter
-    def LLM_SKILL_DIRS(self, value: list[str]):
-        os.environ[f"{self.ENV_PREFIX}_LLM_SKILL_DIRS"] = ":".join(value)
+    @LLM_EXTRA_SKILL_DIRS.setter
+    def LLM_EXTRA_SKILL_DIRS(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_LLM_EXTRA_SKILL_DIRS"] = ":".join(value)
 
     @property
-    def LLM_AGENT_DIRS(self) -> list[str]:
+    def LLM_EXTRA_AGENT_DIRS(self) -> list[str]:
         """Additional direct agent directories (colon-separated)."""
         dirs_str = get_env(
-            "LLM_AGENT_DIRS",
-            self.DEFAULT_LLM_AGENT_DIRS,
+            "LLM_EXTRA_AGENT_DIRS",
+            self.DEFAULT_LLM_EXTRA_AGENT_DIRS,
             self.ENV_PREFIX,
         )
         if dirs_str != "":
             return [p.strip() for p in dirs_str.split(":") if p.strip()]
         return []
 
-    @LLM_AGENT_DIRS.setter
-    def LLM_AGENT_DIRS(self, value: list[str]):
-        os.environ[f"{self.ENV_PREFIX}_LLM_AGENT_DIRS"] = ":".join(value)
+    @LLM_EXTRA_AGENT_DIRS.setter
+    def LLM_EXTRA_AGENT_DIRS(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_LLM_EXTRA_AGENT_DIRS"] = ":".join(value)
 
     @property
     def USE_TIKTOKEN(self) -> bool:
