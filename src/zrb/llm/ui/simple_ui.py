@@ -493,6 +493,21 @@ class BufferedOutputMixin:
         self._flush_task: asyncio.Task | None = None
         self._flush_lock = asyncio.Lock()
 
+    @property
+    def buffer(self) -> list[str]:
+        """Get the current buffer contents (read-only view)."""
+        return list(self._buffer)
+
+    @property
+    def flush_interval(self) -> float:
+        """Get the flush interval in seconds."""
+        return self._flush_interval
+
+    @property
+    def has_flush_task(self) -> bool:
+        """Check if a flush task is currently running."""
+        return self._flush_task is not None
+
     async def start_flush_loop(self):
         """Start the periodic flush task. Call this in run_async()."""
         self._flush_task = asyncio.create_task(self._flush_loop())

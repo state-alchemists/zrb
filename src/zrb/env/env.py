@@ -21,6 +21,31 @@ class Env(AnyEnv):
         self._link_to_os = link_to_os
         self._os_name = os_name
 
+    @property
+    def name(self) -> str:
+        """Get the environment variable name."""
+        return self._name
+
+    @property
+    def default(self) -> StrAttr:
+        """Get the default value."""
+        return self._default
+
+    @property
+    def auto_render(self) -> bool:
+        """Check if auto_render is enabled."""
+        return self._auto_render
+
+    @property
+    def link_to_os(self) -> bool:
+        """Check if link_to_os is enabled."""
+        return self._link_to_os
+
+    @property
+    def os_name(self) -> str | None:
+        """Get the custom OS environment variable name."""
+        return self._os_name
+
     def update_context(self, shared_ctx: AnySharedContext):
         if self._link_to_os:
             os_name = self._name if self._os_name is None else self._os_name

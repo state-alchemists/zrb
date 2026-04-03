@@ -150,8 +150,8 @@ async def test_get_git_diff_no_changes(session, mock_print):
 
 
 @pytest.mark.asyncio
-async def test_prune_local_branches_deletes_non_protected(session, mock_print):
-    """Test prune_local_branches deletes branches other than main/master/current."""
+async def test_prune_local_branches_deletes_merged_non_protected(session, mock_print):
+    """Test prune_local_branches deletes merged branches other than main/master/current."""
     branches = ["main", "master", "current-branch", "feature-a", "fix-b"]
     current_branch = "current-branch"
 
@@ -165,6 +165,9 @@ async def test_prune_local_branches_deletes_non_protected(session, mock_print):
         "zrb.builtin.git.get_current_branch",
         new=mock.MagicMock(side_effect=lambda *a, **k: _coro(current_branch)),
     ) as mock_get_current_branch, mock.patch(
+        "zrb.builtin.git.is_branch_merged",
+        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(True)),
+    ) as mock_is_branch_merged, mock.patch(
         "zrb.builtin.git.delete_branch",
         new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
     ) as mock_delete_branch:
@@ -179,11 +182,61 @@ async def test_prune_local_branches_deletes_non_protected(session, mock_print):
         mock_get_branches.assert_called_with("/fake/repo", print_method=mock.ANY)
         mock_get_current_branch.assert_called_with("/fake/repo", print_method=mock.ANY)
 
+        # Check that is_branch_merged was called for 'feature-a' and 'fix-b'
+        mock_is_branch_merged.assert_any_call(
+            "/fake/repo", "feature-a", print_method=mock.ANY
+        )
+        mock_is_branch_merged.assert_any_call(
+            "/fake/repo", "fix-b", print_method=mock.ANY
+        )
+
         # Check that delete_branch was called for 'feature-a' and 'fix-b'
         mock_delete_branch.assert_any_call(
             "/fake/repo", "feature-a", print_method=mock.ANY
         )
         mock_delete_branch.assert_any_call("/fake/repo", "fix-b", print_method=mock.ANY)
+
+
+@pytest.mark.asyncio
+async def test_prune_local_branches_skips_non_merged(session, mock_print):
+    """Test prune_local_branches skips branches not merged to HEAD."""
+    branches = ["main", "feature-a", "feature-b"]
+    current_branch = "main"
+
+    async def _is_merged_side_effect(repo_dir, branch_name, **kwargs):
+        # feature-a is merged, feature-b is not
+        return branch_name == "feature-a"
+
+    with mock.patch(
+        "zrb.builtin.git.get_repo_dir",
+        new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+    ), mock.patch(
+        "zrb.builtin.git.get_branches",
+        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(branches)),
+    ), mock.patch(
+        "zrb.builtin.git.get_current_branch",
+        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(current_branch)),
+    ), mock.patch(
+        "zrb.builtin.git.is_branch_merged",
+        new=mock.MagicMock(side_effect=_is_merged_side_effect),
+    ) as mock_is_branch_merged, mock.patch(
+        "zrb.builtin.git.delete_branch",
+        new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
+    ) as mock_delete_branch:
+
+        # Get the task object
+        prune_task = git_module.prune_local_branches
+
+        await prune_task.async_run(
+            session=session, kwargs={"preserved_branch": "master,main,dev,develop"}
+        )
+
+        # Check that delete_branch was called only for 'feature-a' (merged)
+        mock_delete_branch.assert_any_call(
+            "/fake/repo", "feature-a", print_method=mock.ANY
+        )
+        # delete_branch should NOT be called for 'feature-b' (not merged)
+        mock_delete_branch.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -204,6 +257,9 @@ async def test_prune_local_branches_handles_delete_error(session, mock_print):
     ), mock.patch(
         "zrb.builtin.git.get_current_branch",
         new=mock.MagicMock(side_effect=lambda *a, **k: _coro(current_branch)),
+    ), mock.patch(
+        "zrb.builtin.git.is_branch_merged",
+        new=mock.MagicMock(side_effect=lambda *a, **k: _coro(True)),
     ), mock.patch(
         "zrb.builtin.git.delete_branch", new=mock.MagicMock(side_effect=_fail)
     ) as mock_delete_branch:

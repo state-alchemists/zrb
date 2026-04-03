@@ -309,7 +309,7 @@ class TestApprovalChannelInLLMTask:
             approval_channel=mock_channel,
         )
 
-        assert task._approval_channel is mock_channel
+        assert task.approval_channel is mock_channel
 
     def test_llm_task_approval_channel_property(self):
         """Test that LLMTask has approval_channel property and setter."""

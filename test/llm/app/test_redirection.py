@@ -19,7 +19,8 @@ def test_global_stream_capture_initialization():
     assert capture.thread is None
     assert capture.pipe_r is None
     assert capture.pipe_w is None
-    assert capture._buffer == []
+    # Test buffer through public API
+    assert capture.get_buffered_output() == ""
     assert hasattr(capture, "original_stdout_fd")
     assert hasattr(capture, "original_stderr_fd")
 

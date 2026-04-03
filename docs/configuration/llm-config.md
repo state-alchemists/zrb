@@ -17,6 +17,7 @@ Zrb uses `pydantic-ai` to interface with a wide array of Large Language Models, 
 - [RAG Configuration](#7-rag-retrieval-augmented-generation-configuration)
 - [Search Engine Configuration](#8-search-engine-configuration)
 - [Hooks Configuration](#9-llm-hooks-configuration)
+- [Skill & Agent Search Configuration](#10-skill--agent-search-configuration)
 
 ---
 
@@ -200,5 +201,54 @@ These variables control which internet search engine Zrb's LLM tools use.
 | `ZRB_HOOKS_DIRS` | Additional hook directories (colon-separated) | (empty) |
 | `ZRB_HOOKS_TIMEOUT` | Default timeout for synchronous hooks | `30` |
 | `ZRB_HOOKS_LOG_LEVEL` | Logging level for hooks | `INFO` |
+
+---
+
+## 10. Skill & Agent Search Configuration
+
+These variables control where Zrb searches for skills and agents.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_SEARCH_PROJECT` | Search project dirs (filesystem root → cwd) for config dir names | `on` |
+| `ZRB_LLM_SEARCH_HOME` | Search home directory (`~/.claude/`, `~/.zrb/`) | `on` |
+| `ZRB_LLM_CONFIG_DIR_NAMES` | Config subdirectory names to look for in each dir (colon-separated) | `.claude:.zrb` |
+| `ZRB_LLM_BASE_SEARCH_DIRS` | Explicit base dirs containing `skills/`, `agents/`, `plugins/` | (empty) |
+| `ZRB_LLM_EXTRA_SKILL_DIRS` | Additional direct skill directories | (empty) |
+| `ZRB_LLM_EXTRA_AGENT_DIRS` | Additional direct agent directories | (empty) |
+| `ZRB_LLM_PLUGIN_DIRS` | Additional plugin directories | (empty) |
+
+### Search Priority
+
+Zrb searches for skills/agents in this order (highest to lowest priority):
+
+1. **User Home** - `~/.claude/`, `~/.zrb/` + plugins within
+2. **Project Traversal** - Filesystem root → cwd for each config dir name + plugins within
+3. **Configured Plugins** - Directories in `ZRB_LLM_PLUGIN_DIRS`
+4. **Base Search Dirs** - Directories in `ZRB_LLM_BASE_SEARCH_DIRS` + plugins within
+5. **Extra Direct Dirs** - `ZRB_LLM_EXTRA_SKILL_DIRS`, `ZRB_LLM_EXTRA_AGENT_DIRS`
+6. **Builtin** - Built-in skills/agents (always included)
+
+### Directory Structure
+
+```
+~/.claude/
+├── skills/
+│   └── my-skill/
+│       └── SKILL.md
+├── agents/
+│   └── my-agent/
+│       └── AGENT.md
+└── plugins/
+    └── my-plugin/
+        ├── .claude-plugin/
+        │   └── plugin.json
+        ├── skills/
+        │   └── plugin-skill/
+        │       └── SKILL.md
+        └── agents/
+            └── plugin-agent/
+                └── AGENT.md
+```
 
 ---

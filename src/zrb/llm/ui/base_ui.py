@@ -287,6 +287,71 @@ class BaseUI:
             return ""
         return self._last_result_data
 
+    @property
+    def assistant_name(self) -> str:
+        """Get the assistant name."""
+        return self._assistant_name
+
+    @property
+    def initial_message(self) -> Any:
+        """Get the initial message."""
+        return self._initial_message
+
+    @property
+    def exit_commands(self) -> list[str]:
+        """Get the list of exit commands."""
+        return self._exit_commands
+
+    @property
+    def info_commands(self) -> list[str]:
+        """Get the list of info/help commands."""
+        return self._info_commands
+
+    @property
+    def save_commands(self) -> list[str]:
+        """Get the list of save commands."""
+        return self._save_commands
+
+    @property
+    def load_commands(self) -> list[str]:
+        """Get the list of load commands."""
+        return self._load_commands
+
+    @property
+    def attach_commands(self) -> list[str]:
+        """Get the list of attach commands."""
+        return self._attach_commands
+
+    @property
+    def redirect_output_commands(self) -> list[str]:
+        """Get the list of redirect output commands."""
+        return self._redirect_output_commands
+
+    @property
+    def yolo_toggle_commands(self) -> list[str]:
+        """Get the list of yolo toggle commands."""
+        return self._yolo_toggle_commands
+
+    @property
+    def set_model_commands(self) -> list[str]:
+        """Get the list of set model commands."""
+        return self._set_model_commands
+
+    @property
+    def exec_commands(self) -> list[str]:
+        """Get the list of exec commands."""
+        return self._exec_commands
+
+    @property
+    def custom_commands(self) -> list[AnyCustomCommand]:
+        """Get the list of custom commands."""
+        return self._custom_commands
+
+    @property
+    def summarize_commands(self) -> list[str]:
+        """Get the list of summarize commands."""
+        return self._summarize_commands
+
     # =========================================================================
     # REQUIRED METHODS - Must be implemented by subclasses
     # =========================================================================

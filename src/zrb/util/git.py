@@ -142,6 +142,42 @@ async def get_branches(
     ]
 
 
+async def is_branch_merged(
+    repo_dir: str,
+    branch_name: str,
+    target: str = "HEAD",
+    print_method: Callable[..., Any] = print,
+) -> bool:
+    """
+    Check if a branch is merged into a target commit/branch.
+
+    Args:
+        repo_dir (str): The path to the Git repository.
+        branch_name (str): The name of the branch to check.
+        target (str): The target commit/branch to check against. Defaults to "HEAD".
+        print_method (Callable[..., Any]): Method to print command output.
+
+    Returns:
+        bool: True if the branch is merged into the target, False otherwise.
+
+    Raises:
+        Exception: If the git command returns a non-zero exit code.
+    """
+    cmd_result, exit_code = await run_command(
+        cmd=["git", "branch", "--merged", target],
+        cwd=repo_dir,
+        print_method=print_method,
+    )
+    if exit_code != 0:
+        raise Exception(f"Non zero exit code: {exit_code}")
+    merged_branches = [
+        branch.lstrip("*").strip()
+        for branch in cmd_result.output.strip().split("\n")
+        if branch.strip()
+    ]
+    return branch_name in merged_branches
+
+
 async def delete_branch(
     repo_dir: str, branch_name: str, print_method: Callable[..., Any] = print
 ) -> str:

@@ -354,9 +354,10 @@ class LLMTask(BaseTask):
             and user_message.strip() in self._summarize_command
         ):
             ctx.print("Compressing conversation history...", plain=True)
-            new_history = await summarize_history(message_history)
+            new_history = await summarize_history(message_history, force=True)
             history_manager.update(conversation_name, new_history)
             history_manager.save(conversation_name)
+            ctx.print("Conversation history compressed.", plain=True)
             return True
         return False
 
@@ -419,6 +420,26 @@ class LLMTask(BaseTask):
                 )
         return user_message, user_attachments
 
+    def _is_context_length_error(self, error: Exception) -> bool:
+        """Return True when the error is a model context-length / prompt-too-long rejection."""
+        err_str = str(error).lower()
+        context_keywords = [
+            "prompt too long",
+            "context length",
+            "context window",
+            "max tokens",
+            "token limit",
+            "input too long",
+            "maximum context",
+        ]
+        if any(kw in err_str for kw in context_keywords):
+            return True
+        # pydantic_ai ModelHTTPError with status 400 and context-related body
+        status_code = getattr(error, "status_code", None)
+        if status_code == 400 and any(kw in err_str for kw in context_keywords):
+            return True
+        return False
+
     def _handle_run_error(
         self,
         ctx: AnyContext,
@@ -436,6 +457,15 @@ class LLMTask(BaseTask):
 
         new_history = getattr(error, "zrb_history", None)
         if new_history is None:
+            return
+        # Do not append error info when the history is already too long — appending
+        # would make the next retry even longer and guarantee repeated failures.
+        if self._is_context_length_error(error):
+            ctx.log_warning(
+                "Context-length error detected; not growing history for retry."
+            )
+            history_manager.update(conversation_name, new_history)
+            history_manager.save(conversation_name)
             return
         # Append error information to history so it's available on next retry
         # 1. Handle dangling tool calls if necessary

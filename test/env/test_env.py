@@ -15,11 +15,11 @@ class TestEnv:
 
         env = Env(name="TEST_VAR", default="default_value")
 
-        assert env._name == "TEST_VAR"
-        assert env._default == "default_value"
-        assert env._auto_render is True
-        assert env._link_to_os is True
-        assert env._os_name is None
+        assert env.name == "TEST_VAR"
+        assert env.default == "default_value"
+        assert env.auto_render is True
+        assert env.link_to_os is True
+        assert env.os_name is None
 
     def test_init_with_custom_params(self):
         """Test Env initialization with custom parameters."""
@@ -33,11 +33,11 @@ class TestEnv:
             os_name="CUSTOM_OS_NAME",
         )
 
-        assert env._name == "TEST_VAR"
-        assert env._default == "default_value"
-        assert env._auto_render is False
-        assert env._link_to_os is False
-        assert env._os_name == "CUSTOM_OS_NAME"
+        assert env.name == "TEST_VAR"
+        assert env.default == "default_value"
+        assert env.auto_render is False
+        assert env.link_to_os is False
+        assert env.os_name == "CUSTOM_OS_NAME"
 
     def test_update_context_with_os_env(self):
         """Test update_context reads from os.environ."""
@@ -120,34 +120,36 @@ class TestEnv:
             assert mock_ctx.env["MULTI_VAR"] == "os_value"
 
 
-class TestEnvGetDefaultValue:
-    """Test _get_default_value method."""
+class TestEnvDefaultBehavior:
+    """Test Env default value handling through public API."""
 
-    def test_get_default_value_simple_string(self):
-        """Test _get_default_value with simple string."""
+    def test_default_value_with_simple_string(self):
+        """Test default value with simple string through update_context."""
         from zrb.env.env import Env
 
-        env = Env(name="TEST", default="simple_default")
+        env = Env(name="TEST", default="simple_default", link_to_os=False)
         mock_ctx = MagicMock()
+        mock_ctx.env = {}
 
         with patch("zrb.env.env.get_str_attr") as mock_get_str_attr:
             mock_get_str_attr.return_value = "simple_default"
-            result = env._get_default_value(mock_ctx)
+            env.update_context(mock_ctx)
 
-        assert result == "simple_default"
+        assert mock_ctx.env["TEST"] == "simple_default"
 
-    def test_get_default_value_with_auto_render_false(self):
-        """Test _get_default_value with auto_render=False."""
+    def test_default_value_with_auto_render_false(self):
+        """Test default value with auto_render=False through update_context."""
         from zrb.env.env import Env
 
-        env = Env(name="TEST", default="${VAR}", auto_render=False)
+        env = Env(name="TEST", default="${VAR}", auto_render=False, link_to_os=False)
         mock_ctx = MagicMock()
+        mock_ctx.env = {}
 
         with patch("zrb.env.env.get_str_attr") as mock_get_str_attr:
             mock_get_str_attr.return_value = "${VAR}"
-            result = env._get_default_value(mock_ctx)
+            env.update_context(mock_ctx)
 
-        assert result == "${VAR}"
+        assert mock_ctx.env["TEST"] == "${VAR}"
 
 
 class TestEnvIntegration:

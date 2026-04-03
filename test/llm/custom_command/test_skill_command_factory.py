@@ -66,7 +66,8 @@ class TestGetSkillCustomCommand:
 
         assert len(result) == 1
         assert result[0].command == "/my_skill"
-        assert "This is skill content" in result[0]._prompt
+        # Verify prompt content through public API
+        assert "This is skill content" in result[0].get_prompt({})
 
     def test_get_skill_custom_command_with_argument_hint(self):
         """Test that argument_hint is included in description."""

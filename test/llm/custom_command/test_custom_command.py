@@ -16,9 +16,12 @@ class TestCustomCommandInit:
         )
 
         assert cmd.command == "test-command"
-        assert cmd._prompt == "Test prompt"
-        assert cmd._args == []
-        assert cmd._description is None
+        # Verify prompt through get_prompt which returns prompt content
+        assert "Test prompt" in cmd.get_prompt({})
+        # When args not provided, args returns ["ARGUMENTS"] by default
+        assert cmd.args == ["ARGUMENTS"]
+        # When description not provided, description returns formatted command
+        assert "test-command" in cmd.description
 
     def test_init_with_args(self):
         """Test initialization with args."""

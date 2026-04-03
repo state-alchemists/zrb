@@ -426,13 +426,23 @@ class TestHookManagerHookTypes:
             )
         )
 
-        with patch("asyncio.create_subprocess_shell") as mock_shell, patch(
-            "asyncio.create_task"
-        ) as mock_create_task:
+        # Track that create_task was called and properly close the coroutine
+        # to avoid "coroutine was never awaited" warning
+        created_tasks = []
+
+        def mock_create_task(coro):
+            created_tasks.append(coro)
+            # Close the coroutine to suppress the warning
+            coro.close()
+            return MagicMock()  # Return a mock task
+
+        with patch("asyncio.create_subprocess_shell"), patch(
+            "asyncio.create_task", side_effect=mock_create_task
+        ):
             manager.scan(search_dirs=[str(tmp_path)])
             results = await manager.execute_hooks(HookEvent.SESSION_START, {})
             assert "Async execution started" in results[0].message
-            mock_create_task.assert_called_once()
+            assert len(created_tasks) == 1
 
     @pytest.mark.asyncio
     async def test_prompt_hook(self, manager, tmp_path):
