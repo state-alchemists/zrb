@@ -1,5 +1,38 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.17.0 (April 3, 2026)
+
+- **Feature: Git Worktree Integration**:
+  - New `Worktree` tools for isolated development: `EnterWorktree`, `ExitWorktree`, and `ListWorktrees`.
+  - Enables safe experimentation and parallel work without affecting the main working tree.
+
+- **Feature: Clipboard Utility**:
+  - Added specialized clipboard handling in `src/zrb/llm/util/clipboard.py`.
+
+- **Feature: Non-Persistent History**:
+  - Added `NoSaveHistoryManager` for session-only history.
+
+- **Feature: UI Improvements**:
+  - Enhanced `BaseUI` and `DefaultUI` with more properties and better state management.
+
+- **Improvement: Significant Test Coverage Expansion**:
+  - Added extensive test suites for:
+    - LSP tools (`test/llm/lsp/test_lsp_tools.py`)
+    - Search tools (`test/llm/tool/search/test_search.py`)
+    - Git Worktree (`test/llm/tool/test_worktree.py`)
+    - JWT and Token management (`test/builtin/test_jwt.py`, `test/runner/web_util/test_token.py`)
+    - Approval channels (`test/llm/approval/test_approval_channel.py`)
+    - Rate limiting (`test/llm/config/test_limiter.py`)
+    - Chat session management (`test/runner/chat/test_chat_session_manager.py`)
+
+- **Improvement: LLM Tool Enhancements**:
+  - Refactored `PlanTool`, `RagTool`, and `DelegateTool` for better reliability and error handling.
+  - Improved search tool integration (Brave, Searxng, SerpApi).
+
+- **Bug Fixes and Stability**:
+  - Fixed agent execution logic in `src/zrb/llm/agent/run_agent.py`.
+  - Safer command execution and string utility improvements.
+
 ## 2.16.0 (April 3, 2026)
 
 - **Feature: Flexible Skill/Agent Search Configuration**:
