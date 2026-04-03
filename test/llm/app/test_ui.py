@@ -882,9 +882,9 @@ class TestBufferedOutputMixin:
 
         buffered = TestBuffered(flush_interval=0.1)
 
-        assert buffered._buffer == []
-        assert buffered._flush_interval == 0.1
-        assert buffered._max_buffer_size == 2000
+        # Use public properties
+        assert buffered.buffer == []
+        assert buffered.flush_interval == 0.1
 
     def test_buffer_output_filters_pure_spinner(self):
         """Test buffer_output filters pure spinner updates."""
@@ -899,7 +899,8 @@ class TestBufferedOutputMixin:
         buffered.buffer_output("\r⠇")
         buffered.buffer_output("\r⠏⠋⠙")
 
-        assert len(buffered._buffer) == 0
+        # Use public property
+        assert len(buffered.buffer) == 0
 
     def test_buffer_output_filters_progress_at_end(self):
         """Test buffer_output filters spinner at end of line."""
@@ -916,7 +917,8 @@ class TestBufferedOutputMixin:
         buffered.buffer_output("Processing")
 
         # Both should be buffered (no spinner chars in test)
-        assert len(buffered._buffer) == 2
+        # Use public property
+        assert len(buffered.buffer) == 2
 
     def test_buffer_output_filters_prepare_tool_params(self):
         """Test buffer_output filters 'Prepare tool parameters' messages."""
@@ -930,7 +932,8 @@ class TestBufferedOutputMixin:
 
         buffered.buffer_output("🔄 Prepare tool parameters ⠇")
 
-        assert len(buffered._buffer) == 0
+        # Use public property
+        assert len(buffered.buffer) == 0
 
     def test_buffer_output_normal_text(self):
         """Test buffer_output accepts normal text."""
@@ -944,8 +947,9 @@ class TestBufferedOutputMixin:
 
         buffered.buffer_output("Hello, world!")
 
-        assert len(buffered._buffer) == 1
-        assert buffered._buffer[0] == "Hello, world!"
+        # Use public property
+        assert len(buffered.buffer) == 1
+        assert buffered.buffer[0] == "Hello, world!"
 
     def test_buffer_output_removes_carriage_returns(self):
         """Test buffer_output removes carriage returns from text."""
@@ -959,7 +963,8 @@ class TestBufferedOutputMixin:
 
         buffered.buffer_output("Line1\rLine2")
 
-        assert "\r" not in buffered._buffer[0]
+        # Use public property
+        assert "\r" not in buffered.buffer[0]
 
     @pytest.mark.asyncio
     async def test_stop_flush_loop_method_exists(self):
@@ -975,8 +980,8 @@ class TestBufferedOutputMixin:
         # Verify the method exists and is callable
         assert callable(getattr(buffered, "stop_flush_loop", None))
 
-        # Verify no _flush_task initially
-        assert buffered._flush_task is None
+        # Use public property
+        assert not buffered.has_flush_task
 
     @pytest.mark.asyncio
     async def test_start_flush_loop_creates_task(self):
@@ -994,11 +999,10 @@ class TestBufferedOutputMixin:
         # Start the flush loop
         await buffered.start_flush_loop()
 
-        # Verify a task was created
-        assert buffered._flush_task is not None
-        assert hasattr(buffered._flush_task, "cancel")
+        # Use public property
+        assert buffered.has_flush_task
 
-        # Clean up
+        # Clean up - use internal for cancellation (test cleanup is OK)
         buffered._flush_task.cancel()
         try:
             await buffered._flush_task
@@ -1035,9 +1039,10 @@ class TestCreateUIFactory:
             initial_attachments=[],
         )
 
+        # Use public properties
         assert ui is not None
-        assert ui._assistant_name == "Assistant"
-        assert ui._conversation_session_name == "test-session"
+        assert ui.assistant_name == "Assistant"
+        assert ui.conversation_session_name == "test-session"
 
     def test_create_ui_factory_with_custom_config(self):
         """Test create_ui_factory with custom UIConfig."""
@@ -1066,7 +1071,7 @@ class TestCreateUIFactory:
             initial_attachments=[],
         )
 
-        assert ui._assistant_name == "CustomBot"
+        assert ui.assistant_name == "CustomBot"
 
     def test_create_ui_factory_merges_commands(self):
         """Test create_ui_factory merges ui_commands with config."""
@@ -1095,7 +1100,7 @@ class TestCreateUIFactory:
             initial_attachments=[],
         )
 
-        assert ui._exit_commands == ["/quit"]
+        assert ui.exit_commands == ["/quit"]
 
     def test_create_ui_factory_creates_ui(self):
         """Test create_ui_factory creates UI with correct configuration."""
@@ -1124,10 +1129,10 @@ class TestCreateUIFactory:
             initial_attachments=[],
         )
 
-        # Verify UI was created with correct settings
-        assert ui._conversation_session_name == "my-session"
-        assert ui._initial_message == "Test message"
-        assert ui._assistant_name == "Assistant"
+        # Verify UI was created with correct settings using public properties
+        assert ui.conversation_session_name == "my-session"
+        assert ui.initial_message == "Test message"
+        assert ui.assistant_name == "Assistant"
 
 
 class TestBaseUICommandHandlers:

@@ -295,7 +295,7 @@ class LLMTask(BaseTask):
         if await self._handle_summarization(
             ctx, history_manager, conversation_name, user_message, message_history
         ):
-            return ""
+            return "Conversation history compressed."
 
         agent = self._create_agent(ctx)
         effective_message, effective_attachments = self._get_effective_prompt(
