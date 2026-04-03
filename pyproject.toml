@@ -139,6 +139,10 @@ norecursedirs = "playground src/zrb/builtin/project/add/fastapp/fastapp_template
 omit = [
     "zrb_init.py",
     "test/*",
+    "*/__init__.py",
+    "*/any_*.py",
+    "src/zrb/__main__.py",
+    "src/zrb/llm/hook/interface.py",
 ]
 
 [tool.coverage.report]

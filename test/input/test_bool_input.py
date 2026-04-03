@@ -43,21 +43,52 @@ def test_bool_input_get_default_str_false():
         assert result == "False"
 
 
-def test_bool_input_parse_str_value():
-    """Test BoolInput._parse_str_value converts strings to bool."""
+def test_bool_input_parse_str_value_through_update():
+    """Test BoolInput string parsing through update_shared_context (public API)."""
     inp = BoolInput(name="flag")
+    shared_ctx = MagicMock(spec=AnySharedContext)
+    shared_ctx.input = {}
 
-    assert inp._parse_str_value("true") is True
-    assert inp._parse_str_value("True") is True
-    assert inp._parse_str_value("TRUE") is True
-    assert inp._parse_str_value("1") is True
-    assert inp._parse_str_value("yes") is True
+    # Test true values through update_shared_context with str_value
+    inp.update_shared_context(shared_ctx, str_value="true")
+    assert shared_ctx.input["flag"] is True
 
-    assert inp._parse_str_value("false") is False
-    assert inp._parse_str_value("False") is False
-    assert inp._parse_str_value("FALSE") is False
-    assert inp._parse_str_value("0") is False
-    assert inp._parse_str_value("no") is False
+    shared_ctx.input = {}
+    inp.update_shared_context(shared_ctx, str_value="True")
+    assert shared_ctx.input["flag"] is True
+
+    shared_ctx.input = {}
+    inp.update_shared_context(shared_ctx, str_value="TRUE")
+    assert shared_ctx.input["flag"] is True
+
+    shared_ctx.input = {}
+    inp.update_shared_context(shared_ctx, str_value="1")
+    assert shared_ctx.input["flag"] is True
+
+    shared_ctx.input = {}
+    inp.update_shared_context(shared_ctx, str_value="yes")
+    assert shared_ctx.input["flag"] is True
+
+    # Test false values through update_shared_context with str_value
+    shared_ctx.input = {}
+    inp.update_shared_context(shared_ctx, str_value="false")
+    assert shared_ctx.input["flag"] is False
+
+    shared_ctx.input = {}
+    inp.update_shared_context(shared_ctx, str_value="False")
+    assert shared_ctx.input["flag"] is False
+
+    shared_ctx.input = {}
+    inp.update_shared_context(shared_ctx, str_value="FALSE")
+    assert shared_ctx.input["flag"] is False
+
+    shared_ctx.input = {}
+    inp.update_shared_context(shared_ctx, str_value="0")
+    assert shared_ctx.input["flag"] is False
+
+    shared_ctx.input = {}
+    inp.update_shared_context(shared_ctx, str_value="no")
+    assert shared_ctx.input["flag"] is False
 
 
 def test_bool_input_to_html():

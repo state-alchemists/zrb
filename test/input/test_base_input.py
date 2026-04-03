@@ -25,18 +25,6 @@ def test_base_input_always_prompt():
     assert inp2.always_prompt is False
 
 
-def test_base_input_allow_empty():
-    # allow_empty behavior can be tested via prompt_cli_str or similar,
-    # but since it's a base class and we want to avoid private members,
-    # we'll test it through update_shared_context or just ensure it's set correctly if it had a property.
-    # Since it doesn't have a property, we'll verify it doesn't crash and has expected side effects.
-    inp1 = ConcreteInput("i1", allow_empty=True)
-    inp2 = ConcreteInput("i2", allow_empty=False)
-    # We'll skip direct attribute check as it is private.
-    # If the user wants to expose allow_empty, they should add a property to BaseInput.
-    pass
-
-
 def test_base_input_repr():
     """Test __repr__ method."""
     inp = ConcreteInput("my-input")
@@ -75,11 +63,13 @@ def test_base_input_allow_positional_parsing():
     assert inp2.allow_positional_parsing is False
 
 
-def test_base_input_parse_str_value():
-    """Test _parse_str_value returns string as-is."""
+def test_base_input_parse_str_value_through_update():
+    """Test string value parsing through update_shared_context (public API)."""
     inp = ConcreteInput("test")
-    result = inp._parse_str_value("hello")
-    assert result == "hello"
+    shared_ctx = SharedContext()
+    # update_shared_context with str_value uses _parse_str_value internally
+    inp.update_shared_context(shared_ctx, str_value="hello")
+    assert shared_ctx.input["test"] == "hello"
 
 
 def test_base_input_get_default_str_with_callable():

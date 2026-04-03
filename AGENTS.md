@@ -60,7 +60,23 @@ source .venv/bin/activate && ./zrb-test.sh [parameter]
 
 **Principles:**
 - **Coverage**: Aim for ≥80%
-- **Public API Only**: Never test private members (`_` prefix). If hard to test via public API, refactor to expose hooks
+- **Public API Only**: 
+  - ❌ **NEVER** access or test private members (anything with `_` prefix)
+  - This includes: `._private_attr`, `._private_method()`, accessing `._internal_state`
+  - Private members are implementation details - tests should verify behavior through public interfaces
+  - If internal behavior is hard to test publicly, refactor the class to expose a public hook or property
+  - Example violations to avoid:
+    ```python
+    # ❌ WRONG: Testing private attribute
+    assert obj._internal_state == "expected"
+    
+    # ❌ WRONG: Testing private method
+    obj._process_data()
+    
+    # ✅ CORRECT: Test through public API
+    obj.do_something()  # Internally calls _process_data()
+    assert obj.get_state() == "expected"  # Public property/method
+    ```
 - Use `pytest` fixtures and mocks for external dependencies
 - Follow Arrange-Act-Assert (AAA) pattern
 

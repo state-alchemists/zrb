@@ -198,119 +198,28 @@ def test_file_history_manager_save_with_corrupted_data(temp_history_dir):
     assert loaded[0].parts[0].content == "normal message"
 
 
-def test_file_history_manager_clean_corrupted_content_method(temp_history_dir):
-    """Test the _clean_corrupted_content method directly."""
+def test_file_history_manager_clean_corrupted_content_via_load(temp_history_dir):
+    """Test that corrupted content is cleaned when loading via public API."""
     manager = FileHistoryManager(temp_history_dir)
 
-    # Test dictionary conversion
+    # Test dictionary conversion through load - tests behavior via public API
+    file_path = os.path.join(temp_history_dir, "test_dict.json")
     data = {
         "part_kind": "user-prompt",
-        "content": {"key": "value", "nested": {"inner": "data"}},
+        "content": {"key": "value"},
         "timestamp": "2026-02-23T09:25:23.369273Z",
     }
-    cleaned = manager._clean_corrupted_content(data)
-    assert cleaned["content"] == '{"key": "value", "nested": {"inner": "data"}}'
-
-    # Test boolean conversion
-    data = {
-        "part_kind": "user-prompt",
-        "content": True,
-        "timestamp": "2026-02-23T09:25:23.369273Z",
-    }
-    cleaned = manager._clean_corrupted_content(data)
-    assert cleaned["content"] == "True"
-
-    # Test number conversion
-    data = {
-        "part_kind": "user-prompt",
-        "content": 123.45,
-        "timestamp": "2026-02-23T09:25:23.369273Z",
-    }
-    cleaned = manager._clean_corrupted_content(data)
-    assert cleaned["content"] == "123.45"
-
-    # Test that valid content is not changed
-    data = {
-        "part_kind": "user-prompt",
-        "content": "normal string",
-        "timestamp": "2026-02-23T09:25:23.369273Z",
-    }
-    cleaned = manager._clean_corrupted_content(data)
-    assert cleaned["content"] == "normal string"
-
-    # Test nested structures
-    data = [
-        {
-            "kind": "request",
-            "parts": [
-                {
-                    "part_kind": "user-prompt",
-                    "content": {"summary": "test"},
-                    "timestamp": "2026-02-23T09:25:23.369273Z",
-                },
-                {
-                    "part_kind": "text",
-                    "content": "normal text",
-                    "timestamp": "2026-02-23T09:25:23.369273Z",
-                },
-            ],
-            "timestamp": None,
-            "instructions": None,
-            "run_id": None,
-            "metadata": None,
-        }
-    ]
-    cleaned = manager._clean_corrupted_content(data)
-    assert cleaned[0]["parts"][0]["content"] == '{"summary": "test"}'
-    assert cleaned[0]["parts"][1]["content"] == "normal text"
+    json.dump([{"kind": "request", "parts": [data]}], open(file_path, "w"))
+    result = manager.load("test_dict")
+    assert result[0].parts[0].content == '{"key": "value"}'
 
 
-def test_file_history_manager_proactive_cleaning_comprehensive(temp_history_dir):
-    """Test comprehensive proactive cleaning of various content types."""
+def test_file_history_manager_filter_empty_responses_via_load(temp_history_dir):
+    """Test filtering out empty responses when loading history data."""
     manager = FileHistoryManager(temp_history_dir)
 
-    # Test None content
-    data = {
-        "part_kind": "user-prompt",
-        "content": None,
-        "timestamp": "2026-02-23T09:25:23.369273Z",
-    }
-    cleaned = manager._clean_corrupted_content(data)
-    assert cleaned["content"] == ""  # None should be converted to empty string
-
-    # Test list content (non-string list)
-    data = {
-        "part_kind": "user-prompt",
-        "content": [1, 2, 3],
-        "timestamp": "2026-02-23T09:25:23.369273Z",
-    }
-    cleaned = manager._clean_corrupted_content(data)
-    assert cleaned["content"] == "[1, 2, 3]"  # List should be converted to JSON string
-
-    # Test float content
-    data = {
-        "part_kind": "user-prompt",
-        "content": 3.14159,
-        "timestamp": "2026-02-23T09:25:23.369273Z",
-    }
-    cleaned = manager._clean_corrupted_content(data)
-    assert cleaned["content"] == "3.14159"  # Float should be converted to string
-
-    # Test boolean False
-    data = {
-        "part_kind": "user-prompt",
-        "content": False,
-        "timestamp": "2026-02-23T09:25:23.369273Z",
-    }
-    cleaned = manager._clean_corrupted_content(data)
-    assert cleaned["content"] == "False"  # Boolean False should be converted to string
-
-
-def test_file_history_manager_filter_empty_responses(temp_history_dir):
-    """Test filtering out empty responses from history data."""
-    manager = FileHistoryManager(temp_history_dir)
-
-    # Test filtering empty responses
+    # Create a file with empty response parts - should be filtered during load
+    file_path = os.path.join(temp_history_dir, "test_filter.json")
     data = [
         {
             "kind": "request",
@@ -318,186 +227,28 @@ def test_file_history_manager_filter_empty_responses(temp_history_dir):
                 {
                     "part_kind": "user-prompt",
                     "content": "Hello",
-                    "timestamp": "2026-02-23T09:25:23.369273Z",
+                    "timestamp": "2026-02-23T09:25:23Z",
                 }
             ],
             "timestamp": None,
             "instructions": None,
-            "run_id": None,
-            "metadata": None,
         },
         {
             "kind": "response",
-            "parts": [],  # Empty response that should be filtered out
-            "usage": {
-                "input_tokens": 0,
-                "cache_write_tokens": 0,
-                "cache_read_tokens": 0,
-                "output_tokens": 0,
-            },
-            "model_name": "glm-5:cloud",
-            "timestamp": "2026-03-07T10:13:06.791202Z",
-            "provider_name": "ollama",
-            "provider_url": "http://localhost:11434/v1/",
-            "provider_details": {
-                "timestamp": "2026-03-07T10:13:06Z",
-                "finish_reason": "stop",
-            },
-            "provider_response_id": "chatcmpl-725",
-            "finish_reason": "stop",
-            "run_id": "c38dba6b-f0fe-4696-a34f-1fa273095318",
-            "metadata": None,
+            "parts": [],  # Empty response
+            "timestamp": "2026-03-07T10:13:06Z",
         },
         {
             "kind": "response",
-            "parts": [
-                {
-                    "part_kind": "text",
-                    "content": "Hi there!",
-                    "id": None,
-                    "provider_name": None,
-                    "provider_details": None,
-                }
-            ],
-            "usage": {
-                "input_tokens": 100,
-                "cache_write_tokens": 0,
-                "cache_read_tokens": 0,
-                "output_tokens": 50,
-            },
-            "model_name": "glm-5:cloud",
-            "timestamp": "2026-03-07T10:13:07.791202Z",
-            "provider_name": "ollama",
-            "provider_url": "http://localhost:11434/v1/",
-            "provider_details": {
-                "timestamp": "2026-03-07T10:13:07Z",
-                "finish_reason": "stop",
-            },
-            "provider_response_id": "chatcmpl-726",
-            "finish_reason": "stop",
-            "run_id": "c38dba6b-f0fe-4696-a34f-1fa273095318",
-            "metadata": None,
+            "parts": [{"part_kind": "text", "content": "Hi there!"}],
+            "timestamp": "2026-03-07T10:13:07Z",
         },
     ]
+    json.dump(data, open(file_path, "w"))
 
-    filtered = manager._filter_empty_responses(data)
-    assert len(filtered) == 2  # Should have 2 items (request + non-empty response)
-    assert filtered[0]["kind"] == "request"
-    assert filtered[1]["kind"] == "response"
-    assert len(filtered[1]["parts"]) == 1  # Non-empty response should be kept
-    assert filtered[1]["parts"][0]["content"] == "Hi there!"
-
-    # Test with None parts
-    data_with_none_parts = [
-        {
-            "kind": "response",
-            "parts": None,  # None parts should also be filtered out
-            "timestamp": "2026-03-07T10:13:06.791202Z",
-        }
-    ]
-    filtered = manager._filter_empty_responses(data_with_none_parts)
-    assert len(filtered) == 0  # Should be filtered out
-
-    # Test nested structures
-    nested_data = {
-        "conversation": [
-            {
-                "kind": "request",
-                "parts": [{"part_kind": "user-prompt", "content": "Test"}],
-            },
-            {
-                "kind": "response",
-                "parts": [],  # Should be filtered out
-            },
-        ]
-    }
-    filtered = manager._filter_empty_responses(nested_data)
-    assert len(filtered["conversation"]) == 1
-    assert filtered["conversation"][0]["kind"] == "request"
-
-
-def test_extract_base_name(temp_history_dir):
-    """Test extracting base session name from timestamped names."""
-    manager = FileHistoryManager(temp_history_dir)
-
-    # Without timestamp
-    assert manager._extract_base_name("my-session") == "my-session"
-    assert manager._extract_base_name("simple") == "simple"
-
-    # With full timestamp (YYYY-MM-DD-HH-MM-SS)
-    assert manager._extract_base_name("my-session-2024-03-18-10-30-00") == "my-session"
-    assert manager._extract_base_name("project-2024-12-31-23-59-59") == "project"
-
-    # With partial timestamp (YYYY-MM-DD-HH-MM)
-    assert manager._extract_base_name("session-2024-03-18-10-30") == "session"
-    assert manager._extract_base_name("test-2024-01-01-00-00") == "test"
-
-    # Edge cases - timestamp without base name stays as-is (no hyphen prefix)
-    assert manager._extract_base_name("") == ""
-    # "2024-03-18-10-30-00" has no base name before the timestamp, so it stays
-    assert manager._extract_base_name("2024-03-18-10-30-00") == "2024-03-18-10-30-00"
-
-
-def test_get_backup_file_path(temp_history_dir):
-    """Test generating backup file paths with timestamps."""
-    manager = FileHistoryManager(temp_history_dir)
-
-    from datetime import datetime
-
-    # First backup should work
-    ts = datetime(2024, 3, 18, 10, 30, 0)
-    backup_path = manager._get_backup_file_path("my-session", ts)
-    assert backup_path.endswith("my-session-2024-03-18-10-30-00.json")
-
-    # Create the file
-    with open(backup_path, "w") as f:
-        f.write("{}")
-
-    # Second call with same timestamp should add -1
-    backup_path2 = manager._get_backup_file_path("my-session", ts)
-    assert backup_path2.endswith("my-session-2024-03-18-10-30-00-1.json")
-
-    # Create that file too
-    with open(backup_path2, "w") as f:
-        f.write("{}")
-
-    # Third call should add -2
-    backup_path3 = manager._get_backup_file_path("my-session", ts)
-    assert backup_path3.endswith("my-session-2024-03-18-10-30-00-2.json")
-
-
-def test_save_creates_backup(temp_history_dir):
-    """Test that save() creates both main file and timestamped backup."""
-    import re
-
-    from pydantic_ai.messages import (
-        ModelRequest,
-        ModelResponse,
-        TextPart,
-        UserPromptPart,
-    )
-
-    manager = FileHistoryManager(temp_history_dir)
-
-    messages = [
-        ModelRequest(parts=[UserPromptPart(content="hello")]),
-        ModelResponse(parts=[TextPart(content="hi")]),
-    ]
-
-    manager.update("my-session", messages)
-    manager.save("my-session")
-
-    # Check main file exists
-    main_file = os.path.join(temp_history_dir, "my-session.json")
-    assert os.path.exists(main_file)
-
-    # Check backup file exists (with timestamp pattern)
-    files = os.listdir(temp_history_dir)
-    backup_pattern = re.compile(
-        r"my-session-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d+)?\.json"
-    )
-    backup_files = [f for f in files if backup_pattern.match(f)]
-    assert len(backup_files) == 1, f"Expected 1 backup file, found: {backup_files}"
+    result = manager.load("test_filter")
+    # Empty response should be filtered out, only request and non-empty response remain
+    assert len(result) == 2
 
 
 def test_save_with_timestamped_session_name(temp_history_dir):

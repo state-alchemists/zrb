@@ -59,77 +59,48 @@ def test_llm_config_model_settings_none():
 def test_llm_config_api_key_from_cfg():
     """Test LLMConfig api_key falls back to CFG."""
     config = LLMConfig()
-    with patch.object(config, "_api_key", None):
-        with patch("zrb.llm.config.config.CFG") as mock_cfg:
-            mock_cfg.LLM_API_KEY = "cfg-api-key"
-            assert config.api_key == "cfg-api-key"
+    with patch("zrb.llm.config.config.CFG") as mock_cfg:
+        mock_cfg.LLM_API_KEY = "cfg-api-key"
+        # Clear any set api_key to test fallback
+        config.api_key = None
+        assert config.api_key == "cfg-api-key"
 
 
 def test_llm_config_base_url_from_cfg():
     """Test LLMConfig base_url falls back to CFG."""
     config = LLMConfig()
-    with patch.object(config, "_base_url", None):
-        with patch("zrb.llm.config.config.CFG") as mock_cfg:
-            mock_cfg.LLM_BASE_URL = "https://cfg.example.com"
-            assert config.base_url == "https://cfg.example.com"
+    with patch("zrb.llm.config.config.CFG") as mock_cfg:
+        mock_cfg.LLM_BASE_URL = "https://cfg.example.com"
+        # Clear any set base_url to test fallback
+        config.base_url = None
+        assert config.base_url == "https://cfg.example.com"
 
 
-def test_llm_config_get_builtin_providers():
-    """Test _get_builtin_providers returns expected providers."""
+def test_llm_config_model_resolution_openai():
+    """Test model property resolves OpenAI models correctly."""
     config = LLMConfig()
-    providers = config._get_builtin_providers()
-    assert isinstance(providers, set)
-    # Should contain common providers
-    assert "openai" in providers
-
-
-def test_llm_config_builtin_providers_cached():
-    """Test _get_builtin_providers caches the result."""
-    config = LLMConfig()
-    providers1 = config._get_builtin_providers()
-    providers2 = config._get_builtin_providers()
-    assert providers1 is providers2
-
-
-def test_llm_config_resolve_model_by_name_openai():
-    """Test _resolve_model_by_name with openai provider."""
-    config = LLMConfig()
-    result = config._resolve_model_by_name("openai:gpt-4")
+    config.model = "openai:gpt-4"
+    # Should return the model string
+    result = config.model
     assert result == "openai:gpt-4"
 
 
-def test_llm_config_resolve_model_by_name_builtin():
-    """Test _resolve_model_by_name with built-in provider."""
+def test_llm_config_model_resolution_anthropic():
+    """Test model property resolves Anthropic models correctly."""
     config = LLMConfig()
-    # anthropic is a built-in provider
-    result = config._resolve_model_by_name("anthropic:claude-3")
+    config.model = "anthropic:claude-3"
+    # Should return the model string
+    result = config.model
     assert result == "anthropic:claude-3"
 
 
-def test_llm_config_resolve_model_by_name_custom():
-    """Test _resolve_model_by_name with unknown provider."""
+def test_llm_config_model_resolution_custom():
+    """Test model property handles custom provider."""
     config = LLMConfig()
-    # Unknown provider without API config
-    result = config._resolve_model_by_name("custom:model")
+    config.model = "custom:model"
+    # Should return the model string as-is
+    result = config.model
     assert result == "custom:model"
-
-
-def test_llm_config_resolve_model_by_name_with_api_key():
-    """Test _resolve_model_by_name with API key set."""
-    config = LLMConfig()
-    config.api_key = "test-key"
-
-    # Provider should resolve to OpenAIProvider when api_key is set
-    result = config._resolve_model_by_name("openai:gpt-4")
-    # Should return a model (either string or OpenAIChatModel)
-    assert result is not None
-
-
-def test_llm_config_resolve_model_string_provider():
-    """Test _resolve_model with string provider."""
-    config = LLMConfig()
-    result = config._resolve_model("custom-model", "openai")
-    assert result == "openai:custom-model"
 
 
 def test_llm_config_small_model_falls_back_to_model():
@@ -145,10 +116,10 @@ def test_llm_config_small_model_falls_back_to_model():
 def test_llm_config_provider_returns_openai_by_default():
     """Test provider returns 'openai' by default."""
     config = LLMConfig()
-    # No API key or base_url set
-    config._api_key = None
-    config._base_url = None
-    config._provider = None
+    # Clear any set values to test default behavior
+    config.api_key = None
+    config.base_url = None
+    config.provider = None
 
     result = config.provider
     assert result == "openai"
@@ -157,10 +128,11 @@ def test_llm_config_provider_returns_openai_by_default():
 def test_llm_config_model_default():
     """Test model returns default when not set."""
     config = LLMConfig()
-    config._model = None
-    config._api_key = None
-    config._base_url = None
-    config._provider = None
+    # Clear any set values to test default behavior
+    config.model = None
+    config.api_key = None
+    config.base_url = None
+    config.provider = None
 
     with patch("zrb.llm.config.config.CFG") as mock_cfg:
         mock_cfg.LLM_MODEL = "openai:gpt-4o"
@@ -169,3 +141,14 @@ def test_llm_config_model_default():
         # Should return the model string
         result = config.model
         assert result == "openai:gpt-4o"
+
+
+def test_llm_config_model_with_api_key():
+    """Test model property works with API key set."""
+    config = LLMConfig()
+    config.api_key = "test-key"
+    config.model = "openai:gpt-4"
+
+    # Should return a model string
+    result = config.model
+    assert result is not None

@@ -1,13 +1,11 @@
 """Tests for BaseTrigger class."""
 
-import asyncio
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock
 
 import pytest
 
 from zrb.callback.any_callback import AnyCallback
 from zrb.context.shared_context import SharedContext
-from zrb.dot_dict.dot_dict import DotDict
 from zrb.session.session import Session
 from zrb.task.base_task import BaseTask
 from zrb.task.base_trigger import BaseTrigger
@@ -86,27 +84,17 @@ class TestBaseTriggerProperties:
 
 
 class TestBaseTriggerXCom:
-    """Test BaseTrigger XCom methods."""
+    """Test BaseTrigger XCom methods using public API."""
 
-    def test_get_exchange_xcom_creates_new(self):
-        """Test _get_exchange_xcom creates XCom if not exists."""
+    def test_push_exchange_xcom_creates_xcom(self):
+        """Test push_exchange_xcom creates XCom queue if not exists."""
         trigger = BaseTrigger(name="test_trigger", queue_name="my_queue")
         session = get_mock_session()
 
-        xcom = trigger._get_exchange_xcom(session)
-        assert isinstance(xcom, Xcom)
+        trigger.push_exchange_xcom(session, "test_data")
+
+        # Verify XCom queue was created via public API
         assert "my_queue" in session.shared_ctx.xcom
-
-    def test_get_exchange_xcom_returns_existing(self):
-        """Test _get_exchange_xcom returns existing XCom."""
-        trigger = BaseTrigger(name="test_trigger", queue_name="my_queue")
-        session = get_mock_session()
-        existing_xcom = Xcom()
-        existing_xcom.push("existing_data")
-        session.shared_ctx._xcom["my_queue"] = existing_xcom
-
-        xcom = trigger._get_exchange_xcom(session)
-        assert xcom is existing_xcom
 
     def test_push_exchange_xcom(self):
         """Test push_exchange_xcom pushes data to XCom."""
@@ -115,6 +103,7 @@ class TestBaseTriggerXCom:
 
         trigger.push_exchange_xcom(session, "test_data")
 
+        # Verify via public API
         xcom = session.shared_ctx.xcom["my_queue"]
         data = xcom.pop()
         assert data == "test_data"
@@ -142,11 +131,27 @@ class TestBaseTriggerXCom:
         assert trigger.pop_exchange_xcom(session) == "first"
         assert trigger.pop_exchange_xcom(session) == "second"
 
-    def test_get_exchange_xcom_with_named_queue(self):
-        """Test _get_exchange_xcom with custom queue name."""
+    def test_push_with_custom_queue_name(self):
+        """Test push_exchange_xcom with custom queue name."""
         trigger = BaseTrigger(name="test_trigger", queue_name="custom_queue")
         session = get_mock_session()
 
-        xcom = trigger._get_exchange_xcom(session)
-        assert isinstance(xcom, Xcom)
+        trigger.push_exchange_xcom(session, "test_data")
+
+        # Verify via public API
         assert "custom_queue" in session.shared_ctx.xcom
+        data = trigger.pop_exchange_xcom(session)
+        assert data == "test_data"
+
+    def test_push_then_pop_multiple_values(self):
+        """Test multiple push and pop operations via public API."""
+        trigger = BaseTrigger(name="test_trigger", queue_name="test_queue")
+        session = get_mock_session()
+
+        # Push multiple values
+        for i in range(3):
+            trigger.push_exchange_xcom(session, f"value_{i}")
+
+        # Pop should return in FIFO order
+        for i in range(3):
+            assert trigger.pop_exchange_xcom(session) == f"value_{i}"

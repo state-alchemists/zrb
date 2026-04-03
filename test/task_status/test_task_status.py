@@ -78,7 +78,9 @@ class TestTaskStatusMarking:
         from zrb.task_status.task_status import TaskStatus
 
         status = TaskStatus()
-        status._is_failed = True
+        # First mark as failed, then mark as started - started should clear failed
+        status.mark_as_failed()
+        assert status.is_failed is True
         status.mark_as_started()
 
         assert status.is_failed is False
