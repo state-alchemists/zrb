@@ -663,7 +663,8 @@ class LLMChatTask(BaseTask):
         )
         session = Session(shared_ctx)
         result = await llm_task_core.async_run(session)
-        self._print_conversation_name(ctx, initial_conversation_name)
+        # Store conversation name in xcom for CLI to print at the end
+        ctx.xcom["__conversation_name__"] = initial_conversation_name
         return result
 
     async def _run_interactive_session(
@@ -827,7 +828,24 @@ class LLMChatTask(BaseTask):
                 model=self._get_model(ctx),
             )
 
-        # 4. Run the UI
+        # 4. Load and display session history if session name is provided
+        if initial_conversation_name:
+            try:
+                from zrb.llm.util.history_formatter import format_history_as_text
+
+                history = history_manager.load(initial_conversation_name)
+                if history:
+                    history_text = format_history_as_text(history)
+                    ui.append_to_output(history_text)
+            except FileNotFoundError:
+                # New session - no history file exists yet
+                pass
+            except Exception as e:
+                CFG.LOGGER.warning(
+                    f"Failed to load history for session {initial_conversation_name}: {e}"
+                )
+
+        # 5. Run the UI
         if ui is None:
             raise ValueError("No UI available")
         if isinstance(ui, BaseUI) or hasattr(ui, "run_async"):
@@ -838,7 +856,9 @@ class LLMChatTask(BaseTask):
         final_conversation_name = self._get_ui_conversation_name(
             ui, initial_conversation_name
         )
-        self._print_conversation_name(ctx, final_conversation_name)
+        # Print session name at the very end (after result is returned to caller)
+        # Store it to be printed by the finally block in cli.py
+        ctx.xcom["__conversation_name__"] = final_conversation_name
         return last_output
 
     def _print_conversation_name(self, ctx: AnyContext, conversation_name: str):

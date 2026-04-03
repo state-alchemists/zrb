@@ -51,13 +51,15 @@ class Cli(Group):
             task=node, str_args=str_args, str_kwargs=str_kwargs, cli_mode=True
         )
         try:
-            result = self._run_task(node, str_args, task_str_kwargs)
+            result, session = self._run_task(node, str_args, task_str_kwargs)
             if result is not None:
                 print(result)
             return result
         finally:
             run_command = self._get_run_command(node_path, task_str_kwargs)
             self._print_run_command(run_command)
+            # Print conversation name at the very end (for LLM chat tasks)
+            self._print_conversation_name(node, session)
 
     def _print_run_command(self, run_command: str):
         print(
@@ -65,6 +67,23 @@ class Cli(Group):
             stylize_bold_yellow(run_command),
             file=sys.stderr,
         )
+
+    def _print_conversation_name(self, task: AnyTask, session: Session):
+        """Print conversation name if available in shared context."""
+        try:
+            # Check for conversation name stored by LLM chat task
+            conversation_name = session.shared_ctx.xcom.get(
+                "__conversation_name__", None
+            )
+            if conversation_name:
+                stylized_label = stylize_faint("Session")
+                stylized_conversation_name = stylize_bold_yellow(conversation_name)
+                print(
+                    stylize_faint(f"{stylized_label}: {stylized_conversation_name}"),
+                    file=sys.stderr,
+                )
+        except (KeyError, AttributeError):
+            pass  # Not an LLM chat task or no conversation name
 
     def _get_run_command(
         self, node_path: list[str], task_str_kwargs: dict[str, str]
@@ -84,11 +103,11 @@ class Cli(Group):
 
     def _run_task(
         self, task: AnyTask, args: list[str], run_kwargs: dict[str, str]
-    ) -> tuple[Any]:
+    ) -> tuple[Any, Session]:
         shared_ctx = SharedContext(args=args)
-        return task.run(
-            Session(shared_ctx=shared_ctx, root_group=self), str_kwargs=run_kwargs
-        )
+        session = Session(shared_ctx=shared_ctx, root_group=self)
+        result = task.run(session, str_kwargs=run_kwargs)
+        return result, session
 
     def _show_task_info(self, task: AnyTask):
         description = task.description
