@@ -54,7 +54,16 @@ Legacy content
     original_home = os.environ.get("HOME")
     os.environ["HOME"] = str(tmp_path / "home")
 
-    yield project_dir
+    with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
+        mock_cfg.ROOT_GROUP_NAME = "zrb"
+        mock_cfg.LLM_SEARCH_HOME = True
+        mock_cfg.LLM_SEARCH_PROJECT = True
+        mock_cfg.LLM_CONFIG_DIR_NAMES = [".claude", ".zrb"]
+        mock_cfg.LLM_PLUGIN_DIRS = []
+        mock_cfg.LLM_BASE_SEARCH_DIRS = []
+        mock_cfg.LLM_EXTRA_SKILL_DIRS = []
+
+        yield project_dir
 
     if original_home:
         os.environ["HOME"] = original_home
@@ -333,6 +342,9 @@ def test_skill_manager_get_search_directories_project_hierarchy(tmp_path):
     manager = SkillManager(root_dir=str(leaf))
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
         mock_cfg.ROOT_GROUP_NAME = "zrb"
+        mock_cfg.LLM_SEARCH_HOME = True
+        mock_cfg.LLM_SEARCH_PROJECT = True
+        mock_cfg.LLM_CONFIG_DIR_NAMES = [".claude", ".zrb"]
         dirs = [str(d) for d in manager.get_search_directories()]
         assert any("root/.zrb/skills" in d for d in dirs)
         assert any("mid/.claude/skills" in d for d in dirs)
@@ -340,14 +352,39 @@ def test_skill_manager_get_search_directories_project_hierarchy(tmp_path):
 
 
 def test_skill_manager_get_search_directories_plugins(skill_manager, tmp_path):
-    plugin_dir = tmp_path / "plugin"
-    (plugin_dir / "skills").mkdir(parents=True)
+    # Test with direct skill directories (LLM_EXTRA_SKILL_DIRS)
+    skill_dir = tmp_path / "my_skills"
+    (skill_dir / "test-skill").mkdir(parents=True)
+    (skill_dir / "test-skill" / "SKILL.md").write_text("# Test Skill")
 
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
         mock_cfg.ROOT_GROUP_NAME = "zrb"
-        mock_cfg.LLM_PLUGIN_DIRS = [str(plugin_dir)]
+        mock_cfg.LLM_SEARCH_HOME = True
+        mock_cfg.LLM_SEARCH_PROJECT = True
+        mock_cfg.LLM_CONFIG_DIR_NAMES = [".claude", ".zrb"]
+        mock_cfg.LLM_EXTRA_SKILL_DIRS = [str(skill_dir)]
         dirs = skill_manager.get_search_directories()
-        assert any(str(plugin_dir / "skills") == str(d) for d in dirs)
+        assert any(str(skill_dir) == str(d) for d in dirs)
+
+
+def test_skill_manager_get_search_directories_with_plugins(skill_manager, tmp_path):
+    # Test with proper plugin structure (with manifest)
+    plugin_root = tmp_path / "plugins"
+    plugin_dir = plugin_root / "my-plugin"
+    (plugin_dir / ".claude-plugin").mkdir(parents=True)
+    (plugin_dir / ".claude-plugin" / "plugin.json").write_text('{"name": "my-plugin"}')
+    (plugin_dir / "skills" / "plugin-skill").mkdir(parents=True)
+    (plugin_dir / "skills" / "plugin-skill" / "SKILL.md").write_text("# Plugin Skill")
+
+    with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
+        mock_cfg.ROOT_GROUP_NAME = "zrb"
+        mock_cfg.LLM_SEARCH_HOME = True
+        mock_cfg.LLM_SEARCH_PROJECT = True
+        mock_cfg.LLM_CONFIG_DIR_NAMES = [".claude", ".zrb"]
+        mock_cfg.LLM_PLUGIN_DIRS = [str(plugin_root)]
+        dirs = skill_manager.get_search_directories()
+        # Should find skills inside plugins
+        assert any("my-plugin/skills" in str(d) for d in dirs)
 
 
 def test_skill_manager_scan_permission_error(skill_manager, tmp_path):

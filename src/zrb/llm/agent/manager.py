@@ -210,60 +210,123 @@ class SubAgentManager:
         return list(self._agents.values())
 
     def get_search_directories(self) -> list[str | Path]:
+        """
+        Get all agent search directories in priority order.
+
+        Priority (high → low):
+        1. User home (~/.claude/, ~/.zrb/)
+        2. Project traversal (filesystem root → cwd for each config dir name)
+        3. Plugins from configured plugin dirs
+        4. Base search directories
+        5. Extra direct agent directories
+        6. Builtin (always included, lowest priority)
+        """
         search_dirs: list[str | Path] = []
-        zrb_agent_dir_name = f".{CFG.ROOT_GROUP_NAME}/agents"
+        home = Path.home()
 
-        # Default Plugin
-        default_plugin_path = (
-            Path(os.path.dirname(__file__)).parent.parent / "llm_plugin"
-        )
-        if default_plugin_path.exists() and default_plugin_path.is_dir():
-            agent_path = default_plugin_path / "agents"
-            if agent_path.exists() and agent_path.is_dir():
-                search_dirs.append(agent_path)
+        # 1. USER HOME
+        if CFG.LLM_SEARCH_HOME:
+            for pattern in CFG.LLM_CONFIG_DIR_NAMES:
+                root = home / pattern
+                if root.exists() and root.is_dir():
+                    agent_path = root / "agents"
+                    if agent_path.exists() and agent_path.is_dir():
+                        search_dirs.append(agent_path)
 
-        # User Plugins
+                    # Plugins within home root
+                    plugins_dir = root / "plugins"
+                    if plugins_dir.exists() and plugins_dir.is_dir():
+                        for plugin_dir in self._scan_plugin_dirs(plugins_dir):
+                            agent_path = plugin_dir / "agents"
+                            if agent_path.exists() and agent_path.is_dir():
+                                search_dirs.append(agent_path)
+
+        # 2. PROJECT TRAVERSAL (filesystem root → cwd for each config dir name)
+        if CFG.LLM_SEARCH_PROJECT:
+            for project_dir in self._get_upward_dirs():
+                for pattern in CFG.LLM_CONFIG_DIR_NAMES:
+                    root = project_dir / pattern
+                    if root.exists() and root.is_dir():
+                        agent_path = root / "agents"
+                        if agent_path.exists() and agent_path.is_dir():
+                            search_dirs.append(agent_path)
+
+                        plugins_dir = root / "plugins"
+                        if plugins_dir.exists() and plugins_dir.is_dir():
+                            for plugin_dir in self._scan_plugin_dirs(plugins_dir):
+                                agent_path = plugin_dir / "agents"
+                                if agent_path.exists() and agent_path.is_dir():
+                                    search_dirs.append(agent_path)
+
+        # 3. PLUGINS from configured directories
         for plugin_path_str in CFG.LLM_PLUGIN_DIRS:
             plugin_path = Path(plugin_path_str)
             if plugin_path.exists() and plugin_path.is_dir():
-                agent_path = plugin_path / "agents"
+                for plugin_dir in self._scan_plugin_dirs(plugin_path):
+                    agent_path = plugin_dir / "agents"
+                    if agent_path.exists() and agent_path.is_dir():
+                        search_dirs.append(agent_path)
+
+        # 4. BASE SEARCH DIRECTORIES
+        for root_str in CFG.LLM_BASE_SEARCH_DIRS:
+            root = Path(root_str)
+            if root.exists() and root.is_dir():
+                agent_path = root / "agents"
                 if agent_path.exists() and agent_path.is_dir():
                     search_dirs.append(agent_path)
 
-        # 1. User global config (~/.claude/agents and ~/.zrb/agents)
-        try:
-            home = Path.home()
-            # Claude style
-            global_claude_agents = home / ".claude" / "agents"
-            if global_claude_agents.exists() and global_claude_agents.is_dir():
-                search_dirs.append(global_claude_agents)
-            # Zrb style
-            global_zrb_agents = home / zrb_agent_dir_name
-            if global_zrb_agents.exists() and global_zrb_agents.is_dir():
-                search_dirs.append(global_zrb_agents)
-        except Exception:
-            pass
+                plugins_dir = root / "plugins"
+                if plugins_dir.exists() and plugins_dir.is_dir():
+                    for plugin_dir in self._scan_plugin_dirs(plugins_dir):
+                        agent_path = plugin_dir / "agents"
+                        if agent_path.exists() and agent_path.is_dir():
+                            search_dirs.append(agent_path)
 
-        # 2. Project directories (.claude/agents and .zrb/agents)
-        try:
-            cwd = Path(self._root_dir).resolve()
-            project_dirs = list(cwd.parents)[::-1] + [cwd]
-            for project_dir in project_dirs:
-                # Claude style
-                local_claude_agents = project_dir / ".claude" / "agents"
-                if local_claude_agents.exists() and local_claude_agents.is_dir():
-                    search_dirs.append(local_claude_agents)
-                # Zrb style
-                local_zrb_agents = project_dir / zrb_agent_dir_name
-                if local_zrb_agents.exists() and local_zrb_agents.is_dir():
-                    search_dirs.append(local_zrb_agents)
-        except Exception:
-            pass
+        # 5. EXTRA DIRECT AGENT DIRECTORIES
+        for dir_str in CFG.LLM_EXTRA_AGENT_DIRS:
+            dir_path = Path(dir_str)
+            if dir_path.exists() and dir_path.is_dir():
+                search_dirs.append(dir_path)
 
-        # 3. The root_dir itself (recursive)
+        # 7. BUILTIN (always included, lowest priority)
+        builtin_path = Path(os.path.dirname(__file__)).parent / "llm_plugin" / "agents"
+        if builtin_path.exists() and builtin_path.is_dir():
+            search_dirs.append(builtin_path)
+
+        # 8. root_dir itself (recursive scan target)
         search_dirs.append(Path(self._root_dir))
 
         return search_dirs
+
+    def _get_upward_dirs(self) -> list[Path]:
+        """
+        Get directories from root to cwd for upward traversal.
+        Returns paths in root → cwd order.
+        """
+        try:
+            cwd = Path(self._root_dir).resolve()
+            # parents[0] is parent of cwd, parents[-1] is filesystem root
+            # We reverse to get root → ... → cwd order
+            return list(cwd.parents)[::-1] + [cwd]
+        except Exception:
+            return []
+
+    def _scan_plugin_dirs(self, plugins_root: Path) -> list[Path]:
+        """
+        Scan plugin directories within a plugins root.
+        Returns paths to plugin directories (not the agents/ subdirectory).
+        """
+        plugin_dirs: list[Path] = []
+        try:
+            for item in plugins_root.iterdir():
+                if item.is_dir() and not item.name.startswith("."):
+                    # Check for plugin manifest
+                    manifest = item / ".claude-plugin" / "plugin.json"
+                    if manifest.exists():
+                        plugin_dirs.append(item)
+        except Exception:
+            pass
+        return plugin_dirs
 
     def _scan_dir(self, directory: Path, max_depth: int):
         try:
