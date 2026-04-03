@@ -30,7 +30,7 @@ async def test_run_agent_basic():
 
 @pytest.mark.asyncio
 async def test_run_agent_with_attachments():
-    """Test run_agent with attachments."""
+    """Test run_agent with attachments (BinaryContent)."""
     agent = MagicMock()
     mock_result = MagicMock()
     mock_result.output = "AI result"
@@ -45,9 +45,10 @@ async def test_run_agent_with_attachments():
 
     agent.run_stream_events = mock_run_stream_events
 
-    from pydantic_ai.messages import UserPromptPart
+    from pydantic_ai import BinaryContent
 
-    attachments = [UserPromptPart(content="file content")]
+    # BinaryContent is a proper attachment type (e.g., image data)
+    attachments = [BinaryContent(data=b"fake image data", media_type="image/png")]
 
     result, history = await run_agent(
         agent=agent,
@@ -57,7 +58,14 @@ async def test_run_agent_with_attachments():
         limiter=LLMLimiter(),
     )
     assert result == "AI result"
-    assert any("See attachment" in str(p) for p in captured_message[0])
+    # run_stream_events receives list[UserContent] directly (str + BinaryContent)
+    assert len(captured_message) == 1
+    msg = captured_message[0]
+    assert isinstance(msg, list)
+    assert "See attachment" in msg[0]  # First item is the text string
+    from pydantic_ai import BinaryContent as _BC
+
+    assert isinstance(msg[1], _BC)  # Second item is the attachment
 
 
 @pytest.mark.asyncio

@@ -36,6 +36,7 @@ from zrb.llm.tool.delegate import (
 )
 from zrb.llm.tool.mcp import load_mcp_config
 from zrb.llm.tool.skill import create_activate_skill_tool
+from zrb.llm.tool.worktree import enter_worktree, exit_worktree, list_worktrees
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
 from zrb.llm.tool_call import (
     auto_approve,
@@ -105,6 +106,9 @@ tools = [
     analyze_file,
     search_internet,
     open_web_page,
+    enter_worktree,
+    exit_worktree,
+    list_worktrees,
     *lsp_tools,
     *plan_tools,
 ]
@@ -170,6 +174,8 @@ llm_chat.add_tool_policy(
     auto_approve("ClearTodos"),
     # Note: LspRenameSymbol uses dry_run by default, but requires user approval
     # when dry_run=False (actual file modifications)
+    # Worktree tools - listing is safe; create/remove require approval
+    auto_approve("list_worktrees"),
 )
 
 # Add custom command (slash commands)

@@ -400,23 +400,34 @@ class LLMTask(BaseTask):
             for msg in reversed(message_history):
                 if isinstance(msg, ModelRequest):
                     for part in msg.parts:
-                        if (
-                            isinstance(part, UserPromptPart)
-                            and str(part.content) == str_user_message
-                        ):
-                            found_user_message = True
-                            break
+                        if isinstance(part, UserPromptPart):
+                            # Handle both text-only and multimodal content
+                            # Multimodal: part.content is [text, BinaryContent(...)]
+                            # Text-only: part.content is a string
+                            part_text = ""
+                            if isinstance(part.content, str):
+                                part_text = part.content
+                            elif isinstance(part.content, list):
+                                # Extract text from multimodal content list
+                                for item in part.content:
+                                    if isinstance(item, str):
+                                        part_text = item
+                                        break
+                            if part_text == str_user_message:
+                                found_user_message = True
+                                break
                 if found_user_message:
                     break
 
             if found_user_message:
                 # User message is already in history, so we don't need to send it again.
                 # Instead, we send a retry notice.
+                # IMPORTANT: Preserve attachments on retry - they may still be needed
                 ctx.log_info("Initial message found in history, sending retry notice.")
                 return (
                     f"[System] This is retry attempt {ctx.attempt}. "
                     "The previous attempt failed. Please review the history and continue.",
-                    None,
+                    user_attachments,  # Preserve attachments on retry
                 )
         return user_message, user_attachments
 

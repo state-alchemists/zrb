@@ -76,6 +76,7 @@ class UI(BaseUI):
         yolo_toggle_commands: list[str] = [],
         set_model_commands: list[str] = [],
         exec_commands: list[str] = [],
+        btw_commands: list[str] = [],
         custom_commands: list[AnyCustomCommand] = [],
         model: "Model | str | None" = None,
     ):
@@ -104,6 +105,7 @@ class UI(BaseUI):
             yolo_toggle_commands=yolo_toggle_commands,
             set_model_commands=set_model_commands,
             exec_commands=exec_commands,
+            btw_commands=btw_commands,
             custom_commands=custom_commands,
             model=model,
         )
@@ -528,11 +530,46 @@ class UI(BaseUI):
         @app_keybindings.add("c-v")
         @app_keybindings.add("escape", "v")
         def _(event):
-            # Paste from clipboard
-            if event.app.clipboard:
-                event.current_buffer.paste_clipboard_data(
-                    event.app.clipboard.get_data()
+            # Try image paste first; fall back to normal text paste.
+            # We capture `event` data we need before going async because
+            # prompt_toolkit may recycle the event object.
+            clipboard = event.app.clipboard
+            buffer = event.current_buffer
+
+            async def _handle_paste():
+                from zrb.llm.util.clipboard import (
+                    get_clipboard_image,
+                    missing_tool_hint,
                 )
+                from zrb.util.cli.style import stylize_error, stylize_faint
+
+                img_bytes = await get_clipboard_image()
+                if img_bytes is not None:
+                    from pydantic_ai import BinaryContent
+
+                    attachment = BinaryContent(data=img_bytes, media_type="image/png")
+                    self._pending_attachments.append(attachment)
+                    size_kb = len(img_bytes) / 1024
+                    self.append_to_output(
+                        stylize_faint(
+                            f"\n  📸 Image pasted from clipboard ({size_kb:.1f} KB)\n"
+                        )
+                    )
+                    self.invalidate_ui()
+                else:
+                    hint = missing_tool_hint()
+                    if hint:
+                        self.append_to_output(
+                            stylize_error(f"\n  ❌ No image in clipboard.\n{hint}")
+                        )
+                        self.invalidate_ui()
+                    elif clipboard:
+                        # No image found and no missing-tool hint — normal text paste
+                        buffer.paste_clipboard_data(clipboard.get_data())
+
+            task = asyncio.get_event_loop().create_task(_handle_paste())
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
 
         @app_keybindings.add("escape")
         def _(event):
@@ -560,14 +597,19 @@ class UI(BaseUI):
             if self._handle_confirmation(event):
                 return
 
-            # Prevent new messages when LLM is thinking
-            if self._is_thinking:
-                return
-
             # Handle empty inputs
             buff = event.current_buffer
             text = buff.text
             if not text.strip():
+                return
+
+            # /btw can be submitted even while the LLM is thinking
+            if self._handle_btw_command(text):
+                buff.reset()
+                return
+
+            # Prevent new messages when LLM is thinking
+            if self._is_thinking:
                 return
 
             # Handle other commands

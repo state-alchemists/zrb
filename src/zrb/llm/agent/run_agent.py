@@ -238,25 +238,24 @@ async def run_agent(
 
         # 2. Safety Check: Merge consecutive ModelRequest if needed
         # (e.g. if history was summarized and ends with a ModelRequest)
-        from pydantic_ai.messages import ModelRequest
+        from pydantic_ai.messages import ModelRequest, UserPromptPart
 
         if (
             current_history
             and isinstance(current_history[-1], ModelRequest)
             and current_message is not None
         ):
-            # Convert current_message to list of parts if it's just a string
-            from pydantic_ai.messages import UserPromptPart
-
-            new_parts: list[UserPromptPart] = []
+            # current_message can be: str, list[UserContent], or None
             if isinstance(current_message, str):
-                new_parts = [UserPromptPart(content=current_message)]
+                current_history[-1].parts.append(
+                    UserPromptPart(content=current_message)
+                )
             elif isinstance(current_message, list):
-                new_parts = current_message
-
-            # Merge into the last request and set current_message to None
-            # so pydantic_ai doesn't add another request
-            current_history[-1].parts.extend(new_parts)
+                # Multimodal: wrap the content list in a single UserPromptPart
+                current_history[-1].parts.append(
+                    UserPromptPart(content=current_message)
+                )
+            # Set to None so pydantic_ai doesn't add another request
             current_message = None
 
         # 3. Execution Loop
@@ -366,20 +365,32 @@ async def run_agent(
 
 def _get_prompt_content(
     message: str | None, attachments: list[Any] | None, print_fn: Callable[[str], Any]
-) -> "list[UserPromptPart] | str | None":
-    from pydantic_ai.messages import UserPromptPart
+) -> "list[Any] | str | None":
+    """Build prompt content for pydantic-ai agent.
 
-    prompt_content = message
-    if attachments:
-        attachments = normalize_attachments(attachments, print_fn)
-        if not attachments:
-            return message if message else None
-        parts: list[UserPromptPart] = []
-        if message:
-            parts.append(UserPromptPart(content=message))
-        parts.extend(attachments)
-        prompt_content = parts
-    return prompt_content
+    Returns:
+        - str: text-only prompt (passed directly to run_stream_events)
+        - list[UserContent]: multimodal prompt (text + attachments, passed directly)
+        - None: empty prompt
+
+    run_stream_events expects str | Sequence[UserContent], NOT a UserPromptPart wrapper.
+    The merge-into-history path below wraps the list in UserPromptPart as needed.
+    """
+    if not attachments:
+        return message
+
+    attachments = normalize_attachments(attachments, print_fn)
+    if not attachments:
+        return message if message else None
+
+    # Return content as a flat list: [text?, *attachments]
+    # pydantic-ai accepts list[UserContent] directly as the user_prompt argument.
+    if message:
+        content: list[Any] = [message]
+        content.extend(attachments)
+        return content
+    else:
+        return list(attachments)
 
 
 async def _acquire_rate_limit(
