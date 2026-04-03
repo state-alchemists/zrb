@@ -25,7 +25,8 @@ def create_activate_skill_tool(skill_manager: SkillManager | None = None):
     activate_skill_impl.__name__ = "ActivateSkill"
     activate_skill_impl.__doc__ = (
         "Activates specialized expertise from a skill.\n\n"
-        "Use when task matches a skill's domain.\n"
-        "Re-activate if conversation gets long and you lose context."
+        "MANDATES:\n"
+        "- Use when task matches a skill's domain.\n"
+        "- Re-activate if conversation gets long and you lose context."
     )
     return activate_skill_impl

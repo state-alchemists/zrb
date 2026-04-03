@@ -357,7 +357,6 @@ class LLMTask(BaseTask):
             new_history = await summarize_history(message_history, force=True)
             history_manager.update(conversation_name, new_history)
             history_manager.save(conversation_name)
-            ctx.print("Conversation history compressed.", plain=True)
             return True
         return False
 

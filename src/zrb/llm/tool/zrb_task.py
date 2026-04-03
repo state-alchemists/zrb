@@ -29,7 +29,7 @@ def create_list_zrb_task_tool():
     zrb_cmd = CFG.ROOT_GROUP_NAME
     list_zrb_tasks_impl.__name__ = f"List{zrb_cmd.capitalize()}Tasks"
     list_zrb_tasks_impl.__doc__ = (
-        f"Discovery tool to see available {zrb_cmd} capabilities.\n"
+        f"Discovery tool to see available {zrb_cmd} capabilities.\n\n"
         "MANDATE: ALWAYS check this to see available capabilities."
     )
     return list_zrb_tasks_impl

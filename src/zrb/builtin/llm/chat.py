@@ -154,8 +154,6 @@ llm_chat.add_tool_policy(
     auto_approve("Edit", approve_if_path_inside_journal_dir),
     auto_approve("SearchInternet"),
     auto_approve("OpenWebPage"),
-    auto_approve("ReadLongTermNote"),
-    auto_approve("ReadContextualNote"),
     auto_approve("ActivateSkill"),
     auto_approve("DelegateToAgent"),
     auto_approve("DelegateToAgentsParallel"),
@@ -175,7 +173,7 @@ llm_chat.add_tool_policy(
     # Note: LspRenameSymbol uses dry_run by default, but requires user approval
     # when dry_run=False (actual file modifications)
     # Worktree tools - listing is safe; create/remove require approval
-    auto_approve("list_worktrees"),
+    auto_approve("ListWorktrees"),
 )
 
 # Add custom command (slash commands)

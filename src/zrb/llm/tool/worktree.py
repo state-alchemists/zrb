@@ -11,14 +11,13 @@ async def enter_worktree(branch_name: str = "") -> str:
     Returns the absolute path to the new worktree directory. All file operations
     inside the worktree are fully isolated from the main working tree.
 
-    Use this when you want to experiment with risky changes, try different
-    approaches in parallel, or prepare changes for review before merging.
-
-    Args:
-        branch_name: Name for the new branch. Auto-generated if empty.
-
-    Returns:
-        Path to the created worktree directory.
+    MANDATES:
+    - Use when you want to experiment with risky changes, try different
+      approaches in parallel, or prepare changes for review before merging.
+    - Use `keep_branch=True` in `ExitWorktree` if you want to preserve changes
+      for later merging.
+    - The worktree is created in the system temp directory and will be isolated
+      from your main working tree.
     """
     cwd = os.getcwd()
 
@@ -67,16 +66,12 @@ async def enter_worktree(branch_name: str = "") -> str:
 
 async def exit_worktree(worktree_path: str, keep_branch: bool = False) -> str:
     """
-    Remove a git worktree previously created with enter_worktree.
+    Remove a git worktree previously created with EnterWorktree.
 
-    Args:
-        worktree_path: Absolute path to the worktree (as returned by enter_worktree).
-        keep_branch: If True, keep the branch after removing the worktree so
-                     changes can be merged later. If False (default), the branch
-                     is deleted along with the worktree.
-
-    Returns:
-        Summary of what was removed.
+    MANDATES:
+    - Use `keep_branch=True` if you want to preserve changes for later merging.
+    - If `keep_branch=False` (default), the branch is deleted along with the worktree.
+    - Always clean up worktrees after use to avoid disk space accumulation.
     """
     cwd = os.getcwd()
 
@@ -141,7 +136,9 @@ async def list_worktrees() -> str:
     """
     List all active git worktrees for the current repository.
 
-    Returns a human-readable summary of each worktree (path, branch, commit).
+    MANDATES:
+    - Use to check the current state of your worktrees before starting.
+    - Returns a human-readable summary of each worktree (path, branch, commit).
     """
     cwd = os.getcwd()
 
@@ -159,3 +156,9 @@ async def list_worktrees() -> str:
 
     output = stdout.decode().strip()
     return output if output else "No additional worktrees found."
+
+
+# Set function names to PascalCase for tool display
+enter_worktree.__name__ = "EnterWorktree"
+exit_worktree.__name__ = "ExitWorktree"
+list_worktrees.__name__ = "ListWorktrees"

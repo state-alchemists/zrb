@@ -65,6 +65,9 @@ For bug fixes: empirically reproduce the failure before applying a fix.
 | **ListZrbTasks** | Discover available zrb automation tasks |
 | **RunZrbTask** | Execute a zrb automation task |
 | **LSP tools** | Semantic navigation: definitions, references, diagnostics |
+| **EnterWorktree** | Create isolated git worktree for risky changes or parallel work |
+| **ExitWorktree** | Remove a worktree created with `EnterWorktree` |
+| **ListWorktrees** | List all active git worktrees for the repository |
 
 ---
 
