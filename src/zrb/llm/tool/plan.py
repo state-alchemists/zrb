@@ -101,11 +101,6 @@ class TodoManager:
         """
         Write todos for a session.
 
-        Args:
-            session_name: The conversation session identifier
-            todos: List of todo items, each with 'content' and optionally 'id', 'status'
-            replace: If True, replace existing todos; if False, merge
-
         Returns:
             The updated todo list with metadata
         """
@@ -192,12 +187,6 @@ class TodoManager:
     ) -> dict[str, Any] | None:
         """
         Update a single todo item.
-
-        Args:
-            session_name: The conversation session identifier
-            todo_id: The ID of the todo to update
-            status: New status (optional)
-            content: New content (optional)
 
         Returns:
             The updated todo list, or None if not found
@@ -290,34 +279,11 @@ async def write_todos(
     - Track progress through multiple subtasks
     - Organize work into a structured checklist
 
-    **IMPORTANT GUIDELINES:**
+    MANDATES:
     - Create todos BEFORE starting work on complex tasks
     - Mark todos as "in_progress" when you start them
     - Mark todos as "completed" when done
     - Update status as you progress through tasks
-
-    Args:
-        todos: List of todo items. Each item should have:
-            - content (str): Description of the task
-            - id (str, optional): Unique identifier (auto-generated if not provided)
-            - status (str, optional): One of "pending", "in_progress", "completed", "cancelled"
-        session: Conversation session ID (uses current session if not provided)
-        replace: If True, replace existing todos; if False, merge with existing
-
-    Returns:
-        JSON string with the updated todo list and progress summary
-
-    Example:
-        ```python
-        todos = [
-            {"content": "Research the problem"},
-            {"content": "Design the solution"},
-            {"content": "Implement the code"},
-            {"content": "Write tests"},
-            {"content": "Update documentation"},
-        ]
-        result = await write_todos(todos)
-        ```
     """
     session_name = session or get_current_context_session()
 
@@ -357,16 +323,9 @@ async def get_todos(session: str | None = None) -> str:
     - See which tasks are pending, in progress, or completed
     - Review your plan before continuing work
 
-    Args:
-        session: Conversation session ID (uses current session if not provided)
-
-    Returns:
-        JSON string with the todo list and progress summary
-
-    Example:
-        ```python
-        result = await get_todos()
-        ```
+    MANDATES:
+    - Check before starting a new subtask to see what's pending.
+    - Review before declaring work done to ensure nothing is missed.
     """
     session_name = session or get_current_context_session()
 
@@ -420,31 +379,8 @@ async def update_todo(
     - Mark a todo as "cancelled" if no longer needed
     - Update the content/description of a todo
 
-    **STATUS VALUES:**
-    - "pending": Not started yet (default for new todos)
-    - "in_progress": Currently being worked on
-    - "completed": Successfully finished
-    - "cancelled": Abandoned or no longer needed
-
-    **MANDATE:** Always mark todos as "in_progress" BEFORE starting work, and "completed" AFTER finishing.
-
-    Args:
-        todo_id: The ID of the todo item to update
-        status: New status (one of "pending", "in_progress", "completed", "cancelled")
-        content: New content/description (optional)
-        session: Conversation session ID (uses current session if not provided)
-
-    Returns:
-        JSON string with the updated todo list
-
-    Example:
-        ```python
-        # Mark todo 1 as in progress
-        result = await update_todo("1", status="in_progress")
-
-        # Mark todo 2 as completed
-        result = await update_todo("2", status="completed")
-        ```
+    MANDATES:
+    - Always mark todos as "in_progress" BEFORE starting work, and "completed" AFTER finishing.
     """
     session_name = session or get_current_context_session()
 
@@ -511,11 +447,9 @@ async def clear_todos(session: str | None = None) -> str:
     - Start fresh with a new plan
     - Clean up after completing a major task
 
-    Args:
-        session: Conversation session ID (uses current session if not provided)
-
-    Returns:
-        Success message
+    MANDATES:
+    - Only clear when starting a completely new plan.
+    - Do not clear if you intend to resume the current task list.
     """
     session_name = session or get_current_context_session()
 

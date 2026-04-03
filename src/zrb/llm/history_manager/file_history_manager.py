@@ -292,7 +292,18 @@ class FileHistoryManager(AnyHistoryManager):
 
         try:
             # First, try to serialize the messages
-            data = ModelMessagesTypeAdapter.dump_python(messages, mode="json")
+            # Suppress Pydantic serialization warnings for BinaryContent in parts
+            # (pydantic-ai's type adapter schema doesn't include BinaryContent in its
+            # union, but serialization still works correctly)
+            import warnings
+
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message="Pydantic serializer warnings",
+                    category=UserWarning,
+                )
+                data = ModelMessagesTypeAdapter.dump_python(messages, mode="json")
 
             # ALWAYS clean data before saving to prevent boolean corruption
             # This ensures that even if pydantic_ai validation allows boolean values,

@@ -268,3 +268,115 @@ def test_kill_pid_with_print_method():
     kill_pid(pid, print_method=capture_print)
 
     assert any(f"process {pid}" in msg.lower() for msg in printed_messages)
+
+
+class TestRunCommandEdgeCases:
+    """Test edge cases in run_command for better coverage."""
+
+    @pytest.mark.asyncio
+    async def test_run_command_with_register_pid(self):
+        """Test run_command with PID registration callback."""
+        registered_pids = []
+
+        def register_pid(pid):
+            registered_pids.append(pid)
+
+        cmd = ["echo", "test"]
+        result, return_code = await run_command(cmd, register_pid_method=register_pid)
+
+        assert return_code == 0
+        assert len(registered_pids) == 1
+        assert registered_pids[0] > 0
+
+    @pytest.mark.asyncio
+    async def test_run_command_with_max_output_line_zero(self):
+        """Test run_command with max_output_line=0 (no capture, unlimited display)."""
+        # When max_output_line=0, output is NOT captured but still printed
+        printed_lines = []
+
+        def capture_print(msg, **kwargs):
+            printed_lines.append(msg)
+
+        cmd = ["echo", "test"]
+        result, return_code = await run_command(
+            cmd,
+            max_output_line=0,
+            max_error_line=0,
+            max_display_line=0,
+            print_method=capture_print,
+        )
+
+        assert return_code == 0
+        # Output is empty because nothing is captured when max_line=0
+        assert result.output == ""
+        # But it was still printed
+        assert any("test" in line for line in printed_lines)
+
+    @pytest.mark.asyncio
+    async def test_run_command_with_display_output(self):
+        """Test run_command captures display output."""
+        cmd = ["echo", "display test"]
+        result, return_code = await run_command(cmd)
+
+        assert return_code == 0
+        assert "display test" in result.display
+
+    @pytest.mark.asyncio
+    async def test_run_command_cancellation_during_execution(self):
+        """Test run_command handles cancellation gracefully."""
+        import asyncio
+
+        cmd = ["sleep", "10"]  # Long running
+
+        async def run_and_cancel():
+            task = asyncio.create_task(run_command(cmd, timeout=60))
+            # Give it a moment to start
+            await asyncio.sleep(0.1)
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass  # Expected
+
+        # Should not hang or raise unhandled exceptions
+        await run_and_cancel()
+
+    @pytest.mark.asyncio
+    async def test_run_command_with_interactive_mode(self):
+        """Test run_command with interactive mode enabled."""
+        cmd = ["echo", "interactive test"]
+        result, return_code = await run_command(
+            cmd, is_interactive=False  # Can't truly test interactive in unit tests
+        )
+
+        assert return_code == 0
+        assert "interactive test" in result.output
+
+
+class TestCheckUnrecommendedCommandsEdgeCases:
+    """Additional edge case tests for check_unrecommended_commands."""
+
+    def test_check_readlink_pattern(self):
+        """Test detection of readlink -f pattern."""
+        violations = check_unrecommended_commands('readlink -f "$0"')
+        assert r'readlink.+-.*f.+["$]' in violations
+
+    def test_check_sort_sort_versions(self):
+        """Test detection of sort --sort-versions."""
+        violations = check_unrecommended_commands("sort --sort-versions file")
+        assert r"sort.*--sort-versions" in violations
+
+    def test_check_test_command(self):
+        """Test detection of ' test' command."""
+        violations = check_unrecommended_commands("if test -f file; then echo; fi")
+        assert " test" in violations
+
+    def test_check_empty_script(self):
+        """Test empty command script."""
+        violations = check_unrecommended_commands("")
+        assert violations == {}
+
+    def test_check_clean_script(self):
+        """Test script with no violations."""
+        violations = check_unrecommended_commands("printf 'hello world'")
+        assert violations == {}

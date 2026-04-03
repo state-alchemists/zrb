@@ -129,6 +129,7 @@ class LLMChatTask(BaseTask):
         ui_yolo_toggle_commands: list[str] | None = None,
         ui_set_model_commands: list[str] | None = None,
         ui_exec_commands: list[str] | None = None,
+        ui_btw_commands: list[str] | None = None,
         custom_commands: (
             list[
                 AnyCustomCommand
@@ -272,6 +273,7 @@ class LLMChatTask(BaseTask):
         self._ui_exec_commands = (
             ui_exec_commands if ui_exec_commands is not None else []
         )
+        self._ui_btw_commands = ui_btw_commands if ui_btw_commands is not None else []
         self._custom_commands = custom_commands if custom_commands is not None else []
         self._ui_greeting = ui_greeting
         self._render_ui_greeting = render_ui_greeting
@@ -540,6 +542,11 @@ class LLMChatTask(BaseTask):
                 if self._ui_exec_commands
                 else CFG.LLM_UI_COMMAND_EXEC
             ),
+            "btw": (
+                self._ui_btw_commands
+                if self._ui_btw_commands
+                else CFG.LLM_UI_COMMAND_BTW
+            ),
         }
 
     def _create_llm_task_core(
@@ -773,6 +780,7 @@ class LLMChatTask(BaseTask):
                 set_model_commands=ui_commands["set_model"],
                 redirect_output_commands=ui_commands["redirect_output"],
                 exec_commands=ui_commands["exec"],
+                btw_commands=ui_commands["btw"],
                 custom_commands=resolved_custom_commands,
                 model=self._get_model(ctx),
             )
@@ -824,6 +832,7 @@ class LLMChatTask(BaseTask):
                 set_model_commands=ui_commands["set_model"],
                 redirect_output_commands=ui_commands["redirect_output"],
                 exec_commands=ui_commands["exec"],
+                btw_commands=ui_commands["btw"],
                 custom_commands=resolved_custom_commands,
                 model=self._get_model(ctx),
             )

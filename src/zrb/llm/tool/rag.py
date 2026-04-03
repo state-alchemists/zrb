@@ -54,28 +54,6 @@ def create_rag_from_directory(
 
     The generated tool is ideal for answering questions based on a specific set of documents,
     such as project documentation or internal wikis.
-
-    Args:
-        tool_name (str): The name for the generated RAG tool (e.g., "search_project_docs").
-        tool_description (str): A clear description of what the tool does and when to use it.
-            This is what the LLM will see.
-        document_dir_path (str, optional): The path to the directory containing the documents
-            to be indexed.
-        vector_db_path (str, optional): The path where the ChromaDB vector database will be
-            stored.
-        vector_db_collection (str, optional): The name of the collection within the vector
-            database.
-        chunk_size (int, optional): The size of text chunks for embedding.
-        overlap (int, optional): The overlap between text chunks.
-        max_result_count (int, optional): The maximum number of search results to return.
-        file_reader (list[RAGFileReader], optional): A list of custom file readers for
-            specific file types.
-        model_api_key (str, optional): Your API key for generating embeddings.
-        model_base_url (str, optional): An optional base URL for the OpenAI API.
-        model_name (str, optional): The embedding model to use.
-
-    Returns:
-        An asynchronous function that serves as the RAG tool.
     """
 
     async def retrieve(
@@ -266,14 +244,9 @@ def create_rag_from_directory(
         This tool performs a semantic search across a curated knowledge base of documents.
         It is highly effective for answering questions that require specific project knowledge not found in general training data.
 
-        **ARGS:**
-        - `query` (str): The semantic search query or question.
-        - `api_key` (str, optional): Embedding API key. Falls back to tool default or CFG.RAG_EMBEDDING_API_KEY.
-        - `base_url` (str, optional): Embedding API base URL. Falls back to tool default or CFG.RAG_EMBEDDING_BASE_URL.
-        - `embedding_model` (str, optional): Embedding model name. Falls back to tool default or CFG.RAG_EMBEDDING_MODEL.
-
-        **RETURNS:**
-        - A dictionary containing matching document chunks ("documents") and their metadata.
+        MANDATES:
+        - Use to find high-signal information in project documentation or internal wikis.
+        - The query should be semantic (natural language) for best results.
         """).strip()
     return retrieve
 

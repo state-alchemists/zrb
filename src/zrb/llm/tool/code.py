@@ -257,13 +257,6 @@ def _get_file_metadatas(
 ) -> list[dict[str, str]]:
     """Get file metadata for analysis.
 
-    Args:
-        dir_path: Directory path to scan
-        extensions: File extensions to include
-        include_patterns: Patterns to include
-        exclude_patterns: Patterns to exclude
-        use_lsp: Whether to use LSP for semantic analysis (async, needs to be called separately)
-
     Returns:
         List of file metadata dicts
     """

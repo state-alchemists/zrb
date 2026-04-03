@@ -88,6 +88,7 @@ class Config:
         self.DEFAULT_LLM_UI_COMMAND_REDIRECT_OUTPUT: str = ">, /redirect"
         self.DEFAULT_LLM_UI_COMMAND_EXEC: str = "!, /exec"
         self.DEFAULT_LLM_UI_COMMAND_SET_MODEL: str = "/model"
+        self.DEFAULT_LLM_UI_COMMAND_BTW: str = "/btw"
         self.DEFAULT_LLM_HISTORY_DIR: str = ""
         self.DEFAULT_LLM_JOURNAL_DIR: str = ""
         self.DEFAULT_LLM_JOURNAL_INDEX_FILE: str = "index.md"
@@ -876,6 +877,19 @@ class Config:
     @LLM_UI_COMMAND_SET_MODEL.setter
     def LLM_UI_COMMAND_SET_MODEL(self, value: list[str]):
         os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_SET_MODEL"] = ",".join(value)
+
+    @property
+    def LLM_UI_COMMAND_BTW(self) -> list[str]:
+        cmd_str = get_env(
+            "LLM_UI_COMMAND_BTW",
+            self.DEFAULT_LLM_UI_COMMAND_BTW,
+            self.ENV_PREFIX,
+        )
+        return [cmd.strip() for cmd in cmd_str.split(",") if cmd.strip() != ""]
+
+    @LLM_UI_COMMAND_BTW.setter
+    def LLM_UI_COMMAND_BTW(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_BTW"] = ",".join(value)
 
     @property
     def LLM_HISTORY_DIR(self) -> str:

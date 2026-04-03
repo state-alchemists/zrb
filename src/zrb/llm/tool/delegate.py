@@ -126,14 +126,6 @@ async def _run_agent_task(
 ) -> AgentTaskResult:
     """Run a single agent task and return structured result.
 
-    Args:
-        agent_name: Name of the sub-agent to run.
-        task: Task description for the agent.
-        additional_context: Optional additional context.
-        sub_agent_manager: Manager to create agents from.
-        ui: UI protocol for output.
-        flush_ui: If True, flush buffered UI after completion (for BufferedUI).
-
     Returns:
         AgentTaskResult with agent_name, result (if successful), and error (if failed).
     """
@@ -216,9 +208,10 @@ def create_delegate_to_agent_tool(
         "Delegates a task to a subagent for isolated execution.\n\n"
         "Use when: task affects many files, or would pollute your context.\n"
         "Don't use for: simple fixes (typos, single-file changes).\n\n"
-        "Provide complete context—subagent can't see your conversation history.\n"
-        "Report all findings back to user; they cannot see subagent output directly.\n\n"
-        "For parallel tasks, use `DelegateToAgentsParallel`.\n\n"
+        "MANDATES:\n"
+        "- Provide complete context—subagent can't see your conversation history.\n"
+        "- Report all findings back to user; they cannot see subagent output directly.\n"
+        "- For parallel tasks, use `DelegateToAgentsParallel`.\n\n"
         f"AVAILABLE AGENTS:\n{agent_doc_section}"
     )
     return delegate_to_agent
@@ -243,23 +236,14 @@ def create_parallel_delegate_tool(
         tasks: list[dict[str, str]],
     ) -> str:
         """
-        Delegate multiple tasks to sub-agents in parallel.
+        Delegates multiple tasks to subagents in parallel.
 
-        Each task should be a dict with:
-        - agent_name: Name of the sub-agent
-        - task: Task description
-        - additional_context: (optional) Additional context
+        Use when: multiple independent subtasks that can run simultaneously.
 
         MANDATES:
-        - Each sub-agent is a BLANK SLATE without your history/context.
-        - User CANNOT see sub-agent outputs directly. You MUST report all findings.
+        - Each subagent needs full context—they can't see your conversation history.
+        - Report all findings back to user; they cannot see subagent output directly.
         - Tool approvals are processed sequentially to prevent UI conflicts.
-
-        Args:
-            tasks: List of task dicts, each with agent_name and task (and optional additional_context)
-
-        Returns:
-            Combined results from all sub-agents.
         """
         if not tasks:
             return "No tasks provided."
@@ -320,14 +304,10 @@ def create_parallel_delegate_tool(
     parallel_delegate_to_agents.__doc__ = (
         "Delegates multiple tasks to subagents in parallel.\n\n"
         "Use when: multiple independent subtasks that can run simultaneously.\n\n"
-        "Each subagent needs full context—they can't see your conversation history.\n"
-        "Report all findings back to user; they cannot see subagent output directly.\n\n"
-        "Tool approvals are processed sequentially to prevent UI conflicts.\n\n"
-        "Args:\n"
-        "    tasks: List of dicts with:\n"
-        "        - agent_name: Subagent name\n"
-        "        - task: Task description\n"
-        "        - additional_context: (optional) Extra context\n\n"
+        "MANDATES:\n"
+        "- Each subagent needs full context—they can't see your conversation history.\n"
+        "- Report all findings back to user; they cannot see subagent output directly.\n"
+        "- Tool approvals are processed sequentially to prevent UI conflicts.\n\n"
         f"AVAILABLE AGENTS:\n{agent_doc_section}"
     )
     return parallel_delegate_to_agents

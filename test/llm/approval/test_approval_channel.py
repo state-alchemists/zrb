@@ -663,3 +663,176 @@ class TestMultiplexApprovalChannel:
 
         # Should not raise
         await channel.notify("Test", context)
+
+    @pytest.mark.asyncio
+    async def test_multiplex_request_approval_shutdown(self):
+        """Test that request_approval returns denied on shutdown."""
+        import sys
+
+        from zrb.llm.approval.multiplex_approval_channel import (
+            MultiplexApprovalChannel,
+            is_shutdown_requested,
+        )
+
+        # Mock shutdown requested
+        original = getattr(sys, "_zrb_shutdown_requested", False)
+        try:
+            setattr(sys, "_zrb_shutdown_requested", True)
+
+            mock_channel = MagicMock(spec=ApprovalChannel)
+            mock_channel.request_approval = AsyncMock(
+                return_value=ApprovalResult(approved=True, message="Approved")
+            )
+
+            channel = MultiplexApprovalChannel([mock_channel])
+            context = ApprovalContext(
+                tool_name="Bash",
+                tool_args={},
+                tool_call_id="call_shutdown_001",
+            )
+
+            result = await channel.request_approval(context)
+
+            assert result.approved is False
+            assert "Shutdown" in result.message
+            # Should not call the channel
+            mock_channel.request_approval.assert_not_called()
+        finally:
+            setattr(sys, "_zrb_shutdown_requested", original)
+
+    @pytest.mark.asyncio
+    async def test_multiplex_notify_shutdown(self):
+        """Test that notify returns early on shutdown."""
+        import sys
+
+        from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
+
+        # Mock shutdown requested
+        original = getattr(sys, "_zrb_shutdown_requested", False)
+        try:
+            setattr(sys, "_zrb_shutdown_requested", True)
+
+            mock_channel = MagicMock(spec=ApprovalChannel)
+            mock_channel.notify = AsyncMock()
+
+            channel = MultiplexApprovalChannel([mock_channel])
+            context = ApprovalContext(
+                tool_name="Read",
+                tool_args={},
+                tool_call_id="call_notify_shutdown_001",
+            )
+
+            await channel.notify("Test", context)
+
+            # Should not call notify on the channel
+            mock_channel.notify.assert_not_called()
+        finally:
+            setattr(sys, "_zrb_shutdown_requested", original)
+
+    @pytest.mark.asyncio
+    async def test_multiplex_notify_without_context(self, mock_channel):
+        """Test that notify works without context parameter."""
+        from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
+
+        channel = MultiplexApprovalChannel([mock_channel])
+
+        await channel.notify("Test notification")
+
+        mock_channel.notify.assert_called_once_with("Test notification", None)
+
+    @pytest.mark.asyncio
+    async def test_multiplex_all_channels_fail(self):
+        """Test that request_approval handles all channels failing."""
+        import asyncio
+
+        from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
+
+        async def failing_channel(ctx):
+            raise Exception("Channel error")
+
+        mock_channel1 = MagicMock(spec=ApprovalChannel)
+        mock_channel1.request_approval = failing_channel
+
+        mock_channel2 = MagicMock(spec=ApprovalChannel)
+        mock_channel2.request_approval = failing_channel
+
+        channel = MultiplexApprovalChannel([mock_channel1, mock_channel2])
+        context = ApprovalContext(
+            tool_name="Write",
+            tool_args={},
+            tool_call_id="call_all_fail_001",
+        )
+
+        # Should handle gracefully when all channels fail
+        # The first completed sets the future with the error result
+        result = await channel.request_approval(context)
+
+        # Result should have error message since all channels failed
+        assert result is not None
+        assert result.approved is False
+        assert "error" in result.message.lower() or "Error" in result.message
+
+    @pytest.mark.asyncio
+    async def test_multiplex_cancellation_propagation(self):
+        """Test that external cancellation propagates correctly."""
+        import asyncio
+
+        from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
+
+        started = asyncio.Event()
+        cancelled = asyncio.Event()
+
+        async def slow_channel(ctx):
+            started.set()
+            await asyncio.sleep(10)  # Would block forever
+            return ApprovalResult(approved=True, message="Never")
+
+        mock_channel = MagicMock(spec=ApprovalChannel)
+        mock_channel.request_approval = slow_channel
+
+        channel = MultiplexApprovalChannel([mock_channel])
+        context = ApprovalContext(
+            tool_name="Bash",
+            tool_args={},
+            tool_call_id="call_cancel_001",
+        )
+
+        async def run_and_cancel():
+            task = asyncio.create_task(channel.request_approval(context))
+            await started.wait()  # Wait for the slow channel to start
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                cancelled.set()
+                raise
+
+        with pytest.raises(asyncio.CancelledError):
+            await run_and_cancel()
+
+        assert cancelled.is_set()
+
+    @pytest.mark.asyncio
+    async def test_is_shutdown_requested_utility(self):
+        """Test the is_shutdown_requested utility function."""
+        import sys
+
+        from zrb.llm.approval.multiplex_approval_channel import is_shutdown_requested
+
+        # Default should be False
+        original = getattr(sys, "_zrb_shutdown_requested", False)
+        try:
+            # Test default
+            if hasattr(sys, "_zrb_shutdown_requested"):
+                delattr(sys, "_zrb_shutdown_requested")
+            assert is_shutdown_requested() is False
+
+            # Test set to True
+            setattr(sys, "_zrb_shutdown_requested", True)
+            assert is_shutdown_requested() is True
+
+            # Test set to False
+            setattr(sys, "_zrb_shutdown_requested", False)
+            assert is_shutdown_requested() is False
+        finally:
+            setattr(sys, "_zrb_shutdown_requested", original)
