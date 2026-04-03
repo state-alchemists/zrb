@@ -151,6 +151,175 @@ class TestDefaultResponseHandler:
         assert isinstance(result, ToolApproved)
 
 
+class TestDefaultResponseHandlerEdit:
+    """Test default_response_handler edit functionality."""
+
+    @pytest.mark.asyncio
+    async def test_response_edit_with_modified_args(self):
+        """Test 'edit' response with modified arguments approves with override."""
+        from pydantic_ai import ToolApproved
+
+        from zrb.llm.tool_call.response_handler.default import default_response_handler
+
+        ui = MagicMock()
+        ui.append_to_output = MagicMock()
+
+        call = MagicMock()
+        call.args = {"command": "original"}
+
+        async def mock_edit_content_via_editor(ui, args, text_editor=None):
+            return {"command": "modified"}
+
+        with patch(
+            "zrb.llm.tool_call.edit_util.edit_content_via_editor",
+            mock_edit_content_via_editor,
+        ):
+            result = await default_response_handler(ui, call, "edit", AsyncMock())
+
+        assert isinstance(result, ToolApproved)
+        assert result.override_args == {"command": "modified"}
+
+    @pytest.mark.asyncio
+    async def test_response_edit_with_str_args(self):
+        """Test 'edit' response with string args parses JSON."""
+        from pydantic_ai import ToolApproved
+
+        from zrb.llm.tool_call.response_handler.default import default_response_handler
+
+        ui = MagicMock()
+        ui.append_to_output = MagicMock()
+
+        call = MagicMock()
+        call.args = '{"command": "test"}'  # String args
+
+        async def mock_edit_content_via_editor(ui, args, text_editor=None):
+            return {"command": "edited"}
+
+        with patch(
+            "zrb.llm.tool_call.edit_util.edit_content_via_editor",
+            mock_edit_content_via_editor,
+        ):
+            result = await default_response_handler(ui, call, "e", AsyncMock())
+
+        assert isinstance(result, ToolApproved)
+
+    @pytest.mark.asyncio
+    async def test_response_edit_with_invalid_json_string_args(self):
+        """Test 'edit' response with invalid JSON string uses empty dict."""
+        from pydantic_ai import ToolApproved
+
+        from zrb.llm.tool_call.response_handler.default import default_response_handler
+
+        ui = MagicMock()
+        ui.append_to_output = MagicMock()
+
+        call = MagicMock()
+        call.args = "not valid json"  # Invalid JSON string
+
+        async def mock_edit_content_via_editor(ui, args, text_editor=None):
+            assert args == {}  # Should fallback to empty dict
+            return {"command": "new"}
+
+        with patch(
+            "zrb.llm.tool_call.edit_util.edit_content_via_editor",
+            mock_edit_content_via_editor,
+        ):
+            result = await default_response_handler(ui, call, "edit", AsyncMock())
+
+        assert isinstance(result, ToolApproved)
+
+    @pytest.mark.asyncio
+    async def test_response_edit_with_non_dict_args(self):
+        """Test 'edit' response with non-dict args converts to empty dict."""
+        from pydantic_ai import ToolApproved
+
+        from zrb.llm.tool_call.response_handler.default import default_response_handler
+
+        ui = MagicMock()
+        ui.append_to_output = MagicMock()
+
+        call = MagicMock()
+        call.args = 123  # Non-dict, non-string args
+
+        async def mock_edit_content_via_editor(ui, args, text_editor=None):
+            assert args == {}  # Should fallback to empty dict
+            return {"command": "new"}
+
+        with patch(
+            "zrb.llm.tool_call.edit_util.edit_content_via_editor",
+            mock_edit_content_via_editor,
+        ):
+            result = await default_response_handler(ui, call, "edit", AsyncMock())
+
+        assert isinstance(result, ToolApproved)
+
+    @pytest.mark.asyncio
+    async def test_response_edit_returns_none_on_invalid_format(self):
+        """Test 'edit' response returns None when edit_content_via_editor returns None."""
+        from zrb.llm.tool_call.response_handler.default import default_response_handler
+
+        ui = MagicMock()
+        ui.append_to_output = MagicMock()
+
+        call = MagicMock()
+        call.args = {"command": "test"}
+
+        async def mock_edit_content_via_editor(ui, args, text_editor=None):
+            return None  # Invalid format
+
+        with patch(
+            "zrb.llm.tool_call.edit_util.edit_content_via_editor",
+            mock_edit_content_via_editor,
+        ):
+            result = await default_response_handler(ui, call, "edit", AsyncMock())
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_response_edit_returns_none_on_no_changes(self):
+        """Test 'edit' response returns None when no changes made."""
+        from zrb.llm.tool_call.response_handler.default import default_response_handler
+
+        ui = MagicMock()
+        ui.append_to_output = MagicMock()
+
+        call = MagicMock()
+        call.args = {"command": "test"}
+
+        async def mock_edit_content_via_editor(ui, args, text_editor=None):
+            return args  # Same as input, no changes
+
+        with patch(
+            "zrb.llm.tool_call.edit_util.edit_content_via_editor",
+            mock_edit_content_via_editor,
+        ):
+            result = await default_response_handler(ui, call, "edit", AsyncMock())
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_response_edit_handles_exception(self):
+        """Test 'edit' response handles exceptions gracefully."""
+        from zrb.llm.tool_call.response_handler.default import default_response_handler
+
+        ui = MagicMock()
+        ui.append_to_output = MagicMock()
+
+        call = MagicMock()
+        call.args = {"command": "test"}
+
+        async def mock_edit_content_via_editor(ui, args, text_editor=None):
+            raise ValueError("Editor failed")
+
+        with patch(
+            "zrb.llm.tool_call.edit_util.edit_content_via_editor",
+            mock_edit_content_via_editor,
+        ):
+            result = await default_response_handler(ui, call, "edit", AsyncMock())
+
+        assert result is None
+
+
 class TestEditContentViaEditor:
     """Test edit_content_via_editor function."""
 

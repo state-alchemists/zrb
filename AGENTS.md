@@ -84,3 +84,12 @@ source .venv/bin/activate && ./zrb-test.sh [parameter]
 - ❌ No suffixes: `_advanced.py`, `_coverage.py`, `_extra.py`, `_comprehensive.py`
 - ✅ Single source of truth: Update main test file (e.g., `test_manager.py`)
 - ✅ Split large files (>500 lines) by **feature group** (e.g., `test_manager_lifecycle.py`, `test_manager_search.py`), NOT by depth or coverage level
+
+**Coverage Exclusions (`.coveragerc`):**
+The following files are excluded from coverage reporting:
+- **Protocol/Interface files** (`any_*.py`): Base protocols and interfaces that define contracts but have no implementation
+- **Entry points** (`__main__.py`): Script entry points that are tested via integration tests
+- **Package init files** (`__init__.py`): Re-exports only, tested through public API usage
+- **User init file** (`zrb_init.py`): User-defined initialization, not library code
+
+Do NOT attempt to test these excluded files directly. They are intentionally omitted from coverage metrics.
