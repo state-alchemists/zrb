@@ -168,11 +168,15 @@ async def summarize_history(
     summary_window: int | None = None,
     limiter: "LLMLimiter | None" = None,
     conversational_token_threshold: int | None = None,
+    force: bool = False,
 ) -> "list[ModelMessage]":
     """
     Summarizes the history, keeping the last `summary_window` messages intact.
     Handles very large histories by summarizing in chunks.
     Returns a new list of messages where older messages are replaced by a summary.
+
+    When `force=True`, compression is performed even if the conversation is within
+    the normal token/window limits (e.g. triggered by an explicit /compress command).
     """
     try:
         # 1. Setup Configs
@@ -188,7 +192,11 @@ async def summarize_history(
             messages, summary_window, llm_limiter, conversational_token_threshold
         )
         if not to_summarize:
-            return messages
+            if not force:
+                return messages
+            # Force mode: compress everything regardless of limits
+            to_summarize = messages
+            to_keep = []
         # 2. Iterative Summarization of Historical turns
         summarizer_agent = agent or create_conversational_summarizer_agent()
         summary_text = await chunk_and_summarize(
