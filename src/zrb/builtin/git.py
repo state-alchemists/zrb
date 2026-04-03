@@ -111,9 +111,7 @@ async def prune_local_branches(ctx: AnyContext):
         ctx.print(stylize_faint(f"Checking if branch is merged to HEAD: {branch}"))
         is_merged = await is_branch_merged(repo_dir, branch, print_method=ctx.print)
         if not is_merged:
-            ctx.print(
-                stylize_yellow(f"Skipping non-merged branch: {branch}")
-            )
+            ctx.print(stylize_yellow(f"Skipping non-merged branch: {branch}"))
             continue
         ctx.print(stylize_faint(f"Removing local branch: {branch}"))
         try:
