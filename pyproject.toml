@@ -86,14 +86,20 @@ pyperclip = "^1.11.0"
 # langchain-core is a transitive dependency via voyageai
 langchain-core = {version = ">=1.2.22", optional = true}
 
-# Security fix: CVE-2026-34073
-# cryptography is a transitive dependency via PyJWT
-# cryptography = "^46.0.6"
-
 # Security fix: CVE-2026-23491 - DoS via uncontrolled recursion in ASN.1 decoding
 # pyasn1 is a transitive dependency via google-auth -> pyasn1-modules and google-auth -> rsa.
 # We pin >=0.6.3 to ensure the patched version is used.
-pyasn1 = ">=0.6.3"
+pyasn1 = {version = ">=0.6.3", optional = true}
+
+# Security fix: CVE-2026-4539 - ReDoS vulnerability in AdlLexer (GUID regex)
+# pygments is a transitive dependency via rich and pytest.
+# We pin >=2.20.0 to ensure the patched version is used.
+pygments = ">=2.20.0"
+
+# Security fix: CVE-2026-34516 - aiohttp vulnerability
+# aiohttp is a transitive dependency via voyageai and xai-sdk.
+# We pin >=3.13.4 to ensure the patched version is used.
+aiohttp = {version = ">=3.13.4", optional = true}
 
 [tool.poetry.extras]
 # Install all extras:
@@ -106,16 +112,16 @@ pyasn1 = ">=0.6.3"
 rag = ["chromadb"]
 playwright = ["playwright"]
 cohere = ["cohere"]
-vertexai = ["google-auth"]
+vertexai = ["google-auth", "pyasn1"]
 google = ["google-genai"]
 anthropic = ["anthropic"]
 groq = ["groq"]
-xai = ["xai-sdk"]
+xai = ["xai-sdk", "aiohttp"]
 mistral = ["mistralai"]
 bedrock = ["boto3"]
 huggingface = ["huggingface-hub"]
-voyageai = ["voyageai", "langchain-core"]
-all = ["chromadb", "playwright", "cohere", "google-auth", "google-genai", "anthropic", "groq", "mistral", "bedrock", "huggingface", "xai", "voyageai"]
+voyageai = ["voyageai", "langchain-core", "aiohttp"]
+all = ["chromadb", "playwright", "cohere", "google-auth", "google-genai", "anthropic", "groq", "mistral", "bedrock", "huggingface", "xai", "voyageai", "aiohttp", "pyasn1"]
 
 [tool.poetry.group.dev.dependencies]
 autopep8 = "^2.3.2"

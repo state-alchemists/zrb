@@ -10,6 +10,9 @@ omit =
     src/zrb/session/any_session.py 
     src/zrb/session_state_logger/any_session_state_logger.py 
     src/zrb/task/any_task.py
+    src/zrb/llm/history_manager/any_history_manager.py
+    src/zrb/llm/custom_command/any_custom_command.py
+    src/zrb/llm/hook/interface.py
     src/zrb/**/__init__.py
     zrb_init.py
    
