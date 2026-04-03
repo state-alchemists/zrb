@@ -12,6 +12,7 @@ from zrb.util.git import (
     get_current_branch,
     get_diff,
     get_repo_dir,
+    is_branch_merged,
     pull,
     push,
 )
@@ -106,6 +107,13 @@ async def prune_local_branches(ctx: AnyContext):
     ]
     for branch in branches:
         if branch == current_branch or branch in preserved_branches:
+            continue
+        ctx.print(stylize_faint(f"Checking if branch is merged to HEAD: {branch}"))
+        is_merged = await is_branch_merged(repo_dir, branch, print_method=ctx.print)
+        if not is_merged:
+            ctx.print(
+                stylize_yellow(f"Skipping non-merged branch: {branch}")
+            )
             continue
         ctx.print(stylize_faint(f"Removing local branch: {branch}"))
         try:
