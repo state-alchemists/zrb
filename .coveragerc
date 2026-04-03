@@ -11,6 +11,7 @@ omit =
     src/zrb/session_state_logger/any_session_state_logger.py 
     src/zrb/task/any_task.py
     src/zrb/**/__init__.py
+    zrb_init.py
    
 [report]
 # Show missing lines in the terminal report

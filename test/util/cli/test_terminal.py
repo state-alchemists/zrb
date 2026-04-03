@@ -145,3 +145,64 @@ class TestGetTerminalSize:
                         mock_shutil.return_value.lines = 24
                         size = get_terminal_size()
                         assert size.columns == 80
+
+    def test_shutil_exception_fallback(self):
+        """Test get_terminal_size fallback when shutil raises exception."""
+        from zrb.util.cli.terminal import get_terminal_size
+
+        with patch.object(sys, "__stdout__", None):
+            with patch.object(sys, "__stderr__", None):
+                with patch.object(sys, "__stdin__", None):
+                    with patch(
+                        "shutil.get_terminal_size", side_effect=RuntimeError("Error")
+                    ):
+                        size = get_terminal_size(fallback=(100, 30))
+                        assert size.columns == 100
+                        assert size.lines == 30
+
+    def test_stderr_stream_success(self):
+        """Test get_terminal_size uses stderr when stdout fails."""
+        from zrb.util.cli.terminal import get_terminal_size
+
+        mock_stdout = MagicMock()
+        mock_stdout.fileno.side_effect = OSError("No tty")
+
+        mock_stderr = MagicMock()
+        mock_stderr.fileno.return_value = 2
+
+        mock_size = MagicMock()
+        mock_size.columns = 90
+        mock_size.lines = 40
+
+        with patch.object(sys, "__stdout__", mock_stdout):
+            with patch.object(sys, "__stderr__", mock_stderr):
+                with patch.object(sys, "__stdin__", None):
+                    with patch("os.get_terminal_size", return_value=mock_size):
+                        size = get_terminal_size()
+                        assert size.columns == 90
+                        assert size.lines == 40
+
+    def test_stdin_stream_success(self):
+        """Test get_terminal_size uses stdin when stdout and stderr fail."""
+        from zrb.util.cli.terminal import get_terminal_size
+
+        mock_stdout = MagicMock()
+        mock_stdout.fileno.side_effect = OSError("No tty")
+
+        mock_stderr = MagicMock()
+        mock_stderr.fileno.side_effect = OSError("No tty")
+
+        mock_stdin = MagicMock()
+        mock_stdin.fileno.return_value = 0
+
+        mock_size = MagicMock()
+        mock_size.columns = 85
+        mock_size.lines = 35
+
+        with patch.object(sys, "__stdout__", mock_stdout):
+            with patch.object(sys, "__stderr__", mock_stderr):
+                with patch.object(sys, "__stdin__", mock_stdin):
+                    with patch("os.get_terminal_size", return_value=mock_size):
+                        size = get_terminal_size()
+                        assert size.columns == 85
+                        assert size.lines == 35

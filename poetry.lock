@@ -1780,7 +1780,7 @@ description = "Common protobufs used in Google APIs"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"rag\" or extra == \"all\" or extra == \"xai\" or extra == \"mistral\""
+markers = "extra == \"rag\" or extra == \"all\" or extra == \"xai\""
 files = [
     {file = "googleapis_common_protos-1.72.0-py3-none-any.whl", hash = "sha256:4299c5a82d5ae1a9702ada957347726b167f9f8d1fc352477702a1e851ff4038"},
     {file = "googleapis_common_protos-1.72.0.tar.gz", hash = "sha256:e55a601c1b32b52d7a3e65f43563e2aa61bcd737998ee672ac9b951cd49319f5"},
@@ -2248,19 +2248,6 @@ files = [
 ]
 
 [[package]]
-name = "invoke"
-version = "2.2.1"
-description = "Pythonic task execution"
-optional = true
-python-versions = ">=3.6"
-groups = ["main"]
-markers = "extra == \"mistral\""
-files = [
-    {file = "invoke-2.2.1-py3-none-any.whl", hash = "sha256:2413bc441b376e5cd3f55bb5d364f973ad8bdd7bf87e53c79de3c11bf3feecc8"},
-    {file = "invoke-2.2.1.tar.gz", hash = "sha256:515bf49b4a48932b79b024590348da22f39c4942dff991ad1fb8b8baea1be707"},
-]
-
-[[package]]
 name = "isort"
 version = "7.0.0"
 description = "A Python utility / library to sort Python imports."
@@ -2434,6 +2421,22 @@ files = [
 
 [package.dependencies]
 jsonpointer = ">=1.9"
+
+[[package]]
+name = "jsonpath-python"
+version = "1.1.5"
+description = "A lightweight and powerful JSONPath implementation for Python"
+optional = true
+python-versions = ">=3.8"
+groups = ["main"]
+markers = "extra == \"mistral\""
+files = [
+    {file = "jsonpath_python-1.1.5-py3-none-any.whl", hash = "sha256:a60315404d70a65e76c9a782c84e50600480221d94a58af47b7b4d437351cb4b"},
+    {file = "jsonpath_python-1.1.5.tar.gz", hash = "sha256:ceea2efd9e56add09330a2c9631ea3d55297b9619348c1055e5bfb9cb0b8c538"},
+]
+
+[package.extras]
+dev = ["poethepoet", "pytest (>=8.0)", "pytest-benchmark[histogram] (>=4.0)", "pytest-cov (>=5.0)", "ruff (>=0.3)"]
 
 [[package]]
 name = "jsonpointer"
@@ -2796,27 +2799,25 @@ files = [
 
 [[package]]
 name = "mistralai"
-version = "1.12.4"
+version = "2.2.0"
 description = "Python Client SDK for the Mistral AI API."
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
 markers = "extra == \"mistral\""
 files = [
-    {file = "mistralai-1.12.4-py3-none-any.whl", hash = "sha256:7b69fcbc306436491ad3377fbdead527c9f3a0ce145ec029bf04c6308ff2cca6"},
-    {file = "mistralai-1.12.4.tar.gz", hash = "sha256:e52b53bab58025dcd208eeac13e3c3df5778d4112eeca1f08124096c7738929f"},
+    {file = "mistralai-2.2.0-py3-none-any.whl", hash = "sha256:9e0cea19eb5281428010c9a220f186e5db0993cfe88f8855ef9d69291956f40b"},
+    {file = "mistralai-2.2.0.tar.gz", hash = "sha256:48abfa247ea5a888400ee294a5c1e090ae7e1445cc8cd008c120ae1e3b8eb9eb"},
 ]
 
 [package.dependencies]
 eval-type-backport = ">=0.2.0"
 httpx = ">=0.28.1"
-invoke = ">=2.2.0,<3.0.0"
+jsonpath-python = ">=1.0.6"
 opentelemetry-api = ">=1.33.1,<2.0.0"
-opentelemetry-exporter-otlp-proto-http = ">=1.37.0,<2.0.0"
-opentelemetry-sdk = ">=1.33.1,<2.0.0"
-pydantic = ">=2.10.3"
+opentelemetry-semantic-conventions = ">=0.60b1,<0.61"
+pydantic = ">=2.11.2"
 python-dateutil = ">=2.8.2"
-pyyaml = ">=6.0.2,<7.0.0"
 typing-inspection = ">=0.4.0"
 
 [package.extras]
@@ -3283,14 +3284,14 @@ sympy = "*"
 
 [[package]]
 name = "openai"
-version = "2.26.0"
+version = "2.30.0"
 description = "The official Python library for the openai API"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "openai-2.26.0-py3-none-any.whl", hash = "sha256:6151bf8f83802f036117f06cc8a57b3a4da60da9926826cc96747888b57f394f"},
-    {file = "openai-2.26.0.tar.gz", hash = "sha256:b41f37c140ae0034a6e92b0c509376d907f3a66109935fba2c1b471a7c05a8fb"},
+    {file = "openai-2.30.0-py3-none-any.whl", hash = "sha256:9a5ae616888eb2748ec5e0c5b955a51592e0b201a11f4262db920f2a78c5231d"},
+    {file = "openai-2.30.0.tar.gz", hash = "sha256:92f7661c990bda4b22a941806c83eabe4896c3094465030dd882a71abe80c885"},
 ]
 
 [package.dependencies]
@@ -3301,7 +3302,7 @@ jiter = ">=0.10.0,<1"
 pydantic = ">=1.9.0,<3"
 sniffio = "*"
 tqdm = ">4"
-typing-extensions = ">=4.11,<5"
+typing-extensions = ">=4.14,<5"
 
 [package.extras]
 aiohttp = ["aiohttp", "httpx-aiohttp (>=0.1.9)"]
@@ -3311,14 +3312,14 @@ voice-helpers = ["numpy (>=2.0.2)", "sounddevice (>=0.5.1)"]
 
 [[package]]
 name = "opentelemetry-api"
-version = "1.40.0"
+version = "1.39.1"
 description = "OpenTelemetry Python API"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "opentelemetry_api-1.40.0-py3-none-any.whl", hash = "sha256:82dd69331ae74b06f6a874704be0cfaa49a1650e1537d4a813b86ecef7d0ecf9"},
-    {file = "opentelemetry_api-1.40.0.tar.gz", hash = "sha256:159be641c0b04d11e9ecd576906462773eb97ae1b657730f0ecf64d32071569f"},
+    {file = "opentelemetry_api-1.39.1-py3-none-any.whl", hash = "sha256:2edd8463432a7f8443edce90972169b195e7d6a05500cd29e6d13898187c9950"},
+    {file = "opentelemetry_api-1.39.1.tar.gz", hash = "sha256:fbde8c80e1b937a2c61f20347e91c0c18a1940cecf012d62e65a7caf08967c9c"},
 ]
 
 [package.dependencies]
@@ -3327,85 +3328,59 @@ typing-extensions = ">=4.5.0"
 
 [[package]]
 name = "opentelemetry-exporter-otlp-proto-common"
-version = "1.40.0"
+version = "1.39.1"
 description = "OpenTelemetry Protobuf encoding"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"rag\" or extra == \"all\" or extra == \"mistral\""
+markers = "extra == \"rag\" or extra == \"all\""
 files = [
-    {file = "opentelemetry_exporter_otlp_proto_common-1.40.0-py3-none-any.whl", hash = "sha256:7081ff453835a82417bf38dccf122c827c3cbc94f2079b03bba02a3165f25149"},
-    {file = "opentelemetry_exporter_otlp_proto_common-1.40.0.tar.gz", hash = "sha256:1cbee86a4064790b362a86601ee7934f368b81cd4cc2f2e163902a6e7818a0fa"},
+    {file = "opentelemetry_exporter_otlp_proto_common-1.39.1-py3-none-any.whl", hash = "sha256:08f8a5862d64cc3435105686d0216c1365dc5701f86844a8cd56597d0c764fde"},
+    {file = "opentelemetry_exporter_otlp_proto_common-1.39.1.tar.gz", hash = "sha256:763370d4737a59741c89a67b50f9e39271639ee4afc999dadfe768541c027464"},
 ]
 
 [package.dependencies]
-opentelemetry-proto = "1.40.0"
+opentelemetry-proto = "1.39.1"
 
 [[package]]
 name = "opentelemetry-exporter-otlp-proto-grpc"
-version = "1.40.0"
+version = "1.39.1"
 description = "OpenTelemetry Collector Protobuf over gRPC Exporter"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
 markers = "extra == \"rag\" or extra == \"all\""
 files = [
-    {file = "opentelemetry_exporter_otlp_proto_grpc-1.40.0-py3-none-any.whl", hash = "sha256:2aa0ca53483fe0cf6405087a7491472b70335bc5c7944378a0a8e72e86995c52"},
-    {file = "opentelemetry_exporter_otlp_proto_grpc-1.40.0.tar.gz", hash = "sha256:bd4015183e40b635b3dab8da528b27161ba83bf4ef545776b196f0fb4ec47740"},
+    {file = "opentelemetry_exporter_otlp_proto_grpc-1.39.1-py3-none-any.whl", hash = "sha256:fa1c136a05c7e9b4c09f739469cbdb927ea20b34088ab1d959a849b5cc589c18"},
+    {file = "opentelemetry_exporter_otlp_proto_grpc-1.39.1.tar.gz", hash = "sha256:772eb1c9287485d625e4dbe9c879898e5253fea111d9181140f51291b5fec3ad"},
 ]
 
 [package.dependencies]
 googleapis-common-protos = ">=1.57,<2.0"
 grpcio = [
     {version = ">=1.63.2,<2.0.0", markers = "python_version < \"3.13\""},
-    {version = ">=1.66.2,<2.0.0", markers = "python_version == \"3.13\""},
-    {version = ">=1.75.1,<2.0.0", markers = "python_version >= \"3.14\""},
+    {version = ">=1.66.2,<2.0.0", markers = "python_version >= \"3.13\""},
 ]
 opentelemetry-api = ">=1.15,<2.0"
-opentelemetry-exporter-otlp-proto-common = "1.40.0"
-opentelemetry-proto = "1.40.0"
-opentelemetry-sdk = ">=1.40.0,<1.41.0"
+opentelemetry-exporter-otlp-proto-common = "1.39.1"
+opentelemetry-proto = "1.39.1"
+opentelemetry-sdk = ">=1.39.1,<1.40.0"
 typing-extensions = ">=4.6.0"
 
 [package.extras]
 gcp-auth = ["opentelemetry-exporter-credential-provider-gcp (>=0.59b0)"]
 
 [[package]]
-name = "opentelemetry-exporter-otlp-proto-http"
-version = "1.40.0"
-description = "OpenTelemetry Collector Protobuf over HTTP Exporter"
-optional = true
-python-versions = ">=3.9"
-groups = ["main"]
-markers = "extra == \"mistral\""
-files = [
-    {file = "opentelemetry_exporter_otlp_proto_http-1.40.0-py3-none-any.whl", hash = "sha256:a8d1dab28f504c5d96577d6509f80a8150e44e8f45f82cdbe0e34c99ab040069"},
-    {file = "opentelemetry_exporter_otlp_proto_http-1.40.0.tar.gz", hash = "sha256:db48f5e0f33217588bbc00274a31517ba830da576e59503507c839b38fa0869c"},
-]
-
-[package.dependencies]
-googleapis-common-protos = ">=1.52,<2.0"
-opentelemetry-api = ">=1.15,<2.0"
-opentelemetry-exporter-otlp-proto-common = "1.40.0"
-opentelemetry-proto = "1.40.0"
-opentelemetry-sdk = ">=1.40.0,<1.41.0"
-requests = ">=2.7,<3.0"
-typing-extensions = ">=4.5.0"
-
-[package.extras]
-gcp-auth = ["opentelemetry-exporter-credential-provider-gcp (>=0.59b0)"]
-
-[[package]]
 name = "opentelemetry-proto"
-version = "1.40.0"
+version = "1.39.1"
 description = "OpenTelemetry Python Proto"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"rag\" or extra == \"all\" or extra == \"mistral\""
+markers = "extra == \"rag\" or extra == \"all\""
 files = [
-    {file = "opentelemetry_proto-1.40.0-py3-none-any.whl", hash = "sha256:266c4385d88923a23d63e353e9761af0f47a6ed0d486979777fe4de59dc9b25f"},
-    {file = "opentelemetry_proto-1.40.0.tar.gz", hash = "sha256:03f639ca129ba513f5819810f5b1f42bcb371391405d99c168fe6937c62febcd"},
+    {file = "opentelemetry_proto-1.39.1-py3-none-any.whl", hash = "sha256:22cdc78efd3b3765d09e68bfbd010d4fc254c9818afd0b6b423387d9dee46007"},
+    {file = "opentelemetry_proto-1.39.1.tar.gz", hash = "sha256:6c8e05144fc0d3ed4d22c2289c6b126e03bcd0e6a7da0f16cedd2e1c2772e2c8"},
 ]
 
 [package.dependencies]
@@ -3413,37 +3388,37 @@ protobuf = ">=5.0,<7.0"
 
 [[package]]
 name = "opentelemetry-sdk"
-version = "1.40.0"
+version = "1.39.1"
 description = "OpenTelemetry Python SDK"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"rag\" or extra == \"all\" or extra == \"xai\" or extra == \"mistral\""
+markers = "extra == \"rag\" or extra == \"all\" or extra == \"xai\""
 files = [
-    {file = "opentelemetry_sdk-1.40.0-py3-none-any.whl", hash = "sha256:787d2154a71f4b3d81f20524a8ce061b7db667d24e46753f32a7bc48f1c1f3f1"},
-    {file = "opentelemetry_sdk-1.40.0.tar.gz", hash = "sha256:18e9f5ec20d859d268c7cb3c5198c8d105d073714db3de50b593b8c1345a48f2"},
+    {file = "opentelemetry_sdk-1.39.1-py3-none-any.whl", hash = "sha256:4d5482c478513ecb0a5d938dcc61394e647066e0cc2676bee9f3af3f3f45f01c"},
+    {file = "opentelemetry_sdk-1.39.1.tar.gz", hash = "sha256:cf4d4563caf7bff906c9f7967e2be22d0d6b349b908be0d90fb21c8e9c995cc6"},
 ]
 
 [package.dependencies]
-opentelemetry-api = "1.40.0"
-opentelemetry-semantic-conventions = "0.61b0"
+opentelemetry-api = "1.39.1"
+opentelemetry-semantic-conventions = "0.60b1"
 typing-extensions = ">=4.5.0"
 
 [[package]]
 name = "opentelemetry-semantic-conventions"
-version = "0.61b0"
+version = "0.60b1"
 description = "OpenTelemetry Semantic Conventions"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
 markers = "extra == \"rag\" or extra == \"all\" or extra == \"xai\" or extra == \"mistral\""
 files = [
-    {file = "opentelemetry_semantic_conventions-0.61b0-py3-none-any.whl", hash = "sha256:fa530a96be229795f8cef353739b618148b0fe2b4b3f005e60e262926c4d38e2"},
-    {file = "opentelemetry_semantic_conventions-0.61b0.tar.gz", hash = "sha256:072f65473c5d7c6dc0355b27d6c9d1a679d63b6d4b4b16a9773062cb7e31192a"},
+    {file = "opentelemetry_semantic_conventions-0.60b1-py3-none-any.whl", hash = "sha256:9fa8c8b0c110da289809292b0591220d3a7b53c1526a23021e977d68597893fb"},
+    {file = "opentelemetry_semantic_conventions-0.60b1.tar.gz", hash = "sha256:87c228b5a0669b748c76d76df6c364c369c28f1c465e50f661e39737e84bc953"},
 ]
 
 [package.dependencies]
-opentelemetry-api = "1.40.0"
+opentelemetry-api = "1.39.1"
 typing-extensions = ">=4.5.0"
 
 [[package]]
@@ -3950,7 +3925,7 @@ description = ""
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"rag\" or extra == \"all\" or extra == \"xai\" or extra == \"mistral\""
+markers = "extra == \"rag\" or extra == \"all\" or extra == \"xai\""
 files = [
     {file = "protobuf-6.33.5-cp310-abi3-win32.whl", hash = "sha256:d71b040839446bac0f4d162e758bea99c8251161dae9d0983a3b88dee345153b"},
     {file = "protobuf-6.33.5-cp310-abi3-win_amd64.whl", hash = "sha256:3093804752167bcab3998bec9f1048baae6e29505adaf1afd14a37bddede533c"},
@@ -4303,14 +4278,14 @@ timezone = ["tzdata ; python_version >= \"3.9\" and platform_system == \"Windows
 
 [[package]]
 name = "pydantic-ai-slim"
-version = "1.70.0"
+version = "1.76.0"
 description = "Agent Framework / shim to use Pydantic with LLMs, slim package"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "pydantic_ai_slim-1.70.0-py3-none-any.whl", hash = "sha256:162907092a562b3160d9ef0418d317ec941c5c0e6dd6e0aa0dbb53b5a5cd3450"},
-    {file = "pydantic_ai_slim-1.70.0.tar.gz", hash = "sha256:3df0c0e92f72c35e546d24795bce1f4d38f81da2d10addd2e9f255b2d2c83c91"},
+    {file = "pydantic_ai_slim-1.76.0-py3-none-any.whl", hash = "sha256:1932799ff46a03e83fca3fb194f580dcbf3b24c9d2571ef64d0789c950499e23"},
+    {file = "pydantic_ai_slim-1.76.0.tar.gz", hash = "sha256:db82bc9a24f9c80d00be23f7a18e5cda8484d77c61a5cd8eedfc2fc8515657b2"},
 ]
 
 [package.dependencies]
@@ -4319,7 +4294,7 @@ griffelib = ">=2.0"
 httpx = ">=0.27"
 opentelemetry-api = ">=1.28.0"
 pydantic = ">=2.12"
-pydantic-graph = "1.70.0"
+pydantic-graph = "1.76.0"
 typing-inspection = ">=0.4.0"
 
 [package.extras]
@@ -4327,20 +4302,20 @@ a2a = ["fasta2a (>=0.4.1)"]
 ag-ui = ["ag-ui-protocol (>=0.1.10)", "starlette (>=0.45.3)"]
 anthropic = ["anthropic (>=0.80.0)"]
 bedrock = ["boto3 (>=1.42.14)"]
-cli = ["argcomplete (>=3.5.0)", "prompt-toolkit (>=3)", "pyperclip (>=1.9.0)", "rich (>=13)"]
+cli = ["argcomplete (>=3.5.0)", "prompt-toolkit (>=3)", "pyperclip (>=1.9.0)", "pyyaml (>=6.0.2)", "rich (>=13)"]
 cohere = ["cohere (>=5.20.6) ; platform_system != \"Emscripten\""]
 dbos = ["dbos (>=2.10.0)"]
 duckduckgo = ["ddgs (>=9.0.0)"]
-evals = ["pydantic-evals (==1.70.0)"]
+evals = ["pydantic-evals (==1.76.0)"]
 exa = ["exa-py (>=2.0.0)"]
 fastmcp = ["fastmcp (>=2.14.0)"]
-google = ["google-genai (>=1.56.0)"]
+google = ["google-genai (>=1.66.0)"]
 groq = ["groq (>=0.25.0)"]
 huggingface = ["huggingface-hub (>=1.3.4,<2.0.0)"]
 logfire = ["logfire[httpx] (>=4.16.0)"]
 mcp = ["mcp (>=1.25.0,<2.0)"]
-mistral = ["mistralai (>=1.9.11)"]
-openai = ["openai (>=2.25.0)", "tiktoken (>=0.12.0)"]
+mistral = ["mistralai (>=2.0.0)"]
+openai = ["openai (>=2.29.0)", "tiktoken (>=0.12.0)"]
 openrouter = ["openai (>=2.8.0)"]
 outlines-llamacpp = ["outlines[llamacpp] (>=1.0.0,<1.3.0) ; python_version < \"3.14\""]
 outlines-mlxlm = ["outlines[mlxlm] (>=1.0.0,<1.3.0) ; python_version < \"3.14\" and platform_system == \"Darwin\" and platform_machine == \"arm64\""]
@@ -4350,8 +4325,9 @@ outlines-vllm-offline = ["outlines (>=1.0.0,<1.3.0) ; python_version < \"3.14\""
 prefect = ["prefect (>=3.4.21)"]
 retries = ["tenacity (>=8.2.3)"]
 sentence-transformers = ["sentence-transformers (>=5.2.0) ; python_version < \"3.14\""]
+spec = ["pydantic-handlebars (>=0.1.0)", "pyyaml (>=6.0.2)"]
 tavily = ["tavily-python (>=0.5.0)"]
-temporal = ["temporalio (==1.20.0)"]
+temporal = ["temporalio (>=1.24.0)"]
 ui = ["starlette (>=0.45.3)"]
 vertexai = ["google-auth (>=2.36.0)", "requests (>=2.32.2)"]
 voyageai = ["voyageai (>=0.3.7) ; python_version < \"3.14\""]
@@ -4494,14 +4470,14 @@ typing-extensions = ">=4.14.1"
 
 [[package]]
 name = "pydantic-graph"
-version = "1.70.0"
+version = "1.76.0"
 description = "Graph and state machine library"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "pydantic_graph-1.70.0-py3-none-any.whl", hash = "sha256:6083c1503a2587990ee1b8a15915106e3ddabc8f3f11fbc4a108a7d7496af4a5"},
-    {file = "pydantic_graph-1.70.0.tar.gz", hash = "sha256:3f76d9137369ef8748b0e8a6df1a08262118af20a32bc139d23e5c0509c6b711"},
+    {file = "pydantic_graph-1.76.0-py3-none-any.whl", hash = "sha256:eda23a36bcaf4ab09ce10e7860818c6eeb2f42b3429ba9a575cc3b713ef3bbd6"},
+    {file = "pydantic_graph-1.76.0.tar.gz", hash = "sha256:e0f8f85ab08b0f896aed50bc888f946f7c2ef3f032b78fefc8dc1fd77a49406e"},
 ]
 
 [package.dependencies]
@@ -6782,4 +6758,4 @@ xai = ["xai-sdk"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11.0,<3.15.0"
-content-hash = "37bc04a91e8bd65dbd3a444f8c9fa3d619935562cb133c624d0f254a7ad49f7a"
+content-hash = "a4e514d1e14f63e5930c0cbaeb2fe21cf09a14bff41ee20b292c78e1bb7cb389"
