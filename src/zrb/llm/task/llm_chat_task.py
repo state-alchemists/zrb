@@ -53,6 +53,29 @@ if TYPE_CHECKING:
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
+def _parse_yolo_value(value: Any) -> "bool | frozenset[str]":
+    """Parse a yolo input value into bool or frozenset of tool names.
+
+    - bool True/False → returned as-is
+    - "true"/"1"/"yes" → True (full yolo)
+    - ""/"false"/"0"/"no" → False (no yolo)
+    - "Write,Edit" → frozenset({"Write", "Edit"}) (selective yolo)
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (set, frozenset)):
+        return frozenset(value)
+    if not value:
+        return False
+    s = str(value).strip()
+    if not s or s.lower() in ("false", "0", "no", "none"):
+        return False
+    if s.lower() in ("true", "1", "yes"):
+        return True
+    tools = frozenset(t.strip() for t in s.split(",") if t.strip())
+    return tools if tools else False
+
+
 class LLMChatTask(BaseTask):
 
     def __init__(
@@ -412,7 +435,8 @@ class LLMChatTask(BaseTask):
     async def _exec_action(self, ctx: AnyContext) -> Any:
         # 1. Resolve inputs/attributes
         initial_conversation_name = self._get_initial_conversation_name(ctx)
-        initial_yolo = get_bool_attr(ctx, self._yolo, False)
+        raw_yolo = get_attr(ctx, self._yolo, "", True)
+        initial_yolo = _parse_yolo_value(raw_yolo)
         if self._yolo_xcom_key not in ctx.xcom:
             ctx.xcom[self._yolo_xcom_key] = Xcom()
         ctx.xcom[self._yolo_xcom_key].set(initial_yolo)
@@ -589,10 +613,19 @@ class LLMChatTask(BaseTask):
                 ui = StdUI()
             # tool_confirmation = None (let UI handle it via approval_channel)
 
-        def check_yolo(*args, **kwargs):
+        def check_yolo(ctx_or_none=None, tool_def=None, *args, **kwargs):
             if self._yolo_xcom_key not in ctx.xcom:
                 return False
-            return ctx.xcom[self._yolo_xcom_key].get(False)
+            yolo_value = ctx.xcom[self._yolo_xcom_key].get(False)
+            if isinstance(yolo_value, bool):
+                return yolo_value
+            if isinstance(yolo_value, frozenset):
+                if tool_def is None:
+                    # No per-tool context (e.g. called for contextvar propagation)
+                    return False
+                tool_name = getattr(tool_def, "name", str(tool_def))
+                return tool_name in yolo_value
+            return False
 
         # Create MultiplexApprovalChannel if multiple channels
         effective_approval_channel = None
@@ -653,14 +686,14 @@ class LLMChatTask(BaseTask):
         llm_task_core: LLMTask,
         initial_message: Any,
         initial_conversation_name: str,
-        initial_yolo: bool,
+        initial_yolo: bool | frozenset[str],
         initial_attachments: list[UserContent],
     ) -> Any:
         # AsyncExitStack is handled by LLMTask._exec_action
         session_input = {
             "message": initial_message,
             "session": initial_conversation_name,
-            "yolo": initial_yolo,
+            "yolo": bool(initial_yolo),  # inner task uses dynamic_yolo; just pass bool
             "attachments": initial_attachments,
             "model": self._get_model(ctx),
         }
@@ -682,7 +715,7 @@ class LLMChatTask(BaseTask):
         ui_commands: dict[str, list[str]],
         initial_message: Any,
         initial_conversation_name: str,
-        initial_yolo: bool,
+        initial_yolo: bool | frozenset[str],
         initial_attachments: list[UserContent],
     ) -> Any:
         from zrb.llm.ui.base_ui import BaseUI

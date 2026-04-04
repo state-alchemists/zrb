@@ -111,7 +111,7 @@ class Config:
         self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT: str = "off"
         self.DEFAULT_LLM_INCLUDE_PERSONA: str = "1"
         self.DEFAULT_LLM_INCLUDE_MANDATE: str = "1"
-        self.DEFAULT_LLM_INCLUDE_GIT_MANDATE: str = "1"
+        self.DEFAULT_LLM_INCLUDE_GIT_MANDATE: str = "off"
         self.DEFAULT_LLM_INCLUDE_SYSTEM_CONTEXT: str = "1"
         self.DEFAULT_LLM_INCLUDE_JOURNAL: str = "1"
         self.DEFAULT_LLM_INCLUDE_CLAUDE_SKILLS: str = "1"
@@ -1499,7 +1499,9 @@ class Config:
 
     @LLM_INCLUDE_GIT_MANDATE.setter
     def LLM_INCLUDE_GIT_MANDATE(self, value: bool):
-        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_GIT_MANDATE"] = "1" if value else "0"
+        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_GIT_MANDATE"] = (
+            "on" if value else "off"
+        )
 
     @property
     def LLM_INCLUDE_SYSTEM_CONTEXT(self) -> bool:

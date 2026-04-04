@@ -1226,7 +1226,7 @@ class TestConfigSetters:
     def test_llm_include_git_mandate_setter(self, monkeypatch):
         config = Config()
         config.LLM_INCLUDE_GIT_MANDATE = True
-        assert os.environ["ZRB_LLM_INCLUDE_GIT_MANDATE"] == "1"
+        assert os.environ["ZRB_LLM_INCLUDE_GIT_MANDATE"] == "on"
 
     def test_llm_include_system_context_setter(self, monkeypatch):
         config = Config()

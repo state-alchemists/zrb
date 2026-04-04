@@ -52,14 +52,14 @@ def test_config_property_defaults():
         CFG, "LLM_INCLUDE_PROJECT_CONTEXT"
     ), "Config should have LLM_INCLUDE_PROJECT_CONTEXT property"
 
-    # Check default values (all True except CLI skills which is False)
+    # Check default values (all True except CLI skills and GIT_MANDATE which are False)
     assert CFG.LLM_INCLUDE_PERSONA is True
     assert CFG.LLM_INCLUDE_MANDATE is True
-    assert CFG.LLM_INCLUDE_GIT_MANDATE is True
+    assert CFG.LLM_INCLUDE_GIT_MANDATE is False  # Disabled by default (off)
     assert CFG.LLM_INCLUDE_SYSTEM_CONTEXT is True
     assert CFG.LLM_INCLUDE_JOURNAL is True
     assert CFG.LLM_INCLUDE_CLAUDE_SKILLS is True
-    assert CFG.LLM_INCLUDE_CLI_SKILLS is False  # Only one with False default
+    assert CFG.LLM_INCLUDE_CLI_SKILLS is False
     assert CFG.LLM_INCLUDE_PROJECT_CONTEXT is True
 
 
@@ -102,7 +102,7 @@ def test_environment_variable_overrides():
         assert CFG.LLM_INCLUDE_CLI_SKILLS is True
 
         # Other values should still be defaults
-        assert CFG.LLM_INCLUDE_GIT_MANDATE is True
+        assert CFG.LLM_INCLUDE_GIT_MANDATE is False  # Default is off
         assert CFG.LLM_INCLUDE_SYSTEM_CONTEXT is True
 
 

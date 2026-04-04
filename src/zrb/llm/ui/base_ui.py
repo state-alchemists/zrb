@@ -123,7 +123,7 @@ class BaseUI:
         initial_message: Any = "",
         initial_attachments: list["UserContent"] = [],
         conversation_session_name: str = "",
-        is_yolo: bool = False,
+        is_yolo: bool | frozenset = False,
         triggers: list[Callable[[], AsyncIterable[Any]]] = [],
         response_handlers: list[ResponseHandler] = [],
         tool_policies: list[ToolPolicy] = [],
@@ -244,13 +244,13 @@ class BaseUI:
                 loop.close()
 
     @property
-    def yolo(self) -> bool:
+    def yolo(self) -> bool | frozenset:
         if self._yolo_xcom_key not in self._ctx.xcom:
             return False
         return self._ctx.xcom[self._yolo_xcom_key].get(False)
 
     @yolo.setter
-    def yolo(self, value: bool):
+    def yolo(self, value: bool | frozenset):
         if self._yolo_xcom_key not in self._ctx.xcom:
             self._ctx.xcom[self._yolo_xcom_key] = Xcom()
         self._ctx.xcom[self._yolo_xcom_key].set(value)
@@ -916,14 +916,25 @@ class BaseUI:
             self.append_to_output(stylize_error(f"\n  📎 Already attached: {path}\n"))
 
     def toggle_yolo(self):
-        """Toggle YOLO mode and force refresh."""
-        self.yolo = not self.yolo
+        """Toggle YOLO mode (full on/off) and force refresh."""
+        self.yolo = not bool(self.yolo)
         self.invalidate_ui()
 
     def _handle_toggle_yolo(self, text: str) -> bool:
-        if text.strip().lower() in self._yolo_toggle_commands:
-            self.toggle_yolo()
-            return True
+        stripped = text.strip()
+        for cmd in self._yolo_toggle_commands:
+            if stripped.lower() == cmd.lower():
+                # Plain /yolo — toggle full yolo on/off
+                self.toggle_yolo()
+                return True
+            if stripped.lower().startswith(cmd.lower() + " "):
+                # /yolo Write,Edit — activate selective yolo for those tools
+                tools_str = stripped[len(cmd) :].strip()
+                tools = frozenset(t.strip() for t in tools_str.split(",") if t.strip())
+                if tools:
+                    self.yolo = tools
+                    self.invalidate_ui()
+                return True
         return False
 
     def _handle_set_model_command(self, text: str) -> bool:
