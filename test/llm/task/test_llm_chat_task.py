@@ -4,9 +4,98 @@ import pytest
 
 from zrb.context.shared_context import SharedContext
 from zrb.llm.approval import NullApprovalChannel
-from zrb.llm.task.llm_chat_task import LLMChatTask
+from zrb.llm.task.llm_chat_task import LLMChatTask, _parse_yolo_value
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.session.session import Session
+
+
+class TestParseYoloValue:
+    """Test _parse_yolo_value function for selective YOLO support."""
+
+    def test_boolean_true_returns_true(self):
+        """Test that boolean True returns True."""
+        assert _parse_yolo_value(True) is True
+
+    def test_boolean_false_returns_false(self):
+        """Test that boolean False returns False."""
+        assert _parse_yolo_value(False) is False
+
+    def test_empty_string_returns_false(self):
+        """Test that empty string returns False."""
+        assert _parse_yolo_value("") is False
+
+    def test_none_returns_false(self):
+        """Test that None returns False."""
+        assert _parse_yolo_value(None) is False
+
+    def test_string_false_returns_false(self):
+        """Test that 'false' returns False."""
+        assert _parse_yolo_value("false") is False
+        assert _parse_yolo_value("FALSE") is False
+        assert _parse_yolo_value("False") is False
+
+    def test_string_zero_returns_false(self):
+        """Test that '0' returns False."""
+        assert _parse_yolo_value("0") is False
+
+    def test_string_no_returns_false(self):
+        """Test that 'no' returns False."""
+        assert _parse_yolo_value("no") is False
+        assert _parse_yolo_value("NO") is False
+
+    def test_string_none_returns_false(self):
+        """Test that 'none' returns False."""
+        assert _parse_yolo_value("none") is False
+        assert _parse_yolo_value("None") is False
+
+    def test_string_true_returns_true(self):
+        """Test that 'true' returns True."""
+        assert _parse_yolo_value("true") is True
+        assert _parse_yolo_value("TRUE") is True
+        assert _parse_yolo_value("True") is True
+
+    def test_string_one_returns_true(self):
+        """Test that '1' returns True."""
+        assert _parse_yolo_value("1") is True
+
+    def test_string_yes_returns_true(self):
+        """Test that 'yes' returns True."""
+        assert _parse_yolo_value("yes") is True
+        assert _parse_yolo_value("YES") is True
+
+    def test_single_tool_name_returns_frozenset(self):
+        """Test that a single tool name returns a frozenset."""
+        result = _parse_yolo_value("Write")
+        assert result == frozenset({"Write"})
+
+    def test_comma_separated_tools_returns_frozenset(self):
+        """Test that comma-separated tool names return a frozenset."""
+        result = _parse_yolo_value("Write,Edit")
+        assert result == frozenset({"Write", "Edit"})
+
+    def test_comma_separated_with_spaces_returns_frozenset(self):
+        """Test that tool names with spaces are trimmed."""
+        result = _parse_yolo_value("Write, Edit, Read")
+        assert result == frozenset({"Write", "Edit", "Read"})
+
+    def test_set_returns_frozenset(self):
+        """Test that a set returns a frozenset."""
+        result = _parse_yolo_value({"Write", "Edit"})
+        assert result == frozenset({"Write", "Edit"})
+
+    def test_frozenset_returns_frozenset(self):
+        """Test that a frozenset returns unchanged."""
+        input_set = frozenset({"Write", "Edit"})
+        result = _parse_yolo_value(input_set)
+        assert result == input_set
+
+    def test_empty_comma_separated_returns_false(self):
+        """Test that empty comma-separated returns False."""
+        assert _parse_yolo_value("   ,  ,  ") is False
+
+    def test_whitespace_string_returns_false(self):
+        """Test that whitespace-only string returns False."""
+        assert _parse_yolo_value("   ") is False
 
 
 @pytest.mark.asyncio

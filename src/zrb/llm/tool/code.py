@@ -150,24 +150,15 @@ async def analyze_code(
     use_lsp: bool = True,
 ) -> str:
     """
-    Semantic analysis of a directory using an LLM sub-agent.
+    Semantic analysis of a directory via LLM sub-agent. Slow and resource-intensive.
 
-    Automatically excludes common directories (`.git`, `node_modules`, `__pycache__`, etc.).
-    When `file_pattern=None`, intelligently detects project type and scans appropriately.
-    File contents are automatically truncated to token limits.
+    Auto-excludes `.git`, `node_modules`, `__pycache__`, etc. When use_lsp=True (default),
+    uses LSP for more token-efficient semantic pre-analysis on supported file types.
 
     MANDATES:
-    - SLOW and resource-intensive (uses LLM sub-agent).
-    - For single file analysis, use `AnalyzeFile` instead.
-    - For simple file listing, use `LS` or `Glob`.
-    - Use `file_pattern` parameter to limit search scope (e.g., `*.py` for Python files).
-    - Use `exclude_patterns` parameter to override default exclusions (e.g., `[]` to include all files).
-
-    LSP INTEGRATION:
-    - When use_lsp=True (default), uses LSP for semantic pre-analysis on supported file types.
-    - More token-efficient than reading full file content for structure queries.
-    - Provides symbol names, types, and locations without reading entire files.
-    - Falls back to file reading when LSP is unavailable.
+    - For single-file analysis, use `AnalyzeFile` instead.
+    - For simple file listing, use `Glob` or `LS`.
+    - Use `file_pattern` to limit scope (e.g., `*.py`).
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):

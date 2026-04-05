@@ -243,7 +243,6 @@ def create_parallel_delegate_tool(
         MANDATES:
         - Each subagent needs full context—they can't see your conversation history.
         - Report all findings back to user; they cannot see subagent output directly.
-        - Tool approvals are processed sequentially to prevent UI conflicts.
         """
         if not tasks:
             return "No tasks provided."
@@ -306,8 +305,7 @@ def create_parallel_delegate_tool(
         "Use when: multiple independent subtasks that can run simultaneously.\n\n"
         "MANDATES:\n"
         "- Each subagent needs full context—they can't see your conversation history.\n"
-        "- Report all findings back to user; they cannot see subagent output directly.\n"
-        "- Tool approvals are processed sequentially to prevent UI conflicts.\n\n"
+        "- Report all findings back to user; they cannot see subagent output directly.\n\n"
         f"AVAILABLE AGENTS:\n{agent_doc_section}"
     )
     return parallel_delegate_to_agents

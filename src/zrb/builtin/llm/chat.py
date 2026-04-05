@@ -40,6 +40,7 @@ from zrb.llm.tool.worktree import enter_worktree, exit_worktree, list_worktrees
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
 from zrb.llm.tool_call import (
     auto_approve,
+    bash_safe_command_policy,
     read_file_validation_policy,
     read_files_validation_policy,
     replace_in_file_formatter,
@@ -59,8 +60,12 @@ llm_chat = LLMChatTask(
         StrInput(
             "session", "Conversation Session", allow_empty=True, always_prompt=False
         ),
-        BoolInput(
-            "yolo", "YOLO Mode", default=False, allow_empty=True, always_prompt=False
+        StrInput(
+            "yolo",
+            "YOLO Mode (true/false or comma-separated tool names, e.g. Write,Edit)",
+            default="",
+            allow_empty=True,
+            always_prompt=False,
         ),
         StrInput("attach", "Attachments", allow_empty=True, always_prompt=False),
         BoolInput(
@@ -134,6 +139,7 @@ llm_chat.add_response_handler(replace_in_file_response_handler)
 
 # Add tool policies (automatically approve/disprove tool calling)
 llm_chat.add_tool_policy(
+    bash_safe_command_policy(),
     replace_in_file_validation_policy,
     read_file_validation_policy,
     read_files_validation_policy,

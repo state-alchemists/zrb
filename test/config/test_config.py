@@ -705,17 +705,17 @@ class TestConfigSetters:
     def test_load_builtin_setter_true(self, monkeypatch):
         config = Config()
         config.LOAD_BUILTIN = True
-        assert os.environ["ZRB_LOAD_BUILTIN"] == "1"
+        assert os.environ["ZRB_LOAD_BUILTIN"] == "on"
 
     def test_load_builtin_setter_false(self, monkeypatch):
         config = Config()
         config.LOAD_BUILTIN = False
-        assert os.environ["ZRB_LOAD_BUILTIN"] == "0"
+        assert os.environ["ZRB_LOAD_BUILTIN"] == "off"
 
     def test_warn_unrecommended_command_setter(self, monkeypatch):
         config = Config()
         config.WARN_UNRECOMMENDED_COMMAND = True
-        assert os.environ["ZRB_WARN_UNRECOMMENDED_COMMAND"] == "1"
+        assert os.environ["ZRB_WARN_UNRECOMMENDED_COMMAND"] == "on"
 
     def test_session_log_dir_setter(self, monkeypatch):
         config = Config()
@@ -800,7 +800,7 @@ class TestConfigSetters:
     def test_web_enable_auth_setter(self, monkeypatch):
         config = Config()
         config.WEB_ENABLE_AUTH = True
-        assert os.environ["ZRB_WEB_ENABLE_AUTH"] == "1"
+        assert os.environ["ZRB_WEB_ENABLE_AUTH"] == "on"
 
     def test_web_auth_access_token_expire_setter(self, monkeypatch):
         config = Config()
@@ -1196,62 +1196,62 @@ class TestConfigSetters:
     def test_llm_show_tool_call_detail_setter_true(self, monkeypatch):
         config = Config()
         config.LLM_SHOW_TOOL_CALL_DETAIL = True
-        assert os.environ["ZRB_LLM_SHOW_TOOL_CALL_DETAIL"] == "1"
+        assert os.environ["ZRB_LLM_SHOW_TOOL_CALL_DETAIL"] == "on"
 
     def test_llm_show_tool_call_detail_setter_false(self, monkeypatch):
         config = Config()
         config.LLM_SHOW_TOOL_CALL_DETAIL = False
-        assert os.environ["ZRB_LLM_SHOW_TOOL_CALL_DETAIL"] == "0"
+        assert os.environ["ZRB_LLM_SHOW_TOOL_CALL_DETAIL"] == "off"
 
     def test_llm_show_tool_call_result_setter_true(self, monkeypatch):
         config = Config()
         config.LLM_SHOW_TOOL_CALL_RESULT = True
-        assert os.environ["ZRB_LLM_SHOW_TOOL_CALL_RESULT"] == "1"
+        assert os.environ["ZRB_LLM_SHOW_TOOL_CALL_RESULT"] == "on"
 
     def test_llm_show_tool_call_result_setter_false(self, monkeypatch):
         config = Config()
         config.LLM_SHOW_TOOL_CALL_RESULT = False
-        assert os.environ["ZRB_LLM_SHOW_TOOL_CALL_RESULT"] == "0"
+        assert os.environ["ZRB_LLM_SHOW_TOOL_CALL_RESULT"] == "off"
 
     def test_llm_include_persona_setter(self, monkeypatch):
         config = Config()
         config.LLM_INCLUDE_PERSONA = True
-        assert os.environ["ZRB_LLM_INCLUDE_PERSONA"] == "1"
+        assert os.environ["ZRB_LLM_INCLUDE_PERSONA"] == "on"
 
     def test_llm_include_mandate_setter(self, monkeypatch):
         config = Config()
         config.LLM_INCLUDE_MANDATE = True
-        assert os.environ["ZRB_LLM_INCLUDE_MANDATE"] == "1"
+        assert os.environ["ZRB_LLM_INCLUDE_MANDATE"] == "on"
 
     def test_llm_include_git_mandate_setter(self, monkeypatch):
         config = Config()
-        config.LLM_INCLUDE_GIT_MANDATE = True
-        assert os.environ["ZRB_LLM_INCLUDE_GIT_MANDATE"] == "1"
+        config.LLM_INCLUDE_GIT_MANDATE = False
+        assert os.environ["ZRB_LLM_INCLUDE_GIT_MANDATE"] == "off"
 
     def test_llm_include_system_context_setter(self, monkeypatch):
         config = Config()
         config.LLM_INCLUDE_SYSTEM_CONTEXT = True
-        assert os.environ["ZRB_LLM_INCLUDE_SYSTEM_CONTEXT"] == "1"
+        assert os.environ["ZRB_LLM_INCLUDE_SYSTEM_CONTEXT"] == "on"
 
     def test_llm_include_journal_setter(self, monkeypatch):
         config = Config()
         config.LLM_INCLUDE_JOURNAL = True
-        assert os.environ["ZRB_LLM_INCLUDE_JOURNAL"] == "1"
+        assert os.environ["ZRB_LLM_INCLUDE_JOURNAL"] == "on"
 
     def test_llm_include_claude_skills_setter(self, monkeypatch):
         config = Config()
         config.LLM_INCLUDE_CLAUDE_SKILLS = True
-        assert os.environ["ZRB_LLM_INCLUDE_CLAUDE_SKILLS"] == "1"
+        assert os.environ["ZRB_LLM_INCLUDE_CLAUDE_SKILLS"] == "on"
 
     def test_llm_include_cli_skills_setter(self, monkeypatch):
         config = Config()
         config.LLM_INCLUDE_CLI_SKILLS = True
-        assert os.environ["ZRB_LLM_INCLUDE_CLI_SKILLS"] == "1"
+        assert os.environ["ZRB_LLM_INCLUDE_CLI_SKILLS"] == "on"
 
     def test_llm_include_project_context_setter(self, monkeypatch):
         config = Config()
         config.LLM_INCLUDE_PROJECT_CONTEXT = True
-        assert os.environ["ZRB_LLM_INCLUDE_PROJECT_CONTEXT"] == "1"
+        assert os.environ["ZRB_LLM_INCLUDE_PROJECT_CONTEXT"] == "on"
 
     def test_llm_search_project_setter_true(self, monkeypatch):
         config = Config()
@@ -1296,7 +1296,7 @@ class TestConfigSetters:
     def test_use_tiktoken_setter(self, monkeypatch):
         config = Config()
         config.USE_TIKTOKEN = True
-        assert os.environ["ZRB_USE_TIKTOKEN"] == "1"
+        assert os.environ["ZRB_USE_TIKTOKEN"] == "on"
 
     def test_tiktoken_encoding_name_setter(self, monkeypatch):
         config = Config()
@@ -1311,7 +1311,7 @@ class TestConfigSetters:
     def test_hooks_enabled_setter(self, monkeypatch):
         config = Config()
         config.HOOKS_ENABLED = True
-        assert os.environ["ZRB_HOOKS_ENABLED"] == "1"
+        assert os.environ["ZRB_HOOKS_ENABLED"] == "on"
 
     def test_hooks_dirs_setter(self, monkeypatch):
         config = Config()
@@ -1326,7 +1326,7 @@ class TestConfigSetters:
     def test_hooks_debug_setter(self, monkeypatch):
         config = Config()
         config.HOOKS_DEBUG = True
-        assert os.environ["ZRB_HOOKS_DEBUG"] == "1"
+        assert os.environ["ZRB_HOOKS_DEBUG"] == "on"
 
     def test_hooks_log_level_setter(self, monkeypatch):
         config = Config()

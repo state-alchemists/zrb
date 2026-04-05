@@ -12,7 +12,6 @@ from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.agent.common import create_agent
 from zrb.llm.lsp.tools import create_lsp_tools
-from zrb.llm.prompt.prompt import get_git_mandate_prompt
 from zrb.llm.summarizer import (
     create_summarizer_history_processor,
 )
@@ -584,23 +583,9 @@ class SubAgentManager:
 
             effective_yolo = check_yolo_inheritance
 
-        # Build system prompt with git_mandate appended
-        sub_agent_system_prompt = definition.system_prompt
-        # Check if we're in a git directory and append git rules
-        from zrb.llm.util.git import is_inside_git_dir
-
-        if is_inside_git_dir():
-            git_mandate = get_git_mandate_prompt()
-            if git_mandate:
-                sub_agent_system_prompt = (
-                    f"{sub_agent_system_prompt}\n\n{git_mandate}"
-                    if sub_agent_system_prompt
-                    else git_mandate
-                )
-
         return create_agent(
             model=definition.model,
-            system_prompt=sub_agent_system_prompt,
+            system_prompt=definition.system_prompt,
             tools=resolved_tools,
             toolsets=resolved_toolsets,
             history_processors=[create_summarizer_history_processor()],

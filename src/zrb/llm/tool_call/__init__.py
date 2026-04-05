@@ -16,6 +16,7 @@ from zrb.llm.tool_call.response_handler.replace_in_file_response_handler import 
     replace_in_file_response_handler,
 )
 from zrb.llm.tool_call.tool_policy.auto_approve import auto_approve
+from zrb.llm.tool_call.tool_policy.bash_validation import bash_safe_command_policy
 from zrb.llm.tool_call.tool_policy.read_file_validation import (
     read_file_validation_policy,
 )
@@ -30,6 +31,7 @@ from zrb.llm.tool_call.ui_protocol import UIProtocol
 __all__ = [
     "check_tool_policies",
     "auto_approve",
+    "bash_safe_command_policy",
     "replace_in_file_validation_policy",
     "read_file_validation_policy",
     "read_files_validation_policy",

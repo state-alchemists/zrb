@@ -60,7 +60,7 @@ class UI(BaseUI):
         initial_message: Any = "",
         initial_attachments: list["UserContent"] = [],
         conversation_session_name: str = "",
-        is_yolo: bool = False,
+        is_yolo: bool | frozenset = False,
         triggers: list[Callable[[], AsyncIterable[Any]]] = [],
         response_handlers: list[ResponseHandler] = [],
         tool_policies: list[ToolPolicy] = [],
@@ -454,11 +454,14 @@ class UI(BaseUI):
             else:
                 model_name = str(self._model)
 
-        yolo_text = (
-            "<style color='ansired'><b>ON </b></style>"
-            if self.yolo
-            else "<style color='ansigreen'>OFF</style>"
-        )
+        _yolo = self.yolo
+        if _yolo is True:
+            yolo_text = "<style color='ansired'><b>ON </b></style>"
+        elif isinstance(_yolo, frozenset) and _yolo:
+            tools_str = ",".join(sorted(_yolo))
+            yolo_text = f"<style color='ansiyellow'><b>[{tools_str}]</b></style>"
+        else:
+            yolo_text = "<style color='ansigreen'>OFF</style>"
 
         # 1. Construct lines
         line1_html = (
@@ -603,8 +606,11 @@ class UI(BaseUI):
             if not text.strip():
                 return
 
-            # /btw can be submitted even while the LLM is thinking
+            # These commands work even while the LLM is thinking
             if self._handle_btw_command(text):
+                buff.reset()
+                return
+            if self._handle_toggle_yolo(text):
                 buff.reset()
                 return
 
@@ -628,9 +634,6 @@ class UI(BaseUI):
                 buff.reset()
                 return
             if self._handle_attach_command(text):
-                buff.reset()
-                return
-            if self._handle_toggle_yolo(text):
                 buff.reset()
                 return
             if self._handle_set_model_command(text):

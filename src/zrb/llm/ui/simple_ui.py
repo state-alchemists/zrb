@@ -65,7 +65,9 @@ class UIConfig:
     exec_commands: list[str] = field(default_factory=lambda: ["/exec"])
 
     # Behavior
-    is_yolo: bool = False  # Auto-approve all tool calls
+    is_yolo: bool | frozenset = (
+        False  # True=full yolo, frozenset=selective yolo, False=off
+    )
     yolo_xcom_key: str = ""  # Empty = auto-generate
 
     # Session
