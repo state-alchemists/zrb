@@ -39,16 +39,13 @@ def list_files(
     exclude_patterns: list[str] | None = None,
 ) -> dict[str, list[str]]:
     """
-    Recursively explores and lists files.
+    Recursively lists files up to 3 levels deep.
 
-    Automatically excludes common directories (`.git`, `node_modules`, `__pycache__`, etc.).
-    Results are sorted alphabetically and automatically truncated for large directories.
+    Auto-excludes `.git`, `node_modules`, `__pycache__`, etc. Sorted alphabetically.
 
     MANDATES:
-    - Use for general directory exploration when you need to understand project structure.
-    - For targeted file discovery, prefer `Glob` over `LS`.
-    - Results are automatically truncated for large directories (500 head/tail lines).
-    - Use `exclude_patterns` parameter to override default exclusions (e.g., `[]` to include all files).
+    - For targeted file discovery by pattern, use `Glob` instead.
+    - Use `exclude_patterns=[]` to include all files.
     """
     all_files: list[str] = []
     abs_path = os.path.abspath(os.path.expanduser(path))
@@ -108,17 +105,13 @@ def glob_files(
     exclude_patterns: list[str] | None = None,
 ) -> list[str]:
     """
-    Finds files matching glob patterns (e.g., `**/*.py`).
+    Finds files matching glob patterns (e.g., `**/*.py`). Supports `**` for recursive search.
 
-    Patterns support recursive globbing with `**` (e.g., `**/*.py` for all Python files).
-    Automatically excludes common directories (`.git`, `node_modules`, `__pycache__`, etc.).
-    Results are sorted alphabetically and automatically truncated for large result sets.
+    Auto-excludes `.git`, `node_modules`, `__pycache__`, etc. Sorted alphabetically.
 
     MANDATES:
-    - Use for targeted file discovery when you know the file pattern (e.g., `**/*.py` for Python files).
-    - For directory listing without patterns, use `LS` instead.
-    - Results are automatically truncated for large result sets (500 head/tail lines).
-    - Use `exclude_patterns` parameter to override default exclusions (e.g., `[]` to include all files).
+    - For general directory listing without a pattern, use `LS` instead.
+    - Use `exclude_patterns=[]` to include all files.
     """
     found_files = []
     abs_path = os.path.abspath(os.path.expanduser(path))
@@ -171,13 +164,12 @@ def read_file(
     auto_truncate: bool = True,
 ) -> str:
     """
-    Reads content from a file.
+    Reads a file's full content. Truncates at 1000 head/tail lines or 100k chars.
 
     MANDATES:
-    - Automatically truncates large files (1000 head/tail lines, 100k chars).
-    - Use `Grep` to find specific content before reading to locate line numbers.
-    - For reading multiple related files, prefer `ReadMany` over multiple `Read` calls.
-    - Always read files before editing.
+    - Use `Grep` first to locate the relevant section before reading.
+    - For multiple related files, use `ReadMany` instead.
+    - Always read a file before editing it.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
 
@@ -272,15 +264,9 @@ def read_files(
     auto_truncate: bool = True,
 ) -> dict[str, str]:
     """
-    Reads multiple files. Use to gather context from related files simultaneously.
+    Reads multiple files in a single call. Same truncation as `Read`.
 
-    MANDATES:
-    - Returns error if NONE of the specified files exist.
-    - Individual file errors don't stop batch processing (other files are still read).
-    - Use for reading related files (e.g., config files, test files, source files).
-    - Same truncation as `Read` (1000 head/tail lines, 100k chars).
-    - ALWAYS prefer `ReadMany` over multiple sequential `Read` calls for efficiency.
-    - Batch reading reduces round trips and improves context gathering.
+    Individual file errors don't stop batch processing.
     """
     results = {}
     for path in paths:
@@ -290,15 +276,12 @@ def read_files(
 
 def write_file(path: str, content: str, mode: str = "w") -> str:
     """
-    Writes or appends content to a file. Creates the file and any missing parent directories automatically.
+    Writes or appends content to a file. Creates the file and any missing parent directories.
 
     MANDATES:
-    - For editing existing files, prefer `Edit` (surgical replacement) over `Write` (full overwrite).
-    - For large files, write in chunks: use mode="w" for the first chunk, mode="a" for each
-      subsequent chunk. Keep each call under 4000 characters to stay within model token limits.
-    - Use mode="w" to overwrite, mode="a" to append.
-    - For writing multiple files at once, use `WriteMany`.
-    - Always verify the result with `Read` after writing.
+    - For modifying existing files, use `Edit` (surgical replacement) instead.
+    - For large content, write in chunks: mode="w" for first chunk, mode="a" for each subsequent.
+    - For multiple files at once, use `WriteMany`.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     try:
@@ -312,17 +295,10 @@ def write_file(path: str, content: str, mode: str = "w") -> str:
 
 def write_files(files: list[dict[str, str]]) -> dict[str, str]:
     """
-    Batch write multiple files in a single call.
+    Batch writes multiple files in a single call.
 
-    Each entry in `files` must be a dict with:
-    - `path` (str): Destination file path.
-    - `content` (str): File content to write.
-    - `mode` (str, optional): "w" to overwrite (default), "a" to append.
-
-    MANDATES:
-    - Creates parent directories automatically if they don't exist.
-    - Prefer `WriteMany` over multiple sequential `Write` calls for related files.
-    - Each file follows the same chunking guidance as `Write` (keep content under 4000 chars per entry).
+    Each entry must be a dict with `path` (str), `content` (str), and optional `mode` ("w"/"a").
+    Creates parent directories automatically. Same chunking guidance as `Write`.
     """
     results = {}
     for file_info in files:
@@ -341,13 +317,10 @@ def replace_in_file(path: str, old_text: str, new_text: str, count: int = -1) ->
     Replaces exact text sequences within a file.
 
     MANDATES:
-    - ALWAYS read the file first with `Read` to copy the exact text before editing.
-    - `old_text` MUST match file content byte-for-byte (including all whitespace and indentation).
-      Include 2-3 surrounding lines as context to make the match unique.
-    - If `old_text` still matches multiple locations, expand the context further or use
-      `count=1` to replace only the first occurrence.
-    - For creating new files, use `Write` instead.
-    - ALWAYS verify the result with `Read` after editing.
+    - Always `Read` the file first to copy exact text byte-for-byte—Grep output may truncate long lines.
+    - Include 2-3 surrounding lines in `old_text` to ensure a unique match.
+    - If `old_text` matches multiple locations, expand context or use `count=1` for first occurrence only.
+    - For new files, use `Write` instead.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
@@ -381,18 +354,12 @@ def search_files(
     timeout: float = 30.0,
 ) -> dict[str, Any]:
     """
-    Searches for a regex pattern in files.
-
-    Supports Python regex syntax for pattern matching.
-    Results include line numbers and context around matches.
-    Output is automatically truncated for large result sets.
+    Searches for a regex pattern across files. Results include line numbers and context.
 
     MANDATES:
-    - ALWAYS limit scope via specific `regex` and `file_pattern` to minimize noise.
-    - Use `file_pattern` to restrict search to specific file types (e.g., `*.py`).
-    - For simple file listing without pattern matching, use `LS` or `Glob`.
-    - Results are automatically truncated for large result sets (250 head/tail files).
-    - Use `exclude_patterns` parameter to override default exclusions (e.g., `[]` to include all files).
+    - Use `file_pattern` to restrict to specific file types (e.g., `*.py`).
+    - For file listing without content search, use `Glob` or `LS` instead.
+    - Use `exclude_patterns=[]` to search all files including normally excluded ones.
     """
     start_time = time.time()
     try:
@@ -558,16 +525,11 @@ def _get_file_matches(
 
 async def analyze_file(path: str, query: str, auto_truncate: bool = True) -> str:
     """
-    Deep semantic analysis of a specific file via sub-agent.
-
-    File content is automatically truncated to token limits.
-    Best for complex analysis tasks requiring deep understanding.
+    Deep semantic analysis of a file via LLM sub-agent. Slow and resource-intensive.
 
     MANDATES:
-    - SLOW and resource-intensive (uses LLM sub-agent).
     - For simple file reading, use `Read` instead.
-    - For directory analysis, use `AnalyzeCode`.
-    - Use `auto_truncate=False` to disable automatic truncation of file content.
+    - For directory-level analysis, use `AnalyzeCode`.
     """
     from zrb.config.config import CFG
     from zrb.llm.agent import create_agent, run_agent

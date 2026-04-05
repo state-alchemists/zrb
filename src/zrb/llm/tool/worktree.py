@@ -5,19 +5,10 @@ from datetime import datetime
 
 async def enter_worktree(branch_name: str = "") -> str:
     """
-    Create an isolated git worktree on a new branch for making changes without
-    affecting the current working branch.
+    Creates an isolated git worktree on a new branch. Returns the path to the worktree directory.
 
-    Returns the absolute path to the new worktree directory. All file operations
-    inside the worktree are fully isolated from the main working tree.
-
-    MANDATES:
-    - Use when you want to experiment with risky changes, try different
-      approaches in parallel, or prepare changes for review before merging.
-    - Use `keep_branch=True` in `ExitWorktree` if you want to preserve changes
-      for later merging.
-    - The worktree is created in the system temp directory and will be isolated
-      from your main working tree.
+    Use for risky experiments, parallel approaches, or staging changes before merging.
+    Use `keep_branch=True` in `ExitWorktree` to preserve the branch for later merging.
     """
     cwd = os.getcwd()
 
@@ -66,12 +57,10 @@ async def enter_worktree(branch_name: str = "") -> str:
 
 async def exit_worktree(worktree_path: str, keep_branch: bool = False) -> str:
     """
-    Remove a git worktree previously created with EnterWorktree.
+    Removes a git worktree created with `EnterWorktree`.
 
-    MANDATES:
-    - Use `keep_branch=True` if you want to preserve changes for later merging.
-    - If `keep_branch=False` (default), the branch is deleted along with the worktree.
-    - Always clean up worktrees after use to avoid disk space accumulation.
+    Use `keep_branch=True` to preserve the branch for merging; default deletes it.
+    Always clean up worktrees after use.
     """
     cwd = os.getcwd()
 
@@ -134,11 +123,7 @@ async def exit_worktree(worktree_path: str, keep_branch: bool = False) -> str:
 
 async def list_worktrees() -> str:
     """
-    List all active git worktrees for the current repository.
-
-    MANDATES:
-    - Use to check the current state of your worktrees before starting.
-    - Returns a human-readable summary of each worktree (path, branch, commit).
+    Lists all active git worktrees for the current repository (path, branch, commit).
     """
     cwd = os.getcwd()
 

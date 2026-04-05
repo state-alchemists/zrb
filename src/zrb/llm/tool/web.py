@@ -9,14 +9,11 @@ from zrb.llm.prompt.prompt import get_web_summarizer_system_prompt
 
 async def open_web_page(url: str, summarize: bool = True) -> dict:
     """
-    Downloads and converts a web page into Markdown.
+    Fetches a web page and returns it as Markdown. Includes links found on the page.
 
-    MANDATES:
-    - If summarize=True (default), a sub-agent extracts high-signal info.
-    - Returns both raw Markdown and summarized content when summarize=True.
-    - Includes links found on the page for navigation.
-    - For internet searches, use `SearchInternet` instead.
-    - Summarization reduces token usage and extracts key information.
+    When summarize=True (default), a sub-agent extracts high-signal info and reduces token usage.
+
+    MANDATE: For web searches, use `SearchInternet` instead.
     """
     try:
         html_content, links = await _fetch_page_content(url)
@@ -44,14 +41,11 @@ async def search_internet(
     page: int = 1,
 ) -> dict:
     """
-    Performs an internet search.
+    Performs an internet search. Returns titles, URLs, and snippets.
 
     MANDATES:
-    - Requires SERPAPI_KEY or BRAVE_API_KEY configuration for search functionality.
-    - Use `page` parameter for pagination (default: 1).
-    - Results include titles, URLs, and snippets from search engines.
-    - Configure search method via CFG.SEARCH_INTERNET_METHOD ("serpapi" or "brave").
-    - For reading specific web pages, use `OpenWebPage` instead.
+    - Requires SERPAPI_KEY, BRAVE_API_KEY, or SearXNG configuration.
+    - For fetching a specific URL, use `OpenWebPage` instead.
     """
     if (
         CFG.SEARCH_INTERNET_METHOD.strip().lower() == "serpapi"

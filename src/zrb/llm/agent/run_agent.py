@@ -63,6 +63,7 @@ async def run_agent(
     hook_manager: HookManager | None = None,
     yolo: bool = False,
     approval_channel: "ApprovalChannel | None" = None,
+    system_prompt: str = "",
 ) -> tuple[Any, list[Any]]:
     """
     Runs the agent with rate limiting, history management, and optional CLI confirmation loop.
@@ -210,10 +211,15 @@ async def run_agent(
         # Safety Check: Ensure alternating roles in history
         processed_history = ensure_alternating_roles(processed_history)
 
+        # Count reserved tokens for system prompt (not included in history)
+        reserved_tokens = limiter.count_tokens(system_prompt) if system_prompt else 0
+        CFG.LOGGER.debug(f"System prompt reserved tokens: {reserved_tokens}")
+
         # EMERGENCY FAILSAFE: If summarization failed to reduce size below limit
         # (e.g. resulted in a 1M token summary), we must hard-prune to avoid API crash.
+        effective_limit = max(0, limiter.max_token_per_request - reserved_tokens)
         current_tokens = limiter.count_tokens(processed_history)
-        if current_tokens > limiter.max_token_per_request:
+        if current_tokens > effective_limit:
             print_fn(
                 f"\n[System] History too large ({current_tokens} tokens) after summarization. Force pruning..."
             )
@@ -224,14 +230,13 @@ async def run_agent(
             # For now, just keep the very last message if it fits
             if (
                 processed_history
-                and limiter.count_tokens(processed_history[-1])
-                < limiter.max_token_per_request
+                and limiter.count_tokens(processed_history[-1]) < effective_limit
             ):
                 safe_history = [processed_history[-1]]
             processed_history = safe_history
 
         current_history = await _acquire_rate_limit(
-            limiter, prompt_content, processed_history, print_fn
+            limiter, prompt_content, processed_history, print_fn, reserved_tokens
         )
         current_message = prompt_content
         current_results = None
@@ -398,6 +403,7 @@ async def _acquire_rate_limit(
     message: str | None,
     message_history: list[Any],
     print_fn: Callable[..., Any],
+    reserved_tokens: int = 0,
 ) -> list[Any]:
     """Prunes history and waits if rate limits are exceeded."""
 
@@ -417,8 +423,10 @@ async def _acquire_rate_limit(
 
     if not message:
         return message_history
-    # Prune history
-    pruned_history = limiter.fit_context_window(message_history, message)
+    # Prune history, accounting for reserved tokens (e.g. system prompt, tool schemas)
+    pruned_history = limiter.fit_context_window(
+        message_history, message, reserved_tokens
+    )
     # Throttle
     await limiter.acquire(
         {"message": message, "history": pruned_history},

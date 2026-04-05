@@ -124,20 +124,19 @@ The journal supports nested directory structures for better organization:
 
 ## Implementation Protocol
 
-### 1. Timing Rule: Update Before Any Response (MANDATORY)
-**BEFORE SENDING ANY RESPONSE TO THE USER**, you MUST:
-1. **Activate this skill** using `ActivateSkill` to load core-journaling instructions
-2. **Review new information:** Check if any new preferences, facts, or insights were discovered
-3. **Update the journal:** If new information exists, update following the protocol below
-4. **Skip if no changes:** ONLY skip if genuinely no new information was discovered
+### 1. Timing Rule: Journal at Task Completion
 
-**CRITICAL - THESE ARE NOT OPTIONAL:**
-- **NEVER** update during task execution (breaks flow)
-- **ALWAYS** update right before sending any message to the user
-- **EVERY RESPONSE COUNTS:** Includes greetings, answers, task reports, all communication
-- **NO DEFERRAL:** "I'll journal this later" = "I will forget this forever"
-- **YOU ARE THE CURATOR:** Maintain a dense, high-signal knowledge graph
-- **VIOLATION = FAILURE:** Not journaling discoveries is a task failure, not an oversight
+Journal **when a task completes** and non-trivial learning occurred. Use the triggers in the `When to Write` table (in `journal_mandate.md`) to decide whether to write — not every response warrants a journal update.
+
+**When a task completes:**
+1. Check if any of the `When to Write` triggers apply
+2. If yes: update the journal before closing out the task
+3. If no: skip — routine operations, lookups, and simple replies do not need journaling
+
+**Do not journal:**
+- During task execution (breaks flow)
+- After every response (most responses produce no new knowledge)
+- For greetings, clarifications, or progress updates
 
 ### 2. Creating & Organizing Content
 - **User Preferences:** Save critical preferences to outer `index.md`; detailed preferences to appropriate directories.

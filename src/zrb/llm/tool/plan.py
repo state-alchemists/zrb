@@ -272,18 +272,11 @@ async def write_todos(
     replace: bool = True,
 ) -> str:
     """
-    Create or update a todo list for planning and task tracking.
-
-    Use this tool to:
-    - Plan out a complex multi-step task
-    - Track progress through multiple subtasks
-    - Organize work into a structured checklist
+    Creates or replaces the todo list for the current session.
 
     MANDATES:
-    - Create todos BEFORE starting work on complex tasks
-    - Mark todos as "in_progress" when you start them
-    - Mark todos as "completed" when done
-    - Update status as you progress through tasks
+    - Create todos before starting complex multi-step tasks.
+    - Mark todos "in_progress" when starting, "completed" when done.
     """
     session_name = session or get_current_context_session()
 
@@ -316,16 +309,9 @@ async def write_todos(
 
 async def get_todos(session: str | None = None) -> str:
     """
-    Get the current todo list and progress summary.
+    Returns the current todo list and progress summary.
 
-    Use this tool to:
-    - Check the current state of your task list
-    - See which tasks are pending, in progress, or completed
-    - Review your plan before continuing work
-
-    MANDATES:
-    - Check before starting a new subtask to see what's pending.
-    - Review before declaring work done to ensure nothing is missed.
+    Check before starting a subtask and before declaring work done.
     """
     session_name = session or get_current_context_session()
 
@@ -371,16 +357,10 @@ async def update_todo(
     session: str | None = None,
 ) -> str:
     """
-    Update the status or content of a single todo item.
+    Updates the status or content of a single todo item.
 
-    Use this tool to:
-    - Mark a todo as "in_progress" when you start working on it
-    - Mark a todo as "completed" when finished
-    - Mark a todo as "cancelled" if no longer needed
-    - Update the content/description of a todo
-
-    MANDATES:
-    - Always mark todos as "in_progress" BEFORE starting work, and "completed" AFTER finishing.
+    Status values: "pending", "in_progress", "completed", "cancelled".
+    Mark "in_progress" before starting work, "completed" after finishing.
     """
     session_name = session or get_current_context_session()
 
@@ -441,15 +421,7 @@ async def update_todo(
 
 async def clear_todos(session: str | None = None) -> str:
     """
-    Clear all todos for the current session.
-
-    Use this tool to:
-    - Start fresh with a new plan
-    - Clean up after completing a major task
-
-    MANDATES:
-    - Only clear when starting a completely new plan.
-    - Do not clear if you intend to resume the current task list.
+    Clears all todos for the current session. Use only when starting a completely new plan.
     """
     session_name = session or get_current_context_session()
 

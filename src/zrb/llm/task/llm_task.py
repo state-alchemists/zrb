@@ -325,6 +325,7 @@ class LLMTask(BaseTask):
                 ui=self._uis,
                 yolo=yolo_value,
                 approval_channel=self._approval_channel,
+                system_prompt=self._get_system_prompt(ctx),
             )
         except Exception as e:
             self._handle_run_error(ctx, history_manager, conversation_name, e)
