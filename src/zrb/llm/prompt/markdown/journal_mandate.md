@@ -6,13 +6,18 @@ Maintain a structured knowledge graph as external long-term memory. Write after 
 
 ## When to Write
 
-| Trigger | Examples | Skip? |
-|---------|----------|-------|
-| User reveals preference | Name, communication style, tool choices | Never skip |
-| Architectural decision made | Chose X over Y, reason Z | Never skip |
-| Non-obvious technical solution found | Bug required real investigation | Never skip |
-| Non-trivial error resolved | Required multi-step diagnosis | Never skip |
-| Routine operation | Typo fix, simple lookup, file read | Always skip |
+**Rule:** Journal when you learn **anything new worth remembering**. If the knowledge would help you or another agent work better in future sessions, write it.
+
+| Category | Trigger | Examples | Skip? |
+|----------|---------|----------|-------|
+| **User Context** | User reveals preference or constraint | Name, location, communication style, tool choices, workflow preferences | ❌ Never |
+| **Architecture** | Design decision with rationale | Chose X over Y (reason Z), new pattern adopted, system boundary defined | ❌ Never |
+| **Technical Insight** | Non-obvious solution discovered | Bug required real investigation, workaround found, root cause identified | ❌ Never |
+| **Analysis Results** | Investigation or review completed | Code quality scores, security audit findings, performance profiling results | ❌ Never |
+| **Error Resolution** | Non-trivial error diagnosed and fixed | Multi-step diagnosis, cascading failures, environment-specific issues | ❌ Never |
+| **Routine** | No new knowledge generated | Typo fix, simple lookup, file read, greeting, progress update | ✅ Always |
+
+**Quick Test:** Ask "Would future-me or another agent work better knowing this?" If yes → journal.
 
 ---
 

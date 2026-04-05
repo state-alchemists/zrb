@@ -7,17 +7,6 @@ import subprocess
 from collections.abc import AsyncIterable, Callable
 from typing import TYPE_CHECKING, Any, TextIO
 
-from prompt_toolkit import Application
-from prompt_toolkit.application import get_app, run_in_terminal
-from prompt_toolkit.document import Document
-from prompt_toolkit.formatted_text import AnyFormattedText
-from prompt_toolkit.history import InMemoryHistory
-from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.layout import Layout
-from prompt_toolkit.lexers import Lexer
-from prompt_toolkit.output import create_output
-from prompt_toolkit.styles import Style
-
 from zrb.context.any_context import AnyContext
 from zrb.llm.app.keybinding import create_output_keybindings
 from zrb.llm.app.layout import create_input_field, create_layout, create_output_field
@@ -38,6 +27,13 @@ from zrb.util.ascii_art.banner import create_banner
 from zrb.util.cli.terminal import get_terminal_size
 
 if TYPE_CHECKING:
+    from prompt_toolkit import Application
+    from prompt_toolkit.document import Document
+    from prompt_toolkit.formatted_text import AnyFormattedText
+    from prompt_toolkit.key_binding import KeyBindings
+    from prompt_toolkit.layout import Layout
+    from prompt_toolkit.lexers import Lexer
+    from prompt_toolkit.styles import Style
     from pydantic_ai import UserContent
     from pydantic_ai.models import Model
     from rich.theme import Theme
@@ -119,6 +115,8 @@ class UI(BaseUI):
         # UI Styles
         self._style = create_style()
         # Input Area
+        from prompt_toolkit.history import InMemoryHistory
+
         self._input_history = InMemoryHistory()
         self._input_field = create_input_field(
             history_manager=self._history_manager,
@@ -141,6 +139,8 @@ class UI(BaseUI):
         self._output_field = create_output_field(
             full_greeting, output_lexer, key_bindings=custom_output_kb
         )
+        from prompt_toolkit.layout import Layout
+
         self._layout = create_layout(
             title=self._assistant_name,
             jargon=self._jargon,
@@ -150,6 +150,8 @@ class UI(BaseUI):
             status_bar_text=self._get_status_bar_text,
         )
         # Key Bindings
+        from prompt_toolkit.key_binding import KeyBindings
+
         self._app_kb = KeyBindings()
         self._setup_app_keybindings(
             app_keybindings=self._app_kb, llm_task=self._llm_task
@@ -260,6 +262,8 @@ class UI(BaseUI):
 
     async def _refresh_loop(self):
         """Periodically invalidate UI to fix artifacts/lag."""
+        from prompt_toolkit.application import get_app
+
         while True:
             try:
                 app = get_app()
@@ -295,6 +299,8 @@ class UI(BaseUI):
         This method queues confirmation requests to handle multiple concurrent callers
         (e.g., parallel delegate agents). Each caller waits for its turn in the queue.
         """
+        from prompt_toolkit.application import get_app
+
         # Create a future for this confirmation request
         future: asyncio.Future[str] = asyncio.Future()
 
@@ -327,6 +333,8 @@ class UI(BaseUI):
 
     def _activate_next_confirmation(self):
         """Activate the next confirmation in the queue after one completes."""
+        from prompt_toolkit.application import get_app
+
         # Remove completed futures
         self._confirmation_queue = [
             (f, p) for f, p in self._confirmation_queue if not f.done()
@@ -359,6 +367,8 @@ class UI(BaseUI):
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False
     ) -> Any:
+        from prompt_toolkit.application import run_in_terminal
+
         def run_subprocess():
             # Run the command. Standard streams will inherit from the parent,
             # which have been restored to the TTY by self._capture.pause()
@@ -371,12 +381,16 @@ class UI(BaseUI):
             await run_in_terminal(run_subprocess)
 
     def invalidate_ui(self):
+        from prompt_toolkit.application import get_app
+
         try:
             get_app().invalidate()
         except Exception:
             pass
 
     def on_exit(self):
+        from prompt_toolkit.application import get_app
+
         try:
             get_app().exit()
         except Exception:
@@ -398,6 +412,9 @@ class UI(BaseUI):
         keybindings: KeyBindings,
         style: Style,
     ) -> Application:
+        from prompt_toolkit import Application
+        from prompt_toolkit.output import create_output
+
         try:
             from prompt_toolkit.clipboard.pyperclip import PyperclipClipboard
 
@@ -441,7 +458,7 @@ class UI(BaseUI):
             clipboard=clipboard,
         )
 
-    def _get_info_bar_text(self) -> AnyFormattedText:
+    def _get_info_bar_text(self) -> "AnyFormattedText":
         from prompt_toolkit.formatted_text import HTML
         from prompt_toolkit.formatted_text.utils import fragment_list_width
 
@@ -701,6 +718,9 @@ class UI(BaseUI):
         flush: bool = False,
         kind: str = "text",
     ):
+        from prompt_toolkit.application import get_app
+        from prompt_toolkit.document import Document
+
         # Helper to safely append to read-only buffer
         current_text = self._output_field.text
 

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias, Union
 
 from zrb.config.config import CFG
 from zrb.llm.approval.approval_channel import ApprovalChannel, current_approval_channel
-from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.config.limiter import LLMLimiter, is_turn_start
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.hook.types import HookEvent
@@ -41,6 +41,35 @@ else:
 
 
 current_ui: ContextVar[UIProtocol | None] = ContextVar("current_ui", default=None)
+
+
+def _is_prompt_too_long_error(e: Exception) -> bool:
+    """Returns True if the exception is a context length / token limit error."""
+    err_str = str(e).lower()
+    context_keywords = [
+        "prompt too long",
+        "context length",
+        "context window",
+        "max tokens",
+        "token limit",
+        "input too long",
+        "maximum context",
+    ]
+    return any(keyword in err_str for keyword in context_keywords)
+
+
+def _drop_oldest_turn(history: list[Any]) -> list[Any]:
+    """Removes the oldest conversation turn from history."""
+    if not history:
+        return history
+    # Find the start of the second turn and drop everything before it
+    for i in range(1, len(history)):
+        if is_turn_start(history[i]):
+            return history[i:]
+    # Only one turn (or no clear boundary) — clear all
+    return []
+
+
 current_tool_confirmation: ContextVar[AnyToolConfirmation] = ContextVar(
     "current_tool_confirmation", default=None
 )
@@ -267,6 +296,8 @@ async def run_agent(
         run_history = current_history
         result_output = None
         stream = None
+        _context_retry_count = 0
+        _MAX_CONTEXT_RETRIES = 5
         try:
             while True:
                 stream = agent.run_stream_events(
@@ -276,6 +307,7 @@ async def run_agent(
                     usage_limits=UsageLimits(request_limit=None),
                 )
                 CFG.LOGGER.debug(f"Stream started, current_results={current_results}")
+                stream_error = None
                 try:
                     async for event in stream:
                         await asyncio.sleep(0)
@@ -288,10 +320,30 @@ async def run_agent(
                             run_history = result.all_messages()
                         if effective_event_handler:
                             await effective_event_handler(event)
+                except Exception as _stream_exc:
+                    stream_error = _stream_exc
                 finally:
                     # Ensure stream is closed on cancellation or completion
                     if stream is not None and hasattr(stream, "aclose"):
                         await stream.aclose()
+
+                if stream_error is not None:
+                    if (
+                        _is_prompt_too_long_error(stream_error)
+                        and _context_retry_count < _MAX_CONTEXT_RETRIES
+                    ):
+                        _context_retry_count += 1
+                        # Drop one conversation turn from history and retry
+                        current_history = _drop_oldest_turn(current_history)
+                        print_fn(
+                            f"\n[System] Context too long, retrying with reduced history"
+                            f" (attempt {_context_retry_count}/{_MAX_CONTEXT_RETRIES})..."
+                        )
+                        CFG.LOGGER.debug(
+                            f"Prompt too long: retrying with {len(current_history)} history messages"
+                        )
+                        continue
+                    raise stream_error
 
                 # Handle Deferred Calls
                 if isinstance(result_output, DeferredToolRequests):

@@ -1,5 +1,48 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.18.0 (April 5, 2026)
+
+- **Feature: Selective YOLO Mode**:
+  - YOLO input now accepts comma-separated tool names for selective auto-approval.
+  - Example: `--yolo "Write,Edit"` auto-approves only Write and Edit tools.
+  - UI displays selective YOLO as `[Write,Edit]` in yellow.
+  - Runtime command: `/yolo Write,Edit` to enable selective mode.
+  - New `_parse_yolo_value()` function with full test coverage.
+
+- **Feature: Bash Safe Command Policy**:
+  - Auto-approves known-safe read-only commands (`ls`, `git status`, `cat`, `echo`, etc.).
+  - Rejects commands with dangerous shell metacharacters (`>`, `|`, `;`, `&&`, `` ` ``, `$()`).
+  - Conservative allowlist approach: only explicitly safe commands auto-approved.
+  - Full test suite for policy validation (268 lines).
+
+- **Bug Fix: Reserved Token Accounting**:
+  - System prompt tokens now properly reserved in context window calculations.
+  - Added `reserved_tokens` parameter to `run_agent()` and `fit_context_window()`.
+  - Prevents context window overflow when system prompts are large.
+
+- **Refactoring: Config Value Normalization**:
+  - Standardized boolean config defaults: `"1"`/`"0"` → `"on"`/`"off"`.
+  - Affects: `LOAD_BUILTIN`, `WEB_ENABLE_AUTH`, `HOOKS_ENABLED`, `HOOKS_DEBUG`, all `LLM_INCLUDE_*` flags.
+
+- **Improvement: Prompt Documentation Slimming**:
+  - `git_mandate.md`: Simplified from detailed tables to compact bullet lists.
+  - `mandate.md`: Condensed sections, streamlined tool selection guidance.
+  - Reduces token usage in prompts.
+
+- **Improvement: Tool Docstring Simplification**:
+  - Shortened docstrings across most LLM tools.
+  - Removed verbose MANDATES sections, kept essential guidance.
+  - Affected tools: `Bash`, `AnalyzeCode`, `LS`, `Glob`, `Read`, `ReadMany`, `Write`, `WriteMany`, `Edit`, `Grep`, `AnalyzeFile`, `WriteTodos`, `GetTodos`, `UpdateTodo`, `ClearTodos`, `OpenWebPage`, `SearchInternet`, `EnterWorktree`, `ExitWorktree`, `ListWorktrees`.
+
+- **Improvement: Journaling Timing**:
+  - Changed from "journal before every response" to "journal at task completion".
+  - More practical timing reduces overhead during conversations.
+
+- **Tests: New Coverage**:
+  - `test/llm/tool_call/tool_policy/test_bash_validation.py`: Comprehensive policy tests.
+  - `test/llm/task/test_llm_chat_task.py`: Added `TestParseYoloValue` class.
+  - Updated limiter tests for robustness (less brittle assertions).
+
 ## 2.17.0 (April 3, 2026)
 
 - **Feature: Git Worktree Integration**:
