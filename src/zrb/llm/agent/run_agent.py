@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias, Union
 from zrb.config.config import CFG
 from zrb.llm.approval.approval_channel import ApprovalChannel, current_approval_channel
 from zrb.llm.config.limiter import LLMLimiter, is_turn_start
+from zrb.llm.hook.executor import HookExecutionResult
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.hook.types import HookEvent
@@ -70,11 +71,119 @@ def _drop_oldest_turn(history: list[Any]) -> list[Any]:
     return []
 
 
+def _filter_nil_content(messages: list[Any]) -> list[Any]:
+    """Filter out parts with None/nil content from messages.
+
+    This prevents "invalid message content type: <nil>" errors from OpenAI-compatible APIs.
+    Must be called at runtime before passing messages to the model.
+    """
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        ToolCallPart,
+        ToolReturnPart,
+    )
+
+    filtered = []
+    for msg in messages:
+        if isinstance(msg, ModelRequest):
+            # Filter parts in ModelRequest
+            valid_parts = []
+            for part in msg.parts:
+                if isinstance(part, ToolCallPart):
+                    # Keep tool calls that have a tool_name
+                    if part.tool_name:
+                        valid_parts.append(part)
+                elif isinstance(part, ToolReturnPart):
+                    # Keep tool returns, ensure content is not None
+                    if part.content is not None:
+                        valid_parts.append(part)
+                elif hasattr(part, "content"):
+                    # TextPart, UserPromptPart, etc. - keep if content is not None
+                    if part.content is not None:
+                        valid_parts.append(part)
+                else:
+                    # Parts without content field - keep as-is
+                    valid_parts.append(part)
+            if valid_parts:
+                from dataclasses import replace
+
+                filtered.append(replace(msg, parts=valid_parts))
+        elif isinstance(msg, ModelResponse):
+            # Filter parts in ModelResponse
+            valid_parts = []
+            for part in msg.parts:
+                if hasattr(part, "content"):
+                    if part.content is not None:
+                        valid_parts.append(part)
+                else:
+                    valid_parts.append(part)
+            if valid_parts:
+                from dataclasses import replace
+
+                filtered.append(replace(msg, parts=valid_parts))
+        else:
+            # Unknown message type - keep as-is
+            filtered.append(msg)
+    return filtered
+
+
+def _extract_system_message(hook_results: list[HookExecutionResult]) -> str | None:
+    """Extract the first systemMessage from hook results, if any.
+
+    Claude Code hooks can return systemMessage to inject context into the conversation.
+    This helper extracts it from hook results for processing.
+
+    Args:
+        hook_results: List of hook execution results
+
+    Returns:
+        The first systemMessage found, or None if no hooks returned a message.
+    """
+    for result in hook_results:
+        if result.system_message:
+            return result.system_message
+    return None
+
+
+def _extract_replace_response(hook_results: list[HookExecutionResult]) -> bool:
+    """Extract the replaceResponse flag from hook results.
+
+    If any hook returns replaceResponse=True, the extended session's response
+    should replace the original response. Default is False (return original).
+
+    Args:
+        hook_results: List of hook execution results
+
+    Returns:
+        True if any hook wants to replace the response, False otherwise.
+    """
+    for result in hook_results:
+        if result.replace_response:
+            return True
+    return False
+
+
+def _extract_additional_context(hook_results: list[HookExecutionResult]) -> str | None:
+    """Extract the first additionalContext from hook results, if any.
+
+    Claude Code hooks can return additionalContext to prepend context to the conversation.
+    This helper extracts it from hook results for processing.
+
+    Args:
+        hook_results: List of hook execution results
+
+    Returns:
+        The first additionalContext found, or None if no hooks returned context.
+    """
+    for result in hook_results:
+        if result.additional_context:
+            return result.additional_context
+    return None
+
+
 current_tool_confirmation: ContextVar[AnyToolConfirmation] = ContextVar(
     "current_tool_confirmation", default=None
-)
-current_hook_manager: ContextVar[HookManager | None] = ContextVar(
-    "current_hook_manager", default=None
 )
 current_yolo: ContextVar[bool] = ContextVar("current_yolo", default=False)
 
@@ -122,9 +231,7 @@ async def run_agent(
         effective_ui = ui_arg
 
     effective_tool_confirmation = tool_confirmation or current_tool_confirmation.get()
-    effective_hook_manager = (
-        hook_manager or current_hook_manager.get() or default_hook_manager
-    )
+    effective_hook_manager = hook_manager or default_hook_manager
     effective_yolo = yolo or current_yolo.get()
     effective_approval_channel = approval_channel or current_approval_channel.get()
 
@@ -165,11 +272,8 @@ async def run_agent(
     CFG.LOGGER.debug(f"effective_approval_channel: {effective_approval_channel}")
 
     # Set context variables so sub-agents can inherit them
-    token_ui = current_ui.set(
-        effective_ui
-    )  # effective_ui is already resolved (single or MultiUI)
+    token_ui = current_ui.set(effective_ui)
     token_confirmation = current_tool_confirmation.set(effective_tool_confirmation)
-    token_hook_manager = current_hook_manager.set(effective_hook_manager)
     token_yolo = current_yolo.set(effective_yolo)
     token_approval_channel = current_approval_channel.set(effective_approval_channel)
 
@@ -193,8 +297,8 @@ async def run_agent(
                 show_tool_result=CFG.LLM_SHOW_TOOL_CALL_RESULT,
             )
 
-        # Hook: SessionStart
-        await effective_hook_manager.execute_hooks(
+        # Hook: SessionStart - hooks can inject additionalContext into conversation
+        session_start_results = await effective_hook_manager.execute_hooks(
             HookEvent.SESSION_START,
             {
                 "message": message,
@@ -203,11 +307,31 @@ async def run_agent(
             },
         )
 
+        # Process additionalContext from SESSION_START hooks
+        # This allows hooks to inject context before the conversation starts
+        session_start_context = _extract_additional_context(session_start_results)
+        if session_start_context:
+            CFG.LOGGER.debug(
+                f"SESSION_START hook provided additionalContext: {session_start_context[:100]}..."
+            )
+            # additionalContext is prepended to the conversation as a system message
+            # This is done by adding it to message_history with a SystemPromptPart-like approach
+            from pydantic_ai.messages import ModelRequest, SystemPromptPart
+
+            context_part = SystemPromptPart(content=session_start_context)
+            # Prepend to history
+            if message_history and isinstance(message_history[0], ModelRequest):
+                # Add to existing first request
+                message_history[0].parts.insert(0, context_part)
+            else:
+                # Create new request with context
+                message_history = [ModelRequest(parts=[context_part])] + message_history
+
         # Expand user message with references
         effective_message = expand_prompt(message) if message else message
 
-        # Hook: UserPromptSubmit
-        await effective_hook_manager.execute_hooks(
+        # Hook: UserPromptSubmit - hooks can modify prompt or inject additionalContext
+        user_prompt_results = await effective_hook_manager.execute_hooks(
             HookEvent.USER_PROMPT_SUBMIT,
             {
                 "original_message": message,
@@ -215,6 +339,19 @@ async def run_agent(
                 "attachments": attachments,
             },
         )
+
+        # Process additionalContext from USER_PROMPT_SUBMIT hooks
+        # This allows hooks to prepend context to the user's prompt
+        prompt_context = _extract_additional_context(user_prompt_results)
+        if prompt_context:
+            CFG.LOGGER.debug(
+                f"USER_PROMPT_SUBMIT hook provided additionalContext: {prompt_context[:100]}..."
+            )
+            # Prepend context to the effective message
+            if effective_message:
+                effective_message = f"{prompt_context}\n\n{effective_message}"
+            else:
+                effective_message = prompt_context
 
         # Prepare Prompt Content
         prompt_content = _get_prompt_content(effective_message, attachments, print_fn)
@@ -300,6 +437,8 @@ async def run_agent(
         _MAX_CONTEXT_RETRIES = 5
         try:
             while True:
+                # Filter out nil content before sending to API
+                current_history = _filter_nil_content(current_history)
                 stream = agent.run_stream_events(
                     current_message,
                     message_history=current_history,
@@ -317,7 +456,7 @@ async def run_agent(
                             CFG.LOGGER.debug(
                                 f"Got result event, result_output type: {type(result_output)}"
                             )
-                            run_history = result.all_messages()
+                            run_history = _filter_nil_content(result.all_messages())
                         if effective_event_handler:
                             await effective_event_handler(event)
                 except Exception as _stream_exc:
@@ -397,13 +536,59 @@ async def run_agent(
                     )
                     continue
 
-                # Hook: SessionEnd
-                await effective_hook_manager.execute_hooks(
+                # Hook: SessionEnd - check if hooks want to extend session
+                session_end_results = await effective_hook_manager.execute_hooks(
                     HookEvent.SESSION_END,
                     {"output": result_output, "history": run_history},
                 )
 
-                return result_output, run_history
+                # Check if any hook wants to extend the session with a systemMessage
+                # This allows hooks (like journaling) to trigger LLM actions at session end
+                session_end_message = _extract_system_message(session_end_results)
+                replace_response = _extract_replace_response(session_end_results)
+
+                if session_end_message:
+                    CFG.LOGGER.debug(
+                        f"SESSION_END hook returned systemMessage, continuing session: {session_end_message[:100]}..."
+                    )
+                    CFG.LOGGER.debug(
+                        f"SESSION_END hook replace_response={replace_response}"
+                    )
+                    # Capture original BEFORE extending session (critical for restore)
+                    _original_output = result_output
+                    _original_history = run_history
+                    # Convert systemMessage to user prompt for next iteration
+                    effective_print_fn(f"\n[System] {session_end_message}\n")
+                    # Continue the session with the system message as user prompt
+                    current_message = session_end_message
+                    current_history = run_history
+                    # Reset state for next iteration
+                    result_output = None
+                    current_results = None
+                    # Track whether to return extended or original response
+                    # If multiple extensions, last one wins
+                    _return_extended = replace_response
+                    continue
+
+                # Return appropriate result based on replace_response flag
+                # If replace_response=True, return extended response (from last iteration)
+                # If replace_response=False (default), return original response saved before extension
+                if "_return_extended" in locals():
+                    if _return_extended:
+                        # Extended session response replaces original
+                        CFG.LOGGER.debug(
+                            "Returning extended response (replace_response=True)"
+                        )
+                        return result_output, run_history
+                    else:
+                        # Default: return original response (extended was for side effects)
+                        CFG.LOGGER.debug(
+                            "Returning original response (replace_response=False)"
+                        )
+                        return _original_output, _original_history
+                else:
+                    # No session extension occurred, return current result
+                    return result_output, run_history
         except asyncio.CancelledError:
             # Propagate cancellation to allow proper cleanup
             raise
@@ -415,7 +600,6 @@ async def run_agent(
         # Restore context variables
         current_ui.reset(token_ui)
         current_tool_confirmation.reset(token_confirmation)
-        current_hook_manager.reset(token_hook_manager)
         current_yolo.reset(token_yolo)
         current_approval_channel.reset(token_approval_channel)
 

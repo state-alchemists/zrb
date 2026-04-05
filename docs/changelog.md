@@ -2,6 +2,44 @@
 
 ## 2.18.0 (April 5, 2026)
 
+- **Feature: Hook System SESSION_END Extensions**:
+  - `HookResult.with_system_message()` now accepts `replace_response` parameter.
+  - `replace_response=False` (default): Extended session runs for side effects, original response returned.
+  - `replace_response=True`: Extended session's response replaces original.
+  - Enables use cases like: journaling (side effects), summarization (replace response), transformation pipelines.
+  - `HookExecutionResult` adds `replace_response` field for result processing.
+  - New helper functions: `_extract_system_message()`, `_extract_replace_response()`, `_extract_additional_context()`.
+
+- **Feature: Hook Factory Registration**:
+  - New `HookManager.add_hook_factory()` method for dynamic hook registration.
+  - Factories are called during hook loading to conditionally register hooks based on config.
+  - Enables config-driven hook enabling/disabling without code changes.
+  - Built-in journaling hook uses this pattern to respect `CFG.LLM_INCLUDE_JOURNAL`.
+
+- **Feature: Built-in Journaling Hook**:
+  - New `src/zrb/llm/hook/journal.py` with `JournalingHookHandler` class.
+  - Tracks session activity via `POST_TOOL_USE` events.
+  - Sends journal reminder at `SESSION_END` if session had meaningful activity.
+  - Anti-recursion protection: only fires reminder once per session.
+  - Auto-registered when `LLM_INCLUDE_JOURNAL=on`.
+
+- **Refactoring: Hook Event Cleanup**:
+  - Removed 5 unhandled events from `HookEvent` enum: `PERMISSION_REQUEST`, `SUBAGENT_START`, `SUBAGENT_STOP`, `TEAMMATE_IDLE`, `TASK_COMPLETED`.
+  - Reduced from 14 events to 9 events (all now actually fired in code).
+  - Updated `CLAUDE_EVENT_MATCHER_FIELDS` mapping in `manager.py`.
+  - Updated documentation and examples to reflect actual events.
+
+- **Bug Fix: SESSION_END Response Handling**:
+  - Fixed bug where `original_output` was overwritten on each loop iteration in `run_agent.py`.
+  - Now captures `_original_output` and `_original_history` only when session extension is triggered.
+  - Ensures correct response returned whether using `replace_response=True` or `False`.
+
+- **Improvement: Context Window Management**:
+  - New `_filter_nil_content()` function filters None/nil content from messages.
+  - Prevents "invalid message content type: <nil>" errors from OpenAI-compatible APIs.
+  - New `_is_prompt_too_long_error()` helper detects context length errors.
+  - New `_drop_oldest_turn()` function removes oldest conversation turn for context compaction.
+
 - **Feature: Selective YOLO Mode**:
   - YOLO input now accepts comma-separated tool names for selective auto-approval.
   - Example: `--yolo "Write,Edit"` auto-approves only Write and Edit tools.
@@ -34,11 +72,15 @@
   - Removed verbose MANDATES sections, kept essential guidance.
   - Affected tools: `Bash`, `AnalyzeCode`, `LS`, `Glob`, `Read`, `ReadMany`, `Write`, `WriteMany`, `Edit`, `Grep`, `AnalyzeFile`, `WriteTodos`, `GetTodos`, `UpdateTodo`, `ClearTodos`, `OpenWebPage`, `SearchInternet`, `EnterWorktree`, `ExitWorktree`, `ListWorktrees`.
 
-- **Improvement: Journaling Timing**:
-  - Changed from "journal before every response" to "journal at task completion".
-  - More practical timing reduces overhead during conversations.
+- **Documentation: Hooks Documentation**:
+  - Expanded `docs/advanced-topics/hooks.md` with SESSION_END system messages section.
+  - Added examples for both `replace_response=False` (side effects) and `replace_response=True` (transformation).
+  - New `examples/llm-hooks/` directory with comprehensive hook examples.
+  - Examples include: session tracking, permission control, journal reminder, response transformation.
 
 - **Tests: New Coverage**:
+  - `test/llm/hook/test_hook_result_processing.py`: Hook result extraction and journaling hook tests.
+  - `test/llm/agent/test_run_agent.py`: Added `replace_response` functionality tests.
   - `test/llm/tool_call/tool_policy/test_bash_validation.py`: Comprehensive policy tests.
   - `test/llm/task/test_llm_chat_task.py`: Added `TestParseYoloValue` class.
   - Updated limiter tests for robustness (less brittle assertions).

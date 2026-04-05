@@ -130,7 +130,7 @@ class TestHookContext:
     def test_to_claude_json_with_agent_fields(self):
         """Test to_claude_json includes agent fields."""
         ctx = HookContext(
-            event=HookEvent.SUBAGENT_START,
+            event=HookEvent.NOTIFICATION,
             event_data={},
             agent_id="agent-123",
             agent_type="code-reviewer",
@@ -144,7 +144,7 @@ class TestHookContext:
     def test_to_claude_json_with_task_fields(self):
         """Test to_claude_json includes task fields."""
         ctx = HookContext(
-            event=HookEvent.TASK_COMPLETED,
+            event=HookEvent.SESSION_END,
             event_data={},
             task_id="task-123",
             task_subject="Build feature",

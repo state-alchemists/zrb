@@ -18,6 +18,7 @@ from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
+from zrb.llm.hook.manager import HookManager
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.summarizer import (
     create_summarizer_history_processor,
@@ -240,6 +241,7 @@ class LLMChatTask(BaseTask):
         self._toolset_factories = (
             toolset_factories if toolset_factories is not None else []
         )
+        self._hook_factories: list[Callable[[HookManager], None]] = []
         self._message = message
         self._render_message = render_message
         self._attachment = attachment
@@ -385,6 +387,12 @@ class LLMChatTask(BaseTask):
         self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]
     ):
         self._tool_factories += list(factory)
+
+    def add_hook_factory(self, *factory: Callable[[HookManager], None]):
+        self.append_hook_factory(*factory)
+
+    def append_hook_factory(self, *factory: Callable[[HookManager], None]):
+        self._hook_factories += list(factory)
 
     def add_history_processor(self, *processor: HistoryProcessor):
         self.append_history_processor(*processor)
@@ -643,6 +651,12 @@ class LLMChatTask(BaseTask):
         CFG.LOGGER.debug(f"  effective_approval_channel: {effective_approval_channel}")
         CFG.LOGGER.debug(f"  _approval_channels: {self._approval_channels}")
 
+        # Create a fresh HookManager for this task execution
+        hook_manager = HookManager()
+        # Apply all hook factories
+        for factory in self._hook_factories:
+            factory(hook_manager)
+
         # Pass resolved tools/toolsets to LLMTask (no factories needed since already resolved)
         return LLMTask(
             name=f"{self.name}-process",
@@ -667,6 +681,7 @@ class LLMChatTask(BaseTask):
             llm_config=self._llm_config,
             llm_limitter=self._llm_limitter,
             history_manager=history_manager,
+            hook_manager=hook_manager,
             tool_confirmation=tool_confirmation,
             ui=ui,
             approval_channel=effective_approval_channel,

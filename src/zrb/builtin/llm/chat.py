@@ -7,6 +7,7 @@ from zrb.config.config import CFG
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.llm.custom_command import get_skill_custom_command
+from zrb.llm.hook.journal import create_journaling_hook_factory
 from zrb.llm.lsp.tools import create_lsp_tools
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.skill.manager import skill_manager
@@ -184,6 +185,10 @@ llm_chat.add_tool_policy(
 
 # Add custom command (slash commands)
 llm_chat.add_custom_command(get_skill_custom_command(skill_manager))
+
+# Add hook factories
+# Journaling hook will check CFG.LLM_INCLUDE_JOURNAL at execution time
+llm_chat.add_hook_factory(create_journaling_hook_factory())
 
 llm_group.add_task(llm_chat)
 cli.add_task(llm_chat)

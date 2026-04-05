@@ -1,10 +1,8 @@
 # Git Rules
 
----
-
 ## State-Changing Commands: Require Explicit Approval
 
-Always get explicit user approval before running any of these:
+Always get explicit user approval before running:
 
 `git add` · `git commit` · `git push` · `git pull` · `git merge` · `git rebase` · `git checkout` · `git switch` · `git branch -D` · `git reset` · `git revert` · `git stash` · `git tag` · `git clean`
 

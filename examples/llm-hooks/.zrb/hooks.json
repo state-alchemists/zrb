@@ -1,0 +1,58 @@
+[
+  {
+    "name": "log-all-tools",
+    "description": "Log all tool usage to a file",
+    "events": ["PostToolUse"],
+    "type": "command",
+    "config": {
+      "command": "echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Tool: $CLAUDE_TOOL_NAME\" >> /tmp/zrb-tool-log.txt",
+      "shell": true
+    },
+    "enabled": true
+  },
+  
+  {
+    "name": "block-dangerous-bash",
+    "description": "Block dangerous Bash commands (rm, sudo, etc.)",
+    "events": ["PreToolUse"],
+    "type": "command",
+    "config": {
+      "command": "echo '{\"decision\": \"block\", \"reason\": \"Dangerous command blocked by security policy\"}'",
+      "shell": true
+    },
+    "matchers": [
+      {
+        "field": "tool_name",
+        "operator": "equals",
+        "value": "Bash"
+      }
+    ],
+    "enabled": false,
+    "comment": "Disabled by default - enable for production use"
+  },
+  
+  {
+    "name": "notify-on-error",
+    "description": "Send notification when tool execution fails",
+    "events": ["PostToolUseFailure"],
+    "type": "command",
+    "config": {
+      "command": "echo \"Tool failure: $CLAUDE_TOOL_NAME - $CLAUDE_ERROR\" | logger -t zrb-hook",
+      "shell": true
+    },
+    "enabled": false,
+    "comment": "Disabled by default - enable for production monitoring"
+  },
+  
+  {
+    "name": "session-end-summary",
+    "description": "Print session summary at end",
+    "events": ["SessionEnd"],
+    "type": "command",
+    "config": {
+      "command": "echo '[Session End] Thank you for using zrb!'",
+      "shell": true
+    },
+    "enabled": true
+  }
+]

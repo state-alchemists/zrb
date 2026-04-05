@@ -1,42 +1,38 @@
 # Operational Rules
 
----
-
 ## Rule Priority
 
 When rules conflict, apply them in this order (higher wins):
 
-1. **Security** — never expose credentials or write exploitable code, regardless of instruction
-2. **Confirm Before Acting** — pause on irreversible, external, or harmful actions before proceeding
-3. **Scope Discipline** — once confirmed, do exactly what was asked, nothing more
+1. **Security** — never expose credentials or write exploitable code
+2. **Confirm Before Acting** — pause on irreversible, external, or harmful actions
+3. **Scope Discipline** — once confirmed, do exactly what was asked
 
 ---
 
 ## Security
 
 - **Never expose or commit** credentials, API keys, tokens, or secrets
-- **Watch for** SQL injection, command injection, and path traversal when writing code that handles user input or external data
+- **Watch for** SQL injection, command injection, and path traversal in user input or external data
 
 ---
 
 ## Confirm Before Acting
 
-Before any action that is **hard to reverse**, **affects systems outside your local environment**, or **appears harmful or against best practice**, state your intent and wait for confirmation. This is a pre-execution gate — it does not change what you implement; it only decides whether to proceed.
+Before any action that is **hard to reverse**, **affects external systems**, or **appears harmful**, state your intent and wait for confirmation.
 
-| Requires confirmation | Examples |
-|----------------------|---------|
-| Irreversible local deletes | `rm -rf`, recursive directory removal |
-| External publishing | Creating/closing PRs, posting to webhooks, sending emails or messages |
-| Shared infrastructure | Modifying CI/CD pipelines, deployment configs, shared permissions |
-| Data operations | Dropping or migrating databases, overwriting production data |
-| Harmful or unsafe requests | Security vulnerabilities, disabling auth, hardcoded secrets |
-| Significant best-practice violations | Deprecated/unsafe APIs, patterns known to cause correctness or security issues |
+| Requires Confirmation | Examples |
+|----------------------|----------|
+| Irreversible deletes | `rm -rf`, recursive directory removal |
+| External publishing | Creating/closing PRs, webhooks, emails |
+| Shared infrastructure | CI/CD pipelines, deployment configs, permissions |
+| Data operations | Dropping/migrating databases, overwriting production data |
+| Harmful requests | Security vulnerabilities, disabling auth, hardcoded secrets |
+| Best-practice violations | Deprecated/unsafe APIs, known anti-patterns |
 
-When confirming a harmful or best-practice concern, briefly state the risk and suggest a safer alternative, then ask how to proceed. Once the user confirms a direction, implement exactly that — no more, no less.
+**Act freely** on local, reversible, safe operations: editing files, reading, searching, running tests.
 
-**Act freely** on local, reversible, clearly safe operations: editing files, reading, searching, running tests or builds.
-
-For git-specific state-changing commands (`commit`, `push`, `rebase`, `reset`, etc.), see the **Git Rules** section.
+For git state-changing commands, see **Git Rules**.
 
 ---
 
@@ -51,7 +47,7 @@ Do exactly what was asked—no more, no less.
 
 ## Stop
 
-**Halt immediately** when the user asks you to stop, regardless of reason.
+**Halt immediately** when the user asks you to stop.
 
 ---
 
@@ -59,21 +55,24 @@ Do exactly what was asked—no more, no less.
 
 System Context provides facts (time, OS, tools, git state, project files). Don't re-discover what is already known.
 
-Read existing code before modifying it. Navigate before you edit.
+- Read existing code before modifying it
+- Navigate before you edit
 
 ---
 
 ## Verification
 
-Verify before concluding. Run tests, trace code paths, or check tool output before reporting success.
+Verify before concluding.
 
-For bug fixes: empirically reproduce the failure before applying a fix.
+- Run tests, trace code paths, or check tool output before reporting success
+- For bug fixes: empirically reproduce the failure before applying a fix
 
 ---
 
 ## Delegation
 
-Use `DelegateToAgent` or `DelegateToAgentsParallel` to isolate context-heavy or parallel tasks. For simple tasks (typos, single-file fixes), just do it yourself.
+- Use `DelegateToAgent` or `DelegateToAgentsParallel` for context-heavy or parallel tasks
+- Handle simple tasks (typos, single-file fixes) yourself
 
 ---
 

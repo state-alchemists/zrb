@@ -1,4 +1,5 @@
 import json
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -7,15 +8,30 @@ from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
 
 
+def _create_mock_cfg():
+    """Create mock config for tests."""
+    mock_cfg = MagicMock()
+    mock_cfg.LLM_INCLUDE_JOURNAL = False
+    mock_cfg.ROOT_GROUP_NAME = "zrb"
+    mock_cfg.LLM_PLUGIN_DIRS = []
+    mock_cfg.HOOKS_DIRS = []
+    mock_cfg.LLM_JOURNAL_DIR = "/tmp/test_journal"
+    mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+    return mock_cfg
+
+
 @pytest.fixture
 def hook_manager():
-    return HookManager()
+    # Patch CFG in all modules that import it
+    mock_cfg = _create_mock_cfg()
+    with patch("zrb.llm.hook.manager.CFG", mock_cfg), patch(
+        "zrb.llm.hook.journal.CFG", mock_cfg
+    ):
+        return HookManager()
 
 
 async def check_match(tmp_path, matchers, context_data):
     """Helper to verify if matchers work using public scan + execute_hooks."""
-    manager = HookManager()
-
     hook_dir = tmp_path / "hooks"
     if hook_dir.exists():
         import shutil
@@ -36,20 +52,25 @@ async def check_match(tmp_path, matchers, context_data):
     with open(hook_file, "w") as f:
         json.dump(hook_content, f)
 
-    manager.scan(search_dirs=[str(hook_dir)])
+    mock_cfg = _create_mock_cfg()
+    with patch("zrb.llm.hook.manager.CFG", mock_cfg), patch(
+        "zrb.llm.hook.journal.CFG", mock_cfg
+    ):
+        manager = HookManager()
+        manager.scan(search_dirs=[str(hook_dir)])
 
-    # Extract event_data if present, otherwise use None
-    data_to_pass = context_data.copy()
-    event_data = data_to_pass.pop("event_data", None)
+        # Extract event_data if present, otherwise use None
+        data_to_pass = context_data.copy()
+        event_data = data_to_pass.pop("event_data", None)
 
-    # Pass context_data as kwargs so they populate HookContext attributes
-    results = await manager.execute_hooks(
-        HookEvent.SESSION_START, event_data, **data_to_pass
-    )
-    # If the hook matched, it should have been executed and returned a result that isn't "Skipped due to matchers"
-    for result in results:
-        if result.message != "Skipped due to matchers":
-            return True
+        # Pass context_data as kwargs so they populate HookContext attributes
+        results = await manager.execute_hooks(
+            HookEvent.SESSION_START, event_data, **data_to_pass
+        )
+        # If the hook matched, it should have been executed and returned a result that isn't "Skipped due to matchers"
+        for result in results:
+            if result.message != "Skipped due to matchers":
+                return True
     return False
 
 

@@ -197,9 +197,29 @@ class HookResult:
         return cls(success=True, modifications=modifications)
 
     @classmethod
-    def with_system_message(cls, message: str) -> "HookResult":
-        """Create a result with a system message."""
-        return cls(success=True, modifications={"systemMessage": message})
+    def with_system_message(
+        cls, message: str, replace_response: bool = False
+    ) -> "HookResult":
+        """Create a result with a system message.
+
+        Args:
+            message: The system message to inject into the conversation.
+            replace_response: If True, the extended session's response replaces
+                the original response. If False (default), the original response
+                is returned and the extended session is for side effects only.
+
+        Returns:
+            HookResult with systemMessage and optionally replaceResponse set.
+
+        Usage:
+            # Side effects only (e.g., journaling) - return original response
+            HookResult.with_system_message("Journal this", replace_response=False)
+
+            # Replace original response (e.g., summarization)
+            HookResult.with_system_message("Summarize this", replace_response=True)
+        """
+        modifications = {"systemMessage": message, "replaceResponse": replace_response}
+        return cls(success=True, modifications=modifications)
 
     @classmethod
     def with_additional_context(cls, context: str) -> "HookResult":

@@ -1,0 +1,60 @@
+# YAML Hook Configuration Examples
+# These demonstrate various hook patterns
+
+# Example 1: Simple logging hook
+- name: log-tool-usage
+  description: Log all tool usage to console
+  events:
+    - PostToolUse
+  type: command
+  config:
+    command: 'echo "[HOOK] Tool used: $CLAUDE_TOOL_NAME"'
+    shell: true
+  enabled: true
+  priority: 0
+
+# Example 2: Block specific commands
+- name: block-rm-commands
+  description: Block rm commands in Bash
+  events:
+    - PreToolUse
+  type: command
+  config:
+    command: |
+      if echo "$CLAUDE_TOOL_INPUT" | grep -q '"rm '; then
+        echo '{"decision": "block", "reason": "rm commands are not allowed"}'
+        exit 2
+      fi
+      exit 0
+    shell: true
+  matchers:
+    - field: tool_name
+      operator: equals
+      value: Bash
+  enabled: false  # Enable for production
+
+# Example 3: Notify on session end
+- name: session-end-notification
+  description: Send notification at session end
+  events:
+    - SessionEnd
+  type: command
+  config:
+    command: 'notify-send "zrb session ended" "Session complete" || true'
+    shell: true
+  enabled: false  # Only works on Linux with notify-send
+
+# Example 4: Track task completion
+- name: task-completion-tracker
+  description: Log when tasks are completed
+  events:
+    - TaskCompleted
+  type: command
+  config:
+    command: 'echo "[TASK] Completed: $CLAUDE_TASK_ID" >> /tmp/zrb-tasks.log'
+    shell: true
+  enabled: true
+
+# Example 5: Claude Code compatible format
+# This format allows matching patterns
+# Note: This is automatically converted to zrb format
