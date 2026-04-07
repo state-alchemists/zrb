@@ -1,5 +1,28 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.18.1 (April 8, 2026)
+
+- **Improvement: Journaling Hook Behavior**:
+  - Journaling reminders now fire after every response instead of only at session end.
+  - LLM now decides whether any content from the turn is worth noting.
+  - Simplified hook state management and improved anti-recursion protection.
+  - Journaling prompt now uses a configurable template (`journal_reminder.md`).
+
+- **Feature: Robust Cross-platform Clipboard**:
+  - Added native WSL support via PowerShell for reliable Windows clipboard access.
+  - Enhanced Wayland support with multi-type MIME fallback (BMP, JPEG, TIFF) and auto-conversion to PNG.
+  - Improved "missing tool" hints with environment-aware suggestions.
+
+- **Improvement: LLM App Layout and UI**:
+  - Refined layout and keybindings for the LLM application.
+  - Improved `DefaultUI` and `MultiUI` event handling and response capture.
+  - Slimmed down prompt definitions and improved template loading.
+
+- **Tests: Coverage Expansion**:
+  - New `test/runner/chat/test_chat_api.py` for comprehensive API testing.
+  - New `test/llm/hook/test_matchers.py` and expanded hook processing tests.
+  - Verified behavioral changes in journaling and clipboard logic.
+
 ## 2.18.0 (April 5, 2026)
 
 - **Feature: Hook System SESSION_END Extensions**:
