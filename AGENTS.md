@@ -1,7 +1,7 @@
 # Zrb Agent Guide
 
 ## Project Overview
-Zrb is a Python-based task automation tool. Core logic, built-in tasks, and LLM integrations are in `src/zrb/`.
+Zrb (Zaruba) is a Python-based task automation framework (v2.x). It supports task definition in pure Python, dependency-based execution (DAG), CLI and web UI runners, and built-in LLM/AI agent integration. Core logic is in `src/zrb/`.
 
 ## Development Setup
 ```bash
@@ -13,27 +13,66 @@ source .venv/bin/activate && poetry lock && poetry install
 ### Core Framework
 | Directory | Purpose |
 |-----------|---------|
-| `src/zrb/builtin/` | User-executable task definitions (`zrb <group> <task>`) |
-| `src/zrb/config/` | Global settings via `CFG` (URLs, API keys, defaults) |
-| `src/zrb/task/` | Core task engine, base classes, runners |
-| `src/zrb/runner/` | CLI and Web Server entry points |
-| `src/zrb/group/` | Command group definitions |
-| `src/zrb/input/` | Input parameter definitions for CLI execution |
-| `src/zrb/util/` | General utility functions |
+| `src/zrb/builtin/` | Pre-packaged user-executable tasks (`zrb <group> <task>`) |
+| `src/zrb/config/` | Global settings via `CFG` singleton (env vars, API keys, defaults) |
+| `src/zrb/task/` | Task engine: `BaseTask`, `Task`, `CmdTask`, `LLMTask`, `Scheduler`, etc. |
+| `src/zrb/runner/` | CLI (`Cli` class) and Web UI (`FastAPI` app) entry points |
+| `src/zrb/group/` | CLI command group definitions (hierarchical task organization) |
+| `src/zrb/input/` | Input parameter types: `StrInput`, `IntInput`, `BoolInput`, `OptionInput`, etc. |
+| `src/zrb/env/` | Environment variable types: `Env`, `EnvMap`, `EnvFile` |
+| `src/zrb/context/` | Per-task `Context` and shared `SharedContext` (inputs, envs, xcom) |
+| `src/zrb/session/` | `Session` tracks execution state, task status, concurrent coroutines |
+| `src/zrb/xcom/` | `Xcom` deque-based inter-task messaging (push/pop/peek) |
+| `src/zrb/callback/` | Task lifecycle event callbacks |
+| `src/zrb/attr/` | Attribute descriptors (StrAttr, IntAttr, BoolAttr, etc.) for deferred evaluation |
+| `src/zrb/dot_dict/` | `DotDict` – dot-notation dict used for `ctx.input.*` and `ctx.env.*` |
+| `src/zrb/cmd/` | Command rendering utilities for `CmdTask` |
+| `src/zrb/content_transformer/` | Content transformation helpers (templating, string transforms) |
+| `src/zrb/session_state_log/` | Session state data structures |
+| `src/zrb/session_state_logger/` | Persistent session logging |
+| `src/zrb/task_status/` | Task status tracking (PENDING, STARTED, READY, DONE, FAILED, etc.) |
+| `src/zrb/util/` | General utility functions (git, file, string, async helpers) |
+| `src/zrb/llm_plugin/` | Plugin discovery/loading for LLM agent extensions |
 
-### LLM Integration
+### LLM Integration (`src/zrb/llm/`)
 | Directory | Purpose |
 |-----------|---------|
-| `src/zrb/llm/agent/` | Agent orchestrators and execution logic |
-| `src/zrb/llm/prompt/` | LLM system prompts, mandates, context |
-| `src/zrb/llm/skill/` | Agent skills and behavioral logic |
-| `src/zrb/llm/tool/` | Agent-callable Python functions (e.g., `search_internet`) |
+| `llm/agent/` | `SubAgentManager` – multi-agent orchestration, tool registry |
+| `llm/app/` | LLM application-level integration helpers |
+| `llm/approval/` | Tool call approval protocols (`AnyToolConfirmation`, `ApprovalChannel`) |
+| `llm/chat/` | `LLMChatTask` – interactive terminal chat sessions |
+| `llm/config/` | `LLMConfig` (model selection, rate limiting) and `LLMLimiter` (token budgets) |
+| `llm/custom_command/` | Custom CLI command integration for LLM tasks |
+| `llm/history_manager/` | `FileHistoryManager` – persist and load conversation history |
+| `llm/hook/` | `HookManager`, `HookContext` – Claude Code–compatible lifecycle hooks |
+| `llm/lsp/` | Language Server Protocol support for LLM tools |
+| `llm/prompt/` | System prompts, mandates, context journal, history processors |
+| `llm/skill/` | `SkillManager` – reusable agent capabilities, dynamic activation |
+| `llm/summarizer/` | Context compression and history summarization for long conversations |
+| `llm/task/` | `LLMTask` – pydantic-ai–based task with tools, skills, hooks, history |
+| `llm/tool/` | Agent-callable tools: `bash`, `file`, `code`, `web`, `rag`, `delegate`, `plan`, `mcp`, `skill`, `worktree`, `zrb_task`, `search/` |
+| `llm/tool_call/` | Tool call data structures and result handling |
+| `llm/ui/` | `UIProtocol` and terminal UI for streaming responses and tool approval |
+| `llm/util/` | Internal LLM utilities |
 
 ### Test Locations
 | Directory | Purpose |
 |-----------|---------|
 | `test/` | Tests mirroring `src/` hierarchy |
 | `llm-challenges/` | Agent framework evaluation (contains `runner.py`) |
+
+## Key Task Types
+
+| Task Class | Import | Purpose |
+|-----------|--------|---------|
+| `Task` | `zrb.task.task` | Pure Python action (async or sync function) |
+| `CmdTask` | `zrb.task.cmd_task` | Shell command execution (local or SSH remote) |
+| `LLMTask` | `zrb.llm.task.llm_task` | Pydantic-AI agent with tools, skills, hooks |
+| `HttpCheck` | `zrb.task.http_check` | HTTP readiness check |
+| `TcpCheck` | `zrb.task.tcp_check` | TCP port readiness check |
+| `Scheduler` | `zrb.task.scheduler` | Cron-style trigger (extends `BaseTrigger`) |
+| `Scaffolder` | `zrb.task.scaffolder` | Jinja2 file templating / project scaffolding |
+| `RsyncTask` | `zrb.task.rsync_task` | File sync / deploy via rsync |
 
 ## Development Conventions
 

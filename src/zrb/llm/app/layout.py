@@ -136,11 +136,6 @@ def create_input_field(
     def _(event):
         event.app.layout.focus_previous()
 
-    # Ensure Paste works locally in the input field
-    @kb.add("c-v")
-    def _(event):
-        event.current_buffer.paste_clipboard_data(event.app.clipboard.get_data())
-
     return text_area
 
 
