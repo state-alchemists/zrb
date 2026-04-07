@@ -1,7 +1,9 @@
-"""JournalingHookHandler: Reminds LLM to journal at session end.
+"""JournalingHookHandler: Reminds LLM to journal at the end of every response.
 
 The LLM already has journal mandate (HOW/WHAT to journal).
-This hook provides the WHEN - a reminder at strategic moments.
+This hook provides the WHEN - a reminder after every final response,
+regardless of whether tool calls were made. Insights worth noting can
+arise from pure Q&A conversations just as much as from tool-heavy sessions.
 
 The hook does NOT:
 - Extract learnings (LLM does this)
@@ -10,12 +12,13 @@ The hook does NOT:
 
 The hook DOES:
 - Remind LLM at SESSION_END to consider journaling
-- Let LLM decide what's worth remembering
+- Let LLM decide what's worth remembering (it will skip trivial exchanges)
 """
 
 from zrb.config.config import CFG
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.prompt.prompt import get_journal_reminder_prompt
 
 
 class JournalingHookHandler:
@@ -27,13 +30,11 @@ class JournalingHookHandler:
     - LLM uses its own intelligence + Write/Edit tools
 
     Anti-recursion protection:
-    - _session_had_significant_activity: Set by POST_TOOL_USE
-    - _session_end_fired: Set after reminder sent, prevents repeat firing
-    - Reset at SESSION_START for fresh session
+    - _session_end_fired: Set after reminder sent, prevents repeat firing within a turn
+    - Reset at SESSION_START so the hook fires again on every new turn
     """
 
     def __init__(self):
-        self._session_had_significant_activity: bool = False
         self._session_end_fired: bool = False
 
     def is_enabled(self) -> bool:
@@ -52,40 +53,31 @@ class JournalingHookHandler:
         if not self.is_enabled():
             return HookResult()
 
-        # Track if session had meaningful activity
-        if context.event == HookEvent.POST_TOOL_USE:
-            # Only set flag, don't capture content
-            self._session_had_significant_activity = True
+        # Reset state at the start of each turn so the hook fires every turn
+        if context.event == HookEvent.SESSION_START:
+            self.reset()
 
-        # At SESSION_END, provide reminder if there was activity (once per session)
+        # At SESSION_END, always remind — LLM decides whether anything is worth noting
         if context.event == HookEvent.SESSION_END:
-            # Prevent infinite recursion: only fire reminder once per session
+            # Prevent infinite recursion: only fire reminder once per turn
             if self._session_end_fired:
                 return HookResult()
-
-            if self._session_had_significant_activity:
-                # Mark as fired to prevent repeating the reminder
-                self._session_end_fired = True
-                # Remind LLM to journal - inject system message into conversation
-                return HookResult.with_system_message(self._build_reminder())
+            self._session_end_fired = True
+            return HookResult.with_system_message(self._build_reminder())
 
         return HookResult()
 
     def _build_reminder(self) -> str:
         """Build reminder message for journaling.
 
-        Simple and direct - the extended session is a side effect,
-        so this message is only seen by the LLM during journaling.
+        Loads from the configurable journal_reminder prompt template,
+        which includes the core-journaling skill content (graph structure,
+        directory rules, index content).
         """
-        return (
-            "Review this session for journal-worthy learnings. "
-            "If any, Write/Edit the journal. "
-            "Otherwise, acknowledge briefly."
-        )
+        return get_journal_reminder_prompt()
 
     def reset(self) -> None:
-        """Reset session state for new session."""
-        self._session_had_significant_activity = False
+        """Reset session state for new turn."""
         self._session_end_fired = False
 
 
@@ -119,9 +111,8 @@ def create_journaling_hook_factory():
         manager.register(
             journal_hook,
             events=[
-                HookEvent.SESSION_START,  # Reset state
-                HookEvent.POST_TOOL_USE,  # Track activity
-                HookEvent.SESSION_END,  # Send reminder
+                HookEvent.SESSION_START,  # Reset state each turn
+                HookEvent.SESSION_END,  # Send reminder after every response
             ],
         )
 

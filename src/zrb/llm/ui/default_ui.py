@@ -551,10 +551,9 @@ class UI(BaseUI):
         @app_keybindings.add("escape", "v")
         def _(event):
             # Try image paste first; fall back to normal text paste.
-            # We capture `event` data we need before going async because
+            # We capture clipboard here before going async because
             # prompt_toolkit may recycle the event object.
             clipboard = event.app.clipboard
-            buffer = event.current_buffer
 
             async def _handle_paste():
                 from zrb.llm.util.clipboard import (
@@ -584,8 +583,15 @@ class UI(BaseUI):
                         )
                         self.invalidate_ui()
                     elif clipboard:
-                        # No image found and no missing-tool hint — normal text paste
-                        buffer.paste_clipboard_data(clipboard.get_data())
+                        # No image found — normal text paste into input field.
+                        # Always target input_field, not current_buffer, since
+                        # current focus may be the read-only output field.
+                        from prompt_toolkit.application import get_app as _get_app
+
+                        _get_app().layout.focus(self._input_field)
+                        self._input_field.buffer.paste_clipboard_data(
+                            clipboard.get_data()
+                        )
 
             task = asyncio.get_event_loop().create_task(_handle_paste())
             self._background_tasks.add(task)

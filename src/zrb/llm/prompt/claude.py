@@ -36,7 +36,7 @@ def create_claude_skills_prompt(
 
 
 # Max chars to load from project docs
-MAX_PROJECT_DOC_CHARS = 4000
+MAX_PROJECT_DOC_CHARS = 8000
 
 
 def _load_file_content(file_path: Path) -> tuple[str, str]:

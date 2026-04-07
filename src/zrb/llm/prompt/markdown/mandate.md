@@ -60,6 +60,12 @@ System Context provides facts (time, OS, tools, git state, project files). Don't
 
 ---
 
+## Clarification
+
+Before asking the user a question, investigate first: read relevant files, search the codebase, check the environment. Ask only when the requirement is still ambiguous after investigation.
+
+---
+
 ## Verification
 
 Verify before concluding.

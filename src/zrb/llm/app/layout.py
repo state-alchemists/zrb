@@ -136,11 +136,6 @@ def create_input_field(
     def _(event):
         event.app.layout.focus_previous()
 
-    # Ensure Paste works locally in the input field
-    @kb.add("c-v")
-    def _(event):
-        event.current_buffer.paste_clipboard_data(event.app.clipboard.get_data())
-
     return text_area
 
 
@@ -208,7 +203,7 @@ def create_layout(
                     Window(height=1),  # Top margin
                     Frame(
                         input_field,
-                        title="Message (ENTER to send, CTRL+j for newline, ESC to cancel)",
+                        title="CTRL+j for newline, Alt+V to paste image, ESC to cancel",
                         style="class:input-frame",
                     ),
                     Window(height=1),  # Bottom padding
