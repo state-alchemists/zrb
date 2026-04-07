@@ -182,7 +182,6 @@ class TestJournalingHookAntiRecursion:
         from zrb.llm.hook.journal import JournalingHookHandler
 
         handler = JournalingHookHandler()
-        handler._session_had_significant_activity = True
 
         context = HookContext(event=HookEvent.SESSION_END, event_data={})
 
@@ -199,20 +198,19 @@ class TestJournalingHookAntiRecursion:
         )
 
     @pytest.mark.asyncio
-    async def test_journaling_hook_requires_activity(self):
-        """Verify journaling hook only fires when there was activity."""
+    async def test_journaling_hook_fires_at_session_end(self):
+        """Verify journaling hook fires at SESSION_END."""
         from zrb.llm.hook.interface import HookContext
         from zrb.llm.hook.journal import JournalingHookHandler
 
         handler = JournalingHookHandler()
-        # No activity flag set - should NOT fire
 
         context = HookContext(event=HookEvent.SESSION_END, event_data={})
         result = await handler.handle_event(context)
 
-        assert (
-            result.modifications is None or "systemMessage" not in result.modifications
-        )
+        # Hook should always fire at SESSION_END (LLM decides if anything is worth noting)
+        assert result.modifications is not None
+        assert "systemMessage" in result.modifications
 
     @pytest.mark.asyncio
     async def test_journaling_hook_resets_on_new_session(self):
@@ -221,18 +219,157 @@ class TestJournalingHookAntiRecursion:
         from zrb.llm.hook.journal import JournalingHookHandler
 
         handler = JournalingHookHandler()
-        handler._session_had_significant_activity = True
-        handler._session_end_fired = True
+
+        context_end = HookContext(event=HookEvent.SESSION_END, event_data={})
+
+        # Fire once - sets the anti-recursion flag
+        result1 = await handler.handle_event(context_end)
+        assert result1.modifications is not None
+        assert "systemMessage" in result1.modifications
+
+        # Second call should NOT fire (anti-recursion)
+        result2 = await handler.handle_event(context_end)
+        assert (
+            result2.modifications is None
+            or "systemMessage" not in result2.modifications
+        )
 
         # Simulate new session - SESSION_START resets state
-        handler.reset()  # reset() is called at SESSION_START
+        handler.reset()
 
-        # After reset, hook should fire again if there's activity
-        handler._session_had_significant_activity = True
+        # After reset, hook should fire again
+        result3 = await handler.handle_event(context_end)
+        assert result3.modifications is not None
+        assert "systemMessage" in result3.modifications
 
-        context = HookContext(event=HookEvent.SESSION_END, event_data={})
+    @pytest.mark.asyncio
+    async def test_journaling_hook_disabled_returns_empty(self):
+        """Verify journaling hook returns empty when disabled."""
+        from unittest.mock import patch
+
+        from zrb.llm.hook.interface import HookContext
+        from zrb.llm.hook.journal import JournalingHookHandler
+
+        with patch("zrb.llm.hook.journal.CFG") as mock_cfg:
+            mock_cfg.LLM_INCLUDE_JOURNAL = False
+            handler = JournalingHookHandler()
+            context = HookContext(event=HookEvent.SESSION_END, event_data={})
+            result = await handler.handle_event(context)
+
+        assert result.modifications is None or "systemMessage" not in (
+            result.modifications or {}
+        )
+
+    @pytest.mark.asyncio
+    async def test_journaling_hook_session_start_resets_via_event(self):
+        """Verify SESSION_START event triggers reset through handle_event."""
+        from zrb.llm.hook.interface import HookContext
+        from zrb.llm.hook.journal import JournalingHookHandler
+
+        handler = JournalingHookHandler()
+
+        # Fire SESSION_END first
+        end_ctx = HookContext(event=HookEvent.SESSION_END, event_data={})
+        result1 = await handler.handle_event(end_ctx)
+        assert result1.modifications is not None
+        assert "systemMessage" in result1.modifications
+
+        # Firing SESSION_END again should NOT fire (anti-recursion)
+        result2 = await handler.handle_event(end_ctx)
+        assert result2.modifications is None or "systemMessage" not in (
+            result2.modifications or {}
+        )
+
+        # SESSION_START event should reset state
+        start_ctx = HookContext(event=HookEvent.SESSION_START, event_data={})
+        await handler.handle_event(start_ctx)
+
+        # Now SESSION_END should fire again
+        result3 = await handler.handle_event(end_ctx)
+        assert result3.modifications is not None
+        assert "systemMessage" in result3.modifications
+
+    @pytest.mark.asyncio
+    async def test_journaling_hook_non_session_event_returns_empty(self):
+        """Verify non-session events return empty result."""
+        from zrb.llm.hook.interface import HookContext
+        from zrb.llm.hook.journal import JournalingHookHandler
+
+        handler = JournalingHookHandler()
+        context = HookContext(event=HookEvent.PRE_TOOL_USE, event_data={})
         result = await handler.handle_event(context)
 
-        # Should fire now because flags were reset
+        assert result.modifications is None or "systemMessage" not in (
+            result.modifications or {}
+        )
+
+    @pytest.mark.asyncio
+    async def test_create_journaling_hook_factory_function(self):
+        """Verify create_journaling_hook() returns a callable hook."""
+        from zrb.llm.hook.interface import HookContext
+        from zrb.llm.hook.journal import create_journaling_hook
+
+        hook = create_journaling_hook()
+        assert callable(hook)
+
+        # The returned callable should work as a hook
+        context = HookContext(event=HookEvent.SESSION_END, event_data={})
+        result = await hook(context)
         assert result.modifications is not None
         assert "systemMessage" in result.modifications
+
+    @pytest.mark.asyncio
+    async def test_create_journaling_hook_factory_with_manager_enabled(self):
+        """Verify create_journaling_hook_factory registers hooks when enabled."""
+        from unittest.mock import MagicMock, patch
+
+        from zrb.llm.hook.journal import create_journaling_hook_factory
+        from zrb.llm.hook.manager import HookManager
+
+        with patch("zrb.llm.hook.journal.CFG") as mock_cfg, patch(
+            "zrb.llm.hook.manager.CFG"
+        ) as mock_mgr_cfg:
+            mock_cfg.LLM_INCLUDE_JOURNAL = True
+            mock_mgr_cfg.LLM_INCLUDE_JOURNAL = False
+            mock_mgr_cfg.ROOT_GROUP_NAME = "zrb"
+            mock_mgr_cfg.LLM_PLUGIN_DIRS = []
+            mock_mgr_cfg.HOOKS_DIRS = []
+            mock_mgr_cfg.LLM_JOURNAL_DIR = "/tmp/test"
+            mock_mgr_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+
+            factory = create_journaling_hook_factory()
+            manager = HookManager()
+            factory(manager)
+
+            # Hook should be registered for SESSION_END
+            results = await manager.execute_hooks(HookEvent.SESSION_END, {})
+            system_msg = _extract_system_message(results)
+            assert system_msg is not None
+
+    @pytest.mark.asyncio
+    async def test_create_journaling_hook_factory_with_manager_disabled(self):
+        """Verify create_journaling_hook_factory skips registration when disabled."""
+        from unittest.mock import patch
+
+        from zrb.llm.hook.journal import create_journaling_hook_factory
+        from zrb.llm.hook.manager import HookManager
+
+        with patch("zrb.llm.hook.journal.CFG") as mock_cfg, patch(
+            "zrb.llm.hook.manager.CFG"
+        ) as mock_mgr_cfg:
+            mock_cfg.LLM_INCLUDE_JOURNAL = False
+            mock_mgr_cfg.LLM_INCLUDE_JOURNAL = False
+            mock_mgr_cfg.ROOT_GROUP_NAME = "zrb"
+            mock_mgr_cfg.LLM_PLUGIN_DIRS = []
+            mock_mgr_cfg.HOOKS_DIRS = []
+            mock_mgr_cfg.LLM_JOURNAL_DIR = "/tmp/test"
+            mock_mgr_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+
+            factory = create_journaling_hook_factory()
+            manager = HookManager()
+            factory(manager)
+
+            # No hooks should be registered
+            results = await manager.execute_hooks(HookEvent.SESSION_END, {})
+            system_msg = _extract_system_message(results)
+            assert system_msg is None
