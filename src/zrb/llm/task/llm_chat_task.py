@@ -18,6 +18,7 @@ from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
+from zrb.llm.hook.manager import HookManager
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.summarizer import (
     create_summarizer_history_processor,
@@ -51,6 +52,29 @@ if TYPE_CHECKING:
 
     from zrb.llm.approval.approval_channel import ApprovalChannel
     from zrb.llm.tool_call.ui_protocol import UIProtocol
+
+
+def _parse_yolo_value(value: Any) -> "bool | frozenset[str]":
+    """Parse a yolo input value into bool or frozenset of tool names.
+
+    - bool True/False → returned as-is
+    - "true"/"1"/"yes" → True (full yolo)
+    - ""/"false"/"0"/"no" → False (no yolo)
+    - "Write,Edit" → frozenset({"Write", "Edit"}) (selective yolo)
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (set, frozenset)):
+        return frozenset(value)
+    if not value:
+        return False
+    s = str(value).strip()
+    if not s or s.lower() in ("false", "0", "no", "none"):
+        return False
+    if s.lower() in ("true", "1", "yes"):
+        return True
+    tools = frozenset(t.strip() for t in s.split(",") if t.strip())
+    return tools if tools else False
 
 
 class LLMChatTask(BaseTask):
@@ -129,6 +153,7 @@ class LLMChatTask(BaseTask):
         ui_yolo_toggle_commands: list[str] | None = None,
         ui_set_model_commands: list[str] | None = None,
         ui_exec_commands: list[str] | None = None,
+        ui_btw_commands: list[str] | None = None,
         custom_commands: (
             list[
                 AnyCustomCommand
@@ -216,6 +241,7 @@ class LLMChatTask(BaseTask):
         self._toolset_factories = (
             toolset_factories if toolset_factories is not None else []
         )
+        self._hook_factories: list[Callable[[HookManager], None]] = []
         self._message = message
         self._render_message = render_message
         self._attachment = attachment
@@ -272,6 +298,7 @@ class LLMChatTask(BaseTask):
         self._ui_exec_commands = (
             ui_exec_commands if ui_exec_commands is not None else []
         )
+        self._ui_btw_commands = ui_btw_commands if ui_btw_commands is not None else []
         self._custom_commands = custom_commands if custom_commands is not None else []
         self._ui_greeting = ui_greeting
         self._render_ui_greeting = render_ui_greeting
@@ -361,6 +388,12 @@ class LLMChatTask(BaseTask):
     ):
         self._tool_factories += list(factory)
 
+    def add_hook_factory(self, *factory: Callable[[HookManager], None]):
+        self.append_hook_factory(*factory)
+
+    def append_hook_factory(self, *factory: Callable[[HookManager], None]):
+        self._hook_factories += list(factory)
+
     def add_history_processor(self, *processor: HistoryProcessor):
         self.append_history_processor(*processor)
 
@@ -410,7 +443,8 @@ class LLMChatTask(BaseTask):
     async def _exec_action(self, ctx: AnyContext) -> Any:
         # 1. Resolve inputs/attributes
         initial_conversation_name = self._get_initial_conversation_name(ctx)
-        initial_yolo = get_bool_attr(ctx, self._yolo, False)
+        raw_yolo = get_attr(ctx, self._yolo, "", True)
+        initial_yolo = _parse_yolo_value(raw_yolo)
         if self._yolo_xcom_key not in ctx.xcom:
             ctx.xcom[self._yolo_xcom_key] = Xcom()
         ctx.xcom[self._yolo_xcom_key].set(initial_yolo)
@@ -540,6 +574,11 @@ class LLMChatTask(BaseTask):
                 if self._ui_exec_commands
                 else CFG.LLM_UI_COMMAND_EXEC
             ),
+            "btw": (
+                self._ui_btw_commands
+                if self._ui_btw_commands
+                else CFG.LLM_UI_COMMAND_BTW
+            ),
         }
 
     def _create_llm_task_core(
@@ -582,10 +621,19 @@ class LLMChatTask(BaseTask):
                 ui = StdUI()
             # tool_confirmation = None (let UI handle it via approval_channel)
 
-        def check_yolo(*args, **kwargs):
+        def check_yolo(ctx_or_none=None, tool_def=None, *args, **kwargs):
             if self._yolo_xcom_key not in ctx.xcom:
                 return False
-            return ctx.xcom[self._yolo_xcom_key].get(False)
+            yolo_value = ctx.xcom[self._yolo_xcom_key].get(False)
+            if isinstance(yolo_value, bool):
+                return yolo_value
+            if isinstance(yolo_value, frozenset):
+                if tool_def is None:
+                    # No per-tool context (e.g. called for contextvar propagation)
+                    return False
+                tool_name = getattr(tool_def, "name", str(tool_def))
+                return tool_name in yolo_value
+            return False
 
         # Create MultiplexApprovalChannel if multiple channels
         effective_approval_channel = None
@@ -602,6 +650,12 @@ class LLMChatTask(BaseTask):
         CFG.LOGGER.debug(f"  tool_confirmation: {tool_confirmation}")
         CFG.LOGGER.debug(f"  effective_approval_channel: {effective_approval_channel}")
         CFG.LOGGER.debug(f"  _approval_channels: {self._approval_channels}")
+
+        # Create a fresh HookManager for this task execution
+        hook_manager = HookManager()
+        # Apply all hook factories
+        for factory in self._hook_factories:
+            factory(hook_manager)
 
         # Pass resolved tools/toolsets to LLMTask (no factories needed since already resolved)
         return LLMTask(
@@ -627,6 +681,7 @@ class LLMChatTask(BaseTask):
             llm_config=self._llm_config,
             llm_limitter=self._llm_limitter,
             history_manager=history_manager,
+            hook_manager=hook_manager,
             tool_confirmation=tool_confirmation,
             ui=ui,
             approval_channel=effective_approval_channel,
@@ -646,14 +701,14 @@ class LLMChatTask(BaseTask):
         llm_task_core: LLMTask,
         initial_message: Any,
         initial_conversation_name: str,
-        initial_yolo: bool,
+        initial_yolo: bool | frozenset[str],
         initial_attachments: list[UserContent],
     ) -> Any:
         # AsyncExitStack is handled by LLMTask._exec_action
         session_input = {
             "message": initial_message,
             "session": initial_conversation_name,
-            "yolo": initial_yolo,
+            "yolo": bool(initial_yolo),  # inner task uses dynamic_yolo; just pass bool
             "attachments": initial_attachments,
             "model": self._get_model(ctx),
         }
@@ -675,7 +730,7 @@ class LLMChatTask(BaseTask):
         ui_commands: dict[str, list[str]],
         initial_message: Any,
         initial_conversation_name: str,
-        initial_yolo: bool,
+        initial_yolo: bool | frozenset[str],
         initial_attachments: list[UserContent],
     ) -> Any:
         from zrb.llm.ui.base_ui import BaseUI
@@ -773,6 +828,7 @@ class LLMChatTask(BaseTask):
                 set_model_commands=ui_commands["set_model"],
                 redirect_output_commands=ui_commands["redirect_output"],
                 exec_commands=ui_commands["exec"],
+                btw_commands=ui_commands["btw"],
                 custom_commands=resolved_custom_commands,
                 model=self._get_model(ctx),
             )
@@ -824,6 +880,7 @@ class LLMChatTask(BaseTask):
                 set_model_commands=ui_commands["set_model"],
                 redirect_output_commands=ui_commands["redirect_output"],
                 exec_commands=ui_commands["exec"],
+                btw_commands=ui_commands["btw"],
                 custom_commands=resolved_custom_commands,
                 model=self._get_model(ctx),
             )

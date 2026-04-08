@@ -1,54 +1,47 @@
 # Journaling Protocol
 
-Maintain a structured knowledge graph as external long-term memory. Write after every session that produces non-trivial learning.
+Maintain a structured knowledge graph as external long-term memory.
 
----
+## Autonomy
+
+**You are responsible for journaling.** When you receive a journal reminder:
+
+1. **Evaluate yourself** - Review the conversation against the criteria below
+2. **Decide yourself** - Determine if there's anything worth remembering
+3. **Write yourself** - Use Write/Edit on the index file immediately
+4. **Never ask user** - This is YOUR decision, not the user's
+
+Do NOT ask the user for confirmation. If something is worth remembering, write it.
 
 ## When to Write
 
-| Trigger | Examples | Skip? |
-|---------|----------|-------|
-| User reveals preference | Name, communication style, tool choices | Never skip |
-| Architectural decision made | Chose X over Y, reason Z | Never skip |
-| Non-obvious technical solution found | Bug required real investigation | Never skip |
-| Non-trivial error resolved | Required multi-step diagnosis | Never skip |
-| Routine operation | Typo fix, simple lookup, file read | Always skip |
+Journal when you learn **anything new worth remembering**.
 
----
+| Category | Trigger | Required? |
+|----------|---------|-----------|
+| **User Context** | Name, location, preferences | ✅ |
+| **Architecture** | Design decisions with rationale | ✅ |
+| **Technical Insight** | Non-obvious solutions, bug fixes | ✅ |
+| **Analysis Results** | Code quality, security, performance | ✅ |
+| **Error Resolution** | Multi-step diagnosis, root causes | ✅ |
+| **Routine** | Typo fix, lookup, greeting | ❌ |
 
-## Two-Tier Protocol
+## How to Write
 
-**Choose the tier that matches the operation:**
-
-### Tier 1 — Direct Write (simple updates)
-
-Use when: adding a fact to an existing file or appending to `index.md`. No new files or directories needed.
-
-1. Use `Read` to check current `index.md` content.
-2. Use `Edit` or `Write` to append or update the relevant section.
-3. Keep entries dense and high-signal — one fact, one line.
-
-### Tier 2 — Full Protocol (structural operations)
-
-Use when: creating a new file, a new directory, reorganizing existing content, or first-time journal setup.
-
-1. **Activate `core-journaling` skill** — it loads the full graph maintenance protocol.
-2. Follow the protocol for directory structure, cross-linking, and index hierarchy.
-
----
+1. Read current `index.md`
+2. Append/update relevant section
+3. Keep entries dense — one fact, one line
 
 ## What to Document
 
-- User preferences and constraints (critical — always in `index.md`)
+- User preferences (always in `index.md`)
 - Architectural decisions with rationale
 - Technical solutions to non-obvious problems
 - Root causes of resolved errors
 
----
-
 ## Reference
 
-- **Root:** `{CFG_LLM_JOURNAL_DIR}` ({CFG_LLM_JOURNAL_DIR_STATUS})
+- **Root:** `{CFG_LLM_JOURNAL_DIR}`
 - **Index:** `{CFG_LLM_JOURNAL_DIR}/{CFG_LLM_JOURNAL_INDEX_FILE}` ({CFG_LLM_JOURNAL_INDEX_FILE_STATUS})
 
 ````markdown

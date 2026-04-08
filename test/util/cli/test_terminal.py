@@ -206,3 +206,101 @@ class TestGetTerminalSize:
                         size = get_terminal_size()
                         assert size.columns == 85
                         assert size.lines == 35
+
+    def test_windows_conout_path(self):
+        """Test get_terminal_size uses CONOUT$ on Windows."""
+        from zrb.util.cli.terminal import get_terminal_size
+
+        mock_stdout = MagicMock()
+        mock_stdout.fileno.side_effect = OSError("No tty")
+
+        mock_stderr = MagicMock()
+        mock_stderr.fileno.side_effect = OSError("No tty")
+
+        mock_stdin = MagicMock()
+        mock_stdin.fileno.side_effect = OSError("No tty")
+
+        mock_size = MagicMock()
+        mock_size.columns = 120
+        mock_size.lines = 30
+
+        mock_fd = MagicMock()
+        mock_fd.return_value = 5
+
+        with patch.object(sys, "__stdout__", mock_stdout):
+            with patch.object(sys, "__stderr__", mock_stderr):
+                with patch.object(sys, "__stdin__", mock_stdin):
+                    with patch.object(os, "name", "nt"):
+                        with patch("os.open", return_value=5) as mock_open:
+                            with patch(
+                                "os.get_terminal_size", return_value=mock_size
+                            ) as mock_get_size:
+                                with patch("os.close") as mock_close:
+                                    size = get_terminal_size()
+                                    assert size.columns == 120
+                                    assert size.lines == 30
+                                    mock_open.assert_called_once_with(
+                                        "CONOUT$", os.O_RDONLY
+                                    )
+                                    mock_get_size.assert_called_once_with(5)
+                                    mock_close.assert_called_once_with(5)
+
+    def test_windows_conout_exception(self):
+        """Test get_terminal_size handles CONOUT$ exception gracefully."""
+        from zrb.util.cli.terminal import get_terminal_size
+
+        mock_stdout = MagicMock()
+        mock_stdout.fileno.side_effect = OSError("No tty")
+
+        mock_stderr = MagicMock()
+        mock_stderr.fileno.side_effect = OSError("No tty")
+
+        mock_stdin = MagicMock()
+        mock_stdin.fileno.side_effect = OSError("No tty")
+
+        with patch.object(sys, "__stdout__", mock_stdout):
+            with patch.object(sys, "__stderr__", mock_stderr):
+                with patch.object(sys, "__stdin__", mock_stdin):
+                    with patch.object(os, "name", "nt"):
+                        with patch("os.open", side_effect=OSError("No CONOUT")):
+                            with patch("shutil.get_terminal_size") as mock_shutil:
+                                mock_shutil.return_value.columns = 80
+                                mock_shutil.return_value.lines = 24
+                                size = get_terminal_size()
+                                assert size.columns == 80
+                                assert size.lines == 24
+
+    def test_windows_conout_close_called_on_exception(self):
+        """Test get_terminal_size closes fd even when get_terminal_size raises."""
+        from zrb.util.cli.terminal import get_terminal_size
+
+        mock_stdout = MagicMock()
+        mock_stdout.fileno.side_effect = OSError("No tty")
+
+        mock_stderr = MagicMock()
+        mock_stderr.fileno.side_effect = OSError("No tty")
+
+        mock_stdin = MagicMock()
+        mock_stdin.fileno.side_effect = OSError("No tty")
+
+        mock_fd = 5
+
+        with patch.object(sys, "__stdout__", mock_stdout):
+            with patch.object(sys, "__stderr__", mock_stderr):
+                with patch.object(sys, "__stdin__", mock_stdin):
+                    with patch.object(os, "name", "nt"):
+                        with patch("os.open", return_value=mock_fd):
+                            with patch(
+                                "os.get_terminal_size",
+                                side_effect=OSError("Bad fd"),
+                            ):
+                                with patch("os.close") as mock_close:
+                                    with patch(
+                                        "shutil.get_terminal_size"
+                                    ) as mock_shutil:
+                                        mock_shutil.return_value.columns = 80
+                                        mock_shutil.return_value.lines = 24
+                                        size = get_terminal_size()
+                                        assert size.columns == 80
+                                        # os.close should still be called
+                                        mock_close.assert_called_once_with(mock_fd)

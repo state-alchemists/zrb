@@ -386,3 +386,59 @@ async def test_base_task_execute_condition_skipped():
         assert session.get_task_status(task1).is_skipped
         assert session.get_task_status(task2).is_completed
         assert session.get_task_status(task3).is_completed
+
+
+class TestBaseTaskToFunction:
+    """Test to_function public API."""
+
+    def test_to_function_creates_callable(self):
+        """Test that to_function creates a callable function."""
+        task = BaseTask(name="test_task", description="Test description")
+        fn = task.to_function()
+        assert callable(fn)
+        assert fn.__name__ == "test_task"
+
+    def test_to_function_docstring(self):
+        """Test that to_function creates function with docstring."""
+        task = BaseTask(name="test_task", description="Test description")
+        fn = task.to_function()
+        assert "Test description" in fn.__doc__
+
+    def test_to_function_docstring_with_inputs(self):
+        """Test to_function docstring includes input descriptions."""
+        from zrb.input.str_input import StrInput
+
+        task = BaseTask(
+            name="test_task",
+            description="Test task",
+            input=[StrInput(name="param1", description="First parameter")],
+        )
+        fn = task.to_function()
+        assert "param1" in fn.__doc__
+        assert "First parameter" in fn.__doc__
+
+    def test_to_function_signature(self):
+        """Test to_function creates proper signature."""
+        import inspect
+
+        from zrb.input.str_input import StrInput
+
+        task = BaseTask(
+            name="test_task",
+            input=[StrInput(name="param1"), StrInput(name="my_param")],
+        )
+        fn = task.to_function()
+        sig = fn.__signature__
+        param_names = [p.name for p in sig.parameters.values()]
+        assert "param1" in param_names
+        assert "my_param" in param_names
+
+    def test_to_function_signature_empty(self):
+        """Test to_function signature with no inputs."""
+        import inspect
+
+        task = BaseTask(name="test_task")
+        fn = task.to_function()
+        sig = fn.__signature__
+        assert isinstance(sig, inspect.Signature)
+        assert len(sig.parameters) == 0

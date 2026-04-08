@@ -34,7 +34,7 @@ This launches a full-screen chat application where you can have a conversation w
 | `/info`, `/help` | Show all available commands |
 | `/compress`, `/compact` | Summarize conversation to free context |
 | `/model <name>` | Switch LLM model (e.g., `/model openai:gpt-4o`) |
-| `/yolo` | Toggle auto-execute mode (⚠️ use with caution!) |
+| `/yolo` or `/yolo <tools>` | Toggle auto-execute mode. With tool names (e.g., `/yolo Write,Edit`), selectively auto-approve only those tools |
 | `/load <name>` | Load a named session |
 | `/save <name>` | Save current session |
 | `/attach <file_path>` | Attach a file to next message |
@@ -42,6 +42,18 @@ This launches a full-screen chat application where you can have a conversation w
 | `!` or `/exec <shell_cmd>` | Execute shell command |
 
 > 💡 **Tip:** Any `/command` that matches a loaded skill will be executed as a skill.
+
+### Approval Policies
+
+By default, Zrb prompts for confirmation before executing most tools. This is controlled by YOLO mode:
+
+| Mode | Behavior |
+|------|----------|
+| **YOLO off** | All tools require confirmation |
+| **YOLO on** | All tools auto-approved |
+| **Selective YOLO** | Only specified tools auto-approved (e.g., `/yolo Write,Edit`) |
+
+**Safe Command Policy:** The `Bash` tool automatically approves known-safe read-only commands (e.g., `ls`, `git status`, `cat`, `grep`) without requiring YOLO mode. Commands with dangerous shell metacharacters (`>`, `|`, `;`, `&&`) always require explicit approval.
 
 ---
 

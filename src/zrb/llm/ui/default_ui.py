@@ -7,17 +7,6 @@ import subprocess
 from collections.abc import AsyncIterable, Callable
 from typing import TYPE_CHECKING, Any, TextIO
 
-from prompt_toolkit import Application
-from prompt_toolkit.application import get_app, run_in_terminal
-from prompt_toolkit.document import Document
-from prompt_toolkit.formatted_text import AnyFormattedText
-from prompt_toolkit.history import InMemoryHistory
-from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.layout import Layout
-from prompt_toolkit.lexers import Lexer
-from prompt_toolkit.output import create_output
-from prompt_toolkit.styles import Style
-
 from zrb.context.any_context import AnyContext
 from zrb.llm.app.keybinding import create_output_keybindings
 from zrb.llm.app.layout import create_input_field, create_layout, create_output_field
@@ -38,6 +27,13 @@ from zrb.util.ascii_art.banner import create_banner
 from zrb.util.cli.terminal import get_terminal_size
 
 if TYPE_CHECKING:
+    from prompt_toolkit import Application
+    from prompt_toolkit.document import Document
+    from prompt_toolkit.formatted_text import AnyFormattedText
+    from prompt_toolkit.key_binding import KeyBindings
+    from prompt_toolkit.layout import Layout
+    from prompt_toolkit.lexers import Lexer
+    from prompt_toolkit.styles import Style
     from pydantic_ai import UserContent
     from pydantic_ai.models import Model
     from rich.theme import Theme
@@ -60,7 +56,7 @@ class UI(BaseUI):
         initial_message: Any = "",
         initial_attachments: list["UserContent"] = [],
         conversation_session_name: str = "",
-        is_yolo: bool = False,
+        is_yolo: bool | frozenset = False,
         triggers: list[Callable[[], AsyncIterable[Any]]] = [],
         response_handlers: list[ResponseHandler] = [],
         tool_policies: list[ToolPolicy] = [],
@@ -76,6 +72,7 @@ class UI(BaseUI):
         yolo_toggle_commands: list[str] = [],
         set_model_commands: list[str] = [],
         exec_commands: list[str] = [],
+        btw_commands: list[str] = [],
         custom_commands: list[AnyCustomCommand] = [],
         model: "Model | str | None" = None,
     ):
@@ -104,6 +101,7 @@ class UI(BaseUI):
             yolo_toggle_commands=yolo_toggle_commands,
             set_model_commands=set_model_commands,
             exec_commands=exec_commands,
+            btw_commands=btw_commands,
             custom_commands=custom_commands,
             model=model,
         )
@@ -117,6 +115,8 @@ class UI(BaseUI):
         # UI Styles
         self._style = create_style()
         # Input Area
+        from prompt_toolkit.history import InMemoryHistory
+
         self._input_history = InMemoryHistory()
         self._input_field = create_input_field(
             history_manager=self._history_manager,
@@ -139,6 +139,8 @@ class UI(BaseUI):
         self._output_field = create_output_field(
             full_greeting, output_lexer, key_bindings=custom_output_kb
         )
+        from prompt_toolkit.layout import Layout
+
         self._layout = create_layout(
             title=self._assistant_name,
             jargon=self._jargon,
@@ -148,6 +150,8 @@ class UI(BaseUI):
             status_bar_text=self._get_status_bar_text,
         )
         # Key Bindings
+        from prompt_toolkit.key_binding import KeyBindings
+
         self._app_kb = KeyBindings()
         self._setup_app_keybindings(
             app_keybindings=self._app_kb, llm_task=self._llm_task
@@ -258,6 +262,8 @@ class UI(BaseUI):
 
     async def _refresh_loop(self):
         """Periodically invalidate UI to fix artifacts/lag."""
+        from prompt_toolkit.application import get_app
+
         while True:
             try:
                 app = get_app()
@@ -293,6 +299,8 @@ class UI(BaseUI):
         This method queues confirmation requests to handle multiple concurrent callers
         (e.g., parallel delegate agents). Each caller waits for its turn in the queue.
         """
+        from prompt_toolkit.application import get_app
+
         # Create a future for this confirmation request
         future: asyncio.Future[str] = asyncio.Future()
 
@@ -325,6 +333,8 @@ class UI(BaseUI):
 
     def _activate_next_confirmation(self):
         """Activate the next confirmation in the queue after one completes."""
+        from prompt_toolkit.application import get_app
+
         # Remove completed futures
         self._confirmation_queue = [
             (f, p) for f, p in self._confirmation_queue if not f.done()
@@ -357,6 +367,8 @@ class UI(BaseUI):
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False
     ) -> Any:
+        from prompt_toolkit.application import run_in_terminal
+
         def run_subprocess():
             # Run the command. Standard streams will inherit from the parent,
             # which have been restored to the TTY by self._capture.pause()
@@ -369,12 +381,16 @@ class UI(BaseUI):
             await run_in_terminal(run_subprocess)
 
     def invalidate_ui(self):
+        from prompt_toolkit.application import get_app
+
         try:
             get_app().invalidate()
         except Exception:
             pass
 
     def on_exit(self):
+        from prompt_toolkit.application import get_app
+
         try:
             get_app().exit()
         except Exception:
@@ -396,6 +412,9 @@ class UI(BaseUI):
         keybindings: KeyBindings,
         style: Style,
     ) -> Application:
+        from prompt_toolkit import Application
+        from prompt_toolkit.output import create_output
+
         try:
             from prompt_toolkit.clipboard.pyperclip import PyperclipClipboard
 
@@ -439,7 +458,7 @@ class UI(BaseUI):
             clipboard=clipboard,
         )
 
-    def _get_info_bar_text(self) -> AnyFormattedText:
+    def _get_info_bar_text(self) -> "AnyFormattedText":
         from prompt_toolkit.formatted_text import HTML
         from prompt_toolkit.formatted_text.utils import fragment_list_width
 
@@ -452,11 +471,14 @@ class UI(BaseUI):
             else:
                 model_name = str(self._model)
 
-        yolo_text = (
-            "<style color='ansired'><b>ON </b></style>"
-            if self.yolo
-            else "<style color='ansigreen'>OFF</style>"
-        )
+        _yolo = self.yolo
+        if _yolo is True:
+            yolo_text = "<style color='ansired'><b>ON </b></style>"
+        elif isinstance(_yolo, frozenset) and _yolo:
+            tools_str = ",".join(sorted(_yolo))
+            yolo_text = f"<style color='ansiyellow'><b>[{tools_str}]</b></style>"
+        else:
+            yolo_text = "<style color='ansigreen'>OFF</style>"
 
         # 1. Construct lines
         line1_html = (
@@ -528,11 +550,52 @@ class UI(BaseUI):
         @app_keybindings.add("c-v")
         @app_keybindings.add("escape", "v")
         def _(event):
-            # Paste from clipboard
-            if event.app.clipboard:
-                event.current_buffer.paste_clipboard_data(
-                    event.app.clipboard.get_data()
+            # Try image paste first; fall back to normal text paste.
+            # We capture clipboard here before going async because
+            # prompt_toolkit may recycle the event object.
+            clipboard = event.app.clipboard
+
+            async def _handle_paste():
+                from zrb.llm.util.clipboard import (
+                    get_clipboard_image,
+                    missing_tool_hint,
                 )
+                from zrb.util.cli.style import stylize_error, stylize_faint
+
+                img_bytes = await get_clipboard_image()
+                if img_bytes is not None:
+                    from pydantic_ai import BinaryContent
+
+                    attachment = BinaryContent(data=img_bytes, media_type="image/png")
+                    self._pending_attachments.append(attachment)
+                    size_kb = len(img_bytes) / 1024
+                    self.append_to_output(
+                        stylize_faint(
+                            f"\n  📸 Image pasted from clipboard ({size_kb:.1f} KB)\n"
+                        )
+                    )
+                    self.invalidate_ui()
+                else:
+                    hint = missing_tool_hint()
+                    if hint:
+                        self.append_to_output(
+                            stylize_error(f"\n  ❌ No image in clipboard.\n{hint}")
+                        )
+                        self.invalidate_ui()
+                    elif clipboard:
+                        # No image found — normal text paste into input field.
+                        # Always target input_field, not current_buffer, since
+                        # current focus may be the read-only output field.
+                        from prompt_toolkit.application import get_app as _get_app
+
+                        _get_app().layout.focus(self._input_field)
+                        self._input_field.buffer.paste_clipboard_data(
+                            clipboard.get_data()
+                        )
+
+            task = asyncio.get_event_loop().create_task(_handle_paste())
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
 
         @app_keybindings.add("escape")
         def _(event):
@@ -560,14 +623,22 @@ class UI(BaseUI):
             if self._handle_confirmation(event):
                 return
 
-            # Prevent new messages when LLM is thinking
-            if self._is_thinking:
-                return
-
             # Handle empty inputs
             buff = event.current_buffer
             text = buff.text
             if not text.strip():
+                return
+
+            # These commands work even while the LLM is thinking
+            if self._handle_btw_command(text):
+                buff.reset()
+                return
+            if self._handle_toggle_yolo(text):
+                buff.reset()
+                return
+
+            # Prevent new messages when LLM is thinking
+            if self._is_thinking:
                 return
 
             # Handle other commands
@@ -586,9 +657,6 @@ class UI(BaseUI):
                 buff.reset()
                 return
             if self._handle_attach_command(text):
-                buff.reset()
-                return
-            if self._handle_toggle_yolo(text):
                 buff.reset()
                 return
             if self._handle_set_model_command(text):
@@ -656,6 +724,9 @@ class UI(BaseUI):
         flush: bool = False,
         kind: str = "text",
     ):
+        from prompt_toolkit.application import get_app
+        from prompt_toolkit.document import Document
+
         # Helper to safely append to read-only buffer
         current_text = self._output_field.text
 

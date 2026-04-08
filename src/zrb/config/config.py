@@ -39,7 +39,7 @@ class Config:
         self.DEFAULT_INIT_SCRIPTS: str = ""
         self.DEFAULT_INIT_FILE_NAME: str = "zrb_init.py"
         self.DEFAULT_LOGGING_LEVEL: str = "WARNING"
-        self.DEFAULT_LOAD_BUILTIN: str = "1"
+        self.DEFAULT_LOAD_BUILTIN: str = "on"
         self.DEFAULT_WARN_UNRECOMMENDED_COMMAND: str = "on"
         self.DEFAULT_SESSION_LOG_DIR: str = ""
         self.DEFAULT_TODO_DIR: str = ""
@@ -57,7 +57,7 @@ class Config:
         self.DEFAULT_WEB_ACCESS_TOKEN_COOKIE_NAME: str = "access_token"
         self.DEFAULT_WEB_REFRESH_TOKEN_COOKIE_NAME: str = "refresh_token"
         self.DEFAULT_WEB_SECRET_KEY: str = "zrb"
-        self.DEFAULT_WEB_ENABLE_AUTH: str = "0"
+        self.DEFAULT_WEB_ENABLE_AUTH: str = "off"
         self.DEFAULT_WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES: str = "30"
         self.DEFAULT_WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES: str = "60"
         self.DEFAULT_WEB_TITLE: str = "Zrb"
@@ -88,6 +88,7 @@ class Config:
         self.DEFAULT_LLM_UI_COMMAND_REDIRECT_OUTPUT: str = ">, /redirect"
         self.DEFAULT_LLM_UI_COMMAND_EXEC: str = "!, /exec"
         self.DEFAULT_LLM_UI_COMMAND_SET_MODEL: str = "/model"
+        self.DEFAULT_LLM_UI_COMMAND_BTW: str = "/btw"
         self.DEFAULT_LLM_HISTORY_DIR: str = ""
         self.DEFAULT_LLM_JOURNAL_DIR: str = ""
         self.DEFAULT_LLM_JOURNAL_INDEX_FILE: str = "index.md"
@@ -108,14 +109,14 @@ class Config:
         self.DEFAULT_LLM_BASE_PROMPT_DIR: str = ""
         self.DEFAULT_LLM_SHOW_TOOL_CALL_DETAIL: str = "off"
         self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT: str = "off"
-        self.DEFAULT_LLM_INCLUDE_PERSONA: str = "1"
-        self.DEFAULT_LLM_INCLUDE_MANDATE: str = "1"
-        self.DEFAULT_LLM_INCLUDE_GIT_MANDATE: str = "1"
-        self.DEFAULT_LLM_INCLUDE_SYSTEM_CONTEXT: str = "1"
-        self.DEFAULT_LLM_INCLUDE_JOURNAL: str = "1"
-        self.DEFAULT_LLM_INCLUDE_CLAUDE_SKILLS: str = "1"
-        self.DEFAULT_LLM_INCLUDE_CLI_SKILLS: str = "0"
-        self.DEFAULT_LLM_INCLUDE_PROJECT_CONTEXT: str = "1"
+        self.DEFAULT_LLM_INCLUDE_PERSONA: str = "on"
+        self.DEFAULT_LLM_INCLUDE_MANDATE: str = "on"
+        self.DEFAULT_LLM_INCLUDE_GIT_MANDATE: str = "on"
+        self.DEFAULT_LLM_INCLUDE_SYSTEM_CONTEXT: str = "on"
+        self.DEFAULT_LLM_INCLUDE_JOURNAL: str = "on"
+        self.DEFAULT_LLM_INCLUDE_CLAUDE_SKILLS: str = "on"
+        self.DEFAULT_LLM_INCLUDE_CLI_SKILLS: str = "off"
+        self.DEFAULT_LLM_INCLUDE_PROJECT_CONTEXT: str = "on"
         # LLM Search Configuration
         self.DEFAULT_LLM_SEARCH_PROJECT: str = "on"
         self.DEFAULT_LLM_SEARCH_HOME: str = "on"
@@ -147,10 +148,10 @@ class Config:
         self.DEFAULT_USE_TIKTOKEN: str = "off"
         self.DEFAULT_TIKTOKEN_ENCODING_NAME: str = "cl100k_base"
         self.DEFAULT_MCP_CONFIG_FILE: str = "mcp-config.json"
-        self.DEFAULT_HOOKS_ENABLED: str = "1"
+        self.DEFAULT_HOOKS_ENABLED: str = "on"
         self.DEFAULT_HOOKS_DIRS: str = ""
         self.DEFAULT_HOOKS_TIMEOUT: str = "30"
-        self.DEFAULT_HOOKS_DEBUG: str = "0"
+        self.DEFAULT_HOOKS_DEBUG: str = "off"
         self.DEFAULT_HOOKS_LOG_LEVEL: str = "INFO"
 
     @property
@@ -283,7 +284,7 @@ class Config:
 
     @LOAD_BUILTIN.setter
     def LOAD_BUILTIN(self, value: bool):
-        os.environ[f"{self.ENV_PREFIX}_LOAD_BUILTIN"] = "1" if value else "0"
+        os.environ[f"{self.ENV_PREFIX}_LOAD_BUILTIN"] = "on" if value else "off"
 
     @property
     def WARN_UNRECOMMENDED_COMMAND(self) -> bool:
@@ -298,7 +299,7 @@ class Config:
     @WARN_UNRECOMMENDED_COMMAND.setter
     def WARN_UNRECOMMENDED_COMMAND(self, value: bool):
         os.environ[f"{self.ENV_PREFIX}_WARN_UNRECOMMENDED_COMMAND"] = (
-            "1" if value else "0"
+            "on" if value else "off"
         )
 
     @property
@@ -500,7 +501,7 @@ class Config:
 
     @WEB_ENABLE_AUTH.setter
     def WEB_ENABLE_AUTH(self, value: bool):
-        os.environ[f"{self.ENV_PREFIX}_WEB_ENABLE_AUTH"] = "1" if value else "0"
+        os.environ[f"{self.ENV_PREFIX}_WEB_ENABLE_AUTH"] = "on" if value else "off"
 
     @property
     def WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES(self) -> int:
@@ -876,6 +877,19 @@ class Config:
     @LLM_UI_COMMAND_SET_MODEL.setter
     def LLM_UI_COMMAND_SET_MODEL(self, value: list[str]):
         os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_SET_MODEL"] = ",".join(value)
+
+    @property
+    def LLM_UI_COMMAND_BTW(self) -> list[str]:
+        cmd_str = get_env(
+            "LLM_UI_COMMAND_BTW",
+            self.DEFAULT_LLM_UI_COMMAND_BTW,
+            self.ENV_PREFIX,
+        )
+        return [cmd.strip() for cmd in cmd_str.split(",") if cmd.strip() != ""]
+
+    @LLM_UI_COMMAND_BTW.setter
+    def LLM_UI_COMMAND_BTW(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_BTW"] = ",".join(value)
 
     @property
     def LLM_HISTORY_DIR(self) -> str:
@@ -1426,7 +1440,7 @@ class Config:
     @LLM_SHOW_TOOL_CALL_DETAIL.setter
     def LLM_SHOW_TOOL_CALL_DETAIL(self, value: bool):
         os.environ[f"{self.ENV_PREFIX}_LLM_SHOW_TOOL_CALL_DETAIL"] = (
-            "1" if value else "0"
+            "on" if value else "off"
         )
 
     @property
@@ -1442,7 +1456,7 @@ class Config:
     @LLM_SHOW_TOOL_CALL_RESULT.setter
     def LLM_SHOW_TOOL_CALL_RESULT(self, value: bool):
         os.environ[f"{self.ENV_PREFIX}_LLM_SHOW_TOOL_CALL_RESULT"] = (
-            "1" if value else "0"
+            "on" if value else "off"
         )
 
     @property
@@ -1457,7 +1471,7 @@ class Config:
 
     @LLM_INCLUDE_PERSONA.setter
     def LLM_INCLUDE_PERSONA(self, value: bool):
-        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_PERSONA"] = "1" if value else "0"
+        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_PERSONA"] = "on" if value else "off"
 
     @property
     def LLM_INCLUDE_MANDATE(self) -> bool:
@@ -1471,7 +1485,7 @@ class Config:
 
     @LLM_INCLUDE_MANDATE.setter
     def LLM_INCLUDE_MANDATE(self, value: bool):
-        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_MANDATE"] = "1" if value else "0"
+        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_MANDATE"] = "on" if value else "off"
 
     @property
     def LLM_INCLUDE_GIT_MANDATE(self) -> bool:
@@ -1485,7 +1499,9 @@ class Config:
 
     @LLM_INCLUDE_GIT_MANDATE.setter
     def LLM_INCLUDE_GIT_MANDATE(self, value: bool):
-        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_GIT_MANDATE"] = "1" if value else "0"
+        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_GIT_MANDATE"] = (
+            "on" if value else "off"
+        )
 
     @property
     def LLM_INCLUDE_SYSTEM_CONTEXT(self) -> bool:
@@ -1500,7 +1516,7 @@ class Config:
     @LLM_INCLUDE_SYSTEM_CONTEXT.setter
     def LLM_INCLUDE_SYSTEM_CONTEXT(self, value: bool):
         os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_SYSTEM_CONTEXT"] = (
-            "1" if value else "0"
+            "on" if value else "off"
         )
 
     @property
@@ -1515,7 +1531,7 @@ class Config:
 
     @LLM_INCLUDE_JOURNAL.setter
     def LLM_INCLUDE_JOURNAL(self, value: bool):
-        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_JOURNAL"] = "1" if value else "0"
+        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_JOURNAL"] = "on" if value else "off"
 
     @property
     def LLM_INCLUDE_CLAUDE_SKILLS(self) -> bool:
@@ -1530,7 +1546,7 @@ class Config:
     @LLM_INCLUDE_CLAUDE_SKILLS.setter
     def LLM_INCLUDE_CLAUDE_SKILLS(self, value: bool):
         os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_CLAUDE_SKILLS"] = (
-            "1" if value else "0"
+            "on" if value else "off"
         )
 
     @property
@@ -1545,7 +1561,9 @@ class Config:
 
     @LLM_INCLUDE_CLI_SKILLS.setter
     def LLM_INCLUDE_CLI_SKILLS(self, value: bool):
-        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_CLI_SKILLS"] = "1" if value else "0"
+        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_CLI_SKILLS"] = (
+            "on" if value else "off"
+        )
 
     @property
     def LLM_INCLUDE_PROJECT_CONTEXT(self) -> bool:
@@ -1560,7 +1578,7 @@ class Config:
     @LLM_INCLUDE_PROJECT_CONTEXT.setter
     def LLM_INCLUDE_PROJECT_CONTEXT(self, value: bool):
         os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_PROJECT_CONTEXT"] = (
-            "1" if value else "0"
+            "on" if value else "off"
         )
 
     # =========================================================================
@@ -1674,7 +1692,7 @@ class Config:
 
     @USE_TIKTOKEN.setter
     def USE_TIKTOKEN(self, value: bool):
-        os.environ[f"{self.ENV_PREFIX}_USE_TIKTOKEN"] = "1" if value else "0"
+        os.environ[f"{self.ENV_PREFIX}_USE_TIKTOKEN"] = "on" if value else "off"
 
     @property
     def TIKTOKEN_ENCODING_NAME(self) -> str:
@@ -1704,7 +1722,7 @@ class Config:
 
     @HOOKS_ENABLED.setter
     def HOOKS_ENABLED(self, value: bool):
-        os.environ[f"{self.ENV_PREFIX}_HOOKS_ENABLED"] = "1" if value else "0"
+        os.environ[f"{self.ENV_PREFIX}_HOOKS_ENABLED"] = "on" if value else "off"
 
     @property
     def HOOKS_DIRS(self) -> list[str]:
@@ -1735,7 +1753,7 @@ class Config:
 
     @HOOKS_DEBUG.setter
     def HOOKS_DEBUG(self, value: bool):
-        os.environ[f"{self.ENV_PREFIX}_HOOKS_DEBUG"] = "1" if value else "0"
+        os.environ[f"{self.ENV_PREFIX}_HOOKS_DEBUG"] = "on" if value else "off"
 
     @property
     def HOOKS_LOG_LEVEL(self) -> str:

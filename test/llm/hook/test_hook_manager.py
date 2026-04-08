@@ -18,7 +18,20 @@ from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
 
 @pytest.fixture
 def manager():
-    return HookManager()
+    """Create HookManager with journaling disabled for tests."""
+    mock_cfg = MagicMock()
+    mock_cfg.LLM_INCLUDE_JOURNAL = False
+    mock_cfg.ROOT_GROUP_NAME = "zrb"
+    mock_cfg.LLM_PLUGIN_DIRS = []
+    mock_cfg.HOOKS_DIRS = []
+    mock_cfg.LLM_JOURNAL_DIR = "/tmp/test_journal"
+    mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+
+    # Patch CFG in all modules that import it
+    with patch("zrb.llm.hook.manager.CFG", mock_cfg), patch(
+        "zrb.llm.hook.journal.CFG", mock_cfg
+    ):
+        yield HookManager()
 
 
 class TestHookManagerLifecycle:
@@ -43,10 +56,11 @@ class TestHookManagerLifecycle:
         results = await manager.execute_hooks(HookEvent.SESSION_START, {})
         assert len(results) == 1
 
-        # Reload should clear it (assuming no hooks found in default paths)
+        # Reload should clear manually registered hooks
         with patch.object(manager, "get_search_directories", return_value=[]):
             manager.reload()
             results = await manager.execute_hooks(HookEvent.SESSION_START, {})
+            # Journaling hook is disabled in test fixture
             assert len(results) == 0
 
     @pytest.mark.asyncio
@@ -92,7 +106,7 @@ class TestHookManagerLifecycle:
             assert any(str(plugin_dir / "hooks.json") == str(d) for d in dirs)
 
     @pytest.mark.asyncio
-    async def test_scan_recursive_depth_control(self, manager, tmp_path):
+    async def test_scan_recursive_depth_control(self, tmp_path):
         # Create nested hooks
         d1 = tmp_path / "d1"
         d2 = d1 / "d2"
@@ -111,17 +125,20 @@ class TestHookManagerLifecycle:
         )
 
         # Default depth is usually 1, so d1 is scanned, but d2 might not be if depth is small
-        manager = HookManager(max_depth=1)
-        manager.scan(search_dirs=[str(tmp_path)])
+        mock_cfg = MagicMock()
+        mock_cfg.LLM_INCLUDE_JOURNAL = False
+        with patch("zrb.llm.hook.manager.CFG", mock_cfg):
+            manager = HookManager(max_depth=1)
+            manager.scan(search_dirs=[str(tmp_path)])
 
-        results = await manager.execute_hooks(HookEvent.SESSION_START, {})
-        # depth 1: tmp_path (0) -> d1 (1). d2 is at depth 2 from tmp_path.
-        assert len(results) == 0
+            results = await manager.execute_hooks(HookEvent.SESSION_START, {})
+            # depth 1: tmp_path (0) -> d1 (1). d2 is at depth 2 from tmp_path.
+            assert len(results) == 0
 
-        manager = HookManager(max_depth=2)
-        manager.scan(search_dirs=[str(tmp_path)])
-        results = await manager.execute_hooks(HookEvent.SESSION_START, {})
-        assert len(results) == 1
+            manager = HookManager(max_depth=2)
+            manager.scan(search_dirs=[str(tmp_path)])
+            results = await manager.execute_hooks(HookEvent.SESSION_START, {})
+            assert len(results) == 1
 
 
 class TestHookManagerRegistration:

@@ -7,6 +7,7 @@ from zrb.config.config import CFG
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.llm.custom_command import get_skill_custom_command
+from zrb.llm.hook.journal import create_journaling_hook_factory
 from zrb.llm.lsp.tools import create_lsp_tools
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.skill.manager import skill_manager
@@ -36,9 +37,11 @@ from zrb.llm.tool.delegate import (
 )
 from zrb.llm.tool.mcp import load_mcp_config
 from zrb.llm.tool.skill import create_activate_skill_tool
+from zrb.llm.tool.worktree import enter_worktree, exit_worktree, list_worktrees
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
 from zrb.llm.tool_call import (
     auto_approve,
+    bash_safe_command_policy,
     read_file_validation_policy,
     read_files_validation_policy,
     replace_in_file_formatter,
@@ -58,8 +61,12 @@ llm_chat = LLMChatTask(
         StrInput(
             "session", "Conversation Session", allow_empty=True, always_prompt=False
         ),
-        BoolInput(
-            "yolo", "YOLO Mode", default=False, allow_empty=True, always_prompt=False
+        StrInput(
+            "yolo",
+            "YOLO Mode (true/false or comma-separated tool names, e.g. Write,Edit)",
+            default="",
+            allow_empty=True,
+            always_prompt=False,
         ),
         StrInput("attach", "Attachments", allow_empty=True, always_prompt=False),
         BoolInput(
@@ -105,6 +112,9 @@ tools = [
     analyze_file,
     search_internet,
     open_web_page,
+    enter_worktree,
+    exit_worktree,
+    list_worktrees,
     *lsp_tools,
     *plan_tools,
 ]
@@ -130,6 +140,7 @@ llm_chat.add_response_handler(replace_in_file_response_handler)
 
 # Add tool policies (automatically approve/disprove tool calling)
 llm_chat.add_tool_policy(
+    bash_safe_command_policy(),
     replace_in_file_validation_policy,
     read_file_validation_policy,
     read_files_validation_policy,
@@ -150,8 +161,6 @@ llm_chat.add_tool_policy(
     auto_approve("Edit", approve_if_path_inside_journal_dir),
     auto_approve("SearchInternet"),
     auto_approve("OpenWebPage"),
-    auto_approve("ReadLongTermNote"),
-    auto_approve("ReadContextualNote"),
     auto_approve("ActivateSkill"),
     auto_approve("DelegateToAgent"),
     auto_approve("DelegateToAgentsParallel"),
@@ -170,10 +179,16 @@ llm_chat.add_tool_policy(
     auto_approve("ClearTodos"),
     # Note: LspRenameSymbol uses dry_run by default, but requires user approval
     # when dry_run=False (actual file modifications)
+    # Worktree tools - listing is safe; create/remove require approval
+    auto_approve("ListWorktrees"),
 )
 
 # Add custom command (slash commands)
 llm_chat.add_custom_command(get_skill_custom_command(skill_manager))
+
+# Add hook factories
+# Journaling hook will check CFG.LLM_INCLUDE_JOURNAL at execution time
+llm_chat.add_hook_factory(create_journaling_hook_factory())
 
 llm_group.add_task(llm_chat)
 cli.add_task(llm_chat)

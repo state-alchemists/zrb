@@ -764,7 +764,7 @@ llm_chat.set_ui_factory(create_ui_factory(MyUI, config=config))
 | `yolo_toggle_commands` | `["/yolo"]` | Toggle auto-approve |
 | `set_model_commands` | `["/model"]` | Switch model |
 | `exec_commands` | `["/exec"]` | Run shell commands |
-| `yolo` | `False` | Auto-approve all tools |
+| `yolo` | `False` | Auto-approve mode: `True` for all tools, or comma-separated names (e.g., `"Write,Edit"`) for selective |
 | `conversation_session_name` | `""` | Session name (empty = random) |
 
 ---
@@ -1225,7 +1225,7 @@ def factory(
     ui_commands: dict,            # Command configuration
     initial_message: str,         # First message (if any)
     initial_conversation_name: str,  # Session name
-    initial_yolo: bool,          # Auto-approve mode
+    initial_yolo: bool | str,       # Auto-approve mode (True, or comma-separated tool names)
     initial_attachments: list,    # Files to attach
 ) -> BaseUI:
     ...

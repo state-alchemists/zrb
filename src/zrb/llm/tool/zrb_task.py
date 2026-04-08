@@ -28,10 +28,7 @@ def create_list_zrb_task_tool():
 
     zrb_cmd = CFG.ROOT_GROUP_NAME
     list_zrb_tasks_impl.__name__ = f"List{zrb_cmd.capitalize()}Tasks"
-    list_zrb_tasks_impl.__doc__ = (
-        f"Discovery tool to see available {zrb_cmd} capabilities.\n"
-        "MANDATE: ALWAYS check this to see available capabilities."
-    )
+    list_zrb_tasks_impl.__doc__ = f"Lists available {zrb_cmd} groups and tasks. Use to discover automation capabilities before running them."
     return list_zrb_tasks_impl
 
 
@@ -54,9 +51,6 @@ def create_run_zrb_task_tool():
     zrb_cmd = CFG.ROOT_GROUP_NAME
     run_zrb_task.__name__ = f"Run{zrb_cmd.capitalize()}Task"
     run_zrb_task.__doc__ = (
-        f"Executes a predefined {zrb_cmd} automation task.\n\n"
-        "MANDATES:\n"
-        f"- PREFERRED way to run {zrb_cmd} tasks.\n"
-        "- MUST provide all required args."
+        f"Executes a {zrb_cmd} automation task by name. Provide all required args."
     )
     return run_zrb_task

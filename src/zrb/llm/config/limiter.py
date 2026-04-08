@@ -89,17 +89,23 @@ class LLMLimiter:
 
     # --- Public API ---
 
-    def fit_context_window(self, history: list[Any], new_message: Any) -> list[Any]:
+    def fit_context_window(
+        self, history: list[Any], new_message: Any, reserved_tokens: int = 0
+    ) -> list[Any]:
         """
         Prunes the history (removing oldest turns) so that 'history + new_message'
         fits within 'max_tokens_per_request'.
         Ensures strict tool call pairing by removing full conversation turns.
+
+        reserved_tokens: tokens already consumed by system prompt, tool schemas, etc.
         """
         if not history:
             return history
 
+        available = max(0, int(self.max_token_per_request * 0.90) - reserved_tokens)
+
         new_msg_tokens = self._count_tokens(new_message)
-        if new_msg_tokens > self.max_token_per_request * 0.95:
+        if new_msg_tokens > available:
             return []
 
         pruned_history = list(history)
@@ -108,7 +114,7 @@ class LLMLimiter:
             history_tokens = self._count_tokens(pruned_history)
             total_tokens = history_tokens + new_msg_tokens
 
-            if total_tokens <= self.max_token_per_request * 0.95:
+            if total_tokens <= available:
                 break
 
             # Pruning Strategy: Find the start of the *next* turn and cut everything before it.

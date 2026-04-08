@@ -2,20 +2,15 @@ from enum import Enum
 
 
 class HookEvent(str, Enum):
-    """All Claude Code hook events for 100% compatibility."""
+    """Hook events that are actually fired during execution."""
 
     SESSION_START = "SessionStart"
     USER_PROMPT_SUBMIT = "UserPromptSubmit"
     PRE_TOOL_USE = "PreToolUse"
-    PERMISSION_REQUEST = "PermissionRequest"
     POST_TOOL_USE = "PostToolUse"
     POST_TOOL_USE_FAILURE = "PostToolUseFailure"
     NOTIFICATION = "Notification"
-    SUBAGENT_START = "SubagentStart"
-    SUBAGENT_STOP = "SubagentStop"
     STOP = "Stop"
-    TEAMMATE_IDLE = "TeammateIdle"
-    TASK_COMPLETED = "TaskCompleted"
     PRE_COMPACT = "PreCompact"
     SESSION_END = "SessionEnd"
 

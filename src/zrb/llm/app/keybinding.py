@@ -13,14 +13,6 @@ def create_output_keybindings(input_field: TextArea) -> KeyBindings:
     def _(event):
         get_app().layout.focus(input_field)
 
-    @kb.add("c-v")
-    @kb.add("escape", "v")
-    def _(event):
-        # Paste clipboard data to input field
-        get_app().layout.focus(input_field)
-        if event.app.clipboard:
-            input_field.buffer.paste_clipboard_data(event.app.clipboard.get_data())
-
     # Scrolling and navigation
     @kb.add("up")
     def _(event):

@@ -100,13 +100,9 @@ CLAUDE_EVENT_MATCHER_FIELDS = {
     HookEvent.PRE_TOOL_USE: "tool_name",
     HookEvent.POST_TOOL_USE: "tool_name",
     HookEvent.POST_TOOL_USE_FAILURE: "tool_name",
-    HookEvent.PERMISSION_REQUEST: "tool_name",  # Often matches tool name
     HookEvent.USER_PROMPT_SUBMIT: "prompt",
     HookEvent.SESSION_START: "source",
     HookEvent.NOTIFICATION: "message",
-    HookEvent.SUBAGENT_START: "agent_type",  # Or agent_id
-    HookEvent.SUBAGENT_STOP: "agent_type",
-    HookEvent.TASK_COMPLETED: "task_id",
 }
 
 _IGNORE_DIRS = []
@@ -127,6 +123,7 @@ class HookManager:
         self._hook_to_config: dict[HookCallable, HookConfig] = (
             {}
         )  # hook -> config mapping
+        self._hook_factories: list[Callable[[HookManager], None]] = []
         self._max_depth = max_depth
         self._ignore_dirs = _IGNORE_DIRS if ignore_dirs is None else ignore_dirs
         self._search_dirs: list[str | Path] | None = search_dirs
@@ -145,6 +142,9 @@ class HookManager:
         self._global_hooks = []
         self._hook_configs = {}
         self._hook_to_config = {}
+        # Re-run factories to re-register dynamic hooks
+        for factory in self._hook_factories:
+            factory(self)
         self._ensure_loaded()
 
     def _scan_and_load(self):
@@ -395,6 +395,17 @@ class HookManager:
 
         return results
 
+    def add_hook_factory(self, factory: Callable[["HookManager"], None]):
+        """Register a hook factory function.
+
+        Factories are called during hook loading to dynamically register hooks.
+        This allows hooks to be conditionally registered based on config or other factors.
+
+        Args:
+            factory: A function that takes HookManager and registers hooks
+        """
+        self._hook_factories.append(factory)
+
     def scan(self, search_dirs: list[str | Path] | None = None):
         """
         Scan for hooks in default locations and provided directories.
@@ -404,6 +415,10 @@ class HookManager:
         target_search_dirs = search_dirs
         if target_search_dirs is None:
             target_search_dirs = self.get_search_directories()
+
+        # Run hook factories to register dynamic hooks
+        for factory in self._hook_factories:
+            factory(self)
 
         for search_dir in target_search_dirs:
             self._load_from_path(search_dir)

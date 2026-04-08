@@ -123,7 +123,7 @@ class BaseUI:
         initial_message: Any = "",
         initial_attachments: list["UserContent"] = [],
         conversation_session_name: str = "",
-        is_yolo: bool = False,
+        is_yolo: bool | frozenset = False,
         triggers: list[Callable[[], AsyncIterable[Any]]] = [],
         response_handlers: list[ResponseHandler] = [],
         tool_policies: list[ToolPolicy] = [],
@@ -139,6 +139,7 @@ class BaseUI:
         yolo_toggle_commands: list[str] = [],
         set_model_commands: list[str] = [],
         exec_commands: list[str] = [],
+        btw_commands: list[str] = [],
         custom_commands: list[AnyCustomCommand] = [],
         model: "Model | str | None" = None,
     ):
@@ -166,6 +167,7 @@ class BaseUI:
         self._yolo_toggle_commands = yolo_toggle_commands
         self._set_model_commands = set_model_commands
         self._exec_commands = exec_commands
+        self._btw_commands = btw_commands
         self._custom_commands = custom_commands
         self._trigger_tasks: list[asyncio.Task] = []
         self._message_queue: asyncio.Queue = asyncio.Queue()
@@ -242,13 +244,13 @@ class BaseUI:
                 loop.close()
 
     @property
-    def yolo(self) -> bool:
+    def yolo(self) -> bool | frozenset:
         if self._yolo_xcom_key not in self._ctx.xcom:
             return False
         return self._ctx.xcom[self._yolo_xcom_key].get(False)
 
     @yolo.setter
-    def yolo(self, value: bool):
+    def yolo(self, value: bool | frozenset):
         if self._yolo_xcom_key not in self._ctx.xcom:
             self._ctx.xcom[self._yolo_xcom_key] = Xcom()
         self._ctx.xcom[self._yolo_xcom_key].set(value)
@@ -914,14 +916,25 @@ class BaseUI:
             self.append_to_output(stylize_error(f"\n  📎 Already attached: {path}\n"))
 
     def toggle_yolo(self):
-        """Toggle YOLO mode and force refresh."""
-        self.yolo = not self.yolo
+        """Toggle YOLO mode (full on/off) and force refresh."""
+        self.yolo = not bool(self.yolo)
         self.invalidate_ui()
 
     def _handle_toggle_yolo(self, text: str) -> bool:
-        if text.strip().lower() in self._yolo_toggle_commands:
-            self.toggle_yolo()
-            return True
+        stripped = text.strip()
+        for cmd in self._yolo_toggle_commands:
+            if stripped.lower() == cmd.lower():
+                # Plain /yolo — toggle full yolo on/off
+                self.toggle_yolo()
+                return True
+            if stripped.lower().startswith(cmd.lower() + " "):
+                # /yolo Write,Edit — activate selective yolo for those tools
+                tools_str = stripped[len(cmd) :].strip()
+                tools = frozenset(t.strip() for t in tools_str.split(",") if t.strip())
+                if tools:
+                    self.yolo = tools
+                    self.invalidate_ui()
+                return True
         return False
 
     def _handle_set_model_command(self, text: str) -> bool:
@@ -1014,6 +1027,101 @@ class BaseUI:
             await self._update_system_info()
             self.invalidate_ui()
 
+    def _handle_btw_command(self, text: str) -> bool:
+        """Handle /btw <question> — ask a side question without saving to history.
+
+        Intentionally works while the LLM is thinking (no _is_thinking guard).
+        Runs as an independent background task to avoid interfering with the
+        main conversation.
+        """
+        text = text.strip()
+        for cmd in self._btw_commands:
+            prefix = f"{cmd} "
+            if text.lower().startswith(prefix):
+                question = text[len(prefix) :].strip()
+                if not question:
+                    continue
+
+                async def job(q=question):
+                    await self._stream_btw_response(self._llm_task, q)
+
+                # Bypass the serializing message queue — run as an independent
+                # background task so it executes in parallel with the main LLM.
+                task = asyncio.get_event_loop().create_task(job())
+                self._background_tasks.add(task)
+                task.add_done_callback(self._background_tasks.discard)
+                return True
+        return False
+
+    async def _stream_btw_response(self, llm_task: LLMTask, question: str):
+        """Run an ephemeral LLM query that runs alongside the current conversation.
+
+        Uses a fresh, independent pydantic-ai Agent so there are no race conditions
+        with the possibly-running main LLM task (no shared state is mutated).
+        The response is never saved to conversation history.
+        """
+        try:
+            timestamp = datetime.now().strftime("%H:%M")
+            self.append_to_output(f"\n💭 {timestamp} >> {question.strip()}\n")
+            self.append_to_output(
+                stylize_faint("  (side question — not saved to history)\n")
+            )
+
+            # Load current history for context (read-only snapshot).
+            # Strip SystemPromptPart entries so the main agent's system prompt
+            # doesn't conflict with the btw agent's own system prompt.
+            import platform
+
+            from pydantic_ai import Agent
+            from pydantic_ai.messages import ModelRequest, SystemPromptPart
+
+            raw_history = self._history_manager.load(self._conversation_session_name)
+            btw_history = []
+            for msg in raw_history:
+                if isinstance(msg, ModelRequest):
+                    clean_parts = [
+                        p for p in msg.parts if not isinstance(p, SystemPromptPart)
+                    ]
+                    if clean_parts:
+                        btw_history.append(ModelRequest(parts=clean_parts))
+                else:
+                    btw_history.append(msg)
+
+            # Create a fresh, independent agent — no shared state with llm_task.
+            # Use an explicit instruction so the model uses the provided time
+            # rather than falling back to "I have no real-time access".
+            _now = datetime.now().strftime("%A, %B %d, %Y %H:%M:%S")
+            _sys_prompt = (
+                f"The current time is {_now}. "
+                f"The OS is {platform.platform()}. "
+                f"The current directory is {os.getcwd()}. "
+                "Answer the user's question concisely using this information when relevant."
+            )
+            # Use the UI's selected model if set (from /model command), otherwise fallback
+            model = self._model if self._model else llm_task._llm_config.model
+            agent = Agent(
+                model=model,
+                system_prompt=_sys_prompt,
+            )
+
+            self.append_to_output(f"\n🤖 {timestamp} >>\n")
+            result = await agent.run(question, message_history=btw_history)
+            answer = result.output if hasattr(result, "output") else str(result)
+
+            width = self._get_output_field_width()
+            self.append_to_output("\n")
+            self.append_to_output(
+                render_markdown(answer, width=width, theme=self._markdown_theme)
+            )
+
+        except asyncio.CancelledError:
+            self.append_to_output("\n[Cancelled]\n")
+            raise
+        except Exception as e:
+            self.append_to_output(f"\n[Error: {e}]\n")
+        finally:
+            self.invalidate_ui()
+
     def _handle_custom_command(self, text: str) -> bool:
         # Prevent custom commands when LLM is thinking
         if self._is_thinking:
@@ -1078,6 +1186,10 @@ class BaseUI:
         add_cmd_help(self._set_model_commands, "Set model (usage: {cmd} <model-name>)")
         add_cmd_help(
             self._exec_commands, "Execute shell command (usage: {cmd} <command>)"
+        )
+        add_cmd_help(
+            self._btw_commands,
+            "Ask a side question without saving to history (usage: {cmd} <question>)",
         )
         for custom_cmd in self._custom_commands:
             usage = f"{custom_cmd.command} " + " ".join(

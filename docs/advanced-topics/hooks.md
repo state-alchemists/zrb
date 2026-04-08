@@ -381,6 +381,84 @@ Output JSON with `"decision": "block"`:
 
 ---
 
+## Extending Sessions with System Messages
+
+SESSION_END hooks can extend the session by returning a system message. This allows hooks to trigger additional LLM actions before the session ends.
+
+### Two Modes
+
+When a SESSION_END hook returns `HookResult.with_system_message()`, there are two modes:
+
+| Mode | `replace_response` | Behavior |
+|------|-------------------|----------|
+| **Side Effects** | `False` (default) | Extended session runs, original response returned to user |
+| **Transform** | `True` | Extended session's response becomes the final response |
+
+### Side Effects Mode (Default)
+
+Use for actions that should happen invisibly to the user:
+
+```python
+async def journal_hook(context: HookContext) -> HookResult:
+    """Remind LLM to journal - user sees original response."""
+    if context.event == HookEvent.SESSION_END:
+        # Extended session runs for journaling
+        # User receives the ORIGINAL response, not the journal acknowledgment
+        return HookResult.with_system_message(
+            "Review session for learnings worth documenting."
+            # replace_response=False is implicit
+        )
+    return HookResult()
+```
+
+**Use cases:** Logging, journaling, notifications, background tasks
+
+### Transform Mode
+
+Use when you want to modify the final response:
+
+```python
+async def summarize_hook(context: HookContext) -> HookResult:
+    """Summarize long responses - user sees the summary."""
+    if context.event == HookEvent.SESSION_END:
+        output = context.event_data.get("output", "")
+        if len(str(output)) > 1000:
+            # Extended session's response replaces original
+            return HookResult.with_system_message(
+                f"Summarize this response under 500 chars: {output[:500]}",
+                replace_response=True
+            )
+    return HookResult()
+```
+
+**Use cases:** Summarization, formatting, sanitization, post-processing
+
+### How It Works
+
+1. Hook returns `with_system_message(msg)` at SESSION_END
+2. Session extends with that message as a new user prompt
+3. LLM processes the message (e.g., writes journal, summarizes)
+4. If `replace_response=False`: Original response returned
+5. If `replace_response=True`: Extended response returned
+
+### JSON Configuration
+
+```json
+{
+  "name": "session-summary",
+  "events": ["SessionEnd"],
+  "type": "prompt",
+  "config": {
+    "user_prompt_template": "Summarize the key points from: {{output}}",
+    "modifications": {
+      "replaceResponse": true
+    }
+  }
+}
+```
+
+---
+
 ## Environment Variables
 
 Command hooks receive these environment variables automatically:
@@ -516,13 +594,15 @@ Example hook configurations are available in [examples/hooks/](../../examples/ho
 | `prompt` | LLM-based analysis, content filtering |
 | `agent` | Multi-step analysis with tools |
 
-| Event | When It Fires | Can Block? |
-|-------|---------------|------------|
-| `PreToolUse` | Before tool execution | Yes |
-| `PermissionRequest` | During permission request | Yes |
-| `PostToolUse` | After tool success | No |
-| `PostToolUseFailure` | After tool failure | No |
-| `SessionStart/End` | Session lifecycle | No |
+| Event | When It Fires | Can Block? | Special |
+|-------|---------------|------------|---------|
+| `PreToolUse` | Before tool execution | Yes | - |
+| `PermissionRequest` | During permission request | Yes | - |
+| `PostToolUse` | After tool success | No | - |
+| `PostToolUseFailure` | After tool failure | No | - |
+| `SessionStart` | Session begins | No | Can inject `additionalContext` |
+| `SessionEnd` | Session ends | No | Can extend with `systemMessage` |
+| `UserPromptSubmit` | Before LLM processes text | No | Can inject `additionalContext` |
 
 | Matcher Operator | Description |
 |------------------|-------------|
@@ -530,3 +610,13 @@ Example hook configurations are available in [examples/hooks/](../../examples/ho
 | `contains` | Substring match |
 | `regex` | Regular expression |
 | `glob` | Glob pattern |
+
+| HookResult Method | Effect |
+|-------------------|--------|
+| `HookResult()` | No effect, continue normally |
+| `HookResult.with_system_message(msg)` | Extend session, original response returned |
+| `HookResult.with_system_message(msg, replace_response=True)` | Extend session, extended response returned |
+| `HookResult.block(reason)` | Block execution (exit code 2) |
+| `HookResult.allow()` | Allow tool execution |
+| `HookResult.deny(reason)` | Deny tool execution |
+| `HookResult.ask(reason)` | Ask user for permission |

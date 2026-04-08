@@ -33,6 +33,7 @@ class HookExecutionResult:
     additional_context: str | None = None
     updated_input: dict[str, Any] | None = None
     system_message: str | None = None
+    replace_response: bool = False  # If True, extended response replaces original
     continue_execution: bool = True
     suppress_output: bool = False
     hook_specific_output: dict[str, Any] | None = None
@@ -227,6 +228,9 @@ class ThreadPoolHookExecutor:
 
             if "systemMessage" in result.modifications:
                 exec_result.system_message = result.modifications["systemMessage"]
+
+            if "replaceResponse" in result.modifications:
+                exec_result.replace_response = result.modifications["replaceResponse"]
 
             if "continue" in result.modifications:
                 exec_result.continue_execution = result.modifications["continue"]

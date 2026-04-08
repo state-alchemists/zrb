@@ -18,19 +18,14 @@ async def run_shell_command(
     max_chars: int = 100000,
 ) -> str:
     """
-    Executes a non-interactive shell command (bash on Unix, cmd.exe on Windows).
-
-    Output includes stdout, stderr, exit code, and background PIDs.
-    Both stdout and stderr are streamed live to the console and returned truncated.
+    Executes a non-interactive shell command. Streams stdout/stderr live and returns truncated output.
 
     MANDATES:
-    - NEVER use for reading/writing files—use `Read`, `Write`, `Edit`, `Grep`, `Glob` instead.
-    - ALWAYS pass non-interactive flags (e.g., `-y`, `--yes`, `--watch=false`, `CI=true`) to
-      prevent scaffolding tools or test runners from hanging in interactive/watch mode.
-    - Default timeout is 30 seconds. If a command times out, the process likely continues in
-      the background—run `ps aux | grep <name>` to check before retrying or killing it.
-    - Use for: system commands, package management, test runners, build tools, scaffolding.
-    - Batch independent commands with `&&` or `;` to minimize round trips.
+    - Use for system commands, package managers, test runners, and build tools.
+    - Never use for file I/O—use `Read`, `Write`, `Edit`, `Grep`, `Glob` instead.
+    - Always pass non-interactive flags (e.g., `-y`, `--yes`, `CI=true`) to prevent hanging.
+    - Default timeout is 30 seconds; timed-out processes may continue in background—check with `ps aux | grep <name>`.
+    - Batch independent commands with `&&` or `;` to reduce round trips.
     """
     cwd = os.getcwd()
     is_windows = platform.system() == "Windows"

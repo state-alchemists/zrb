@@ -1,5 +1,146 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.18.1 (April 8, 2026)
+
+- **Improvement: Journaling Hook Behavior**:
+  - Journaling reminders now fire after every response instead of only at session end.
+  - LLM now decides whether any content from the turn is worth noting.
+  - Simplified hook state management and improved anti-recursion protection.
+  - Journaling prompt now uses a configurable template (`journal_reminder.md`).
+
+- **Feature: Robust Cross-platform Clipboard**:
+  - Added native WSL support via PowerShell for reliable Windows clipboard access.
+  - Enhanced Wayland support with multi-type MIME fallback (BMP, JPEG, TIFF) and auto-conversion to PNG.
+  - Improved "missing tool" hints with environment-aware suggestions.
+
+- **Improvement: LLM App Layout and UI**:
+  - Refined layout and keybindings for the LLM application.
+  - Improved `DefaultUI` and `MultiUI` event handling and response capture.
+  - Slimmed down prompt definitions and improved template loading.
+
+- **Tests: Coverage Expansion**:
+  - New `test/runner/chat/test_chat_api.py` for comprehensive API testing.
+  - New `test/llm/hook/test_matchers.py` and expanded hook processing tests.
+  - Verified behavioral changes in journaling and clipboard logic.
+
+## 2.18.0 (April 5, 2026)
+
+- **Feature: Hook System SESSION_END Extensions**:
+  - `HookResult.with_system_message()` now accepts `replace_response` parameter.
+  - `replace_response=False` (default): Extended session runs for side effects, original response returned.
+  - `replace_response=True`: Extended session's response replaces original.
+  - Enables use cases like: journaling (side effects), summarization (replace response), transformation pipelines.
+  - `HookExecutionResult` adds `replace_response` field for result processing.
+  - New helper functions: `_extract_system_message()`, `_extract_replace_response()`, `_extract_additional_context()`.
+
+- **Feature: Hook Factory Registration**:
+  - New `HookManager.add_hook_factory()` method for dynamic hook registration.
+  - Factories are called during hook loading to conditionally register hooks based on config.
+  - Enables config-driven hook enabling/disabling without code changes.
+  - Built-in journaling hook uses this pattern to respect `CFG.LLM_INCLUDE_JOURNAL`.
+
+- **Feature: Built-in Journaling Hook**:
+  - New `src/zrb/llm/hook/journal.py` with `JournalingHookHandler` class.
+  - Tracks session activity via `POST_TOOL_USE` events.
+  - Sends journal reminder at `SESSION_END` if session had meaningful activity.
+  - Anti-recursion protection: only fires reminder once per session.
+  - Auto-registered when `LLM_INCLUDE_JOURNAL=on`.
+
+- **Refactoring: Hook Event Cleanup**:
+  - Removed 5 unhandled events from `HookEvent` enum: `PERMISSION_REQUEST`, `SUBAGENT_START`, `SUBAGENT_STOP`, `TEAMMATE_IDLE`, `TASK_COMPLETED`.
+  - Reduced from 14 events to 9 events (all now actually fired in code).
+  - Updated `CLAUDE_EVENT_MATCHER_FIELDS` mapping in `manager.py`.
+  - Updated documentation and examples to reflect actual events.
+
+- **Bug Fix: SESSION_END Response Handling**:
+  - Fixed bug where `original_output` was overwritten on each loop iteration in `run_agent.py`.
+  - Now captures `_original_output` and `_original_history` only when session extension is triggered.
+  - Ensures correct response returned whether using `replace_response=True` or `False`.
+
+- **Improvement: Context Window Management**:
+  - New `_filter_nil_content()` function filters None/nil content from messages.
+  - Prevents "invalid message content type: <nil>" errors from OpenAI-compatible APIs.
+  - New `_is_prompt_too_long_error()` helper detects context length errors.
+  - New `_drop_oldest_turn()` function removes oldest conversation turn for context compaction.
+
+- **Feature: Selective YOLO Mode**:
+  - YOLO input now accepts comma-separated tool names for selective auto-approval.
+  - Example: `--yolo "Write,Edit"` auto-approves only Write and Edit tools.
+  - UI displays selective YOLO as `[Write,Edit]` in yellow.
+  - Runtime command: `/yolo Write,Edit` to enable selective mode.
+  - New `_parse_yolo_value()` function with full test coverage.
+
+- **Feature: Bash Safe Command Policy**:
+  - Auto-approves known-safe read-only commands (`ls`, `git status`, `cat`, `echo`, etc.).
+  - Rejects commands with dangerous shell metacharacters (`>`, `|`, `;`, `&&`, `` ` ``, `$()`).
+  - Conservative allowlist approach: only explicitly safe commands auto-approved.
+  - Full test suite for policy validation (268 lines).
+
+- **Bug Fix: Reserved Token Accounting**:
+  - System prompt tokens now properly reserved in context window calculations.
+  - Added `reserved_tokens` parameter to `run_agent()` and `fit_context_window()`.
+  - Prevents context window overflow when system prompts are large.
+
+- **Refactoring: Config Value Normalization**:
+  - Standardized boolean config defaults: `"1"`/`"0"` → `"on"`/`"off"`.
+  - Affects: `LOAD_BUILTIN`, `WEB_ENABLE_AUTH`, `HOOKS_ENABLED`, `HOOKS_DEBUG`, all `LLM_INCLUDE_*` flags.
+
+- **Improvement: Prompt Documentation Slimming**:
+  - `git_mandate.md`: Simplified from detailed tables to compact bullet lists.
+  - `mandate.md`: Condensed sections, streamlined tool selection guidance.
+  - Reduces token usage in prompts.
+
+- **Improvement: Tool Docstring Simplification**:
+  - Shortened docstrings across most LLM tools.
+  - Removed verbose MANDATES sections, kept essential guidance.
+  - Affected tools: `Bash`, `AnalyzeCode`, `LS`, `Glob`, `Read`, `ReadMany`, `Write`, `WriteMany`, `Edit`, `Grep`, `AnalyzeFile`, `WriteTodos`, `GetTodos`, `UpdateTodo`, `ClearTodos`, `OpenWebPage`, `SearchInternet`, `EnterWorktree`, `ExitWorktree`, `ListWorktrees`.
+
+- **Documentation: Hooks Documentation**:
+  - Expanded `docs/advanced-topics/hooks.md` with SESSION_END system messages section.
+  - Added examples for both `replace_response=False` (side effects) and `replace_response=True` (transformation).
+  - New `examples/llm-hooks/` directory with comprehensive hook examples.
+  - Examples include: session tracking, permission control, journal reminder, response transformation.
+
+- **Tests: New Coverage**:
+  - `test/llm/hook/test_hook_result_processing.py`: Hook result extraction and journaling hook tests.
+  - `test/llm/agent/test_run_agent.py`: Added `replace_response` functionality tests.
+  - `test/llm/tool_call/tool_policy/test_bash_validation.py`: Comprehensive policy tests.
+  - `test/llm/task/test_llm_chat_task.py`: Added `TestParseYoloValue` class.
+  - Updated limiter tests for robustness (less brittle assertions).
+
+## 2.17.0 (April 3, 2026)
+
+- **Feature: Git Worktree Integration**:
+  - New `Worktree` tools for isolated development: `EnterWorktree`, `ExitWorktree`, and `ListWorktrees`.
+  - Enables safe experimentation and parallel work without affecting the main working tree.
+
+- **Feature: Clipboard Utility**:
+  - Added specialized clipboard handling in `src/zrb/llm/util/clipboard.py`.
+
+- **Feature: Non-Persistent History**:
+  - Added `NoSaveHistoryManager` for session-only history.
+
+- **Feature: UI Improvements**:
+  - Enhanced `BaseUI` and `DefaultUI` with more properties and better state management.
+
+- **Improvement: Significant Test Coverage Expansion**:
+  - Added extensive test suites for:
+    - LSP tools (`test/llm/lsp/test_lsp_tools.py`)
+    - Search tools (`test/llm/tool/search/test_search.py`)
+    - Git Worktree (`test/llm/tool/test_worktree.py`)
+    - JWT and Token management (`test/builtin/test_jwt.py`, `test/runner/web_util/test_token.py`)
+    - Approval channels (`test/llm/approval/test_approval_channel.py`)
+    - Rate limiting (`test/llm/config/test_limiter.py`)
+    - Chat session management (`test/runner/chat/test_chat_session_manager.py`)
+
+- **Improvement: LLM Tool Enhancements**:
+  - Refactored `PlanTool`, `RagTool`, and `DelegateTool` for better reliability and error handling.
+  - Improved search tool integration (Brave, Searxng, SerpApi).
+
+- **Bug Fixes and Stability**:
+  - Fixed agent execution logic in `src/zrb/llm/agent/run_agent.py`.
+  - Safer command execution and string utility improvements.
+
 ## 2.16.0 (April 3, 2026)
 
 - **Feature: Flexible Skill/Agent Search Configuration**:

@@ -26,7 +26,9 @@ class TestListZrbTaskTool:
         """Test that function has docstring."""
         func = create_list_zrb_task_tool()
         assert func.__doc__ is not None
-        assert "MANDATE" in func.__doc__ or "Discovery" in func.__doc__
+        # Check for key concepts in docstring (case-insensitive)
+        doc_lower = func.__doc__.lower()
+        assert "discover" in doc_lower or "lists" in doc_lower
 
     def test_list_tasks_no_group(self):
         """Test listing tasks with no group specified."""

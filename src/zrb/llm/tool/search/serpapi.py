@@ -13,16 +13,12 @@ def search_internet(
     api_key: str | None = None,
 ) -> dict[str, Any]:
     """
-    Performs a live internet search using SerpApi (Google Search) to retrieve the most relevant and current information from the web.
+    Performs a live internet search using SerpApi (Google Search).
 
-    **WHEN TO USE:**
+    MANDATES:
+    - Use to retrieve the most relevant and current information from the web.
     - When you need precise, high-quality search results from Google.
     - To find the latest official documentation, technical articles, or community discussions.
-
-    **ARGS:**
-    - `query`: The search string or question.
-    - `page`: Result page number (default 1).
-    - `api_key`: SerpApi key. Falls back to default if not provided.
     """
     if safe_search is None:
         safe_search = CFG.SERPAPI_SAFE

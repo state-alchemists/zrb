@@ -224,8 +224,16 @@ class MultiUI:
         timestamp = datetime.now().strftime("%H:%M")
         self.append_to_output(f"\n💬 {timestamp} >> {user_message.strip()}\n")
 
+        # Collect pending attachments from all child UIs (e.g. images pasted
+        # via Ctrl+V in the default terminal UI) and clear their queues.
+        attachments = []
+        for ui in self._uis:
+            if hasattr(ui, "_pending_attachments"):
+                attachments.extend(ui._pending_attachments)
+                ui._pending_attachments.clear()
+
         async def job():
-            await self._stream_ai_response(llm_task, user_message, [])
+            await self._stream_ai_response(llm_task, user_message, attachments)
 
         self._message_queue.put_nowait(job)
 
