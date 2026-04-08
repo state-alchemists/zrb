@@ -117,3 +117,31 @@ async def test_file_completion_public_api(completer, complete_event):
         doc = Document(text="/attach dir2/sub_dir/", cursor_position=21)
         completions = list(completer.get_completions(doc, complete_event))
         assert any(c.text == "dir2/sub_dir/another.txt" for c in completions)
+
+
+def test_custom_model_names_appear_in_model_completions(
+    mock_history_manager, complete_event
+):
+    """Custom model names must appear as completions after the /model command."""
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        set_model_commands=["/model"],
+        custom_model_names=["my-custom-model", "team-llm"],
+    )
+    doc = Document(text="/model ", cursor_position=7)
+    completions = list(completer.get_completions(doc, complete_event))
+    completion_texts = [c.text for c in completions]
+    assert "my-custom-model" in completion_texts
+    assert "team-llm" in completion_texts
+
+
+def test_custom_model_names_empty_by_default(mock_history_manager, complete_event):
+    """InputCompleter works with no custom model names (default empty list)."""
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        set_model_commands=["/model"],
+    )
+    doc = Document(text="/model ", cursor_position=7)
+    # Should complete without error; known models still appear
+    completions = list(completer.get_completions(doc, complete_event))
+    assert isinstance(completions, list)

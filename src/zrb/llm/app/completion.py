@@ -31,6 +31,7 @@ class InputCompleter(Completer):
         set_model_commands: list[str] = [],
         exec_commands: list[str] = [],
         custom_commands: list[AnyCustomCommand] = [],
+        custom_model_names: list[str] = [],
     ):
         from pydantic_ai.models import KnownModelName
 
@@ -45,6 +46,7 @@ class InputCompleter(Completer):
         self._set_model_commands = set_model_commands
         self._exec_commands = exec_commands
         self._custom_commands = custom_commands
+        self._custom_model_names = custom_model_names
 
         try:
             self._known_models = list(get_args(KnownModelName.__value__))
@@ -369,8 +371,9 @@ class InputCompleter(Completer):
         Yields:
             Completion objects for model names.
         """
-        # Combine known models with Ollama models
-        all_models = list(self._known_models)
+        # Custom model names first (highest priority), then known, then Ollama
+        all_models = list(self._custom_model_names)
+        all_models.extend(self._known_models)
         ollama_models = self._get_ollama_models()
         all_models.extend(ollama_models)
 

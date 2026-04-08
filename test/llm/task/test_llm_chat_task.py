@@ -256,3 +256,56 @@ def test_llm_chat_task_init_with_ui():
 
     # Verify initialization works - behavior tested through async_run
     assert task.name == "test-task"
+
+
+def test_llm_chat_task_custom_model_names_constructor_and_property():
+    names = ["my-model", "other-model"]
+    task = LLMChatTask(name="test-task", custom_model_names=names)
+    assert task.custom_model_names == names
+
+
+def test_llm_chat_task_custom_model_names_setter():
+    task = LLMChatTask(name="test-task")
+    task.custom_model_names = ["updated-model"]
+    assert task.custom_model_names == ["updated-model"]
+
+
+def test_llm_chat_task_model_getter_constructor_and_property():
+    getter = lambda m: "fixed-model"
+    task = LLMChatTask(name="test-task", model_getter=getter)
+    assert task.model_getter is getter
+
+
+def test_llm_chat_task_model_getter_setter():
+    task = LLMChatTask(name="test-task")
+    getter = lambda m: "fixed-model"
+    task.model_getter = getter
+    assert task.model_getter is getter
+
+
+def test_llm_chat_task_model_renderer_constructor_and_property():
+    renderer = lambda m: m
+    task = LLMChatTask(name="test-task", model_renderer=renderer)
+    assert task.model_renderer is renderer
+
+
+def test_llm_chat_task_model_renderer_setter():
+    task = LLMChatTask(name="test-task")
+    renderer = lambda m: m
+    task.model_renderer = renderer
+    assert task.model_renderer is renderer
+
+
+def test_llm_chat_task_model_getter_none_by_default():
+    task = LLMChatTask(name="test-task")
+    assert task.model_getter is None
+
+
+def test_llm_chat_task_model_renderer_none_by_default():
+    task = LLMChatTask(name="test-task")
+    assert task.model_renderer is None
+
+
+def test_llm_chat_task_custom_model_names_none_by_default():
+    task = LLMChatTask(name="test-task")
+    assert task.custom_model_names is None

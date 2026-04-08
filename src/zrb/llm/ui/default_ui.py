@@ -75,6 +75,7 @@ class UI(BaseUI):
         btw_commands: list[str] = [],
         custom_commands: list[AnyCustomCommand] = [],
         model: "Model | str | None" = None,
+        custom_model_names: list[str] = [],
     ):
         super().__init__(
             ctx=ctx,
@@ -131,6 +132,7 @@ class UI(BaseUI):
             exec_commands=self._exec_commands,
             custom_commands=self._custom_commands,
             history=self._input_history,
+            custom_model_names=custom_model_names,
         )
         # Output Area (Read-only chat history)
         help_text = self._get_help_text(limit=25)
