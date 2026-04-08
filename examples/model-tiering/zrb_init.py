@@ -96,5 +96,5 @@ def render_model(model):
 tracker = ModelTierTracker()
 
 llm_chat.custom_model_names = CUSTOM_MODEL_NAMES  # shown in /model autocomplete
-llm_chat.model_getter = tracker                    # decides tier per request
-llm_chat.model_renderer = render_model             # maps tier → real model
+llm_chat.model_getter = tracker  # decides tier per request
+llm_chat.model_renderer = render_model  # maps tier → real model

@@ -123,6 +123,7 @@ class TestLLMTaskPublicAPI:
     async def test_model_getter_is_called_with_base_model(self, session):
         # Arrange: getter receives the base model and returns a different one
         received = []
+
         def getter(m):
             received.append(m)
             return "overridden-model"
@@ -148,7 +149,10 @@ class TestLLMTaskPublicAPI:
         renderer = lambda m: sentinel
 
         task = LLMTask(
-            name="test-task", message="hello", model="base-model", model_renderer=renderer
+            name="test-task",
+            message="hello",
+            model="base-model",
+            model_renderer=renderer,
         )
 
         with patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent, patch(

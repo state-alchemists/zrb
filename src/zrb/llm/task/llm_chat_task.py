@@ -120,9 +120,7 @@ class LLMChatTask(BaseTask):
             ModelSettings | Callable[[AnyContext], ModelSettings] | None
         ) = None,
         custom_model_names: StrListAttr | None = None,
-        model_getter: (
-            Callable[[Model | str | None], Model | str | None] | None
-        ) = None,
+        model_getter: Callable[[Model | str | None], Model | str | None] | None = None,
         model_renderer: (
             Callable[[Model | str | None], Model | str | None] | None
         ) = None,
