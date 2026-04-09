@@ -58,9 +58,9 @@ def create_rag_from_directory(
 
     async def retrieve(
         query: str,
-        api_key: str | None = None,
-        base_url: str | None = None,
-        embedding_model: str | None = None,
+        api_key: str = "",
+        base_url: str = "",
+        embedding_model: str = "",
     ) -> dict[str, Any]:
         try:
             from chromadb import PersistentClient
@@ -71,29 +71,9 @@ def create_rag_from_directory(
                 "error": f"Missing required dependency: {e}. [SYSTEM SUGGESTION]: Ask the user to install the required packages: pip install chromadb openai"
             }
 
-        api_key_val = (
-            api_key
-            if api_key is not None
-            else (
-                model_api_key
-                if model_api_key is not None
-                else CFG.RAG_EMBEDDING_API_KEY
-            )
-        )
-        base_url_val = (
-            base_url
-            if base_url is not None
-            else (
-                model_base_url
-                if model_base_url is not None
-                else CFG.RAG_EMBEDDING_BASE_URL
-            )
-        )
-        embedding_model_val = (
-            embedding_model
-            if embedding_model is not None
-            else model_name if model_name is not None else CFG.RAG_EMBEDDING_MODEL
-        )
+        api_key_val = api_key or model_api_key or CFG.RAG_EMBEDDING_API_KEY
+        base_url_val = base_url or model_base_url or CFG.RAG_EMBEDDING_BASE_URL
+        embedding_model_val = embedding_model or model_name or CFG.RAG_EMBEDDING_MODEL
         chunk_size_val = chunk_size if chunk_size is not None else CFG.RAG_CHUNK_SIZE
         overlap_val = overlap if overlap is not None else CFG.RAG_OVERLAP
         max_result_count_val = (

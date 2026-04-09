@@ -3,14 +3,16 @@ import os
 from datetime import datetime
 
 
-async def enter_worktree(branch_name: str = "") -> str:
+async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
     """
     Creates an isolated git worktree on a new branch. Returns the path to the worktree directory.
 
     Use for risky experiments, parallel approaches, or staging changes before merging.
     Use `keep_branch=True` in `ExitWorktree` to preserve the branch for later merging.
+    Use `cwd` to specify the repository root if the current directory is not the target repo.
+    After creation: pass the worktree path as `cwd` to `Bash`; use absolute paths with `Read`, `Write`, `Edit`, and `Grep` (they don't accept `cwd`).
     """
-    cwd = os.getcwd()
+    cwd = cwd or os.getcwd()
 
     # Verify we're inside a git repo
     check = await asyncio.create_subprocess_exec(
@@ -59,7 +61,7 @@ async def exit_worktree(worktree_path: str, keep_branch: bool = False) -> str:
     """
     Removes a git worktree created with `EnterWorktree`.
 
-    Use `keep_branch=True` to preserve the branch for merging; default deletes it.
+    Use `keep_branch=True` to preserve the branch for merging; default deletes it along with all its commits.
     Always clean up worktrees after use.
     """
     cwd = os.getcwd()
