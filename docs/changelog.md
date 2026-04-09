@@ -1,5 +1,28 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.19.0 (April 9, 2026)
+
+- **Feature: Model Tiering and Transform Pipeline**:
+  - New `custom_model_names` parameter on `LLMTask` and `LLMChatTask` for custom model name registration.
+  - New `model_getter` callable: transforms model before UI display (e.g., show tier name instead of actual model).
+  - New `model_renderer` callable: transforms model before API call (e.g., map tier name to actual model).
+  - Enables advanced use cases: model tiering, cost optimization, fallback strategies.
+  - Pipeline: base model → `model_getter` (active, shown in UI) → `model_renderer` (final for pydantic_ai).
+
+- **Feature: Custom Model Autocomplete**:
+  - `InputCompleter` now accepts `custom_model_names` for autocomplete suggestions.
+  - Custom model names appear with highest priority in `/model` command completions.
+
+- **Documentation: Model Tiering Example**:
+  - New `examples/model-tiering/` directory with complete working example.
+  - Demonstrates automatic model downgrading based on request count.
+  - Shows tier schedule: requests 1-3 → pro, 4-6 → flash, 7+ → flash-lite.
+
+- **Tests: New Coverage**:
+  - `test/llm/task/test_llm_task.py`: Added tests for model getter/renderer pipeline (+130 lines).
+  - `test/llm/task/test_llm_chat_task.py`: Added tests for `LLMChatTask` model params (+53 lines).
+  - `test/llm/app/test_completion.py`: Added tests for custom model autocomplete (+28 lines).
+
 ## 2.18.1 (April 8, 2026)
 
 - **Improvement: Journaling Hook Behavior**:
