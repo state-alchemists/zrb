@@ -119,6 +119,11 @@ class LLMChatTask(BaseTask):
         model_settings: (
             ModelSettings | Callable[[AnyContext], ModelSettings] | None
         ) = None,
+        custom_model_names: StrListAttr | None = None,
+        model_getter: Callable[[Model | str | None], Model | str | None] | None = None,
+        model_renderer: (
+            Callable[[Model | str | None], Model | str | None] | None
+        ) = None,
         conversation_name: StrAttr | None = None,
         render_conversation_name: bool = True,
         history_manager: AnyHistoryManager | None = None,
@@ -251,6 +256,9 @@ class LLMChatTask(BaseTask):
         self._model = model
         self._render_model = render_model
         self._model_settings = model_settings
+        self._custom_model_names = custom_model_names
+        self._model_getter = model_getter
+        self._model_renderer = model_renderer
         self._conversation_name = conversation_name
         self._render_conversation_name = render_conversation_name
         self._history_manager = history_manager
@@ -349,6 +357,38 @@ class LLMChatTask(BaseTask):
     def set_history_manager(self, history_manager: "AnyHistoryManager") -> None:
         """Set the history manager for this task."""
         self._history_manager = history_manager
+
+    @property
+    def custom_model_names(self) -> "StrListAttr | None":
+        return self._custom_model_names
+
+    @custom_model_names.setter
+    def custom_model_names(self, value: "StrListAttr | None"):
+        self._custom_model_names = value
+
+    @property
+    def model_getter(
+        self,
+    ) -> "Callable[[Model | str | None], Model | str | None] | None":
+        return self._model_getter
+
+    @model_getter.setter
+    def model_getter(
+        self, value: "Callable[[Model | str | None], Model | str | None] | None"
+    ):
+        self._model_getter = value
+
+    @property
+    def model_renderer(
+        self,
+    ) -> "Callable[[Model | str | None], Model | str | None] | None":
+        return self._model_renderer
+
+    @model_renderer.setter
+    def model_renderer(
+        self, value: "Callable[[Model | str | None], Model | str | None] | None"
+    ):
+        self._model_renderer = value
 
     def set_approval_channel(self, channel: "ApprovalChannel | None"):
         """Set the approval channel for tool confirmations."""
@@ -692,6 +732,8 @@ class LLMChatTask(BaseTask):
             attachment=lambda ctx: ctx.input.attachments,
             model=lambda ctx: ctx.input.get("model"),
             render_model=False,
+            model_getter=self._model_getter,
+            model_renderer=self._model_renderer,
             summarize_command=summarize_commands,
         )
 
@@ -755,6 +797,9 @@ class LLMChatTask(BaseTask):
                 resolved_uis.append(factory_ui)
 
         # 2. Resolve UI attributes for default UI
+        resolved_custom_model_names = get_attr(ctx, self._custom_model_names, []) or []
+        if not isinstance(resolved_custom_model_names, list):
+            resolved_custom_model_names = []
         ui_greeting = get_str_attr(ctx, self._ui_greeting, "", self._render_ui_greeting)
         ui_assistant_name = get_str_attr(
             ctx, self._ui_assistant_name, "", self._render_ui_assistant_name
@@ -831,6 +876,7 @@ class LLMChatTask(BaseTask):
                 btw_commands=ui_commands["btw"],
                 custom_commands=resolved_custom_commands,
                 model=self._get_model(ctx),
+                custom_model_names=resolved_custom_model_names,
             )
             # Add default UI first, then factory UIs
             all_uis = [default_ui] + resolved_uis
@@ -883,6 +929,7 @@ class LLMChatTask(BaseTask):
                 btw_commands=ui_commands["btw"],
                 custom_commands=resolved_custom_commands,
                 model=self._get_model(ctx),
+                custom_model_names=resolved_custom_model_names,
             )
 
         # 4. Load and display session history if session name is provided

@@ -38,6 +38,7 @@ def create_input_field(
     exec_commands: list[str],
     custom_commands: list[AnyCustomCommand],
     history: History | None = None,
+    custom_model_names: list[str] = [],
 ) -> TextArea:
     class DynamicHeightTextArea(TextArea):
         """TextArea with dynamic height based on content."""
@@ -93,6 +94,7 @@ def create_input_field(
             set_model_commands=set_model_commands,
             exec_commands=exec_commands,
             custom_commands=custom_commands,
+            custom_model_names=custom_model_names,
         ),
         complete_while_typing=True,
         focus_on_click=True,
