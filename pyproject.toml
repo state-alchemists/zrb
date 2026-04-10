@@ -85,7 +85,7 @@ Pillow = ">=10.0.0"
 
 # Security fix: CVE-2026-34070
 # langchain-core is a transitive dependency via voyageai
-langchain-core = {version = ">=1.2.22", optional = true}
+langchain-core = {version = ">=1.2.28", optional = true}
 
 # Security fix: CVE-2026-23491 - DoS via uncontrolled recursion in ASN.1 decoding
 # pyasn1 is a transitive dependency via google-auth -> pyasn1-modules and google-auth -> rsa.
@@ -101,6 +101,11 @@ pygments = ">=2.20.0"
 # aiohttp is a transitive dependency via voyageai and xai-sdk.
 # We pin >=3.13.4 to ensure the patched version is used.
 aiohttp = {version = ">=3.13.4", optional = true}
+
+# Security fix: CVE-2026-39892
+# cryptography is a transitive dependency via pdfminer-six (pulled in by pdfplumber) and google-auth.
+# We pin >=46.0.7 to ensure the patched version is used.
+cryptography = ">=46.0.7"
 
 [tool.poetry.extras]
 # Install all extras:
