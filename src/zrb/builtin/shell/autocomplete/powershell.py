@@ -7,25 +7,16 @@ _COMPLETION_SCRIPT = """# PowerShell dynamic completion script for {command_name
 Register-ArgumentCompleter -Native -CommandName '{command_name}' -ScriptBlock {
     param($wordToComplete, $commandAst, $cursorPosition)
 
-    $commandLine = $commandAst.ToString()
-    $tokens = [System.Management.Automation.PSParser]::Tokenize($commandLine, [ref]$null)
+    # Get all typed words from the AST, excluding the command name itself
+    $elements = @($commandAst.CommandElements | ForEach-Object { $_.ToString() })
+    $subArgs = if ($elements.Count -gt 1) { $elements[1..($elements.Count - 1)] } else { @() }
 
-    $argsBeforeCursor = @()
-    foreach ($token in $tokens) {
-        if ($token.Start -lt $cursorPosition) {
-            if ($token.Type -in @('CommandArgument', 'String', 'Number')) {
-                $argsBeforeCursor += $token.Content
-            }
-        } else {
-            break
-        }
+    # Remove the word currently being completed so subcmd gets the parent path
+    if ($wordToComplete -ne '' -and $subArgs.Count -gt 0 -and $subArgs[-1] -eq $wordToComplete) {
+        $subArgs = if ($subArgs.Count -gt 1) { $subArgs[0..($subArgs.Count - 2)] } else { @() }
     }
 
-    if ($argsBeforeCursor.Count -gt 0 -and $argsBeforeCursor[0] -eq '{command_name}') {
-        $argsBeforeCursor = $argsBeforeCursor[1..($argsBeforeCursor.Count-1)]
-    }
-
-    $cmdArgs = $argsBeforeCursor -join ' '
+    $cmdArgs = $subArgs -join ' '
     $subcmdOutput = {command_name} shell autocomplete subcmd $cmdArgs 2>$null
 
     if ($subcmdOutput) {
