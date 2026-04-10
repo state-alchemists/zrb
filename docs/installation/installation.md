@@ -301,7 +301,7 @@ Then reload: `source ~/.zshrc`
 Add to your PowerShell profile (`$PROFILE`):
 
 ```powershell
-Invoke-Expression (zrb shell autocomplete powershell)
+(zrb shell autocomplete powershell) -join "`n" | Invoke-Expression
 ```
 
 To edit your profile:
