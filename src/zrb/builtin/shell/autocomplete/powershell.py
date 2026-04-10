@@ -29,7 +29,7 @@ Register-ArgumentCompleter -Native -CommandName '{command_name}' -ScriptBlock {
     $subcmdOutput = {command_name} shell autocomplete subcmd $cmdArgs 2>$null
 
     if ($subcmdOutput) {
-        $subcmdOutput -split '\s+' | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
+        $subcmdOutput -split '\\s+' | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
             [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
         }
     }
