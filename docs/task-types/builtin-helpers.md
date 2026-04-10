@@ -98,6 +98,7 @@ Hashing utilities.
 |------|-------------|
 | `autocomplete-bash` | Generate bash completion script |
 | `autocomplete-zsh` | Generate zsh completion script |
+| `autocomplete-powershell` | Generate PowerShell completion script |
 
 ### 🆔 UUID & ULID (`uuid`, `ulid`)
 
@@ -160,7 +161,7 @@ from zrb.builtin import encode_base64_task, git_commit_task, http_request_task
 | md5 | `from zrb.builtin import hash_md5_task` |
 | python | `from zrb.builtin import format_python_task` |
 | random | `from zrb.builtin import throw_dice_task` |
-| shell | `from zrb.builtin import autocomplete_bash_task` |
+| shell | `from zrb.builtin import autocomplete_bash_task, autocomplete_powershell_task, autocomplete_zsh_task` |
 | uuid | `from zrb.builtin import uuid_v4_task` |
 
 ---
