@@ -272,7 +272,49 @@ Hello from Zrb!
 
 ---
 
-## 4. Upgrade Zrb
+## 4. Shell Autocomplete
+
+Zrb supports tab completion for Bash, Zsh, and PowerShell.
+
+### Bash
+
+Add to `~/.bashrc`:
+
+```bash
+eval "$(zrb shell autocomplete bash)"
+```
+
+Then reload: `source ~/.bashrc`
+
+### Zsh
+
+Add to `~/.zshrc`:
+
+```zsh
+eval "$(zrb shell autocomplete zsh)"
+```
+
+Then reload: `source ~/.zshrc`
+
+### PowerShell
+
+Add to your PowerShell profile (`$PROFILE`):
+
+```powershell
+Invoke-Expression (zrb shell autocomplete powershell)
+```
+
+To edit your profile:
+
+```powershell
+notepad $PROFILE
+```
+
+> 💡 **Tip:** If `$PROFILE` does not exist yet, create it first: `New-Item -Path $PROFILE -ItemType File -Force`
+
+---
+
+## 5. Upgrade Zrb
 
 **Upgrade with pip:**
 
@@ -294,7 +336,7 @@ docker pull stalchmst/zrb:latest
 
 ---
 
-## 5. Uninstall Zrb
+## 6. Uninstall Zrb
 
 **Uninstall with pip:**
 
@@ -320,7 +362,7 @@ rm -rf ~/.pyenv
 
 ---
 
-## 6. Troubleshooting
+## 7. Troubleshooting
 
 ### Common Issues
 
@@ -368,7 +410,7 @@ If you're still having trouble:
 
 ---
 
-## 7. General Configuration
+## 8. General Configuration
 
 Zrb's behavior can be customized further using environment variables. This includes everything from logging levels to default editors and web UI settings. For a complete, exhaustive list of all configurable environment variables, please refer to the dedicated configuration guides:
 
