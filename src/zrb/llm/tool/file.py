@@ -6,8 +6,6 @@ import time
 from typing import Any
 
 from zrb.util.file import is_path_excluded
-from zrb.util.file import read_file as util_read_file
-from zrb.util.file import write_file as util_write_file
 from zrb.util.truncate import truncate_output
 
 DEFAULT_EXCLUDED_PATTERNS = [
