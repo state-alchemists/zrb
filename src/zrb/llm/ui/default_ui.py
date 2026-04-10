@@ -68,6 +68,7 @@ class UI(BaseUI):
         info_commands: list[str] = [],
         save_commands: list[str] = [],
         load_commands: list[str] = [],
+        rewind_commands: list[str] = [],
         redirect_output_commands: list[str] = [],
         yolo_toggle_commands: list[str] = [],
         set_model_commands: list[str] = [],
@@ -76,6 +77,8 @@ class UI(BaseUI):
         custom_commands: list[AnyCustomCommand] = [],
         model: "Model | str | None" = None,
         custom_model_names: list[str] = [],
+        enable_rewind: bool = False,
+        snapshot_dir: str = "",
     ):
         super().__init__(
             ctx=ctx,
@@ -98,6 +101,7 @@ class UI(BaseUI):
             info_commands=info_commands,
             save_commands=save_commands,
             load_commands=load_commands,
+            rewind_commands=rewind_commands,
             redirect_output_commands=redirect_output_commands,
             yolo_toggle_commands=yolo_toggle_commands,
             set_model_commands=set_model_commands,
@@ -105,6 +109,8 @@ class UI(BaseUI):
             btw_commands=btw_commands,
             custom_commands=custom_commands,
             model=model,
+            enable_rewind=enable_rewind,
+            snapshot_dir=snapshot_dir,
         )
         self._ascii_art = ascii_art
         self._jargon = jargon
@@ -653,6 +659,9 @@ class UI(BaseUI):
                 buff.reset()
                 return
             if self._handle_load_command(text):
+                buff.reset()
+                return
+            if self._handle_rewind_command(text):
                 buff.reset()
                 return
             if self._handle_redirect_command(text):
