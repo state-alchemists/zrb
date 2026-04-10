@@ -7,13 +7,11 @@ _COMPLETION_SCRIPT = """# PowerShell dynamic completion script for {command_name
 Register-ArgumentCompleter -Native -CommandName '{command_name}' -ScriptBlock {
     param($wordToComplete, $commandAst, $cursorPosition)
 
-    [Console]::InputEncoding = [Console]::OutputEncoding = $OutputEncoding = [System.Text.Utf8Encoding]::new()
-
     # CommandElements does NOT include the partial word being typed (that's $wordToComplete).
-    # Pass all elements including the command name — subcmd matches against full paths like ['zrb', 'shell'].
-    $elements = $commandAst.CommandElements | ForEach-Object { $_.ToString() }
-
-    $subcmdOutput = {command_name} shell autocomplete subcmd @elements 2>$null
+    # Pass all elements including the command name so subcmd can match full paths like ['zrb', 'shell'].
+    # Use $elements (not @elements) — PowerShell expands arrays automatically for external commands.
+    $elements = @($commandAst.CommandElements | ForEach-Object { $_.ToString() })
+    $subcmdOutput = {command_name} shell autocomplete subcmd $elements 2>$null
 
     if ($subcmdOutput) {
         $subcmdOutput -split '\\s+' | Where-Object { $_ -ne '' -and $_ -like "$wordToComplete*" } | ForEach-Object {
