@@ -639,10 +639,17 @@ class BaseUI:
         self.invalidate_ui()
         try:
             timestamp = datetime.now().strftime("%H:%M")
-            # Take filesystem snapshot before this AI turn
+            # Take filesystem snapshot before this AI turn (also records message count
+            # so that a rewind can restore conversation history to a consistent state)
             if self._snapshot_manager is not None:
                 label = user_message[:80].replace("\n", " ").strip()
-                await self._snapshot_manager.take_snapshot(f"{timestamp}: {label}")
+                current_msgs = self._history_manager.load(
+                    self._conversation_session_name
+                )
+                await self._snapshot_manager.take_snapshot(
+                    f"{timestamp}: {label}",
+                    message_count=len(current_msgs),
+                )
             # Header first
             self.append_to_output(f"\n🤖 {timestamp} >>\n")
             session = self._create_sesion_for_llm_task(user_message, attachments)
@@ -895,10 +902,12 @@ class BaseUI:
                 # Restore snapshot by 1-based index or SHA prefix
                 snapshots = self._snapshot_manager.list_snapshots()
                 sha: str | None = None
+                message_count: int | None = None
                 try:
                     idx = int(arg) - 1
                     if 0 <= idx < len(snapshots):
                         sha = snapshots[idx].sha
+                        message_count = snapshots[idx].message_count
                     else:
                         self.append_to_output(
                             stylize_error(f"\n  ❌ No snapshot at index {arg}\n")
@@ -906,13 +915,35 @@ class BaseUI:
                         return True
                 except ValueError:
                     sha = arg  # treat as SHA prefix/full
+                    # Find message_count from matching snapshot
+                    for snap in snapshots:
+                        if snap.sha.startswith(sha):
+                            message_count = snap.message_count
+                            break
 
-                async def do_restore(s=sha):
+                async def do_restore(s=sha, mc=message_count):
                     self.append_to_output(
                         stylize_faint(f"\n  ⏪ Restoring snapshot {s[:8]}...\n")
                     )
                     ok = await self._snapshot_manager.restore_snapshot(s)
                     if ok:
+                        # Also rewind conversation history to match the snapshot
+                        if mc is not None:
+                            try:
+                                msgs = self._history_manager.load(
+                                    self._conversation_session_name
+                                )
+                                if len(msgs) > mc:
+                                    self._history_manager.update(
+                                        self._conversation_session_name, msgs[:mc]
+                                    )
+                                    self._history_manager.save(
+                                        self._conversation_session_name
+                                    )
+                            except Exception as e:
+                                logger.warning(
+                                    f"Failed to rewind conversation history: {e}"
+                                )
                         self.append_to_output(
                             stylize_faint(f"\n  ✅ Snapshot {s[:8]} restored.\n")
                         )

@@ -29,6 +29,7 @@ class Snapshot(NamedTuple):
     sha: str
     timestamp: str
     label: str
+    message_count: int | None = None
 
 
 class SnapshotManager:
@@ -49,19 +50,29 @@ class SnapshotManager:
             _git(self._shadow_dir, ["config", "user.name", "zrb-snapshot"])
         self._initialized = True
 
-    async def take_snapshot(self, label: str) -> str | None:
-        """Sync workdir → shadow dir and commit.  Returns commit SHA or None on error."""
+    async def take_snapshot(
+        self, label: str, message_count: int | None = None
+    ) -> str | None:
+        """Sync workdir → shadow dir and commit.  Returns commit SHA or None on error.
+
+        Args:
+            label: Human-readable label (typically the user message).
+            message_count: Number of conversation messages at this point.  When
+                provided it is embedded in the commit message so that restore can
+                also rewind the conversation history to a consistent state.
+        """
         try:
             self._ensure_initialized()
             await asyncio.to_thread(
                 _sync_dirs, self._workdir, self._shadow_dir, True, True
             )
-            return await asyncio.to_thread(self._commit, label)
+            commit_msg = _build_commit_message(label, message_count)
+            return await asyncio.to_thread(self._commit, commit_msg)
         except Exception as e:
             logger.warning(f"Snapshot failed: {e}")
             return None
 
-    def _commit(self, label: str) -> str | None:
+    def _commit(self, commit_msg: str) -> str | None:
         _git(self._shadow_dir, ["add", "-A"])
         result = subprocess.run(
             ["git", "diff", "--cached", "--quiet"],
@@ -71,7 +82,7 @@ class SnapshotManager:
         if result.returncode == 0:
             # Nothing new to commit — return current HEAD sha if any
             return _head_sha(self._shadow_dir)
-        _git(self._shadow_dir, ["commit", "-m", label])
+        _git(self._shadow_dir, ["commit", "-m", commit_msg])
         return _head_sha(self._shadow_dir)
 
     def list_snapshots(self) -> list[Snapshot]:
@@ -92,8 +103,15 @@ class SnapshotManager:
                     continue
                 parts = line.split("|", 2)
                 if len(parts) == 3:
+                    raw_label = parts[2]
+                    label, message_count = _parse_commit_message(raw_label)
                     snapshots.append(
-                        Snapshot(sha=parts[0], timestamp=parts[1], label=parts[2])
+                        Snapshot(
+                            sha=parts[0],
+                            timestamp=parts[1],
+                            label=label,
+                            message_count=message_count,
+                        )
                     )
             return snapshots
         except Exception as e:
@@ -117,6 +135,25 @@ class SnapshotManager:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+_MC_TAG = "[mc:"  # message-count tag embedded in commit messages
+
+
+def _build_commit_message(label: str, message_count: int | None) -> str:
+    if message_count is None:
+        return label
+    return f"{label} {_MC_TAG}{message_count}]"
+
+
+def _parse_commit_message(raw: str) -> tuple[str, int | None]:
+    """Return (human_label, message_count).  message_count is None if not present."""
+    import re
+
+    m = re.search(r"\[mc:(\d+)\]$", raw)
+    if m:
+        return raw[: m.start()].rstrip(), int(m.group(1))
+    return raw, None
 
 
 def _safe_name(name: str) -> str:
