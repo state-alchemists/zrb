@@ -6,8 +6,6 @@ import time
 from typing import Any
 
 from zrb.util.file import is_path_excluded
-from zrb.util.file import read_file as util_read_file
-from zrb.util.file import write_file as util_write_file
 from zrb.util.truncate import truncate_output
 
 DEFAULT_EXCLUDED_PATTERNS = [
@@ -348,7 +346,7 @@ def replace_in_file(path: str, old_text: str, new_text: str, count: int = -1) ->
 def search_files(
     regex: str,
     path: str = ".",
-    file_pattern: str | None = None,
+    file_pattern: str = "",
     auto_truncate: bool = True,
     exclude_patterns: list[str] | None = None,
     timeout: float = 30.0,
@@ -360,6 +358,7 @@ def search_files(
     - Use `file_pattern` to restrict to specific file types (e.g., `*.py`).
     - For file listing without content search, use `Glob` or `LS` instead.
     - Use `exclude_patterns=[]` to search all files including normally excluded ones.
+    - Lines are truncated at 1000 chars—never copy Grep output directly into `Edit`'s `old_text`; always `Read` the file first.
     """
     start_time = time.time()
     try:

@@ -1,5 +1,29 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.19.1 (April 10, 2026)
+
+- **Security: Dependency Vulnerability Patches**:
+  - Updated `langchain-core` from `>=1.2.22` to `>=1.2.28` (CVE-2026-34070).
+  - Added `cryptography >=46.0.7` requirement (CVE-2026-39892).
+  - Maintained existing security pins: `pygments >=2.20.0`, `aiohttp >=3.13.4`, `pyasn1 >=0.6.3`.
+
+- **Feature: Bash Tool Working Directory Support**:
+  - Added `cwd` parameter to `run_shell_command()` for setting working directory.
+  - Required for proper operation inside worktrees and different project directories.
+  - Backward compatible: defaults to current directory if not specified.
+
+- **Improvement: Code Analysis Tool**:
+  - Changed `file_pattern` parameter default from `None` to empty string for consistency.
+  - Added guidance for writing specific queries (e.g., "how is auth implemented?") vs vague ones.
+
+- **Improvement: LSP Tools Parameter Handling**:
+  - Fixed `symbol_kind` parameter handling in `find_definition()` to properly convert empty string to `None`.
+  - Ensures compatibility with LSP manager expectations.
+
+- **Maintenance: Dependency Updates**:
+  - Updated `poetry.lock` with latest compatible versions.
+  - Minor cleanup in LLM tool imports and parameter defaults.
+
 ## 2.19.0 (April 9, 2026)
 
 - **Feature: Model Tiering and Transform Pipeline**:
