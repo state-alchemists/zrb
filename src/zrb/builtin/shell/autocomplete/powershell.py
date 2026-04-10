@@ -10,8 +10,8 @@ Register-ArgumentCompleter -Native -CommandName '{command_name}' -ScriptBlock {
     [Console]::InputEncoding = [Console]::OutputEncoding = $OutputEncoding = [System.Text.Utf8Encoding]::new()
 
     # CommandElements does NOT include the partial word being typed (that's $wordToComplete).
-    # Skip the first element (the command name) and pass the rest as the subcommand path.
-    $elements = $commandAst.CommandElements | Select-Object -Skip 1 | ForEach-Object { $_.ToString() }
+    # Pass all elements including the command name — subcmd matches against full paths like ['zrb', 'shell'].
+    $elements = $commandAst.CommandElements | ForEach-Object { $_.ToString() }
 
     $subcmdOutput = {command_name} shell autocomplete subcmd @elements 2>$null
 
