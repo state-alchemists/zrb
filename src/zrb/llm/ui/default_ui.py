@@ -212,6 +212,9 @@ class UI(BaseUI):
             self._capture.start()
             # Perform initial system info update
             await self._update_system_info()
+            # Take baseline snapshot before any interaction
+            if self._snapshot_manager is not None:
+                await self._snapshot_manager.take_init_snapshot()
             return await self._application.run_async()
         finally:
             self._capture.stop()

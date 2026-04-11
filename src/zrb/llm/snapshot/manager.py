@@ -72,7 +72,7 @@ class SnapshotManager:
             logger.warning(f"Snapshot failed: {e}")
             return None
 
-    def _commit(self, commit_msg: str) -> str | None:
+    def _commit(self, commit_msg: str, allow_empty: bool = False) -> str | None:
         _git(self._shadow_dir, ["add", "-A"])
         result = subprocess.run(
             ["git", "diff", "--cached", "--quiet"],
@@ -80,10 +80,38 @@ class SnapshotManager:
             capture_output=True,
         )
         if result.returncode == 0:
+            if allow_empty:
+                _git(
+                    self._shadow_dir,
+                    ["commit", "--allow-empty", "-m", commit_msg],
+                )
+                return _head_sha(self._shadow_dir)
             # Nothing new to commit — return current HEAD sha if any
             return _head_sha(self._shadow_dir)
         _git(self._shadow_dir, ["commit", "-m", commit_msg])
         return _head_sha(self._shadow_dir)
+
+    async def take_init_snapshot(self) -> str | None:
+        """Take an empty baseline snapshot at session start.
+
+        Always creates a commit (even if workdir is empty) so that
+        list_snapshots() always has at least one entry to rewind to.
+        """
+        try:
+            self._ensure_initialized()
+            # Only create init snapshot if the repo has no commits yet
+            if _head_sha(self._shadow_dir) is not None:
+                return _head_sha(self._shadow_dir)
+            await asyncio.to_thread(
+                _sync_dirs, self._workdir, self._shadow_dir, True, True
+            )
+            commit_msg = _build_commit_message("init", message_count=0)
+            return await asyncio.to_thread(
+                self._commit, commit_msg, True  # allow_empty
+            )
+        except Exception as e:
+            logger.warning(f"Init snapshot failed: {e}")
+            return None
 
     def list_snapshots(self) -> list[Snapshot]:
         """Return snapshots in reverse chronological order (newest first)."""

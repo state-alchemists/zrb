@@ -926,35 +926,42 @@ class BaseUI:
                             break
 
                 async def do_restore(s=sha, mc=message_count):
-                    self.append_to_output(
-                        stylize_faint(f"\n  ⏪ Restoring snapshot {s[:8]}...\n")
-                    )
-                    ok = await self._snapshot_manager.restore_snapshot(s)
-                    if ok:
-                        # Also rewind conversation history to match the snapshot
-                        if mc is not None:
-                            try:
-                                msgs = self._history_manager.load(
-                                    self._conversation_session_name
-                                )
-                                if len(msgs) > mc:
-                                    self._history_manager.update(
-                                        self._conversation_session_name, msgs[:mc]
-                                    )
-                                    self._history_manager.save(
+                    self._is_thinking = True
+                    self.invalidate_ui()
+                    try:
+                        self.append_to_output(
+                            stylize_faint(f"\n  ⏪ Restoring snapshot {s[:8]}...\n")
+                        )
+                        ok = await self._snapshot_manager.restore_snapshot(s)
+                        if ok:
+                            # Rewind conversation history to match the snapshot
+                            if mc is not None:
+                                try:
+                                    msgs = self._history_manager.load(
                                         self._conversation_session_name
                                     )
-                            except Exception as e:
-                                logger.warning(
-                                    f"Failed to rewind conversation history: {e}"
-                                )
-                        self.append_to_output(
-                            stylize_faint(f"\n  ✅ Snapshot {s[:8]} restored.\n")
-                        )
-                    else:
-                        self.append_to_output(
-                            stylize_error("\n  ❌ Failed to restore snapshot.\n")
-                        )
+                                    if len(msgs) > mc:
+                                        self._history_manager.update(
+                                            self._conversation_session_name,
+                                            msgs[:mc],
+                                        )
+                                        self._history_manager.save(
+                                            self._conversation_session_name
+                                        )
+                                except Exception as e:
+                                    logger.warning(
+                                        f"Failed to rewind conversation history: {e}"
+                                    )
+                            self.append_to_output(
+                                stylize_faint(f"\n  ✅ Snapshot {s[:8]} restored.\n")
+                            )
+                        else:
+                            self.append_to_output(
+                                stylize_error("\n  ❌ Failed to restore snapshot.\n")
+                            )
+                    finally:
+                        self._is_thinking = False
+                        self.invalidate_ui()
 
                 task = asyncio.get_event_loop().create_task(do_restore())
                 self._background_tasks.add(task)
