@@ -132,6 +132,9 @@ class UI(BaseUI):
             info_commands=self._info_commands,
             save_commands=self._save_commands,
             load_commands=self._load_commands,
+            rewind_commands=(
+                self._rewind_commands if self._snapshot_manager is not None else []
+            ),
             redirect_output_commands=self._redirect_output_commands,
             summarize_commands=self._summarize_commands,
             set_model_commands=self._set_model_commands,

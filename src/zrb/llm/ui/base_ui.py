@@ -640,16 +640,20 @@ class BaseUI:
         try:
             timestamp = datetime.now().strftime("%H:%M")
             # Take filesystem snapshot before this AI turn (also records message count
-            # so that a rewind can restore conversation history to a consistent state)
+            # so that a rewind can restore conversation history to a consistent state).
+            # Failures are non-fatal — the AI turn must proceed regardless.
             if self._snapshot_manager is not None:
-                label = user_message[:80].replace("\n", " ").strip()
-                current_msgs = self._history_manager.load(
-                    self._conversation_session_name
-                )
-                await self._snapshot_manager.take_snapshot(
-                    f"{timestamp}: {label}",
-                    message_count=len(current_msgs),
-                )
+                try:
+                    label = user_message[:80].replace("\n", " ").strip()
+                    current_msgs = self._history_manager.load(
+                        self._conversation_session_name
+                    )
+                    await self._snapshot_manager.take_snapshot(
+                        f"{timestamp}: {label}",
+                        message_count=len(current_msgs),
+                    )
+                except Exception as snap_err:
+                    logger.warning(f"Snapshot skipped: {snap_err}")
             # Header first
             self.append_to_output(f"\n🤖 {timestamp} >>\n")
             session = self._create_sesion_for_llm_task(user_message, attachments)

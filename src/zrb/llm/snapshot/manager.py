@@ -202,6 +202,9 @@ def _sync_dirs(
 
         for fname in files:
             src_path = os.path.join(root, fname)
+            # Skip non-regular files (sockets, FIFOs, device files)
+            if not os.path.isfile(src_path):
+                continue
             rel_path = fname if rel_root == "." else os.path.join(rel_root, fname)
             dst_path = os.path.join(dst, rel_path)
             src_rel_paths.add(rel_path)
@@ -229,12 +232,15 @@ def _sync_dirs(
         except OSError:
             pass
 
-    # Remove empty directories (bottom-up, skip .git)
+    # Remove empty directories (bottom-up).
+    # Skip any path that is, or lives inside, a .git directory.
     for root, dirs, files in os.walk(dst, topdown=False):
-        if exclude_git and os.path.basename(root) == ".git":
-            continue
         if root == dst:
             continue
+        if exclude_git:
+            rel = os.path.relpath(root, dst)
+            if ".git" in rel.split(os.sep):
+                continue
         try:
             if not os.listdir(root):
                 os.rmdir(root)

@@ -13,11 +13,12 @@ Zrb uses `pydantic-ai` to interface with a wide array of Large Language Models, 
 - [Summarization Thresholds](#3-summarization-thresholds)
 - [System Prompts & Identity](#4-system-prompts--identity)
 - [Journal & Context Storage](#5-journal--context-storage)
-- [TUI Debugging](#6-tui-debugging)
-- [RAG Configuration](#7-rag-retrieval-augmented-generation-configuration)
-- [Search Engine Configuration](#8-search-engine-configuration)
-- [Hooks Configuration](#9-llm-hooks-configuration)
-- [Skill & Agent Search Configuration](#10-skill--agent-search-configuration)
+- [Rewind & Snapshots](#6-rewind--snapshots)
+- [TUI Debugging](#7-tui-debugging)
+- [RAG Configuration](#8-rag-retrieval-augmented-generation-configuration)
+- [Search Engine Configuration](#9-search-engine-configuration)
+- [Hooks Configuration](#10-llm-hooks-configuration)
+- [Skill & Agent Search Configuration](#11-skill--agent-search-configuration)
 
 ---
 
@@ -134,7 +135,57 @@ Zrb loads prompts with a multi-level override system (first found wins):
 
 ---
 
-## 6. TUI Debugging
+## 6. Rewind & Snapshots
+
+Zrb can take a full filesystem snapshot before each AI turn, letting you restore any previous state mid-session with `/rewind`.
+
+**How it works:**
+
+1. Before each AI response, Zrb copies your working directory into an isolated shadow git repository (`<ZRB_LLM_SNAPSHOT_DIR>/<session-name>/`).
+2. Each snapshot is a git commit in that shadow repo — completely separate from your project's own git history.
+3. `/rewind` lists all snapshots; `/rewind <n>` or `/rewind <sha>` restores both the filesystem and conversation history to the selected point.
+
+> **Note:** Rewind is off by default. Enable it only for sessions where you want undo capability — snapshotting a large working directory (e.g., one containing `node_modules/`) will be slow.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_ENABLE_REWIND` | Enable filesystem snapshots and `/rewind` command | `off` |
+| `ZRB_LLM_SNAPSHOT_DIR` | Directory to store shadow git repos for each session | `~/.zrb/llm-snapshots/` |
+
+### Python API
+
+```python
+from zrb import LLMChatTask
+
+task = LLMChatTask(
+    name="chat",
+    enable_rewind=True,           # None → falls back to ZRB_LLM_ENABLE_REWIND
+    snapshot_dir="/tmp/my-snaps", # None → falls back to ZRB_LLM_SNAPSHOT_DIR
+)
+```
+
+### `/rewind` commands
+
+| Input | Effect |
+|-------|--------|
+| `/rewind` | List all snapshots (newest first) with index, short SHA, timestamp, and user message |
+| `/rewind <n>` | Restore snapshot number `n` from the list (1-based) |
+| `/rewind <sha>` | Restore by full or partial SHA |
+
+Restore rewinds **both** the working directory files **and** the conversation history to the state captured at that snapshot, so the AI's context stays consistent with the restored files.
+
+### Shadow repo layout
+
+```
+~/.zrb/llm-snapshots/
+└── <session-name>/
+    └── .git/          ← isolated git repo (never touches your project git)
+    └── <files ...>    ← mirror of your working directory at each turn
+```
+
+---
+
+## 7. TUI Debugging
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -143,7 +194,7 @@ Zrb loads prompts with a multi-level override system (first found wins):
 
 ---
 
-## 7. RAG (Retrieval-Augmented Generation) Configuration
+## 8. RAG (Retrieval-Augmented Generation) Configuration
 
 For advanced RAG capabilities with vector databases like ChromaDB.
 
@@ -158,7 +209,7 @@ For advanced RAG capabilities with vector databases like ChromaDB.
 
 ---
 
-## 8. Search Engine Configuration
+## 9. Search Engine Configuration
 
 These variables control which internet search engine Zrb's LLM tools use.
 
@@ -193,7 +244,7 @@ These variables control which internet search engine Zrb's LLM tools use.
 
 ---
 
-## 9. LLM Hooks Configuration
+## 10. LLM Hooks Configuration
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -204,7 +255,7 @@ These variables control which internet search engine Zrb's LLM tools use.
 
 ---
 
-## 10. Skill & Agent Search Configuration
+## 11. Skill & Agent Search Configuration
 
 These variables control where Zrb searches for skills and agents.
 

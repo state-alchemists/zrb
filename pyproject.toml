@@ -141,23 +141,6 @@ tomlkit = "^0.13.3"
 asyncio_default_fixture_loop_scope = "function"
 norecursedirs = "playground src/zrb/builtin/project/add/fastapp/fastapp_template"
 
-[tool.coverage.run]
-omit = [
-    "zrb_init.py",
-    "test/*",
-    "*/__init__.py",
-    "*/any_*.py",
-    "src/zrb/__main__.py",
-    "src/zrb/llm/hook/interface.py",
-]
-
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "if TYPE_CHECKING:",
-    "raise NotImplementedError",
-]
-
 [tool.poetry.scripts]
 zrb = "zrb.__main__:serve_cli"
 
