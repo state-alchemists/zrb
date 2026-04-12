@@ -1,5 +1,50 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.20.0 (April 12, 2026)
+
+- **Feature: Rewind/Snapshot System**:
+  - New `SnapshotManager` class using shadow git repositories for filesystem snapshots.
+  - `/rewind` command restores filesystem and conversation history to a previous state.
+  - Snapshots track message count for consistent history restoration.
+  - Config: `LLM_ENABLE_REWIND=on`, `LLM_SNAPSHOT_DIR`, `LLM_UI_COMMAND_REWIND`.
+  - Default snapshot location: `~/.zrb/llm-snapshots/`.
+  - New `enable_rewind` and `snapshot_dir` parameters on `LLMChatTask`.
+
+- **Feature: PowerShell Autocomplete**:
+  - New `zrb shell autocomplete powershell` command generates PowerShell completion script.
+  - Native `Register-ArgumentCompleter` integration for dynamic CLI completion.
+  - Mirrors bash completion behavior with proper partial word handling.
+
+- **Feature: Configurable Magic Numbers**:
+  - All timeout, interval, size, and retry values now configurable via environment variables.
+  - Timeout configs (milliseconds): `LLM_SSE_KEEPALIVE_TIMEOUT`, `LLM_REQUEST_TIMEOUT`, `LLM_WEB_PAGE_TIMEOUT`, etc.
+  - Interval configs (milliseconds): `LLM_UI_STATUS_INTERVAL`, `LLM_UI_REFRESH_INTERVAL`, `SCHEDULER_TICK_INTERVAL`, etc.
+  - Size/Limit configs: `LLM_MAX_COMPLETION_FILES`, `LLM_FILE_READ_LINES`, `LLM_MAX_OUTPUT_CHARS`, etc.
+  - Retry configs: `LLM_MAX_CONTEXT_RETRIES`, `LLM_TOOL_MAX_RETRIES`, `LLM_MCP_MAX_RETRIES`.
+  - Pagination configs: `WEB_SESSION_PAGE_SIZE`, `WEB_API_PAGE_SIZE`.
+
+- **Feature: Model Visibility Controls**:
+  - `LLM_SHOW_OLLAMA_MODELS`: Enable/disable Ollama models in `/model` autocomplete.
+  - `LLM_SHOW_PYDANTIC_AI_MODELS`: Enable/disable pydantic-ai built-in models in autocomplete.
+  - Useful for environments without Ollama or when using custom model registries.
+
+- **Breaking Change: Hooks Timeout Unit**:
+  - `HOOKS_TIMEOUT` changed from seconds (30) to milliseconds (30000).
+  - Existing configs with `ZRB_HOOKS_TIMEOUT=30` will now timeout after 30ms.
+  - Update your config to `ZRB_HOOKS_TIMEOUT=30000` for equivalent behavior.
+
+- **Improvement: Documentation**:
+  - Expanded `docs/configuration/llm-config.md` with all configurable timeout/interval/size values.
+  - Added detailed descriptions for new environment variables.
+
+- **Tests: Coverage Expansion**:
+  - New `test/llm/snapshot/test_manager.py`: Snapshot manager tests (+367 lines).
+  - New `test/llm/tool/test_file.py`: File tool tests (+313 lines).
+  - New `test/llm/prompt/test_claude.py`: Claude prompt tests (+398 lines).
+  - New `test/config/test_config.py`: Config property tests (+278 lines).
+  - New `test/llm/util/test_history_formatter.py`: History formatter tests (+145 lines).
+  - Enhanced SSE stream, completion, and command tests.
+
 ## 2.19.1 (April 10, 2026)
 
 - **Security: Dependency Vulnerability Patches**:
