@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Optional, Union
 from urllib.parse import unquote, urlparse
 
+from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
 from zrb.llm.lsp.protocol import (
     JSONRPCMessage,
@@ -350,7 +351,10 @@ class LSPServer:
             finally:
                 try:
                     self.process.terminate()
-                    await asyncio.wait_for(self.process.wait(), timeout=5)
+                    await asyncio.wait_for(
+                        self.process.wait(),
+                        timeout=CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
+                    )
                 except asyncio.TimeoutError:
                     self.process.kill()
                 finally:

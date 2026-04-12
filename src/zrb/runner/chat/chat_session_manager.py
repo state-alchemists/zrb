@@ -118,7 +118,11 @@ class ChatSessionManager:
         active_ids = set(self._sessions.keys()) - base_names
         return len(base_names) + len(active_ids)
 
-    def get_sessions(self, page: int = 1, limit: int = 20) -> list[dict[str, Any]]:
+    def get_sessions(
+        self, page: int = 1, limit: int | None = None
+    ) -> list[dict[str, Any]]:
+        if limit is None:
+            limit = CFG.WEB_SESSION_PAGE_SIZE
         sessions_with_times = self._get_sessions_with_timestamps()
         all_names = self._get_all_session_names()
         sessions = []

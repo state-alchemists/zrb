@@ -2,6 +2,7 @@ import asyncio
 from collections.abc import Callable
 
 from zrb.attr.type import IntAttr, StrAttr
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
@@ -24,7 +25,7 @@ class TcpCheck(BaseTask):
         host: StrAttr = "localhost",
         render_host: bool = True,
         port: IntAttr = 80,
-        interval: int = 5,
+        interval: float | None = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         upstream: list[AnyTask] | AnyTask | None = None,
         fallback: list[AnyTask] | AnyTask | None = None,
@@ -49,7 +50,9 @@ class TcpCheck(BaseTask):
         self._host = host
         self._render_host = render_host
         self._port = port
-        self._interval = interval
+        self._interval = (
+            interval if interval is not None else CFG.TCP_CHECK_INTERVAL / 1000
+        )
 
     def _get_host(self, ctx: AnyContext) -> str:
         return get_str_attr(ctx, self._host, "localhost", auto_render=self._render_host)

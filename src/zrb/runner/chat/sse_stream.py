@@ -4,6 +4,8 @@ from typing import Any
 
 from fastapi.responses import StreamingResponse
 
+from zrb.config.config import CFG
+
 
 class SSEStreamResponse(StreamingResponse):
     def __init__(
@@ -26,7 +28,9 @@ class SSEStreamResponse(StreamingResponse):
                 try:
                     get_task = asyncio.create_task(self._queue.get())
                     try:
-                        item = await asyncio.wait_for(get_task, timeout=60)
+                        item = await asyncio.wait_for(
+                            get_task, timeout=CFG.LLM_SSE_KEEPALIVE_TIMEOUT / 1000
+                        )
                     except asyncio.TimeoutError:
                         yield ": keepalive\n\n"
                         continue

@@ -10,6 +10,7 @@ from typing import Any, TextIO
 import psutil
 
 from zrb.cmd.cmd_result import CmdResult
+from zrb.config.config import CFG
 
 
 def check_unrecommended_commands(cmd_script: str) -> dict[str, str]:
@@ -94,7 +95,7 @@ async def run_command(
         stdin=__get_cmd_stdin(is_interactive),
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
-        limit=10 * 10 * 1024,  # Buffer memory limit
+        limit=CFG.CMD_BUFFER_LIMIT,
     )
     if register_pid_method is not None:
         register_pid_method(cmd_process.pid)
@@ -128,7 +129,9 @@ async def run_command(
     except (KeyboardInterrupt, asyncio.CancelledError, asyncio.TimeoutError):
         try:
             os.killpg(cmd_process.pid, signal.SIGINT)
-            await asyncio.wait_for(cmd_process.wait(), timeout=2.0)
+            await asyncio.wait_for(
+                cmd_process.wait(), timeout=CFG.CMD_CLEANUP_TIMEOUT / 1000
+            )
         except asyncio.TimeoutError:
             # If it doesn't terminate, kill it forcefully
             actual_print_method(

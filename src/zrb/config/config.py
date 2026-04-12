@@ -155,9 +155,56 @@ class Config:
         self.DEFAULT_MCP_CONFIG_FILE: str = "mcp-config.json"
         self.DEFAULT_HOOKS_ENABLED: str = "on"
         self.DEFAULT_HOOKS_DIRS: str = ""
-        self.DEFAULT_HOOKS_TIMEOUT: str = "30"
+        self.DEFAULT_HOOKS_TIMEOUT: str = "30000"
         self.DEFAULT_HOOKS_DEBUG: str = "off"
         self.DEFAULT_HOOKS_LOG_LEVEL: str = "INFO"
+        # =========================================================================
+        # Timeout Configuration (all values in milliseconds)
+        # =========================================================================
+        self.DEFAULT_LLM_SSE_KEEPALIVE_TIMEOUT: str = "60000"
+        self.DEFAULT_WEB_SHUTDOWN_TIMEOUT: str = "10000"
+        self.DEFAULT_LLM_REQUEST_TIMEOUT: str = "300000"
+        self.DEFAULT_LLM_INPUT_QUEUE_TIMEOUT: str = "500"
+        self.DEFAULT_LLM_SHELL_KILL_WAIT_TIMEOUT: str = "5000"
+        self.DEFAULT_LLM_WEB_PAGE_TIMEOUT: str = "30000"
+        self.DEFAULT_LLM_WEB_HTTP_TIMEOUT: str = "30000"
+        self.DEFAULT_LLM_MODEL_FETCH_TIMEOUT: str = "5000"
+        self.DEFAULT_CMD_CLEANUP_TIMEOUT: str = "2000"
+        self.DEFAULT_LLM_GIT_CMD_TIMEOUT: str = "1000"
+        # =========================================================================
+        # Interval/Delay Configuration (all values in milliseconds)
+        # =========================================================================
+        self.DEFAULT_LLM_UI_STATUS_INTERVAL: str = "1000"
+        self.DEFAULT_LLM_UI_LONG_STATUS_INTERVAL: str = "60000"
+        self.DEFAULT_LLM_UI_REFRESH_INTERVAL: str = "500"
+        self.DEFAULT_LLM_UI_FLUSH_INTERVAL: str = "500"
+        self.DEFAULT_LLM_UI_MAX_BUFFER_SIZE: str = "2000"
+        self.DEFAULT_SCHEDULER_TICK_INTERVAL: str = "60000"
+        self.DEFAULT_HTTP_CHECK_INTERVAL: str = "5000"
+        self.DEFAULT_TCP_CHECK_INTERVAL: str = "5000"
+        self.DEFAULT_TASK_READINESS_DELAY: str = "500"
+        # =========================================================================
+        # Size/Limit Configuration
+        # =========================================================================
+        self.DEFAULT_LLM_MAX_COMPLETION_FILES: str = "5000"
+        self.DEFAULT_LLM_HISTORY_MAX_DISPLAY_CHARS: str = "5000"
+        self.DEFAULT_LLM_HISTORY_TRUNCATE_LENGTH: str = "100"
+        self.DEFAULT_LLM_FILE_READ_LINES: str = "1000"
+        self.DEFAULT_LLM_MAX_OUTPUT_CHARS: str = "100000"
+        self.DEFAULT_LLM_PROJECT_DOC_MAX_CHARS: str = "8000"
+        self.DEFAULT_CMD_BUFFER_LIMIT: str = "102400"
+        # =========================================================================
+        # Retry Configuration
+        # =========================================================================
+        self.DEFAULT_LLM_MAX_CONTEXT_RETRIES: str = "5"
+        self.DEFAULT_LLM_TOOL_MAX_RETRIES: str = "3"
+        self.DEFAULT_LLM_MCP_MAX_RETRIES: str = "3"
+        # =========================================================================
+        # Pagination Configuration
+        # =========================================================================
+        self.DEFAULT_WEB_SESSION_PAGE_SIZE: str = "20"
+        self.DEFAULT_WEB_API_PAGE_SIZE: str = "20"
+        self.DEFAULT_WEB_TASK_SESSION_PAGE_SIZE: str = "10"
 
     @property
     def ENV_PREFIX(self) -> str:
@@ -1814,6 +1861,7 @@ class Config:
 
     @property
     def HOOKS_TIMEOUT(self) -> int:
+        """Timeout in milliseconds for hook execution."""
         return int(
             get_env("HOOKS_TIMEOUT", self.DEFAULT_HOOKS_TIMEOUT, self.ENV_PREFIX)
         )
@@ -1839,6 +1887,506 @@ class Config:
     @HOOKS_LOG_LEVEL.setter
     def HOOKS_LOG_LEVEL(self, value: str):
         os.environ[f"{self.ENV_PREFIX}_HOOKS_LOG_LEVEL"] = value
+
+    # =========================================================================
+    # Timeout Configuration Properties
+    # =========================================================================
+
+    @property
+    def LLM_SSE_KEEPALIVE_TIMEOUT(self) -> int:
+        """Timeout in milliseconds for SSE keepalive messages."""
+        return int(
+            get_env(
+                "LLM_SSE_KEEPALIVE_TIMEOUT",
+                self.DEFAULT_LLM_SSE_KEEPALIVE_TIMEOUT,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_SSE_KEEPALIVE_TIMEOUT.setter
+    def LLM_SSE_KEEPALIVE_TIMEOUT(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_SSE_KEEPALIVE_TIMEOUT"] = str(value)
+
+    @property
+    def WEB_SHUTDOWN_TIMEOUT(self) -> int:
+        """Graceful shutdown timeout in milliseconds for web server."""
+        return int(
+            get_env(
+                "WEB_SHUTDOWN_TIMEOUT",
+                self.DEFAULT_WEB_SHUTDOWN_TIMEOUT,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @WEB_SHUTDOWN_TIMEOUT.setter
+    def WEB_SHUTDOWN_TIMEOUT(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_WEB_SHUTDOWN_TIMEOUT"] = str(value)
+
+    @property
+    def LLM_REQUEST_TIMEOUT(self) -> int:
+        """Default timeout in milliseconds for LLM requests."""
+        return int(
+            get_env(
+                "LLM_REQUEST_TIMEOUT",
+                self.DEFAULT_LLM_REQUEST_TIMEOUT,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_REQUEST_TIMEOUT.setter
+    def LLM_REQUEST_TIMEOUT(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_REQUEST_TIMEOUT"] = str(value)
+
+    @property
+    def LLM_INPUT_QUEUE_TIMEOUT(self) -> int:
+        """Timeout in milliseconds for polling the input queue."""
+        return int(
+            get_env(
+                "LLM_INPUT_QUEUE_TIMEOUT",
+                self.DEFAULT_LLM_INPUT_QUEUE_TIMEOUT,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_INPUT_QUEUE_TIMEOUT.setter
+    def LLM_INPUT_QUEUE_TIMEOUT(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_INPUT_QUEUE_TIMEOUT"] = str(value)
+
+    @property
+    def LLM_SHELL_KILL_WAIT_TIMEOUT(self) -> int:
+        """Timeout in milliseconds to wait after killing a shell process."""
+        return int(
+            get_env(
+                "LLM_SHELL_KILL_WAIT_TIMEOUT",
+                self.DEFAULT_LLM_SHELL_KILL_WAIT_TIMEOUT,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_SHELL_KILL_WAIT_TIMEOUT.setter
+    def LLM_SHELL_KILL_WAIT_TIMEOUT(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_SHELL_KILL_WAIT_TIMEOUT"] = str(value)
+
+    @property
+    def LLM_WEB_PAGE_TIMEOUT(self) -> int:
+        """Timeout in milliseconds for web page loading (Playwright)."""
+        return int(
+            get_env(
+                "LLM_WEB_PAGE_TIMEOUT",
+                self.DEFAULT_LLM_WEB_PAGE_TIMEOUT,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_WEB_PAGE_TIMEOUT.setter
+    def LLM_WEB_PAGE_TIMEOUT(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_WEB_PAGE_TIMEOUT"] = str(value)
+
+    @property
+    def LLM_WEB_HTTP_TIMEOUT(self) -> int:
+        """Timeout in milliseconds for HTTP requests."""
+        return int(
+            get_env(
+                "LLM_WEB_HTTP_TIMEOUT",
+                self.DEFAULT_LLM_WEB_HTTP_TIMEOUT,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_WEB_HTTP_TIMEOUT.setter
+    def LLM_WEB_HTTP_TIMEOUT(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_WEB_HTTP_TIMEOUT"] = str(value)
+
+    @property
+    def LLM_MODEL_FETCH_TIMEOUT(self) -> int:
+        """Timeout in milliseconds for fetching model lists."""
+        return int(
+            get_env(
+                "LLM_MODEL_FETCH_TIMEOUT",
+                self.DEFAULT_LLM_MODEL_FETCH_TIMEOUT,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_MODEL_FETCH_TIMEOUT.setter
+    def LLM_MODEL_FETCH_TIMEOUT(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_MODEL_FETCH_TIMEOUT"] = str(value)
+
+    @property
+    def CMD_CLEANUP_TIMEOUT(self) -> int:
+        """Timeout in milliseconds for command process cleanup."""
+        return int(
+            get_env(
+                "CMD_CLEANUP_TIMEOUT",
+                self.DEFAULT_CMD_CLEANUP_TIMEOUT,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @CMD_CLEANUP_TIMEOUT.setter
+    def CMD_CLEANUP_TIMEOUT(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_CMD_CLEANUP_TIMEOUT"] = str(value)
+
+    @property
+    def LLM_GIT_CMD_TIMEOUT(self) -> int:
+        """Timeout in milliseconds for git commands."""
+        return int(
+            get_env(
+                "LLM_GIT_CMD_TIMEOUT",
+                self.DEFAULT_LLM_GIT_CMD_TIMEOUT,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_GIT_CMD_TIMEOUT.setter
+    def LLM_GIT_CMD_TIMEOUT(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_GIT_CMD_TIMEOUT"] = str(value)
+
+    # =========================================================================
+    # Interval/Delay Configuration Properties
+    # =========================================================================
+
+    @property
+    def LLM_UI_STATUS_INTERVAL(self) -> int:
+        """Interval in milliseconds for UI status checks."""
+        return int(
+            get_env(
+                "LLM_UI_STATUS_INTERVAL",
+                self.DEFAULT_LLM_UI_STATUS_INTERVAL,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_UI_STATUS_INTERVAL.setter
+    def LLM_UI_STATUS_INTERVAL(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STATUS_INTERVAL"] = str(value)
+
+    @property
+    def LLM_UI_LONG_STATUS_INTERVAL(self) -> int:
+        """Interval in milliseconds for long-running UI status checks."""
+        return int(
+            get_env(
+                "LLM_UI_LONG_STATUS_INTERVAL",
+                self.DEFAULT_LLM_UI_LONG_STATUS_INTERVAL,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_UI_LONG_STATUS_INTERVAL.setter
+    def LLM_UI_LONG_STATUS_INTERVAL(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_LONG_STATUS_INTERVAL"] = str(value)
+
+    @property
+    def LLM_UI_REFRESH_INTERVAL(self) -> int:
+        """Interval in milliseconds for UI refresh."""
+        return int(
+            get_env(
+                "LLM_UI_REFRESH_INTERVAL",
+                self.DEFAULT_LLM_UI_REFRESH_INTERVAL,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_UI_REFRESH_INTERVAL.setter
+    def LLM_UI_REFRESH_INTERVAL(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_REFRESH_INTERVAL"] = str(value)
+
+    @property
+    def LLM_UI_FLUSH_INTERVAL(self) -> int:
+        """Interval in milliseconds for UI buffer flush."""
+        return int(
+            get_env(
+                "LLM_UI_FLUSH_INTERVAL",
+                self.DEFAULT_LLM_UI_FLUSH_INTERVAL,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_UI_FLUSH_INTERVAL.setter
+    def LLM_UI_FLUSH_INTERVAL(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_FLUSH_INTERVAL"] = str(value)
+
+    @property
+    def LLM_UI_MAX_BUFFER_SIZE(self) -> int:
+        """Maximum buffer size for UI output."""
+        return int(
+            get_env(
+                "LLM_UI_MAX_BUFFER_SIZE",
+                self.DEFAULT_LLM_UI_MAX_BUFFER_SIZE,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_UI_MAX_BUFFER_SIZE.setter
+    def LLM_UI_MAX_BUFFER_SIZE(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_MAX_BUFFER_SIZE"] = str(value)
+
+    @property
+    def SCHEDULER_TICK_INTERVAL(self) -> int:
+        """Interval in milliseconds for scheduler tick."""
+        return int(
+            get_env(
+                "SCHEDULER_TICK_INTERVAL",
+                self.DEFAULT_SCHEDULER_TICK_INTERVAL,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @SCHEDULER_TICK_INTERVAL.setter
+    def SCHEDULER_TICK_INTERVAL(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_SCHEDULER_TICK_INTERVAL"] = str(value)
+
+    @property
+    def HTTP_CHECK_INTERVAL(self) -> int:
+        """Interval in milliseconds for HTTP health checks."""
+        return int(
+            get_env(
+                "HTTP_CHECK_INTERVAL",
+                self.DEFAULT_HTTP_CHECK_INTERVAL,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @HTTP_CHECK_INTERVAL.setter
+    def HTTP_CHECK_INTERVAL(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_HTTP_CHECK_INTERVAL"] = str(value)
+
+    @property
+    def TCP_CHECK_INTERVAL(self) -> int:
+        """Interval in milliseconds for TCP health checks."""
+        return int(
+            get_env(
+                "TCP_CHECK_INTERVAL",
+                self.DEFAULT_TCP_CHECK_INTERVAL,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @TCP_CHECK_INTERVAL.setter
+    def TCP_CHECK_INTERVAL(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_TCP_CHECK_INTERVAL"] = str(value)
+
+    @property
+    def TASK_READINESS_DELAY(self) -> int:
+        """Delay in milliseconds for task readiness checks."""
+        return int(
+            get_env(
+                "TASK_READINESS_DELAY",
+                self.DEFAULT_TASK_READINESS_DELAY,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @TASK_READINESS_DELAY.setter
+    def TASK_READINESS_DELAY(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_TASK_READINESS_DELAY"] = str(value)
+
+    # =========================================================================
+    # Size/Limit Configuration Properties
+    # =========================================================================
+
+    @property
+    def LLM_MAX_COMPLETION_FILES(self) -> int:
+        """Maximum number of files for completion."""
+        return int(
+            get_env(
+                "LLM_MAX_COMPLETION_FILES",
+                self.DEFAULT_LLM_MAX_COMPLETION_FILES,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_MAX_COMPLETION_FILES.setter
+    def LLM_MAX_COMPLETION_FILES(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_MAX_COMPLETION_FILES"] = str(value)
+
+    @property
+    def LLM_HISTORY_MAX_DISPLAY_CHARS(self) -> int:
+        """Maximum characters to display in history."""
+        return int(
+            get_env(
+                "LLM_HISTORY_MAX_DISPLAY_CHARS",
+                self.DEFAULT_LLM_HISTORY_MAX_DISPLAY_CHARS,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_HISTORY_MAX_DISPLAY_CHARS.setter
+    def LLM_HISTORY_MAX_DISPLAY_CHARS(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_HISTORY_MAX_DISPLAY_CHARS"] = str(value)
+
+    @property
+    def LLM_HISTORY_TRUNCATE_LENGTH(self) -> int:
+        """Character length for history truncation."""
+        return int(
+            get_env(
+                "LLM_HISTORY_TRUNCATE_LENGTH",
+                self.DEFAULT_LLM_HISTORY_TRUNCATE_LENGTH,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_HISTORY_TRUNCATE_LENGTH.setter
+    def LLM_HISTORY_TRUNCATE_LENGTH(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_HISTORY_TRUNCATE_LENGTH"] = str(value)
+
+    @property
+    def LLM_FILE_READ_LINES(self) -> int:
+        """Default number of lines to read from files (head/tail)."""
+        return int(
+            get_env(
+                "LLM_FILE_READ_LINES",
+                self.DEFAULT_LLM_FILE_READ_LINES,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_FILE_READ_LINES.setter
+    def LLM_FILE_READ_LINES(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_FILE_READ_LINES"] = str(value)
+
+    @property
+    def LLM_MAX_OUTPUT_CHARS(self) -> int:
+        """Maximum characters for tool output (shell commands, file reads)."""
+        return int(
+            get_env(
+                "LLM_MAX_OUTPUT_CHARS",
+                self.DEFAULT_LLM_MAX_OUTPUT_CHARS,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_MAX_OUTPUT_CHARS.setter
+    def LLM_MAX_OUTPUT_CHARS(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS"] = str(value)
+
+    @property
+    def LLM_PROJECT_DOC_MAX_CHARS(self) -> int:
+        """Maximum characters for project documentation."""
+        return int(
+            get_env(
+                "LLM_PROJECT_DOC_MAX_CHARS",
+                self.DEFAULT_LLM_PROJECT_DOC_MAX_CHARS,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_PROJECT_DOC_MAX_CHARS.setter
+    def LLM_PROJECT_DOC_MAX_CHARS(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_PROJECT_DOC_MAX_CHARS"] = str(value)
+
+    @property
+    def CMD_BUFFER_LIMIT(self) -> int:
+        """Buffer memory limit for command execution."""
+        return int(
+            get_env(
+                "CMD_BUFFER_LIMIT",
+                self.DEFAULT_CMD_BUFFER_LIMIT,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @CMD_BUFFER_LIMIT.setter
+    def CMD_BUFFER_LIMIT(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_CMD_BUFFER_LIMIT"] = str(value)
+
+    # =========================================================================
+    # Retry Configuration Properties
+    # =========================================================================
+
+    @property
+    def LLM_MAX_CONTEXT_RETRIES(self) -> int:
+        """Maximum retries for context-related errors."""
+        return int(
+            get_env(
+                "LLM_MAX_CONTEXT_RETRIES",
+                self.DEFAULT_LLM_MAX_CONTEXT_RETRIES,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_MAX_CONTEXT_RETRIES.setter
+    def LLM_MAX_CONTEXT_RETRIES(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_MAX_CONTEXT_RETRIES"] = str(value)
+
+    @property
+    def LLM_TOOL_MAX_RETRIES(self) -> int:
+        """Maximum retries for tool calls."""
+        return int(
+            get_env(
+                "LLM_TOOL_MAX_RETRIES",
+                self.DEFAULT_LLM_TOOL_MAX_RETRIES,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_TOOL_MAX_RETRIES.setter
+    def LLM_TOOL_MAX_RETRIES(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_TOOL_MAX_RETRIES"] = str(value)
+
+    @property
+    def LLM_MCP_MAX_RETRIES(self) -> int:
+        """Maximum retries for MCP server connections."""
+        return int(
+            get_env(
+                "LLM_MCP_MAX_RETRIES",
+                self.DEFAULT_LLM_MCP_MAX_RETRIES,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_MCP_MAX_RETRIES.setter
+    def LLM_MCP_MAX_RETRIES(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_MCP_MAX_RETRIES"] = str(value)
+
+    # =========================================================================
+    # Pagination Configuration Properties
+    # =========================================================================
+
+    @property
+    def WEB_SESSION_PAGE_SIZE(self) -> int:
+        """Default page size for session listings."""
+        return int(
+            get_env(
+                "WEB_SESSION_PAGE_SIZE",
+                self.DEFAULT_WEB_SESSION_PAGE_SIZE,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @WEB_SESSION_PAGE_SIZE.setter
+    def WEB_SESSION_PAGE_SIZE(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_WEB_SESSION_PAGE_SIZE"] = str(value)
+
+    @property
+    def WEB_API_PAGE_SIZE(self) -> int:
+        """Default page size for API listings."""
+        return int(
+            get_env(
+                "WEB_API_PAGE_SIZE",
+                self.DEFAULT_WEB_API_PAGE_SIZE,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @WEB_API_PAGE_SIZE.setter
+    def WEB_API_PAGE_SIZE(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_WEB_API_PAGE_SIZE"] = str(value)
+
+    @property
+    def WEB_TASK_SESSION_PAGE_SIZE(self) -> int:
+        """Default page size for task session listings."""
+        return int(
+            get_env(
+                "WEB_TASK_SESSION_PAGE_SIZE",
+                self.DEFAULT_WEB_TASK_SESSION_PAGE_SIZE,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @WEB_TASK_SESSION_PAGE_SIZE.setter
+    def WEB_TASK_SESSION_PAGE_SIZE(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_WEB_TASK_SESSION_PAGE_SIZE"] = str(value)
 
 
 CFG = Config()

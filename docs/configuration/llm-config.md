@@ -20,6 +20,11 @@ Zrb uses `pydantic-ai` to interface with a wide array of Large Language Models, 
 - [Search Engine Configuration](#10-search-engine-configuration)
 - [Hooks Configuration](#11-llm-hooks-configuration)
 - [Skill & Agent Search Configuration](#12-skill--agent-search-configuration)
+- [Timeout Configuration](#13-timeout-configuration)
+- [Interval & Delay Configuration](#14-interval--delay-configuration)
+- [Size & Limit Configuration](#15-size--limit-configuration)
+- [Retry Configuration](#16-retry-configuration)
+- [Pagination Configuration](#17-pagination-configuration)
 
 ---
 
@@ -279,7 +284,7 @@ These variables control which internet search engine Zrb's LLM tools use.
 |----------|-------------|---------|
 | `ZRB_HOOKS_ENABLED` | Enable hook system globally | `1` |
 | `ZRB_HOOKS_DIRS` | Additional hook directories (colon-separated) | (empty) |
-| `ZRB_HOOKS_TIMEOUT` | Default timeout for synchronous hooks | `30` |
+| `ZRB_HOOKS_TIMEOUT` | Default timeout for hook execution (ms) | `30000` |
 | `ZRB_HOOKS_LOG_LEVEL` | Logging level for hooks | `INFO` |
 
 ---
@@ -330,5 +335,76 @@ Zrb searches for skills/agents in this order (highest to lowest priority):
             └── plugin-agent/
                 └── AGENT.md
 ```
+
+---
+
+## 13. Timeout Configuration
+
+All timeout values are in **milliseconds**. Divide by 1000 to convert to seconds.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_SSE_KEEPALIVE_TIMEOUT` | How long to wait before sending an SSE keepalive ping (ms) | `60000` |
+| `ZRB_WEB_SHUTDOWN_TIMEOUT` | Graceful web server shutdown timeout (ms) | `10000` |
+| `ZRB_LLM_REQUEST_TIMEOUT` | Maximum time to wait for an LLM response (ms) | `300000` |
+| `ZRB_LLM_INPUT_QUEUE_TIMEOUT` | Polling interval for the chat input queue (ms) | `500` |
+| `ZRB_LLM_SHELL_KILL_WAIT_TIMEOUT` | Time to wait for a shell process to exit after SIGTERM before SIGKILL (ms) | `5000` |
+| `ZRB_LLM_WEB_PAGE_TIMEOUT` | Playwright page load timeout (ms) | `30000` |
+| `ZRB_LLM_WEB_HTTP_TIMEOUT` | HTTP request timeout for web tools and search (ms) | `30000` |
+| `ZRB_LLM_MODEL_FETCH_TIMEOUT` | Timeout for fetching Ollama model list (ms) | `5000` |
+| `ZRB_CMD_CLEANUP_TIMEOUT` | Time to wait for a process to exit after interrupt before killing (ms) | `2000` |
+| `ZRB_LLM_GIT_CMD_TIMEOUT` | Timeout for git commands used to build system context (ms) | `1000` |
+
+---
+
+## 14. Interval & Delay Configuration
+
+All interval and delay values are in **milliseconds**.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_UI_STATUS_INTERVAL` | Polling interval for the TUI status loop (ms) | `1000` |
+| `ZRB_LLM_UI_LONG_STATUS_INTERVAL` | Interval for updating slow-changing info (CWD, git branch) in TUI (ms) | `60000` |
+| `ZRB_LLM_UI_REFRESH_INTERVAL` | Prompt-toolkit application refresh rate (ms) | `500` |
+| `ZRB_LLM_UI_FLUSH_INTERVAL` | How often buffered output is flushed to event-driven UIs (ms) | `500` |
+| `ZRB_SCHEDULER_TICK_INTERVAL` | How often the Scheduler task checks its cron pattern (ms) | `60000` |
+| `ZRB_HTTP_CHECK_INTERVAL` | Default polling interval for `HttpCheck` tasks (ms) | `5000` |
+| `ZRB_TCP_CHECK_INTERVAL` | Default polling interval for `TcpCheck` tasks (ms) | `5000` |
+| `ZRB_TASK_READINESS_DELAY` | Initial delay before starting readiness checks (ms) | `500` |
+
+---
+
+## 15. Size & Limit Configuration
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_MAX_COMPLETION_FILES` | Maximum files scanned for path autocompletion | `5000` |
+| `ZRB_LLM_MAX_OUTPUT_CHARS` | Maximum characters returned by shell command and file read tools | `100000` |
+| `ZRB_LLM_FILE_READ_LINES` | Lines to preserve at head and tail when truncating file reads | `1000` |
+| `ZRB_LLM_HISTORY_MAX_DISPLAY_CHARS` | Maximum characters shown by the `/history` command | `5000` |
+| `ZRB_LLM_HISTORY_TRUNCATE_LENGTH` | Maximum chars per field when formatting history entries | `100` |
+| `ZRB_LLM_PROJECT_DOC_MAX_CHARS` | Maximum chars loaded from each project doc file (e.g. CLAUDE.md) | `8000` |
+| `ZRB_CMD_BUFFER_LIMIT` | Asyncio subprocess read-buffer limit in bytes | `102400` |
+| `ZRB_LLM_UI_MAX_BUFFER_SIZE` | Maximum buffered output chars before a forced flush (event-driven UIs) | `2000` |
+
+---
+
+## 16. Retry Configuration
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_MAX_CONTEXT_RETRIES` | Maximum retries when the LLM returns a context-window error | `5` |
+| `ZRB_LLM_TOOL_MAX_RETRIES` | Maximum retries for individual tool calls | `3` |
+| `ZRB_LLM_MCP_MAX_RETRIES` | Maximum retries when connecting to MCP servers | `3` |
+
+---
+
+## 17. Pagination Configuration
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_WEB_SESSION_PAGE_SIZE` | Default page size for chat session listings | `20` |
+| `ZRB_WEB_API_PAGE_SIZE` | Default page size for generic API list endpoints | `20` |
+| `ZRB_WEB_TASK_SESSION_PAGE_SIZE` | Default page size for task session listings | `10` |
 
 ---

@@ -40,9 +40,6 @@ class LSPManager:
     _project_roots: dict[str, str]  # file_path -> detected root
     _idle_tasks: dict[str, asyncio.Task]
 
-    # Idle timeout in seconds (5 minutes)
-    IDLE_TIMEOUT = 300
-
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)

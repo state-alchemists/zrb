@@ -7,6 +7,7 @@ import subprocess
 from collections.abc import AsyncIterable, Callable
 from typing import TYPE_CHECKING, Any, TextIO
 
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.app.keybinding import create_output_keybindings
 from zrb.llm.app.layout import create_input_field, create_layout, create_output_field
@@ -471,7 +472,7 @@ class UI(BaseUI):
             style=style,
             full_screen=True,
             mouse_support=True,
-            refresh_interval=0.5,
+            refresh_interval=CFG.LLM_UI_REFRESH_INTERVAL / 1000,
             output=output,
             clipboard=clipboard,
         )

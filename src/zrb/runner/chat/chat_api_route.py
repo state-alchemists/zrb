@@ -18,8 +18,6 @@ from zrb.util.group import NodeNotFoundError, extract_node_from_args
 
 from .sse_stream import SSEStreamResponse
 
-DEFAULT_LLM_TIMEOUT = 300
-
 
 async def _get_llm_chat_task(root_group: AnyGroup) -> Any:
     try:
@@ -43,8 +41,10 @@ def serve_chat_api(
     async def list_chat_sessions(
         request: Request,
         page: int = 1,
-        limit: int = 20,
+        limit: int | None = None,
     ) -> JSONResponse:
+        if limit is None:
+            limit = CFG.WEB_API_PAGE_SIZE
         await get_user_from_request(web_auth_config, request)
         sessions = session_manager.get_sessions(page=page, limit=limit)
         total = session_manager.get_sessions_count()
@@ -303,7 +303,8 @@ async def _run_chat_session(
                 llm_task: asyncio.Task | None = None
                 try:
                     message = await asyncio.wait_for(
-                        session.input_queue.get(), timeout=0.5
+                        session.input_queue.get(),
+                        timeout=CFG.LLM_INPUT_QUEUE_TIMEOUT / 1000,
                     )
                 except asyncio.CancelledError:
                     if llm_task and not llm_task.done():
@@ -330,7 +331,7 @@ async def _run_chat_session(
                 )
                 session_obj = Session(shared_ctx=shared_ctx)
                 llm_task = asyncio.create_task(
-                    run_llm_message(session_obj, DEFAULT_LLM_TIMEOUT)
+                    run_llm_message(session_obj, CFG.LLM_REQUEST_TIMEOUT / 1000)
                 )
                 try:
                     await llm_task

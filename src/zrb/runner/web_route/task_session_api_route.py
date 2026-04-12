@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+from zrb.config.config import CFG
 from zrb.config.web_auth_config import WebAuthConfig
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
@@ -74,7 +75,7 @@ def serve_task_session_api(
         min_start_query: str = Query(default=None, alias="from"),
         max_start_query: str = Query(default=None, alias="to"),
         page: int = Query(default=0, alias="page"),
-        limit: int = Query(default=10, alias="limit"),
+        limit: int = Query(default=CFG.WEB_TASK_SESSION_PAGE_SIZE, alias="limit"),
     ) -> SessionStateLog | SessionStateLogList:
         """
         Getting existing session or sessions

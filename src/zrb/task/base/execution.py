@@ -2,6 +2,7 @@ import asyncio
 import traceback
 from typing import TYPE_CHECKING, Any
 
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.session.any_session import AnySession
 from zrb.util.attr import get_bool_attr
@@ -73,7 +74,9 @@ async def execute_action_until_ready(task: "BaseTask", session: AnySession):
     ctx = task.get_ctx(session)
     readiness_checks = task.readiness_checks
     readiness_check_delay = (
-        task._readiness_check_delay if task._readiness_check_delay is not None else 0.5
+        task._readiness_check_delay
+        if task._readiness_check_delay is not None
+        else CFG.TASK_READINESS_DELAY / 1000
     )
     monitor_readiness = (
         task._monitor_readiness if task._monitor_readiness is not None else False

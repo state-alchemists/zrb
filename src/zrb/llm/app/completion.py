@@ -12,6 +12,7 @@ from prompt_toolkit.completion import (
 )
 from prompt_toolkit.document import Document
 
+from zrb.config.config import CFG
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.util.match import fuzzy_match
@@ -511,8 +512,8 @@ class InputCompleter(Completer):
             return
 
         # Count files (cached strategy could be added here if needed)
-        files = self._get_recursive_files(limit=5000)
-        if len(files) < 5000:
+        files = self._get_recursive_files(limit=CFG.LLM_MAX_COMPLETION_FILES)
+        if len(files) < CFG.LLM_MAX_COMPLETION_FILES:
             # Fuzzy Match
             yield from self._get_fuzzy_completions(
                 text, files, only_files, display_meta=display_meta
@@ -594,7 +595,7 @@ class InputCompleter(Completer):
                 ["ollama", "ls"],
                 capture_output=True,
                 text=True,
-                timeout=5,  # 5 second timeout
+                timeout=CFG.LLM_MODEL_FETCH_TIMEOUT / 1000,
             )
             if result.returncode == 0:
                 lines = result.stdout.strip().split("\n")
@@ -612,7 +613,11 @@ class InputCompleter(Completer):
         self._ollama_cache_time = now
         return models
 
-    def _get_recursive_files(self, root: str = ".", limit: int = 5000) -> list[str]:
+    def _get_recursive_files(
+        self, root: str = ".", limit: int | None = None
+    ) -> list[str]:
+        if limit is None:
+            limit = CFG.LLM_MAX_COMPLETION_FILES
         now = time.time()
         if self._file_cache is not None and now - self._file_cache_time < 30:
             return self._file_cache

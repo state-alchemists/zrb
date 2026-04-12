@@ -7,6 +7,7 @@ from collections.abc import AsyncIterable, Callable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, TextIO
 
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
@@ -106,7 +107,7 @@ class BaseUI:
                     # Keep running until cancelled
                     try:
                         while True:
-                            await asyncio.sleep(1)
+                            await asyncio.sleep(CFG.LLM_UI_STATUS_INTERVAL / 1000)
                     except asyncio.CancelledError:
                         pass
                     finally:
@@ -603,7 +604,7 @@ class BaseUI:
                 logger.error(f"Error in message queue loop: {e}")
                 # Don't break loop on error, but handle event loop closure
                 try:
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(CFG.LLM_UI_STATUS_INTERVAL / 1000)
                 except RuntimeError:
                     # Event loop closed - exit
                     break
@@ -790,7 +791,7 @@ class BaseUI:
             except Exception:
                 pass
             try:
-                await asyncio.sleep(60)
+                await asyncio.sleep(CFG.LLM_UI_LONG_STATUS_INTERVAL / 1000)
             except RuntimeError:
                 # Event loop closed during shutdown
                 break
