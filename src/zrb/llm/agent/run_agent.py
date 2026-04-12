@@ -434,7 +434,7 @@ async def run_agent(
         result_output = None
         stream = None
         _context_retry_count = 0
-        _MAX_CONTEXT_RETRIES = 5
+        _MAX_CONTEXT_RETRIES = CFG.LLM_MAX_CONTEXT_RETRIES
         try:
             while True:
                 # Filter out nil content before sending to API

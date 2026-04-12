@@ -5,6 +5,7 @@ import re
 import signal
 import tempfile
 
+from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
 from zrb.util.cli.style import stylize_faint
 from zrb.util.truncate import truncate_output
@@ -16,7 +17,7 @@ async def run_shell_command(
     timeout: int = 30,
     preserved_head_lines: int = 500,
     preserved_tail_lines: int = 500,
-    max_chars: int = 100000,
+    max_chars: int | None = None,
 ) -> str:
     """
     Executes a non-interactive shell command. Streams stdout/stderr live and returns truncated output.
@@ -29,6 +30,8 @@ async def run_shell_command(
     - Batch independent commands with `&&` or `;` to reduce round trips.
     - Use `cwd` to set the working directory; required when operating inside a worktree or a different project directory.
     """
+    if max_chars is None:
+        max_chars = CFG.LLM_MAX_OUTPUT_CHARS
     cwd = cwd or os.getcwd()
     is_windows = platform.system() == "Windows"
 
@@ -145,7 +148,9 @@ async def _terminate_process(process: asyncio.subprocess.Process, is_windows: bo
         else:
             process.terminate()
 
-        await asyncio.wait_for(process.wait(), timeout=5)
+        await asyncio.wait_for(
+            process.wait(), timeout=CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000
+        )
     except (ProcessLookupError, asyncio.TimeoutError):
         if not is_windows:
             try:

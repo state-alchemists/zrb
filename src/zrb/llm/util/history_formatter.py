@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 
 
 def format_history_as_text(
-    messages: "list[ModelMessage]", max_length: int = 5000
+    messages: "list[ModelMessage]", max_length: int | None = None
 ) -> str:
     """Format pydantic-ai conversation history as human-readable text.
 
@@ -20,11 +20,16 @@ def format_history_as_text(
 
     Args:
         messages: List of ModelMessage (ModelRequest or ModelResponse)
-        max_length: Maximum length of output text (truncated if exceeded)
+        max_length: Maximum length of output text (truncated if exceeded).
+                    Defaults to CFG.LLM_HISTORY_MAX_DISPLAY_CHARS.
 
     Returns:
         Human-readable string representation of the conversation
     """
+    from zrb.config.config import CFG
+
+    if max_length is None:
+        max_length = CFG.LLM_HISTORY_MAX_DISPLAY_CHARS
     if not messages:
         return "📭 Empty conversation history."
 
@@ -238,8 +243,12 @@ def _indent_lines(text: str, indent: int = 2, max_lines: int = 50) -> list[str]:
     return lines
 
 
-def _truncate(text: str, max_length: int = 100) -> str:
+def _truncate(text: str, max_length: int | None = None) -> str:
     """Truncate text to max_length with ellipsis."""
+    from zrb.config.config import CFG
+
+    if max_length is None:
+        max_length = CFG.LLM_HISTORY_TRUNCATE_LENGTH
     if len(text) <= max_length:
         return text
     return text[: max_length - 3] + "..."

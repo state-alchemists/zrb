@@ -6,6 +6,7 @@ from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, Any
 
+from zrb.config.config import CFG
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.util.prompt import expand_prompt
 from zrb.util.string.conversion import to_string
@@ -160,7 +161,9 @@ def create_agent(
     final_output_type = output_type
     effective_toolsets = list(safe_toolsets)
     if safe_tools:
-        effective_toolsets.append(FunctionToolset(tools=safe_tools, max_retries=3))
+        effective_toolsets.append(
+            FunctionToolset(tools=safe_tools, max_retries=CFG.LLM_TOOL_MAX_RETRIES)
+        )
 
     if yolo is not True:
         final_output_type = output_type | DeferredToolRequests

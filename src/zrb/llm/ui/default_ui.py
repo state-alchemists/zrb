@@ -7,6 +7,7 @@ import subprocess
 from collections.abc import AsyncIterable, Callable
 from typing import TYPE_CHECKING, Any, TextIO
 
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.app.keybinding import create_output_keybindings
 from zrb.llm.app.layout import create_input_field, create_layout, create_output_field
@@ -77,6 +78,8 @@ class UI(BaseUI):
         custom_commands: list[AnyCustomCommand] = [],
         model: "Model | str | None" = None,
         custom_model_names: list[str] = [],
+        show_ollama_models: bool = True,
+        show_pydantic_ai_models: bool = True,
         enable_rewind: bool = False,
         snapshot_dir: str = "",
     ):
@@ -142,6 +145,8 @@ class UI(BaseUI):
             custom_commands=self._custom_commands,
             history=self._input_history,
             custom_model_names=custom_model_names,
+            show_ollama_models=show_ollama_models,
+            show_pydantic_ai_models=show_pydantic_ai_models,
         )
         # Output Area (Read-only chat history)
         help_text = self._get_help_text(limit=25)
@@ -467,7 +472,7 @@ class UI(BaseUI):
             style=style,
             full_screen=True,
             mouse_support=True,
-            refresh_interval=0.5,
+            refresh_interval=CFG.LLM_UI_REFRESH_INTERVAL / 1000,
             output=output,
             clipboard=clipboard,
         )

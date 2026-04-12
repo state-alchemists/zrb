@@ -75,7 +75,9 @@ async def _fetch_page_content(url: str) -> tuple:
             browser = await p.chromium.launch(headless=True)
             page = await browser.new_page()
             await page.set_extra_http_headers({"User-Agent": user_agent})
-            await page.goto(url, wait_until="networkidle", timeout=30000)
+            await page.goto(
+                url, wait_until="networkidle", timeout=CFG.LLM_WEB_PAGE_TIMEOUT
+            )
             content = await page.content()
             links = await page.eval_on_selector_all(
                 "a[href]",
@@ -90,7 +92,11 @@ async def _fetch_page_content(url: str) -> tuple:
         import requests
         from bs4 import BeautifulSoup
 
-        response = requests.get(url, headers={"User-Agent": user_agent}, timeout=30)
+        response = requests.get(
+            url,
+            headers={"User-Agent": user_agent},
+            timeout=CFG.LLM_WEB_HTTP_TIMEOUT / 1000,
+        )
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
         links = [

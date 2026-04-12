@@ -8,7 +8,8 @@ import pytest
 
 
 class TestSSEStreamResponse:
-    def test_initialization(self):
+    @pytest.mark.asyncio
+    async def test_initialization(self):
         from zrb.runner.chat.sse_stream import SSEStreamResponse
 
         mock_session = MagicMock()
@@ -23,7 +24,8 @@ class TestSSEStreamResponse:
         assert response.session_id == "test-session"
         assert response._queue is not None
 
-    def test_headers(self):
+    @pytest.mark.asyncio
+    async def test_headers(self):
         from zrb.runner.chat.sse_stream import SSEStreamResponse
 
         mock_session = MagicMock()
@@ -40,7 +42,8 @@ class TestSSEStreamResponse:
         assert response.headers["X-Accel-Buffering"] == "no"
         assert response.media_type == "text/event-stream"
 
-    def test_session_id_assignment(self):
+    @pytest.mark.asyncio
+    async def test_session_id_assignment(self):
         from zrb.runner.chat.sse_stream import SSEStreamResponse
 
         mock_session = MagicMock()
@@ -54,7 +57,8 @@ class TestSSEStreamResponse:
         )
         assert response.session_id == "my-session-id"
 
-    def test_queue_from_session(self):
+    @pytest.mark.asyncio
+    async def test_queue_from_session(self):
         from zrb.runner.chat.sse_stream import SSEStreamResponse
 
         mock_queue = asyncio.Queue()
@@ -87,13 +91,17 @@ class TestSSEStreamResponse:
 
         # Get the generator from the response body
         generator = response.body_iterator
-        first_event = await generator.__anext__()
+        try:
+            first_event = await generator.__anext__()
 
-        # Should start with connected event
-        assert first_event.startswith("event: connected\n")
-        data = json.loads(first_event.split("data: ")[1])
-        assert data["status"] == "connected"
-        assert data["session_id"] == "test-session"
+            # Should start with connected event
+            assert first_event.startswith("event: connected\n")
+            data = json.loads(first_event.split("data: ")[1])
+            assert data["status"] == "connected"
+            assert data["session_id"] == "test-session"
+        finally:
+            response.close()
+            await generator.aclose()
 
     @pytest.mark.asyncio
     async def test_event_generator_dict_item(self):
@@ -114,14 +122,18 @@ class TestSSEStreamResponse:
         )
 
         generator = response.body_iterator
-        _ = await generator.__anext__()  # connected event
-        data_event = await generator.__anext__()
+        try:
+            _ = await generator.__anext__()  # connected event
+            data_event = await generator.__anext__()
 
-        # Should contain the text and type
-        assert data_event.startswith("data: ")
-        data = json.loads(data_event.split("data: ")[1])
-        assert data["text"] == "hello"
-        assert data["type"] == "user"
+            # Should contain the text and type
+            assert data_event.startswith("data: ")
+            data = json.loads(data_event.split("data: ")[1])
+            assert data["text"] == "hello"
+            assert data["type"] == "user"
+        finally:
+            response.close()
+            await generator.aclose()
 
     @pytest.mark.asyncio
     async def test_event_generator_string_item(self):
@@ -142,13 +154,17 @@ class TestSSEStreamResponse:
         )
 
         generator = response.body_iterator
-        _ = await generator.__anext__()  # connected event
-        data_event = await generator.__anext__()
+        try:
+            _ = await generator.__anext__()  # connected event
+            data_event = await generator.__anext__()
 
-        assert data_event.startswith("data: ")
-        data = json.loads(data_event.split("data: ")[1])
-        assert data["text"] == "plain text message"
-        assert data["type"] == "text"
+            assert data_event.startswith("data: ")
+            data = json.loads(data_event.split("data: ")[1])
+            assert data["text"] == "plain text message"
+            assert data["type"] == "text"
+        finally:
+            response.close()
+            await generator.aclose()
 
     @pytest.mark.asyncio
     async def test_event_generator_timeout_keepalive(self):
@@ -167,13 +183,17 @@ class TestSSEStreamResponse:
         )
 
         generator = response.body_iterator
-        _ = await generator.__anext__()  # connected event
+        try:
+            _ = await generator.__anext__()  # connected event
 
-        # Patch the timeout to be very short for testing
-        with patch("asyncio.wait_for") as mock_wait_for:
-            mock_wait_for.side_effect = asyncio.TimeoutError
-            keepalive_event = await generator.__anext__()
-            assert keepalive_event == ": keepalive\n\n"
+            # Patch the timeout to be very short for testing
+            with patch("asyncio.wait_for") as mock_wait_for:
+                mock_wait_for.side_effect = asyncio.TimeoutError
+                keepalive_event = await generator.__anext__()
+                assert keepalive_event == ": keepalive\n\n"
+        finally:
+            response.close()
+            await generator.aclose()
 
     @pytest.mark.asyncio
     async def test_event_generator_cancelled_error(self):
@@ -192,10 +212,14 @@ class TestSSEStreamResponse:
         )
 
         generator = response.body_iterator
-        _ = await generator.__anext__()  # connected event
+        try:
+            _ = await generator.__anext__()  # connected event
 
-        with patch("asyncio.wait_for") as mock_wait_for:
-            mock_wait_for.side_effect = asyncio.CancelledError
-            # CancelledError should cause StopAsyncIteration
-            with pytest.raises(StopAsyncIteration):
-                await generator.__anext__()
+            with patch("asyncio.wait_for") as mock_wait_for:
+                mock_wait_for.side_effect = asyncio.CancelledError
+                # CancelledError should cause StopAsyncIteration
+                with pytest.raises(StopAsyncIteration):
+                    await generator.__anext__()
+        finally:
+            response.close()
+            await generator.aclose()

@@ -5,6 +5,7 @@ import re
 import time
 from typing import Any
 
+from zrb.config.config import CFG
 from zrb.util.file import is_path_excluded
 from zrb.util.truncate import truncate_output
 
@@ -54,8 +55,8 @@ def list_files(
     patterns_to_exclude = (
         exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
     )
-    preserved_head_lines = 500
-    preserved_tail_lines = 500
+    preserved_head_lines = CFG.LLM_FILE_READ_LINES // 2
+    preserved_tail_lines = CFG.LLM_FILE_READ_LINES // 2
 
     initial_depth = abs_path.rstrip(os.sep).count(os.sep)
     for root, dirs, files in os.walk(abs_path, topdown=True):
@@ -119,8 +120,8 @@ def glob_files(
     patterns_to_exclude = (
         exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
     )
-    preserved_head_lines = 500
-    preserved_tail_lines = 500
+    preserved_head_lines = CFG.LLM_FILE_READ_LINES // 2
+    preserved_tail_lines = CFG.LLM_FILE_READ_LINES // 2
 
     search_pattern = os.path.join(abs_path, pattern)
     candidates = glob.glob(search_pattern, recursive=True)
@@ -184,16 +185,16 @@ def read_file(
             content = f.read()
 
         total_lines = content.count("\n") + 1
-        max_chars = 100000
-        preserved_head_lines = 1000
-        preserved_tail_lines = 1000
+        max_chars = CFG.LLM_MAX_OUTPUT_CHARS
+        preserved_head_lines = CFG.LLM_FILE_READ_LINES
+        preserved_tail_lines = CFG.LLM_FILE_READ_LINES
 
         if auto_truncate:
             content, truncation_info = truncate_output(
                 content,
                 preserved_head_lines,
                 preserved_tail_lines,
-                1000,
+                CFG.LLM_FILE_READ_LINES,
                 max_chars,
             )
             start_idx = 0
@@ -375,8 +376,8 @@ def search_files(
     if not os.path.exists(abs_path):
         return {"error": f"Path not found: {path}"}
 
-    preserved_head_lines = 250
-    preserved_tail_lines = 250
+    preserved_head_lines = CFG.LLM_FILE_READ_LINES // 4
+    preserved_tail_lines = CFG.LLM_FILE_READ_LINES // 4
 
     patterns_to_exclude = (
         exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
@@ -464,11 +465,15 @@ def _get_file_matches(
     file_path: str,
     pattern: re.Pattern,
     context_lines: int = 2,
-    preserved_head_lines: int = 250,
-    preserved_tail_lines: int = 250,
+    preserved_head_lines: int | None = None,
+    preserved_tail_lines: int | None = None,
     max_line_length: int = 1000,
 ) -> list[dict[str, Any]]:
     """Search for regex matches in a file with context."""
+    if preserved_head_lines is None:
+        preserved_head_lines = CFG.LLM_FILE_READ_LINES // 4
+    if preserved_tail_lines is None:
+        preserved_tail_lines = CFG.LLM_FILE_READ_LINES // 4
     with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
         lines = f.readlines()
     matches = []
@@ -548,7 +553,10 @@ async def analyze_file(path: str, query: str, auto_truncate: bool = True) -> str
     char_limit = token_threshold * 4
 
     clipped_content, _ = truncate_output(
-        content, head_lines=1000, tail_lines=1000, max_chars=char_limit
+        content,
+        head_lines=CFG.LLM_FILE_READ_LINES,
+        tail_lines=CFG.LLM_FILE_READ_LINES,
+        max_chars=char_limit,
     )
 
     system_prompt = get_file_extractor_system_prompt()

@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Callable, List, Optional
 
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.skill.manager import Skill, SkillManager
 from zrb.util.markdown import make_markdown_section
@@ -33,10 +34,6 @@ def create_claude_skills_prompt(
         return next_handler(ctx, f"{current_prompt}\n\n{new_section}")
 
     return claude_compatibility
-
-
-# Max chars to load from project docs
-MAX_PROJECT_DOC_CHARS = 8000
 
 
 def _load_file_content(file_path: Path) -> tuple[str, str]:
@@ -85,7 +82,7 @@ def create_project_context_prompt():
 
             # Load from most specific (last occurrence)
             most_specific_path, content = occurrences[-1]
-            loaded_content = content[:MAX_PROJECT_DOC_CHARS] if content else ""
+            loaded_content = content[: CFG.LLM_PROJECT_DOC_MAX_CHARS] if content else ""
 
             if loaded_content:
                 loaded_docs.append((filename, loaded_content))

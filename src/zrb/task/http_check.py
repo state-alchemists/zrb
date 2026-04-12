@@ -3,6 +3,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from zrb.attr.type import StrAttr
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
@@ -28,7 +29,7 @@ class HttpCheck(BaseTask):
         url: StrAttr = "http://localhost",
         render_url: bool = True,
         http_method: StrAttr = "GET",
-        interval: int = 5,
+        interval: float | None = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         upstream: list[AnyTask] | AnyTask | None = None,
         fallback: list[AnyTask] | AnyTask | None = None,
@@ -53,7 +54,9 @@ class HttpCheck(BaseTask):
         self._url = url
         self._render_url = render_url
         self._http_method = http_method
-        self._interval = interval
+        self._interval = (
+            interval if interval is not None else CFG.HTTP_CHECK_INTERVAL / 1000
+        )
 
     def _get_url(self, ctx: AnyContext) -> str:
         return get_str_attr(

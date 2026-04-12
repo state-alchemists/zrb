@@ -4,6 +4,7 @@ from collections.abc import Callable
 
 from zrb.attr.type import StrAttr, fstring
 from zrb.callback.any_callback import AnyCallback
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.context.print_fn import PrintFn
@@ -81,4 +82,4 @@ class Scheduler(BaseTrigger):
                 ctx.print(f"Matching {now} with pattern: {cron_pattern}")
                 if ctx.session is not None:
                     self.push_exchange_xcom(ctx.session, now)
-            await asyncio.sleep(60)
+            await asyncio.sleep(CFG.SCHEDULER_TICK_INTERVAL / 1000)

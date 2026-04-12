@@ -54,7 +54,7 @@ def search_internet(
                 "safesearch": safe_search,
                 "language": language,
             },
-            timeout=30,
+            timeout=CFG.LLM_WEB_HTTP_TIMEOUT / 1000,
         )
         if response.status_code != 200:
             raise Exception(

@@ -184,6 +184,8 @@ class LLMChatTask(BaseTask):
         snapshot_dir: StrAttr | None = None,
         include_default_ui: bool = True,
         interactive: BoolAttr = True,
+        show_ollama_models: bool | None = None,
+        show_pydantic_ai_models: bool | None = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 0,
         retry_period: float = 0,
@@ -339,6 +341,8 @@ class LLMChatTask(BaseTask):
         self._snapshot_dir = snapshot_dir
         self._include_default_ui = include_default_ui
         self._interactive = interactive
+        self._show_ollama_models = show_ollama_models
+        self._show_pydantic_ai_models = show_pydantic_ai_models
 
     @property
     def prompt_manager(self) -> PromptManager:
@@ -835,6 +839,17 @@ class LLMChatTask(BaseTask):
         ascii_art = get_str_attr(
             ctx, self._ui_ascii_art_name, "", self._render_ui_ascii_art_name
         )
+        # Resolve show_ollama_models and show_pydantic_ai_models with CFG fallback
+        effective_show_ollama_models = (
+            CFG.LLM_SHOW_OLLAMA_MODELS
+            if self._show_ollama_models is None
+            else self._show_ollama_models
+        )
+        effective_show_pydantic_ai_models = (
+            CFG.LLM_SHOW_PYDANTIC_AI_MODELS
+            if self._show_pydantic_ai_models is None
+            else self._show_pydantic_ai_models
+        )
 
         # Resolve custom commands
         resolved_custom_commands: list[AnyCustomCommand] = []
@@ -905,6 +920,8 @@ class LLMChatTask(BaseTask):
                 custom_commands=resolved_custom_commands,
                 model=self._get_model(ctx),
                 custom_model_names=resolved_custom_model_names,
+                show_ollama_models=effective_show_ollama_models,
+                show_pydantic_ai_models=effective_show_pydantic_ai_models,
                 enable_rewind=enable_rewind,
                 snapshot_dir=snapshot_dir,
             )
@@ -961,6 +978,8 @@ class LLMChatTask(BaseTask):
                 custom_commands=resolved_custom_commands,
                 model=self._get_model(ctx),
                 custom_model_names=resolved_custom_model_names,
+                show_ollama_models=effective_show_ollama_models,
+                show_pydantic_ai_models=effective_show_pydantic_ai_models,
                 enable_rewind=enable_rewind,
                 snapshot_dir=snapshot_dir,
             )

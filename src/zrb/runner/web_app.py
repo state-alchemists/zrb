@@ -26,8 +26,6 @@ if TYPE_CHECKING:
     # We want fastapi to only be loaded when necessary to decrease footprint
     from fastapi import FastAPI
 
-SHUTDOWN_TIMEOUT = 10
-
 
 class CancelledErrorFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
@@ -88,7 +86,7 @@ def create_web_app(
         if _COROS:
             await asyncio.wait_for(
                 asyncio.gather(*_COROS, return_exceptions=True),
-                timeout=SHUTDOWN_TIMEOUT,
+                timeout=CFG.WEB_SHUTDOWN_TIMEOUT / 1000,
             )
         await _cleanup_sessions()
 

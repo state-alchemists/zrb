@@ -4,6 +4,8 @@ from typing import Any
 
 from fastapi.responses import StreamingResponse
 
+from zrb.config.config import CFG
+
 
 class SSEStreamResponse(StreamingResponse):
     def __init__(
@@ -15,13 +17,31 @@ class SSEStreamResponse(StreamingResponse):
         session = session_manager.get_session(session_id)
         self.session_id = session_id
         self._queue = session.output_queue
+        self._closed = False
 
         async def event_generator():
             yield f"event: connected\ndata: {json.dumps({'status': 'connected', 'session_id': session_id})}\n\n"
 
             while True:
+                if self._closed:
+                    break
                 try:
-                    item = await asyncio.wait_for(self._queue.get(), timeout=60)
+                    get_task = asyncio.create_task(self._queue.get())
+                    try:
+                        item = await asyncio.wait_for(
+                            get_task, timeout=CFG.LLM_SSE_KEEPALIVE_TIMEOUT / 1000
+                        )
+                    except asyncio.TimeoutError:
+                        yield ": keepalive\n\n"
+                        continue
+                    except asyncio.CancelledError:
+                        get_task.cancel()
+                        try:
+                            await get_task
+                        except asyncio.CancelledError:
+                            pass
+                        raise
+
                     if isinstance(item, dict):
                         text = item.get("text", "")
                         kind = item.get("kind", "text")
@@ -29,8 +49,6 @@ class SSEStreamResponse(StreamingResponse):
                         text = item
                         kind = "text"
                     yield f"data: {json.dumps({'type': kind, 'text': text}, ensure_ascii=False)}\n\n"
-                except asyncio.TimeoutError:
-                    yield ": keepalive\n\n"
                 except asyncio.CancelledError:
                     break
 
@@ -43,3 +61,7 @@ class SSEStreamResponse(StreamingResponse):
                 "X-Accel-Buffering": "no",
             },
         )
+
+    def close(self):
+        """Mark the stream as closed to stop the generator loop."""
+        self._closed = True

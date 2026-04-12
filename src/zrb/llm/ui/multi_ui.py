@@ -3,6 +3,7 @@ import sys
 from datetime import datetime
 from typing import Any, TextIO
 
+from zrb.config.config import CFG
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_faint
 
@@ -269,7 +270,7 @@ class MultiUI:
                 import logging
 
                 logging.getLogger(__name__).error(f"Error in message queue: {e}")
-                await asyncio.sleep(1)
+                await asyncio.sleep(CFG.LLM_UI_STATUS_INTERVAL / 1000)
 
     async def ask_user(self, prompt: str) -> str:
         """Race all UIs for input and return the first response.
