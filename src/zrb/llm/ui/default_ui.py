@@ -77,6 +77,8 @@ class UI(BaseUI):
         custom_commands: list[AnyCustomCommand] = [],
         model: "Model | str | None" = None,
         custom_model_names: list[str] = [],
+        show_ollama_models: bool = True,
+        show_pydantic_ai_models: bool = True,
         enable_rewind: bool = False,
         snapshot_dir: str = "",
     ):
@@ -142,6 +144,8 @@ class UI(BaseUI):
             custom_commands=self._custom_commands,
             history=self._input_history,
             custom_model_names=custom_model_names,
+            show_ollama_models=show_ollama_models,
+            show_pydantic_ai_models=show_pydantic_ai_models,
         )
         # Output Area (Read-only chat history)
         help_text = self._get_help_text(limit=25)

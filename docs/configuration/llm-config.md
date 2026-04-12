@@ -15,10 +15,11 @@ Zrb uses `pydantic-ai` to interface with a wide array of Large Language Models, 
 - [Journal & Context Storage](#5-journal--context-storage)
 - [Rewind & Snapshots](#6-rewind--snapshots)
 - [TUI Debugging](#7-tui-debugging)
-- [RAG Configuration](#8-rag-retrieval-augmented-generation-configuration)
-- [Search Engine Configuration](#9-search-engine-configuration)
-- [Hooks Configuration](#10-llm-hooks-configuration)
-- [Skill & Agent Search Configuration](#11-skill--agent-search-configuration)
+- [Model Autocomplete](#8-model-autocomplete)
+- [RAG Configuration](#9-rag-retrieval-augmented-generation-configuration)
+- [Search Engine Configuration](#10-search-engine-configuration)
+- [Hooks Configuration](#11-llm-hooks-configuration)
+- [Skill & Agent Search Configuration](#12-skill--agent-search-configuration)
 
 ---
 
@@ -194,7 +195,35 @@ Restore rewinds **both** the working directory files **and** the conversation hi
 
 ---
 
-## 8. RAG (Retrieval-Augmented Generation) Configuration
+## 8. Model Autocomplete
+
+When using the `/model` command in LLM chat, Zrb provides autocomplete suggestions from different model sources. These variables control which sources appear in the suggestions.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_SHOW_OLLAMA_MODELS` | Include Ollama models in autocomplete | `on` |
+| `ZRB_LLM_SHOW_PYDANTIC_AI_MODELS` | Include pydantic-ai KnownModelName models in autocomplete | `on` |
+
+### Python API
+
+```python
+from zrb import LLMChatTask
+
+task = LLMChatTask(
+    name="chat",
+    show_ollama_models=False,        # None → falls back to ZRB_LLM_SHOW_OLLAMA_MODELS
+    show_pydantic_ai_models=False,    # None → falls back to ZRB_LLM_SHOW_PYDANTIC_AI_MODELS
+)
+```
+
+### Use Cases
+
+- **Disable Ollama models** when Ollama is not installed or not running, to avoid connection errors during autocomplete
+- **Disable pydantic-ai models** to show only custom model names configured via `custom_model_names` parameter
+
+---
+
+## 9. RAG (Retrieval-Augmented Generation) Configuration
 
 For advanced RAG capabilities with vector databases like ChromaDB.
 
@@ -209,7 +238,7 @@ For advanced RAG capabilities with vector databases like ChromaDB.
 
 ---
 
-## 9. Search Engine Configuration
+## 10. Search Engine Configuration
 
 These variables control which internet search engine Zrb's LLM tools use.
 
@@ -244,7 +273,7 @@ These variables control which internet search engine Zrb's LLM tools use.
 
 ---
 
-## 10. LLM Hooks Configuration
+## 11. LLM Hooks Configuration
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -255,7 +284,7 @@ These variables control which internet search engine Zrb's LLM tools use.
 
 ---
 
-## 11. Skill & Agent Search Configuration
+## 12. Skill & Agent Search Configuration
 
 These variables control where Zrb searches for skills and agents.
 

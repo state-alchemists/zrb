@@ -33,6 +33,8 @@ class InputCompleter(Completer):
         exec_commands: list[str] = [],
         custom_commands: list[AnyCustomCommand] = [],
         custom_model_names: list[str] = [],
+        show_ollama_models: bool = True,
+        show_pydantic_ai_models: bool = True,
     ):
         from pydantic_ai.models import KnownModelName
 
@@ -49,6 +51,8 @@ class InputCompleter(Completer):
         self._exec_commands = exec_commands
         self._custom_commands = custom_commands
         self._custom_model_names = custom_model_names
+        self._show_ollama_models = show_ollama_models
+        self._show_pydantic_ai_models = show_pydantic_ai_models
 
         try:
             self._known_models = list(get_args(KnownModelName.__value__))
@@ -381,11 +385,17 @@ class InputCompleter(Completer):
         Yields:
             Completion objects for model names.
         """
-        # Custom model names first (highest priority), then known, then Ollama
+        # Custom model names first (highest priority)
         all_models = list(self._custom_model_names)
-        all_models.extend(self._known_models)
-        ollama_models = self._get_ollama_models()
-        all_models.extend(ollama_models)
+
+        # Add pydantic-ai known models if enabled
+        if self._show_pydantic_ai_models:
+            all_models.extend(self._known_models)
+
+        # Add Ollama models if enabled
+        if self._show_ollama_models:
+            ollama_models = self._get_ollama_models()
+            all_models.extend(ollama_models)
 
         yield from self._get_fuzzy_completions(
             arg_prefix,

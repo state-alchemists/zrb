@@ -120,6 +120,8 @@ class Config:
         self.DEFAULT_LLM_INCLUDE_CLAUDE_SKILLS: str = "on"
         self.DEFAULT_LLM_INCLUDE_CLI_SKILLS: str = "off"
         self.DEFAULT_LLM_INCLUDE_PROJECT_CONTEXT: str = "on"
+        self.DEFAULT_LLM_SHOW_OLLAMA_MODELS: str = "on"
+        self.DEFAULT_LLM_SHOW_PYDANTIC_AI_MODELS: str = "on"
         # LLM Search Configuration
         self.DEFAULT_LLM_SEARCH_PROJECT: str = "on"
         self.DEFAULT_LLM_SEARCH_HOME: str = "on"
@@ -1619,6 +1621,40 @@ class Config:
     @LLM_INCLUDE_PROJECT_CONTEXT.setter
     def LLM_INCLUDE_PROJECT_CONTEXT(self, value: bool):
         os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_PROJECT_CONTEXT"] = (
+            "on" if value else "off"
+        )
+
+    @property
+    def LLM_SHOW_OLLAMA_MODELS(self) -> bool:
+        """Enable/disable showing Ollama models in model completion."""
+        return to_boolean(
+            get_env(
+                "LLM_SHOW_OLLAMA_MODELS",
+                self.DEFAULT_LLM_SHOW_OLLAMA_MODELS,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_SHOW_OLLAMA_MODELS.setter
+    def LLM_SHOW_OLLAMA_MODELS(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_SHOW_OLLAMA_MODELS"] = (
+            "on" if value else "off"
+        )
+
+    @property
+    def LLM_SHOW_PYDANTIC_AI_MODELS(self) -> bool:
+        """Enable/disable showing pydantic-ai KnownModelName models in model completion."""
+        return to_boolean(
+            get_env(
+                "LLM_SHOW_PYDANTIC_AI_MODELS",
+                self.DEFAULT_LLM_SHOW_PYDANTIC_AI_MODELS,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_SHOW_PYDANTIC_AI_MODELS.setter
+    def LLM_SHOW_PYDANTIC_AI_MODELS(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_SHOW_PYDANTIC_AI_MODELS"] = (
             "on" if value else "off"
         )
 
