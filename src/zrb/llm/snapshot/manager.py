@@ -67,7 +67,15 @@ class SnapshotManager:
                 _sync_dirs, self._workdir, self._shadow_dir, True, True
             )
             commit_msg = _build_commit_message(label, message_count)
-            return await asyncio.to_thread(self._commit, commit_msg)
+            # Force an empty commit when message_count advanced but files didn't
+            # change (e.g. after a rewind followed by turns that don't touch the FS).
+            # Without this, the stale mc from the previous HEAD would be used on
+            # restore, truncating conversation history to the wrong point.
+            force_empty = (
+                message_count is not None
+                and _head_mc(self._shadow_dir) != message_count
+            )
+            return await asyncio.to_thread(self._commit, commit_msg, force_empty)
         except Exception as e:
             logger.warning(f"Snapshot failed: {e}")
             return None
@@ -187,6 +195,22 @@ def _parse_commit_message(raw: str) -> tuple[str, int | None]:
 def _safe_name(name: str) -> str:
     """Convert an arbitrary session name to a filesystem-safe directory name."""
     return "".join(c if c.isalnum() or c in "-_" else "_" for c in name)
+
+
+def _head_mc(git_dir: str) -> int | None:
+    """Return the message_count embedded in the HEAD commit message, or None."""
+    try:
+        result = subprocess.run(
+            ["git", "log", "-1", "--format=%s"],
+            cwd=git_dir,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        _, mc = _parse_commit_message(result.stdout.strip())
+        return mc
+    except Exception:
+        return None
 
 
 def _head_sha(git_dir: str) -> str | None:
