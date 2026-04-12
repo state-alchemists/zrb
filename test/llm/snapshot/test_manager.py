@@ -288,3 +288,80 @@ async def test_restore_removes_stale_subdirectory(manager, workdir):
     ok = await manager.restore_snapshot(sha)
     assert ok is True
     assert not os.path.exists(stale_dir)
+
+
+# ── take_init_snapshot ─────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_take_init_snapshot_creates_commit_for_nonempty_workdir(
+    snapshot_dir, workdir
+):
+    """take_init_snapshot syncs workdir files and creates the init commit (lines 108-119)."""
+    with open(os.path.join(workdir, "hello.txt"), "w") as f:
+        f.write("hello")
+
+    mgr = SnapshotManager(snapshot_dir, "init-session", workdir)
+    sha = await mgr.take_init_snapshot()
+
+    assert sha is not None
+    assert len(sha) == 40
+
+    snapshots = mgr.list_snapshots()
+    assert len(snapshots) == 1
+    assert snapshots[0].label == "init"
+    assert snapshots[0].message_count == 0
+
+
+@pytest.mark.asyncio
+async def test_take_init_snapshot_returns_existing_head_when_already_committed(
+    snapshot_dir, workdir
+):
+    """Calling take_init_snapshot twice returns the same SHA without a new commit (lines 111-112)."""
+    with open(os.path.join(workdir, "f.txt"), "w") as f:
+        f.write("data")
+
+    mgr = SnapshotManager(snapshot_dir, "init-idempotent", workdir)
+    sha1 = await mgr.take_init_snapshot()
+    sha2 = await mgr.take_init_snapshot()
+
+    assert sha1 == sha2
+    assert len(mgr.list_snapshots()) == 1
+
+
+@pytest.mark.asyncio
+async def test_take_init_snapshot_returns_none_when_setup_fails(workdir):
+    """When snapshot_dir is a file, take_init_snapshot returns None gracefully (lines 120-122)."""
+    with tempfile.NamedTemporaryFile() as f:
+        mgr = SnapshotManager(f.name, "fail-session", workdir)
+        result = await mgr.take_init_snapshot()
+    assert result is None
+
+
+# ── force-empty commit when message_count advances ────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_take_snapshot_force_empty_commit_when_message_count_advances(
+    snapshot_dir, workdir
+):
+    """When files haven't changed but message_count increased, a new empty commit
+    is created so the correct mc is always stored at HEAD (lines 92-96)."""
+    with open(os.path.join(workdir, "f.txt"), "w") as f:
+        f.write("same content")
+
+    mgr = SnapshotManager(snapshot_dir, "mc-session", workdir)
+    sha1 = await mgr.take_snapshot("turn 1", message_count=1)
+    assert sha1 is not None
+
+    # Same files, but message_count has advanced → must produce a NEW commit
+    sha2 = await mgr.take_snapshot("turn 2", message_count=2)
+    assert sha2 is not None
+
+    # The two SHAs must differ because a force-empty commit was made
+    assert sha1 != sha2
+
+    snapshots = mgr.list_snapshots()
+    assert len(snapshots) == 2
+    assert snapshots[0].message_count == 2
+    assert snapshots[1].message_count == 1
