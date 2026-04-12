@@ -178,6 +178,56 @@ class TestHookContext:
         assert "prompt" not in result
         assert "tool_input" not in result
 
+    def test_to_claude_json_with_tool_response_and_interrupt(self):
+        """Test to_claude_json includes tool_response and is_interrupt."""
+        ctx = HookContext(
+            event=HookEvent.POST_TOOL_USE,
+            event_data={},
+            tool_response={"result": "ok"},
+            is_interrupt=False,
+        )
+        result = ctx.to_claude_json()
+        assert result["tool_response"] == {"result": "ok"}
+        assert result["is_interrupt"] is False
+
+    def test_to_claude_json_with_stop_hook_and_team_fields(self):
+        """Test to_claude_json includes stop_hook_active, teammate_name, team_name."""
+        ctx = HookContext(
+            event=HookEvent.STOP,
+            event_data={},
+            stop_hook_active=True,
+            teammate_name="helper-bot",
+            team_name="core-team",
+        )
+        result = ctx.to_claude_json()
+        assert result["stop_hook_active"] is True
+        assert result["teammate_name"] == "helper-bot"
+        assert result["team_name"] == "core-team"
+
+    def test_to_claude_json_with_trigger_and_instructions_and_reason(self):
+        """Test to_claude_json includes trigger, custom_instructions, reason."""
+        ctx = HookContext(
+            event=HookEvent.PRE_COMPACT,
+            event_data={},
+            trigger="auto",
+            custom_instructions="Be concise",
+            reason="context limit reached",
+        )
+        result = ctx.to_claude_json()
+        assert result["trigger"] == "auto"
+        assert result["custom_instructions"] == "Be concise"
+        assert result["reason"] == "context limit reached"
+
+    def test_to_claude_json_with_permission_suggestions(self):
+        """Test to_claude_json includes permission_suggestions."""
+        ctx = HookContext(
+            event=HookEvent.PRE_TOOL_USE,
+            event_data={},
+            permission_suggestions=[{"tool": "Bash", "action": "allow"}],
+        )
+        result = ctx.to_claude_json()
+        assert result["permission_suggestions"] == [{"tool": "Bash", "action": "allow"}]
+
 
 class TestHookResultBlock:
     """Test HookResult.block() class method."""
@@ -356,6 +406,16 @@ class TestHookResultToClaudeJson:
         result = HookResult(success=True, output=None)
         json_result = result.to_claude_json()
         assert "output" not in json_result or json_result.get("output") is None
+
+    def test_to_claude_json_non_dict_hook_specific_output_is_preserved(self):
+        """Test that a non-dict hookSpecificOutput is left as-is (defensive pass)."""
+        result = HookResult(
+            success=True,
+            modifications={"hookSpecificOutput": "already-serialized-string"},
+        )
+        json_result = result.to_claude_json()
+        # The pass branch leaves the value unchanged; permissionDecision check is skipped
+        assert json_result["hookSpecificOutput"] == "already-serialized-string"
 
 
 class TestHookResultIntegration:

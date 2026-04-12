@@ -84,12 +84,15 @@ class Config:
         self.DEFAULT_LLM_UI_COMMAND_INFO: str = "/info, /help"
         self.DEFAULT_LLM_UI_COMMAND_SAVE: str = "/save"
         self.DEFAULT_LLM_UI_COMMAND_LOAD: str = "/load"
+        self.DEFAULT_LLM_UI_COMMAND_REWIND: str = "/rewind"
         self.DEFAULT_LLM_UI_COMMAND_YOLO_TOGGLE: str = "/yolo"
         self.DEFAULT_LLM_UI_COMMAND_REDIRECT_OUTPUT: str = ">, /redirect"
         self.DEFAULT_LLM_UI_COMMAND_EXEC: str = "!, /exec"
         self.DEFAULT_LLM_UI_COMMAND_SET_MODEL: str = "/model"
         self.DEFAULT_LLM_UI_COMMAND_BTW: str = "/btw"
         self.DEFAULT_LLM_HISTORY_DIR: str = ""
+        self.DEFAULT_LLM_ENABLE_REWIND: str = "off"
+        self.DEFAULT_LLM_SNAPSHOT_DIR: str = ""
         self.DEFAULT_LLM_JOURNAL_DIR: str = ""
         self.DEFAULT_LLM_JOURNAL_INDEX_FILE: str = "index.md"
         self.DEFAULT_LLM_MODEL: str = ""
@@ -825,6 +828,19 @@ class Config:
         os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_LOAD"] = ",".join(value)
 
     @property
+    def LLM_UI_COMMAND_REWIND(self) -> list[str]:
+        cmd_str = get_env(
+            "LLM_UI_COMMAND_REWIND",
+            self.DEFAULT_LLM_UI_COMMAND_REWIND,
+            self.ENV_PREFIX,
+        )
+        return [cmd.strip() for cmd in cmd_str.split(",") if cmd.strip() != ""]
+
+    @LLM_UI_COMMAND_REWIND.setter
+    def LLM_UI_COMMAND_REWIND(self, value: list[str]):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_REWIND"] = ",".join(value)
+
+    @property
     def LLM_UI_COMMAND_YOLO_TOGGLE(self) -> list[str]:
         cmd_str = get_env(
             "LLM_UI_COMMAND_YOLO_TOGGLE",
@@ -907,6 +923,31 @@ class Config:
     @LLM_HISTORY_DIR.setter
     def LLM_HISTORY_DIR(self, value: str):
         os.environ[f"{self.ENV_PREFIX}_LLM_HISTORY_DIR"] = value
+
+    @property
+    def LLM_ENABLE_REWIND(self) -> bool:
+        return to_boolean(
+            get_env(
+                "LLM_ENABLE_REWIND", self.DEFAULT_LLM_ENABLE_REWIND, self.ENV_PREFIX
+            )
+        )
+
+    @LLM_ENABLE_REWIND.setter
+    def LLM_ENABLE_REWIND(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_ENABLE_REWIND"] = "on" if value else "off"
+
+    @property
+    def LLM_SNAPSHOT_DIR(self) -> str:
+        default = self.DEFAULT_LLM_SNAPSHOT_DIR
+        if default == "":
+            default = os.path.expanduser(
+                os.path.join("~", f".{self.ROOT_GROUP_NAME}", "llm-snapshots")
+            )
+        return get_env("LLM_SNAPSHOT_DIR", default, self.ENV_PREFIX)
+
+    @LLM_SNAPSHOT_DIR.setter
+    def LLM_SNAPSHOT_DIR(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_SNAPSHOT_DIR"] = value
 
     @property
     def LLM_JOURNAL_DIR(self) -> str:

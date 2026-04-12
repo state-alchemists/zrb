@@ -135,6 +135,7 @@ class BaseUI:
         info_commands: list[str] = [],
         save_commands: list[str] = [],
         load_commands: list[str] = [],
+        rewind_commands: list[str] = [],
         redirect_output_commands: list[str] = [],
         yolo_toggle_commands: list[str] = [],
         set_model_commands: list[str] = [],
@@ -142,6 +143,8 @@ class BaseUI:
         btw_commands: list[str] = [],
         custom_commands: list[AnyCustomCommand] = [],
         model: "Model | str | None" = None,
+        enable_rewind: bool = False,
+        snapshot_dir: str = "",
     ):
         self._ctx = ctx
         self._yolo_xcom_key = yolo_xcom_key
@@ -163,6 +166,7 @@ class BaseUI:
         self._info_commands = info_commands
         self._save_commands = save_commands
         self._load_commands = load_commands
+        self._rewind_commands = rewind_commands
         self._redirect_output_commands = redirect_output_commands
         self._yolo_toggle_commands = yolo_toggle_commands
         self._set_model_commands = set_model_commands
@@ -178,6 +182,17 @@ class BaseUI:
         self._cwd = os.getcwd()
         self._git_info = "Checking..."
         self._system_info_task: asyncio.Task | None = None
+
+        # Snapshot / rewind
+        self._snapshot_manager = None
+        if enable_rewind and snapshot_dir and self._conversation_session_name:
+            from zrb.llm.snapshot.manager import SnapshotManager
+
+            self._snapshot_manager = SnapshotManager(
+                snapshot_dir=snapshot_dir,
+                session_name=self._conversation_session_name,
+                workdir=self._cwd,
+            )
 
         # Attachments
         self._pending_attachments: list["UserContent"] = list(initial_attachments)
@@ -624,6 +639,21 @@ class BaseUI:
         self.invalidate_ui()
         try:
             timestamp = datetime.now().strftime("%H:%M")
+            # Take filesystem snapshot before this AI turn (also records message count
+            # so that a rewind can restore conversation history to a consistent state).
+            # Failures are non-fatal — the AI turn must proceed regardless.
+            if self._snapshot_manager is not None:
+                try:
+                    label = user_message[:80].replace("\n", " ").strip()
+                    current_msgs = self._history_manager.load(
+                        self._conversation_session_name
+                    )
+                    await self._snapshot_manager.take_snapshot(
+                        f"{timestamp}: {label}",
+                        message_count=len(current_msgs),
+                    )
+                except Exception as snap_err:
+                    logger.warning(f"Snapshot skipped: {snap_err}")
             # Header first
             self.append_to_output(f"\n🤖 {timestamp} >>\n")
             session = self._create_sesion_for_llm_task(user_message, attachments)
@@ -859,6 +889,103 @@ class BaseUI:
                     stylize_faint(f"\n  📂 Conversation session switched to: {name}\n")
                 )
                 return True
+        return False
+
+    def _handle_rewind_command(self, text: str) -> bool:
+        if not self._snapshot_manager:
+            return False
+        text = text.strip()
+        for cmd in self._rewind_commands:
+            if not (
+                text.lower() == cmd.lower()
+                or text.lower().startswith(cmd.lower() + " ")
+            ):
+                continue
+            arg = text[len(cmd) :].strip()
+            if arg:
+                # Restore snapshot by 1-based index or SHA prefix
+                snapshots = self._snapshot_manager.list_snapshots()
+                sha: str | None = None
+                message_count: int | None = None
+                try:
+                    idx = int(arg) - 1
+                    if 0 <= idx < len(snapshots):
+                        sha = snapshots[idx].sha
+                        message_count = snapshots[idx].message_count
+                    else:
+                        self.append_to_output(
+                            stylize_error(f"\n  ❌ No snapshot at index {arg}\n")
+                        )
+                        return True
+                except ValueError:
+                    sha = arg  # treat as SHA prefix/full
+                    # Find message_count from matching snapshot
+                    for snap in snapshots:
+                        if snap.sha.startswith(sha):
+                            message_count = snap.message_count
+                            break
+
+                async def do_restore(s=sha, mc=message_count):
+                    self._is_thinking = True
+                    self.invalidate_ui()
+                    try:
+                        self.append_to_output(
+                            stylize_faint(f"\n  ⏪ Restoring snapshot {s[:8]}...\n")
+                        )
+                        ok = await self._snapshot_manager.restore_snapshot(s)
+                        if ok:
+                            # Rewind conversation history to match the snapshot
+                            if mc is not None:
+                                try:
+                                    msgs = self._history_manager.load(
+                                        self._conversation_session_name
+                                    )
+                                    if len(msgs) > mc:
+                                        self._history_manager.update(
+                                            self._conversation_session_name,
+                                            msgs[:mc],
+                                        )
+                                        self._history_manager.save(
+                                            self._conversation_session_name
+                                        )
+                                except Exception as e:
+                                    logger.warning(
+                                        f"Failed to rewind conversation history: {e}"
+                                    )
+                            self.append_to_output(
+                                stylize_faint(f"\n  ✅ Snapshot {s[:8]} restored.\n")
+                            )
+                        else:
+                            self.append_to_output(
+                                stylize_error("\n  ❌ Failed to restore snapshot.\n")
+                            )
+                    finally:
+                        self._is_thinking = False
+                        self.invalidate_ui()
+
+                task = asyncio.get_event_loop().create_task(do_restore())
+                self._background_tasks.add(task)
+                task.add_done_callback(self._background_tasks.discard)
+            else:
+                # List available snapshots
+                snapshots = self._snapshot_manager.list_snapshots()
+                if not snapshots:
+                    self.append_to_output(
+                        stylize_faint(
+                            f"\n  No snapshots yet. Snapshots are taken before each AI turn.\n"
+                        )
+                    )
+                else:
+                    lines = ["\n  Snapshots (newest first):"]
+                    for i, snap in enumerate(snapshots, 1):
+                        lines.append(
+                            f"  {i:>3}. [{snap.sha[:8]}] {snap.timestamp}  {snap.label}"
+                        )
+                    lines.append(
+                        f"\n  Use `{cmd} <number>` or `{cmd} <sha>` to restore.\n"
+                    )
+                    self.append_to_output(stylize_faint("\n".join(lines)))
+            return True
         return False
 
     def _handle_redirect_command(self, text: str) -> bool:
@@ -1177,6 +1304,11 @@ class BaseUI:
         add_cmd_help(self._attach_commands, "Attach file (usage: {cmd} <path>)")
         add_cmd_help(self._save_commands, "Save conversation (usage: {cmd} <name>)")
         add_cmd_help(self._load_commands, "Load conversation (usage: {cmd} <name>)")
+        if self._snapshot_manager is not None:
+            add_cmd_help(
+                self._rewind_commands,
+                "List snapshots or restore one (usage: {cmd} [<n>|<sha>])",
+            )
         add_cmd_help(
             self._redirect_output_commands,
             "Save last output to file (usage: {cmd} <file>)",

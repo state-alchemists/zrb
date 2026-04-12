@@ -26,6 +26,7 @@ class InputCompleter(Completer):
         info_commands: list[str] = [],
         save_commands: list[str] = [],
         load_commands: list[str] = [],
+        rewind_commands: list[str] = [],
         redirect_output_commands: list[str] = [],
         summarize_commands: list[str] = [],
         set_model_commands: list[str] = [],
@@ -41,6 +42,7 @@ class InputCompleter(Completer):
         self._info_commands = info_commands
         self._save_commands = save_commands
         self._load_commands = load_commands
+        self._rewind_commands = rewind_commands
         self._redirect_output_commands = redirect_output_commands
         self._summarize_commands = summarize_commands
         self._set_model_commands = set_model_commands
@@ -159,6 +161,7 @@ class InputCompleter(Completer):
             + self._info_commands
             + self._save_commands
             + self._load_commands
+            + self._rewind_commands
             + self._redirect_output_commands
             + self._set_model_commands
             + self._exec_commands
@@ -256,6 +259,13 @@ class InputCompleter(Completer):
             lower_word,
             word,
             lambda cmd: f"Load conversation (i.e., {cmd} <name>)",
+        )
+        yield from self._yield_command_completions(
+            self._rewind_commands,
+            prefix,
+            lower_word,
+            word,
+            lambda cmd: f"List or restore snapshots (i.e., {cmd} [<n>|<sha>])",
         )
         yield from self._yield_command_completions(
             self._redirect_output_commands,

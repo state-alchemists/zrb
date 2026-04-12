@@ -380,3 +380,73 @@ class TestCheckUnrecommendedCommandsEdgeCases:
         """Test script with no violations."""
         violations = check_unrecommended_commands("printf 'hello world'")
         assert violations == {}
+
+
+class TestKillPidWithChildren:
+    """Tests for kill_pid with child processes to cover lines 210-211."""
+
+    def test_kill_pid_with_child_processes(self):
+        """Test kill_pid on a process that has child processes."""
+        import subprocess
+
+        # Start a shell that spawns a child process
+        proc = subprocess.Popen(["bash", "-c", "sleep 60 & sleep 60"])
+        pid = proc.pid
+
+        printed_messages = []
+
+        def capture_print(msg, **kwargs):
+            printed_messages.append(msg)
+
+        import time
+
+        time.sleep(0.1)  # Let child processes start
+        kill_pid(pid, print_method=capture_print)
+
+        # Verify that some "Killing" messages were printed
+        assert any("illing" in msg for msg in printed_messages)
+
+
+class TestRunCommandGracefulKill:
+    """Tests for run_command timeout/cancellation that hit the graceful kill path."""
+
+    @pytest.mark.asyncio
+    async def test_run_command_timeout_triggers_graceful_kill(self):
+        """Test that a timeout on a stubborn process triggers forceful kill path (lines 132-139)."""
+        # Use a script that ignores SIGINT to force the graceful kill timeout
+        # The process catches SIGINT but doesn't exit, causing TimeoutError in wait_for
+        cmd = [
+            "python3",
+            "-c",
+            (
+                "import signal, time\n"
+                "signal.signal(signal.SIGINT, signal.SIG_IGN)\n"
+                "time.sleep(10)\n"
+            ),
+        ]
+        printed_messages = []
+
+        def capture_print(msg, **kwargs):
+            printed_messages.append(msg)
+
+        with pytest.raises(asyncio.TimeoutError):
+            await run_command(cmd, print_method=capture_print, timeout=0.5)
+
+        # The process ignored SIGINT so wait_for timed out, triggering kill_pid path
+
+
+class TestReadStreamPrintFallback:
+    """Tests for the print fallback path in __read_stream (lines 188-189)."""
+
+    @pytest.mark.asyncio
+    async def test_run_command_with_print_method_no_end_kwarg(self):
+        """Test run_command where print method doesn't accept 'end' keyword (line 188-189)."""
+
+        def print_no_kwargs(msg):
+            # Does not accept keyword arguments - triggers the except branch
+            pass
+
+        cmd = ["printf", "hello\\nworld"]
+        # This should not raise even if print_method doesn't accept end=
+        result, return_code = await run_command(cmd, print_method=print_no_kwargs)
+        assert return_code == 0

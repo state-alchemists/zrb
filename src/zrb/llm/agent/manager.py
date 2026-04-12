@@ -288,7 +288,9 @@ class SubAgentManager:
                 search_dirs.append(dir_path)
 
         # 7. BUILTIN (always included, lowest priority)
-        builtin_path = Path(os.path.dirname(__file__)).parent / "llm_plugin" / "agents"
+        builtin_path = (
+            Path(os.path.dirname(__file__)).parent.parent / "llm_plugin" / "agents"
+        )
         if builtin_path.exists() and builtin_path.is_dir():
             search_dirs.append(builtin_path)
 
