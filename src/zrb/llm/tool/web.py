@@ -13,7 +13,8 @@ async def open_web_page(url: str, summarize: bool = True) -> dict:
 
     When summarize=True (default), a sub-agent extracts high-signal info and reduces token usage.
 
-    MANDATE: For web searches, use `SearchInternet` instead.
+    MANDATES:
+    - For web searches by query, use `SearchInternet` instead.
     """
     try:
         html_content, links = await _fetch_page_content(url)

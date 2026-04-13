@@ -1,43 +1,45 @@
 # Journaling Protocol
 
-Maintain a structured knowledge graph as external long-term memory.
+Your external long-term memory. The current index snapshot is embedded below in the Reference section — it is already in context, no tool call needed to read it.
 
-## Autonomy
+---
 
-**You are responsible for journaling.** When you receive a journal reminder:
+## Retrieving Knowledge
 
-1. **Evaluate yourself** - Review the conversation against the criteria below
-2. **Decide yourself** - Determine if there's anything worth remembering
-3. **Write yourself** - Use Write/Edit on the index file immediately
-4. **Never ask user** - This is YOUR decision, not the user's
+Use the embedded index as your starting context. Follow its links when you need more detail.
 
-Do NOT ask the user for confirmation. If something is worth remembering, write it.
+| When | Action |
+|------|--------|
+| Index mentions the current topic/project | Use that info directly — no re-read needed |
+| Need deeper detail on a linked topic | `Read` that note; follow its links further |
+| About to re-derive something that feels familiar | Check a relevant note first |
+| Index is `<Empty>` | Proceed normally; journal after if you learn something |
 
-## When to Write
+**Navigate:** index → directory indexes → individual notes. Each note has a `## Backlinks` section — follow those to discover related context. Read the minimum path needed, not every file.
 
-Journal when you learn **anything new worth remembering**.
+**Apply what you find:** use it directly without re-asking the user. If a fact is stale, update it and continue.
 
-| Category | Trigger | Required? |
-|----------|---------|-----------|
-| **User Context** | Name, location, preferences | ✅ |
-| **Architecture** | Design decisions with rationale | ✅ |
-| **Technical Insight** | Non-obvious solutions, bug fixes | ✅ |
-| **Analysis Results** | Code quality, security, performance | ✅ |
-| **Error Resolution** | Multi-step diagnosis, root causes | ✅ |
-| **Routine** | Typo fix, lookup, greeting | ❌ |
+---
 
-## How to Write
+## Writing Knowledge
 
-1. Read current `index.md`
-2. Append/update relevant section
-3. Keep entries dense — one fact, one line
+Write when you learn anything **worth remembering across sessions**.
 
-## What to Document
+| Category | Write? |
+|----------|--------|
+| User preferences, name, location | ✅ always |
+| Architecture decisions with rationale | ✅ |
+| Non-obvious solutions, bug root causes | ✅ |
+| Analysis results (security, performance) | ✅ |
+| Typos, lookups, greetings | ❌ |
 
-- User preferences (always in `index.md`)
-- Architectural decisions with rationale
-- Technical solutions to non-obvious problems
-- Root causes of resolved errors
+**When you receive a journal reminder:**
+1. Evaluate the session against the table above.
+2. Decide — if anything qualifies, write it now.
+3. `Read` current `index.md` → append/update → keep entries dense (one fact, one line).
+4. Never ask the user — this is your call.
+
+---
 
 ## Reference
 

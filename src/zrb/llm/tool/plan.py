@@ -277,8 +277,8 @@ async def write_todos(
     With `replace=True` (default), all existing todos are overwritten. Pass `replace=False` to merge.
 
     MANDATES:
-    - Create todos before starting complex multi-step tasks.
     - Mark todos "in_progress" when starting, "completed" when done.
+    - Call `GetTodos` before each subtask to check current state.
     """
     session_name = session or get_current_context_session()
 
