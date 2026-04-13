@@ -1,5 +1,52 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.20.1 (April 13, 2026)
+
+- **Improvement: Parallel Chunk Summarization**:
+  - `chunk_and_summarize()` now runs all chunks concurrently via `asyncio.gather` instead of sequentially.
+  - Up-front chunk building provides total count before launching tasks.
+  - Progress indicator shows `Compressing chunk X/total (N messages)...`
+  - Errors from individual chunks still propagate correctly.
+
+- **Improvement: Tool Call Preparation Indicator**:
+  - New static `🔄 Prepare tool parameters...` indicator on `PartStartEvent(ToolCallPart)`.
+  - Providers that stream deltas (OpenAI, Anthropic) overwrite the static line with the animated spinner.
+  - Providers that don't stream (e.g., Ollama) leave the static line visible for better feedback.
+  - New `was_tool_call_start` flag ensures clean transitions between static and animated states.
+
+- **Improvement: Worktree Repo-Local Storage**:
+  - Worktrees now placed inside the repo under `.{ROOT_GROUP_NAME}/worktree/` instead of system temp directory.
+  - Uses `git rev-parse --show-toplevel` to resolve the git repo root.
+  - Keeps worktrees co-located with the repository they belong to.
+
+- **Feature: Bidirectional Journal Graph**:
+  - Journal restructured as a bidirectional graph with a backlinks protocol.
+  - Every forward link must have a backlink entry in the target note's `## Backlinks` section.
+  - New Link Convention with relative paths from the journal root.
+  - Step-by-step guide for creating new notes with proper backlink maintenance.
+  - Updated `journal_mandate.md` with embedded index context and retrieval guidance.
+  - Updated `core-journaling` skill with backlink protocol, maintenance rules, and ~50-line file limit guidance.
+
+- **Improvement: Active Skills Tracking in Summarizer**:
+  - New `<active_skills>` section in the `conversational_summarizer.md` state snapshot XML.
+  - Skills activated via `ActivateSkill` are now tracked and restored on context recovery.
+  - Restored agent re-activates skills if the task still requires that domain expertise.
+
+- **Improvement: Mandate Updates**:
+  - Added "Memory Operations" as rule priority #4: journaling and skill activation are autonomous; exempt from Scope Discipline.
+  - Marked Delegation and Skills sections with `*(if available)*` conditional markers.
+  - Added `WriteMany`, `ClearTodos`, `ExitWorktree`, `ListWorktrees` to tool selection table.
+  - Marked conditional tools with `*(if available)*` in the tool selection table.
+
+- **Improvement: Tool Docstring Updates**:
+  - `WriteTodos`: Replaced "Create todos before starting complex multi-step tasks" mandate with "Call `GetTodos` before each subtask to check current state".
+  - `OpenWebPage`: Reformatted `MANDATE` to `MANDATES` with bulleted guidance.
+
+- **Maintenance: Dependency Updates**:
+  - Updated `pydantic-ai-slim` from `~1.76.0` to `~1.80.0`.
+  - Updated `pydantic-graph` from `1.76.0` to `1.80.0` (transitive).
+  - Updated `poetry.lock` with latest compatible versions.
+
 ## 2.20.0 (April 12, 2026)
 
 - **Feature: Rewind/Snapshot System**:
