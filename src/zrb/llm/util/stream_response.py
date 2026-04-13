@@ -41,6 +41,10 @@ def create_event_handler(
     progress_char_list = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
     progress_char_index = 0
     was_tool_call_delta = False
+    # True after PartStartEvent(ToolCallPart) prints the static indicator.
+    # Lets the first ToolCallPartDelta skip the extra newline (line already exists)
+    # and overwrite the static text. Cleared when was_tool_call_delta goes True.
+    was_tool_call_start = False
     event_prefix = indentation
     # Track printed tool calls to avoid duplicate prints in deferred tool flow
     # (FunctionToolCallEvent fires twice: once when deferred, once when executed)
@@ -74,9 +78,21 @@ def create_event_handler(
         from pydantic_ai import ToolCallPart
         from pydantic_ai.messages import TextPart
 
-        nonlocal progress_char_index, was_tool_call_delta, event_prefix
+        nonlocal progress_char_index, was_tool_call_delta, was_tool_call_start, event_prefix
         if isinstance(event, PartStartEvent):
             if isinstance(event.part, ToolCallPart):
+                # Show a static indicator so the user sees something while parameters
+                # are being prepared.  Providers that stream deltas (OpenAI, Anthropic)
+                # will overwrite this line with the animated spinner on the first
+                # ToolCallPartDelta.  Providers that don't stream (e.g. Ollama) will
+                # leave this line as-is, and the 🧰 line will appear below it.
+                if not show_tool_call_detail:
+                    fprint(
+                        f"{event_prefix}🔄 Prepare tool parameters...",
+                        preserve_leading_newline=True,
+                        kind="progress",
+                    )
+                    was_tool_call_start = True
                 return
             if isinstance(event.part, TextPart):
                 content = _get_event_part_content(event)
@@ -94,22 +110,30 @@ def create_event_handler(
                     kind="thinking",
                 )
             was_tool_call_delta = False
+            was_tool_call_start = False
 
         elif isinstance(event, PartDeltaEvent):
             if isinstance(event.delta, TextPartDelta):
                 fprint(f"{event.delta.content_delta}", kind="streaming")
                 was_tool_call_delta = False
+                was_tool_call_start = False
             elif isinstance(event.delta, ThinkingPartDelta):
                 fprint(f"{event.delta.content_delta}", kind="thinking")
                 was_tool_call_delta = False
+                was_tool_call_start = False
             elif isinstance(event.delta, ToolCallPartDelta):
                 if show_tool_call_detail:
                     fprint(f"{event.delta.args_delta}", kind="tool_call")
                     was_tool_call_delta = True
+                    was_tool_call_start = False
                 else:
                     progress_char = progress_char_list[progress_char_index]
-                    if not was_tool_call_delta:
+                    if not was_tool_call_delta and not was_tool_call_start:
+                        # Neither static indicator nor prior delta: add a newline
+                        # first so the spinner starts on its own line.
                         fprint("\n", kind="progress")
+                    # Overwrite the current line (static indicator or prior spinner)
+                    # with the animated spinner character.
                     print_fn(
                         f"\r{indentation}🔄 Prepare tool parameters {progress_char}",
                         "progress",
@@ -118,9 +142,11 @@ def create_event_handler(
                     if progress_char_index >= len(progress_char_list):
                         progress_char_index = 0
                     was_tool_call_delta = True
+                    was_tool_call_start = False
         elif isinstance(event, FunctionToolCallEvent):
             args = _get_truncated_event_part_args(event)
             if was_tool_call_delta and not show_tool_call_detail:
+                # Clear the animated spinner line before printing the tool call.
                 print_fn("\r", "progress")
 
             tool_call_id = event.part.tool_call_id
