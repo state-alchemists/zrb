@@ -40,6 +40,54 @@ class TestExtractNodeFromArgs:
         assert path == ["my_task"]
         assert residual == []
 
+    def test_web_only_skips_cli_only_task(self):
+        """Test that web_only=True skips cli_only tasks."""
+        from zrb.util.group import extract_node_from_args, NodeNotFoundError
+
+        root = MagicMock()
+        root.name = "root"
+        cli_task = MagicMock()
+        cli_task.cli_only = True
+        # get_task_by_alias returns a cli_only task, which should be filtered
+        root.get_task_by_alias.return_value = cli_task
+        root.get_group_by_alias.return_value = None
+
+        with pytest.raises(NodeNotFoundError):
+            extract_node_from_args(root, ["cli_task"], web_only=True)
+
+    def test_web_only_skips_empty_group(self):
+        """Test that web_only=True skips groups with no web tasks."""
+        from zrb.util.group import extract_node_from_args, NodeNotFoundError
+
+        root = MagicMock()
+        root.name = "root"
+        # No task
+        root.get_task_by_alias.return_value = None
+        # Empty group (no subtasks)
+        empty_group = MagicMock()
+        empty_group.subtasks = {}
+        empty_group.subgroups = {}
+        root.get_group_by_alias.return_value = empty_group
+
+        with pytest.raises(NodeNotFoundError):
+            extract_node_from_args(root, ["empty_group"], web_only=True)
+
+    def test_both_task_and_group_at_last_position(self):
+        """Test that when both task and group exist at last arg position, task wins."""
+        from zrb.util.group import extract_node_from_args
+
+        root = MagicMock()
+        task = MagicMock()
+        task.cli_only = False
+        group = MagicMock()
+        # Return both task and group for the same alias
+        root.get_task_by_alias.return_value = task
+        root.get_group_by_alias.return_value = group
+
+        # This is the last arg, so task should be preferred over group
+        node, path, residual = extract_node_from_args(root, ["ambiguous"])
+        assert node == task  # task wins when both exist at last position
+
     def test_extract_group(self):
         """Test extracting a group from args."""
         from zrb.util.group import extract_node_from_args
@@ -130,6 +178,39 @@ class TestGetNodePath:
         task = MagicMock()
         result = get_node_path(group, task)
         assert result is None
+
+    def test_get_node_path_direct_subgroup(self):
+        """Test get_node_path finding a direct subgroup."""
+        from zrb.group.any_group import AnyGroup
+        from zrb.util.group import get_node_path
+
+        group = MagicMock()
+        subgroup = MagicMock(spec=AnyGroup)
+        group.subtasks = {}
+        group.subgroups = {"subgroup_alias": subgroup}
+
+        result = get_node_path(group, subgroup)
+        assert result == ["subgroup_alias"]
+
+    def test_get_node_path_nested_subgroup(self):
+        """Test get_node_path finding a nested subgroup."""
+        from zrb.group.any_group import AnyGroup
+        from zrb.task.any_task import AnyTask
+        from zrb.util.group import get_node_path
+
+        root = MagicMock()
+        mid = MagicMock()
+        # deep_task is the target
+        deep_task = MagicMock(spec=AnyTask)
+
+        mid.subtasks = {"deep_task": deep_task}
+        mid.subgroups = {}
+
+        root.subtasks = {}
+        root.subgroups = {"mid": mid}
+
+        result = get_node_path(root, deep_task)
+        assert result == ["mid", "deep_task"]
 
 
 class TestGetNonEmptySubgroups:

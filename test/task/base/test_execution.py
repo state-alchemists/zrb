@@ -228,3 +228,148 @@ async def test_execute_fallbacks():
         session = MagicMock(spec=AnySession)
         await execute_fallbacks(task, session)
         assert mock_exec_chain_patch.called
+
+
+@pytest.mark.asyncio
+async def test_execute_task_action_not_allowed():
+    """Test execute_task_action returns early when not allowed to run."""
+    from zrb.task.base.execution import execute_task_action
+
+    task = BaseTask(name="test_task")
+    session = MagicMock(spec=AnySession)
+    session.is_allowed_to_run.return_value = False
+
+    ctx = MagicMock(spec=AnyContext)
+    with patch.object(task, "get_ctx", return_value=ctx):
+        result = await execute_task_action(task, session)
+
+    assert result is None
+    ctx.log_info.assert_called_with("Not allowed to run")
+
+
+@pytest.mark.asyncio
+async def test_run_default_action_none():
+    """Test run_default_action when action is None."""
+    from zrb.task.base.execution import run_default_action
+
+    task = BaseTask(name="task")  # No action defined
+    ctx = MagicMock(spec=AnyContext)
+
+    result = await run_default_action(task, ctx)
+
+    assert result is None
+    ctx.log_debug.assert_called_with("No action defined for this task.")
+
+
+@pytest.mark.asyncio
+async def test_run_default_action_string():
+    """Test run_default_action with string action."""
+    from zrb.task.base.execution import run_default_action
+
+    task = BaseTask(name="task", action="rendered_string")
+    ctx = MagicMock(spec=AnyContext)
+    ctx.render.return_value = "rendered_value"
+
+    result = await run_default_action(task, ctx)
+
+    assert result == "rendered_value"
+
+
+
+def test_skip_successors_marks_tasks_skipped():
+    """Test skip_successors marks tasks as skipped."""
+    from zrb.task.base.execution import skip_successors
+
+    s1 = BaseTask(name="s1")
+    task = BaseTask(name="task", successor=[s1])
+    session = MagicMock(spec=AnySession)
+
+    ctx = MagicMock(spec=AnyContext)
+    status = MagicMock(spec=TaskStatus)
+    status.is_skipped = False
+
+    session.get_task_status.return_value = status
+    with patch.object(task, "get_ctx", return_value=ctx):
+        skip_successors(task, session)
+
+    status.mark_as_skipped.assert_called_once()
+
+
+def test_skip_fallbacks_marks_tasks_skipped():
+    """Test skip_fallbacks marks tasks as skipped."""
+    from zrb.task.base.execution import skip_fallbacks
+
+    f1 = BaseTask(name="f1")
+    task = BaseTask(name="task", fallback=[f1])
+    session = MagicMock(spec=AnySession)
+
+    ctx = MagicMock(spec=AnyContext)
+    status = MagicMock(spec=TaskStatus)
+    status.is_skipped = False
+
+    session.get_task_status.return_value = status
+    with patch.object(task, "get_ctx", return_value=ctx):
+        skip_fallbacks(task, session)
+
+    status.mark_as_skipped.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_execute_action_until_ready_with_readiness_checks():
+    """Test execute_action_until_ready with readiness checks."""
+    from zrb.task.base.execution import execute_action_until_ready
+
+    check_task = BaseTask(name="check_task")
+    task = BaseTask(name="task", readiness_check=[check_task])
+
+    session = MagicMock(spec=AnySession)
+    session.is_terminated = False
+
+    ctx = MagicMock(spec=AnyContext)
+    ctx.xcom = MagicMock()
+    ctx.xcom.get.return_value = None
+
+    check_status = MagicMock(spec=TaskStatus)
+    check_status.is_completed = True
+    check_status.is_failed = False
+
+    task_status = MagicMock(spec=TaskStatus)
+    task_status.is_completed = True
+    task_status.is_failed = False
+
+    def get_status(t):
+        if t is check_task:
+            return check_status
+        return task_status
+
+    session.get_task_status.side_effect = get_status
+
+    def mock_exec_chain(session):
+        async def _coro():
+            return None
+        return _coro()
+
+    with patch.object(check_task, "exec_chain", new=Mock(side_effect=mock_exec_chain)):
+        with patch.object(task, "get_ctx", return_value=ctx):
+            with patch("asyncio.sleep") as mock_sleep:
+                mock_sleep.return_value = None
+
+                async def mock_sleep_coro(t):
+                    return None
+
+                mock_sleep.side_effect = lambda t: mock_sleep_coro(t)
+
+                with patch("zrb.task.base.execution.execute_action_with_retry") as mock_exec:
+                    async def mock_action_coro(t, s):
+                        return "result"
+
+                    mock_exec.side_effect = mock_action_coro
+
+                    with patch("asyncio.create_task") as mock_create_task:
+                        mock_task_obj = MagicMock(spec=asyncio.Task)
+                        mock_create_task.return_value = mock_task_obj
+
+                        result = await execute_action_until_ready(task, session)
+
+    assert result is None  # Returns None after deferring
+    session.defer_action.assert_called()
