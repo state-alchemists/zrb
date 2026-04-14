@@ -148,57 +148,50 @@ class BaseTask(AnyTask):
     def inputs(self) -> list[AnyInput]:
         return get_combined_inputs(self)
 
+    def _append_unique_tasks(
+        self, items: "AnyTask | list[AnyTask]", target: "list[AnyTask]"
+    ) -> None:
+        """Appends tasks to target list, skipping duplicates."""
+        to_add = items if isinstance(items, list) else [items]
+        for item in to_add:
+            if item not in target:
+                target.append(item)
+
     @property
     def fallbacks(self) -> list[AnyTask]:
         """Returns the list of fallback tasks."""
         return self._fallbacks
 
-    def append_fallback(self, fallbacks: AnyTask | list[AnyTask]):
+    def append_fallback(self, fallbacks: "AnyTask | list[AnyTask]"):
         """Appends fallback tasks, ensuring no duplicates."""
-        to_add = fallbacks if isinstance(fallbacks, list) else [fallbacks]
-        for fb in to_add:
-            if fb not in self._fallbacks:
-                self._fallbacks.append(fb)
+        self._append_unique_tasks(fallbacks, self._fallbacks)
 
     @property
     def successors(self) -> list[AnyTask]:
         """Returns the list of successor tasks."""
         return self._successors
 
-    def append_successor(self, successors: AnyTask | list[AnyTask]):
+    def append_successor(self, successors: "AnyTask | list[AnyTask]"):
         """Appends successor tasks, ensuring no duplicates."""
-        to_add = successors if isinstance(successors, list) else [successors]
-        for succ in to_add:
-            if succ not in self._successors:
-                self._successors.append(succ)
+        self._append_unique_tasks(successors, self._successors)
 
     @property
     def readiness_checks(self) -> list[AnyTask]:
         """Returns the list of readiness check tasks."""
         return self._readiness_checks
 
-    def append_readiness_check(self, readiness_checks: AnyTask | list[AnyTask]):
+    def append_readiness_check(self, readiness_checks: "AnyTask | list[AnyTask]"):
         """Appends readiness check tasks, ensuring no duplicates."""
-        to_add = (
-            readiness_checks
-            if isinstance(readiness_checks, list)
-            else [readiness_checks]
-        )
-        for rc in to_add:
-            if rc not in self._readiness_checks:
-                self._readiness_checks.append(rc)
+        self._append_unique_tasks(readiness_checks, self._readiness_checks)
 
     @property
     def upstreams(self) -> list[AnyTask]:
         """Returns the list of upstream tasks."""
         return self._upstreams
 
-    def append_upstream(self, upstreams: AnyTask | list[AnyTask]):
+    def append_upstream(self, upstreams: "AnyTask | list[AnyTask]"):
         """Appends upstream tasks, ensuring no duplicates."""
-        to_add = upstreams if isinstance(upstreams, list) else [upstreams]
-        for up in to_add:
-            if up not in self._upstreams:
-                self._upstreams.append(up)
+        self._append_unique_tasks(upstreams, self._upstreams)
 
     def get_ctx(self, session: AnySession) -> AnyContext:
         return build_task_context(self, session)

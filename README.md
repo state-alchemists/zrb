@@ -251,6 +251,7 @@ Pre-packaged operations you can use immediately.
 ### III. Advanced Features
 Taking your automation to the next level.
 - [LLM Assistant (Pollux) & AI Tasks](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/llm-integration.md)
+- [MCP Support (Model Context Protocol)](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/mcp-support.md)
 - [LSP Support (Language Server Protocol)](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/lsp-support.md)
 - [Hook System (Claude Code Compatible)](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/hooks.md)
 - [White-labeling: Create a Custom CLI](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/white-labeling.md)
@@ -262,7 +263,7 @@ Taking your automation to the next level.
 
 ### V. Guides & Specifications
 - [Web UI Guide](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/web-ui.md)
-- [Upgrading Guide (v0.x to v1.x)](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/upgrading-guide.md)
+- [Upgrading Guide](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/upgrading-guide.md)
 - [Maintainer Guide](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/maintainer-guide.md)
 - [Changelog](https://github.com/state-alchemists/zrb/blob/main/docs/changelog.md)
 - [Claude Code Compatibility](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/claude-compatibility.md)
