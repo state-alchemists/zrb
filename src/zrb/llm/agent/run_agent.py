@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from contextvars import ContextVar
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias, Union
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias
 
 from zrb.config.config import CFG
 from zrb.llm.approval.approval_channel import ApprovalChannel, current_approval_channel
@@ -29,14 +29,14 @@ if TYPE_CHECKING:
     )
     from pydantic_ai.messages import UserPromptPart
 
-    AnyToolConfirmation: TypeAlias = Union[
+    AnyToolConfirmation: TypeAlias = (
         Callable[
             [ToolCallPart],
             ToolApproved | ToolDenied | Awaitable[ToolApproved | ToolDenied],
-        ],
-        ToolCallHandler,
-        None,
-    ]
+        ]
+        | ToolCallHandler
+        | None
+    )
 else:
     AnyToolConfirmation: TypeAlias = Any
 

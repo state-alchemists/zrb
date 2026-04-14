@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
@@ -24,17 +24,13 @@ def serve_chat_page(
     @app.get("/ui/chat", response_class=HTMLResponse)
     @app.get("/ui/chat/", response_class=HTMLResponse)
     async def chat_page(request: Request) -> HTMLResponse:
-        _DIR = os.path.dirname(__file__)
+        _DIR = Path(__file__).parent
         _GLOBAL_TEMPLATE = read_file(
-            os.path.join(
-                os.path.dirname(os.path.dirname(__file__)),
-                "static",
-                "global_template.html",
-            )
+            str(_DIR.parent / "static" / "global_template.html")
         )
-        _VIEW_TEMPLATE = read_file(os.path.join(_DIR, "view.html"))
-        _CHAT_CSS = read_file(os.path.join(_DIR, "chat.css"))
-        _CHAT_JS = read_file(os.path.join(_DIR, "chat.js"))
+        _VIEW_TEMPLATE = read_file(str(_DIR / "view.html"))
+        _CHAT_CSS = read_file(str(_DIR / "chat.css"))
+        _CHAT_JS = read_file(str(_DIR / "chat.js"))
 
         web_title = f"{CFG.WEB_TITLE} - Chat"
         web_jargon = "Chat with your AI Assistant"

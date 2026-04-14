@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 from zrb.config.config import CFG
 from zrb.group.any_group import AnyGroup
@@ -15,13 +15,11 @@ from zrb.util.string.format import fstring_format
 def show_group_page(user: User, root_group: AnyGroup, group: AnyGroup, url: str):
     from fastapi.responses import HTMLResponse
 
-    _DIR = os.path.dirname(__file__)
+    _DIR = Path(__file__).parent
     _GLOBAL_TEMPLATE = read_file(
-        os.path.join(
-            os.path.dirname(os.path.dirname(_DIR)), "static", "global_template.html"
-        )
+        str(_DIR.parent.parent / "static" / "global_template.html")
     )
-    _VIEW_TEMPLATE = read_file(os.path.join(_DIR, "view.html"))
+    _VIEW_TEMPLATE = read_file(str(_DIR / "view.html"))
     web_title = CFG.WEB_TITLE if CFG.WEB_TITLE.strip() != "" else root_group.name
     web_jargon = (
         CFG.WEB_JARGON if CFG.WEB_JARGON.strip() != "" else root_group.description

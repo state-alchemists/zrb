@@ -208,9 +208,7 @@ class SubAgentManager:
         self._loaded = True
         return list(self._agents.values())
 
-    def _add_agents_from_root(
-        self, root: Path, search_dirs: list[str | Path]
-    ) -> None:
+    def _add_agents_from_root(self, root: Path, search_dirs: list[str | Path]) -> None:
         """
         Appends agent directories found under `root` to `search_dirs`.
 
@@ -275,9 +273,7 @@ class SubAgentManager:
                 search_dirs.append(dir_path)
 
         # 6. BUILTIN (always included, lowest priority)
-        builtin_path = (
-            Path(os.path.dirname(__file__)).parent.parent / "llm_plugin" / "agents"
-        )
+        builtin_path = Path(__file__).parent.parent.parent / "llm_plugin" / "agents"
         if builtin_path.exists() and builtin_path.is_dir():
             search_dirs.append(builtin_path)
 

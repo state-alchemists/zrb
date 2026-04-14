@@ -9,7 +9,7 @@ import json
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional, Union
+from typing import Any
 
 
 class LSPError(Exception):
@@ -97,8 +97,8 @@ class Diagnostic:
     range: Range
     message: str
     severity: int = 1  # DiagnosticSeverity.ERROR
-    source: Optional[str] = None
-    code: Optional[Union[str, int]] = None
+    source: str | None = None
+    code: str | int | None = None
 
     @classmethod
     def from_dict(cls, data: dict) -> "Diagnostic":
@@ -162,7 +162,7 @@ class DocumentSymbol:
     kind: int
     range: Range
     selection_range: Range
-    detail: Optional[str] = None
+    detail: str | None = None
     children: list["DocumentSymbol"] = field(default_factory=list)
 
     @classmethod
@@ -193,7 +193,7 @@ class SymbolInformation:
     name: str
     kind: int
     location: Location
-    container_name: Optional[str] = None
+    container_name: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict) -> "SymbolInformation":
@@ -210,7 +210,7 @@ class Hover:
     """Hover information from LSP."""
 
     contents: Any  # Can be string, MarkedString, or MarkupContent
-    range: Optional[Range] = None
+    range: Range | None = None
 
     @classmethod
     def from_dict(cls, data: dict) -> "Hover":
@@ -233,8 +233,8 @@ class JSONRPCMessage:
     @staticmethod
     def create_request(
         method: str,
-        params: Optional[dict] = None,
-        request_id: Optional[Union[str, int]] = None,
+        params: dict | None = None,
+        request_id: str | int | None = None,
     ) -> str:
         """Create a JSON-RPC request message."""
         if request_id is None:
@@ -245,7 +245,7 @@ class JSONRPCMessage:
         return json.dumps(message)
 
     @staticmethod
-    def create_notification(method: str, params: Optional[dict] = None) -> str:
+    def create_notification(method: str, params: dict | None = None) -> str:
         """Create a JSON-RPC notification message (no response expected)."""
         message = {"jsonrpc": "2.0", "method": method}
         if params is not None:
@@ -255,7 +255,7 @@ class JSONRPCMessage:
     @staticmethod
     def parse_response(
         data: str,
-    ) -> tuple[Optional[Union[str, int]], Any, Optional[dict]]:
+    ) -> tuple[str | int | None, Any, dict | None]:
         """Parse a JSON-RPC response.
 
         Returns:
@@ -307,7 +307,7 @@ class LSPProtocol:
     def create_initialize_params(
         cls,
         root_path: str,
-        initialization_options: Optional[dict] = None,
+        initialization_options: dict | None = None,
     ) -> dict:
         """Create parameters for initialize request."""
         from pathlib import Path
