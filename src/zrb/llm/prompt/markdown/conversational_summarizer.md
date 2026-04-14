@@ -28,13 +28,17 @@ When conversation history grows too large, you distill the entire history into a
 ### 1. Comprehensive Goal Tracking
 The `<overall_goal>` MUST include ALL active user objectives. If the user shifts topics (e.g., research → coding), do NOT discard previous goals unless explicitly completed. State goals as a prioritized list if multiple exist.
 
-### 2. Analysis Tracking
+### 2. Active Skills Tracking
+In `<active_skills>`, list every skill name that was activated via `ActivateSkill` during this conversation.
+The restored agent must re-activate them if the task still requires that domain expertise.
+
+### 3. Analysis Tracking
 In `<key_knowledge>`, explicitly list:
 - Files that have been read
 - Specific insights gained
 - State clearly if a file has been "fully analyzed" to prevent re-reading
 
-### 3. Task Precision
+### 4. Task Precision
 The `<task_state>` must be a strictly chronological list of steps for ALL active goals. Mark completed steps as `[DONE]`.
 
 ---
@@ -74,6 +78,11 @@ Your final output must consist **EXCLUSIVELY** of the `<state_snapshot>` XML obj
         <!-- Explicit constraints, preferences, or technical rules from user or discovered during development. -->
         <!-- Example: "Use tailwind for styling", "Keep functions under 20 lines", "Avoid modifying 'legacy/' directory" -->
     </active_constraints>
+
+    <active_skills>
+        <!-- Skills activated via ActivateSkill during this conversation. Re-activate on next turn if still needed. -->
+        <!-- Example: "core-coding", "core-journaling" -->
+    </active_skills>
 
     <key_knowledge>
         <!-- Crucial facts and technical discoveries. -->

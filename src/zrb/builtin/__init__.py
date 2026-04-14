@@ -20,6 +20,7 @@ from zrb.builtin.setup.tmux.tmux import setup_tmux
 from zrb.builtin.setup.ubuntu import setup_ubuntu
 from zrb.builtin.setup.zsh.zsh import setup_zsh
 from zrb.builtin.shell.autocomplete.bash import make_bash_autocomplete
+from zrb.builtin.shell.autocomplete.powershell import make_powershell_autocomplete
 from zrb.builtin.shell.autocomplete.subcmd import get_shell_subcommands
 from zrb.builtin.shell.autocomplete.zsh import make_zsh_autocomplete
 from zrb.builtin.todo import (
@@ -74,6 +75,7 @@ __all__ = [
     "setup_ubuntu",
     "setup_zsh",
     "make_bash_autocomplete",
+    "make_powershell_autocomplete",
     "get_shell_subcommands",
     "make_zsh_autocomplete",
     "add_todo",

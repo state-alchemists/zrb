@@ -3,35 +3,40 @@ import os
 from datetime import datetime
 
 
-async def enter_worktree(branch_name: str = "") -> str:
+async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
     """
     Creates an isolated git worktree on a new branch. Returns the path to the worktree directory.
 
     Use for risky experiments, parallel approaches, or staging changes before merging.
     Use `keep_branch=True` in `ExitWorktree` to preserve the branch for later merging.
+    Use `cwd` to specify the repository root if the current directory is not the target repo.
+    After creation: pass the worktree path as `cwd` to `Bash`; use absolute paths with `Read`, `Write`, `Edit`, and `Grep` (they don't accept `cwd`).
     """
-    cwd = os.getcwd()
+    from zrb.config.config import CFG
 
-    # Verify we're inside a git repo
-    check = await asyncio.create_subprocess_exec(
+    cwd = cwd or os.getcwd()
+
+    # Resolve git repo root
+    root_proc = await asyncio.create_subprocess_exec(
         "git",
         "rev-parse",
-        "--git-dir",
+        "--show-toplevel",
         cwd=cwd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
-    _, err = await check.communicate()
-    if check.returncode != 0:
+    root_out, err = await root_proc.communicate()
+    if root_proc.returncode != 0:
         raise RuntimeError(f"Not inside a git repository: {err.decode().strip()}")
+    git_root = root_out.decode().strip()
 
     if not branch_name:
         branch_name = f"worktree-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
-    # Place the worktree in the system temp directory
-    import tempfile
-
-    worktree_path = os.path.join(tempfile.gettempdir(), f"zrb-{branch_name}")
+    # Place the worktree inside the repo under .{root_group}/worktree/
+    worktree_dir = os.path.join(git_root, f".{CFG.ROOT_GROUP_NAME}", "worktree")
+    os.makedirs(worktree_dir, exist_ok=True)
+    worktree_path = os.path.join(worktree_dir, branch_name)
 
     proc = await asyncio.create_subprocess_exec(
         "git",
@@ -59,7 +64,7 @@ async def exit_worktree(worktree_path: str, keep_branch: bool = False) -> str:
     """
     Removes a git worktree created with `EnterWorktree`.
 
-    Use `keep_branch=True` to preserve the branch for merging; default deletes it.
+    Use `keep_branch=True` to preserve the branch for merging; default deletes it along with all its commits.
     Always clean up worktrees after use.
     """
     cwd = os.getcwd()

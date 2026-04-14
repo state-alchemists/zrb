@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any
 
+from zrb.config.config import CFG
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 
 logger = logging.getLogger(__name__)
@@ -51,9 +52,11 @@ class ThreadPoolHookExecutor:
     - Exit code handling (0=success, 2=block)
     """
 
-    def __init__(self, max_workers: int = 10, default_timeout: int = 30):
+    def __init__(self, max_workers: int = 10, default_timeout: int | None = None):
         self.max_workers = max_workers
-        self.default_timeout = default_timeout
+        self.default_timeout = (
+            default_timeout if default_timeout is not None else CFG.HOOKS_TIMEOUT / 1000
+        )
         self._executor: ThreadPoolExecutor | None = None
         self._lock = threading.RLock()
         self._shutdown_event = threading.Event()

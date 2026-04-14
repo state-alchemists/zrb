@@ -13,7 +13,7 @@ from zrb.llm.lsp.manager import lsp_manager
 async def find_definition(
     symbol_name: str,
     file_path: str,
-    symbol_kind: Optional[str] = None,
+    symbol_kind: str = "",
 ) -> dict:
     """
     Find where a symbol (class, function, variable) is defined.
@@ -27,7 +27,9 @@ async def find_definition(
     - Symbol kind hints: "class", "function", "method", "variable", "constant".
     - Returns the file path, line number, and context.
     """
-    return await lsp_manager.find_definition(symbol_name, file_path, symbol_kind)
+    return await lsp_manager.find_definition(
+        symbol_name, file_path, symbol_kind or None
+    )
 
 
 async def find_references(

@@ -4,7 +4,7 @@ from zrb.runner.cli import cli
 
 
 def create_list_zrb_task_tool():
-    def list_zrb_tasks_impl(group_name: str | None = None) -> str:
+    def list_zrb_tasks_impl(group_name: str = "") -> str:
         target_group = cli
         if group_name:
             parts = group_name.split()

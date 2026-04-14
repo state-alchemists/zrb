@@ -113,7 +113,12 @@ def _get_tool_version(cmd: str, args: list[str]) -> str:
         return ""
     try:
         # Capture both stdout and stderr because some tools (like java) write to stderr
-        res = subprocess.run([cmd] + args, capture_output=True, text=True, timeout=1)
+        res = subprocess.run(
+            [cmd] + args,
+            capture_output=True,
+            text=True,
+            timeout=CFG.LLM_GIT_CMD_TIMEOUT / 1000,
+        )
         # Note: some tools might exit with non-zero when just asking version (unlikely but possible)
         # or we might want to capture output even if return code is weird, but strict is safer.
         if res.returncode == 0:

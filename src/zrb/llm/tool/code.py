@@ -145,7 +145,7 @@ async def _get_lsp_context(file_path: str, abs_dir: str) -> dict | None:
 async def analyze_code(
     path: str,
     query: str,
-    file_pattern: str | None = None,
+    file_pattern: str = "",
     exclude_patterns: list[str] | None = None,
     use_lsp: bool = True,
 ) -> str:
@@ -159,6 +159,7 @@ async def analyze_code(
     - For single-file analysis, use `AnalyzeFile` instead.
     - For simple file listing, use `Glob` or `LS`.
     - Use `file_pattern` to limit scope (e.g., `*.py`).
+    - Write specific queries (e.g., "how is auth implemented?") not vague ones (e.g., "explain this code").
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
@@ -170,7 +171,7 @@ async def analyze_code(
     )
 
     include_patterns = None
-    if file_pattern is not None:
+    if file_pattern:
         if file_pattern.startswith("*."):
             ext = file_pattern[2:]
             if ext in extensions:

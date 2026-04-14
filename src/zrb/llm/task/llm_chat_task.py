@@ -119,6 +119,11 @@ class LLMChatTask(BaseTask):
         model_settings: (
             ModelSettings | Callable[[AnyContext], ModelSettings] | None
         ) = None,
+        custom_model_names: StrListAttr | None = None,
+        model_getter: Callable[[Model | str | None], Model | str | None] | None = None,
+        model_renderer: (
+            Callable[[Model | str | None], Model | str | None] | None
+        ) = None,
         conversation_name: StrAttr | None = None,
         render_conversation_name: bool = True,
         history_manager: AnyHistoryManager | None = None,
@@ -149,6 +154,7 @@ class LLMChatTask(BaseTask):
         ui_info_commands: list[str] | None = None,
         ui_save_commands: list[str] | None = None,
         ui_load_commands: list[str] | None = None,
+        ui_rewind_commands: list[str] | None = None,
         ui_redirect_output_commands: list[str] | None = None,
         ui_yolo_toggle_commands: list[str] | None = None,
         ui_set_model_commands: list[str] | None = None,
@@ -174,8 +180,12 @@ class LLMChatTask(BaseTask):
         tool_policies: list[ToolPolicy] | None = None,
         argument_formatters: list[ArgumentFormatter] | None = None,
         markdown_theme: "Theme | None" = None,
+        enable_rewind: bool | None = None,
+        snapshot_dir: StrAttr | None = None,
         include_default_ui: bool = True,
         interactive: BoolAttr = True,
+        show_ollama_models: bool | None = None,
+        show_pydantic_ai_models: bool | None = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 0,
         retry_period: float = 0,
@@ -251,6 +261,9 @@ class LLMChatTask(BaseTask):
         self._model = model
         self._render_model = render_model
         self._model_settings = model_settings
+        self._custom_model_names = custom_model_names
+        self._model_getter = model_getter
+        self._model_renderer = model_renderer
         self._conversation_name = conversation_name
         self._render_conversation_name = render_conversation_name
         self._history_manager = history_manager
@@ -283,6 +296,9 @@ class LLMChatTask(BaseTask):
         )
         self._ui_load_commands = (
             ui_load_commands if ui_load_commands is not None else []
+        )
+        self._ui_rewind_commands = (
+            ui_rewind_commands if ui_rewind_commands is not None else []
         )
         self._ui_redirect_output_commands = (
             ui_redirect_output_commands
@@ -321,8 +337,12 @@ class LLMChatTask(BaseTask):
             write_files_formatter,
         ]
         self._markdown_theme = markdown_theme
+        self._enable_rewind = enable_rewind
+        self._snapshot_dir = snapshot_dir
         self._include_default_ui = include_default_ui
         self._interactive = interactive
+        self._show_ollama_models = show_ollama_models
+        self._show_pydantic_ai_models = show_pydantic_ai_models
 
     @property
     def prompt_manager(self) -> PromptManager:
@@ -349,6 +369,38 @@ class LLMChatTask(BaseTask):
     def set_history_manager(self, history_manager: "AnyHistoryManager") -> None:
         """Set the history manager for this task."""
         self._history_manager = history_manager
+
+    @property
+    def custom_model_names(self) -> "StrListAttr | None":
+        return self._custom_model_names
+
+    @custom_model_names.setter
+    def custom_model_names(self, value: "StrListAttr | None"):
+        self._custom_model_names = value
+
+    @property
+    def model_getter(
+        self,
+    ) -> "Callable[[Model | str | None], Model | str | None] | None":
+        return self._model_getter
+
+    @model_getter.setter
+    def model_getter(
+        self, value: "Callable[[Model | str | None], Model | str | None] | None"
+    ):
+        self._model_getter = value
+
+    @property
+    def model_renderer(
+        self,
+    ) -> "Callable[[Model | str | None], Model | str | None] | None":
+        return self._model_renderer
+
+    @model_renderer.setter
+    def model_renderer(
+        self, value: "Callable[[Model | str | None], Model | str | None] | None"
+    ):
+        self._model_renderer = value
 
     def set_approval_channel(self, channel: "ApprovalChannel | None"):
         """Set the approval channel for tool confirmations."""
@@ -458,15 +510,25 @@ class LLMChatTask(BaseTask):
             else self._history_manager
         )
 
-        # 2. Resolve UI Commands
+        # 2. Resolve rewind settings
+        effective_enable_rewind = (
+            CFG.LLM_ENABLE_REWIND
+            if self._enable_rewind is None
+            else self._enable_rewind
+        )
+        effective_snapshot_dir = get_str_attr(
+            ctx, self._snapshot_dir, CFG.LLM_SNAPSHOT_DIR, True
+        )
+
+        # 3. Resolve UI Commands
         ui_commands = self._get_ui_commands()
 
-        # 3. Resolve tools/toolsets from factories using parent context
+        # 4. Resolve tools/toolsets from factories using parent context
         # LLMChatTask factories use the parent (LLMChatTask) context
         resolved_tools = self._get_all_tools(ctx)
         resolved_toolsets = self._get_all_toolsets(ctx)
 
-        # 4. Create core LLM task
+        # 5. Create core LLM task
         llm_task_core = self._create_llm_task_core(
             ctx,
             ui_commands["summarize"],
@@ -476,7 +538,7 @@ class LLMChatTask(BaseTask):
             resolved_toolsets,
         )
 
-        # 5. Run Interactive or Non-Interactive
+        # 6. Run Interactive or Non-Interactive
         # Note: AsyncExitStack for toolsets is handled by LLMTask._exec_action
         if not interactive:
             return await self._run_non_interactive_session(
@@ -497,6 +559,8 @@ class LLMChatTask(BaseTask):
             initial_conversation_name=initial_conversation_name,
             initial_yolo=initial_yolo,
             initial_attachments=initial_attachments,
+            enable_rewind=effective_enable_rewind,
+            snapshot_dir=effective_snapshot_dir,
         )
 
     def _get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
@@ -553,6 +617,11 @@ class LLMChatTask(BaseTask):
                 self._ui_load_commands
                 if self._ui_load_commands
                 else CFG.LLM_UI_COMMAND_LOAD
+            ),
+            "rewind": (
+                self._ui_rewind_commands
+                if self._ui_rewind_commands
+                else CFG.LLM_UI_COMMAND_REWIND
             ),
             "yolo_toggle": (
                 self._ui_yolo_toggle_commands
@@ -692,6 +761,8 @@ class LLMChatTask(BaseTask):
             attachment=lambda ctx: ctx.input.attachments,
             model=lambda ctx: ctx.input.get("model"),
             render_model=False,
+            model_getter=self._model_getter,
+            model_renderer=self._model_renderer,
             summarize_command=summarize_commands,
         )
 
@@ -732,6 +803,8 @@ class LLMChatTask(BaseTask):
         initial_conversation_name: str,
         initial_yolo: bool | frozenset[str],
         initial_attachments: list[UserContent],
+        enable_rewind: bool = False,
+        snapshot_dir: str = "",
     ) -> Any:
         from zrb.llm.ui.base_ui import BaseUI
 
@@ -755,6 +828,9 @@ class LLMChatTask(BaseTask):
                 resolved_uis.append(factory_ui)
 
         # 2. Resolve UI attributes for default UI
+        resolved_custom_model_names = get_attr(ctx, self._custom_model_names, []) or []
+        if not isinstance(resolved_custom_model_names, list):
+            resolved_custom_model_names = []
         ui_greeting = get_str_attr(ctx, self._ui_greeting, "", self._render_ui_greeting)
         ui_assistant_name = get_str_attr(
             ctx, self._ui_assistant_name, "", self._render_ui_assistant_name
@@ -762,6 +838,17 @@ class LLMChatTask(BaseTask):
         ui_jargon = get_str_attr(ctx, self._ui_jargon, "", self._render_ui_jargon)
         ascii_art = get_str_attr(
             ctx, self._ui_ascii_art_name, "", self._render_ui_ascii_art_name
+        )
+        # Resolve show_ollama_models and show_pydantic_ai_models with CFG fallback
+        effective_show_ollama_models = (
+            CFG.LLM_SHOW_OLLAMA_MODELS
+            if self._show_ollama_models is None
+            else self._show_ollama_models
+        )
+        effective_show_pydantic_ai_models = (
+            CFG.LLM_SHOW_PYDANTIC_AI_MODELS
+            if self._show_pydantic_ai_models is None
+            else self._show_pydantic_ai_models
         )
 
         # Resolve custom commands
@@ -824,6 +911,7 @@ class LLMChatTask(BaseTask):
                 info_commands=ui_commands["info"],
                 save_commands=ui_commands["save"],
                 load_commands=ui_commands["load"],
+                rewind_commands=ui_commands["rewind"],
                 yolo_toggle_commands=ui_commands["yolo_toggle"],
                 set_model_commands=ui_commands["set_model"],
                 redirect_output_commands=ui_commands["redirect_output"],
@@ -831,6 +919,11 @@ class LLMChatTask(BaseTask):
                 btw_commands=ui_commands["btw"],
                 custom_commands=resolved_custom_commands,
                 model=self._get_model(ctx),
+                custom_model_names=resolved_custom_model_names,
+                show_ollama_models=effective_show_ollama_models,
+                show_pydantic_ai_models=effective_show_pydantic_ai_models,
+                enable_rewind=enable_rewind,
+                snapshot_dir=snapshot_dir,
             )
             # Add default UI first, then factory UIs
             all_uis = [default_ui] + resolved_uis
@@ -876,6 +969,7 @@ class LLMChatTask(BaseTask):
                 info_commands=ui_commands["info"],
                 save_commands=ui_commands["save"],
                 load_commands=ui_commands["load"],
+                rewind_commands=ui_commands["rewind"],
                 yolo_toggle_commands=ui_commands["yolo_toggle"],
                 set_model_commands=ui_commands["set_model"],
                 redirect_output_commands=ui_commands["redirect_output"],
@@ -883,6 +977,11 @@ class LLMChatTask(BaseTask):
                 btw_commands=ui_commands["btw"],
                 custom_commands=resolved_custom_commands,
                 model=self._get_model(ctx),
+                custom_model_names=resolved_custom_model_names,
+                show_ollama_models=effective_show_ollama_models,
+                show_pydantic_ai_models=effective_show_pydantic_ai_models,
+                enable_rewind=enable_rewind,
+                snapshot_dir=snapshot_dir,
             )
 
         # 4. Load and display session history if session name is provided

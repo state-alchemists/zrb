@@ -17,6 +17,7 @@ from abc import abstractmethod
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable, TextIO
 
+from zrb.config.config import CFG
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.ui.base_ui import BaseUI
@@ -342,7 +343,7 @@ class SimpleUI(BaseUI):
     async def _run_loop(self):
         """Override this for custom event loop (e.g., WebSocket listener)."""
         while True:
-            await asyncio.sleep(1)
+            await asyncio.sleep(CFG.LLM_UI_STATUS_INTERVAL / 1000)
 
 
 # =============================================================================
@@ -458,7 +459,7 @@ class EventDrivenUI(SimpleUI):
         """Start the event loop and wait."""
         await self.start_event_loop()
         while True:
-            await asyncio.sleep(1)
+            await asyncio.sleep(CFG.LLM_UI_STATUS_INTERVAL / 1000)
 
 
 # =============================================================================
@@ -478,7 +479,7 @@ class BufferedOutputMixin:
         class TelegramUI(EventDrivenUI, BufferedOutputMixin):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                BufferedOutputMixin.__init__(self, flush_interval=0.5)
+                BufferedOutputMixin.__init__(self)
 
             async def send_text(self, text: str):
                 await self.bot.send_message(self.chat_id, text)
@@ -488,10 +489,22 @@ class BufferedOutputMixin:
     (e.g. send ``kind="progress"`` immediately without buffering).
     """
 
-    def __init__(self, flush_interval: float = 0.5, max_buffer_size: int = 2000):
+    def __init__(
+        self,
+        flush_interval: float | None = None,
+        max_buffer_size: int | None = None,
+    ):
         self._buffer: list[str] = []
-        self._flush_interval = flush_interval
-        self._max_buffer_size = max_buffer_size
+        self._flush_interval = (
+            flush_interval
+            if flush_interval is not None
+            else CFG.LLM_UI_FLUSH_INTERVAL / 1000
+        )
+        self._max_buffer_size = (
+            max_buffer_size
+            if max_buffer_size is not None
+            else CFG.LLM_UI_MAX_BUFFER_SIZE
+        )
         self._flush_task: asyncio.Task | None = None
         self._flush_lock = asyncio.Lock()
 

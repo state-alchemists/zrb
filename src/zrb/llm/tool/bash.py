@@ -5,6 +5,7 @@ import re
 import signal
 import tempfile
 
+from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
 from zrb.util.cli.style import stylize_faint
 from zrb.util.truncate import truncate_output
@@ -12,10 +13,11 @@ from zrb.util.truncate import truncate_output
 
 async def run_shell_command(
     command: str,
+    cwd: str = "",
     timeout: int = 30,
     preserved_head_lines: int = 500,
     preserved_tail_lines: int = 500,
-    max_chars: int = 100000,
+    max_chars: int | None = None,
 ) -> str:
     """
     Executes a non-interactive shell command. Streams stdout/stderr live and returns truncated output.
@@ -26,14 +28,17 @@ async def run_shell_command(
     - Always pass non-interactive flags (e.g., `-y`, `--yes`, `CI=true`) to prevent hanging.
     - Default timeout is 30 seconds; timed-out processes may continue in background—check with `ps aux | grep <name>`.
     - Batch independent commands with `&&` or `;` to reduce round trips.
+    - Use `cwd` to set the working directory; required when operating inside a worktree or a different project directory.
     """
-    cwd = os.getcwd()
+    if max_chars is None:
+        max_chars = CFG.LLM_MAX_OUTPUT_CHARS
+    cwd = cwd or os.getcwd()
     is_windows = platform.system() == "Windows"
 
     wrapper_command, temp_pid_file = _prepare_command(command, is_windows)
 
     try:
-        process = await _start_process(wrapper_command, is_windows)
+        process = await _start_process(wrapper_command, is_windows, cwd)
 
         stdout_lines = []
         stderr_lines = []
@@ -94,7 +99,9 @@ def _prepare_command(command: str, is_windows: bool) -> tuple[str, str | None]:
     return wrapper_command, temp_pid_file
 
 
-async def _start_process(command: str, is_windows: bool) -> asyncio.subprocess.Process:
+async def _start_process(
+    command: str, is_windows: bool, cwd: str
+) -> asyncio.subprocess.Process:
     """Starts the subprocess with appropriate settings."""
     # start_new_session=True (via os.setsid) ensures the shell gets its own process group,
     # allowing us to use `pgrep -g` effectively to find all processes
@@ -103,6 +110,7 @@ async def _start_process(command: str, is_windows: bool) -> asyncio.subprocess.P
         command,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
+        cwd=cwd,
         preexec_fn=os.setsid if not is_windows else None,
     )
 
@@ -140,7 +148,9 @@ async def _terminate_process(process: asyncio.subprocess.Process, is_windows: bo
         else:
             process.terminate()
 
-        await asyncio.wait_for(process.wait(), timeout=5)
+        await asyncio.wait_for(
+            process.wait(), timeout=CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000
+        )
     except (ProcessLookupError, asyncio.TimeoutError):
         if not is_windows:
             try:

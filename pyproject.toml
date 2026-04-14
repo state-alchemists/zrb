@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zrb"
-version = "2.18.1"
+version = "2.20.1"
 description = "Your Automation Powerhouse"
 authors = ["Go Frendi Gunawan <gofrendiasgard@gmail.com>"]
 license = "AGPL-3.0-or-later"
@@ -49,7 +49,7 @@ ulid-py = "^1.1.0"
 psutil = "^7.0.0"
 
 # NOTE: Look at https://github.com/pydantic/pydantic-ai/blob/main/pydantic_ai_slim/pyproject.toml
-pydantic-ai-slim = "~1.76.0"
+pydantic-ai-slim = "~1.80.0"
 
 
 # NOTE: Make sure the following dependencies are not conflicting with pydantic-ai-slim
@@ -85,7 +85,7 @@ Pillow = ">=10.0.0"
 
 # Security fix: CVE-2026-34070
 # langchain-core is a transitive dependency via voyageai
-langchain-core = {version = ">=1.2.22", optional = true}
+langchain-core = {version = ">=1.2.28", optional = true}
 
 # Security fix: CVE-2026-23491 - DoS via uncontrolled recursion in ASN.1 decoding
 # pyasn1 is a transitive dependency via google-auth -> pyasn1-modules and google-auth -> rsa.
@@ -101,6 +101,11 @@ pygments = ">=2.20.0"
 # aiohttp is a transitive dependency via voyageai and xai-sdk.
 # We pin >=3.13.4 to ensure the patched version is used.
 aiohttp = {version = ">=3.13.4", optional = true}
+
+# Security fix: CVE-2026-39892
+# cryptography is a transitive dependency via pdfminer-six (pulled in by pdfplumber) and google-auth.
+# We pin >=46.0.7 to ensure the patched version is used.
+cryptography = ">=46.0.7"
 
 [tool.poetry.extras]
 # Install all extras:
@@ -135,23 +140,6 @@ tomlkit = "^0.13.3"
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"
 norecursedirs = "playground src/zrb/builtin/project/add/fastapp/fastapp_template"
-
-[tool.coverage.run]
-omit = [
-    "zrb_init.py",
-    "test/*",
-    "*/__init__.py",
-    "*/any_*.py",
-    "src/zrb/__main__.py",
-    "src/zrb/llm/hook/interface.py",
-]
-
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "if TYPE_CHECKING:",
-    "raise NotImplementedError",
-]
 
 [tool.poetry.scripts]
 zrb = "zrb.__main__:serve_cli"

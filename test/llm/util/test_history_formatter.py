@@ -242,3 +242,148 @@ class TestTruncate:
         result = _truncate("Hello World This is a Long Text", max_length=15)
         assert len(result) == 15
         assert result.endswith("...")
+
+
+# ── Additional coverage tests ────────────────────────────────────────────────
+
+
+def test_retry_prompt_part_with_tool_name():
+    """RetryPromptPart with tool_name set should show the tool name (lines 83-84, 107-112)."""
+    messages = [
+        ModelRequest(
+            parts=[
+                RetryPromptPart(content="Please retry the call", tool_name="my_tool"),
+            ]
+        ),
+    ]
+    result = format_history_as_text(messages)
+    assert "Retry Prompt" in result
+    assert "my_tool" in result
+
+
+def test_retry_prompt_part_without_tool_name():
+    """RetryPromptPart without tool_name should still format correctly."""
+    messages = [
+        ModelRequest(
+            parts=[
+                RetryPromptPart(content="Generic retry"),
+            ]
+        ),
+    ]
+    result = format_history_as_text(messages)
+    assert "Retry Prompt" in result
+    assert "Generic retry" in result
+
+
+def test_system_prompt_part_with_dynamic_ref():
+    """SystemPromptPart with dynamic_ref attribute should show the ref (line 102)."""
+    part = SystemPromptPart(content="Injected system content")
+    # Monkey-patch a dynamic_ref attribute onto the part instance
+    object.__setattr__(part, "dynamic_ref", "my-ref-func")
+
+    messages = [ModelRequest(parts=[part])]
+    result = format_history_as_text(messages)
+    assert "System Prompt" in result
+    assert "my-ref-func" in result
+
+
+def test_tool_return_resolved_from_pending_calls():
+    """ToolReturnPart with no tool_name but matching pending call_id (lines 201-202)."""
+    from unittest.mock import MagicMock
+
+    # First a response carrying a real tool call to populate pending_tool_calls
+    call_part = ToolCallPart(tool_name="search_tool", args={}, tool_call_id="tc-99")
+
+    # A mock return part: tool_name is None, but tool_call_id matches
+    return_part = MagicMock()
+    return_part.part_kind = "tool-return"
+    return_part.tool_name = None
+    return_part.tool_call_id = "tc-99"
+    return_part.content = "results here"
+    return_part.outcome = "success"
+
+    # Use MagicMock for the request to carry the fake return part
+    request_msg = MagicMock()
+    request_msg.kind = "request"
+    request_msg.timestamp = None
+    request_msg.parts = [return_part]
+
+    messages = [
+        ModelResponse(parts=[call_part], timestamp=datetime.now()),
+        request_msg,
+    ]
+    result = format_history_as_text(messages)
+
+    # The tool name should be resolved from pending_tool_calls
+    assert "search_tool" in result
+    assert "🔠" in result
+
+
+def test_tool_return_unknown_when_no_name_and_no_matching_call():
+    """ToolReturnPart with no tool_name and no matching call_id → 'unknown' (line 204)."""
+    from unittest.mock import MagicMock
+
+    part = MagicMock()
+    part.part_kind = "tool-return"
+    part.tool_name = None
+    part.tool_call_id = "nonexistent-id"
+    part.content = "some result"
+    part.outcome = "success"
+
+    msg = MagicMock()
+    msg.kind = "request"
+    msg.timestamp = None
+    msg.parts = [part]
+
+    result = format_history_as_text([msg])
+    assert "unknown" in result
+    assert "🔠" in result
+
+
+# ── _format_args extra branches ──────────────────────────────────────────────
+
+
+def test_format_args_empty_string():
+    """Empty string arg returns '{}' (line 256)."""
+    assert _format_args("") == "{}"
+
+
+def test_format_args_null_string():
+    """'null' JSON string returns '{}' (line 256)."""
+    assert _format_args("null") == "{}"
+
+
+def test_format_args_valid_json_dict_string():
+    """Valid JSON dict string is parsed and returned (lines 259-260)."""
+    result = _format_args('{"key": "val"}')
+    assert "key" in result
+    assert "val" in result
+
+
+def test_format_args_dict_with_dummy_key():
+    """Dict containing 'dummy' key has it filtered out (line 267)."""
+    result = _format_args({"real": "value", "dummy": "ignored"})
+    assert "real" in result
+    assert "dummy" not in result
+
+
+def test_format_args_dict_with_long_string_value():
+    """Dict with a long string value gets the value truncated (line 277)."""
+    long_val = "a" * 100
+    result = _format_args({"key": long_val})
+    assert "key" in result
+    # The long value should be truncated (ends with ...)
+    assert "..." in result
+
+
+# ── _format_timestamp extra branches ────────────────────────────────────────
+
+
+def test_format_timestamp_non_string_non_datetime():
+    """Non-string, non-datetime (e.g. int) returns '' (line 307)."""
+    assert _format_timestamp(12345) == ""
+
+
+def test_format_timestamp_invalid_iso_string():
+    """Invalid ISO string returns '' (lines 310-311)."""
+    assert _format_timestamp("not-a-date") == ""

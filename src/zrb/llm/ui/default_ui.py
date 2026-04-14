@@ -7,6 +7,7 @@ import subprocess
 from collections.abc import AsyncIterable, Callable
 from typing import TYPE_CHECKING, Any, TextIO
 
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.app.keybinding import create_output_keybindings
 from zrb.llm.app.layout import create_input_field, create_layout, create_output_field
@@ -68,6 +69,7 @@ class UI(BaseUI):
         info_commands: list[str] = [],
         save_commands: list[str] = [],
         load_commands: list[str] = [],
+        rewind_commands: list[str] = [],
         redirect_output_commands: list[str] = [],
         yolo_toggle_commands: list[str] = [],
         set_model_commands: list[str] = [],
@@ -75,6 +77,11 @@ class UI(BaseUI):
         btw_commands: list[str] = [],
         custom_commands: list[AnyCustomCommand] = [],
         model: "Model | str | None" = None,
+        custom_model_names: list[str] = [],
+        show_ollama_models: bool = True,
+        show_pydantic_ai_models: bool = True,
+        enable_rewind: bool = False,
+        snapshot_dir: str = "",
     ):
         super().__init__(
             ctx=ctx,
@@ -97,6 +104,7 @@ class UI(BaseUI):
             info_commands=info_commands,
             save_commands=save_commands,
             load_commands=load_commands,
+            rewind_commands=rewind_commands,
             redirect_output_commands=redirect_output_commands,
             yolo_toggle_commands=yolo_toggle_commands,
             set_model_commands=set_model_commands,
@@ -104,6 +112,8 @@ class UI(BaseUI):
             btw_commands=btw_commands,
             custom_commands=custom_commands,
             model=model,
+            enable_rewind=enable_rewind,
+            snapshot_dir=snapshot_dir,
         )
         self._ascii_art = ascii_art
         self._jargon = jargon
@@ -125,12 +135,18 @@ class UI(BaseUI):
             info_commands=self._info_commands,
             save_commands=self._save_commands,
             load_commands=self._load_commands,
+            rewind_commands=(
+                self._rewind_commands if self._snapshot_manager is not None else []
+            ),
             redirect_output_commands=self._redirect_output_commands,
             summarize_commands=self._summarize_commands,
             set_model_commands=self._set_model_commands,
             exec_commands=self._exec_commands,
             custom_commands=self._custom_commands,
             history=self._input_history,
+            custom_model_names=custom_model_names,
+            show_ollama_models=show_ollama_models,
+            show_pydantic_ai_models=show_pydantic_ai_models,
         )
         # Output Area (Read-only chat history)
         help_text = self._get_help_text(limit=25)
@@ -201,6 +217,9 @@ class UI(BaseUI):
             self._capture.start()
             # Perform initial system info update
             await self._update_system_info()
+            # Take baseline snapshot before any interaction
+            if self._snapshot_manager is not None:
+                await self._snapshot_manager.take_init_snapshot()
             return await self._application.run_async()
         finally:
             self._capture.stop()
@@ -453,7 +472,7 @@ class UI(BaseUI):
             style=style,
             full_screen=True,
             mouse_support=True,
-            refresh_interval=0.5,
+            refresh_interval=CFG.LLM_UI_REFRESH_INTERVAL / 1000,
             output=output,
             clipboard=clipboard,
         )
@@ -651,6 +670,9 @@ class UI(BaseUI):
                 buff.reset()
                 return
             if self._handle_load_command(text):
+                buff.reset()
+                return
+            if self._handle_rewind_command(text):
                 buff.reset()
                 return
             if self._handle_redirect_command(text):

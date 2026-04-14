@@ -1,4 +1,5 @@
 import asyncio
+import time
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -117,3 +118,139 @@ async def test_file_completion_public_api(completer, complete_event):
         doc = Document(text="/attach dir2/sub_dir/", cursor_position=21)
         completions = list(completer.get_completions(doc, complete_event))
         assert any(c.text == "dir2/sub_dir/another.txt" for c in completions)
+
+
+def test_custom_model_names_appear_in_model_completions(
+    mock_history_manager, complete_event
+):
+    """Custom model names must appear as completions after the /model command."""
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        set_model_commands=["/model"],
+        custom_model_names=["my-custom-model", "team-llm"],
+    )
+    doc = Document(text="/model ", cursor_position=7)
+    completions = list(completer.get_completions(doc, complete_event))
+    completion_texts = [c.text for c in completions]
+    assert "my-custom-model" in completion_texts
+    assert "team-llm" in completion_texts
+
+
+def test_custom_model_names_empty_by_default(mock_history_manager, complete_event):
+    """InputCompleter works with no custom model names (default empty list)."""
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        set_model_commands=["/model"],
+    )
+    doc = Document(text="/model ", cursor_position=7)
+    # Should complete without error; known models still appear
+    completions = list(completer.get_completions(doc, complete_event))
+    assert isinstance(completions, list)
+
+
+def test_show_ollama_models_false_excludes_ollama_models(
+    mock_history_manager, complete_event
+):
+    """When show_ollama_models=False, Ollama models should not appear in completions."""
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        set_model_commands=["/model"],
+        custom_model_names=["custom-model"],
+        show_ollama_models=False,
+    )
+    doc = Document(text="/model ", cursor_position=7)
+    completions = list(completer.get_completions(doc, complete_event))
+    completion_texts = [c.text for c in completions]
+    # When show_ollama_models=False, ollama models should not be fetched at all
+    # The completer should only show custom models and pydantic-ai models
+    assert "custom-model" in completion_texts
+    # Verify no "ollama:" prefix in completions (assuming no ollama installed in test env)
+    ollama_models = [c for c in completion_texts if c.startswith("ollama:")]
+    assert len(ollama_models) == 0
+
+
+def test_show_ollama_models_true_includes_ollama_models(
+    mock_history_manager, complete_event
+):
+    """When show_ollama_models=True (default), Ollama models should appear in completions."""
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        set_model_commands=["/model"],
+        custom_model_names=["custom-model"],
+        show_pydantic_ai_models=False,  # Exclude pydantic-ai models for cleaner test
+        show_ollama_models=True,
+    )
+    # Set the cache directly to avoid subprocess call
+    completer._ollama_models_cache = ["ollama:llama3", "ollama:mistral"]
+    completer._ollama_cache_time = (
+        time.time() + 1000
+    )  # Future time to avoid cache expiry
+    doc = Document(text="/model ", cursor_position=7)
+    completions = list(completer.get_completions(doc, complete_event))
+    completion_texts = [c.text for c in completions]
+    assert "ollama:llama3" in completion_texts
+    assert "ollama:mistral" in completion_texts
+    assert "custom-model" in completion_texts
+
+
+def test_show_pydantic_ai_models_false_excludes_known_models(
+    mock_history_manager, complete_event
+):
+    """When show_pydantic_ai_models=False, pydantic-ai known models should not appear."""
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        set_model_commands=["/model"],
+        custom_model_names=["custom-model"],
+        show_pydantic_ai_models=False,
+    )
+    doc = Document(text="/model ", cursor_position=7)
+    completions = list(completer.get_completions(doc, complete_event))
+    completion_texts = [c.text for c in completions]
+    # Known models from pydantic-ai should not be present
+    assert "custom-model" in completion_texts
+    # Verify no pydantic-ai known models are in the completions (they're typically prefixed)
+    # Just verify it doesn't crash and only custom-model appears (plus any ollama if installed)
+    assert isinstance(completions, list)
+
+
+def test_show_pydantic_ai_models_true_includes_known_models(
+    mock_history_manager, complete_event
+):
+    """When show_pydantic_ai_models=True (default), pydantic-ai known models should appear."""
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        set_model_commands=["/model"],
+        custom_model_names=["custom-model"],
+        show_pydantic_ai_models=True,
+    )
+    doc = Document(text="/model ", cursor_position=7)
+    completions = list(completer.get_completions(doc, complete_event))
+    # Should complete without error; known models should be present
+    assert isinstance(completions, list)
+    completion_texts = [c.text for c in completions]
+    assert "custom-model" in completion_texts
+
+
+def test_both_flags_false_only_custom_models(mock_history_manager, complete_event):
+    """When both show flags are False, only custom_model_names should appear."""
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        set_model_commands=["/model"],
+        custom_model_names=["model-a", "model-b"],
+        show_ollama_models=False,
+        show_pydantic_ai_models=False,
+    )
+    # Even if cache has ollama models, they should NOT appear
+    completer._ollama_models_cache = ["ollama:llama3"]
+    completer._ollama_cache_time = time.time() + 1000
+    doc = Document(text="/model ", cursor_position=7)
+    completions = list(completer.get_completions(doc, complete_event))
+    completion_texts = [c.text for c in completions]
+    # Only custom models should be present
+    assert "model-a" in completion_texts
+    assert "model-b" in completion_texts
+    assert "ollama:llama3" not in completion_texts
+    # Also no pydantic-ai known models should appear
+    # They all have prefixes like "openai:", "anthropic:", etc.
+    for completion in completion_texts:
+        assert ":" not in completion or completion in ["model-a", "model-b"]

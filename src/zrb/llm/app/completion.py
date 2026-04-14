@@ -12,6 +12,7 @@ from prompt_toolkit.completion import (
 )
 from prompt_toolkit.document import Document
 
+from zrb.config.config import CFG
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.util.match import fuzzy_match
@@ -26,11 +27,15 @@ class InputCompleter(Completer):
         info_commands: list[str] = [],
         save_commands: list[str] = [],
         load_commands: list[str] = [],
+        rewind_commands: list[str] = [],
         redirect_output_commands: list[str] = [],
         summarize_commands: list[str] = [],
         set_model_commands: list[str] = [],
         exec_commands: list[str] = [],
         custom_commands: list[AnyCustomCommand] = [],
+        custom_model_names: list[str] = [],
+        show_ollama_models: bool = True,
+        show_pydantic_ai_models: bool = True,
     ):
         from pydantic_ai.models import KnownModelName
 
@@ -40,11 +45,15 @@ class InputCompleter(Completer):
         self._info_commands = info_commands
         self._save_commands = save_commands
         self._load_commands = load_commands
+        self._rewind_commands = rewind_commands
         self._redirect_output_commands = redirect_output_commands
         self._summarize_commands = summarize_commands
         self._set_model_commands = set_model_commands
         self._exec_commands = exec_commands
         self._custom_commands = custom_commands
+        self._custom_model_names = custom_model_names
+        self._show_ollama_models = show_ollama_models
+        self._show_pydantic_ai_models = show_pydantic_ai_models
 
         try:
             self._known_models = list(get_args(KnownModelName.__value__))
@@ -157,6 +166,7 @@ class InputCompleter(Completer):
             + self._info_commands
             + self._save_commands
             + self._load_commands
+            + self._rewind_commands
             + self._redirect_output_commands
             + self._set_model_commands
             + self._exec_commands
@@ -254,6 +264,13 @@ class InputCompleter(Completer):
             lower_word,
             word,
             lambda cmd: f"Load conversation (i.e., {cmd} <name>)",
+        )
+        yield from self._yield_command_completions(
+            self._rewind_commands,
+            prefix,
+            lower_word,
+            word,
+            lambda cmd: f"List or restore snapshots (i.e., {cmd} [<n>|<sha>])",
         )
         yield from self._yield_command_completions(
             self._redirect_output_commands,
@@ -369,10 +386,17 @@ class InputCompleter(Completer):
         Yields:
             Completion objects for model names.
         """
-        # Combine known models with Ollama models
-        all_models = list(self._known_models)
-        ollama_models = self._get_ollama_models()
-        all_models.extend(ollama_models)
+        # Custom model names first (highest priority)
+        all_models = list(self._custom_model_names)
+
+        # Add pydantic-ai known models if enabled
+        if self._show_pydantic_ai_models:
+            all_models.extend(self._known_models)
+
+        # Add Ollama models if enabled
+        if self._show_ollama_models:
+            ollama_models = self._get_ollama_models()
+            all_models.extend(ollama_models)
 
         yield from self._get_fuzzy_completions(
             arg_prefix,
@@ -488,8 +512,8 @@ class InputCompleter(Completer):
             return
 
         # Count files (cached strategy could be added here if needed)
-        files = self._get_recursive_files(limit=5000)
-        if len(files) < 5000:
+        files = self._get_recursive_files(limit=CFG.LLM_MAX_COMPLETION_FILES)
+        if len(files) < CFG.LLM_MAX_COMPLETION_FILES:
             # Fuzzy Match
             yield from self._get_fuzzy_completions(
                 text, files, only_files, display_meta=display_meta
@@ -571,7 +595,7 @@ class InputCompleter(Completer):
                 ["ollama", "ls"],
                 capture_output=True,
                 text=True,
-                timeout=5,  # 5 second timeout
+                timeout=CFG.LLM_MODEL_FETCH_TIMEOUT / 1000,
             )
             if result.returncode == 0:
                 lines = result.stdout.strip().split("\n")
@@ -589,7 +613,11 @@ class InputCompleter(Completer):
         self._ollama_cache_time = now
         return models
 
-    def _get_recursive_files(self, root: str = ".", limit: int = 5000) -> list[str]:
+    def _get_recursive_files(
+        self, root: str = ".", limit: int | None = None
+    ) -> list[str]:
+        if limit is None:
+            limit = CFG.LLM_MAX_COMPLETION_FILES
         now = time.time()
         if self._file_cache is not None and now - self._file_cache_time < 30:
             return self._file_cache

@@ -268,15 +268,17 @@ def get_current_context_session() -> str:
 
 async def write_todos(
     todos: list[dict[str, Any]],
-    session: str | None = None,
+    session: str = "",
     replace: bool = True,
 ) -> str:
     """
     Creates or replaces the todo list for the current session.
 
+    With `replace=True` (default), all existing todos are overwritten. Pass `replace=False` to merge.
+
     MANDATES:
-    - Create todos before starting complex multi-step tasks.
     - Mark todos "in_progress" when starting, "completed" when done.
+    - Call `GetTodos` before each subtask to check current state.
     """
     session_name = session or get_current_context_session()
 
@@ -307,7 +309,7 @@ async def write_todos(
     return "\n".join(lines)
 
 
-async def get_todos(session: str | None = None) -> str:
+async def get_todos(session: str = "") -> str:
     """
     Returns the current todo list and progress summary.
 
@@ -354,7 +356,7 @@ async def update_todo(
     todo_id: str,
     status: TodoStatus | None = None,
     content: str | None = None,
-    session: str | None = None,
+    session: str = "",
 ) -> str:
     """
     Updates the status or content of a single todo item.
@@ -419,7 +421,7 @@ async def update_todo(
     return "\n".join(lines)
 
 
-async def clear_todos(session: str | None = None) -> str:
+async def clear_todos(session: str = "") -> str:
     """
     Clears all todos for the current session. Use only when starting a completely new plan.
     """
