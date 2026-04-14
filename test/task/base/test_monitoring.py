@@ -93,11 +93,15 @@ class TestMonitorTaskReadinessSessionTerminated:
         with patch.object(task, "get_ctx", return_value=ctx):
             with patch("asyncio.sleep", new=mock_sleep):
                 with patch("asyncio.wait_for", new=AsyncMock(return_value=None)):
+
                     async def mock_run_async(coro):
                         return await coro
 
-                    with patch("zrb.task.base.monitoring.run_async", new=mock_run_async):
+                    with patch(
+                        "zrb.task.base.monitoring.run_async", new=mock_run_async
+                    ):
                         with patch.object(check_task, "exec_chain") as mock_exec_chain:
+
                             async def noop_chain(session):
                                 return None
 
@@ -143,6 +147,7 @@ class TestMonitorTaskReadinessSuccess:
                 with patch("asyncio.wait_for", new=AsyncMock(return_value=None)):
                     with patch("asyncio.gather", new=AsyncMock(return_value=None)):
                         with patch.object(check_task, "exec_chain") as mock_exec_chain:
+
                             async def noop_chain(session):
                                 return None
 
@@ -151,7 +156,9 @@ class TestMonitorTaskReadinessSuccess:
                             async def mock_run_async(coro):
                                 return None  # Don't await the coro to avoid "never awaited" warning
 
-                            with patch("zrb.task.base.monitoring.run_async", new=mock_run_async):
+                            with patch(
+                                "zrb.task.base.monitoring.run_async", new=mock_run_async
+                            ):
                                 await monitor_task_readiness(task, session, action_coro)
 
         # Should have logged "Readiness check OK." since all checks completed
@@ -194,6 +201,7 @@ class TestMonitorTaskReadinessTimeout:
                 # First wait_for raises TimeoutError, then session terminates
                 with patch("asyncio.wait_for", side_effect=asyncio.TimeoutError):
                     with patch.object(check_task, "exec_chain") as mock_exec_chain:
+
                         async def noop_chain(session):
                             return None
 
@@ -202,7 +210,9 @@ class TestMonitorTaskReadinessTimeout:
                         async def mock_run_async(coro):
                             return await coro
 
-                        with patch("zrb.task.base.monitoring.run_async", new=mock_run_async):
+                        with patch(
+                            "zrb.task.base.monitoring.run_async", new=mock_run_async
+                        ):
                             await monitor_task_readiness(task, session, action_coro)
 
         # Should have warned about timeout
@@ -229,8 +239,8 @@ class TestMonitorTaskReadinessFailureThreshold:
 
         check_status = _make_task_status(is_completed=False, is_ready=False)
         task_status = _make_task_status()
-        session.get_task_status.side_effect = (
-            lambda t: check_status if t is check_task else task_status
+        session.get_task_status.side_effect = lambda t: (
+            check_status if t is check_task else task_status
         )
 
         ctx = _make_ctx()
@@ -258,21 +268,27 @@ class TestMonitorTaskReadinessFailureThreshold:
             with patch("asyncio.sleep", new=mock_sleep):
                 with patch("asyncio.wait_for", side_effect=asyncio.TimeoutError):
                     with patch.object(check_task, "exec_chain") as mock_exec_chain:
+
                         async def noop_chain(session):
                             return None
 
                         mock_exec_chain.return_value = noop_chain(session)
 
                         async def mock_run_async(coro):
-                            if hasattr(coro, '__await__'):
+                            if hasattr(coro, "__await__"):
                                 return await coro
                             return await coro
 
-                        with patch("zrb.task.base.monitoring.run_async", new=mock_run_async):
-                            with patch("asyncio.create_task", return_value=mock_new_task):
+                        with patch(
+                            "zrb.task.base.monitoring.run_async", new=mock_run_async
+                        ):
+                            with patch(
+                                "asyncio.create_task", return_value=mock_new_task
+                            ):
                                 with patch(
                                     "zrb.task.base.monitoring.execute_action_with_retry"
                                 ) as mock_exec:
+
                                     async def noop_exec(task, session):
                                         return None
 
@@ -316,10 +332,9 @@ class TestMonitorTaskReadinessCancelled:
 
         with patch.object(task, "get_ctx", return_value=ctx):
             with patch("asyncio.sleep", new=mock_sleep):
-                with patch(
-                    "asyncio.wait_for", side_effect=asyncio.CancelledError
-                ):
+                with patch("asyncio.wait_for", side_effect=asyncio.CancelledError):
                     with patch.object(check_task, "exec_chain") as mock_exec_chain:
+
                         async def noop_chain(session):
                             return None
 
@@ -328,12 +343,16 @@ class TestMonitorTaskReadinessCancelled:
                         async def mock_run_async(coro):
                             return await coro
 
-                        with patch("zrb.task.base.monitoring.run_async", new=mock_run_async):
+                        with patch(
+                            "zrb.task.base.monitoring.run_async", new=mock_run_async
+                        ):
                             await monitor_task_readiness(task, session, action_coro)
 
         # Should have logged cancellation message
         info_calls = [str(c) for c in ctx.log_info.call_args_list]
-        assert any("cancel" in c.lower() or "interrupt" in c.lower() for c in info_calls)
+        assert any(
+            "cancel" in c.lower() or "interrupt" in c.lower() for c in info_calls
+        )
 
 
 class TestMonitorTaskReadinessException:
@@ -372,6 +391,7 @@ class TestMonitorTaskReadinessException:
                     "asyncio.wait_for", side_effect=RuntimeError("check failed")
                 ):
                     with patch.object(check_task, "exec_chain") as mock_exec_chain:
+
                         async def noop_chain(session):
                             return None
 
@@ -380,13 +400,17 @@ class TestMonitorTaskReadinessException:
                         async def mock_run_async(coro):
                             return await coro
 
-                        with patch("zrb.task.base.monitoring.run_async", new=mock_run_async):
+                        with patch(
+                            "zrb.task.base.monitoring.run_async", new=mock_run_async
+                        ):
                             await monitor_task_readiness(task, session, action_coro)
 
         # Should have logged an error
         assert ctx.log_error.called
         error_calls = [str(c) for c in ctx.log_error.call_args_list]
-        assert any("exception" in c.lower() or "failed" in c.lower() for c in error_calls)
+        assert any(
+            "exception" in c.lower() or "failed" in c.lower() for c in error_calls
+        )
 
 
 class TestMonitorTaskReadinessChecksNotCompleted:
@@ -427,6 +451,7 @@ class TestMonitorTaskReadinessChecksNotCompleted:
                     mock_wait.return_value = None
 
                     with patch.object(check_task, "exec_chain") as mock_exec_chain:
+
                         async def noop_chain(session):
                             return None
 
@@ -435,7 +460,9 @@ class TestMonitorTaskReadinessChecksNotCompleted:
                         async def mock_run_async(coro):
                             return await coro
 
-                        with patch("zrb.task.base.monitoring.run_async", new=mock_run_async):
+                        with patch(
+                            "zrb.task.base.monitoring.run_async", new=mock_run_async
+                        ):
                             await monitor_task_readiness(task, session, action_coro)
 
         # Should have warned about tasks not completing

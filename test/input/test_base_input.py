@@ -162,6 +162,7 @@ def test_base_input_to_html():
 
 class MinimalInput(BaseInput):
     """Subclass that uses BaseInput.to_html without overriding it."""
+
     pass
 
 
@@ -173,6 +174,3 @@ def test_base_input_to_html_direct():
     assert 'name="my-name"' in html
     assert 'placeholder="My Description"' in html
     assert 'value="my-val"' in html
-
-
-

@@ -132,7 +132,9 @@ async def test_run_and_cleanup_session_none():
     fake_session = MagicMock(spec=Session)
     fake_session.is_terminated = False
 
-    with patch("zrb.task.base.lifecycle.Session", return_value=fake_session) as mock_session_cls:
+    with patch(
+        "zrb.task.base.lifecycle.Session", return_value=fake_session
+    ) as mock_session_cls:
         result = await run_and_cleanup(task)
 
     assert mock_session_cls.called

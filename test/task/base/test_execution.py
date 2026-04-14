@@ -275,7 +275,6 @@ async def test_run_default_action_string():
     assert result == "rendered_value"
 
 
-
 def test_skip_successors_marks_tasks_skipped():
     """Test skip_successors marks tasks as skipped."""
     from zrb.task.base.execution import skip_successors
@@ -347,6 +346,7 @@ async def test_execute_action_until_ready_with_readiness_checks():
     def mock_exec_chain(session):
         async def _coro():
             return None
+
         return _coro()
 
     with patch.object(check_task, "exec_chain", new=Mock(side_effect=mock_exec_chain)):
@@ -359,7 +359,10 @@ async def test_execute_action_until_ready_with_readiness_checks():
 
                 mock_sleep.side_effect = lambda t: mock_sleep_coro(t)
 
-                with patch("zrb.task.base.execution.execute_action_with_retry") as mock_exec:
+                with patch(
+                    "zrb.task.base.execution.execute_action_with_retry"
+                ) as mock_exec:
+
                     async def mock_action_coro(t, s):
                         return "result"
 

@@ -99,9 +99,10 @@ async def test_replace_in_file_validation_json_string_args(tmp_path):
     call = MagicMock()
     call.tool_name = "Edit"
     import json
-    call.args = json.dumps({
-        "path": str(test_file), "old_text": "hello", "new_text": "hi"
-    })
+
+    call.args = json.dumps(
+        {"path": str(test_file), "old_text": "hello", "new_text": "hi"}
+    )
     next_handler = AsyncMock(return_value="success")
 
     result = await replace_in_file_validation_policy(ui, call, next_handler)
@@ -168,6 +169,7 @@ async def test_replace_in_file_validation_read_error(tmp_path, monkeypatch):
     next_handler = AsyncMock()
 
     import builtins
+
     original_open = builtins.open
 
     def mock_open(path, *args, **kwargs):

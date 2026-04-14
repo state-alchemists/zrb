@@ -9,12 +9,12 @@ from zrb.llm.lsp.protocol import (
     DocumentSymbol,
     Hover,
     JSONRPCMessage,
+    Location,
     LSPConnectionError,
     LSPError,
     LSPProtocol,
     LSPServerError,
     LSPTimeoutError,
-    Location,
     Position,
     Range,
     SymbolInformation,
@@ -254,7 +254,10 @@ class TestJSONRPCMessage:
         """create_request with params creates valid JSON-RPC message (lines 240-245)."""
         msg = JSONRPCMessage.create_request(
             "textDocument/definition",
-            params={"textDocument": {"uri": "file:///test.py"}, "position": {"line": 5, "character": 10}},
+            params={
+                "textDocument": {"uri": "file:///test.py"},
+                "position": {"line": 5, "character": 10},
+            },
             request_id=42,
         )
         parsed = json.loads(msg)
@@ -290,11 +293,13 @@ class TestJSONRPCMessage:
 
     def test_parse_response(self):
         """parse_response extracts id, result, error (lines 264-268)."""
-        response = json.dumps({
-            "jsonrpc": "2.0",
-            "id": "test-id",
-            "result": [{"uri": "file:///test.py"}],
-        })
+        response = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "id": "test-id",
+                "result": [{"uri": "file:///test.py"}],
+            }
+        )
         request_id, result, error = JSONRPCMessage.parse_response(response)
         assert request_id == "test-id"
         assert len(result) == 1
@@ -322,7 +327,9 @@ class TestLSPProtocol:
     def test_create_initialize_params_with_options(self):
         """create_initialize_params passes initializationOptions."""
         options = {"pylsp": {"plugins": {"pycodestyle": {"enabled": False}}}}
-        params = LSPProtocol.create_initialize_params("/path", initialization_options=options)
+        params = LSPProtocol.create_initialize_params(
+            "/path", initialization_options=options
+        )
         assert params["initializationOptions"] == options
 
     def test_create_text_document_identifier(self):

@@ -51,9 +51,7 @@ class TestApproveIfPathInsideParent:
 
     def test_with_path_key_outside(self, tmp_path):
         """Denies when 'path' is outside parent."""
-        result = _approve_if_path_inside_parent(
-            {"path": "/etc/passwd"}, str(tmp_path)
-        )
+        result = _approve_if_path_inside_parent({"path": "/etc/passwd"}, str(tmp_path))
         assert result is False
 
     def test_with_paths_list_all_inside(self, tmp_path):
@@ -70,9 +68,7 @@ class TestApproveIfPathInsideParent:
 
     def test_with_paths_not_a_list(self, tmp_path):
         """Denies when 'paths' is not a list."""
-        result = _approve_if_path_inside_parent(
-            {"paths": "not_a_list"}, str(tmp_path)
-        )
+        result = _approve_if_path_inside_parent({"paths": "not_a_list"}, str(tmp_path))
         assert result is False
 
     def test_with_files_list_all_inside(self, tmp_path):
@@ -95,9 +91,7 @@ class TestApproveIfPathInsideParent:
 
     def test_with_files_not_a_list(self, tmp_path):
         """Denies when 'files' is not a list."""
-        result = _approve_if_path_inside_parent(
-            {"files": "not_a_list"}, str(tmp_path)
-        )
+        result = _approve_if_path_inside_parent({"files": "not_a_list"}, str(tmp_path))
         assert result is False
 
     def test_with_no_path_keys_returns_true(self):
@@ -128,8 +122,10 @@ class TestApproveIfPathInsideJournalDir:
 
     def test_path_inside_journal_dir(self, tmp_path, monkeypatch):
         """Approves when path is inside journal dir."""
-        monkeypatch.setattr("zrb.builtin.llm.chat_tool_policy.CFG",
-                            type("CFG", (), {"LLM_JOURNAL_DIR": str(tmp_path)})())
+        monkeypatch.setattr(
+            "zrb.builtin.llm.chat_tool_policy.CFG",
+            type("CFG", (), {"LLM_JOURNAL_DIR": str(tmp_path)})(),
+        )
         child = str(tmp_path / "entry.md")
         result = approve_if_path_inside_journal_dir({"path": child})
         assert result is True

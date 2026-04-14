@@ -165,7 +165,9 @@ def test_show_group_with_banner_and_description():
     sub.add_task(Task(name="t1", action="x"))
     cli.add_group(sub)
     # Patch Group.banner to return non-empty value
-    with patch.object(type(sub), "banner", new_callable=lambda: property(lambda self: "My Banner")):
+    with patch.object(
+        type(sub), "banner", new_callable=lambda: property(lambda self: "My Banner")
+    ):
         cli.run(str_args=["mygroup"])
 
 

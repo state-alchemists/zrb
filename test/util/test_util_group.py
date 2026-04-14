@@ -42,7 +42,7 @@ class TestExtractNodeFromArgs:
 
     def test_web_only_skips_cli_only_task(self):
         """Test that web_only=True skips cli_only tasks."""
-        from zrb.util.group import extract_node_from_args, NodeNotFoundError
+        from zrb.util.group import NodeNotFoundError, extract_node_from_args
 
         root = MagicMock()
         root.name = "root"
@@ -57,7 +57,7 @@ class TestExtractNodeFromArgs:
 
     def test_web_only_skips_empty_group(self):
         """Test that web_only=True skips groups with no web tasks."""
-        from zrb.util.group import extract_node_from_args, NodeNotFoundError
+        from zrb.util.group import NodeNotFoundError, extract_node_from_args
 
         root = MagicMock()
         root.name = "root"

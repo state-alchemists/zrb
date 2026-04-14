@@ -171,14 +171,19 @@ class TestGetGitInfo:
 
     def test_returns_empty_when_not_git_repo(self):
         """Returns empty string when not inside a git repository."""
-        with patch("zrb.llm.prompt.system_context.is_inside_git_dir", return_value=False):
+        with patch(
+            "zrb.llm.prompt.system_context.is_inside_git_dir", return_value=False
+        ):
             result = _get_git_info()
         assert result == ""
 
     def test_returns_branch_and_status_in_git_repo(self):
         """Returns branch and status when in a git repository."""
-        with patch("zrb.llm.prompt.system_context.is_inside_git_dir", return_value=True):
+        with patch(
+            "zrb.llm.prompt.system_context.is_inside_git_dir", return_value=True
+        ):
             with patch("subprocess.run") as mock_run:
+
                 def side_effect(args, **kwargs):
                     result = MagicMock()
                     if "branch" in args:
@@ -195,8 +200,11 @@ class TestGetGitInfo:
 
     def test_returns_dirty_when_uncommitted_changes(self):
         """Reports 'Dirty' when there are uncommitted changes."""
-        with patch("zrb.llm.prompt.system_context.is_inside_git_dir", return_value=True):
+        with patch(
+            "zrb.llm.prompt.system_context.is_inside_git_dir", return_value=True
+        ):
             with patch("subprocess.run") as mock_run:
+
                 def side_effect(args, **kwargs):
                     result = MagicMock()
                     if "branch" in args:

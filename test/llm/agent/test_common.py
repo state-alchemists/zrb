@@ -152,7 +152,8 @@ def test_create_safe_wrapper_preserves_function_name():
 
 def test_create_agent_uses_default_model_when_none():
     """Test create_agent uses default model when model=None."""
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import MagicMock, patch
+
     from zrb.llm.agent.common import create_agent
 
     mock_agent_class = MagicMock()
@@ -172,7 +173,8 @@ def test_create_agent_uses_default_model_when_none():
 
 def test_create_agent_with_callable_yolo():
     """Test create_agent with callable yolo."""
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import MagicMock, patch
+
     from zrb.llm.agent.common import create_agent
 
     mock_agent_class = MagicMock()
