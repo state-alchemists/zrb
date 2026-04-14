@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
@@ -24,11 +24,11 @@ def serve_logout_page(
 
     @app.get("/logout", response_class=HTMLResponse, include_in_schema=False)
     async def logout(request: Request) -> HTMLResponse:
-        _DIR = os.path.dirname(__file__)
+        _DIR = Path(__file__).parent
         _GLOBAL_TEMPLATE = read_file(
-            os.path.join(os.path.dirname(_DIR), "static", "global_template.html")
+            str(_DIR.parent / "static" / "global_template.html")
         )
-        _VIEW_TEMPLATE = read_file(os.path.join(_DIR, "view.html"))
+        _VIEW_TEMPLATE = read_file(str(_DIR / "view.html"))
         user = await get_user_from_request(web_auth_config, request)
         web_title = CFG.WEB_TITLE if CFG.WEB_TITLE.strip() != "" else root_group.name
         web_jargon = (

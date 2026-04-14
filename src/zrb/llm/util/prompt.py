@@ -1,6 +1,5 @@
 import os
 import re
-from typing import Optional, Tuple
 
 from zrb.util.file import list_files, read_file
 from zrb.util.markdown import make_markdown_section
@@ -68,7 +67,7 @@ def _get_path_references(prompt: str) -> list[re.Match]:
     return list(pattern.finditer(prompt))
 
 
-def _process_path_reference(path_ref: str) -> Tuple[Optional[str], Optional[str], bool]:
+def _process_path_reference(path_ref: str) -> tuple[str | None, str | None, bool]:
     """Process a single path reference.
 
     Args:

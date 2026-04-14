@@ -1,6 +1,6 @@
 🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Upgrading Guide
 
-# Upgrading Guide from 0.x.x to 1.x.x
+# Upgrading Guide
 
 Zrb 1.x.x introduced significant changes and improvements over the 0.x.x series. This guide will help you migrate your existing Zrb task definitions from the old structure to the new one.
 
@@ -10,13 +10,60 @@ The core concepts of Tasks, Groups, and dependencies remain, but their definitio
 
 ## Table of Contents
 
-- [Key Changes Summary](#key-changes-summary)
-- [Session and Context](#session-and-context)
-- [Migration Examples](#migration-examples)
-- [Parameter Renames](#parameter-renames)
-- [Quick Reference](#quick-reference)
+- [Upgrading from 1.x.x to 2.x.x](#upgrading-from-1xx-to-2xx)
+- [Upgrading from 0.x.x to 1.x.x](#upgrading-from-0xx-to-1xx)
+  - [Key Changes Summary](#key-changes-summary)
+  - [Session and Context](#session-and-context)
+  - [Migration Examples](#migration-examples)
+  - [Parameter Renames](#parameter-renames)
+  - [Quick Reference](#quick-reference)
 
 ---
+
+## Upgrading from 1.x.x to 2.x.x
+
+Zrb 2.x is largely **backwards-compatible** with 1.x for task authoring. If you only use `Task`, `CmdTask`, `LLMTask`, `cli`, `Env`, and `Input` types, your existing `zrb_init.py` files should work without changes.
+
+The areas that changed are in the LLM and UI layers:
+
+### LLM UI Module Path
+
+The UI classes were moved from `zrb.llm.app` to `zrb.llm.ui`.
+
+| 1.x.x import | 2.x.x import |
+|---|---|
+| `from zrb.llm.app import SimpleUI` | `from zrb.llm.ui.simple_ui import SimpleUI` |
+| `from zrb.llm.app import EventDrivenUI` | `from zrb.llm.ui.simple_ui import EventDrivenUI` |
+| `from zrb.llm.app import PollingUI` | `from zrb.llm.ui.simple_ui import PollingUI` |
+
+If you only interact with the built-in `llm_chat` task (i.e. you don't subclass or import UI classes directly), no change is needed.
+
+### Hooks Timeout Unit
+
+`ZRB_HOOKS_TIMEOUT` changed from **seconds** to **milliseconds** in 2.20.0.
+
+| 1.x.x | 2.x.x |
+|---|---|
+| `ZRB_HOOKS_TIMEOUT=30` (30 seconds) | `ZRB_HOOKS_TIMEOUT=30000` (30 seconds) |
+
+Update your environment variable if you had set a custom timeout.
+
+### New Features in 2.x
+
+These are additions, not breaking changes, but worth knowing:
+
+| Feature | How to use |
+|---|---|
+| Multiple UIs | `llm_chat.append_ui_factory(...)` — broadcast to CLI + Telegram simultaneously |
+| Approval channels | `llm_chat.append_approval_channel(...)` — first approval from any channel wins |
+| Rewind/Snapshot | `/rewind` command in TUI; `enable_rewind=True` on `LLMChatTask` |
+| MCP servers | `mcp-config.json` — see [MCP Support](mcp-support.md) |
+| Worktree tools | `CreateWorktree` / `ExitWorktree` tools available in agent sessions |
+| PowerShell autocomplete | `zrb shell autocomplete powershell` |
+
+---
+
+## Upgrading from 0.x.x to 1.x.x
 
 ## Key Changes Summary
 

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import Callable
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
@@ -9,7 +9,7 @@ from zrb.util.markdown import make_markdown_section
 
 def create_claude_skills_prompt(
     skill_manager: SkillManager,
-    active_skills: Optional[List[str]] = None,
+    active_skills: list[str] | None = None,
     include_claude_skills: bool = True,
 ):
     def claude_compatibility(
@@ -142,9 +142,9 @@ def _get_search_directories() -> list[Path]:
 def _get_skills_section(
     skill_manager: SkillManager,
     search_dirs: list[Path],
-    active_skills: Optional[List[str]] = None,
+    active_skills: list[str] | None = None,
     include_claude_skills: bool = True,
-) -> Optional[str]:
+) -> str | None:
     # Use SkillManager's built-in search directories logic
     skills = skill_manager.scan(search_dirs=skill_manager.get_search_directories())
     if not skills:

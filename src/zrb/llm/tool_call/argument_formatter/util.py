@@ -2,10 +2,10 @@ import difflib
 import re
 import shutil
 import textwrap
-from typing import Any, Optional
+from typing import Any
 
 
-def get_terminal_width(default: int = 80, ui: Optional[Any] = None) -> int:
+def get_terminal_width(default: int = 80, ui: Any | None = None) -> int:
     """
     Get terminal width, handling both CLI and prompt_toolkit contexts.
 
@@ -63,8 +63,8 @@ def format_diff(
     old_content: str,
     new_content: str,
     path: str,
-    term_width: Optional[int] = None,
-    ui: Optional[Any] = None,
+    term_width: int | None = None,
+    ui: Any | None = None,
 ) -> str:
     """
     Returns a markdown-formatted diff string with line numbers.

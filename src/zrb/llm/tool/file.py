@@ -32,6 +32,22 @@ DEFAULT_EXCLUDED_PATTERNS = [
 ]
 
 
+def _truncate_file_list(
+    sorted_files: list[str],
+) -> tuple[list[str], int | None]:
+    """
+    Truncates a sorted file list to head+tail using the configured line limit.
+
+    Returns (files, omitted_count). If no truncation needed, omitted_count is None.
+    """
+    head = tail = CFG.LLM_FILE_READ_LINES // 2
+    if len(sorted_files) > head + tail:
+        truncated = sorted_files[:head] + sorted_files[-tail:]
+        omitted = len(sorted_files) - head - tail
+        return truncated, omitted
+    return sorted_files, None
+
+
 def list_files(
     path: str = ".",
     auto_truncate: bool = True,
@@ -55,8 +71,6 @@ def list_files(
     patterns_to_exclude = (
         exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
     )
-    preserved_head_lines = CFG.LLM_FILE_READ_LINES // 2
-    preserved_tail_lines = CFG.LLM_FILE_READ_LINES // 2
 
     initial_depth = abs_path.rstrip(os.sep).count(os.sep)
     for root, dirs, files in os.walk(abs_path, topdown=True):
@@ -81,18 +95,14 @@ def list_files(
 
     sorted_files = sorted(all_files)
 
-    if (
-        auto_truncate
-        and len(sorted_files) > preserved_head_lines + preserved_tail_lines
-    ):
-        truncated_files = (
-            sorted_files[:preserved_head_lines] + sorted_files[-preserved_tail_lines:]
-        )
-        omitted = len(sorted_files) - preserved_head_lines - preserved_tail_lines
-        return {
-            "files": truncated_files,
-            "truncation_notice": f"[TRUNCATED {omitted} files. Showing first {preserved_head_lines} and last {preserved_tail_lines} files.]",
-        }
+    if auto_truncate:
+        truncated, omitted = _truncate_file_list(sorted_files)
+        if omitted is not None:
+            head = tail = CFG.LLM_FILE_READ_LINES // 2
+            return {
+                "files": truncated,
+                "truncation_notice": f"[TRUNCATED {omitted} files. Showing first {head} and last {tail} files.]",
+            }
 
     return {"files": sorted_files}
 
@@ -120,8 +130,6 @@ def glob_files(
     patterns_to_exclude = (
         exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
     )
-    preserved_head_lines = CFG.LLM_FILE_READ_LINES // 2
-    preserved_tail_lines = CFG.LLM_FILE_READ_LINES // 2
 
     search_pattern = os.path.join(abs_path, pattern)
     candidates = glob.glob(search_pattern, recursive=True)
@@ -142,18 +150,14 @@ def glob_files(
 
     sorted_files = sorted(found_files)
 
-    if (
-        auto_truncate
-        and len(sorted_files) > preserved_head_lines + preserved_tail_lines
-    ):
-        truncated_files = (
-            sorted_files[:preserved_head_lines] + sorted_files[-preserved_tail_lines:]
-        )
-        omitted = len(sorted_files) - preserved_head_lines - preserved_tail_lines
-        truncated_files.append(
-            f"[TRUNCATED {omitted} files. Showing first {preserved_head_lines} and last {preserved_tail_lines} files.]"
-        )
-        return truncated_files
+    if auto_truncate:
+        truncated, omitted = _truncate_file_list(sorted_files)
+        if omitted is not None:
+            head = tail = CFG.LLM_FILE_READ_LINES // 2
+            truncated.append(
+                f"[TRUNCATED {omitted} files. Showing first {head} and last {tail} files.]"
+            )
+            return truncated
 
     return sorted_files
 

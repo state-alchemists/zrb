@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 from zrb.config.config import CFG
 from zrb.group.any_group import AnyGroup
@@ -11,11 +11,9 @@ from zrb.util.string.format import fstring_format
 def show_error_page(user: User, root_group: AnyGroup, status_code: int, message: str):
     from fastapi.responses import HTMLResponse
 
-    _DIR = os.path.dirname(__file__)
-    _GLOBAL_TEMPLATE = read_file(
-        os.path.join(os.path.dirname(_DIR), "static", "global_template.html")
-    )
-    _VIEW_TEMPLATE = read_file(os.path.join(_DIR, "view.html"))
+    _DIR = Path(__file__).parent
+    _GLOBAL_TEMPLATE = read_file(str(_DIR.parent / "static" / "global_template.html"))
+    _VIEW_TEMPLATE = read_file(str(_DIR / "view.html"))
     auth_link = get_html_auth_link(user)
     return HTMLResponse(
         fstring_format(

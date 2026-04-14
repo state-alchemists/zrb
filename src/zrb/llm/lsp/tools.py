@@ -5,7 +5,7 @@ These tools provide IDE-like code intelligence capabilities to the LLM assistant
 """
 
 import asyncio
-from typing import Literal, Optional
+from typing import Literal
 
 from zrb.llm.lsp.manager import lsp_manager
 
@@ -57,7 +57,7 @@ async def find_references(
 
 async def get_diagnostics(
     file_path: str,
-    severity: Optional[Literal["error", "warning", "info", "hint"]] = None,
+    severity: Literal["error", "warning", "info", "hint"] | None = None,
 ) -> dict:
     """
     Get diagnostics (errors, warnings, hints) for a file.

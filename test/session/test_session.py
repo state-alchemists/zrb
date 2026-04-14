@@ -238,3 +238,148 @@ def test_as_state_log(session):
 
     assert state_log.name == session.name
     assert "task" in state_log.task_status
+
+
+def test_as_state_log_with_non_serializable_input():
+    """Test as_state_log handles non-JSON-serializable inputs."""
+    from zrb.context.shared_context import SharedContext
+
+    shared_ctx = SharedContext()
+    session = Session(shared_ctx=shared_ctx)
+
+    # Add a non-serializable value to input
+    shared_ctx.input["normal"] = "value"
+
+    # Create a non-serializable object
+    class NotSerializable:
+        def __repr__(self):
+            return "<NotSerializable>"
+
+    shared_ctx.input["bad"] = NotSerializable()
+
+    state_log = session.as_state_log()
+    # Should have converted non-serializable to string
+    assert "bad" in state_log.input
+    assert isinstance(state_log.input["bad"], str)
+
+
+@pytest.mark.asyncio
+async def test_defer_action_with_asyncio_task():
+    """Test defer_action with an already-created asyncio.Task."""
+    from zrb.context.shared_context import SharedContext
+
+    shared_ctx = SharedContext()
+    session = Session(shared_ctx=shared_ctx)
+
+    task = MagicMock(spec=AnyTask)
+    task.name = "task"
+    task.readiness_checks = []
+    task.successors = []
+    task.fallbacks = []
+    task.upstreams = []
+    task.color = None
+    task.icon = None
+
+    async def sample():
+        return "done"
+
+    asyncio_task = asyncio.create_task(sample())
+    session.defer_action(task, asyncio_task)  # Pass an asyncio.Task, not a coro
+
+    await session.wait_deferred()
+
+
+@pytest.mark.asyncio
+async def test_defer_coro_with_asyncio_task():
+    """Test defer_coro with an asyncio.Task."""
+    from zrb.context.shared_context import SharedContext
+
+    shared_ctx = SharedContext()
+    session = Session(shared_ctx=shared_ctx)
+
+    async def sample():
+        return "done"
+
+    asyncio_task = asyncio.create_task(sample())
+    session.defer_coro(asyncio_task)  # Pass asyncio.Task
+
+    await session.wait_deferred()
+
+
+def test_register_task_with_readiness_checks():
+    """Test register_task with readiness checks."""
+    from zrb.context.shared_context import SharedContext
+
+    shared_ctx = SharedContext()
+    session = Session(shared_ctx=shared_ctx)
+
+    check_task = MagicMock(spec=AnyTask)
+    check_task.name = "check"
+    check_task.readiness_checks = []
+    check_task.successors = []
+    check_task.fallbacks = []
+    check_task.upstreams = []
+    check_task.color = None
+    check_task.icon = None
+
+    main_task = MagicMock(spec=AnyTask)
+    main_task.name = "main"
+    main_task.readiness_checks = [check_task]
+    main_task.successors = []
+    main_task.fallbacks = []
+    main_task.upstreams = []
+    main_task.color = None
+    main_task.icon = None
+
+    session.register_task(main_task)
+
+    # Both main and check should be registered
+    assert "main" in session.task_names
+    assert "check" in session.task_names
+
+
+def test_get_root_tasks_with_visited_cycle():
+    """Test get_root_tasks handles already-visited tasks."""
+    from zrb.context.shared_context import SharedContext
+
+    shared_ctx = SharedContext()
+    session = Session(shared_ctx=shared_ctx)
+
+    upstream = MagicMock(spec=AnyTask)
+    upstream.name = "upstream"
+    upstream.readiness_checks = []
+    upstream.successors = []
+    upstream.fallbacks = []
+    upstream.upstreams = []
+    upstream.color = None
+    upstream.icon = None
+
+    task1 = MagicMock(spec=AnyTask)
+    task1.name = "task1"
+    task1.readiness_checks = []
+    task1.successors = []
+    task1.fallbacks = []
+    task1.upstreams = [upstream]
+    task1.color = None
+    task1.icon = None
+
+    task2 = MagicMock(spec=AnyTask)
+    task2.name = "task2"
+    task2.readiness_checks = []
+    task2.successors = []
+    task2.fallbacks = []
+    task2.upstreams = [upstream]
+    task2.color = None
+    task2.icon = None
+
+    session.register_task(task1)
+    session.register_task(task2)
+
+    # Both tasks share the same upstream - upstream should appear only once in roots
+    roots1 = session.get_root_tasks(task1)
+    roots2 = session.get_root_tasks(task2)
+
+    assert upstream in roots1
+    assert upstream in roots2
+    # No duplicates
+    assert roots1.count(upstream) == 1

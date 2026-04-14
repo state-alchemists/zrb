@@ -2,7 +2,7 @@ import asyncio
 import os
 import weakref
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from zrb.context.any_context import zrb_print
 from zrb.llm.lsp.protocol import (
@@ -34,7 +34,7 @@ class LSPManager:
     - Symbol-based API (more LLM-friendly than position-based)
     """
 
-    _instance: Optional["LSPManager"] = None
+    _instance: "LSPManager | None" = None
     _servers: dict[str, LSPServer]  # key: "language:root_path"
     _lock: asyncio.Lock
     _project_roots: dict[str, str]  # file_path -> detected root
@@ -126,8 +126,8 @@ class LSPManager:
     async def get_server(
         self,
         file_path: str,
-        preferred_servers: Optional[list[str]] = None,
-    ) -> Optional[LSPServer]:
+        preferred_servers: list[str] | None = None,
+    ) -> LSPServer | None:
         """Get or create an LSP server for the given file.
 
         Args:
@@ -185,7 +185,7 @@ class LSPManager:
         self,
         symbol_name: str,
         file_path: str,
-        symbol_kind: Optional[str] = None,
+        symbol_kind: str | None = None,
     ) -> dict:
         """
         Find the definition of a symbol.
@@ -319,7 +319,7 @@ class LSPManager:
     async def get_diagnostics(
         self,
         file_path: str,
-        severity: Optional[str] = None,
+        severity: str | None = None,
     ) -> dict:
         """
         Get diagnostics (errors, warnings) for a file.
@@ -607,7 +607,7 @@ class LSPManager:
 
     async def _find_symbol_position(
         self, file_path: str, symbol_name: str
-    ) -> Optional[tuple[int, int]]:
+    ) -> tuple[int, int] | None:
         """Find the position of a symbol in a file using document symbols."""
         try:
             symbols = await self.get_document_symbols(file_path)
