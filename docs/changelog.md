@@ -1,5 +1,59 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.21.0 (April 16, 2026)
+
+- **Feature: Tool Guidance System**:
+  - New `ToolGuidance` dataclass in `src/zrb/llm/prompt/tool_guidance.py` for declarative per-tool usage hints.
+  - `add_tool_guidance()` method on `LLMChatTask` and `LLMTask` registers static guidance entries.
+  - `add_tool_guidance_factory()` method on `LLMChatTask` registers dynamic guidance (e.g., config-dependent tool names).
+  - `PromptManager` composes a `# Tool Usage Guide` section from registered guidance, automatically inserted between mandate and journal sections.
+  - Guidance for unregistered tools is suppressed at runtime — `LLMChatTask._exec_action` sets `prompt_manager.tool_names` from the resolved tool list.
+  - New `CFG.LLM_INCLUDE_TOOL_GUIDANCE` config toggle (default: `on`). Set `ZRB_LLM_INCLUDE_TOOL_GUIDANCE=0` to disable.
+  - All built-in tools ship with pre-registered guidance covering when-to-use and key behavioral rules (File Operations, Execution, Analysis, Research & Web, Planning, Git Worktrees, LSP, Zrb Tasks, Delegation).
+  - Guidance for factory-created tools (`ListZrbTasks`, `RunZrbTask`, `ActivateSkill`, `DelegateToAgent`, `DelegateToAgentsParallel`) uses `add_tool_guidance_factory()` to resolve dynamic names.
+  - `ToolGuidance` exported from `zrb.__init__` for public API access.
+
+- **Feature: Tool Wrapper for Structured Error Handling**:
+  - New `tool_wrapper` decorator in `src/zrb/llm/tool/_wrapper.py` catches tool exceptions and returns structured `{"error": "..."}` messages instead of raising.
+  - Applied to worktree tools (`enter_worktree`, `exit_worktree`, `list_worktrees`), delegate tools, and file tools (`list_files`, `glob_files`).
+  - LLM agent continues operating after tool errors instead of crashing the session.
+
+- **Refactoring: Tool Return Value Standardization**:
+  - `glob_files` now returns `{"files": [...], "truncation_notice": "..."}` instead of a flat list.
+  - `list_files` returns `{"error": "..."}` for nonexistent paths instead of raising `FileNotFoundError`.
+  - Consistent structured output format across file, search, and worktree tools.
+
+- **Improvement: Prompt Optimization**:
+  - Slimmed down prompt markdown files: `persona.md`, `mandate.md`, `git_mandate.md`, `journal_mandate.md`, `conversational_summarizer.md`, `message_summarizer.md`.
+  - Extracted tool-specific guidance from docstrings into explicit `add_tool_guidance()` registrations in `chat.py`.
+  - Reduced token usage in system prompts by moving verbose MANDATES from docstrings to the tool guidance section.
+
+- **Improvement: System Context Refactoring**:
+  - Restructured `system_context.py` for cleaner prompt composition and maintainability.
+
+- **Improvement: Web Tool Enhancements**:
+  - Enhanced `web.py` with improved URL handling and content fetching.
+  - Better error messages and structured returns for web operations.
+
+- **Improvement: Delegate Tool Error Messages**:
+  - `DelegateToAgent` returns structured `"Error: ..."` messages instead of raising `ValueError`.
+  - `DelegateToAgentsParallel` reports `"Error: ..."` instead of `"failed"` for consistency with other tools.
+
+- **Documentation: New and Expanded Docs**:
+  - New "LLM Prompt System" section in `AGENTS.md` documenting `PromptManager` composition and `add_tool_guidance()` API.
+  - Expanded `docs/advanced-topics/llm-integration.md`: Added detailed tool reference tables (File, Analysis/LSP, Planning, Git Worktrees, Zrb Tasks) and new "Tool Guidance" section with static and dynamic registration examples.
+  - Expanded `docs/configuration/llm-config.md`: Added `ZRB_LLM_INCLUDE_TOOL_GUIDANCE` variable and tool guidance configuration guide.
+
+- **Tests: Coverage Expansion**:
+  - New `test/llm/prompt/test_tool_guidance.py`: Tool guidance prompt rendering (+100 lines).
+  - Enhanced `test/llm/prompt/test_manager.py`: Tool guidance manager integration (+99 lines).
+  - Enhanced `test/llm/prompt/test_claude.py`: Claude prompt tests (+41 lines).
+  - Updated `test/llm/prompt/test_system_context.py`: Refactored for new structure.
+  - Enhanced `test/llm/tool/test_file.py`: Structured return values for `glob_files`, `list_files`, `search_files`; new tests for `replace_in_file` near-match suggestions, multiple matches with `count`, `search_files` files_only/case_insensitive/context_lines (+130 lines).
+  - Updated `test/llm/tool/test_delegate_tool.py`: Error handling returns structured messages instead of raising.
+  - Updated `test/llm/tool/test_worktree.py`: Error handling returns structured messages instead of raising.
+  - Updated `test/llm/tool/test_plan.py`: Compact todo format assertions.
+
 ## 2.20.2 (April 15, 2026)
 
 - **Security: Dependency Vulnerability Patches**:
