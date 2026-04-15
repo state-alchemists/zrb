@@ -211,23 +211,55 @@ The assistant can connect to external MCP servers defined in `mcp-config.json`. 
 
 Every built-in tool ships with guidance that tells the LLM **when to use it** and **what the most important behavioral rule is**. When you add a custom tool, you can register the same kind of guidance so the LLM knows how to use it correctly.
 
+Guidance is automatically filtered at runtime — entries for tools that are not registered on the task are suppressed, so the LLM never sees instructions for tools it cannot use.
+
+### Static guidance (most common)
+
+Use `add_tool_guidance()` with one or more `ToolGuidance` objects. This is the standard approach for tools whose names are known at definition time.
+
 ```python
+from zrb import LLMChatTask, ToolGuidance
+
 my_chat_task.add_tool(my_custom_tool)
 
-my_chat_task.prompt_manager.add_tool_guidance(
-    group="My Domain",
-    name="MyCustomTool",
-    use_when="When the user asks about X or needs to look up Y",
-    key_rule="Always pass a valid ID; never call without first calling ListItems.",
+my_chat_task.add_tool_guidance(
+    ToolGuidance(
+        group_name="My Domain",
+        tool_name="MyCustomTool",
+        when_to_use="When the user asks about X or needs to look up Y",
+        key_rule="Always pass a valid ID; never call without first calling ListItems.",
+    )
 )
 ```
 
-- **`group`** — Section heading in the tool guidance prompt. Created automatically on first use.
-- **`name`** — Must match the tool's Python `__name__` (or `Tool.name` for `pydantic_ai.Tool` objects).
-- **`use_when`** — One sentence: the condition that should trigger this tool.
-- **`key_rule`** — *(optional)* The single most important constraint, common mistake to avoid, or sequencing requirement.
+`ToolGuidance` fields:
 
-Guidance is automatically filtered at runtime — entries for tools that are not registered on the task are suppressed, so the LLM never sees instructions for tools it cannot use.
+| Field | Required | Description |
+|-------|----------|-------------|
+| `group_name` | Yes | Section heading in the rendered prompt. Created automatically on first use. |
+| `tool_name` | Yes | Must match the tool's `__name__` attribute. |
+| `when_to_use` | No | One sentence: the condition that should trigger this tool. |
+| `key_rule` | No | The single most important constraint, gotcha, or sequencing requirement. |
+
+### Dynamic guidance (config-dependent tool names)
+
+Use `add_tool_guidance_factory()` when the tool name depends on runtime config or context. Each factory is a `Callable[[AnyContext], ToolGuidance]` evaluated at the start of each conversation turn.
+
+```python
+from zrb.config.config import CFG
+
+my_chat_task.add_tool_guidance_factory(
+    lambda ctx: ToolGuidance(
+        group_name="My Domain",
+        tool_name=f"List{CFG.ROOT_GROUP_NAME.capitalize()}Items",
+        when_to_use="Before operating on any item — confirm it exists",
+    )
+)
+```
+
+This is only needed when the tool name itself is dynamic. For static names, use `add_tool_guidance()` instead.
+
+> **Note:** `add_tool_guidance_factory` is only available on `LLMChatTask`, not `LLMTask`.
 
 ---
 
