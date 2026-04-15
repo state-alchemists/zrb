@@ -6,6 +6,9 @@ from zrb.config.web_auth_config import WebAuthConfig
 from zrb.runner.web_schema.user import User
 from zrb.runner.web_util.token import generate_tokens_by_credentials, regenerate_tokens
 
+# Suppress InsecureKeyLengthWarning for test fixtures that intentionally use short keys
+pytestmark = pytest.mark.filterwarnings("ignore::jwt.InsecureKeyLengthWarning")
+
 
 def test_generate_tokens_by_credentials_no_auth():
     config = WebAuthConfig(enable_auth=False)

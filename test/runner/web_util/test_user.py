@@ -7,6 +7,9 @@ import pytest
 
 from zrb.runner.web_util import user as user_module
 
+# Suppress InsecureKeyLengthWarning for test fixtures that intentionally use short keys
+pytestmark = pytest.mark.filterwarnings("ignore::jwt.InsecureKeyLengthWarning")
+
 
 @pytest.fixture
 def mock_web_auth_config():

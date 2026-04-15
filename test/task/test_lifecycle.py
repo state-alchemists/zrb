@@ -94,14 +94,17 @@ async def test_log_session_state():
     session.is_terminated = False
     session.state_logger = MagicMock()
 
-    # We need to terminate the loop eventually
-    async def terminate_later():
-        await asyncio.sleep(0.01)
-        session.is_terminated = True
+    # Use mock sleep to terminate the loop instead of fire-and-forget task
+    call_count = 0
 
-    asyncio.create_task(terminate_later())
+    async def mock_sleep(duration):
+        nonlocal call_count
+        call_count += 1
+        if call_count >= 1:
+            session.is_terminated = True
 
-    await log_session_state(task, session)
+    with patch("asyncio.sleep", new=mock_sleep):
+        await log_session_state(task, session)
 
     assert session.state_logger.write.call_count >= 1
 
@@ -203,8 +206,13 @@ async def test_execute_root_tasks_no_log_state_task():
     session.terminate.side_effect = terminate
     task.exec_chain = AsyncMock(return_value=None)
 
-    # Patch create_task to return None so log_state_task path hits the else
-    with patch("asyncio.create_task", return_value=None):
+    # Patch create_task to close the coroutine (avoids "never awaited" warning)
+    # and return None so log_state_task path hits the else branch
+    def mock_create_task(coro, *args, **kwargs):
+        coro.close()
+        return None
+
+    with patch("asyncio.create_task", side_effect=mock_create_task):
         result = await execute_root_tasks(task, session)
 
     assert result == "done"
@@ -231,11 +239,6 @@ async def test_log_session_state_exception():
             raise Exception("log error")
 
     session.state_logger.write.side_effect = write_side_effect
-
-    # Should not raise
-    with patch("asyncio.sleep", new=AsyncMock(side_effect=Exception("stop loop"))):
-        # Exception during sleep causes loop to exit via the outer except
-        pass
 
     # Patch sleep to terminate after one iteration
     async def mock_sleep(_):

@@ -1,5 +1,5 @@
 import asyncio
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -38,36 +38,21 @@ async def test_execute_task_chain_success():
     session.is_terminated = False
     session.is_allowed_to_run.return_value = True
 
-    # Create a simple function that returns a coroutine instead of an async function
-    def mock_execute_task_action(task, session):
-        async def _coro():
-            return "success"
-
-        return _coro()
+    mock_execute_task_action = AsyncMock(return_value="success")
 
     with patch(
         "zrb.task.base.execution.execute_task_action",
-        new=Mock(side_effect=mock_execute_task_action),
-    ) as mock_action_patch:
-
-        # Next tasks
+        new=mock_execute_task_action,
+    ):
         next_task = BaseTask(name="next_task")
+        next_task.exec_chain = AsyncMock(return_value=None)
 
-        def mock_exec_chain(session):
-            async def _coro():
-                return None
+        session.get_next_tasks.return_value = [next_task]
 
-            return _coro()
+        result = await execute_task_chain(task, session)
 
-        with patch.object(
-            next_task, "exec_chain", new=Mock(side_effect=mock_exec_chain)
-        ) as mock_exec_chain_patch:
-            session.get_next_tasks.return_value = [next_task]
-
-            result = await execute_task_chain(task, session)
-
-            assert result == "success"
-            assert mock_exec_chain_patch.called
+        assert result == "success"
+        assert next_task.exec_chain.called
 
 
 @pytest.mark.asyncio
@@ -92,34 +77,14 @@ async def test_execute_action_until_ready_no_checks():
     status.is_completed = True
     session.get_task_status.return_value = status
 
-    # Save original function
-    import zrb.task.base.execution
-
-    original_execute_action_with_retry = (
-        zrb.task.base.execution.execute_action_with_retry
-    )
-
-    try:
-        # Replace with mock
-        def mock_execute_action_with_retry(task, session):
-            async def _coro():
-                return "done"
-
-            return _coro()
-
-        zrb.task.base.execution.execute_action_with_retry = (
-            mock_execute_action_with_retry
-        )
-
+    with patch(
+        "zrb.task.base.execution.execute_action_with_retry",
+        new=AsyncMock(return_value="done"),
+    ):
         result = await execute_action_until_ready(task, session)
 
         assert result == "done"
         assert status.mark_as_ready.called
-    finally:
-        # Restore original function
-        zrb.task.base.execution.execute_action_with_retry = (
-            original_execute_action_with_retry
-        )
 
 
 @pytest.mark.asyncio
@@ -195,39 +160,23 @@ async def test_run_default_action_callable():
 @pytest.mark.asyncio
 async def test_execute_successors():
     s1 = BaseTask(name="s1")
+    s1.exec_chain = AsyncMock(return_value=None)
 
-    def mock_exec_chain(session):
-        async def _coro():
-            return None
-
-        return _coro()
-
-    with patch.object(
-        s1, "exec_chain", new=Mock(side_effect=mock_exec_chain)
-    ) as mock_exec_chain_patch:
-        task = BaseTask(name="task", successor=[s1])
-        session = MagicMock(spec=AnySession)
-        await execute_successors(task, session)
-        assert mock_exec_chain_patch.called
+    task = BaseTask(name="task", successor=[s1])
+    session = MagicMock(spec=AnySession)
+    await execute_successors(task, session)
+    assert s1.exec_chain.called
 
 
 @pytest.mark.asyncio
 async def test_execute_fallbacks():
     f1 = BaseTask(name="f1")
+    f1.exec_chain = AsyncMock(return_value=None)
 
-    def mock_exec_chain(session):
-        async def _coro():
-            return None
-
-        return _coro()
-
-    with patch.object(
-        f1, "exec_chain", new=Mock(side_effect=mock_exec_chain)
-    ) as mock_exec_chain_patch:
-        task = BaseTask(name="task", fallback=[f1])
-        session = MagicMock(spec=AnySession)
-        await execute_fallbacks(task, session)
-        assert mock_exec_chain_patch.called
+    task = BaseTask(name="task", fallback=[f1])
+    session = MagicMock(spec=AnySession)
+    await execute_fallbacks(task, session)
+    assert f1.exec_chain.called
 
 
 @pytest.mark.asyncio
@@ -319,6 +268,8 @@ async def test_execute_action_until_ready_with_readiness_checks():
     from zrb.task.base.execution import execute_action_until_ready
 
     check_task = BaseTask(name="check_task")
+    check_task.exec_chain = AsyncMock(return_value=None)
+
     task = BaseTask(name="task", readiness_check=[check_task])
 
     session = MagicMock(spec=AnySession)
@@ -343,36 +294,17 @@ async def test_execute_action_until_ready_with_readiness_checks():
 
     session.get_task_status.side_effect = get_status
 
-    def mock_exec_chain(session):
-        async def _coro():
-            return None
+    # Use real asyncio.create_task and asyncio.gather — they properly await
+    # coroutines, avoiding "never awaited" warnings from closed coroutines.
+    mock_exec = AsyncMock(return_value="result")
 
-        return _coro()
-
-    with patch.object(check_task, "exec_chain", new=Mock(side_effect=mock_exec_chain)):
-        with patch.object(task, "get_ctx", return_value=ctx):
-            with patch("asyncio.sleep") as mock_sleep:
-                mock_sleep.return_value = None
-
-                async def mock_sleep_coro(t):
-                    return None
-
-                mock_sleep.side_effect = lambda t: mock_sleep_coro(t)
-
-                with patch(
-                    "zrb.task.base.execution.execute_action_with_retry"
-                ) as mock_exec:
-
-                    async def mock_action_coro(t, s):
-                        return "result"
-
-                    mock_exec.side_effect = mock_action_coro
-
-                    with patch("asyncio.create_task") as mock_create_task:
-                        mock_task_obj = MagicMock(spec=asyncio.Task)
-                        mock_create_task.return_value = mock_task_obj
-
-                        result = await execute_action_until_ready(task, session)
+    with patch.object(task, "get_ctx", return_value=ctx):
+        with patch("asyncio.sleep", new=AsyncMock(return_value=None)):
+            with patch(
+                "zrb.task.base.execution.execute_action_with_retry",
+                new=mock_exec,
+            ):
+                result = await execute_action_until_ready(task, session)
 
     assert result is None  # Returns None after deferring
     session.defer_action.assert_called()
