@@ -125,9 +125,30 @@ Zrb loads prompts with a multi-level override system (first found wins):
 | `ZRB_LLM_INCLUDE_GIT_MANDATE` | Include git safety rules | `1` |
 | `ZRB_LLM_INCLUDE_JOURNAL` | Inject journal content | `1` |
 | `ZRB_LLM_INCLUDE_SYSTEM_CONTEXT` | Include OS/time details | `1` |
+| `ZRB_LLM_INCLUDE_TOOL_GUIDANCE` | Include per-tool usage guidance | `1` |
 | `ZRB_LLM_INCLUDE_CLAUDE_SKILLS` | Include Claude skills | `1` |
 | `ZRB_LLM_INCLUDE_CLI_SKILLS` | Include CLI skills | `0` |
 | `ZRB_LLM_INCLUDE_PROJECT_CONTEXT` | Include project docs | `1` |
+
+### Tool Guidance
+
+The tool guidance section tells the LLM when and how to use each available tool. All built-in tools ship with guidance pre-registered. When you add a custom tool, register its guidance so the LLM knows how to use it:
+
+```python
+from zrb import LLMChatTask
+
+task = LLMChatTask(name="chat")
+task.add_tool(my_tool)
+
+task.prompt_manager.add_tool_guidance(
+    group="My Domain",
+    name="MyTool",
+    use_when="When the user asks about inventory or stock levels",
+    key_rule="Always filter by warehouse_id; an empty result means no stock, not an error.",
+)
+```
+
+Guidance entries for tools that are not registered on the task are automatically suppressed at runtime, so the prompt never grows stale. Set `ZRB_LLM_INCLUDE_TOOL_GUIDANCE=0` to disable the entire section if you manage tool instructions another way.
 
 ---
 

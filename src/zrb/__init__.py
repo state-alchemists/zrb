@@ -39,6 +39,7 @@ from zrb.llm.agent.manager import sub_agent_manager
 from zrb.llm.config.config import LLMConfig, llm_config
 from zrb.llm.config.limiter import LLMLimiter, llm_limiter
 from zrb.llm.hook.manager import hook_manager
+from zrb.llm.prompt.tool_guidance import ToolGuidance
 from zrb.llm.skill.manager import skill_manager
 from zrb.llm.task.llm_chat_task import LLMChatTask
 from zrb.llm.task.llm_task import LLMTask
@@ -117,6 +118,7 @@ __all__ = [
     "Xcom",
     "LLMTask",
     "LLMChatTask",
+    "ToolGuidance",
     "LLMConfig",
     "llm_config",
     "LLMLimiter",

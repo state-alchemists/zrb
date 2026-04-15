@@ -75,7 +75,12 @@ def create_project_context_prompt():
         loaded_docs: list[tuple[str, str]] = []  # (section header, content)
         listed_files: list[str] = []
 
+        # README.md is a fallback — skip it when AGENTS.md is available
+        agents_has_content = bool(doc_files["AGENTS.md"])
+
         for filename in doc_files.keys():
+            if filename == "README.md" and agents_has_content:
+                break
             occurrences = doc_files[filename]
             if not occurrences:
                 continue

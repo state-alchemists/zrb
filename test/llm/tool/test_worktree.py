@@ -24,7 +24,6 @@ def create_mock_process(returncode=0, stdout=b"", stderr=b""):
 
 @pytest.mark.asyncio
 async def test_enter_worktree_success(mock_subprocess):
-    # Mock git rev-parse (check repo)
     mock_subprocess.side_effect = [
         create_mock_process(returncode=0),  # check repo
         create_mock_process(
@@ -33,7 +32,7 @@ async def test_enter_worktree_success(mock_subprocess):
     ]
 
     res = await enter_worktree(branch_name="test-branch")
-    assert "Worktree created at" in res
+    assert "Worktree created:" in res
     assert "Branch: test-branch" in res
 
 
@@ -44,7 +43,7 @@ async def test_enter_worktree_no_branch_name(mock_subprocess):
         create_mock_process(returncode=0),  # git worktree add
     ]
     res = await enter_worktree()
-    assert "Worktree created at" in res
+    assert "Worktree created:" in res
     assert "Branch: worktree-" in res
 
 
@@ -53,8 +52,9 @@ async def test_enter_worktree_not_repo(mock_subprocess):
     mock_subprocess.return_value = create_mock_process(
         returncode=1, stderr=b"fatal: not a git repository"
     )
-    with pytest.raises(RuntimeError, match="Not inside a git repository"):
-        await enter_worktree()
+    res = await enter_worktree()
+    assert "Error" in res
+    assert "git repository" in res
 
 
 @pytest.mark.asyncio
@@ -65,10 +65,9 @@ async def test_enter_worktree_failure(mock_subprocess):
             returncode=1, stderr=b"fatal: branch already exists"
         ),  # git worktree add
     ]
-    with pytest.raises(
-        RuntimeError, match="Failed to create worktree: fatal: branch already exists"
-    ):
-        await enter_worktree(branch_name="existing-branch")
+    res = await enter_worktree(branch_name="existing-branch")
+    assert "Error" in res
+    assert "already exists" in res
 
 
 @pytest.mark.asyncio
@@ -102,8 +101,9 @@ async def test_exit_worktree_keep_branch(mock_subprocess):
 
 @pytest.mark.asyncio
 async def test_exit_worktree_not_exists():
-    with pytest.raises(RuntimeError, match="Worktree path does not exist"):
-        await exit_worktree("/non/existent/path")
+    res = await exit_worktree("/non/existent/path")
+    assert "Error" in res
+    assert "does not exist" in res
 
 
 @pytest.mark.asyncio
@@ -117,11 +117,9 @@ async def test_exit_worktree_remove_failure(mock_subprocess):
                 returncode=1, stderr=b"error: worktree contains modified files"
             ),  # git worktree remove
         ]
-        with pytest.raises(
-            RuntimeError,
-            match="Failed to remove worktree: error: worktree contains modified files",
-        ):
-            await exit_worktree(tmpdir)
+        res = await exit_worktree(tmpdir)
+        assert "Error" in res
+        assert "modified files" in res
 
 
 @pytest.mark.asyncio
@@ -138,7 +136,7 @@ async def test_exit_worktree_branch_delete_failure(mock_subprocess):
         ]
         res = await exit_worktree(tmpdir)
         assert f"Worktree removed: {tmpdir}" in res
-        assert "Could not delete branch test-branch: error: branch not found" in res
+        assert "could not delete" in res.lower()
 
 
 @pytest.mark.asyncio
@@ -155,7 +153,7 @@ async def test_list_worktrees_success(mock_subprocess):
 async def test_list_worktrees_empty(mock_subprocess):
     mock_subprocess.return_value = create_mock_process(returncode=0, stdout=b"")
     res = await list_worktrees()
-    assert "No additional worktrees found." == res
+    assert "No worktrees found" in res
 
 
 @pytest.mark.asyncio
@@ -163,7 +161,6 @@ async def test_list_worktrees_failure(mock_subprocess):
     mock_subprocess.return_value = create_mock_process(
         returncode=1, stderr=b"fatal: not a git repository"
     )
-    with pytest.raises(
-        RuntimeError, match="Failed to list worktrees: fatal: not a git repository"
-    ):
-        await list_worktrees()
+    res = await list_worktrees()
+    assert "Error" in res
+    assert "git repository" in res

@@ -19,6 +19,7 @@ from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.prompt.tool_guidance import ToolGuidance
 from zrb.llm.summarizer import (
     summarize_history,
 )
@@ -287,6 +288,19 @@ class LLMTask(BaseTask):
         self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]
     ):
         self._tool_factories += list(factory)
+
+    def add_tool_guidance(self, *guidance: ToolGuidance):
+        self.append_tool_guidance(*guidance)
+
+    def append_tool_guidance(self, *guidance: ToolGuidance):
+        """Add tool guidance entries directly to the prompt manager."""
+        for g in guidance:
+            self._prompt_manager.add_tool_guidance(
+                group=g.group_name,
+                name=g.tool_name,
+                use_when=g.when_to_use,
+                key_rule=g.key_rule,
+            )
 
     def add_history_processor(self, *processor: HistoryProcessor):
         self.append_history_processor(*processor)

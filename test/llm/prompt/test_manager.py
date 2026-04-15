@@ -178,3 +178,102 @@ def test_new_prompt_with_render_true():
 
     result = middleware(ctx, "", lambda c, p: p)
     assert "Static content" in result
+
+
+# ── Tool guidance ─────────────────────────────────────────────────────────────
+
+
+def _guidance_manager(**extra) -> PromptManager:
+    """Helper: a PromptManager with all built-in sections off except tool_guidance."""
+    return PromptManager(
+        include_persona=False,
+        include_mandate=False,
+        include_system_context=False,
+        include_journal=False,
+        include_claude_skills=False,
+        include_cli_skills=False,
+        include_project_context=False,
+        include_tool_guidance=True,
+        **extra,
+    )
+
+
+def test_add_tool_guidance_appears_in_prompt():
+    manager = _guidance_manager()
+    manager.add_tool_guidance(
+        group="MyGroup",
+        name="MyTool",
+        use_when="Doing something useful",
+        key_rule="Always pass --flag.",
+    )
+    ctx = SharedContext()
+    result = manager.compose_prompt()(ctx)
+    assert "MyGroup" in result
+    assert "MyTool" in result
+    assert "Doing something useful" in result
+    assert "Always pass --flag." in result
+
+
+def test_add_tool_guidance_without_key_rule():
+    manager = _guidance_manager()
+    manager.add_tool_guidance(group="G", name="Tool", use_when="Does stuff")
+    ctx = SharedContext()
+    result = manager.compose_prompt()(ctx)
+    assert "Tool" in result
+    assert "Does stuff" in result
+    assert " — *" not in result
+
+
+def test_add_tool_guidance_auto_creates_group():
+    manager = _guidance_manager()
+    manager.add_tool_guidance(group="AutoGroup", name="AutoTool", use_when="Auto use")
+    ctx = SharedContext()
+    result = manager.compose_prompt()(ctx)
+    assert "AutoGroup" in result
+    assert "AutoTool" in result
+
+
+def test_add_tool_group_is_idempotent():
+    manager = _guidance_manager()
+    manager.add_tool_group(name="GroupA")
+    manager.add_tool_group(name="GroupA")  # second call is a no-op
+    manager.add_tool_guidance(group="GroupA", name="Tool1", use_when="Does stuff")
+    ctx = SharedContext()
+    result = manager.compose_prompt()(ctx)
+    assert result.count("GroupA") == 1  # header rendered exactly once
+
+
+def test_add_tool_guidance_updates_existing_entry():
+    manager = _guidance_manager()
+    manager.add_tool_guidance(group="G", name="Tool", use_when="Old description")
+    manager.add_tool_guidance(group="G", name="Tool", use_when="New description")
+    ctx = SharedContext()
+    result = manager.compose_prompt()(ctx)
+    assert "New description" in result
+    assert "Old description" not in result
+
+
+def test_tool_guidance_absent_when_no_entries_registered():
+    manager = _guidance_manager()
+    ctx = SharedContext()
+    result = manager.compose_prompt()(ctx)
+    assert "Tool Usage Guide" not in result
+
+
+def test_tool_names_filter_excludes_unregistered_tools():
+    manager = _guidance_manager(tool_names={"ToolA"})
+    manager.add_tool_guidance(group="G", name="ToolA", use_when="Does A")
+    manager.add_tool_guidance(group="G", name="ToolB", use_when="Does B")
+    ctx = SharedContext()
+    result = manager.compose_prompt()(ctx)
+    assert "ToolA" in result
+    assert "ToolB" not in result
+
+
+def test_multiple_groups_appear_in_registration_order():
+    manager = _guidance_manager()
+    manager.add_tool_guidance(group="First", name="T1", use_when="Use T1")
+    manager.add_tool_guidance(group="Second", name="T2", use_when="Use T2")
+    ctx = SharedContext()
+    result = manager.compose_prompt()(ctx)
+    assert result.index("First") < result.index("Second")

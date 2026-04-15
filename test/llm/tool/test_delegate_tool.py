@@ -35,8 +35,9 @@ async def test_delegate_tool_agent_not_found(mock_sub_agent_manager):
     mock_sub_agent_manager.create_agent.return_value = None
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
 
-    with pytest.raises(ValueError, match="Sub-agent 'non-existent' not found."):
-        await tool("non-existent", "task")
+    result = await tool("non-existent", "task")
+    assert "Error" in result
+    assert "not found" in result
 
 
 @pytest.mark.asyncio
@@ -53,8 +54,8 @@ async def test_delegate_tool_success(mock_sub_agent_manager):
 
         result = await tool("test-agent", "do this", "context")
 
-        assert "Sub-agent 'test-agent'" in result
-        assert "completed the task" in result
+        assert "test-agent" in result
+        assert "completed:" in result
         assert "Agent Result" in result
 
         # Verify call arguments
@@ -75,7 +76,8 @@ async def test_delegate_tool_exception(mock_sub_agent_manager):
 
     with patch("zrb.llm.tool.delegate.run_agent", side_effect=Exception("Run failed")):
         result = await tool("test-agent", "task")
-        assert "Error executing sub-agent 'test-agent': Run failed" in result
+        assert "Error:" in result
+        assert "Run failed" in result
 
 
 # BufferedUI Tests
@@ -255,9 +257,8 @@ async def test_parallel_delegate_agent_not_found(mock_sub_agent_manager):
     tasks = [{"agent_name": "missing-agent", "task": "task"}]
     result = await tool(tasks)
 
-    # Agent name now includes unique identifier
     assert "missing-agent" in result
-    assert "failed" in result
+    assert "Error" in result
     assert "not found" in result
 
 
@@ -275,9 +276,8 @@ async def test_parallel_delegate_with_exception(mock_sub_agent_manager):
         tasks = [{"agent_name": "test-agent", "task": "task"}]
         result = await tool(tasks)
 
-        # Agent name now includes unique identifier
         assert "test-agent" in result
-        assert "failed" in result
+        assert "Error" in result
         assert "Agent failed" in result
 
 
@@ -310,4 +310,4 @@ async def test_parallel_delegate_mixed_success_failure(mock_sub_agent_manager):
 
         # Should have both results
         assert "completed" in result
-        assert "failed" in result
+        assert "Error" in result
