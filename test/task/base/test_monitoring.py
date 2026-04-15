@@ -81,11 +81,13 @@ class TestMonitorTaskReadinessSessionTerminated:
 
         with patch.object(task, "get_ctx", return_value=ctx):
             with patch("asyncio.sleep", new=mock_sleep):
-                with patch("asyncio.wait_for", new=AsyncMock(return_value=None)):
-                    with patch(
-                        "zrb.task.base.monitoring.run_async", new=mock_run_async
-                    ):
-                        with patch("asyncio.gather", new=AsyncMock(return_value=None)):
+                # gather returns a plain value (not a coroutine) since it's
+                # just an argument to the wait_for AsyncMock
+                with patch("asyncio.gather", new=MagicMock(return_value=None)):
+                    with patch("asyncio.wait_for", new=AsyncMock(return_value=None)):
+                        with patch(
+                            "zrb.task.base.monitoring.run_async", new=mock_run_async
+                        ):
                             await monitor_task_readiness(task, session, action_coro)
 
         assert len(sleep_calls) >= 1
@@ -126,8 +128,8 @@ class TestMonitorTaskReadinessSuccess:
 
         with patch.object(task, "get_ctx", return_value=ctx):
             with patch("asyncio.sleep", new=mock_sleep):
-                with patch("asyncio.wait_for", new=AsyncMock(return_value=None)):
-                    with patch("asyncio.gather", new=AsyncMock(return_value=None)):
+                with patch("asyncio.gather", new=MagicMock(return_value=None)):
+                    with patch("asyncio.wait_for", new=AsyncMock(return_value=None)):
                         with patch(
                             "zrb.task.base.monitoring.run_async", new=mock_run_async
                         ):
@@ -367,8 +369,8 @@ class TestMonitorTaskReadinessChecksNotCompleted:
 
         with patch.object(task, "get_ctx", return_value=ctx):
             with patch("asyncio.sleep", new=mock_sleep):
-                with patch("asyncio.wait_for", new=AsyncMock(return_value=None)):
-                    with patch("asyncio.gather", new=AsyncMock(return_value=None)):
+                with patch("asyncio.gather", new=MagicMock(return_value=None)):
+                    with patch("asyncio.wait_for", new=AsyncMock(return_value=None)):
                         with patch(
                             "zrb.task.base.monitoring.run_async", new=mock_run_async
                         ):
