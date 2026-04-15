@@ -56,8 +56,10 @@ def test_glob_files(temp_dir):
         f.write("2")
 
     res = glob_files("*.txt", path=temp_dir)
-    assert len(res) == 1
-    assert "file1.txt" in res
+    assert isinstance(res, dict)
+    files = res.get("files", [])
+    assert len(files) == 1
+    assert "file1.txt" in files
 
 
 def test_replace_in_file(temp_dir):
@@ -86,8 +88,9 @@ def test_search_files(temp_dir):
 
 
 def test_list_files_nonexistent_path():
-    with pytest.raises(FileNotFoundError):
-        list_files("/nonexistent/path/that/does/not/exist")
+    res = list_files("/nonexistent/path/that/does/not/exist")
+    assert "error" in res
+    assert "does not exist" in res["error"]
 
 
 def test_list_files_depth_limiting(tmp_path):
@@ -121,22 +124,18 @@ def test_list_files_truncation(tmp_path):
 
 def test_glob_files_nonexistent_path():
     result = glob_files("*.txt", path="/nonexistent/path/that/does/not/exist")
-    assert "Error" in result
-    assert "does not exist" in result
+    assert "error" in result
+    assert "does not exist" in result["error"]
 
 
 def test_glob_files_skips_directories(tmp_path):
-    # Create a directory matching the glob pattern
     (tmp_path / "mydir.txt").mkdir()
     (tmp_path / "actual.txt").write_text("content")
 
     res = glob_files("*.txt", path=str(tmp_path))
-    assert "actual.txt" in res
-    # The directory should not appear in results
-    assert not any(
-        "mydir.txt" in r and os.path.isdir(tmp_path / "mydir.txt") for r in res
-    )
-    assert "mydir.txt" not in res
+    files = res.get("files", [])
+    assert "actual.txt" in files
+    assert "mydir.txt" not in files
 
 
 def test_glob_files_skips_hidden_path_components(tmp_path):
@@ -146,8 +145,9 @@ def test_glob_files_skips_hidden_path_components(tmp_path):
     (tmp_path / "visible.txt").write_text("visible")
 
     res = glob_files("**/*.txt", path=str(tmp_path))
-    assert not any(".hidden" in f for f in res)
-    assert any("visible.txt" in f for f in res)
+    files = res.get("files", [])
+    assert not any(".hidden" in f for f in files)
+    assert any("visible.txt" in f for f in files)
 
 
 def test_glob_files_excluded_patterns(tmp_path):
@@ -155,8 +155,9 @@ def test_glob_files_excluded_patterns(tmp_path):
     (tmp_path / "skip.log").write_text("skip")
 
     res = glob_files("*", path=str(tmp_path), exclude_patterns=["*.log"])
-    assert any("keep.txt" in f for f in res)
-    assert not any("skip.log" in f for f in res)
+    files = res.get("files", [])
+    assert any("keep.txt" in f for f in files)
+    assert not any("skip.log" in f for f in files)
 
 
 def test_glob_files_truncation(tmp_path):
@@ -164,10 +165,9 @@ def test_glob_files_truncation(tmp_path):
         (tmp_path / f"file_{i:04d}.txt").write_text("x")
 
     res = glob_files("*.txt", path=str(tmp_path))
-    # Last element should be the truncation notice
-    assert any("TRUNCATED" in item for item in res)
-    # Should have 1000 real files + 1 truncation notice
-    assert len(res) == 1001
+    assert "truncation_notice" in res
+    assert "TRUNCATED" in res["truncation_notice"]
+    assert len(res["files"]) == 1000  # 500 head + 500 tail
 
 
 # --- read_file additional coverage ---
@@ -213,21 +213,20 @@ def test_read_file_auto_truncate_false(tmp_path):
     assert "line1" in result
     assert "line2" in result
     assert "line3" in result
-    # No truncation header when auto_truncate=False
     assert "TRUNCATED" not in result
     assert "IMPORTANT" not in result
+    assert "---CONTENT---" in result
 
 
 def test_read_file_truncation_header(tmp_path):
     file_path = tmp_path / "big.txt"
-    # Write enough chars to exceed max_chars=100000 to trigger truncation header
-    # Each line is ~110 chars; 1000 lines = ~110000 chars > 100000
     line = "x" * 110
     content = "\n".join(line for _ in range(1100))
     file_path.write_text(content)
 
     result = read_file(str(file_path))
-    assert "IMPORTANT" in result or "TRUNCATED" in result
+    assert "---CONTENT---" in result
+    assert ("[File:" in result and "truncated" in result.lower()) or "File:" in result
 
 
 def test_read_file_non_utf8(tmp_path):
@@ -336,9 +335,36 @@ def test_replace_in_file_no_changes(tmp_path):
     file_path = tmp_path / "test.txt"
     file_path.write_text("hello world")
 
-    # Replacing "x" with "x" makes no effective change
     result = replace_in_file(str(file_path), "hello", "hello")
     assert "No changes made" in result
+
+
+def test_replace_in_file_near_match(tmp_path):
+    file_path = tmp_path / "test.txt"
+    file_path.write_text("hello world\ngoodbye world\n")
+
+    # old_text first line ("hello worl") is a substring of file line but full old_text doesn't match
+    result = replace_in_file(str(file_path), "hello worl\ngoodbye", "hello zrb")
+    assert "not found" in result.lower()
+    assert "Similar lines found" in result
+
+
+def test_replace_in_file_multiple_matches(tmp_path):
+    file_path = tmp_path / "test.txt"
+    file_path.write_text("foo bar foo baz")
+
+    # Without count, replaces all
+    result = replace_in_file(str(file_path), "foo", "FOO")
+    assert "Successfully updated" in result
+    with open(file_path) as f:
+        assert f.read() == "FOO bar FOO baz"
+
+    # With count=1, replaces first only
+    file_path.write_text("foo bar foo baz")
+    result = replace_in_file(str(file_path), "foo", "FOO", count=1)
+    assert "Successfully updated" in result
+    with open(file_path) as f:
+        assert f.read() == "FOO bar foo baz"
 
 
 # --- search_files additional coverage ---
@@ -391,3 +417,55 @@ def test_search_files_result_truncation(tmp_path):
     result = search_files("needle", path=str(tmp_path))
     assert "truncation_notice" in result
     assert len(result["results"]) == 500  # 250 head + 250 tail
+
+
+def test_search_files_files_only(tmp_path):
+    (tmp_path / "match1.py").write_text("import os\nfoo = 1")
+    (tmp_path / "match2.py").write_text("foo = 2")
+    (tmp_path / "nomatch.py").write_text("bar = 3")
+
+    result = search_files("foo", path=str(tmp_path), files_only=True)
+    assert "files" in result
+    assert "results" not in result
+    files = result["files"]
+    assert len(files) == 2
+    assert all(isinstance(f, str) for f in files)
+    assert any("match1.py" in f for f in files)
+    assert any("match2.py" in f for f in files)
+    assert not any("nomatch.py" in f for f in files)
+
+
+def test_search_files_case_insensitive(tmp_path):
+    (tmp_path / "file.txt").write_text("Hello World\nfoo bar")
+
+    result_sensitive = search_files("hello", path=str(tmp_path), case_sensitive=True)
+    assert "No matches found" in result_sensitive.get("summary", "")
+
+    result_insensitive = search_files("hello", path=str(tmp_path), case_sensitive=False)
+    assert "Found 1 matches" in result_insensitive.get("summary", "")
+
+
+def test_search_files_context_lines(tmp_path):
+    content = "\n".join(f"line{i}" for i in range(10))
+    (tmp_path / "file.txt").write_text(content)
+
+    # context_lines=0: no surrounding lines
+    result_no_ctx = search_files("line5", path=str(tmp_path), context_lines=0)
+    match = result_no_ctx["results"][0]["matches"][0]
+    assert match["context_before"] == []
+    assert match["context_after"] == []
+
+    # context_lines=1: one line before and after
+    result_ctx = search_files("line5", path=str(tmp_path), context_lines=1)
+    match = result_ctx["results"][0]["matches"][0]
+    assert len(match["context_before"]) == 1
+    assert len(match["context_after"]) == 1
+
+
+def test_search_files_files_only_summary(tmp_path):
+    (tmp_path / "a.txt").write_text("target")
+    (tmp_path / "b.txt").write_text("target")
+
+    result = search_files("target", path=str(tmp_path), files_only=True)
+    assert "Found" in result.get("summary", "")
+    assert "2 files" in result.get("summary", "")

@@ -303,8 +303,7 @@ class TestAsyncFunctions:
 
         result = await write_todos(todos, session="test_async_session")
 
-        assert "Todo List Updated" in result
-        assert "test_async_session" in result
+        assert "[test_async_session]" in result
         assert "Task 1" in result
         assert "Task 2" in result
 
@@ -344,7 +343,7 @@ class TestAsyncFunctions:
 
         # Verify both tasks are present (merged)
         assert result is not None
-        assert "Total:** 2" in result or "Total: 2" in result
+        assert "Task 2" in result
 
     @pytest.mark.asyncio
     async def test_get_todos_empty(self, tmp_path):
@@ -355,7 +354,7 @@ class TestAsyncFunctions:
 
         result = await get_todos(session="empty_session")
 
-        assert "No todos found" in result
+        assert "No todos" in result
 
     @pytest.mark.asyncio
     async def test_get_todos_with_data(self, tmp_path):
@@ -364,7 +363,6 @@ class TestAsyncFunctions:
         manager._todo_dir = tmp_path
         manager._todos = {}
 
-        # Create todos first
         await write_todos(
             [
                 {"content": "Task 1", "status": "completed"},
@@ -375,7 +373,7 @@ class TestAsyncFunctions:
 
         result = await get_todos(session="existing_session")
 
-        assert "Current Todo List" in result
+        assert "[existing_session]" in result
         assert "Task 1" in result
         assert "Task 2" in result
         assert "Progress:" in result
@@ -387,15 +385,13 @@ class TestAsyncFunctions:
         manager._todo_dir = tmp_path
         manager._todos = {}
 
-        # Create initial
         await write_todos(
             [{"content": "Task 1", "status": "pending"}], session="update_session"
         )
 
-        # Update status
         result = await update_todo("1", status="completed", session="update_session")
 
-        assert "Todo Updated" in result
+        assert "[update_session]" in result
         assert "completed" in result
 
     @pytest.mark.asyncio
@@ -411,7 +407,7 @@ class TestAsyncFunctions:
             "1", content="Updated content", session="content_session"
         )
 
-        assert "Todo Updated" in result
+        assert "[content_session]" in result
         assert "Updated content" in result
 
     @pytest.mark.asyncio
@@ -532,7 +528,7 @@ class TestTodoStatusValues:
         await write_todos(todos, session=unique_session)
         result = await get_todos(session=unique_session)
 
-        # Check the format: **Total:** 5 | **Completed:** 1 | **In Progress:** 1 | **Pending:** 2
-        assert "**Pending:** 2" in result
-        assert "**Completed:** 1" in result
-        assert "**In Progress:** 1" in result
+        # Check the new compact format
+        assert "2 pending" in result
+        assert "1 in progress" in result
+        assert "[+]" in result  # completed items use [+]

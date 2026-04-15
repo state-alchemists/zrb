@@ -122,10 +122,12 @@ The assistant comes with a rich set of built-in tools. These are automatically a
 |------|----------|-------------|
 | `LS` | `list_files` | Recursively list files up to 3 levels deep, auto-excluding `.git`, `node_modules`, `__pycache__`, etc. |
 | `Glob` | `glob_files` | Find files matching a glob pattern (e.g., `**/*.py`). |
-| `Read` | `read_file` | Read a file's contents with optional line-range slicing and auto-truncation. |
+| `Grep` | `search_files` | Search file contents by regex pattern. Supports `context_lines` (default 2), `files_only=True` to return only matching file paths, `case_sensitive=False` for case-insensitive search, and `file_pattern` to restrict to specific file types. |
+| `Read` | `read_file` | Read a single file's contents with optional line-range slicing and auto-truncation. |
+| `ReadMany` | `read_files` | Read multiple files in one call — faster than sequential `Read` calls. |
 | `Write` | `write_file` | Write or overwrite a file. |
-| `Edit` | `edit_file` | Make targeted string replacements in a file. |
-| `Grep` | `search_files` | Search file contents by regex pattern with context lines and file-type filtering. |
+| `WriteMany` | `write_files` | Write multiple files in one call. |
+| `Edit` | `replace_in_file` | Make targeted string replacements in a file. |
 
 ### Web
 
@@ -138,7 +140,16 @@ The assistant comes with a rich set of built-in tools. These are automatically a
 
 | Tool | Function | Description |
 |------|----------|-------------|
-| `AnalyzeCode` | `analyze_code` | Deep code analysis using the Language Server Protocol (LSP). Requires LSP to be configured. See [LSP Support](lsp-support.md). |
+| `AnalyzeFile` | `analyze_file` | Semantic analysis of a single file via LLM sub-agent. Use for architecture/intent questions, not raw content retrieval. |
+| `AnalyzeCode` | `analyze_code` | Deep code analysis for an entire directory. Requires LSP to be configured. See [LSP Support](lsp-support.md). |
+| `LspFindDefinition` | — | Jump to the canonical definition of a symbol. |
+| `LspFindReferences` | — | Find all call sites and usages of a symbol across the project. |
+| `LspGetDiagnostics` | — | Get type errors, warnings, and lint issues for a file. |
+| `LspGetDocumentSymbols` | — | List all symbols defined in a file. |
+| `LspGetWorkspaceSymbols` | — | Find a symbol by name across the workspace. |
+| `LspGetHoverInfo` | — | Get type signature or documentation for a symbol. |
+| `LspRenameSymbol` | — | Rename a symbol safely across the codebase (dry_run=True by default to preview before applying). |
+| `LspListServers` | — | List active Language Server Protocol servers. |
 
 ### Planning & Task Tracking
 
@@ -147,6 +158,7 @@ The assistant comes with a rich set of built-in tools. These are automatically a
 | `WriteTodos` | `write_todos` | Create or replace the session todo list (persisted to `~/.zrb/todos/<session>.json`). |
 | `GetTodos` | `get_todos` | Get the current todo list and progress summary. |
 | `UpdateTodo` | `update_todo` | Update the status of a single todo item (`pending` → `in_progress` → `completed`). |
+| `ClearTodos` | `clear_todos` | Discard the entire current todo list. |
 
 ### Knowledge Base (RAG)
 
@@ -178,18 +190,44 @@ The assistant can connect to external MCP servers defined in `mcp-config.json`. 
 | `DelegateToAgent` | Delegate a sub-task to a named sub-agent. Sub-agents are discovered from `agents/` directories. See sub-agents section below. |
 | `ActivateSkill` | Load a named skill (a set of prompts and tools) into the current session. |
 
-### Worktree
+### Git Worktrees
 
-| Tool | Description |
-|------|-------------|
-| `CreateWorktree` | Create an isolated git worktree for safe parallel development. |
-| `ExitWorktree` | Commit and close the current worktree, merging changes back. |
+| Tool | Function | Description |
+|------|----------|-------------|
+| `ListWorktrees` | `list_worktrees` | List all active git worktrees. Call before `EnterWorktree` to avoid duplicates. |
+| `EnterWorktree` | `enter_worktree` | Create an isolated git worktree for risky or experimental changes. |
+| `ExitWorktree` | `exit_worktree` | Finish work in a worktree and clean it up. |
 
 ### Zrb Task Execution
 
 | Tool | Description |
 |------|-------------|
+| `ListZrbTasks` | List all available Zrb tasks in the current project. |
 | `RunZrbTask` | Execute a registered Zrb task by name from within a conversation. |
+
+---
+
+## Tool Guidance
+
+Every built-in tool ships with guidance that tells the LLM **when to use it** and **what the most important behavioral rule is**. When you add a custom tool, you can register the same kind of guidance so the LLM knows how to use it correctly.
+
+```python
+my_chat_task.add_tool(my_custom_tool)
+
+my_chat_task.prompt_manager.add_tool_guidance(
+    group="My Domain",
+    name="MyCustomTool",
+    use_when="When the user asks about X or needs to look up Y",
+    key_rule="Always pass a valid ID; never call without first calling ListItems.",
+)
+```
+
+- **`group`** — Section heading in the tool guidance prompt. Created automatically on first use.
+- **`name`** — Must match the tool's Python `__name__` (or `Tool.name` for `pydantic_ai.Tool` objects).
+- **`use_when`** — One sentence: the condition that should trigger this tool.
+- **`key_rule`** — *(optional)* The single most important constraint, common mistake to avoid, or sequencing requirement.
+
+Guidance is automatically filtered at runtime — entries for tools that are not registered on the task are suppressed, so the LLM never sees instructions for tools it cannot use.
 
 ---
 

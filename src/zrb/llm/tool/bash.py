@@ -22,13 +22,8 @@ async def run_shell_command(
     """
     Executes a non-interactive shell command. Streams stdout/stderr live and returns truncated output.
 
-    MANDATES:
-    - Use for system commands, package managers, test runners, and build tools.
-    - Never use for file I/O—use `Read`, `Write`, `Edit`, `Grep`, `Glob` instead.
-    - Always pass non-interactive flags (e.g., `-y`, `--yes`, `CI=true`) to prevent hanging.
-    - Default timeout is 30 seconds; timed-out processes may continue in background—check with `ps aux | grep <name>`.
-    - Batch independent commands with `&&` or `;` to reduce round trips.
-    - Use `cwd` to set the working directory; required when operating inside a worktree or a different project directory.
+    Default `timeout` is 30 seconds; timed-out processes may continue in the background.
+    Use `cwd` to set the working directory.
     """
     if max_chars is None:
         max_chars = CFG.LLM_MAX_OUTPUT_CHARS

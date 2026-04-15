@@ -11,10 +11,7 @@ async def open_web_page(url: str, summarize: bool = True) -> dict:
     """
     Fetches a web page and returns it as Markdown. Includes links found on the page.
 
-    When summarize=True (default), a sub-agent extracts high-signal info and reduces token usage.
-
-    MANDATES:
-    - For web searches by query, use `SearchInternet` instead.
+    When `summarize=True` (default), a sub-agent extracts high-signal info and reduces token usage.
     """
     try:
         html_content, links = await _fetch_page_content(url)
@@ -26,15 +23,17 @@ async def open_web_page(url: str, summarize: bool = True) -> dict:
                 "content": summarized_content,
                 "links_on_page": links,
                 "summarized": True,
+                "url": url,
             }
 
         return {
             "content": markdown_content,
             "links_on_page": links,
             "summarized": False,
+            "url": url,
         }
     except Exception as e:
-        return {"error": f"Failed to fetch content from {url}: {str(e)}"}
+        return {"error": f"Failed to fetch content from {url}: {str(e)}", "url": url}
 
 
 async def search_internet(
@@ -42,29 +41,128 @@ async def search_internet(
     page: int = 1,
 ) -> dict:
     """
-    Performs an internet search. Returns titles, URLs, and snippets.
+    Performs an internet search. Returns a normalized dict with:
+        - query: the search query
+        - results: list of {title, url, snippet, source}
+        - total: number of results
+        - page: current page
+        - error: null on success, error string on failure
 
-    MANDATES:
-    - Requires SERPAPI_KEY, BRAVE_API_KEY, or SearXNG configuration.
-    - For fetching a specific URL, use `OpenWebPage` instead.
+    Requires SERPAPI_KEY, BRAVE_API_KEY, or SearXNG configuration.
     """
-    if (
-        CFG.SEARCH_INTERNET_METHOD.strip().lower() == "serpapi"
-        and CFG.SERPAPI_KEY != ""
-    ):
+    method = CFG.SEARCH_INTERNET_METHOD.strip().lower()
+    if method == "serpapi" and CFG.SERPAPI_KEY:
         from zrb.llm.tool.search.serpapi import search_internet as serpapi_search
 
-        return serpapi_search(query, page=page)
-    if (
-        CFG.SEARCH_INTERNET_METHOD.strip().lower() == "brave"
-        and CFG.BRAVE_API_KEY != ""
-    ):
+        try:
+            raw = serpapi_search(query, page=page)
+        except Exception as e:  # noqa: BLE001
+            return _error_result(query, page, str(e), "serpapi")
+        return normalize_search_result(raw, "serpapi")
+
+    if method == "brave" and CFG.BRAVE_API_KEY:
         from zrb.llm.tool.search.brave import search_internet as brave_search
 
-        return brave_search(query, page=page)
+        try:
+            raw = brave_search(query, page=page)
+        except Exception as e:  # noqa: BLE001
+            return _error_result(query, page, str(e), "brave")
+        return normalize_search_result(raw, "brave")
+
     from zrb.llm.tool.search.searxng import search_internet as searxng_search
 
-    return searxng_search(query, page=page)
+    try:
+        raw = searxng_search(query, page=page)
+    except Exception as e:  # noqa: BLE001
+        return _error_result(query, page, str(e), "searxng")
+    return normalize_search_result(raw, "searxng")
+
+
+def normalize_search_result(raw: dict, backend: str) -> dict:
+    """Normalize search results from any backend into a consistent schema."""
+    if "error" in raw:
+        return raw
+    query = raw.get("query", "")
+    if backend == "brave":
+        return _normalize_brave(raw, query)
+    if backend == "serpapi":
+        return _normalize_serpapi(raw, query)
+    if backend == "searxng":
+        return _normalize_searxng(raw, query)
+    return raw
+
+
+def _normalize_brave(raw: dict, query: str) -> dict:
+    web_results = raw.get("web", {}).get("results", [])
+    results = []
+    for item in web_results[:10]:
+        results.append(
+            {
+                "title": item.get("title", ""),
+                "url": item.get("url", ""),
+                "snippet": item.get("description", "")
+                or item.get("extra_snippets", [""])[0],
+                "source": "brave",
+            }
+        )
+    return {
+        "query": query,
+        "results": results,
+        "total": len(results),
+        "page": 1,
+        "error": None,
+    }
+
+
+def _normalize_serpapi(raw: dict, query: str) -> dict:
+    organic = raw.get("organic_results", [])
+    results = []
+    for item in organic[:10]:
+        results.append(
+            {
+                "title": item.get("title", ""),
+                "url": item.get("link", ""),
+                "snippet": item.get("snippet", ""),
+                "source": "serpapi",
+            }
+        )
+    return {
+        "query": query,
+        "results": results,
+        "total": len(results),
+        "page": 1,
+        "error": None,
+    }
+
+
+def _normalize_searxng(raw: dict, query: str) -> dict:
+    results = []
+    for item in raw.get("results", [])[:10]:
+        results.append(
+            {
+                "title": item.get("title", ""),
+                "url": item.get("url", ""),
+                "snippet": item.get("content", ""),
+                "source": "searxng",
+            }
+        )
+    return {
+        "query": query,
+        "results": results,
+        "total": len(results),
+        "page": raw.get("pageno", 1),
+        "error": None,
+    }
+
+
+def _error_result(query: str, page: int, message: str, backend: str) -> dict:
+    return {
+        "query": query,
+        "results": [],
+        "total": 0,
+        "page": page,
+        "error": message,
+    }
 
 
 async def _fetch_page_content(url: str) -> tuple:

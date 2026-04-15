@@ -120,6 +120,7 @@ class Config:
         self.DEFAULT_LLM_INCLUDE_CLAUDE_SKILLS: str = "on"
         self.DEFAULT_LLM_INCLUDE_CLI_SKILLS: str = "off"
         self.DEFAULT_LLM_INCLUDE_PROJECT_CONTEXT: str = "on"
+        self.DEFAULT_LLM_INCLUDE_TOOL_GUIDANCE: str = "on"
         self.DEFAULT_LLM_SHOW_OLLAMA_MODELS: str = "on"
         self.DEFAULT_LLM_SHOW_PYDANTIC_AI_MODELS: str = "on"
         # LLM Search Configuration
@@ -1668,6 +1669,22 @@ class Config:
     @LLM_INCLUDE_PROJECT_CONTEXT.setter
     def LLM_INCLUDE_PROJECT_CONTEXT(self, value: bool):
         os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_PROJECT_CONTEXT"] = (
+            "on" if value else "off"
+        )
+
+    @property
+    def LLM_INCLUDE_TOOL_GUIDANCE(self) -> bool:
+        return to_boolean(
+            get_env(
+                "LLM_INCLUDE_TOOL_GUIDANCE",
+                self.DEFAULT_LLM_INCLUDE_TOOL_GUIDANCE,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_INCLUDE_TOOL_GUIDANCE.setter
+    def LLM_INCLUDE_TOOL_GUIDANCE(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_TOOL_GUIDANCE"] = (
             "on" if value else "off"
         )
 

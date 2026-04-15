@@ -2,7 +2,10 @@ import asyncio
 import os
 from datetime import datetime
 
+from zrb.llm.tool._wrapper import tool_safe_async
 
+
+@tool_safe_async
 async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
     """
     Creates an isolated git worktree on a new branch. Returns the path to the worktree directory.
@@ -16,7 +19,6 @@ async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
 
     cwd = cwd or os.getcwd()
 
-    # Resolve git repo root
     root_proc = await asyncio.create_subprocess_exec(
         "git",
         "rev-parse",
@@ -27,13 +29,17 @@ async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
     )
     root_out, err = await root_proc.communicate()
     if root_proc.returncode != 0:
-        raise RuntimeError(f"Not inside a git repository: {err.decode().strip()}")
+        return (
+            f"Error: Not inside a git repository.\n"
+            f"[SYSTEM SUGGESTION]: Navigate to a directory that is a git repository root, "
+            f"or provide cwd pointing to one."
+        )
+
     git_root = root_out.decode().strip()
 
     if not branch_name:
         branch_name = f"worktree-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
-    # Place the worktree inside the repo under .{root_group}/worktree/
     worktree_dir = os.path.join(git_root, f".{CFG.ROOT_GROUP_NAME}", "worktree")
     os.makedirs(worktree_dir, exist_ok=True)
     worktree_path = os.path.join(worktree_dir, branch_name)
@@ -51,15 +57,25 @@ async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
     )
     stdout, stderr = await proc.communicate()
     if proc.returncode != 0:
-        raise RuntimeError(f"Failed to create worktree: {stderr.decode().strip()}")
+        err_msg = stderr.decode().strip()
+        if "already exists" in err_msg.lower():
+            return (
+                f"Error: Worktree or branch '{branch_name}' already exists.\n"
+                f"[SYSTEM SUGGESTION]: Use a different branch_name or list existing worktrees with ListWorktrees."
+            )
+        return (
+            f"Error: Failed to create worktree: {err_msg}\n"
+            f"[SYSTEM SUGGESTION]: Check if the branch name is valid and if you have permissions."
+        )
 
     return (
-        f"Worktree created at: {worktree_path}\n"
+        f"Worktree created: {worktree_path}\n"
         f"Branch: {branch_name}\n"
-        f"You can now make changes inside {worktree_path} without affecting the main branch."
+        f"Use this path as cwd for Bash commands targeting this worktree."
     )
 
 
+@tool_safe_async
 async def exit_worktree(worktree_path: str, keep_branch: bool = False) -> str:
     """
     Removes a git worktree created with `EnterWorktree`.
@@ -70,9 +86,11 @@ async def exit_worktree(worktree_path: str, keep_branch: bool = False) -> str:
     cwd = os.getcwd()
 
     if not os.path.isdir(worktree_path):
-        raise RuntimeError(f"Worktree path does not exist: {worktree_path}")
+        return (
+            f"Error: Worktree path does not exist: {worktree_path}\n"
+            f"[SYSTEM SUGGESTION]: Use ListWorktrees to see active worktrees and their exact paths."
+        )
 
-    # Discover the branch name before removal
     branch_proc = await asyncio.create_subprocess_exec(
         "git",
         "-C",
@@ -86,7 +104,6 @@ async def exit_worktree(worktree_path: str, keep_branch: bool = False) -> str:
     branch_out, _ = await branch_proc.communicate()
     branch_name = branch_out.decode().strip() if branch_proc.returncode == 0 else None
 
-    # Remove the worktree
     rm_proc = await asyncio.create_subprocess_exec(
         "git",
         "worktree",
@@ -99,7 +116,11 @@ async def exit_worktree(worktree_path: str, keep_branch: bool = False) -> str:
     )
     _, rm_err = await rm_proc.communicate()
     if rm_proc.returncode != 0:
-        raise RuntimeError(f"Failed to remove worktree: {rm_err.decode().strip()}")
+        return (
+            f"Error: Failed to remove worktree: {rm_err.decode().strip()}\n"
+            f"[SYSTEM SUGGESTION]: Ensure no uncommitted changes are in the worktree, "
+            f"then retry. Use ListWorktrees to check status."
+        )
 
     lines = [f"Worktree removed: {worktree_path}"]
 
@@ -118,14 +139,15 @@ async def exit_worktree(worktree_path: str, keep_branch: bool = False) -> str:
             lines.append(f"Branch deleted: {branch_name}")
         else:
             lines.append(
-                f"Could not delete branch {branch_name}: {del_err.decode().strip()}"
+                f"Branch kept: {branch_name} (could not delete — {del_err.decode().strip()})"
             )
     elif branch_name:
-        lines.append(f"Branch kept: {branch_name} (merge or cherry-pick when ready)")
+        lines.append(f"Branch kept: {branch_name}")
 
     return "\n".join(lines)
 
 
+@tool_safe_async
 async def list_worktrees() -> str:
     """
     Lists all active git worktrees for the current repository (path, branch, commit).
@@ -142,10 +164,13 @@ async def list_worktrees() -> str:
     )
     stdout, stderr = await proc.communicate()
     if proc.returncode != 0:
-        raise RuntimeError(f"Failed to list worktrees: {stderr.decode().strip()}")
+        return (
+            f"Error: Not inside a git repository.\n"
+            f"[SYSTEM SUGGESTION]: Navigate to a git repository root."
+        )
 
     output = stdout.decode().strip()
-    return output if output else "No additional worktrees found."
+    return output if output else "No worktrees found (only the main working tree)."
 
 
 # Set function names to PascalCase for tool display
