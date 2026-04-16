@@ -13,6 +13,10 @@ All three tier names are mapped to CFG.LLM_MODEL by the renderer, so you only
 need one real model configured. The tier names appear in the UI info bar and
 autocomplete so the user can always see (and override) the active tier.
 
+The renderer is also registered on `llm_config` so that every background
+sub-agent (web-page summarizer, code analyzer, history compressor, etc.) goes
+through the same provider mapping — not just the main chat agent.
+
 Usage:
     cd examples/model-tiering
     zrb llm chat
@@ -20,6 +24,7 @@ Usage:
 
 from zrb.builtin.llm.chat import llm_chat
 from zrb.config.config import CFG
+from zrb.llm.config.config import llm_config
 
 # =============================================================================
 # Tier name constants
@@ -32,7 +37,7 @@ MODEL_FLASH_LITE = "zrb:model-flash-lite"
 CUSTOM_MODEL_NAMES = [MODEL_PRO, MODEL_FLASH, MODEL_FLASH_LITE]
 
 # =============================================================================
-# Tier tracker — decides which tier to use per request
+# Tier tracker — decides which tier to use per request (main agent only)
 # =============================================================================
 
 
@@ -90,11 +95,22 @@ def render_model(model):
 
 
 # =============================================================================
-# Wire everything into llm_chat
+# Wire everything into llm_chat (task-level, main agent only)
 # =============================================================================
 
 tracker = ModelTierTracker()
 
 llm_chat.custom_model_names = CUSTOM_MODEL_NAMES  # shown in /model autocomplete
-llm_chat.model_getter = tracker  # decides tier per request
-llm_chat.model_renderer = render_model  # maps tier → real model
+llm_chat.model_getter = tracker  # decides tier per request (main agent)
+llm_chat.model_renderer = render_model  # maps tier → real model (main agent)
+
+# =============================================================================
+# Also register the renderer on llm_config so ALL sub-agents use the same
+# provider mapping (web summarizer, code analyzer, history compressor, etc.).
+#
+# Note: the tier tracker is intentionally NOT set on llm_config — background
+# agents should not consume the per-request tier budget of the main chat.
+# =============================================================================
+
+llm_config.model_renderer = render_model
+llm_config.model_getter = tracker

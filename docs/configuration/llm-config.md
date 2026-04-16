@@ -50,6 +50,54 @@ These variables define which LLM Zrb uses for its primary reasoning and how it c
 | DeepSeek | `deepseek:deepseek-reasoner` | (default) |
 | Groq | `groq:llama3-8b-8192` | (default) |
 
+### Python API: Model Getter & Renderer
+
+For advanced scenarios — model tiering, A/B routing, or custom provider wrapping — `LLMConfig` exposes two callable hooks that are applied throughout the entire model pipeline:
+
+| Property | Receives | Returns | Purpose |
+|----------|----------|---------|---------|
+| `model_getter` | Base model (`str \| Model`) | Active model | Decide which model to actually use per request (e.g., tier switching, A/B testing) |
+| `model_renderer` | Active model | Final pydantic-ai model | Wrap the model into a pydantic-ai `Model` object or translate tier names to real model strings |
+
+`resolve_model(base_model=None)` applies both in sequence and is used internally throughout all agent creation paths.
+
+```python
+from zrb.llm.config.config import llm_config
+
+# Example: translate a logical tier name to the real configured model
+def my_renderer(model):
+    tier_map = {
+        "my:model-pro":   "openai:gpt-4o",
+        "my:model-flash": "openai:gpt-4o-mini",
+    }
+    return tier_map.get(model, model)
+
+llm_config.model_renderer = my_renderer
+```
+
+Setting hooks on `llm_config` applies them **globally** to every agent Zrb creates, including:
+
+- The main `LLMTask` / `LLMChatTask` agent (when no task-level hooks override them)
+- Background summarizer agents (conversational history compressor, per-message compressor)
+- Sub-agent tools: web-page summarizer (`open_web_page`), code analyzer (`analyze_code`), file extractor
+- Sub-agent manager agents
+
+Task-level `model_getter` / `model_renderer` (set directly on an `LLMTask` or `LLMChatTask`) take **precedence** over the config-level defaults.
+
+```python
+from zrb import LLMChatTask
+from zrb.llm.config.config import llm_config
+
+# Config-level: affects all agents (including sub-agents)
+llm_config.model_getter = lambda m: "openai:gpt-4o-mini"
+
+# Task-level: overrides only this task's main agent; sub-agents still use config-level
+task = LLMChatTask(
+    name="chat",
+    model_getter=lambda m: "openai:gpt-4o",  # overrides config for this task only
+)
+```
+
 ---
 
 ## 2. Rate Limiting & Token Budgets

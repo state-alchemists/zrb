@@ -259,6 +259,41 @@ async def test_create_summarizer_history_processor_flow():
     assert conv_agent.run.called
 
 
+def test_create_summarizer_history_processor_getter_renderer_forwarded():
+    """model_getter and model_renderer are forwarded to the agent factory functions."""
+    getter = MagicMock(side_effect=lambda m: "getter-model")
+    renderer = MagicMock(side_effect=lambda m: "renderer-model")
+    mock_agent = MagicMock()
+
+    with patch(
+        "zrb.llm.summarizer.history_summarizer.create_conversational_summarizer_agent",
+        return_value=mock_agent,
+    ) as mock_conv, patch(
+        "zrb.llm.summarizer.history_summarizer.create_message_summarizer_agent",
+        return_value=mock_agent,
+    ) as mock_msg:
+        create_summarizer_history_processor(
+            model_getter=getter,
+            model_renderer=renderer,
+        )
+
+    mock_conv.assert_called_once_with(model_getter=getter, model_renderer=renderer)
+    mock_msg.assert_called_once_with(model_getter=getter, model_renderer=renderer)
+
+
+def test_create_summarizer_history_processor_no_prealloc_without_hooks():
+    """When no getter/renderer are passed, agents are NOT pre-created (lazy creation)."""
+    with patch(
+        "zrb.llm.summarizer.history_summarizer.create_conversational_summarizer_agent"
+    ) as mock_conv, patch(
+        "zrb.llm.summarizer.history_summarizer.create_message_summarizer_agent"
+    ) as mock_msg:
+        create_summarizer_history_processor()  # no getter/renderer
+
+    mock_conv.assert_not_called()
+    mock_msg.assert_not_called()
+
+
 @pytest.mark.asyncio
 async def test_summarize_long_text_chunking():
     limiter = MockLimiter()

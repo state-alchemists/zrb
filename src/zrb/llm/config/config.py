@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from zrb.config.config import CFG
 
@@ -20,6 +20,12 @@ class LLMConfig:
         self._model_settings: "ModelSettings | None" = None
         self._system_prompt: str | None = None
         self._summarization_prompt: str | None = None
+        self._model_getter: (
+            "Callable[[str | Model | None], str | Model | None] | None"
+        ) = None
+        self._model_renderer: (
+            "Callable[[str | Model | None], str | Model | None] | None"
+        ) = None
 
         # Optional overrides for provider resolution
         self._api_key: str | None = None
@@ -72,6 +78,45 @@ class LLMConfig:
     @model_settings.setter
     def model_settings(self, value: "ModelSettings"):
         self._model_settings = value
+
+    # --- Model Getter / Renderer ---
+
+    @property
+    def model_getter(
+        self,
+    ) -> "Callable[[str | Model | None], str | Model | None] | None":
+        """Optional callable that transforms the base model into the active model."""
+        return self._model_getter
+
+    @model_getter.setter
+    def model_getter(
+        self, value: "Callable[[str | Model | None], str | Model | None] | None"
+    ):
+        self._model_getter = value
+
+    @property
+    def model_renderer(
+        self,
+    ) -> "Callable[[str | Model | None], str | Model | None] | None":
+        """Optional callable that transforms the active model into the final pydantic_ai model."""
+        return self._model_renderer
+
+    @model_renderer.setter
+    def model_renderer(
+        self, value: "Callable[[str | Model | None], str | Model | None] | None"
+    ):
+        self._model_renderer = value
+
+    def resolve_model(self, base_model: "str | Model | None" = None) -> "str | Model":
+        """Apply model_getter then model_renderer to produce the final model.
+
+        If *base_model* is ``None`` the config's default ``model`` is used.
+        """
+        if base_model is None:
+            base_model = self.model
+        active = self._model_getter(base_model) if self._model_getter else base_model
+        final = self._model_renderer(active) if self._model_renderer else active
+        return final
 
     # --- Provider Helpers (Advanced) ---
 

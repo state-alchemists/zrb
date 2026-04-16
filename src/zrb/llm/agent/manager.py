@@ -11,6 +11,7 @@ import yaml
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.agent.common import create_agent
+from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.lsp.tools import create_lsp_tools
 from zrb.llm.summarizer import (
     create_summarizer_history_processor,
@@ -568,12 +569,18 @@ class SubAgentManager:
 
             effective_yolo = check_yolo_inheritance
 
+        final_model = default_llm_config.resolve_model(definition.model)
         return create_agent(
-            model=definition.model,
+            model=final_model,
             system_prompt=definition.system_prompt,
             tools=resolved_tools,
             toolsets=resolved_toolsets,
-            history_processors=[create_summarizer_history_processor()],
+            history_processors=[
+                create_summarizer_history_processor(
+                    model_getter=default_llm_config.model_getter,
+                    model_renderer=default_llm_config.model_renderer,
+                )
+            ],
             yolo=effective_yolo,
         )
 

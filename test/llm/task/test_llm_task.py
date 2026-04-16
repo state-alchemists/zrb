@@ -224,6 +224,74 @@ class TestLLMTaskPublicAPI:
             mock_summarize.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_llm_config_getter_used_when_task_getter_is_none(self, session):
+        """When task model_getter is None, llm_config.model_getter is applied."""
+        from zrb.llm.config.config import LLMConfig
+
+        config = LLMConfig()
+        config.model = "base-model"
+        config.model_getter = lambda m: "config-getter-result"
+
+        task = LLMTask(name="test-task", message="hello", llm_config=config)
+        assert task.model_getter is None  # task-level getter not set
+
+        with patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent, patch(
+            "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent:
+            mock_run_agent.return_value = ("Response", [])
+            await task.async_run(session)
+
+        _, kwargs = mock_create_agent.call_args
+        assert kwargs["model"] == "config-getter-result"
+
+    @pytest.mark.asyncio
+    async def test_llm_config_renderer_used_when_task_renderer_is_none(self, session):
+        """When task model_renderer is None, llm_config.model_renderer is applied."""
+        from zrb.llm.config.config import LLMConfig
+
+        sentinel = object()
+        config = LLMConfig()
+        config.model = "base-model"
+        config.model_renderer = lambda m: sentinel
+
+        task = LLMTask(name="test-task", message="hello", llm_config=config)
+        assert task.model_renderer is None  # task-level renderer not set
+
+        with patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent, patch(
+            "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent:
+            mock_run_agent.return_value = ("Response", [])
+            await task.async_run(session)
+
+        _, kwargs = mock_create_agent.call_args
+        assert kwargs["model"] is sentinel
+
+    @pytest.mark.asyncio
+    async def test_task_getter_takes_precedence_over_llm_config_getter(self, session):
+        """Task-level model_getter overrides llm_config.model_getter."""
+        from zrb.llm.config.config import LLMConfig
+
+        config = LLMConfig()
+        config.model = "base-model"
+        config.model_getter = lambda m: "config-getter"
+
+        task = LLMTask(
+            name="test-task",
+            message="hello",
+            llm_config=config,
+            model_getter=lambda m: "task-getter",
+        )
+
+        with patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent, patch(
+            "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent:
+            mock_run_agent.return_value = ("Response", [])
+            await task.async_run(session)
+
+        _, kwargs = mock_create_agent.call_args
+        assert kwargs["model"] == "task-getter"
+
+    @pytest.mark.asyncio
     async def test_llm_task_adds_tool_factory_behavior(self, session):
         # Arrange
         tool = MagicMock()

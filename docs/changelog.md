@@ -1,5 +1,51 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.22.0 (April 16, 2026)
+
+- **Feature: Global Model Getter/Renderer on LLMConfig**:
+  - New `model_getter` and `model_renderer` properties on `LLMConfig` for global model transformation hooks.
+  - New `resolve_model(base_model=None)` method applies getter then renderer in sequence.
+  - Enables centralized model tiering, A/B routing, and provider mapping across all agents.
+  - Task-level `model_getter`/`model_renderer` take precedence over config-level defaults.
+
+- **Feature: Summarizer Agents Support Model Pipeline**:
+  - `create_summarizer_agent()`, `create_conversational_summarizer_agent()`, `create_message_summarizer_agent()` now accept optional `model_getter` and `model_renderer` parameters.
+  - Falls back to `llm_config.model_getter/model_renderer` when task-level hooks not provided.
+  - Ensures background summarizer agents use consistent model transformation logic.
+
+- **Feature: History Processor Model Pipeline**:
+  - `create_summarizer_history_processor()` now accepts `model_getter` and `model_renderer` parameters.
+  - Pre-creates conversational/message summarizer agents with getter/renderer when provided.
+  - History compression agents now respect global model pipeline configuration.
+
+- **Improvement: Sub-Agent Manager Model Resolution**:
+  - `SubAgentManager` now uses `llm_config.resolve_model()` for sub-agent model resolution.
+  - Passes config-level getter/renderer to history processor for consistent behavior.
+  - All delegated sub-agents now go through the global model pipeline.
+
+- **Improvement: Tool Sub-Agents Use resolve_model()**:
+  - `analyze_file()` in `file.py` now uses `llm_config.resolve_model()`.
+  - `_extract_info()` and `_summarize_info()` in `code.py` now use `llm_config.resolve_model()`.
+  - `_summarize_web_content()` in `web.py` now uses `llm_config.resolve_model()`.
+  - Ensures all background tool agents respect global getter/renderer hooks.
+
+- **Improvement: Model-Tiering Example Enhanced**:
+  - Example now registers renderer on `llm_config` for all sub-agents (web summarizer, code analyzer, history compressor).
+  - Tier tracker is task-level only (main agent) — background agents don't consume the per-request tier budget.
+  - Demonstrates separation of concerns: task-level tiering vs. global provider mapping.
+
+- **Documentation: New Python API Section**:
+  - Added "Python API: Model Getter & Renderer" section to `docs/configuration/llm-config.md`.
+  - Documents hook signatures, `resolve_model()` behavior, and precedence rules.
+  - Examples show global vs. task-level configuration patterns.
+  - Lists all agent types affected by config-level hooks.
+
+- **Tests: Coverage Expansion**:
+  - Enhanced `test/llm/config/test_llm_config.py`: Model getter/renderer property tests (+81 lines).
+  - Enhanced `test/llm/history_processor/test_history_summarizer.py`: Getter/renderer parameter tests (+35 lines).
+  - Enhanced `test/llm/task/test_llm_chat_task.py`: Config-level fallback tests (+35 lines).
+  - Enhanced `test/llm/task/test_llm_task.py`: Model pipeline resolution tests (+68 lines).
+
 ## 2.21.1 (April 16, 2026)
 
 - **Bug Fix: Runner CLI UnboundLocalError**:

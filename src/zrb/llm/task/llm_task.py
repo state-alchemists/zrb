@@ -24,7 +24,6 @@ from zrb.llm.summarizer import (
     summarize_history,
 )
 from zrb.llm.util.attachment import get_attachments
-from zrb.llm.util.stream_response import create_event_handler
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_attr, get_bool_attr
@@ -427,18 +426,19 @@ class LLMTask(BaseTask):
         resolved_tools = self._get_all_tools(ctx)
         resolved_toolsets = self._get_all_toolsets(ctx)
         # Resolve model: base → getter (active, shown in UI) → renderer (final for pydantic_ai)
+        # Task-level getter/renderer take precedence; fall back to llm_config defaults.
         base_model = self._get_model(ctx)
+        effective_getter = self._model_getter or self._llm_config.model_getter
+        effective_renderer = self._model_renderer or self._llm_config.model_renderer
         active_model = (
-            self._model_getter(base_model)
-            if self._model_getter is not None
-            else base_model
+            effective_getter(base_model) if effective_getter is not None else base_model
         )
         for ui in self._uis:
             if hasattr(ui, "model"):
                 ui.model = active_model
         final_model = (
-            self._model_renderer(active_model)
-            if self._model_renderer is not None
+            effective_renderer(active_model)
+            if effective_renderer is not None
             else active_model
         )
         return create_agent(

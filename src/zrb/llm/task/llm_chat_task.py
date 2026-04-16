@@ -813,7 +813,13 @@ class LLMChatTask(BaseTask):
             toolsets=resolved_toolsets,
             # No factories passed - tools/toolsets already resolved with parent context
             history_processors=self._history_processors
-            + [create_summarizer_history_processor()],
+            + [
+                create_summarizer_history_processor(
+                    model_getter=self._model_getter or self._llm_config.model_getter,
+                    model_renderer=self._model_renderer
+                    or self._llm_config.model_renderer,
+                )
+            ],
             llm_config=self._llm_config,
             llm_limitter=self._llm_limitter,
             history_manager=history_manager,

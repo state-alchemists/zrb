@@ -1,6 +1,4 @@
-import re
-from dataclasses import replace
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
@@ -8,7 +6,7 @@ from zrb.llm.agent.summarizer import (
     create_conversational_summarizer_agent,
     create_message_summarizer_agent,
 )
-from zrb.llm.config.limiter import LLMLimiter, is_turn_start
+from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.message import ensure_alternating_roles, validate_tool_pair_integrity
 from zrb.llm.summarizer.chunk_processor import (
@@ -24,6 +22,7 @@ from zrb.util.markdown import make_markdown_section
 
 if TYPE_CHECKING:
     from pydantic_ai.messages import ModelMessage
+    from pydantic_ai.models import Model
 else:
     ModelMessage = Any
 
@@ -38,6 +37,8 @@ def create_summarizer_history_processor(
     # Backward compatibility
     agent: Any = None,
     token_threshold: int | None = None,
+    model_getter: "Callable[[str | Model | None], str | Model | None] | None" = None,
+    model_renderer: "Callable[[str | Model | None], str | Model | None] | None" = None,
 ) -> "Callable[[list[ModelMessage]], Awaitable[list[ModelMessage]]]":
     """
     Creates a history processor that auto-summarizes history when it exceeds `token_threshold`.
@@ -51,6 +52,16 @@ def create_summarizer_history_processor(
         message_token_threshold = CFG.LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD
     if summary_window is None:
         summary_window = CFG.LLM_HISTORY_SUMMARIZATION_WINDOW
+    # Pre-create agents with getter/renderer when provided so they are consistent
+    # with the parent task's model pipeline.
+    if conversational_agent is None and (model_getter or model_renderer):
+        conversational_agent = create_conversational_summarizer_agent(
+            model_getter=model_getter, model_renderer=model_renderer
+        )
+    if message_agent is None and (model_getter or model_renderer):
+        message_agent = create_message_summarizer_agent(
+            model_getter=model_getter, model_renderer=model_renderer
+        )
 
     async def process_history(messages: "list[ModelMessage]") -> "list[ModelMessage]":
         # 1. Summarize individual fat messages first

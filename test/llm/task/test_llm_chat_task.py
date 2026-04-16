@@ -309,3 +309,36 @@ def test_llm_chat_task_model_renderer_none_by_default():
 def test_llm_chat_task_custom_model_names_none_by_default():
     task = LLMChatTask(name="test-task")
     assert task.custom_model_names is None
+
+
+@pytest.mark.asyncio
+async def test_llm_chat_task_passes_getter_renderer_to_summarizer():
+    """LLMChatTask forwards effective getter/renderer to create_summarizer_history_processor."""
+    getter = lambda m: "getter-model"
+    renderer = lambda m: "renderer-model"
+
+    task = LLMChatTask(
+        name="test-task",
+        model_getter=getter,
+        model_renderer=renderer,
+        interactive=False,
+    )
+
+    with patch(
+        "zrb.llm.task.llm_chat_task.create_summarizer_history_processor"
+    ) as mock_create_proc, patch("zrb.llm.task.llm_task.create_agent"), patch(
+        "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+    ) as mock_run_agent:
+        mock_proc = MagicMock()
+        mock_proc.return_value = AsyncMock(return_value=[])
+        mock_create_proc.return_value = mock_proc
+        mock_run_agent.return_value = ("Done", [])
+
+        shared_ctx = SharedContext()
+        session = Session(shared_ctx, state_logger=MagicMock())
+        await task.async_run(session)
+
+    mock_create_proc.assert_called_once()
+    _, kwargs = mock_create_proc.call_args
+    assert kwargs.get("model_getter") is getter
+    assert kwargs.get("model_renderer") is renderer
