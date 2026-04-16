@@ -50,6 +50,7 @@ class Cli(Group):
         task_str_kwargs = get_task_str_kwargs(
             task=node, str_args=str_args, str_kwargs=str_kwargs, cli_mode=True
         )
+        session = None
         try:
             result, session = self._run_task(node, str_args, task_str_kwargs)
             if result is not None:
@@ -68,10 +69,12 @@ class Cli(Group):
             file=sys.stderr,
         )
 
-    def _print_conversation_name(self, task: AnyTask, session: Session):
+    def _print_conversation_name(self, task: AnyTask, session: Session | None):
         """Print conversation name if available in shared context."""
         try:
             # Check for conversation name stored by LLM chat task
+            if session is None:
+                return
             conversation_name = session.shared_ctx.xcom.get(
                 "__conversation_name__", None
             )

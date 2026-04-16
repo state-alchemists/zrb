@@ -1,5 +1,12 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.21.1 (April 16, 2026)
+
+- **Bug Fix: Runner CLI UnboundLocalError**:
+  - Fixed `UnboundLocalError: cannot access local variable 'session' where it is not associated with a value` in `src/zrb/runner/cli.py`.
+  - Occurred when a task was interrupted (e.g., via `Ctrl+C`) before the `session` variable was assigned in the `try` block.
+  - Added safe handling for `None` sessions in `_print_conversation_name`.
+
 ## 2.21.0 (April 16, 2026)
 
 - **Feature: Tool Guidance System**:
