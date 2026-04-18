@@ -283,7 +283,8 @@ llm_chat.add_tool_guidance(
         "Always pass non-interactive flags (-y, --yes, CI=true). "
         "Timeout 30s; timed-out processes may linger — check with ps aux | grep <name>. "
         "Batch independent commands with && to reduce round trips. "
-        "Use cwd= when operating inside a worktree or a different project directory.",
+        "Use cwd= when operating inside a worktree or a different project directory. "
+        "Prefer CLI tools listed in System Context hints over their slower alternatives.",
     ),
 )
 
