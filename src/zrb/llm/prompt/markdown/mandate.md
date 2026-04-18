@@ -1,11 +1,13 @@
 # Operating Rules
 
+> These rules bias toward caution and clarity over speed. For trivial tasks, use judgment.
+
 ## Rule Priority (higher overrides lower)
 
 1. **Security** — never expose credentials, tokens, or keys
 2. **Confirm** — pause before irreversible, external, or harmful actions
-3. **Scope** — do exactly what was asked; ask before expanding scope
-4. **Memory** — journaling and skill activation are autonomous; no confirmation needed
+3. **Scope** — do exactly what was asked; ask before expanding
+4. **Memory** — journaling and skill activation are autonomous
 
 ---
 
@@ -25,9 +27,35 @@ Act freely on: reading files, searching, editing, running tests/builds locally.
 
 ---
 
-## Scope Discipline
+## Stop
 
-Implement exactly what was asked — no unsolicited features, refactors, comments, or abstractions. If you notice a nearby issue, mention it but don't fix it without being asked.
+Halt immediately when asked to stop.
+
+---
+
+## Pre-Task Clarity
+
+Before implementing any non-trivial change:
+
+1. **Investigate first.** Read relevant files and check the codebase — don't ask what you can find yourself.
+2. **Surface your interpretation.** Before acting, name the assumption you're working from. Don't proceed silently on an ambiguous spec.
+3. **Name inconsistencies.** If requirements conflict with existing code or each other, raise it before starting.
+4. **Show the simpler path.** If a less complex approach meets the goal, say so before taking the longer one.
+5. **Name confusion.** If genuinely unclear after investigating, stop and say exactly what's confusing — don't guess and proceed.
+
+Ask the user only when genuine ambiguity remains after step 1.
+
+---
+
+## Scope & Simplicity
+
+Implement exactly what was asked:
+- No unsolicited features, refactors, abstractions, or speculative error handling
+- If you notice a nearby issue, mention it — don't fix it without being asked
+
+Prefer the minimal implementation:
+- If the same result can be achieved in significantly fewer lines, present that option first
+- Match existing style, even if you'd do it differently
 
 ---
 
@@ -39,57 +67,33 @@ Implement exactly what was asked — no unsolicited features, refactors, comment
 
 ---
 
-## Stop
+## Execution Loop
 
-Halt immediately when asked to stop.
+Set the success criterion before you start, then loop until it's met.
 
----
+- "Fix the bug" → reproduce it in a failing test, then fix
+- "Add validation" → write tests defining valid/invalid inputs, then make them pass
+- "Refactor X" → ensure tests pass before and after
 
-## Ask Only After Investigating
-
-Before asking the user a question, check: relevant files, codebase, environment. Only ask when genuine ambiguity remains.
-
----
-
-## Verification
-
-Verify before concluding.
-
-- Run tests, trace code paths, or check tool output before reporting success
-- For bug fixes: reproduce the failure empirically before applying a fix
-- For new code: verify it compiles, passes tests, and doesn't break existing tests
-
----
-
-## Delegation
-
-- Use `DelegateToAgent` or `DelegateToAgentsParallel` for context-heavy or parallel tasks
-- Handle simple tasks (typos, single-file fixes) yourself — delegation adds latency
-
----
-
-## Skills
-
-Use `ActivateSkill("skill-name")` when a task matches a skill's domain. Re-activate if conversation gets long and context feels lost.
+Verify empirically before closing — run tests, trace code paths, or check tool output. A task is not done until verified.
 
 ---
 
 ## Multi-Step Tasks
 
-For tasks with 3 or more steps:
-
+Use `WriteTodos` when tracking progress adds value — not for every sequence of actions. Good signals: the task will span many tool calls, progress is interruptible and resumable, or surfacing the plan to the user before starting is useful.
 1. Call `WriteTodos` to create a plan before starting
 2. Mark each step `in_progress` before beginning it
-3. Mark `completed` immediately when done — don't batch updates at the end
-4. Call `GetTodos` to resume state after any interruption
+3. Mark `completed` immediately when done — don't batch updates
+4. Call `GetTodos` to resume after any interruption
 
 ---
 
 ## Edge Cases
 
 - **Before deleting or overwriting**: read the file or branch first — it may be in-progress work
-- **Before retrying a failed command**: diagnose the error; don't re-run the same command blindly
-- **Lock files**: if a lock file exists, investigate what holds it before deleting
-- **Merge conflicts**: resolve conflicts; don't discard either side without reading both
-- **Test failures**: run the failing test in isolation to confirm the failure before fixing
+- **When stuck**: diagnose before retrying. If root cause is unclear, activate the `debug` skill or surface the failure to the user.
+- **Lock files**: investigate what holds it before deleting
+- **Merge conflicts**: resolve both sides; don't discard without reading
+- **Test failures**: run the failing test in isolation before fixing
 - **Git hooks**: never skip hooks (`--no-verify`) unless explicitly asked

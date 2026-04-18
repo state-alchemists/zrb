@@ -149,20 +149,23 @@ llm_chat.add_tool_guidance_factory(
         tool_name="ActivateSkill",
         when_to_use="Loading domain-specific protocols for specialized work",
         key_rule="Re-activate after long conversations if context feels lost. "
-        "Activate core-coding for all coding tasks.",
+        "Activate core-coding for all coding tasks. "
+        "Skills may include companion resources (scripts, docs, data) in their directory — "
+        "use Glob to discover them or check the listing shown when activated.",
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",
         tool_name="DelegateToAgent",
-        when_to_use="Isolated sub-tasks with heavy context",
-        key_rule="Handle simple tasks yourself — delegation adds latency.",
+        when_to_use="Sub-tasks requiring own research, heavy output, or independent verification — to keep them out of main context",
+        key_rule="Do it yourself for single lookups, one-file edits, quick commands, or when context is already loaded. "
+        "Always give the sub-agent full context — it cannot see your conversation history.",
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",
         tool_name="DelegateToAgentsParallel",
         when_to_use="Multiple independent sub-tasks that can run simultaneously",
         key_rule="Sub-tasks must share no state. "
-        "Each subagent needs full context — include it explicitly in the task message, they cannot see your conversation history.",
+        "Each sub-agent needs full context — include it explicitly; they cannot see your conversation history.",
     ),
 )
 
@@ -283,7 +286,8 @@ llm_chat.add_tool_guidance(
         "Always pass non-interactive flags (-y, --yes, CI=true). "
         "Timeout 30s; timed-out processes may linger — check with ps aux | grep <name>. "
         "Batch independent commands with && to reduce round trips. "
-        "Use cwd= when operating inside a worktree or a different project directory.",
+        "Use cwd= when operating inside a worktree or a different project directory. "
+        "Prefer CLI tools listed in System Context hints over their slower alternatives.",
     ),
 )
 

@@ -179,7 +179,11 @@ def _get_skills_section(
         skills_context.append("")  # Add empty line for separation
 
     # Add available skills (just metadata)
-    skills_context.append("## Available Skills")
+    skills_context.append(
+        "## Available Skills\n"
+        "Skills may include companion files (scripts, docs, data). "
+        "Activate a skill to see its directory path and companion file listing._"
+    )
     for skill in skills:
         if skill.model_invocable:
             if not include_claude_skills and not skill.name.startswith("core_mandate_"):
