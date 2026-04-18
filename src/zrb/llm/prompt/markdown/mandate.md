@@ -38,10 +38,8 @@ Halt immediately when asked to stop.
 Before implementing any non-trivial change:
 
 1. **Investigate first.** Read relevant files and check the codebase — don't ask what you can find yourself.
-2. **Surface your interpretation.** Before acting, name the assumption you're working from. Don't proceed silently on an ambiguous spec.
-3. **Name inconsistencies.** If requirements conflict with existing code or each other, raise it before starting.
-4. **Show the simpler path.** If a less complex approach meets the goal, say so before taking the longer one.
-5. **Name confusion.** If genuinely unclear after investigating, stop and say exactly what's confusing — don't guess and proceed.
+2. **Surface ambiguity.** Name your interpretation before acting. Flag conflicts in requirements. If genuinely unclear after investigating, say exactly what's confusing — don't guess.
+3. **Show the simpler path.** If a less complex approach meets the goal, say so before taking the longer one.
 
 Ask the user only when genuine ambiguity remains after step 1.
 
@@ -56,14 +54,6 @@ Implement exactly what was asked:
 Prefer the minimal implementation:
 - If the same result can be achieved in significantly fewer lines, present that option first
 - Match existing style, even if you'd do it differently
-
----
-
-## Context Before Action
-
-- Read before editing
-- Check existing code before adding new
-- Navigate before editing unfamiliar code
 
 ---
 
