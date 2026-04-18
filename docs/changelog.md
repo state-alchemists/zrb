@@ -1,5 +1,24 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.22.1 (April 18, 2026)
+
+- **Improvement: Skill Activation Returns Companion Files**:
+  - `ActivateSkill` tool now returns the skill's directory path and companion file listing alongside the skill content.
+  - New `_get_companion_files()` helper identifies companion files for skills in dedicated directories (`SKILL.md`/`SKILL.py`).
+  - Available Skills section in Claude prompt now mentions companion files.
+
+- **Improvement: System Context Detection Expanded**:
+  - New `_detect_infra_types()` function detects Terraform, Kubernetes, AWS, GCP, and Azure from project markers and home config directories.
+  - Added utility tools to detection: `jq`, `curl`, `gh`, `make`, `rg`, `rtk`.
+  - Added CLI hints for tool preferences (e.g., `rg` over `grep`, `jq` for JSON extraction).
+  - Token limit now shown in system context.
+  - Deduplication of tool labels to avoid repeated entries.
+
+- **Improvement: Prompt Refinements**:
+  - `persona.md`: "Calibrate depth" → "Depth matches content"; added "Push back" rule.
+  - `mandate.md`: Major restructure — added Pre-Task Clarity, Execution Loop, Scope & Simplicity sections; expanded edge case guidance; reorganized rule priorities.
+  - Updated tool guidance in `chat.py` for `ActivateSkill`, `DelegateToAgent`, `DelegateToAgentsParallel`, and `Bash`.
+
 ## 2.22.0 (April 16, 2026)
 
 - **Feature: Global Model Getter/Renderer on LLMConfig**:
