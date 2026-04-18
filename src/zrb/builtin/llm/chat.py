@@ -283,6 +283,7 @@ llm_chat.add_tool_guidance(
         tool_name="Bash",
         when_to_use="System commands, package managers, test runners, and build tools",
         key_rule="Never use for file I/O — use Read/Write/Edit/Grep. "
+        "Never use to query state already in System Context (Time, OS, CWD, available tools). "
         "Always pass non-interactive flags (-y, --yes, CI=true). "
         "Timeout 30s; timed-out processes may linger — check with ps aux | grep <name>. "
         "Batch independent commands with && to reduce round trips. "
