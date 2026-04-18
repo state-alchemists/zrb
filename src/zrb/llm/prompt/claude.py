@@ -181,7 +181,7 @@ def _get_skills_section(
     # Add available skills (just metadata)
     skills_context.append(
         "## Available Skills\n"
-        "_Skills may include companion files (scripts, docs, data). "
+        "Skills may include companion files (scripts, docs, data). "
         "Activate a skill to see its directory path and companion file listing._"
     )
     for skill in skills:
