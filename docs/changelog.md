@@ -1,5 +1,20 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.22.2 (April 19, 2026)
+
+- **Improvement: Bash Tool Guidance Enhancement**:
+  - Added "Never use to query state already in System Context (Time, OS, CWD, available tools)" rule to Bash tool guidance.
+  - Prevents redundant system queries when information is already available in the system context.
+
+- **Improvement: Journal Reminder Reordering**:
+  - Moved "If nothing is worth journaling" before skill guidance in `journal_reminder.md` for better logical flow.
+  - Improves clarity when deciding whether to journal.
+
+- **Improvement: Mandate Simplification**:
+  - Consolidated 5-step pre-task clarity into 3 steps in `mandate.md`.
+  - Removed redundant "Context Before Action" section.
+  - Streamlined guidance for better readability and focus.
+
 ## 2.22.1 (April 18, 2026)
 
 - **Improvement: Skill Activation Returns Companion Files**:
