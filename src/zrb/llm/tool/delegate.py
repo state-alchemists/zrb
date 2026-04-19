@@ -139,9 +139,19 @@ async def _run_agent_task(
             "or check agent registration in your zrb config.",
         )
 
-    full_message = task
+    from zrb.llm.tool.worktree import active_worktree
+
+    context_parts = []
     if additional_context:
-        full_message = f"{task}\n\nContext:\n{additional_context}"
+        context_parts.append(additional_context)
+    active_wt = active_worktree.get()
+    if active_wt:
+        context_parts.append(
+            f"Active worktree: {active_wt} — pass as cwd to Bash; use absolute paths for Read/Write/Edit/Grep."
+        )
+    full_message = task
+    if context_parts:
+        full_message = f"{task}\n\nContext:\n" + "\n".join(context_parts)
 
     try:
         result, _ = await run_agent(

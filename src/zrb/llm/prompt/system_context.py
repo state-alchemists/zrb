@@ -14,6 +14,19 @@ from zrb.llm.util.git import is_inside_git_dir
 def system_context(
     ctx: AnyContext, current_prompt: str, next_handler: Callable[[AnyContext, str], str]
 ) -> str:
+    # Lazy imports to avoid circular dependency (tool → ui → llm_task → prompt.manager → here)
+    from zrb.llm.tool.plan import set_current_session, todo_manager
+    from zrb.llm.tool.worktree import active_worktree
+
+    # Resolve session name from context and wire it to the todo ContextVar
+    # so all todo tool calls in this turn use the correct session automatically.
+    try:
+        session_name = str(ctx.input.session) if hasattr(ctx, "input") else ""
+    except Exception:
+        session_name = ""
+    session_name = session_name.strip() or "default"
+    set_current_session(session_name)
+
     parts = [
         f"- Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         f"- OS: {platform.platform()}",
@@ -121,6 +134,18 @@ def system_context(
             parts.append(f"- Git: {branch} ({status_str})")
         except Exception:
             pass
+        try:
+            recent_log = subprocess.run(
+                ["git", "log", "--oneline", "-5"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            ).stdout.strip()
+            if recent_log:
+                log_lines = "\n".join(f"  {l}" for l in recent_log.splitlines())
+                parts.append(f"- Recent commits:\n{log_lines}")
+        except Exception:
+            pass
 
     # Project files
     project_markers = [
@@ -151,6 +176,33 @@ def system_context(
     )
     if found_markers:
         parts.append(f"- Project: {', '.join(found_markers)}")
+
+    # Active worktree — remind the LLM which worktree it entered
+    active_wt = active_worktree.get()
+    if active_wt:
+        parts.append(
+            f"- Active worktree: {active_wt} (pass as cwd to Bash; use absolute paths for Read/Write/Edit/Grep)"
+        )
+
+    # Pending todos — inject at session start so the LLM never starts blind
+    try:
+        todos_data = todo_manager.get_todos(session_name)
+        if todos_data:
+            active = [
+                t
+                for t in todos_data.get("todos", [])
+                if t["status"] in ("pending", "in_progress")
+            ]
+            if active:
+                total = todos_data["total"]
+                done = todos_data["completed"]
+                todo_lines = [f"- Todos ({done}/{total} done):"]
+                for t in active:
+                    mark = "[>]" if t["status"] == "in_progress" else "[ ]"
+                    todo_lines.append(f"  {mark} [{t['id']}] {t['content']}")
+                parts.extend(todo_lines)
+    except Exception:
+        pass
 
     context_block = "# System Context\n" + "\n".join(parts)
     return next_handler(ctx, f"{current_prompt}\n\n{context_block}")

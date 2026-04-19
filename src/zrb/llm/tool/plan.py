@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
+from contextvars import ContextVar
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -250,17 +251,18 @@ class TodoManager:
 todo_manager = TodoManager()
 
 
+_current_session: ContextVar[str] = ContextVar("zrb_current_session", default="default")
+
+
 def get_current_context_session() -> str:
-    """
-    Get the current session name from execution context.
+    """Get the current session name, set by set_current_session() before agent runs."""
+    return _current_session.get()
 
-    This is used as a fallback when session is not provided.
-    We use a thread-local context to track the current session.
-    """
-    import threading
 
-    _thread_local = threading.local()
-    return getattr(_thread_local, "current_session", "default")
+def set_current_session(session_name: str) -> None:
+    """Set the current session name so todo tools use the right session automatically."""
+    if session_name:
+        _current_session.set(session_name)
 
 
 # Tool functions for LLM integration

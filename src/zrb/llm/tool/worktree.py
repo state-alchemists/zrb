@@ -1,8 +1,11 @@
 import asyncio
 import os
+from contextvars import ContextVar
 from datetime import datetime
 
 from zrb.llm.tool._wrapper import tool_safe_async
+
+active_worktree: ContextVar[str] = ContextVar("zrb_active_worktree", default="")
 
 
 @tool_safe_async
@@ -68,6 +71,8 @@ async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
             f"[SYSTEM SUGGESTION]: Check if the branch name is valid and if you have permissions."
         )
 
+    active_worktree.set(worktree_path)
+    _ensure_gitignore(git_root, f".{CFG.ROOT_GROUP_NAME}/worktree/")
     return (
         f"Worktree created: {worktree_path}\n"
         f"Branch: {branch_name}\n"
@@ -122,6 +127,7 @@ async def exit_worktree(worktree_path: str, keep_branch: bool = False) -> str:
             f"then retry. Use ListWorktrees to check status."
         )
 
+    active_worktree.set("")
     lines = [f"Worktree removed: {worktree_path}"]
 
     if branch_name and not keep_branch:
@@ -171,6 +177,25 @@ async def list_worktrees() -> str:
 
     output = stdout.decode().strip()
     return output if output else "No worktrees found (only the main working tree)."
+
+
+def _ensure_gitignore(git_root: str, pattern: str) -> None:
+    """Add pattern to {git_root}/.gitignore if not already present."""
+    gitignore_path = os.path.join(git_root, ".gitignore")
+    try:
+        if os.path.exists(gitignore_path):
+            content = open(gitignore_path, "r", encoding="utf-8").read()
+            lines = content.splitlines()
+            if any(line.strip() == pattern for line in lines):
+                return
+            with open(gitignore_path, "a", encoding="utf-8") as f:
+                prefix = "\n" if content and not content.endswith("\n") else ""
+                f.write(f"{prefix}{pattern}\n")
+        else:
+            with open(gitignore_path, "w", encoding="utf-8") as f:
+                f.write(f"{pattern}\n")
+    except OSError:
+        pass
 
 
 # Set function names to PascalCase for tool display

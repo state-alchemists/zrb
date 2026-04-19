@@ -2,6 +2,8 @@ import fnmatch
 import glob
 import os
 import re
+import shutil
+import subprocess
 import time
 from typing import Any
 
@@ -376,6 +378,103 @@ def _trunc(s: str, n: int) -> str:
     return (s[:n] + "...") if len(s) > n else s
 
 
+def _search_with_ripgrep(
+    pattern: "re.Pattern",
+    regex: str,
+    abs_path: str,
+    file_pattern: str,
+    case_sensitive: bool,
+    context_lines: int,
+    files_only: bool,
+    auto_truncate: bool,
+    patterns_to_exclude: list[str],
+    timeout: float,
+    preserved_head_lines: int,
+    preserved_tail_lines: int,
+) -> "dict[str, Any] | None":
+    """Use ripgrep to find matching files, then extract matches via Python. Returns None on failure."""
+    if not shutil.which("rg"):
+        return None
+
+    rg_cmd = ["rg", "--files-with-matches", "--no-messages"]
+    if not case_sensitive:
+        rg_cmd.append("--ignore-case")
+    if file_pattern:
+        rg_cmd.extend(["--glob", file_pattern])
+    for pat in patterns_to_exclude:
+        rg_cmd.extend(["--glob", f"!{pat}"])
+    rg_cmd.extend(["--", regex, abs_path])
+
+    try:
+        proc = subprocess.run(rg_cmd, capture_output=True, text=True, timeout=timeout)
+    except (subprocess.TimeoutExpired, OSError):
+        return None
+
+    if proc.returncode == 2:
+        return None
+
+    matching_files = [f.strip() for f in proc.stdout.splitlines() if f.strip()]
+
+    search_results: dict[str, Any] = {"summary": "", "results": []}
+    match_count = 0
+    file_match_count = 0
+
+    for file_path in matching_files:
+        rel_file_path = os.path.relpath(file_path, os.getcwd())
+        try:
+            matches = _get_file_matches(
+                file_path,
+                pattern,
+                context_lines=context_lines,
+                preserved_head_lines=preserved_head_lines,
+                preserved_tail_lines=preserved_tail_lines,
+            )
+            if matches:
+                file_match_count += 1
+                actual_matches = [m for m in matches if m.get("line_number", 0) > 0]
+                match_count += len(actual_matches)
+                if files_only:
+                    search_results["results"].append(rel_file_path)
+                else:
+                    search_results["results"].append(
+                        {"file": rel_file_path, "matches": matches}
+                    )
+        except Exception:
+            pass
+
+    if auto_truncate:
+        results = search_results["results"]
+        if len(results) > preserved_head_lines + preserved_tail_lines:
+            truncated = results[:preserved_head_lines] + results[-preserved_tail_lines:]
+            omitted = len(results) - preserved_head_lines - preserved_tail_lines
+            search_results["results"] = truncated
+            search_results["truncation_notice"] = (
+                f"[TRUNCATED {omitted} result files. Showing first {preserved_head_lines} and last {preserved_tail_lines} files with matches.]"
+            )
+
+    if match_count == 0:
+        search_results["summary"] = (
+            f"No matches found for pattern '{regex}' in path '{abs_path}' "
+            f"[SYSTEM SUGGESTION]: Try broadening your regex pattern, removing the file_pattern filter, "
+            f"or checking if you're searching in the correct directory."
+        )
+    else:
+        search_results["summary"] = (
+            f"Found {match_count} matches in {file_match_count} files."
+        )
+
+    if files_only:
+        result: dict[str, Any] = {
+            "files": search_results["results"],
+            "summary": search_results["summary"],
+        }
+        if "truncation_notice" in search_results:
+            result["truncation_notice"] = search_results["truncation_notice"]
+        return result
+
+    return search_results
+
+
 def search_files(
     regex: str,
     path: str = ".",
@@ -418,6 +517,23 @@ def search_files(
     patterns_to_exclude = (
         exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
     )
+
+    rg_result = _search_with_ripgrep(
+        pattern=pattern,
+        regex=regex,
+        abs_path=abs_path,
+        file_pattern=file_pattern,
+        case_sensitive=case_sensitive,
+        context_lines=context_lines,
+        files_only=files_only,
+        auto_truncate=auto_truncate,
+        patterns_to_exclude=patterns_to_exclude,
+        timeout=timeout,
+        preserved_head_lines=preserved_head_lines,
+        preserved_tail_lines=preserved_tail_lines,
+    )
+    if rg_result is not None:
+        return rg_result
 
     try:
         for root, dirs, files in os.walk(abs_path):
