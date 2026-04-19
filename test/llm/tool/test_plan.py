@@ -15,6 +15,7 @@ from zrb.llm.tool.plan import (
     create_plan_tools,
     get_current_context_session,
     get_todos,
+    set_current_session,
     todo_manager,
     update_todo,
     write_todos,
@@ -472,6 +473,41 @@ class TestUtilityFunctions:
         result = get_current_context_session()
         assert isinstance(result, str)
         assert len(result) > 0
+
+    def test_set_current_session_changes_get_result(self):
+        """set_current_session should change what get_current_context_session returns."""
+        import uuid
+
+        unique = f"test-session-{uuid.uuid4().hex[:8]}"
+        set_current_session(unique)
+        assert get_current_context_session() == unique
+
+    def test_set_current_session_ignores_empty_string(self):
+        """set_current_session with empty string should not overwrite the current value."""
+        import uuid
+
+        unique = f"test-session-{uuid.uuid4().hex[:8]}"
+        set_current_session(unique)
+        set_current_session("")  # should be a no-op
+        assert get_current_context_session() == unique
+
+    @pytest.mark.asyncio
+    async def test_todo_tools_use_session_from_set_current_session(self, tmp_path):
+        """Todo tools called without session= should use the value from set_current_session."""
+        manager = TodoManager()
+        manager._todo_dir = tmp_path
+        manager._todos = {}
+
+        import uuid
+
+        session = f"ctx-session-{uuid.uuid4().hex[:8]}"
+        set_current_session(session)
+
+        await write_todos([{"content": "Auto-session task"}])
+        result = await get_todos()
+
+        assert session in result
+        assert "Auto-session task" in result
 
     def test_create_plan_tools(self):
         """Test create_plan_tools returns the expected tools."""

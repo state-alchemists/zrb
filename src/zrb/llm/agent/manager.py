@@ -349,7 +349,10 @@ class SubAgentManager:
                         )
                         # Claude also supports simple .md files in the agents/ directory
                         if not is_agent_file and item.suffix.lower() == ".md":
-                            if item.name.lower() != "readme.md":
+                            if (
+                                item.name.lower() != "readme.md"
+                                and item.parent.name.lower() == "agents"
+                            ):
                                 is_agent_file = True
 
                         if is_agent_file:

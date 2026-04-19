@@ -78,6 +78,20 @@ source .venv/bin/activate && poetry lock && poetry install
 
 `PromptManager` (`src/zrb/llm/prompt/manager.py`) assembles the system prompt from ordered sections (persona → git mandate → system context → mandate → tool guidance → journal → project context → skills → user prompts). Each section can be toggled via `include_*` flags or the corresponding `CFG.LLM_INCLUDE_*` env var.
 
+### System Context Auto-Injections (`src/zrb/llm/prompt/system_context.py`)
+
+The system context middleware runs once per prompt build and does three things beyond environment facts:
+
+1. **Session wiring** — reads `ctx.input.session` and calls `set_current_session()` (`src/zrb/llm/tool/plan.py`). This sets a `ContextVar` that all four todo tools (`WriteTodos`, `GetTodos`, `UpdateTodo`, `ClearTodos`) read when called without an explicit `session=` argument, ensuring they always operate on the correct conversation session.
+
+2. **Active worktree** — if `EnterWorktree` was called, its path is shown as `- Active worktree: <path>` in every subsequent system prompt, reminding the LLM to pass it as `cwd` to `Bash`. Cleared automatically when `ExitWorktree` is called.
+
+3. **Pending todos** — if the current session has `pending` or `in_progress` todos, they are rendered into the system context so the LLM sees them at the start of every turn without needing to call `GetTodos` first. Completed and cancelled items are omitted.
+
+### Worktree Storage
+
+Git worktrees are created at `{git_root}/.zrb/worktree/{branch_name}`. This directory is listed in `.gitignore`.
+
 ### Configuring Tool Guidance
 
 Tool guidance is fully explicit — there is no static catalogue. Register entries via `PromptManager`:
