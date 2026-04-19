@@ -5,7 +5,7 @@ from datetime import datetime
 
 from zrb.llm.tool._wrapper import tool_safe_async
 
-_active_worktree: ContextVar[str] = ContextVar("zrb_active_worktree", default="")
+active_worktree: ContextVar[str] = ContextVar("zrb_active_worktree", default="")
 
 
 @tool_safe_async
@@ -71,7 +71,7 @@ async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
             f"[SYSTEM SUGGESTION]: Check if the branch name is valid and if you have permissions."
         )
 
-    _active_worktree.set(worktree_path)
+    active_worktree.set(worktree_path)
     _ensure_gitignore(git_root, f".{CFG.ROOT_GROUP_NAME}/worktree/")
     return (
         f"Worktree created: {worktree_path}\n"
@@ -127,7 +127,7 @@ async def exit_worktree(worktree_path: str, keep_branch: bool = False) -> str:
             f"then retry. Use ListWorktrees to check status."
         )
 
-    _active_worktree.set("")
+    active_worktree.set("")
     lines = [f"Worktree removed: {worktree_path}"]
 
     if branch_name and not keep_branch:

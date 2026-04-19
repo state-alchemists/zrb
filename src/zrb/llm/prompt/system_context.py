@@ -16,7 +16,7 @@ def system_context(
 ) -> str:
     # Lazy imports to avoid circular dependency (tool → ui → llm_task → prompt.manager → here)
     from zrb.llm.tool.plan import set_current_session, todo_manager
-    from zrb.llm.tool.worktree import _active_worktree
+    from zrb.llm.tool.worktree import active_worktree
 
     # Resolve session name from context and wire it to the todo ContextVar
     # so all todo tool calls in this turn use the correct session automatically.
@@ -178,7 +178,7 @@ def system_context(
         parts.append(f"- Project: {', '.join(found_markers)}")
 
     # Active worktree — remind the LLM which worktree it entered
-    active_wt = _active_worktree.get()
+    active_wt = active_worktree.get()
     if active_wt:
         parts.append(
             f"- Active worktree: {active_wt} (pass as cwd to Bash; use absolute paths for Read/Write/Edit/Grep)"

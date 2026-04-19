@@ -139,12 +139,12 @@ async def _run_agent_task(
             "or check agent registration in your zrb config.",
         )
 
-    from zrb.llm.tool.worktree import _active_worktree
+    from zrb.llm.tool.worktree import active_worktree
 
     context_parts = []
     if additional_context:
         context_parts.append(additional_context)
-    active_wt = _active_worktree.get()
+    active_wt = active_worktree.get()
     if active_wt:
         context_parts.append(
             f"Active worktree: {active_wt} — pass as cwd to Bash; use absolute paths for Read/Write/Edit/Grep."
