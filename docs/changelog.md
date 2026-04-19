@@ -1,5 +1,30 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.22.3 (April 20, 2026)
+
+- **Improvement: Session Wiring via ContextVar**:
+  - `system_context` middleware now calls `set_current_session()` with `ctx.input.session`, wiring a `ContextVar` that all four todo tools (`WriteTodos`, `GetTodos`, `UpdateTodo`, `ClearTodos`) read automatically.
+  - Replaces the broken `threading.local` approach in `get_current_context_session()`. Async contexts now correctly resolve session identity without explicit `session=` arguments.
+
+- **Improvement: Active Worktree Tracking**:
+  - `EnterWorktree` now sets an `active_worktree` `ContextVar`; `ExitWorktree` clears it.
+  - The active worktree path is injected into every system context (`- Active worktree: <path>`) and delegate messages, reminding the LLM to pass `cwd` to `Bash` and use absolute paths for file tools.
+  - `EnterWorktree` now auto-adds `.zrb/worktree/` to the repo's `.gitignore` via `_ensure_gitignore()`.
+
+- **Improvement: Pending Todos in System Context**:
+  - Active (pending/in_progress) todos are now rendered into the system prompt every turn, so the LLM never starts blind.
+  - Completed and cancelled items are omitted; the section is suppressed entirely when no active todos exist.
+
+- **Improvement: Recent Commits in System Context**:
+  - Last 5 git log entries are now shown in system context (`- Recent commits:`), giving the LLM visibility into recent activity without an explicit `Bash` call.
+
+- **Bug Fix: Agent .md File Filtering**:
+  - Fixed `SubAgentManager` incorrectly treating any `.md` file as an agent definition. Now only `.md` files directly inside an `agents/` directory (case-insensitive parent check) are recognized as agents.
+
+- **Improvement: Ripgrep Acceleration for File Search**:
+  - `search_files` now tries `rg --files-with-matches` first and falls back to Python `os.walk` if `rg` is unavailable.
+  - Gracefully handles `rg` errors (exit code 2) and environments without ripgrep installed.
+
 ## 2.22.2 (April 19, 2026)
 
 - **Improvement: Bash Tool Guidance Enhancement**:
