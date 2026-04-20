@@ -1,0 +1,183 @@
+[2m
+  🧰 pyd_ai_b0a9f0d1875644be9786e96d9c02f47e | Read {'path': 'system_context.md'}
+[0m[2m
+  🔠 pyd_ai_b0a9f0d1875644be9786e96d9c02f47e | Return [File: system_context.md | 44 lines]
+     ---CONTENT---
+     # System Context: Notifier Subsystem Decision
+     
+     ## Product Overview
+     
+     We run a SaaS project management platform. Current metrics:
+     - 85,000 monthly active users
+     - ~2M tasks created per month
+     - Peak: ~500 req/s during business hours
+     
+     ## Current Architecture
+     
+     - **Backend**: Python/Flask monolith (~50k lines)
+     - **Database**: PostgreSQL (single primary, one read replica)
+     - **Infrastructure**: 4 web servers behind an nginx load balancer, hosted on AWS
+     - **Cache**: Redis (used for session storage and rate limiting today)
+     - **Notifications**: Handled synchronously inside the HTTP request cycle
+     
+     ## The Problem
+     
+     The notifications module sends emails and webhooks when tasks are updated, assigned, or completed. As usage has grown, this has caused:
+     
+     1. **Request timeouts**: Sending notifications blocks the response. Average latency 800ms, spikes to 8s during peak hours.
+     2. **Silent failures**: If an email provider or webhook endpoint is down, the notification is silently dropped. No retry, no dead-letter queue.
+     3. **Cascading failures**: Two incidents this year where a slow webhook endpoint caused connection pool exhaustion, taking down unrelated features.
+     4. **No delivery guarantees**: Billing-critical notifications (e.g., "trial expired", "payment failed") must be delivered exactly once, but the current system has no such guarantee.
+     
+     ## Scaling Target
+     
+     We need to:
+     - Decouple notifications from the HTTP request cycle (async processing)
+     - Support retry with exponential backoff
+     - Guarantee at-least-once delivery for billing events, exactly-once where feasible
+     - Add real-time WebSocket push notifications within 2 quarters
+     - Handle 10x traffic growth without re-architecting
+     
+     ## Constraints
+     
+     - Engineering team: 6 people (3 senior, 3 mid-level), no dedicated infrastructure engineer
+     - We already run Redis in production (session/rate limiting)
+     - No Kafka experience on the team today
+     - Must not require more than 2 weeks of setup/migration work before delivering value
+     - Budget: modest — cannot afford managed Confluent Cloud at full scale today
+     - Must maintain exactly-once semantics for billing notifications
+     
+[0m[2m
+  **Title: ADR-001 Notification Subsystem Architecture Decision**
+     
+     **Status: Proposed**
+     
+     **Context**
+     Our SaaS project management platform, serving 85,[0m[2m000 monthly active users and processing ~2M tasks/month, is experiencing severe performance and reliability issues with its synchronous notification system. Notifications (emails, webhooks) are currently handled within the HTTP request cycle, leading to request timeouts ([0m[2mspiking to 8s latency), silent failures with no retry mechanism, and cascading failures due to external service dependencies (e.g., slow webhooks exhausting connection pools). Critical billing notifications lack delivery guarantees.
+     
+     We need to decouple notifications for[0m[2m asynchronous processing, implement retry mechanisms with exponential backoff, guarantee at-least-once delivery for all events, and achieve exactly-once semantics for billing-critical notifications. The new system must support 10x traffic growth and accommodate future real-time[0m[2m WebSocket push notifications.
+     
+     Key constraints include:
+     *   A small engineering team (6 people, 3 senior, 3 mid-level) with **no dedicated infrastructure engineer** and **no prior Kafka experience**.
+     *   **[0m[2mRedis is already in production** for session storage and rate limiting.
+     *   The solution must deliver value within **2 weeks of setup/migration**.
+     *   **Modest budget**, precluding expensive managed Kafka solutions at full scale.
+     
+[0m[2m**Decision: Redis Streams**
+     
+     We have decided to implement the notification subsystem using **Redis Streams**. This choice is primarily driven by the critical constraints related to team expertise, operational complexity, and time-to-value. Leveraging our existing Redis infrastructure and[0m[2m team familiarity significantly reduces the barrier to adoption and deployment.
+     
+     Redis Streams offer:
+     *   **Asynchronous processing** with durable message storage.
+     *   **Consumer groups** for scalable consumption and processing, preventing message duplication across consumers.
+     *   [0m[2mBuilt-in support for **at-least-once delivery**. With careful client-side implementation (e.g., storing message IDs after processing), **exactly-once semantics** can be achieved for critical billing notifications.
+     *   **[0m[2mLower operational overhead** compared to Kafka, as Redis is already managed in our production environment.
+     *   Excellent foundation for **real-time WebSocket notifications** due to Redis's low-latency nature and existing Pub/Sub capabilities.
+     *   [0m[2mRapid integration, aligning with the **2-week setup/migration constraint**.
+     
+     While Kafka is a more robust streaming platform for extreme scale, the immediate benefits of Redis Streams in our specific context (team, budget, timeline) outweigh Kafka's advanced[0m[2m features.
+     
+     **Consequences**
+     
+     **Pros:**
+     *   **Reduced operational complexity:** Team leverages existing Redis knowledge, minimizing the learning curve and operational burden. No new distributed system to manage from scratch.
+     *   **Faster time to market[0m[2m:** Quicker setup and integration, allowing us to address critical issues (timeouts, failures) within the 2-week timeframe.
+     *   **Cost-effective:** Utilizes existing Redis infrastructure, avoiding immediate additional infrastructure costs associated with a new[0m[2m distributed system like Kafka.
+     *   **Scalable:** Redis Streams can handle our projected 10x traffic growth (~5000 req/s peak) comfortably for notification queuing, especially when horizontally scaled.
+     *   **[0m[2mSupports delivery guarantees:** Provides at-least-once delivery, and with idempotent consumers and tracking processed message IDs, exactly-once semantics for billing events are achievable.
+     *   **Future-proof for real-time:** Redis is well-suited to[0m[2m drive real-time WebSocket push notifications due to its low-latency nature.
+     
+     **Cons:**
+     *   **Potentially lower maximum throughput than Kafka:** While sufficient for current and projected needs, Redis Streams might not match Kafka's raw[0m[2m throughput for extremely high-volume, global-scale streaming applications.
+     *   **Less mature stream processing ecosystem:** Redis Streams' ecosystem for complex stream transformations and analytics is less developed than Kafka Streams or Flink. However, for simple notification[0m[2m queuing and processing, this is not a major drawback.
+     *   **Exactly-once implementation requires more client-side logic:** Achieving exactly-once delivery for billing events will require careful implementation of idempotent consumers and tracking of processed message IDs, rather[0m[2m than relying on more opinionated platform features found in Kafka.
+     *   **No inherent message compaction/long-term archival:** While Redis Streams support message retention, long-term archival or topic compaction like Kafka's is not a native feature and[0m[2m would require external mechanisms if needed.
+     
+     **Alternatives Considered**
+     
+     **Apache Kafka:**
+     Kafka was considered due to its industry-leading capabilities in high-throughput, fault-tolerant, and scalable distributed streaming. It offers robust ordering guarantees, strong[0m[2m support for exactly-once semantics, and a rich ecosystem for stream processing.
+     
+     However, Kafka was rejected primarily due to our team's constraints:
+     *   **High operational complexity:** Kafka requires significant operational expertise to set up, tune[0m[2m, and maintain a production cluster. Our team has no dedicated infrastructure engineer and no prior Kafka experience, making self-management a high-risk proposition with a steep learning curve.
+     *   **Longer setup/migration time:** Introducing Kafka[0m[2m would involve a substantial learning curve and setup phase, making it impossible to meet the 2-week time-to-value constraint.
+     *   **Budget limitations:** Our modest budget precludes the use of expensive managed Kafka services (like Confluent Cloud[0m[2m) at full scale, while self-hosting presents the operational complexity challenge.
+     *   **Overkill for immediate needs:** While powerful, Kafka's full suite of features might be an over-engineering choice for the immediate problem of asynchronous[0m[2m notifications, given the team's capacity.
+     
+     Given these factors, the significant investment in time, money, and expertise required for Kafka would divert critical resources and delay addressing the urgent problems with our existing notification system.[0m[2m
+  💸 (Requests: 2 | Tool Calls: 1 | Total: 18014) Input: 15721 | Audio Input: 0 | Output: 2293 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {'thoughts_tokens': 1068, 'text_prompt_tokens': 15721}
+[0m[2mTo run again:[0m [1;33mzrb chat --message "Read `system_context.md`. It describes a real production system and a specific architectural problem we need to solve.
+
+Write an Architecture Decision Record (ADR) evaluating two options for the notification subsystem:
+1. **Apache Kafka**
+2. **Redis Streams**
+
+Your ADR must follow this exact structure:
+- **Title**
+- **Status** (e.g. \"Proposed\")
+- **Context** — the problem and constraints
+- **Decision** — which option you choose and a clear justification
+- **Consequences** — pros AND cons of your decision
+- **Alternatives Considered** — why you rejected the other option
+
+Make a definitive recommendation. Use specific technical properties (throughput, ordering guarantees, message retention, consumer groups, exactly-once semantics, operational complexity) to justify your choice given the team size and constraints described.
+
+Save as `ADR-001-notification-architecture.md`." --model google-gla:gemini-2.5-flash --session "" --yolo true --attach "" --interactive false[0m
+[2m[2mSession[0m: [1;33msafe-gate-3986[0m[0m
+**Title: ADR-001 Notification Subsystem Architecture Decision**
+
+**Status: Proposed**
+
+**Context**
+Our SaaS project management platform, serving 85,000 monthly active users and processing ~2M tasks/month, is experiencing severe performance and reliability issues with its synchronous notification system. Notifications (emails, webhooks) are currently handled within the HTTP request cycle, leading to request timeouts (spiking to 8s latency), silent failures with no retry mechanism, and cascading failures due to external service dependencies (e.g., slow webhooks exhausting connection pools). Critical billing notifications lack delivery guarantees.
+
+We need to decouple notifications for asynchronous processing, implement retry mechanisms with exponential backoff, guarantee at-least-once delivery for all events, and achieve exactly-once semantics for billing-critical notifications. The new system must support 10x traffic growth and accommodate future real-time WebSocket push notifications.
+
+Key constraints include:
+*   A small engineering team (6 people, 3 senior, 3 mid-level) with **no dedicated infrastructure engineer** and **no prior Kafka experience**.
+*   **Redis is already in production** for session storage and rate limiting.
+*   The solution must deliver value within **2 weeks of setup/migration**.
+*   **Modest budget**, precluding expensive managed Kafka solutions at full scale.
+
+**Decision: Redis Streams**
+
+We have decided to implement the notification subsystem using **Redis Streams**. This choice is primarily driven by the critical constraints related to team expertise, operational complexity, and time-to-value. Leveraging our existing Redis infrastructure and team familiarity significantly reduces the barrier to adoption and deployment.
+
+Redis Streams offer:
+*   **Asynchronous processing** with durable message storage.
+*   **Consumer groups** for scalable consumption and processing, preventing message duplication across consumers.
+*   Built-in support for **at-least-once delivery**. With careful client-side implementation (e.g., storing message IDs after processing), **exactly-once semantics** can be achieved for critical billing notifications.
+*   **Lower operational overhead** compared to Kafka, as Redis is already managed in our production environment.
+*   Excellent foundation for **real-time WebSocket notifications** due to Redis's low-latency nature and existing Pub/Sub capabilities.
+*   Rapid integration, aligning with the **2-week setup/migration constraint**.
+
+While Kafka is a more robust streaming platform for extreme scale, the immediate benefits of Redis Streams in our specific context (team, budget, timeline) outweigh Kafka's advanced features.
+
+**Consequences**
+
+**Pros:**
+*   **Reduced operational complexity:** Team leverages existing Redis knowledge, minimizing the learning curve and operational burden. No new distributed system to manage from scratch.
+*   **Faster time to market:** Quicker setup and integration, allowing us to address critical issues (timeouts, failures) within the 2-week timeframe.
+*   **Cost-effective:** Utilizes existing Redis infrastructure, avoiding immediate additional infrastructure costs associated with a new distributed system like Kafka.
+*   **Scalable:** Redis Streams can handle our projected 10x traffic growth (~5000 req/s peak) comfortably for notification queuing, especially when horizontally scaled.
+*   **Supports delivery guarantees:** Provides at-least-once delivery, and with idempotent consumers and tracking processed message IDs, exactly-once semantics for billing events are achievable.
+*   **Future-proof for real-time:** Redis is well-suited to drive real-time WebSocket push notifications due to its low-latency nature.
+
+**Cons:**
+*   **Potentially lower maximum throughput than Kafka:** While sufficient for current and projected needs, Redis Streams might not match Kafka's raw throughput for extremely high-volume, global-scale streaming applications.
+*   **Less mature stream processing ecosystem:** Redis Streams' ecosystem for complex stream transformations and analytics is less developed than Kafka Streams or Flink. However, for simple notification queuing and processing, this is not a major drawback.
+*   **Exactly-once implementation requires more client-side logic:** Achieving exactly-once delivery for billing events will require careful implementation of idempotent consumers and tracking of processed message IDs, rather than relying on more opinionated platform features found in Kafka.
+*   **No inherent message compaction/long-term archival:** While Redis Streams support message retention, long-term archival or topic compaction like Kafka's is not a native feature and would require external mechanisms if needed.
+
+**Alternatives Considered**
+
+**Apache Kafka:**
+Kafka was considered due to its industry-leading capabilities in high-throughput, fault-tolerant, and scalable distributed streaming. It offers robust ordering guarantees, strong support for exactly-once semantics, and a rich ecosystem for stream processing.
+
+However, Kafka was rejected primarily due to our team's constraints:
+*   **High operational complexity:** Kafka requires significant operational expertise to set up, tune, and maintain a production cluster. Our team has no dedicated infrastructure engineer and no prior Kafka experience, making self-management a high-risk proposition with a steep learning curve.
+*   **Longer setup/migration time:** Introducing Kafka would involve a substantial learning curve and setup phase, making it impossible to meet the 2-week time-to-value constraint.
+*   **Budget limitations:** Our modest budget precludes the use of expensive managed Kafka services (like Confluent Cloud) at full scale, while self-hosting presents the operational complexity challenge.
+*   **Overkill for immediate needs:** While powerful, Kafka's full suite of features might be an over-engineering choice for the immediate problem of asynchronous notifications, given the team's capacity.
+
+Given these factors, the significant investment in time, money, and expertise required for Kafka would divert critical resources and delay addressing the urgent problems with our existing notification system.

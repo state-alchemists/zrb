@@ -1,0 +1,249 @@
+[2m{"[0m[2mname[0m[2m":"[0m[2mcore[0m[2m-c[0m[2moding[0m[2m"}[0m[2m
+  🧰 call_iII6ztFsFLv6YyN1DYzosL90 | ActivateSkill {'name': 'core-coding'}
+[0m[2m
+  🔠 call_iII6ztFsFLv6YyN1DYzosL90 | Return <ACTIVATED_SKILL>
+     Skill directory: /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-coding
+     Companion files: none
+     
+     ---
+     name: core-coding
+     description: Tactical workflow for safe, maintainable, and high-quality codebase creation/modification. Enforces top-notch engineering standards for all coding-related tasks.
+     user-invocable: false
+     ---
+     # Skill: core-coding
+     
+     When working on any coding or development task, you MUST follow this `Research -> Strategy -> Execution` workflow to ensure safety, maintainability, and seamless integration.
+     
+     ## PHASE 1: RESEARCH & DISCOVERY
+     
+     a.  **High-Level Reconnaissance:**
+         - Use directory listing tools (`LS`) with limited depth for initial structure mapping.
+         - Identify: source directories, test directories, configuration files, entry points, and utility/helper modules.
+         - NEVER use listing tools if you already know specific file paths or if a targeted glob search is possible.
+     b.  **Documentation & Context Analysis:** 
+         - Read `README.md`, `AGENTS.md`, `GEMINI.md`, `CLAUDE.md`, dependency files (e.g., `pyproject.toml`, `package.json`), and configuration files.
+         - Treat documentation as first-class code. Analyze `.md`, `.rst`, or `.txt` files to understand project architecture, design patterns, configuration options, usage examples, and constraints.
+     c.  **Targeted Architecture Discovery:**
+         - Combine turns: Use `Glob` and `Grep` in parallel to map file structures, existing patterns, and available utility functions. 
+         - Use `Grep` with specific `regex` and `file_pattern` to minimize noise.
+         - **Context Efficiency**: If you need to read multiple related files, ALWAYS prefer `ReadMany` over multiple sequential `Read` calls.
+     d.  **Tool Efficiency Heuristics:**
+         - **`Read` / `ReadMany`**: Use `Read` for single files. Use `ReadMany` to gather context from related files simultaneously. For large files, read specific line ranges.
+         - **`Glob`**: ALWAYS prefer over `LS` for targeted discovery.
+         - **`Grep`**: ALWAYS limit scope via `file_pattern` and specific `regex`.
+         - **`Write` / `Edit`**: ALWAYS prefer surgical editing (`Edit`) over rewriting entire files.
+     
+     ## PHASE 2: STRATEGY & ARCHITECTURE
+     
+     e.  **Formulate a Grounded Plan:**
+         - Inside your mandated `<thinking>` block, formulate a strategy that prioritizes **Maintainability**, **Readability**, and **Testability**.
+         - **Pattern Matching**: Your strategy MUST match existing project guidelines and patterns exactly (inferred from the code). The new code should be well integrated into the existing system, looking as though it were written by the original author.
+         - **Reuse Over Reinvention**: Identify if existing helper or utility functions can be leveraged. If it makes sense to use them, do so instead of creating new ones.
+         - **Design Principles**: Apply SOLID and DRY principles as much as possible.
+         - **Complexity Management**: Strictly avoid creating "God Classes" or "God Functions". You must keep **Cyclomatic Complexity** and **Cognitive Complexity** low.
+         - **Modularity**: Break down complex logic into small, single-responsibility helper functions. Avoid deep nesting (e.g., more than 2-3 levels of indentation).
+         - Do not introduce new architectural patterns without explicit approval.
+         - Define your testing strategy (how you will empirically verify the code change).
+         - Plan updates to the documentation if the codebase change affects APIs, configurations, or behaviors.
+     
+     ## PHASE 3: EXECUTION (Plan -> Act -> Validate)
+     
+     f.  **Act (Surgical Implementation):**
+         - Make minimal, precise edits strictly related to the sub-task.
+         - Write code that is easy to trace and easy to test.
+         - Consolidate logic into clean abstractions rather than threading state across unrelated layers.
+         - Prefer to only use existing libraries and established patterns. NEVER introduce new technical debt.
+         - **Test-First for New Behavior**: When adding new functionality, activate the `testing` skill (TDD mode) to drive implementation with a failing test before writing any production code.
+         - **Transition Safety (Strangler Pattern)**: The codebase must remain in a stable, runnable state throughout all phases of modification. When replacing or significantly refactoring an existing component (e.g., a file, function, or module), use a progressive approach:
+             1. Create the new component alongside the old
+             2. Update and verify all references to point to the new component
+             3. Only then remove the old component.
+             NEVER delete a functioning component before its replacement is fully integrated and validated.
+         - **Structural Improvement**: If you identify a structural problem (duplication, high complexity, God functions) that is out of scope for the current task, report it. If it must be fixed now, activate the `refactor` skill.
+         - **Code Smell Reporting**: If you encounter existing code smells or poorly structured code during your work, report it to the user.
+         - **Update Documentation**: Keep documentation files in sync with code changes. Update configuration options, behavior, and verify that examples match the new implementation. Remove references to deprecated/removed functionality.
+         - **Boundary Check**: Your job ends at modifying and verifying the files. **NEVER use shell commands to stage (`git add`) or commit changes** after you are done. Leave version control to the user unless they explicitly ask for a git summary.
+     
+     g.  **Validate (Zero-Regression & Verification):**
+         - **Validation is the only path to finality.** You must always make sure nothing breaks with your fix/update.
+         - For bug fixes: Empirically reproduce the failure BEFORE applying the fix. If the root cause is unclear after initial investigation, activate the `debug` skill.
+         - After changes: Run relevant tests, linters, and type-checkers to confirm success. A code change is incomplete without automated verification.
+         - **Build or test failures**: If the build, type-checker, or a test fails and the cause is unclear, activate the `debug` skill — it covers both build error resolution and behavioral root cause analysis.
+         - **Test Maintenance**: If a test fails (whether a new one or an existing one affected by your change), you MUST fix it. If generating new tests, activate the `testing` skill.
+         - If validation fails, diagnose the failure in a `<thinking>` block and adjust your strategy. Do not blindly repeat actions.
+         - **Security check**: If the code touches user input, authentication, authorization, file I/O, or sensitive data, activate `review` for a security audit after implementation.
+     h.  **Synthesis:** Before your final response, journal any non-trivial discoveries per the Journaling Protocol.
+     </ACTIVATED_SKILL>
+[0m[2m{"pa[0m[2mttern[0m[2m": "ap[0m[2mp/**[0m[2m/*.py[0m[2m", "pa[0m[2mth":[0m[2m "."}[0m[2m{"pa[0m[2mths":[0m[2m ["app[0m[2m/mai[0m[2mn.py"[0m[2m, "app[0m[2m/aut[0m[2mh.py"[0m[2m, "app[0m[2m/dat[0m[2mabase[0m[2m.py"],[0m[2m "au[0m[2mto_tr[0m[2muncate[0m[2m": t[0m[2mrue}[0m[2m{"pa[0m[2mttern[0m[2m": "**[0m[2m/*",[0m[2m "pat[0m[2mh": "a[0m[2mpp",[0m[2m "aut[0m[2mo_trun[0m[2mcate[0m[2m": tr[0m[2mue}[0m[2m
+  🧰 call_kuA1kLYbgwKNLk3tVKTKr1Rh | Glob {'pattern': 'app/**/*.py', 'path': '.'}
+[0m[2m
+  🧰 call_rJGgBlNYpEPuqbA5Zn5mPhRd | ReadMany {'paths': ['app/main.py', 'app/auth.py', 'app/database.py'], 'auto_truncate': True}
+[0m[2m
+  🧰 call_U7tNm1Ov7VZ8BliSorl2qaDP | Glob {'pattern': '**/*', 'path': 'app', 'auto_truncate': True}
+[0m[2m
+  🔠 call_kuA1kLYbgwKNLk3tVKTKr1Rh | Return {'files': ['app/__init__.py', 'app/auth.py', 'app/database.py', 'app/main.py', 'app/models.py']}
+[0m[2m
+  🔠 call_U7tNm1Ov7VZ8BliSorl2qaDP | Return {'files': ['__init__.py', 'auth.py', 'database.py', 'main.py', 'models.py']}
+[0m[2m
+  🔠 call_rJGgBlNYpEPuqbA5Zn5mPhRd | Return {'app/main.py': '[File: app/main.py | 33 lines]\n---CONTENT---\nfrom fastapi import FastAPI, HTTPException\nfrom typing import List\nfrom .models import Task, TaskCreate, TaskUpdate, Project\nfrom .database import tasks, projects\nfrom .auth import require_api_key\n\napp = FastAPI(title="Project Management API")\n\n\n@app.get("/projects", response_model=List[Project])\nasync def list_projects():\n    return projects\n\n\n@app.get("/tasks", response_model=List[Task])\nasync def list_tasks():\n    # TODO: add filtering (status, priority, assigned_to query params)\n    # TODO: add pagination (page, page_size query params)\n    return tasks\n\n\n@app.get("/tasks/{task_id}", response_model=Task)\nasync def get_task(task_id: int):\n    for task in tasks:\n        if task.id == task_id:\n            return task\n    raise HTTPException(status_code=404, detail="Task not found")\n\n\n# TODO: POST /tasks — create a task (requires auth, validate project_id, auto-generate id)\n# TODO: PUT /tasks/{task_id} — partial update (requires auth, 404 if not found)\n# TODO: DELETE /tasks/{task_id} — delete a task (requires auth, 404 if not found)\n', 'app/auth.py': '[File: app/auth.py | 13 lines]\n---CONTENT---\nfrom fastapi import Header, HTTPException\nfrom typing import Optional\nfrom .database import VALID_API_KEYS\n\n\nasync def require_api_key(x_api_key: Optional[str] = Header(default=None)) -> str:\n    """\n    Validates X-API-Key header against VALID_API_KEYS.\n    Returns the username on success.\n    TODO: Currently does nothing — implement authentication.\n    """\n    pass\n', 'app/database.py': '[File: app/database.py | 20 lines]\n---CONTENT---\nfrom typing import Dict, List\nfrom .models import Project, Task, TaskStatus\n\nprojects: List[Project] = [\n    Project(id=1, name="Alpha", owner="alice"),\n    Project(id=2, name="Beta", owner="bob"),\n]\n\ntasks: List[Task] = [\n    Task(id=1, title="Design schema", status=TaskStatus.done, priority=5, project_id=1, assigned_to="alice"),\n    Task(id=2, title="Implement API", status=TaskStatus.in_progress, priority=4, project_id=1, assigned_to="bob"),\n    Task(id=3, title="Write tests", status=TaskStatus.todo, priority=3, project_id=1),\n    Task(id=4, title="Deploy to staging", status=TaskStatus.todo, priority=2, project_id=2, assigned_to="alice"),\n]\n\nVALID_API_KEYS: Dict[str, str] = {\n    "dev-key-alice": "alice",\n    "dev-key-bob": "bob",\n}\n'}
+[0m[2m{"[0m[2mpath[0m[2m":"[0m[2mapp[0m[2m/models[0m[2m.py[0m[2m"}[0m[2m
+  🧰 call_X4RHPPJVTwMniqjNBbF2f54x | Read {'path': 'app/models.py'}
+[0m[2m
+  🔠 call_X4RHPPJVTwMniqjNBbF2f54x | Return [File: app/models.py | 40 lines]
+     ---CONTENT---
+     from pydantic import BaseModel
+     from typing import Optional
+     from enum import Enum
+     
+     
+     class TaskStatus(str, Enum):
+         todo = "todo"
+         in_progress = "in_progress"
+         done = "done"
+     
+     
+     class Task(BaseModel):
+         id: int
+         title: str
+         status: TaskStatus = TaskStatus.todo
+         priority: int = 3
+         project_id: int
+         assigned_to: Optional[str] = None
+     
+     
+     class TaskCreate(BaseModel):
+         title: str
+         status: TaskStatus = TaskStatus.todo
+         priority: int = 3
+         project_id: int
+         assigned_to: Optional[str] = None
+     
+     
+     class TaskUpdate(BaseModel):
+         title: Optional[str] = None
+         status: Optional[TaskStatus] = None
+         priority: Optional[int] = None
+         assigned_to: Optional[str] = None
+     
+     
+     class Project(BaseModel):
+         id: int
+         name: str
+         owner: str
+     
+[0m[2m{"[0m[2mpath[0m[2m":"[0m[2mapp[0m[2m/auth[0m[2m.py[0m[2m","[0m[2mold[0m[2m_text[0m[2m":"[0m[2mfrom[0m[2m fast[0m[2mapi[0m[2m import[0m[2m Header[0m[2m,[0m[2m HTTP[0m[2mException[0m[2m\n[0m[2mfrom[0m[2m typing[0m[2m import[0m[2m Optional[0m[2m\n[0m[2mfrom[0m[2m .[0m[2mdatabase[0m[2m import[0m[2m VALID[0m[2m_API[0m[2m_KEYS[0m[2m\n[0m[2m\n[0m[2m\n[0m[2masync[0m[2m def[0m[2m require[0m[2m_api[0m[2m_key[0m[2m(x[0m[2m_api[0m[2m_key[0m[2m:[0m[2m Optional[0m[2m[str[0m[2m][0m[2m =[0m[2m Header[0m[2m(default[0m[2m=None[0m[2m))[0m[2m ->[0m[2m str[0m[2m:\[0m[2mn[0m[2m   [0m[2m \"[0m[2m\"[0m[2m\"\[0m[2mn[0m[2m   [0m[2m Valid[0m[2mates[0m[2m X[0m[2m-[0m[2mAPI[0m[2m-Key[0m[2m header[0m[2m against[0m[2m VALID[0m[2m_API[0m[2m_KEYS[0m[2m.\[0m[2mn[0m[2m   [0m[2m Returns[0m[2m the[0m[2m username[0m[2m on[0m[2m success[0m[2m.\[0m[2mn[0m[2m   [0m[2m TODO[0m[2m:[0m[2m Currently[0m[2m does[0m[2m nothing[0m[2m —[0m[2m implement[0m[2m authentication[0m[2m.\[0m[2mn[0m[2m   [0m[2m \"[0m[2m\"[0m[2m\"\[0m[2mn[0m[2m   [0m[2m pass[0m[2m\n[0m[2m","[0m[2mnew[0m[2m_text[0m[2m":"[0m[2mfrom[0m[2m fast[0m[2mapi[0m[2m import[0m[2m Header[0m[2m,[0m[2m HTTP[0m[2mException[0m[2m\n[0m[2mfrom[0m[2m typing[0m[2m import[0m[2m Optional[0m[2m\n[0m[2mfrom[0m[2m .[0m[2mdatabase[0m[2m import[0m[2m VALID[0m[2m_API[0m[2m_KEYS[0m[2m\n[0m[2m\n[0m[2m\n[0m[2masync[0m[2m def[0m[2m require[0m[2m_api[0m[2m_key[0m[2m(x[0m[2m_api[0m[2m_key[0m[2m:[0m[2m Optional[0m[2m[str[0m[2m][0m[2m =[0m[2m Header[0m[2m(default[0m[2m=None[0m[2m))[0m[2m ->[0m[2m str[0m[2m:\[0m[2mn[0m[2m   [0m[2m \"[0m[2m\"[0m[2m\"[0m[2mValid[0m[2mates[0m[2m X[0m[2m-[0m[2mAPI[0m[2m-Key[0m[2m header[0m[2m against[0m[2m VALID[0m[2m_API[0m[2m_KEYS[0m[2m.\[0m[2mn[0m[2m\n[0m[2m   [0m[2m Returns[0m[2m the[0m[2m username[0m[2m on[0m[2m success[0m[2m.\[0m[2mn[0m[2m   [0m[2m Raises[0m[2m HTTP[0m[2m [0m[2m401[0m[2m if[0m[2m the[0m[2m key[0m[2m is[0m[2m missing[0m[2m or[0m[2m invalid[0m[2m.\[0m[2mn[0m[2m   [0m[2m \"[0m[2m\"[0m[2m\"\[0m[2mn[0m[2m   [0m[2m if[0m[2m not[0m[2m x[0m[2m_api[0m[2m_key[0m[2m:\[0m[2mn[0m[2m       [0m[2m raise[0m[2m HTTP[0m[2mException[0m[2m(status[0m[2m_code[0m[2m=[0m[2m401[0m[2m,[0m[2m detail[0m[2m=\"[0m[2mMissing[0m[2m API[0m[2m key[0m[2m\")[0m[2m\[0m[2mn[0m[2m\n[0m[2m   [0m[2m username[0m[2m =[0m[2m VALID[0m[2m_API[0m[2m_KEYS[0m[2m.get[0m[2m(x[0m[2m_api[0m[2m_key[0m[2m)\[0m[2mn[0m[2m   [0m[2m if[0m[2m not[0m[2m username[0m[2m:\[0m[2mn[0m[2m       [0m[2m raise[0m[2m HTTP[0m[2mException[0m[2m(status[0m[2m_code[0m[2m=[0m[2m401[0m[2m,[0m[2m detail[0m[2m=\"[0m[2mInvalid[0m[2m API[0m[2m key[0m[2m\")[0m[2m\[0m[2mn[0m[2m\n[0m[2m   [0m[2m return[0m[2m username[0m[2m\n[0m[2m"}[0m[2m
+  🧰 call_1yMyqaCRBWVm9nCpylsuKxaw | Edit {'path': 'app/auth.py', 'old_text': 'from fastapi import Header ...', 'new_text': 'from fastapi import Header ...'}
+[0m[2m
+  🔠 call_1yMyqaCRBWVm9nCpylsuKxaw | Return Successfully updated app/auth.py (1 replacement(s))
+[0m[2m{"[0m[2mpath[0m[2m":"[0m[2mapp[0m[2m/main[0m[2m.py[0m[2m","[0m[2mold[0m[2m_text[0m[2m":"[0m[2mfrom[0m[2m fast[0m[2mapi[0m[2m import[0m[2m Fast[0m[2mAPI[0m[2m,[0m[2m HTTP[0m[2mException[0m[2m\n[0m[2mfrom[0m[2m typing[0m[2m import[0m[2m List[0m[2m\n[0m[2mfrom[0m[2m .[0m[2mmodels[0m[2m import[0m[2m Task[0m[2m,[0m[2m Task[0m[2mCreate[0m[2m,[0m[2m Task[0m[2mUpdate[0m[2m,[0m[2m Project[0m[2m\n[0m[2mfrom[0m[2m .[0m[2mdatabase[0m[2m import[0m[2m tasks[0m[2m,[0m[2m projects[0m[2m\n[0m[2mfrom[0m[2m .[0m[2mauth[0m[2m import[0m[2m require[0m[2m_api[0m[2m_key[0m[2m\n[0m[2m\n[0m[2mapp[0m[2m =[0m[2m Fast[0m[2mAPI[0m[2m(title[0m[2m=\"[0m[2mProject[0m[2m Management[0m[2m API[0m[2m\")[0m[2m\[0m[2mn[0m[2m\n[0m[2m\n[0m[2m@app[0m[2m.get[0m[2m(\"[0m[2m/[0m[2mprojects[0m[2m\",[0m[2m response[0m[2m_model[0m[2m=[0m[2mList[0m[2m[[0m[2mProject[0m[2m])[0m[2m\[0m[2mn[0m[2masync[0m[2m def[0m[2m list[0m[2m_projects[0m[2m():[0m[2m\[0m[2mn[0m[2m   [0m[2m return[0m[2m projects[0m[2m\n[0m[2m\n[0m[2m\n[0m[2m@app[0m[2m.get[0m[2m(\"[0m[2m/[0m[2mtasks[0m[2m\",[0m[2m response[0m[2m_model[0m[2m=[0m[2mList[0m[2m[[0m[2mTask[0m[2m])[0m[2m\[0m[2mn[0m[2masync[0m[2m def[0m[2m list[0m[2m_tasks[0m[2m():[0m[2m\[0m[2mn[0m[2m   [0m[2m #[0m[2m TODO[0m[2m:[0m[2m add[0m[2m filtering[0m[2m ([0m[2mstatus[0m[2m,[0m[2m priority[0m[2m,[0m[2m assigned[0m[2m_to[0m[2m query[0m[2m params[0m[2m)\[0m[2mn[0m[2m   [0m[2m #[0m[2m TODO[0m[2m:[0m[2m add[0m[2m pagination[0m[2m ([0m[2mpage[0m[2m,[0m[2m page[0m[2m_size[0m[2m query[0m[2m params[0m[2m)\[0m[2mn[0m[2m   [0m[2m return[0m[2m tasks[0m[2m\n[0m[2m\n[0m[2m\n[0m[2m@app[0m[2m.get[0m[2m(\"[0m[2m/[0m[2mtasks[0m[2m/{[0m[2mtask[0m[2m_id[0m[2m}\[0m[2m",[0m[2m response[0m[2m_model[0m[2m=[0m[2mTask[0m[2m)\[0m[2mn[0m[2masync[0m[2m def[0m[2m get[0m[2m_task[0m[2m(task[0m[2m_id[0m[2m:[0m[2m int[0m[2m):[0m[2m\[0m[2mn[0m[2m   [0m[2m for[0m[2m task[0m[2m in[0m[2m tasks[0m[2m:\[0m[2mn[0m[2m       [0m[2m if[0m[2m task[0m[2m.id[0m[2m ==[0m[2m task[0m[2m_id[0m[2m:\[0m[2mn[0m[2m           [0m[2m return[0m[2m task[0m[2m\n[0m[2m   [0m[2m raise[0m[2m HTTP[0m[2mException[0m[2m(status[0m[2m_code[0m[2m=[0m[2m404[0m[2m,[0m[2m detail[0m[2m=\"[0m[2mTask[0m[2m not[0m[2m found[0m[2m\")[0m[2m\[0m[2mn[0m[2m\n[0m[2m\n[0m[2m#[0m[2m TODO[0m[2m:[0m[2m POST[0m[2m /[0m[2mtasks[0m[2m —[0m[2m create[0m[2m a[0m[2m task[0m[2m ([0m[2mrequires[0m[2m auth[0m[2m,[0m[2m validate[0m[2m project[0m[2m_id[0m[2m,[0m[2m auto[0m[2m-g[0m[2menerate[0m[2m id[0m[2m)\[0m[2mn[0m[2m#[0m[2m TODO[0m[2m:[0m[2m PUT[0m[2m /[0m[2mtasks[0m[2m/{[0m[2mtask[0m[2m_id[0m[2m}[0m[2m —[0m[2m partial[0m[2m update[0m[2m ([0m[2mrequires[0m[2m auth[0m[2m,[0m[2m [0m[2m404[0m[2m if[0m[2m not[0m[2m found[0m[2m)\[0m[2mn[0m[2m#[0m[2m TODO[0m[2m:[0m[2m DELETE[0m[2m /[0m[2mtasks[0m[2m/{[0m[2mtask[0m[2m_id[0m[2m}[0m[2m —[0m[2m delete[0m[2m a[0m[2m task[0m[2m ([0m[2mrequires[0m[2m auth[0m[2m,[0m[2m [0m[2m404[0m[2m if[0m[2m not[0m[2m found[0m[2m)\[0m[2mn[0m[2m","[0m[2mnew[0m[2m_text[0m[2m":"[0m[2mfrom[0m[2m fast[0m[2mapi[0m[2m import[0m[2m Depends[0m[2m,[0m[2m Fast[0m[2mAPI[0m[2m,[0m[2m HTTP[0m[2mException[0m[2m\n[0m[2mfrom[0m[2m typing[0m[2m import[0m[2m List[0m[2m,[0m[2m Optional[0m[2m\n[0m[2mfrom[0m[2m .[0m[2mmodels[0m[2m import[0m[2m Task[0m[2m,[0m[2m Task[0m[2mCreate[0m[2m,[0m[2m Task[0m[2mUpdate[0m[2m,[0m[2m Project[0m[2m,[0m[2m Task[0m[2mStatus[0m[2m\n[0m[2mfrom[0m[2m .[0m[2mdatabase[0m[2m import[0m[2m tasks[0m[2m,[0m[2m projects[0m[2m\n[0m[2mfrom[0m[2m .[0m[2mauth[0m[2m import[0m[2m require[0m[2m_api[0m[2m_key[0m[2m\n[0m[2m\n[0m[2mapp[0m[2m =[0m[2m Fast[0m[2mAPI[0m[2m(title[0m[2m=\"[0m[2mProject[0m[2m Management[0m[2m API[0m[2m\")[0m[2m\[0m[2mn[0m[2m\n[0m[2m\n[0m[2m@app[0m[2m.get[0m[2m(\"[0m[2m/[0m[2mprojects[0m[2m\",[0m[2m response[0m[2m_model[0m[2m=[0m[2mList[0m[2m[[0m[2mProject[0m[2m])[0m[2m\[0m[2mn[0m[2masync[0m[2m def[0m[2m list[0m[2m_projects[0m[2m():[0m[2m\[0m[2mn[0m[2m   [0m[2m return[0m[2m projects[0m[2m\n[0m[2m\n[0m[2m\n[0m[2m@app[0m[2m.get[0m[2m(\"[0m[2m/[0m[2mtasks[0m[2m\",[0m[2m response[0m[2m_model[0m[2m=[0m[2mList[0m[2m[[0m[2mTask[0m[2m])[0m[2m\[0m[2mn[0m[2masync[0m[2m def[0m[2m list[0m[2m_tasks[0m[2m(\[0m[2mn[0m[2m   [0m[2m status[0m[2m:[0m[2m Optional[0m[2m[[0m[2mTask[0m[2mStatus[0m[2m][0m[2m =[0m[2m None[0m[2m,\[0m[2mn[0m[2m   [0m[2m priority[0m[2m:[0m[2m Optional[0m[2m[int[0m[2m][0m[2m =[0m[2m None[0m[2m,\[0m[2mn[0m[2m   [0m[2m assigned[0m[2m_to[0m[2m:[0m[2m Optional[0m[2m[str[0m[2m][0m[2m =[0m[2m None[0m[2m,\[0m[2mn[0m[2m   [0m[2m page[0m[2m:[0m[2m int[0m[2m =[0m[2m [0m[2m1[0m[2m,\[0m[2mn[0m[2m   [0m[2m page[0m[2m_size[0m[2m:[0m[2m int[0m[2m =[0m[2m [0m[2m20[0m[2m,\[0m[2mn[0m[2m):[0m[2m\[0m[2mn[0m[2m   [0m[2m filtered[0m[2m =[0m[2m tasks[0m[2m\n[0m[2m   [0m[2m if[0m[2m status[0m[2m is[0m[2m not[0m[2m None[0m[2m:\[0m[2mn[0m[2m       [0m[2m filtered[0m[2m =[0m[2m [[0m[2mt[0m[2m for[0m[2m t[0m[2m in[0m[2m filtered[0m[2m if[0m[2m t[0m[2m.status[0m[2m ==[0m[2m status[0m[2m]\[0m[2mn[0m[2m   [0m[2m if[0m[2m priority[0m[2m is[0m[2m not[0m[2m None[0m[2m:\[0m[2mn[0m[2m       [0m[2m filtered[0m[2m =[0m[2m [[0m[2mt[0m[2m for[0m[2m t[0m[2m in[0m[2m filtered[0m[2m if[0m[2m t[0m[2m.priority[0m[2m ==[0m[2m priority[0m[2m]\[0m[2mn[0m[2m   [0m[2m if[0m[2m assigned[0m[2m_to[0m[2m is[0m[2m not[0m[2m None[0m[2m:\[0m[2mn[0m[2m       [0m[2m filtered[0m[2m =[0m[2m [[0m[2mt[0m[2m for[0m[2m t[0m[2m in[0m[2m filtered[0m[2m if[0m[2m t[0m[2m.ass[0m[2migned[0m[2m_to[0m[2m ==[0m[2m assigned[0m[2m_to[0m[2m]\[0m[2mn[0m[2m\n[0m[2m   [0m[2m if[0m[2m page[0m[2m <[0m[2m [0m[2m1[0m[2m:\[0m[2mn[0m[2m       [0m[2m raise[0m[2m HTTP[0m[2mException[0m[2m(status[0m[2m_code[0m[2m=[0m[2m422[0m[2m,[0m[2m detail[0m[2m=\"[0m[2mpage[0m[2m must[0m[2m be[0m[2m >=[0m[2m [0m[2m1[0m[2m\")[0m[2m\[0m[2mn[0m[2m   [0m[2m if[0m[2m page[0m[2m_size[0m[2m <[0m[2m [0m[2m1[0m[2m:\[0m[2mn[0m[2m       [0m[2m raise[0m[2m HTTP[0m[2mException[0m[2m(status[0m[2m_code[0m[2m=[0m[2m422[0m[2m,[0m[2m detail[0m[2m=\"[0m[2mpage[0m[2m_size[0m[2m must[0m[2m be[0m[2m >=[0m[2m [0m[2m1[0m[2m\")[0m[2m\[0m[2mn[0m[2m\n[0m[2m   [0m[2m start[0m[2m =[0m[2m ([0m[2mpage[0m[2m -[0m[2m [0m[2m1[0m[2m)[0m[2m *[0m[2m page[0m[2m_size[0m[2m\n[0m[2m   [0m[2m end[0m[2m =[0m[2m start[0m[2m +[0m[2m page[0m[2m_size[0m[2m\n[0m[2m   [0m[2m return[0m[2m filtered[0m[2m[start[0m[2m:end[0m[2m]\[0m[2mn[0m[2m\n[0m[2m\n[0m[2m@app[0m[2m.get[0m[2m(\"[0m[2m/[0m[2mtasks[0m[2m/{[0m[2mtask[0m[2m_id[0m[2m}\[0m[2m",[0m[2m response[0m[2m_model[0m[2m=[0m[2mTask[0m[2m)\[0m[2mn[0m[2masync[0m[2m def[0m[2m get[0m[2m_task[0m[2m(task[0m[2m_id[0m[2m:[0m[2m int[0m[2m):[0m[2m\[0m[2mn[0m[2m   [0m[2m for[0m[2m task[0m[2m in[0m[2m tasks[0m[2m:\[0m[2mn[0m[2m       [0m[2m if[0m[2m task[0m[2m.id[0m[2m ==[0m[2m task[0m[2m_id[0m[2m:\[0m[2mn[0m[2m           [0m[2m return[0m[2m task[0m[2m\n[0m[2m   [0m[2m raise[0m[2m HTTP[0m[2mException[0m[2m(status[0m[2m_code[0m[2m=[0m[2m404[0m[2m,[0m[2m detail[0m[2m=\"[0m[2mTask[0m[2m not[0m[2m found[0m[2m\")[0m[2m\[0m[2mn[0m[2m\n[0m[2m\n[0m[2m@app[0m[2m.post[0m[2m(\"[0m[2m/[0m[2mtasks[0m[2m\",[0m[2m response[0m[2m_model[0m[2m=[0m[2mTask[0m[2m)\[0m[2mn[0m[2masync[0m[2m def[0m[2m create[0m[2m_task[0m[2m(task[0m[2m_in[0m[2m:[0m[2m Task[0m[2mCreate[0m[2m,[0m[2m username[0m[2m:[0m[2m str[0m[2m =[0m[2m Depends[0m[2m(require[0m[2m_api[0m[2m_key[0m[2m))[0m[2m:\[0m[2mn[0m[2m   [0m[2m if[0m[2m not[0m[2m any[0m[2m(p[0m[2m.id[0m[2m ==[0m[2m task[0m[2m_in[0m[2m.project[0m[2m_id[0m[2m for[0m[2m p[0m[2m in[0m[2m projects[0m[2m):[0m[2m\[0m[2mn[0m[2m       [0m[2m raise[0m[2m HTTP[0m[2mException[0m[2m(status[0m[2m_code[0m[2m=[0m[2m404[0m[2m,[0m[2m detail[0m[2m=\"[0m[2mProject[0m[2m not[0m[2m found[0m[2m\")[0m[2m\[0m[2mn[0m[2m\n[0m[2m   [0m[2m next[0m[2m_id[0m[2m =[0m[2m ([0m[2mmax[0m[2m(([0m[2mt[0m[2m.id[0m[2m for[0m[2m t[0m[2m in[0m[2m tasks[0m[2m),[0m[2m default[0m[2m=[0m[2m0[0m[2m)[0m[2m +[0m[2m [0m[2m1[0m[2m)[0m[2m if[0m[2m tasks[0m[2m is[0m[2m not[0m[2m None[0m[2m else[0m[2m [0m[2m1[0m[2m\n[0m[2m   [0m[2m task[0m[2m =[0m[2m Task[0m[2m(id[0m[2m=[0m[2mnext[0m[2m_id[0m[2m,[0m[2m **[0m[2mtask[0m[2m_in[0m[2m.model[0m[2m_dump[0m[2m())[0m[2m\[0m[2mn[0m[2m   [0m[2m tasks[0m[2m.append[0m[2m(task[0m[2m)\[0m[2mn[0m[2m   [0m[2m return[0m[2m task[0m[2m\n[0m[2m\n[0m[2m\n[0m[2m@app[0m[2m.put[0m[2m(\"[0m[2m/[0m[2mtasks[0m[2m/{[0m[2mtask[0m[2m_id[0m[2m}\[0m[2m",[0m[2m response[0m[2m_model[0m[2m=[0m[2mTask[0m[2m)\[0m[2mn[0m[2masync[0m[2m def[0m[2m update[0m[2m_task[0m[2m(\[0m[2mn[0m[2m   [0m[2m task[0m[2m_id[0m[2m:[0m[2m int[0m[2m,[0m[2m task[0m[2m_in[0m[2m:[0m[2m Task[0m[2mUpdate[0m[2m,[0m[2m username[0m[2m:[0m[2m str[0m[2m =[0m[2m Depends[0m[2m(require[0m[2m_api[0m[2m_key[0m[2m)\[0m[2mn[0m[2m):[0m[2m\[0m[2mn[0m[2m   [0m[2m for[0m[2m i[0m[2m,[0m[2m task[0m[2m in[0m[2m enumerate[0m[2m(tasks[0m[2m):[0m[2m\[0m[2mn[0m[2m       [0m[2m if[0m[2m task[0m[2m.id[0m[2m ==[0m[2m task[0m[2m_id[0m[2m:\[0m[2mn[0m[2m           [0m[2m update[0m[2m =[0m[2m task[0m[2m_in[0m[2m.model[0m[2m_dump[0m[2m(ex[0m[2mclude[0m[2m_un[0m[2mset[0m[2m=True[0m[2m)\[0m[2mn[0m[2m           [0m[2m updated[0m[2m =[0m[2m task[0m[2m.model[0m[2m_copy[0m[2m(update[0m[2m=[0m[2mupdate[0m[2m)\[0m[2mn[0m[2m           [0m[2m tasks[0m[2m[i[0m[2m][0m[2m =[0m[2m updated[0m[2m\n[0m[2m           [0m[2m return[0m[2m updated[0m[2m\n[0m[2m   [0m[2m raise[0m[2m HTTP[0m[2mException[0m[2m(status[0m[2m_code[0m[2m=[0m[2m404[0m[2m,[0m[2m detail[0m[2m=\"[0m[2mTask[0m[2m not[0m[2m found[0m[2m\")[0m[2m\[0m[2mn[0m[2m\n[0m[2m\n[0m[2m@app[0m[2m.delete[0m[2m(\"[0m[2m/[0m[2mtasks[0m[2m/{[0m[2mtask[0m[2m_id[0m[2m}\[0m[2m")[0m[2m\[0m[2mn[0m[2masync[0m[2m def[0m[2m delete[0m[2m_task[0m[2m(task[0m[2m_id[0m[2m:[0m[2m int[0m[2m,[0m[2m username[0m[2m:[0m[2m str[0m[2m =[0m[2m Depends[0m[2m(require[0m[2m_api[0m[2m_key[0m[2m))[0m[2m:\[0m[2mn[0m[2m   [0m[2m for[0m[2m i[0m[2m,[0m[2m task[0m[2m in[0m[2m enumerate[0m[2m(tasks[0m[2m):[0m[2m\[0m[2mn[0m[2m       [0m[2m if[0m[2m task[0m[2m.id[0m[2m ==[0m[2m task[0m[2m_id[0m[2m:\[0m[2mn[0m[2m           [0m[2m tasks[0m[2m.pop[0m[2m(i[0m[2m)\[0m[2mn[0m[2m           [0m[2m return[0m[2m {[0m[2m\"[0m[2mdeleted[0m[2m\":[0m[2m True[0m[2m}\[0m[2mn[0m[2m   [0m[2m raise[0m[2m HTTP[0m[2mException[0m[2m(status[0m[2m_code[0m[2m=[0m[2m404[0m[2m,[0m[2m detail[0m[2m=\"[0m[2mTask[0m[2m not[0m[2m found[0m[2m\")[0m[2m\[0m[2mn[0m[2m"}[0m[2m
+  🧰 call_mN2htazUwDPcmnola4KoPuaT | Edit {'path': 'app/main.py', 'old_text': 'from fastapi import FastAP ...', 'new_text': 'from fastapi import Depend ...'}
+[0m[2m
+  🔠 call_mN2htazUwDPcmnola4KoPuaT | Return Successfully updated app/main.py (1 replacement(s))
+[0m[2m{"[0m[2mcommand[0m[2m":"[0m[2mpython[0m[2m -[0m[2mm[0m[2m compile[0m[2mall[0m[2m app[0m[2m &&[0m[2m python[0m[2m -[0m[2mc[0m[2m \"[0m[2mfrom[0m[2m app[0m[2m.main[0m[2m import[0m[2m app[0m[2m;[0m[2m print[0m[2m('[0m[2mapp[0m[2m loaded[0m[2m',[0m[2m app[0m[2m.title[0m[2m)[0m[2m\"[0m[2m"}[0m[2m
+  🧰 call_xOazhTMy72nmzud4ls3T0WHL | Bash {'command': 'python -m compileall app & ...'}
+[0m  [2mListing 'app'...
+[0m  [2mCompiling 'app/__init__.py'...
+[0m  [2mCompiling 'app/auth.py'...
+[0m  [2mCompiling 'app/database.py'...
+[0m  [2mCompiling 'app/main.py'...
+[0m  [2mCompiling 'app/models.py'...
+[0m  [2mapp loaded Project Management API
+[0m[2m
+  🔠 call_xOazhTMy72nmzud4ls3T0WHL | Return Command: python -m compileall app && python -c "from app.main import app; print('app loaded', app.title)"
+     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/openai-gpt-5.2/feature/workdir
+     Stdout:
+     Listing 'app'...
+     Compiling 'app/__init__.py'...
+     Compiling 'app/auth.py'...
+     Compiling 'app/database.py'...
+     Compiling 'app/main.py'...
+     Compiling 'app/models.py'...
+     app loaded Project Management API
+     Stderr:
+     (empty)
+     Exit Code: 0
+     Background PIDs: (none)
+[0m[2m
+  Implemented[0m[2m all[0m[2m missing[0m[2m/in[0m[2mcomplete[0m[2m features[0m[2m in[0m[2m `[0m[2mapp[0m[2m/[0m[2m`[0m[2m:
+     
+[0m[2m1[0m[2m.[0m[2m **[0m[2mAuthentication[0m[2m**[0m[2m (`[0m[2mapp[0m[2m/auth[0m[2m.py[0m[2m`)
+[0m[2m  [0m[2m -[0m[2m `[0m[2mrequire[0m[2m_api[0m[2m_key[0m[2m`[0m[2m now[0m[2m reads[0m[2m the[0m[2m `[0m[2mX[0m[2m-[0m[2mAPI[0m[2m-Key[0m[2m`[0m[2m header[0m[2m,[0m[2m validates[0m[2m it[0m[2m against[0m[2m `[0m[2mVALID[0m[2m_API[0m[2m_KEYS[0m[2m`[0m[2m ([0m[2mfrom[0m[2m `[0m[2mapp[0m[2m/database[0m[2m.py[0m[2m`[0m[2m),[0m[2m and[0m[2m raises[0m[2m **[0m[2mHTTP[0m[2m [0m[2m401[0m[2m**[0m[2m if[0m[2m missing[0m[2m/[0m[2minvalid[0m[2m.
+[0m[2m  [0m[2m -[0m[2m Returns[0m[2m the[0m[2m associated[0m[2m username[0m[2m on[0m[2m success[0m[2m.
+     
+[0m[2m2[0m[2m.[0m[2m **[0m[2mTask[0m[2m filtering[0m[2m**[0m[2m (`[0m[2mGET[0m[2m /[0m[2mtasks[0m[2m`)[0m[2m (`[0m[2mapp[0m[2m/main[0m[2m.py[0m[2m`)
+[0m[2m  [0m[2m -[0m[2m Added[0m[2m optional[0m[2m,[0m[2m combin[0m[2mable[0m[2m query[0m[2m params[0m[2m:[0m[2m `[0m[2mstatus[0m[2m`,[0m[2m `[0m[2mpriority[0m[2m`,[0m[2m `[0m[2massigned[0m[2m_to[0m[2m`.
+[0m[2m  [0m[2m -[0m[2m Returns[0m[2m only[0m[2m tasks[0m[2m matching[0m[2m all[0m[2m provided[0m[2m filters[0m[2m.
+     
+[0m[2m3[0m[2m.[0m[2m **[0m[2mPagination[0m[2m**[0m[2m (`[0m[2mGET[0m[2m /[0m[2mtasks[0m[2m`)[0m[2m (`[0m[2mapp[0m[2m/main[0m[2m.py[0m[2m`)
+[0m[2m  [0m[2m -[0m[2m Added[0m[2m `[0m[2mpage[0m[2m`[0m[2m ([0m[2mdefault[0m[2m `[0m[2m1[0m[2m`)[0m[2m and[0m[2m `[0m[2mpage[0m[2m_size[0m[2m`[0m[2m ([0m[2mdefault[0m[2m `[0m[2m20[0m[2m`[0m[2m).
+[0m[2m  [0m[2m -[0m[2m Returns[0m[2m the[0m[2m filtered[0m[2m slice[0m[2m;[0m[2m validates[0m[2m `[0m[2mpage[0m[2m >=[0m[2m [0m[2m1[0m[2m`[0m[2m and[0m[2m `[0m[2mpage[0m[2m_size[0m[2m >=[0m[2m [0m[2m1[0m[2m`[0m[2m ([0m[2mHTTP[0m[2m [0m[2m422[0m[2m otherwise[0m[2m).
+     
+[0m[2m4[0m[2m.[0m[2m **[0m[2mCreate[0m[2m task[0m[2m**[0m[2m (`[0m[2mPOST[0m[2m /[0m[2mtasks[0m[2m`)[0m[2m (`[0m[2mapp[0m[2m/main[0m[2m.py[0m[2m`)
+[0m[2m  [0m[2m -[0m[2m Implement[0m[2med[0m[2m endpoint[0m[2m with[0m[2m `[0m[2mDepends[0m[2m(require[0m[2m_api[0m[2m_key[0m[2m)`[0m[2m authentication[0m[2m.
+[0m[2m  [0m[2m -[0m[2m Valid[0m[2mates[0m[2m `[0m[2mproject[0m[2m_id[0m[2m`[0m[2m exists[0m[2m ([0m[2mHTTP[0m[2m [0m[2m404[0m[2m `"[0m[2mProject[0m[2m not[0m[2m found[0m[2m"`[0m[2m if[0m[2m not[0m[2m).
+[0m[2m  [0m[2m -[0m[2m Auto[0m[2m-gener[0m[2mates[0m[2m a[0m[2m unique[0m[2m integer[0m[2m `[0m[2mid[0m[2m`[0m[2m using[0m[2m `[0m[2mmax[0m[2m(existing[0m[2m_ids[0m[2m)[0m[2m +[0m[2m [0m[2m1[0m[2m`.
+[0m[2m  [0m[2m -[0m[2m App[0m[2mends[0m[2m to[0m[2m in[0m[2m-memory[0m[2m `[0m[2mtasks[0m[2m`[0m[2m and[0m[2m returns[0m[2m the[0m[2m created[0m[2m `[0m[2mTask[0m[2m`.
+     
+[0m[2m5[0m[2m.[0m[2m **[0m[2mUpdate[0m[2m task[0m[2m**[0m[2m (`[0m[2mPUT[0m[2m /[0m[2mtasks[0m[2m/{[0m[2mtask[0m[2m_id[0m[2m}`[0m[2m)[0m[2m (`[0m[2mapp[0m[2m/main[0m[2m.py[0m[2m`)
+[0m[2m  [0m[2m -[0m[2m Requires[0m[2m auth[0m[2m.
+[0m[2m  [0m[2m -[0m[2m Partial[0m[2m updates[0m[2m supported[0m[2m for[0m[2m `[0m[2mtitle[0m[2m`,[0m[2m `[0m[2mstatus[0m[2m`,[0m[2m `[0m[2mpriority[0m[2m`,[0m[2m `[0m[2massigned[0m[2m_to[0m[2m`[0m[2m via[0m[2m `[0m[2mTask[0m[2mUpdate[0m[2m`.
+[0m[2m  [0m[2m -[0m[2m Returns[0m[2m HTTP[0m[2m [0m[2m404[0m[2m if[0m[2m task[0m[2m not[0m[2m found[0m[2m.
+     
+[0m[2m6[0m[2m.[0m[2m **[0m[2mDelete[0m[2m task[0m[2m**[0m[2m (`[0m[2mDELETE[0m[2m /[0m[2mtasks[0m[2m/{[0m[2mtask[0m[2m_id[0m[2m}`[0m[2m)[0m[2m (`[0m[2mapp[0m[2m/main[0m[2m.py[0m[2m`)
+[0m[2m  [0m[2m -[0m[2m Requires[0m[2m auth[0m[2m.
+[0m[2m  [0m[2m -[0m[2m Removes[0m[2m the[0m[2m task[0m[2m from[0m[2m the[0m[2m in[0m[2m-memory[0m[2m list[0m[2m,[0m[2m returns[0m[2m `[0m[2m{"[0m[2mdeleted[0m[2m":[0m[2m True[0m[2m}`[0m[2m.
+[0m[2m  [0m[2m -[0m[2m Returns[0m[2m HTTP[0m[2m [0m[2m404[0m[2m if[0m[2m task[0m[2m not[0m[2m found[0m[2m.
+     
+[0m[2mValidated[0m[2m by[0m[2m compiling[0m[2m and[0m[2m importing[0m[2m the[0m[2m Fast[0m[2mAPI[0m[2m app[0m[2m successfully[0m[2m.[0m[2m
+  💸 (Requests: 7 | Tool Calls: 8 | Total: 76546) Input: 74636 | Audio Input: 0 | Output: 1910 | Audio Output: 0 | Cache Read: 62592 | Cache Write: 0 | Details: {'accepted_prediction_tokens': 0, 'audio_tokens': 0, 'reasoning_tokens': 0, 'rejected_prediction_tokens': 0}
+[0m[2mTo run again:[0m [1;33mzrb chat --message "We're building a project management API. The scaffolding is in `app/`. Several features are missing or incomplete:
+
+1. **Authentication** (`app/auth.py`): The `require_api_key` dependency exists but does nothing. Implement it: read the `X-API-Key` header, validate it against `VALID_API_KEYS` in `database.py`, and raise HTTP 401 if missing or invalid.
+
+2. **Task filtering** (`GET /tasks`): Add optional query parameters: `status`, `priority`, `assigned_to`. Return only matching tasks. All filters are optional and combinable.
+
+3. **Pagination** (`GET /tasks`): Add `page` (default 1) and `page_size` (default 20) query params. Return only the matching slice.
+
+4. **Create task** (`POST /tasks`): Implement this endpoint. It must:
+   - Require authentication (use `require_api_key`)
+   - Validate that `project_id` exists; return HTTP 404 if not
+   - Auto-generate a unique integer ID
+   - Return the created task
+
+5. **Update task** (`PUT /tasks/{task_id}`): Allow partial updates to `title`, `status`, `priority`, `assigned_to`. Require auth. Return 404 if not found.
+
+6. **Delete task** (`DELETE /tasks/{task_id}`): Require auth. Return 404 if not found.
+
+Follow the existing patterns in `app/main.py`." --model openai:gpt-5.2 --session "" --yolo true --attach "" --interactive false[0m
+[2m[2mSession[0m: [1;33mlong-dust-7484[0m[0m
+Implemented all missing/incomplete features in `app/`:
+
+1. **Authentication** (`app/auth.py`)
+   - `require_api_key` now reads the `X-API-Key` header, validates it against `VALID_API_KEYS` (from `app/database.py`), and raises **HTTP 401** if missing/invalid.
+   - Returns the associated username on success.
+
+2. **Task filtering** (`GET /tasks`) (`app/main.py`)
+   - Added optional, combinable query params: `status`, `priority`, `assigned_to`.
+   - Returns only tasks matching all provided filters.
+
+3. **Pagination** (`GET /tasks`) (`app/main.py`)
+   - Added `page` (default `1`) and `page_size` (default `20`).
+   - Returns the filtered slice; validates `page >= 1` and `page_size >= 1` (HTTP 422 otherwise).
+
+4. **Create task** (`POST /tasks`) (`app/main.py`)
+   - Implemented endpoint with `Depends(require_api_key)` authentication.
+   - Validates `project_id` exists (HTTP 404 `"Project not found"` if not).
+   - Auto-generates a unique integer `id` using `max(existing_ids) + 1`.
+   - Appends to in-memory `tasks` and returns the created `Task`.
+
+5. **Update task** (`PUT /tasks/{task_id}`) (`app/main.py`)
+   - Requires auth.
+   - Partial updates supported for `title`, `status`, `priority`, `assigned_to` via `TaskUpdate`.
+   - Returns HTTP 404 if task not found.
+
+6. **Delete task** (`DELETE /tasks/{task_id}`) (`app/main.py`)
+   - Requires auth.
+   - Removes the task from the in-memory list, returns `{"deleted": True}`.
+   - Returns HTTP 404 if task not found.
+
+Validated by compiling and importing the FastAPI app successfully.

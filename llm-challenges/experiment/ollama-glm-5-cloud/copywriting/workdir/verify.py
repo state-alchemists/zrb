@@ -4,89 +4,94 @@ import re
 import sys
 
 
-def verify_copywriting():
-    """Verify the copywriting challenge."""
+def verify():
+    print("Verifying Migration Guide...")
 
-    # Check if launch_post.md exists
-    if not os.path.exists("launch_post.md"):
-        print("FAIL: launch_post.md not found")
-        print("VERIFICATION_RESULT: FAIL")
-        return False
+    report_path = "MIGRATION.md"
+    if not os.path.exists(report_path):
+        md_files = [f for f in os.listdir(".") if f.lower().endswith(".md") and "migration" in f.lower()]
+        if md_files:
+            report_path = md_files[0]
+            print(f"INFO: Using {report_path}")
+        else:
+            print("FAIL: MIGRATION.md not found")
+            print("VERIFICATION_RESULT: FAIL")
+            return False
 
-    # Read the file
-    with open("launch_post.md", "r") as f:
+    with open(report_path) as f:
         content = f.read()
 
-    # Check for required elements
-    checks = []
+    content_lower = content.lower()
+    score = 0
+    max_score = 8
 
-    # Check structure elements
-    if "# " in content or "## " in content:
-        checks.append(("Has headings", True))
+    # 1. Has headings
+    if re.search(r"^#{1,3} ", content, re.MULTILINE):
+        print("PASS: Has markdown headings")
+        score += 1
     else:
-        checks.append(("Has headings", False))
+        print("FAIL: No markdown headings found")
 
-    # Check for product details
-    required_terms = [
-        "Zrb-Flow",
-        "AI",
-        "automation",
-        "CLI",
-        "Docker",
-        "K8s",
-        "Self-Healing",
-        "pipeline",
-    ]
-    # Removed "Kubernetes" (K8s is enough), "workflow" (automation covers it), "Python" (script implies it)
-    # to be more lenient on secondary terms, focusing on core brand/tech terms.
+    # 2. Word count > 400
+    word_count = len(content.split())
+    if word_count >= 400:
+        print(f"PASS: Substantial content ({word_count} words)")
+        score += 1
+    else:
+        print(f"FAIL: Too short ({word_count} words, need 400+)")
 
-    present_terms = 0
-    for term in required_terms:
-        if term.lower() in content.lower():
-            checks.append((f"Contains '{term}'", True))
-            present_terms += 1
-        else:
-            checks.append((f"Contains '{term}'", False))
+    # 3. Has fenced code blocks (before/after examples)
+    code_blocks = re.findall(r"```", content)
+    if len(code_blocks) >= 6:
+        print(f"PASS: Has code examples ({len(code_blocks)//2} blocks)")
+        score += 1
+    else:
+        print(f"FAIL: Needs at least 3 code blocks, found {len(code_blocks)//2}")
 
-    # Check for call to action
-    cta_terms = ["install", "try", "get started", "download", "sign up"]
-    has_cta = any(term.lower() in content.lower() for term in cta_terms)
-    checks.append(("Has call to action", has_cta))
+    # 4. Covers auth header change
+    if "authorization" in content_lower and "bearer" in content_lower:
+        print("PASS: Auth header change (Authorization: Bearer) documented")
+        score += 1
+    else:
+        print("FAIL: Auth header change not documented (missing 'Authorization' or 'Bearer')")
 
-    # Check markdown formatting
-    lines = content.split("\n")
-    markdown_errors = []
-    for i, line in enumerate(lines):
-        if line.strip().startswith("#") and " " not in line.strip()[1:]:
-            markdown_errors.append(f"Line {i+1}: Heading without space after #")
+    # 5. Covers id type change to UUID
+    if "uuid" in content_lower:
+        print("PASS: ID type change (UUID) documented")
+        score += 1
+    else:
+        print("FAIL: UUID id type change not mentioned")
 
-    is_markdown_valid = len(markdown_errors) == 0
-    checks.append(("Markdown formatting", is_markdown_valid))
+    # 6. Covers field rename done → completed
+    if "completed" in content_lower and ("done" in content_lower or "renamed" in content_lower):
+        print("PASS: Field rename (done → completed) documented")
+        score += 1
+    else:
+        print("FAIL: Field rename done→completed not documented")
 
-    # Print results
-    for check_name, passed in checks:
-        status = "PASS" if passed else "FAIL"
-        print(f"{status}: {check_name}")
+    # 7. Covers project_id requirement and /v2/ prefix
+    if "project_id" in content_lower and "/v2" in content_lower:
+        print("PASS: New project_id field and /v2/ prefix documented")
+        score += 1
+    else:
+        print("FAIL: Missing project_id or /v2/ prefix documentation")
 
-    if markdown_errors:
-        print("\nMarkdown errors:")
-        for error in markdown_errors:
-            print(f"  - {error}")
+    # 8. Has checklist or upgrade command
+    has_checklist = bool(re.search(r"^- \[", content, re.MULTILINE) or re.search(r"^\d+\.", content, re.MULTILINE))
+    has_install = any(kw in content_lower for kw in ["pip install", "pip upgrade", "upgrade"])
+    if has_checklist or has_install:
+        print("PASS: Has migration checklist or upgrade command")
+        score += 1
+    else:
+        print("FAIL: Missing migration checklist or upgrade command")
 
-    # Determine status
-    # Critical: Markdown valid, Has headings
-    if not is_markdown_valid:
-        print("VERIFICATION_RESULT: FAIL")
-        return False
-
-    term_percentage = present_terms / len(required_terms)
-
-    if term_percentage == 1.0 and has_cta:
+    print(f"\nScore: {score}/{max_score}")
+    if score >= 7:
         print("VERIFICATION_RESULT: EXCELLENT")
-    elif term_percentage >= 0.75:
+    elif score >= 5:
         print("VERIFICATION_RESULT: PASS")
     else:
-        print(f"FAIL: Only {term_percentage:.0%} of required terms present")
+        print(f"FAIL: Score too low ({score}/{max_score})")
         print("VERIFICATION_RESULT: FAIL")
         return False
 
@@ -94,5 +99,5 @@ def verify_copywriting():
 
 
 if __name__ == "__main__":
-    success = verify_copywriting()
+    success = verify()
     sys.exit(0 if success else 1)

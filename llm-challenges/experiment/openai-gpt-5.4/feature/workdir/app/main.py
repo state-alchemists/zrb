@@ -1,45 +1,72 @@
-from fastapi import FastAPI, HTTPException
-from typing import List
-from .models import TodoItem
-from .database import db
+from fastapi import Depends, FastAPI, HTTPException
+from typing import List, Optional
+from .models import Task, TaskCreate, TaskUpdate, Project, TaskStatus
+from .database import tasks, projects
+from .auth import require_api_key
 
-app = FastAPI(title="Modern Todo API")
-
-
-def _find_todo_index(todo_id: int) -> int:
-    for index, item in enumerate(db):
-        if item.id == todo_id:
-            return index
-    raise HTTPException(status_code=404, detail="Todo not found")
+app = FastAPI(title="Project Management API")
 
 
-@app.get("/todos", response_model=List[TodoItem])
-async def list_todos():
-    return db
+@app.get("/projects", response_model=List[Project])
+async def list_projects():
+    return projects
 
 
-@app.get("/todos/{todo_id}", response_model=TodoItem)
-async def get_todo(todo_id: int):
-    return db[_find_todo_index(todo_id)]
+@app.get("/tasks", response_model=List[Task])
+async def list_tasks(
+    status: Optional[TaskStatus] = None,
+    priority: Optional[int] = None,
+    assigned_to: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 20,
+):
+    filtered_tasks = tasks
+
+    if status is not None:
+        filtered_tasks = [task for task in filtered_tasks if task.status == status]
+    if priority is not None:
+        filtered_tasks = [task for task in filtered_tasks if task.priority == priority]
+    if assigned_to is not None:
+        filtered_tasks = [task for task in filtered_tasks if task.assigned_to == assigned_to]
+
+    start = (page - 1) * page_size
+    end = start + page_size
+    return filtered_tasks[start:end]
 
 
-@app.post("/todos", response_model=TodoItem, status_code=201)
-async def create_todo(todo: TodoItem):
-    next_id = max((item.id for item in db), default=0) + 1
-    new_todo = TodoItem(id=next_id, title=todo.title, completed=todo.completed)
-    db.append(new_todo)
-    return new_todo
+@app.get("/tasks/{task_id}", response_model=Task)
+async def get_task(task_id: int):
+    for task in tasks:
+        if task.id == task_id:
+            return task
+    raise HTTPException(status_code=404, detail="Task not found")
 
 
-@app.put("/todos/{todo_id}", response_model=TodoItem)
-async def update_todo(todo_id: int, todo: TodoItem):
-    todo_index = _find_todo_index(todo_id)
-    updated_todo = TodoItem(id=todo_id, title=todo.title, completed=todo.completed)
-    db[todo_index] = updated_todo
-    return updated_todo
+@app.post("/tasks", response_model=Task)
+async def create_task(task_data: TaskCreate, _: str = Depends(require_api_key)):
+    if not any(project.id == task_data.project_id for project in projects):
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    next_id = max((task.id for task in tasks), default=0) + 1
+    task = Task(id=next_id, **task_data.model_dump())
+    tasks.append(task)
+    return task
 
 
-@app.delete("/todos/{todo_id}", response_model=TodoItem)
-async def delete_todo(todo_id: int):
-    todo_index = _find_todo_index(todo_id)
-    return db.pop(todo_index)
+@app.put("/tasks/{task_id}", response_model=Task)
+async def update_task(task_id: int, task_data: TaskUpdate, _: str = Depends(require_api_key)):
+    for index, task in enumerate(tasks):
+        if task.id == task_id:
+            updated_task = task.model_copy(update=task_data.model_dump(exclude_unset=True))
+            tasks[index] = updated_task
+            return updated_task
+    raise HTTPException(status_code=404, detail="Task not found")
+
+
+@app.delete("/tasks/{task_id}")
+async def delete_task(task_id: int, _: str = Depends(require_api_key)):
+    for index, task in enumerate(tasks):
+        if task.id == task_id:
+            tasks.pop(index)
+            return {"detail": "Task deleted"}
+    raise HTTPException(status_code=404, detail="Task not found")

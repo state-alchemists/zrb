@@ -1,457 +1,147 @@
 [2m
-  🧠 The user[0m[2m wants a status update on Solid State Batteries for late 2024/2025. They want to know about market timing[0m[2m, key companies, and technical challenges. This is a research task that requires internet search to get current information.
+  🧠 The user wants me to read the system_context.md file to understand the production system and constraints, then write an ADR evaluating Kafka vs Redis Streams for a notification subsystem.
      
-     Let me search[0m[2m for recent information on solid state batteries.[0m[2m{"query":"solid state battery manufacturers companies Toyota QuantumScape Samsung 2024"}[0m[2m{"query":"solid state battery technical challenges problems 2024"}[0m[2m
-  🧰 call_function_8p5a5dlsxj3z_3 | SearchInternetSearchInternetSearchInternet {"query":"solid state battery cars commercial launch 2024 2025"}{"query":"solid state battery manufacturers companies Toyota QuantumScape Samsung 2024"}{"query":"solid state battery technical challenges problems 2024"}
+     Let me start by reading the system context file.
 [0m[2m
-  🔠 call_function_8p5a5dlsxj3z_3 | Return Unknown tool name: 'SearchInternetSearchInternetSearchInternet'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'ReadMany', 'Write', 'WriteMany', 'Edit', 'Grep', 'AnalyzeFile', 'SearchInternet', 'OpenWebPage', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
-[0m[32m260329 07:25:38.078 1/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 1/3 failed: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
-[2m
-  🧠 The user[0m[2m wants a status update on Solid State Batteries for late 2024/2025, specifically asking about:
-     1. Market[0m[2m timing for cars
-     2. Key companies involved
-     3. Technical challenges remaining
-     
-     They want this saved as `[0m[2msolid_state_battery_report.md`.
-     
-     This is a research task, so I should activate the research-and-plan skill and use web search to[0m[2m get current information.[0m[2m{"query":"solid state battery cars market 2024 2025 launch date"}[0m[2m
-  🧰 call_function_4tnltlcsm9od_2 | ActivateSkillSearchInternet {"name":"research-and-plan"}{"query":"solid state battery cars market 2024 2025 launch date"}
+  🧰 call_function_nvzhehetpjzf_1 | Read {'path': 'system_context.md'}
 [0m[2m
-  🔠 call_function_4tnltlcsm9od_2 | Return Unknown tool name: 'ActivateSkillSearchInternet'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'ReadMany', 'Write', 'WriteMany', 'Edit', 'Grep', 'AnalyzeFile', 'SearchInternet', 'OpenWebPage', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
-[0m[32m260329 07:26:00.045 2/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 2/3 failed: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
-[2m
-  🧠 The user[0m[2m is asking for a status update on Solid State Batteries for late 2024/2025, specifically wanting to know:
-     1. When they're[0m[2m hitting the market (cars)
-     2. Big companies involved
-     3. Main technical problems still being solved
+  🔠 call_function_nvzhehetpjzf_1 | Return [File: system_context.md | 44 lines]
+     ---CONTENT---
+     # System Context: Notifier Subsystem Decision
      
-     They want this saved as `solid_state_battery[0m[2m_report.md`.
+     ## Product Overview
      
-     I should search the internet for current information on solid state batteries, then compile a report. Let me do some searches to[0m[2m gather accurate, up-to-date information.[0m[2m
-  🧠 I'll research the current state of solid-state batteries and compile[0m[2m a report for you.
-[0m[2m{"query":"solid state battery technical challenges problems solved 2024"}[0m[2m{"query":"solid state battery electric vehicles 2024 2025 commercial launch timeline"}[0m[2m
-  🧰 call_function_gj12qcxlmsu2_1 | SearchInternetSearchInternetSearchInternet {"query":"solid state battery manufacturers companies toyota quantumscape panasonic 2024"}{"query":"solid state battery technical challenges problems solved 2024"}{"query":"solid state battery electric vehicles 2024 2025 commercial launch timeline"}
+     We run a SaaS project management platform. Current metrics:
+     - 85,000 monthly active users
+     - ~2M tasks created per month
+     - Peak: ~500 req/s during business hours
+     
+     ## Current Architecture
+     
+     - **Backend**: Python/Flask monolith (~50k lines)
+     - **Database**: PostgreSQL (single primary, one read replica)
+     - **Infrastructure**: 4 web servers behind an nginx load balancer, hosted on AWS
+     - **Cache**: Redis (used for session storage and rate limiting today)
+     - **Notifications**: Handled synchronously inside the HTTP request cycle
+     
+     ## The Problem
+     
+     The notifications module sends emails and webhooks when tasks are updated, assigned, or completed. As usage has grown, this has caused:
+     
+     1. **Request timeouts**: Sending notifications blocks the response. Average latency 800ms, spikes to 8s during peak hours.
+     2. **Silent failures**: If an email provider or webhook endpoint is down, the notification is silently dropped. No retry, no dead-letter queue.
+     3. **Cascading failures**: Two incidents this year where a slow webhook endpoint caused connection pool exhaustion, taking down unrelated features.
+     4. **No delivery guarantees**: Billing-critical notifications (e.g., "trial expired", "payment failed") must be delivered exactly once, but the current system has no such guarantee.
+     
+     ## Scaling Target
+     
+     We need to:
+     - Decouple notifications from the HTTP request cycle (async processing)
+     - Support retry with exponential backoff
+     - Guarantee at-least-once delivery for billing events, exactly-once where feasible
+     - Add real-time WebSocket push notifications within 2 quarters
+     - Handle 10x traffic growth without re-architecting
+     
+     ## Constraints
+     
+     - Engineering team: 6 people (3 senior, 3 mid-level), no dedicated infrastructure engineer
+     - We already run Redis in production (session/rate limiting)
+     - No Kafka experience on the team today
+     - Must not require more than 2 weeks of setup/migration work before delivering value
+     - Budget: modest — cannot afford managed Confluent Cloud at full scale today
+     - Must maintain exactly-once semantics for billing notifications
+     
 [0m[2m
-  🔠 call_function_gj12qcxlmsu2_1 | Return Unknown tool name: 'SearchInternetSearchInternetSearchInternet'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'ReadMany', 'Write', 'WriteMany', 'Edit', 'Grep', 'AnalyzeFile', 'SearchInternet', 'OpenWebPage', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
-[0m[32m260329 07:26:28.631 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 3/3 failed: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
-[32m260329 07:26:28.631 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Marked as permanently failed[0m
-[32m260329 07:26:28.648 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Traceback (most recent call last):
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 717, in _completions_create
-    return await self.client.chat.completions.create(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    ...<29 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/resources/chat/completions/completions.py", line 2714, in create
-    return await self._post(
-           ^^^^^^^^^^^^^^^^^
-    ...<49 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1884, in post
-    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1669, in request
-    raise self._make_status_error_from_response(err.response) from None
-openai.BadRequestError: Error code: 400 - {'error': {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}}
+  🧠 The user wants me to write an ADR for the notification subsystem comparing Kafka vs Redis Streams. Let me analyze the constraints and make a recommendation.
+     
+     Key constraints:
+     - 6-person team, no Kafka experience, but Redis experience exists[0m[2m
+     - Must deliver value within 2 weeks
+     - Already running Redis
+     - Must handle 500 req/s peak, 10x growth target
+     - Exactly-once semantics needed for billing notifications
+     - Modest budget (can't afford Confluent Cloud[0m[2m)
+     
+     Let me think through both options:
+     
+     **Kafka:**
+     - Throughput: Very high (millions/s), well above needs
+     - Exactly-once semantics: Yes (with transactions)
+     - Ordering: Per-partition[0m[2m guarantees
+     - Message retention: Configurable, long retention supported
+     - Consumer groups: First-class support
+     - Operational complexity: HIGH - requires ZooKeeper or KRaft, partition management, replication factor decisions[0m[2m, monitoring
+     - Learning curve: Steep for team with no Kafka experience
+     - Setup time: Longer than 2 weeks to be production-ready
+     
+     **Redis Streams:**
+     - Throughput: ~500k-1M ops/s on commodity hardware[0m[2m, more than enough
+     - Exactly-once semantics: XREADGROUP with consumer groups + XACK provides at-least-once. Exactly-once requires idempotency logic at consumer level
+     - Ordering[0m[2m: Per-stream guarantees
+     - Message retention: Configurable (via MAXLEN or MINID)
+     - Consumer groups: First-class support (XREADGROUP, XACK, XPENDING)
+     - Operational complexity: LOW - already in[0m[2m production, same toolchain
+     - Learning curve: Low (team already knows Redis)
+     - Setup time: Days, not weeks
+     
+     Given the constraints (team size, no Kafka experience, 2-week deadline, budget, existing[0m[2m Redis), Redis Streams is the clear winner. Here's my reasoning:
+     
+     1. **Time to value**: Redis Streams can be implemented in days. Kafka requires weeks of setup, configuration, and learning.
+     
+     
+     2. **Team expertise[0m[2m**: The team already works with Redis daily, so operational overhead stays minimal. Kafka's steeper learning curve combined with no prior experience creates significant risk.
+     3. **Scale headroom**: Redis Streams comfortably handles 500 req/s with room[0m[2m to grow to 5,000+ req/s, which covers the 10x growth target. Kafka would be over-engineered for current needs.
+     4. **Billing reliability**: Both options require idempotency checks in consumers, but Redis Streams delivers at[0m[2m-least-once semantics immediately with consumer group tracking.
+     5. **Existing infrastructure**: Leveraging what's already running reduces operational burden and cost.
+     
+     For the billing notifications requiring exactly-once delivery, I'd implement deduplication logic[0m[2m in the application layer—tracking processed notification IDs in Redis with a TTL. This approach works across both technologies, so Redis Streams' other advantages aren't sacrificed.
+     
+     The main limitation is that Redis Streams can struggle[0m[2m above 50K req/s and lacks the multi-datacenter resilience Kafka offers, but neither is a concern given the current scale and two-quarter planning horizon.
+[0m[2m
+  🧰 call_function_2si9jyvgjl2i_1 | Write {'content': '# ADR-001: Notification Su ...', 'path': 'ADR-001-notification-archi ...'}
+[0m[2m
+  🔠 call_function_2si9jyvgjl2i_1 | Return Successfully wrote to ADR-001-notification-architecture.md
+[0m[2m
+  🧠 The user has acknowledged the file was written successfully. This is just a confirmation - no further action needed unless they ask for something else.
+[0m[2m
+  
+     
+     Done. The ADR is saved as `ADR-001-notification-architecture.md` with a clear recommendation for **Redis Streams** based on:
+     
+     - **Throughput**: 500K–1M ops/s covers the 10x growth target (500→5K[0m[2m req/s) with 30-60x headroom
+     - **Operational fit**: Team has Redis expertise, no Kafka experience, no dedicated infra engineer
+     - **Timeline**: 3-5 days to production vs. 2-4 weeks for Kafka
+     - **Exactly[0m[2m-once**: Both require application-layer idempotency keys; Kafka offers no free advantage here
+     - **Cost**: Leverages existing Redis cluster; Kafka requires minimum 3 brokers
+     
+     The ADR also explicitly scores Kafka on the same[0m[2m dimensions to justify rejection and identifies the re-evaluation trigger (exceeding ~50K req/s or multi-region requirement).[0m[2m
+  💸 (Requests: 3 | Tool Calls: 2 | Total: 16203) Input: 13682 | Audio Input: 0 | Output: 2521 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
+[0m[2mTo run again:[0m [1;33mzrb chat --message "Read `system_context.md`. It describes a real production system and a specific architectural problem we need to solve.
 
-The above exception was the direct cause of the following exception:
+Write an Architecture Decision Record (ADR) evaluating two options for the notification subsystem:
+1. **Apache Kafka**
+2. **Redis Streams**
 
-Traceback (most recent call last):
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 178, in execute_action_with_retry
-    result = await run_async(task._exec_action(ctx))
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 289, in _exec_action
-    return await self._exec_action_inner(ctx)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 334, in _exec_action_inner
-    raise e
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 318, in _exec_action_inner
-    output, new_history = await run_agent(
-                          ^^^^^^^^^^^^^^^^
-    ...<12 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run_agent.py", line 364, in run_agent
-    raise e
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run_agent.py", line 283, in run_agent
-    async for event in stream:
-    ...<9 lines>...
-            await effective_event_handler(event)
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 986, in _run_stream_events
-    result = await task
-             ^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 961, in run_agent
-    return await self.run(
-           ^^^^^^^^^^^^^^^
-    ...<15 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 290, in run
-    async with node.stream(agent_run.ctx) as stream:
-               ~~~~~~~~~~~^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 214, in __aenter__
-    return await anext(self.gen)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 477, in stream
-    async with ctx.deps.model.request_stream(
-               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        message_history, model_settings, model_request_parameters, run_context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    ) as streamed_response:
-    ^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 214, in __aenter__
-    return await anext(self.gen)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 655, in request_stream
-    response = await self._completions_create(messages, True, model_settings_cast, model_request_parameters)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 752, in _completions_create
-    raise ModelHTTPError(status_code=status_code, model_name=self.model_name, body=e.body) from e
-pydantic_ai.exceptions.ModelHTTPError: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}
-[0m
-[32m260329 07:26:28.661 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Attempt 1/1 failed: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
-[32m260329 07:26:28.661 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Marked as permanently failed[0m
-[32m260329 07:26:28.670 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Traceback (most recent call last):
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 717, in _completions_create
-    return await self.client.chat.completions.create(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    ...<29 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/resources/chat/completions/completions.py", line 2714, in create
-    return await self._post(
-           ^^^^^^^^^^^^^^^^^
-    ...<49 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1884, in post
-    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1669, in request
-    raise self._make_status_error_from_response(err.response) from None
-openai.BadRequestError: Error code: 400 - {'error': {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}}
+Your ADR must follow this exact structure:
+- **Title**
+- **Status** (e.g. \"Proposed\")
+- **Context** — the problem and constraints
+- **Decision** — which option you choose and a clear justification
+- **Consequences** — pros AND cons of your decision
+- **Alternatives Considered** — why you rejected the other option
 
-The above exception was the direct cause of the following exception:
+Make a definitive recommendation. Use specific technical properties (throughput, ordering guarantees, message retention, consumer groups, exactly-once semantics, operational complexity) to justify your choice given the team size and constraints described.
 
-Traceback (most recent call last):
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 178, in execute_action_with_retry
-    result = await run_async(task._exec_action(ctx))
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_chat_task.py", line 442, in _exec_action
-    return await self._run_non_interactive_session(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    ...<6 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_chat_task.py", line 659, in _run_non_interactive_session
-    result = await llm_task_core.async_run(session)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 245, in async_run
-    return await run_task_async(
-           ^^^^^^^^^^^^^^^^^^^^^
-    ...<5 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 91, in run_task_async
-    result = await task.exec_root_tasks(session)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 254, in exec_root_tasks
-    return await execute_root_tasks(self, session)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
-    await asyncio.gather(*root_task_coros)
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 257, in exec_chain
-    return await execute_task_chain(self, session)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 21, in execute_task_chain
-    result = await execute_task_action(task, session)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 53, in execute_task_action
-    return await run_async(execute_action_until_ready(task, session))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 85, in execute_action_until_ready
-    result = await run_async(execute_action_with_retry(task, session))
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 215, in execute_action_with_retry
-    raise e  # Re-raise the exception after handling fallbacks
-    ^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 178, in execute_action_with_retry
-    result = await run_async(task._exec_action(ctx))
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 289, in _exec_action
-    return await self._exec_action_inner(ctx)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 334, in _exec_action_inner
-    raise e
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 318, in _exec_action_inner
-    output, new_history = await run_agent(
-                          ^^^^^^^^^^^^^^^^
-    ...<12 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run_agent.py", line 364, in run_agent
-    raise e
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run_agent.py", line 283, in run_agent
-    async for event in stream:
-    ...<9 lines>...
-            await effective_event_handler(event)
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 986, in _run_stream_events
-    result = await task
-             ^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 961, in run_agent
-    return await self.run(
-           ^^^^^^^^^^^^^^^
-    ...<15 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 290, in run
-    async with node.stream(agent_run.ctx) as stream:
-               ~~~~~~~~~~~^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 214, in __aenter__
-    return await anext(self.gen)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 477, in stream
-    async with ctx.deps.model.request_stream(
-               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        message_history, model_settings, model_request_parameters, run_context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    ) as streamed_response:
-    ^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 214, in __aenter__
-    return await anext(self.gen)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 655, in request_stream
-    response = await self._completions_create(messages, True, model_settings_cast, model_request_parameters)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 752, in _completions_create
-    raise ModelHTTPError(status_code=status_code, model_name=self.model_name, body=e.body) from e
-pydantic_ai.exceptions.ModelHTTPError: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}
-[0m
-[2mTo run again:[0m [1;33mzrb chat --message "Give me a status update on Solid State Batteries for late 2024/2025. 
+Save as `ADR-001-notification-architecture.md`." --model ollama:minimax-m2.7:cloud --session "" --yolo true --attach "" --interactive false[0m
+[2m[2mSession[0m: [1;33mdeep-gear-3963[0m[0m
 
-I need to know:
-1. When are they actually hitting the market (cars)?
-2. Who are the big companies involved?
-3. What are the main technical problems they are still trying to solve?
 
-Save it as `solid_state_battery_report.md`." --model ollama:minimax-m2.7:cloud --session "" --yolo true --attach "" --interactive false[0m
-Traceback (most recent call last):
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 717, in _completions_create
-    return await self.client.chat.completions.create(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    ...<29 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/resources/chat/completions/completions.py", line 2714, in create
-    return await self._post(
-           ^^^^^^^^^^^^^^^^^
-    ...<49 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1884, in post
-    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1669, in request
-    raise self._make_status_error_from_response(err.response) from None
-openai.BadRequestError: Error code: 400 - {'error': {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}}
+Done. The ADR is saved as `ADR-001-notification-architecture.md` with a clear recommendation for **Redis Streams** based on:
 
-The above exception was the direct cause of the following exception:
+- **Throughput**: 500K–1M ops/s covers the 10x growth target (500→5K req/s) with 30-60x headroom
+- **Operational fit**: Team has Redis expertise, no Kafka experience, no dedicated infra engineer
+- **Timeline**: 3-5 days to production vs. 2-4 weeks for Kafka
+- **Exactly-once**: Both require application-layer idempotency keys; Kafka offers no free advantage here
+- **Cost**: Leverages existing Redis cluster; Kafka requires minimum 3 brokers
 
-Traceback (most recent call last):
-  File "/Users/gofrendigunawan/zrb/.venv/bin/zrb", line 6, in <module>
-    sys.exit(serve_cli())
-             ~~~~~~~~~^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/__main__.py", line 68, in serve_cli
-    raise e
-  File "/Users/gofrendigunawan/zrb/src/zrb/__main__.py", line 61, in serve_cli
-    cli.run(sys.argv[1:])
-    ~~~~~~~^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/runner/cli.py", line 54, in run
-    result = self._run_task(node, str_args, task_str_kwargs)
-  File "/Users/gofrendigunawan/zrb/src/zrb/runner/cli.py", line 89, in _run_task
-    return task.run(
-           ~~~~~~~~^
-        Session(shared_ctx=shared_ctx, root_group=self), str_kwargs=run_kwargs
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 229, in run
-    return asyncio.run(
-           ~~~~~~~~~~~^
-        run_and_cleanup(
-        ^^^^^^^^^^^^^^^^
-    ...<5 lines>...
-        )
-        ^
-    )
-    ^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/asyncio/runners.py", line 204, in run
-    return runner.run(main)
-           ~~~~~~~~~~^^^^^^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/asyncio/runners.py", line 127, in run
-    return self._loop.run_until_complete(task)
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/asyncio/base_events.py", line 719, in run_until_complete
-    return future.result()
-           ~~~~~~~~~~~~~^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 34, in run_and_cleanup
-    result = await main_task_coro
-             ^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 91, in run_task_async
-    result = await task.exec_root_tasks(session)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 254, in exec_root_tasks
-    return await execute_root_tasks(self, session)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
-    await asyncio.gather(*root_task_coros)
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 257, in exec_chain
-    return await execute_task_chain(self, session)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 21, in execute_task_chain
-    result = await execute_task_action(task, session)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 53, in execute_task_action
-    return await run_async(execute_action_until_ready(task, session))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 85, in execute_action_until_ready
-    result = await run_async(execute_action_with_retry(task, session))
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 215, in execute_action_with_retry
-    raise e  # Re-raise the exception after handling fallbacks
-    ^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 178, in execute_action_with_retry
-    result = await run_async(task._exec_action(ctx))
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_chat_task.py", line 442, in _exec_action
-    return await self._run_non_interactive_session(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    ...<6 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_chat_task.py", line 659, in _run_non_interactive_session
-    result = await llm_task_core.async_run(session)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 245, in async_run
-    return await run_task_async(
-           ^^^^^^^^^^^^^^^^^^^^^
-    ...<5 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 91, in run_task_async
-    result = await task.exec_root_tasks(session)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 254, in exec_root_tasks
-    return await execute_root_tasks(self, session)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
-    await asyncio.gather(*root_task_coros)
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 257, in exec_chain
-    return await execute_task_chain(self, session)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 21, in execute_task_chain
-    result = await execute_task_action(task, session)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 53, in execute_task_action
-    return await run_async(execute_action_until_ready(task, session))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 85, in execute_action_until_ready
-    result = await run_async(execute_action_with_retry(task, session))
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 215, in execute_action_with_retry
-    raise e  # Re-raise the exception after handling fallbacks
-    ^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 178, in execute_action_with_retry
-    result = await run_async(task._exec_action(ctx))
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 289, in _exec_action
-    return await self._exec_action_inner(ctx)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 334, in _exec_action_inner
-    raise e
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 318, in _exec_action_inner
-    output, new_history = await run_agent(
-                          ^^^^^^^^^^^^^^^^
-    ...<12 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run_agent.py", line 364, in run_agent
-    raise e
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run_agent.py", line 283, in run_agent
-    async for event in stream:
-    ...<9 lines>...
-            await effective_event_handler(event)
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 986, in _run_stream_events
-    result = await task
-             ^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 961, in run_agent
-    return await self.run(
-           ^^^^^^^^^^^^^^^
-    ...<15 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 290, in run
-    async with node.stream(agent_run.ctx) as stream:
-               ~~~~~~~~~~~^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 214, in __aenter__
-    return await anext(self.gen)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 477, in stream
-    async with ctx.deps.model.request_stream(
-               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        message_history, model_settings, model_request_parameters, run_context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    ) as streamed_response:
-    ^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 214, in __aenter__
-    return await anext(self.gen)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 655, in request_stream
-    response = await self._completions_create(messages, True, model_settings_cast, model_request_parameters)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 752, in _completions_create
-    raise ModelHTTPError(status_code=status_code, model_name=self.model_name, body=e.body) from e
-pydantic_ai.exceptions.ModelHTTPError: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}
+The ADR also explicitly scores Kafka on the same dimensions to justify rejection and identifies the re-evaluation trigger (exceeding ~50K req/s or multi-region requirement).

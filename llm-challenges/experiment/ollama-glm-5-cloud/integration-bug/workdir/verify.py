@@ -1,56 +1,79 @@
 #!/usr/bin/env python3
 import asyncio
 import os
+import random
 import sys
-import importlib.util
+
 
 def verify():
-    print("Verifying Integration Bug Fix...")
-    
-    if not os.path.exists("bank.py") or not os.path.exists("account.py"):
-        print("FAIL: Missing core files")
-        return False
+    print("Verifying Checkout Fix...")
 
+    for fname in ["inventory.py", "payments.py", "checkout.py"]:
+        if not os.path.exists(fname):
+            print(f"FAIL: {fname} not found")
+            print("VERIFICATION_RESULT: FAIL")
+            return False
+
+    sys.path.insert(0, os.getcwd())
     try:
-        # Import the module and run main
-        spec = importlib.util.spec_from_file_location("bank", "bank.py")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        
-        # We need to capture the db state after running main
-        asyncio.run(module.main())
-        
-        db = module.db
-        alice_final = asyncio.run(db.get_balance('Alice'))
-        bob_final = asyncio.run(db.get_balance('Bob'))
-        total = alice_final + bob_final
-        
-        print(f"Total Money in System: {total}")
-        
-        if total != 200:
-            print(f"FAIL: Money was lost or created! Total: {total}")
-            print("VERIFICATION_RESULT: FAIL")
-            return False
-            
-        if alice_final < 0 or bob_final < 0:
-            print("FAIL: Negative balance detected")
-            print("VERIFICATION_RESULT: FAIL")
-            return False
-
-        # Check for some form of locking or atomicity
-        with open("account.py", "r") as f:
-            content = f.read()
-            if "Lock" not in content and "transaction" not in content.lower():
-                print("WARNING: No explicit locking found, might be lucky or uses different pattern")
-        
-        print("PASS: System integrity maintained")
-        print("VERIFICATION_RESULT: EXCELLENT")
-        return True
-
-    except Exception as e:
-        print(f"ERROR: {e}")
+        from inventory import Inventory
+        from payments import PaymentGateway
+        from checkout import checkout
+    except ImportError as e:
+        print(f"FAIL: Import error: {e}")
         print("VERIFICATION_RESULT: FAIL")
         return False
+
+    with open("inventory.py") as f:
+        inv_src = f.read()
+    with open("checkout.py") as f:
+        checkout_src = f.read()
+    has_lock = "Lock" in inv_src or "Lock" in checkout_src
+
+    async def run_trial(seed: int):
+        random.seed(seed)
+        inventory = Inventory(5)
+        gateway = PaymentGateway(failure_rate=0.25)
+        orders = [checkout(f"order_{i}", 1, 100.0, inventory, gateway) for i in range(12)]
+        results = await asyncio.gather(*orders)
+        successful = sum(results)
+        charge_ids = [c["order_id"] for c in gateway.charges]
+        duplicates = len(charge_ids) - len(set(charge_ids))
+        expected_charge = successful * 100.0
+        return inventory.stock, gateway.total_charged, successful, duplicates, expected_charge
+
+    passes = 0
+    trials = 6
+    for trial in range(trials):
+        stock, charged, successful, dupes, expected = asyncio.run(run_trial(trial * 7))
+
+        errors = []
+        if stock < 0:
+            errors.append(f"negative stock ({stock})")
+        if abs(charged - expected) > 0.01:
+            errors.append(f"charge mismatch (charged={charged:.2f}, expected={expected:.2f})")
+        if dupes > 0:
+            errors.append(f"{dupes} duplicate charge(s)")
+
+        if errors:
+            print(f"  Trial {trial + 1}: FAIL — {', '.join(errors)}")
+        else:
+            print(f"  Trial {trial + 1}: PASS (stock={stock}, successful={successful}, charged=${charged:.2f})")
+            passes += 1
+
+    if passes < trials:
+        print(f"FAIL: Only {passes}/{trials} trials passed")
+        print("VERIFICATION_RESULT: FAIL")
+        return False
+
+    if has_lock:
+        print("PASS: Locking mechanism detected")
+        print("VERIFICATION_RESULT: EXCELLENT")
+    else:
+        print("PASS: All trials passed")
+        print("VERIFICATION_RESULT: PASS")
+    return True
+
 
 if __name__ == "__main__":
     success = verify()

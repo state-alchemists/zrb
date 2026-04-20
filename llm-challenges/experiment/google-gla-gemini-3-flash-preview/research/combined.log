@@ -1,0 +1,83 @@
+[2m
+  🧰 3b22471s | Read {'path': 'system_context.md'}
+[0m[2m
+  🔠 3b22471s | Return [File: system_context.md | 44 lines]
+     ---CONTENT---
+     # System Context: Notifier Subsystem Decision
+     
+     ## Product Overview
+     
+     We run a SaaS project management platform. Current metrics:
+     - 85,000 monthly active users
+     - ~2M tasks created per month
+     - Peak: ~500 req/s during business hours
+     
+     ## Current Architecture
+     
+     - **Backend**: Python/Flask monolith (~50k lines)
+     - **Database**: PostgreSQL (single primary, one read replica)
+     - **Infrastructure**: 4 web servers behind an nginx load balancer, hosted on AWS
+     - **Cache**: Redis (used for session storage and rate limiting today)
+     - **Notifications**: Handled synchronously inside the HTTP request cycle
+     
+     ## The Problem
+     
+     The notifications module sends emails and webhooks when tasks are updated, assigned, or completed. As usage has grown, this has caused:
+     
+     1. **Request timeouts**: Sending notifications blocks the response. Average latency 800ms, spikes to 8s during peak hours.
+     2. **Silent failures**: If an email provider or webhook endpoint is down, the notification is silently dropped. No retry, no dead-letter queue.
+     3. **Cascading failures**: Two incidents this year where a slow webhook endpoint caused connection pool exhaustion, taking down unrelated features.
+     4. **No delivery guarantees**: Billing-critical notifications (e.g., "trial expired", "payment failed") must be delivered exactly once, but the current system has no such guarantee.
+     
+     ## Scaling Target
+     
+     We need to:
+     - Decouple notifications from the HTTP request cycle (async processing)
+     - Support retry with exponential backoff
+     - Guarantee at-least-once delivery for billing events, exactly-once where feasible
+     - Add real-time WebSocket push notifications within 2 quarters
+     - Handle 10x traffic growth without re-architecting
+     
+     ## Constraints
+     
+     - Engineering team: 6 people (3 senior, 3 mid-level), no dedicated infrastructure engineer
+     - We already run Redis in production (session/rate limiting)
+     - No Kafka experience on the team today
+     - Must not require more than 2 weeks of setup/migration work before delivering value
+     - Budget: modest — cannot afford managed Confluent Cloud at full scale today
+     - Must maintain exactly-once semantics for billing notifications
+     
+[0m[2m
+  🧰 c17jbfnm | Write {'content': '# ADR-001: Notification Ar ...', 'path': 'ADR-001-notification-archi ...'}
+[0m[2m
+  🔠 c17jbfnm | Return Successfully wrote to ADR-001-notification-architecture.md
+[0m[2m
+  I have created the Architecture Decision Record (ADR) as requested.
+     
+     The document recommends **Redis Streams** as the[0m[2m notification backbone, prioritizing operational simplicity, the team's existing expertise, and the aggressive two-week delivery timeline over the heavy-[0m[2mduty but complex capabilities of Apache Kafka.
+     
+     You can find the full evaluation and justification in `ADR-001-notification-architecture[0m[2m.md`.[0m[2m[0m[2m
+  💸 (Requests: 3 | Tool Calls: 2 | Total: 27317) Input: 24972 | Audio Input: 0 | Output: 2345 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {'thoughts_tokens': 1468, 'text_prompt_tokens': 24972}
+[0m[2mTo run again:[0m [1;33mzrb chat --message "Read `system_context.md`. It describes a real production system and a specific architectural problem we need to solve.
+
+Write an Architecture Decision Record (ADR) evaluating two options for the notification subsystem:
+1. **Apache Kafka**
+2. **Redis Streams**
+
+Your ADR must follow this exact structure:
+- **Title**
+- **Status** (e.g. \"Proposed\")
+- **Context** — the problem and constraints
+- **Decision** — which option you choose and a clear justification
+- **Consequences** — pros AND cons of your decision
+- **Alternatives Considered** — why you rejected the other option
+
+Make a definitive recommendation. Use specific technical properties (throughput, ordering guarantees, message retention, consumer groups, exactly-once semantics, operational complexity) to justify your choice given the team size and constraints described.
+
+Save as `ADR-001-notification-architecture.md`." --model google-gla:gemini-3-flash-preview --session "" --yolo true --attach "" --interactive false[0m
+[2m[2mSession[0m: [1;33msoft-foam-5551[0m[0m
+I have created the Architecture Decision Record (ADR) as requested.
+
+The document recommends **Redis Streams** as the notification backbone, prioritizing operational simplicity, the team's existing expertise, and the aggressive two-week delivery timeline over the heavy-duty but complex capabilities of Apache Kafka.
+
+You can find the full evaluation and justification in `ADR-001-notification-architecture.md`.

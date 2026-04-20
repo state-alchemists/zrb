@@ -1,2231 +1,6075 @@
 # LLM Challenge Experiment Report
 
-**Date:** 2026-03-29 07:27:57
+**Date:** 2026-04-20 21:34:33
 
 | Model | Challenge | Status | Time (s) | Tools | Verify |
 |---|---|---|---|---|---|
-| deepseek:deepseek-chat | bug-fix | EXCELLENT | 82.99 | 11 | 🌟 |
-| deepseek:deepseek-chat | copywriting | EXCELLENT | 48.82 | 1 | 🌟 |
-| deepseek:deepseek-chat | feature | EXCELLENT | 102.63 | 12 | 🌟 |
-| deepseek:deepseek-chat | integration-bug | EXCELLENT | 269.83 | 26 | 🌟 |
-| deepseek:deepseek-chat | refactor | EXCELLENT | 235.36 | 25 | 🌟 |
-| deepseek:deepseek-chat | research | EXCELLENT | 119.15 | 12 | 🌟 |
-| google-gla:gemini-2.5-flash | bug-fix | EXCELLENT | 24.38 | 4 | 🌟 |
-| google-gla:gemini-2.5-flash | copywriting | PASS | 16.66 | 1 | ✅ |
-| google-gla:gemini-2.5-flash | feature | EXCELLENT | 38.87 | 7 | 🌟 |
-| google-gla:gemini-2.5-flash | integration-bug | EXCELLENT | 56.02 | 12 | 🌟 |
-| google-gla:gemini-2.5-flash | refactor | EXCELLENT | 101.30 | 25 | 🌟 |
-| google-gla:gemini-2.5-flash | research | PASS | 55.54 | 4 | ✅ |
-| google-gla:gemini-2.5-pro | bug-fix | EXCELLENT | 40.46 | 4 | 🌟 |
-| google-gla:gemini-2.5-pro | copywriting | EXCELLENT | 33.26 | 1 | 🌟 |
-| google-gla:gemini-2.5-pro | feature | EXCELLENT | 39.81 | 5 | 🌟 |
-| google-gla:gemini-2.5-pro | integration-bug | EXCELLENT | 92.38 | 9 | 🌟 |
-| google-gla:gemini-2.5-pro | refactor | EXCELLENT | 108.14 | 12 | 🌟 |
-| google-gla:gemini-2.5-pro | research | EXCELLENT | 67.60 | 5 | 🌟 |
-| google-gla:gemini-3-flash-preview | bug-fix | EXCELLENT | 21.30 | 5 | 🌟 |
-| google-gla:gemini-3-flash-preview | copywriting | EXCELLENT | 25.72 | 1 | 🌟 |
-| google-gla:gemini-3-flash-preview | feature | EXCELLENT | 58.02 | 8 | 🌟 |
-| google-gla:gemini-3-flash-preview | integration-bug | EXCELLENT | 31.32 | 8 | 🌟 |
-| google-gla:gemini-3-flash-preview | refactor | EXCELLENT | 68.84 | 9 | 🌟 |
-| google-gla:gemini-3-flash-preview | research | EXCELLENT | 64.69 | 7 | 🌟 |
-| google-gla:gemini-3-pro-preview | bug-fix | EXCELLENT | 80.99 | 10 | 🌟 |
-| google-gla:gemini-3-pro-preview | copywriting | EXCELLENT | 23.10 | 2 | 🌟 |
-| google-gla:gemini-3-pro-preview | feature | EXCELLENT | 87.37 | 8 | 🌟 |
-| google-gla:gemini-3-pro-preview | integration-bug | EXCELLENT | 85.87 | 10 | 🌟 |
-| google-gla:gemini-3-pro-preview | refactor | EXCELLENT | 110.58 | 7 | 🌟 |
-| google-gla:gemini-3-pro-preview | research | PASS | 56.19 | 4 | ✅ |
-| google-gla:gemini-3.1-pro-preview | bug-fix | EXCELLENT | 44.03 | 4 | 🌟 |
-| google-gla:gemini-3.1-pro-preview | copywriting | EXCELLENT | 27.38 | 1 | 🌟 |
-| google-gla:gemini-3.1-pro-preview | feature | EXCELLENT | 82.42 | 7 | 🌟 |
-| google-gla:gemini-3.1-pro-preview | integration-bug | EXCELLENT | 46.28 | 7 | 🌟 |
-| google-gla:gemini-3.1-pro-preview | refactor | EXCELLENT | 59.90 | 7 | 🌟 |
-| google-gla:gemini-3.1-pro-preview | research | PASS | 45.52 | 4 | ✅ |
-| ollama:glm-4.7:cloud | bug-fix | EXCELLENT | 32.87 | 4 | 🌟 |
-| ollama:glm-4.7:cloud | copywriting | EXCELLENT | 20.97 | 1 | 🌟 |
-| ollama:glm-4.7:cloud | feature | EXCELLENT | 174.23 | 12 | 🌟 |
-| ollama:glm-4.7:cloud | integration-bug | EXCELLENT | 75.64 | 13 | 🌟 |
-| ollama:glm-4.7:cloud | refactor | EXCELLENT | 59.64 | 10 | 🌟 |
-| ollama:glm-4.7:cloud | research | EXCELLENT | 110.14 | 4 | 🌟 |
-| ollama:glm-5:cloud | bug-fix | EXCELLENT | 119.18 | 5 | 🌟 |
-| ollama:glm-5:cloud | copywriting | EXCELLENT | 83.68 | 1 | 🌟 |
-| ollama:glm-5:cloud | feature | EXCELLENT | 148.16 | 7 | 🌟 |
-| ollama:glm-5:cloud | integration-bug | EXCELLENT | 207.79 | 12 | 🌟 |
-| ollama:glm-5:cloud | refactor | EXCELLENT | 227.94 | 17 | 🌟 |
-| ollama:glm-5:cloud | research | EXCELLENT | 95.84 | 4 | 🌟 |
-| ollama:kimi-k2.5:cloud | bug-fix | EXCELLENT | 30.79 | 4 | 🌟 |
-| ollama:kimi-k2.5:cloud | copywriting | EXCELLENT | 21.54 | 1 | 🌟 |
-| ollama:kimi-k2.5:cloud | feature | EXCELLENT | 51.95 | 7 | 🌟 |
-| ollama:kimi-k2.5:cloud | integration-bug | EXCELLENT | 57.46 | 8 | 🌟 |
-| ollama:kimi-k2.5:cloud | refactor | EXCELLENT | 53.45 | 8 | 🌟 |
-| ollama:kimi-k2.5:cloud | research | EXCELLENT | 178.09 | 10 | 🌟 |
-| ollama:minimax-m2.7:cloud | bug-fix | EXCELLENT | 52.97 | 3 | 🌟 |
-| ollama:minimax-m2.7:cloud | copywriting | PASS | 58.61 | 1 | ✅ |
-| ollama:minimax-m2.7:cloud | feature | FAIL | 111.41 | 9 | ❌ |
-| ollama:minimax-m2.7:cloud | integration-bug | EXCELLENT | 107.88 | 8 | 🌟 |
-| ollama:minimax-m2.7:cloud | refactor | EXECUTION_FAILED | 72.61 | 3 | 💥 |
-| ollama:minimax-m2.7:cloud | research | EXECUTION_FAILED | 76.46 | 3 | 💥 |
-| ollama:qwen3-coder-next:cloud | bug-fix | EXCELLENT | 65.81 | 4 | 🌟 |
-| ollama:qwen3-coder-next:cloud | copywriting | EXCELLENT | 61.28 | 1 | 🌟 |
-| ollama:qwen3-coder-next:cloud | feature | FAIL | 128.23 | 6 | ❌ |
-| ollama:qwen3-coder-next:cloud | integration-bug | EXCELLENT | 182.85 | 9 | 🌟 |
-| ollama:qwen3-coder-next:cloud | refactor | EXCELLENT | 205.35 | 14 | 🌟 |
-| ollama:qwen3-coder-next:cloud | research | EXCELLENT | 268.60 | 19 | 🌟 |
-| ollama:qwen3-vl:235b-cloud | bug-fix | EXECUTION_FAILED | 82.00 | 0 | 💥 |
-| ollama:qwen3-vl:235b-cloud | copywriting | EXECUTION_FAILED | 29.72 | 0 | 💥 |
-| ollama:qwen3-vl:235b-cloud | feature | EXECUTION_FAILED | 23.03 | 0 | 💥 |
-| ollama:qwen3-vl:235b-cloud | integration-bug | EXECUTION_FAILED | 26.92 | 0 | 💥 |
-| ollama:qwen3-vl:235b-cloud | refactor | EXECUTION_FAILED | 28.97 | 0 | 💥 |
-| ollama:qwen3-vl:235b-cloud | research | EXECUTION_FAILED | 35.66 | 0 | 💥 |
-| openai:gpt-4o | bug-fix | FAIL | 30.30 | 2 | ❌ |
-| openai:gpt-4o | copywriting | PASS | 26.66 | 1 | ✅ |
-| openai:gpt-4o | feature | FAIL | 61.07 | 13 | ❌ |
-| openai:gpt-4o | integration-bug | EXCELLENT | 51.29 | 9 | 🌟 |
-| openai:gpt-4o | refactor | EXCELLENT | 60.97 | 5 | 🌟 |
-| openai:gpt-4o | research | FAIL | 49.97 | 5 | ❌ |
-| openai:gpt-5-codex | bug-fix | EXECUTION_FAILED | 6.22 | 0 | 💥 |
-| openai:gpt-5-codex | copywriting | EXECUTION_FAILED | 6.20 | 0 | 💥 |
-| openai:gpt-5-codex | feature | EXECUTION_FAILED | 6.02 | 0 | 💥 |
-| openai:gpt-5-codex | integration-bug | EXECUTION_FAILED | 5.80 | 0 | 💥 |
-| openai:gpt-5-codex | refactor | EXECUTION_FAILED | 6.13 | 0 | 💥 |
-| openai:gpt-5-codex | research | EXECUTION_FAILED | 6.18 | 0 | 💥 |
-| openai:gpt-5.1 | bug-fix | FAIL | 20.52 | 2 | ❌ |
-| openai:gpt-5.1 | copywriting | EXCELLENT | 37.89 | 1 | 🌟 |
-| openai:gpt-5.1 | feature | FAIL | 39.78 | 4 | ❌ |
-| openai:gpt-5.1 | integration-bug | EXCELLENT | 70.10 | 11 | 🌟 |
-| openai:gpt-5.1 | refactor | FAIL | 39.44 | 2 | ❌ |
-| openai:gpt-5.1 | research | EXCELLENT | 111.07 | 6 | 🌟 |
-| openai:gpt-5.2 | bug-fix | EXCELLENT | 28.69 | 5 | 🌟 |
-| openai:gpt-5.2 | copywriting | PASS | 30.74 | 1 | ✅ |
-| openai:gpt-5.2 | feature | FAIL | 27.54 | 5 | ❌ |
-| openai:gpt-5.2 | integration-bug | EXCELLENT | 55.37 | 10 | 🌟 |
-| openai:gpt-5.2 | refactor | EXCELLENT | 61.71 | 7 | 🌟 |
-| openai:gpt-5.2 | research | EXCELLENT | 193.81 | 19 | 🌟 |
-| openai:gpt-5.4 | bug-fix | EXCELLENT | 44.85 | 24 | 🌟 |
-| openai:gpt-5.4 | copywriting | PASS | 19.04 | 1 | ✅ |
-| openai:gpt-5.4 | feature | FAIL | 42.14 | 17 | ❌ |
-| openai:gpt-5.4 | integration-bug | EXCELLENT | 62.53 | 30 | 🌟 |
-| openai:gpt-5.4 | refactor | EXCELLENT | 70.42 | 20 | 🌟 |
-| openai:gpt-5.4 | research | FAIL | 10.12 | 1 | ❌ |
+| deepseek:deepseek-chat | bug-fix | EXCELLENT | 443.36 | 31 | 🌟 |
+| deepseek:deepseek-chat | copywriting | EXCELLENT | 122.09 | 3 | 🌟 |
+| deepseek:deepseek-chat | feature | EXCELLENT | 613.03 | 51 | 🌟 |
+| deepseek:deepseek-chat | integration-bug | EXCELLENT | 461.57 | 40 | 🌟 |
+| deepseek:deepseek-chat | refactor | FAIL | 533.20 | 28 | ❌ |
+| deepseek:deepseek-chat | research | EXCELLENT | 93.01 | 2 | 🌟 |
+| google-gla:gemini-2.5-flash | bug-fix | EXCELLENT | 50.17 | 9 | 🌟 |
+| google-gla:gemini-2.5-flash | copywriting | EXCELLENT | 30.97 | 2 | 🌟 |
+| google-gla:gemini-2.5-flash | feature | EXCELLENT | 195.12 | 35 | 🌟 |
+| google-gla:gemini-2.5-flash | integration-bug | PASS | 34.33 | 7 | ✅ |
+| google-gla:gemini-2.5-flash | refactor | EXCELLENT | 1087.64 | 110 | 🌟 |
+| google-gla:gemini-2.5-flash | research | FAIL | 33.87 | 1 | ❌ |
+| google-gla:gemini-2.5-pro | bug-fix | EXCELLENT | 116.59 | 17 | 🌟 |
+| google-gla:gemini-2.5-pro | copywriting | EXCELLENT | 42.25 | 2 | 🌟 |
+| google-gla:gemini-2.5-pro | feature | EXCELLENT | 79.04 | 7 | 🌟 |
+| google-gla:gemini-2.5-pro | integration-bug | EXCELLENT | 131.88 | 24 | 🌟 |
+| google-gla:gemini-2.5-pro | refactor | EXCELLENT | 70.05 | 6 | 🌟 |
+| google-gla:gemini-2.5-pro | research | EXCELLENT | 40.23 | 2 | 🌟 |
+| google-gla:gemini-3-flash-preview | bug-fix | PASS | 84.59 | 13 | ✅ |
+| google-gla:gemini-3-flash-preview | copywriting | EXCELLENT | 29.63 | 4 | 🌟 |
+| google-gla:gemini-3-flash-preview | feature | EXCELLENT | 57.61 | 21 | 🌟 |
+| google-gla:gemini-3-flash-preview | integration-bug | EXCELLENT | 109.15 | 13 | 🌟 |
+| google-gla:gemini-3-flash-preview | refactor | EXCELLENT | 198.40 | 27 | 🌟 |
+| google-gla:gemini-3-flash-preview | research | EXCELLENT | 31.19 | 2 | 🌟 |
+| google-gla:gemini-3-pro-preview | bug-fix | PASS | 710.94 | 7 | ✅ |
+| google-gla:gemini-3-pro-preview | copywriting | EXCELLENT | 129.14 | 3 | 🌟 |
+| google-gla:gemini-3-pro-preview | feature | EXCELLENT | 1316.78 | 12 | 🌟 |
+| google-gla:gemini-3-pro-preview | integration-bug | EXECUTION_FAILED | 1840.25 | 1 | 💥 |
+| google-gla:gemini-3-pro-preview | refactor | EXECUTION_FAILED | 1399.38 | 10 | 💥 |
+| google-gla:gemini-3-pro-preview | research | EXCELLENT | 146.61 | 2 | 🌟 |
+| google-gla:gemini-3.1-pro-preview | bug-fix | PASS | 703.15 | 9 | ✅ |
+| google-gla:gemini-3.1-pro-preview | copywriting | EXCELLENT | 201.44 | 2 | 🌟 |
+| google-gla:gemini-3.1-pro-preview | feature | EXCELLENT | 298.65 | 4 | 🌟 |
+| google-gla:gemini-3.1-pro-preview | integration-bug | EXECUTION_FAILED | 1859.93 | 3 | 💥 |
+| google-gla:gemini-3.1-pro-preview | refactor | EXCELLENT | 192.90 | 6 | 🌟 |
+| google-gla:gemini-3.1-pro-preview | research | EXCELLENT | 52.09 | 2 | 🌟 |
+| ollama:glm-4.7:cloud | bug-fix | EXCELLENT | 516.56 | 7 | 🌟 |
+| ollama:glm-4.7:cloud | copywriting | EXCELLENT | 73.03 | 3 | 🌟 |
+| ollama:glm-4.7:cloud | feature | FAIL | 111.62 | 10 | ❌ |
+| ollama:glm-4.7:cloud | integration-bug | EXCELLENT | 128.18 | 7 | 🌟 |
+| ollama:glm-4.7:cloud | refactor | EXCELLENT | 625.76 | 9 | 🌟 |
+| ollama:glm-4.7:cloud | research | EXCELLENT | 66.19 | 2 | 🌟 |
+| ollama:glm-5.1:cloud | bug-fix | PASS | 438.02 | 4 | ✅ |
+| ollama:glm-5.1:cloud | copywriting | EXCELLENT | 224.30 | 3 | 🌟 |
+| ollama:glm-5.1:cloud | feature | EXCELLENT | 519.06 | 5 | 🌟 |
+| ollama:glm-5.1:cloud | integration-bug | EXCELLENT | 747.65 | 11 | 🌟 |
+| ollama:glm-5.1:cloud | refactor | EXCELLENT | 638.52 | 11 | 🌟 |
+| ollama:glm-5.1:cloud | research | EXCELLENT | 277.47 | 2 | 🌟 |
+| ollama:glm-5:cloud | bug-fix | PASS | 289.27 | 7 | ✅ |
+| ollama:glm-5:cloud | copywriting | EXCELLENT | 92.71 | 2 | 🌟 |
+| ollama:glm-5:cloud | feature | EXCELLENT | 349.82 | 7 | 🌟 |
+| ollama:glm-5:cloud | integration-bug | PASS | 644.36 | 9 | ✅ |
+| ollama:glm-5:cloud | refactor | EXCELLENT | 293.22 | 6 | 🌟 |
+| ollama:glm-5:cloud | research | EXCELLENT | 155.36 | 2 | 🌟 |
+| ollama:kimi-k2.5:cloud | bug-fix | FAIL | 222.94 | 6 | ❌ |
+| ollama:kimi-k2.5:cloud | copywriting | EXCELLENT | 179.32 | 3 | 🌟 |
+| ollama:kimi-k2.5:cloud | feature | EXCELLENT | 125.08 | 4 | 🌟 |
+| ollama:kimi-k2.5:cloud | integration-bug | FAIL | 307.14 | 6 | ❌ |
+| ollama:kimi-k2.5:cloud | refactor | EXCELLENT | 309.44 | 8 | 🌟 |
+| ollama:kimi-k2.5:cloud | research | FAIL | 144.02 | 1 | ❌ |
+| ollama:minimax-m2.7:cloud | bug-fix | EXCELLENT | 202.10 | 8 | 🌟 |
+| ollama:minimax-m2.7:cloud | copywriting | EXCELLENT | 178.63 | 3 | 🌟 |
+| ollama:minimax-m2.7:cloud | feature | EXECUTION_FAILED | 190.39 | 3 | 💥 |
+| ollama:minimax-m2.7:cloud | integration-bug | EXCELLENT | 359.34 | 10 | 🌟 |
+| ollama:minimax-m2.7:cloud | refactor | EXECUTION_FAILED | 166.34 | 3 | 💥 |
+| ollama:minimax-m2.7:cloud | research | EXCELLENT | 172.66 | 2 | 🌟 |
+| ollama:qwen3-coder-next:cloud | bug-fix | PASS | 235.37 | 8 | ✅ |
+| ollama:qwen3-coder-next:cloud | copywriting | EXCELLENT | 203.53 | 3 | 🌟 |
+| ollama:qwen3-coder-next:cloud | feature | FAIL | 675.26 | 21 | ❌ |
+| ollama:qwen3-coder-next:cloud | integration-bug | EXCELLENT | 397.66 | 9 | 🌟 |
+| ollama:qwen3-coder-next:cloud | refactor | FAIL | 663.49 | 27 | ❌ |
+| ollama:qwen3-coder-next:cloud | research | EXCELLENT | 468.46 | 4 | 🌟 |
+| openai:gpt-5.1 | bug-fix | EXCELLENT | 138.57 | 8 | 🌟 |
+| openai:gpt-5.1 | copywriting | EXCELLENT | 235.25 | 3 | 🌟 |
+| openai:gpt-5.1 | feature | EXCELLENT | 305.90 | 3 | 🌟 |
+| openai:gpt-5.1 | integration-bug | EXCELLENT | 841.34 | 8 | 🌟 |
+| openai:gpt-5.1 | refactor | EXCELLENT | 925.95 | 5 | 🌟 |
+| openai:gpt-5.1 | research | EXCELLENT | 163.84 | 2 | 🌟 |
+| openai:gpt-5.2 | bug-fix | EXCELLENT | 306.17 | 10 | 🌟 |
+| openai:gpt-5.2 | copywriting | EXCELLENT | 162.69 | 3 | 🌟 |
+| openai:gpt-5.2 | feature | EXCELLENT | 147.45 | 8 | 🌟 |
+| openai:gpt-5.2 | integration-bug | EXCELLENT | 653.48 | 14 | 🌟 |
+| openai:gpt-5.2 | refactor | EXCELLENT | 152.14 | 9 | 🌟 |
+| openai:gpt-5.2 | research | EXCELLENT | 240.65 | 2 | 🌟 |
+| openai:gpt-5.4 | bug-fix | EXCELLENT | 139.96 | 16 | 🌟 |
+| openai:gpt-5.4 | copywriting | EXCELLENT | 258.69 | 13 | 🌟 |
+| openai:gpt-5.4 | feature | EXCELLENT | 266.33 | 37 | 🌟 |
+| openai:gpt-5.4 | integration-bug | EXCELLENT | 255.05 | 31 | 🌟 |
+| openai:gpt-5.4 | refactor | EXCELLENT | 213.11 | 16 | 🌟 |
+| openai:gpt-5.4 | research | EXCELLENT | 95.07 | 4 | 🌟 |
 
 
 ## Detailed Results
 ### deepseek:deepseek-chat / bug-fix
 - **Status:** EXCELLENT
-- **Duration:** 82.99s
-- **Workdir:** `experiment/deepseek:deepseek-chat/bug-fix/workdir`
-- **Log:** `experiment/deepseek:deepseek-chat/bug-fix/combined.log`
-- **Tools Used:** LS, Read, LS, Glob, Bash, Edit, Bash, Write, Bash, Bash, Bash
+- **Duration:** 443.36s
+- **Workdir:** `experiment/deepseek-deepseek-chat/bug-fix/workdir`
+- **Log:** `experiment/deepseek-deepseek-chat/bug-fix/combined.log`
+- **Tools Used:** LS, ReadMany, Bash, ActivateSkill, WriteTodos, UpdateTodo, UpdateTodo, UpdateTodo, UpdateTodo, UpdateTodo, Read, Edit, Edit, Edit, Grep, Grep, Bash, Read, Grep, UpdateTodo, UpdateTodo, Read, Read, Edit, Edit, UpdateTodo, UpdateTodo, Bash, Bash, UpdateTodo, GetTodos
 
 **Verification Output:**
 ```
-PASS: Concurrency control found
-PASS: Final stock is non-negative: 1
-VERIFICATION_RESULT: EXCELLENT
+Verifying Job Queue Fix...
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 1: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 2: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 3: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 4: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 5: PASS
+PASS: Concurrency control (Lock) detected
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### deepseek:deepseek-chat / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 48.82s
-- **Workdir:** `experiment/deepseek:deepseek-chat/copywriting/workdir`
-- **Log:** `experiment/deepseek:deepseek-chat/copywriting/combined.log`
-- **Tools Used:** Write
+- **Duration:** 122.09s
+- **Workdir:** `experiment/deepseek-deepseek-chat/copywriting/workdir`
+- **Log:** `experiment/deepseek-deepseek-chat/copywriting/combined.log`
+- **Tools Used:** Read, Read, Write
 
 **Verification Output:**
 ```
-PASS: Has headings
-PASS: Contains 'Zrb-Flow'
-PASS: Contains 'AI'
-PASS: Contains 'automation'
-PASS: Contains 'CLI'
-PASS: Contains 'Docker'
-PASS: Contains 'K8s'
-PASS: Contains 'Self-Healing'
-PASS: Contains 'pipeline'
-PASS: Has call to action
-PASS: Markdown formatting
+Verifying Migration Guide...
+PASS: Has markdown headings
+PASS: Substantial content (1038 words)
+PASS: Has code examples (15 blocks)
+PASS: Auth header change (Authorization: Bearer) documented
+PASS: ID type change (UUID) documented
+PASS: Field rename (done → completed) documented
+PASS: New project_id field and /v2/ prefix documented
+PASS: Has migration checklist or upgrade command
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### deepseek:deepseek-chat / feature
 - **Status:** EXCELLENT
-- **Duration:** 102.63s
-- **Workdir:** `experiment/deepseek:deepseek-chat/feature/workdir`
-- **Log:** `experiment/deepseek:deepseek-chat/feature/combined.log`
-- **Tools Used:** LS, ReadMany, Read, Edit, Edit, Bash, Bash, Bash, Bash, Write, Read, Read
+- **Duration:** 613.03s
+- **Workdir:** `experiment/deepseek-deepseek-chat/feature/workdir`
+- **Log:** `experiment/deepseek-deepseek-chat/feature/combined.log`
+- **Tools Used:** LS, Read, Read, Read, Read, Read, ActivateSkill, WriteTodos, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Read, Edit, Edit, UpdateTodo, UpdateTodo, Read, Edit, UpdateTodo, UpdateTodo, Read, Edit, Edit, UpdateTodo, UpdateTodo, Read, Edit, UpdateTodo, UpdateTodo, Read, Edit, UpdateTodo, UpdateTodo, Glob, LS, Bash, Bash, Bash, Write, Bash, Write, Bash, Edit, Bash, UpdateTodo, Bash, Read, Read, Bash, Bash
 
 **Verification Output:**
 ```
-Verifying Modular Todo App...
-PASS: All CRUD operations verified
+Verifying Project Management API...
+PASS: GET /projects works
+PASS: Filter by status works
+PASS: Filter by assigned_to works
+PASS: Pagination works (page_size=2 returned 2 results)
+PASS: POST /tasks requires authentication (401/403)
+PASS: POST /tasks creates task with auth
+PASS: POST /tasks with invalid project_id returns 404
+PASS: PUT /tasks/{id} partial update works
+PASS: DELETE /tasks/{id} removes task
+
+Score: 9/9
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### deepseek:deepseek-chat / integration-bug
 - **Status:** EXCELLENT
-- **Duration:** 269.83s
-- **Workdir:** `experiment/deepseek:deepseek-chat/integration-bug/workdir`
-- **Log:** `experiment/deepseek:deepseek-chat/integration-bug/combined.log`
-- **Tools Used:** LS, ReadMany, Bash, Read, Edit, Bash, Write, Bash, Write, Bash, Write, Bash, Edit, Write, Bash, Edit, Edit, Bash, Edit, Bash, Bash, Write, Bash, Bash, ReadMany, Bash
+- **Duration:** 461.57s
+- **Workdir:** `experiment/deepseek-deepseek-chat/integration-bug/workdir`
+- **Log:** `experiment/deepseek-deepseek-chat/integration-bug/combined.log`
+- **Tools Used:** LS, ReadMany, Bash, Write, Bash, Bash, WriteTodos, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Read, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Edit, Edit, UpdateTodo, UpdateTodo, Bash, Bash, UpdateTodo, UpdateTodo, Bash, Bash, Write, Bash, Edit, Bash, Bash, Bash, Bash, UpdateTodo, Write, Bash, Bash, ReadMany, Bash
 
 **Verification Output:**
 ```
-Verifying Integration Bug Fix...
-Initial Balances:
-Alice: 100
-Bob: 100
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-
-Final Balances:
-Alice: 0
-Bob: 200
-Total: 200
-Total Money in System: 200
-WARNING: No explicit locking found, might be lucky or uses different pattern
-PASS: System integrity maintained
+Verifying Checkout Fix...
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+  Trial 1: PASS (stock=0, successful=5, charged=$500.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: SUCCESS
+Order order_1: payment failed
+Order order_2: SUCCESS
+Order order_3: payment failed
+Order order_4: SUCCESS
+  Trial 2: PASS (stock=2, successful=3, charged=$300.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+  Trial 3: PASS (stock=1, successful=4, charged=$400.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: payment failed
+  Trial 4: PASS (stock=2, successful=3, charged=$300.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed
+Order order_1: payment failed
+Order order_2: SUCCESS
+Order order_3: payment failed
+Order order_4: payment failed
+  Trial 5: PASS (stock=4, successful=1, charged=$100.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+  Trial 6: PASS (stock=0, successful=5, charged=$500.00)
+PASS: Locking mechanism detected
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### deepseek:deepseek-chat / refactor
-- **Status:** EXCELLENT
-- **Duration:** 235.36s
-- **Workdir:** `experiment/deepseek:deepseek-chat/refactor/workdir`
-- **Log:** `experiment/deepseek:deepseek-chat/refactor/combined.log`
-- **Tools Used:** Read, Glob, Bash, LS, Read, Read, Write, Bash, Read, Bash, Write, Bash, Read, Write, Bash, Read, Bash, Write, Bash, Read, Write, Bash, Bash, Read, LS
+- **Status:** FAIL
+- **Duration:** 533.20s
+- **Workdir:** `experiment/deepseek-deepseek-chat/refactor/workdir`
+- **Log:** `experiment/deepseek-deepseek-chat/refactor/combined.log`
+- **Tools Used:** Read, Bash, ActivateSkill, WriteTodos, UpdateTodo, UpdateTodo, Write, Write, Write, Write, UpdateTodo, UpdateTodo, UpdateTodo, UpdateTodo, UpdateTodo, UpdateTodo, UpdateTodo, UpdateTodo, Bash, Read, Bash, Bash, Read, Bash, Bash, Bash, Bash, UpdateTodo
 
 **Verification Output:**
 ```
-Verifying refactored script: etl.py
-Testing if script runs...
-PASS: Separated into functions/classes
-PASS: ETL pattern (Extract/Transform/Load)
-PASS: Configuration decoupled
-PASS: Uses regex for parsing
-PASS: Has type hints & docstrings
+Verifying Pipeline Refactor...
+Checking: pipeline_refactored.py
+PASS: Environment variables used for config
+PASS: SQL queries use parameterized form (no injection)
+PASS: ETL pattern present (extract/transform/load)
+FAIL: Only 2 function(s) — needs at least 3
+PASS: Regex used for log parsing
+PASS: Type hints and docstrings present
+Running script...
 PASS: Script runs successfully
-PASS: Creates report.html
-VERIFICATION_RESULT: EXCELLENT
+PASS: report.html contains all required sections
+
+Score: 7/8
+VERIFICATION_RESULT: FAIL
 ```
 
 ---
 ### deepseek:deepseek-chat / research
 - **Status:** EXCELLENT
-- **Duration:** 119.15s
-- **Workdir:** `experiment/deepseek:deepseek-chat/research/workdir`
-- **Log:** `experiment/deepseek:deepseek-chat/research/combined.log`
-- **Tools Used:** ActivateSkill, DelegateToAgent, SearchInternet, OpenWebPage, SearchInternet, OpenWebPage, SearchInternet, OpenWebPage, SearchInternet, OpenWebPage, SearchInternet, Write
+- **Duration:** 93.01s
+- **Workdir:** `experiment/deepseek-deepseek-chat/research/workdir`
+- **Log:** `experiment/deepseek-deepseek-chat/research/combined.log`
+- **Tools Used:** Read, Write
 
 **Verification Output:**
 ```
-PASS: Markdown format
-PASS: Substantial content (200+ words)
-PASS: Covers timeline/commercial viability
-PASS: Covers key players
-PASS: Covers technical hurdles
-PASS: References/citations
+Verifying Architecture Decision Record...
+PASS: Substantial content (613 words)
+PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
+PASS: Status field present
+PASS: Both Kafka and Redis Streams are evaluated
+PASS: Contains a clear recommendation
+PASS: Covers 11 technical properties (throughput, ordering, retention, consumer group...)
+PASS: Addresses team/constraint context
+PASS: Consequences include both pros and cons
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-2.5-flash / bug-fix
 - **Status:** EXCELLENT
-- **Duration:** 24.38s
-- **Workdir:** `experiment/google-gla:gemini-2.5-flash/bug-fix/workdir`
-- **Log:** `experiment/google-gla:gemini-2.5-flash/bug-fix/combined.log`
-- **Tools Used:** Read, Edit, Edit, Bash
+- **Duration:** 50.17s
+- **Workdir:** `experiment/google-gla-gemini-2.5-flash/bug-fix/workdir`
+- **Log:** `experiment/google-gla-gemini-2.5-flash/bug-fix/combined.log`
+- **Tools Used:** LS, Read, Read, Read, Edit, Edit, Edit, Edit, Bash
 
 **Verification Output:**
 ```
-PASS: Concurrency control found
-PASS: Final stock is non-negative: 1
-VERIFICATION_RESULT: EXCELLENT
+Verifying Job Queue Fix...
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 1: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 2: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 3: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 4: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 5: PASS
+PASS: Concurrency control (Lock) detected
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-2.5-flash / copywriting
-- **Status:** PASS
-- **Duration:** 16.66s
-- **Workdir:** `experiment/google-gla:gemini-2.5-flash/copywriting/workdir`
-- **Log:** `experiment/google-gla:gemini-2.5-flash/copywriting/combined.log`
-- **Tools Used:** Write
+- **Status:** EXCELLENT
+- **Duration:** 30.97s
+- **Workdir:** `experiment/google-gla-gemini-2.5-flash/copywriting/workdir`
+- **Log:** `experiment/google-gla-gemini-2.5-flash/copywriting/combined.log`
+- **Tools Used:** ReadMany, Write
 
 **Verification Output:**
 ```
-PASS: Has headings
-PASS: Contains 'Zrb-Flow'
-PASS: Contains 'AI'
-PASS: Contains 'automation'
-PASS: Contains 'CLI'
-PASS: Contains 'Docker'
-FAIL: Contains 'K8s'
-PASS: Contains 'Self-Healing'
-PASS: Contains 'pipeline'
-PASS: Has call to action
-PASS: Markdown formatting
-VERIFICATION_RESULT: PASS
+Verifying Migration Guide...
+PASS: Has markdown headings
+PASS: Substantial content (948 words)
+PASS: Has code examples (25 blocks)
+PASS: Auth header change (Authorization: Bearer) documented
+PASS: ID type change (UUID) documented
+PASS: Field rename (done → completed) documented
+PASS: New project_id field and /v2/ prefix documented
+PASS: Has migration checklist or upgrade command
+
+Score: 8/8
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-2.5-flash / feature
 - **Status:** EXCELLENT
-- **Duration:** 38.87s
-- **Workdir:** `experiment/google-gla:gemini-2.5-flash/feature/workdir`
-- **Log:** `experiment/google-gla:gemini-2.5-flash/feature/combined.log`
-- **Tools Used:** LS, ReadMany, Edit, Read, Edit, Edit, Read
+- **Duration:** 195.12s
+- **Workdir:** `experiment/google-gla-gemini-2.5-flash/feature/workdir`
+- **Log:** `experiment/google-gla-gemini-2.5-flash/feature/combined.log`
+- **Tools Used:** WriteTodos, UpdateTodo, LS, UpdateTodo, UpdateTodo, Read, UpdateTodo, UpdateTodo, Read, UpdateTodo, UpdateTodo, Edit, Read, UpdateTodo, UpdateTodo, Read, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Edit, Edit, Read, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo
 
 **Verification Output:**
 ```
-Verifying Modular Todo App...
-PASS: All CRUD operations verified
+Verifying Project Management API...
+PASS: GET /projects works
+PASS: Filter by status works
+PASS: Filter by assigned_to works
+PASS: Pagination works (page_size=2 returned 2 results)
+PASS: POST /tasks requires authentication (401/403)
+PASS: POST /tasks creates task with auth
+PASS: POST /tasks with invalid project_id returns 404
+PASS: PUT /tasks/{id} partial update works
+PASS: DELETE /tasks/{id} removes task
+
+Score: 9/9
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-2.5-flash / integration-bug
-- **Status:** EXCELLENT
-- **Duration:** 56.02s
-- **Workdir:** `experiment/google-gla:gemini-2.5-flash/integration-bug/workdir`
-- **Log:** `experiment/google-gla:gemini-2.5-flash/integration-bug/combined.log`
-- **Tools Used:** LS, Read, Read, Read, Edit, Edit, Edit, Bash, Read, Edit, Edit, Bash
+- **Status:** PASS
+- **Duration:** 34.33s
+- **Workdir:** `experiment/google-gla-gemini-2.5-flash/integration-bug/workdir`
+- **Log:** `experiment/google-gla-gemini-2.5-flash/integration-bug/combined.log`
+- **Tools Used:** LS, Read, Read, Read, Read, Edit, Bash
 
 **Verification Output:**
 ```
-Verifying Integration Bug Fix...
-Initial Balances:
-Alice: 100
-Bob: 100
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-
-Final Balances:
-Alice: 0
-Bob: 200
-Total: 200
-Total Money in System: 200
-PASS: System integrity maintained
-VERIFICATION_RESULT: EXCELLENT
+Verifying Checkout Fix...
+Order order_5: out of stock or inventory error
+Order order_6: out of stock or inventory error
+Order order_7: out of stock or inventory error
+Order order_8: out of stock or inventory error
+Order order_9: out of stock or inventory error
+Order order_10: out of stock or inventory error
+Order order_11: out of stock or inventory error
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+  Trial 1: PASS (stock=0, successful=5, charged=$500.00)
+Order order_5: out of stock or inventory error
+Order order_6: out of stock or inventory error
+Order order_7: out of stock or inventory error
+Order order_8: out of stock or inventory error
+Order order_9: out of stock or inventory error
+Order order_10: out of stock or inventory error
+Order order_11: out of stock or inventory error
+Order order_0: SUCCESS
+Order order_2: SUCCESS
+Order order_4: SUCCESS
+Order order_1: payment failed, inventory restored
+Order order_3: payment failed, inventory restored
+  Trial 2: PASS (stock=2, successful=3, charged=$300.00)
+Order order_5: out of stock or inventory error
+Order order_6: out of stock or inventory error
+Order order_7: out of stock or inventory error
+Order order_8: out of stock or inventory error
+Order order_9: out of stock or inventory error
+Order order_10: out of stock or inventory error
+Order order_11: out of stock or inventory error
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+Order order_0: payment failed, inventory restored
+  Trial 3: PASS (stock=1, successful=4, charged=$400.00)
+Order order_5: out of stock or inventory error
+Order order_6: out of stock or inventory error
+Order order_7: out of stock or inventory error
+Order order_8: out of stock or inventory error
+Order order_9: out of stock or inventory error
+Order order_10: out of stock or inventory error
+Order order_11: out of stock or inventory error
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_0: payment failed, inventory restored
+Order order_4: payment failed, inventory restored
+  Trial 4: PASS (stock=2, successful=3, charged=$300.00)
+Order order_5: out of stock or inventory error
+Order order_6: out of stock or inventory error
+Order order_7: out of stock or inventory error
+Order order_8: out of stock or inventory error
+Order order_9: out of stock or inventory error
+Order order_10: out of stock or inventory error
+Order order_11: out of stock or inventory error
+Order order_2: SUCCESS
+Order order_0: payment failed, inventory restored
+Order order_1: payment failed, inventory restored
+Order order_3: payment failed, inventory restored
+Order order_4: payment failed, inventory restored
+  Trial 5: PASS (stock=4, successful=1, charged=$100.00)
+Order order_5: out of stock or inventory error
+Order order_6: out of stock or inventory error
+Order order_7: out of stock or inventory error
+Order order_8: out of stock or inventory error
+Order order_9: out of stock or inventory error
+Order order_10: out of stock or inventory error
+Order order_11: out of stock or inventory error
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+  Trial 6: PASS (stock=0, successful=5, charged=$500.00)
+PASS: All trials passed
+VERIFICATION_RESULT: PASS
 ```
 
 ---
 ### google-gla:gemini-2.5-flash / refactor
 - **Status:** EXCELLENT
-- **Duration:** 101.30s
-- **Workdir:** `experiment/google-gla:gemini-2.5-flash/refactor/workdir`
-- **Log:** `experiment/google-gla:gemini-2.5-flash/refactor/combined.log`
-- **Tools Used:** Read, Read, Bash, Read, Write, Bash, Bash, Read, Read, Edit, Bash, Bash, Edit, Read, Edit, Bash, Bash, Read, Edit, Bash, Edit, Bash, Bash, Read, Edit
+- **Duration:** 1087.64s
+- **Workdir:** `experiment/google-gla-gemini-2.5-flash/refactor/workdir`
+- **Log:** `experiment/google-gla-gemini-2.5-flash/refactor/combined.log`
+- **Tools Used:** LS, ActivateSkill, Read, Write, Bash, Edit, Bash, Edit, Read, Edit, Edit, Bash, Edit, Edit, Bash, Edit, Edit, Bash, Edit, Bash, Edit, Edit, Read, Edit, Bash, Bash, Edit, Bash, Edit, Read, Edit, Bash, Read, Edit, Edit, Read, Edit, Bash, Read, Edit, Bash, Read, Edit, Edit, Bash, Edit, Read, Edit, Bash, Edit, Read, Edit, Bash, Read, Edit, Bash, Read, Read, Edit, Edit, Bash, Read, Read, Read, Read, Read, Read, Read, Read, Read, Read, Read, Read, Read, Read, Read, Read, Read, Edit, Bash, Read, Edit, Bash, Read, Read, Edit, Bash, Edit, Bash, Edit, Bash, Edit, Bash, Edit, Bash, Read, Read, Read, Edit, Bash, Read, Read, Read, Read, Read, Read, Read, Read, Read, Read
 
 **Verification Output:**
 ```
-Verifying refactored script: etl.py
-Testing if script runs...
-PASS: Separated into functions/classes
-PASS: ETL pattern (Extract/Transform/Load)
-PASS: Configuration decoupled
-PASS: Uses regex for parsing
-PASS: Has type hints & docstrings
+Verifying Pipeline Refactor...
+Checking: pipeline_refactored.py
+PASS: Environment variables used for config
+PASS: SQL queries use parameterized form (no injection)
+FAIL: ETL pattern incomplete (extract=True, transform=False, load=True)
+PASS: Separated into 8 functions
+PASS: Regex used for log parsing
+PASS: Type hints and docstrings present
+Running script...
 PASS: Script runs successfully
-PASS: Creates report.html
+PASS: report.html contains all required sections
+
+Score: 7/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-2.5-flash / research
-- **Status:** PASS
-- **Duration:** 55.54s
-- **Workdir:** `experiment/google-gla:gemini-2.5-flash/research/workdir`
-- **Log:** `experiment/google-gla:gemini-2.5-flash/research/combined.log`
-- **Tools Used:** SearchInternet, SearchInternet, SearchInternet, Write
+- **Status:** FAIL
+- **Duration:** 33.87s
+- **Workdir:** `experiment/google-gla-gemini-2.5-flash/research/workdir`
+- **Log:** `experiment/google-gla-gemini-2.5-flash/research/combined.log`
+- **Tools Used:** Read
 
 **Verification Output:**
 ```
-PASS: Markdown format
-PASS: Substantial content (200+ words)
-PASS: Covers timeline/commercial viability
-PASS: Covers key players
-PASS: Covers technical hurdles
-FAIL: References/citations
-VERIFICATION_RESULT: PASS
+Verifying Architecture Decision Record...
+FAIL: ADR-001-notification-architecture.md not found
+VERIFICATION_RESULT: FAIL
 ```
 
 ---
 ### google-gla:gemini-2.5-pro / bug-fix
 - **Status:** EXCELLENT
-- **Duration:** 40.46s
-- **Workdir:** `experiment/google-gla:gemini-2.5-pro/bug-fix/workdir`
-- **Log:** `experiment/google-gla:gemini-2.5-pro/bug-fix/combined.log`
-- **Tools Used:** LS, Read, Edit, Bash
+- **Duration:** 116.59s
+- **Workdir:** `experiment/google-gla-gemini-2.5-pro/bug-fix/workdir`
+- **Log:** `experiment/google-gla-gemini-2.5-pro/bug-fix/combined.log`
+- **Tools Used:** LS, ReadMany, Bash, WriteTodos, UpdateTodo, Read, Edit, Edit, UpdateTodo, UpdateTodo, Read, Edit, UpdateTodo, UpdateTodo, Bash, UpdateTodo, ClearTodos
 
 **Verification Output:**
 ```
-PASS: Concurrency control found
-PASS: Final stock is non-negative: 1
-VERIFICATION_RESULT: EXCELLENT
+Verifying Job Queue Fix...
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 1] picked up job 7
+[Worker 3] finished job 4
+[Worker 2] picked up job 8
+[Worker 4] finished job 5
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 0] picked up job 11
+[Worker 2] finished job 8
+[Worker 1] picked up job 12
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 1: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 2: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 3: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 4: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 5: PASS
+PASS: Concurrency control (Lock) detected
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-2.5-pro / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 33.26s
-- **Workdir:** `experiment/google-gla:gemini-2.5-pro/copywriting/workdir`
-- **Log:** `experiment/google-gla:gemini-2.5-pro/copywriting/combined.log`
-- **Tools Used:** Write
+- **Duration:** 42.25s
+- **Workdir:** `experiment/google-gla-gemini-2.5-pro/copywriting/workdir`
+- **Log:** `experiment/google-gla-gemini-2.5-pro/copywriting/combined.log`
+- **Tools Used:** ReadMany, Write
 
 **Verification Output:**
 ```
-PASS: Has headings
-PASS: Contains 'Zrb-Flow'
-PASS: Contains 'AI'
-PASS: Contains 'automation'
-PASS: Contains 'CLI'
-PASS: Contains 'Docker'
-PASS: Contains 'K8s'
-PASS: Contains 'Self-Healing'
-PASS: Contains 'pipeline'
-PASS: Has call to action
-PASS: Markdown formatting
+Verifying Migration Guide...
+PASS: Has markdown headings
+PASS: Substantial content (726 words)
+PASS: Has code examples (15 blocks)
+PASS: Auth header change (Authorization: Bearer) documented
+PASS: ID type change (UUID) documented
+PASS: Field rename (done → completed) documented
+PASS: New project_id field and /v2/ prefix documented
+PASS: Has migration checklist or upgrade command
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-2.5-pro / feature
 - **Status:** EXCELLENT
-- **Duration:** 39.81s
-- **Workdir:** `experiment/google-gla:gemini-2.5-pro/feature/workdir`
-- **Log:** `experiment/google-gla:gemini-2.5-pro/feature/combined.log`
-- **Tools Used:** LS, ReadMany, Edit, Read, Edit
+- **Duration:** 79.04s
+- **Workdir:** `experiment/google-gla-gemini-2.5-pro/feature/workdir`
+- **Log:** `experiment/google-gla-gemini-2.5-pro/feature/combined.log`
+- **Tools Used:** LS, ReadMany, Edit, Read, Edit, Read, Edit
 
 **Verification Output:**
 ```
-Verifying Modular Todo App...
-PASS: All CRUD operations verified
+Verifying Project Management API...
+PASS: GET /projects works
+PASS: Filter by status works
+PASS: Filter by assigned_to works
+PASS: Pagination works (page_size=2 returned 2 results)
+PASS: POST /tasks requires authentication (401/403)
+PASS: POST /tasks creates task with auth
+PASS: POST /tasks with invalid project_id returns 404
+PASS: PUT /tasks/{id} partial update works
+PASS: DELETE /tasks/{id} removes task
+
+Score: 9/9
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-2.5-pro / integration-bug
 - **Status:** EXCELLENT
-- **Duration:** 92.38s
-- **Workdir:** `experiment/google-gla:gemini-2.5-pro/integration-bug/workdir`
-- **Log:** `experiment/google-gla:gemini-2.5-pro/integration-bug/combined.log`
-- **Tools Used:** LS, Read, Read, Read, Edit, Bash, Read, Edit, Bash
+- **Duration:** 131.88s
+- **Workdir:** `experiment/google-gla-gemini-2.5-pro/integration-bug/workdir`
+- **Log:** `experiment/google-gla-gemini-2.5-pro/integration-bug/combined.log`
+- **Tools Used:** LS, ReadMany, Bash, WriteTodos, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Edit, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Bash, UpdateTodo, ClearTodos
 
 **Verification Output:**
 ```
-Verifying Integration Bug Fix...
-Initial Balances:
-Alice: 100
-Bob: 100
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-
-Final Balances:
-Alice: 0
-Bob: 200
-Total: 200
-Total Money in System: 200
-PASS: System integrity maintained
+Verifying Checkout Fix...
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_5: out of stock
+Order order_3: SUCCESS
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_4: SUCCESS
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+  Trial 1: PASS (stock=0, successful=5, charged=$500.00)
+Order order_0: SUCCESS
+Order order_1: payment failed, releasing stock
+Order order_2: SUCCESS
+Order order_5: out of stock
+Order order_3: payment failed, releasing stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_4: SUCCESS
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+  Trial 2: PASS (stock=2, successful=3, charged=$300.00)
+Order order_0: payment failed, releasing stock
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_5: out of stock
+Order order_3: SUCCESS
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_4: SUCCESS
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+  Trial 3: PASS (stock=1, successful=4, charged=$400.00)
+Order order_0: payment failed, releasing stock
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_5: out of stock
+Order order_3: SUCCESS
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_4: payment failed, releasing stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+  Trial 4: PASS (stock=2, successful=3, charged=$300.00)
+Order order_0: payment failed, releasing stock
+Order order_1: payment failed, releasing stock
+Order order_2: SUCCESS
+Order order_5: out of stock
+Order order_3: payment failed, releasing stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_4: payment failed, releasing stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+  Trial 5: PASS (stock=4, successful=1, charged=$100.00)
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_5: out of stock
+Order order_3: SUCCESS
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_4: SUCCESS
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+  Trial 6: PASS (stock=0, successful=5, charged=$500.00)
+PASS: Locking mechanism detected
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-2.5-pro / refactor
 - **Status:** EXCELLENT
-- **Duration:** 108.14s
-- **Workdir:** `experiment/google-gla:gemini-2.5-pro/refactor/workdir`
-- **Log:** `experiment/google-gla:gemini-2.5-pro/refactor/combined.log`
-- **Tools Used:** LS, Read, DelegateToAgent, Bash, Bash, Bash, Write, Write, Bash, Bash, Bash, WriteMany
+- **Duration:** 70.05s
+- **Workdir:** `experiment/google-gla-gemini-2.5-pro/refactor/workdir`
+- **Log:** `experiment/google-gla-gemini-2.5-pro/refactor/combined.log`
+- **Tools Used:** LS, Read, Write, Bash, Read, Bash
 
 **Verification Output:**
 ```
-Verifying refactored script: etl.py
-Testing if script runs...
-PASS: Separated into functions/classes
-PASS: ETL pattern (Extract/Transform/Load)
-PASS: Configuration decoupled
-PASS: Uses regex for parsing
-PASS: Has type hints & docstrings
+Verifying Pipeline Refactor...
+Checking: pipeline_refactored.py
+PASS: Environment variables used for config
+PASS: SQL queries use parameterized form (no injection)
+PASS: ETL pattern present (extract/transform/load)
+PASS: Separated into 5 functions
+PASS: Regex used for log parsing
+PASS: Type hints and docstrings present
+Running script...
 PASS: Script runs successfully
-PASS: Creates report.html
+PASS: report.html contains all required sections
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-2.5-pro / research
 - **Status:** EXCELLENT
-- **Duration:** 67.60s
-- **Workdir:** `experiment/google-gla:gemini-2.5-pro/research/workdir`
-- **Log:** `experiment/google-gla:gemini-2.5-pro/research/combined.log`
-- **Tools Used:** DelegateToAgent, SearchInternet, SearchInternet, SearchInternet, Write
+- **Duration:** 40.23s
+- **Workdir:** `experiment/google-gla-gemini-2.5-pro/research/workdir`
+- **Log:** `experiment/google-gla-gemini-2.5-pro/research/combined.log`
+- **Tools Used:** Read, Write
 
 **Verification Output:**
 ```
-PASS: Markdown format
-PASS: Substantial content (200+ words)
-PASS: Covers timeline/commercial viability
-PASS: Covers key players
-PASS: Covers technical hurdles
-PASS: References/citations
+Verifying Architecture Decision Record...
+PASS: Substantial content (615 words)
+PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
+PASS: Status field present
+PASS: Both Kafka and Redis Streams are evaluated
+PASS: Contains a clear recommendation
+PASS: Covers 10 technical properties (throughput, ordering, retention, consumer group...)
+PASS: Addresses team/constraint context
+PASS: Consequences include both pros and cons
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-3-flash-preview / bug-fix
-- **Status:** EXCELLENT
-- **Duration:** 21.30s
-- **Workdir:** `experiment/google-gla:gemini-3-flash-preview/bug-fix/workdir`
-- **Log:** `experiment/google-gla:gemini-3-flash-preview/bug-fix/combined.log`
-- **Tools Used:** LS, Read, Bash, Edit, Bash
+- **Status:** PASS
+- **Duration:** 84.59s
+- **Workdir:** `experiment/google-gla-gemini-3-flash-preview/bug-fix/workdir`
+- **Log:** `experiment/google-gla-gemini-3-flash-preview/bug-fix/combined.log`
+- **Tools Used:** LS, ReadMany, Bash, WriteTodos, UpdateTodo, GetTodos, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo, Bash
 
 **Verification Output:**
 ```
-PASS: Concurrency control found
-PASS: Final stock is non-negative: 1
-VERIFICATION_RESULT: EXCELLENT
-VERIFICATION_RESULT: EXCELLENT
+Verifying Job Queue Fix...
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 1: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 2: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 3: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 4: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 5: PASS
+PASS: All simulation runs passed
+VERIFICATION_RESULT: PASS
 ```
 
 ---
 ### google-gla:gemini-3-flash-preview / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 25.72s
-- **Workdir:** `experiment/google-gla:gemini-3-flash-preview/copywriting/workdir`
-- **Log:** `experiment/google-gla:gemini-3-flash-preview/copywriting/combined.log`
-- **Tools Used:** Write
+- **Duration:** 29.63s
+- **Workdir:** `experiment/google-gla-gemini-3-flash-preview/copywriting/workdir`
+- **Log:** `experiment/google-gla-gemini-3-flash-preview/copywriting/combined.log`
+- **Tools Used:** LS, ReadMany, LS, Write
 
 **Verification Output:**
 ```
-PASS: Has headings
-PASS: Contains 'Zrb-Flow'
-PASS: Contains 'AI'
-PASS: Contains 'automation'
-PASS: Contains 'CLI'
-PASS: Contains 'Docker'
-PASS: Contains 'K8s'
-PASS: Contains 'Self-Healing'
-PASS: Contains 'pipeline'
-PASS: Has call to action
-PASS: Markdown formatting
+Verifying Migration Guide...
+PASS: Has markdown headings
+FAIL: Too short (394 words, need 400+)
+PASS: Has code examples (11 blocks)
+PASS: Auth header change (Authorization: Bearer) documented
+PASS: ID type change (UUID) documented
+PASS: Field rename (done → completed) documented
+PASS: New project_id field and /v2/ prefix documented
+PASS: Has migration checklist or upgrade command
+
+Score: 7/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-3-flash-preview / feature
 - **Status:** EXCELLENT
-- **Duration:** 58.02s
-- **Workdir:** `experiment/google-gla:gemini-3-flash-preview/feature/workdir`
-- **Log:** `experiment/google-gla:gemini-3-flash-preview/feature/combined.log`
-- **Tools Used:** LS, ReadMany, Edit, Edit, Bash, Write, Bash, Bash
+- **Duration:** 57.61s
+- **Workdir:** `experiment/google-gla-gemini-3-flash-preview/feature/workdir`
+- **Log:** `experiment/google-gla-gemini-3-flash-preview/feature/combined.log`
+- **Tools Used:** LS, ReadMany, WriteTodos, UpdateTodo, Edit, GetTodos, UpdateTodo, UpdateTodo, Edit, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo, Bash
 
 **Verification Output:**
 ```
-Verifying Modular Todo App...
-PASS: All CRUD operations verified
+Verifying Project Management API...
+PASS: GET /projects works
+PASS: Filter by status works
+PASS: Filter by assigned_to works
+PASS: Pagination works (page_size=2 returned 2 results)
+PASS: POST /tasks requires authentication (401/403)
+PASS: POST /tasks creates task with auth
+PASS: POST /tasks with invalid project_id returns 404
+PASS: PUT /tasks/{id} partial update works
+PASS: DELETE /tasks/{id} removes task
+
+Score: 9/9
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-3-flash-preview / integration-bug
 - **Status:** EXCELLENT
-- **Duration:** 31.32s
-- **Workdir:** `experiment/google-gla:gemini-3-flash-preview/integration-bug/workdir`
-- **Log:** `experiment/google-gla:gemini-3-flash-preview/integration-bug/combined.log`
-- **Tools Used:** LS, ReadMany, Bash, Read, Edit, Bash, Edit, Bash
+- **Duration:** 109.15s
+- **Workdir:** `experiment/google-gla-gemini-3-flash-preview/integration-bug/workdir`
+- **Log:** `experiment/google-gla-gemini-3-flash-preview/integration-bug/combined.log`
+- **Tools Used:** LS, ReadMany, Bash, WriteTodos, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Bash, UpdateTodo
 
 **Verification Output:**
 ```
-Verifying Integration Bug Fix...
-Initial Balances:
-Alice: 100
-Bob: 100
-Starting transfer: Alice -> Bob ($20)
-Transfer complete: Alice -> Bob
-Starting transfer: Alice -> Bob ($20)
-Transfer complete: Alice -> Bob
-Starting transfer: Alice -> Bob ($20)
-Transfer complete: Alice -> Bob
-Starting transfer: Alice -> Bob ($20)
-Transfer complete: Alice -> Bob
-Starting transfer: Alice -> Bob ($20)
-Transfer complete: Alice -> Bob
-
-Final Balances:
-Alice: 0
-Bob: 200
-Total: 200
-Total Money in System: 200
-PASS: System integrity maintained
+Verifying Checkout Fix...
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+  Trial 1: PASS (stock=0, successful=5, charged=$500.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: SUCCESS
+Order order_1: payment failed
+Order order_2: SUCCESS
+Order order_3: payment failed
+Order order_4: SUCCESS
+  Trial 2: PASS (stock=2, successful=3, charged=$300.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+  Trial 3: PASS (stock=1, successful=4, charged=$400.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: payment failed
+  Trial 4: PASS (stock=2, successful=3, charged=$300.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed
+Order order_1: payment failed
+Order order_2: SUCCESS
+Order order_3: payment failed
+Order order_4: payment failed
+  Trial 5: PASS (stock=4, successful=1, charged=$100.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+  Trial 6: PASS (stock=0, successful=5, charged=$500.00)
+PASS: Locking mechanism detected
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-3-flash-preview / refactor
 - **Status:** EXCELLENT
-- **Duration:** 68.84s
-- **Workdir:** `experiment/google-gla:gemini-3-flash-preview/refactor/workdir`
-- **Log:** `experiment/google-gla:gemini-3-flash-preview/refactor/combined.log`
-- **Tools Used:** LS, Read, Bash, Bash, DelegateToAgent, Write, Bash, Bash, Bash
+- **Duration:** 198.40s
+- **Workdir:** `experiment/google-gla-gemini-3-flash-preview/refactor/workdir`
+- **Log:** `experiment/google-gla-gemini-3-flash-preview/refactor/combined.log`
+- **Tools Used:** LS, Read, WriteTodos, UpdateTodo, UpdateTodo, UpdateTodo, UpdateTodo, Write, Bash, Bash, ReadMany, UpdateTodo, UpdateTodo, UpdateTodo, LS, GetTodos, Read, Read, UpdateTodo, ReadMany, Bash, Read, Edit, Bash, UpdateTodo, Read, UpdateTodo
 
 **Verification Output:**
 ```
-Verifying refactored script: etl.py
-Testing if script runs...
-PASS: Separated into functions/classes
-PASS: ETL pattern (Extract/Transform/Load)
-PASS: Configuration decoupled
-PASS: Uses regex for parsing
-FAIL: Has type hints & docstrings (Types: True, Docs: False)
+Verifying Pipeline Refactor...
+Checking: pipeline_refactored.py
+PASS: Environment variables used for config
+PASS: SQL queries use parameterized form (no injection)
+PASS: ETL pattern present (extract/transform/load)
+PASS: Separated into 4 functions
+PASS: Regex used for log parsing
+PASS: Type hints and docstrings present
+Running script...
 PASS: Script runs successfully
-PASS: Creates report.html
+PASS: report.html contains all required sections
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-3-flash-preview / research
 - **Status:** EXCELLENT
-- **Duration:** 64.69s
-- **Workdir:** `experiment/google-gla:gemini-3-flash-preview/research/workdir`
-- **Log:** `experiment/google-gla:gemini-3-flash-preview/research/combined.log`
-- **Tools Used:** ActivateSkill, DelegateToAgent, SearchInternet, OpenWebPage, SearchInternet, SearchInternet, Write
+- **Duration:** 31.19s
+- **Workdir:** `experiment/google-gla-gemini-3-flash-preview/research/workdir`
+- **Log:** `experiment/google-gla-gemini-3-flash-preview/research/combined.log`
+- **Tools Used:** Read, Write
 
 **Verification Output:**
 ```
-PASS: Markdown format
-PASS: Substantial content (200+ words)
-PASS: Covers timeline/commercial viability
-PASS: Covers key players
-PASS: Covers technical hurdles
-PASS: References/citations
+Verifying Architecture Decision Record...
+FAIL: Too short (456 words, need 500+)
+PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
+PASS: Status field present
+PASS: Both Kafka and Redis Streams are evaluated
+PASS: Contains a clear recommendation
+PASS: Covers 10 technical properties (throughput, consumer group, exactly-once, at-least-once...)
+PASS: Addresses team/constraint context
+PASS: Consequences include both pros and cons
+
+Score: 7/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-3-pro-preview / bug-fix
-- **Status:** EXCELLENT
-- **Duration:** 80.99s
-- **Workdir:** `experiment/google-gla:gemini-3-pro-preview/bug-fix/workdir`
-- **Log:** `experiment/google-gla:gemini-3-pro-preview/bug-fix/combined.log`
-- **Tools Used:** LS, Read, Bash, Write, Bash, Read, Read, Write, Bash, Bash
+- **Status:** PASS
+- **Duration:** 710.94s
+- **Workdir:** `experiment/google-gla-gemini-3-pro-preview/bug-fix/workdir`
+- **Log:** `experiment/google-gla-gemini-3-pro-preview/bug-fix/combined.log`
+- **Tools Used:** Bash, LS, ReadMany, Bash, Edit, Edit, Bash
 
 **Verification Output:**
 ```
-PASS: Concurrency control found
-PASS: Final stock is non-negative: 1
-VERIFICATION_RESULT: EXCELLENT
-VERIFICATION_RESULT: EXCELLENT
+Verifying Job Queue Fix...
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 1: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 2: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 3: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 4: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 5: PASS
+PASS: All simulation runs passed
+VERIFICATION_RESULT: PASS
 ```
 
 ---
 ### google-gla:gemini-3-pro-preview / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 23.10s
-- **Workdir:** `experiment/google-gla:gemini-3-pro-preview/copywriting/workdir`
-- **Log:** `experiment/google-gla:gemini-3-pro-preview/copywriting/combined.log`
-- **Tools Used:** Write, Read
+- **Duration:** 129.14s
+- **Workdir:** `experiment/google-gla-gemini-3-pro-preview/copywriting/workdir`
+- **Log:** `experiment/google-gla-gemini-3-pro-preview/copywriting/combined.log`
+- **Tools Used:** LS, ReadMany, Write
 
 **Verification Output:**
 ```
-PASS: Has headings
-PASS: Contains 'Zrb-Flow'
-PASS: Contains 'AI'
-PASS: Contains 'automation'
-PASS: Contains 'CLI'
-PASS: Contains 'Docker'
-PASS: Contains 'K8s'
-PASS: Contains 'Self-Healing'
-PASS: Contains 'pipeline'
-PASS: Has call to action
-PASS: Markdown formatting
+Verifying Migration Guide...
+PASS: Has markdown headings
+PASS: Substantial content (510 words)
+PASS: Has code examples (13 blocks)
+PASS: Auth header change (Authorization: Bearer) documented
+PASS: ID type change (UUID) documented
+PASS: Field rename (done → completed) documented
+PASS: New project_id field and /v2/ prefix documented
+PASS: Has migration checklist or upgrade command
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-3-pro-preview / feature
 - **Status:** EXCELLENT
-- **Duration:** 87.37s
-- **Workdir:** `experiment/google-gla:gemini-3-pro-preview/feature/workdir`
-- **Log:** `experiment/google-gla:gemini-3-pro-preview/feature/combined.log`
-- **Tools Used:** LS, ReadMany, Write, Read, Write, Write, Bash, Bash
+- **Duration:** 1316.78s
+- **Workdir:** `experiment/google-gla-gemini-3-pro-preview/feature/workdir`
+- **Log:** `experiment/google-gla-gemini-3-pro-preview/feature/combined.log`
+- **Tools Used:** LS, ReadMany, Bash, Edit, Edit, Bash, ReadMany, Bash, Write, Bash, Bash, Bash
 
 **Verification Output:**
 ```
-Verifying Modular Todo App...
-PASS: All CRUD operations verified
+Verifying Project Management API...
+PASS: GET /projects works
+PASS: Filter by status works
+PASS: Filter by assigned_to works
+PASS: Pagination works (page_size=2 returned 2 results)
+PASS: POST /tasks requires authentication (401/403)
+PASS: POST /tasks creates task with auth
+PASS: POST /tasks with invalid project_id returns 404
+PASS: PUT /tasks/{id} partial update works
+PASS: DELETE /tasks/{id} removes task
+
+Score: 9/9
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-3-pro-preview / integration-bug
-- **Status:** EXCELLENT
-- **Duration:** 85.87s
-- **Workdir:** `experiment/google-gla:gemini-3-pro-preview/integration-bug/workdir`
-- **Log:** `experiment/google-gla:gemini-3-pro-preview/integration-bug/combined.log`
-- **Tools Used:** LS, ReadMany, Bash, Edit, Bash, Read, Edit, Bash, Edit, Bash
+- **Status:** EXECUTION_FAILED
+- **Duration:** 1840.25s
+- **Workdir:** `experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir`
+- **Log:** `experiment/google-gla-gemini-3-pro-preview/integration-bug/combined.log`
+- **Tools Used:** Bash
 
 **Verification Output:**
 ```
-Verifying Integration Bug Fix...
-Initial Balances:
-Alice: 100
-Bob: 100
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Final Balances:
-Alice: 0
-Bob: 200
-Total: 200
-Total Money in System: 200
-PASS: System integrity maintained
-VERIFICATION_RESULT: EXCELLENT
+Verifying Checkout Fix...
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+Order order_5: inventory error after payment — item not delivered
+Order order_6: inventory error after payment — item not delivered
+Order order_7: inventory error after payment — item not delivered
+Order order_8: inventory error after payment — item not delivered
+Order order_9: inventory error after payment — item not delivered
+Order order_10: inventory error after payment — item not delivered
+Order order_11: inventory error after payment — item not delivered
+  Trial 1: FAIL — charge mismatch (charged=1200.00, expected=500.00)
+Order order_1: payment failed
+Order order_3: payment failed
+Order order_6: payment failed
+Order order_8: payment failed
+Order order_10: payment failed
+Order order_11: payment failed
+Order order_0: SUCCESS
+Order order_2: SUCCESS
+Order order_4: SUCCESS
+Order order_5: SUCCESS
+Order order_7: SUCCESS
+Order order_9: inventory error after payment — item not delivered
+  Trial 2: FAIL — charge mismatch (charged=600.00, expected=500.00)
+Order order_0: payment failed
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+Order order_5: SUCCESS
+Order order_6: inventory error after payment — item not delivered
+Order order_7: inventory error after payment — item not delivered
+Order order_8: inventory error after payment — item not delivered
+Order order_9: inventory error after payment — item not delivered
+Order order_10: inventory error after payment — item not delivered
+Order order_11: inventory error after payment — item not delivered
+  Trial 3: FAIL — charge mismatch (charged=1100.00, expected=500.00)
+Order order_0: payment failed
+Order order_4: payment failed
+Order order_9: payment failed
+Order order_10: payment failed
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_5: SUCCESS
+Order order_6: SUCCESS
+Order order_7: inventory error after payment — item not delivered
+Order order_8: inventory error after payment — item not delivered
+Order order_11: inventory error after payment — item not delivered
+  Trial 4: FAIL — charge mismatch (charged=800.00, expected=500.00)
+Order order_0: payment failed
+Order order_1: payment failed
+Order order_3: payment failed
+Order order_4: payment failed
+Order order_7: payment failed
+Order order_10: payment failed
+Order order_11: payment failed
+Order order_2: SUCCESS
+Order order_5: SUCCESS
+Order order_6: SUCCESS
+Order order_8: SUCCESS
+Order order_9: SUCCESS
+  Trial 5: PASS (stock=0, successful=5, charged=$500.00)
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+Order order_5: inventory error after payment — item not delivered
+Order order_6: inventory error after payment — item not delivered
+Order order_7: inventory error after payment — item not delivered
+Order order_8: inventory error after payment — item not delivered
+Order order_9: inventory error after payment — item not delivered
+Order order_10: inventory error after payment — item not delivered
+Order order_11: inventory error after payment — item not delivered
+  Trial 6: FAIL — charge mismatch (charged=1200.00, expected=500.00)
+FAIL: Only 1/6 trials passed
+VERIFICATION_RESULT: FAIL
 ```
 
 ---
 ### google-gla:gemini-3-pro-preview / refactor
-- **Status:** EXCELLENT
-- **Duration:** 110.58s
-- **Workdir:** `experiment/google-gla:gemini-3-pro-preview/refactor/workdir`
-- **Log:** `experiment/google-gla:gemini-3-pro-preview/refactor/combined.log`
-- **Tools Used:** LS, Read, Write, Bash, Read, Write, Bash
+- **Status:** EXECUTION_FAILED
+- **Duration:** 1399.38s
+- **Workdir:** `experiment/google-gla-gemini-3-pro-preview/refactor/workdir`
+- **Log:** `experiment/google-gla-gemini-3-pro-preview/refactor/combined.log`
+- **Tools Used:** Bash, Read, Write, Bash, Read, Read, Bash, Bash, Bash, Bash
 
 **Verification Output:**
 ```
-Verifying refactored script: etl.py
-Testing if script runs...
-PASS: Separated into functions/classes
-PASS: ETL pattern (Extract/Transform/Load)
-PASS: Configuration decoupled
-PASS: Uses regex for parsing
-PASS: Has type hints & docstrings
+Verifying Pipeline Refactor...
+Checking: pipeline_refactored.py
+PASS: Environment variables used for config
+PASS: SQL queries use parameterized form (no injection)
+PASS: ETL pattern present (extract/transform/load)
+PASS: Separated into 5 functions
+PASS: Regex used for log parsing
+PASS: Type hints and docstrings present
+Running script...
 PASS: Script runs successfully
-PASS: Creates report.html
+PASS: report.html contains all required sections
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-3-pro-preview / research
-- **Status:** PASS
-- **Duration:** 56.19s
-- **Workdir:** `experiment/google-gla:gemini-3-pro-preview/research/workdir`
-- **Log:** `experiment/google-gla:gemini-3-pro-preview/research/combined.log`
-- **Tools Used:** DelegateToAgent, SearchInternet, Write, Read
+- **Status:** EXCELLENT
+- **Duration:** 146.61s
+- **Workdir:** `experiment/google-gla-gemini-3-pro-preview/research/workdir`
+- **Log:** `experiment/google-gla-gemini-3-pro-preview/research/combined.log`
+- **Tools Used:** Read, Write
 
 **Verification Output:**
 ```
-PASS: Markdown format
-PASS: Substantial content (200+ words)
-PASS: Covers timeline/commercial viability
-PASS: Covers key players
-PASS: Covers technical hurdles
-FAIL: References/citations
-VERIFICATION_RESULT: PASS
+Verifying Architecture Decision Record...
+PASS: Substantial content (624 words)
+PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
+PASS: Status field present
+PASS: Both Kafka and Redis Streams are evaluated
+PASS: Contains a clear recommendation
+PASS: Covers 8 technical properties (throughput, retention, consumer group, exactly-once...)
+PASS: Addresses team/constraint context
+PASS: Consequences include both pros and cons
+
+Score: 8/8
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-3.1-pro-preview / bug-fix
-- **Status:** EXCELLENT
-- **Duration:** 44.03s
+- **Status:** PASS
+- **Duration:** 703.15s
 - **Workdir:** `experiment/google-gla-gemini-3.1-pro-preview/bug-fix/workdir`
 - **Log:** `experiment/google-gla-gemini-3.1-pro-preview/bug-fix/combined.log`
-- **Tools Used:** LS, Read, Write, Bash
+- **Tools Used:** Bash, Read, Read, ReadMany, Bash, Edit, Bash, Edit, Bash
 
 **Verification Output:**
 ```
-PASS: Concurrency control found
-PASS: Final stock is non-negative: 1
-VERIFICATION_RESULT: EXCELLENT
-VERIFICATION_RESULT: EXCELLENT
+Verifying Job Queue Fix...
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 1: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 2: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 3: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 4: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 5: PASS
+PASS: All simulation runs passed
+VERIFICATION_RESULT: PASS
 ```
 
 ---
 ### google-gla:gemini-3.1-pro-preview / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 27.38s
+- **Duration:** 201.44s
 - **Workdir:** `experiment/google-gla-gemini-3.1-pro-preview/copywriting/workdir`
 - **Log:** `experiment/google-gla-gemini-3.1-pro-preview/copywriting/combined.log`
-- **Tools Used:** Write
+- **Tools Used:** ReadMany, Write
 
 **Verification Output:**
 ```
-PASS: Has headings
-PASS: Contains 'Zrb-Flow'
-PASS: Contains 'AI'
-PASS: Contains 'automation'
-PASS: Contains 'CLI'
-PASS: Contains 'Docker'
-PASS: Contains 'K8s'
-PASS: Contains 'Self-Healing'
-PASS: Contains 'pipeline'
-PASS: Has call to action
-PASS: Markdown formatting
+Verifying Migration Guide...
+PASS: Has markdown headings
+PASS: Substantial content (521 words)
+PASS: Has code examples (13 blocks)
+PASS: Auth header change (Authorization: Bearer) documented
+PASS: ID type change (UUID) documented
+PASS: Field rename (done → completed) documented
+PASS: New project_id field and /v2/ prefix documented
+PASS: Has migration checklist or upgrade command
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-3.1-pro-preview / feature
 - **Status:** EXCELLENT
-- **Duration:** 82.42s
+- **Duration:** 298.65s
 - **Workdir:** `experiment/google-gla-gemini-3.1-pro-preview/feature/workdir`
 - **Log:** `experiment/google-gla-gemini-3.1-pro-preview/feature/combined.log`
-- **Tools Used:** LS, ReadMany, WriteMany, Bash, Bash, Write, Bash
+- **Tools Used:** LS, ReadMany, WriteMany, Bash
 
 **Verification Output:**
 ```
-Verifying Modular Todo App...
-PASS: All CRUD operations verified
+Verifying Project Management API...
+PASS: GET /projects works
+PASS: Filter by status works
+PASS: Filter by assigned_to works
+PASS: Pagination works (page_size=2 returned 2 results)
+PASS: POST /tasks requires authentication (401/403)
+PASS: POST /tasks creates task with auth
+PASS: POST /tasks with invalid project_id returns 404
+PASS: PUT /tasks/{id} partial update works
+PASS: DELETE /tasks/{id} removes task
+
+Score: 9/9
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-3.1-pro-preview / integration-bug
-- **Status:** EXCELLENT
-- **Duration:** 46.28s
+- **Status:** EXECUTION_FAILED
+- **Duration:** 1859.93s
 - **Workdir:** `experiment/google-gla-gemini-3.1-pro-preview/integration-bug/workdir`
 - **Log:** `experiment/google-gla-gemini-3.1-pro-preview/integration-bug/combined.log`
-- **Tools Used:** LS, ReadMany, Bash, Edit, Edit, Bash, Bash
+- **Tools Used:** LS, ReadMany, Bash
 
 **Verification Output:**
 ```
-Verifying Integration Bug Fix...
-Initial Balances:
-Alice: 100
-Bob: 100
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-
-Final Balances:
-Alice: 0
-Bob: 200
-Total: 200
-Total Money in System: 200
-PASS: System integrity maintained
-VERIFICATION_RESULT: EXCELLENT
+Verifying Checkout Fix...
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+Order order_5: inventory error after payment — item not delivered
+Order order_6: inventory error after payment — item not delivered
+Order order_7: inventory error after payment — item not delivered
+Order order_8: inventory error after payment — item not delivered
+Order order_9: inventory error after payment — item not delivered
+Order order_10: inventory error after payment — item not delivered
+Order order_11: inventory error after payment — item not delivered
+  Trial 1: FAIL — charge mismatch (charged=1200.00, expected=500.00)
+Order order_1: payment failed
+Order order_3: payment failed
+Order order_6: payment failed
+Order order_8: payment failed
+Order order_10: payment failed
+Order order_11: payment failed
+Order order_0: SUCCESS
+Order order_2: SUCCESS
+Order order_4: SUCCESS
+Order order_5: SUCCESS
+Order order_7: SUCCESS
+Order order_9: inventory error after payment — item not delivered
+  Trial 2: FAIL — charge mismatch (charged=600.00, expected=500.00)
+Order order_0: payment failed
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+Order order_5: SUCCESS
+Order order_6: inventory error after payment — item not delivered
+Order order_7: inventory error after payment — item not delivered
+Order order_8: inventory error after payment — item not delivered
+Order order_9: inventory error after payment — item not delivered
+Order order_10: inventory error after payment — item not delivered
+Order order_11: inventory error after payment — item not delivered
+  Trial 3: FAIL — charge mismatch (charged=1100.00, expected=500.00)
+Order order_0: payment failed
+Order order_4: payment failed
+Order order_9: payment failed
+Order order_10: payment failed
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_5: SUCCESS
+Order order_6: SUCCESS
+Order order_7: inventory error after payment — item not delivered
+Order order_8: inventory error after payment — item not delivered
+Order order_11: inventory error after payment — item not delivered
+  Trial 4: FAIL — charge mismatch (charged=800.00, expected=500.00)
+Order order_0: payment failed
+Order order_1: payment failed
+Order order_3: payment failed
+Order order_4: payment failed
+Order order_7: payment failed
+Order order_10: payment failed
+Order order_11: payment failed
+Order order_2: SUCCESS
+Order order_5: SUCCESS
+Order order_6: SUCCESS
+Order order_8: SUCCESS
+Order order_9: SUCCESS
+  Trial 5: PASS (stock=0, successful=5, charged=$500.00)
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+Order order_5: inventory error after payment — item not delivered
+Order order_6: inventory error after payment — item not delivered
+Order order_7: inventory error after payment — item not delivered
+Order order_8: inventory error after payment — item not delivered
+Order order_9: inventory error after payment — item not delivered
+Order order_10: inventory error after payment — item not delivered
+Order order_11: inventory error after payment — item not delivered
+  Trial 6: FAIL — charge mismatch (charged=1200.00, expected=500.00)
+FAIL: Only 1/6 trials passed
+VERIFICATION_RESULT: FAIL
 ```
 
 ---
 ### google-gla:gemini-3.1-pro-preview / refactor
 - **Status:** EXCELLENT
-- **Duration:** 59.90s
+- **Duration:** 192.90s
 - **Workdir:** `experiment/google-gla-gemini-3.1-pro-preview/refactor/workdir`
 - **Log:** `experiment/google-gla-gemini-3.1-pro-preview/refactor/combined.log`
-- **Tools Used:** ActivateSkill, Read, Bash, Read, Write, Bash, Read
+- **Tools Used:** LS, Read, Bash, Bash, Bash, Bash
 
 **Verification Output:**
 ```
-Verifying refactored script: etl.py
-Testing if script runs...
-PASS: Separated into functions/classes
-PASS: ETL pattern (Extract/Transform/Load)
-PASS: Configuration decoupled
-PASS: Uses regex for parsing
-PASS: Has type hints & docstrings
+Verifying Pipeline Refactor...
+Checking: pipeline.py
+PASS: Environment variables used for config
+PASS: SQL queries use parameterized form (no injection)
+PASS: ETL pattern present (extract/transform/load)
+PASS: Separated into 5 functions
+PASS: Regex used for log parsing
+PASS: Type hints and docstrings present
+Running script...
 PASS: Script runs successfully
-PASS: Creates report.html
+PASS: report.html contains all required sections
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-3.1-pro-preview / research
-- **Status:** PASS
-- **Duration:** 45.52s
+- **Status:** EXCELLENT
+- **Duration:** 52.09s
 - **Workdir:** `experiment/google-gla-gemini-3.1-pro-preview/research/workdir`
 - **Log:** `experiment/google-gla-gemini-3.1-pro-preview/research/combined.log`
-- **Tools Used:** SearchInternet, SearchInternet, Write, Bash
+- **Tools Used:** Read, Write
 
 **Verification Output:**
 ```
-PASS: Markdown format
-PASS: Substantial content (200+ words)
-PASS: Covers timeline/commercial viability
-PASS: Covers key players
-PASS: Covers technical hurdles
-FAIL: References/citations
-VERIFICATION_RESULT: PASS
+Verifying Architecture Decision Record...
+PASS: Substantial content (606 words)
+PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
+PASS: Status field present
+PASS: Both Kafka and Redis Streams are evaluated
+PASS: Contains a clear recommendation
+PASS: Covers 10 technical properties (throughput, retention, consumer group, exactly-once...)
+PASS: Addresses team/constraint context
+PASS: Consequences include both pros and cons
+
+Score: 8/8
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:glm-4.7:cloud / bug-fix
 - **Status:** EXCELLENT
-- **Duration:** 32.87s
-- **Workdir:** `experiment/ollama:glm-4.7:cloud/bug-fix/workdir`
-- **Log:** `experiment/ollama:glm-4.7:cloud/bug-fix/combined.log`
-- **Tools Used:** Glob, Read, Edit, Bash
+- **Duration:** 516.56s
+- **Workdir:** `experiment/ollama-glm-4.7-cloud/bug-fix/workdir`
+- **Log:** `experiment/ollama-glm-4.7-cloud/bug-fix/combined.log`
+- **Tools Used:** LS, ReadMany, Bash, Edit, Edit, Edit, Bash
 
 **Verification Output:**
 ```
-PASS: Concurrency control found
-PASS: Final stock is non-negative: 1
-VERIFICATION_RESULT: EXCELLENT
+Verifying Job Queue Fix...
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 1: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 2: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 3: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 4: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 5: PASS
+PASS: Concurrency control (Lock) detected
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:glm-4.7:cloud / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 20.97s
-- **Workdir:** `experiment/ollama:glm-4.7:cloud/copywriting/workdir`
-- **Log:** `experiment/ollama:glm-4.7:cloud/copywriting/combined.log`
-- **Tools Used:** Write
+- **Duration:** 73.03s
+- **Workdir:** `experiment/ollama-glm-4.7-cloud/copywriting/workdir`
+- **Log:** `experiment/ollama-glm-4.7-cloud/copywriting/combined.log`
+- **Tools Used:** Read, Read, Write
 
 **Verification Output:**
 ```
-PASS: Has headings
-PASS: Contains 'Zrb-Flow'
-PASS: Contains 'AI'
-PASS: Contains 'automation'
-PASS: Contains 'CLI'
-PASS: Contains 'Docker'
-PASS: Contains 'K8s'
-PASS: Contains 'Self-Healing'
-PASS: Contains 'pipeline'
-PASS: Has call to action
-PASS: Markdown formatting
+Verifying Migration Guide...
+PASS: Has markdown headings
+PASS: Substantial content (1221 words)
+PASS: Has code examples (26 blocks)
+PASS: Auth header change (Authorization: Bearer) documented
+PASS: ID type change (UUID) documented
+PASS: Field rename (done → completed) documented
+PASS: New project_id field and /v2/ prefix documented
+PASS: Has migration checklist or upgrade command
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:glm-4.7:cloud / feature
-- **Status:** EXCELLENT
-- **Duration:** 174.23s
+- **Status:** FAIL
+- **Duration:** 111.62s
 - **Workdir:** `experiment/ollama-glm-4.7-cloud/feature/workdir`
 - **Log:** `experiment/ollama-glm-4.7-cloud/feature/combined.log`
-- **Tools Used:** ActivateSkill, Read, Read, Read, Glob, ReadMany, Edit, Edit, Edit, ReadMany, Bash, Bash
+- **Tools Used:** Read, Read, Read, Read, Edit, Edit, Edit, Edit, Read, Read
 
 **Verification Output:**
 ```
-Verifying Modular Todo App...
-PASS: All CRUD operations verified
-VERIFICATION_RESULT: EXCELLENT
+Verifying Project Management API...
+PASS: GET /projects works
+PASS: Filter by status works
+PASS: Filter by assigned_to works
+PASS: Pagination works (page_size=2 returned 2 results)
+FAIL: POST without auth returned 422 (expected 401/403)
+FAIL: POST /tasks with auth returned 422: {"detail":[{"type":"string_type","loc":["query","username"],"msg":"Input should be a valid string","input":{}}]}
+FAIL: Invalid project_id returned 422 (expected 404)
+FAIL: PUT /tasks/1 returned 422
+FAIL: DELETE /tasks/3 returned 422
+
+Score: 4/9
+FAIL: Score too low (4/9)
+VERIFICATION_RESULT: FAIL
 ```
 
 ---
 ### ollama:glm-4.7:cloud / integration-bug
 - **Status:** EXCELLENT
-- **Duration:** 75.64s
-- **Workdir:** `experiment/ollama:glm-4.7:cloud/integration-bug/workdir`
-- **Log:** `experiment/ollama:glm-4.7:cloud/integration-bug/combined.log`
-- **Tools Used:** LS, ReadMany, Edit, Edit, Edit, Bash, Read, Edit, Bash, Read, Write, Bash, Bash
+- **Duration:** 128.18s
+- **Workdir:** `experiment/ollama-glm-4.7-cloud/integration-bug/workdir`
+- **Log:** `experiment/ollama-glm-4.7-cloud/integration-bug/combined.log`
+- **Tools Used:** LS, ReadMany, Bash, Edit, Edit, Bash, Bash
 
 **Verification Output:**
 ```
-Verifying Integration Bug Fix...
-Initial Balances:
-Alice: 100
-Bob: 100
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-
-Final Balances:
-Alice: 0
-Bob: 200
-Total: 200
-Total Money in System: 200
-WARNING: No explicit locking found, might be lucky or uses different pattern
-PASS: System integrity maintained
+Verifying Checkout Fix...
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_5: out of stock
+Order order_4: SUCCESS
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+  Trial 1: PASS (stock=0, successful=5, charged=$500.00)
+Order order_0: SUCCESS
+Order order_2: SUCCESS
+Order order_5: out of stock
+Order order_4: SUCCESS
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_1: payment failed
+Order order_3: payment failed
+  Trial 2: PASS (stock=2, successful=3, charged=$300.00)
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_5: out of stock
+Order order_4: SUCCESS
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed
+  Trial 3: PASS (stock=1, successful=4, charged=$400.00)
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed
+Order order_4: payment failed
+  Trial 4: PASS (stock=2, successful=3, charged=$300.00)
+Order order_2: SUCCESS
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed
+Order order_1: payment failed
+Order order_3: payment failed
+Order order_4: payment failed
+  Trial 5: PASS (stock=4, successful=1, charged=$100.00)
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_5: out of stock
+Order order_4: SUCCESS
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+  Trial 6: PASS (stock=0, successful=5, charged=$500.00)
+PASS: Locking mechanism detected
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:glm-4.7:cloud / refactor
 - **Status:** EXCELLENT
-- **Duration:** 59.64s
-- **Workdir:** `experiment/ollama:glm-4.7:cloud/refactor/workdir`
-- **Log:** `experiment/ollama:glm-4.7:cloud/refactor/combined.log`
-- **Tools Used:** GlobGlob, LSRead, LS, Read, Write, Bash, Read, Bash, Bash, Bash
+- **Duration:** 625.76s
+- **Workdir:** `experiment/ollama-glm-4.7-cloud/refactor/workdir`
+- **Log:** `experiment/ollama-glm-4.7-cloud/refactor/combined.log`
+- **Tools Used:** Read, Write, Bash, Bash, Read, Bash, Bash, Read, Bash
 
 **Verification Output:**
 ```
-Verifying refactored script: etl.py
-Testing if script runs...
-PASS: Separated into functions/classes
-PASS: ETL pattern (Extract/Transform/Load)
-PASS: Configuration decoupled
-PASS: Uses regex for parsing
-PASS: Has type hints & docstrings
+Verifying Pipeline Refactor...
+Checking: pipeline_refactored.py
+PASS: Environment variables used for config
+PASS: SQL queries use parameterized form (no injection)
+PASS: ETL pattern present (extract/transform/load)
+PASS: Separated into 13 functions
+PASS: Regex used for log parsing
+PASS: Type hints and docstrings present
+Running script...
 PASS: Script runs successfully
-PASS: Creates report.html
+PASS: report.html contains all required sections
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:glm-4.7:cloud / research
 - **Status:** EXCELLENT
-- **Duration:** 110.14s
+- **Duration:** 66.19s
 - **Workdir:** `experiment/ollama-glm-4.7-cloud/research/workdir`
 - **Log:** `experiment/ollama-glm-4.7-cloud/research/combined.log`
-- **Tools Used:** SearchInternet, SearchInternet, SearchInternet, Write
+- **Tools Used:** Read, Write
 
 **Verification Output:**
 ```
-PASS: Markdown format
-PASS: Substantial content (200+ words)
-PASS: Covers timeline/commercial viability
-PASS: Covers key players
-PASS: Covers technical hurdles
-PASS: References/citations
+Verifying Architecture Decision Record...
+PASS: Substantial content (887 words)
+PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
+PASS: Status field present
+PASS: Both Kafka and Redis Streams are evaluated
+PASS: Contains a clear recommendation
+PASS: Covers 11 technical properties (throughput, ordering, retention, consumer group...)
+PASS: Addresses team/constraint context
+PASS: Consequences include both pros and cons
+
+Score: 8/8
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### ollama:glm-5.1:cloud / bug-fix
+- **Status:** PASS
+- **Duration:** 438.02s
+- **Workdir:** `experiment/ollama-glm-5.1-cloud/bug-fix/workdir`
+- **Log:** `experiment/ollama-glm-5.1-cloud/bug-fix/combined.log`
+- **Tools Used:** ReadMany, Edit, Edit, Bash
+
+**Verification Output:**
+```
+Verifying Job Queue Fix...
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 1: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 2: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 3: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 4: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 5: PASS
+PASS: All simulation runs passed
+VERIFICATION_RESULT: PASS
+```
+
+---
+### ollama:glm-5.1:cloud / copywriting
+- **Status:** EXCELLENT
+- **Duration:** 224.30s
+- **Workdir:** `experiment/ollama-glm-5.1-cloud/copywriting/workdir`
+- **Log:** `experiment/ollama-glm-5.1-cloud/copywriting/combined.log`
+- **Tools Used:** Read, Read, Write
+
+**Verification Output:**
+```
+Verifying Migration Guide...
+PASS: Has markdown headings
+PASS: Substantial content (692 words)
+PASS: Has code examples (20 blocks)
+PASS: Auth header change (Authorization: Bearer) documented
+PASS: ID type change (UUID) documented
+PASS: Field rename (done → completed) documented
+PASS: New project_id field and /v2/ prefix documented
+PASS: Has migration checklist or upgrade command
+
+Score: 8/8
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### ollama:glm-5.1:cloud / feature
+- **Status:** EXCELLENT
+- **Duration:** 519.06s
+- **Workdir:** `experiment/ollama-glm-5.1-cloud/feature/workdir`
+- **Log:** `experiment/ollama-glm-5.1-cloud/feature/combined.log`
+- **Tools Used:** Glob, ReadMany, ReadMany, Read, WriteMany
+
+**Verification Output:**
+```
+Verifying Project Management API...
+PASS: GET /projects works
+PASS: Filter by status works
+PASS: Filter by assigned_to works
+PASS: Pagination works (page_size=2 returned 2 results)
+PASS: POST /tasks requires authentication (401/403)
+PASS: POST /tasks creates task with auth
+PASS: POST /tasks with invalid project_id returns 404
+PASS: PUT /tasks/{id} partial update works
+PASS: DELETE /tasks/{id} removes task
+
+Score: 9/9
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### ollama:glm-5.1:cloud / integration-bug
+- **Status:** EXCELLENT
+- **Duration:** 747.65s
+- **Workdir:** `experiment/ollama-glm-5.1-cloud/integration-bug/workdir`
+- **Log:** `experiment/ollama-glm-5.1-cloud/integration-bug/combined.log`
+- **Tools Used:** ReadMany, ReadMany, WriteTodos, WriteTodos, Bash, UpdateTodo, UpdateTodo, WriteMany, UpdateTodo, UpdateTodo, UpdateTodo
+
+**Verification Output:**
+```
+Verifying Checkout Fix...
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+  Trial 1: PASS (stock=0, successful=5, charged=$500.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: SUCCESS
+Order order_1: payment failed
+Order order_2: SUCCESS
+Order order_3: payment failed
+Order order_4: SUCCESS
+  Trial 2: PASS (stock=2, successful=3, charged=$300.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+  Trial 3: PASS (stock=1, successful=4, charged=$400.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: payment failed
+  Trial 4: PASS (stock=2, successful=3, charged=$300.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed
+Order order_1: payment failed
+Order order_2: SUCCESS
+Order order_3: payment failed
+Order order_4: payment failed
+  Trial 5: PASS (stock=4, successful=1, charged=$100.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+  Trial 6: PASS (stock=0, successful=5, charged=$500.00)
+PASS: Locking mechanism detected
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### ollama:glm-5.1:cloud / refactor
+- **Status:** EXCELLENT
+- **Duration:** 638.52s
+- **Workdir:** `experiment/ollama-glm-5.1-cloud/refactor/workdir`
+- **Log:** `experiment/ollama-glm-5.1-cloud/refactor/combined.log`
+- **Tools Used:** Read, Glob, Glob, Write, Bash, Bash, Bash, Bash, Bash, Bash, Bash
+
+**Verification Output:**
+```
+Verifying Pipeline Refactor...
+Checking: pipeline_refactored.py
+PASS: Environment variables used for config
+PASS: SQL queries use parameterized form (no injection)
+PASS: ETL pattern present (extract/transform/load)
+PASS: Separated into 7 functions
+PASS: Regex used for log parsing
+PASS: Type hints and docstrings present
+Running script...
+PASS: Script runs successfully
+PASS: report.html contains all required sections
+
+Score: 8/8
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### ollama:glm-5.1:cloud / research
+- **Status:** EXCELLENT
+- **Duration:** 277.47s
+- **Workdir:** `experiment/ollama-glm-5.1-cloud/research/workdir`
+- **Log:** `experiment/ollama-glm-5.1-cloud/research/combined.log`
+- **Tools Used:** Read, Write
+
+**Verification Output:**
+```
+Verifying Architecture Decision Record...
+PASS: Substantial content (1252 words)
+PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
+PASS: Status field present
+PASS: Both Kafka and Redis Streams are evaluated
+PASS: Contains a clear recommendation
+PASS: Covers 10 technical properties (throughput, ordering, retention, consumer group...)
+PASS: Addresses team/constraint context
+PASS: Consequences include both pros and cons
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:glm-5:cloud / bug-fix
-- **Status:** EXCELLENT
-- **Duration:** 119.18s
+- **Status:** PASS
+- **Duration:** 289.27s
 - **Workdir:** `experiment/ollama-glm-5-cloud/bug-fix/workdir`
 - **Log:** `experiment/ollama-glm-5-cloud/bug-fix/combined.log`
-- **Tools Used:** ActivateSkill, Read, Bash, Edit, Bash
+- **Tools Used:** Read, Read, Read, Bash, Edit, Edit, Bash
 
 **Verification Output:**
 ```
-PASS: Concurrency control found
-PASS: Final stock is non-negative: 1
-VERIFICATION_RESULT: EXCELLENT
-VERIFICATION_RESULT: EXCELLENT
+Verifying Job Queue Fix...
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 1: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 2: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 3: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 4: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 5: PASS
+PASS: All simulation runs passed
+VERIFICATION_RESULT: PASS
 ```
 
 ---
 ### ollama:glm-5:cloud / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 83.68s
+- **Duration:** 92.71s
 - **Workdir:** `experiment/ollama-glm-5-cloud/copywriting/workdir`
 - **Log:** `experiment/ollama-glm-5-cloud/copywriting/combined.log`
-- **Tools Used:** Write
+- **Tools Used:** ReadMany, Write
 
 **Verification Output:**
 ```
-PASS: Has headings
-PASS: Contains 'Zrb-Flow'
-PASS: Contains 'AI'
-PASS: Contains 'automation'
-PASS: Contains 'CLI'
-PASS: Contains 'Docker'
-PASS: Contains 'K8s'
-PASS: Contains 'Self-Healing'
-PASS: Contains 'pipeline'
-PASS: Has call to action
-PASS: Markdown formatting
+Verifying Migration Guide...
+PASS: Has markdown headings
+PASS: Substantial content (655 words)
+PASS: Has code examples (15 blocks)
+PASS: Auth header change (Authorization: Bearer) documented
+PASS: ID type change (UUID) documented
+PASS: Field rename (done → completed) documented
+PASS: New project_id field and /v2/ prefix documented
+PASS: Has migration checklist or upgrade command
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:glm-5:cloud / feature
 - **Status:** EXCELLENT
-- **Duration:** 148.16s
+- **Duration:** 349.82s
 - **Workdir:** `experiment/ollama-glm-5-cloud/feature/workdir`
 - **Log:** `experiment/ollama-glm-5-cloud/feature/combined.log`
-- **Tools Used:** ReadMany, Read, WriteMany, Glob, Bash, Bash, Bash
+- **Tools Used:** Read, Read, Read, Read, WriteMany, Bash, Glob
 
 **Verification Output:**
 ```
-Verifying Modular Todo App...
-PASS: All CRUD operations verified
+Verifying Project Management API...
+PASS: GET /projects works
+PASS: Filter by status works
+PASS: Filter by assigned_to works
+PASS: Pagination works (page_size=2 returned 2 results)
+PASS: POST /tasks requires authentication (401/403)
+PASS: POST /tasks creates task with auth
+PASS: POST /tasks with invalid project_id returns 404
+PASS: PUT /tasks/{id} partial update works
+PASS: DELETE /tasks/{id} removes task
+
+Score: 9/9
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:glm-5:cloud / integration-bug
-- **Status:** EXCELLENT
-- **Duration:** 207.79s
+- **Status:** PASS
+- **Duration:** 644.36s
 - **Workdir:** `experiment/ollama-glm-5-cloud/integration-bug/workdir`
 - **Log:** `experiment/ollama-glm-5-cloud/integration-bug/combined.log`
-- **Tools Used:** ActivateSkill, LS, ReadMany, Edit, Bash, Read, Edit, Bash, Read, Edit, Edit, Bash
+- **Tools Used:** LS, ReadMany, Bash, WriteMany, Bash, Bash, Write, Bash, Bash
 
 **Verification Output:**
 ```
-Verifying Integration Bug Fix...
-Initial Balances:
-Alice: 100
-Bob: 100
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-
-Final Balances:
-Alice: 0
-Bob: 200
-Total: 200
-Total Money in System: 200
-WARNING: No explicit locking found, might be lucky or uses different pattern
-PASS: System integrity maintained
-VERIFICATION_RESULT: EXCELLENT
+Verifying Checkout Fix...
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+  Trial 1: PASS (stock=0, successful=5, charged=$500.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: SUCCESS
+Order order_2: SUCCESS
+Order order_4: SUCCESS
+Order order_1: payment failed
+Order order_3: payment failed
+  Trial 2: PASS (stock=2, successful=3, charged=$300.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+Order order_0: payment failed
+  Trial 3: PASS (stock=1, successful=4, charged=$400.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_0: payment failed
+Order order_4: payment failed
+  Trial 4: PASS (stock=2, successful=3, charged=$300.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_2: SUCCESS
+Order order_0: payment failed
+Order order_1: payment failed
+Order order_3: payment failed
+Order order_4: payment failed
+  Trial 5: PASS (stock=4, successful=1, charged=$100.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+  Trial 6: PASS (stock=0, successful=5, charged=$500.00)
+PASS: All trials passed
+VERIFICATION_RESULT: PASS
 ```
 
 ---
 ### ollama:glm-5:cloud / refactor
 - **Status:** EXCELLENT
-- **Duration:** 227.94s
+- **Duration:** 293.22s
 - **Workdir:** `experiment/ollama-glm-5-cloud/refactor/workdir`
 - **Log:** `experiment/ollama-glm-5-cloud/refactor/combined.log`
-- **Tools Used:** ActivateSkill, Glob, Read, WriteTodos, Write, UpdateTodo, Bash, Read, UpdateTodo, Bash, Bash, Bash, Bash, Bash, Bash, UpdateTodo, UpdateTodo
+- **Tools Used:** Read, LS, Write, Bash, Bash, Bash
 
 **Verification Output:**
 ```
-Verifying refactored script: etl.py
-Testing if script runs...
-PASS: Separated into functions/classes
-PASS: ETL pattern (Extract/Transform/Load)
-PASS: Configuration decoupled
-PASS: Uses regex for parsing
-PASS: Has type hints & docstrings
+Verifying Pipeline Refactor...
+Checking: pipeline_refactored.py
+PASS: Environment variables used for config
+PASS: SQL queries use parameterized form (no injection)
+PASS: ETL pattern present (extract/transform/load)
+PASS: Separated into 7 functions
+PASS: Regex used for log parsing
+PASS: Type hints and docstrings present
+Running script...
 PASS: Script runs successfully
-PASS: Creates report.html
+PASS: report.html contains all required sections
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:glm-5:cloud / research
 - **Status:** EXCELLENT
-- **Duration:** 95.84s
+- **Duration:** 155.36s
 - **Workdir:** `experiment/ollama-glm-5-cloud/research/workdir`
 - **Log:** `experiment/ollama-glm-5-cloud/research/combined.log`
-- **Tools Used:** SearchInternet, SearchInternet, SearchInternet, Write
+- **Tools Used:** Read, Write
 
 **Verification Output:**
 ```
-PASS: Markdown format
-PASS: Substantial content (200+ words)
-PASS: Covers timeline/commercial viability
-PASS: Covers key players
-PASS: Covers technical hurdles
-PASS: References/citations
+Verifying Architecture Decision Record...
+PASS: Substantial content (822 words)
+PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
+PASS: Status field present
+PASS: Both Kafka and Redis Streams are evaluated
+PASS: Contains a clear recommendation
+PASS: Covers 10 technical properties (throughput, ordering, retention, consumer group...)
+PASS: Addresses team/constraint context
+PASS: Consequences include both pros and cons
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:kimi-k2.5:cloud / bug-fix
-- **Status:** EXCELLENT
-- **Duration:** 30.79s
-- **Workdir:** `experiment/ollama:kimi-k2.5:cloud/bug-fix/workdir`
-- **Log:** `experiment/ollama:kimi-k2.5:cloud/bug-fix/combined.log`
-- **Tools Used:** GlobRead, Read, Edit, Bash
+- **Status:** FAIL
+- **Duration:** 222.94s
+- **Workdir:** `experiment/ollama-kimi-k2.5-cloud/bug-fix/workdir`
+- **Log:** `experiment/ollama-kimi-k2.5-cloud/bug-fix/combined.log`
+- **Tools Used:** WriteTodos, ReadMany, UpdateTodo, UpdateTodo, UpdateTodo, UpdateTodo
 
 **Verification Output:**
 ```
-PASS: Concurrency control found
-PASS: Final stock is non-negative: 1
-VERIFICATION_RESULT: EXCELLENT
-VERIFICATION_RESULT: EXCELLENT
+Verifying Job Queue Fix...
+[Worker 0] picked up job 1
+[Worker 1] picked up job 1
+[Worker 2] picked up job 1
+[Worker 3] picked up job 1
+[Worker 4] picked up job 1
+[Worker 0] finished job 1
+[Worker 1] finished job 1
+[Worker 2] finished job 1
+[Worker 3] finished job 1
+[Worker 4] finished job 1
+[Worker 0] picked up job 2
+[Worker 1] picked up job 2
+[Worker 2] picked up job 2
+[Worker 3] picked up job 2
+[Worker 4] picked up job 2
+[Worker 0] finished job 2
+[Worker 1] finished job 2
+[Worker 2] finished job 2
+[Worker 3] finished job 2
+[Worker 4] finished job 2
+[Worker 0] picked up job 3
+[Worker 1] picked up job 3
+[Worker 2] picked up job 3
+[Worker 3] picked up job 3
+[Worker 4] picked up job 3
+[Worker 0] finished job 3
+[Worker 1] finished job 3
+[Worker 2] finished job 3
+[Worker 3] finished job 3
+[Worker 4] finished job 3
+[Worker 0] picked up job 4
+[Worker 1] picked up job 4
+[Worker 2] picked up job 4
+[Worker 3] picked up job 4
+[Worker 4] picked up job 4
+[Worker 0] finished job 4
+[Worker 1] finished job 4
+[Worker 2] finished job 4
+[Worker 3] finished job 4
+[Worker 4] finished job 4
+[Worker 0] picked up job 5
+[Worker 1] picked up job 5
+[Worker 2] picked up job 5
+[Worker 3] picked up job 5
+[Worker 4] picked up job 5
+[Worker 0] finished job 5
+[Worker 1] finished job 5
+[Worker 2] finished job 5
+[Worker 3] finished job 5
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 6
+[Worker 2] picked up job 6
+[Worker 3] picked up job 6
+[Worker 4] picked up job 6
+[Worker 0] finished job 6
+[Worker 1] finished job 6
+[Worker 2] finished job 6
+[Worker 3] finished job 6
+[Worker 4] finished job 6
+[Worker 0] picked up job 7
+[Worker 1] picked up job 7
+[Worker 2] picked up job 7
+[Worker 3] picked up job 7
+[Worker 4] picked up job 7
+[Worker 0] finished job 7
+[Worker 1] finished job 7
+[Worker 2] finished job 7
+[Worker 3] finished job 7
+[Worker 4] finished job 7
+[Worker 0] picked up job 8
+[Worker 1] picked up job 8
+[Worker 2] picked up job 8
+[Worker 3] picked up job 8
+[Worker 4] picked up job 8
+[Worker 0] finished job 8
+[Worker 1] finished job 8
+[Worker 2] finished job 8
+[Worker 3] finished job 8
+[Worker 4] finished job 8
+[Worker 0] picked up job 9
+[Worker 1] picked up job 9
+[Worker 2] picked up job 9
+[Worker 3] picked up job 9
+[Worker 4] picked up job 9
+[Worker 0] finished job 9
+[Worker 1] finished job 9
+[Worker 2] finished job 9
+[Worker 3] finished job 9
+[Worker 4] finished job 9
+[Worker 0] picked up job 10
+[Worker 1] picked up job 10
+[Worker 2] picked up job 10
+[Worker 3] picked up job 10
+[Worker 4] picked up job 10
+[Worker 0] finished job 10
+[Worker 1] finished job 10
+[Worker 2] finished job 10
+[Worker 3] finished job 10
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 11
+[Worker 2] picked up job 11
+[Worker 3] picked up job 11
+[Worker 4] picked up job 11
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 11 failed: processing error for job 11
+[Worker 2] job 11 failed: processing error for job 11
+[Worker 3] job 11 failed: processing error for job 11
+[Worker 4] job 11 failed: processing error for job 11
+[Worker 0] picked up job 12
+[Worker 1] picked up job 12
+[Worker 2] picked up job 12
+[Worker 3] picked up job 12
+[Worker 4] picked up job 12
+[Worker 0] job 12 failed: processing error for job 12
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 2] job 12 failed: processing error for job 12
+[Worker 3] job 12 failed: processing error for job 12
+[Worker 4] job 12 failed: processing error for job 12
+  Run 1: FAIL (done=10, failed=0, stuck=2)
+[Worker 0] picked up job 1
+[Worker 1] picked up job 1
+[Worker 2] picked up job 1
+[Worker 3] picked up job 1
+[Worker 4] picked up job 1
+[Worker 0] finished job 1
+[Worker 1] finished job 1
+[Worker 2] finished job 1
+[Worker 3] finished job 1
+[Worker 4] finished job 1
+[Worker 0] picked up job 2
+[Worker 1] picked up job 2
+[Worker 2] picked up job 2
+[Worker 3] picked up job 2
+[Worker 4] picked up job 2
+[Worker 0] finished job 2
+[Worker 1] finished job 2
+[Worker 2] finished job 2
+[Worker 3] finished job 2
+[Worker 4] finished job 2
+[Worker 0] picked up job 3
+[Worker 1] picked up job 3
+[Worker 2] picked up job 3
+[Worker 3] picked up job 3
+[Worker 4] picked up job 3
+[Worker 0] finished job 3
+[Worker 1] finished job 3
+[Worker 2] finished job 3
+[Worker 3] finished job 3
+[Worker 4] finished job 3
+[Worker 0] picked up job 4
+[Worker 1] picked up job 4
+[Worker 2] picked up job 4
+[Worker 3] picked up job 4
+[Worker 4] picked up job 4
+[Worker 0] finished job 4
+[Worker 1] finished job 4
+[Worker 2] finished job 4
+[Worker 3] finished job 4
+[Worker 4] finished job 4
+[Worker 0] picked up job 5
+[Worker 1] picked up job 5
+[Worker 2] picked up job 5
+[Worker 3] picked up job 5
+[Worker 4] picked up job 5
+[Worker 0] finished job 5
+[Worker 1] finished job 5
+[Worker 2] finished job 5
+[Worker 3] finished job 5
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 6
+[Worker 2] picked up job 6
+[Worker 3] picked up job 6
+[Worker 4] picked up job 6
+[Worker 0] finished job 6
+[Worker 1] finished job 6
+[Worker 2] finished job 6
+[Worker 3] finished job 6
+[Worker 4] finished job 6
+[Worker 0] picked up job 7
+[Worker 1] picked up job 7
+[Worker 2] picked up job 7
+[Worker 3] picked up job 7
+[Worker 4] picked up job 7
+[Worker 0] finished job 7
+[Worker 1] finished job 7
+[Worker 2] finished job 7
+[Worker 3] finished job 7
+[Worker 4] finished job 7
+[Worker 0] picked up job 8
+[Worker 1] picked up job 8
+[Worker 2] picked up job 8
+[Worker 3] picked up job 8
+[Worker 4] picked up job 8
+[Worker 0] finished job 8
+[Worker 1] finished job 8
+[Worker 2] finished job 8
+[Worker 3] finished job 8
+[Worker 4] finished job 8
+[Worker 0] picked up job 9
+[Worker 1] picked up job 9
+[Worker 2] picked up job 9
+[Worker 3] picked up job 9
+[Worker 4] picked up job 9
+[Worker 0] finished job 9
+[Worker 1] finished job 9
+[Worker 2] finished job 9
+[Worker 3] finished job 9
+[Worker 4] finished job 9
+[Worker 0] picked up job 10
+[Worker 1] picked up job 10
+[Worker 2] picked up job 10
+[Worker 3] picked up job 10
+[Worker 4] picked up job 10
+[Worker 0] finished job 10
+[Worker 1] finished job 10
+[Worker 2] finished job 10
+[Worker 3] finished job 10
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 11
+[Worker 2] picked up job 11
+[Worker 3] picked up job 11
+[Worker 4] picked up job 11
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 11 failed: processing error for job 11
+[Worker 2] job 11 failed: processing error for job 11
+[Worker 3] job 11 failed: processing error for job 11
+[Worker 4] job 11 failed: processing error for job 11
+[Worker 0] picked up job 12
+[Worker 1] picked up job 12
+[Worker 2] picked up job 12
+[Worker 3] picked up job 12
+[Worker 4] picked up job 12
+[Worker 0] job 12 failed: processing error for job 12
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 2] job 12 failed: processing error for job 12
+[Worker 3] job 12 failed: processing error for job 12
+[Worker 4] job 12 failed: processing error for job 12
+  Run 2: FAIL (done=10, failed=0, stuck=2)
+[Worker 0] picked up job 1
+[Worker 1] picked up job 1
+[Worker 2] picked up job 1
+[Worker 3] picked up job 1
+[Worker 4] picked up job 1
+[Worker 0] finished job 1
+[Worker 1] finished job 1
+[Worker 2] finished job 1
+[Worker 3] finished job 1
+[Worker 4] finished job 1
+[Worker 0] picked up job 2
+[Worker 1] picked up job 2
+[Worker 2] picked up job 2
+[Worker 3] picked up job 2
+[Worker 4] picked up job 2
+[Worker 0] finished job 2
+[Worker 1] finished job 2
+[Worker 2] finished job 2
+[Worker 3] finished job 2
+[Worker 4] finished job 2
+[Worker 0] picked up job 3
+[Worker 1] picked up job 3
+[Worker 2] picked up job 3
+[Worker 3] picked up job 3
+[Worker 4] picked up job 3
+[Worker 0] finished job 3
+[Worker 1] finished job 3
+[Worker 2] finished job 3
+[Worker 3] finished job 3
+[Worker 4] finished job 3
+[Worker 0] picked up job 4
+[Worker 1] picked up job 4
+[Worker 2] picked up job 4
+[Worker 3] picked up job 4
+[Worker 4] picked up job 4
+[Worker 0] finished job 4
+[Worker 1] finished job 4
+[Worker 2] finished job 4
+[Worker 3] finished job 4
+[Worker 4] finished job 4
+[Worker 0] picked up job 5
+[Worker 1] picked up job 5
+[Worker 2] picked up job 5
+[Worker 3] picked up job 5
+[Worker 4] picked up job 5
+[Worker 0] finished job 5
+[Worker 1] finished job 5
+[Worker 2] finished job 5
+[Worker 3] finished job 5
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 6
+[Worker 2] picked up job 6
+[Worker 3] picked up job 6
+[Worker 4] picked up job 6
+[Worker 0] finished job 6
+[Worker 1] finished job 6
+[Worker 2] finished job 6
+[Worker 3] finished job 6
+[Worker 4] finished job 6
+[Worker 0] picked up job 7
+[Worker 1] picked up job 7
+[Worker 2] picked up job 7
+[Worker 3] picked up job 7
+[Worker 4] picked up job 7
+[Worker 0] finished job 7
+[Worker 1] finished job 7
+[Worker 2] finished job 7
+[Worker 3] finished job 7
+[Worker 4] finished job 7
+[Worker 0] picked up job 8
+[Worker 1] picked up job 8
+[Worker 2] picked up job 8
+[Worker 3] picked up job 8
+[Worker 4] picked up job 8
+[Worker 0] finished job 8
+[Worker 1] finished job 8
+[Worker 2] finished job 8
+[Worker 3] finished job 8
+[Worker 4] finished job 8
+[Worker 0] picked up job 9
+[Worker 1] picked up job 9
+[Worker 2] picked up job 9
+[Worker 3] picked up job 9
+[Worker 4] picked up job 9
+[Worker 0] finished job 9
+[Worker 1] finished job 9
+[Worker 2] finished job 9
+[Worker 3] finished job 9
+[Worker 4] finished job 9
+[Worker 0] picked up job 10
+[Worker 1] picked up job 10
+[Worker 2] picked up job 10
+[Worker 3] picked up job 10
+[Worker 4] picked up job 10
+[Worker 0] finished job 10
+[Worker 1] finished job 10
+[Worker 2] finished job 10
+[Worker 3] finished job 10
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 11
+[Worker 2] picked up job 11
+[Worker 3] picked up job 11
+[Worker 4] picked up job 11
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 11 failed: processing error for job 11
+[Worker 2] job 11 failed: processing error for job 11
+[Worker 3] job 11 failed: processing error for job 11
+[Worker 4] job 11 failed: processing error for job 11
+[Worker 0] picked up job 12
+[Worker 1] picked up job 12
+[Worker 2] picked up job 12
+[Worker 3] picked up job 12
+[Worker 4] picked up job 12
+[Worker 0] job 12 failed: processing error for job 12
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 2] job 12 failed: processing error for job 12
+[Worker 3] job 12 failed: processing error for job 12
+[Worker 4] job 12 failed: processing error for job 12
+  Run 3: FAIL (done=10, failed=0, stuck=2)
+[Worker 0] picked up job 1
+[Worker 1] picked up job 1
+[Worker 2] picked up job 1
+[Worker 3] picked up job 1
+[Worker 4] picked up job 1
+[Worker 0] finished job 1
+[Worker 1] finished job 1
+[Worker 2] finished job 1
+[Worker 3] finished job 1
+[Worker 4] finished job 1
+[Worker 0] picked up job 2
+[Worker 1] picked up job 2
+[Worker 2] picked up job 2
+[Worker 3] picked up job 2
+[Worker 4] picked up job 2
+[Worker 0] finished job 2
+[Worker 1] finished job 2
+[Worker 2] finished job 2
+[Worker 3] finished job 2
+[Worker 4] finished job 2
+[Worker 0] picked up job 3
+[Worker 1] picked up job 3
+[Worker 2] picked up job 3
+[Worker 3] picked up job 3
+[Worker 4] picked up job 3
+[Worker 0] finished job 3
+[Worker 1] finished job 3
+[Worker 2] finished job 3
+[Worker 3] finished job 3
+[Worker 4] finished job 3
+[Worker 0] picked up job 4
+[Worker 1] picked up job 4
+[Worker 2] picked up job 4
+[Worker 3] picked up job 4
+[Worker 4] picked up job 4
+[Worker 0] finished job 4
+[Worker 1] finished job 4
+[Worker 2] finished job 4
+[Worker 3] finished job 4
+[Worker 4] finished job 4
+[Worker 0] picked up job 5
+[Worker 1] picked up job 5
+[Worker 2] picked up job 5
+[Worker 3] picked up job 5
+[Worker 4] picked up job 5
+[Worker 0] finished job 5
+[Worker 1] finished job 5
+[Worker 2] finished job 5
+[Worker 3] finished job 5
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 6
+[Worker 2] picked up job 6
+[Worker 3] picked up job 6
+[Worker 4] picked up job 6
+[Worker 0] finished job 6
+[Worker 1] finished job 6
+[Worker 2] finished job 6
+[Worker 3] finished job 6
+[Worker 4] finished job 6
+[Worker 0] picked up job 7
+[Worker 1] picked up job 7
+[Worker 2] picked up job 7
+[Worker 3] picked up job 7
+[Worker 4] picked up job 7
+[Worker 0] finished job 7
+[Worker 1] finished job 7
+[Worker 2] finished job 7
+[Worker 3] finished job 7
+[Worker 4] finished job 7
+[Worker 0] picked up job 8
+[Worker 1] picked up job 8
+[Worker 2] picked up job 8
+[Worker 3] picked up job 8
+[Worker 4] picked up job 8
+[Worker 0] finished job 8
+[Worker 1] finished job 8
+[Worker 2] finished job 8
+[Worker 3] finished job 8
+[Worker 4] finished job 8
+[Worker 0] picked up job 9
+[Worker 1] picked up job 9
+[Worker 2] picked up job 9
+[Worker 3] picked up job 9
+[Worker 4] picked up job 9
+[Worker 0] finished job 9
+[Worker 1] finished job 9
+[Worker 2] finished job 9
+[Worker 3] finished job 9
+[Worker 4] finished job 9
+[Worker 0] picked up job 10
+[Worker 1] picked up job 10
+[Worker 2] picked up job 10
+[Worker 3] picked up job 10
+[Worker 4] picked up job 10
+[Worker 0] finished job 10
+[Worker 1] finished job 10
+[Worker 2] finished job 10
+[Worker 3] finished job 10
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 11
+[Worker 2] picked up job 11
+[Worker 3] picked up job 11
+[Worker 4] picked up job 11
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 11 failed: processing error for job 11
+[Worker 2] job 11 failed: processing error for job 11
+[Worker 3] job 11 failed: processing error for job 11
+[Worker 4] job 11 failed: processing error for job 11
+[Worker 0] picked up job 12
+[Worker 1] picked up job 12
+[Worker 2] picked up job 12
+[Worker 3] picked up job 12
+[Worker 4] picked up job 12
+[Worker 0] job 12 failed: processing error for job 12
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 2] job 12 failed: processing error for job 12
+[Worker 3] job 12 failed: processing error for job 12
+[Worker 4] job 12 failed: processing error for job 12
+  Run 4: FAIL (done=10, failed=0, stuck=2)
+[Worker 0] picked up job 1
+[Worker 1] picked up job 1
+[Worker 2] picked up job 1
+[Worker 3] picked up job 1
+[Worker 4] picked up job 1
+[Worker 0] finished job 1
+[Worker 1] finished job 1
+[Worker 2] finished job 1
+[Worker 3] finished job 1
+[Worker 4] finished job 1
+[Worker 0] picked up job 2
+[Worker 1] picked up job 2
+[Worker 2] picked up job 2
+[Worker 3] picked up job 2
+[Worker 4] picked up job 2
+[Worker 0] finished job 2
+[Worker 1] finished job 2
+[Worker 2] finished job 2
+[Worker 3] finished job 2
+[Worker 4] finished job 2
+[Worker 0] picked up job 3
+[Worker 1] picked up job 3
+[Worker 2] picked up job 3
+[Worker 3] picked up job 3
+[Worker 4] picked up job 3
+[Worker 0] finished job 3
+[Worker 1] finished job 3
+[Worker 2] finished job 3
+[Worker 3] finished job 3
+[Worker 4] finished job 3
+[Worker 0] picked up job 4
+[Worker 1] picked up job 4
+[Worker 2] picked up job 4
+[Worker 3] picked up job 4
+[Worker 4] picked up job 4
+[Worker 0] finished job 4
+[Worker 1] finished job 4
+[Worker 2] finished job 4
+[Worker 3] finished job 4
+[Worker 4] finished job 4
+[Worker 0] picked up job 5
+[Worker 1] picked up job 5
+[Worker 2] picked up job 5
+[Worker 3] picked up job 5
+[Worker 4] picked up job 5
+[Worker 0] finished job 5
+[Worker 1] finished job 5
+[Worker 2] finished job 5
+[Worker 3] finished job 5
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 6
+[Worker 2] picked up job 6
+[Worker 3] picked up job 6
+[Worker 4] picked up job 6
+[Worker 0] finished job 6
+[Worker 1] finished job 6
+[Worker 2] finished job 6
+[Worker 3] finished job 6
+[Worker 4] finished job 6
+[Worker 0] picked up job 7
+[Worker 1] picked up job 7
+[Worker 2] picked up job 7
+[Worker 3] picked up job 7
+[Worker 4] picked up job 7
+[Worker 0] finished job 7
+[Worker 1] finished job 7
+[Worker 2] finished job 7
+[Worker 3] finished job 7
+[Worker 4] finished job 7
+[Worker 0] picked up job 8
+[Worker 1] picked up job 8
+[Worker 2] picked up job 8
+[Worker 3] picked up job 8
+[Worker 4] picked up job 8
+[Worker 0] finished job 8
+[Worker 1] finished job 8
+[Worker 2] finished job 8
+[Worker 3] finished job 8
+[Worker 4] finished job 8
+[Worker 0] picked up job 9
+[Worker 1] picked up job 9
+[Worker 2] picked up job 9
+[Worker 3] picked up job 9
+[Worker 4] picked up job 9
+[Worker 0] finished job 9
+[Worker 1] finished job 9
+[Worker 2] finished job 9
+[Worker 3] finished job 9
+[Worker 4] finished job 9
+[Worker 0] picked up job 10
+[Worker 1] picked up job 10
+[Worker 2] picked up job 10
+[Worker 3] picked up job 10
+[Worker 4] picked up job 10
+[Worker 0] finished job 10
+[Worker 1] finished job 10
+[Worker 2] finished job 10
+[Worker 3] finished job 10
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 11
+[Worker 2] picked up job 11
+[Worker 3] picked up job 11
+[Worker 4] picked up job 11
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 11 failed: processing error for job 11
+[Worker 2] job 11 failed: processing error for job 11
+[Worker 3] job 11 failed: processing error for job 11
+[Worker 4] job 11 failed: processing error for job 11
+[Worker 0] picked up job 12
+[Worker 1] picked up job 12
+[Worker 2] picked up job 12
+[Worker 3] picked up job 12
+[Worker 4] picked up job 12
+[Worker 0] job 12 failed: processing error for job 12
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 2] job 12 failed: processing error for job 12
+[Worker 3] job 12 failed: processing error for job 12
+[Worker 4] job 12 failed: processing error for job 12
+  Run 5: FAIL (done=10, failed=0, stuck=2)
+FAIL: Only 0/5 simulation runs passed
+VERIFICATION_RESULT: FAIL
 ```
 
 ---
 ### ollama:kimi-k2.5:cloud / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 21.54s
-- **Workdir:** `experiment/ollama:kimi-k2.5:cloud/copywriting/workdir`
-- **Log:** `experiment/ollama:kimi-k2.5:cloud/copywriting/combined.log`
-- **Tools Used:** Write
+- **Duration:** 179.32s
+- **Workdir:** `experiment/ollama-kimi-k2.5-cloud/copywriting/workdir`
+- **Log:** `experiment/ollama-kimi-k2.5-cloud/copywriting/combined.log`
+- **Tools Used:** ReadMany, Write, Read
 
 **Verification Output:**
 ```
-PASS: Has headings
-PASS: Contains 'Zrb-Flow'
-PASS: Contains 'AI'
-PASS: Contains 'automation'
-PASS: Contains 'CLI'
-PASS: Contains 'Docker'
-PASS: Contains 'K8s'
-PASS: Contains 'Self-Healing'
-PASS: Contains 'pipeline'
-PASS: Has call to action
-PASS: Markdown formatting
+Verifying Migration Guide...
+PASS: Has markdown headings
+PASS: Substantial content (831 words)
+PASS: Has code examples (24 blocks)
+PASS: Auth header change (Authorization: Bearer) documented
+PASS: ID type change (UUID) documented
+PASS: Field rename (done → completed) documented
+PASS: New project_id field and /v2/ prefix documented
+PASS: Has migration checklist or upgrade command
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:kimi-k2.5:cloud / feature
 - **Status:** EXCELLENT
-- **Duration:** 51.95s
-- **Workdir:** `experiment/ollama:kimi-k2.5:cloud/feature/workdir`
-- **Log:** `experiment/ollama:kimi-k2.5:cloud/feature/combined.log`
-- **Tools Used:** ReadRead, Glob, ReadMany, Edit, Edit, Edit, Bash
+- **Duration:** 125.08s
+- **Workdir:** `experiment/ollama-kimi-k2.5-cloud/feature/workdir`
+- **Log:** `experiment/ollama-kimi-k2.5-cloud/feature/combined.log`
+- **Tools Used:** ReadMany, Write, Write, Bash
 
 **Verification Output:**
 ```
-Verifying Modular Todo App...
-PASS: All CRUD operations verified
+Verifying Project Management API...
+PASS: GET /projects works
+PASS: Filter by status works
+PASS: Filter by assigned_to works
+PASS: Pagination works (page_size=2 returned 2 results)
+PASS: POST /tasks requires authentication (401/403)
+PASS: POST /tasks creates task with auth
+PASS: POST /tasks with invalid project_id returns 404
+PASS: PUT /tasks/{id} partial update works
+PASS: DELETE /tasks/{id} removes task
+
+Score: 9/9
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:kimi-k2.5:cloud / integration-bug
-- **Status:** EXCELLENT
-- **Duration:** 57.46s
-- **Workdir:** `experiment/ollama:kimi-k2.5:cloud/integration-bug/workdir`
-- **Log:** `experiment/ollama:kimi-k2.5:cloud/integration-bug/combined.log`
-- **Tools Used:** Glob, ReadMany, Edit, Edit, Bash, Read, Edit, Bash
+- **Status:** FAIL
+- **Duration:** 307.14s
+- **Workdir:** `experiment/ollama-kimi-k2.5-cloud/integration-bug/workdir`
+- **Log:** `experiment/ollama-kimi-k2.5-cloud/integration-bug/combined.log`
+- **Tools Used:** LS, ReadMany, Bash, WriteMany, Bash, Bash
 
 **Verification Output:**
 ```
-Verifying Integration Bug Fix...
-Initial Balances:
-Alice: 100
-Bob: 100
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
+Verifying Checkout Fix...
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_5: out of stock
+Order order_4: SUCCESS
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+  Trial 1: PASS (stock=0, successful=5, charged=$500.00)
 
-Final Balances:
-Alice: 0
-Bob: 200
-Total: 200
-Total Money in System: 200
-PASS: System integrity maintained
-VERIFICATION_RESULT: EXCELLENT
+Traceback (most recent call last):
+  File "/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-kimi-k2.5-cloud/integration-bug/workdir/verify.py", line 79, in <module>
+    success = verify()
+  File "/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-kimi-k2.5-cloud/integration-bug/workdir/verify.py", line 48, in verify
+    stock, charged, successful, dupes, expected = asyncio.run(run_trial(trial * 7))
+                                                  ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/asyncio/runners.py", line 204, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/asyncio/runners.py", line 127, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/asyncio/base_events.py", line 719, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-kimi-k2.5-cloud/integration-bug/workdir/verify.py", line 38, in run_trial
+    results = await asyncio.gather(*orders)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-kimi-k2.5-cloud/integration-bug/workdir/checkout.py", line 17, in checkout
+    async with _checkout_lock:
+               ^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/asyncio/locks.py", line 14, in __aenter__
+    await self.acquire()
+  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/asyncio/locks.py", line 105, in acquire
+    fut = self._get_loop().create_future()
+          ~~~~~~~~~~~~~~^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/asyncio/mixins.py", line 20, in _get_loop
+    raise RuntimeError(f'{self!r} is bound to a different event loop')
+RuntimeError: <asyncio.locks.Lock object at 0x107f72270 [locked]> is bound to a different event loop
 ```
 
 ---
 ### ollama:kimi-k2.5:cloud / refactor
 - **Status:** EXCELLENT
-- **Duration:** 53.45s
-- **Workdir:** `experiment/ollama:kimi-k2.5:cloud/refactor/workdir`
-- **Log:** `experiment/ollama:kimi-k2.5:cloud/refactor/combined.log`
-- **Tools Used:** ReadGlob, Read, Write, Bash, Read, Bash, Bash, Bash
+- **Duration:** 309.44s
+- **Workdir:** `experiment/ollama-kimi-k2.5-cloud/refactor/workdir`
+- **Log:** `experiment/ollama-kimi-k2.5-cloud/refactor/combined.log`
+- **Tools Used:** Read, ActivateSkill, Write, Bash, Read, Bash, Bash, Bash
 
 **Verification Output:**
 ```
-Verifying refactored script: etl.py
-Testing if script runs...
-PASS: Separated into functions/classes
-PASS: ETL pattern (Extract/Transform/Load)
-PASS: Configuration decoupled
-PASS: Uses regex for parsing
-PASS: Has type hints & docstrings
+Verifying Pipeline Refactor...
+Checking: pipeline_refactored.py
+PASS: Environment variables used for config
+PASS: SQL queries use parameterized form (no injection)
+PASS: ETL pattern present (extract/transform/load)
+PASS: Separated into 18 functions
+PASS: Regex used for log parsing
+PASS: Type hints and docstrings present
+Running script...
 PASS: Script runs successfully
-PASS: Creates report.html
+PASS: report.html contains all required sections
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:kimi-k2.5:cloud / research
-- **Status:** EXCELLENT
-- **Duration:** 178.09s
+- **Status:** FAIL
+- **Duration:** 144.02s
 - **Workdir:** `experiment/ollama-kimi-k2.5-cloud/research/workdir`
 - **Log:** `experiment/ollama-kimi-k2.5-cloud/research/combined.log`
-- **Tools Used:** SearchInternet, SearchInternet, SearchInternet, OpenWebPage, OpenWebPage, OpenWebPage, OpenWebPage, OpenWebPage, Write, Read
+- **Tools Used:** Read
 
 **Verification Output:**
 ```
-PASS: Markdown format
-PASS: Substantial content (200+ words)
-PASS: Covers timeline/commercial viability
-PASS: Covers key players
-PASS: Covers technical hurdles
-PASS: References/citations
-VERIFICATION_RESULT: EXCELLENT
+Verifying Architecture Decision Record...
+FAIL: ADR-001-notification-architecture.md not found
+VERIFICATION_RESULT: FAIL
 ```
 
 ---
 ### ollama:minimax-m2.7:cloud / bug-fix
 - **Status:** EXCELLENT
-- **Duration:** 52.97s
+- **Duration:** 202.10s
 - **Workdir:** `experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir`
 - **Log:** `experiment/ollama-minimax-m2.7-cloud/bug-fix/combined.log`
-- **Tools Used:** Read, Edit, Bash
+- **Tools Used:** ReadMany, Bash, EditEdit, ReadMany, Bash, Edit, Edit, Bash
 
 **Verification Output:**
 ```
-PASS: Concurrency control found
-PASS: Final stock is non-negative: 1
-VERIFICATION_RESULT: EXCELLENT
+Verifying Job Queue Fix...
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 1: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 2: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 3: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 4: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 5: PASS
+PASS: Concurrency control (Lock) detected
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:minimax-m2.7:cloud / copywriting
-- **Status:** PASS
-- **Duration:** 58.61s
+- **Status:** EXCELLENT
+- **Duration:** 178.63s
 - **Workdir:** `experiment/ollama-minimax-m2.7-cloud/copywriting/workdir`
 - **Log:** `experiment/ollama-minimax-m2.7-cloud/copywriting/combined.log`
-- **Tools Used:** Write
+- **Tools Used:** ReadRead, ReadMany, Write
 
 **Verification Output:**
 ```
-PASS: Has headings
-PASS: Contains 'Zrb-Flow'
-PASS: Contains 'AI'
-PASS: Contains 'automation'
-PASS: Contains 'CLI'
-PASS: Contains 'Docker'
-FAIL: Contains 'K8s'
-PASS: Contains 'Self-Healing'
-PASS: Contains 'pipeline'
-PASS: Has call to action
-PASS: Markdown formatting
-VERIFICATION_RESULT: PASS
+Verifying Migration Guide...
+PASS: Has markdown headings
+PASS: Substantial content (567 words)
+PASS: Has code examples (14 blocks)
+PASS: Auth header change (Authorization: Bearer) documented
+PASS: ID type change (UUID) documented
+PASS: Field rename (done → completed) documented
+PASS: New project_id field and /v2/ prefix documented
+PASS: Has migration checklist or upgrade command
+
+Score: 8/8
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:minimax-m2.7:cloud / feature
-- **Status:** FAIL
-- **Duration:** 111.41s
+- **Status:** EXECUTION_FAILED
+- **Duration:** 190.39s
 - **Workdir:** `experiment/ollama-minimax-m2.7-cloud/feature/workdir`
 - **Log:** `experiment/ollama-minimax-m2.7-cloud/feature/combined.log`
-- **Tools Used:** ReadMany, Read, Edit, Read, Bash, Edit, Edit, Edit, Bash
+- **Tools Used:** ActivateSkillLS, GlobReadMany, LSReadMany
 
 **Verification Output:**
 ```
-Verifying Modular Todo App...
-FAIL: PUT /todos/3 failed with 422
+Verifying Project Management API...
+PASS: GET /projects works
+FAIL: Filter by status — got 200, results: [{'id': 1, 'title': 'Design schema', 'status': 'done', 'priority': 5, 'project_id': 1, 'assigned_to': 'alice'}, {'id': 2, 'title': 'Implement API', 'status': 'in_progress', 'priority': 4, 'project_id': 1, 'assigned_to': 'bob'}, {'id': 3, 'title': 'Write tests', 'status': 'todo', 'priority': 3, 'project_id': 1, 'assigned_to': None}, {'id': 4, 'title': 'Deploy to staging', 'status': 'todo', 'priority': 2, 'project_id': 2, 'assigned_to': 'alice'}]
+FAIL: Filter by assigned_to — got 200
+FAIL: Pagination — got 200, count=4
+FAIL: POST without auth returned 405 (expected 401/403)
+FAIL: POST /tasks with auth returned 405: {"detail":"Method Not Allowed"}
+FAIL: Invalid project_id returned 405 (expected 404)
+FAIL: PUT /tasks/1 returned 405
+FAIL: DELETE /tasks/3 returned 405
+
+Score: 1/9
+FAIL: Score too low (1/9)
+VERIFICATION_RESULT: FAIL
 ```
 
 ---
 ### ollama:minimax-m2.7:cloud / integration-bug
 - **Status:** EXCELLENT
-- **Duration:** 107.88s
+- **Duration:** 359.34s
 - **Workdir:** `experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir`
 - **Log:** `experiment/ollama-minimax-m2.7-cloud/integration-bug/combined.log`
-- **Tools Used:** LS, ReadMany, Edit, Edit, Bash, Read, Edit, Bash
+- **Tools Used:** Glob, ReadMany, ReadMany, Bash, EditEditEdit, ReadMany, Edit, Edit, Bash, Bash
 
 **Verification Output:**
 ```
-Verifying Integration Bug Fix...
-Initial Balances:
-Alice: 100
-Bob: 100
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-
-Final Balances:
-Alice: 0
-Bob: 200
-Total: 200
-Total Money in System: 200
-WARNING: No explicit locking found, might be lucky or uses different pattern
-PASS: System integrity maintained
+Verifying Checkout Fix...
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_5: out of stock
+Order order_4: SUCCESS
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+  Trial 1: PASS (stock=0, successful=5, charged=$500.00)
+Order order_0: SUCCESS
+Order order_2: SUCCESS
+Order order_5: out of stock
+Order order_4: SUCCESS
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_1: payment failed
+Order order_3: payment failed
+  Trial 2: PASS (stock=2, successful=3, charged=$300.00)
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_5: out of stock
+Order order_4: SUCCESS
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed
+  Trial 3: PASS (stock=1, successful=4, charged=$400.00)
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed
+Order order_4: payment failed
+  Trial 4: PASS (stock=2, successful=3, charged=$300.00)
+Order order_2: SUCCESS
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed
+Order order_1: payment failed
+Order order_3: payment failed
+Order order_4: payment failed
+  Trial 5: PASS (stock=4, successful=1, charged=$100.00)
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_5: out of stock
+Order order_4: SUCCESS
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+  Trial 6: PASS (stock=0, successful=5, charged=$500.00)
+PASS: Locking mechanism detected
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:minimax-m2.7:cloud / refactor
 - **Status:** EXECUTION_FAILED
-- **Duration:** 72.61s
+- **Duration:** 166.34s
 - **Workdir:** `experiment/ollama-minimax-m2.7-cloud/refactor/workdir`
 - **Log:** `experiment/ollama-minimax-m2.7-cloud/refactor/combined.log`
-- **Tools Used:** GlobGlob, LSRead, ReadGlob
+- **Tools Used:** ActivateSkillRead, GlobGlob, GlobGlob
 
 **Verification Output:**
 ```
-Verifying refactored script: etl.py
-Testing if script runs...
-FAIL: Separated into functions/classes
-FAIL: ETL pattern (Extract/Transform/Load)
-PASS: Configuration decoupled
-FAIL: Uses regex for parsing
-FAIL: Has type hints & docstrings (Types: False, Docs: False)
+Verifying Pipeline Refactor...
+Checking: pipeline.py
+FAIL: No os.getenv / os.environ found — credentials still hardcoded
+PASS: SQL queries use parameterized form (no injection)
+FAIL: ETL pattern incomplete (extract=False, transform=False, load=True)
+FAIL: Only 1 function(s) — needs at least 3
+FAIL: No regex found — fragile string.split() parsing still present
+FAIL: Missing type hints (True) or docstrings (False)
+Running script...
 PASS: Script runs successfully
-PASS: Creates report.html
+PASS: report.html contains all required sections
+
+Score: 3/8
 VERIFICATION_RESULT: FAIL
 ```
 
 ---
 ### ollama:minimax-m2.7:cloud / research
-- **Status:** EXECUTION_FAILED
-- **Duration:** 76.46s
+- **Status:** EXCELLENT
+- **Duration:** 172.66s
 - **Workdir:** `experiment/ollama-minimax-m2.7-cloud/research/workdir`
 - **Log:** `experiment/ollama-minimax-m2.7-cloud/research/combined.log`
-- **Tools Used:** SearchInternetSearchInternetSearchInternet, ActivateSkillSearchInternet, SearchInternetSearchInternetSearchInternet
+- **Tools Used:** Read, Write
 
 **Verification Output:**
 ```
-FAIL: solid_state_battery_report.md not found and no other markdown files found
-VERIFICATION_RESULT: FAIL
+Verifying Architecture Decision Record...
+PASS: Substantial content (1044 words)
+PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
+PASS: Status field present
+PASS: Both Kafka and Redis Streams are evaluated
+PASS: Contains a clear recommendation
+PASS: Covers 11 technical properties (throughput, ordering, retention, consumer group...)
+PASS: Addresses team/constraint context
+PASS: Consequences include both pros and cons
+
+Score: 8/8
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:qwen3-coder-next:cloud / bug-fix
-- **Status:** EXCELLENT
-- **Duration:** 65.81s
+- **Status:** PASS
+- **Duration:** 235.37s
 - **Workdir:** `experiment/ollama-qwen3-coder-next-cloud/bug-fix/workdir`
 - **Log:** `experiment/ollama-qwen3-coder-next-cloud/bug-fix/combined.log`
-- **Tools Used:** Read, Edit, Bash, Bash
+- **Tools Used:** Read, Read, Read, Bash, Edit, Edit, Edit, Bash
 
 **Verification Output:**
 ```
-PASS: Concurrency control found
-PASS: Final stock is non-negative: 1
-VERIFICATION_RESULT: EXCELLENT
-VERIFICATION_RESULT: EXCELLENT
+Verifying Job Queue Fix...
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 1: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 2: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 3: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 4: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 3] finished job 4
+[Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 5: PASS
+PASS: All simulation runs passed
+VERIFICATION_RESULT: PASS
 ```
 
 ---
 ### ollama:qwen3-coder-next:cloud / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 61.28s
+- **Duration:** 203.53s
 - **Workdir:** `experiment/ollama-qwen3-coder-next-cloud/copywriting/workdir`
 - **Log:** `experiment/ollama-qwen3-coder-next-cloud/copywriting/combined.log`
-- **Tools Used:** Write
+- **Tools Used:** Read, Read, Write
 
 **Verification Output:**
 ```
-PASS: Has headings
-PASS: Contains 'Zrb-Flow'
-PASS: Contains 'AI'
-PASS: Contains 'automation'
-PASS: Contains 'CLI'
-PASS: Contains 'Docker'
-PASS: Contains 'K8s'
-PASS: Contains 'Self-Healing'
-PASS: Contains 'pipeline'
-PASS: Has call to action
-PASS: Markdown formatting
+Verifying Migration Guide...
+PASS: Has markdown headings
+PASS: Substantial content (640 words)
+PASS: Has code examples (14 blocks)
+PASS: Auth header change (Authorization: Bearer) documented
+PASS: ID type change (UUID) documented
+PASS: Field rename (done → completed) documented
+PASS: New project_id field and /v2/ prefix documented
+PASS: Has migration checklist or upgrade command
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:qwen3-coder-next:cloud / feature
 - **Status:** FAIL
-- **Duration:** 128.23s
+- **Duration:** 675.26s
 - **Workdir:** `experiment/ollama-qwen3-coder-next-cloud/feature/workdir`
 - **Log:** `experiment/ollama-qwen3-coder-next-cloud/feature/combined.log`
-- **Tools Used:** Read, Read, Read, Edit, Read, Bash
+- **Tools Used:** Read, Read, Read, Read, WriteTodos, Edit, WriteTodos, Read, Edit, Edit, Edit, Edit, Read, Edit, Edit, Read, Edit, Edit, Edit, WriteTodos, Bash
 
 **Verification Output:**
 ```
-Verifying Modular Todo App...
-FAIL: POST /todos failed with 422
+Verifying Project Management API...
+PASS: GET /projects works
+PASS: Filter by status works
+PASS: Filter by assigned_to works
+PASS: Pagination works (page_size=2 returned 2 results)
+FAIL: POST without auth returned 422 (expected 401/403)
+FAIL: POST /tasks with auth returned 422: {"detail":[{"type":"string_type","loc":["query","api_key"],"msg":"Input should be a valid string","input":{}}]}
+FAIL: Invalid project_id returned 422 (expected 404)
+FAIL: PUT /tasks/1 returned 422
+FAIL: DELETE /tasks/3 returned 422
+
+Score: 4/9
+FAIL: Score too low (4/9)
+VERIFICATION_RESULT: FAIL
 ```
 
 ---
 ### ollama:qwen3-coder-next:cloud / integration-bug
 - **Status:** EXCELLENT
-- **Duration:** 182.85s
+- **Duration:** 397.66s
 - **Workdir:** `experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir`
 - **Log:** `experiment/ollama-qwen3-coder-next-cloud/integration-bug/combined.log`
-- **Tools Used:** Read, LS, ReadMany, Edit, Bash, Edit, Read, Edit, Bash
+- **Tools Used:** Read, Read, Read, Read, Bash, Write, Write, Write, Bash
 
 **Verification Output:**
 ```
-Verifying Integration Bug Fix...
-Initial Balances:
-Alice: 100
-Bob: 100
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-
-Final Balances:
-Alice: 0
-Bob: 200
-Total: 200
-Total Money in System: 200
-PASS: System integrity maintained
+Verifying Checkout Fix...
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_5: out of stock
+Order order_3: SUCCESS
+Order order_6: out of stock
+Order order_4: SUCCESS
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+  Trial 1: PASS (stock=0, successful=5, charged=$500.00)
+Order order_0: SUCCESS
+Order order_2: SUCCESS
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_4: SUCCESS
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_1: payment failed
+Order order_3: payment failed
+  Trial 2: PASS (stock=2, successful=3, charged=$300.00)
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_5: out of stock
+Order order_3: SUCCESS
+Order order_6: out of stock
+Order order_4: SUCCESS
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed
+  Trial 3: PASS (stock=1, successful=4, charged=$400.00)
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_5: out of stock
+Order order_3: SUCCESS
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed
+Order order_4: payment failed
+  Trial 4: PASS (stock=2, successful=3, charged=$300.00)
+Order order_2: SUCCESS
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed
+Order order_1: payment failed
+Order order_3: payment failed
+Order order_4: payment failed
+  Trial 5: PASS (stock=4, successful=1, charged=$100.00)
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_5: out of stock
+Order order_3: SUCCESS
+Order order_6: out of stock
+Order order_4: SUCCESS
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+  Trial 6: PASS (stock=0, successful=5, charged=$500.00)
+PASS: Locking mechanism detected
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:qwen3-coder-next:cloud / refactor
-- **Status:** EXCELLENT
-- **Duration:** 205.35s
+- **Status:** FAIL
+- **Duration:** 663.49s
 - **Workdir:** `experiment/ollama-qwen3-coder-next-cloud/refactor/workdir`
 - **Log:** `experiment/ollama-qwen3-coder-next-cloud/refactor/combined.log`
-- **Tools Used:** Read, LS, ActivateSkill, Write, Write, Write, Bash, Read, Bash, Bash, Bash, Bash, Write, LS
+- **Tools Used:** Glob, Glob, Read, Write, Bash, Read, Bash, Edit, Bash, Read, Edit, Edit, Edit, Edit, Edit, Read, Bash, Bash, Edit, Bash, Bash, Grep, Grep, Grep, Grep, Grep, Bash
 
 **Verification Output:**
 ```
-Verifying refactored script: etl.py
-Testing if script runs...
-PASS: Separated into functions/classes
-PASS: ETL pattern (Extract/Transform/Load)
-PASS: Configuration decoupled
-FAIL: Uses regex for parsing
-PASS: Has type hints & docstrings
-PASS: Script runs successfully
-PASS: Creates report.html
-VERIFICATION_RESULT: EXCELLENT
+Verifying Pipeline Refactor...
+Checking: pipeline_refactored.py
+PASS: Environment variables used for config
+PASS: SQL queries use parameterized form (no injection)
+PASS: ETL pattern present (extract/transform/load)
+PASS: Separated into 10 functions
+PASS: Regex used for log parsing
+PASS: Type hints and docstrings present
+Running script...
+FAIL: Script exited with 1
+Traceback (most recent call last):
+  File "/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/refactor/workdir/pipeline_refactored.py", line 282, in <module>
+    process_pipeline()
+    ~~~~~~~~~~~~~~~~^^
+  File "/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/refactor/workdir/pipeline_refactored.py", line 261, in process_pipeline
+    load_to_db(DB_PATH, error_entries, api_calls)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 
+PASS: report.html contains all required sections
+
+Score: 7/8
+VERIFICATION_RESULT: FAIL
 ```
 
 ---
 ### ollama:qwen3-coder-next:cloud / research
 - **Status:** EXCELLENT
-- **Duration:** 268.60s
+- **Duration:** 468.46s
 - **Workdir:** `experiment/ollama-qwen3-coder-next-cloud/research/workdir`
 - **Log:** `experiment/ollama-qwen3-coder-next-cloud/research/combined.log`
-- **Tools Used:** ActivateSkill, SearchInternet, SearchInternet, SearchInternet, OpenWebPage, OpenWebPage, OpenWebPage, OpenWebPage, Write, UpdateTodo, UpdateTodo, UpdateTodo, UpdateTodo, UpdateTodo, LspGetDiagnostics, Read, Edit, Edit, Edit
+- **Tools Used:** Read, Write, Read, Write
 
 **Verification Output:**
 ```
-PASS: Markdown format
-PASS: Substantial content (200+ words)
-PASS: Covers timeline/commercial viability
-PASS: Covers key players
-PASS: Covers technical hurdles
-PASS: References/citations
+Verifying Architecture Decision Record...
+PASS: Substantial content (968 words)
+PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
+PASS: Status field present
+PASS: Both Kafka and Redis Streams are evaluated
+PASS: Contains a clear recommendation
+PASS: Covers 9 technical properties (throughput, retention, consumer group, exactly-once...)
+PASS: Addresses team/constraint context
+PASS: Consequences include both pros and cons
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
-```
-
----
-### ollama:qwen3-vl:235b-cloud / bug-fix
-- **Status:** EXECUTION_FAILED
-- **Duration:** 82.00s
-- **Workdir:** `experiment/ollama:qwen3-vl:235b-cloud/bug-fix/workdir`
-- **Log:** `experiment/ollama:qwen3-vl:235b-cloud/bug-fix/combined.log`
-- **Tools Used:** 
-
-**Verification Output:**
-```
-WARNING: No explicit asyncio.Lock found
-FAIL: Final stock is negative: -5
-VERIFICATION_RESULT: FAIL
-```
-
----
-### ollama:qwen3-vl:235b-cloud / copywriting
-- **Status:** EXECUTION_FAILED
-- **Duration:** 29.72s
-- **Workdir:** `experiment/ollama:qwen3-vl:235b-cloud/copywriting/workdir`
-- **Log:** `experiment/ollama:qwen3-vl:235b-cloud/copywriting/combined.log`
-- **Tools Used:** 
-
-**Verification Output:**
-```
-FAIL: launch_post.md not found
-VERIFICATION_RESULT: FAIL
-```
-
----
-### ollama:qwen3-vl:235b-cloud / feature
-- **Status:** EXECUTION_FAILED
-- **Duration:** 23.03s
-- **Workdir:** `experiment/ollama:qwen3-vl:235b-cloud/feature/workdir`
-- **Log:** `experiment/ollama:qwen3-vl:235b-cloud/feature/combined.log`
-- **Tools Used:** 
-
-**Verification Output:**
-```
-Verifying Modular Todo App...
-FAIL: POST /todos failed with 405
-```
-
----
-### ollama:qwen3-vl:235b-cloud / integration-bug
-- **Status:** EXECUTION_FAILED
-- **Duration:** 26.92s
-- **Workdir:** `experiment/ollama:qwen3-vl:235b-cloud/integration-bug/workdir`
-- **Log:** `experiment/ollama:qwen3-vl:235b-cloud/integration-bug/combined.log`
-- **Tools Used:** 
-
-**Verification Output:**
-```
-Verifying Integration Bug Fix...
-ERROR: unterminated string literal (detected at line 15) (bank.py, line 15)
-VERIFICATION_RESULT: FAIL
-```
-
----
-### ollama:qwen3-vl:235b-cloud / refactor
-- **Status:** EXECUTION_FAILED
-- **Duration:** 28.97s
-- **Workdir:** `experiment/ollama:qwen3-vl:235b-cloud/refactor/workdir`
-- **Log:** `experiment/ollama:qwen3-vl:235b-cloud/refactor/combined.log`
-- **Tools Used:** 
-
-**Verification Output:**
-```
-Verifying refactored script: etl.py
-Testing if script runs...
-FAIL: Separated into functions/classes
-FAIL: ETL pattern (Extract/Transform/Load)
-PASS: Configuration decoupled
-FAIL: Uses regex for parsing
-FAIL: Has type hints & docstrings (Types: False, Docs: False)
-PASS: Script runs successfully
-PASS: Creates report.html
-VERIFICATION_RESULT: FAIL
-```
-
----
-### ollama:qwen3-vl:235b-cloud / research
-- **Status:** EXECUTION_FAILED
-- **Duration:** 35.66s
-- **Workdir:** `experiment/ollama:qwen3-vl:235b-cloud/research/workdir`
-- **Log:** `experiment/ollama:qwen3-vl:235b-cloud/research/combined.log`
-- **Tools Used:** 
-
-**Verification Output:**
-```
-FAIL: solid_state_battery_report.md not found and no other markdown files found
-VERIFICATION_RESULT: FAIL
-```
-
----
-### openai:gpt-4o / bug-fix
-- **Status:** FAIL
-- **Duration:** 30.30s
-- **Workdir:** `experiment/openai:gpt-4o/bug-fix/workdir`
-- **Log:** `experiment/openai:gpt-4o/bug-fix/combined.log`
-- **Tools Used:** Grep, Read
-
-**Verification Output:**
-```
-WARNING: No explicit asyncio.Lock found
-FAIL: Final stock is negative: -5
-VERIFICATION_RESULT: FAIL
-```
-
----
-### openai:gpt-4o / copywriting
-- **Status:** PASS
-- **Duration:** 26.66s
-- **Workdir:** `experiment/openai:gpt-4o/copywriting/workdir`
-- **Log:** `experiment/openai:gpt-4o/copywriting/combined.log`
-- **Tools Used:** Write
-
-**Verification Output:**
-```
-PASS: Has headings
-PASS: Contains 'Zrb-Flow'
-PASS: Contains 'AI'
-PASS: Contains 'automation'
-PASS: Contains 'CLI'
-PASS: Contains 'Docker'
-FAIL: Contains 'K8s'
-PASS: Contains 'Self-Healing'
-PASS: Contains 'pipeline'
-PASS: Has call to action
-PASS: Markdown formatting
-VERIFICATION_RESULT: PASS
-```
-
----
-### openai:gpt-4o / feature
-- **Status:** FAIL
-- **Duration:** 61.07s
-- **Workdir:** `experiment/openai:gpt-4o/feature/workdir`
-- **Log:** `experiment/openai:gpt-4o/feature/combined.log`
-- **Tools Used:** Grep, Grep, Grep, Read, Grep, Grep, LS, Read, Read, Write, Bash, Grep, LS
-
-**Verification Output:**
-```
-Verifying Modular Todo App...
-FAIL: POST /todos failed with 422
-```
-
----
-### openai:gpt-4o / integration-bug
-- **Status:** EXCELLENT
-- **Duration:** 51.29s
-- **Workdir:** `experiment/openai:gpt-4o/integration-bug/workdir`
-- **Log:** `experiment/openai:gpt-4o/integration-bug/combined.log`
-- **Tools Used:** Glob, LS, Read, Read, Read, Write, Bash, Edit, Bash
-
-**Verification Output:**
-```
-Verifying Integration Bug Fix...
-Initial Balances:
-Alice: 100
-Bob: 100
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-
-Final Balances:
-Alice: 0
-Bob: 200
-Total: 200
-Total Money in System: 200
-PASS: System integrity maintained
-VERIFICATION_RESULT: EXCELLENT
-```
-
----
-### openai:gpt-4o / refactor
-- **Status:** EXCELLENT
-- **Duration:** 60.97s
-- **Workdir:** `experiment/openai:gpt-4o/refactor/workdir`
-- **Log:** `experiment/openai:gpt-4o/refactor/combined.log`
-- **Tools Used:** Glob, Read, DelegateToAgent, Write, Bash
-
-**Verification Output:**
-```
-Verifying refactored script: etl.py
-Testing if script runs...
-PASS: Separated into functions/classes
-PASS: ETL pattern (Extract/Transform/Load)
-PASS: Configuration decoupled
-PASS: Uses regex for parsing
-FAIL: Has type hints & docstrings (Types: True, Docs: False)
-PASS: Script runs successfully
-PASS: Creates report.html
-VERIFICATION_RESULT: EXCELLENT
-```
-
----
-### openai:gpt-4o / research
-- **Status:** FAIL
-- **Duration:** 49.97s
-- **Workdir:** `experiment/openai:gpt-4o/research/workdir`
-- **Log:** `experiment/openai:gpt-4o/research/combined.log`
-- **Tools Used:** ActivateSkill, SearchInternet, DelegateToAgent, SearchInternet, OpenWebPage
-
-**Verification Output:**
-```
-FAIL: solid_state_battery_report.md not found and no other markdown files found
-VERIFICATION_RESULT: FAIL
-```
-
----
-### openai:gpt-5-codex / bug-fix
-- **Status:** EXECUTION_FAILED
-- **Duration:** 6.22s
-- **Workdir:** `experiment/openai-gpt-5-codex/bug-fix/workdir`
-- **Log:** `experiment/openai-gpt-5-codex/bug-fix/combined.log`
-- **Tools Used:** 
-
-**Verification Output:**
-```
-WARNING: No explicit asyncio.Lock found
-FAIL: Final stock is negative: -5
-VERIFICATION_RESULT: FAIL
-```
-
----
-### openai:gpt-5-codex / copywriting
-- **Status:** EXECUTION_FAILED
-- **Duration:** 6.20s
-- **Workdir:** `experiment/openai-gpt-5-codex/copywriting/workdir`
-- **Log:** `experiment/openai-gpt-5-codex/copywriting/combined.log`
-- **Tools Used:** 
-
-**Verification Output:**
-```
-FAIL: launch_post.md not found
-VERIFICATION_RESULT: FAIL
-```
-
----
-### openai:gpt-5-codex / feature
-- **Status:** EXECUTION_FAILED
-- **Duration:** 6.02s
-- **Workdir:** `experiment/openai-gpt-5-codex/feature/workdir`
-- **Log:** `experiment/openai-gpt-5-codex/feature/combined.log`
-- **Tools Used:** 
-
-**Verification Output:**
-```
-Verifying Modular Todo App...
-FAIL: POST /todos failed with 405
-```
-
----
-### openai:gpt-5-codex / integration-bug
-- **Status:** EXECUTION_FAILED
-- **Duration:** 5.80s
-- **Workdir:** `experiment/openai-gpt-5-codex/integration-bug/workdir`
-- **Log:** `experiment/openai-gpt-5-codex/integration-bug/combined.log`
-- **Tools Used:** 
-
-**Verification Output:**
-```
-Verifying Integration Bug Fix...
-ERROR: unterminated string literal (detected at line 15) (bank.py, line 15)
-VERIFICATION_RESULT: FAIL
-```
-
----
-### openai:gpt-5-codex / refactor
-- **Status:** EXECUTION_FAILED
-- **Duration:** 6.13s
-- **Workdir:** `experiment/openai-gpt-5-codex/refactor/workdir`
-- **Log:** `experiment/openai-gpt-5-codex/refactor/combined.log`
-- **Tools Used:** 
-
-**Verification Output:**
-```
-Verifying refactored script: etl.py
-Testing if script runs...
-FAIL: Separated into functions/classes
-FAIL: ETL pattern (Extract/Transform/Load)
-PASS: Configuration decoupled
-FAIL: Uses regex for parsing
-FAIL: Has type hints & docstrings (Types: False, Docs: False)
-PASS: Script runs successfully
-PASS: Creates report.html
-VERIFICATION_RESULT: FAIL
-```
-
----
-### openai:gpt-5-codex / research
-- **Status:** EXECUTION_FAILED
-- **Duration:** 6.18s
-- **Workdir:** `experiment/openai-gpt-5-codex/research/workdir`
-- **Log:** `experiment/openai-gpt-5-codex/research/combined.log`
-- **Tools Used:** 
-
-**Verification Output:**
-```
-FAIL: solid_state_battery_report.md not found and no other markdown files found
-VERIFICATION_RESULT: FAIL
 ```
 
 ---
 ### openai:gpt-5.1 / bug-fix
-- **Status:** FAIL
-- **Duration:** 20.52s
-- **Workdir:** `experiment/openai:gpt-5.1/bug-fix/workdir`
-- **Log:** `experiment/openai:gpt-5.1/bug-fix/combined.log`
-- **Tools Used:** LS, Read
+- **Status:** EXCELLENT
+- **Duration:** 138.57s
+- **Workdir:** `experiment/openai-gpt-5.1/bug-fix/workdir`
+- **Log:** `experiment/openai-gpt-5.1/bug-fix/combined.log`
+- **Tools Used:** Glob, Read, Read, Read, Bash, Write, Write, Bash
 
 **Verification Output:**
 ```
-WARNING: No explicit asyncio.Lock found
-FAIL: Final stock is negative: -5
-VERIFICATION_RESULT: FAIL
+Verifying Job Queue Fix...
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 1: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 2: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 3: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 4: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 5: PASS
+PASS: Concurrency control (Lock) detected
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### openai:gpt-5.1 / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 37.89s
-- **Workdir:** `experiment/openai:gpt-5.1/copywriting/workdir`
-- **Log:** `experiment/openai:gpt-5.1/copywriting/combined.log`
-- **Tools Used:** Write
+- **Duration:** 235.25s
+- **Workdir:** `experiment/openai-gpt-5.1/copywriting/workdir`
+- **Log:** `experiment/openai-gpt-5.1/copywriting/combined.log`
+- **Tools Used:** Read, Read, Write
 
 **Verification Output:**
 ```
-PASS: Has headings
-PASS: Contains 'Zrb-Flow'
-PASS: Contains 'AI'
-PASS: Contains 'automation'
-PASS: Contains 'CLI'
-PASS: Contains 'Docker'
-PASS: Contains 'K8s'
-PASS: Contains 'Self-Healing'
-PASS: Contains 'pipeline'
-PASS: Has call to action
-PASS: Markdown formatting
+Verifying Migration Guide...
+PASS: Has markdown headings
+PASS: Substantial content (1691 words)
+PASS: Has code examples (37 blocks)
+PASS: Auth header change (Authorization: Bearer) documented
+PASS: ID type change (UUID) documented
+PASS: Field rename (done → completed) documented
+PASS: New project_id field and /v2/ prefix documented
+PASS: Has migration checklist or upgrade command
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### openai:gpt-5.1 / feature
-- **Status:** FAIL
-- **Duration:** 39.78s
-- **Workdir:** `experiment/openai:gpt-5.1/feature/workdir`
-- **Log:** `experiment/openai:gpt-5.1/feature/combined.log`
-- **Tools Used:** Read, Read, Read, Write
+- **Status:** EXCELLENT
+- **Duration:** 305.90s
+- **Workdir:** `experiment/openai-gpt-5.1/feature/workdir`
+- **Log:** `experiment/openai-gpt-5.1/feature/combined.log`
+- **Tools Used:** Glob, ReadMany, WriteMany
 
 **Verification Output:**
 ```
-Verifying Modular Todo App...
-FAIL: POST /todos failed with 422
+Verifying Project Management API...
+PASS: GET /projects works
+PASS: Filter by status works
+PASS: Filter by assigned_to works
+PASS: Pagination works (page_size=2 returned 2 results)
+PASS: POST /tasks requires authentication (401/403)
+PASS: POST /tasks creates task with auth
+PASS: POST /tasks with invalid project_id returns 404
+PASS: PUT /tasks/{id} partial update works
+PASS: DELETE /tasks/{id} removes task
+
+Score: 9/9
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### openai:gpt-5.1 / integration-bug
 - **Status:** EXCELLENT
-- **Duration:** 70.10s
-- **Workdir:** `experiment/openai:gpt-5.1/integration-bug/workdir`
-- **Log:** `experiment/openai:gpt-5.1/integration-bug/combined.log`
-- **Tools Used:** LS, Read, Read, Read, Write, Write, Bash, Read, Edit, Write, Bash
+- **Duration:** 841.34s
+- **Workdir:** `experiment/openai-gpt-5.1/integration-bug/workdir`
+- **Log:** `experiment/openai-gpt-5.1/integration-bug/combined.log`
+- **Tools Used:** LS, ReadMany, LS, ReadMany, Write, Write, Write, Bash
 
 **Verification Output:**
 ```
-Verifying Integration Bug Fix...
-Initial Balances:
-Alice: 100
-Bob: 100
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-
-Final Balances:
-Alice: 0
-Bob: 200
-Total: 200
-Total Money in System: 200
-WARNING: No explicit locking found, might be lucky or uses different pattern
-PASS: System integrity maintained
+Verifying Checkout Fix...
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_5: out of stock
+Order order_3: SUCCESS
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_4: SUCCESS
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+  Trial 1: PASS (stock=0, successful=5, charged=$500.00)
+Order order_0: SUCCESS
+Order order_2: SUCCESS
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_4: SUCCESS
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_1: payment failed
+Order order_3: payment failed
+  Trial 2: PASS (stock=2, successful=3, charged=$300.00)
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_5: out of stock
+Order order_3: SUCCESS
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_4: SUCCESS
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed
+  Trial 3: PASS (stock=1, successful=4, charged=$400.00)
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_5: out of stock
+Order order_3: SUCCESS
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed
+Order order_4: payment failed
+  Trial 4: PASS (stock=2, successful=3, charged=$300.00)
+Order order_2: SUCCESS
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed
+Order order_1: payment failed
+Order order_3: payment failed
+Order order_4: payment failed
+  Trial 5: PASS (stock=4, successful=1, charged=$100.00)
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_5: out of stock
+Order order_3: SUCCESS
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_4: SUCCESS
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+  Trial 6: PASS (stock=0, successful=5, charged=$500.00)
+PASS: Locking mechanism detected
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### openai:gpt-5.1 / refactor
-- **Status:** FAIL
-- **Duration:** 39.44s
-- **Workdir:** `experiment/openai:gpt-5.1/refactor/workdir`
-- **Log:** `experiment/openai:gpt-5.1/refactor/combined.log`
-- **Tools Used:** Glob, Read
+- **Status:** EXCELLENT
+- **Duration:** 925.95s
+- **Workdir:** `experiment/openai-gpt-5.1/refactor/workdir`
+- **Log:** `experiment/openai-gpt-5.1/refactor/combined.log`
+- **Tools Used:** LS, Read, LS, Read, Write
 
 **Verification Output:**
 ```
-Verifying refactored script: etl.py
-Testing if script runs...
-FAIL: Separated into functions/classes
-FAIL: ETL pattern (Extract/Transform/Load)
-PASS: Configuration decoupled
-FAIL: Uses regex for parsing
-FAIL: Has type hints & docstrings (Types: False, Docs: False)
+Verifying Pipeline Refactor...
+Checking: pipeline_refactored.py
+PASS: Environment variables used for config
+PASS: SQL queries use parameterized form (no injection)
+PASS: ETL pattern present (extract/transform/load)
+PASS: Separated into 12 functions
+PASS: Regex used for log parsing
+PASS: Type hints and docstrings present
+Running script...
 PASS: Script runs successfully
-PASS: Creates report.html
-VERIFICATION_RESULT: FAIL
+PASS: report.html contains all required sections
+
+Score: 8/8
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### openai:gpt-5.1 / research
 - **Status:** EXCELLENT
-- **Duration:** 111.07s
-- **Workdir:** `experiment/openai:gpt-5.1/research/workdir`
-- **Log:** `experiment/openai:gpt-5.1/research/combined.log`
-- **Tools Used:** ActivateSkill, SearchInternet, SearchInternet, SearchInternet, SearchInternet, Write
+- **Duration:** 163.84s
+- **Workdir:** `experiment/openai-gpt-5.1/research/workdir`
+- **Log:** `experiment/openai-gpt-5.1/research/combined.log`
+- **Tools Used:** Read, Write
 
 **Verification Output:**
 ```
-PASS: Markdown format
-PASS: Substantial content (200+ words)
-PASS: Covers timeline/commercial viability
-PASS: Covers key players
-PASS: Covers technical hurdles
-PASS: References/citations
+Verifying Architecture Decision Record...
+PASS: Substantial content (1566 words)
+PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
+PASS: Status field present
+PASS: Both Kafka and Redis Streams are evaluated
+PASS: Contains a clear recommendation
+PASS: Covers 12 technical properties (throughput, ordering, retention, consumer group...)
+PASS: Addresses team/constraint context
+PASS: Consequences include both pros and cons
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### openai:gpt-5.2 / bug-fix
 - **Status:** EXCELLENT
-- **Duration:** 28.69s
-- **Workdir:** `experiment/openai:gpt-5.2/bug-fix/workdir`
-- **Log:** `experiment/openai:gpt-5.2/bug-fix/combined.log`
-- **Tools Used:** DelegateToAgent, Read, Edit, Edit, Bash
+- **Duration:** 306.17s
+- **Workdir:** `experiment/openai-gpt-5.2/bug-fix/workdir`
+- **Log:** `experiment/openai-gpt-5.2/bug-fix/combined.log`
+- **Tools Used:** LS, Glob, Read, Read, Read, Bash, Edit, Edit, Edit, Bash
 
 **Verification Output:**
 ```
-PASS: Concurrency control found
-PASS: Final stock is non-negative: 1
-VERIFICATION_RESULT: EXCELLENT
+Verifying Job Queue Fix...
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 1: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 2: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 3: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 4: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 5: PASS
+PASS: Concurrency control (Lock) detected
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### openai:gpt-5.2 / copywriting
-- **Status:** PASS
-- **Duration:** 30.74s
-- **Workdir:** `experiment/openai:gpt-5.2/copywriting/workdir`
-- **Log:** `experiment/openai:gpt-5.2/copywriting/combined.log`
-- **Tools Used:** Write
+- **Status:** EXCELLENT
+- **Duration:** 162.69s
+- **Workdir:** `experiment/openai-gpt-5.2/copywriting/workdir`
+- **Log:** `experiment/openai-gpt-5.2/copywriting/combined.log`
+- **Tools Used:** Glob, ReadMany, Write
 
 **Verification Output:**
 ```
-PASS: Has headings
-PASS: Contains 'Zrb-Flow'
-PASS: Contains 'AI'
-PASS: Contains 'automation'
-PASS: Contains 'CLI'
-PASS: Contains 'Docker'
-FAIL: Contains 'K8s'
-PASS: Contains 'Self-Healing'
-PASS: Contains 'pipeline'
-PASS: Has call to action
-PASS: Markdown formatting
-VERIFICATION_RESULT: PASS
+Verifying Migration Guide...
+PASS: Has markdown headings
+PASS: Substantial content (851 words)
+PASS: Has code examples (19 blocks)
+PASS: Auth header change (Authorization: Bearer) documented
+PASS: ID type change (UUID) documented
+PASS: Field rename (done → completed) documented
+PASS: New project_id field and /v2/ prefix documented
+PASS: Has migration checklist or upgrade command
+
+Score: 8/8
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### openai:gpt-5.2 / feature
-- **Status:** FAIL
-- **Duration:** 27.54s
-- **Workdir:** `experiment/openai:gpt-5.2/feature/workdir`
-- **Log:** `experiment/openai:gpt-5.2/feature/combined.log`
-- **Tools Used:** DelegateToAgent, ReadMany, Glob, Edit, Bash
+- **Status:** EXCELLENT
+- **Duration:** 147.45s
+- **Workdir:** `experiment/openai-gpt-5.2/feature/workdir`
+- **Log:** `experiment/openai-gpt-5.2/feature/combined.log`
+- **Tools Used:** ActivateSkill, Glob, ReadMany, Glob, Read, Edit, Edit, Bash
 
 **Verification Output:**
 ```
-Verifying Modular Todo App...
-FAIL: POST /todos failed with 422
+Verifying Project Management API...
+PASS: GET /projects works
+PASS: Filter by status works
+PASS: Filter by assigned_to works
+PASS: Pagination works (page_size=2 returned 2 results)
+PASS: POST /tasks requires authentication (401/403)
+PASS: POST /tasks creates task with auth
+PASS: POST /tasks with invalid project_id returns 404
+PASS: PUT /tasks/{id} partial update works
+PASS: DELETE /tasks/{id} removes task
+
+Score: 9/9
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### openai:gpt-5.2 / integration-bug
 - **Status:** EXCELLENT
-- **Duration:** 55.37s
-- **Workdir:** `experiment/openai:gpt-5.2/integration-bug/workdir`
-- **Log:** `experiment/openai:gpt-5.2/integration-bug/combined.log`
-- **Tools Used:** DelegateToAgent, Grep, ReadMany, Edit, Edit, Read, Edit, Bash, Edit, Bash
+- **Duration:** 653.48s
+- **Workdir:** `experiment/openai-gpt-5.2/integration-bug/workdir`
+- **Log:** `experiment/openai-gpt-5.2/integration-bug/combined.log`
+- **Tools Used:** LS, ReadMany, Bash, Edit, Edit, Edit, Edit, Edit, Edit, Edit, Bash, Bash, Bash, Bash
 
 **Verification Output:**
 ```
-Verifying Integration Bug Fix...
-Initial Balances:
-Alice: 100
-Bob: 100
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-
-Final Balances:
-Alice: 0
-Bob: 200
-Total: 200
-Total Money in System: 200
-PASS: System integrity maintained
+Verifying Checkout Fix...
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+  Trial 1: PASS (stock=0, successful=5, charged=$500.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: SUCCESS
+Order order_2: SUCCESS
+Order order_4: SUCCESS
+Order order_1: payment failed
+Order order_3: payment failed
+  Trial 2: PASS (stock=2, successful=3, charged=$300.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+Order order_0: payment failed
+  Trial 3: PASS (stock=1, successful=4, charged=$400.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_0: payment failed
+Order order_4: payment failed
+  Trial 4: PASS (stock=2, successful=3, charged=$300.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_2: SUCCESS
+Order order_0: payment failed
+Order order_1: payment failed
+Order order_3: payment failed
+Order order_4: payment failed
+  Trial 5: PASS (stock=4, successful=1, charged=$100.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+  Trial 6: PASS (stock=0, successful=5, charged=$500.00)
+PASS: Locking mechanism detected
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### openai:gpt-5.2 / refactor
 - **Status:** EXCELLENT
-- **Duration:** 61.71s
-- **Workdir:** `experiment/openai:gpt-5.2/refactor/workdir`
-- **Log:** `experiment/openai:gpt-5.2/refactor/combined.log`
-- **Tools Used:** DelegateToAgent, Grep, LS, ReadMany, Write, Edit, Bash
+- **Duration:** 152.14s
+- **Workdir:** `experiment/openai-gpt-5.2/refactor/workdir`
+- **Log:** `experiment/openai-gpt-5.2/refactor/combined.log`
+- **Tools Used:** ActivateSkill, Glob, Glob, Glob, Read, Write, Bash, Bash, Bash
 
 **Verification Output:**
 ```
-Verifying refactored script: etl.py
-Testing if script runs...
-PASS: Separated into functions/classes
-PASS: ETL pattern (Extract/Transform/Load)
-PASS: Configuration decoupled
-PASS: Uses regex for parsing
-PASS: Has type hints & docstrings
+Verifying Pipeline Refactor...
+Checking: pipeline_refactored.py
+PASS: Environment variables used for config
+PASS: SQL queries use parameterized form (no injection)
+PASS: ETL pattern present (extract/transform/load)
+PASS: Separated into 13 functions
+PASS: Regex used for log parsing
+PASS: Type hints and docstrings present
+Running script...
 PASS: Script runs successfully
-PASS: Creates report.html
+PASS: report.html contains all required sections
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### openai:gpt-5.2 / research
 - **Status:** EXCELLENT
-- **Duration:** 193.81s
-- **Workdir:** `experiment/openai:gpt-5.2/research/workdir`
-- **Log:** `experiment/openai:gpt-5.2/research/combined.log`
-- **Tools Used:** ActivateSkill, DelegateToAgent, SearchInternet, SearchInternet, SearchInternet, SearchInternet, SearchInternet, SearchInternet, OpenWebPage, OpenWebPage, OpenWebPage, OpenWebPage, OpenWebPage, OpenWebPage, SearchInternet, OpenWebPage, OpenWebPage, Write, Bash
+- **Duration:** 240.65s
+- **Workdir:** `experiment/openai-gpt-5.2/research/workdir`
+- **Log:** `experiment/openai-gpt-5.2/research/combined.log`
+- **Tools Used:** Read, Write
 
 **Verification Output:**
 ```
-PASS: Markdown format
-PASS: Substantial content (200+ words)
-PASS: Covers timeline/commercial viability
-PASS: Covers key players
-PASS: Covers technical hurdles
-PASS: References/citations
+Verifying Architecture Decision Record...
+PASS: Substantial content (1027 words)
+PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
+PASS: Status field present
+PASS: Both Kafka and Redis Streams are evaluated
+PASS: Contains a clear recommendation
+PASS: Covers 11 technical properties (throughput, ordering, retention, consumer group...)
+PASS: Addresses team/constraint context
+PASS: Consequences include both pros and cons
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### openai:gpt-5.4 / bug-fix
 - **Status:** EXCELLENT
-- **Duration:** 44.85s
+- **Duration:** 139.96s
 - **Workdir:** `experiment/openai-gpt-5.4/bug-fix/workdir`
 - **Log:** `experiment/openai-gpt-5.4/bug-fix/combined.log`
-- **Tools Used:** ActivateSkill, ListZrbTasks, WriteTodos, Glob, Glob, Glob, Read, LspGetDocumentSymbols, Bash, UpdateTodo, UpdateTodo, Edit, ReadMany, UpdateTodo, UpdateTodo, Write, ReadMany, UpdateTodo, UpdateTodo, Bash, Bash, Bash, Bash, UpdateTodo
+- **Tools Used:** ActivateSkill, WriteTodos, ReadMany, Glob, Bash, UpdateTodo, UpdateTodo, Edit, Edit, Edit, UpdateTodo, UpdateTodo, Bash, ReadMany, Bash, UpdateTodo
 
 **Verification Output:**
 ```
-PASS: Concurrency control found
-PASS: Final stock is non-negative: 1
-VERIFICATION_RESULT: EXCELLENT
+Verifying Job Queue Fix...
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 1: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 2: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 3: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 4: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 5: PASS
+PASS: Concurrency control (Lock) detected
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### openai:gpt-5.4 / copywriting
-- **Status:** PASS
-- **Duration:** 19.04s
+- **Status:** EXCELLENT
+- **Duration:** 258.69s
 - **Workdir:** `experiment/openai-gpt-5.4/copywriting/workdir`
 - **Log:** `experiment/openai-gpt-5.4/copywriting/combined.log`
-- **Tools Used:** Write
+- **Tools Used:** ActivateSkill, WriteTodos, ReadMany, Glob, UpdateTodo, UpdateTodo, Write, UpdateTodo, UpdateTodo, Read, Bash, Bash, UpdateTodo
 
 **Verification Output:**
 ```
-PASS: Has headings
-PASS: Contains 'Zrb-Flow'
-PASS: Contains 'AI'
-PASS: Contains 'automation'
-PASS: Contains 'CLI'
-PASS: Contains 'Docker'
-FAIL: Contains 'K8s'
-PASS: Contains 'Self-Healing'
-PASS: Contains 'pipeline'
-PASS: Has call to action
-PASS: Markdown formatting
-VERIFICATION_RESULT: PASS
+Verifying Migration Guide...
+PASS: Has markdown headings
+PASS: Substantial content (991 words)
+PASS: Has code examples (31 blocks)
+PASS: Auth header change (Authorization: Bearer) documented
+PASS: ID type change (UUID) documented
+PASS: Field rename (done → completed) documented
+PASS: New project_id field and /v2/ prefix documented
+PASS: Has migration checklist or upgrade command
+
+Score: 8/8
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### openai:gpt-5.4 / feature
-- **Status:** FAIL
-- **Duration:** 42.14s
+- **Status:** EXCELLENT
+- **Duration:** 266.33s
 - **Workdir:** `experiment/openai-gpt-5.4/feature/workdir`
 - **Log:** `experiment/openai-gpt-5.4/feature/combined.log`
-- **Tools Used:** ActivateSkill, WriteTodos, Glob, Grep, Glob, ReadMany, UpdateTodo, UpdateTodo, Edit, Read, UpdateTodo, UpdateTodo, Glob, Bash, Bash, LspGetDiagnostics, UpdateTodo
+- **Tools Used:** ActivateSkill, WriteTodos, Glob, Glob, Glob, Grep, Grep, ReadMany, Bash, UpdateTodo, UpdateTodo, ActivateSkill, Glob, Glob, Glob, Glob, Write, Bash, Glob, Glob, Glob, Glob, LS, Bash, UpdateTodo, UpdateTodo, Edit, Edit, UpdateTodo, UpdateTodo, Bash, LspGetDiagnostics, LspGetDiagnostics, LspGetDiagnostics, ActivateSkill, ReadMany, UpdateTodo
 
 **Verification Output:**
 ```
-Verifying Modular Todo App...
-FAIL: POST /todos failed with 422
+Verifying Project Management API...
+PASS: GET /projects works
+PASS: Filter by status works
+PASS: Filter by assigned_to works
+PASS: Pagination works (page_size=2 returned 2 results)
+PASS: POST /tasks requires authentication (401/403)
+PASS: POST /tasks creates task with auth
+PASS: POST /tasks with invalid project_id returns 404
+PASS: PUT /tasks/{id} partial update works
+PASS: DELETE /tasks/{id} removes task
+
+Score: 9/9
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### openai:gpt-5.4 / integration-bug
 - **Status:** EXCELLENT
-- **Duration:** 62.53s
+- **Duration:** 255.05s
 - **Workdir:** `experiment/openai-gpt-5.4/integration-bug/workdir`
 - **Log:** `experiment/openai-gpt-5.4/integration-bug/combined.log`
-- **Tools Used:** ActivateSkill, WriteTodos, LS, Glob, ReadMany, ReadMany, Bash, Read, Edit, Bash, UpdateTodo, UpdateTodo, Bash, Bash, Edit, Edit, Edit, Edit, UpdateTodo, UpdateTodo, Write, ReadMany, LspGetDiagnostics, UpdateTodo, UpdateTodo, Bash, Bash, UpdateTodo, Grep, ReadMany
+- **Tools Used:** ActivateSkill, WriteTodos, Glob, Glob, Grep, ReadMany, Bash, UpdateTodo, ActivateSkill, Glob, Glob, Glob, UpdateTodo, Write, Bash, Read, Edit, Edit, Edit, Bash, UpdateTodo, UpdateTodo, Edit, Edit, Edit, Bash, UpdateTodo, UpdateTodo, Bash, Bash, UpdateTodo
 
 **Verification Output:**
 ```
-Verifying Integration Bug Fix...
-Initial Balances:
-Alice: 100
-Bob: 100
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Starting transfer: Alice -> Bob ($20)
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-Transfer complete: Alice -> Bob
-
-Final Balances:
-Alice: 0
-Bob: 200
-Total: 200
-Total Money in System: 200
-WARNING: No explicit locking found, might be lucky or uses different pattern
-PASS: System integrity maintained
+Verifying Checkout Fix...
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+  Trial 1: PASS (stock=0, successful=5, charged=$500.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: SUCCESS
+Order order_2: SUCCESS
+Order order_4: SUCCESS
+Order order_1: payment failed
+Order order_3: payment failed
+  Trial 2: PASS (stock=2, successful=3, charged=$300.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+Order order_0: payment failed
+  Trial 3: PASS (stock=1, successful=4, charged=$400.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_0: payment failed
+Order order_4: payment failed
+  Trial 4: PASS (stock=2, successful=3, charged=$300.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_2: SUCCESS
+Order order_0: payment failed
+Order order_1: payment failed
+Order order_3: payment failed
+Order order_4: payment failed
+  Trial 5: PASS (stock=4, successful=1, charged=$100.00)
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+  Trial 6: PASS (stock=0, successful=5, charged=$500.00)
+PASS: Locking mechanism detected
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### openai:gpt-5.4 / refactor
 - **Status:** EXCELLENT
-- **Duration:** 70.42s
+- **Duration:** 213.11s
 - **Workdir:** `experiment/openai-gpt-5.4/refactor/workdir`
 - **Log:** `experiment/openai-gpt-5.4/refactor/combined.log`
-- **Tools Used:** ActivateSkill, WriteTodos, Glob, Grep, Read, Bash, UpdateTodo, UpdateTodo, Write, Read, Write, Write, UpdateTodo, Bash, Bash, LspGetDiagnostics, Grep, Bash, UpdateTodo, UpdateTodo
+- **Tools Used:** ActivateSkill, WriteTodos, Glob, Grep, Read, UpdateTodo, UpdateTodo, Write, UpdateTodo, UpdateTodo, Bash, Bash, Read, Bash, Bash, UpdateTodo
 
 **Verification Output:**
 ```
-Verifying refactored script: etl.py
-Testing if script runs...
-PASS: Separated into functions/classes
-PASS: ETL pattern (Extract/Transform/Load)
-PASS: Configuration decoupled
-PASS: Uses regex for parsing
-PASS: Has type hints & docstrings
+Verifying Pipeline Refactor...
+Checking: pipeline_refactored.py
+PASS: Environment variables used for config
+PASS: SQL queries use parameterized form (no injection)
+PASS: ETL pattern present (extract/transform/load)
+PASS: Separated into 10 functions
+PASS: Regex used for log parsing
+PASS: Type hints and docstrings present
+Running script...
 PASS: Script runs successfully
-PASS: Creates report.html
+PASS: report.html contains all required sections
+
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### openai:gpt-5.4 / research
-- **Status:** FAIL
-- **Duration:** 10.12s
+- **Status:** EXCELLENT
+- **Duration:** 95.07s
 - **Workdir:** `experiment/openai-gpt-5.4/research/workdir`
 - **Log:** `experiment/openai-gpt-5.4/research/combined.log`
-- **Tools Used:** ActivateSkill
+- **Tools Used:** ActivateSkill, LS, Read, Write
 
 **Verification Output:**
 ```
-FAIL: solid_state_battery_report.md not found and no other markdown files found
-VERIFICATION_RESULT: FAIL
+Verifying Architecture Decision Record...
+PASS: Substantial content (939 words)
+PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
+PASS: Status field present
+PASS: Both Kafka and Redis Streams are evaluated
+PASS: Contains a clear recommendation
+PASS: Covers 11 technical properties (throughput, ordering, retention, consumer group...)
+PASS: Addresses team/constraint context
+PASS: Consequences include both pros and cons
+
+Score: 8/8
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---

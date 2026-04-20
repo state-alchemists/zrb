@@ -4,114 +4,69 @@ import os
 import sys
 
 
-def verify_inventory_fix():
-    """Verify that the inventory system fix works correctly."""
+def verify():
+    print("Verifying Job Queue Fix...")
 
-    # Check if inventory_system.py exists
-    if not os.path.exists("inventory_system.py"):
-        print("FAIL: inventory_system.py not found")
-        print("VERIFICATION_RESULT: FAIL")
-        return False
+    for fname in ["job_queue.py", "worker.py"]:
+        if not os.path.exists(fname):
+            print(f"FAIL: {fname} not found")
+            print("VERIFICATION_RESULT: FAIL")
+            return False
 
-    # Read the file
-    with open("inventory_system.py", "r") as f:
-        content = f.read()
+    sys.path.insert(0, os.getcwd())
 
-    score = 0
-    max_score = 2
-
-    # Check for asyncio.Lock or similar concurrency control
-    has_lock = "asyncio.Lock" in content or "Lock" in content
-    if has_lock:
-        print("PASS: Concurrency control found")
-        score += 1
-    else:
-        print("WARNING: No explicit asyncio.Lock found")
-
-    # Try to run the script to see if it works
     try:
-        # Import the module
-        import importlib.util
-
-        spec = importlib.util.spec_from_file_location(
-            "inventory_system", "inventory_system.py"
-        )
-        module = importlib.util.module_from_spec(spec)
-
-        # We need to capture output and run the async main
-        import contextlib
-        import io
-
-        # Capture stdout
-        f = io.StringIO()
-        with contextlib.redirect_stdout(f):
-            try:
-                # Execute the module first
-                spec.loader.exec_module(module)
-
-                # Run the async main
-                if hasattr(module, "main"):
-                    asyncio.run(module.main())
-                else:
-                    # Try to find and run inventory creation
-                    inventory = module.Inventory()
-                    asyncio.run(inventory.purchase(1, 1))
-            except Exception as e:
-                print(f"ERROR running script: {e}")
-                print("VERIFICATION_RESULT: FAIL")
-                return False
-
-        output = f.getvalue()
-
-        # Check that final stock is not negative
-        if "Final Stock:" in output:
-            # Extract final stock value
-            import re
-
-            match = re.search(r"Final Stock:\s*(-?\d+)", output)
-            if match:
-                final_stock = int(match.group(1))
-                if final_stock < 0:
-                    print(f"FAIL: Final stock is negative: {final_stock}")
-                    print("VERIFICATION_RESULT: FAIL")
-                    return False
-                else:
-                    print(f"PASS: Final stock is non-negative: {final_stock}")
-                    score += 1
-            else:
-                print("WARNING: Could not parse final stock from output")
-                # Give benefit of doubt if code has lock, but don't increment score
-        else:
-            print("INFO: No 'Final Stock:' output found, assuming modified test")
-            # Neutral
-
-    except Exception as e:
-        print(f"ERROR testing script: {e}")
+        from job_queue import JobQueue
+        from worker import process_job
+    except ImportError as e:
+        print(f"FAIL: Import error: {e}")
         print("VERIFICATION_RESULT: FAIL")
         return False
 
-    # Determine final status
-    if score >= 2:
-        print("VERIFICATION_RESULT: EXCELLENT")
-    elif score >= 1:  # At least runs or has lock, outcome uncertain or partial
-        # If stock is correct (score includes that), it's a pass.
-        # Actually, if final stock is verified non-negative, that's the critical pass.
-        # Re-evaluating logic:
-        pass  # handled below
+    with open("job_queue.py") as f:
+        queue_src = f.read()
+    with open("worker.py") as f:
+        worker_src = f.read()
+    has_lock = "Lock" in queue_src or "Lock" in worker_src
 
-    # If we reached here without returning False, strict check:
-    # Critical: Stock non-negative (captured in exception/return blocks above)
+    async def run_simulation():
+        q = JobQueue(max_retries=2)
+        for i in range(10):
+            q.enqueue({"name": f"task_{i}", "raise_error": False})
+        q.enqueue({"name": "bad_1", "raise_error": True})
+        q.enqueue({"name": "bad_2", "raise_error": True})
+        workers = [process_job(q, i) for i in range(5)]
+        await asyncio.gather(*workers)
+        jobs = q.all_jobs
+        done = sum(1 for j in jobs.values() if j["status"] == "done")
+        failed = sum(1 for j in jobs.values() if j["status"] == "failed")
+        stuck = sum(1 for j in jobs.values() if j["status"] == "processing")
+        return done, failed, stuck
 
-    if score == 2:
-        # Lock + Correct Stock
+    passes = 0
+    runs = 5
+    for run in range(runs):
+        done, failed, stuck = asyncio.run(run_simulation())
+        ok = done == 10 and failed == 2 and stuck == 0
+        status = "PASS" if ok else f"FAIL (done={done}, failed={failed}, stuck={stuck})"
+        print(f"  Run {run + 1}: {status}")
+        if ok:
+            passes += 1
+
+    if passes < runs:
+        print(f"FAIL: Only {passes}/{runs} simulation runs passed")
+        print("VERIFICATION_RESULT: FAIL")
+        return False
+
+    if has_lock:
+        print("PASS: Concurrency control (Lock) detected")
         print("VERIFICATION_RESULT: EXCELLENT")
     else:
-        # Maybe just Correct Stock but weird implementation
+        print("PASS: All simulation runs passed")
         print("VERIFICATION_RESULT: PASS")
-
     return True
 
 
 if __name__ == "__main__":
-    success = verify_inventory_fix()
+    success = verify()
     sys.exit(0 if success else 1)

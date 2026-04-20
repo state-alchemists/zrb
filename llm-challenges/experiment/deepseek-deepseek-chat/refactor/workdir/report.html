@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>System Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        h1 { color: #333; }
+        h2 { color: #555; margin-top: 30px; }
+        table { border-collapse: collapse; width: 100%; max-width: 600px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        ul { list-style-type: none; padding-left: 0; }
+        li { margin-bottom: 10px; padding: 10px; background-color: #f9f9f9; border-left: 4px solid #e74c3c; }
+        .timestamp { color: #777; font-size: 0.9em; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Error Summary</h1>
+    <ul>
+        <li><b>Database timeout</b>: 2 occurrence(s)</li>
+    </ul>
+
+    <h2>API Latency</h2>
+    <table>
+        <tr>
+            <th>Endpoint</th>
+            <th>Average Response Time (ms)</th>
+            <th>Call Count</th>
+        </tr>
+        <tr><td>/users/profile</td><td>250.0</td><td>1</td></tr>
+    </table>
+
+    <h2>Active Sessions</h2>
+    <p>0 user(s) currently active</p>
+    
+    <div class="timestamp">
+        Report generated: 2026-04-20 21:13:27
+    </div>
+</body>
+</html>
