@@ -17,8 +17,8 @@ async def list_tasks(
     status: Optional[TaskStatus] = None,
     priority: Optional[int] = None,
     assigned_to: Optional[str] = None,
-    page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100)
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100)
 ):
     filtered_tasks = tasks
     
@@ -73,9 +73,17 @@ async def create_task(task_data: TaskCreate, username: str = require_api_key):
 async def update_task(task_id: int, task_update: TaskUpdate, username: str = require_api_key):
     for i, task in enumerate(tasks):
         if task.id == task_id:
-            # Partial update - only update fields that are provided
-            update_data = task_update.model_dump(exclude_unset=True)
-            updated_task = task.model_copy(update=update_data)
+            updated_task = task.copy()
+            
+            if task_update.title is not None:
+                updated_task.title = task_update.title
+            if task_update.status is not None:
+                updated_task.status = task_update.status
+            if task_update.priority is not None:
+                updated_task.priority = task_update.priority
+            if task_update.assigned_to is not None:
+                updated_task.assigned_to = task_update.assigned_to
+            
             tasks[i] = updated_task
             return updated_task
     

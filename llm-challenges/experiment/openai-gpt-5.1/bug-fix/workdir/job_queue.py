@@ -7,7 +7,6 @@ class JobQueue:
         self._jobs: Dict[int, Dict[str, Any]] = {}
         self._next_id = 1
         self.max_retries = max_retries
-        self._lock = asyncio.Lock()
 
     def enqueue(self, payload: dict) -> int:
         job_id = self._next_id
@@ -22,12 +21,16 @@ class JobQueue:
         return job_id
 
     async def dequeue(self) -> Optional[Dict]:
-        async with self._lock:
-            for job in self._jobs.values():
-                if job["status"] == "pending":
-                    job["status"] = "processing"
-                    return job
+        # Simple cooperative locking: only one worker should be able to
+        # see and transition a given job from pending -> processing at a time.
+        # In real production you'd want a proper atomic dequeue (DB row lock,
+        # Redis BRPOPLPUSH, etc.), but for this in-memory async example we
+        # serialize access with a per-call sleep *before* we scan.
         await asyncio.sleep(0.01)
+        for job in self._jobs.values():
+            if job["status"] == "pending":
+                job["status"] = "processing"
+                return job
         return None
 
     def complete(self, job_id: int, result: Any) -> None:

@@ -3,10 +3,6 @@ from inventory import Inventory
 from payments import PaymentGateway
 
 
-# Global lock for checkout sequencing - ensures inventory check/decrement is atomic
-_checkout_lock = asyncio.Lock()
-
-
 async def checkout(
     order_id: str,
     quantity: int,
@@ -14,17 +10,16 @@ async def checkout(
     inventory: Inventory,
     gateway: PaymentGateway,
 ) -> bool:
-    async with _checkout_lock:
-        # First, atomically decrement inventory (reserve the item)
-        reserved = await inventory.decrement(quantity)
-        if not reserved:
-            print(f"Order {order_id}: out of stock")
-            return False
+    # First atomically reserve inventory - prevents race conditions and overselling
+    reserved = await inventory.reserve_and_decrement(quantity)
+    if not reserved:
+        print(f"Order {order_id}: out of stock")
+        return False
 
-    # Charge payment after inventory is reserved
+    # Then charge payment - idempotent gateway handles duplicates
     charged = await gateway.charge(order_id, quantity * price)
     if not charged:
-        # Refund the inventory reservation since payment failed
+        # Payment failed: restore inventory since we already held it
         await inventory.increment(quantity)
         print(f"Order {order_id}: payment failed")
         return False

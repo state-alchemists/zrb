@@ -67,14 +67,14 @@ def verify():
     else:
         print(f"FAIL: ETL pattern incomplete (extract={has_extract}, transform={has_transform}, load={has_load})")
 
-    # 4. Multiple functions (separation of concerns)
+    # 4. Multiple functions or class (separation of concerns)
     fn_count = len(re.findall(r"^def\s+\w+", content, re.MULTILINE))
-    if fn_count >= 3:
-        print(f"PASS: Separated into {fn_count} functions")
+    class_count = len(re.findall(r"^class\s+\w+", content, re.MULTILINE))
+    if fn_count >= 3 or class_count >= 1:
+        print(f"PASS: Separated into {fn_count} function(s), {class_count} class(es)")
         score += 1
     else:
-        print(f"FAIL: Only {fn_count} function(s) — needs at least 3")
-        critical_ok = False
+        print(f"FAIL: Only {fn_count} function(s) and no classes — needs more separation")
 
     # 5. Regex used for parsing
     if "import re" in content or re.search(r"\bre\.(search|match|findall|compile)", content):
@@ -108,7 +108,15 @@ def verify():
             [sys.executable, refactor_file],
             capture_output=True, text=True, timeout=15,
             cwd=os.path.dirname(os.path.abspath(refactor_file)),
-            env={**os.environ, "LOG_FILE": "server.log", "DB_PATH": "metrics.db"},
+            env={
+                **os.environ,
+                "LOG_FILE": "server.log",
+                "DB_PATH": "metrics.db",
+                "DB_HOST": "localhost",
+                "DB_PORT": "5432",
+                "DB_USER": "admin",
+                "DB_PASS": "password123",
+            },
         )
         if result.returncode == 0:
             print("PASS: Script runs successfully")

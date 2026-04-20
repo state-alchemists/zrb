@@ -9,7 +9,7 @@ async def require_api_key(x_api_key: Optional[str] = Header(default=None)) -> st
     Returns the username on success.
     """
     if x_api_key is None:
-        raise HTTPException(status_code=401, detail="X-API-Key header is missing")
+        raise HTTPException(status_code=401, detail="X-API-Key header is required")
     
     if x_api_key not in VALID_API_KEYS:
         raise HTTPException(status_code=401, detail="Invalid API key")

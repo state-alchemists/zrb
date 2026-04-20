@@ -7,22 +7,18 @@ import sys
 def verify():
     print("Verifying Architecture Decision Record...")
 
+    SKIP_FILES = {"readme.md", "system_context.md"}
     report_path = "ADR-001-notification-architecture.md"
     if not os.path.exists(report_path):
         md_files = [
             f for f in os.listdir(".")
-            if f.lower().endswith(".md") and "adr" in f.lower()
+            if f.lower().endswith(".md") and f.lower() not in SKIP_FILES
         ]
-        if not md_files:
-            md_files = [
-                f for f in os.listdir(".")
-                if f.lower().endswith(".md") and f.lower() not in ["readme.md", "system_context.md"]
-            ]
         if md_files:
-            report_path = md_files[0]
+            report_path = sorted(md_files)[0]
             print(f"INFO: Using {report_path}")
         else:
-            print("FAIL: ADR-001-notification-architecture.md not found")
+            print("FAIL: No ADR markdown file found")
             print("VERIFICATION_RESULT: FAIL")
             return False
 

@@ -18,7 +18,7 @@ async def list_tasks(
     priority: Optional[int] = None,
     assigned_to: Optional[str] = None,
     page: int = 1,
-    page_size: int = 20,
+    page_size: int = 20
 ):
     filtered_tasks = tasks
     
@@ -55,13 +55,13 @@ async def create_task(
     if not project_exists:
         raise HTTPException(status_code=404, detail="Project not found")
     
-    # Generate a unique ID
+    # Auto-generate unique ID
     if tasks:
         new_id = max(task.id for task in tasks) + 1
     else:
         new_id = 1
     
-    # Create the task
+    # Create new task
     new_task = Task(
         id=new_id,
         title=task_data.title,
@@ -71,9 +71,7 @@ async def create_task(
         assigned_to=task_data.assigned_to
     )
     
-    # Add to the tasks list
     tasks.append(new_task)
-    
     return new_task
 
 
@@ -87,15 +85,21 @@ async def update_task(
     for i, task in enumerate(tasks):
         if task.id == task_id:
             # Update only provided fields
-            update_data = task_update.dict(exclude_unset=True)
+            update_data = task_update.model_dump(exclude_unset=True)
             
-            # Create updated task
-            updated_task = task.copy(update=update_data)
+            if "title" in update_data and update_data["title"] is not None:
+                tasks[i].title = update_data["title"]
             
-            # Replace in the list
-            tasks[i] = updated_task
+            if "status" in update_data and update_data["status"] is not None:
+                tasks[i].status = update_data["status"]
             
-            return updated_task
+            if "priority" in update_data and update_data["priority"] is not None:
+                tasks[i].priority = update_data["priority"]
+            
+            if "assigned_to" in update_data:
+                tasks[i].assigned_to = update_data["assigned_to"]  # Can be None to unassign
+            
+            return tasks[i]
     
     raise HTTPException(status_code=404, detail="Task not found")
 
@@ -108,8 +112,7 @@ async def delete_task(
     # Find the task
     for i, task in enumerate(tasks):
         if task.id == task_id:
-            # Remove from the list
             deleted_task = tasks.pop(i)
-            return {"message": f"Task {task_id} deleted successfully", "task": deleted_task}
+            return {"message": f"Task {task_id} deleted", "task": deleted_task}
     
     raise HTTPException(status_code=404, detail="Task not found")

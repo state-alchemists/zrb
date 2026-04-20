@@ -1,11 +1,152 @@
 [2m
-  🧰 call_a5iqcpwx | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+  I[0m[2m'll[0m[2m analyze[0m[2m the[0m[2m code[0m[2mbase[0m[2m to[0m[2m understand[0m[2m the[0m[2m issues[0m[2m and[0m[2m then[0m[2m fix[0m[2m them[0m[2m.[0m[2m
+  🧰 call_2lzfwqh0 | ReadMany {'paths': ['checkout.py', 'inventory.py', 'payments.py', 'main.py']}
 [0m[2m
-  🧰 call_2iij5xen | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+  🔠 call_2lzfwqh0 | Return {'checkout.py': '[File: checkout.py | 30 lines]\n---CONTENT---\nimport asyncio\nfrom inventory import Inventory\nfrom payments import PaymentGateway\n\n\nasync def checkout(\n    order_id: str,\n    quantity: int,\n    price: float,\n    inventory: Inventory,\n    gateway: PaymentGateway,\n) -> bool:\n    available = await inventory.check_stock(quantity)\n    if not available:\n        print(f"Order {order_id}: out of stock")\n        return False\n\n    charged = await gateway.charge(order_id, quantity * price)\n    if not charged:\n        print(f"Order {order_id}: payment failed")\n        return False\n\n    decremented = await inventory.decrement(quantity)\n    if not decremented:\n        print(f"Order {order_id}: inventory error after payment — item not delivered")\n        return False\n\n    print(f"Order {order_id}: SUCCESS")\n    return True\n', 'inventory.py': '[File: inventory.py | 26 lines]\n---CONTENT---\nimport asyncio\n\n\nclass Inventory:\n    def __init__(self, stock: int):\n        self._stock = stock\n\n    async def check_stock(self, quantity: int) -> bool:\n        await asyncio.sleep(0.02)\n        return self._stock >= quantity\n\n    async def decrement(self, quantity: int) -> bool:\n        await asyncio.sleep(0.02)\n        if self._stock >= quantity:\n            self._stock -= quantity\n            return True\n        return False\n\n    async def increment(self, quantity: int) -> None:\n        await asyncio.sleep(0.01)\n        self._stock += quantity\n\n    @property\n    def stock(self) -> int:\n        return self._stock\n', 'payments.py': '[File: payments.py | 19 lines]\n---CONTENT---\nimport asyncio\nimport random\nfrom typing import List\n\n\nclass PaymentGateway:\n    def __init__(self, failure_rate: float = 0.25):\n        self._failure_rate = failure_rate\n        self.total_charged: float = 0.0\n        self.charges: List[dict] = []\n\n    async def charge(self, order_id: str, amount: float) -> bool:\n        await asyncio.sleep(0.03)\n        if random.random() < self._failure_rate:\n            return False\n        self.total_charged += amount\n        self.charges.append({"order_id": order_id, "amount": amount})\n        return True\n', 'main.py': '[File: main.py | 45 lines]\n---CONTENT---\nimport asyncio\nfrom inventory import Inventory\nfrom payments import PaymentGateway\nfrom checkout import checkout\n\nITEM_PRICE = 100.0\nINITIAL_STOCK = 5\nNUM_ORDERS = 12\n\n\nasync def main() -> None:\n    inventory = Inventory(INITIAL_STOCK)\n    gateway = PaymentGateway(failure_rate=0.25)\n\n    print(f"Starting simulation: {NUM_ORDERS} concurrent orders, stock={INITIAL_STOCK}")\n    orders = [\n        checkout(f"order_{i}", 1, ITEM_PRICE, inventory, gateway)\n        for i in range(NUM_ORDERS)\n    ]\n    results = await asyncio.gather(*orders)\n\n    successful = sum(results)\n    items_sold = INITIAL_STOCK - inventory.stock\n    charge_ids = [c["order_id"] for c in gateway.charges]\n    duplicates = len(charge_ids) - len(set(charge_ids))\n\n    print(f"\\n=== Results ===")\n    print(f"Successful orders:  {successful}")\n    print(f"Items sold:         {items_sold}  (initial stock: {INITIAL_STOCK})")\n    print(f"Remaining stock:    {inventory.stock}")\n    print(f"Total charged:      ${gateway.total_charged:.2f}")\n    print(f"Expected charge:    ${successful * ITEM_PRICE:.2f}")\n    print(f"Duplicate charges:  {duplicates}")\n\n    if inventory.stock < 0:\n        print("ERROR: Inventory went negative!")\n    if abs(gateway.total_charged - successful * ITEM_PRICE) > 0.01:\n        print("ERROR: Charge amount does not match successful orders!")\n    if duplicates > 0:\n        print("ERROR: Duplicate charges detected!")\n\n\nif __name__ == "__main__":\n    asyncio.run(main())\n'}
 [0m[2m
-  🧰 call_ab768gfe | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+  Now[0m[2m let[0m[2m me[0m[2m run[0m[2m the[0m[2m simulation[0m[2m to[0m[2m confirm[0m[2m the[0m[2m issues[0m[2m:[0m[2m
+  🧰 call_w99w9cpm | Bash {'command': 'cd /Users/gofrendigunawan/ ...'}
+[0m  [2mStarting simulation: 12 concurrent orders, stock=5
+[0m  [2mOrder order_5: payment failed
+[0m  [2mOrder order_6: payment failed
+[0m  [2mOrder order_8: payment failed
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: SUCCESS
+[0m  [2mOrder order_3: SUCCESS
+[0m  [2mOrder order_4: SUCCESS
+[0m  [2mOrder order_7: inventory error after payment — item not delivered
+[0m  [2mOrder order_9: inventory error after payment — item not delivered
+[0m  [2mOrder order_10: inventory error after payment — item not delivered
+[0m  [2mOrder order_11: inventory error after payment — item not delivered
+[0m  [2m
+[0m  [2m=== Results ===
+[0m  [2mSuccessful orders:  5
+[0m  [2mItems sold:         5  (initial stock: 5)
+[0m  [2mRemaining stock:    0
+[0m  [2mTotal charged:      $900.00
+[0m  [2mExpected charge:    $500.00
+[0m  [2mDuplicate charges:  0
+[0m  [2mERROR: Charge amount does not match successful orders!
 [0m[2m
-  🔠 call_a5iqcpwx | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir/checkout.py | 30 lines]
+  🔠 call_w99w9cpm | Return Command: cd /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir && python main.py
+     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir
+     Stdout:
+     Starting simulation: 12 concurrent orders, stock=5
+     Order order_5: payment failed
+     Order order_6: payment failed
+     Order order_8: payment failed
+     Order order_0: SUCCESS
+     Order order_1: SUCCESS
+     Order order_2: SUCCESS
+     Order order_3: SUCCESS
+     Order order_4: SUCCESS
+     Order order_7: inventory error after payment — item not delivered
+     Order order_9: inventory error after payment — item not delivered
+     Order order_10: inventory error after payment — item not delivered
+     Order order_11: inventory error after payment — item not delivered
+     
+     === Results ===
+     Successful orders:  5
+     Items sold:         5  (initial stock: 5)
+     Remaining stock:    0
+     Total charged:      $900.00
+     Expected charge:    $500.00
+     Duplicate charges:  0
+     ERROR: Charge amount does not match successful orders!
+     Stderr:
+     (empty)
+     Exit Code: 0
+     Background PIDs: (none)
+[0m[2m
+  I[0m[2m can[0m[2m see[0m[2m two[0m[2m issues[0m[2m:[0m[2m
+     1[0m[2m.[0m[2m **[0m[2mGhost[0m[2m charges[0m[2m**:[0m[2m 9[0m[2m orders[0m[2m were[0m[2m charged[0m[2m but[0m[2m only[0m[2m 5[0m[2m succeeded[0m[2m -[0m[2m some[0m[2m orders[0m[2m are[0m[2m charged[0m[2m but[0m[2m then[0m[2m fail[0m[2m at[0m[2m inventory[0m[2m decrement[0m[2m
+     2[0m[2m.[0m[2m **[0m[2mRace[0m[2m condition[0m[2m in[0m[2m checkout[0m[2m**:[0m[2m Multiple[0m[2m orders[0m[2m can[0m[2m pass[0m[2m `[0m[2mcheck[0m[2m_stock[0m[2m`[0m[2m simultaneously[0m[2m before[0m[2m any[0m[2m decre[0m[2mments[0m[2m,[0m[2m leading[0m[2m to[0m[2m overs[0m[2melling[0m[2m potential[0m[2m
+     
+     The[0m[2m root[0m[2m causes[0m[2m:[0m[2m
+     -[0m[2m Checkout[0m[2m checks[0m[2m stock[0m[2m,[0m[2m then[0m[2m charges[0m[2m,[0m[2m then[0m[2m decre[0m[2mments[0m[2m -[0m[2m but[0m[2m there[0m[2m's[0m[2m no[0m[2m atomic[0m[2mity[0m[2m
+     -[0m[2m Payment[0m[2m gateway[0m[2m allows[0m[2m duplicate[0m[2m charges[0m[2m for[0m[2m the[0m[2m same[0m[2m order[0m[2m_id[0m[2m
+     -[0m[2m No[0m[2m tracking[0m[2m of[0m[2m already[0m[2m-ch[0m[2marged[0m[2m order[0m[2m_ids[0m[2m
+     
+     I[0m[2m'll[0m[2m fix[0m[2m this[0m[2m by[0m[2m:[0m[2m
+     1[0m[2m.[0m[2m Adding[0m[2m **[0m[2mid[0m[2memp[0m[2mot[0m[2mency[0m[2m tracking[0m[2m**[0m[2m to[0m[2m `[0m[2mPayment[0m[2mGateway[0m[2m`[0m[2m to[0m[2m prevent[0m[2m duplicate[0m[2m charges[0m[2m for[0m[2m same[0m[2m order[0m[2m_id[0m[2m
+     2[0m[2m.[0m[2m Adding[0m[2m an[0m[2m **[0m[2matomic[0m[2m `[0m[2mreserve[0m[2m`[0m[2m method[0m[2m**[0m[2m to[0m[2m `[0m[2mInventory[0m[2m`[0m[2m that[0m[2m combines[0m[2m check[0m[2m and[0m[2m decrement[0m[2m
+     3[0m[2m.[0m[2m Updating[0m[2m `[0m[2mcheckout[0m[2m.py[0m[2m`[0m[2m to[0m[2m use[0m[2m the[0m[2m atomic[0m[2m operation[0m[2m and[0m[2m rollback[0m[2m on[0m[2m payment[0m[2m failure[0m[2m
+  🧰 call_7tup30pt | WriteTodos {'todos': [{'content': 'Add idempotency tracking to PaymentGateway to prevent duplicate charges', 'id': '1', 'status': 'in_progress'}, {'content': 'Add atomic reserve method to Inventory to prevent race conditions', 'id': '2', 'status': 'pending'}, {'content': 'Update checkout.py to use atomic operations and proper rollback', 'id': '3', 'status': 'pending'}, {'content': 'Test the fix with main.py simulation', 'id': '4', 'status': 'pending'}]}
+[0m[2m
+  🔠 call_7tup30pt | Return [glad-coil-0444] 0/4 done, 1 in progress
+       [>] [1] Add idempotency tracking to PaymentGateway to prevent duplicate charges
+       [ ] [2] Add atomic reserve method to Inventory to prevent race conditions
+       [ ] [3] Update checkout.py to use atomic operations and proper rollback
+       [ ] [4] Test the fix with main.py simulation
+     
+     Use `update_todo` to change status; `get_todos` to check state.
+[0m[2m
+  🧰 call_xhxly0kt | Edit {'path': '/Users/gofrendigunawan/zrb ...', 'old_text': 'import asyncio\nimport rand ...', 'new_text': 'import asyncio\nimport rand ...'}
+[0m[2m
+  🔠 call_xhxly0kt | Return Successfully updated /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir/payments.py (1 replacement(s))
+[0m[2m
+  🧰 call_xtz8fs04 | Edit {'path': '/Users/gofrendigunawan/zrb ...', 'old_text': '    async def charge(self, ...', 'new_text': '    async def charge(self, ...'}
+[0m[2m
+  🔠 call_xtz8fs04 | Return Successfully updated /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir/payments.py (1 replacement(s))
+[0m[2m
+  🧰 call_0h7ltn3f | WriteTodos {'todos': '[{"content":"Add idempoten ...'}
+[0m[2m
+  🔠 call_0h7ltn3f | Return [{'type': 'list_type', 'loc': ('todos',), 'msg': 'Input should be a valid array', 'input': '[{"content":"Add idempotency tracking to PaymentGateway to prevent duplicate charges",id":"1","status":"completed"},{"content":"Add atomic reserve method to Inventory to prevent race conditions",id":"2","status":"in_progress"},{"content":"Update checkout.py to use atomic operations and proper rollback",id":"3","status":"pending"},{"content":"Test the fix with main.py simulation",id":"4","status":"pending"}]'}]
+[0m[2m
+  🧰 call_seqixbd3 | WriteTodos {'todos': [{'content': 'Add idempotency tracking to PaymentGateway to prevent duplicate charges', 'id': '1', 'status': 'completed'}, {'content': 'Add atomic reserve method to Inventory to prevent race conditions', 'id': '2', 'status': 'in_progress'}, {'content': 'Update checkout.py to use atomic operations and proper rollback', 'id': '3', 'status': 'pending'}, {'content': 'Test the fix with main.py simulation', 'id': '4', 'status': 'pending'}]}
+[0m[2m
+  🔠 call_seqixbd3 | Return [glad-coil-0444] 1/4 done, 1 in progress
+       [+] [1] Add idempotency tracking to PaymentGateway to prevent duplicate charges
+       [>] [2] Add atomic reserve method to Inventory to prevent race conditions
+       [ ] [3] Update checkout.py to use atomic operations and proper rollback
+       [ ] [4] Test the fix with main.py simulation
+     
+     Use `update_todo` to change status; `get_todos` to check state.
+[0m[2m
+  🧰 call_m2bij57j | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_m2bij57j | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir/inventory.py | 26 lines]
+     ---CONTENT---
+     import asyncio
+     
+     
+     class Inventory:
+         def __init__(self, stock: int):
+             self._stock = stock
+     
+         async def check_stock(self, quantity: int) -> bool:
+             await asyncio.sleep(0.02)
+             return self._stock >= quantity
+     
+         async def decrement(self, quantity: int) -> bool:
+             await asyncio.sleep(0.02)
+             if self._stock >= quantity:
+                 self._stock -= quantity
+                 return True
+             return False
+     
+         async def increment(self, quantity: int) -> None:
+             await asyncio.sleep(0.01)
+             self._stock += quantity
+     
+         @property
+         def stock(self) -> int:
+             return self._stock
+     
+[0m[2m
+  Now[0m[2m I[0m[2m'll[0m[2m add[0m[2m an[0m[2m atomic[0m[2m `[0m[2mreserve[0m[2m`[0m[2m method[0m[2m that[0m[2m combines[0m[2m check[0m[2m and[0m[2m decrement[0m[2m:[0m[2m
+  🧰 call_9tpthk0i | Edit {'path': '/Users/gofrendigunawan/zrb ...', 'new_text': '    async def decrement(se ...', 'old_text': '    async def decrement(se ...'}
+[0m[2m
+  🔠 call_9tpthk0i | Return Successfully updated /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir/inventory.py (1 replacement(s))
+[0m[2m
+  🧰 call_a9ftbsne | WriteTodos {'todos': '[{"content":"Add idempoten ...'}
+[0m[2m
+  🔠 call_a9ftbsne | Return [{'type': 'list_type', 'loc': ('todos',), 'msg': 'Input should be a valid array', 'input': '[{"content":"Add idempotency tracking to PaymentGateway to prevent duplicate charges",id":"1","status":"completed"},{"content":"Add atomic reserve method to Inventory to prevent race conditions",id":"2","status":"completed"},{"content":"Update checkout.py to use atomic operations and proper rollback",id":"3","status":"in_progress"},{"content":"Test the fix with main.py simulation",id":"4","status":"pending"}]'}]
+[0m[2m
+  🧰 call_w463iune | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_w463iune | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir/checkout.py | 30 lines]
      ---CONTENT---
      import asyncio
      from inventory import Inventory
@@ -38,422 +179,129 @@
          return True
      
 [0m[2m
-  🔠 call_2iij5xen | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir/inventory.py | 26 lines]
-     ---CONTENT---
-     import asyncio
-     
-     
-     class Inventory:
-         def __init__(self, stock: int):
-             self._stock = stock
-     
-         async def check_stock(self, quantity: int) -> bool:
-             await asyncio.sleep(0.02)
-             return self._stock >= quantity
-     
-         async def decrement(self, quantity: int) -> bool:
-             await asyncio.sleep(0.02)
-             if self._stock >= quantity:
-                 self._stock -= quantity
-                 return True
-             return False
-     
-         async def increment(self, quantity: int) -> None:
-             await asyncio.sleep(0.01)
-             self._stock += quantity
-     
-         @property
-         def stock(self) -> int:
-             return self._stock
-     
+  Now[0m[2m I[0m[2m'll[0m[2m rewrite[0m[2m checkout[0m[2m.py[0m[2m to[0m[2m use[0m[2m atomic[0m[2m reserve[0m[2m and[0m[2m handle[0m[2m payment[0m[2m failures[0m[2m properly[0m[2m:[0m[2m
+  🧰 call_xkjxl7tj | Write {'path': '/Users/gofrendigunawan/zrb ...', 'content': 'import asyncio\nfrom invent ...'}
 [0m[2m
-  🔠 call_ab768gfe | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir/payments.py | 19 lines]
-     ---CONTENT---
-     import asyncio
-     import random
-     from typing import List
-     
-     
-     class PaymentGateway:
-         def __init__(self, failure_rate: float = 0.25):
-             self._failure_rate = failure_rate
-             self.total_charged: float = 0.0
-             self.charges: List[dict] = []
-     
-         async def charge(self, order_id: str, amount: float) -> bool:
-             await asyncio.sleep(0.03)
-             if random.random() < self._failure_rate:
-                 return False
-             self.total_charged += amount
-             self.charges.append({"order_id": order_id, "amount": amount})
-             return True
-     
+  🔠 call_xkjxl7tj | Return Successfully wrote to /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir/checkout.py
 [0m[2m
-  🧰 call_qzfrgrh7 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+  🧰 call_ewlfo4vl | WriteTodos {'todos': '[{"content":"Add idempoten ...'}
 [0m[2m
-  🔠 call_qzfrgrh7 | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir/main.py | 45 lines]
-     ---CONTENT---
-     import asyncio
-     from inventory import Inventory
-     from payments import PaymentGateway
-     from checkout import checkout
-     
-     ITEM_PRICE = 100.0
-     INITIAL_STOCK = 5
-     NUM_ORDERS = 12
-     
-     
-     async def main() -> None:
-         inventory = Inventory(INITIAL_STOCK)
-         gateway = PaymentGateway(failure_rate=0.25)
-     
-         print(f"Starting simulation: {NUM_ORDERS} concurrent orders, stock={INITIAL_STOCK}")
-         orders = [
-             checkout(f"order_{i}", 1, ITEM_PRICE, inventory, gateway)
-             for i in range(NUM_ORDERS)
-         ]
-         results = await asyncio.gather(*orders)
-     
-         successful = sum(results)
-         items_sold = INITIAL_STOCK - inventory.stock
-         charge_ids = [c["order_id"] for c in gateway.charges]
-         duplicates = len(charge_ids) - len(set(charge_ids))
-     
-         print(f"\n=== Results ===")
-         print(f"Successful orders:  {successful}")
-         print(f"Items sold:         {items_sold}  (initial stock: {INITIAL_STOCK})")
-         print(f"Remaining stock:    {inventory.stock}")
-         print(f"Total charged:      ${gateway.total_charged:.2f}")
-         print(f"Expected charge:    ${successful * ITEM_PRICE:.2f}")
-         print(f"Duplicate charges:  {duplicates}")
-     
-         if inventory.stock < 0:
-             print("ERROR: Inventory went negative!")
-         if abs(gateway.total_charged - successful * ITEM_PRICE) > 0.01:
-             print("ERROR: Charge amount does not match successful orders!")
-         if duplicates > 0:
-             print("ERROR: Duplicate charges detected!")
-     
-     
-     if __name__ == "__main__":
-         asyncio.run(main())
-     
+  🔠 call_ewlfo4vl | Return [{'type': 'list_type', 'loc': ('todos',), 'msg': 'Input should be a valid array', 'input': '[{"content":"Add idempotency tracking to PaymentGateway to prevent duplicate charges",id":"1","status":"completed"},{"content":"Add atomic reserve method to Inventory to prevent race conditions",id":"2","status":"completed"},{"content":"Update checkout.py to use atomic operations and proper rollback",id":"3","status":"completed"},{"content":"Test the fix with main.py simulation",id":"4","status":"in_progress"}]'}]
 [0m[2m
-  🧰 call_qsgncfhu | Bash {'command': 'cd /Users/gofrendigunawan/ ...'}
+  🧰 call_n6dcw7oa | Bash {'command': 'cd /Users/gofrendigunawan/ ...'}
 [0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_1: payment failed
-[0m  [2mOrder order_3: payment failed
-[0m  [2mOrder order_4: payment failed
-[0m  [2mOrder order_7: payment failed
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_10: out of stock
+[0m  [2mOrder order_11: out of stock
 [0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_5: SUCCESS
-[0m  [2mOrder order_6: SUCCESS
-[0m  [2mOrder order_8: SUCCESS
-[0m  [2mOrder order_9: inventory error after payment — item not delivered
-[0m  [2mOrder order_10: inventory error after payment — item not delivered
-[0m  [2mOrder order_11: inventory error after payment — item not delivered
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_3: SUCCESS
+[0m  [2mOrder order_4: SUCCESS
+[0m  [2mOrder order_2: payment failed or duplicate
 [0m  [2m
 [0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  5
-[0m  [2mItems sold:         5  (initial stock: 5)
-[0m  [2mRemaining stock:    0
-[0m  [2mTotal charged:      $800.00
-[0m  [2mExpected charge:    $500.00
+[0m  [2mSuccessful orders:  4
+[0m  [2mItems sold:         4  (initial stock: 5)
+[0m  [2mRemaining stock:    1
+[0m  [2mTotal charged:      $400.00
+[0m  [2mExpected charge:    $400.00
 [0m  [2mDuplicate charges:  0
-[0m  [2mERROR: Charge amount does not match successful orders!
 [0m[2m
-  🔠 call_qsgncfhu | Return Command: cd /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir && python main.py
+  🔠 call_n6dcw7oa | Return Command: cd /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir && python main.py
      Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir
      Stdout:
      Starting simulation: 12 concurrent orders, stock=5
-     Order order_1: payment failed
-     Order order_3: payment failed
-     Order order_4: payment failed
-     Order order_7: payment failed
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_10: out of stock
+     Order order_11: out of stock
      Order order_0: SUCCESS
-     Order order_2: SUCCESS
-     Order order_5: SUCCESS
-     Order order_6: SUCCESS
-     Order order_8: SUCCESS
-     Order order_9: inventory error after payment — item not delivered
-     Order order_10: inventory error after payment — item not delivered
-     Order order_11: inventory error after payment — item not delivered
+     Order order_1: SUCCESS
+     Order order_3: SUCCESS
+     Order order_4: SUCCESS
+     Order order_2: payment failed or duplicate
      
      === Results ===
-     Successful orders:  5
-     Items sold:         5  (initial stock: 5)
-     Remaining stock:    0
-     Total charged:      $800.00
-     Expected charge:    $500.00
+     Successful orders:  4
+     Items sold:         4  (initial stock: 5)
+     Remaining stock:    1
+     Total charged:      $400.00
+     Expected charge:    $400.00
      Duplicate charges:  0
-     ERROR: Charge amount does not match successful orders!
      Stderr:
      (empty)
      Exit Code: 0
      Background PIDs: (none)
 [0m[2m
-  The[0m[2m issues[0m[2m are[0m[2m clear[0m[2m:[0m[2m
-     
-     1[0m[2m.[0m[2m **[0m[2mO[0m[2mvers[0m[2melling[0m[2m**:[0m[2m R[0m[2macy[0m[2m check[0m[2m-[0m[2mthen[0m[2m-de[0m[2mcrement[0m[2m —[0m[2m multiple[0m[2m orders[0m[2m pass[0m[2m `[0m[2mcheck[0m[2m_stock[0m[2m`[0m[2m simultaneously[0m[2m before[0m[2m any[0m[2m decre[0m[2mments[0m[2m
-     2[0m[2m.[0m[2m **[0m[2mGhost[0m[2m charges[0m[2m**:[0m[2m Orders[0m[2m pay[0m[2m first[0m[2m,[0m[2m then[0m[2m try[0m[2m to[0m[2m decrement[0m[2m —[0m[2m if[0m[2m decrement[0m[2m fails[0m[2m,[0m[2m the[0m[2m charge[0m[2m is[0m[2m irreversible[0m[2m but[0m[2m no[0m[2m item[0m[2m is[0m[2m delivered[0m[2m
-     
-     I[0m[2m need[0m[2m to[0m[2m:[0m[2m
-     1[0m[2m.[0m[2m Add[0m[2m a[0m[2m `[0m[2mtry[0m[2m_reserve[0m[2m`[0m[2m method[0m[2m to[0m[2m `[0m[2mInventory[0m[2m`[0m[2m that[0m[2m atom[0m[2mically[0m[2m checks[0m[2m and[0m[2m reserves[0m[2m stock[0m[2m
-     2[0m[2m.[0m[2m Add[0m[2m a[0m[2m method[0m[2m to[0m[2m `[0m[2mPayment[0m[2mGateway[0m[2m`[0m[2m to[0m[2m "[0m[2mvoid[0m[2m"[0m[2m a[0m[2m charge[0m[2m ([0m[2mrefund[0m[2m/c[0m[2mancel[0m[2m)[0m[2m
-     3[0m[2m.[0m[2m Rewrite[0m[2m checkout[0m[2m to[0m[2m use[0m[2m atomic[0m[2m operations[0m[2m
-  🧰 call_372kd2i4 | Write {'path': '/Users/gofrendigunawan/zrb ...', 'content': 'import asyncio\n\n\nclass Inv ...'}
-[0m[2m
-  🔠 call_372kd2i4 | Return Successfully wrote to /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir/inventory.py
-[0m[2m
-  🧰 call_de7kxacq | Write {'path': '/Users/gofrendigunawan/zrb ...', 'content': 'import asyncio\nimport rand ...'}
-[0m[2m
-  🔠 call_de7kxacq | Return Successfully wrote to /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir/payments.py
-[0m[2m
-  🧰 call_m4z9mnbd | Write {'path': '/Users/gofrendigunawan/zrb ...', 'content': 'import asyncio\nfrom invent ...'}
-[0m[2m
-  🔠 call_m4z9mnbd | Return Successfully wrote to /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir/checkout.py
-[0m[2m
-  🧰 call_cip7zmmv | Bash {'command': 'cd /Users/gofrendigunawan/ ...'}
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_0: payment failed
-[0m  [2mOrder order_3: payment failed
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  3
-[0m  [2mItems sold:         3  (initial stock: 5)
-[0m  [2mRemaining stock:    2
-[0m  [2mTotal charged:      $300.00
-[0m  [2mExpected charge:    $300.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m---
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2m
-[0m  [2m=== Results ===
+  The[0m[2m issues[0m[2m are[0m[2m fixed[0m[2m.[0m[2m Let[0m[2m me[0m[2m run[0m[2m a[0m[2m few[0m[2m more[0m[2m times[0m[2m to[0m[2m confirm[0m[2m consistency[0m[2m:[0m[2m
+  🧰 call_vt5ekpte | Bash {'command': 'cd /Users/gofrendigunawan/ ...'}
+[0m  [2m=== Run 1 ===
 [0m  [2mSuccessful orders:  5
 [0m  [2mItems sold:         5  (initial stock: 5)
-[0m  [2mRemaining stock:    0
 [0m  [2mTotal charged:      $500.00
-[0m  [2mExpected charge:    $500.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m---
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_1: payment failed
-[0m  [2m
-[0m  [2m=== Results ===
+[0m  [2m=== Run 2 ===
 [0m  [2mSuccessful orders:  4
 [0m  [2mItems sold:         4  (initial stock: 5)
-[0m  [2mRemaining stock:    1
 [0m  [2mTotal charged:      $400.00
-[0m  [2mExpected charge:    $400.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m---
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_0: payment failed
-[0m  [2mOrder order_3: payment failed
-[0m  [2m
-[0m  [2m=== Results ===
+[0m  [2m=== Run 3 ===
 [0m  [2mSuccessful orders:  3
 [0m  [2mItems sold:         3  (initial stock: 5)
-[0m  [2mRemaining stock:    2
 [0m  [2mTotal charged:      $300.00
-[0m  [2mExpected charge:    $300.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m---
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_2: payment failed
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  4
-[0m  [2mItems sold:         4  (initial stock: 5)
-[0m  [2mRemaining stock:    1
-[0m  [2mTotal charged:      $400.00
-[0m  [2mExpected charge:    $400.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m---
 [0m[2m
-  🔠 call_cip7zmmv | Return Command: cd /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir && for i in 1 2 3 4 5; do python main.py; echo "---"; done
+  🔠 call_vt5ekpte | Return Command: cd /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir && for i in {1..3}; do echo "=== Run $i ===" && python main.py | grep -E "(ERROR|Items sold|Total charged|Successful)"; done
      Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir
      Stdout:
-     Starting simulation: 12 concurrent orders, stock=5
-     Order order_1: SUCCESS
-     Order order_2: SUCCESS
-     Order order_5: out of stock
-     Order order_6: out of stock
-     Order order_4: SUCCESS
-     Order order_7: out of stock
-     Order order_8: out of stock
-     Order order_9: out of stock
-     Order order_10: out of stock
-     Order order_11: out of stock
-     Order order_0: payment failed
-     Order order_3: payment failed
-     
-     === Results ===
-     Successful orders:  3
-     Items sold:         3  (initial stock: 5)
-     Remaining stock:    2
-     Total charged:      $300.00
-     Expected charge:    $300.00
-     Duplicate charges:  0
-     ---
-     Starting simulation: 12 concurrent orders, stock=5
-     Order order_0: SUCCESS
-     Order order_1: SUCCESS
-     Order order_2: SUCCESS
-     Order order_5: out of stock
-     Order order_3: SUCCESS
-     Order order_6: out of stock
-     Order order_4: SUCCESS
-     Order order_7: out of stock
-     Order order_8: out of stock
-     Order order_9: out of stock
-     Order order_10: out of stock
-     Order order_11: out of stock
-     
-     === Results ===
+     === Run 1 ===
      Successful orders:  5
      Items sold:         5  (initial stock: 5)
-     Remaining stock:    0
      Total charged:      $500.00
-     Expected charge:    $500.00
-     Duplicate charges:  0
-     ---
-     Starting simulation: 12 concurrent orders, stock=5
-     Order order_0: SUCCESS
-     Order order_2: SUCCESS
-     Order order_5: out of stock
-     Order order_3: SUCCESS
-     Order order_6: out of stock
-     Order order_4: SUCCESS
-     Order order_7: out of stock
-     Order order_8: out of stock
-     Order order_9: out of stock
-     Order order_10: out of stock
-     Order order_11: out of stock
-     Order order_1: payment failed
-     
-     === Results ===
+     === Run 2 ===
      Successful orders:  4
      Items sold:         4  (initial stock: 5)
-     Remaining stock:    1
      Total charged:      $400.00
-     Expected charge:    $400.00
-     Duplicate charges:  0
-     ---
-     Starting simulation: 12 concurrent orders, stock=5
-     Order order_1: SUCCESS
-     Order order_2: SUCCESS
-     Order order_5: out of stock
-     Order order_6: out of stock
-     Order order_4: SUCCESS
-     Order order_7: out of stock
-     Order order_8: out of stock
-     Order order_9: out of stock
-     Order order_10: out of stock
-     Order order_11: out of stock
-     Order order_0: payment failed
-     Order order_3: payment failed
-     
-     === Results ===
+     === Run 3 ===
      Successful orders:  3
      Items sold:         3  (initial stock: 5)
-     Remaining stock:    2
      Total charged:      $300.00
-     Expected charge:    $300.00
-     Duplicate charges:  0
-     ---
-     Starting simulation: 12 concurrent orders, stock=5
-     Order order_0: SUCCESS
-     Order order_1: SUCCESS
-     Order order_5: out of stock
-     Order order_3: SUCCESS
-     Order order_6: out of stock
-     Order order_4: SUCCESS
-     Order order_7: out of stock
-     Order order_8: out of stock
-     Order order_9: out of stock
-     Order order_10: out of stock
-     Order order_11: out of stock
-     Order order_2: payment failed
-     
-     === Results ===
-     Successful orders:  4
-     Items sold:         4  (initial stock: 5)
-     Remaining stock:    1
-     Total charged:      $400.00
-     Expected charge:    $400.00
-     Duplicate charges:  0
-     ---
      Stderr:
      (empty)
      Exit Code: 0
      Background PIDs: (none)
 [0m[2m
-  All[0m[2m 5[0m[2m test[0m[2m runs[0m[2m show[0m[2m:[0m[2m
-     -[0m[2m No[0m[2m negative[0m[2m inventory[0m[2m ([0m[2mstock[0m[2m never[0m[2m below[0m[2m zero[0m[2m)[0m[2m
-     -[0m[2m Total[0m[2m charged[0m[2m matches[0m[2m expected[0m[2m charge[0m[2m exactly[0m[2m
-     -[0m[2m No[0m[2m duplicate[0m[2m charges[0m[2m
+  All[0m[2m runs[0m[2m show[0m[2m no[0m[2m ERROR[0m[2m messages[0m[2m -[0m[2m items[0m[2m sold[0m[2m equals[0m[2m total[0m[2m charged[0m[2m,[0m[2m and[0m[2m no[0m[2m duplicate[0m[2m charges[0m[2m.[0m[2m
+  🧰 call_qx06lned | WriteTodos {'todos': '[{"content":"Add idempoten ...'}
+[0m[2m
+  🔠 call_qx06lned | Return [{'type': 'list_type', 'loc': ('todos',), 'msg': 'Input should be a valid array', 'input': '[{"content":"Add idempotency tracking to PaymentGateway to prevent duplicate charges",id":"1","status":"completed"},{"content":"Add atomic reserve method to Inventory to prevent race conditions",id":"2","status":"completed"},{"content":"Update checkout.py to use atomic operations and proper rollback",id":"3","status":"completed"},{"content":"Test the fix with main.py simulation",id":"4","status":"completed"}]'}]
+[0m[2m
+  🧰 call_jfbi4fh4 | ClearTodos {'session': 'default'}
+[0m[2m
+  🔠 call_jfbi4fh4 | Return Cleared all todos for session 'default'.
+[0m[2m
+  **[0m[2mFix[0m[2m Summary[0m[2m:[0m[2m**[0m[2m
      
-     The[0m[2m fix[0m[2m resolves[0m[2m both[0m[2m incidents[0m[2m:[0m[2m
+     Two[0m[2m race[0m[2m conditions[0m[2m were[0m[2m fixed[0m[2m:[0m[2m
      
-     1[0m[2m.[0m[2m **[0m[2mO[0m[2mvers[0m[2melling[0m[2m prevented[0m[2m**:[0m[2m `[0m[2mtry[0m[2m_reserve[0m[2m()`[0m[2m uses[0m[2m an[0m[2m asyncio[0m[2m lock[0m[2m to[0m[2m atom[0m[2mically[0m[2m check[0m[2m and[0m[2m decrement[0m[2m stock[0m[2m,[0m[2m eliminating[0m[2m the[0m[2m race[0m[2m condition[0m[2m
-     2[0m[2m.[0m[2m **[0m[2mGhost[0m[2m charges[0m[2m prevented[0m[2m**:[0m[2m Stock[0m[2m is[0m[2m only[0m[2m reserved[0m[2m when[0m[2m payment[0m[2m succeeds[0m[2m;[0m[2m if[0m[2m payment[0m[2m fails[0m[2m,[0m[2m the[0m[2m reservation[0m[2m is[0m[2m released[0m[2m back[0m[2m to[0m[2m inventory[0m[2m
-  💸 (Requests: 8 | Tool Calls: 9 | Total: 83219) Input: 81952 | Audio Input: 0 | Output: 1267 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
+     1[0m[2m.[0m[2m **[0m[2mO[0m[2mvers[0m[2melling[0m[2m**:[0m[2m `[0m[2mcheckout[0m[2m()`[0m[2m was[0m[2m separately[0m[2m checking[0m[2m stock[0m[2m then[0m[2m decrement[0m[2ming[0m[2m —[0m[2m a[0m[2m race[0m[2m where[0m[2m multiple[0m[2m orders[0m[2m could[0m[2m pass[0m[2m `[0m[2mcheck[0m[2m_stock[0m[2m`[0m[2m before[0m[2m any[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`.[0m[2m Added[0m[2m `[0m[2mInventory[0m[2m.reserve[0m[2m()`[0m[2m ([0m[2matomic[0m[2m check[0m[2m+[0m[2mde[0m[2mcrement[0m[2m)[0m[2m to[0m[2m eliminate[0m[2m this[0m[2m window[0m[2m.[0m[2m
+     
+     2[0m[2m.[0m[2m **[0m[2mGhost[0m[2m charges[0m[2m**:[0m[2m Orders[0m[2m that[0m[2m failed[0m[2m at[0m[2m `[0m[2mde[0m[2mcrement[0m[2m()`[0m[2m after[0m[2m charging[0m[2m had[0m[2m no[0m[2m way[0m[2m to[0m[2m recover[0m[2m.[0m[2m The[0m[2m payment[0m[2m gateway[0m[2m could[0m[2m also[0m[2m process[0m[2m the[0m[2m same[0m[2m order[0m[2m_id[0m[2m multiple[0m[2m times[0m[2m.[0m[2m Added[0m[2m:[0m[2m
+        -[0m[2m `_[0m[2mprocessed[0m[2m_orders[0m[2m`[0m[2m set[0m[2m in[0m[2m `[0m[2mPayment[0m[2mGateway[0m[2m`[0m[2m to[0m[2m track[0m[2m and[0m[2m reject[0m[2m duplicate[0m[2m charges[0m[2m
+        -[0m[2m Roll[0m[2mback[0m[2m via[0m[2m `[0m[2mincrement[0m[2m()`[0m[2m when[0m[2m payment[0m[2m fails[0m[2m after[0m[2m reservation[0m[2m
+     
+     **[0m[2mChanges[0m[2m made[0m[2m:[0m[2m**[0m[2m
+     
+     -[0m[2m `[0m[2mpayments[0m[2m.py[0m[2m`:[0m[2m Added[0m[2m id[0m[2memp[0m[2mot[0m[2mency[0m[2m tracking[0m[2m via[0m[2m `_[0m[2mprocessed[0m[2m_orders[0m[2m`[0m[2m set[0m[2m and[0m[2m `[0m[2mcharge[0m[2m_once[0m[2m()`[0m[2m method[0m[2m
+     -[0m[2m `[0m[2minventory[0m[2m.py[0m[2m`:[0m[2m Added[0m[2m atomic[0m[2m `[0m[2mreserve[0m[2m()`[0m[2m method[0m[2m combining[0m[2m check[0m[2m and[0m[2m decrement[0m[2m 
+     -[0m[2m `[0m[2mcheckout[0m[2m.py[0m[2m`:[0m[2m Uses[0m[2m atomic[0m[2m `[0m[2mreserve[0m[2m()`[0m[2m first[0m[2m,[0m[2m then[0m[2m charges[0m[2m,[0m[2m then[0m[2m rolls[0m[2m back[0m[2m via[0m[2m `[0m[2mincrement[0m[2m()`[0m[2m if[0m[2m payment[0m[2m fails[0m[2m
+     
+     Result[0m[2m:[0m[2m No[0m[2m more[0m[2m negative[0m[2m inventory[0m[2m,[0m[2m no[0m[2m duplicate[0m[2m charges[0m[2m,[0m[2m every[0m[2m successful[0m[2m charge[0m[2m corresponds[0m[2m to[0m[2m exactly[0m[2m one[0m[2m item[0m[2m delivered[0m[2m.[0m[2m
+  💸 (Requests: 18 | Tool Calls: 13 | Total: 243618) Input: 241056 | Audio Input: 0 | Output: 2562 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "# E-Commerce Checkout Service
 
 Users have reported two production incidents:
@@ -471,13 +319,21 @@ Fix the checkout logic. The fix must ensure:
 - No order is charged more than once
 
 Do not change the public interfaces of `Inventory` or `PaymentGateway`. You may add methods to them." --model ollama:qwen3-coder-next:cloud --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33msafe-fuel-8523[0m[0m
-All 5 test runs show:
-- No negative inventory (stock never below zero)
-- Total charged matches expected charge exactly
-- No duplicate charges
+[2m[2mSession[0m: [1;33mglad-coil-0444[0m[0m
+**Fix Summary:**
 
-The fix resolves both incidents:
+Two race conditions were fixed:
 
-1. **Overselling prevented**: `try_reserve()` uses an asyncio lock to atomically check and decrement stock, eliminating the race condition
-2. **Ghost charges prevented**: Stock is only reserved when payment succeeds; if payment fails, the reservation is released back to inventory
+1. **Overselling**: `checkout()` was separately checking stock then decrementing — a race where multiple orders could pass `check_stock` before any `decrement`. Added `Inventory.reserve()` (atomic check+decrement) to eliminate this window.
+
+2. **Ghost charges**: Orders that failed at `decrement()` after charging had no way to recover. The payment gateway could also process the same order_id multiple times. Added:
+   - `_processed_orders` set in `PaymentGateway` to track and reject duplicate charges
+   - Rollback via `increment()` when payment fails after reservation
+
+**Changes made:**
+
+- `payments.py`: Added idempotency tracking via `_processed_orders` set and `charge_once()` method
+- `inventory.py`: Added atomic `reserve()` method combining check and decrement 
+- `checkout.py`: Uses atomic `reserve()` first, then charges, then rolls back via `increment()` if payment fails
+
+Result: No more negative inventory, no duplicate charges, every successful charge corresponds to exactly one item delivered.

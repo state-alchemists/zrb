@@ -8,25 +8,23 @@ class PaymentGateway:
         self._failure_rate = failure_rate
         self.total_charged: float = 0.0
         self.charges: List[dict] = []
-        self._processed_orders = set()
         self._lock = asyncio.Lock()
 
     async def charge(self, order_id: str, amount: float) -> bool:
-        """Charge an order exactly once.
+        """Charge an order once; idempotent per order_id.
 
-        Ensures idempotency for the same order_id and protects the
-        internal state against concurrent access.
+        Returns True on successful (first) charge, False on failure or duplicate.
         """
+        # Ensure idempotency and thread-safety across concurrent calls
         async with self._lock:
-            await asyncio.sleep(0.03)
-            # Idempotency: never charge the same order twice
-            if order_id in self._processed_orders:
-                return True
+            # Prevent duplicate charges for the same order_id
+            if any(c["order_id"] == order_id for c in self.charges):
+                return False
 
+            await asyncio.sleep(0.03)
             if random.random() < self._failure_rate:
                 return False
 
             self.total_charged += amount
             self.charges.append({"order_id": order_id, "amount": amount})
-            self._processed_orders.add(order_id)
             return True

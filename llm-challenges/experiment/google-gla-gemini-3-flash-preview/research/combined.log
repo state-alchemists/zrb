@@ -1,7 +1,7 @@
 [2m
-  🧰 3b22471s | Read {'path': 'system_context.md'}
+  🧰 k4c4ve6e | Read {'path': 'system_context.md'}
 [0m[2m
-  🔠 3b22471s | Return [File: system_context.md | 44 lines]
+  🔠 k4c4ve6e | Return [File: system_context.md | 44 lines]
      ---CONTENT---
      # System Context: Notifier Subsystem Decision
      
@@ -48,16 +48,57 @@
      - Must maintain exactly-once semantics for billing notifications
      
 [0m[2m
-  🧰 c17jbfnm | Write {'content': '# ADR-001: Notification Ar ...', 'path': 'ADR-001-notification-archi ...'}
+  🧰 0w458zni | Write {'content': '# ADR-001: Notification Su ...', 'path': 'ADR-001-notification-archi ...'}
 [0m[2m
-  🔠 c17jbfnm | Return Successfully wrote to ADR-001-notification-architecture.md
+  🔠 0w458zni | Return Successfully wrote to ADR-001-notification-architecture.md
 [0m[2m
-  I have created the Architecture Decision Record (ADR) as requested.
+  🧰 96e4m4fd | Edit {'new_text': '3. **Feature Parity:** Red ...', 'old_text': '3. **Feature Parity:** Red ...', 'path': 'ADR-001-notification-archi ...'}
+[0m[2m
+  🔠 96e4m4fd | Return Successfully updated ADR-001-notification-architecture.md (1 replacement(s))
+[0m[2m
+  # ADR-001: Notification Subsystem Architecture
      
-     The document recommends **Redis Streams** as the[0m[2m notification backbone, prioritizing operational simplicity, the team's existing expertise, and the aggressive two-week delivery timeline over the heavy-[0m[2mduty but complex capabilities of Apache Kafka.
+     ##[0m[2m Status
+     Proposed
      
-     You can find the full evaluation and justification in `ADR-001-notification-architecture[0m[2m.md`.[0m[2m[0m[2m
-  💸 (Requests: 3 | Tool Calls: 2 | Total: 27317) Input: 24972 | Audio Input: 0 | Output: 2345 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {'thoughts_tokens': 1468, 'text_prompt_tokens': 24972}
+     ## Context
+     Our current notification system is synchronous, causing request timeouts, silent failures, and cascading failures[0m[2m. We need to transition to an asynchronous, message-driven architecture that supports:
+     - High throughput (current peak [0m[2m500 req/s, target 5,000 req/s).
+     - Reliable delivery (at[0m[2m-least-once for general tasks, exactly-once for billing).
+     - Consumer groups for horizontal scaling.
+     -[0m[2m Low operational overhead for a 6-person team with no dedicated DevOps/Infra engineer.
+     - Implementation within a[0m[2m 2-week window.
+     
+     We currently utilize Redis for sessions and rate-limiting. The team has no experience with[0m[2m Apache Kafka.
+     
+     ## Decision
+     We will use **Redis Streams** as the backbone for the notification subsystem.
+     
+     **[0m[2mJustification:**
+     1. **Operational Simplicity:** We already run Redis in production. Adding Streams leverages existing infrastructure,[0m[2m monitoring, and team knowledge. Kafka would require a new stack (Zookeeper/KRaft, JVM tuning, complex partition[0m[2m management) which the team cannot absorb in 2 weeks.
+     2. **Performance:** Redis Streams easily handles 5[0m[2m,000 req/s on a single node. Given our 10x scaling target, Redis provides more[0m[2m than enough headroom without the complexity of a distributed log like Kafka.
+     3. **Feature Parity:** Redis Streams supports[0m[2m Consumer Groups, strict **ordering guarantees**, and message acknowledgment (ACKs), providing the necessary primitives for at-least-[0m[2monce delivery and retries via the Pending Entry List (PEL).
+     4. **Exactly-Once Semantics (EOS[0m[2m):** While Kafka has native transactional producers, we can achieve EOS in Redis for billing-critical events by using deterministic Message[0m[2m IDs (e.g., `event_uuid`) combined with consumer-side idempotency in our Python workers.
+[0m[2m5. **Message Retention:** We can manage memory usage through stream capping (`XADD` with `MAXLEN`), ensuring[0m[2m high performance without the disk-management overhead of Kafka.
+     6. **Cost:** Redis is significantly cheaper to run at[0m[2m our scale compared to a managed Kafka cluster (e.g., Confluent Cloud or AWS MSK).
+     
+     ## Consequences[0m[2m
+     ### Pros
+     - **Immediate Productivity:** The team can start development immediately using familiar libraries (`redis-py`).
+     - **Low Latency[0m[2m:** Redis’s in-memory nature ensures extremely low sub-millisecond tail latency for message ingestion.
+     - **[0m[2mUnified Stack:** Simplifies the architectural footprint and reduces the "moving parts" in our small-scale environment.
+     
+     ###[0m[2m Cons
+     - **Memory Constraints:** Unlike Kafka, which stores messages on disk, Redis is memory-bound. We must[0m[2m implement strict stream capping (`MAXLEN`) and archive older events to PostgreSQL if long-term replayability is needed.
+[0m[2m- **Durability Trade-off:** While Redis supports AOF (Append Only File), it is generally considered less durable[0m[2m than Kafka’s multi-node replication/disk-flush guarantees in catastrophic failure scenarios. We will mitigate this via synchronous[0m[2m AOF and standard RDS-backed state for critical billing events.
+     
+     ## Alternatives Considered
+     ### Apache Kafka
+     **Rejected[0m[2m** due to high operational complexity and the steep learning curve for a 6-person team. While Kafka provides superior durability[0m[2m and native EOS, the "infrastructure tax" would prevent us from meeting the 2-week delivery goal. At our[0m[2m current and projected scale (5k req/s), Kafka’s massive scalability is not yet a requirement that justifies its[0m[2m overhead.
+     
+     ### PostgreSQL (Transactional Outbox)
+     **Rejected** as a primary queue. While great for consistency,[0m[2m using Postgres as a high-throughput queue at 5,000 req/s would create significant vacuuming overhead[0m[2m and potential lock contention on the primary database, which we are already trying to protect.[0m[2m[0m[2m
+  💸 (Requests: 4 | Tool Calls: 3 | Total: 38230) Input: 34609 | Audio Input: 0 | Output: 3621 | Audio Output: 0 | Cache Read: 8022 | Cache Write: 0 | Details: {'thoughts_tokens': 1661, 'text_prompt_tokens': 34609, 'cached_content_tokens': 8022, 'text_cache_tokens': 8022}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "Read `system_context.md`. It describes a real production system and a specific architectural problem we need to solve.
 
 Write an Architecture Decision Record (ADR) evaluating two options for the notification subsystem:
@@ -75,9 +116,46 @@ Your ADR must follow this exact structure:
 Make a definitive recommendation. Use specific technical properties (throughput, ordering guarantees, message retention, consumer groups, exactly-once semantics, operational complexity) to justify your choice given the team size and constraints described.
 
 Save as `ADR-001-notification-architecture.md`." --model google-gla:gemini-3-flash-preview --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33msoft-foam-5551[0m[0m
-I have created the Architecture Decision Record (ADR) as requested.
+[2m[2mSession[0m: [1;33mweak-arch-2569[0m[0m
+# ADR-001: Notification Subsystem Architecture
 
-The document recommends **Redis Streams** as the notification backbone, prioritizing operational simplicity, the team's existing expertise, and the aggressive two-week delivery timeline over the heavy-duty but complex capabilities of Apache Kafka.
+## Status
+Proposed
 
-You can find the full evaluation and justification in `ADR-001-notification-architecture.md`.
+## Context
+Our current notification system is synchronous, causing request timeouts, silent failures, and cascading failures. We need to transition to an asynchronous, message-driven architecture that supports:
+- High throughput (current peak 500 req/s, target 5,000 req/s).
+- Reliable delivery (at-least-once for general tasks, exactly-once for billing).
+- Consumer groups for horizontal scaling.
+- Low operational overhead for a 6-person team with no dedicated DevOps/Infra engineer.
+- Implementation within a 2-week window.
+
+We currently utilize Redis for sessions and rate-limiting. The team has no experience with Apache Kafka.
+
+## Decision
+We will use **Redis Streams** as the backbone for the notification subsystem.
+
+**Justification:**
+1. **Operational Simplicity:** We already run Redis in production. Adding Streams leverages existing infrastructure, monitoring, and team knowledge. Kafka would require a new stack (Zookeeper/KRaft, JVM tuning, complex partition management) which the team cannot absorb in 2 weeks.
+2. **Performance:** Redis Streams easily handles 5,000 req/s on a single node. Given our 10x scaling target, Redis provides more than enough headroom without the complexity of a distributed log like Kafka.
+3. **Feature Parity:** Redis Streams supports Consumer Groups, strict **ordering guarantees**, and message acknowledgment (ACKs), providing the necessary primitives for at-least-once delivery and retries via the Pending Entry List (PEL).
+4. **Exactly-Once Semantics (EOS):** While Kafka has native transactional producers, we can achieve EOS in Redis for billing-critical events by using deterministic Message IDs (e.g., `event_uuid`) combined with consumer-side idempotency in our Python workers.
+5. **Message Retention:** We can manage memory usage through stream capping (`XADD` with `MAXLEN`), ensuring high performance without the disk-management overhead of Kafka.
+6. **Cost:** Redis is significantly cheaper to run at our scale compared to a managed Kafka cluster (e.g., Confluent Cloud or AWS MSK).
+
+## Consequences
+### Pros
+- **Immediate Productivity:** The team can start development immediately using familiar libraries (`redis-py`).
+- **Low Latency:** Redis’s in-memory nature ensures extremely low sub-millisecond tail latency for message ingestion.
+- **Unified Stack:** Simplifies the architectural footprint and reduces the "moving parts" in our small-scale environment.
+
+### Cons
+- **Memory Constraints:** Unlike Kafka, which stores messages on disk, Redis is memory-bound. We must implement strict stream capping (`MAXLEN`) and archive older events to PostgreSQL if long-term replayability is needed.
+- **Durability Trade-off:** While Redis supports AOF (Append Only File), it is generally considered less durable than Kafka’s multi-node replication/disk-flush guarantees in catastrophic failure scenarios. We will mitigate this via synchronous AOF and standard RDS-backed state for critical billing events.
+
+## Alternatives Considered
+### Apache Kafka
+**Rejected** due to high operational complexity and the steep learning curve for a 6-person team. While Kafka provides superior durability and native EOS, the "infrastructure tax" would prevent us from meeting the 2-week delivery goal. At our current and projected scale (5k req/s), Kafka’s massive scalability is not yet a requirement that justifies its overhead.
+
+### PostgreSQL (Transactional Outbox)
+**Rejected** as a primary queue. While great for consistency, using Postgres as a high-throughput queue at 5,000 req/s would create significant vacuuming overhead and potential lock contention on the primary database, which we are already trying to protect.

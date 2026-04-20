@@ -42,11 +42,26 @@ def verify():
         expected_charge = successful * 100.0
         return inventory.stock, gateway.total_charged, successful, duplicates, expected_charge
 
-    passes = 0
-    trials = 6
-    for trial in range(trials):
-        stock, charged, successful, dupes, expected = asyncio.run(run_trial(trial * 7))
+    async def run_all_trials():
+        results = []
+        for trial in range(6):
+            random.seed(trial * 7)
+            inventory = Inventory(5)
+            gateway = PaymentGateway(failure_rate=0.25)
+            orders = [checkout(f"order_{i}", 1, 100.0, inventory, gateway) for i in range(12)]
+            trial_results = await asyncio.gather(*orders)
+            successful = sum(trial_results)
+            charge_ids = [c["order_id"] for c in gateway.charges]
+            duplicates = len(charge_ids) - len(set(charge_ids))
+            expected_charge = successful * 100.0
+            results.append((inventory.stock, gateway.total_charged, successful, duplicates, expected_charge))
+        return results
 
+    all_results = asyncio.run(run_all_trials())
+
+    passes = 0
+    trials = len(all_results)
+    for trial, (stock, charged, successful, dupes, expected) in enumerate(all_results):
         errors = []
         if stock < 0:
             errors.append(f"negative stock ({stock})")

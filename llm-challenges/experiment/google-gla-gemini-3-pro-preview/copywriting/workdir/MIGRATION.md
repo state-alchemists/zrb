@@ -1,41 +1,41 @@
-# Zrb CLI v2 Migration Guide
+# Zrb API v2 Migration Guide
 
-Welcome to Zrb CLI v2! This release introduces projects, improved pagination, and stricter authentication. To accommodate these improvements, we've made several breaking changes to the Task API. 
+Welcome to Zrb CLI and API v2. This release introduces projects, improved pagination, and stricter authentication. Several v1 fields and conventions have changed to support these improvements.
 
-This guide outlines every breaking change and provides a step-by-step checklist to help you upgrade smoothly.
+This guide outlines all breaking changes and provides a step-by-step checklist to upgrade your integration safely.
 
 ## Breaking Changes
 
-### 1. API Endpoint Prefix
-All API endpoints have been moved under the `/v2/` prefix to support API versioning.
+### 1. Endpoint Prefix Updated
+All endpoints are now versioned and must be prefixed with `/v2/`.
 
-**Before (v1):**
+**Before:**
 ```http
 GET /tasks
 ```
 
-**After (v2):**
+**After:**
 ```http
 GET /v2/tasks
 ```
 
-### 2. Authentication Header
-The custom `X-Auth-Token` header has been replaced with the standard `Authorization: Bearer` scheme. Using the old header will now return an `HTTP 401 Unauthorized` error.
+### 2. Authentication Header Changed
+The custom authentication header has been replaced with the standard Bearer token scheme. Passing the old header will now return an HTTP 401.
 
-**Before (v1):**
+**Before:**
 ```http
 X-Auth-Token: <your_api_key>
 ```
 
-**After (v2):**
+**After:**
 ```http
 Authorization: Bearer <your_api_token>
 ```
 
-### 3. Task ID Format
-Task `id` fields have changed from auto-incrementing integers to UUID strings. Ensure your application schema and database can handle strings for task IDs.
+### 3. Task `id` Type is now a UUID
+Task IDs have migrated from auto-assigned integers to UUID strings.
 
-**Before (v1):**
+**Before:**
 ```json
 {
   "id": 42,
@@ -43,7 +43,7 @@ Task `id` fields have changed from auto-incrementing integers to UUID strings. E
 }
 ```
 
-**After (v2):**
+**After:**
 ```json
 {
   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
@@ -51,82 +51,82 @@ Task `id` fields have changed from auto-incrementing integers to UUID strings. E
 }
 ```
 
-### 4. Status Field Renamed
-The boolean field representing a task's completion status has been renamed from `done` to `completed`. This affects both the task representation and the payload for updating tasks.
+### 4. `done` Field Renamed to `completed`
+The boolean flag indicating task status has been renamed.
 
-**Before (v1):**
+**Before:**
 ```json
 {
-  "title": "Write tests",
+  "title": "Updated title",
   "done": true
 }
 ```
 
-**After (v2):**
+**After:**
 ```json
 {
-  "title": "Write tests",
+  "title": "Updated title",
   "completed": true
 }
 ```
 
-### 5. Task Creation Requires Project ID
-Creating a new task now explicitly requires a `project_id`. Omitting this field in a POST request will result in an `HTTP 422 Unprocessable Entity` error.
+### 5. Task Creation Requires `project_id`
+You can no longer create standalone tasks. Every `POST /v2/tasks` request must include a valid `project_id`, otherwise the API will return HTTP 422.
 
-**Before (v1):**
+**Before:**
 ```json
-// POST /tasks
 {
   "title": "New task title"
 }
 ```
 
-**After (v2):**
+**After:**
 ```json
-// POST /v2/tasks
 {
   "title": "New task title",
   "project_id": "proj_abc123"
 }
 ```
 
-### 6. Paginated List Responses
-The `GET /v2/tasks` endpoint no longer returns a bare JSON array. It now returns a paginated envelope object. To iterate through results, use the `?cursor=<next_cursor>` query parameter.
+### 6. List Endpoints are Paginated
+Endpoints that return lists (like `GET /v2/tasks`) no longer return a bare array. They now return a paginated envelope. To fetch subsequent pages, pass the `next_cursor` value as a `?cursor=` query parameter.
 
-**Before (v1):**
+**Before:**
 ```json
 [
-  {"id": 1, "title": "Buy milk", "done": false},
-  {"id": 2, "title": "Ship v1", "done": true}
+  { "id": 1, "title": "Buy milk", "done": false }
 ]
 ```
 
-**After (v2):**
+**After:**
 ```json
 {
   "items": [
-    {"id": "a1b2c3d4...", "title": "Buy milk", "completed": false, "project_id": "proj_abc123"},
-    {"id": "e5f67890...", "title": "Ship v1", "completed": true, "project_id": "proj_abc123"}
+    { "id": "a1b2c3d4...", "title": "Buy milk", "completed": false, "project_id": "proj_abc123" }
   ],
   "total": 42,
   "next_cursor": "cursor_xyz"
 }
 ```
 
-## Step-by-Step Migration Checklist
+---
 
-- [ ] Update all API base URLs to append the `/v2/` prefix.
-- [ ] Replace `X-Auth-Token: <token>` with `Authorization: Bearer <token>` in your HTTP client's default headers.
-- [ ] Update your data models and database schemas to treat task `id`s as UUID strings instead of integers.
-- [ ] Search and replace references of the `done` field with `completed` across your task objects and update payloads.
-- [ ] Update all task creation (`POST`) workflows to include a valid `project_id`.
-- [ ] Refactor your list-fetching logic to extract arrays from the `items` property of the new response envelope, and implement cursor-based pagination.
-- [ ] Test all CRUD operations against the v2 endpoints.
+## Migration Checklist
+
+Follow these steps to fully migrate your codebase to v2:
+
+- [ ] Update all API request URLs to include the `/v2/` prefix.
+- [ ] Replace `X-Auth-Token` headers with `Authorization: Bearer <token>`.
+- [ ] Update your data models and database schemas to store task `id`s as UUID strings instead of integers.
+- [ ] Refactor all read/write references of the `done` property to `completed`.
+- [ ] Update task creation logic to retrieve and send a `project_id`.
+- [ ] Modify response parsing for list endpoints to iterate over the `items` property rather than the root array.
+- [ ] Implement cursor-based pagination logic using `next_cursor` for listing tasks.
 
 ## Upgrade Command
 
-To update your Zrb CLI to the latest version, run:
+To update your local CLI environment to the new version, run:
 
 ```bash
-zrb upgrade
+npm install -g zrb@v2
 ```

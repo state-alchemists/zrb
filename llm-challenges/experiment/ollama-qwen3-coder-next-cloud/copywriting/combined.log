@@ -1,9 +1,9 @@
 [2m
-  🧰 call_zbwkaffz | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+  🧰 call_si03tb6a | Read {'path': '/Users/gofrendigunawan/zrb ...'}
 [0m[2m
-  🧰 call_bomh34gq | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+  🧰 call_7bhsqj3f | Read {'path': '/Users/gofrendigunawan/zrb ...'}
 [0m[2m
-  🔠 call_zbwkaffz | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/copywriting/workdir/v1_spec.md | 83 lines]
+  🔠 call_si03tb6a | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/copywriting/workdir/v1_spec.md | 83 lines]
      ---CONTENT---
      # Zrb Task API — v1 Reference
      
@@ -89,7 +89,7 @@
      **Response:** HTTP 204 No Content.
      
 [0m[2m
-  🔠 call_bomh34gq | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/copywriting/workdir/v2_spec.md | 115 lines]
+  🔠 call_7bhsqj3f | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/copywriting/workdir/v2_spec.md | 115 lines]
      ---CONTENT---
      # Zrb Task API — v2 Reference
      
@@ -207,12 +207,17 @@
      **Response:** HTTP 204 No Content.
      
 [0m[2m
-  🧰 call_62dbhjzq | Write {'path': '/Users/gofrendigunawan/zrb ...', 'content': '# Zrb CLI v1 → v2 Migratio ...'}
+  🧰 call_0wmd87yd | Write {'path': '/Users/gofrendigunawan/zrb ...', 'content': '# Zrb CLI v2 Migration Gui ...'}
 [0m[2m
-  🔠 call_62dbhjzq | Return Successfully wrote to /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/copywriting/workdir/MIGRATION.md
+  🔠 call_0wmd87yd | Return Successfully wrote to /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/copywriting/workdir/MIGRATION.md
 [0m[2m
-  Done[0m[2m.[0m[2m Created[0m[2m `[0m[2mM[0m[2mIG[0m[2mRATION[0m[2m.md[0m[2m`[0m[2m with[0m[2m all[0m[2m breaking[0m[2m changes[0m[2m,[0m[2m before[0m[2m/[0m[2mafter[0m[2m code[0m[2m examples[0m[2m,[0m[2m a[0m[2m step[0m[2m-by[0m[2m-step[0m[2m checklist[0m[2m,[0m[2m and[0m[2m the[0m[2m upgrade[0m[2m command[0m[2m.[0m[2m
-  💸 (Requests: 3 | Tool Calls: 3 | Total: 32168) Input: 30620 | Audio Input: 0 | Output: 1548 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
+  `[0m[2mM[0m[2mIG[0m[2mRATION[0m[2m.md[0m[2m`[0m[2m has[0m[2m been[0m[2m created[0m[2m with[0m[2m:[0m[2m
+     -[0m[2m Clear[0m[2m structure[0m[2m with[0m[2m headings[0m[2m for[0m[2m each[0m[2m breaking[0m[2m change[0m[2m
+     -[0m[2m Every[0m[2m v[0m[2m1[0m[2m→[0m[2mv[0m[2m2[0m[2m breaking[0m[2m change[0m[2m explicitly[0m[2m called[0m[2m out[0m[2m with[0m[2m对照[0m[2m examples[0m[2m
+     -[0m[2m F[0m[2menced[0m[2m code[0m[2m blocks[0m[2m with[0m[2m before[0m[2m/[0m[2mafter[0m[2m samples[0m[2m for[0m[2m each[0m[2m change[0m[2m
+     -[0m[2m Step[0m[2m-by[0m[2m-step[0m[2m migration[0m[2m checklist[0m[2m ([0m[2m8[0m[2m items[0m[2m)[0m[2m
+     -[0m[2m Upgrade[0m[2m commands[0m[2m at[0m[2m the[0m[2m end[0m[2m
+  💸 (Requests: 3 | Tool Calls: 3 | Total: 34314) Input: 31675 | Audio Input: 0 | Output: 2639 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "The Zrb CLI is releasing v2, which has several breaking changes from v1. Our developer community needs a clear migration guide.
 
 `v1_spec.md` describes the current v1 API. `v2_spec.md` describes the new v2 API.
@@ -225,5 +230,10 @@ Write a developer migration guide and save it as `MIGRATION.md`. It should:
 - End with the upgrade command
 
 The audience is experienced developers who are already using v1." --model ollama:qwen3-coder-next:cloud --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mloud-coal-0034[0m[0m
-Done. Created `MIGRATION.md` with all breaking changes, before/after code examples, a step-by-step checklist, and the upgrade command.
+[2m[2mSession[0m: [1;33mrich-bolt-2924[0m[0m
+`MIGRATION.md` has been created with:
+- Clear structure with headings for each breaking change
+- Every v1→v2 breaking change explicitly called out with对照 examples
+- Fenced code blocks with before/after samples for each change
+- Step-by-step migration checklist (8 items)
+- Upgrade commands at the end

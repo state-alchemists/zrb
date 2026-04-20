@@ -1,335 +1,50 @@
 [2m
-  🧠 The[0m[2m user wants[0m[2m me to[0m[2m create a[0m[2m migration guide[0m[2m from[0m[2m v1[0m[2m to v[0m[2m2 of[0m[2m the Z[0m[2mrb CLI[0m[2m. First[0m[2m, I[0m[2m need to[0m[2m read the[0m[2m spec[0m[2m files to[0m[2m understand the[0m[2m differences between[0m[2m v1[0m[2m and v[0m[2m2.[0m[2m
+  🧠 The[0m[2m user wants[0m[2m me to[0m[2m create a[0m[2m migration guide[0m[2m from[0m[2m v1[0m[2m to v[0m[2m2 of[0m[2m the Z[0m[2mrb CLI[0m[2m. I[0m[2m need to[0m[2m:
+     
+     1[0m[2m. First[0m[2m read the[0m[2m v1[0m[2m_spec.md[0m[2m and v[0m[2m2_spec[0m[2m.md files[0m[2m to understand[0m[2m the breaking[0m[2m changes[0m[2m
+     2.[0m[2m Then[0m[2m write[0m[2m a comprehensive[0m[2m MIG[0m[2mRATION.md[0m[2m file[0m[2m
+     
+     Let[0m[2m me start[0m[2m by reading[0m[2m both spec[0m[2m files to[0m[2m understand the[0m[2m differences.[0m[2m
   🧰 functions.ReadMany:0 | ReadMany {'paths': ['v1_spec.md', 'v2_spec.md']}
 [0m[2m
   🔠 functions.ReadMany:0 | Return {'v1_spec.md': '[File: v1_spec.md | 83 lines]\n---CONTENT---\n# Zrb Task API — v1 Reference\n\n## Authentication\n\nAll requests require an API key passed in the header:\n\n```\nX-Auth-Token: <your_api_key>\n```\n\n## Data Types\n\n### Task Object\n\n```json\n{\n  "id": 42,\n  "title": "Write tests",\n  "done": false,\n  "created_at": "2024-01-15T10:30:00Z"\n}\n```\n\n- `id` — integer, auto-assigned\n- `title` — string\n- `done` — boolean, default `false`\n- `created_at` — ISO 8601 timestamp\n\n## Endpoints\n\n### List Tasks\n\n`GET /tasks`\n\nReturns a bare array of task objects.\n\n**Response:**\n```json\n[\n  {"id": 1, "title": "Buy milk", "done": false, "created_at": "..."},\n  {"id": 2, "title": "Ship v1", "done": true, "created_at": "..."}\n]\n```\n\n### Get Task\n\n`GET /tasks/{id}`\n\nReturns a single task or `404`.\n\n### Create Task\n\n`POST /tasks`\n\n**Request body:**\n```json\n{\n  "title": "New task title"\n}\n```\n\n**Response:** the created task object (HTTP 201).\n\n### Update Task\n\n`PUT /tasks/{id}`\n\n**Request body** (all fields optional):\n```json\n{\n  "title": "Updated title",\n  "done": true\n}\n```\n\n**Response:** the updated task object.\n\n### Delete Task\n\n`DELETE /tasks/{id}`\n\n**Response:** HTTP 204 No Content.\n', 'v2_spec.md': '[File: v2_spec.md | 115 lines]\n---CONTENT---\n# Zrb Task API — v2 Reference\n\n## What\'s New in v2\n\nv2 introduces projects, improved pagination, and stricter auth. Several v1 fields and conventions have changed.\n\n## Breaking Changes Summary\n\n1. All endpoints are now prefixed with `/v2/`\n2. Authentication header changed\n3. Task `id` type changed from integer to UUID string\n4. Task field `done` renamed to `completed`\n5. Task creation now requires `project_id`\n6. List endpoints return a paginated envelope instead of a bare array\n\n---\n\n## Authentication\n\nHeader changed from `X-Auth-Token` to Bearer token:\n\n```\nAuthorization: Bearer <your_api_token>\n```\n\nRequests with `X-Auth-Token` will receive HTTP 401.\n\n## Data Types\n\n### Task Object (v2)\n\n```json\n{\n  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",\n  "title": "Write tests",\n  "completed": false,\n  "project_id": "proj_abc123",\n  "created_at": "2024-01-15T10:30:00Z"\n}\n```\n\n- `id` — UUID string (was integer in v1)\n- `title` — string (unchanged)\n- `completed` — boolean (renamed from `done`)\n- `project_id` — string, required (new field)\n- `created_at` — ISO 8601 timestamp (unchanged)\n\n### Paginated List Envelope\n\nAll list endpoints now return:\n\n```json\n{\n  "items": [...],\n  "total": 42,\n  "next_cursor": "cursor_xyz"\n}\n```\n\nPass `?cursor=<next_cursor>` to fetch the next page.\n\n## Endpoints\n\n### List Tasks\n\n`GET /v2/tasks`\n\n**Query params:**\n- `cursor` — pagination cursor (optional)\n- `limit` — max results per page, default 20\n\n**Response:** paginated envelope (see above).\n\n### Get Task\n\n`GET /v2/tasks/{id}`\n\n`id` is now a UUID string.\n\n### Create Task\n\n`POST /v2/tasks`\n\n**Request body:**\n```json\n{\n  "title": "New task title",\n  "project_id": "proj_abc123"\n}\n```\n\n`project_id` is now **required**. Omitting it returns HTTP 422.\n\n**Response:** the created task object (HTTP 201).\n\n### Update Task\n\n`PUT /v2/tasks/{id}`\n\n**Request body** (all fields optional):\n```json\n{\n  "title": "Updated title",\n  "completed": true\n}\n```\n\nNote: field is `completed`, not `done`.\n\n### Delete Task\n\n`DELETE /v2/tasks/{id}`\n\n**Response:** HTTP 204 No Content.\n'}
 [0m[2m
-  🧠 Now[0m[2m I have[0m[2m both[0m[2m specs[0m[2m. Let[0m[2m me identify[0m[2m all[0m[2m the breaking[0m[2m changes:[0m[2m
+  🧠 I've[0m[2m analyzed[0m[2m both[0m[2m spec[0m[2m files.[0m[2m Here[0m[2m are the[0m[2m breaking changes[0m[2m I need[0m[2m to document[0m[2m:
      
-     1.[0m[2m **Endpoint[0m[2m prefix**:[0m[2m `/[0m[2mtasks[0m[2m` →[0m[2m `/v[0m[2m2/tasks[0m[2m`
-     2[0m[2m. **[0m[2mAuthentication header[0m[2m**: `[0m[2mX-[0m[2mAuth-[0m[2mToken:[0m[2m <key[0m[2m>` →[0m[2m `Authorization[0m[2m: Bearer[0m[2m <token[0m[2m>`
-     3[0m[2m. **[0m[2mTask ID[0m[2m type**:[0m[2m integer ([0m[2me.g[0m[2m., `[0m[2m42`)[0m[2m → UUID[0m[2m string ([0m[2me.g[0m[2m., `"[0m[2ma1[0m[2mb2[0m[2mc3[0m[2md4[0m[2m-e5[0m[2mf6[0m[2m-789[0m[2m0-ab[0m[2mcd-[0m[2mef123[0m[2m456789[0m[2m0"[0m[2m`)
-     4[0m[2m. **[0m[2mField[0m[2m rename[0m[2m**: `[0m[2mdone`[0m[2m → `[0m[2mcompleted`[0m[2m
-     5.[0m[2m **New[0m[2m required field[0m[2m**: `[0m[2mproject_id[0m[2m` is[0m[2m now[0m[2m required for[0m[2m task creation[0m[2m
-     6[0m[2m. **[0m[2mList response[0m[2m format**:[0m[2m bare array[0m[2m `[0m[2m[]`[0m[2m → pag[0m[2minated envelope[0m[2m `{[0m[2mitems[0m[2m,[0m[2m total[0m[2m, next[0m[2m_cursor}`[0m[2m
+     1[0m[2m. **[0m[2mAPI[0m[2m Version[0m[2m Prefix**:[0m[2m All endpoints[0m[2m now prefixed[0m[2m with `/[0m[2mv2[0m[2m/[0m[2m`
+     2[0m[2m. **[0m[2mAuthentication**:[0m[2m Header[0m[2m changed from[0m[2m `X[0m[2m-Auth[0m[2m-Token[0m[2m` to[0m[2m `Authorization[0m[2m: Bearer[0m[2m`[0m[2m
+     3.[0m[2m **Task[0m[2m ID Type[0m[2m**: Changed[0m[2m from integer[0m[2m to UUID[0m[2m string[0m[2m
+     4.[0m[2m **Field[0m[2m Rename[0m[2m**: `[0m[2mdone`[0m[2m → `[0m[2mcompleted`[0m[2m
+     5.[0m[2m **New[0m[2m Required Field[0m[2m**: `[0m[2mproject_id[0m[2m` is[0m[2m now[0m[2m required on[0m[2m task creation[0m[2m
+     6[0m[2m. **[0m[2mPagination[0m[2m**:[0m[2m List endpoints[0m[2m return[0m[2m pag[0m[2minated envelope[0m[2m instead of[0m[2m bare array[0m[2m
      
-     I'll[0m[2m create[0m[2m a comprehensive[0m[2m migration guide[0m[2m with clear[0m[2m headings,[0m[2m before/[0m[2mafter code[0m[2m examples for[0m[2m each breaking[0m[2m change,[0m[2m a step[0m[2m-by-step[0m[2m checklist,[0m[2m and end[0m[2m with the[0m[2m upgrade command[0m[2m.[0m[2m
+     Let[0m[2m me write[0m[2m a clear[0m[2m,[0m[2m structured migration[0m[2m guide with[0m[2m before[0m[2m/after[0m[2m examples[0m[2m for[0m[2m each breaking[0m[2m change.[0m[2m
+  Now[0m[2m I'll write[0m[2m a[0m[2m comprehensive migration[0m[2m guide covering[0m[2m all six[0m[2m breaking changes[0m[2m:[0m[2m
   🧰 functions.Write:1 | Write {'path': 'MIGRATION.md', 'content': '# Zrb CLI v1 → v2 Migratio ...'}
 [0m[2m
   🔠 functions.Write:1 | Return Successfully wrote to MIGRATION.md
 [0m[2m
-  🧠 I've[0m[2m created a[0m[2m comprehensive migration[0m[2m guide that[0m[2m covers all[0m[2m 6[0m[2m breaking changes[0m[2m with[0m[2m before[0m[2m/after[0m[2m examples[0m[2m, a[0m[2m checklist[0m[2m, and[0m[2m the upgrade[0m[2m command.[0m[2m Let[0m[2m me verify[0m[2m the content[0m[2m by[0m[2m reading it[0m[2m back.[0m[2m
-  🧰 functions.Read:2 | Read {'path': 'MIGRATION.md'}
-[0m[2m
-  🔠 functions.Read:2 | Return [File: MIGRATION.md | 278 lines]
-     ---CONTENT---
-     # Zrb CLI v1 → v2 Migration Guide
-     
-     This guide helps you migrate your code from Zrb CLI v1 to v2. v2 introduces projects, pagination, and stricter authentication with several breaking changes that require code updates.
-     
-     ---
-     
-     ## Breaking Changes
-     
-     ### 1. Endpoint Prefix Added
-     
-     All API endpoints are now prefixed with `/v2/`.
-     
-     **Before (v1):**
-     ```bash
-     curl https://api.zrb.io/tasks
-     curl https://api.zrb.io/tasks/42
-     ```
-     
-     **After (v2):**
-     ```bash
-     curl https://api.zrb.io/v2/tasks
-     curl https://api.zrb.io/v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890
-     ```
-     
-     ---
-     
-     ### 2. Authentication Header Changed
-     
-     The authentication header format has changed from custom header to Bearer token.
-     
-     **Before (v1):**
-     ```bash
-     curl -H "X-Auth-Token: your_api_key" \
-       https://api.zrb.io/tasks
-     ```
-     
-     ```javascript
-     // JavaScript example
-     fetch('/tasks', {
-       headers: { 'X-Auth-Token': apiKey }
-     });
-     ```
-     
-     **After (v2):**
-     ```bash
-     curl -H "Authorization: Bearer your_api_token" \
-       https://api.zrb.io/v2/tasks
-     ```
-     
-     ```javascript
-     // JavaScript example
-     fetch('/v2/tasks', {
-       headers: { 'Authorization': `Bearer ${apiToken}` }
-     });
-     ```
-     
-     **Note:** Requests using `X-Auth-Token` will now receive HTTP 401 Unauthorized.
-     
-     ---
-     
-     ### 3. Task ID Changed from Integer to UUID
-     
-     Task IDs are now UUID strings instead of auto-incrementing integers.
-     
-     **Before (v1):**
-     ```json
-     {
-       "id": 42,
-       "title": "Write tests",
-       "done": false
-     }
-     ```
-     
-     ```javascript
-     // v1 treated IDs as numbers
-     const taskId = 42;
-     fetch(`/tasks/${taskId}`);
-     ```
-     
-     **After (v2):**
-     ```json
-     {
-       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-       "title": "Write tests",
-       "completed": false
-     }
-     ```
-     
-     ```javascript
-     // v2 IDs are UUID strings
-     const taskId = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
-     fetch(`/v2/tasks/${taskId}`);
-     ```
-     
-     ---
-     
-     ### 4. Field `done` Renamed to `completed`
-     
-     The boolean field indicating task completion status has been renamed.
-     
-     **Before (v1):**
-     ```json
-     {
-       "id": 1,
-       "title": "Ship v1",
-       "done": true
-     }
-     ```
-     
-     ```javascript
-     // Creating a task
-     fetch('/tasks', {
-       method: 'POST',
-       body: JSON.stringify({ title: 'New task', done: false })
-     });
-     
-     // Updating a task
-     fetch('/tasks/42', {
-       method: 'PUT',
-       body: JSON.stringify({ done: true })
-     });
-     ```
-     
-     **After (v2):**
-     ```json
-     {
-       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-       "title": "Ship v2",
-       "completed": true
-     }
-     ```
-     
-     ```javascript
-     // Creating a task (note: project_id now required, see below)
-     fetch('/v2/tasks', {
-       method: 'POST',
-       body: JSON.stringify({ title: 'New task', project_id: 'proj_abc123' })
-     });
-     
-     // Updating a task
-     fetch('/v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890', {
-       method: 'PUT',
-       body: JSON.stringify({ completed: true })
-     });
-     ```
-     
-     ---
-     
-     ### 5. Task Creation Requires `project_id`
-     
-     Creating a task now requires a `project_id` field. Requests without it return HTTP 422.
-     
-     **Before (v1):**
-     ```bash
-     curl -X POST https://api.zrb.io/tasks \
-       -H "Content-Type: application/json" \
-       -H "X-Auth-Token: your_api_key" \
-       -d '{"title": "New task"}'
-     ```
-     
-     ```javascript
-     fetch('/tasks', {
-       method: 'POST',
-       headers: {
-         'Content-Type': 'application/json',
-         'X-Auth-Token': apiKey
-       },
-       body: JSON.stringify({ title: 'New task' })
-     });
-     ```
-     
-     **After (v2):**
-     ```bash
-     curl -X POST https://api.zrb.io/v2/tasks \
-       -H "Content-Type: application/json" \
-       -H "Authorization: Bearer your_api_token" \
-       -d '{"title": "New task", "project_id": "proj_abc123"}'
-     ```
-     
-     ```javascript
-     fetch('/v2/tasks', {
-       method: 'POST',
-       headers: {
-         'Content-Type': 'application/json',
-         'Authorization': `Bearer ${apiToken}`
-       },
-       body: JSON.stringify({ 
-         title: 'New task',
-         project_id: 'proj_abc123'
-       })
-     });
-     ```
-     
-     ---
-     
-     ### 6. List Endpoints Return Paginated Envelope
-     
-     The `GET /tasks` endpoint no longer returns a bare array. It now returns a paginated envelope with `items`, `total`, and `next_cursor`.
-     
-     **Before (v1):**
-     ```json
-     [
-       {"id": 1, "title": "Buy milk", "done": false, "created_at": "..."},
-       {"id": 2, "title": "Ship v1", "done": true, "created_at": "..."}
-     ]
-     ```
-     
-     ```javascript
-     const tasks = await fetch('/tasks').then(r => r.json());
-     tasks.forEach(task => console.log(task.title));
-     ```
-     
-     **After (v2):**
-     ```json
-     {
-       "items": [
-         {"id": "uuid-1", "title": "Buy milk", "completed": false, "created_at": "...", "project_id": "..."},
-         {"id": "uuid-2", "title": "Ship v2", "completed": true, "created_at": "...", "project_id": "..."}
-       ],
-       "total": 2,
-       "next_cursor": "cursor_xyz"
-     }
-     ```
-     
-     ```javascript
-     const response = await fetch('/v2/tasks').then(r => r.json());
-     const tasks = response.items; // Access items array
-     tasks.forEach(task => console.log(task.title));
-     
-     // Pagination
-     const nextPage = await fetch('/v2/tasks?cursor=' + response.next_cursor).then(r => r.json());
-     ```
-     
-     ---
-     
-     ## Migration Checklist
-     
-     Follow these steps to migrate your code:
-     
-     - [ ] **Install v2 CLI**: Run the upgrade command (see below)
-     - [ ] **Update API tokens**: Ensure you have a valid Bearer token for v2 (old API keys may require regeneration)
-     - [ ] **Update base URL**: Add `/v2` prefix to all endpoint URLs in your integration
-     - [ ] **Update authentication**: Replace `X-Auth-Token` header with `Authorization: Bearer <token>` header
-     - [ ] **Update ID handling**: Change task ID variables from integers to strings (UUIDs) throughout your codebase
-     - [ ] **Update field names**: Search and replace `done` with `completed` in request/response handling
-     - [ ] **Add project_id**: Update task creation to include `project_id` field
-     - [ ] **Update list parsing**: Change list endpoint response handling from direct array access to `response.items`
-     - [ ] **Add pagination support**: Optionally implement cursor-based pagination for task lists
-     - [ ] **Test thoroughly**: Verify all CRUD operations work with v2 before deploying to production
-     - [ ] **Update documentation**: Inform your team about API changes and update any internal API docs
-     
-     ---
-     
-     ## Upgrade to v2
-     
-     To upgrade your CLI:
-     
-     ```bash
-     zrb upgrade --to v2
-     ```
-     
-     After upgrading, verify the version:
-     
-     ```bash
-     zrb --version  # Should display v2.x.x
-     ```
-     
-     ---
-     
-     ## Need Help?
-     
-     If you encounter issues during migration:
-     
-     1. Consult the v2 spec in `v2_spec.md`
-     2. Check that your bearer tokens are valid in the v2 dashboard
-     3. Ensure you're using UUID strings for all task IDs
-     4. Verify `project_id` is included in all task creation requests
-     
-[0m[2m
-  🧠 The[0m[2m migration[0m[2m guide has[0m[2m been created[0m[2m successfully at[0m[2m `M[0m[2mIGRATION[0m[2m.md`[0m[2m (278[0m[2m lines).[0m[2m The[0m[2m guide includes[0m[2m:
-     
-     1[0m[2m. **[0m[2mClear structure[0m[2m with[0m[2m headings**[0m[2m - All[0m[2m breaking[0m[2m changes are[0m[2m organized[0m[2m under[0m[2m an[0m[2m H2[0m[2m "Breaking[0m[2m Changes"[0m[2m section with[0m[2m individual[0m[2m H3[0m[2m subsections[0m[2m
-     2[0m[2m. **[0m[2mAll[0m[2m 6 breaking[0m[2m changes explicitly[0m[2m called out[0m[2m**:[0m[2m
-        -[0m[2m Endpoint prefix[0m[2m (`[0m[2m/tasks[0m[2m` →[0m[2m `/v[0m[2m2/tasks[0m[2m`)[0m[2m
-        - Authentication[0m[2m header (`[0m[2mX-[0m[2mAuth-[0m[2mToken`[0m[2m → `[0m[2mAuthorization:[0m[2m Bearer`)[0m[2m
-        -[0m[2m Task ID[0m[2m type ([0m[2minteger →[0m[2m UUID string[0m[2m)[0m[2m
-        - Field[0m[2m rename[0m[2m (`done[0m[2m` →[0m[2m `completed[0m[2m`)[0m[2m
-        - New[0m[2m required field[0m[2m (`project[0m[2m_id`[0m[2m for[0m[2m task creation[0m[2m)[0m[2m
-        - List[0m[2m response format[0m[2m (bare[0m[2m array →[0m[2m paginated[0m[2m envelope)[0m[2m
-     3.[0m[2m **Before[0m[2m/after[0m[2m code examples[0m[2m**[0m[2m for each[0m[2m breaking change[0m[2m using fenced[0m[2m code blocks[0m[2m (bash[0m[2m curl[0m[2m examples[0m[2m and Java[0m[2mScript fetch[0m[2m examples)[0m[2m
-     4.[0m[2m **Step[0m[2m-by-step[0m[2m migration checklist[0m[2m** with[0m[2m 11[0m[2m actionable items[0m[2m
-     5[0m[2m. **[0m[2mUpgrade command[0m[2m at the[0m[2m end**:[0m[2m `z[0m[2mrb upgrade[0m[2m --to[0m[2m v2[0m[2m`
-     
-     The[0m[2m guide is[0m[2m written[0m[2m for experienced[0m[2m developers already[0m[2m using[0m[2m v1[0m[2m, with[0m[2m practical[0m[2m code[0m[2m examples they[0m[2m can adapt[0m[2m to their[0m[2m own codebase[0m[2m.[0m[2m
-  The[0m[2m migration guide[0m[2m has[0m[2m been created[0m[2m at `[0m[2mMIG[0m[2mRATION.md[0m[2m` with[0m[2m:[0m[2m
-     
-     - **[0m[2m6 breaking[0m[2m changes**[0m[2m explicitly[0m[2m documented[0m[2m:[0m[2m
-       1.[0m[2m Endpoint prefix[0m[2m (`[0m[2m/v[0m[2m2/[0m[2m`)[0m[2m
-       2[0m[2m. Authentication[0m[2m header (`[0m[2mAuthorization[0m[2m: Bearer[0m[2m`)[0m[2m
-       3[0m[2m. Task[0m[2m ID type[0m[2m (integer[0m[2m → UUID[0m[2m)[0m[2m
-       4[0m[2m. Field[0m[2m rename (`[0m[2mdone`[0m[2m → `[0m[2mcompleted`)[0m[2m
-       5.[0m[2m Required `[0m[2mproject_id[0m[2m` for[0m[2m creation[0m[2m
-       6[0m[2m. Pag[0m[2minated list[0m[2m envelope[0m[2m
-     - **[0m[2mBefore/[0m[2mafter code[0m[2m examples**[0m[2m for each[0m[2m change ([0m[2mbash +[0m[2m JavaScript[0m[2m)
-     -[0m[2m **11[0m[2m-step migration[0m[2m checklist**[0m[2m
-     - **[0m[2mUpgrade command[0m[2m**: `[0m[2mzrb[0m[2m upgrade --[0m[2mto v[0m[2m2`[0m[2m
-  💸 (Requests: 4 | Tool Calls: 3 | Total: 41643) Input: 38877 | Audio Input: 0 | Output: 2766 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
+  🧠 The[0m[2m migration guide[0m[2m has been[0m[2m written[0m[2m.[0m[2m Let[0m[2m me verify[0m[2m the[0m[2m file[0m[2m content[0m[2m to[0m[2m ensure[0m[2m it meets[0m[2m all requirements[0m[2m:[0m[2m
+     - Clear[0m[2m structure with[0m[2m headings ✓[0m[2m
+     - Explicit[0m[2mly calls[0m[2m out every[0m[2m breaking change[0m[2m ([0m[2m6 total[0m[2m) ✓[0m[2m
+     - Before[0m[2m/after[0m[2m code examples[0m[2m for each[0m[2m breaking change[0m[2m ✓[0m[2m
+     -[0m[2m Step-by[0m[2m-step migration[0m[2m checklist at[0m[2m the end[0m[2m ✓[0m[2m
+     -[0m[2m Ends with[0m[2m the upgrade[0m[2m command ✓[0m[2m
+     
+     The guide[0m[2m is complete[0m[2m.[0m[2m
+  Migration[0m[2m guide created[0m[2m at `[0m[2mMIG[0m[2mRATION.md[0m[2m`. It[0m[2m covers all[0m[2m six[0m[2m breaking changes[0m[2m with[0m[2m before[0m[2m/after[0m[2m code examples[0m[2m:
+     
+     |[0m[2m Breaking[0m[2m Change |[0m[2m v1[0m[2m →[0m[2m v2[0m[2m |
+     |----------------[0m[2m|---------[0m[2m|
+     |[0m[2m API prefix[0m[2m | `/[0m[2mtasks`[0m[2m → `/[0m[2mv2[0m[2m/tasks`[0m[2m |
+     |[0m[2m Auth header[0m[2m | `[0m[2mX-[0m[2mAuth-[0m[2mToken`[0m[2m → `[0m[2mAuthorization:[0m[2m Bearer`[0m[2m |
+     |[0m[2m Task ID[0m[2m type |[0m[2m `42[0m[2m` ([0m[2mint[0m[2m) →[0m[2m `"a[0m[2m1b[0m[2m2c[0m[2m3d[0m[2m4-[0m[2m..."`[0m[2m (UUID[0m[2m) |[0m[2m
+     | Field[0m[2m name |[0m[2m `done[0m[2m` →[0m[2m `completed[0m[2m` |[0m[2m
+     | Task[0m[2m creation |[0m[2m `{[0m[2mtitle}`[0m[2m → `{[0m[2mtitle,[0m[2m project_id[0m[2m}` |[0m[2m
+     | List[0m[2m response |[0m[2m `[0m[2m[]`[0m[2m → `{[0m[2mitems,[0m[2m total,[0m[2m next_cursor[0m[2m}` |[0m[2m
+     
+     Includes a[0m[2m 10[0m[2m-item[0m[2m migration checklist[0m[2m and the[0m[2m upgrade[0m[2m command at[0m[2m the end[0m[2m.[0m[2m
+  💸 (Requests: 3 | Tool Calls: 2 | Total: 26691) Input: 24379 | Audio Input: 0 | Output: 2312 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "The Zrb CLI is releasing v2, which has several breaking changes from v1. Our developer community needs a clear migration guide.
 
 `v1_spec.md` describes the current v1 API. `v2_spec.md` describes the new v2 API.
@@ -342,16 +57,16 @@ Write a developer migration guide and save it as `MIGRATION.md`. It should:
 - End with the upgrade command
 
 The audience is experienced developers who are already using v1." --model ollama:kimi-k2.5:cloud --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mlong-horn-7740[0m[0m
-The migration guide has been created at `MIGRATION.md` with:
+[2m[2mSession[0m: [1;33mhigh-cell-9904[0m[0m
+Migration guide created at `MIGRATION.md`. It covers all six breaking changes with before/after code examples:
 
-- **6 breaking changes** explicitly documented:
-  1. Endpoint prefix (`/v2/`)
-  2. Authentication header (`Authorization: Bearer`)
-  3. Task ID type (integer → UUID)
-  4. Field rename (`done` → `completed`)
-  5. Required `project_id` for creation
-  6. Paginated list envelope
-- **Before/after code examples** for each change (bash + JavaScript)
-- **11-step migration checklist**
-- **Upgrade command**: `zrb upgrade --to v2`
+| Breaking Change | v1 → v2 |
+|----------------|---------|
+| API prefix | `/tasks` → `/v2/tasks` |
+| Auth header | `X-Auth-Token` → `Authorization: Bearer` |
+| Task ID type | `42` (int) → `"a1b2c3d4-..."` (UUID) |
+| Field name | `done` → `completed` |
+| Task creation | `{title}` → `{title, project_id}` |
+| List response | `[]` → `{items, total, next_cursor}` |
+
+Includes a 10-item migration checklist and the upgrade command at the end.

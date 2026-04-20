@@ -1,0 +1,21 @@
+Starting simulation: 12 concurrent orders, stock=5
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: SUCCESS
+Order order_1: payment failed
+Order order_2: payment failed
+Order order_3: payment failed
+Order order_4: payment failed
+
+=== Results ===
+Successful orders:  1
+Items sold:         1  (initial stock: 5)
+Remaining stock:    4
+Total charged:      $100.00
+Expected charge:    $100.00
+Duplicate charges:  0

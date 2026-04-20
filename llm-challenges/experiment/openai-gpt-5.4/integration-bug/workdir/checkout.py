@@ -1,3 +1,4 @@
+import asyncio
 from inventory import Inventory
 from payments import PaymentGateway
 

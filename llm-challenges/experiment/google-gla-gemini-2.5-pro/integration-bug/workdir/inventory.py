@@ -14,10 +14,6 @@ class Inventory:
                 return True
             return False
 
-    async def increment(self, quantity: int) -> None:
-        await asyncio.sleep(0.01)
-        self._stock += quantity
-
     async def release(self, quantity: int) -> None:
         async with self._lock:
             await asyncio.sleep(0.01)

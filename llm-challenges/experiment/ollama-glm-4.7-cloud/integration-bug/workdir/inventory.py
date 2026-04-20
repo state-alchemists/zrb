@@ -22,7 +22,7 @@ class Inventory:
         self._stock += quantity
 
     async def reserve(self, quantity: int) -> bool:
-        """Atomically check and decrement stock. Returns True if successful."""
+        """Atomically check and reserve stock. Returns True if reserved."""
         async with self._lock:
             await asyncio.sleep(0.02)
             if self._stock >= quantity:
@@ -31,7 +31,7 @@ class Inventory:
             return False
 
     async def release(self, quantity: int) -> None:
-        """Release reserved stock back to inventory."""
+        """Release previously reserved stock back to inventory."""
         async with self._lock:
             await asyncio.sleep(0.01)
             self._stock += quantity

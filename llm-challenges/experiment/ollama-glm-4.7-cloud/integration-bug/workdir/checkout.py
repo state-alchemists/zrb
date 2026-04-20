@@ -10,16 +10,13 @@ async def checkout(
     inventory: Inventory,
     gateway: PaymentGateway,
 ) -> bool:
-    # Reserve inventory first (atomic check-and-decrement)
     reserved = await inventory.reserve(quantity)
     if not reserved:
         print(f"Order {order_id}: out of stock")
         return False
 
-    # Charge payment after inventory is reserved
     charged = await gateway.charge(order_id, quantity * price)
     if not charged:
-        # Release reservation if payment fails
         await inventory.release(quantity)
         print(f"Order {order_id}: payment failed")
         return False
