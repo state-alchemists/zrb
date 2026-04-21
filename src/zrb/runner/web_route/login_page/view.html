@@ -1,7 +1,9 @@
+{% extends "static/base.html" %}
+{% block content %}
 <header class="container">
     <hgroup>
-        <h1>{name}</h1>
-        <p>{description}</p>
+        <h1>{{ name }}</h1>
+        <p>{{ description }}</p>
         <nav>
             <ul>
                 <li><a href="/">🏠 Home</a></li>
@@ -30,4 +32,7 @@
         <p id="error-message"></p>
     </article>
 </main>
+{% endblock %}
+{% block extra_scripts %}
 <script src="/static/login/event.js"></script>
+{% endblock %}

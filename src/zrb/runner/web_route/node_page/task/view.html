@@ -1,17 +1,19 @@
+{% extends "static/base.html" %}
+{% block content %}
 <header class="container">
     <hgroup>
-        <h1>{web_title}</h1>
-        <p>{web_jargon}</p>
+        <h1>{{ web_title }}</h1>
+        <p>{{ web_jargon }}</p>
         <nav>
             <ul>
                 <li><a href="/">🏠 Home</a></li>
-                <li><a href="{parent_url}">🔙 Parent</a></li>
+                <li><a href="{{ parent_url }}">🔙 Parent</a></li>
                 <li><a href="/docs">💻 API Documentation</a></li>
-                <li><a href="{ui_url}">🆕 New Session</a></li>
+                <li><a href="{{ ui_url }}">🆕 New Session</a></li>
                 <li><a href="#" onclick="openPastSessionDialog(event)">📂 Existing Session</a></li>
             </ul>
             <ul>
-                <li>{auth_link}</li>
+                <li>{{ auth_link | safe }}</li>
             </ul>
         </nav>
     </hgroup>
@@ -44,13 +46,15 @@
 
 <main class="container">
     <article>
-        <h2>{name}</h2>
-        <p>{description}</p>
-        <canvas id="history-canvas" height="0" width="1000" style="width: 100%;"></canvas>
+        <h2>{{ name }}</h2>
+        <p>{{ description }}</p>
+        <div id="history-gantt" style="width: 100%; overflow-x: auto; min-height: 2rem;"></div>
     </article>
     <article>
         <form id="submit-task-form" onsubmit="submitNewSessionForm(event)">
-            {task_inputs}
+            {% for task_input in task_inputs %}
+            {% include "node_page/task/partial/input.html" %}
+            {% endfor %}
             <button>🚀 Run New Session</button>
         </form>
     </article>
@@ -67,12 +71,12 @@
         </label>
     </article>
 </main>
-
-<script>
-const cfg = {json_cfg};
-</script>
+{% endblock %}
+{% block extra_scripts %}
+<script>const cfg = {{ json_cfg | safe }};</script>
 <script src="/static/session/common-util.js"></script>
 <script src="/static/session/past-session.js"></script>
 <script src="/static/session/current-session.js"></script>
 <script src="/static/session/event.js"></script>
-<script src="/refresh-token.js"></script>
+<script src="/static/mermaid.min.js" async onload="mermaid.initialize({ startOnLoad: false, theme: 'neutral' })"></script>
+{% endblock %}

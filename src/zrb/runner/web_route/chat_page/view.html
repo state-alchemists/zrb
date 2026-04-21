@@ -1,14 +1,21 @@
+{% extends "static/base.html" %}
+{% block extra_head %}
+<style>
+{% include "chat_page/chat.css" %}
+</style>
+{% endblock %}
+{% block content %}
 <header class="container">
     <hgroup>
-        <h1>{web_title}</h1>
-        <p>{web_jargon}</p>
+        <h1>{{ web_title }}</h1>
+        <p>{{ web_jargon }}</p>
         <nav>
             <ul>
                 <li><a href="/docs">📚 Docs</a></li>
                 <li><a href="/ui">🏠 Home</a></li>
             </ul>
             <ul>
-                <li>{auth_link}</li>
+                <li>{{ auth_link | safe }}</li>
             </ul>
         </nav>
     </hgroup>
@@ -25,17 +32,17 @@
         </div>
         <div id="pagination" class="pagination"></div>
     </div>
-    
+
     <div id="chat-container" class="chat-container hidden">
         <div class="chat-header">
             <button id="back-to-sessions" class="secondary">⬅️ Back</button>
             <h3 id="current-session-name">Chat</h3>
             <button id="delete-session-btn" class="secondary">🗑️ Delete</button>
         </div>
-        
+
         <div id="messages" class="messages">
         </div>
-        
+
         <div id="approval-panel" class="approval-panel hidden">
             <div id="approval-content"></div>
             <div class="approval-buttons">
@@ -48,10 +55,16 @@
                 <button id="submit-edit-btn" class="primary">📤 Submit</button>
             </div>
         </div>
-        
+
         <div class="input-area">
             <textarea id="message-input" placeholder="Type your message..." rows="1"></textarea>
             <button id="send-btn">📤 Send</button>
         </div>
     </div>
 </main>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+{% include "chat_page/chat.js" %}
+</script>
+{% endblock %}
