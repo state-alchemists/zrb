@@ -1,6 +1,6 @@
 # LLM Challenge Experiment Report
 
-**Date:** 2026-04-21 06:38:26
+**Date:** 2026-04-21 06:41:31
 
 | Model | Challenge | Status | Time (s) | Tools | Verify |
 |---|---|---|---|---|---|
@@ -64,7 +64,7 @@
 | ollama:kimi-k2.5:cloud | integration-bug | EXCELLENT | 189.63 | 7 | 🌟 |
 | ollama:kimi-k2.5:cloud | refactor | EXCELLENT | 288.50 | 22 | 🌟 |
 | ollama:kimi-k2.5:cloud | research | EXCELLENT | 115.68 | 2 | 🌟 |
-| ollama:minimax-m2.7:cloud | bug-fix | EXECUTION_FAILED | 86.35 | 8 | 💥 |
+| ollama:minimax-m2.7:cloud | bug-fix | EXCELLENT | 56.87 | 6 | 🌟 |
 | ollama:minimax-m2.7:cloud | copywriting | EXCELLENT | 81.87 | 2 | 🌟 |
 | ollama:minimax-m2.7:cloud | feature | FAIL | 53.80 | 9 | ❌ |
 | ollama:minimax-m2.7:cloud | integration-bug | EXCELLENT | 351.57 | 14 | 🌟 |
@@ -3756,622 +3756,182 @@ VERIFICATION_RESULT: EXCELLENT
 
 ---
 ### ollama:minimax-m2.7:cloud / bug-fix
-- **Status:** EXECUTION_FAILED
-- **Duration:** 86.35s
+- **Status:** EXCELLENT
+- **Duration:** 56.87s
 - **Workdir:** `experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir`
 - **Log:** `experiment/ollama-minimax-m2.7-cloud/bug-fix/combined.log`
-- **Tools Used:** ReadMany, Bash, EditEditEdit, LS, ReadMany, Bash, EditEditEdit, ReadReadRead
+- **Tools Used:** ReadMany, Bash, Edit, Edit, Edit, Bash
 
 **Verification Output:**
 ```
 Verifying Job Queue Fix...
 [Worker 0] picked up job 1
-[Worker 1] picked up job 1
-[Worker 2] picked up job 1
-[Worker 3] picked up job 1
-[Worker 4] picked up job 1
-[Worker 0] finished job 1
-[Worker 1] finished job 1
-[Worker 2] finished job 1
-[Worker 3] finished job 1
-[Worker 4] finished job 1
-[Worker 0] picked up job 2
 [Worker 1] picked up job 2
-[Worker 2] picked up job 2
-[Worker 3] picked up job 2
-[Worker 4] picked up job 2
-[Worker 0] finished job 2
-[Worker 1] finished job 2
-[Worker 2] finished job 2
-[Worker 3] finished job 2
-[Worker 4] finished job 2
-[Worker 0] picked up job 3
-[Worker 1] picked up job 3
 [Worker 2] picked up job 3
-[Worker 3] picked up job 3
-[Worker 4] picked up job 3
-[Worker 0] finished job 3
-[Worker 1] finished job 3
-[Worker 2] finished job 3
-[Worker 3] finished job 3
-[Worker 4] finished job 3
-[Worker 0] picked up job 4
-[Worker 1] picked up job 4
-[Worker 2] picked up job 4
 [Worker 3] picked up job 4
-[Worker 4] picked up job 4
-[Worker 0] finished job 4
-[Worker 1] finished job 4
-[Worker 2] finished job 4
-[Worker 3] finished job 4
-[Worker 4] finished job 4
-[Worker 0] picked up job 5
-[Worker 1] picked up job 5
-[Worker 2] picked up job 5
-[Worker 3] picked up job 5
 [Worker 4] picked up job 5
-[Worker 0] finished job 5
-[Worker 1] finished job 5
-[Worker 2] finished job 5
-[Worker 3] finished job 5
-[Worker 4] finished job 5
+[Worker 0] finished job 1
 [Worker 0] picked up job 6
-[Worker 1] picked up job 6
-[Worker 2] picked up job 6
-[Worker 3] picked up job 6
-[Worker 4] picked up job 6
-[Worker 0] finished job 6
-[Worker 1] finished job 6
-[Worker 2] finished job 6
-[Worker 3] finished job 6
-[Worker 4] finished job 6
-[Worker 0] picked up job 7
+[Worker 1] finished job 2
 [Worker 1] picked up job 7
-[Worker 2] picked up job 7
-[Worker 3] picked up job 7
-[Worker 4] picked up job 7
-[Worker 0] finished job 7
-[Worker 1] finished job 7
-[Worker 2] finished job 7
-[Worker 3] finished job 7
-[Worker 4] finished job 7
-[Worker 0] picked up job 8
-[Worker 1] picked up job 8
+[Worker 2] finished job 3
 [Worker 2] picked up job 8
-[Worker 3] picked up job 8
-[Worker 4] picked up job 8
-[Worker 0] finished job 8
-[Worker 1] finished job 8
-[Worker 2] finished job 8
-[Worker 3] finished job 8
-[Worker 4] finished job 8
-[Worker 0] picked up job 9
-[Worker 1] picked up job 9
-[Worker 2] picked up job 9
+[Worker 3] finished job 4
 [Worker 3] picked up job 9
-[Worker 4] picked up job 9
-[Worker 0] finished job 9
-[Worker 1] finished job 9
-[Worker 2] finished job 9
-[Worker 3] finished job 9
-[Worker 4] finished job 9
-[Worker 0] picked up job 10
-[Worker 1] picked up job 10
-[Worker 2] picked up job 10
-[Worker 3] picked up job 10
+[Worker 4] finished job 5
 [Worker 4] picked up job 10
-[Worker 0] finished job 10
-[Worker 1] finished job 10
-[Worker 2] finished job 10
-[Worker 3] finished job 10
-[Worker 4] finished job 10
+[Worker 0] finished job 6
 [Worker 0] picked up job 11
-[Worker 1] picked up job 11
-[Worker 2] picked up job 11
-[Worker 3] picked up job 11
-[Worker 4] picked up job 11
-[Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 11 failed: processing error for job 11
-[Worker 2] job 11 failed: processing error for job 11
-[Worker 3] job 11 failed: processing error for job 11
-[Worker 4] job 11 failed: processing error for job 11
-[Worker 0] picked up job 12
+[Worker 1] finished job 7
 [Worker 1] picked up job 12
-[Worker 2] picked up job 12
-[Worker 3] picked up job 12
-[Worker 4] picked up job 12
-[Worker 0] job 12 failed: processing error for job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
 [Worker 1] job 12 failed: processing error for job 12
-[Worker 2] job 12 failed: processing error for job 12
-[Worker 3] job 12 failed: processing error for job 12
-[Worker 4] job 12 failed: processing error for job 12
-  Run 1: FAIL (done=10, failed=0, stuck=2)
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 1: PASS
 [Worker 0] picked up job 1
-[Worker 1] picked up job 1
-[Worker 2] picked up job 1
-[Worker 3] picked up job 1
-[Worker 4] picked up job 1
-[Worker 0] finished job 1
-[Worker 1] finished job 1
-[Worker 2] finished job 1
-[Worker 3] finished job 1
-[Worker 4] finished job 1
-[Worker 0] picked up job 2
 [Worker 1] picked up job 2
-[Worker 2] picked up job 2
-[Worker 3] picked up job 2
-[Worker 4] picked up job 2
-[Worker 0] finished job 2
-[Worker 1] finished job 2
-[Worker 2] finished job 2
-[Worker 3] finished job 2
-[Worker 4] finished job 2
-[Worker 0] picked up job 3
-[Worker 1] picked up job 3
 [Worker 2] picked up job 3
-[Worker 3] picked up job 3
-[Worker 4] picked up job 3
-[Worker 0] finished job 3
-[Worker 1] finished job 3
-[Worker 2] finished job 3
-[Worker 3] finished job 3
-[Worker 4] finished job 3
-[Worker 0] picked up job 4
-[Worker 1] picked up job 4
-[Worker 2] picked up job 4
 [Worker 3] picked up job 4
-[Worker 4] picked up job 4
-[Worker 0] finished job 4
-[Worker 1] finished job 4
-[Worker 2] finished job 4
-[Worker 3] finished job 4
-[Worker 4] finished job 4
-[Worker 0] picked up job 5
-[Worker 1] picked up job 5
-[Worker 2] picked up job 5
-[Worker 3] picked up job 5
 [Worker 4] picked up job 5
-[Worker 0] finished job 5
-[Worker 1] finished job 5
-[Worker 2] finished job 5
-[Worker 3] finished job 5
-[Worker 4] finished job 5
+[Worker 0] finished job 1
 [Worker 0] picked up job 6
-[Worker 1] picked up job 6
-[Worker 2] picked up job 6
-[Worker 3] picked up job 6
-[Worker 4] picked up job 6
-[Worker 0] finished job 6
-[Worker 1] finished job 6
-[Worker 2] finished job 6
-[Worker 3] finished job 6
-[Worker 4] finished job 6
-[Worker 0] picked up job 7
+[Worker 1] finished job 2
 [Worker 1] picked up job 7
-[Worker 2] picked up job 7
-[Worker 3] picked up job 7
-[Worker 4] picked up job 7
-[Worker 0] finished job 7
-[Worker 1] finished job 7
-[Worker 2] finished job 7
-[Worker 3] finished job 7
-[Worker 4] finished job 7
-[Worker 0] picked up job 8
-[Worker 1] picked up job 8
+[Worker 2] finished job 3
+[Worker 3] finished job 4
 [Worker 2] picked up job 8
-[Worker 3] picked up job 8
-[Worker 4] picked up job 8
-[Worker 0] finished job 8
-[Worker 1] finished job 8
-[Worker 2] finished job 8
-[Worker 3] finished job 8
-[Worker 4] finished job 8
-[Worker 0] picked up job 9
-[Worker 1] picked up job 9
-[Worker 2] picked up job 9
 [Worker 3] picked up job 9
-[Worker 4] picked up job 9
-[Worker 0] finished job 9
-[Worker 1] finished job 9
-[Worker 2] finished job 9
-[Worker 3] finished job 9
-[Worker 4] finished job 9
-[Worker 0] picked up job 10
-[Worker 1] picked up job 10
-[Worker 2] picked up job 10
-[Worker 3] picked up job 10
+[Worker 4] finished job 5
 [Worker 4] picked up job 10
-[Worker 0] finished job 10
-[Worker 1] finished job 10
-[Worker 2] finished job 10
-[Worker 3] finished job 10
-[Worker 4] finished job 10
+[Worker 0] finished job 6
 [Worker 0] picked up job 11
-[Worker 1] picked up job 11
-[Worker 2] picked up job 11
-[Worker 3] picked up job 11
-[Worker 4] picked up job 11
-[Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 11 failed: processing error for job 11
-[Worker 2] job 11 failed: processing error for job 11
-[Worker 3] job 11 failed: processing error for job 11
-[Worker 4] job 11 failed: processing error for job 11
-[Worker 0] picked up job 12
+[Worker 1] finished job 7
+[Worker 2] finished job 8
 [Worker 1] picked up job 12
-[Worker 2] picked up job 12
-[Worker 3] picked up job 12
-[Worker 4] picked up job 12
-[Worker 0] job 12 failed: processing error for job 12
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
 [Worker 1] job 12 failed: processing error for job 12
-[Worker 2] job 12 failed: processing error for job 12
-[Worker 3] job 12 failed: processing error for job 12
-[Worker 4] job 12 failed: processing error for job 12
-  Run 2: FAIL (done=10, failed=0, stuck=2)
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 2: PASS
 [Worker 0] picked up job 1
-[Worker 1] picked up job 1
-[Worker 2] picked up job 1
-[Worker 3] picked up job 1
-[Worker 4] picked up job 1
-[Worker 0] finished job 1
-[Worker 1] finished job 1
-[Worker 2] finished job 1
-[Worker 3] finished job 1
-[Worker 4] finished job 1
-[Worker 0] picked up job 2
 [Worker 1] picked up job 2
-[Worker 2] picked up job 2
-[Worker 3] picked up job 2
-[Worker 4] picked up job 2
-[Worker 0] finished job 2
-[Worker 1] finished job 2
-[Worker 2] finished job 2
-[Worker 3] finished job 2
-[Worker 4] finished job 2
-[Worker 0] picked up job 3
-[Worker 1] picked up job 3
 [Worker 2] picked up job 3
-[Worker 3] picked up job 3
-[Worker 4] picked up job 3
-[Worker 0] finished job 3
-[Worker 1] finished job 3
-[Worker 2] finished job 3
-[Worker 3] finished job 3
-[Worker 4] finished job 3
-[Worker 0] picked up job 4
-[Worker 1] picked up job 4
-[Worker 2] picked up job 4
 [Worker 3] picked up job 4
-[Worker 4] picked up job 4
-[Worker 0] finished job 4
-[Worker 1] finished job 4
-[Worker 2] finished job 4
-[Worker 3] finished job 4
-[Worker 4] finished job 4
-[Worker 0] picked up job 5
-[Worker 1] picked up job 5
-[Worker 2] picked up job 5
-[Worker 3] picked up job 5
 [Worker 4] picked up job 5
-[Worker 0] finished job 5
-[Worker 1] finished job 5
-[Worker 2] finished job 5
-[Worker 3] finished job 5
-[Worker 4] finished job 5
+[Worker 0] finished job 1
 [Worker 0] picked up job 6
-[Worker 1] picked up job 6
-[Worker 2] picked up job 6
-[Worker 3] picked up job 6
-[Worker 4] picked up job 6
-[Worker 0] finished job 6
-[Worker 1] finished job 6
-[Worker 2] finished job 6
-[Worker 3] finished job 6
-[Worker 4] finished job 6
-[Worker 0] picked up job 7
+[Worker 1] finished job 2
 [Worker 1] picked up job 7
-[Worker 2] picked up job 7
-[Worker 3] picked up job 7
-[Worker 4] picked up job 7
-[Worker 0] finished job 7
-[Worker 1] finished job 7
-[Worker 2] finished job 7
-[Worker 3] finished job 7
-[Worker 4] finished job 7
-[Worker 0] picked up job 8
-[Worker 1] picked up job 8
+[Worker 2] finished job 3
 [Worker 2] picked up job 8
-[Worker 3] picked up job 8
-[Worker 4] picked up job 8
-[Worker 0] finished job 8
-[Worker 1] finished job 8
-[Worker 2] finished job 8
-[Worker 3] finished job 8
-[Worker 4] finished job 8
-[Worker 0] picked up job 9
-[Worker 1] picked up job 9
-[Worker 2] picked up job 9
+[Worker 3] finished job 4
 [Worker 3] picked up job 9
-[Worker 4] picked up job 9
-[Worker 0] finished job 9
-[Worker 1] finished job 9
-[Worker 2] finished job 9
-[Worker 3] finished job 9
-[Worker 4] finished job 9
-[Worker 0] picked up job 10
-[Worker 1] picked up job 10
-[Worker 2] picked up job 10
-[Worker 3] picked up job 10
+[Worker 4] finished job 5
 [Worker 4] picked up job 10
-[Worker 0] finished job 10
-[Worker 1] finished job 10
-[Worker 2] finished job 10
-[Worker 3] finished job 10
-[Worker 4] finished job 10
+[Worker 0] finished job 6
 [Worker 0] picked up job 11
-[Worker 1] picked up job 11
-[Worker 2] picked up job 11
-[Worker 3] picked up job 11
-[Worker 4] picked up job 11
-[Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 11 failed: processing error for job 11
-[Worker 2] job 11 failed: processing error for job 11
-[Worker 3] job 11 failed: processing error for job 11
-[Worker 4] job 11 failed: processing error for job 11
-[Worker 0] picked up job 12
+[Worker 1] finished job 7
 [Worker 1] picked up job 12
-[Worker 2] picked up job 12
-[Worker 3] picked up job 12
-[Worker 4] picked up job 12
-[Worker 0] job 12 failed: processing error for job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
 [Worker 1] job 12 failed: processing error for job 12
-[Worker 2] job 12 failed: processing error for job 12
-[Worker 3] job 12 failed: processing error for job 12
-[Worker 4] job 12 failed: processing error for job 12
-  Run 3: FAIL (done=10, failed=0, stuck=2)
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 3: PASS
 [Worker 0] picked up job 1
-[Worker 1] picked up job 1
-[Worker 2] picked up job 1
-[Worker 3] picked up job 1
-[Worker 4] picked up job 1
-[Worker 0] finished job 1
-[Worker 1] finished job 1
-[Worker 2] finished job 1
-[Worker 3] finished job 1
-[Worker 4] finished job 1
-[Worker 0] picked up job 2
 [Worker 1] picked up job 2
-[Worker 2] picked up job 2
-[Worker 3] picked up job 2
-[Worker 4] picked up job 2
-[Worker 0] finished job 2
-[Worker 1] finished job 2
-[Worker 2] finished job 2
-[Worker 3] finished job 2
-[Worker 4] finished job 2
-[Worker 0] picked up job 3
-[Worker 1] picked up job 3
 [Worker 2] picked up job 3
-[Worker 3] picked up job 3
-[Worker 4] picked up job 3
-[Worker 0] finished job 3
-[Worker 1] finished job 3
-[Worker 2] finished job 3
-[Worker 3] finished job 3
-[Worker 4] finished job 3
-[Worker 0] picked up job 4
-[Worker 1] picked up job 4
-[Worker 2] picked up job 4
 [Worker 3] picked up job 4
-[Worker 4] picked up job 4
-[Worker 0] finished job 4
-[Worker 1] finished job 4
-[Worker 2] finished job 4
-[Worker 3] finished job 4
-[Worker 4] finished job 4
-[Worker 0] picked up job 5
-[Worker 1] picked up job 5
-[Worker 2] picked up job 5
-[Worker 3] picked up job 5
 [Worker 4] picked up job 5
-[Worker 0] finished job 5
-[Worker 1] finished job 5
-[Worker 2] finished job 5
-[Worker 3] finished job 5
-[Worker 4] finished job 5
+[Worker 0] finished job 1
 [Worker 0] picked up job 6
-[Worker 1] picked up job 6
-[Worker 2] picked up job 6
-[Worker 3] picked up job 6
-[Worker 4] picked up job 6
-[Worker 0] finished job 6
-[Worker 1] finished job 6
-[Worker 2] finished job 6
-[Worker 3] finished job 6
-[Worker 4] finished job 6
-[Worker 0] picked up job 7
+[Worker 1] finished job 2
 [Worker 1] picked up job 7
-[Worker 2] picked up job 7
-[Worker 3] picked up job 7
-[Worker 4] picked up job 7
-[Worker 0] finished job 7
-[Worker 1] finished job 7
-[Worker 2] finished job 7
-[Worker 3] finished job 7
-[Worker 4] finished job 7
-[Worker 0] picked up job 8
-[Worker 1] picked up job 8
+[Worker 2] finished job 3
 [Worker 2] picked up job 8
-[Worker 3] picked up job 8
-[Worker 4] picked up job 8
-[Worker 0] finished job 8
-[Worker 1] finished job 8
-[Worker 2] finished job 8
-[Worker 3] finished job 8
-[Worker 4] finished job 8
-[Worker 0] picked up job 9
-[Worker 1] picked up job 9
-[Worker 2] picked up job 9
+[Worker 3] finished job 4
 [Worker 3] picked up job 9
-[Worker 4] picked up job 9
-[Worker 0] finished job 9
-[Worker 1] finished job 9
-[Worker 2] finished job 9
-[Worker 3] finished job 9
-[Worker 4] finished job 9
-[Worker 0] picked up job 10
-[Worker 1] picked up job 10
-[Worker 2] picked up job 10
-[Worker 3] picked up job 10
+[Worker 4] finished job 5
 [Worker 4] picked up job 10
-[Worker 0] finished job 10
-[Worker 1] finished job 10
-[Worker 2] finished job 10
-[Worker 3] finished job 10
-[Worker 4] finished job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
 [Worker 0] picked up job 11
-[Worker 1] picked up job 11
-[Worker 2] picked up job 11
-[Worker 3] picked up job 11
-[Worker 4] picked up job 11
-[Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 11 failed: processing error for job 11
-[Worker 2] job 11 failed: processing error for job 11
-[Worker 3] job 11 failed: processing error for job 11
-[Worker 4] job 11 failed: processing error for job 11
-[Worker 0] picked up job 12
 [Worker 1] picked up job 12
-[Worker 2] picked up job 12
-[Worker 3] picked up job 12
-[Worker 4] picked up job 12
-[Worker 0] job 12 failed: processing error for job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
 [Worker 1] job 12 failed: processing error for job 12
-[Worker 2] job 12 failed: processing error for job 12
-[Worker 3] job 12 failed: processing error for job 12
-[Worker 4] job 12 failed: processing error for job 12
-  Run 4: FAIL (done=10, failed=0, stuck=2)
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 4: PASS
 [Worker 0] picked up job 1
-[Worker 1] picked up job 1
-[Worker 2] picked up job 1
-[Worker 3] picked up job 1
-[Worker 4] picked up job 1
-[Worker 0] finished job 1
-[Worker 1] finished job 1
-[Worker 2] finished job 1
-[Worker 3] finished job 1
-[Worker 4] finished job 1
-[Worker 0] picked up job 2
 [Worker 1] picked up job 2
-[Worker 2] picked up job 2
-[Worker 3] picked up job 2
-[Worker 4] picked up job 2
-[Worker 0] finished job 2
-[Worker 1] finished job 2
-[Worker 2] finished job 2
-[Worker 3] finished job 2
-[Worker 4] finished job 2
-[Worker 0] picked up job 3
-[Worker 1] picked up job 3
 [Worker 2] picked up job 3
-[Worker 3] picked up job 3
-[Worker 4] picked up job 3
-[Worker 0] finished job 3
-[Worker 1] finished job 3
-[Worker 2] finished job 3
-[Worker 3] finished job 3
-[Worker 4] finished job 3
-[Worker 0] picked up job 4
-[Worker 1] picked up job 4
-[Worker 2] picked up job 4
 [Worker 3] picked up job 4
-[Worker 4] picked up job 4
-[Worker 0] finished job 4
-[Worker 1] finished job 4
-[Worker 2] finished job 4
-[Worker 3] finished job 4
-[Worker 4] finished job 4
-[Worker 0] picked up job 5
-[Worker 1] picked up job 5
-[Worker 2] picked up job 5
-[Worker 3] picked up job 5
 [Worker 4] picked up job 5
-[Worker 0] finished job 5
-[Worker 1] finished job 5
-[Worker 2] finished job 5
-[Worker 3] finished job 5
-[Worker 4] finished job 5
+[Worker 0] finished job 1
 [Worker 0] picked up job 6
-[Worker 1] picked up job 6
-[Worker 2] picked up job 6
-[Worker 3] picked up job 6
-[Worker 4] picked up job 6
-[Worker 0] finished job 6
-[Worker 1] finished job 6
-[Worker 2] finished job 6
-[Worker 3] finished job 6
-[Worker 4] finished job 6
-[Worker 0] picked up job 7
+[Worker 1] finished job 2
 [Worker 1] picked up job 7
-[Worker 2] picked up job 7
-[Worker 3] picked up job 7
-[Worker 4] picked up job 7
-[Worker 0] finished job 7
-[Worker 1] finished job 7
-[Worker 2] finished job 7
-[Worker 3] finished job 7
-[Worker 4] finished job 7
-[Worker 0] picked up job 8
-[Worker 1] picked up job 8
+[Worker 2] finished job 3
 [Worker 2] picked up job 8
-[Worker 3] picked up job 8
-[Worker 4] picked up job 8
-[Worker 0] finished job 8
-[Worker 1] finished job 8
-[Worker 2] finished job 8
-[Worker 3] finished job 8
-[Worker 4] finished job 8
-[Worker 0] picked up job 9
-[Worker 1] picked up job 9
-[Worker 2] picked up job 9
+[Worker 3] finished job 4
 [Worker 3] picked up job 9
-[Worker 4] picked up job 9
-[Worker 0] finished job 9
-[Worker 1] finished job 9
-[Worker 2] finished job 9
-[Worker 3] finished job 9
-[Worker 4] finished job 9
-[Worker 0] picked up job 10
-[Worker 1] picked up job 10
-[Worker 2] picked up job 10
-[Worker 3] picked up job 10
+[Worker 4] finished job 5
 [Worker 4] picked up job 10
-[Worker 0] finished job 10
-[Worker 1] finished job 10
-[Worker 2] finished job 10
-[Worker 3] finished job 10
-[Worker 4] finished job 10
+[Worker 0] finished job 6
 [Worker 0] picked up job 11
-[Worker 1] picked up job 11
-[Worker 2] picked up job 11
-[Worker 3] picked up job 11
-[Worker 4] picked up job 11
-[Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 11 failed: processing error for job 11
-[Worker 2] job 11 failed: processing error for job 11
-[Worker 3] job 11 failed: processing error for job 11
-[Worker 4] job 11 failed: processing error for job 11
-[Worker 0] picked up job 12
+[Worker 1] finished job 7
 [Worker 1] picked up job 12
-[Worker 2] picked up job 12
-[Worker 3] picked up job 12
-[Worker 4] picked up job 12
-[Worker 0] job 12 failed: processing error for job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
 [Worker 1] job 12 failed: processing error for job 12
-[Worker 2] job 12 failed: processing error for job 12
-[Worker 3] job 12 failed: processing error for job 12
-[Worker 4] job 12 failed: processing error for job 12
-  Run 5: FAIL (done=10, failed=0, stuck=2)
-FAIL: Only 0/5 simulation runs passed
-VERIFICATION_RESULT: FAIL
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 5: PASS
+PASS: Concurrency control (Lock) detected
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
