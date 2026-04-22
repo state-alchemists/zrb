@@ -1,5 +1,33 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.22.4 (April 22, 2026)
+
+- **Security: Dependency Vulnerability Patches**:
+  - Updated `pydantic-ai-slim` from `~1.80.0` to `~1.85.0`.
+  - Updated `anthropic` from `>=0.80.0` to `>=0.96.0`.
+  - Updated `boto3` from `>=1.42.14` to `>=1.42.63`.
+  - Added `jinja2` dependency for improved web templating.
+  - Added security pins for transitive dependencies:
+    - `python-multipart >=0.0.26` (CVE-2026-40347: DoS via crafted multipart/form-data)
+    - `langchain-text-splitters >=1.1.2` (GHSA-fv5p-p927-qmxr: SSRF via redirect bypass)
+    - `langsmith >=0.7.31` (GHSA-rr7j-v2q5-chgv: Streaming token events bypass output redaction)
+  - Updated `voyageai` extra to include new security dependencies.
+
+- **Improvement: Web Frontend Enhancements**:
+  - Added `jinja2` templating engine with centralized `get_jinja_env()` function for consistent template rendering.
+  - Added local `mermaid.min.js` (3.2MB) for diagram rendering in web UI, removing external CDN dependency.
+  - Improved web route templates with better theme switching, layout, and styling.
+  - Enhanced chat interface with better CSS and JavaScript organization.
+  - Updated all web route handlers to use new Jinja2 environment for template rendering.
+
+- **Improvement: Server Configuration**:
+  - Changed server shutdown timeout from hardcoded `SHUTDOWN_TIMEOUT` to configurable `CFG.WEB_SHUTDOWN_TIMEOUT`.
+  - Server now uses milliseconds for timeout configuration (consistent with other timeout settings).
+
+- **Maintenance: Dependency Updates**:
+  - Updated `poetry.lock` with latest compatible versions.
+  - Minor cleanup in web route imports and template loading.
+
 ## 2.22.3 (April 20, 2026)
 
 - **Improvement: Session Wiring via ContextVar**:
