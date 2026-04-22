@@ -210,7 +210,6 @@ async def start_server(_: AnyContext):
     from uvicorn import Config, Server
 
     from zrb.runner.web_app import (
-        SHUTDOWN_TIMEOUT,
         configure_uvicorn_logging,
         create_web_app,
     )
@@ -223,7 +222,7 @@ async def start_server(_: AnyContext):
             host="0.0.0.0",
             port=CFG.WEB_HTTP_PORT,
             loop="asyncio",
-            timeout_graceful_shutdown=SHUTDOWN_TIMEOUT,
+            timeout_graceful_shutdown=CFG.WEB_SHUTDOWN_TIMEOUT // 1000,
         )
     )
     await server.serve()

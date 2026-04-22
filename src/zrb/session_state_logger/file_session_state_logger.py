@@ -60,7 +60,7 @@ class FileSessionStateLogger(AnySessionStateLogger):
             self._get_session_log_dir(), "_timeline", *task_path
         )
         if not os.path.exists(timeline_dir):
-            return {"total": 0, "data": []}
+            return SessionStateLogList(total=0, data=[])
         for root, _, files in os.walk(timeline_dir):
             for file_name in files:
                 session_name = os.path.splitext(file_name)[0]

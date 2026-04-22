@@ -6763,4 +6763,4 @@ xai = ["aiohttp", "xai-sdk"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11.0,<3.15.0"
-content-hash = "144d1931cfbd20be1a45e97b37ea911b8594abaa4c70de3501e979e1349068a8"
+content-hash = "1929976e3261b081b510d38c50363e02670d3865ba6a407959a452bbde238d77"
