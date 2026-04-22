@@ -1,0 +1,6 @@
+2024-01-01 12:00:00 INFO User 42 logged in
+2024-01-01 12:05:00 ERROR Database timeout
+2024-01-01 12:05:05 ERROR Database timeout
+2024-01-01 12:08:00 INFO API /users/profile took 250ms
+2024-01-01 12:09:00 WARN Memory usage at 87%
+2024-01-01 12:10:00 INFO User 42 logged out

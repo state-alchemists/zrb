@@ -1,0 +1,880 @@
+[2m
+  🧰 chatcmpl-tool-b67a3aad286fb3f0 | LS {'path': 'app/'}
+[0m[2m
+  🔠 chatcmpl-tool-b67a3aad286fb3f0 | Return {'files': ['__init__.py', 'auth.py', 'database.py', 'main.py', 'models.py']}
+[0m[2m
+  🧰 call_br9j7687 | ReadMany {'paths': ['app/main.py', 'app/auth.py', 'app/database.py', 'app/models.py']}
+[0m[2m
+  🔠 call_br9j7687 | Return {'app/main.py': '[File: app/main.py | 33 lines]\n---CONTENT---\nfrom fastapi import FastAPI, HTTPException\nfrom typing import List\nfrom .models import Task, TaskCreate, TaskUpdate, Project\nfrom .database import tasks, projects\nfrom .auth import require_api_key\n\napp = FastAPI(title="Project Management API")\n\n\n@app.get("/projects", response_model=List[Project])\nasync def list_projects():\n    return projects\n\n\n@app.get("/tasks", response_model=List[Task])\nasync def list_tasks():\n    # TODO: add filtering (status, priority, assigned_to query params)\n    # TODO: add pagination (page, page_size query params)\n    return tasks\n\n\n@app.get("/tasks/{task_id}", response_model=Task)\nasync def get_task(task_id: int):\n    for task in tasks:\n        if task.id == task_id:\n            return task\n    raise HTTPException(status_code=404, detail="Task not found")\n\n\n# TODO: POST /tasks — create a task (requires auth, validate project_id, auto-generate id)\n# TODO: PUT /tasks/{task_id} — partial update (requires auth, 404 if not found)\n# TODO: DELETE /tasks/{task_id} — delete a task (requires auth, 404 if not found)\n', 'app/auth.py': '[File: app/auth.py | 13 lines]\n---CONTENT---\nfrom fastapi import Header, HTTPException\nfrom typing import Optional\nfrom .database import VALID_API_KEYS\n\n\nasync def require_api_key(x_api_key: Optional[str] = Header(default=None)) -> str:\n    """\n    Validates X-API-Key header against VALID_API_KEYS.\n    Returns the username on success.\n    TODO: Currently does nothing — implement authentication.\n    """\n    pass\n', 'app/database.py': '[File: app/database.py | 20 lines]\n---CONTENT---\nfrom typing import Dict, List\nfrom .models import Project, Task, TaskStatus\n\nprojects: List[Project] = [\n    Project(id=1, name="Alpha", owner="alice"),\n    Project(id=2, name="Beta", owner="bob"),\n]\n\ntasks: List[Task] = [\n    Task(id=1, title="Design schema", status=TaskStatus.done, priority=5, project_id=1, assigned_to="alice"),\n    Task(id=2, title="Implement API", status=TaskStatus.in_progress, priority=4, project_id=1, assigned_to="bob"),\n    Task(id=3, title="Write tests", status=TaskStatus.todo, priority=3, project_id=1),\n    Task(id=4, title="Deploy to staging", status=TaskStatus.todo, priority=2, project_id=2, assigned_to="alice"),\n]\n\nVALID_API_KEYS: Dict[str, str] = {\n    "dev-key-alice": "alice",\n    "dev-key-bob": "bob",\n}\n', 'app/models.py': '[File: app/models.py | 40 lines]\n---CONTENT---\nfrom pydantic import BaseModel\nfrom typing import Optional\nfrom enum import Enum\n\n\nclass TaskStatus(str, Enum):\n    todo = "todo"\n    in_progress = "in_progress"\n    done = "done"\n\n\nclass Task(BaseModel):\n    id: int\n    title: str\n    status: TaskStatus = TaskStatus.todo\n    priority: int = 3\n    project_id: int\n    assigned_to: Optional[str] = None\n\n\nclass TaskCreate(BaseModel):\n    title: str\n    status: TaskStatus = TaskStatus.todo\n    priority: int = 3\n    project_id: int\n    assigned_to: Optional[str] = None\n\n\nclass TaskUpdate(BaseModel):\n    title: Optional[str] = None\n    status: Optional[TaskStatus] = None\n    priority: Optional[int] = None\n    assigned_to: Optional[str] = None\n\n\nclass Project(BaseModel):\n    id: int\n    name: str\n    owner: str\n'}
+[0m[2m
+  🧰 call_5e9r4u55 | WriteTodos {'todos': [{'content': 'Implement require_api_key in app/auth.py', 'status': 'pending', 'todo_id': '1'}, {'content': 'Implement filtering and pagination in GET /tasks (app/main.py)', 'status': 'pending', 'todo_id': '2'}, {'content': 'Implement POST /tasks with auth and project validation (app/main.py)', 'status': 'pending', 'todo_id': '3'}, {'content': 'Implement PUT /tasks/{task_id} with auth (app/main.py)', 'status': 'pending', 'todo_id': '4'}, {'content': 'Implement DELETE /tasks/{task_id} with auth (app/main.py)', 'status': 'pending', 'todo_id': '5'}]}
+[0m[2m
+  🔠 call_5e9r4u55 | Return [grey-hall-3318] 0/5 done, 0 in progress
+       [ ] [1] Implement require_api_key in app/auth.py
+       [ ] [2] Implement filtering and pagination in GET /tasks (app/main.py)
+       [ ] [3] Implement POST /tasks with auth and project validation (app/main.py)
+       [ ] [4] Implement PUT /tasks/{task_id} with auth (app/main.py)
+       [ ] [5] Implement DELETE /tasks/{task_id} with auth (app/main.py)
+     
+     Use `update_todo` to change status; `get_todos` to check state.
+[0m[2m{"new_text":"async def require_api_key(x_api_key: Optional[str] = Header(default=None)) -\u003e str:\n    \\\"\\\"\\\"\n    Validates X-API-Key header against VALID_API_KEYS.\n    Returns the username on success.\n    \\\"\\\"\\\"\n    if not x_api_key or x_api_key not in VALID_API_KEYS:\n        raise HTTPException(status_code=401, detail=\\\"Invalid or missing API key\\\")\n    return VALID_API_KEYS[x_api_key]","old_text":"async def require_api_key(x_api_key: Optional[str] = Header(default=None)) -\u003e str:\n    \\\"\\\"\\\"\n    Validates X-API-Key header against VALID_API_KEYS.\n    Returns the username on success.\n    TODO: Currently does nothing — implement authentication.\n    \\\"\\\"\\\"\n    pass","path":"app/auth.py"}[0m[2m
+  🧰 call_uo5g1rlz | UpdateTodoEdit {"status":"in_progress","todo_id":"1"}{"new_text":"async def require_api_key(x_api_key: Optional[str] = Header(default=None)) -\u003e str:\n    \\\"\\\"\\\"\n    Validates X-API-Key header against VALID_API_KEYS.\n    Returns the username on success.\n    \\\"\\\"\\\"\n    if not x_api_key or x_api_key not in VALID_API_KEYS:\n        raise HTTPException(status_code=401, detail=\\\"Invalid or missing API key\\\")\n    return VALID_API_KEYS[x_api_key]","old_text":"async def require_api_key(x_api_key: Optional[str] = Header(default=None)) -\u003e str:\n    \\\"\\\"\\\"\n    Validates X-API-Key header against VALID_API_KEYS.\n    Returns the username on success.\n    TODO: Currently does nothing — implement authentication.\n    \\\"\\\"\\\"\n    pass","path":"app/auth.py"}
+[0m[2m
+  🔠 call_uo5g1rlz | Return Unknown tool name: 'UpdateTodoEdit'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'ReadMany', 'Write', 'WriteMany', 'Edit', 'Grep', 'AnalyzeFile', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
+[0m[32m260422 20:54:44.599 1/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 1/3 failed: status_code: 400, model_name: gemma4:31b-cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
+[2m
+  🧰 call_gy2rqw8b | ActivateSkill {'name': 'core-coding'}
+[0m[2m
+  🔠 call_gy2rqw8b | Return <ACTIVATED_SKILL>
+     Skill directory: /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-coding
+     Companion files: none
+     
+     ---
+     name: core-coding
+     description: Tactical workflow for safe, maintainable, and high-quality codebase creation/modification. Enforces top-notch engineering standards for all coding-related tasks.
+     user-invocable: false
+     ---
+     # Skill: core-coding
+     
+     When working on any coding or development task, you MUST follow this `Research -> Strategy -> Execution` workflow to ensure safety, maintainability, and seamless integration.
+     
+     ## PHASE 1: RESEARCH & DISCOVERY
+     
+     a.  **High-Level Reconnaissance:**
+         - Use directory listing tools (`LS`) with limited depth for initial structure mapping.
+         - Identify: source directories, test directories, configuration files, entry points, and utility/helper modules.
+         - NEVER use listing tools if you already know specific file paths or if a targeted glob search is possible.
+     b.  **Documentation & Context Analysis:** 
+         - Read `README.md`, `AGENTS.md`, `GEMINI.md`, `CLAUDE.md`, dependency files (e.g., `pyproject.toml`, `package.json`), and configuration files.
+         - Treat documentation as first-class code. Analyze `.md`, `.rst`, or `.txt` files to understand project architecture, design patterns, configuration options, usage examples, and constraints.
+     c.  **Targeted Architecture Discovery:**
+         - Combine turns: Use `Glob` and `Grep` in parallel to map file structures, existing patterns, and available utility functions. 
+         - Use `Grep` with specific `regex` and `file_pattern` to minimize noise.
+         - **Context Efficiency**: If you need to read multiple related files, ALWAYS prefer `ReadMany` over multiple sequential `Read` calls.
+     d.  **Tool Efficiency Heuristics:**
+         - **`Read` / `ReadMany`**: Use `Read` for single files. Use `ReadMany` to gather context from related files simultaneously. For large files, read specific line ranges.
+         - **`Glob`**: ALWAYS prefer over `LS` for targeted discovery.
+         - **`Grep`**: ALWAYS limit scope via `file_pattern` and specific `regex`.
+         - **`Write` / `Edit`**: ALWAYS prefer surgical editing (`Edit`) over rewriting entire files.
+     
+     ## PHASE 2: STRATEGY & ARCHITECTURE
+     
+     e.  **Formulate a Grounded Plan:**
+         - Inside your mandated `<thinking>` block, formulate a strategy that prioritizes **Maintainability**, **Readability**, and **Testability**.
+         - **Pattern Matching**: Your strategy MUST match existing project guidelines and patterns exactly (inferred from the code). The new code should be well integrated into the existing system, looking as though it were written by the original author.
+         - **Reuse Over Reinvention**: Identify if existing helper or utility functions can be leveraged. If it makes sense to use them, do so instead of creating new ones.
+         - **Design Principles**: Apply SOLID and DRY principles as much as possible.
+         - **Complexity Management**: Strictly avoid creating "God Classes" or "God Functions". You must keep **Cyclomatic Complexity** and **Cognitive Complexity** low.
+         - **Modularity**: Break down complex logic into small, single-responsibility helper functions. Avoid deep nesting (e.g., more than 2-3 levels of indentation).
+         - Do not introduce new architectural patterns without explicit approval.
+         - Define your testing strategy (how you will empirically verify the code change).
+         - Plan updates to the documentation if the codebase change affects APIs, configurations, or behaviors.
+     
+     ## PHASE 3: EXECUTION (Plan -> Act -> Validate)
+     
+     f.  **Act (Surgical Implementation):**
+         - Make minimal, precise edits strictly related to the sub-task.
+         - Write code that is easy to trace and easy to test.
+         - Consolidate logic into clean abstractions rather than threading state across unrelated layers.
+         - Prefer to only use existing libraries and established patterns. NEVER introduce new technical debt.
+         - **Test-First for New Behavior**: When adding new functionality, activate the `testing` skill (TDD mode) to drive implementation with a failing test before writing any production code.
+         - **Transition Safety (Strangler Pattern)**: The codebase must remain in a stable, runnable state throughout all phases of modification. When replacing or significantly refactoring an existing component (e.g., a file, function, or module), use a progressive approach:
+             1. Create the new component alongside the old
+             2. Update and verify all references to point to the new component
+             3. Only then remove the old component.
+             NEVER delete a functioning component before its replacement is fully integrated and validated.
+         - **Structural Improvement**: If you identify a structural problem (duplication, high complexity, God functions) that is out of scope for the current task, report it. If it must be fixed now, activate the `refactor` skill.
+         - **Code Smell Reporting**: If you encounter existing code smells or poorly structured code during your work, report it to the user.
+         - **Update Documentation**: Keep documentation files in sync with code changes. Update configuration options, behavior, and verify that examples match the new implementation. Remove references to deprecated/removed functionality.
+         - **Boundary Check**: Your job ends at modifying and verifying the files. **NEVER use shell commands to stage (`git add`) or commit changes** after you are done. Leave version control to the user unless they explicitly ask for a git summary.
+     
+     g.  **Validate (Zero-Regression & Verification):**
+         - **Validation is the only path to finality.** You must always make sure nothing breaks with your fix/update.
+         - For bug fixes: Empirically reproduce the failure BEFORE applying the fix. If the root cause is unclear after initial investigation, activate the `debug` skill.
+         - After changes: Run relevant tests, linters, and type-checkers to confirm success. A code change is incomplete without automated verification.
+         - **Build or test failures**: If the build, type-checker, or a test fails and the cause is unclear, activate the `debug` skill — it covers both build error resolution and behavioral root cause analysis.
+         - **Test Maintenance**: If a test fails (whether a new one or an existing one affected by your change), you MUST fix it. If generating new tests, activate the `testing` skill.
+         - If validation fails, diagnose the failure in a `<thinking>` block and adjust your strategy. Do not blindly repeat actions.
+         - **Security check**: If the code touches user input, authentication, authorization, file I/O, or sensitive data, activate `review` for a security audit after implementation.
+     h.  **Synthesis:** Before your final response, journal any non-trivial discoveries per the Journaling Protocol.
+     </ACTIVATED_SKILL>
+[0m[2m
+  🧰 call_acvoqdkj | ReadMany {'paths': ['app/main.py', 'app/auth.py', 'app/database.py']}
+[0m[2m
+  🔠 call_acvoqdkj | Return {'app/main.py': '[File: app/main.py | 33 lines]\n---CONTENT---\nfrom fastapi import FastAPI, HTTPException\nfrom typing import List\nfrom .models import Task, TaskCreate, TaskUpdate, Project\nfrom .database import tasks, projects\nfrom .auth import require_api_key\n\napp = FastAPI(title="Project Management API")\n\n\n@app.get("/projects", response_model=List[Project])\nasync def list_projects():\n    return projects\n\n\n@app.get("/tasks", response_model=List[Task])\nasync def list_tasks():\n    # TODO: add filtering (status, priority, assigned_to query params)\n    # TODO: add pagination (page, page_size query params)\n    return tasks\n\n\n@app.get("/tasks/{task_id}", response_model=Task)\nasync def get_task(task_id: int):\n    for task in tasks:\n        if task.id == task_id:\n            return task\n    raise HTTPException(status_code=404, detail="Task not found")\n\n\n# TODO: POST /tasks — create a task (requires auth, validate project_id, auto-generate id)\n# TODO: PUT /tasks/{task_id} — partial update (requires auth, 404 if not found)\n# TODO: DELETE /tasks/{task_id} — delete a task (requires auth, 404 if not found)\n', 'app/auth.py': '[File: app/auth.py | 13 lines]\n---CONTENT---\nfrom fastapi import Header, HTTPException\nfrom typing import Optional\nfrom .database import VALID_API_KEYS\n\n\nasync def require_api_key(x_api_key: Optional[str] = Header(default=None)) -> str:\n    """\n    Validates X-API-Key header against VALID_API_KEYS.\n    Returns the username on success.\n    TODO: Currently does nothing — implement authentication.\n    """\n    pass\n', 'app/database.py': '[File: app/database.py | 20 lines]\n---CONTENT---\nfrom typing import Dict, List\nfrom .models import Project, Task, TaskStatus\n\nprojects: List[Project] = [\n    Project(id=1, name="Alpha", owner="alice"),\n    Project(id=2, name="Beta", owner="bob"),\n]\n\ntasks: List[Task] = [\n    Task(id=1, title="Design schema", status=TaskStatus.done, priority=5, project_id=1, assigned_to="alice"),\n    Task(id=2, title="Implement API", status=TaskStatus.in_progress, priority=4, project_id=1, assigned_to="bob"),\n    Task(id=3, title="Write tests", status=TaskStatus.todo, priority=3, project_id=1),\n    Task(id=4, title="Deploy to staging", status=TaskStatus.todo, priority=2, project_id=2, assigned_to="alice"),\n]\n\nVALID_API_KEYS: Dict[str, str] = {\n    "dev-key-alice": "alice",\n    "dev-key-bob": "bob",\n}\n'}
+[0m[2m
+  🧰 call_p05gv3a0 | Read {'path': 'app/models.py'}
+[0m[2m
+  🔠 call_p05gv3a0 | Return [File: app/models.py | 40 lines]
+     ---CONTENT---
+     from pydantic import BaseModel
+     from typing import Optional
+     from enum import Enum
+     
+     
+     class TaskStatus(str, Enum):
+         todo = "todo"
+         in_progress = "in_progress"
+         done = "done"
+     
+     
+     class Task(BaseModel):
+         id: int
+         title: str
+         status: TaskStatus = TaskStatus.todo
+         priority: int = 3
+         project_id: int
+         assigned_to: Optional[str] = None
+     
+     
+     class TaskCreate(BaseModel):
+         title: str
+         status: TaskStatus = TaskStatus.todo
+         priority: int = 3
+         project_id: int
+         assigned_to: Optional[str] = None
+     
+     
+     class TaskUpdate(BaseModel):
+         title: Optional[str] = None
+         status: Optional[TaskStatus] = None
+         priority: Optional[int] = None
+         assigned_to: Optional[str] = None
+     
+     
+     class Project(BaseModel):
+         id: int
+         name: str
+         owner: str
+     
+[0m[2m
+  🧰 call_9eox82wc | WriteTodos {'todos': [{'content': 'Implement require_api_key in app/auth.py', 'status': 'pending', 'todo_id': '1'}, {'content': 'Implement filtering and pagination in GET /tasks (app/main.py)', 'status': 'pending', 'todo_id': '2'}, {'content': 'Implement POST /tasks with auth and project validation (app/main.py)', 'status': 'pending', 'todo_id': '3'}, {'content': 'Implement PUT /tasks/{task_id} with auth (app/main.py)', 'status': 'pending', 'todo_id': '4'}, {'content': 'Implement DELETE /tasks/{task_id} with auth (app/main.py)', 'status': 'pending', 'todo_id': '5'}]}
+[0m[2m
+  🔠 call_9eox82wc | Return [grey-hall-3318] 0/5 done, 0 in progress
+       [ ] [1] Implement require_api_key in app/auth.py
+       [ ] [2] Implement filtering and pagination in GET /tasks (app/main.py)
+       [ ] [3] Implement POST /tasks with auth and project validation (app/main.py)
+       [ ] [4] Implement PUT /tasks/{task_id} with auth (app/main.py)
+       [ ] [5] Implement DELETE /tasks/{task_id} with auth (app/main.py)
+     
+     Use `update_todo` to change status; `get_todos` to check state.
+[0m[2m{"new_text":"async def require_api_key(x_api_key: Optional[str] = Header(default=None)) -\u003e str:\n    \\\"\\\"\\\"\n    Validates X-API-Key header against VALID_API_KEYS.\n    Returns the username on success.\n    \\\"\\\"\\\"\n    if not x_api_key or x_api_key not in VALID_API_KEYS:\n        raise HTTPException(status_code=401, detail=\\\"Invalid or missing API key\\\")\n    return VALID_API_KEYS[x_api_key]","old_text":"async def require_api_key(x_api_key: Optional[str] = Header(default=None)) -\u003e str:\n    \\\"\\\"\\\"\n    Validates X-API-Key header against VALID_API_KEYS.\n    Returns the username on success.\n    TODO: Currently does nothing — implement authentication.\n    \\\"\\\"\\\"\n    pass","path":"app/auth.py"}[0m[2m
+  🧰 call_0wk7vmpf | UpdateTodoEdit {"status":"in_progress","todo_id":"1"}{"new_text":"async def require_api_key(x_api_key: Optional[str] = Header(default=None)) -\u003e str:\n    \\\"\\\"\\\"\n    Validates X-API-Key header against VALID_API_KEYS.\n    Returns the username on success.\n    \\\"\\\"\\\"\n    if not x_api_key or x_api_key not in VALID_API_KEYS:\n        raise HTTPException(status_code=401, detail=\\\"Invalid or missing API key\\\")\n    return VALID_API_KEYS[x_api_key]","old_text":"async def require_api_key(x_api_key: Optional[str] = Header(default=None)) -\u003e str:\n    \\\"\\\"\\\"\n    Validates X-API-Key header against VALID_API_KEYS.\n    Returns the username on success.\n    TODO: Currently does nothing — implement authentication.\n    \\\"\\\"\\\"\n    pass","path":"app/auth.py"}
+[0m[2m
+  🔠 call_0wk7vmpf | Return Unknown tool name: 'UpdateTodoEdit'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'ReadMany', 'Write', 'WriteMany', 'Edit', 'Grep', 'AnalyzeFile', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
+[0m[32m260422 20:55:02.890 2/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 2/3 failed: status_code: 400, model_name: gemma4:31b-cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
+[2m{"path":"app"}[0m[2m
+  🧰 chatcmpl-tool-b6b1761203c8b8e9 | ActivateSkillLS {"name":"core-coding"}{"path":"app"}
+[0m[2m
+  🔠 chatcmpl-tool-b6b1761203c8b8e9 | Return Unknown tool name: 'ActivateSkillLS'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'ReadMany', 'Write', 'WriteMany', 'Edit', 'Grep', 'AnalyzeFile', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
+[0m[32m260422 20:55:48.985 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 3/3 failed: status_code: 400, model_name: gemma4:31b-cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
+[32m260422 20:55:48.985 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Marked as permanently failed[0m
+[32m260422 20:55:49.006 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Traceback (most recent call last):
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 146, in _map_api_errors
+    yield
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 841, in _completions_create
+    return await self.client.chat.completions.create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<29 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/resources/chat/completions/completions.py", line 2714, in create
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+    ...<49 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1884, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1669, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.BadRequestError: Error code: 400 - {'error': {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}}
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 181, in execute_action_with_retry
+    result = await run_async(task._exec_action(ctx))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 339, in _exec_action
+    return await self._exec_action_inner(ctx)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 385, in _exec_action_inner
+    raise e
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 368, in _exec_action_inner
+    output, new_history = await run_agent(
+                          ^^^^^^^^^^^^^^^^
+    ...<13 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run_agent.py", line 598, in run_agent
+    raise e
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run_agent.py", line 485, in run_agent
+    raise stream_error
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run_agent.py", line 451, in run_agent
+    async for event in stream:
+    ...<9 lines>...
+            await effective_event_handler(event)
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 1091, in _run_stream_events
+    result = await task
+             ^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 1065, in run_agent
+    return await self.run(
+           ^^^^^^^^^^^^^^^
+    ...<16 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 337, in run
+    node = await agent_run._run_node_with_hooks(node, _stream_step)  # pyright: ignore[reportPrivateUsage]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/run.py", line 306, in _run_node_with_hooks
+    return await self._wrap_and_advance(run_context, node, step_fn)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/run.py", line 276, in _wrap_and_advance
+    result = await cap.on_node_run_error(run_context, node=node, error=e)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 228, in on_node_run_error
+    raise error
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 225, in on_node_run_error
+    return await capability.on_node_run_error(ctx, node=node, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 396, in on_node_run_error
+    raise error
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 225, in on_node_run_error
+    return await capability.on_node_run_error(ctx, node=node, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 396, in on_node_run_error
+    raise error
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/run.py", line 274, in _wrap_and_advance
+    result = await cap.wrap_node_run(run_context, node=node, handler=step_fn)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 214, in wrap_node_run
+    return await chain(node)
+           ^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 469, in wrapped
+    return await cap.wrap_node_run(ctx, node=node, handler=inner)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 375, in wrap_node_run
+    return await handler(node)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 469, in wrapped
+    return await cap.wrap_node_run(ctx, node=node, handler=inner)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 375, in wrap_node_run
+    return await handler(node)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 319, in _stream_and_advance
+    async with n.stream(agent_run.ctx) as stream:
+               ~~~~~~~~^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 626, in stream
+    model_response = await self._resolve_wrap_result(ctx, run_context, wrap_request_context, result_or_exc)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 916, in _resolve_wrap_result
+    return await ctx.deps.root_capability.on_model_request_error(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        run_context, request_context=request_context, error=exc
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 289, in on_model_request_error
+    raise error
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 286, in on_model_request_error
+    return await capability.on_model_request_error(ctx, request_context=request_context, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 477, in on_model_request_error
+    raise error
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 286, in on_model_request_error
+    return await capability.on_model_request_error(ctx, request_context=request_context, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 477, in on_model_request_error
+    raise error
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 623, in stream
+    result_or_exc = wrap_task.result()
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 275, in wrap_model_request
+    return await chain(request_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 433, in wrapped
+    return await cap.wrap_model_request(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 454, in wrap_model_request
+    return await handler(request_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 433, in wrapped
+    return await cap.wrap_model_request(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 454, in wrap_model_request
+    return await handler(request_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 586, in _streaming_handler
+    async with req_ctx.model.request_stream(
+               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        req_ctx.messages, req_ctx.model_settings, req_ctx.model_request_parameters, run_context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ) as sr:
+    ^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 778, in request_stream
+    response = await self._completions_create(messages, True, model_settings_cast, model_request_parameters)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 834, in _completions_create
+    with _map_api_errors(self.model_name):
+         ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 149, in _map_api_errors
+    raise ModelHTTPError(status_code=status_code, model_name=model_name, body=e.body) from e
+pydantic_ai.exceptions.ModelHTTPError: status_code: 400, model_name: gemma4:31b-cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}
+[0m
+[32m260422 20:55:49.008 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Attempt 1/1 failed: status_code: 400, model_name: gemma4:31b-cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
+[32m260422 20:55:49.009 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Marked as permanently failed[0m
+[32m260422 20:55:49.018 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Traceback (most recent call last):
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 146, in _map_api_errors
+    yield
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 841, in _completions_create
+    return await self.client.chat.completions.create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<29 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/resources/chat/completions/completions.py", line 2714, in create
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+    ...<49 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1884, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1669, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.BadRequestError: Error code: 400 - {'error': {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}}
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 181, in execute_action_with_retry
+    result = await run_async(task._exec_action(ctx))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_chat_task.py", line 611, in _exec_action
+    return await self._run_non_interactive_session(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_chat_task.py", line 864, in _run_non_interactive_session
+    result = await llm_task_core.async_run(session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 238, in async_run
+    return await run_task_async(
+           ^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 91, in run_task_async
+    result = await task.exec_root_tasks(session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 247, in exec_root_tasks
+    return await execute_root_tasks(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
+    await asyncio.gather(*root_task_coros)
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 250, in exec_chain
+    return await execute_task_chain(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 22, in execute_task_chain
+    result = await execute_task_action(task, session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 54, in execute_task_action
+    return await run_async(execute_action_until_ready(task, session))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 88, in execute_action_until_ready
+    result = await run_async(execute_action_with_retry(task, session))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 218, in execute_action_with_retry
+    raise e  # Re-raise the exception after handling fallbacks
+    ^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 181, in execute_action_with_retry
+    result = await run_async(task._exec_action(ctx))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 339, in _exec_action
+    return await self._exec_action_inner(ctx)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 385, in _exec_action_inner
+    raise e
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 368, in _exec_action_inner
+    output, new_history = await run_agent(
+                          ^^^^^^^^^^^^^^^^
+    ...<13 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run_agent.py", line 598, in run_agent
+    raise e
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run_agent.py", line 485, in run_agent
+    raise stream_error
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run_agent.py", line 451, in run_agent
+    async for event in stream:
+    ...<9 lines>...
+            await effective_event_handler(event)
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 1091, in _run_stream_events
+    result = await task
+             ^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 1065, in run_agent
+    return await self.run(
+           ^^^^^^^^^^^^^^^
+    ...<16 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 337, in run
+    node = await agent_run._run_node_with_hooks(node, _stream_step)  # pyright: ignore[reportPrivateUsage]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/run.py", line 306, in _run_node_with_hooks
+    return await self._wrap_and_advance(run_context, node, step_fn)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/run.py", line 276, in _wrap_and_advance
+    result = await cap.on_node_run_error(run_context, node=node, error=e)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 228, in on_node_run_error
+    raise error
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 225, in on_node_run_error
+    return await capability.on_node_run_error(ctx, node=node, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 396, in on_node_run_error
+    raise error
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 225, in on_node_run_error
+    return await capability.on_node_run_error(ctx, node=node, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 396, in on_node_run_error
+    raise error
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/run.py", line 274, in _wrap_and_advance
+    result = await cap.wrap_node_run(run_context, node=node, handler=step_fn)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 214, in wrap_node_run
+    return await chain(node)
+           ^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 469, in wrapped
+    return await cap.wrap_node_run(ctx, node=node, handler=inner)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 375, in wrap_node_run
+    return await handler(node)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 469, in wrapped
+    return await cap.wrap_node_run(ctx, node=node, handler=inner)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 375, in wrap_node_run
+    return await handler(node)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 319, in _stream_and_advance
+    async with n.stream(agent_run.ctx) as stream:
+               ~~~~~~~~^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 626, in stream
+    model_response = await self._resolve_wrap_result(ctx, run_context, wrap_request_context, result_or_exc)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 916, in _resolve_wrap_result
+    return await ctx.deps.root_capability.on_model_request_error(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        run_context, request_context=request_context, error=exc
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 289, in on_model_request_error
+    raise error
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 286, in on_model_request_error
+    return await capability.on_model_request_error(ctx, request_context=request_context, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 477, in on_model_request_error
+    raise error
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 286, in on_model_request_error
+    return await capability.on_model_request_error(ctx, request_context=request_context, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 477, in on_model_request_error
+    raise error
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 623, in stream
+    result_or_exc = wrap_task.result()
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 275, in wrap_model_request
+    return await chain(request_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 433, in wrapped
+    return await cap.wrap_model_request(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 454, in wrap_model_request
+    return await handler(request_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 433, in wrapped
+    return await cap.wrap_model_request(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 454, in wrap_model_request
+    return await handler(request_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 586, in _streaming_handler
+    async with req_ctx.model.request_stream(
+               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        req_ctx.messages, req_ctx.model_settings, req_ctx.model_request_parameters, run_context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ) as sr:
+    ^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 778, in request_stream
+    response = await self._completions_create(messages, True, model_settings_cast, model_request_parameters)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 834, in _completions_create
+    with _map_api_errors(self.model_name):
+         ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 149, in _map_api_errors
+    raise ModelHTTPError(status_code=status_code, model_name=model_name, body=e.body) from e
+pydantic_ai.exceptions.ModelHTTPError: status_code: 400, model_name: gemma4:31b-cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}
+[0m
+[2mTo run again:[0m [1;33mzrb chat --message "We're building a project management API. The scaffolding is in `app/`. Several features are missing or incomplete:
+
+1. **Authentication** (`app/auth.py`): The `require_api_key` dependency exists but does nothing. Implement it: read the `X-API-Key` header, validate it against `VALID_API_KEYS` in `database.py`, and raise HTTP 401 if missing or invalid.
+
+2. **Task filtering** (`GET /tasks`): Add optional query parameters: `status`, `priority`, `assigned_to`. Return only matching tasks. All filters are optional and combinable.
+
+3. **Pagination** (`GET /tasks`): Add `page` (default 1) and `page_size` (default 20) query params. Return only the matching slice.
+
+4. **Create task** (`POST /tasks`): Implement this endpoint. It must:
+   - Require authentication (use `require_api_key`)
+   - Validate that `project_id` exists; return HTTP 404 if not
+   - Auto-generate a unique integer ID
+   - Return the created task
+
+5. **Update task** (`PUT /tasks/{task_id}`): Allow partial updates to `title`, `status`, `priority`, `assigned_to`. Require auth. Return 404 if not found.
+
+6. **Delete task** (`DELETE /tasks/{task_id}`): Require auth. Return 404 if not found.
+
+Follow the existing patterns in `app/main.py`." --model ollama:gemma4:31b-cloud --session "" --yolo true --attach "" --interactive false[0m
+Traceback (most recent call last):
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 146, in _map_api_errors
+    yield
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 841, in _completions_create
+    return await self.client.chat.completions.create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<29 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/resources/chat/completions/completions.py", line 2714, in create
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+    ...<49 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1884, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1669, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.BadRequestError: Error code: 400 - {'error': {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}}
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/gofrendigunawan/zrb/.venv/bin/zrb", line 6, in <module>
+    sys.exit(serve_cli())
+             ~~~~~~~~~^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/__main__.py", line 68, in serve_cli
+    raise e
+  File "/Users/gofrendigunawan/zrb/src/zrb/__main__.py", line 61, in serve_cli
+    cli.run(sys.argv[1:])
+    ~~~~~~~^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/runner/cli.py", line 55, in run
+    result, session = self._run_task(node, str_args, task_str_kwargs)
+                      ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/runner/cli.py", line 112, in _run_task
+    result = task.run(session, str_kwargs=run_kwargs)
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 222, in run
+    return asyncio.run(
+           ~~~~~~~~~~~^
+        run_and_cleanup(
+        ^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+        )
+        ^
+    )
+    ^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/asyncio/runners.py", line 204, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/asyncio/runners.py", line 127, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/asyncio/base_events.py", line 719, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 34, in run_and_cleanup
+    result = await main_task_coro
+             ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 91, in run_task_async
+    result = await task.exec_root_tasks(session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 247, in exec_root_tasks
+    return await execute_root_tasks(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
+    await asyncio.gather(*root_task_coros)
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 250, in exec_chain
+    return await execute_task_chain(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 22, in execute_task_chain
+    result = await execute_task_action(task, session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 54, in execute_task_action
+    return await run_async(execute_action_until_ready(task, session))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 88, in execute_action_until_ready
+    result = await run_async(execute_action_with_retry(task, session))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 218, in execute_action_with_retry
+    raise e  # Re-raise the exception after handling fallbacks
+    ^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 181, in execute_action_with_retry
+    result = await run_async(task._exec_action(ctx))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_chat_task.py", line 611, in _exec_action
+    return await self._run_non_interactive_session(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_chat_task.py", line 864, in _run_non_interactive_session
+    result = await llm_task_core.async_run(session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 238, in async_run
+    return await run_task_async(
+           ^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 91, in run_task_async
+    result = await task.exec_root_tasks(session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 247, in exec_root_tasks
+    return await execute_root_tasks(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
+    await asyncio.gather(*root_task_coros)
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 250, in exec_chain
+    return await execute_task_chain(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 22, in execute_task_chain
+    result = await execute_task_action(task, session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 54, in execute_task_action
+    return await run_async(execute_action_until_ready(task, session))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 88, in execute_action_until_ready
+    result = await run_async(execute_action_with_retry(task, session))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 218, in execute_action_with_retry
+    raise e  # Re-raise the exception after handling fallbacks
+    ^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 181, in execute_action_with_retry
+    result = await run_async(task._exec_action(ctx))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 339, in _exec_action
+    return await self._exec_action_inner(ctx)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 385, in _exec_action_inner
+    raise e
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 368, in _exec_action_inner
+    output, new_history = await run_agent(
+                          ^^^^^^^^^^^^^^^^
+    ...<13 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run_agent.py", line 598, in run_agent
+    raise e
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run_agent.py", line 485, in run_agent
+    raise stream_error
+  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run_agent.py", line 451, in run_agent
+    async for event in stream:
+    ...<9 lines>...
+            await effective_event_handler(event)
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 1091, in _run_stream_events
+    result = await task
+             ^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 1065, in run_agent
+    return await self.run(
+           ^^^^^^^^^^^^^^^
+    ...<16 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 337, in run
+    node = await agent_run._run_node_with_hooks(node, _stream_step)  # pyright: ignore[reportPrivateUsage]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/run.py", line 306, in _run_node_with_hooks
+    return await self._wrap_and_advance(run_context, node, step_fn)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/run.py", line 276, in _wrap_and_advance
+    result = await cap.on_node_run_error(run_context, node=node, error=e)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 228, in on_node_run_error
+    raise error
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 225, in on_node_run_error
+    return await capability.on_node_run_error(ctx, node=node, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 396, in on_node_run_error
+    raise error
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 225, in on_node_run_error
+    return await capability.on_node_run_error(ctx, node=node, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 396, in on_node_run_error
+    raise error
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/run.py", line 274, in _wrap_and_advance
+    result = await cap.wrap_node_run(run_context, node=node, handler=step_fn)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 214, in wrap_node_run
+    return await chain(node)
+           ^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 469, in wrapped
+    return await cap.wrap_node_run(ctx, node=node, handler=inner)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 375, in wrap_node_run
+    return await handler(node)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 469, in wrapped
+    return await cap.wrap_node_run(ctx, node=node, handler=inner)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 375, in wrap_node_run
+    return await handler(node)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 319, in _stream_and_advance
+    async with n.stream(agent_run.ctx) as stream:
+               ~~~~~~~~^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 626, in stream
+    model_response = await self._resolve_wrap_result(ctx, run_context, wrap_request_context, result_or_exc)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 916, in _resolve_wrap_result
+    return await ctx.deps.root_capability.on_model_request_error(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        run_context, request_context=request_context, error=exc
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 289, in on_model_request_error
+    raise error
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 286, in on_model_request_error
+    return await capability.on_model_request_error(ctx, request_context=request_context, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 477, in on_model_request_error
+    raise error
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 286, in on_model_request_error
+    return await capability.on_model_request_error(ctx, request_context=request_context, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 477, in on_model_request_error
+    raise error
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 623, in stream
+    result_or_exc = wrap_task.result()
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 275, in wrap_model_request
+    return await chain(request_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 433, in wrapped
+    return await cap.wrap_model_request(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 454, in wrap_model_request
+    return await handler(request_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 433, in wrapped
+    return await cap.wrap_model_request(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 454, in wrap_model_request
+    return await handler(request_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 586, in _streaming_handler
+    async with req_ctx.model.request_stream(
+               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        req_ctx.messages, req_ctx.model_settings, req_ctx.model_request_parameters, run_context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ) as sr:
+    ^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 778, in request_stream
+    response = await self._completions_create(messages, True, model_settings_cast, model_request_parameters)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 834, in _completions_create
+    with _map_api_errors(self.model_name):
+         ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 149, in _map_api_errors
+    raise ModelHTTPError(status_code=status_code, model_name=model_name, body=e.body) from e
+pydantic_ai.exceptions.ModelHTTPError: status_code: 400, model_name: gemma4:31b-cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}
