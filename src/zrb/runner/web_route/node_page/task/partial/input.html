@@ -1,7 +1,7 @@
-<label for="{task_input.name}">
-  {task_input.prompt_message}
-  {task_input.to_html(ctx)}
-  <small id="{task_input.name}-helper">
-    {task_input.description}
+<label for="{{ task_input.name }}">
+  {{ task_input.prompt_message }}
+  {{ task_input.to_html(ctx) | safe }}
+  <small id="{{ task_input.name }}-helper">
+    {{ task_input.description }}
   </small>
 </label>

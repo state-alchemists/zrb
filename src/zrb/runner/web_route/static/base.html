@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="color-scheme" content="light dark">
+        <link rel="stylesheet" href="/static/pico-css/pico{% if cfg.WEB_COLOR %}.{{ cfg.WEB_COLOR }}{% endif %}.min.css">
+        <link rel="icon" href="{{ cfg.WEB_FAVICON_PATH }}" sizes="32x32" type="image/png">
+        <title>{{ web_title }}</title>
+        <link rel="stylesheet" href="/static/common.css">
+        {% for path in cfg.WEB_CSS_PATH %}<link rel="stylesheet" href="{{ path }}">
+        {% endfor %}
+        {% block extra_head %}{% endblock %}
+    </head>
+    <body>
+        <div class="theme-switcher">
+            <label for="theme-select">Theme:</label>
+            <select id="theme-select">
+                <option value="auto">🌗 Auto</option>
+                <option value="light">☀️ Light</option>
+                <option value="dark">🌙 Dark</option>
+            </select>
+        </div>
+        <div class="layout-container">
+            {% block content %}{% endblock %}
+        </div>
+    </body>
+    <script src="/refresh-token.js"></script>
+    <script src="/static/common.js"></script>
+    {% for path in cfg.WEB_JS_PATH %}<script src="{{ path }}"></script>
+    {% endfor %}
+    {% block extra_scripts %}{% endblock %}
+</html>

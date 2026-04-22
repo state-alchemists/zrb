@@ -1,32 +1,96 @@
-header {
-    background-color: var(--primary);
-    padding: 2rem 0;
+/* ── Page header (scoped to .container to avoid clobbering dialog headers) ── */
+header.container {
+    color: var(--pico-color);
+    padding: 1.25rem 0;
     margin-bottom: 0;
 }
-header hgroup {
-    margin-bottom:0;
+
+header.container hgroup {
+    margin-bottom: 0;
 }
+
+header.container h1,
+header.container h2,
+header.container h3 {
+    margin-bottom: 0.2rem;
+    font-size: 1.35rem;
+    color: var(--pico-color);
+}
+
+header.container p {
+    margin-bottom: 0;
+    font-size: 0.875rem;
+    opacity: 0.7;
+    color: var(--pico-color);
+}
+
+header.container nav {
+    margin-top: 0.6rem;
+}
+
+header.container nav a,
+header.container nav a:visited {
+    color: var(--pico-primary);
+    text-decoration: none;
+    opacity: 0.85;
+    font-size: 0.85rem;
+    transition: opacity 0.15s;
+}
+
+header.container nav a:hover {
+    opacity: 1;
+    text-decoration: underline;
+}
+
 nav ul {
     padding: 0;
 }
+
+/* ── Theme switcher ─────────────────────────────────────────── */
 .theme-switcher {
     position: fixed;
-    top: 1rem;
-    right: 1rem;
+    top: 0.65rem;
+    right: 0.75rem;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.3rem;
     z-index: 1000;
+    background: var(--pico-card-background-color);
+    border: 1px solid var(--pico-border-color);
+    border-radius: var(--pico-border-radius);
+    padding: 0.2rem 0.5rem;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
 .theme-switcher select {
-    padding: 0.25rem 2rem 0.25rem 0.25rem;
-    font-size: 0.875rem;
+    padding: 0.1rem 1.5rem 0.1rem 0.2rem;
+    font-size: 0.78rem;
     margin: 0;
     height: auto;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    min-width: 5.5rem;
 }
 
 .theme-switcher label {
-    font-size: 0.875rem;
-    margin: 0 0.5rem 0 0;
+    font-size: 0.78rem;
+    margin: 0;
+    white-space: nowrap;
+    opacity: 0.65;
+    cursor: default;
+}
+
+/* ── Utility ────────────────────────────────────────────────── */
+.button-group {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* ── Gantt chart container ──────────────────────────────────── */
+#history-gantt {
+    min-height: 2rem;
+    overflow-x: auto;
+    padding: 0.25rem 0;
 }

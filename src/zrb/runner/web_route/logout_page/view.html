@@ -1,7 +1,9 @@
+{% extends "static/base.html" %}
+{% block content %}
 <header class="container">
     <hgroup>
-        <h1>{name}</h1>
-        <p>{description}</p>
+        <h1>{{ name }}</h1>
+        <p>{{ description }}</p>
         <nav>
             <ul>
                 <li><a href="/">🏠 Home</a></li>
@@ -13,11 +15,14 @@
 <main class="container">
     <article>
         <h2>Ready to log out?</h2>
-        <p>You are currently logged in as <strong>{user.username}</strong>.</p>
+        <p>You are currently logged in as <strong>{{ username }}</strong>.</p>
         <div class="button-group">
             <button class="primary" onclick="logout()">🚪 Logout</button>
             <button class="secondary" onclick="window.history.back()">🔙 Cancel</button>
         </div>
     </article>
 </main>
+{% endblock %}
+{% block extra_scripts %}
 <script src="/static/logout/event.js"></script>
+{% endblock %}

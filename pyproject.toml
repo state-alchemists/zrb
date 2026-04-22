@@ -44,6 +44,7 @@ isort = "^7.0.0"
 beautifulsoup4 = "^4.14.2"
 pdfplumber = "^0.11.7"
 fastapi = {extras = ["standard"], version = "^0.123.10"}
+jinja2 = "^3.1.0"
 PyJWT = "^2.12.0"
 ulid-py = "^1.1.0"
 psutil = "^7.0.0"
