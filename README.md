@@ -287,54 +287,6 @@ If you find Zrb valuable, please consider showing your support:
 
 ---
 
-## 🔒 Branch Protection for GitHub
-
-Zrb uses a `pre-push` hook to prevent accidental pushes of protected branches to GitHub. This is useful for keeping sensitive branches (like `bsim`) on internal remotes (e.g., GitLab) while still allowing pushes to GitHub for public branches.
-
-### How It Works
-
-1. **Protected branches contain a `.bsimprotect` file** — This file marks the branch as protected.
-2. **The `pre-push` hook checks for this file** — When pushing to GitHub, the hook scans each branch for `.bsimprotect`. If found, the push is blocked.
-3. **Other remotes are unaffected** — You can still push protected branches to GitLab or any other remote.
-
-### Setting Up the Hook
-
-After cloning the repository, run:
-
-```bash
-./install-hooks.sh
-```
-
-This installs the `pre-push` hook from `.githooks/` into your local `.git/hooks/` directory.
-
-### Protecting a Branch
-
-To protect a branch from being pushed to GitHub, add a `.bsimprotect` file:
-
-```bash
-echo "This branch is protected from GitHub pushes." > .bsimprotect
-git add .bsimprotect
-git commit -m "Add branch protection marker"
-```
-
-Now any attempt to push this branch to GitHub will be blocked:
-
-```
-🛑 ERROR: Branch containing '.bsimprotect' cannot be pushed to GitHub.
-This file marks the branch as protected. Remove .bsimprotect or push to a different remote.
-```
-
-### Unprotecting a Branch
-
-To allow a branch to be pushed to GitHub, remove the `.bsimprotect` file:
-
-```bash
-git rm .bsimprotect
-git commit -m "Remove branch protection marker"
-```
-
----
-
 ## 🎉 Fun Fact
 
 **Did you know?** Zrb is named after `Zaruba`, a powerful, sentient Madou Ring that acts as a guide and support tool in the *Garo* universe.
