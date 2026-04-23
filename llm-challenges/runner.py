@@ -325,19 +325,19 @@ def run_single_experiment(
     # 4. Verify
     v_code, v_out = run_verification(challenge_path, workdir)
 
-    # Determine final status based on verification output
-    if status == "EXECUTION_COMPLETE":
-        if "VERIFICATION_RESULT: EXCELLENT" in v_out:
-            status = "EXCELLENT"
-        elif "VERIFICATION_RESULT: PASS" in v_out:
-            status = "PASS"
-        elif "VERIFICATION_RESULT: FAIL" in v_out:
-            status = "FAIL"
-        elif v_code == 0:
-            # Fallback for legacy verify scripts
-            status = "PASS"
-        else:
-            status = "FAIL"
+    # Determine final status based on verification output.
+    # Verification string output takes priority over execution status — a model may
+    # complete its work correctly but still exit with code 1 (e.g. an unrelated
+    # framework exception after files were written).
+    if "VERIFICATION_RESULT: EXCELLENT" in v_out:
+        status = "EXCELLENT"
+    elif "VERIFICATION_RESULT: PASS" in v_out:
+        status = "PASS"
+    elif "VERIFICATION_RESULT: FAIL" in v_out:
+        status = "FAIL"
+    elif status == "EXECUTION_COMPLETE":
+        # Fallback for legacy verify scripts without VERIFICATION_RESULT markers
+        status = "PASS" if v_code == 0 else "FAIL"
 
     if verbose:
         print(f"Final Status: {status}")
