@@ -55,9 +55,7 @@ async def test_run_agent_without_history_processors_does_not_crash():
     """An agent created without history_processors must still run."""
     from zrb.llm.agent.common import create_agent
 
-    agent = create_agent(
-        model="openai:gpt-4o-mini", system_prompt="test", yolo=True
-    )
+    agent = create_agent(model="openai:gpt-4o-mini", system_prompt="test", yolo=True)
 
     mock_result = MagicMock()
     mock_result.output = "ok"
