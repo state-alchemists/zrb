@@ -379,6 +379,8 @@ async def run_agent(
         prompt_content = _get_prompt_content(effective_message, attachments, print_fn)
 
         # 1. Prune & Throttle
+        zrb_history_processors = getattr(agent, "_zrb_history_processors", None) or []
+
         # Hook: PreCompact - invoked before history processing/summarization
         await effective_hook_manager.execute_hooks(
             HookEvent.PRE_COMPACT,
@@ -386,15 +388,14 @@ async def run_agent(
                 "history": message_history,
                 "token_count": limiter.count_tokens(message_history),
                 "message_count": len(message_history),
-                "has_history_processors": hasattr(agent, "history_processors"),
+                "has_history_processors": bool(zrb_history_processors),
             },
         )
 
         # Process history first (e.g. summarization)
         processed_history = message_history
-        if hasattr(agent, "history_processors"):
-            for processor in agent.history_processors:
-                processed_history = await processor(processed_history)
+        for processor in zrb_history_processors:
+            processed_history = await processor(processed_history)
 
         # Safety Check: Ensure alternating roles in history
         processed_history = ensure_alternating_roles(processed_history)
@@ -462,6 +463,8 @@ async def run_agent(
             while True:
                 # Filter out nil content before sending to API
                 current_history = _filter_nil_content(current_history)
+                # request_limit=None overrides pydantic-ai's default of 50,
+                # which would otherwise cut off long tool-use loops.
                 stream = agent.run_stream_events(
                     current_message,
                     message_history=current_history,

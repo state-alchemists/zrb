@@ -12,6 +12,69 @@ from zrb.llm.hook.types import HookEvent
 
 
 @pytest.mark.asyncio
+async def test_run_agent_invokes_history_processors_exactly_once():
+    """Processors registered via create_agent must fire exactly once per
+    run_agent call — not zero (forgotten), not twice (double-execution)."""
+    from zrb.llm.agent.common import create_agent
+
+    call_counts = {"p1": 0, "p2": 0}
+
+    async def p1(msgs):
+        call_counts["p1"] += 1
+        return msgs
+
+    async def p2(msgs):
+        call_counts["p2"] += 1
+        return msgs
+
+    agent = create_agent(
+        model="openai:gpt-4o-mini",
+        system_prompt="test",
+        history_processors=[p1, p2],
+        yolo=True,
+    )
+
+    mock_result = MagicMock()
+    mock_result.output = "AI result"
+    mock_result.all_messages.return_value = []
+
+    async def mock_run_stream_events(*args, **kwargs):
+        yield AgentRunResultEvent(result=mock_result)
+
+    agent.run_stream_events = mock_run_stream_events
+
+    result, _ = await run_agent(
+        agent=agent, message="Hi", message_history=[], limiter=LLMLimiter()
+    )
+    assert result == "AI result"
+    assert call_counts == {"p1": 1, "p2": 1}
+
+
+@pytest.mark.asyncio
+async def test_run_agent_without_history_processors_does_not_crash():
+    """An agent created without history_processors must still run."""
+    from zrb.llm.agent.common import create_agent
+
+    agent = create_agent(
+        model="openai:gpt-4o-mini", system_prompt="test", yolo=True
+    )
+
+    mock_result = MagicMock()
+    mock_result.output = "ok"
+    mock_result.all_messages.return_value = []
+
+    async def mock_run_stream_events(*args, **kwargs):
+        yield AgentRunResultEvent(result=mock_result)
+
+    agent.run_stream_events = mock_run_stream_events
+
+    result, _ = await run_agent(
+        agent=agent, message="hi", message_history=[], limiter=LLMLimiter()
+    )
+    assert result == "ok"
+
+
+@pytest.mark.asyncio
 async def test_run_agent_basic():
     """Test basic run_agent execution."""
     agent = MagicMock()
