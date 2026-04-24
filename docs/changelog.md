@@ -1,5 +1,21 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.22.5 (April 24, 2026)
+
+- **Bug Fix: More Resilient Tool Call Error Handling**:
+  - New `_is_invalid_tool_call_error()` in `run_agent.py` detects HTTP 400 errors caused by invalid or unknown tool names.
+  - Some model APIs (e.g., Ollama) reject responses referencing unregistered tools with HTTP 400 instead of handling gracefully.
+  - On first occurrence, injects a corrective `[SYSTEM]` message asking the model to use only exact available tool names, then retries.
+  - One-time retry via `_invalid_tool_retry_done` flag prevents infinite loops.
+
+- **Improvement: Challenge Runner Verification Priority**:
+  - Verification result strings (`VERIFICATION_RESULT: EXCELLENT/PASS/FAIL`) now take priority over execution status.
+  - Handles models that complete work correctly but exit with non-zero codes due to unrelated framework exceptions.
+  - Fallback to exit code only when no `VERIFICATION_RESULT` marker is present.
+
+- **Maintenance: Updated Challenge Results**:
+  - Updated `llm-challenges/experiment/` results across all model providers.
+
 ## 2.22.4 (April 22, 2026)
 
 - **Security: Dependency Vulnerability Patches**:
