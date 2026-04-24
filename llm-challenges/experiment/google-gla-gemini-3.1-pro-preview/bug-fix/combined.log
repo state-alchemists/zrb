@@ -1,225 +1,33 @@
 [2m
-  🧰 ec9ammuh | Bash {'command': 'cat job_queue.py'}
+  🧰 y9xmaxq4 | Bash {'command': 'ls -la'}
+[0m  [2mtotal 24
+[0m  [2mdrwxr-xr-x@ 6 gofrendigunawan  staff   192 20 Apr 20:32 .
+[0m  [2mdrwxr-xr-x@ 4 gofrendigunawan  staff   128 24 Apr 07:47 ..
+[0m  [2m-rw-r--r--@ 1 gofrendigunawan  staff     0 31 Jan 12:15 .gitkeep
+[0m  [2m-rw-r--r--@ 1 gofrendigunawan  staff  1334 20 Apr 20:32 job_queue.py
+[0m  [2m-rw-r--r--@ 1 gofrendigunawan  staff   909 20 Apr 20:32 main.py
+[0m  [2m-rw-r--r--@ 1 gofrendigunawan  staff   655 20 Apr 20:32 worker.py
 [0m[2m
-  🧰 um879cdj | Bash {'command': 'cat worker.py'}
-[0m[2m
-  🧰 6nqnlkm1 | Bash {'command': 'cat main.py'}
-[0m  [2mimport asyncio
-[0m  [2mfrom typing import Any, Dict, Optional
-[0m  [2m
-[0m  [2m
-[0m  [2mclass JobQueue:
-[0m  [2m    def __init__(self, max_retries: int = 3):
-[0m  [2m        self._jobs: Dict[int, Dict[str, Any]] = {}
-[0m  [2m        self._next_id = 1
-[0m  [2m        self.max_retries = max_retries
-[0m  [2m
-[0m  [2m    def enqueue(self, payload: dict) -> int:
-[0m  [2m        job_id = self._next_id
-[0m  [2m        self._next_id += 1
-[0m  [2m        self._jobs[job_id] = {
-[0m  [2m            "id": job_id,
-[0m  [2m            "payload": payload,
-[0m  [2m            "status": "pending",
-[0m  [2m            "retries": 0,
-[0m  [2m            "result": None,
-[0m  [2m        }
-[0m  [2m        return job_id
-[0m  [2m
-[0m  [2m    async def dequeue(self) -> Optional[Dict]:
-[0m  [2m        for job in self._jobs.values():
-[0m  [2m            if job["status"] == "pending":
-[0m  [2m                await asyncio.sleep(0.01)
-[0m  [2m                job["status"] = "processing"
-[0m  [2m                return job
-[0m  [2m        return None
-[0m  [2m
-[0m  [2m    def complete(self, job_id: int, result: Any) -> None:
-[0m  [2m        self._jobs[job_id]["status"] = "done"
-[0m  [2m        self._jobs[job_id]["result"] = result
-[0m  [2m
-[0m  [2m    def fail(self, job_id: int, error: str) -> None:
-[0m  [2m        job = self._jobs[job_id]
-[0m  [2m        if job["retries"] < self.max_retries:
-[0m  [2m            job["retries"] += 1
-[0m  [2m            job["status"] = "pending"
-[0m  [2m        else:
-[0m  [2m            job["status"] = "failed"
-[0m  [2m            job["result"] = error
-[0m  [2m
-[0m  [2m    @property
-[0m  [2m    def all_jobs(self) -> Dict[int, Dict]:
-[0m  [2m        return self._jobs
-[0m  [2mimport asyncio
-[0m  [2m
-[0m  [2m
-[0m  [2masync def process_job(queue, worker_id: int) -> None:
-[0m  [2m    while True:
-[0m  [2m        job = await queue.dequeue()
-[0m  [2m        if job is None:
-[0m  [2m            return
-[0m  [2m
-[0m  [2m        print(f"[Worker {worker_id}] picked up job {job['id']}")
-[0m  [2m        try:
-[0m  [2m            await asyncio.sleep(0.05)
-[0m  [2m
-[0m  [2m            if job["payload"].get("raise_error"):
-[0m  [2m                raise RuntimeError(f"processing error for job {job['id']}")
-[0m  [2m
-[0m  [2m            queue.complete(job["id"], f"processed by worker {worker_id}")
-[0m  [2m            print(f"[Worker {worker_id}] finished job {job['id']}")
-[0m  [2m        except Exception as e:
-[0m  [2m            print(f"[Worker {worker_id}] job {job['id']} failed: {e}")
-[0m  [2mimport asyncio
-[0m  [2mfrom job_queue import JobQueue
-[0m  [2mfrom worker import process_job
-[0m  [2m
-[0m  [2m
-[0m  [2masync def main() -> None:
-[0m  [2m    queue = JobQueue(max_retries=2)
-[0m  [2m
-[0m  [2m    for i in range(10):
-[0m  [2m        queue.enqueue({"name": f"task_{i}", "raise_error": False})
-[0m  [2m    queue.enqueue({"name": "bad_task_1", "raise_error": True})
-[0m  [2m    queue.enqueue({"name": "bad_task_2", "raise_error": True})
-[0m  [2m
-[0m  [2m    workers = [process_job(queue, i) for i in range(5)]
-[0m  [2m    await asyncio.gather(*workers)
-[0m  [2m
-[0m  [2m    jobs = queue.all_jobs
-[0m  [2m    done = [j for j in jobs.values() if j["status"] == "done"]
-[0m  [2m    failed = [j for j in jobs.values() if j["status"] == "failed"]
-[0m  [2m    stuck = [j for j in jobs.values() if j["status"] == "processing"]
-[0m  [2m
-[0m  [2m    print(f"\n=== Results ===")
-[0m  [2m    print(f"Done:   {len(done)} (expected 10)")
-[0m  [2m    print(f"Failed: {len(failed)} (expected 2)")
-[0m  [2m    print(f"Stuck:  {len(stuck)} (expected 0)")
-[0m  [2m
-[0m  [2m
-[0m  [2mif __name__ == "__main__":
-[0m  [2m    asyncio.run(main())
-[0m[2m
-  🔠 ec9ammuh | Return Command: cat job_queue.py
+  🔠 y9xmaxq4 | Return Command: ls -la
      Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3.1-pro-preview/bug-fix/workdir
      Stdout:
-     import asyncio
-     from typing import Any, Dict, Optional
-     
-     
-     class JobQueue:
-         def __init__(self, max_retries: int = 3):
-             self._jobs: Dict[int, Dict[str, Any]] = {}
-             self._next_id = 1
-             self.max_retries = max_retries
-     
-         def enqueue(self, payload: dict) -> int:
-             job_id = self._next_id
-             self._next_id += 1
-             self._jobs[job_id] = {
-                 "id": job_id,
-                 "payload": payload,
-                 "status": "pending",
-                 "retries": 0,
-                 "result": None,
-             }
-             return job_id
-     
-         async def dequeue(self) -> Optional[Dict]:
-             for job in self._jobs.values():
-                 if job["status"] == "pending":
-                     await asyncio.sleep(0.01)
-                     job["status"] = "processing"
-                     return job
-             return None
-     
-         def complete(self, job_id: int, result: Any) -> None:
-             self._jobs[job_id]["status"] = "done"
-             self._jobs[job_id]["result"] = result
-     
-         def fail(self, job_id: int, error: str) -> None:
-             job = self._jobs[job_id]
-             if job["retries"] < self.max_retries:
-                 job["retries"] += 1
-                 job["status"] = "pending"
-             else:
-                 job["status"] = "failed"
-                 job["result"] = error
-     
-         @property
-         def all_jobs(self) -> Dict[int, Dict]:
-             return self._jobs
+     total 24
+     drwxr-xr-x@ 6 gofrendigunawan  staff   192 20 Apr 20:32 .
+     drwxr-xr-x@ 4 gofrendigunawan  staff   128 24 Apr 07:47 ..
+     -rw-r--r--@ 1 gofrendigunawan  staff     0 31 Jan 12:15 .gitkeep
+     -rw-r--r--@ 1 gofrendigunawan  staff  1334 20 Apr 20:32 job_queue.py
+     -rw-r--r--@ 1 gofrendigunawan  staff   909 20 Apr 20:32 main.py
+     -rw-r--r--@ 1 gofrendigunawan  staff   655 20 Apr 20:32 worker.py
      Stderr:
      (empty)
      Exit Code: 0
      Background PIDs: (none)
 [0m[2m
-  🔠 um879cdj | Return Command: cat worker.py
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3.1-pro-preview/bug-fix/workdir
-     Stdout:
-     import asyncio
-     
-     
-     async def process_job(queue, worker_id: int) -> None:
-         while True:
-             job = await queue.dequeue()
-             if job is None:
-                 return
-     
-             print(f"[Worker {worker_id}] picked up job {job['id']}")
-             try:
-                 await asyncio.sleep(0.05)
-     
-                 if job["payload"].get("raise_error"):
-                     raise RuntimeError(f"processing error for job {job['id']}")
-     
-                 queue.complete(job["id"], f"processed by worker {worker_id}")
-                 print(f"[Worker {worker_id}] finished job {job['id']}")
-             except Exception as e:
-                 print(f"[Worker {worker_id}] job {job['id']} failed: {e}")
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
+  🧰 coap30ql | ReadMany {'paths': ['job_queue.py', 'worker.py', 'main.py']}
 [0m[2m
-  🔠 6nqnlkm1 | Return Command: cat main.py
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3.1-pro-preview/bug-fix/workdir
-     Stdout:
-     import asyncio
-     from job_queue import JobQueue
-     from worker import process_job
-     
-     
-     async def main() -> None:
-         queue = JobQueue(max_retries=2)
-     
-         for i in range(10):
-             queue.enqueue({"name": f"task_{i}", "raise_error": False})
-         queue.enqueue({"name": "bad_task_1", "raise_error": True})
-         queue.enqueue({"name": "bad_task_2", "raise_error": True})
-     
-         workers = [process_job(queue, i) for i in range(5)]
-         await asyncio.gather(*workers)
-     
-         jobs = queue.all_jobs
-         done = [j for j in jobs.values() if j["status"] == "done"]
-         failed = [j for j in jobs.values() if j["status"] == "failed"]
-         stuck = [j for j in jobs.values() if j["status"] == "processing"]
-     
-         print(f"\n=== Results ===")
-         print(f"Done:   {len(done)} (expected 10)")
-         print(f"Failed: {len(failed)} (expected 2)")
-         print(f"Stuck:  {len(stuck)} (expected 0)")
-     
-     
-     if __name__ == "__main__":
-         asyncio.run(main())
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
+  🔠 coap30ql | Return {'job_queue.py': '[File: job_queue.py | 47 lines]\n---CONTENT---\nimport asyncio\nfrom typing import Any, Dict, Optional\n\n\nclass JobQueue:\n    def __init__(self, max_retries: int = 3):\n        self._jobs: Dict[int, Dict[str, Any]] = {}\n        self._next_id = 1\n        self.max_retries = max_retries\n\n    def enqueue(self, payload: dict) -> int:\n        job_id = self._next_id\n        self._next_id += 1\n        self._jobs[job_id] = {\n            "id": job_id,\n            "payload": payload,\n            "status": "pending",\n            "retries": 0,\n            "result": None,\n        }\n        return job_id\n\n    async def dequeue(self) -> Optional[Dict]:\n        for job in self._jobs.values():\n            if job["status"] == "pending":\n                await asyncio.sleep(0.01)\n                job["status"] = "processing"\n                return job\n        return None\n\n    def complete(self, job_id: int, result: Any) -> None:\n        self._jobs[job_id]["status"] = "done"\n        self._jobs[job_id]["result"] = result\n\n    def fail(self, job_id: int, error: str) -> None:\n        job = self._jobs[job_id]\n        if job["retries"] < self.max_retries:\n            job["retries"] += 1\n            job["status"] = "pending"\n        else:\n            job["status"] = "failed"\n            job["result"] = error\n\n    @property\n    def all_jobs(self) -> Dict[int, Dict]:\n        return self._jobs\n', 'worker.py': '[File: worker.py | 21 lines]\n---CONTENT---\nimport asyncio\n\n\nasync def process_job(queue, worker_id: int) -> None:\n    while True:\n        job = await queue.dequeue()\n        if job is None:\n            return\n\n        print(f"[Worker {worker_id}] picked up job {job[\'id\']}")\n        try:\n            await asyncio.sleep(0.05)\n\n            if job["payload"].get("raise_error"):\n                raise RuntimeError(f"processing error for job {job[\'id\']}")\n\n            queue.complete(job["id"], f"processed by worker {worker_id}")\n            print(f"[Worker {worker_id}] finished job {job[\'id\']}")\n        except Exception as e:\n            print(f"[Worker {worker_id}] job {job[\'id\']} failed: {e}")\n', 'main.py': '[File: main.py | 30 lines]\n---CONTENT---\nimport asyncio\nfrom job_queue import JobQueue\nfrom worker import process_job\n\n\nasync def main() -> None:\n    queue = JobQueue(max_retries=2)\n\n    for i in range(10):\n        queue.enqueue({"name": f"task_{i}", "raise_error": False})\n    queue.enqueue({"name": "bad_task_1", "raise_error": True})\n    queue.enqueue({"name": "bad_task_2", "raise_error": True})\n\n    workers = [process_job(queue, i) for i in range(5)]\n    await asyncio.gather(*workers)\n\n    jobs = queue.all_jobs\n    done = [j for j in jobs.values() if j["status"] == "done"]\n    failed = [j for j in jobs.values() if j["status"] == "failed"]\n    stuck = [j for j in jobs.values() if j["status"] == "processing"]\n\n    print(f"\\n=== Results ===")\n    print(f"Done:   {len(done)} (expected 10)")\n    print(f"Failed: {len(failed)} (expected 2)")\n    print(f"Stuck:  {len(stuck)} (expected 0)")\n\n\nif __name__ == "__main__":\n    asyncio.run(main())\n'}
 [0m[2m
-  🧰 9qf5uw1l | Bash {'command': 'python main.py'}
+  🧰 nhsw8t7w | Bash {'command': 'python main.py'}
 [0m  [2m[Worker 0] picked up job 1
 [0m  [2m[Worker 1] picked up job 1
 [0m  [2m[Worker 2] picked up job 1
@@ -346,7 +154,7 @@
 [0m  [2mFailed: 0 (expected 2)
 [0m  [2mStuck:  2 (expected 0)
 [0m[2m
-  🔠 9qf5uw1l | Return Command: python main.py
+  🔠 nhsw8t7w | Return Command: python main.py
      Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3.1-pro-preview/bug-fix/workdir
      Stdout:
      [Worker 0] picked up job 1
@@ -479,15 +287,83 @@
      Exit Code: 0
      Background PIDs: (none)
 [0m[2m
-  🧰 foi537fd | Edit {'new_text': '    async def dequeue(self ...', 'old_text': '    async def dequeue(self ...', 'count': -1, 'path': 'job_queue.py'}
+  🧰 fg60izi0 | Edit {'old_text': '            if job["status ...', 'path': 'job_queue.py', 'new_text': '            if job["status ...', 'count': -1}
 [0m[2m
-  🧰 7a9sac2h | Edit {'new_text': '        except Exception a ...', 'old_text': '        except Exception a ...', 'count': -1, 'path': 'worker.py'}
+  🔠 fg60izi0 | Return Successfully updated job_queue.py (1 replacement(s))
 [0m[2m
-  🔠 foi537fd | Return Successfully updated job_queue.py (1 replacement(s))
+  🧰 zcjdiu5c | Bash {'command': 'python main.py'}
+[0m  [2m[Worker 0] picked up job 1
+[0m  [2m[Worker 1] picked up job 2
+[0m  [2m[Worker 2] picked up job 3
+[0m  [2m[Worker 3] picked up job 4
+[0m  [2m[Worker 4] picked up job 5
+[0m  [2m[Worker 0] finished job 1
+[0m  [2m[Worker 1] finished job 2
+[0m  [2m[Worker 2] finished job 3
+[0m  [2m[Worker 3] finished job 4
+[0m  [2m[Worker 4] finished job 5
+[0m  [2m[Worker 0] picked up job 6
+[0m  [2m[Worker 1] picked up job 7
+[0m  [2m[Worker 2] picked up job 8
+[0m  [2m[Worker 3] picked up job 9
+[0m  [2m[Worker 4] picked up job 10
+[0m  [2m[Worker 0] finished job 6
+[0m  [2m[Worker 1] finished job 7
+[0m  [2m[Worker 2] finished job 8
+[0m  [2m[Worker 3] finished job 9
+[0m  [2m[Worker 4] finished job 10
+[0m  [2m[Worker 0] picked up job 11
+[0m  [2m[Worker 1] picked up job 12
+[0m  [2m[Worker 0] job 11 failed: processing error for job 11
+[0m  [2m[Worker 1] job 12 failed: processing error for job 12
+[0m  [2m
+[0m  [2m=== Results ===
+[0m  [2mDone:   10 (expected 10)
+[0m  [2mFailed: 0 (expected 2)
+[0m  [2mStuck:  2 (expected 0)
 [0m[2m
-  🔠 7a9sac2h | Return Successfully updated worker.py (1 replacement(s))
+  🔠 zcjdiu5c | Return Command: python main.py
+     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3.1-pro-preview/bug-fix/workdir
+     Stdout:
+     [Worker 0] picked up job 1
+     [Worker 1] picked up job 2
+     [Worker 2] picked up job 3
+     [Worker 3] picked up job 4
+     [Worker 4] picked up job 5
+     [Worker 0] finished job 1
+     [Worker 1] finished job 2
+     [Worker 2] finished job 3
+     [Worker 3] finished job 4
+     [Worker 4] finished job 5
+     [Worker 0] picked up job 6
+     [Worker 1] picked up job 7
+     [Worker 2] picked up job 8
+     [Worker 3] picked up job 9
+     [Worker 4] picked up job 10
+     [Worker 0] finished job 6
+     [Worker 1] finished job 7
+     [Worker 2] finished job 8
+     [Worker 3] finished job 9
+     [Worker 4] finished job 10
+     [Worker 0] picked up job 11
+     [Worker 1] picked up job 12
+     [Worker 0] job 11 failed: processing error for job 11
+     [Worker 1] job 12 failed: processing error for job 12
+     
+     === Results ===
+     Done:   10 (expected 10)
+     Failed: 0 (expected 2)
+     Stuck:  2 (expected 0)
+     Stderr:
+     (empty)
+     Exit Code: 0
+     Background PIDs: (none)
 [0m[2m
-  🧰 kj29wl40 | Bash {'command': 'python main.py'}
+  🧰 kqyopeld | Edit {'path': 'worker.py', 'new_text': '        except Exception a ...', 'old_text': '        except Exception a ...', 'count': -1}
+[0m[2m
+  🔠 kqyopeld | Return Successfully updated worker.py (1 replacement(s))
+[0m[2m
+  🧰 g1zh5ffq | Bash {'command': 'python main.py'}
 [0m  [2m[Worker 0] picked up job 1
 [0m  [2m[Worker 1] picked up job 2
 [0m  [2m[Worker 2] picked up job 3
@@ -526,7 +402,7 @@
 [0m  [2mFailed: 2 (expected 2)
 [0m  [2mStuck:  0 (expected 0)
 [0m[2m
-  🔠 kj29wl40 | Return Command: python main.py
+  🔠 g1zh5ffq | Return Command: python main.py
      Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3.1-pro-preview/bug-fix/workdir
      Stdout:
      [Worker 0] picked up job 1
@@ -571,16 +447,18 @@
      Exit Code: 0
      Background PIDs: (none)
 [0m[2m
-  I have investigated[0m[2m and fixed the two issues. 
+  I have identified and fixed both issues:
      
-     **1. Duplicate Processing (Race Condition)**
-     In `job_queue.py[0m[2m`, the `dequeue` method had a race condition. It awaited an I/O operation (`asyncio.sleep`)[0m[2m *before* marking the job status as `"processing"`. This meant multiple workers could concurrently see the job as `"pending"` and pick it up[0m[2m. I moved the status update to occur before the `await`.
+     1. **Duplicate Processing (Race Condition):**
+[0m[2m   In `job_queue.py`, the `dequeue` method had an `await asyncio.sleep(0.01)` *[0m[2mbefore* it marked the job as "processing". This yielded control to the event loop, allowing other workers to also see[0m[2m the job as "pending" and pick it up concurrently. 
+        *Fix:* I moved `job["status"] =[0m[2m "processing"` to execute before the `await`, making the state change synchronous and preventing multiple workers from claiming the same job.
      
-     **2. Vanishing Failures (Missing Queue Notification)**
-     In [0m[2m`worker.py`, when a job threw an exception, the `process_job` loop caught the exception but never notified the queue that the[0m[2m job had failed. The job remained indefinitely in the `"processing"` state (stuck). I added a call to `queue.[0m[2mfail(job["id"], str(e))` in the `except` block to correctly increment the retry counter and eventually[0m[2m mark the job as `"failed"`.
+[0m[2m2. **Vanishing Failures (Missing Status Update):**
+        In `worker.py`, the `process_job` loop[0m[2m caught exceptions gracefully, but it only printed the error. It never informed the queue that the job failed, causing the job to remain permanently[0m[2m stuck in the "processing" state.
+        *Fix:* I added `queue.fail(job["id"], str([0m[2me))` in the `except` block so the queue correctly registers the failure, triggers retries, and eventually marks the job[0m[2m as "failed". 
      
-     The output of `main.py` now correctly matches all expected results.[0m[2m[0m[2m
-  💸 (Requests: 5 | Tool Calls: 7 | Total: 60535) Input: 56689 | Audio Input: 0 | Output: 3846 | Audio Output: 0 | Cache Read: 32036 | Cache Write: 0 | Details: {'thoughts_tokens': 3277, 'text_prompt_tokens': 56689, 'cached_content_tokens': 32036, 'text_cache_tokens': 32036}
+     The test simulation in `main.py` now perfectly matches the expected results (10 done, 2 failed[0m[2m, 0 stuck), with no duplicate processing.[0m[2m[0m[2m
+  💸 (Requests: 8 | Tool Calls: 7 | Total: 99183) Input: 94783 | Audio Input: 0 | Output: 4400 | Audio Output: 0 | Cache Read: 64068 | Cache Write: 0 | Details: {'thoughts_tokens': 3819, 'text_prompt_tokens': 94783, 'cached_content_tokens': 64068, 'text_cache_tokens': 64068}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "Our background job processor has been acting up in production. Two separate issues have been reported:
 
 1. **Duplicate processing**: Some jobs appear to be executed more than once. We've seen side effects (emails, charges) triggered twice for a single job ID.
@@ -589,13 +467,15 @@
 The system is in `job_queue.py` (the queue) and `worker.py` (the processor). `main.py` runs a simulation you can use to reproduce the issues.
 
 Find the root causes and fix them. Do not change the public method signatures." --model google-gla:gemini-3.1-pro-preview --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mfirm-cube-7691[0m[0m
-I have investigated and fixed the two issues. 
+[2m[2mSession[0m: [1;33msoft-hand-4951[0m[0m
+I have identified and fixed both issues:
 
-**1. Duplicate Processing (Race Condition)**
-In `job_queue.py`, the `dequeue` method had a race condition. It awaited an I/O operation (`asyncio.sleep`) *before* marking the job status as `"processing"`. This meant multiple workers could concurrently see the job as `"pending"` and pick it up. I moved the status update to occur before the `await`.
+1. **Duplicate Processing (Race Condition):**
+   In `job_queue.py`, the `dequeue` method had an `await asyncio.sleep(0.01)` *before* it marked the job as "processing". This yielded control to the event loop, allowing other workers to also see the job as "pending" and pick it up concurrently. 
+   *Fix:* I moved `job["status"] = "processing"` to execute before the `await`, making the state change synchronous and preventing multiple workers from claiming the same job.
 
-**2. Vanishing Failures (Missing Queue Notification)**
-In `worker.py`, when a job threw an exception, the `process_job` loop caught the exception but never notified the queue that the job had failed. The job remained indefinitely in the `"processing"` state (stuck). I added a call to `queue.fail(job["id"], str(e))` in the `except` block to correctly increment the retry counter and eventually mark the job as `"failed"`.
+2. **Vanishing Failures (Missing Status Update):**
+   In `worker.py`, the `process_job` loop caught exceptions gracefully, but it only printed the error. It never informed the queue that the job failed, causing the job to remain permanently stuck in the "processing" state.
+   *Fix:* I added `queue.fail(job["id"], str(e))` in the `except` block so the queue correctly registers the failure, triggers retries, and eventually marks the job as "failed". 
 
-The output of `main.py` now correctly matches all expected results.
+The test simulation in `main.py` now perfectly matches the expected results (10 done, 2 failed, 0 stuck), with no duplicate processing.

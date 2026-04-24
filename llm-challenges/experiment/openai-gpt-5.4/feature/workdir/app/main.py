@@ -16,6 +16,10 @@ def _get_task_or_404(task_id: int) -> Task:
     raise HTTPException(status_code=404, detail="Task not found")
 
 
+def _project_exists(project_id: int) -> bool:
+    return any(project.id == project_id for project in projects)
+
+
 @app.get("/projects", response_model=List[Project])
 async def list_projects():
     return projects
@@ -50,14 +54,14 @@ async def get_task(task_id: int):
 
 @app.post("/tasks", response_model=Task)
 async def create_task(
-    payload: TaskCreate,
+    task_create: TaskCreate,
     _: Annotated[str, Depends(require_api_key)],
 ):
-    if not any(project.id == payload.project_id for project in projects):
+    if not _project_exists(task_create.project_id):
         raise HTTPException(status_code=404, detail="Project not found")
 
     next_id = max((task.id for task in tasks), default=0) + 1
-    task = Task(id=next_id, **payload.model_dump())
+    task = Task(id=next_id, **task_create.model_dump())
     tasks.append(task)
     return task
 
@@ -65,13 +69,15 @@ async def create_task(
 @app.put("/tasks/{task_id}", response_model=Task)
 async def update_task(
     task_id: int,
-    payload: TaskUpdate,
+    task_update: TaskUpdate,
     _: Annotated[str, Depends(require_api_key)],
 ):
     task = _get_task_or_404(task_id)
-    updates = payload.model_dump(exclude_unset=True)
+    updates = task_update.model_dump(exclude_unset=True)
+
     for field, value in updates.items():
         setattr(task, field, value)
+
     return task
 
 

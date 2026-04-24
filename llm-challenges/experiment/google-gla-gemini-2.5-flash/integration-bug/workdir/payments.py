@@ -1,32 +1,43 @@
 import asyncio
 import random
-from typing import List, Set
+from typing import List
 
 
 class PaymentGateway:
     def __init__(self, failure_rate: float = 0.25):
         self._failure_rate = failure_rate
-        self.total_charged: float = 0.0
-        self.charges: List[dict] = []
-        self._charged_orders: Set[str] = set()
+        self._total_charged: float = 0.0
+        self._charges: List[dict] = []
+        self._lock = asyncio.Lock()
 
     async def charge(self, order_id: str, amount: float) -> bool:
-        await asyncio.sleep(0.03)
-        if order_id in self._charged_orders:
-            print(f"Order {order_id}: already charged, preventing duplicate")
-            return False
-        if random.random() < self._failure_rate:
-            return False
-        self.total_charged += amount
-        self.charges.append({"order_id": order_id, "amount": amount})
-        self._charged_orders.add(order_id)
-        return True
+        async with self._lock:
+            await asyncio.sleep(0.03)
+            for charge in self._charges:
+                if charge["order_id"] == order_id and charge["status"] == "success":
+                    return True  # Idempotent: already charged successfully
 
-    async def refund(self, order_id: str, amount: float) -> None:
-        await asyncio.sleep(0.01)
-        self.total_charged -= amount
-        # In a real system, you'd mark the original charge as refunded or remove it.
-        # For this simulation, we'll just adjust the total and remove from charged_orders.
-        self.charges = [c for c in self.charges if c["order_id"] != order_id]
-        if order_id in self._charged_orders:
-            self._charged_orders.remove(order_id)
+            if random.random() < self._failure_rate:
+                self._charges.append({"order_id": order_id, "amount": amount, "status": "failed"})
+                return False
+            
+            self._total_charged += amount
+            self._charges.append({"order_id": order_id, "amount": amount, "status": "success"})
+            return True
+
+    async def refund(self, order_id: str, amount: float) -> bool:
+        async with self._lock:
+            for charge in self._charges:
+                if charge["order_id"] == order_id and charge["status"] == "success":
+                    self._total_charged -= amount
+                    charge["status"] = "refunded"
+                    return True
+            return False
+
+    @property
+    def total_charged(self) -> float:
+        return self._total_charged
+
+    @property
+    def charges(self) -> List[dict]:
+        return self._charges

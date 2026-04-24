@@ -1,7 +1,7 @@
 [2m
-  🧰 call_tqsrcib2 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+  🧰 call_qf8z0es8 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
 [0m[2m
-  🔠 call_tqsrcib2 | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/research/workdir/system_context.md | 44 lines]
+  🔠 call_qf8z0es8 | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/research/workdir/system_context.md | 44 lines]
      ---CONTENT---
      # System Context: Notifier Subsystem Decision
      
@@ -48,12 +48,14 @@
      - Must maintain exactly-once semantics for billing notifications
      
 [0m[2m
-  🧰 call_v4n40fy4 | Write {'path': '/Users/gofrendigunawan/zrb ...', 'content': '# ADR-001: Notification Su ...'}
+  🧰 call_v0f9bsa8 | Write {'path': '/Users/gofrendigunawan/zrb ...', 'content': '# ADR-001: Notification Su ...'}
 [0m[2m
-  🔠 call_v4n40fy4 | Return Successfully wrote to /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/research/workdir/ADR-001-notification-architecture.md
+  🔠 call_v0f9bsa8 | Return Successfully wrote to /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/research/workdir/ADR-001-notification-architecture.md
 [0m[2m
-  Done[0m[2m.[0m[2m A[0m[2mDR[0m[2m-[0m[2m0[0m[2m0[0m[2m1[0m[2m has[0m[2m been[0m[2m written[0m[2m and[0m[2m saved[0m[2m.[0m[2m
-  💸 (Requests: 3 | Tool Calls: 2 | Total: 29487) Input: 28149 | Audio Input: 0 | Output: 1338 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
+  Done[0m[2m.[0m[2m Saved[0m[2m `[0m[2mADR[0m[2m-[0m[2m0[0m[2m0[0m[2m1[0m[2m-notification[0m[2m-[0m[2marchitecture[0m[2m.md[0m[2m`[0m[2m with[0m[2m a[0m[2m definitive[0m[2m recommendation[0m[2m for[0m[2m **[0m[2mRedis[0m[2m Streams[0m[2m**[0m[2m.[0m[2m
+     
+     **[0m[2mKey[0m[2m justification[0m[2m:**[0m[2m For[0m[2m a[0m[2m 6[0m[2m-person[0m[2m team[0m[2m with[0m[2m no[0m[2m Kafka[0m[2m expertise[0m[2m,[0m[2m Redis[0m[2m Streams[0m[2m meets[0m[2m all[0m[2m technical[0m[2m requirements[0m[2m ([0m[2mas[0m[2mynchronous[0m[2m dec[0m[2mou[0m[2mpling[0m[2m,[0m[2m exactly[0m[2m-on[0m[2mce[0m[2m via[0m[2m id[0m[2memp[0m[2motent[0m[2m ded[0m[2mup[0m[2mlication[0m[2m,[0m[2m exponential[0m[2m back[0m[2moff[0m[2m retry[0m[2m,[0m[2m 1[0m[2m0[0m[2mx[0m[2m scale[0m[2m head[0m[2mroom[0m[2m)[0m[2m while[0m[2m staying[0m[2m within[0m[2m the[0m[2m 2[0m[2m-week[0m[2m operational constraint[0m[2m and[0m[2m existing[0m[2m infrastructure[0m[2m ([0m[2mRedis[0m[2m).[0m[2m Kafka[0m[2m’s[0m[2m superior[0m[2m throughput[0m[2m and[0m[2m retention[0m[2m are[0m[2m unnecessary[0m[2m at[0m[2m 2[0m[2mM[0m[2m events[0m[2m/month[0m[2m,[0m[2m and[0m[2m its[0m[2m operational[0m[2m complexity[0m[2m would[0m[2m delay[0m[2m delivery[0m[2m and[0m[2m increase[0m[2m incident[0m[2m risk[0m[2m.[0m[2m
+  💸 (Requests: 3 | Tool Calls: 2 | Total: 29978) Input: 28342 | Audio Input: 0 | Output: 1636 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "Read `system_context.md`. It describes a real production system and a specific architectural problem we need to solve.
 
 Write an Architecture Decision Record (ADR) evaluating two options for the notification subsystem:
@@ -71,5 +73,7 @@ Your ADR must follow this exact structure:
 Make a definitive recommendation. Use specific technical properties (throughput, ordering guarantees, message retention, consumer groups, exactly-once semantics, operational complexity) to justify your choice given the team size and constraints described.
 
 Save as `ADR-001-notification-architecture.md`." --model ollama:qwen3-coder-next:cloud --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mwarm-cone-1556[0m[0m
-Done. ADR-001 has been written and saved.
+[2m[2mSession[0m: [1;33mhard-fuel-1345[0m[0m
+Done. Saved `ADR-001-notification-architecture.md` with a definitive recommendation for **Redis Streams**.
+
+**Key justification:** For a 6-person team with no Kafka expertise, Redis Streams meets all technical requirements (asynchronous decoupling, exactly-once via idempotent deduplication, exponential backoff retry, 10x scale headroom) while staying within the 2-week operational constraint and existing infrastructure (Redis). Kafka’s superior throughput and retention are unnecessary at 2M events/month, and its operational complexity would delay delivery and increase incident risk.

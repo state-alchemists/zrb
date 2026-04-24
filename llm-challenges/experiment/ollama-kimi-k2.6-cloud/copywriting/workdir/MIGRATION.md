@@ -1,57 +1,50 @@
 # Zrb CLI v1 → v2 Migration Guide
 
-This guide covers every breaking change when upgrading from Zrb CLI v1 to v2. It assumes you are already familiar with the v1 API.
+This guide covers every breaking change between Zrb CLI v1 and v2 and provides before/after examples to help you upgrade quickly.
 
 ---
 
 ## 1. API Version Prefix
 
-All endpoints are now prefixed with `/v2/`.
+All endpoints are now namespaced under `/v2/`.
 
-### Before (v1)
-
+**v1:**
 ```bash
-curl -X GET https://api.zrb.example/tasks
+curl https://api.zrb.example/tasks
+curl https://api.zrb.example/tasks/42
 ```
 
-### After (v2)
-
+**v2:**
 ```bash
-curl -X GET https://api.zrb.example/v2/tasks
+curl https://api.zrb.example/v2/tasks
+curl https://api.zrb.example/v2/tasks/42
 ```
-
-> Update every hardcoded URL and base path in your HTTP clients, SDK wrappers, and environment configs.
 
 ---
 
 ## 2. Authentication Header
 
-The custom `X-Auth-Token` header is replaced by a standard Bearer token.
+The `X-Auth-Token` header is no longer accepted. v2 requires a standard Bearer token.
 
-### Before (v1)
-
+**v1:**
 ```bash
-curl -H "X-Auth-Token: <your_api_key>" \
-     https://api.zrb.example/tasks
+curl -H "X-Auth-Token: <your_api_key>" https://api.zrb.example/tasks
 ```
 
-### After (v2)
-
+**v2:**
 ```bash
-curl -H "Authorization: Bearer <your_api_token>" \
-     https://api.zrb.example/v2/tasks
+curl -H "Authorization: Bearer <your_api_token>" https://api.zrb.example/v2/tasks
 ```
 
-> Requests sent with the old `X-Auth-Token` header will receive **HTTP 401 Unauthorized**.
+> **Warning:** Requests using `X-Auth-Token` will receive HTTP 401.
 
 ---
 
-## 3. Task `id` Type Changed to UUID
+## 3. Task ID Type Changed from Integer to UUID
 
-Task identifiers changed from auto-incrementing integers to UUID strings.
+`id` is now a UUID string instead of an integer. This affects every endpoint that references a task by ID and any client-side data models that stored `id` as a number.
 
-### Before (v1)
-
+**v1:**
 ```json
 {
   "id": 42,
@@ -61,8 +54,7 @@ Task identifiers changed from auto-incrementing integers to UUID strings.
 }
 ```
 
-### After (v2)
-
+**v2:**
 ```json
 {
   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
@@ -73,90 +65,66 @@ Task identifiers changed from auto-incrementing integers to UUID strings.
 }
 ```
 
-> Review any code that treats `id` as an integer (sorting, numeric comparison, SQL joins, or local ID mapping tables).
+> **Action required:** Update any client-side types (e.g., TypeScript `number` → `string`), database columns, or URL builders that assumed integer IDs.
 
 ---
 
-## 4. Task Field Renamed: `done` → `completed`
+## 4. Task Field `done` Renamed to `completed`
 
-The boolean field indicating task status is renamed from `done` to `completed`.
+The status field on task objects has been renamed. The old name is no longer accepted in request bodies or returned in responses.
 
-### Before (v1)
-
-```json
-{
-  "title": "Ship release",
-  "done": true
-}
-```
-
+**v1:**
 ```bash
 curl -X PUT https://api.zrb.example/tasks/42 \
-     -H "Content-Type: application/json" \
-     -H "X-Auth-Token: <your_api_key>" \
-     -d '{"done": true}'
+  -H "X-Auth-Token: <your_api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Updated title", "done": true}'
 ```
 
-### After (v2)
-
-```json
-{
-  "title": "Ship release",
-  "completed": true
-}
-```
-
+**v2:**
 ```bash
 curl -X PUT https://api.zrb.example/v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890 \
-     -H "Content-Type: application/json" \
-     -H "Authorization: Bearer <your_api_token>" \
-     -d '{"completed": true}'
+  -H "Authorization: Bearer <your_api_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Updated title", "completed": true}'
 ```
 
-> Any JSON serialization, UI bindings, or database columns referencing `done` must be updated to `completed`.
+> **Action required:** Rename all references to `done` (request payloads, response parsing, UI bindings) to `completed`.
 
 ---
 
 ## 5. Task Creation Requires `project_id`
 
-Creating a task now requires a `project_id`. Omitting it returns **HTTP 422 Unprocessable Entity**.
+Creating a task now requires a `project_id`. Omitting it returns HTTP 422.
 
-### Before (v1)
-
-```json
-POST /tasks
-{
-  "title": "New task title"
-}
+**v1:**
+```bash
+curl -X POST https://api.zrb.example/tasks \
+  -H "X-Auth-Token: <your_api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{"title": "New task title"}'
 ```
 
-### After (v2)
-
-```json
-POST /v2/tasks
-{
-  "title": "New task title",
-  "project_id": "proj_abc123"
-}
+**v2:**
+```bash
+curl -X POST https://api.zrb.example/v2/tasks \
+  -H "Authorization: Bearer <your_api_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "New task title",
+    "project_id": "proj_abc123"
+  }'
 ```
 
-> Ensure your application has access to a valid `project_id` before invoking task creation. You may need to add a project selection step in your UI or configuration.
+> **Action required:** Ensure your task creation flows capture or provide a `project_id`. If your application does not yet model projects, you must create at least one project and associate every new task with it.
 
 ---
 
-## 6. Paginated List Response
+## 6. List Endpoints Return a Paginated Envelope
 
-The list endpoint no longer returns a bare array. It now returns a paginated envelope with `items`, `total`, and `next_cursor`.
+`GET /tasks` previously returned a bare array. v2 returns a paginated envelope with `items`, `total`, and `next_cursor`.
 
-### Before (v1)
-
-```bash
-curl -H "X-Auth-Token: <your_api_key>" \
-     https://api.zrb.example/tasks
-```
-
-**Response:**
-
+**v1:**
 ```json
 [
   {"id": 1, "title": "Buy milk", "done": false, "created_at": "..."},
@@ -164,61 +132,53 @@ curl -H "X-Auth-Token: <your_api_key>" \
 ]
 ```
 
-### After (v2)
-
-```bash
-curl -H "Authorization: Bearer <your_api_token>" \
-     "https://api.zrb.example/v2/tasks?limit=20"
-```
-
-**Response:**
-
+**v2:**
 ```json
 {
   "items": [
-    {"id": "a1b2c3d4-...", "title": "Buy milk", "completed": false, "project_id": "proj_abc123", "created_at": "..."},
-    {"id": "b2c3d4e5-...", "title": "Ship v1", "completed": true, "project_id": "proj_abc123", "created_at": "..."}
+    {"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "title": "Buy milk", "completed": false, "project_id": "proj_abc123", "created_at": "..."},
+    {"id": "b2c3d4e5-f6a7-8901-bcde-f23456789012", "title": "Ship v2", "completed": true, "project_id": "proj_abc123", "created_at": "..."}
   ],
   "total": 42,
   "next_cursor": "cursor_xyz"
 }
 ```
 
-> Update array iteration logic to read from `response.items`. Implement pagination by passing `?cursor=<next_cursor>` on subsequent requests.
+Use `?cursor=<next_cursor>` to fetch subsequent pages and `?limit=<n>` (default 20) to control page size.
+
+**v2:**
+```bash
+curl "https://api.zrb.example/v2/tasks?limit=20" \
+  -H "Authorization: Bearer <your_api_token>"
+
+curl "https://api.zrb.example/v2/tasks?limit=20&cursor=cursor_xyz" \
+  -H "Authorization: Bearer <your_api_token>"
+```
+
+> **Action required:** Update any list-rendering logic to read from `response.items` instead of the top-level array, and implement pagination using `next_cursor`.
 
 ---
 
-## Step-by-Step Migration Checklist
+## Migration Checklist
 
-Use this checklist to ensure a complete and safe upgrade.
+Use this checklist to track your upgrade.
 
-- [ ] **Install v2 CLI** — run the upgrade command (see below).
-- [ ] **Rotate credentials** — generate a new API token if your existing token is tied to v1-only scopes.
-- [ ] **Update base URL** — append `/v2/` to all endpoint paths or central API client configuration.
-- [ ] **Replace auth header** — swap `X-Auth-Token` for `Authorization: Bearer <token>` in all requests.
-- [ ] **Refactor ID handling** — change task `id` storage and comparisons from integer to string (UUID).
-- [ ] **Rename `done` → `completed`** — update request bodies, response parsing, and any local model definitions.
-- [ ] **Supply `project_id` on create** — update task creation forms, scripts, and tests to include a valid `project_id`.
-- [ ] **Adopt pagination envelope** — read tasks from `items`, surface `total`, and implement cursor-based pagination.
-- [ ] **Run integration tests** — verify all CRUD operations and list pagination against a v2 endpoint.
-- [ ] **Update documentation** — refresh internal wiki pages, OpenAPI specs, and consumer-facing docs.
+- [ ] **Upgrade CLI** — run the upgrade command (see below).
+- [ ] **Update base URL** — add `/v2/` to all API paths.
+- [ ] **Rotate auth header** — replace `X-Auth-Token` with `Authorization: Bearer <token>`.
+- [ ] **Migrate task ID types** — change task `id` from `integer` to `string` (UUID) in types, schemas, and storage.
+- [ ] **Rename `done` → `completed`** — update request payloads, response parsing, and UI bindings.
+- [ ] **Integrate projects** — create projects and ensure all new tasks include `project_id`.
+- [ ] **Adopt pagination envelope** — update list endpoints to read `items`, `total`, and `next_cursor`.
+- [ ] **Run integration tests** — verify end-to-end flows against the v2 API.
+- [ ] **Deprecate v1 callers** — remove or sunset any remaining v1 clients.
 
 ---
 
 ## Upgrade Command
 
-```bash
-zrb self-update --version 2
-```
-
-After upgrading, confirm the version:
+Install the latest v2 CLI:
 
 ```bash
-zrb --version
-```
-
-If you encounter issues, downgrade temporarily with:
-
-```bash
-zrb self-update --version 1
+zrb upgrade --to=v2
 ```

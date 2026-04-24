@@ -1,187 +1,37 @@
 [2m
-  🧠 Let[0m[2m me start by understanding[0m[2m the existing codebase[0m[2m structure and patterns[0m[2m.[0m[2m
-  🧰 call_q0llmcwj | ReadMany {'paths': ['app/main.py', 'app/auth.py', 'app/database.py']}
+  🧠 Let[0m[2m me start by understanding[0m[2m the existing codebase[0m[2m structure and[0m[2m patterns.[0m[2m
+  🧰 call_6y7bo4ei | LS {'path': 'app'}
 [0m[2m
-  🔠 call_q0llmcwj | Return {'app/main.py': '[File: app/main.py | 33 lines]\n---CONTENT---\nfrom fastapi import FastAPI, HTTPException\nfrom typing import List\nfrom .models import Task, TaskCreate, TaskUpdate, Project\nfrom .database import tasks, projects\nfrom .auth import require_api_key\n\napp = FastAPI(title="Project Management API")\n\n\n@app.get("/projects", response_model=List[Project])\nasync def list_projects():\n    return projects\n\n\n@app.get("/tasks", response_model=List[Task])\nasync def list_tasks():\n    # TODO: add filtering (status, priority, assigned_to query params)\n    # TODO: add pagination (page, page_size query params)\n    return tasks\n\n\n@app.get("/tasks/{task_id}", response_model=Task)\nasync def get_task(task_id: int):\n    for task in tasks:\n        if task.id == task_id:\n            return task\n    raise HTTPException(status_code=404, detail="Task not found")\n\n\n# TODO: POST /tasks — create a task (requires auth, validate project_id, auto-generate id)\n# TODO: PUT /tasks/{task_id} — partial update (requires auth, 404 if not found)\n# TODO: DELETE /tasks/{task_id} — delete a task (requires auth, 404 if not found)\n', 'app/auth.py': '[File: app/auth.py | 13 lines]\n---CONTENT---\nfrom fastapi import Header, HTTPException\nfrom typing import Optional\nfrom .database import VALID_API_KEYS\n\n\nasync def require_api_key(x_api_key: Optional[str] = Header(default=None)) -> str:\n    """\n    Validates X-API-Key header against VALID_API_KEYS.\n    Returns the username on success.\n    TODO: Currently does nothing — implement authentication.\n    """\n    pass\n', 'app/database.py': '[File: app/database.py | 20 lines]\n---CONTENT---\nfrom typing import Dict, List\nfrom .models import Project, Task, TaskStatus\n\nprojects: List[Project] = [\n    Project(id=1, name="Alpha", owner="alice"),\n    Project(id=2, name="Beta", owner="bob"),\n]\n\ntasks: List[Task] = [\n    Task(id=1, title="Design schema", status=TaskStatus.done, priority=5, project_id=1, assigned_to="alice"),\n    Task(id=2, title="Implement API", status=TaskStatus.in_progress, priority=4, project_id=1, assigned_to="bob"),\n    Task(id=3, title="Write tests", status=TaskStatus.todo, priority=3, project_id=1),\n    Task(id=4, title="Deploy to staging", status=TaskStatus.todo, priority=2, project_id=2, assigned_to="alice"),\n]\n\nVALID_API_KEYS: Dict[str, str] = {\n    "dev-key-alice": "alice",\n    "dev-key-bob": "bob",\n}\n'}
+  🔠 call_6y7bo4ei | Return {'files': ['__init__.py', 'auth.py', 'database.py', 'main.py', 'models.py']}
 [0m[2m
-  🧰 call_uzg3lfef | Read {'path': 'app/models.py'}
+  🧰 call_aiqp8v0y | ReadMany {'paths': ['app/main.py', 'app/auth.py', 'app/database.py', 'app/models.py', 'app/__init__.py']}
 [0m[2m
-  🔠 call_uzg3lfef | Return [File: app/models.py | 40 lines]
-     ---CONTENT---
-     from pydantic import BaseModel
-     from typing import Optional
-     from enum import Enum
-     
-     
-     class TaskStatus(str, Enum):
-         todo = "todo"
-         in_progress = "in_progress"
-         done = "done"
-     
-     
-     class Task(BaseModel):
-         id: int
-         title: str
-         status: TaskStatus = TaskStatus.todo
-         priority: int = 3
-         project_id: int
-         assigned_to: Optional[str] = None
-     
-     
-     class TaskCreate(BaseModel):
-         title: str
-         status: TaskStatus = TaskStatus.todo
-         priority: int = 3
-         project_id: int
-         assigned_to: Optional[str] = None
-     
-     
-     class TaskUpdate(BaseModel):
-         title: Optional[str] = None
-         status: Optional[TaskStatus] = None
-         priority: Optional[int] = None
-         assigned_to: Optional[str] = None
-     
-     
-     class Project(BaseModel):
-         id: int
-         name: str
-         owner: str
-     
+  🔠 call_aiqp8v0y | Return {'app/main.py': '[File: app/main.py | 33 lines]\n---CONTENT---\nfrom fastapi import FastAPI, HTTPException\nfrom typing import List\nfrom .models import Task, TaskCreate, TaskUpdate, Project\nfrom .database import tasks, projects\nfrom .auth import require_api_key\n\napp = FastAPI(title="Project Management API")\n\n\n@app.get("/projects", response_model=List[Project])\nasync def list_projects():\n    return projects\n\n\n@app.get("/tasks", response_model=List[Task])\nasync def list_tasks():\n    # TODO: add filtering (status, priority, assigned_to query params)\n    # TODO: add pagination (page, page_size query params)\n    return tasks\n\n\n@app.get("/tasks/{task_id}", response_model=Task)\nasync def get_task(task_id: int):\n    for task in tasks:\n        if task.id == task_id:\n            return task\n    raise HTTPException(status_code=404, detail="Task not found")\n\n\n# TODO: POST /tasks — create a task (requires auth, validate project_id, auto-generate id)\n# TODO: PUT /tasks/{task_id} — partial update (requires auth, 404 if not found)\n# TODO: DELETE /tasks/{task_id} — delete a task (requires auth, 404 if not found)\n', 'app/auth.py': '[File: app/auth.py | 13 lines]\n---CONTENT---\nfrom fastapi import Header, HTTPException\nfrom typing import Optional\nfrom .database import VALID_API_KEYS\n\n\nasync def require_api_key(x_api_key: Optional[str] = Header(default=None)) -> str:\n    """\n    Validates X-API-Key header against VALID_API_KEYS.\n    Returns the username on success.\n    TODO: Currently does nothing — implement authentication.\n    """\n    pass\n', 'app/database.py': '[File: app/database.py | 20 lines]\n---CONTENT---\nfrom typing import Dict, List\nfrom .models import Project, Task, TaskStatus\n\nprojects: List[Project] = [\n    Project(id=1, name="Alpha", owner="alice"),\n    Project(id=2, name="Beta", owner="bob"),\n]\n\ntasks: List[Task] = [\n    Task(id=1, title="Design schema", status=TaskStatus.done, priority=5, project_id=1, assigned_to="alice"),\n    Task(id=2, title="Implement API", status=TaskStatus.in_progress, priority=4, project_id=1, assigned_to="bob"),\n    Task(id=3, title="Write tests", status=TaskStatus.todo, priority=3, project_id=1),\n    Task(id=4, title="Deploy to staging", status=TaskStatus.todo, priority=2, project_id=2, assigned_to="alice"),\n]\n\nVALID_API_KEYS: Dict[str, str] = {\n    "dev-key-alice": "alice",\n    "dev-key-bob": "bob",\n}\n', 'app/models.py': '[File: app/models.py | 40 lines]\n---CONTENT---\nfrom pydantic import BaseModel\nfrom typing import Optional\nfrom enum import Enum\n\n\nclass TaskStatus(str, Enum):\n    todo = "todo"\n    in_progress = "in_progress"\n    done = "done"\n\n\nclass Task(BaseModel):\n    id: int\n    title: str\n    status: TaskStatus = TaskStatus.todo\n    priority: int = 3\n    project_id: int\n    assigned_to: Optional[str] = None\n\n\nclass TaskCreate(BaseModel):\n    title: str\n    status: TaskStatus = TaskStatus.todo\n    priority: int = 3\n    project_id: int\n    assigned_to: Optional[str] = None\n\n\nclass TaskUpdate(BaseModel):\n    title: Optional[str] = None\n    status: Optional[TaskStatus] = None\n    priority: Optional[int] = None\n    assigned_to: Optional[str] = None\n\n\nclass Project(BaseModel):\n    id: int\n    name: str\n    owner: str\n', 'app/__init__.py': '[File: app/__init__.py | 1 lines]\n---CONTENT---\n'}
 [0m[2m
-  🧠 Now[0m[2m I have the[0m[2m full picture. Let[0m[2m me implement all[0m[2m 6 features.[0m[2m
-  🧰 call_k2kkfsqr | WriteMany {'files': [{'content': 'from fastapi import Header, HTTPException\nfrom typing import Optional\nfrom .database import VALID_API_KEYS\n\n\nasync def require_api_key(x_api_key: Optional[str] = Header(default=None)) -> str:\n    """\n    Validates X-API-Key header against VALID_API_KEYS.\n    Returns the username on success.\n    """\n    if x_api_key is None or x_api_key not in VALID_API_KEYS:\n        raise HTTPException(status_code=401, detail="Invalid or missing API key")\n    return VALID_API_KEYS[x_api_key]\n', 'path': 'app/auth.py'}, {'content': 'from fastapi import FastAPI, HTTPException, Depends, Query\nfrom typing import List, Optional\nfrom .models import Task, TaskCreate, TaskUpdate, Project, TaskStatus\nfrom .database import tasks, projects\nfrom .auth import require_api_key\n\napp = FastAPI(title="Project Management API")\n\n\ndef _next_task_id() -> int:\n    return max((t.id for t in tasks), default=0) + 1\n\n\n@app.get("/projects", response_model=List[Project])\nasync def list_projects():\n    return projects\n\n\n@app.get("/tasks", response_model=List[Task])\nasync def list_tasks(\n    status: Optional[TaskStatus] = Query(default=None),\n    priority: Optional[int] = Query(default=None),\n    assigned_to: Optional[str] = Query(default=None),\n    page: int = Query(default=1, ge=1),\n    page_size: int = Query(default=20, ge=1),\n):\n    filtered = tasks\n    if status is not None:\n        filtered = [t for t in filtered if t.status == status]\n    if priority is not None:\n        filtered = [t for t in filtered if t.priority == priority]\n    if assigned_to is not None:\n        filtered = [t for t in filtered if t.assigned_to == assigned_to]\n    start = (page - 1) * page_size\n    return filtered[start : start + page_size]\n\n\n@app.get("/tasks/{task_id}", response_model=Task)\nasync def get_task(task_id: int):\n    for task in tasks:\n        if task.id == task_id:\n            return task\n    raise HTTPException(status_code=404, detail="Task not found")\n\n\n@app.post("/tasks", response_model=Task, status_code=201)\nasync def create_task(task_create: TaskCreate, username: str = Depends(require_api_key)):\n    if not any(p.id == task_create.project_id for p in projects):\n        raise HTTPException(status_code=404, detail="Project not found")\n    task = Task(id=_next_task_id(), **task_create.model_dump())\n    tasks.append(task)\n    return task\n\n\n@app.put("/tasks/{task_id}", response_model=Task)\nasync def update_task(task_id: int, task_update: TaskUpdate, username: str = Depends(require_api_key)):\n    for task in tasks:\n        if task.id == task_id:\n            update_data = task_update.model_dump(exclude_unset=True)\n            for field, value in update_data.items():\n                setattr(task, field, value)\n            return task\n    raise HTTPException(status_code=404, detail="Task not found")\n\n\n@app.delete("/tasks/{task_id}", status_code=204)\nasync def delete_task(task_id: int, username: str = Depends(require_api_key)):\n    for i, task in enumerate(tasks):\n        if task.id == task_id:\n            tasks.pop(i)\n            return\n    raise HTTPException(status_code=404, detail="Task not found")\n', 'path': 'app/main.py'}]}
+  🧠 Now[0m[2m I have a clear[0m[2m picture.[0m[2m Let me implement all[0m[2m six[0m[2m features.[0m[2m I'll work[0m[2m through them[0m[2m systematically.[0m[2m
+  Clear[0m[2m picture.[0m[2m Let me implement all[0m[2m six features across[0m[2m two[0m[2m files (`[0m[2mauth.py` and[0m[2m `main.py`).[0m[2m
+  🧰 call_sb1wb3yi | Write {'path': 'app/auth.py', 'content': 'from fastapi import Header ...'}
 [0m[2m
-  🔠 call_k2kkfsqr | Return {'app/auth.py': 'Successfully wrote to app/auth.py', 'app/main.py': 'Successfully wrote to app/main.py'}
+  🔠 call_sb1wb3yi | Return Successfully wrote to app/auth.py
 [0m[2m
-  Let me verify the[0m[2m implementation[0m[2m works:[0m[2m
-  🧰 call_pkljjb0b | Bash {'command': 'cd app && python -c "from  ...'}
-[0m  [2mTraceback (most recent call last):
-[0m  [2m  File "<string>", line 1, in <module>
-[0m  [2m    from main import app; print('Import OK')
-[0m  [2m    ^^^^^^^^^^^^^^^^^^^^
-[0m  [2m  File "/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5.1-cloud/feature/workdir/app/main.py", line 3, in <module>
-[0m  [2m    from .models import Task, TaskCreate, TaskUpdate, Project, TaskStatus
-[0m  [2mImportError: attempted relative import with no known parent package
-[0m  [2mImport OK
+  🧰 call_afvac1uc | Write {'content': 'from fastapi import FastAP ...', 'path': 'app/main.py'}
 [0m[2m
-  🔠 call_pkljjb0b | Return Command: cd app && python -c "from main import app; print('Import OK')" 2>&1 || (cd .. && python -c "from app.main import app; print('Import OK')" 2>&1)
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5.1-cloud/feature/workdir
-     Stdout:
-     Traceback (most recent call last):
-       File "<string>", line 1, in <module>
-         from main import app; print('Import OK')
-         ^^^^^^^^^^^^^^^^^^^^
-       File "/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5.1-cloud/feature/workdir/app/main.py", line 3, in <module>
-         from .models import Task, TaskCreate, TaskUpdate, Project, TaskStatus
-     ImportError: attempted relative import with no known parent package
-     Import OK
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
+  🔠 call_afvac1uc | Return Successfully wrote to app/main.py
 [0m[2m
-  Import succeeds[0m[2m via the `[0m[2mapp` package.[0m[2m Let me do[0m[2m a deeper[0m[2m verification[0m[2m with the test[0m[2m server[0m[2m:[0m[2m
-  🧰 call_jjidsld5 | Bash {'command': 'pip install fastapi uvicor ...'}
-[0m  [2m
-[0m  [2m[notice] A new release of pip is available: 25.3 -> 26.0.1
-[0m  [2m[notice] To update, run: pip install --upgrade pip
-[0m[2m
-  🔠 call_jjidsld5 | Return Command: pip install fastapi uvicorn httpx 2>&1 | tail -3
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5.1-cloud/feature/workdir
-     Stdout:
-     [notice] A new release of pip is available: 25.3 -> 26.0.1
-     [notice] To update, run: pip install --upgrade pip
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  🧠 Let[0m[2m me run a quick[0m[2m smoke test using[0m[2m http[0m[2mx and[0m[2m the FastAPI Test[0m[2mClient.[0m[2m
-  🧰 call_f3w1caev | Bash {'command': 'python -c "\nfrom fastapi.t ...'}
-[0m  [2mAll 12 checks passed
-[0m[2m
-  🔠 call_f3w1caev | Return Command: python -c "
-     from fastapi.testclient import TestClient
-     from app.main import app
+  All[0m[2m six features are implemented[0m[2m. Here's a[0m[2m summary of what changed[0m[2m:
      
-     c = TestClient(app)
+     **`app[0m[2m/auth.py`**[0m[2m — `require_api[0m[2m_key` now validates[0m[2m the `X-API[0m[2m-Key` header against[0m[2m `VALID_API_KEYS[0m[2m` and raises[0m[2m HTTP[0m[2m 401 if[0m[2m missing or invalid.[0m[2m Returns the username on[0m[2m success.
      
-     # 1. Auth - missing key
-     r = c.post('/tasks', json={'title':'X','project_id':1})
-     assert r.status_code == 401, f'Missing key: {r.status_code}'
+     **`[0m[2mapp/main.py`[0m[2m** — Full[0m[2m implementation[0m[2m of[0m[2m all endpoints:
      
-     # 2. Auth - bad key
-     r = c.post('/tasks', json={'title':'X','project_id':1}, headers={'X-API-Key':'bad'})
-     assert r.status_code == 401, f'Bad key: {r.status_code}'
+     1[0m[2m. **`[0m[2mGET /tasks`[0m[2m** — Added[0m[2m `[0m[2mstatus`, `priority[0m[2m`, `assigned_to[0m[2m` query[0m[2m params[0m[2m for filtering,[0m[2m plus `page`[0m[2m (default 1[0m[2m)[0m[2m and `page_size[0m[2m` (default[0m[2m 20) for pagination[0m[2m. All[0m[2m filters are optional and[0m[2m combinable;[0m[2m they[0m[2m apply[0m[2m before the pagination[0m[2m slice.
      
-     # 3. Auth - valid key
-     r = c.post('/tasks', json={'title':'New task','project_id':1}, headers={'X-API-Key':'dev-key-alice'})
-     assert r.status_code == 201, f'Create: {r.status_code} {r.text}'
-     assert r.json()['id'] == 5
-     assert r.json()['title'] == 'New task'
+     2.[0m[2m **`POST /[0m[2mtasks`** —[0m[2m Requires[0m[2m auth via[0m[2m `Depends(require[0m[2m_api_key)`.[0m[2m Validates `project_id[0m[2m` exists ([0m[2m404 if not[0m[2m). Auto[0m[2m-generates a[0m[2m unique integer ID (`[0m[2mmax(existing[0m[2m_ids[0m[2m) + 1[0m[2m`). Returns[0m[2m 201 with the[0m[2m created task.
      
-     # 4. Create - bad project_id
-     r = c.post('/tasks', json={'title':'X','project_id':99}, headers={'X-API-Key':'dev-key-alice'})
-     assert r.status_code == 404, f'Bad project: {r.status_code}'
+     3[0m[2m. **`PUT[0m[2m /tasks/{task[0m[2m_id}`** —[0m[2m Requires auth.[0m[2m Uses[0m[2m `exclude[0m[2m_unset=True` on[0m[2m `Task[0m[2mUpdate`[0m[2m so only[0m[2m explicitly[0m[2m provided fields are updated[0m[2m (partial update).[0m[2m Returns 404[0m[2m if task[0m[2m not found.
      
-     # 5. Filtering - status
-     r = c.get('/tasks', params={'status':'todo'})
-     assert all(t['status']=='todo' for t in r.json())
-     
-     # 6. Filtering - priority
-     r = c.get('/tasks', params={'priority':3})
-     assert all(t['priority']==3 for t in r.json())
-     
-     # 7. Filtering - assigned_to
-     r = c.get('/tasks', params={'assigned_to':'alice'})
-     assert all(t['assigned_to']=='alice' for t in r.json())
-     
-     # 8. Pagination
-     r = c.get('/tasks', params={'page':1,'page_size':2})
-     assert len(r.json()) == 2
-     
-     # 9. Update
-     r = c.put('/tasks/1', json={'title':'Updated'}, headers={'X-API-Key':'dev-key-bob'})
-     assert r.status_code == 200
-     assert r.json()['title'] == 'Updated'
-     
-     # 10. Update 404
-     r = c.put('/tasks/999', json={'title':'X'}, headers={'X-API-Key':'dev-key-bob'})
-     assert r.status_code == 404
-     
-     # 11. Delete
-     r = c.delete('/tasks/5', headers={'X-API-Key':'dev-key-alice'})
-     assert r.status_code == 204
-     
-     # 12. Delete 404
-     r = c.delete('/tasks/999', headers={'X-API-Key':'dev-key-alice'})
-     assert r.status_code == 404
-     
-     print('All 12 checks passed')
-     " 2>&1
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5.1-cloud/feature/workdir
-     Stdout:
-     All 12 checks passed
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  All 12 checks[0m[2m passed. Here[0m[2m's a summary of[0m[2m what was implemented:[0m[2m
-     
-     **`app/auth[0m[2m.py`** —[0m[2m `require_api_key[0m[2m` now validates the[0m[2m `X-API-Key[0m[2m` header against `[0m[2mVALID_API_KEYS`,[0m[2m returns[0m[2m 401 if missing[0m[2m/[0m[2minvalid, and returns[0m[2m the username on success[0m[2m.
-     
-     **`app[0m[2m/main.py`**[0m[2m — All[0m[2m endpoints[0m[2m implemented[0m[2m:
-     
-     | Feature |[0m[2m Detail[0m[2m |
-     |---|[0m[2m---|
-     | **[0m[2mFilter[0m[2ming** | `[0m[2mGET /tasks`[0m[2m accepts optional `status[0m[2m`, `priority`,[0m[2m `assigned_to`[0m[2m query params;[0m[2m all[0m[2m combinable |[0m[2m
-     | **Pagination[0m[2m** | `GET[0m[2m /tasks` accepts[0m[2m `page` ([0m[2mdefault 1,[0m[2m ≥1[0m[2m) and `page[0m[2m_size` (default[0m[2m 20, ≥[0m[2m1) |
-     |[0m[2m **Create** |[0m[2m `POST /tasks[0m[2m` —[0m[2m auth required[0m[2m, validates `[0m[2mproject_id` ([0m[2m404 if missing[0m[2m), auto[0m[2m-generates ID[0m[2m from[0m[2m `[0m[2mmax+1`,[0m[2m returns 201 |[0m[2m
-     | **Update**[0m[2m | `PUT /[0m[2mtasks/{task_id[0m[2m}` — auth required[0m[2m, partial update[0m[2m via `exclude_unset[0m[2m=True`,[0m[2m 404 if not[0m[2m found |
-     | **[0m[2mDelete** | `[0m[2mDELETE /tasks/{[0m[2mtask_id}` —[0m[2m auth required, returns[0m[2m 204,[0m[2m 404 if[0m[2m not found |[0m[2m
-  💸 (Requests: 7 | Tool Calls: 6 | Total: 71983) Input: 70079 | Audio Input: 0 | Output: 1904 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
+     4[0m[2m. **`DELETE[0m[2m /tasks/{task[0m[2m_id}`** —[0m[2m Requires auth.[0m[2m Removes[0m[2m and returns the task[0m[2m. Returns 40[0m[2m4 if not found[0m[2m.[0m[2m
+  💸 (Requests: 5 | Tool Calls: 4 | Total: 45145) Input: 44025 | Audio Input: 0 | Output: 1120 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "We're building a project management API. The scaffolding is in `app/`. Several features are missing or incomplete:
 
 1. **Authentication** (`app/auth.py`): The `require_api_key` dependency exists but does nothing. Implement it: read the `X-API-Key` header, validate it against `VALID_API_KEYS` in `database.py`, and raise HTTP 401 if missing or invalid.
@@ -201,17 +51,17 @@
 6. **Delete task** (`DELETE /tasks/{task_id}`): Require auth. Return 404 if not found.
 
 Follow the existing patterns in `app/main.py`." --model ollama:glm-5.1:cloud --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mloud-bone-4854[0m[0m
-All 12 checks passed. Here's a summary of what was implemented:
+[2m[2mSession[0m: [1;33mhard-chip-6583[0m[0m
+All six features are implemented. Here's a summary of what changed:
 
-**`app/auth.py`** — `require_api_key` now validates the `X-API-Key` header against `VALID_API_KEYS`, returns 401 if missing/invalid, and returns the username on success.
+**`app/auth.py`** — `require_api_key` now validates the `X-API-Key` header against `VALID_API_KEYS` and raises HTTP 401 if missing or invalid. Returns the username on success.
 
-**`app/main.py`** — All endpoints implemented:
+**`app/main.py`** — Full implementation of all endpoints:
 
-| Feature | Detail |
-|---|---|
-| **Filtering** | `GET /tasks` accepts optional `status`, `priority`, `assigned_to` query params; all combinable |
-| **Pagination** | `GET /tasks` accepts `page` (default 1, ≥1) and `page_size` (default 20, ≥1) |
-| **Create** | `POST /tasks` — auth required, validates `project_id` (404 if missing), auto-generates ID from `max+1`, returns 201 |
-| **Update** | `PUT /tasks/{task_id}` — auth required, partial update via `exclude_unset=True`, 404 if not found |
-| **Delete** | `DELETE /tasks/{task_id}` — auth required, returns 204, 404 if not found |
+1. **`GET /tasks`** — Added `status`, `priority`, `assigned_to` query params for filtering, plus `page` (default 1) and `page_size` (default 20) for pagination. All filters are optional and combinable; they apply before the pagination slice.
+
+2. **`POST /tasks`** — Requires auth via `Depends(require_api_key)`. Validates `project_id` exists (404 if not). Auto-generates a unique integer ID (`max(existing_ids) + 1`). Returns 201 with the created task.
+
+3. **`PUT /tasks/{task_id}`** — Requires auth. Uses `exclude_unset=True` on `TaskUpdate` so only explicitly provided fields are updated (partial update). Returns 404 if task not found.
+
+4. **`DELETE /tasks/{task_id}`** — Requires auth. Removes and returns the task. Returns 404 if not found.

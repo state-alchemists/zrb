@@ -1,56 +1,40 @@
-# ADR-001: Notification Subsystem Architecture
+# ADR-001: Message Broker for Notification Subsystem
 
-**Status:** Proposed
+## Status
+Proposed
 
 ## Context
+The current notification subsystem (emails, webhooks) operates synchronously within the HTTP request cycle of our Python/Flask monolith. This design is causing API timeouts (up to 8s latency during our 500 req/s peak), cascading connection pool exhaustion, and silent data loss when external endpoints fail. 
 
-Our SaaS project management platform currently processes notifications (emails, webhooks) synchronously within the HTTP request cycle. At our current peak load of ~500 req/s, this architecture is causing request timeouts (up to 8s latency spikes), silent failures, and cascading system failures due to connection pool exhaustion. 
+We must decouple the notification process into an asynchronous system capable of retries, backoffs, and at-least-once delivery. Furthermore, billing-critical events require exactly-once processing semantics. We must also support a 10x traffic increase (~5,000 req/s peak). 
 
-We need to decouple notifications into an asynchronous, queue-based architecture to achieve:
-- Reliable delivery with retries and exponential backoff
-- At-least-once delivery guarantees (and exactly-once semantics for billing notifications)
-- Future support for real-time WebSocket push notifications
-- Headroom for 10x traffic growth (peak ~5,000 req/s)
-
-However, we operate under strict constraints:
-- Engineering team of 6 (no dedicated infrastructure/DevOps engineer)
-- Modest budget (cannot afford premium managed services like Confluent Cloud)
-- Strict 2-week timeline to deliver business value
-- No existing team experience with Apache Kafka
-- We currently operate Redis in production for session management and rate limiting
-
-We evaluated **Apache Kafka** and **Redis Streams** as the message broker for this subsystem.
+However, we operate under strict constraints: a 6-person engineering team with no dedicated infrastructure engineer, no prior Apache Kafka experience, a tight budget that prohibits enterprise managed services (like Confluent Cloud), and a mandate to deliver business value within a 2-week window. We currently have Redis deployed in production.
 
 ## Decision
+**We will implement the notification message broker using Redis Streams.**
 
-We will use **Redis Streams** for the asynchronous notification subsystem.
-
-Given our small team size, lack of dedicated infrastructure engineering, and strict 2-week delivery timeline, introducing a highly complex distributed system like Apache Kafka is an unacceptable operational risk. Redis is already part of our production stack, meaning we incur zero new infrastructure provisioning, monitoring, or maintenance overhead. 
-
-Redis Streams natively supports the technical requirements we need:
-- **Throughput:** Redis can trivially handle our 10x growth target of ~5,000 req/s (it can handle 100k+ ops/sec).
-- **Consumer Groups:** Using `XREADGROUP`, we can distribute message processing across a fleet of worker dynamos/containers.
-- **Reliability & Retries:** Unacknowledged messages remain in a Pending Entries List (PEL). A background worker can use `XPENDING` to claim and retry stalled messages, effectively giving us at-least-once delivery.
-- **Exactly-once Semantics:** No message broker can guarantee exactly-once *delivery* to an external system (like an email API). We will achieve exactly-once *processing* for billing events by using Redis Streams for at-least-once delivery, combined with an idempotency key stored in our existing PostgreSQL database.
+### Justification
+1. **Operational Complexity:** Our team already manages Redis in production. Introducing a complex distributed log system like Apache Kafka from scratch without a dedicated infrastructure engineer represents an unacceptable operational risk and would violate the 2-week delivery constraint.
+2. **Throughput:** Redis Streams operates entirely in-memory and easily handles tens of thousands of operations per second. It will trivially accommodate our current peak of 500 req/s and our 10x growth target of 5,000 req/s.
+3. **Message Guarantees:** Redis Streams provides Consumer Groups and explicit acknowledgments (`XACK`). This guarantees at-least-once delivery, allowing us to safely retry failed webhook/email deliveries.
+4. **Exactly-Once Semantics:** While Kafka supports exactly-once processing natively within its ecosystem, *no* broker can guarantee exactly-once delivery to external webhooks or SMTP servers. To achieve our billing requirements, we will pair Redis Streams' at-least-once delivery with **idempotent consumers**, utilizing our existing PostgreSQL database to track processed idempotency keys in the same transaction that updates business state.
 
 ## Consequences
 
-### Pros
-- **Speed to Market:** Developers can implement this within the 2-week constraint using well-documented Redis client libraries.
-- **Zero Infra Overhead:** No new services to deploy, monitor, patch, or secure.
-- **Cost Effective:** We leverage our existing Redis infrastructure, avoiding the high costs of managed Kafka clusters.
-- **Built-in Fan-out:** When we implement WebSocket notifications later this year, Redis Streams allows multiple independent consumer groups to read the same message stream without consuming each other's messages.
+**Pros:**
+* **Speed of Delivery:** Leverages existing infrastructure and team knowledge, easily meeting the 2-week setup constraint.
+* **Low Overhead:** No new vendor contracts, minimal infrastructure cost increases, and zero new operational paradigms to learn (like ZooKeeper or KRaft).
+* **Consumer Groups:** Natively supports horizontal scaling of consumers and handles state tracking of read messages.
+* **Low Latency:** In-memory queueing ensures sub-millisecond publish times, completely unblocking the synchronous web requests.
 
-### Cons
-- **Memory Bound Retention:** Unlike Kafka, which writes to disk and can retain messages for months, Redis Streams live in memory. We must carefully configure stream trimming (e.g., `MAXLEN`) to prevent out-of-memory (OOM) crashes.
-- **Durability Risks:** Redis persistence (AOF/RDB) is generally reliable, but a hard node crash could result in the loss of sub-second unflushed data depending on `fsync` settings. Kafka offers stronger multi-node disk-level durability.
-- **Manual Idempotency:** The application layer must handle exactly-once processing logic for external billing calls.
+**Cons:**
+* **Memory Constraints:** Unlike Kafka, which writes to disk, Redis Streams stores messages in RAM. We must rigorously configure stream length limits (`XTRIM`) to prevent Out-Of-Memory (OOM) crashes.
+* **Manual DLQ Management:** Redis does not have a built-in Dead Letter Queue. We will have to write custom logic utilizing `XPENDING` and `XCLAIM` to detect, reassign, and eventually discard persistently failing messages.
+* **Durability Risks:** While Redis persists to disk via AOF/RDB, it is primarily an in-memory store. In a hard crash, a small window of un-fsync'd messages could be lost compared to Kafka's robust distributed replication.
 
 ## Alternatives Considered
+**Apache Kafka**
+Kafka is the industry standard for high-throughput, durable event streaming and offers unparalleled message retention and native exactly-once processing capabilities. 
 
-**Apache Kafka:** 
-Rejected. While Kafka is the industry standard for high-throughput, highly-durable event streaming, it is heavily over-engineered for our needs. 
-- *Operational Complexity:* Running a self-hosted Kafka cluster (with ZooKeeper/KRaft) requires dedicated DevOps resources we do not have.
-- *Timeline constraints:* Learning Kafka's complex client configurations (partition rebalancing, offset commits, retention policies) would easily violate our 2-week deadline.
-- *Overkill capacity:* Kafka is designed for millions of messages per second; our 10x target is 5,000 req/s, which Redis handles easily.
-- *Budget constraints:* Managed Kafka (e.g., Confluent Cloud, MSK) provides the operational relief we'd need, but violates our modest budget constraint.
+*Why it was rejected:* 
+The operational burden is vastly disproportionate to our team size and budget. Self-hosting Kafka requires managing brokers, partition balancing, and consensus (ZooKeeper/KRaft), which would require dedicated DevOps resources we do not have. Managed options like Confluent Cloud exceed our budget. Furthermore, the steep learning curve means we would miss our 2-week deadline, making it the wrong choice for our current maturity stage.
