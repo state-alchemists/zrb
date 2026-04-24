@@ -17,5 +17,7 @@ async def process_job(queue, worker_id: int) -> None:
             queue.complete(job["id"], f"processed by worker {worker_id}")
             print(f"[Worker {worker_id}] finished job {job['id']}")
         except Exception as e:
-            queue.fail(job["id"], str(e))
+            await queue.fail(job["id"], str(e))
             print(f"[Worker {worker_id}] job {job['id']} failed: {e}")
+            # Yield control so other workers can pick up this job or other jobs
+            await asyncio.sleep(0.001)

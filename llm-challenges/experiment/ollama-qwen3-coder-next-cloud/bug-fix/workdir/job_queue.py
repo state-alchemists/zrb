@@ -1,14 +1,14 @@
 import asyncio
-import threading
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 
 class JobQueue:
     def __init__(self, max_retries: int = 3):
         self._jobs: Dict[int, Dict[str, Any]] = {}
+        self._pending_order: List[int] = []  # Maintain insertion order
         self._next_id = 1
         self.max_retries = max_retries
-        self._lock = threading.Lock()
+        self._lock = asyncio.Lock()
 
     def enqueue(self, payload: dict) -> int:
         job_id = self._next_id
@@ -20,30 +20,35 @@ class JobQueue:
             "retries": 0,
             "result": None,
         }
+        self._pending_order.append(job_id)
         return job_id
 
     async def dequeue(self) -> Optional[Dict]:
-        with self._lock:
-            for job in self._jobs.values():
+        async with self._lock:
+            while self._pending_order:
+                job_id = self._pending_order.pop(0)
+                job = self._jobs[job_id]
                 if job["status"] == "pending":
                     job["status"] = "processing"
                     return job
         return None
 
-    def complete(self, job_id: int, result: Any) -> None:
-        with self._lock:
-            self._jobs[job_id]["status"] = "done"
-            self._jobs[job_id]["result"] = result
-
-    def fail(self, job_id: int, error: str) -> None:
-        with self._lock:
+    async def fail(self, job_id: int, error: str) -> Optional[Dict]:
+        async with self._lock:
             job = self._jobs[job_id]
-            if job["retries"] < self.max_retries:
-                job["retries"] += 1
-                job["status"] = "pending"
-            else:
+            job["retries"] += 1
+            if job["retries"] > self.max_retries:
                 job["status"] = "failed"
                 job["result"] = error
+                return None
+            # Put at end of queue for retry after other pending jobs
+            job["status"] = "pending"
+            self._pending_order.append(job_id)
+        return job
+
+    def complete(self, job_id: int, result: Any) -> None:
+        self._jobs[job_id]["status"] = "done"
+        self._jobs[job_id]["result"] = result
 
     @property
     def all_jobs(self) -> Dict[int, Dict]:

@@ -59,6 +59,28 @@ def _is_prompt_too_long_error(e: Exception) -> bool:
     return any(keyword in err_str for keyword in context_keywords)
 
 
+def _is_invalid_tool_call_error(e: Exception) -> bool:
+    """Returns True if the exception is an HTTP 400 caused by an invalid/unknown tool name.
+
+    Some model APIs (e.g. Ollama) reject responses where the model referenced a tool
+    that was not in the registered tool list, returning HTTP 400 instead of handling
+    the unknown call gracefully.
+    """
+    status_code = getattr(e, "status_code", None)
+    if status_code != 400:
+        return False
+    err_str = str(e).lower()
+    tool_keywords = [
+        "tool",
+        "function",
+        "unknown",
+        "invalid",
+        "not defined",
+        "not found",
+    ]
+    return any(keyword in err_str for keyword in tool_keywords)
+
+
 def _drop_oldest_turn(history: list[Any]) -> list[Any]:
     """Removes the oldest conversation turn from history."""
     if not history:
@@ -435,6 +457,7 @@ async def run_agent(
         stream = None
         _context_retry_count = 0
         _MAX_CONTEXT_RETRIES = CFG.LLM_MAX_CONTEXT_RETRIES
+        _invalid_tool_retry_done = False
         try:
             while True:
                 # Filter out nil content before sending to API
@@ -481,6 +504,34 @@ async def run_agent(
                         CFG.LOGGER.debug(
                             f"Prompt too long: retrying with {len(current_history)} history messages"
                         )
+                        continue
+                    if (
+                        _is_invalid_tool_call_error(stream_error)
+                        and not _invalid_tool_retry_done
+                    ):
+                        _invalid_tool_retry_done = True
+                        corrective = (
+                            "[SYSTEM] Your previous response was rejected because it referenced "
+                            "an invalid or non-existent tool name. Use only the exact tool names "
+                            "available to you — do not combine, modify, or invent tool names."
+                        )
+                        print_fn(
+                            "\n[System] Invalid tool call detected, asking model to retry..."
+                        )
+                        CFG.LOGGER.debug(
+                            f"Invalid tool call error: {stream_error}. Injecting corrective message."
+                        )
+                        from pydantic_ai.messages import ModelRequest, UserPromptPart
+
+                        if current_message is not None and isinstance(
+                            current_message, str
+                        ):
+                            current_message = current_message + "\n\n" + corrective
+                        else:
+                            current_history = list(run_history) + [
+                                ModelRequest(parts=[UserPromptPart(content=corrective)])
+                            ]
+                            current_message = None
                         continue
                     raise stream_error
 

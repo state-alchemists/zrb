@@ -1,16 +1,13 @@
-# Zrb Task API v2 Migration Guide
+# Zrb API v2 Migration Guide
 
-Welcome to Zrb CLI and API v2. This release introduces robust project grouping, improved pagination, and stricter authentication. 
+## Overview
 
-Because of these structural improvements, v2 includes several breaking changes from v1. This guide covers every breaking change and provides a step-by-step checklist to help you upgrade your integrations.
-
----
+Welcome to v2! This release introduces projects, improved pagination, and stricter authentication. Several conventions have changed from v1, so we've put together this guide to help you upgrade your integrations smoothly.
 
 ## Breaking Changes
 
-### 1. Endpoint Path Prefix
-
-All endpoints have been moved under the `/v2/` prefix.
+### 1. Endpoint URLs Prefixed with `/v2/`
+All API endpoints have moved under the `/v2/` path.
 
 **Before (v1):**
 ```http
@@ -22,9 +19,8 @@ GET /tasks
 GET /v2/tasks
 ```
 
-### 2. Authentication Header
-
-The authentication method has changed from a custom `X-Auth-Token` header to the standard `Authorization: Bearer` token pattern. Using the old header will now result in an HTTP `401 Unauthorized` error.
+### 2. Authentication Header Update
+We've transitioned to standard Bearer token authentication. Requests using the old `X-Auth-Token` header will now return an HTTP 401 Unauthorized error.
 
 **Before (v1):**
 ```http
@@ -33,56 +29,51 @@ X-Auth-Token: <your_api_key>
 
 **After (v2):**
 ```http
-Authorization: Bearer <your_api_key>
+Authorization: Bearer <your_api_token>
 ```
 
-### 3. Task ID Data Type
-
-Task IDs are now UUID strings instead of auto-incrementing integers. You must update your database schemas or type definitions to expect string UUIDs.
+### 3. Task `id` Type is now UUID
+Task identifiers have been changed from integers to UUID strings. You will need to update your data models and database schemas to accommodate this format.
 
 **Before (v1):**
 ```json
 {
-  "id": 42,
-  "title": "Write tests"
+  "id": 42
 }
 ```
 
 **After (v2):**
 ```json
 {
-  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "title": "Write tests"
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 }
 ```
 
-### 4. Renamed Field: `done` to `completed`
-
-The boolean field representing task completion has been renamed. This affects both the task representation returned by the API and the payload used in `PUT /v2/tasks/{id}`.
+### 4. Task Field `done` Renamed to `completed`
+The field representing a task's status has been renamed to better reflect its meaning.
 
 **Before (v1):**
 ```json
 {
-  "title": "Updated title",
-  "done": true
+  "title": "Write tests",
+  "done": false
 }
 ```
 
 **After (v2):**
 ```json
 {
-  "title": "Updated title",
-  "completed": true
+  "title": "Write tests",
+  "completed": false
 }
 ```
 
-### 5. Required `project_id` on Creation
-
-Tasks can no longer exist globally. When creating a task via `POST /v2/tasks`, you must now provide a valid `project_id`. Omitting it will result in an HTTP `422 Unprocessable Entity` error.
+### 5. Task Creation Requires `project_id`
+To support the new projects feature, you must now provide a `project_id` when creating a new task. Omitting it will return an HTTP 422 Unprocessable Entity error.
 
 **Before (v1):**
 ```json
-POST /tasks
+// POST /tasks
 {
   "title": "New task title"
 }
@@ -90,7 +81,7 @@ POST /tasks
 
 **After (v2):**
 ```json
-POST /v2/tasks
+// POST /v2/tasks
 {
   "title": "New task title",
   "project_id": "proj_abc123"
@@ -98,8 +89,7 @@ POST /v2/tasks
 ```
 
 ### 6. Paginated List Responses
-
-The `GET /v2/tasks` endpoint no longer returns a bare JSON array. It now returns a paginated envelope object containing `items`, `total`, and a `next_cursor` for fetching subsequent pages.
+The `GET /v2/tasks` endpoint now returns a paginated envelope object instead of a bare JSON array. You can use the `cursor` query parameter to fetch subsequent pages (e.g., `?cursor=<next_cursor>`).
 
 **Before (v1):**
 ```json
@@ -107,7 +97,8 @@ The `GET /v2/tasks` endpoint no longer returns a bare JSON array. It now returns
   {
     "id": 1,
     "title": "Buy milk",
-    "done": false
+    "done": false,
+    "created_at": "2024-01-15T10:30:00Z"
   }
 ]
 ```
@@ -120,7 +111,8 @@ The `GET /v2/tasks` endpoint no longer returns a bare JSON array. It now returns
       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       "title": "Buy milk",
       "completed": false,
-      "project_id": "proj_abc123"
+      "project_id": "proj_abc123",
+      "created_at": "2024-01-15T10:30:00Z"
     }
   ],
   "total": 42,
@@ -128,24 +120,18 @@ The `GET /v2/tasks` endpoint no longer returns a bare JSON array. It now returns
 }
 ```
 
----
-
 ## Migration Checklist
 
-Follow these steps to safely migrate your integration from v1 to v2:
-
-- [ ] **Update Auth Headers**: Replace all `X-Auth-Token: <key>` headers with `Authorization: Bearer <key>`.
-- [ ] **Update Base URLs**: Prepend `/v2` to all task endpoints (e.g., `/tasks` becomes `/v2/tasks`).
-- [ ] **Adjust Data Types**: Ensure your local database, ORM, and types treat Task `id` as a UUID string, not an integer.
-- [ ] **Rename Fields**: Search and replace the `done` property with `completed` in both your request payloads and response parsing logic.
-- [ ] **Require Projects**: Update your task creation logic (`POST`) to always include a `project_id`.
-- [ ] **Handle Pagination**: Refactor your `GET /v2/tasks` list parsing to read from the `.items` property rather than expecting a root-level array. Implement cursor-based pagination if you fetch large numbers of tasks.
-
----
+- [ ] Update all API base URLs to include the `/v2/` prefix.
+- [ ] Change the authentication header from `X-Auth-Token` to `Authorization: Bearer`.
+- [ ] Update your database schemas and code types to treat task `id` as a UUID string (instead of an integer).
+- [ ] Find and replace all references to the `done` field with `completed`.
+- [ ] Update task creation payloads (`POST /v2/tasks`) to include a valid `project_id`.
+- [ ] Adjust your response parsing logic for list endpoints (`GET /v2/tasks`) to extract the `items` array and handle the new `next_cursor` for pagination.
 
 ## Upgrade Command
 
-Run the following command to upgrade your CLI to v2:
+Ready to make the jump? Upgrade your local CLI to v2 by running:
 
 ```bash
 zrb upgrade

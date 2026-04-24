@@ -10,17 +10,14 @@ async def checkout(
     inventory: Inventory,
     gateway: PaymentGateway,
 ) -> bool:
-    # 1. Reserve inventory first to prevent overselling and ghost charges.
-    decremented = await inventory.decrement(quantity)
-    if not decremented:
+    reserved = await inventory.reserve(quantity)
+    if not reserved:
         print(f"Order {order_id}: out of stock")
         return False
 
-    # 2. Charge only after inventory is reserved.
-    charged = await gateway.charge(order_id, quantity * price)
+    charged = await gateway.charge_once(order_id, quantity * price)
     if not charged:
         print(f"Order {order_id}: payment failed")
-        # Release inventory so another order can use it.
         await inventory.increment(quantity)
         return False
 

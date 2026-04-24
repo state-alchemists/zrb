@@ -12,22 +12,26 @@ class PaymentGateway:
         self._lock = asyncio.Lock()
 
     async def charge(self, order_id: str, amount: float) -> bool:
-        async with self._lock:
-            # Idempotency: prevent duplicate charges for same order_id
-            if order_id in self._charged_order_ids:
-                return True  # Already charged successfully
-
         await asyncio.sleep(0.03)
-
         async with self._lock:
-            # Recheck after I/O in case of concurrent calls
+            # Idempotency: prevent duplicate charges for same order
             if order_id in self._charged_order_ids:
-                return True
-
+                return False
             if random.random() < self._failure_rate:
                 return False
-
             self._charged_order_ids.add(order_id)
             self.total_charged += amount
             self.charges.append({"order_id": order_id, "amount": amount})
+            return True
+
+    async def refund(self, order_id: str, amount: float) -> bool:
+        """Reverse a charge for the given order_id."""
+        await asyncio.sleep(0.02)
+        async with self._lock:
+            if order_id not in self._charged_order_ids:
+                return False
+            self._charged_order_ids.discard(order_id)
+            self.total_charged -= amount
+            # Remove the charge record
+            self.charges = [c for c in self.charges if c["order_id"] != order_id]
             return True

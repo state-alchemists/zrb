@@ -9,12 +9,17 @@ class PaymentGateway:
         self.total_charged: float = 0.0
         self.charges: List[dict] = []
         self._processed_orders: Set[str] = set()
+        self._refunded_orders: Set[str] = set()
 
     async def charge(self, order_id: str, amount: float) -> bool:
+        """Charge an order. Idempotent - same order_id only charged once."""
         await asyncio.sleep(0.03)
-        # Prevent duplicate charges for same order_id
+        # Idempotency: prevent duplicate charges for same order_id
         if order_id in self._processed_orders:
-            return False
+            return True  # Already processed, return success
+        if order_id in self._refunded_orders:
+            # This order was refunded, don't allow recharge
+            self._refunded_orders.discard(order_id)
         if random.random() < self._failure_rate:
             return False
         self.total_charged += amount
@@ -22,6 +27,12 @@ class PaymentGateway:
         self._processed_orders.add(order_id)
         return True
 
-    async def charge_once(self, order_id: str, amount: float) -> bool:
-        """Charge only if not already processed. Returns True if charged, False if already processed or failed."""
-        return await self.charge(order_id, amount)
+    async def refund(self, order_id: str, amount: float) -> None:
+        """Process a refund for an order."""
+        await asyncio.sleep(0.02)
+        if order_id in self._refunded_orders:
+            return  # Already refunded
+        self.total_charged -= amount
+        self._refunded_orders.add(order_id)
+        # Remove from charges list
+        self.charges = [c for c in self.charges if c["order_id"] != order_id]

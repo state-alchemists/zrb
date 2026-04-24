@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Query
 from typing import List, Optional
 from .models import Task, TaskCreate, TaskUpdate, Project, TaskStatus
 from .database import tasks, projects
@@ -17,20 +17,22 @@ async def list_tasks(
     status: Optional[TaskStatus] = None,
     priority: Optional[int] = None,
     assigned_to: Optional[str] = None,
-    page: int = 1,
-    page_size: int = 20
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1)
 ):
-    filtered = tasks
+    filtered_tasks = tasks
+    
     if status is not None:
-        filtered = [t for t in filtered if t.status == status]
+        filtered_tasks = [t for t in filtered_tasks if t.status == status]
     if priority is not None:
-        filtered = [t for t in filtered if t.priority == priority]
+        filtered_tasks = [t for t in filtered_tasks if t.priority == priority]
     if assigned_to is not None:
-        filtered = [t for t in filtered if t.assigned_to == assigned_to]
+        filtered_tasks = [t for t in filtered_tasks if t.assigned_to == assigned_to]
         
-    start = (page - 1) * page_size
-    end = start + page_size
-    return filtered[start:end]
+    start_idx = (page - 1) * page_size
+    end_idx = start_idx + page_size
+    
+    return filtered_tasks[start_idx:end_idx]
 
 
 @app.get("/tasks/{task_id}", response_model=Task)
@@ -53,10 +55,10 @@ async def create_task(task_in: TaskCreate, username: str = Depends(require_api_k
 
 
 @app.put("/tasks/{task_id}", response_model=Task)
-async def update_task(task_id: int, task_update: TaskUpdate, username: str = Depends(require_api_key)):
+async def update_task(task_id: int, task_in: TaskUpdate, username: str = Depends(require_api_key)):
     for task in tasks:
         if task.id == task_id:
-            update_data = task_update.model_dump(exclude_unset=True)
+            update_data = task_in.model_dump(exclude_unset=True)
             for key, value in update_data.items():
                 setattr(task, key, value)
             return task
@@ -68,5 +70,5 @@ async def delete_task(task_id: int, username: str = Depends(require_api_key)):
     for i, task in enumerate(tasks):
         if task.id == task_id:
             del tasks[i]
-            return {"message": "Task deleted"}
+            return {"detail": "Task deleted"}
     raise HTTPException(status_code=404, detail="Task not found")

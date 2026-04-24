@@ -1,6 +1,6 @@
 import asyncio
 import random
-from typing import List, Optional
+from typing import List
 
 
 class PaymentGateway:
@@ -8,25 +8,20 @@ class PaymentGateway:
         self._failure_rate = failure_rate
         self.total_charged: float = 0.0
         self.charges: List[dict] = []
-        self._lock = asyncio.Lock()
+        self._refunded: List[str] = []
 
     async def charge(self, order_id: str, amount: float) -> bool:
         await asyncio.sleep(0.03)
         if random.random() < self._failure_rate:
             return False
-        async with self._lock:
-            self.total_charged += amount
-            self.charges.append({"order_id": order_id, "amount": amount})
+        self.total_charged += amount
+        self.charges.append({"order_id": order_id, "amount": amount})
         return True
 
-    async def refund_last_charge(self, order_id: str) -> Optional[float]:
-        """Refund the last charge for a given order_id."""
-        async with self._lock:
-            # Find the last charge for this order_id
-            for i in range(len(self.charges) - 1, -1, -1):
-                if self.charges[i]["order_id"] == order_id:
-                    amount = self.charges[i]["amount"]
-                    self.total_charged -= amount
-                    self.charges.pop(i)
-                    return amount
-            return None
+    async def refund(self, order_id: str, amount: float) -> None:
+        """Reverse a charge. Idempotent — safe to call multiple times."""
+        await asyncio.sleep(0.01)
+        if order_id not in self._refunded:
+            self.total_charged -= amount
+            self.charges = [c for c in self.charges if c["order_id"] != order_id]
+            self._refunded.append(order_id)

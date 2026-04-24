@@ -11,20 +11,12 @@ class PaymentGateway:
         self._lock = asyncio.Lock()
 
     async def charge(self, order_id: str, amount: float) -> bool:
-        """Charge an order once; idempotent per order_id.
-
-        Returns True on successful (first) charge, False on failure or duplicate.
-        """
-        # Ensure idempotency and thread-safety across concurrent calls
+        await asyncio.sleep(0.03)
         async with self._lock:
-            # Prevent duplicate charges for the same order_id
             if any(c["order_id"] == order_id for c in self.charges):
                 return False
-
-            await asyncio.sleep(0.03)
             if random.random() < self._failure_rate:
                 return False
-
             self.total_charged += amount
             self.charges.append({"order_id": order_id, "amount": amount})
             return True

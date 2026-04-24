@@ -1,4 +1,4 @@
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Query
 from typing import List, Optional
 from .models import Task, TaskCreate, TaskUpdate, Project, TaskStatus
 from .database import tasks, projects
@@ -14,17 +14,14 @@ async def list_projects():
 
 @app.get("/tasks", response_model=List[Task])
 async def list_tasks(
-    status: Optional[TaskStatus] = None,
-    priority: Optional[int] = None,
-    assigned_to: Optional[str] = None,
-    page: int = 1,
-    page_size: int = 20,
+    status: Optional[TaskStatus] = Query(default=None),
+    priority: Optional[int] = Query(default=None),
+    assigned_to: Optional[str] = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1),
 ):
-    """List tasks with optional filtering and pagination."""
-    # Start from all tasks
+    # Filtering
     filtered_tasks = tasks
-
-    # Apply filters if provided
     if status is not None:
         filtered_tasks = [t for t in filtered_tasks if t.status == status]
     if priority is not None:
@@ -32,12 +29,7 @@ async def list_tasks(
     if assigned_to is not None:
         filtered_tasks = [t for t in filtered_tasks if t.assigned_to == assigned_to]
 
-    # Basic guardrails for pagination
-    if page < 1:
-        page = 1
-    if page_size < 1:
-        page_size = 1
-
+    # Pagination
     start = (page - 1) * page_size
     end = start + page_size
     return filtered_tasks[start:end]
@@ -53,23 +45,25 @@ async def get_task(task_id: int):
 
 @app.post("/tasks", response_model=Task, status_code=201)
 async def create_task(task_in: TaskCreate, username: str = Depends(require_api_key)):
-    """Create a task.
-
-    - Requires a valid API key.
-    - Validates that the referenced project exists.
-    - Auto-generates a unique integer task id.
-    """
     # Validate project exists
-    if not any(project.id == task_in.project_id for project in projects):
+    project_exists = any(p.id == task_in.project_id for p in projects)
+    if not project_exists:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Generate unique id
+    # Auto-generate unique integer ID
     if tasks:
-        new_id = max(task.id for task in tasks) + 1
+        new_id = max(t.id for t in tasks) + 1
     else:
         new_id = 1
 
-    new_task = Task(id=new_id, **task_in.dict())
+    new_task = Task(
+        id=new_id,
+        title=task_in.title,
+        status=task_in.status,
+        priority=task_in.priority,
+        project_id=task_in.project_id,
+        assigned_to=task_in.assigned_to,
+    )
     tasks.append(new_task)
     return new_task
 
@@ -80,21 +74,21 @@ async def update_task(
     task_update: TaskUpdate,
     username: str = Depends(require_api_key),
 ):
-    """Partially update a task (requires auth)."""
-    for index, task in enumerate(tasks):
+    for idx, task in enumerate(tasks):
         if task.id == task_id:
-            updated_fields = task_update.dict(exclude_unset=True)
-            updated_task = task.copy(update=updated_fields)
-            tasks[index] = updated_task
+            updated_data = task.dict()
+            update_fields = task_update.dict(exclude_unset=True)
+            updated_data.update(update_fields)
+            updated_task = Task(**updated_data)
+            tasks[idx] = updated_task
             return updated_task
     raise HTTPException(status_code=404, detail="Task not found")
 
 
 @app.delete("/tasks/{task_id}", status_code=204)
 async def delete_task(task_id: int, username: str = Depends(require_api_key)):
-    """Delete a task (requires auth)."""
-    for index, task in enumerate(tasks):
+    for idx, task in enumerate(tasks):
         if task.id == task_id:
-            del tasks[index]
+            del tasks[idx]
             return
     raise HTTPException(status_code=404, detail="Task not found")

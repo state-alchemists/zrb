@@ -6,18 +6,26 @@ class Inventory:
         self._stock = stock
         self._lock = asyncio.Lock()
 
+    async def _decrement(self, quantity: int) -> bool:
+        await asyncio.sleep(0.02)
+        if self._stock >= quantity:
+            self._stock -= quantity
+            return True
+        return False
+
+    async def _increment(self, quantity: int) -> None:
+        await asyncio.sleep(0.01)
+        self._stock += quantity
+
     async def reserve(self, quantity: int) -> bool:
+        """Atomically reserves stock."""
         async with self._lock:
-            await asyncio.sleep(0.02)
-            if self._stock >= quantity:
-                self._stock -= quantity
-                return True
-            return False
+            return await self._decrement(quantity)
 
     async def release(self, quantity: int) -> None:
+        """Atomically releases previously reserved stock."""
         async with self._lock:
-            await asyncio.sleep(0.01)
-            self._stock += quantity
+            await self._increment(quantity)
 
     @property
     def stock(self) -> int:

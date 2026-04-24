@@ -22,13 +22,11 @@ class JobQueue:
         return job_id
 
     async def dequeue(self) -> Optional[Dict]:
-        # Atomically reserve exactly one pending job.
         async with self._lock:
             for job in self._jobs.values():
                 if job["status"] == "pending":
                     job["status"] = "processing"
                     return job
-        # Simulate I/O / scheduling latency after reservation.
         await asyncio.sleep(0.01)
         return None
 
