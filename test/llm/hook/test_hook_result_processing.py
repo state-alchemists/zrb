@@ -252,6 +252,7 @@ class TestJournalingHookAntiRecursion:
 
         with patch("zrb.llm.hook.journal.CFG") as mock_cfg:
             mock_cfg.LLM_INCLUDE_JOURNAL = False
+            mock_cfg.LLM_INCLUDE_JOURNAL_REMINDER = False
             handler = JournalingHookHandler()
             context = HookContext(event=HookEvent.SESSION_END, event_data={})
             result = await handler.handle_event(context)
@@ -330,6 +331,7 @@ class TestJournalingHookAntiRecursion:
             "zrb.llm.hook.manager.CFG"
         ) as mock_mgr_cfg:
             mock_cfg.LLM_INCLUDE_JOURNAL = True
+            mock_cfg.LLM_INCLUDE_JOURNAL_REMINDER = True
             mock_mgr_cfg.LLM_INCLUDE_JOURNAL = False
             mock_mgr_cfg.ROOT_GROUP_NAME = "zrb"
             mock_mgr_cfg.LLM_PLUGIN_DIRS = []
@@ -358,6 +360,7 @@ class TestJournalingHookAntiRecursion:
             "zrb.llm.hook.manager.CFG"
         ) as mock_mgr_cfg:
             mock_cfg.LLM_INCLUDE_JOURNAL = False
+            mock_cfg.LLM_INCLUDE_JOURNAL_REMINDER = False
             mock_mgr_cfg.LLM_INCLUDE_JOURNAL = False
             mock_mgr_cfg.ROOT_GROUP_NAME = "zrb"
             mock_mgr_cfg.LLM_PLUGIN_DIRS = []

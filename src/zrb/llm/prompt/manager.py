@@ -44,6 +44,7 @@ class PromptManager:
         include_git_mandate: bool | None = None,
         include_system_context: bool | None = None,
         include_journal: bool | None = None,
+        include_journal_mandate: bool | None = None,
         include_claude_skills: bool | None = None,
         include_cli_skills: bool | None = None,
         include_project_context: bool | None = None,
@@ -62,7 +63,12 @@ class PromptManager:
         self._include_mandate = include_mandate
         self._include_git_mandate = include_git_mandate
         self._include_system_context = include_system_context
-        self._include_journal = include_journal
+        # include_journal_mandate is the specific flag; include_journal is the legacy alias
+        self._include_journal_mandate = (
+            include_journal_mandate
+            if include_journal_mandate is not None
+            else include_journal
+        )
         self._include_claude_skills = include_claude_skills
         self._include_cli_skills = include_cli_skills
         self._include_project_context = include_project_context
@@ -107,9 +113,9 @@ class PromptManager:
             else CFG.LLM_INCLUDE_SYSTEM_CONTEXT
         )
         include_journal = (
-            self._include_journal
-            if self._include_journal is not None
-            else CFG.LLM_INCLUDE_JOURNAL
+            self._include_journal_mandate
+            if self._include_journal_mandate is not None
+            else CFG.LLM_INCLUDE_JOURNAL_MANDATE
         )
         include_claude_skills = (
             self._include_claude_skills
@@ -233,12 +239,20 @@ class PromptManager:
         self._include_system_context = value
 
     @property
+    def include_journal_mandate(self):
+        return self._include_journal_mandate
+
+    @include_journal_mandate.setter
+    def include_journal_mandate(self, value: bool):
+        self._include_journal_mandate = value
+
+    @property
     def include_journal(self):
-        return self._include_journal
+        return self._include_journal_mandate
 
     @include_journal.setter
     def include_journal(self, value: bool):
-        self._include_journal = value
+        self._include_journal_mandate = value
 
     @property
     def include_claude_skills(self):

@@ -38,12 +38,12 @@ class JournalingHookHandler:
         self._session_end_fired: bool = False
 
     def is_enabled(self) -> bool:
-        """Check if journaling is enabled.
+        """Check if journal reminder is enabled.
 
-        Must check config dynamically because CFG.LLM_INCLUDE_JOURNAL can change
-        at runtime (environment variables can be modified between sessions).
+        Must check config dynamically because the value can change at runtime.
+        Respects ZRB_LLM_INCLUDE_JOURNAL_REMINDER; falls back to ZRB_LLM_INCLUDE_JOURNAL.
         """
-        return CFG.LLM_INCLUDE_JOURNAL
+        return CFG.LLM_INCLUDE_JOURNAL_REMINDER
 
     async def handle_event(self, context: HookContext) -> HookResult:
         """Handle hook event - remind LLM to journal at session end.
@@ -104,7 +104,7 @@ def create_journaling_hook_factory():
 
     def factory(manager: HookManager):
         # Check config at execution time (not registration time)
-        if not CFG.LLM_INCLUDE_JOURNAL:
+        if not CFG.LLM_INCLUDE_JOURNAL_REMINDER:
             return
 
         journal_hook = create_journaling_hook()

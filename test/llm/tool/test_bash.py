@@ -33,3 +33,33 @@ async def test_run_shell_command_suggestions():
 
     result = await run_shell_command("echo 'lock' && echo 'brew install ...'")
     assert "package manager lock" in result
+
+
+@pytest.mark.asyncio
+async def test_run_shell_command_suggestion_port_in_use():
+    result = await run_shell_command("echo 'address already in use'")
+    assert "port is already in use" in result.lower()
+
+
+@pytest.mark.asyncio
+async def test_run_shell_command_suggestion_eaddrinuse():
+    result = await run_shell_command("echo 'EADDRINUSE'")
+    assert "port is already in use" in result.lower()
+
+
+@pytest.mark.asyncio
+async def test_run_shell_command_suggestion_command_not_found():
+    result = await run_shell_command("echo 'command not found'")
+    assert "Command not found" in result
+
+
+@pytest.mark.asyncio
+async def test_run_shell_command_suggestion_module_not_found():
+    result = await run_shell_command("echo 'No module named foo'")
+    assert "Python module not found" in result
+
+
+@pytest.mark.asyncio
+async def test_run_shell_command_suggestion_connection_refused():
+    result = await run_shell_command("echo 'connection refused'")
+    assert "Connection refused" in result

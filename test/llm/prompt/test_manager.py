@@ -130,11 +130,17 @@ def test_prompt_manager_all_property_getters_and_setters():
     manager.include_system_context = False
     assert manager.include_system_context is False
 
-    # include_journal
+    # include_journal (legacy alias for include_journal_mandate)
     manager.include_journal = True
     assert manager.include_journal is True
     manager.include_journal = False
     assert manager.include_journal is False
+
+    # include_journal_mandate (the specific toggle)
+    manager.include_journal_mandate = True
+    assert manager.include_journal_mandate is True
+    manager.include_journal_mandate = False
+    assert manager.include_journal_mandate is False
 
     # include_claude_skills
     manager.include_claude_skills = True
@@ -169,6 +175,37 @@ def test_prompt_manager_render_true_with_string_prompt():
     ctx = SharedContext()
     composed = manager.compose_prompt()(ctx)
     assert "Hello world" in composed
+
+
+def test_include_journal_mandate_param():
+    """include_journal_mandate is the canonical toggle; include_journal is its alias."""
+    ctx = SharedContext()
+
+    # include_journal_mandate=False disables the journal section
+    manager = PromptManager(
+        include_persona=False,
+        include_mandate=False,
+        include_system_context=False,
+        include_journal_mandate=False,
+        include_claude_skills=False,
+        include_cli_skills=False,
+        include_project_context=False,
+    )
+    assert manager.include_journal_mandate is False
+    assert manager.include_journal is False  # alias reflects the same value
+
+    # include_journal=False also sets include_journal_mandate
+    manager2 = PromptManager(
+        include_persona=False,
+        include_mandate=False,
+        include_system_context=False,
+        include_journal=False,
+        include_claude_skills=False,
+        include_cli_skills=False,
+        include_project_context=False,
+    )
+    assert manager2.include_journal_mandate is False
+    assert manager2.include_journal is False
 
 
 def test_new_prompt_with_render_true():

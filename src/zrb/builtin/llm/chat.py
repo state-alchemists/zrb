@@ -156,16 +156,17 @@ llm_chat.add_tool_guidance_factory(
     lambda ctx: ToolGuidance(
         group_name="Delegation",
         tool_name="DelegateToAgent",
-        when_to_use="Sub-tasks requiring own research, heavy output, or independent verification — to keep them out of main context",
-        key_rule="Do it yourself for single lookups, one-file edits, quick commands, or when context is already loaded. "
-        "Always give the sub-agent full context — it cannot see your conversation history.",
+        when_to_use="A sub-task needs isolated context, produces heavy output, or requires independent verification. "
+        "Do it yourself for single lookups, one-file edits, quick commands, or when the needed context is already loaded. "
+        "Use DelegateToAgentsParallel instead when two or more such sub-tasks are independent of each other.",
+        key_rule="Always give the sub-agent full context — it cannot see your conversation history.",
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",
         tool_name="DelegateToAgentsParallel",
-        when_to_use="Multiple independent sub-tasks that can run simultaneously",
-        key_rule="Sub-tasks must share no state. "
-        "Each sub-agent needs full context — include it explicitly; they cannot see your conversation history.",
+        when_to_use="Two or more independent sub-tasks that do not depend on each other's output. "
+        "Prefer this over sequential DelegateToAgent calls whenever tasks can run concurrently.",
+        key_rule="Sub-tasks must share no state and must each receive full context — they cannot see your conversation history.",
     ),
 )
 
