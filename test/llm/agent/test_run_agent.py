@@ -12,19 +12,21 @@ from zrb.llm.hook.types import HookEvent
 
 
 @pytest.mark.asyncio
-async def test_run_agent_invokes_history_processors_exactly_once():
-    """Processors registered via create_agent must fire exactly once per
-    run_agent call — not zero (forgotten), not twice (double-execution)."""
+async def test_run_agent_runs_history_processors_before_pruning():
+    """run_agent runs processors in order before fit_context_window, so
+    summarization compresses the history before any hard pruning can cut it.
+    (pydantic-ai re-runs them per-request inside run_stream_events; that's a
+    separate, idempotent pass.)"""
     from zrb.llm.agent.common import create_agent
 
-    call_counts = {"p1": 0, "p2": 0}
+    calls = []
 
     async def p1(msgs):
-        call_counts["p1"] += 1
+        calls.append("p1")
         return msgs
 
     async def p2(msgs):
-        call_counts["p2"] += 1
+        calls.append("p2")
         return msgs
 
     agent = create_agent(
@@ -47,7 +49,8 @@ async def test_run_agent_invokes_history_processors_exactly_once():
         agent=agent, message="Hi", message_history=[], limiter=LLMLimiter()
     )
     assert result == "AI result"
-    assert call_counts == {"p1": 1, "p2": 1}
+    # Order is preserved; both processors were invoked in zrb's pre-prune pass.
+    assert calls == ["p1", "p2"]
 
 
 @pytest.mark.asyncio

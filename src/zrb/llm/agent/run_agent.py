@@ -379,7 +379,7 @@ async def run_agent(
         prompt_content = _get_prompt_content(effective_message, attachments, print_fn)
 
         # 1. Prune & Throttle
-        zrb_history_processors = getattr(agent, "_zrb_history_processors", None) or []
+        history_processors = list(getattr(agent, "history_processors", None) or [])
 
         # Hook: PreCompact - invoked before history processing/summarization
         await effective_hook_manager.execute_hooks(
@@ -388,13 +388,17 @@ async def run_agent(
                 "history": message_history,
                 "token_count": limiter.count_tokens(message_history),
                 "message_count": len(message_history),
-                "has_history_processors": bool(zrb_history_processors),
+                "has_history_processors": bool(history_processors),
             },
         )
 
-        # Process history first (e.g. summarization)
+        # Run processors once here (before pruning) so summarization runs
+        # on raw history and compresses before fit_context_window would hard-cut.
+        # pydantic-ai re-runs them per-request inside run_stream_events —
+        # that's fine: idempotent summarizers early-return when under threshold,
+        # and PII/sanitization processors must run on every outbound request.
         processed_history = message_history
-        for processor in zrb_history_processors:
+        for processor in history_processors:
             processed_history = await processor(processed_history)
 
         # Safety Check: Ensure alternating roles in history

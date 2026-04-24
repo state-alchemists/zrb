@@ -185,16 +185,12 @@ def create_agent(
     if model is None:
         model = default_llm_config.model
 
-    # Not passed to Agent: pydantic-ai would then run them on every model
-    # request inside run_stream_events, but zrb runs them once per turn
-    # before fit_context_window pruning to preserve summarize-then-prune order.
-    final_agent = Agent(
+    return Agent(
         model=model,
         output_type=final_output_type,
         instructions=effective_system_prompt,
         toolsets=effective_toolsets,
         model_settings=model_settings,
+        history_processors=history_processors,
         retries=retries,
     )
-    final_agent._zrb_history_processors = list(history_processors or [])
-    return final_agent
