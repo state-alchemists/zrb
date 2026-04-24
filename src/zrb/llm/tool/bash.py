@@ -14,7 +14,7 @@ from zrb.util.truncate import truncate_output
 async def run_shell_command(
     command: str,
     cwd: str = "",
-    timeout: int = 30,
+    timeout: int = 120,
     preserved_head_lines: int = 500,
     preserved_tail_lines: int = 500,
     max_chars: int | None = None,
@@ -22,8 +22,9 @@ async def run_shell_command(
     """
     Executes a non-interactive shell command. Streams stdout/stderr live and returns truncated output.
 
-    Default `timeout` is 30 seconds; timed-out processes may continue in the background.
-    Use `cwd` to set the working directory.
+    Default `timeout` is 120 seconds; timed-out processes may continue in the background.
+    Use `cwd` instead of `cd <dir> && ...` to set the working directory without shell state side-effects.
+    Prefer non-interactive flags (`-y`, `--yes`, `CI=true`) to avoid hangs.
     """
     if max_chars is None:
         max_chars = CFG.LLM_MAX_OUTPUT_CHARS
@@ -231,8 +232,32 @@ def _format_output(
     elif "permission denied" in combined_output:
         suggestion = (
             "[SYSTEM SUGGESTION]: Permission denied. "
-            "Consider if this command requires user usage of 'sudo' "
-            "(if available) or check file permissions."
+            "Consider if this command requires 'sudo' (if available) or check file permissions."
+        )
+    elif "address already in use" in combined_output or "eaddrinuse" in combined_output:
+        suggestion = (
+            "[SYSTEM SUGGESTION]: A port is already in use. "
+            "Find the holder with 'lsof -i :<port>' or 'ss -tlnp | grep <port>' "
+            "before killing or choosing a different port."
+        )
+    elif "command not found" in combined_output:
+        suggestion = (
+            "[SYSTEM SUGGESTION]: Command not found. "
+            "Check that the tool is installed and on PATH. "
+            "If using a virtualenv or nvm/pyenv, verify it is activated."
+        )
+    elif (
+        "no module named" in combined_output or "modulenotfounderror" in combined_output
+    ):
+        suggestion = (
+            "[SYSTEM SUGGESTION]: Python module not found. "
+            "Verify the virtualenv is activated and run 'pip install <package>' if missing."
+        )
+    elif "econnrefused" in combined_output or "connection refused" in combined_output:
+        suggestion = (
+            "[SYSTEM SUGGESTION]: Connection refused. "
+            "The target service may not be running. "
+            "Check with 'ps aux | grep <service>' or 'docker ps' before retrying."
         )
     output_parts = [
         f"Command: {command}",

@@ -1625,6 +1625,32 @@ class Config:
         os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_JOURNAL"] = "on" if value else "off"
 
     @property
+    def LLM_INCLUDE_JOURNAL_MANDATE(self) -> bool:
+        explicit = os.environ.get(f"{self.ENV_PREFIX}_LLM_INCLUDE_JOURNAL_MANDATE")
+        if explicit is not None:
+            return to_boolean(explicit)
+        return self.LLM_INCLUDE_JOURNAL
+
+    @LLM_INCLUDE_JOURNAL_MANDATE.setter
+    def LLM_INCLUDE_JOURNAL_MANDATE(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_JOURNAL_MANDATE"] = (
+            "on" if value else "off"
+        )
+
+    @property
+    def LLM_INCLUDE_JOURNAL_REMINDER(self) -> bool:
+        explicit = os.environ.get(f"{self.ENV_PREFIX}_LLM_INCLUDE_JOURNAL_REMINDER")
+        if explicit is not None:
+            return to_boolean(explicit)
+        return self.LLM_INCLUDE_JOURNAL
+
+    @LLM_INCLUDE_JOURNAL_REMINDER.setter
+    def LLM_INCLUDE_JOURNAL_REMINDER(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_JOURNAL_REMINDER"] = (
+            "on" if value else "off"
+        )
+
+    @property
     def LLM_INCLUDE_CLAUDE_SKILLS(self) -> bool:
         return to_boolean(
             get_env(
