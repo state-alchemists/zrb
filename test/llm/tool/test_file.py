@@ -349,6 +349,33 @@ def test_replace_in_file_near_match(tmp_path):
     assert "Similar lines found" in result
 
 
+def test_replace_in_file_fuzzy_trailing_whitespace(tmp_path):
+    """Fuzzy match should succeed when file lines have trailing whitespace."""
+    file_path = tmp_path / "test.txt"
+    file_path.write_text("hello world   \ngoodbye world   \n")
+
+    # old_text has no trailing whitespace, file has trailing spaces
+    result = replace_in_file(str(file_path), "hello world\ngoodbye world", "hi there")
+    assert "Successfully updated" in result
+    assert "fuzzy match" in result.lower()
+    assert "hi there" in file_path.read_text()
+
+
+def test_replace_in_file_fuzzy_indentation_flexible(tmp_path):
+    """Fuzzy match should succeed when indentation differs by a common prefix."""
+    file_path = tmp_path / "test.py"
+    file_path.write_text("    def foo():\n        pass\n")
+
+    # old_text uses a different but consistent indentation level
+    result = replace_in_file(
+        str(file_path), "def foo():\n    pass", "def bar():\n    return 1"
+    )
+    assert "Successfully updated" in result
+    assert "fuzzy match" in result.lower()
+    content = file_path.read_text()
+    assert "bar" in content
+
+
 def test_replace_in_file_multiple_matches(tmp_path):
     file_path = tmp_path / "test.txt"
     file_path.write_text("foo bar foo baz")

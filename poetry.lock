@@ -4281,14 +4281,14 @@ timezone = ["tzdata ; python_version >= \"3.9\" and platform_system == \"Windows
 
 [[package]]
 name = "pydantic-ai-slim"
-version = "1.85.1"
+version = "1.86.1"
 description = "Agent Framework / shim to use Pydantic with LLMs, slim package"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "pydantic_ai_slim-1.85.1-py3-none-any.whl", hash = "sha256:4a22e1b532e9f8c8afa118ea2cbef2ea541e2f6d7247112fefc0a2bd6b929331"},
-    {file = "pydantic_ai_slim-1.85.1.tar.gz", hash = "sha256:7394748844cbd28519add1e8aa24b665ffd7516da3579daaaf3de9e1787250a3"},
+    {file = "pydantic_ai_slim-1.86.1-py3-none-any.whl", hash = "sha256:1e9d3b61b351dd5222a6050596f80b22c064cf40bf7c89845f66578df57648e7"},
+    {file = "pydantic_ai_slim-1.86.1.tar.gz", hash = "sha256:3d502df00581bdd8b26ac5d6c6c220c426e7e7c256fee0d921c3e80897a08ee5"},
 ]
 
 [package.dependencies]
@@ -4297,7 +4297,7 @@ griffelib = ">=2.0"
 httpx = ">=0.27"
 opentelemetry-api = ">=1.28.0"
 pydantic = ">=2.12"
-pydantic-graph = "1.85.1"
+pydantic-graph = "1.86.1"
 typing-inspection = ">=0.4.0"
 
 [package.extras]
@@ -4309,7 +4309,7 @@ cli = ["argcomplete (>=3.5.0)", "prompt-toolkit (>=3)", "pyperclip (>=1.9.0)", "
 cohere = ["cohere (>=5.20.6) ; platform_system != \"Emscripten\""]
 dbos = ["dbos (>=2.10.0)"]
 duckduckgo = ["ddgs (>=9.0.0)"]
-evals = ["pydantic-evals (==1.85.1)"]
+evals = ["pydantic-evals (==1.86.1)"]
 exa = ["exa-py (>=2.0.0)"]
 fastmcp = ["fastmcp (>=3.2.4)"]
 google = ["google-genai (>=1.66.0)"]
@@ -4474,14 +4474,14 @@ typing-extensions = ">=4.14.1"
 
 [[package]]
 name = "pydantic-graph"
-version = "1.85.1"
+version = "1.86.1"
 description = "Graph and state machine library"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "pydantic_graph-1.85.1-py3-none-any.whl", hash = "sha256:515bee899bbfbf00911e32db941c69f2a72bc8fff56ea03a99fa10cd0fa5c436"},
-    {file = "pydantic_graph-1.85.1.tar.gz", hash = "sha256:4cfd3feb2ce7d6f5f604034e432697567551458d3c29d755221d9288336cfdfd"},
+    {file = "pydantic_graph-1.86.1-py3-none-any.whl", hash = "sha256:fbd41ade2dcf53409ab2ae9d55dd6ebb0f3ac26ccfa10a2c211c7473f57707cd"},
+    {file = "pydantic_graph-1.86.1.tar.gz", hash = "sha256:d3c45bc0b782f526cc995f9826e9665888e26ab15ea783a82826a09ca9f5f930"},
 ]
 
 [package.dependencies]
@@ -6764,4 +6764,4 @@ xai = ["aiohttp", "xai-sdk"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11.0,<3.15.0"
-content-hash = "bf0eb12c6b5639f82ac0b99a7cb551d5bd4a31857c7dc6853899c7a5a3dfe53b"
+content-hash = "927e509e8d7f573d487d2af4ea9a13ce2288386ebda863ddec144e5a210067df"
