@@ -146,11 +146,7 @@ class LLMConfig:
         if self.api_key or self.base_url:
             from pydantic_ai.providers.openai import OpenAIProvider
 
-            kwargs: dict = {"api_key": self.api_key, "base_url": self.base_url}
-            http_client = self._build_http_client()
-            if http_client is not None:
-                kwargs["http_client"] = http_client
-            return OpenAIProvider(**kwargs)
+            return OpenAIProvider(api_key=self.api_key, base_url=self.base_url)
 
         return "openai"
 
@@ -159,16 +155,6 @@ class LLMConfig:
         self._provider = value
 
     # --- Internal Logic ---
-
-    def _build_http_client(self):
-        """Return a retrying httpx client when enabled, else None."""
-        from zrb.config.config import CFG
-        from zrb.llm.config.http_client import create_retrying_http_client
-
-        return create_retrying_http_client(
-            max_attempts=CFG.LLM_HTTP_MAX_ATTEMPTS,
-            max_wait=CFG.LLM_HTTP_MAX_WAIT,
-        )
 
     def _resolve_model_by_name(self, model_name: str) -> "str | Model":
         provider_name = "openai"

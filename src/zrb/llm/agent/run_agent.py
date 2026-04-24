@@ -81,6 +81,37 @@ def _is_invalid_tool_call_error(e: Exception) -> bool:
     return any(keyword in err_str for keyword in tool_keywords)
 
 
+def _is_retryable_error(e: Exception) -> bool:
+    """Returns True for transient provider errors (429, 5xx) worth retrying."""
+    status_code = getattr(e, "status_code", None)
+    if status_code is not None:
+        return status_code == 429 or status_code >= 500
+    response = getattr(e, "response", None)
+    if response is not None:
+        code = getattr(response, "status_code", None)
+        if code is not None:
+            return code == 429 or code >= 500
+    msg = str(e).lower()
+    return any(
+        k in msg
+        for k in ("rate limit", "rate_limit", "529", "503", "502", "overloaded")
+    )
+
+
+def _get_retry_wait(e: Exception, attempt: int, max_wait: float) -> float:
+    """Exponential backoff, honoring Retry-After header when present."""
+    response = getattr(e, "response", None)
+    if response is not None:
+        headers = getattr(response, "headers", {})
+        retry_after = headers.get("retry-after") or headers.get("Retry-After")
+        if retry_after is not None:
+            try:
+                return min(float(retry_after), max_wait)
+            except ValueError:
+                pass
+    return min(2**attempt, max_wait)
+
+
 def _drop_oldest_turn(history: list[Any]) -> list[Any]:
     """Removes the oldest conversation turn from history."""
     if not history:
@@ -463,6 +494,8 @@ async def run_agent(
         _context_retry_count = 0
         _MAX_CONTEXT_RETRIES = CFG.LLM_MAX_CONTEXT_RETRIES
         _invalid_tool_retry_done = False
+        _transient_retry_count = 0
+        _MAX_TRANSIENT_RETRIES = CFG.LLM_API_MAX_RETRIES - 1
         try:
             while True:
                 # Filter out nil content before sending to API
@@ -497,6 +530,23 @@ async def run_agent(
                         await stream.aclose()
 
                 if stream_error is not None:
+                    if (
+                        _is_retryable_error(stream_error)
+                        and _transient_retry_count < _MAX_TRANSIENT_RETRIES
+                    ):
+                        _transient_retry_count += 1
+                        wait_secs = _get_retry_wait(
+                            stream_error, _transient_retry_count, CFG.LLM_API_MAX_WAIT
+                        )
+                        print_fn(
+                            f"\n[SYSTEM] Transient provider error, retrying in {wait_secs:.0f}s"
+                            f" (attempt {_transient_retry_count}/{_MAX_TRANSIENT_RETRIES})..."
+                        )
+                        CFG.LOGGER.debug(
+                            f"Retryable error (attempt {_transient_retry_count}): {stream_error}"
+                        )
+                        await asyncio.sleep(wait_secs)
+                        continue
                     if (
                         _is_prompt_too_long_error(stream_error)
                         and _context_retry_count < _MAX_CONTEXT_RETRIES
