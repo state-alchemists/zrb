@@ -414,7 +414,7 @@ async def run_agent(
         current_tokens = limiter.count_tokens(processed_history)
         if current_tokens > effective_limit:
             print_fn(
-                f"\n[System] History too large ({current_tokens} tokens) after summarization. Force pruning..."
+                f"\n[SYSTEM] History too large ({current_tokens} tokens) after summarization. Force pruning..."
             )
             # Keep only the last message (User prompt) if possible, or clear all if even that is too big
             # Ideally we keep system prompt + last user message
@@ -505,7 +505,7 @@ async def run_agent(
                         # Drop one conversation turn from history and retry
                         current_history = _drop_oldest_turn(current_history)
                         print_fn(
-                            f"\n[System] Context too long, retrying with reduced history"
+                            f"\n[SYSTEM] Context too long, retrying with reduced history"
                             f" (attempt {_context_retry_count}/{_MAX_CONTEXT_RETRIES})..."
                         )
                         CFG.LOGGER.debug(
@@ -523,7 +523,7 @@ async def run_agent(
                             "available to you — do not combine, modify, or invent tool names."
                         )
                         print_fn(
-                            "\n[System] Invalid tool call detected, asking model to retry..."
+                            "\n[SYSTEM] Invalid tool call detected, asking model to retry..."
                         )
                         CFG.LOGGER.debug(
                             f"Invalid tool call error: {stream_error}. Injecting corrective message."
@@ -616,7 +616,7 @@ async def run_agent(
                     _original_output = result_output
                     _original_history = run_history
                     # Convert systemMessage to user prompt for next iteration
-                    effective_print_fn(f"\n[System] {session_end_message}\n")
+                    effective_print_fn(f"\n[SYSTEM] {session_end_message}\n")
                     # Continue the session with the system message as user prompt
                     current_message = session_end_message
                     current_history = run_history

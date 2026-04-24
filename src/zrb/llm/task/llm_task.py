@@ -494,7 +494,7 @@ class LLMTask(BaseTask):
                 # IMPORTANT: Preserve attachments on retry - they may still be needed
                 ctx.log_info("Initial message found in history, sending retry notice.")
                 return (
-                    f"[System] This is retry attempt {ctx.attempt}. "
+                    f"[SYSTEM] This is retry attempt {ctx.attempt}. "
                     "The previous attempt failed. Please review the history and continue.",
                     user_attachments,  # Preserve attachments on retry
                 )
@@ -566,7 +566,7 @@ class LLMTask(BaseTask):
                     new_history.append(ModelRequest(parts=tool_returns))
 
         # 2. Append general error information
-        error_msg = f"[System] Error occurred: {str(error)}"
+        error_msg = f"[SYSTEM] Error occurred: {str(error)}"
         new_history.append(ModelRequest(parts=[UserPromptPart(content=error_msg)]))
         history_manager.update(conversation_name, new_history)
         history_manager.save(conversation_name)
