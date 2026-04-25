@@ -14,7 +14,7 @@ source .venv/bin/activate && poetry lock && poetry install
 | Directory | Purpose |
 |-----------|---------|
 | `src/zrb/builtin/` | Pre-packaged user-executable tasks (`zrb <group> <task>`) |
-| `src/zrb/config/` | Global settings via `CFG` singleton (env vars, API keys, defaults) |
+| `src/zrb/config/` | Global settings via `CFG` singleton — class composed of mixins under `_mixins/` (foundation, web, llm_core, llm_ui, llm_limits, llm_content, llm_prompt, llm_search, rag, internet_search, hooks, task_runtime). `CFG.FOO` access stays flat. |
 | `src/zrb/task/` | Task engine: `BaseTask`, `Task`, `CmdTask`, `LLMTask`, `Scheduler`, etc. |
 | `src/zrb/runner/` | CLI (`Cli` class) and Web UI (`FastAPI` app) entry points |
 | `src/zrb/group/` | CLI command group definitions (hierarchical task organization) |
@@ -44,15 +44,15 @@ source .venv/bin/activate && poetry lock && poetry install
 | `llm/config/` | `LLMConfig` (model selection, rate limiting) and `LLMLimiter` (token budgets) |
 | `llm/custom_command/` | Custom CLI command integration for LLM tasks |
 | `llm/history_manager/` | `FileHistoryManager` – persist and load conversation history |
-| `llm/hook/` | `HookManager`, `HookContext` – Claude Code–compatible lifecycle hooks |
+| `llm/hook/` | `HookManager`, `HookContext` – Claude Code–compatible lifecycle hooks. Split: `manager.py` (registration + execution + executor factories), `_loader_mixin.py` (filesystem & format parsing), `matcher.py` (matcher operators + `evaluate_matchers`). |
 | `llm/lsp/` | Language Server Protocol support for LLM tools |
 | `llm/prompt/` | System prompts, mandates, context journal; `PromptManager` composes sections; configurable tool guidance via `add_tool_guidance()` |
 | `llm/skill/` | `SkillManager` – reusable agent capabilities, dynamic activation |
 | `llm/summarizer/` | Context compression and history summarization for long conversations |
-| `llm/task/` | `LLMTask` – pydantic-ai–based task with tools, skills, hooks, history |
+| `llm/task/` | `LLMTask`, `LLMChatTask` – pydantic-ai–based tasks. `LLMChatTask` is split into `llm_chat_task.py` (init + `_exec_action` + `_create_llm_task_core`), `_chat_builder_mixin.py` (`add_*`/`set_*`/`append_*` API), `_chat_runner_mixin.py` (`_run_interactive_session` / `_run_non_interactive_session`). |
 | `llm/tool/` | Agent-callable tools: `bash`, `file`, `code`, `web`, `rag`, `delegate`, `plan`, `mcp`, `skill`, `worktree`, `zrb_task`, `search/` |
 | `llm/tool_call/` | Tool call data structures and result handling |
-| `llm/ui/` | `UIProtocol` and terminal UI for streaming responses and tool approval |
+| `llm/ui/` | `UIProtocol` and terminal UI for streaming responses and tool approval. `BaseUI` is split into `base_ui.py` (lifecycle, AI streaming, tool confirmation) and `_commands_mixin.py` (slash-command handlers + `_run_shell_command` + `_stream_btw_response` + `_get_help_text`). |
 | `llm/util/` | Internal LLM utilities |
 
 ### Test Locations
@@ -82,11 +82,27 @@ source .venv/bin/activate && poetry lock && poetry install
 
 The system context middleware runs once per prompt build and does three things beyond environment facts:
 
-1. **Session wiring** — reads `ctx.input.session` and calls `set_current_session()` (`src/zrb/llm/tool/plan.py`). This sets a `ContextVar` that all four todo tools (`WriteTodos`, `GetTodos`, `UpdateTodo`, `ClearTodos`) read when called without an explicit `session=` argument, ensuring they always operate on the correct conversation session.
+1. **Session wiring** — reads `ctx.input.session` and calls `set_current_tool_session()` (`src/zrb/llm/tool/ambient_state.py`). This sets a `ContextVar` that all four todo tools (`WriteTodos`, `GetTodos`, `UpdateTodo`, `ClearTodos`) read when called without an explicit `session=` argument, ensuring they always operate on the correct conversation session.
 
-2. **Active worktree** — if `EnterWorktree` was called, its path is shown as `- Active worktree: <path>` in every subsequent system prompt, reminding the LLM to pass it as `cwd` to `Bash`. Cleared automatically when `ExitWorktree` is called.
+2. **Active worktree** — if `EnterWorktree` was called, its path is shown as `- Active worktree: <path>` in every subsequent system prompt, reminding the LLM to pass it as `cwd` to `Bash`. Cleared automatically when `ExitWorktree` is called. Read via `get_active_worktree()` from `src/zrb/llm/tool/ambient_state.py`.
 
 3. **Pending todos** — if the current session has `pending` or `in_progress` todos, they are rendered into the system context so the LLM sees them at the start of every turn without needing to call `GetTodos` first. Completed and cancelled items are omitted.
+
+### Ambient State (`ContextVar`s)
+
+Zrb propagates seven ambient-state values via `contextvars.ContextVar`. The full list — with their typed wrappers — is re-exported from `src/zrb/contextvars.py` (the discoverability index). The vars themselves stay in their owning module:
+
+| Var | Owner | Wrapper |
+|-----|-------|---------|
+| `current_ctx` | `src/zrb/context/any_context.py` | `get_current_ctx()` |
+| `current_ui` | `src/zrb/llm/agent/run_agent.py` | `get_current_ui()` from `src/zrb/llm/agent/runtime_state.py` |
+| `current_tool_confirmation` | `src/zrb/llm/agent/run_agent.py` | `get_current_tool_confirmation()` |
+| `current_yolo` | `src/zrb/llm/agent/run_agent.py` | `get_current_yolo()` |
+| `current_approval_channel` | `src/zrb/llm/approval/approval_channel.py` | `get_current_approval_channel()` |
+| `active_worktree` | `src/zrb/llm/tool/worktree.py` | `get_active_worktree()` / `set_active_worktree()` from `src/zrb/llm/tool/ambient_state.py` |
+| `_current_session` | `src/zrb/llm/tool/plan.py` | `get_current_tool_session()` / `set_current_tool_session()` |
+
+When you only need to **read** ambient state, prefer the wrapper. When you need to scope a value for the duration of a block (`token = var.set(...)` then `var.reset(token)`), use the underlying `ContextVar` directly — see `run_agent.py` for the canonical pattern.
 
 ### Worktree Storage
 
