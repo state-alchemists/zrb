@@ -33,6 +33,7 @@ from zrb.util.string.name import get_random_name
 if TYPE_CHECKING:
     from pydantic_ai import Tool, UserContent
     from pydantic_ai._agent_graph import HistoryProcessor
+    from pydantic_ai.capabilities import AbstractCapability
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.tools import ToolFuncEither
@@ -76,6 +77,7 @@ class LLMTask(BaseTask):
             | None
         ) = None,  # noqa
         history_processors: list[HistoryProcessor] | None = None,
+        capabilities: "list[AbstractCapability[Any]] | None" = None,
         llm_config: LLMConfig | None = None,
         llm_limitter: LLMLimiter | None = None,
         model: (
@@ -174,6 +176,7 @@ class LLMTask(BaseTask):
         self._history_processors = (
             history_processors if history_processors is not None else []
         )
+        self._capabilities = capabilities if capabilities is not None else []
         self._model = model
         self._render_model = render_model
         self._model_settings = model_settings
@@ -448,6 +451,7 @@ class LLMTask(BaseTask):
             toolsets=resolved_toolsets,
             model_settings=self._get_model_settings(ctx),
             history_processors=self._history_processors,
+            capabilities=self._capabilities,
             yolo=yolo,
         )
 
@@ -494,7 +498,7 @@ class LLMTask(BaseTask):
                 # IMPORTANT: Preserve attachments on retry - they may still be needed
                 ctx.log_info("Initial message found in history, sending retry notice.")
                 return (
-                    f"[System] This is retry attempt {ctx.attempt}. "
+                    f"[SYSTEM] This is retry attempt {ctx.attempt}. "
                     "The previous attempt failed. Please review the history and continue.",
                     user_attachments,  # Preserve attachments on retry
                 )
@@ -566,7 +570,7 @@ class LLMTask(BaseTask):
                     new_history.append(ModelRequest(parts=tool_returns))
 
         # 2. Append general error information
-        error_msg = f"[System] Error occurred: {str(error)}"
+        error_msg = f"[SYSTEM] Error occurred: {str(error)}"
         new_history.append(ModelRequest(parts=[UserPromptPart(content=error_msg)]))
         history_manager.update(conversation_name, new_history)
         history_manager.save(conversation_name)

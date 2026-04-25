@@ -200,6 +200,8 @@ class Config:
         self.DEFAULT_LLM_MAX_CONTEXT_RETRIES: str = "5"
         self.DEFAULT_LLM_TOOL_MAX_RETRIES: str = "3"
         self.DEFAULT_LLM_MCP_MAX_RETRIES: str = "3"
+        self.DEFAULT_LLM_API_MAX_RETRIES: str = "3"
+        self.DEFAULT_LLM_API_MAX_WAIT: str = "60"
         # =========================================================================
         # Pagination Configuration
         # =========================================================================
@@ -2381,6 +2383,36 @@ class Config:
     @LLM_MCP_MAX_RETRIES.setter
     def LLM_MCP_MAX_RETRIES(self, value: int):
         os.environ[f"{self.ENV_PREFIX}_LLM_MCP_MAX_RETRIES"] = str(value)
+
+    @property
+    def LLM_API_MAX_RETRIES(self) -> int:
+        """Max retries for transient provider errors (429, 5xx). 0 or 1 disables retrying."""
+        return int(
+            get_env(
+                "LLM_API_MAX_RETRIES",
+                self.DEFAULT_LLM_API_MAX_RETRIES,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_API_MAX_RETRIES.setter
+    def LLM_API_MAX_RETRIES(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_API_MAX_RETRIES"] = str(value)
+
+    @property
+    def LLM_API_MAX_WAIT(self) -> int:
+        """Maximum seconds to wait between retries (honors Retry-After header)."""
+        return int(
+            get_env(
+                "LLM_API_MAX_WAIT",
+                self.DEFAULT_LLM_API_MAX_WAIT,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_API_MAX_WAIT.setter
+    def LLM_API_MAX_WAIT(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_API_MAX_WAIT"] = str(value)
 
     # =========================================================================
     # Pagination Configuration Properties

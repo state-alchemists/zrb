@@ -1,10 +1,9 @@
 """
 Tool wrapper utilities for consistent LLM tool behavior.
 
-All LLM tools should:
-- Return strings (never raise exceptions to the LLM layer)
-- Format errors as "Error: <what went wrong>. [SYSTEM SUGGESTION]: <how to fix>"
-- Be synchronous (sync) when registered with pydantic-ai (async is handled by the agent)
+Tools registered via create_agent() are already wrapped by _create_safe_wrapper
+in zrb.llm.agent.common. Use tool_safe_async only when you want a custom
+error_hint appended to the error message.
 """
 
 import functools
@@ -12,49 +11,6 @@ from typing import Any, Callable, ParamSpec, TypeVar
 
 P = ParamSpec("P")
 T = TypeVar("T")
-
-
-def tool_safe(
-    func: Callable[P, T] | None = None,
-    *,
-    error_hint: str | Callable[..., str] | None = None,
-) -> Callable[[Callable[P, T]], Callable[P, str]] | Callable[P, T]:
-    """
-    Decorator that wraps a tool function so all exceptions become
-    error strings the LLM can understand and act on.
-
-    Usage:
-        @tool_safe
-        def my_tool(path: str) -> str:
-            ...
-
-        @tool_safe(error_hint="Use Glob to find files first.")
-        def read_file(path: str) -> str:
-            ...
-
-    Args:
-        func: The function to wrap.
-        error_hint: A string or callable returning a hint for recovery.
-                    If callable, it receives the same args as the wrapped function.
-    """
-
-    def decorator(fn: Callable[P, T]) -> Callable[P, str]:
-        @functools.wraps(fn)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> str:
-            try:
-                result = fn(*args, **kwargs)
-                # If the tool already returns a string (presumably error already formatted),
-                # pass it through. This lets tools do their own error formatting.
-                return result
-            except Exception as e:  # noqa: BLE001
-                hint = _get_hint(error_hint, args, kwargs, e)
-                return _format_error(fn.__name__, args, kwargs, e, hint)
-
-        return wrapper
-
-    if func is not None:
-        return decorator(func)
-    return decorator
 
 
 def _get_hint(
@@ -96,14 +52,7 @@ def tool_safe_async(
     *,
     error_hint: str | Callable[..., str] | None = None,
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
-    """
-    Async version of @tool_safe. Preserves async behavior but
-    wraps the await chain so exceptions become error strings.
-
-    Note: Since this wraps the coroutine, errors during the await
-    (not during the call) will still propagate as exceptions.
-    Use this for tools that do async I/O internally.
-    """
+    """Wrap an async tool so exceptions become an error string for the LLM."""
 
     def decorator(fn: Callable[P, T]) -> Callable[P, T]:
         @functools.wraps(fn)
