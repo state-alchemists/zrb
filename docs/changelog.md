@@ -21,8 +21,21 @@
   - Clarified `DelegateToAgent` guidance: when-to-use now explicitly mentions `DelegateToAgentsParallel` as the preferred choice for independent concurrent sub-tasks.
   - Clarified `DelegateToAgentsParallel` guidance: concurrency preference and full-context requirement stated more precisely.
 
+- **Feature: Transient Provider Error Retry**:
+  - New `_is_retryable_error()` and `_get_retry_wait()` in `run_agent.py` detect transient provider errors (HTTP 429, 5xx) and retry with exponential backoff.
+  - Honors `Retry-After` response header when present, caps wait time at configurable `LLM_API_MAX_WAIT` (default: 60s).
+  - New `LLM_API_MAX_RETRIES` config (default: 3) controls total retry attempts; set to `1` to disable.
+  - Works alongside existing context-length and invalid-tool retry loops — each error type has independent counters.
+  - Documented in `docs/configuration/llm-config.md` under retry configuration.
+
+- **Improvement: System Message Consistency and Tool Cleanup**:
+  - Normalized all system messages from mixed `[System]`/`[SYSTEM]` to consistent `[SYSTEM]` prefix across `run_agent.py` and `llm_task.py`.
+  - Removed unused sync `tool_safe` decorator from `_wrapper.py` (redundant with `_create_safe_wrapper` in `create_agent()`).
+  - Passed `request_limit=None` to `run_stream_events` to override pydantic-ai's default 50-request cap on tool-use loops.
+
 - **Maintenance: Dependency Update**:
   - Updated `pydantic-ai-slim` from `~1.85.0` to `~1.86.1`.
+  - Added `AbstractCapability` support: new `capabilities` parameter threaded through `LLMTask` → `LLMChatTask` → `create_agent()` for pydantic-ai 1.86.x compatibility.
 
 ## 2.22.5 (April 24, 2026)
 
