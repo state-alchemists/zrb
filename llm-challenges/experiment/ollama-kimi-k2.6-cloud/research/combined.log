@@ -1,0 +1,156 @@
+[2m
+  🧠 Let[0m[2m me[0m[2m start[0m[2m by[0m[2m reading[0m[2m the[0m[2m system[0m[2m_context[0m[2m.md[0m[2m file[0m[2m to[0m[2m understand[0m[2m the[0m[2m real[0m[2m production[0m[2m system[0m[2m and[0m[2m its[0m[2m constraints[0m[2m.[0m[2m Then[0m[2m I[0m[2m can[0m[2m write[0m[2m an[0m[2m informed[0m[2m AD[0m[2mR[0m[2m.[0m[2m
+  🧰 functions.Read:0 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 functions.Read:0 | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-kimi-k2.6-cloud/research/workdir/system_context.md | 44 lines]
+     ---CONTENT---
+     # System Context: Notifier Subsystem Decision
+     
+     ## Product Overview
+     
+     We run a SaaS project management platform. Current metrics:
+     - 85,000 monthly active users
+     - ~2M tasks created per month
+     - Peak: ~500 req/s during business hours
+     
+     ## Current Architecture
+     
+     - **Backend**: Python/Flask monolith (~50k lines)
+     - **Database**: PostgreSQL (single primary, one read replica)
+     - **Infrastructure**: 4 web servers behind an nginx load balancer, hosted on AWS
+     - **Cache**: Redis (used for session storage and rate limiting today)
+     - **Notifications**: Handled synchronously inside the HTTP request cycle
+     
+     ## The Problem
+     
+     The notifications module sends emails and webhooks when tasks are updated, assigned, or completed. As usage has grown, this has caused:
+     
+     1. **Request timeouts**: Sending notifications blocks the response. Average latency 800ms, spikes to 8s during peak hours.
+     2. **Silent failures**: If an email provider or webhook endpoint is down, the notification is silently dropped. No retry, no dead-letter queue.
+     3. **Cascading failures**: Two incidents this year where a slow webhook endpoint caused connection pool exhaustion, taking down unrelated features.
+     4. **No delivery guarantees**: Billing-critical notifications (e.g., "trial expired", "payment failed") must be delivered exactly once, but the current system has no such guarantee.
+     
+     ## Scaling Target
+     
+     We need to:
+     - Decouple notifications from the HTTP request cycle (async processing)
+     - Support retry with exponential backoff
+     - Guarantee at-least-once delivery for billing events, exactly-once where feasible
+     - Add real-time WebSocket push notifications within 2 quarters
+     - Handle 10x traffic growth without re-architecting
+     
+     ## Constraints
+     
+     - Engineering team: 6 people (3 senior, 3 mid-level), no dedicated infrastructure engineer
+     - We already run Redis in production (session/rate limiting)
+     - No Kafka experience on the team today
+     - Must not require more than 2 weeks of setup/migration work before delivering value
+     - Budget: modest — cannot afford managed Confluent Cloud at full scale today
+     - Must maintain exactly-once semantics for billing notifications
+     
+[0m[2m
+  🧠 Let[0m[2m me[0m[2m analyze[0m[2m the[0m[2m system[0m[2m context[0m[2m to[0m[2m make[0m[2m an[0m[2m informed[0m[2m AD[0m[2mR[0m[2m recommendation[0m[2m.[0m[2m
+     
+     Constraints[0m[2m and[0m[2m context[0m[2m:[0m[2m
+     -[0m[2m 6[0m[2m-person[0m[2m team[0m[2m,[0m[2m no[0m[2m dedicated[0m[2m infra[0m[2m engineer[0m[2m
+     -[0m[2m Already[0m[2m running[0m[2m Redis[0m[2m in[0m[2m production[0m[2m
+     -[0m[2m No[0m[2m Kafka[0m[2m experience[0m[2m on[0m[2m the[0m[2m team[0m[2m
+     -[0m[2m Must[0m[2m deliver[0m[2m value[0m[2m within[0m[2m 2[0m[2m weeks[0m[2m of[0m[2m setup[0m[2m/m[0m[2migration[0m[2m
+     -[0m[2m Mod[0m[2mest[0m[2m budget[0m[2m —[0m[2m cannot[0m[2m afford[0m[2m managed[0m[2m Con[0m[2mfluent[0m[2m Cloud[0m[2m
+     -[0m[2m Need[0m[2m exactly[0m[2m-on[0m[2mce[0m[2m semantics[0m[2m for[0m[2m billing[0m[2m notifications[0m[2m
+     -[0m[2m Need[0m[2m to[0m[2m handle[0m[2m 10[0m[2mx[0m[2m traffic[0m[2m growth[0m[2m
+     -[0m[2m Need[0m[2m Web[0m[2mSocket[0m[2m push[0m[2m notifications[0m[2m within[0m[2m 2[0m[2m quarters[0m[2m
+     -[0m[2m Python[0m[2m/[0m[2mFl[0m[2mask[0m[2m mon[0m[2molith[0m[2m
+     
+     Now[0m[2m let[0m[2m me[0m[2m think[0m[2m about[0m[2m Kafka[0m[2m vs[0m[2m Redis[0m[2m Streams[0m[2m:[0m[2m
+     
+     **[0m[2mApache[0m[2m Kafka[0m[2m:**[0m[2m
+     -[0m[2m Pros[0m[2m:[0m[2m Excellent[0m[2m throughput[0m[2m,[0m[2m strong[0m[2m ordering[0m[2m guarantees[0m[2m per[0m[2m partition[0m[2m,[0m[2m mature[0m[2m exactly[0m[2m-on[0m[2mce[0m[2m semantics[0m[2m ([0m[2mid[0m[2mempotent[0m[2m producers[0m[2m +[0m[2m transactions[0m[2m),[0m[2m strong[0m[2m consumer[0m[2m groups[0m[2m,[0m[2m long[0m[2m message[0m[2m retention[0m[2m,[0m[2m very[0m[2m scalable[0m[2m for[0m[2m 10[0m[2mx[0m[2m growth[0m[2m
+     -[0m[2m Cons[0m[2m:[0m[2m High[0m[2m operational[0m[2m complexity[0m[2m ([0m[2mZ[0m[2moo[0m[2mKeeper[0m[2m/K[0m[2mRa[0m[2mft[0m[2m,[0m[2m partitioning[0m[2m,[0m[2m re[0m[2mbalancing[0m[2m),[0m[2m significant[0m[2m learning[0m[2m curve[0m[2m,[0m[2m running[0m[2m self[0m[2m-managed[0m[2m Kafka[0m[2m is[0m[2m notoriously[0m[2m difficult[0m[2m without[0m[2m dedicated[0m[2m ops[0m[2m expertise[0m[2m,[0m[2m requires[0m[2m more[0m[2m setup[0m[2m time[0m[2m,[0m[2m memory[0m[2m hungry[0m[2m
+     -[0m[2m Managed[0m[2m option[0m[2m:[0m[2m Con[0m[2mfluent[0m[2m Cloud[0m[2m is[0m[2m explicitly[0m[2m ruled[0m[2m out[0m[2m by[0m[2m budget[0m[2m
+     
+     **[0m[2mRedis[0m[2m Streams[0m[2m:**[0m[2m
+     -[0m[2m Pros[0m[2m:[0m[2m Already[0m[2m running[0m[2m Redis[0m[2m in[0m[2m production[0m[2m,[0m[2m minimal[0m[2m additional[0m[2m operational[0m[2m overhead[0m[2m,[0m[2m low[0m[2m setup[0m[2m time[0m[2m,[0m[2m Redis[0m[2m pub[0m[2m/sub[0m[2m already[0m[2m supports[0m[2m Web[0m[2mSocket[0m[2m patterns[0m[2m ([0m[2mfits[0m[2m 2[0m[2m-quarter[0m[2m goal[0m[2m),[0m[2m consumer[0m[2m groups[0m[2m supported[0m[2m,[0m[2m at[0m[2m-le[0m[2mast[0m[2m-on[0m[2mce[0m[2m delivery[0m[2m is[0m[2m straightforward[0m[2m,[0m[2m sufficient[0m[2m throughput[0m[2m for[0m[2m current[0m[2m and[0m[2m 10[0m[2mx[0m[2m scale[0m[2m ([0m[2m500[0m[2m req[0m[2m/s[0m[2m →[0m[2m 500[0m[2m0[0m[2m req[0m[2m/s[0m[2m is[0m[2m well[0m[2m within[0m[2m Redis[0m[2m Streams[0m[2m capabilities[0m[2m)[0m[2m
+     -[0m[2m Cons[0m[2m:[0m[2m Exactly[0m[2m-on[0m[2mce[0m[2m semantics[0m[2m are[0m[2m harder[0m[2m —[0m[2m require[0m[2m id[0m[2mempotent[0m[2m consumers[0m[2m with[0m[2m ded[0m[2mu[0m[2mplication[0m[2m ([0m[2me[0m[2m.g[0m[2m.,[0m[2m using[0m[2m a[0m[2m Redis[0m[2m set[0m[2m or[0m[2m Postgre[0m[2mSQL[0m[2m table[0m[2m of[0m[2m processed[0m[2m message[0m[2m IDs[0m[2m),[0m[2m message[0m[2m retention[0m[2m is[0m[2m memory[0m[2m-bound[0m[2m ([0m[2mnot[0m[2m disk[0m[2m-bound[0m[2m like[0m[2m Kafka[0m[2m),[0m[2m less[0m[2m mature[0m[2m ecosystem[0m[2m for[0m[2m stream[0m[2m processing[0m[2m,[0m[2m no[0m[2m native[0m[2m transactions[0m[2m across[0m[2m streams[0m[2m like[0m[2m Kafka[0m[2m
+     -[0m[2m Operational[0m[2m:[0m[2m Team[0m[2m already[0m[2m knows[0m[2m Redis[0m[2m,[0m[2m can[0m[2m be[0m[2m running[0m[2m in[0m[2m days[0m[2m not[0m[2m weeks[0m[2m
+     
+     Key[0m[2m question[0m[2m:[0m[2m Can[0m[2m Redis[0m[2m Streams[0m[2m meet[0m[2m the[0m[2m exactly[0m[2m-on[0m[2mce[0m[2m requirement[0m[2m for[0m[2m billing[0m[2m notifications[0m[2m?[0m[2m
+     
+     With[0m[2m Redis[0m[2m Streams[0m[2m,[0m[2m exactly[0m[2m-on[0m[2mce[0m[2m is[0m[2m achievable[0m[2m but[0m[2m requires[0m[2m application[0m[2m-level[0m[2m ded[0m[2mu[0m[2mplication[0m[2m.[0m[2m Given[0m[2m billing[0m[2m notifications[0m[2m are[0m[2m low[0m[2m-volume[0m[2m compared[0m[2m to[0m[2m general[0m[2m notifications[0m[2m,[0m[2m this[0m[2m is[0m[2m tract[0m[2mable[0m[2m.[0m[2m The[0m[2m consumer[0m[2m can[0m[2m:[0m[2m
+     1[0m[2m.[0m[2m Use[0m[2m Redis[0m[2m Streams[0m[2m'[0m[2m consumer[0m[2m groups[0m[2m for[0m[2m at[0m[2m-le[0m[2mast[0m[2m-on[0m[2mce[0m[2m delivery[0m[2m
+     2[0m[2m.[0m[2m On[0m[2m the[0m[2m consumer[0m[2m side[0m[2m,[0m[2m before[0m[2m processing[0m[2m a[0m[2m billing[0m[2m notification[0m[2m,[0m[2m check[0m[2m a[0m[2m Redis[0m[2m SET[0m[2m or[0m[2m Postgre[0m[2mSQL[0m[2m table[0m[2m for[0m[2m the[0m[2m message[0m[2m ID[0m[2m
+     3[0m[2m.[0m[2m Process[0m[2m the[0m[2m notification[0m[2m and[0m[2m record[0m[2m the[0m[2m message[0m[2m ID[0m[2m atom[0m[2mically[0m[2m using[0m[2m Lua[0m[2m or[0m[2m Postgre[0m[2mSQL[0m[2m transaction[0m[2m
+     
+     For[0m[2m general[0m[2m notifications[0m[2m,[0m[2m at[0m[2m-le[0m[2mast[0m[2m-on[0m[2mce[0m[2m is[0m[2m sufficient[0m[2m.[0m[2m
+     
+     Wait[0m[2m,[0m[2m actually[0m[2m I[0m[2m need[0m[2m to[0m[2m think[0m[2m about[0m[2m this[0m[2m more[0m[2m carefully[0m[2m.[0m[2m The[0m[2m AD[0m[2mR[0m[2m needs[0m[2m to[0m[2m make[0m[2m a[0m[2m DEF[0m[2mINIT[0m[2mIVE[0m[2m recommendation[0m[2m.[0m[2m Let[0m[2m me[0m[2m reconsider[0m[2m.[0m[2m
+     
+     Kafka[0m[2m's[0m[2m exactly[0m[2m-on[0m[2mce[0m[2m is[0m[2m native[0m[2m and[0m[2m robust[0m[2m.[0m[2m Redis[0m[2m Streams[0m[2m'[0m[2m exactly[0m[2m-on[0m[2mce[0m[2m requires[0m[2m careful[0m[2m application[0m[2m design[0m[2m.[0m[2m But[0m[2m the[0m[2m team's[0m[2m constraints[0m[2m are[0m[2m severe[0m[2m:[0m[2m
+     -[0m[2m No[0m[2m Kafka[0m[2m experience[0m[2m
+     -[0m[2m No[0m[2m dedicated[0m[2m infrastructure[0m[2m engineer[0m[2m
+     -[0m[2m 2[0m[2m-week[0m[2m deadline[0m[2m
+     -[0m[2m Mod[0m[2mest[0m[2m budget[0m[2m ([0m[2mno[0m[2m managed[0m[2m Kafka[0m[2m)[0m[2m
+     
+     Running[0m[2m self[0m[2m-hosted[0m[2m Kafka[0m[2m with[0m[2m a[0m[2m 6[0m[2m-person[0m[2m team[0m[2m,[0m[2m no[0m[2m ops[0m[2m engineer[0m[2m,[0m[2m and[0m[2m a[0m[2m 2[0m[2m-week[0m[2m deadline[0m[2m is[0m[2m a[0m[2m recipe[0m[2m for[0m[2m disaster[0m[2m.[0m[2m Kafka[0m[2m requires[0m[2m:[0m[2m
+     -[0m[2m Understanding[0m[2m partitioning[0m[2m strategies[0m[2m
+     -[0m[2m Monitoring[0m[2m consumer[0m[2m lag[0m[2m
+     -[0m[2m Handling[0m[2m re[0m[2mbalances[0m[2m
+     -[0m[2m Managing[0m[2m disk[0m[2m space[0m[2m,[0m[2m log[0m[2m compaction[0m[2m
+     -[0m[2m JVM[0m[2m tuning[0m[2m
+     -[0m[2m Broker[0m[2m failure[0m[2m scenarios[0m[2m
+     
+     Redis[0m[2m Streams[0m[2m on[0m[2m the[0m[2m other[0m[2m hand[0m[2m:[0m[2m
+     -[0m[2m Add[0m[2m to[0m[2m existing[0m[2m Redis[0m[2m instance[0m[2m or[0m[2m spin[0m[2m up[0m[2m a[0m[2m dedicated[0m[2m Redis[0m[2m instance[0m[2m
+     -[0m[2m Use[0m[2m existing[0m[2m Redis[0m[2m expertise[0m[2m
+     -[0m[2m Python[0m[2m redis[0m[2m-py[0m[2m has[0m[2m great[0m[2m Streams[0m[2m support[0m[2m
+     -[0m[2m Can[0m[2m handle[0m[2m 500[0m[2m0[0m[2m req[0m[2m/s[0m[2m easily[0m[2m
+     -[0m[2m Memory[0m[2m is[0m[2m the[0m[2m main[0m[2m limit[0m[2m,[0m[2m but[0m[2m with[0m[2m proper[0m[2m trimming[0m[2m ([0m[2mX[0m[2mTR[0m[2mIM[0m[2m)[0m[2m and[0m[2m reasonable[0m[2m retention[0m[2m,[0m[2m this[0m[2m is[0m[2m manageable[0m[2m
+     -[0m[2m For[0m[2m exactly[0m[2m-on[0m[2mce[0m[2m billing[0m[2m:[0m[2m implement[0m[2m id[0m[2mempotent[0m[2m consumers[0m[2m with[0m[2m a[0m[2m Postgre[0m[2mSQL[0m[2m "[0m[2mprocessed[0m[2m_events[0m[2m"[0m[2m table[0m[2m ([0m[2mmessage[0m[2m_id[0m[2m UUID[0m[2m PRIMARY[0m[2m KEY[0m[2m).[0m[2m The[0m[2m consumer[0m[2m does[0m[2m INSERT[0m[2m ...[0m[2m ON[0m[2m CON[0m[2mFLICT[0m[2m DO[0m[2m NOTHING[0m[2m,[0m[2m then[0m[2m processes[0m[2m.[0m[2m This[0m[2m is[0m[2m a[0m[2m well[0m[2m-known[0m[2m pattern[0m[2m.[0m[2m
+     
+     Additionally[0m[2m,[0m[2m the[0m[2m Web[0m[2mSocket[0m[2m requirement[0m[2m in[0m[2m 2[0m[2m quarters[0m[2m:[0m[2m Redis[0m[2m pub[0m[2m/sub[0m[2m or[0m[2m Redis[0m[2m Streams[0m[2m naturally[0m[2m lends[0m[2m itself[0m[2m to[0m[2m real[0m[2m-time[0m[2m push[0m[2m.[0m[2m Kafka[0m[2m would[0m[2m require[0m[2m Kafka[0m[2m Connect[0m[2m or[0m[2m another[0m[2m layer[0m[2m for[0m[2m Web[0m[2mSocket[0m[2m integration[0m[2m.[0m[2m
+     
+     So[0m[2m the[0m[2m recommendation[0m[2m should[0m[2m be[0m[2m **[0m[2mRedis[0m[2m Streams[0m[2m**[0m[2m with[0m[2m the[0m[2m caveat[0m[2m that[0m[2m exactly[0m[2m-on[0m[2mce[0m[2m for[0m[2m billing[0m[2m is[0m[2m achieved[0m[2m through[0m[2m id[0m[2mempotent[0m[2m consumers[0m[2m +[0m[2m Postgre[0m[2mSQL[0m[2m ded[0m[2mu[0m[2mplication[0m[2m,[0m[2m not[0m[2m nat[0m[2mively[0m[2m by[0m[2m Redis[0m[2m.[0m[2m
+     
+     Wait[0m[2m,[0m[2m I[0m[2m should[0m[2m also[0m[2m consider[0m[2m:[0m[2m what[0m[2m if[0m[2m they[0m[2m need[0m[2m to[0m[2m scale[0m[2m beyond[0m[2m what[0m[2m a[0m[2m single[0m[2m Redis[0m[2m instance[0m[2m can[0m[2m handle[0m[2m?[0m[2m Redis[0m[2m Cluster[0m[2m can[0m[2m shard[0m[2m streams[0m[2m.[0m[2m But[0m[2m the[0m[2m point[0m[2m is[0m[2m,[0m[2m for[0m[2m the[0m[2m current[0m[2m trajectory[0m[2m,[0m[2m Redis[0m[2m Streams[0m[2m is[0m[2m the[0m[2m pragmatic[0m[2m choice[0m[2m.[0m[2m
+     
+     Let[0m[2m me[0m[2m write[0m[2m a[0m[2m strong[0m[2m,[0m[2m well[0m[2m-[0m[2mjust[0m[2mified[0m[2m AD[0m[2mR[0m[2m recommending[0m[2m Redis[0m[2m Streams[0m[2m,[0m[2m being[0m[2m honest[0m[2m about[0m[2m the[0m[2m trade[0m[2m-offs[0m[2m.[0m[2m
+     
+     Structure[0m[2m:[0m[2m
+     -[0m[2m Title[0m[2m
+     -[0m[2m Status[0m[2m
+     -[0m[2m Context[0m[2m
+     -[0m[2m Decision[0m[2m
+     -[0m[2m Con[0m[2msequences[0m[2m
+     -[0m[2m Altern[0m[2matives[0m[2m Consider[0m[2med[0m[2m
+     
+     I'll[0m[2m be[0m[2m specific[0m[2m about[0m[2m technical[0m[2m properties[0m[2m.[0m[2m
+  🧰 functions.Write:1 | Write {'path': 'ADR-001-notification-archi ...', 'content': '# ADR-001: Notification Su ...'}
+[0m[2m
+  🔠 functions.Write:1 | Return Successfully wrote to ADR-001-notification-architecture.md
+[0m[2m
+  🧠 The[0m[2m user[0m[2m just[0m[2m confirmed[0m[2m the[0m[2m file[0m[2m was[0m[2m written[0m[2m successfully[0m[2m.[0m[2m There's[0m[2m no[0m[2m new[0m[2m request[0m[2m or[0m[2m question[0m[2m.[0m[2m I[0m[2m should[0m[2m acknowledge[0m[2m completion[0m[2m briefly[0m[2m.[0m[2m
+  Done[0m[2m.[0m[2m I've[0m[2m saved[0m[2m `[0m[2mADR[0m[2m-[0m[2m001[0m[2m-notification[0m[2m-arch[0m[2mitecture[0m[2m.md[0m[2m`[0m[2m in[0m[2m the[0m[2m work[0m[2mdir[0m[2m.[0m[2m It[0m[2m recommends[0m[2m **[0m[2mRedis[0m[2m Streams[0m[2m**[0m[2m with[0m[2m a[0m[2m definitive[0m[2m justification[0m[2m rooted[0m[2m in[0m[2m the[0m[2m team's[0m[2m constraints[0m[2m:[0m[2m zero[0m[2m Kafka[0m[2m experience[0m[2m,[0m[2m no[0m[2m dedicated[0m[2m infrastructure[0m[2m engineer[0m[2m,[0m[2m a[0m[2m hard[0m[2m 2[0m[2m-week[0m[2m delivery[0m[2m window[0m[2m,[0m[2m and[0m[2m modest[0m[2m budget[0m[2m.[0m[2m 
+     
+     The[0m[2m AD[0m[2mR[0m[2m is[0m[2m explicit[0m[2m about[0m[2m how[0m[2m to[0m[2m achieve[0m[2m exactly[0m[2m-on[0m[2mce[0m[2m semantics[0m[2m for[0m[2m billing[0m[2m events[0m[2m ([0m[2mid[0m[2mempotent[0m[2m consumers[0m[2m +[0m[2m Postgre[0m[2mSQL[0m[2m de[0m[2m-du[0m[2mplication[0m[2m)[0m[2m and[0m[2m honestly[0m[2m lists[0m[2m the[0m[2m cons[0m[2m—[0m[2mmemory[0m[2m-bound[0m[2m retention[0m[2m,[0m[2m application[0m[2m-level[0m[2m ded[0m[2mu[0m[2mplication[0m[2m overhead[0m[2m,[0m[2m and[0m[2m weaker[0m[2m ecosystem[0m[2m tooling[0m[2m—[0m[2mso[0m[2m the[0m[2m trade[0m[2m-offs[0m[2m are[0m[2m fully[0m[2m documented[0m[2m.[0m[2m
+  💸 (Requests: 3 | Tool Calls: 2 | Total: 24805) Input: 22192 | Audio Input: 0 | Output: 2613 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
+[0m[2mTo run again:[0m [1;33mzrb chat --message "Read `system_context.md`. It describes a real production system and a specific architectural problem we need to solve.
+
+Write an Architecture Decision Record (ADR) evaluating two options for the notification subsystem:
+1. **Apache Kafka**
+2. **Redis Streams**
+
+Your ADR must follow this exact structure:
+- **Title**
+- **Status** (e.g. \"Proposed\")
+- **Context** — the problem and constraints
+- **Decision** — which option you choose and a clear justification
+- **Consequences** — pros AND cons of your decision
+- **Alternatives Considered** — why you rejected the other option
+
+Make a definitive recommendation. Use specific technical properties (throughput, ordering guarantees, message retention, consumer groups, exactly-once semantics, operational complexity) to justify your choice given the team size and constraints described.
+
+Save as `ADR-001-notification-architecture.md`." --model ollama:kimi-k2.6:cloud --session "" --yolo true --attach "" --interactive false[0m
+[2m[2mSession[0m: [1;33mdark-area-9933[0m[0m
+Done. I've saved `ADR-001-notification-architecture.md` in the workdir. It recommends **Redis Streams** with a definitive justification rooted in the team's constraints: zero Kafka experience, no dedicated infrastructure engineer, a hard 2-week delivery window, and modest budget. 
+
+The ADR is explicit about how to achieve exactly-once semantics for billing events (idempotent consumers + PostgreSQL de-duplication) and honestly lists the cons—memory-bound retention, application-level deduplication overhead, and weaker ecosystem tooling—so the trade-offs are fully documented.

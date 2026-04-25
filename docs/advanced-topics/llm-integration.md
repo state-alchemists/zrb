@@ -10,6 +10,7 @@ Zrb comes with a powerful, built-in AI assistant that can understand your codeba
 
 - [Interactive Chat](#interactive-chat-zrb-llm-chat)
 - [Programmatic Usage](#programmatic-usage-llmtask-and-llmchattask)
+- [Built-in LLM Tools](#built-in-llm-tools)
 - [Custom Tools and Sub-agents](#custom-tools-and-sub-agents)
 - [Context Management](#context-management)
 - [Quick Reference](#quick-reference)
@@ -105,13 +106,170 @@ custom_chat = cli.add_task(
 
 ---
 
+## Built-in LLM Tools
+
+The assistant comes with a rich set of built-in tools. These are automatically available in every `LLMTask` and `LLMChatTask` unless you override the tool list.
+
+### Shell & Execution
+
+| Tool | Function | Description |
+|------|----------|-------------|
+| `Bash` | `run_shell_command` | Execute non-interactive shell commands. Streams output live and truncates large results. Always requires non-interactive flags (e.g., `-y`). |
+
+### File System
+
+| Tool | Function | Description |
+|------|----------|-------------|
+| `LS` | `list_files` | Recursively list files up to 3 levels deep, auto-excluding `.git`, `node_modules`, `__pycache__`, etc. |
+| `Glob` | `glob_files` | Find files matching a glob pattern (e.g., `**/*.py`). |
+| `Grep` | `search_files` | Search file contents by regex pattern. Supports `context_lines` (default 2), `files_only=True` to return only matching file paths, `case_sensitive=False` for case-insensitive search, and `file_pattern` to restrict to specific file types. |
+| `Read` | `read_file` | Read a single file's contents with optional line-range slicing and auto-truncation. |
+| `ReadMany` | `read_files` | Read multiple files in one call — faster than sequential `Read` calls. |
+| `Write` | `write_file` | Write or overwrite a file. |
+| `WriteMany` | `write_files` | Write multiple files in one call. |
+| `Edit` | `replace_in_file` | Make targeted string replacements in a file. |
+
+### Web
+
+| Tool | Function | Description |
+|------|----------|-------------|
+| `OpenWebPage` | `open_web_page` | Fetch a URL and return its content as Markdown. Optionally summarizes via a sub-agent to reduce token usage. |
+| `SearchInternet` | `search_internet` | Search the web by query string. Requires a search engine API key (SerpAPI, Brave, or SearXNG). |
+
+### Code Intelligence
+
+| Tool | Function | Description |
+|------|----------|-------------|
+| `AnalyzeFile` | `analyze_file` | Semantic analysis of a single file via LLM sub-agent. Use for architecture/intent questions, not raw content retrieval. |
+| `AnalyzeCode` | `analyze_code` | Deep code analysis for an entire directory. Requires LSP to be configured. See [LSP Support](lsp-support.md). |
+| `LspFindDefinition` | — | Jump to the canonical definition of a symbol. |
+| `LspFindReferences` | — | Find all call sites and usages of a symbol across the project. |
+| `LspGetDiagnostics` | — | Get type errors, warnings, and lint issues for a file. |
+| `LspGetDocumentSymbols` | — | List all symbols defined in a file. |
+| `LspGetWorkspaceSymbols` | — | Find a symbol by name across the workspace. |
+| `LspGetHoverInfo` | — | Get type signature or documentation for a symbol. |
+| `LspRenameSymbol` | — | Rename a symbol safely across the codebase (dry_run=True by default to preview before applying). |
+| `LspListServers` | — | List active Language Server Protocol servers. |
+
+### Planning & Task Tracking
+
+| Tool | Function | Description |
+|------|----------|-------------|
+| `WriteTodos` | `write_todos` | Create or replace the session todo list (persisted to `~/.zrb/todos/<session>.json`). |
+| `GetTodos` | `get_todos` | Get the current todo list and progress summary. |
+| `UpdateTodo` | `update_todo` | Update the status of a single todo item (`pending` → `in_progress` → `completed`). |
+| `ClearTodos` | `clear_todos` | Discard the entire current todo list. |
+
+### Knowledge Base (RAG)
+
+| Tool factory | Description |
+|---|---|
+| `create_rag_from_directory` | Creates a semantic search tool over a local directory of documents (ChromaDB + OpenAI embeddings). Returns a callable tool you register with `add_tool()`. Requires `chromadb` and `openai` packages. |
+
+```python
+from zrb.llm.tool.rag import create_rag_from_directory
+
+search_docs = create_rag_from_directory(
+    tool_name="SearchDocs",
+    tool_description="Search project documentation.",
+    document_dir_path="./docs",
+    vector_db_path="./.chroma",
+)
+
+my_chat_task.add_tool(search_docs)
+```
+
+### MCP (Model Context Protocol)
+
+The assistant can connect to external MCP servers defined in `mcp-config.json`. See [MCP Support](mcp-support.md) for setup.
+
+### Agent Delegation & Skills
+
+| Tool | Description |
+|------|-------------|
+| `DelegateToAgent` | Delegate a sub-task to a named sub-agent. Sub-agents are discovered from `agents/` directories. See sub-agents section below. |
+| `ActivateSkill` | Load a named skill (a set of prompts and tools) into the current session. |
+
+### Git Worktrees
+
+| Tool | Function | Description |
+|------|----------|-------------|
+| `ListWorktrees` | `list_worktrees` | List all active git worktrees. Call before `EnterWorktree` to avoid duplicates. |
+| `EnterWorktree` | `enter_worktree` | Create an isolated git worktree for risky or experimental changes. |
+| `ExitWorktree` | `exit_worktree` | Finish work in a worktree and clean it up. |
+
+### Zrb Task Execution
+
+| Tool | Description |
+|------|-------------|
+| `ListZrbTasks` | List all available Zrb tasks in the current project. |
+| `RunZrbTask` | Execute a registered Zrb task by name from within a conversation. |
+
+---
+
+## Tool Guidance
+
+Every built-in tool ships with guidance that tells the LLM **when to use it** and **what the most important behavioral rule is**. When you add a custom tool, you can register the same kind of guidance so the LLM knows how to use it correctly.
+
+Guidance is automatically filtered at runtime — entries for tools that are not registered on the task are suppressed, so the LLM never sees instructions for tools it cannot use.
+
+### Static guidance (most common)
+
+Use `add_tool_guidance()` with one or more `ToolGuidance` objects. This is the standard approach for tools whose names are known at definition time.
+
+```python
+from zrb import LLMChatTask, ToolGuidance
+
+my_chat_task.add_tool(my_custom_tool)
+
+my_chat_task.add_tool_guidance(
+    ToolGuidance(
+        group_name="My Domain",
+        tool_name="MyCustomTool",
+        when_to_use="When the user asks about X or needs to look up Y",
+        key_rule="Always pass a valid ID; never call without first calling ListItems.",
+    )
+)
+```
+
+`ToolGuidance` fields:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `group_name` | Yes | Section heading in the rendered prompt. Created automatically on first use. |
+| `tool_name` | Yes | Must match the tool's `__name__` attribute. |
+| `when_to_use` | No | One sentence: the condition that should trigger this tool. |
+| `key_rule` | No | The single most important constraint, gotcha, or sequencing requirement. |
+
+### Dynamic guidance (config-dependent tool names)
+
+Use `add_tool_guidance_factory()` when the tool name depends on runtime config or context. Each factory is a `Callable[[AnyContext], ToolGuidance]` evaluated at the start of each conversation turn.
+
+```python
+from zrb.config.config import CFG
+
+my_chat_task.add_tool_guidance_factory(
+    lambda ctx: ToolGuidance(
+        group_name="My Domain",
+        tool_name=f"List{CFG.ROOT_GROUP_NAME.capitalize()}Items",
+        when_to_use="Before operating on any item — confirm it exists",
+    )
+)
+```
+
+This is only needed when the tool name itself is dynamic. For static names, use `add_tool_guidance()` instead.
+
+> **Note:** `add_tool_guidance_factory` is only available on `LLMChatTask`, not `LLMTask`.
+
+---
+
 ## Custom Tools and Sub-agents
 
 You can extend the assistant's capabilities with your own Python functions.
 
 ### Custom Python Tools
 
-Any Python function can be registered as a tool. The assistant automatically understands the function's purpose from its docstring and arguments.
+Any Python function can be registered as a tool. The assistant automatically understands the function's purpose from its docstring and type annotations.
 
 ```python
 def get_weather(location: str) -> str:
@@ -123,7 +281,12 @@ my_chat_task.add_tool(get_weather)
 
 ### Sub-agents
 
-Zrb can automatically discover and manage sub-agents defined in JSON or YAML files within an `agents/` directory. The primary assistant can then delegate complex tasks to these specialized agents using the built-in `delegate_to_agent` tool.
+Zrb can automatically discover and manage sub-agents defined in JSON or YAML files within an `agents/` directory. The primary assistant can then delegate complex tasks to these specialized agents using the built-in `DelegateToAgent` tool.
+
+Sub-agent files are discovered from (in priority order):
+1. `~/.zrb/agents/`, `~/.claude/agents/` — user-global agents
+2. `<project>/.zrb/agents/`, `<project>/.claude/agents/` — project agents (traversed upward from cwd)
+3. Paths in `ZRB_LLM_EXTRA_AGENT_DIRS`
 
 > 💡 **Benefit:** Sub-agents isolate context and keep the main conversation history clean.
 

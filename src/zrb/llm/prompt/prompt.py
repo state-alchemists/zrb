@@ -1,5 +1,5 @@
 import os
-from typing import Dict
+from pathlib import Path
 
 from zrb.config.config import CFG
 from zrb.util.string.conversion import to_snake_case
@@ -108,11 +108,10 @@ def get_default_prompt(name: str) -> str:
             except Exception:
                 pass
     # 4. Fallback to package default
-    cwd = os.path.dirname(__file__)
-    file_path = os.path.join(cwd, "markdown", f"{name}.md")
-    if not os.path.isfile(file_path):
+    file_path = Path(__file__).parent / "markdown" / f"{name}.md"
+    if not file_path.is_file():
         return ""
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(file_path, encoding="utf-8") as f:
         return f.read()
 
 
@@ -134,7 +133,7 @@ def _get_default_prompt_search_path() -> list[str]:
     return search_paths
 
 
-def _get_prompt_replacements() -> Dict[str, str]:
+def _get_prompt_replacements() -> dict[str, str]:
     """Get all configuration values that should be replaced in prompts."""
     replacements = {}
     # Add CFG values with {CFG_*} pattern
@@ -175,7 +174,7 @@ def _get_prompt_replacements() -> Dict[str, str]:
     return replacements
 
 
-def _replace_prompt_placeholders(prompt: str, replacements: Dict[str, str]) -> str:
+def _replace_prompt_placeholders(prompt: str, replacements: dict[str, str]) -> str:
     """Replace all placeholders in a prompt string."""
     for placeholder, value in replacements.items():
         prompt = prompt.replace(placeholder, value)

@@ -51,6 +51,12 @@ def test_config_property_defaults():
     assert hasattr(
         CFG, "LLM_INCLUDE_PROJECT_CONTEXT"
     ), "Config should have LLM_INCLUDE_PROJECT_CONTEXT property"
+    assert hasattr(
+        CFG, "LLM_INCLUDE_JOURNAL_MANDATE"
+    ), "Config should have LLM_INCLUDE_JOURNAL_MANDATE property"
+    assert hasattr(
+        CFG, "LLM_INCLUDE_JOURNAL_REMINDER"
+    ), "Config should have LLM_INCLUDE_JOURNAL_REMINDER property"
 
     # Check default values (all True except CLI skills which is False)
     assert CFG.LLM_INCLUDE_PERSONA is True
@@ -58,6 +64,9 @@ def test_config_property_defaults():
     assert CFG.LLM_INCLUDE_GIT_MANDATE is True  # Enabled by default (on)
     assert CFG.LLM_INCLUDE_SYSTEM_CONTEXT is True
     assert CFG.LLM_INCLUDE_JOURNAL is True
+    # JOURNAL_MANDATE and JOURNAL_REMINDER fall back to LLM_INCLUDE_JOURNAL when not set
+    assert CFG.LLM_INCLUDE_JOURNAL_MANDATE is True
+    assert CFG.LLM_INCLUDE_JOURNAL_REMINDER is True
     assert CFG.LLM_INCLUDE_CLAUDE_SKILLS is True
     assert CFG.LLM_INCLUDE_CLI_SKILLS is False
     assert CFG.LLM_INCLUDE_PROJECT_CONTEXT is True

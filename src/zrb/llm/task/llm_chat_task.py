@@ -20,6 +20,7 @@ from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.prompt.tool_guidance import ToolGuidance
 from zrb.llm.summarizer import (
     create_summarizer_history_processor,
 )
@@ -44,6 +45,7 @@ from zrb.xcom.xcom import Xcom
 if TYPE_CHECKING:
     from pydantic_ai import Tool, UserContent
     from pydantic_ai._agent_graph import HistoryProcessor
+    from pydantic_ai.capabilities import AbstractCapability
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.tools import ToolFuncEither
@@ -110,6 +112,7 @@ class LLMChatTask(BaseTask):
             | None
         ) = None,  # noqa
         history_processors: list[HistoryProcessor] | None = None,
+        capabilities: "list[AbstractCapability[Any]] | None" = None,
         llm_config: LLMConfig | None = None,
         llm_limitter: LLMLimiter | None = None,
         model: (
@@ -248,6 +251,11 @@ class LLMChatTask(BaseTask):
         self._toolsets = toolsets if toolsets is not None else []
         # LLMChatTask-specific factories that resolve using parent context
         self._tool_factories = tool_factories if tool_factories is not None else []
+        # Guidance factories are called when tools are resolved, to register
+        # guidance for dynamically-named factory tools (e.g., RunZrbTask).
+        self._tool_guidance_factories: list[Callable[[AnyContext], ToolGuidance]] = []
+        # Store tool guidance until prompt_manager is available
+        self._pending_tool_guidance: list[ToolGuidance] = []
         self._toolset_factories = (
             toolset_factories if toolset_factories is not None else []
         )
@@ -258,6 +266,7 @@ class LLMChatTask(BaseTask):
         self._history_processors = (
             history_processors if history_processors is not None else []
         )
+        self._capabilities = capabilities if capabilities is not None else []
         self._model = model
         self._render_model = render_model
         self._model_settings = model_settings
@@ -440,6 +449,43 @@ class LLMChatTask(BaseTask):
     ):
         self._tool_factories += list(factory)
 
+    def add_tool_guidance_factory(
+        self,
+        *guidance_factory: Callable[[AnyContext], ToolGuidance],
+    ):
+        self.append_tool_guidance_factory(*guidance_factory)
+
+    def append_tool_guidance_factory(
+        self,
+        *guidance_factory: Callable[[AnyContext], ToolGuidance],
+    ):
+        """Register guidance for dynamically-named factory tools.
+
+        The factory is called when tools are resolved from factories. It should
+        return a single ToolGuidance object.
+        """
+        self._tool_guidance_factories += list(guidance_factory)
+
+    def add_tool_guidance(self, *guidance: ToolGuidance):
+        self.append_tool_guidance(*guidance)
+
+    def append_tool_guidance(self, *guidance: ToolGuidance):
+        """Add tool guidance entries to be applied when prompt_manager is available."""
+        self._pending_tool_guidance.extend(guidance)
+
+    def _apply_tool_guidance(self):
+        """Apply all pending tool guidance to the prompt manager."""
+        if self._prompt_manager is None:
+            return
+        for g in self._pending_tool_guidance:
+            self._prompt_manager.add_tool_guidance(
+                group=g.group_name,
+                name=g.tool_name,
+                use_when=g.when_to_use,
+                key_rule=g.key_rule,
+            )
+        self._pending_tool_guidance.clear()
+
     def add_hook_factory(self, *factory: Callable[[HookManager], None]):
         self.append_hook_factory(*factory)
 
@@ -528,6 +574,30 @@ class LLMChatTask(BaseTask):
         resolved_tools = self._get_all_tools(ctx)
         resolved_toolsets = self._get_all_toolsets(ctx)
 
+        # 4a. Auto-wire resolved tool names to the prompt manager so that
+        # tool guidance is filtered to only the tools actually registered.
+        if self._prompt_manager is not None:
+            tool_names: set[str] = set()
+            for t in resolved_tools:
+                name = getattr(t, "name", None) or getattr(t, "__name__", None)
+                if name:
+                    tool_names.add(name)
+            self._prompt_manager.tool_names = tool_names or None
+
+        # 4b. Apply pending tool guidance added via add_tool_guidance()
+        self._apply_tool_guidance()
+
+        # 4c. Register guidance for dynamically-named factory tools.
+        if self._prompt_manager is not None:
+            for guidance_factory in self._tool_guidance_factories:
+                guidance = guidance_factory(ctx)
+                self._prompt_manager.add_tool_guidance(
+                    group=guidance.group_name,
+                    name=guidance.tool_name,
+                    use_when=guidance.when_to_use,
+                    key_rule=guidance.key_rule,
+                )
+
         # 5. Create core LLM task
         llm_task_core = self._create_llm_task_core(
             ctx,
@@ -536,6 +606,7 @@ class LLMChatTask(BaseTask):
             interactive,
             resolved_tools,
             resolved_toolsets,
+            self._capabilities,
         )
 
         # 6. Run Interactive or Non-Interactive
@@ -658,6 +729,7 @@ class LLMChatTask(BaseTask):
         interactive: bool,
         resolved_tools: list[Tool | ToolFuncEither],
         resolved_toolsets: list[AbstractToolset[None]],
+        capabilities: "list[AbstractCapability[Any]]",
     ) -> LLMTask:
         """Create the inner LLMTask that handles the actual processing."""
         from zrb.llm.tool_call.handler import ToolCallHandler
@@ -746,7 +818,14 @@ class LLMChatTask(BaseTask):
             toolsets=resolved_toolsets,
             # No factories passed - tools/toolsets already resolved with parent context
             history_processors=self._history_processors
-            + [create_summarizer_history_processor()],
+            + [
+                create_summarizer_history_processor(
+                    model_getter=self._model_getter or self._llm_config.model_getter,
+                    model_renderer=self._model_renderer
+                    or self._llm_config.model_renderer,
+                )
+            ],
+            capabilities=capabilities,
             llm_config=self._llm_config,
             llm_limitter=self._llm_limitter,
             history_manager=history_manager,

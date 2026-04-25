@@ -13,6 +13,7 @@ This guide is for developers who contribute to or maintain the Zrb project itsel
 - [Profiling Zrb](#profiling-zrb)
 - [Testing Strategies](#testing-strategies)
 - [Evaluating the LLM Agent](#evaluating-and-improving-the-llm-agent)
+- [Context Propagation Internals](#context-propagation-internals)
 - [Quick Reference](#quick-reference)
 
 ---
@@ -122,6 +123,87 @@ python runner.py --timeout 3600 --parallelism 12 --verbose --models <model-list>
 |--------|----------|
 | Prompts | `src/zrb/llm/prompt/markdown/` |
 | Tools | `src/zrb/llm/tool/` |
+
+---
+
+## Context Propagation Internals
+
+Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are five `ContextVar` instances across the codebase, split into two layers.
+
+### The Two Layers
+
+**Layer 1 — Task execution** (`src/zrb/context/any_context.py:229`):
+
+```python
+current_ctx: ContextVar[AnyContext | None] = ContextVar("current_ctx", default=None)
+```
+
+Holds the active `Context` for the currently executing task. Set at the start of `execute_task_action()`, reset in its `finally` block.
+
+**Layer 2 — LLM agent execution** (`src/zrb/llm/agent/run_agent.py`):
+
+| Variable | Type | Purpose |
+|---|---|---|
+| `current_ui` | `UIProtocol \| None` | Active UI for output and user interaction |
+| `current_tool_confirmation` | `AnyToolConfirmation` | Tool approval policy |
+| `current_yolo` | `bool` | Auto-approve all tool calls |
+| `current_approval_channel` | `ApprovalChannel \| None` | Remote approval handler |
+
+All four are set at the start of `run_agent()` and reset in its `finally` block.
+
+### The Scoping Pattern
+
+Every `ContextVar` follows the same RAII-style pattern:
+
+```python
+token = current_ctx.set(ctx)
+try:
+    ...task body...
+finally:
+    current_ctx.reset(token)  # restores the previous value
+```
+
+The `reset(token)` call restores whatever value was in the variable before `set()` was called. This means nested calls (e.g. a sub-agent delegated from a parent agent) each get their own scope while still inheriting the parent's values at entry time.
+
+### Inheritance Pattern
+
+Agent context variables use a fallback pattern to enable parent→child inheritance:
+
+```python
+# run_agent.py — resolve effective value
+effective_ui = ui_arg or current_ui.get()
+effective_yolo = yolo or current_yolo.get()
+```
+
+If a child agent doesn't receive an explicit argument, it inherits from the context set by its parent. This allows YOLO mode, approval channels, and UI handles to flow naturally through nested agent calls.
+
+### Why ContextVar (not Globals or Thread-locals)?
+
+Zrb is fully asyncio-based. Thread-locals don't work with coroutines (multiple coroutines share a thread). A global dict keyed on task/session ID would work but adds lookup overhead and manual lifecycle management. `ContextVar` integrates directly with Python's asyncio scheduler:
+
+- `asyncio.create_task()` automatically copies the current context to the new task (PEP 567).
+- `asyncio.gather()` runs coroutines in-place, sharing the caller's context.
+- Token-based `reset()` ensures correct cleanup even if exceptions occur.
+
+### Known Inefficiency: `env` Dict Copy
+
+Every time a `Context` object is created for a task (`context.py:25`), it copies the entire shared env dictionary:
+
+```python
+self._env = shared_ctx.env.copy()
+```
+
+This is O(n) in the number of env vars and happens once per task execution. For typical workloads (< 100 vars, dozens of tasks) it is not a bottleneck. If you are seeing memory pressure under large fan-out workloads (hundreds of concurrent tasks, large envs), this is the first place to look — a lazy/copy-on-write approach would eliminate redundant copies.
+
+### Gotcha: `asyncio.create_task()` and Context Timing
+
+At `execution.py:97`, a new asyncio task is created for action execution:
+
+```python
+action_coro = asyncio.create_task(run_async(execute_action_with_retry(task, session)))
+```
+
+Python copies the context at `create_task()` time. If the parent coroutine resets `current_ctx` before the new task is scheduled, the new task runs with the snapshot value from creation time — which may differ from the parent's current value. This is safe in practice because `execute_action_with_retry` re-establishes its own `current_ctx` scope, but it is worth keeping in mind if the execution model changes.
 
 ---
 

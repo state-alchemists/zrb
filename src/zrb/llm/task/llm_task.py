@@ -19,11 +19,11 @@ from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.prompt.tool_guidance import ToolGuidance
 from zrb.llm.summarizer import (
     summarize_history,
 )
 from zrb.llm.util.attachment import get_attachments
-from zrb.llm.util.stream_response import create_event_handler
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_attr, get_bool_attr
@@ -33,6 +33,7 @@ from zrb.util.string.name import get_random_name
 if TYPE_CHECKING:
     from pydantic_ai import Tool, UserContent
     from pydantic_ai._agent_graph import HistoryProcessor
+    from pydantic_ai.capabilities import AbstractCapability
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.tools import ToolFuncEither
@@ -76,6 +77,7 @@ class LLMTask(BaseTask):
             | None
         ) = None,  # noqa
         history_processors: list[HistoryProcessor] | None = None,
+        capabilities: "list[AbstractCapability[Any]] | None" = None,
         llm_config: LLMConfig | None = None,
         llm_limitter: LLMLimiter | None = None,
         model: (
@@ -174,6 +176,7 @@ class LLMTask(BaseTask):
         self._history_processors = (
             history_processors if history_processors is not None else []
         )
+        self._capabilities = capabilities if capabilities is not None else []
         self._model = model
         self._render_model = render_model
         self._model_settings = model_settings
@@ -287,6 +290,19 @@ class LLMTask(BaseTask):
         self, *factory: Callable[[AnyContext], Tool | ToolFuncEither]
     ):
         self._tool_factories += list(factory)
+
+    def add_tool_guidance(self, *guidance: ToolGuidance):
+        self.append_tool_guidance(*guidance)
+
+    def append_tool_guidance(self, *guidance: ToolGuidance):
+        """Add tool guidance entries directly to the prompt manager."""
+        for g in guidance:
+            self._prompt_manager.add_tool_guidance(
+                group=g.group_name,
+                name=g.tool_name,
+                use_when=g.when_to_use,
+                key_rule=g.key_rule,
+            )
 
     def add_history_processor(self, *processor: HistoryProcessor):
         self.append_history_processor(*processor)
@@ -413,18 +429,19 @@ class LLMTask(BaseTask):
         resolved_tools = self._get_all_tools(ctx)
         resolved_toolsets = self._get_all_toolsets(ctx)
         # Resolve model: base → getter (active, shown in UI) → renderer (final for pydantic_ai)
+        # Task-level getter/renderer take precedence; fall back to llm_config defaults.
         base_model = self._get_model(ctx)
+        effective_getter = self._model_getter or self._llm_config.model_getter
+        effective_renderer = self._model_renderer or self._llm_config.model_renderer
         active_model = (
-            self._model_getter(base_model)
-            if self._model_getter is not None
-            else base_model
+            effective_getter(base_model) if effective_getter is not None else base_model
         )
         for ui in self._uis:
             if hasattr(ui, "model"):
                 ui.model = active_model
         final_model = (
-            self._model_renderer(active_model)
-            if self._model_renderer is not None
+            effective_renderer(active_model)
+            if effective_renderer is not None
             else active_model
         )
         return create_agent(
@@ -434,6 +451,7 @@ class LLMTask(BaseTask):
             toolsets=resolved_toolsets,
             model_settings=self._get_model_settings(ctx),
             history_processors=self._history_processors,
+            capabilities=self._capabilities,
             yolo=yolo,
         )
 
@@ -480,7 +498,7 @@ class LLMTask(BaseTask):
                 # IMPORTANT: Preserve attachments on retry - they may still be needed
                 ctx.log_info("Initial message found in history, sending retry notice.")
                 return (
-                    f"[System] This is retry attempt {ctx.attempt}. "
+                    f"[SYSTEM] This is retry attempt {ctx.attempt}. "
                     "The previous attempt failed. Please review the history and continue.",
                     user_attachments,  # Preserve attachments on retry
                 )
@@ -552,7 +570,7 @@ class LLMTask(BaseTask):
                     new_history.append(ModelRequest(parts=tool_returns))
 
         # 2. Append general error information
-        error_msg = f"[System] Error occurred: {str(error)}"
+        error_msg = f"[SYSTEM] Error occurred: {str(error)}"
         new_history.append(ModelRequest(parts=[UserPromptPart(content=error_msg)]))
         history_manager.update(conversation_name, new_history)
         history_manager.save(conversation_name)

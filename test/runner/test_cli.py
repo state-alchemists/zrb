@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock, patch
+
 from zrb import Group, IntInput, StrInput, Task
 from zrb.runner.cli import Cli
 
@@ -139,3 +141,56 @@ def test_show_help_for_task_with_description():
     )
     # Just running it to trigger print statements (captured by capsys if needed, but we just need coverage)
     cli.run(str_args=["detailed-task", "-h"])
+
+
+def test_cli_description_property():
+    """Cli.description returns a string."""
+    cli = Cli()
+    desc = cli.description
+    assert isinstance(desc, str)
+
+
+def test_cli_banner_property():
+    """Cli.banner returns a string."""
+    cli = Cli()
+    banner = cli.banner
+    assert isinstance(banner, str)
+
+
+def test_show_group_with_banner_and_description():
+    """Running a group shows its banner and description."""
+    cli = Cli()
+    sub = Group(name="mygroup", description="Group description here")
+    # Add a task so the group is non-empty
+    sub.add_task(Task(name="t1", action="x"))
+    cli.add_group(sub)
+    # Patch Group.banner to return non-empty value
+    with patch.object(
+        type(sub), "banner", new_callable=lambda: property(lambda self: "My Banner")
+    ):
+        cli.run(str_args=["mygroup"])
+
+
+def test_show_group_with_subgroups():
+    """Running a group with subgroups displays them."""
+    cli = Cli()
+    outer = Group(name="outer", description="Outer group")
+    inner = Group(name="inner", description="Inner subgroup")
+    inner.add_task(Task(name="t1", action="x"))
+    outer.add_group(inner)
+    cli.add_group(outer)
+    cli.run(str_args=["outer"])
+
+
+def test_show_task_info_with_inputs():
+    """Running a task with -h shows its inputs section."""
+    cli = Cli()
+    cli.add_task(
+        Task(
+            name="my-task",
+            description="A task with inputs",
+            input=StrInput("name", description="The name"),
+            action="Hello {input.name}",
+        )
+    )
+    cli.run(str_args=["my-task", "-h"])

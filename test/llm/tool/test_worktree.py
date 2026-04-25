@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from zrb.llm.prompt.system_context import system_context
 from zrb.llm.tool.worktree import enter_worktree, exit_worktree, list_worktrees
 
 
@@ -24,7 +25,6 @@ def create_mock_process(returncode=0, stdout=b"", stderr=b""):
 
 @pytest.mark.asyncio
 async def test_enter_worktree_success(mock_subprocess):
-    # Mock git rev-parse (check repo)
     mock_subprocess.side_effect = [
         create_mock_process(returncode=0),  # check repo
         create_mock_process(
@@ -33,7 +33,7 @@ async def test_enter_worktree_success(mock_subprocess):
     ]
 
     res = await enter_worktree(branch_name="test-branch")
-    assert "Worktree created at" in res
+    assert "Worktree created:" in res
     assert "Branch: test-branch" in res
 
 
@@ -44,7 +44,7 @@ async def test_enter_worktree_no_branch_name(mock_subprocess):
         create_mock_process(returncode=0),  # git worktree add
     ]
     res = await enter_worktree()
-    assert "Worktree created at" in res
+    assert "Worktree created:" in res
     assert "Branch: worktree-" in res
 
 
@@ -53,8 +53,9 @@ async def test_enter_worktree_not_repo(mock_subprocess):
     mock_subprocess.return_value = create_mock_process(
         returncode=1, stderr=b"fatal: not a git repository"
     )
-    with pytest.raises(RuntimeError, match="Not inside a git repository"):
-        await enter_worktree()
+    res = await enter_worktree()
+    assert "Error" in res
+    assert "git repository" in res
 
 
 @pytest.mark.asyncio
@@ -65,10 +66,9 @@ async def test_enter_worktree_failure(mock_subprocess):
             returncode=1, stderr=b"fatal: branch already exists"
         ),  # git worktree add
     ]
-    with pytest.raises(
-        RuntimeError, match="Failed to create worktree: fatal: branch already exists"
-    ):
-        await enter_worktree(branch_name="existing-branch")
+    res = await enter_worktree(branch_name="existing-branch")
+    assert "Error" in res
+    assert "already exists" in res
 
 
 @pytest.mark.asyncio
@@ -102,8 +102,9 @@ async def test_exit_worktree_keep_branch(mock_subprocess):
 
 @pytest.mark.asyncio
 async def test_exit_worktree_not_exists():
-    with pytest.raises(RuntimeError, match="Worktree path does not exist"):
-        await exit_worktree("/non/existent/path")
+    res = await exit_worktree("/non/existent/path")
+    assert "Error" in res
+    assert "does not exist" in res
 
 
 @pytest.mark.asyncio
@@ -117,11 +118,9 @@ async def test_exit_worktree_remove_failure(mock_subprocess):
                 returncode=1, stderr=b"error: worktree contains modified files"
             ),  # git worktree remove
         ]
-        with pytest.raises(
-            RuntimeError,
-            match="Failed to remove worktree: error: worktree contains modified files",
-        ):
-            await exit_worktree(tmpdir)
+        res = await exit_worktree(tmpdir)
+        assert "Error" in res
+        assert "modified files" in res
 
 
 @pytest.mark.asyncio
@@ -138,7 +137,7 @@ async def test_exit_worktree_branch_delete_failure(mock_subprocess):
         ]
         res = await exit_worktree(tmpdir)
         assert f"Worktree removed: {tmpdir}" in res
-        assert "Could not delete branch test-branch: error: branch not found" in res
+        assert "could not delete" in res.lower()
 
 
 @pytest.mark.asyncio
@@ -155,7 +154,7 @@ async def test_list_worktrees_success(mock_subprocess):
 async def test_list_worktrees_empty(mock_subprocess):
     mock_subprocess.return_value = create_mock_process(returncode=0, stdout=b"")
     res = await list_worktrees()
-    assert "No additional worktrees found." == res
+    assert "No worktrees found" in res
 
 
 @pytest.mark.asyncio
@@ -163,7 +162,100 @@ async def test_list_worktrees_failure(mock_subprocess):
     mock_subprocess.return_value = create_mock_process(
         returncode=1, stderr=b"fatal: not a git repository"
     )
-    with pytest.raises(
-        RuntimeError, match="Failed to list worktrees: fatal: not a git repository"
-    ):
-        await list_worktrees()
+    res = await list_worktrees()
+    assert "Error" in res
+    assert "git repository" in res
+
+
+def _capture_system_context(ctx=None) -> str:
+    """Helper: run system_context and return the enriched prompt."""
+    if ctx is None:
+        ctx = MagicMock()
+        ctx.input.session = "test-session"
+    captured = []
+
+    def next_handler(c, p):
+        captured.append(p)
+        return "ok"
+
+    system_context(ctx, "", next_handler)
+    return captured[0]
+
+
+@pytest.mark.asyncio
+async def test_enter_worktree_adds_gitignore_entry(mock_subprocess):
+    """EnterWorktree should add the worktree pattern to .gitignore if absent."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        mock_subprocess.side_effect = [
+            create_mock_process(returncode=0, stdout=tmpdir.encode()),
+            create_mock_process(returncode=0),
+        ]
+        await enter_worktree(branch_name="gi-branch", cwd=tmpdir)
+
+        gitignore = os.path.join(tmpdir, ".gitignore")
+        assert os.path.exists(gitignore)
+        content = open(gitignore).read()
+        assert ".zrb/worktree/" in content
+
+
+@pytest.mark.asyncio
+async def test_enter_worktree_does_not_duplicate_gitignore_entry(mock_subprocess):
+    """EnterWorktree should not add a duplicate line if the pattern is already present."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        gitignore = os.path.join(tmpdir, ".gitignore")
+        with open(gitignore, "w") as f:
+            f.write(".zrb/worktree/\n")
+
+        mock_subprocess.side_effect = [
+            create_mock_process(returncode=0, stdout=tmpdir.encode()),
+            create_mock_process(returncode=0),
+        ]
+        await enter_worktree(branch_name="nodup-branch", cwd=tmpdir)
+
+        content = open(gitignore).read()
+        assert content.count(".zrb/worktree/") == 1
+
+
+@pytest.mark.asyncio
+async def test_enter_worktree_appends_to_existing_gitignore(mock_subprocess):
+    """EnterWorktree should append to an existing .gitignore without clobbering it."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        gitignore = os.path.join(tmpdir, ".gitignore")
+        with open(gitignore, "w") as f:
+            f.write("*.pyc\n__pycache__\n")
+
+        mock_subprocess.side_effect = [
+            create_mock_process(returncode=0, stdout=tmpdir.encode()),
+            create_mock_process(returncode=0),
+        ]
+        await enter_worktree(branch_name="append-branch", cwd=tmpdir)
+
+        content = open(gitignore).read()
+        assert "*.pyc" in content
+        assert "__pycache__" in content
+        assert ".zrb/worktree/" in content
+
+
+@pytest.mark.asyncio
+async def test_enter_and_exit_worktree_reflected_in_system_context(mock_subprocess):
+    """EnterWorktree shows active worktree in system context; ExitWorktree clears it."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        worktree_path = os.path.join(tmpdir, ".zrb", "worktree", "sc-branch")
+
+        # Enter
+        mock_subprocess.side_effect = [
+            create_mock_process(returncode=0, stdout=tmpdir.encode()),
+            create_mock_process(returncode=0),
+        ]
+        await enter_worktree(branch_name="sc-branch", cwd=tmpdir)
+        assert "Active worktree:" in _capture_system_context()
+
+        # Exit
+        os.makedirs(worktree_path, exist_ok=True)
+        mock_subprocess.side_effect = [
+            create_mock_process(returncode=0, stdout=b"sc-branch\n"),
+            create_mock_process(returncode=0),
+            create_mock_process(returncode=0),
+        ]
+        await exit_worktree(worktree_path)
+        assert "Active worktree:" not in _capture_system_context()

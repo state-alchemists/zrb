@@ -4,139 +4,125 @@ import re
 import sys
 
 
-def verify_research():
-    """Verify the research challenge."""
+def verify():
+    print("Verifying Architecture Decision Record...")
 
-    # Check if report exists
-    report_path = "solid_state_battery_report.md"
+    SKIP_FILES = {"readme.md", "system_context.md"}
+    report_path = "ADR-001-notification-architecture.md"
     if not os.path.exists(report_path):
-        # Flexibility: look for any other markdown file that isn't readme.md
-        md_files = [f for f in os.listdir(".") if f.lower().endswith(".md") and f.lower() != "readme.md"]
+        md_files = [
+            f for f in os.listdir(".")
+            if f.lower().endswith(".md") and f.lower() not in SKIP_FILES
+        ]
         if md_files:
-            report_path = md_files[0]
-            print(f"INFO: {report_path} found instead of solid_state_battery_report.md")
+            report_path = sorted(md_files)[0]
+            print(f"INFO: Using {report_path}")
         else:
-            print(f"FAIL: {report_path} not found and no other markdown files found")
+            print("FAIL: No ADR markdown file found")
             print("VERIFICATION_RESULT: FAIL")
             return False
 
-    # Read the file
-    with open(report_path, "r") as f:
+    with open(report_path) as f:
         content = f.read()
 
-    checks = []
-
-    score = 0
-    max_score = 6
-
-    # Critical Checks
-
-    # Check for markdown format
-    if content.strip().startswith("#") or "##" in content:
-        checks.append(("Markdown format", True))
-        score += 1
-    else:
-        checks.append(("Markdown format", False))
-
-    # Check for Substantial content (200+ words)
-    word_count = len(content.split())
-    if word_count > 200:
-        checks.append(("Substantial content (200+ words)", True))
-        score += 1
-    else:
-        checks.append(("Substantial content (200+ words)", False))
-
-    # Content Checks
     content_lower = content.lower()
+    score = 0
+    max_score = 8
 
-    # Check for timeline/commercial viability
-    timeline_terms = [
-        "timeline",
-        "2024",
-        "2025",
-        "commercial",
-        "viability",
-        "car",
-        "vehicle",
-        "production",
+    # 1. Minimum word count
+    words = len(content.split())
+    if words >= 500:
+        print(f"PASS: Substantial content ({words} words)")
+        score += 1
+    else:
+        print(f"FAIL: Too short ({words} words, need 500+)")
+
+    # 2. Has required ADR sections
+    required_sections = ["context", "decision", "consequences", "alternatives"]
+    found = [s for s in required_sections if s in content_lower]
+    if len(found) >= 4:
+        print("PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)")
+        score += 1
+    elif len(found) >= 3:
+        print(f"PASS: Most ADR sections present ({found})")
+        score += 1
+    else:
+        print(f"FAIL: Missing ADR sections (found: {found}, need: {required_sections})")
+
+    # 3. Has Status field
+    if "status" in content_lower and any(s in content_lower for s in ["proposed", "accepted", "draft"]):
+        print("PASS: Status field present")
+        score += 1
+    else:
+        print("FAIL: Missing Status field (Proposed/Accepted/Draft)")
+
+    # 4. Evaluates both Kafka and Redis
+    has_kafka = "kafka" in content_lower
+    has_redis = "redis" in content_lower
+    if has_kafka and has_redis:
+        print("PASS: Both Kafka and Redis Streams are evaluated")
+        score += 1
+    else:
+        print(f"FAIL: Missing evaluation — kafka={has_kafka}, redis={has_redis}")
+
+    # 5. Makes a definitive choice
+    decision_terms = ["we will use", "we choose", "we adopt", "decision:", "chosen:", "recommend"]
+    has_decision = any(t in content_lower for t in decision_terms)
+    has_one_winner = (
+        ("kafka" in content_lower and "redis" not in content_lower.split("decision")[1].split("alternatives")[0])
+        if "decision" in content_lower and "alternatives" in content_lower
+        else has_decision
+    )
+    if has_decision or (has_kafka and has_redis):
+        print("PASS: Contains a clear recommendation")
+        score += 1
+    else:
+        print("FAIL: No definitive recommendation found")
+
+    # 6. Covers specific technical properties
+    tech_terms = [
+        "throughput", "ordering", "retention", "consumer group",
+        "exactly-once", "at-least-once", "operational", "replication",
+        "partition", "stream", "durability", "latency",
     ]
-    has_timeline = any(term in content_lower for term in timeline_terms)
-    checks.append(("Covers timeline/commercial viability", has_timeline))
-    if has_timeline:
+    covered = [t for t in tech_terms if t in content_lower]
+    if len(covered) >= 4:
+        print(f"PASS: Covers {len(covered)} technical properties ({', '.join(covered[:4])}...)")
         score += 1
+    else:
+        print(f"FAIL: Only {len(covered)} technical terms (need 4+): {covered}")
 
-    # Check for key players
-    player_terms = [
-        "company",
-        "toyota",
-        "panasonic",
-        "samsung",
-        "lg",
-        "quantumscape",
-        "solid power",
-        "player",
-        "manufacturer",
-        "nissan",
-        "mercedes",
-        "bmw",
-    ]
-    has_players = any(term in content_lower for term in player_terms)
-    checks.append(("Covers key players", has_players))
-    if has_players:
+    # 7. Addresses team/constraint context (references system_context.md details)
+    constraint_terms = ["team", "engineer", "redis", "operational complexity", "experience", "budget", "migration"]
+    covered_constraints = [t for t in constraint_terms if t in content_lower]
+    if len(covered_constraints) >= 3:
+        print(f"PASS: Addresses team/constraint context")
         score += 1
+    else:
+        print(f"FAIL: Doesn't sufficiently address constraints (found: {covered_constraints})")
 
-    # Check for technical hurdles
-    hurdle_terms = [
-        "hurdle",
-        "challenge",
-        "technical",
-        "issue",
-        "problem",
-        "density",
-        "cycle",
-        "cost",
-        "manufacturing",
-        "dendrite",
-        "interface",
-        "pressure",
-        "thermal",
-    ]
-    has_hurdles = any(term in content_lower for term in hurdle_terms)
-    checks.append(("Covers technical hurdles", has_hurdles))
-    if has_hurdles:
+    # 8. Has pros AND cons of chosen option
+    has_pros = any(t in content_lower for t in ["pro", "advantage", "benefit", "positive"])
+    has_cons = any(t in content_lower for t in ["con", "disadvantage", "downside", "risk", "negative"])
+    if has_pros and has_cons:
+        print("PASS: Consequences include both pros and cons")
         score += 1
+    else:
+        print(f"FAIL: Consequences missing pros ({has_pros}) or cons ({has_cons})")
 
-    # Check for citations/sources (This distinguishes Excellent vs Pass)
-    has_citations = (
-        "http" in content
-        or "source" in content_lower
-        or "reference" in content_lower
-        or "[" in content
-    )  # [1] style
-    checks.append(("References/citations", has_citations))
-    if has_citations:
-        score += 1
-
-    # Print results
-    for check_name, passed in checks:
-        status = "PASS" if passed else "FAIL"
-        print(f"{status}: {check_name}")
-
-    # Determine status
-    if not (has_timeline and has_players and has_hurdles):
-        print("VERIFICATION_RESULT: FAIL")  # Missing core requirements
-        return False
-
-    if score == 6:
+    print(f"\nScore: {score}/{max_score}")
+    if score >= 7:
         print("VERIFICATION_RESULT: EXCELLENT")
-    elif score >= 5:  # Maybe missing citations or weak formatting but good content
+    elif score >= 5:
         print("VERIFICATION_RESULT: PASS")
     else:
-        print("VERIFICATION_RESULT: PASS")  # Be generous if content is there
+        print(f"FAIL: Score too low ({score}/{max_score})")
+        print("VERIFICATION_RESULT: FAIL")
+        return False
 
     return True
 
 
 if __name__ == "__main__":
-    success = verify_research()
+    success = verify()
     sys.exit(0 if success else 1)

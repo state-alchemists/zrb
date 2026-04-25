@@ -244,53 +244,52 @@ async def run_default_action(task: "BaseTask", ctx: AnyContext) -> Any:
         return None
 
 
+async def _execute_task_group(
+    task: "BaseTask",
+    session: "AnySession",
+    task_list: list,
+    group_name: str,
+) -> None:
+    """Executes a list of tasks concurrently, logging with the given group name."""
+    ctx = task.get_ctx(session)
+    if task_list:
+        ctx.log_info(f"Executing {len(task_list)} {group_name}(s)")
+        coros = [run_async(t.exec_chain(session)) for t in task_list]
+        await asyncio.gather(*coros)
+    else:
+        ctx.log_debug(f"No {group_name}s to execute.")
+
+
+def _skip_task_group(
+    task: "BaseTask",
+    session: "AnySession",
+    task_list: list,
+    group_name: str,
+) -> None:
+    """Marks a list of tasks as skipped, logging with the given group name."""
+    ctx = task.get_ctx(session)
+    if task_list:
+        ctx.log_info(f"Skipping {len(task_list)} {group_name}(s)")
+        for t in task_list:
+            if not session.get_task_status(t).is_skipped:
+                session.get_task_status(t).mark_as_skipped()
+
+
 async def execute_successors(task: "BaseTask", session: "AnySession"):
     """Executes all successor tasks."""
-    ctx = task.get_ctx(session)
-    successors = task.successors
-    if successors:
-        ctx.log_info(f"Executing {len(successors)} successor(s)")
-        successor_coros = [
-            run_async(successor.exec_chain(session)) for successor in successors
-        ]
-        await asyncio.gather(*successor_coros)
-    else:
-        ctx.log_debug("No successors to execute.")
+    await _execute_task_group(task, session, task.successors, "successor")
 
 
 def skip_successors(task: "BaseTask", session: AnySession):
     """Marks all successor tasks as skipped."""
-    ctx = task.get_ctx(session)
-    successors = task.successors
-    if successors:
-        ctx.log_info(f"Skipping {len(successors)} successor(s)")
-        for successor in successors:
-            # Check if already skipped to avoid redundant logging/state changes
-            if not session.get_task_status(successor).is_skipped:
-                session.get_task_status(successor).mark_as_skipped()
+    _skip_task_group(task, session, task.successors, "successor")
 
 
 async def execute_fallbacks(task: "BaseTask", session: AnySession):
     """Executes all fallback tasks."""
-    ctx = task.get_ctx(session)
-    fallbacks = task.fallbacks
-    if fallbacks:
-        ctx.log_info(f"Executing {len(fallbacks)} fallback(s)")
-        fallback_coros = [
-            run_async(fallback.exec_chain(session)) for fallback in fallbacks
-        ]
-        await asyncio.gather(*fallback_coros)
-    else:
-        ctx.log_debug("No fallbacks to execute.")
+    await _execute_task_group(task, session, task.fallbacks, "fallback")
 
 
 def skip_fallbacks(task: "BaseTask", session: AnySession):
     """Marks all fallback tasks as skipped."""
-    ctx = task.get_ctx(session)
-    fallbacks = task.fallbacks
-    if fallbacks:
-        ctx.log_info(f"Skipping {len(fallbacks)} fallback(s)")
-        for fallback in fallbacks:
-            # Check if already skipped
-            if not session.get_task_status(fallback).is_skipped:
-                session.get_task_status(fallback).mark_as_skipped()
+    _skip_task_group(task, session, task.fallbacks, "fallback")

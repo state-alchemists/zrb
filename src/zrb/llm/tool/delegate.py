@@ -131,11 +131,27 @@ async def _run_agent_task(
     """
     sub_agent = sub_agent_manager.create_agent(agent_name)
     if not sub_agent:
-        return AgentTaskResult(agent_name, None, f"Sub-agent '{agent_name}' not found.")
+        return AgentTaskResult(
+            agent_name,
+            None,
+            f"Sub-agent '{agent_name}' not found. "
+            "[SYSTEM SUGGESTION]: Use ListZrbTasks to see available sub-agents, "
+            "or check agent registration in your zrb config.",
+        )
 
-    full_message = task
+    from zrb.llm.tool.worktree import active_worktree
+
+    context_parts = []
     if additional_context:
-        full_message = f"{task}\n\nContext:\n{additional_context}"
+        context_parts.append(additional_context)
+    active_wt = active_worktree.get()
+    if active_wt:
+        context_parts.append(
+            f"Active worktree: {active_wt} — pass as cwd to Bash; use absolute paths for Read/Write/Edit/Grep."
+        )
+    full_message = task
+    if context_parts:
+        full_message = f"{task}\n\nContext:\n" + "\n".join(context_parts)
 
     try:
         result, _ = await run_agent(
@@ -151,11 +167,14 @@ async def _run_agent_task(
 
         return AgentTaskResult(agent_name, result, None)
 
-    except (ValueError, RecursionError):
-        # Re-raise critical exceptions - callers should handle these
-        raise
-    except Exception as e:
-        # Return other exceptions as error strings for graceful handling
+    except RecursionError:
+        return AgentTaskResult(
+            agent_name,
+            None,
+            "Recursion depth exceeded. [SYSTEM SUGGESTION]: The sub-agent is looping — "
+            "simplify the task or break it into smaller steps.",
+        )
+    except Exception as e:  # noqa: BLE001
         return AgentTaskResult(agent_name, None, str(e))
 
 
@@ -194,24 +213,15 @@ def create_delegate_to_agent_tool(
         buffered_ui.flush_to_parent()
 
         if not task_result.success:
-            # Agent not found is a critical error - raise it
-            if "not found" in (task_result.error or ""):
-                raise ValueError(task_result.error)
-            return f"Error executing sub-agent '{agent_name}': {task_result.error}"
+            return f"Error: {task_result.error}"
 
         # Return result with unique identifier for traceability
-        return f"Sub-agent '{agent_name}' ({unique_id}) completed the task:\n\n{task_result.result}\n"
+        return f"[{agent_name}:{unique_id}] completed:\n\n{task_result.result}"
 
     delegate_to_agent.zrb_is_delegate_tool = True
     delegate_to_agent.__name__ = "DelegateToAgent"
     delegate_to_agent.__doc__ = (
-        "Delegates a task to a subagent for isolated execution.\n\n"
-        "Use when: task affects many files, or would pollute your context.\n"
-        "Don't use for: simple fixes (typos, single-file changes).\n\n"
-        "MANDATES:\n"
-        "- Provide complete context—subagent can't see your conversation history.\n"
-        "- Report all findings back to user; they cannot see subagent output directly.\n"
-        "- For parallel tasks, use `DelegateToAgentsParallel`.\n\n"
+        "Delegates a task to a named subagent for isolated execution.\n\n"
         f"AVAILABLE AGENTS:\n{agent_doc_section}"
     )
     return delegate_to_agent
@@ -238,11 +248,7 @@ def create_parallel_delegate_tool(
         """
         Delegates multiple tasks to subagents in parallel.
 
-        Use when: multiple independent subtasks that can run simultaneously.
-
-        MANDATES:
-        - Each subagent needs full context—they can't see your conversation history.
-        - Report all findings back to user; they cannot see subagent output directly.
+        Each entry in `tasks` must have `agent_name`, `task`, and optional `additional_context`.
         """
         if not tasks:
             return "No tasks provided."
@@ -287,13 +293,13 @@ def create_parallel_delegate_tool(
         combined_results = []
         for r in results:
             if not r.success:
-                combined_results.append(f"Sub-agent '{r.agent_name}' failed: {r.error}")
+                combined_results.append(f"[{r.agent_name}] Error: {r.error}")
             else:
                 indented_result = "\n".join(
                     ["  " + line for line in r.result.splitlines()]
                 )
                 combined_results.append(
-                    f"Sub-agent '{r.agent_name}' completed:\n{indented_result}"
+                    f"[{r.agent_name}] completed:\n{indented_result}"
                 )
 
         return "\n\n".join(combined_results)
@@ -302,10 +308,6 @@ def create_parallel_delegate_tool(
     parallel_delegate_to_agents.__name__ = "DelegateToAgentsParallel"
     parallel_delegate_to_agents.__doc__ = (
         "Delegates multiple tasks to subagents in parallel.\n\n"
-        "Use when: multiple independent subtasks that can run simultaneously.\n\n"
-        "MANDATES:\n"
-        "- Each subagent needs full context—they can't see your conversation history.\n"
-        "- Report all findings back to user; they cannot see subagent output directly.\n\n"
         f"AVAILABLE AGENTS:\n{agent_doc_section}"
     )
     return parallel_delegate_to_agents

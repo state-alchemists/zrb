@@ -1,5 +1,16 @@
-This `etl.py` script is a nightmare to maintain. Every time we want to change the database host, we have to edit the code. And the parsing is so fragile that if someone adds an extra space to the log, it breaks.
+The `pipeline.py` script processes server logs and generates a report. It works, but it's a security and maintenance nightmare:
 
-Can you clean this up? I want it to be more modular (maybe use that ETL thing people talk about). Also, use environment variables for config so we can stop hardcoding passwords. 
+- Credentials and paths are hardcoded
+- SQL queries are built with string formatting — a textbook injection risk
+- All logic is crammed into one function
+- Log parsing is fragile (no regex)
+- No type hints or documentation
 
-Bonus points if you add types and make it look like a professional wrote it. Don't break the `report.html` output, our boss uses that.
+Refactor it. Requirements:
+1. Use environment variables for all config (DB path, log file path, credentials)
+2. Fix the SQL injection — use parameterized queries
+3. Break it into well-named functions following Extract → Transform → Load
+4. Use regex for log line parsing
+5. Add type hints and docstrings
+
+The `report.html` output must still be produced with the same information (error summary, API latency table, active session count). You may rename the file to `pipeline_refactored.py` if you prefer.

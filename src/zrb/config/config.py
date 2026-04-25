@@ -120,6 +120,7 @@ class Config:
         self.DEFAULT_LLM_INCLUDE_CLAUDE_SKILLS: str = "on"
         self.DEFAULT_LLM_INCLUDE_CLI_SKILLS: str = "off"
         self.DEFAULT_LLM_INCLUDE_PROJECT_CONTEXT: str = "on"
+        self.DEFAULT_LLM_INCLUDE_TOOL_GUIDANCE: str = "on"
         self.DEFAULT_LLM_SHOW_OLLAMA_MODELS: str = "on"
         self.DEFAULT_LLM_SHOW_PYDANTIC_AI_MODELS: str = "on"
         # LLM Search Configuration
@@ -199,6 +200,8 @@ class Config:
         self.DEFAULT_LLM_MAX_CONTEXT_RETRIES: str = "5"
         self.DEFAULT_LLM_TOOL_MAX_RETRIES: str = "3"
         self.DEFAULT_LLM_MCP_MAX_RETRIES: str = "3"
+        self.DEFAULT_LLM_API_MAX_RETRIES: str = "3"
+        self.DEFAULT_LLM_API_MAX_WAIT: str = "60"
         # =========================================================================
         # Pagination Configuration
         # =========================================================================
@@ -1624,6 +1627,32 @@ class Config:
         os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_JOURNAL"] = "on" if value else "off"
 
     @property
+    def LLM_INCLUDE_JOURNAL_MANDATE(self) -> bool:
+        explicit = os.environ.get(f"{self.ENV_PREFIX}_LLM_INCLUDE_JOURNAL_MANDATE")
+        if explicit is not None:
+            return to_boolean(explicit)
+        return self.LLM_INCLUDE_JOURNAL
+
+    @LLM_INCLUDE_JOURNAL_MANDATE.setter
+    def LLM_INCLUDE_JOURNAL_MANDATE(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_JOURNAL_MANDATE"] = (
+            "on" if value else "off"
+        )
+
+    @property
+    def LLM_INCLUDE_JOURNAL_REMINDER(self) -> bool:
+        explicit = os.environ.get(f"{self.ENV_PREFIX}_LLM_INCLUDE_JOURNAL_REMINDER")
+        if explicit is not None:
+            return to_boolean(explicit)
+        return self.LLM_INCLUDE_JOURNAL
+
+    @LLM_INCLUDE_JOURNAL_REMINDER.setter
+    def LLM_INCLUDE_JOURNAL_REMINDER(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_JOURNAL_REMINDER"] = (
+            "on" if value else "off"
+        )
+
+    @property
     def LLM_INCLUDE_CLAUDE_SKILLS(self) -> bool:
         return to_boolean(
             get_env(
@@ -1668,6 +1697,22 @@ class Config:
     @LLM_INCLUDE_PROJECT_CONTEXT.setter
     def LLM_INCLUDE_PROJECT_CONTEXT(self, value: bool):
         os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_PROJECT_CONTEXT"] = (
+            "on" if value else "off"
+        )
+
+    @property
+    def LLM_INCLUDE_TOOL_GUIDANCE(self) -> bool:
+        return to_boolean(
+            get_env(
+                "LLM_INCLUDE_TOOL_GUIDANCE",
+                self.DEFAULT_LLM_INCLUDE_TOOL_GUIDANCE,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_INCLUDE_TOOL_GUIDANCE.setter
+    def LLM_INCLUDE_TOOL_GUIDANCE(self, value: bool):
+        os.environ[f"{self.ENV_PREFIX}_LLM_INCLUDE_TOOL_GUIDANCE"] = (
             "on" if value else "off"
         )
 
@@ -2338,6 +2383,36 @@ class Config:
     @LLM_MCP_MAX_RETRIES.setter
     def LLM_MCP_MAX_RETRIES(self, value: int):
         os.environ[f"{self.ENV_PREFIX}_LLM_MCP_MAX_RETRIES"] = str(value)
+
+    @property
+    def LLM_API_MAX_RETRIES(self) -> int:
+        """Max retries for transient provider errors (429, 5xx). 0 or 1 disables retrying."""
+        return int(
+            get_env(
+                "LLM_API_MAX_RETRIES",
+                self.DEFAULT_LLM_API_MAX_RETRIES,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_API_MAX_RETRIES.setter
+    def LLM_API_MAX_RETRIES(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_API_MAX_RETRIES"] = str(value)
+
+    @property
+    def LLM_API_MAX_WAIT(self) -> int:
+        """Maximum seconds to wait between retries (honors Retry-After header)."""
+        return int(
+            get_env(
+                "LLM_API_MAX_WAIT",
+                self.DEFAULT_LLM_API_MAX_WAIT,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_API_MAX_WAIT.setter
+    def LLM_API_MAX_WAIT(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_API_MAX_WAIT"] = str(value)
 
     # =========================================================================
     # Pagination Configuration Properties

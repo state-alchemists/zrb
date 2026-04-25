@@ -8,6 +8,9 @@ from zrb.builtin.jwt import decode_jwt, encode_jwt, validate_jwt
 from zrb.context.shared_context import SharedContext
 from zrb.session.session import Session
 
+# Suppress InsecureKeyLengthWarning for test fixtures that intentionally use short keys
+pytestmark = pytest.mark.filterwarnings("ignore::jwt.InsecureKeyLengthWarning")
+
 
 @pytest.fixture
 def session():

@@ -78,6 +78,25 @@ class MyTask(Task):
 cli.add_task(MyTask(name="complex-job"))
 ```
 
+### Task Appearance: `color` and `icon`
+
+Every task can be given a color and an emoji icon to make it visually distinct in terminal output.
+
+```python
+from zrb import cli, CmdTask
+
+build = cli.add_task(
+    CmdTask(
+        name="build",
+        cmd="make build",
+        color=3,    # ANSI color code (0-255). 3 = yellow.
+        icon="🔨",  # Any emoji or string shown beside the task name.
+    )
+)
+```
+
+`color` accepts standard ANSI 256-color codes. Common values: `1` red, `2` green, `3` yellow, `4` blue, `5` magenta, `6` cyan. When `None` (default), Zrb assigns a color automatically based on the task's position in the pipeline.
+
 ---
 
 ## Execution Dependencies (Upstreams)

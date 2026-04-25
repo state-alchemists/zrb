@@ -12,6 +12,70 @@ from zrb.llm.hook.types import HookEvent
 
 
 @pytest.mark.asyncio
+async def test_run_agent_runs_history_processors_before_pruning():
+    """run_agent runs processors in order before fit_context_window, so
+    summarization compresses the history before any hard pruning can cut it.
+    (pydantic-ai re-runs them per-request inside run_stream_events; that's a
+    separate, idempotent pass.)"""
+    from zrb.llm.agent.common import create_agent
+
+    calls = []
+
+    async def p1(msgs):
+        calls.append("p1")
+        return msgs
+
+    async def p2(msgs):
+        calls.append("p2")
+        return msgs
+
+    agent = create_agent(
+        model="openai:gpt-4o-mini",
+        system_prompt="test",
+        history_processors=[p1, p2],
+        yolo=True,
+    )
+
+    mock_result = MagicMock()
+    mock_result.output = "AI result"
+    mock_result.all_messages.return_value = []
+
+    async def mock_run_stream_events(*args, **kwargs):
+        yield AgentRunResultEvent(result=mock_result)
+
+    agent.run_stream_events = mock_run_stream_events
+
+    result, _ = await run_agent(
+        agent=agent, message="Hi", message_history=[], limiter=LLMLimiter()
+    )
+    assert result == "AI result"
+    # Order is preserved; both processors were invoked in zrb's pre-prune pass.
+    assert calls == ["p1", "p2"]
+
+
+@pytest.mark.asyncio
+async def test_run_agent_without_history_processors_does_not_crash():
+    """An agent created without history_processors must still run."""
+    from zrb.llm.agent.common import create_agent
+
+    agent = create_agent(model="openai:gpt-4o-mini", system_prompt="test", yolo=True)
+
+    mock_result = MagicMock()
+    mock_result.output = "ok"
+    mock_result.all_messages.return_value = []
+
+    async def mock_run_stream_events(*args, **kwargs):
+        yield AgentRunResultEvent(result=mock_result)
+
+    agent.run_stream_events = mock_run_stream_events
+
+    result, _ = await run_agent(
+        agent=agent, message="hi", message_history=[], limiter=LLMLimiter()
+    )
+    assert result == "ok"
+
+
+@pytest.mark.asyncio
 async def test_run_agent_basic():
     """Test basic run_agent execution."""
     agent = MagicMock()

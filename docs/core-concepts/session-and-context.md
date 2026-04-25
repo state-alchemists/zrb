@@ -11,6 +11,7 @@ To understand how data flows through a Zrb pipeline, you must understand the rel
 - [What's the Difference?](#whats-the-difference)
 - [The Context (`ctx`)](#the-context-ctx)
 - [XCom (Cross-Communication)](#xcom-cross-communication)
+- [Ambient Context](#ambient-context)
 - [Quick Reference](#quick-reference)
 
 ---
@@ -125,6 +126,30 @@ def task2(ctx):
     data = ctx.xcom["task1"].pop()
     ctx.print(f"Received: {data}")
 ```
+
+---
+
+## Ambient Context
+
+Inside a task action, `ctx` is passed as an argument. But some helpers — like `zrb_print()` and `get_current_ctx()` — can access the active context without you passing it explicitly. This works via Python's `contextvars.ContextVar`.
+
+When Zrb starts executing a task, it stores the task's `ctx` in a module-level `ContextVar` called `current_ctx`. Any code that runs within that task (including helper functions and nested calls) can retrieve it:
+
+```python
+from zrb.context.any_context import get_current_ctx, zrb_print
+
+def my_helper():
+    # Works anywhere inside a running task — no need to pass ctx manually
+    ctx = get_current_ctx()
+    ctx.log_info("Called from a helper!")
+
+    # Or use zrb_print(), which does the same lookup internally
+    zrb_print("Hello from a helper!")
+```
+
+`get_current_ctx()` raises a `RuntimeError` if called outside of a running task. `zrb_print()` falls back to the standard `print()` in that case.
+
+> This is useful when writing utility functions that are only ever called from inside tasks and you want to avoid threading `ctx` through every function signature.
 
 ---
 

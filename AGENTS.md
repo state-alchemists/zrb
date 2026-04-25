@@ -46,7 +46,7 @@ source .venv/bin/activate && poetry lock && poetry install
 | `llm/history_manager/` | `FileHistoryManager` – persist and load conversation history |
 | `llm/hook/` | `HookManager`, `HookContext` – Claude Code–compatible lifecycle hooks |
 | `llm/lsp/` | Language Server Protocol support for LLM tools |
-| `llm/prompt/` | System prompts, mandates, context journal, history processors |
+| `llm/prompt/` | System prompts, mandates, context journal; `PromptManager` composes sections; configurable tool guidance via `add_tool_guidance()` |
 | `llm/skill/` | `SkillManager` – reusable agent capabilities, dynamic activation |
 | `llm/summarizer/` | Context compression and history summarization for long conversations |
 | `llm/task/` | `LLMTask` – pydantic-ai–based task with tools, skills, hooks, history |
@@ -73,6 +73,41 @@ source .venv/bin/activate && poetry lock && poetry install
 | `Scheduler` | `zrb.task.scheduler` | Cron-style trigger (extends `BaseTrigger`) |
 | `Scaffolder` | `zrb.task.scaffolder` | Jinja2 file templating / project scaffolding |
 | `RsyncTask` | `zrb.task.rsync_task` | File sync / deploy via rsync |
+
+## LLM Prompt System
+
+`PromptManager` (`src/zrb/llm/prompt/manager.py`) assembles the system prompt from ordered sections (persona → git mandate → system context → mandate → tool guidance → journal → project context → skills → user prompts). Each section can be toggled via `include_*` flags or the corresponding `CFG.LLM_INCLUDE_*` env var.
+
+### System Context Auto-Injections (`src/zrb/llm/prompt/system_context.py`)
+
+The system context middleware runs once per prompt build and does three things beyond environment facts:
+
+1. **Session wiring** — reads `ctx.input.session` and calls `set_current_session()` (`src/zrb/llm/tool/plan.py`). This sets a `ContextVar` that all four todo tools (`WriteTodos`, `GetTodos`, `UpdateTodo`, `ClearTodos`) read when called without an explicit `session=` argument, ensuring they always operate on the correct conversation session.
+
+2. **Active worktree** — if `EnterWorktree` was called, its path is shown as `- Active worktree: <path>` in every subsequent system prompt, reminding the LLM to pass it as `cwd` to `Bash`. Cleared automatically when `ExitWorktree` is called.
+
+3. **Pending todos** — if the current session has `pending` or `in_progress` todos, they are rendered into the system context so the LLM sees them at the start of every turn without needing to call `GetTodos` first. Completed and cancelled items are omitted.
+
+### Worktree Storage
+
+Git worktrees are created at `{git_root}/.zrb/worktree/{branch_name}`. This directory is listed in `.gitignore`.
+
+### Configuring Tool Guidance
+
+Tool guidance is fully explicit — there is no static catalogue. Register entries via `PromptManager`:
+
+```python
+llm_chat.prompt_manager.add_tool_guidance(
+    group="My Tools",
+    name="MyTool",
+    use_when="Doing X when Y",
+    key_rule="Always pass --flag; never call without context.",  # optional
+)
+```
+
+`add_tool_group(name=...)` is called automatically by `add_tool_guidance` when the group does not yet exist. Calling it explicitly is only needed to pre-declare an empty group or control order.
+
+`LLMChatTask._exec_action` automatically sets `prompt_manager.tool_names` from the resolved tool list at runtime, so guidance for unregistered tools is suppressed. For factory-created tools (whose Python function names differ from their LLM-visible names), add an `add_tool_guidance()` entry to ensure their guidance is included.
 
 ## Development Conventions
 

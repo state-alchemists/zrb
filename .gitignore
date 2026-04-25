@@ -14,3 +14,4 @@ test-generated-*
 playground/generated
 ZRB.md
 zrb_debug.log
+.zrb/worktree/

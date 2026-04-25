@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
+from contextvars import ContextVar
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -250,17 +251,18 @@ class TodoManager:
 todo_manager = TodoManager()
 
 
+_current_session: ContextVar[str] = ContextVar("zrb_current_session", default="default")
+
+
 def get_current_context_session() -> str:
-    """
-    Get the current session name from execution context.
+    """Get the current session name, set by set_current_session() before agent runs."""
+    return _current_session.get()
 
-    This is used as a fallback when session is not provided.
-    We use a thread-local context to track the current session.
-    """
-    import threading
 
-    _thread_local = threading.local()
-    return getattr(_thread_local, "current_session", "default")
+def set_current_session(session_name: str) -> None:
+    """Set the current session name so todo tools use the right session automatically."""
+    if session_name:
+        _current_session.set(session_name)
 
 
 # Tool functions for LLM integration
@@ -275,36 +277,25 @@ async def write_todos(
     Creates or replaces the todo list for the current session.
 
     With `replace=True` (default), all existing todos are overwritten. Pass `replace=False` to merge.
-
-    MANDATES:
-    - Mark todos "in_progress" when starting, "completed" when done.
-    - Call `GetTodos` before each subtask to check current state.
     """
     session_name = session or get_current_context_session()
 
     result = todo_manager.write_todos(session_name, todos, replace)
 
-    # Format for LLM readability
-    lines = ["## Todo List Updated\n"]
-    lines.append(f"**Session:** {session_name}")
-    lines.append(
-        f"**Total:** {result['total']} | **Completed:** {result['completed']} | **In Progress:** {result['in_progress']} | **Pending:** {result['pending']}"
-    )
-    lines.append("")
-    lines.append("### Todos:")
+    # Format compactly — no emoji, clear structure
+    lines = [
+        f"[{session_name}] {result['completed']}/{result['total']} done, {result['in_progress']} in progress"
+    ]
     for todo in result["todos"]:
-        status_icon = {
-            "completed": "✅",
-            "in_progress": "🔄",
-            "pending": "⏳",
-            "cancelled": "❌",
-        }.get(todo["status"], "⏳")
-        lines.append(
-            f"{status_icon} [{todo['id']}] {todo['content']} ({todo['status']})"
-        )
+        status_char = {
+            "completed": "[+]",
+            "in_progress": "[>]",
+            "pending": "[ ]",
+            "cancelled": "[-]",
+        }.get(todo["status"], "[?]")
+        lines.append(f"  {status_char} [{todo['id']}] {todo['content']}")
 
-    lines.append("")
-    lines.append("Use `update_todo` to change status as you progress through tasks.")
+    lines.append(f"\nUse `update_todo` to change status; `get_todos` to check state.")
 
     return "\n".join(lines)
 
@@ -320,34 +311,29 @@ async def get_todos(session: str = "") -> str:
     result = todo_manager.get_todos(session_name)
 
     if not result or not result.get("todos"):
-        return f"No todos found for session '{session_name}'. Use `write_todos` to create a plan."
+        return f"No todos for session '{session_name}'. Use `write_todos` to create a plan."
 
-    # Format for LLM readability
-    lines = ["## Current Todo List\n"]
-    lines.append(f"**Session:** {session_name}")
+    # Format compactly — no emoji, clear structure
+    lines = [
+        f"[{session_name}] Progress: {result['completed']}/{result['total']} done, {result['in_progress']} in progress, {result['pending']} pending"
+    ]
     lines.append(
-        f"**Total:** {result['total']} | **Completed:** {result['completed']} | **In Progress:** {result['in_progress']} | **Pending:** {result['pending']}"
+        f"Updated: {result.get('updated_at', result.get('created_at', 'N/A'))}"
     )
-    lines.append(f"**Created:** {result.get('created_at', 'N/A')}")
-    lines.append(f"**Last Updated:** {result.get('updated_at', 'N/A')}")
-    lines.append("")
-    lines.append("### Todos:")
     for todo in result["todos"]:
-        status_icon = {
-            "completed": "✅",
-            "in_progress": "🔄",
-            "pending": "⏳",
-            "cancelled": "❌",
-        }.get(todo["status"], "⏳")
+        status_char = {
+            "completed": "[+]",
+            "in_progress": "[>]",
+            "pending": "[ ]",
+            "cancelled": "[-]",
+        }.get(todo["status"], "[?]")
         lines.append(
-            f"{status_icon} [{todo['id']}] {todo['content']} ({todo['status']})"
+            f"  {status_char} [{todo['id']}] {todo['content']} -> {todo['status']}"
         )
 
-    # Calculate progress percentage
     if result["total"] > 0:
         progress = (result["completed"] / result["total"]) * 100
-        lines.append("")
-        lines.append(f"**Progress:** {progress:.1f}%")
+        lines.append(f"\nProgress: {progress:.0f}%")
 
     return "\n".join(lines)
 
@@ -367,12 +353,19 @@ async def update_todo(
     session_name = session or get_current_context_session()
 
     if status is None and content is None:
-        return "Error: Must provide either 'status' or 'content' to update."
+        return (
+            f"Error: Must provide 'status' and/or 'content' to update.\n"
+            f"[SYSTEM SUGGESTION]: Provide at least one of status "
+            f"(pending/in_progress/completed/cancelled) or content."
+        )
 
     result = todo_manager.update_todo(session_name, todo_id, status, content)
 
     if not result:
-        return f"Error: Todo '{todo_id}' not found in session '{session_name}'. Use `get_todos` to see available todos."
+        return (
+            f"Error: Todo '{todo_id}' not found in session '{session_name}'.\n"
+            f"[SYSTEM SUGGESTION]: Use `get_todos` to see valid todo IDs."
+        )
 
     # Find the updated todo
     updated_todo = None
@@ -381,42 +374,31 @@ async def update_todo(
             updated_todo = todo
             break
 
-    # Format for LLM readability
-    lines = ["## Todo Updated\n"]
-    status_icon = (
-        {
-            "completed": "✅",
-            "in_progress": "🔄",
-            "pending": "⏳",
-            "cancelled": "❌",
-        }.get(updated_todo["status"], "⏳")
-        if updated_todo
-        else "❓"
+    if not updated_todo:
+        return f"Error: Todo '{todo_id}' not found. Use `get_todos` to see valid IDs."
+
+    # Compact format
+    lines = [
+        f"[{session_name}] Updated: [{todo_id}] {updated_todo['content']} -> {updated_todo['status']}"
+    ]
+    lines.append(
+        f"Progress: {result['completed']}/{result['total']} done, {result['in_progress']} in progress"
     )
 
-    lines.append(
-        f"{status_icon} [{todo_id}] {updated_todo['content']} → **{updated_todo['status']}**"
-    )
-    lines.append("")
-    lines.append(
-        f"**Progress:** {result['completed']}/{result['total']} completed ({result['in_progress']} in progress)"
-    )
-
-    # Show remaining tasks
+    # Show remaining tasks compactly
     pending = [t for t in result["todos"] if t["status"] == "pending"]
     in_progress = [t for t in result["todos"] if t["status"] == "in_progress"]
 
     if in_progress:
-        lines.append("")
-        lines.append("**In Progress:**")
-        for t in in_progress:
-            lines.append(f"  🔄 [{t['id']}] {t['content']}")
+        lines.append(
+            "In progress: "
+            + ", ".join(f"[{t['id']}] {t['content']}" for t in in_progress)
+        )
 
     if pending:
-        lines.append("")
-        lines.append("**Pending:**")
-        for t in pending:
-            lines.append(f"  ⏳ [{t['id']}] {t['content']}")
+        lines.append(
+            "Pending: " + ", ".join(f"[{t['id']}] {t['content']}" for t in pending)
+        )
 
     return "\n".join(lines)
 
@@ -431,8 +413,7 @@ async def clear_todos(session: str = "") -> str:
 
     if success:
         return f"Cleared all todos for session '{session_name}'."
-    else:
-        return f"No todos to clear for session '{session_name}'."
+    return f"No todos to clear for session '{session_name}'."
 
 
 # Export tool functions with proper names for LLM

@@ -16,6 +16,11 @@ from zrb.llm.prompt.prompt import (
     get_persona_prompt,
 )
 from zrb.llm.prompt.system_context import system_context
+from zrb.llm.prompt.tool_guidance import (
+    ToolCatalogue,
+    ToolGroups,
+    get_tool_guidance_prompt,
+)
 from zrb.llm.skill.manager import SkillManager
 from zrb.llm.skill.manager import skill_manager as default_skill_manager
 from zrb.llm.util.git import is_inside_git_dir
@@ -39,9 +44,14 @@ class PromptManager:
         include_git_mandate: bool | None = None,
         include_system_context: bool | None = None,
         include_journal: bool | None = None,
+        include_journal_mandate: bool | None = None,
         include_claude_skills: bool | None = None,
         include_cli_skills: bool | None = None,
         include_project_context: bool | None = None,
+        include_tool_guidance: bool | None = None,
+        tool_names: "set[str] | Callable[[AnyContext], set[str]] | None" = None,
+        tool_guidance: "ToolCatalogue | None" = None,
+        tool_groups: "ToolGroups | None" = None,
         skill_manager: SkillManager | None = None,
         active_skills: StrListAttr | None = None,
         render_active_skills: bool = True,
@@ -53,10 +63,21 @@ class PromptManager:
         self._include_mandate = include_mandate
         self._include_git_mandate = include_git_mandate
         self._include_system_context = include_system_context
-        self._include_journal = include_journal
+        # include_journal_mandate is the specific flag; include_journal is the legacy alias
+        self._include_journal_mandate = (
+            include_journal_mandate
+            if include_journal_mandate is not None
+            else include_journal
+        )
         self._include_claude_skills = include_claude_skills
         self._include_cli_skills = include_cli_skills
         self._include_project_context = include_project_context
+        self._include_tool_guidance = include_tool_guidance
+        self._tool_names = tool_names
+        self._tool_guidance: ToolCatalogue = (
+            tool_guidance if tool_guidance is not None else {}
+        )
+        self._tool_groups: ToolGroups = tool_groups if tool_groups is not None else []
         self._skill_manager = skill_manager or default_skill_manager
         self._active_skills = active_skills
         self._render_active_skills = render_active_skills
@@ -92,9 +113,9 @@ class PromptManager:
             else CFG.LLM_INCLUDE_SYSTEM_CONTEXT
         )
         include_journal = (
-            self._include_journal
-            if self._include_journal is not None
-            else CFG.LLM_INCLUDE_JOURNAL
+            self._include_journal_mandate
+            if self._include_journal_mandate is not None
+            else CFG.LLM_INCLUDE_JOURNAL_MANDATE
         )
         include_claude_skills = (
             self._include_claude_skills
@@ -110,6 +131,15 @@ class PromptManager:
             self._include_project_context
             if self._include_project_context is not None
             else CFG.LLM_INCLUDE_PROJECT_CONTEXT
+        )
+        include_tool_guidance = (
+            self._include_tool_guidance
+            if self._include_tool_guidance is not None
+            else CFG.LLM_INCLUDE_TOOL_GUIDANCE
+        )
+        # Resolve tool_names once (may be a static set or a callable)
+        tool_names_value = (
+            self._tool_names(ctx) if callable(self._tool_names) else self._tool_names
         )
 
         # 1. Identity & Always-On Rules (these must not be truncated)
@@ -129,6 +159,17 @@ class PromptManager:
         # 3. Rules: Core operational behavior
         if include_mandate:
             middlewares.append(new_prompt(lambda: get_mandate_prompt()))
+        if include_tool_guidance:
+            # Capture values to avoid late-binding in lambda
+            _catalogue = self._tool_guidance
+            _groups = self._tool_groups
+            middlewares.append(
+                new_prompt(
+                    lambda tn=tool_names_value, c=_catalogue, g=_groups: get_tool_guidance_prompt(
+                        tn, c, g
+                    )
+                )
+            )
         if include_journal:
             middlewares.append(new_prompt(lambda: get_journal_prompt()))
         # 4. Context: Project specific documentation and skills
@@ -198,12 +239,20 @@ class PromptManager:
         self._include_system_context = value
 
     @property
+    def include_journal_mandate(self):
+        return self._include_journal_mandate
+
+    @include_journal_mandate.setter
+    def include_journal_mandate(self, value: bool):
+        self._include_journal_mandate = value
+
+    @property
     def include_journal(self):
-        return self._include_journal
+        return self._include_journal_mandate
 
     @include_journal.setter
     def include_journal(self, value: bool):
-        self._include_journal = value
+        self._include_journal_mandate = value
 
     @property
     def include_claude_skills(self):
@@ -228,6 +277,56 @@ class PromptManager:
     @include_project_context.setter
     def include_project_context(self, value: bool):
         self._include_project_context = value
+
+    @property
+    def include_tool_guidance(self):
+        return self._include_tool_guidance
+
+    @include_tool_guidance.setter
+    def include_tool_guidance(self, value: bool):
+        self._include_tool_guidance = value
+
+    @property
+    def tool_names(self):
+        return self._tool_names
+
+    @tool_names.setter
+    def tool_names(self, value: "set[str] | Callable[[AnyContext], set[str]] | None"):
+        self._tool_names = value
+
+    def add_tool_group(self, *, name: str) -> None:
+        """Register a new tool group if it does not already exist."""
+        for label, _ in self._tool_groups:
+            if label == name:
+                return
+        self._tool_groups.append((name, []))
+
+    def add_tool_guidance(
+        self,
+        *,
+        group: str,
+        name: str,
+        use_when: str | None = None,
+        key_rule: str | None = None,
+    ) -> None:
+        """Add or update a tool entry within a group.
+
+        If *group* does not yet exist it is created automatically.
+        If *name* already exists in the catalogue its entry is
+        overwritten, but its position inside the group is preserved.
+        """
+        # Ensure the group exists
+        self.add_tool_group(name=group)
+
+        # Update catalogue
+        self._tool_guidance[name] = (use_when, key_rule)
+
+        # Append to group members if not already there
+        for label, members in self._tool_groups:
+            if label == group:
+                if name not in members:
+                    members.append(name)
+                break
 
     def reset(self):
         self._middlewares = []

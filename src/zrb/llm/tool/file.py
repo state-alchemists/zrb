@@ -2,6 +2,8 @@ import fnmatch
 import glob
 import os
 import re
+import shutil
+import subprocess
 import time
 from typing import Any
 
@@ -32,31 +34,42 @@ DEFAULT_EXCLUDED_PATTERNS = [
 ]
 
 
+def _truncate_file_list(
+    sorted_files: list[str],
+) -> tuple[list[str], int | None]:
+    """
+    Truncates a sorted file list to head+tail using the configured line limit.
+
+    Returns (files, omitted_count). If no truncation needed, omitted_count is None.
+    """
+    head = tail = CFG.LLM_FILE_READ_LINES // 2
+    if len(sorted_files) > head + tail:
+        truncated = sorted_files[:head] + sorted_files[-tail:]
+        omitted = len(sorted_files) - head - tail
+        return truncated, omitted
+    return sorted_files, None
+
+
 def list_files(
     path: str = ".",
     auto_truncate: bool = True,
     exclude_patterns: list[str] | None = None,
-) -> dict[str, list[str]]:
+) -> dict[str, Any]:
     """
     Recursively lists files up to 3 levels deep.
 
     Auto-excludes `.git`, `node_modules`, `__pycache__`, etc. Sorted alphabetically.
-
-    MANDATES:
-    - For targeted file discovery by pattern, use `Glob` instead.
-    - Use `exclude_patterns=[]` to include all files.
+    Pass `exclude_patterns=[]` to include all files.
     """
     all_files: list[str] = []
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
-        raise FileNotFoundError(f"Path does not exist: {path}")
+        return {"error": f"Path does not exist: {abs_path}"}
 
     depth = 3
     patterns_to_exclude = (
         exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
     )
-    preserved_head_lines = CFG.LLM_FILE_READ_LINES // 2
-    preserved_tail_lines = CFG.LLM_FILE_READ_LINES // 2
 
     initial_depth = abs_path.rstrip(os.sep).count(os.sep)
     for root, dirs, files in os.walk(abs_path, topdown=True):
@@ -81,18 +94,14 @@ def list_files(
 
     sorted_files = sorted(all_files)
 
-    if (
-        auto_truncate
-        and len(sorted_files) > preserved_head_lines + preserved_tail_lines
-    ):
-        truncated_files = (
-            sorted_files[:preserved_head_lines] + sorted_files[-preserved_tail_lines:]
-        )
-        omitted = len(sorted_files) - preserved_head_lines - preserved_tail_lines
-        return {
-            "files": truncated_files,
-            "truncation_notice": f"[TRUNCATED {omitted} files. Showing first {preserved_head_lines} and last {preserved_tail_lines} files.]",
-        }
+    if auto_truncate:
+        truncated, omitted = _truncate_file_list(sorted_files)
+        if omitted is not None:
+            head = tail = CFG.LLM_FILE_READ_LINES // 2
+            return {
+                "files": truncated,
+                "truncation_notice": f"[TRUNCATED {omitted} files. Showing first {head} and last {tail} files.]",
+            }
 
     return {"files": sorted_files}
 
@@ -102,26 +111,21 @@ def glob_files(
     path: str = ".",
     auto_truncate: bool = True,
     exclude_patterns: list[str] | None = None,
-) -> list[str]:
+) -> dict[str, Any]:
     """
     Finds files matching glob patterns (e.g., `**/*.py`). Supports `**` for recursive search.
 
     Auto-excludes `.git`, `node_modules`, `__pycache__`, etc. Sorted alphabetically.
-
-    MANDATES:
-    - For general directory listing without a pattern, use `LS` instead.
-    - Use `exclude_patterns=[]` to include all files.
+    Pass `exclude_patterns=[]` to include all files.
     """
     found_files = []
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
-        return f"Error: Path does not exist: {path}"
+        return {"error": f"Path does not exist: {abs_path}"}
 
     patterns_to_exclude = (
         exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
     )
-    preserved_head_lines = CFG.LLM_FILE_READ_LINES // 2
-    preserved_tail_lines = CFG.LLM_FILE_READ_LINES // 2
 
     search_pattern = os.path.join(abs_path, pattern)
     candidates = glob.glob(search_pattern, recursive=True)
@@ -142,20 +146,16 @@ def glob_files(
 
     sorted_files = sorted(found_files)
 
-    if (
-        auto_truncate
-        and len(sorted_files) > preserved_head_lines + preserved_tail_lines
-    ):
-        truncated_files = (
-            sorted_files[:preserved_head_lines] + sorted_files[-preserved_tail_lines:]
-        )
-        omitted = len(sorted_files) - preserved_head_lines - preserved_tail_lines
-        truncated_files.append(
-            f"[TRUNCATED {omitted} files. Showing first {preserved_head_lines} and last {preserved_tail_lines} files.]"
-        )
-        return truncated_files
+    if auto_truncate:
+        truncated, omitted = _truncate_file_list(sorted_files)
+        if omitted is not None:
+            head = tail = CFG.LLM_FILE_READ_LINES // 2
+            return {
+                "files": truncated,
+                "truncation_notice": f"[TRUNCATED {omitted} files. Showing first {head} and last {tail} files.]",
+            }
 
-    return sorted_files
+    return {"files": sorted_files}
 
 
 def read_file(
@@ -164,11 +164,6 @@ def read_file(
 ) -> str:
     """
     Reads a file's full content. Truncates at 1000 head/tail lines or 100k chars.
-
-    MANDATES:
-    - Use `Grep` first to locate the relevant section before reading.
-    - For multiple related files, use `ReadMany` instead.
-    - Always read a file before editing it.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
 
@@ -248,14 +243,21 @@ def _check_file_safety(abs_path: str) -> str | None:
 def _format_read_header(
     path: str, start_idx: int, end_idx: int, total_lines: int, truncated: bool
 ) -> str:
-    """Formats the header information for the read content."""
+    """
+    Formats the header information for the read content.
+
+    Uses a clear delimiter so the LLM can unambiguously distinguish
+    metadata from file content. The content below ---CONTENT---
+    is the actual file content; everything above is NOT part of the file.
+    """
     if truncated:
-        return (
-            f"IMPORTANT: The file content has been truncated.\n"
-            f"Status: Showing lines {start_idx + 1}-{end_idx} of {total_lines} total lines.\n"
-            f"[SYSTEM SUGGESTION]: Use 'Grep' to find specific function definitions or patterns before reading.\n\n"
+        meta = (
+            f"[File: {path} | lines {start_idx + 1}–{end_idx} of {total_lines} shown | "
+            f"truncated — use Grep to locate sections, then Read again]"
         )
-    return ""
+    else:
+        meta = f"[File: {path} | {total_lines} lines]"
+    return f"{meta}\n---CONTENT---\n"
 
 
 def read_files(
@@ -277,10 +279,9 @@ def write_file(path: str, content: str, mode: str = "w") -> str:
     """
     Writes or appends content to a file. Creates the file and any missing parent directories.
 
-    MANDATES:
-    - For modifying existing files, use `Edit` (surgical replacement) instead.
-    - For large content, write in chunks: mode="w" for first chunk, mode="a" for each subsequent.
-    - For multiple files at once, use `WriteMany`.
+    `mode="w"` (default) overwrites; `mode="a"` appends. For large content, write in chunks:
+    first chunk with mode="w", subsequent chunks with mode="a".
+    For existing files, read with `Read` first to avoid unintentional overwrites.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     try:
@@ -311,15 +312,68 @@ def write_files(files: list[dict[str, str]]) -> dict[str, str]:
     return results
 
 
-def replace_in_file(path: str, old_text: str, new_text: str, count: int = -1) -> str:
-    """
-    Replaces exact text sequences within a file.
+def _match_line_trimmed(content: str, old_text: str) -> str | None:
+    """Return actual content substring matching old_text after stripping trailing whitespace per line."""
+    old_lines = old_text.splitlines()
+    if not old_lines:
+        return None
+    old_stripped = [l.rstrip() for l in old_lines]
+    content_lines = content.splitlines(keepends=True)
+    n = len(old_lines)
+    for i in range(len(content_lines) - n + 1):
+        block = content_lines[i : i + n]
+        if [l.rstrip() for l in block] == old_stripped:
+            return "".join(block)
+    return None
 
-    MANDATES:
-    - Always `Read` the file first to copy exact text byte-for-byte—Grep output may truncate long lines.
-    - Include 2-3 surrounding lines in `old_text` to ensure a unique match.
-    - If `old_text` matches multiple locations, expand context or use `count=1` for first occurrence only.
-    - For new files, use `Write` instead.
+
+def _match_indentation_flexible(content: str, old_text: str) -> str | None:
+    """Return actual content substring matching old_text after removing common indentation."""
+    old_lines = old_text.splitlines()
+    if len(old_lines) < 2:
+        return None  # Single-line indent shifts are too ambiguous to fuzzy-match
+
+    def _min_indent(lines: list[str]) -> int:
+        non_empty = [l for l in lines if l.strip()]
+        if not non_empty:
+            return 0
+        return min(len(l) - len(l.lstrip()) for l in non_empty)
+
+    old_dedented = [l[_min_indent(old_lines) :] for l in old_lines]
+    content_lines = content.splitlines(keepends=True)
+    n = len(old_lines)
+    for i in range(len(content_lines) - n + 1):
+        block = content_lines[i : i + n]
+        block_clean = [l.rstrip("\n").rstrip("\r") for l in block]
+        shift = _min_indent(block_clean)
+        if [l[shift:] for l in block_clean] == old_dedented:
+            return "".join(block)
+    return None
+
+
+def _find_fuzzy_match(content: str, old_text: str) -> str | None:
+    """Try relaxed matching strategies in order. Returns the actual content substring or None."""
+    for strategy in (_match_line_trimmed, _match_indentation_flexible):
+        result = strategy(content, old_text)
+        if result is not None:
+            return result
+    return None
+
+
+def replace_in_file(
+    path: str,
+    old_text: str,
+    new_text: str,
+    count: int = -1,
+) -> str:
+    """
+    Replaces text sequences within a file. Always read the file with `Read` before calling this.
+
+    Tries exact match first, then falls back to fuzzy matching (trailing-whitespace-tolerant,
+    indentation-flexible) so minor whitespace differences don't cause unnecessary failures.
+
+    `count=-1` (default) replaces all occurrences; `count=1` replaces only the first.
+    Returns an error with near-miss hints if old_text cannot be matched.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
@@ -328,20 +382,160 @@ def replace_in_file(path: str, old_text: str, new_text: str, count: int = -1) ->
     try:
         with open(abs_path, "r", encoding="utf-8") as f:
             content = f.read()
+    except Exception as e:
+        return f"Error: Cannot read file {path}: {e}"
 
-        if old_text not in content:
-            return f"Error: '{old_text}' not found in {path}"
+    # Exact match
+    actual_old = old_text if old_text in content else None
+    fuzzy_note = ""
 
-        new_content = content.replace(old_text, new_text, count)
+    # Fuzzy fallback
+    if actual_old is None:
+        matched = _find_fuzzy_match(content, old_text)
+        if matched is not None:
+            actual_old = matched
+            fuzzy_note = " (fuzzy match: whitespace differences were normalized)"
 
-        if content == new_content:
-            return f"No changes made to {path}"
+    if actual_old is None:
+        lines = content.splitlines()
+        old_lines = old_text.splitlines()
+        if old_lines:
+            first_line = old_lines[0]
+            near_matches = [
+                (i + 1, line) for i, line in enumerate(lines) if first_line in line
+            ]
+            if near_matches:
+                preview = "\n".join(
+                    f"  Line {num}: {line[:120]}" for num, line in near_matches[:3]
+                )
+                return (
+                    f"Error: '{_trunc(old_text, 80)}' not found in {path}.\n"
+                    f"Similar lines found:\n{preview}\n"
+                    f"[SYSTEM SUGGESTION]: old_text must match the file exactly. "
+                    f"Check for trailing spaces or indentation differences. "
+                    f"Use Read to copy old_text verbatim from the file content."
+                )
+        return (
+            f"Error: '{_trunc(old_text, 80)}' not found in {path}.\n"
+            f"[SYSTEM SUGGESTION]: Use Read to get the exact content and copy old_text "
+            f"verbatim from below ---CONTENT---."
+        )
 
+    match_count = content.count(actual_old)
+    new_content = content.replace(actual_old, new_text, count)
+
+    if content == new_content:
+        return f"No changes made to {path}"
+
+    try:
         with open(abs_path, "w", encoding="utf-8") as f:
             f.write(new_content)
-        return f"Successfully updated {path}"
     except Exception as e:
-        return f"Error replacing text in {path}: {e}"
+        return f"Error: Cannot write file {path}: {e}"
+
+    replacements = match_count if count == -1 else min(match_count, count)
+    return f"Successfully updated {path} ({replacements} replacement(s)){fuzzy_note}"
+
+
+def _trunc(s: str, n: int) -> str:
+    return (s[:n] + "...") if len(s) > n else s
+
+
+def _search_with_ripgrep(
+    pattern: "re.Pattern",
+    regex: str,
+    abs_path: str,
+    file_pattern: str,
+    case_sensitive: bool,
+    context_lines: int,
+    files_only: bool,
+    auto_truncate: bool,
+    patterns_to_exclude: list[str],
+    timeout: float,
+    preserved_head_lines: int,
+    preserved_tail_lines: int,
+) -> "dict[str, Any] | None":
+    """Use ripgrep to find matching files, then extract matches via Python. Returns None on failure."""
+    if not shutil.which("rg"):
+        return None
+
+    rg_cmd = ["rg", "--files-with-matches", "--no-messages"]
+    if not case_sensitive:
+        rg_cmd.append("--ignore-case")
+    if file_pattern:
+        rg_cmd.extend(["--glob", file_pattern])
+    for pat in patterns_to_exclude:
+        rg_cmd.extend(["--glob", f"!{pat}"])
+    rg_cmd.extend(["--", regex, abs_path])
+
+    try:
+        proc = subprocess.run(rg_cmd, capture_output=True, text=True, timeout=timeout)
+    except (subprocess.TimeoutExpired, OSError):
+        return None
+
+    if proc.returncode == 2:
+        return None
+
+    matching_files = [f.strip() for f in proc.stdout.splitlines() if f.strip()]
+
+    search_results: dict[str, Any] = {"summary": "", "results": []}
+    match_count = 0
+    file_match_count = 0
+
+    for file_path in matching_files:
+        rel_file_path = os.path.relpath(file_path, os.getcwd())
+        try:
+            matches = _get_file_matches(
+                file_path,
+                pattern,
+                context_lines=context_lines,
+                preserved_head_lines=preserved_head_lines,
+                preserved_tail_lines=preserved_tail_lines,
+            )
+            if matches:
+                file_match_count += 1
+                actual_matches = [m for m in matches if m.get("line_number", 0) > 0]
+                match_count += len(actual_matches)
+                if files_only:
+                    search_results["results"].append(rel_file_path)
+                else:
+                    search_results["results"].append(
+                        {"file": rel_file_path, "matches": matches}
+                    )
+        except Exception:
+            pass
+
+    if auto_truncate:
+        results = search_results["results"]
+        if len(results) > preserved_head_lines + preserved_tail_lines:
+            truncated = results[:preserved_head_lines] + results[-preserved_tail_lines:]
+            omitted = len(results) - preserved_head_lines - preserved_tail_lines
+            search_results["results"] = truncated
+            search_results["truncation_notice"] = (
+                f"[TRUNCATED {omitted} result files. Showing first {preserved_head_lines} and last {preserved_tail_lines} files with matches.]"
+            )
+
+    if match_count == 0:
+        search_results["summary"] = (
+            f"No matches found for pattern '{regex}' in path '{abs_path}' "
+            f"[SYSTEM SUGGESTION]: Try broadening your regex pattern, removing the file_pattern filter, "
+            f"or checking if you're searching in the correct directory."
+        )
+    else:
+        search_results["summary"] = (
+            f"Found {match_count} matches in {file_match_count} files."
+        )
+
+    if files_only:
+        result: dict[str, Any] = {
+            "files": search_results["results"],
+            "summary": search_results["summary"],
+        }
+        if "truncation_notice" in search_results:
+            result["truncation_notice"] = search_results["truncation_notice"]
+        return result
+
+    return search_results
 
 
 def search_files(
@@ -351,19 +545,23 @@ def search_files(
     auto_truncate: bool = True,
     exclude_patterns: list[str] | None = None,
     timeout: float = 30.0,
+    context_lines: int = 2,
+    files_only: bool = False,
+    case_sensitive: bool = True,
 ) -> dict[str, Any]:
     """
     Searches for a regex pattern across files. Results include line numbers and context.
 
-    MANDATES:
-    - Use `file_pattern` to restrict to specific file types (e.g., `*.py`).
-    - For file listing without content search, use `Glob` or `LS` instead.
-    - Use `exclude_patterns=[]` to search all files including normally excluded ones.
-    - Lines are truncated at 1000 chars—never copy Grep output directly into `Edit`'s `old_text`; always `Read` the file first.
+    `context_lines` (default 2): surrounding lines shown per match.
+    `files_only=True`: returns `{"files": [...], "summary": "..."}` — much smaller output.
+    `case_sensitive=False`: case-insensitive search.
+    `file_pattern`: restrict to specific file types (e.g., `*.py`).
+    Lines are truncated at 1000 chars in output.
     """
     start_time = time.time()
+    flags = 0 if case_sensitive else re.IGNORECASE
     try:
-        pattern = re.compile(regex)
+        pattern = re.compile(regex, flags)
     except re.error as e:
         return {"error": f"Invalid regex pattern: {e}"}
 
@@ -382,6 +580,23 @@ def search_files(
     patterns_to_exclude = (
         exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
     )
+
+    rg_result = _search_with_ripgrep(
+        pattern=pattern,
+        regex=regex,
+        abs_path=abs_path,
+        file_pattern=file_pattern,
+        case_sensitive=case_sensitive,
+        context_lines=context_lines,
+        files_only=files_only,
+        auto_truncate=auto_truncate,
+        patterns_to_exclude=patterns_to_exclude,
+        timeout=timeout,
+        preserved_head_lines=preserved_head_lines,
+        preserved_tail_lines=preserved_tail_lines,
+    )
+    if rg_result is not None:
+        return rg_result
 
     try:
         for root, dirs, files in os.walk(abs_path):
@@ -417,6 +632,7 @@ def search_files(
                     matches = _get_file_matches(
                         file_path,
                         pattern,
+                        context_lines=context_lines,
                         preserved_head_lines=preserved_head_lines,
                         preserved_tail_lines=preserved_tail_lines,
                     )
@@ -426,9 +642,12 @@ def search_files(
                             m for m in matches if m.get("line_number", 0) > 0
                         ]
                         match_count += len(actual_matches)
-                        search_results["results"].append(
-                            {"file": rel_file_path, "matches": matches}
-                        )
+                        if files_only:
+                            search_results["results"].append(rel_file_path)
+                        else:
+                            search_results["results"].append(
+                                {"file": rel_file_path, "matches": matches}
+                            )
                 except Exception:
                     pass
 
@@ -455,6 +674,18 @@ def search_files(
                 f"Found {match_count} matches in {file_match_count} files "
                 f"(searched {searched_file_count} files)."
             )
+
+        if files_only:
+            result: dict[str, Any] = {
+                "files": search_results["results"],
+                "summary": search_results["summary"],
+            }
+            if "truncation_notice" in search_results:
+                result["truncation_notice"] = search_results["truncation_notice"]
+            if "warning" in search_results:
+                result["warning"] = search_results["warning"]
+            return result
+
         return search_results
 
     except Exception as e:
@@ -530,10 +761,6 @@ def _get_file_matches(
 async def analyze_file(path: str, query: str, auto_truncate: bool = True) -> str:
     """
     Deep semantic analysis of a file via LLM sub-agent. Slow and resource-intensive.
-
-    MANDATES:
-    - For simple file reading, use `Read` instead.
-    - For directory-level analysis, use `AnalyzeCode`.
     """
     from zrb.config.config import CFG
     from zrb.llm.agent import create_agent, run_agent
@@ -562,7 +789,7 @@ async def analyze_file(path: str, query: str, auto_truncate: bool = True) -> str
     system_prompt = get_file_extractor_system_prompt()
 
     agent = create_agent(
-        model=llm_config.model,
+        model=llm_config.resolve_model(),
         system_prompt=system_prompt,
         tools=[
             read_file,

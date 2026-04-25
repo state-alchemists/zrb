@@ -23,19 +23,19 @@ from zrb.xcom.xcom import Xcom
 class SharedContext(AnySharedContext):
     def __init__(
         self,
-        input: dict[str, Any] = {},
-        args: list[Any] = [],
-        env: dict[str, str] = {},
-        xcom: dict[str, Xcom] = {},
+        input: dict[str, Any] | None = None,
+        args: list[Any] | None = None,
+        env: dict[str, str] | None = None,
+        xcom: dict[str, Xcom] | None = None,
         logging_level: int | None = None,
         is_web_mode: bool = False,
         print_fn: PrintFn | None = None,
     ):
         self.__logging_level = logging_level
-        self._input = DotDict(input)
-        self._args = args
-        self._env = DotDict(env)
-        self._xcom = DotDict(xcom)
+        self._input = DotDict(input if input is not None else {})
+        self._args = list(args) if args is not None else []
+        self._env = DotDict(env if env is not None else {})
+        self._xcom = DotDict(xcom if xcom is not None else {})
         self._session: AnySession | None = None
         self._log = []
         self._is_web_mode = is_web_mode

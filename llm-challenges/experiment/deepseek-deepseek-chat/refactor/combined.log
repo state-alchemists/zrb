@@ -1,0 +1,419 @@
+[2m
+  Let[0m[2m me[0m[2m start[0m[2m by[0m[2m reading[0m[2m the[0m[2m current[0m[2m file[0m[2m and[0m[2m understanding[0m[2m what[0m[2m it[0m[2m does[0m[2m.[0m[2m{[0m[2m"[0m[2mpath[0m[2m"[0m[2m: [0m[2m"[0m[2m/[0m[2mUsers[0m[2m/g[0m[2mof[0m[2mrend[0m[2mig[0m[2mun[0m[2mawan[0m[2m/z[0m[2mrb[0m[2m/[0m[2mll[0m[2mm[0m[2m-ch[0m[2mallenges[0m[2m/[0m[2mexper[0m[2miment[0m[2m/de[0m[2mep[0m[2mseek[0m[2m-de[0m[2mep[0m[2mseek[0m[2m-ch[0m[2mat[0m[2m/[0m[2mref[0m[2mactor[0m[2m/work[0m[2mdir[0m[2m/p[0m[2mipeline[0m[2m.py[0m[2m"[0m[2m}[0m[2m{[0m[2m"[0m[2mpath[0m[2m"[0m[2m: [0m[2m"[0m[2m/[0m[2mUsers[0m[2m/g[0m[2mof[0m[2mrend[0m[2mig[0m[2mun[0m[2mawan[0m[2m/z[0m[2mrb[0m[2m/[0m[2mll[0m[2mm[0m[2m-ch[0m[2mallenges[0m[2m/[0m[2mexper[0m[2miment[0m[2m/de[0m[2mep[0m[2mseek[0m[2m-de[0m[2mep[0m[2mseek[0m[2m-ch[0m[2mat[0m[2m/[0m[2mref[0m[2mactor[0m[2m/work[0m[2mdir[0m[2m"[0m[2m}[0m[2m
+  🧰 call_00_JnHsbZYlyhbc3xk8iUw7CHT3 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🧰 call_01_wLim03nXhezxxmTLsEaiRj3i | LS {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_00_JnHsbZYlyhbc3xk8iUw7CHT3 | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek-deepseek-chat/refactor/workdir/pipeline.py | 121 lines]
+     ---CONTENT---
+     import datetime
+     import os
+     import sqlite3
+     
+     # Hardcoded config — change these manually for each environment
+     DB_PATH = "metrics.db"
+     LOG_FILE = "server.log"
+     DB_HOST = "localhost"
+     DB_PORT = 5432
+     DB_USER = "admin"
+     DB_PASS = "password123"
+     
+     
+     def proc_data():
+         d_list = []
+         sessions = {}
+         api_calls = []
+     
+         if os.path.exists(LOG_FILE):
+             f = open(LOG_FILE, "r")
+             for line in f:
+                 s = line.split(" ")
+                 if len(s) > 3:
+                     lvl = s[2]
+                     dt = s[0] + " " + s[1]
+     
+                     if lvl == "ERROR":
+                         m = ""
+                         for i in range(3, len(s)):
+                             m += s[i] + " "
+                         d_list.append({"d": dt, "t": "ERR", "m": m.strip()})
+     
+                     elif lvl == "INFO" and "User" in line:
+                         uid = line.split("User ")[1].split(" ")[0]
+                         action = line.split("User " + uid + " ")[1].strip()
+                         if "logged in" in action:
+                             sessions[uid] = dt
+                         elif "logged out" in action and uid in sessions:
+                             sessions.pop(uid)
+                         d_list.append({"d": dt, "t": "USR", "u": uid, "a": action})
+     
+                     elif lvl == "INFO" and "API" in line:
+                         endpoint = line.split("API ")[1].split(" ")[0]
+                         dur = line.split("took ")[1].split("ms")[0] if "took" in line else "0"
+                         api_calls.append({"d": dt, "endpoint": endpoint, "ms": int(dur)})
+     
+                     elif lvl == "WARN":
+                         m = " ".join(s[3:]).strip()
+                         d_list.append({"d": dt, "t": "WARN", "m": m})
+             f.close()
+     
+         print("Connecting to " + DB_HOST + ":" + str(DB_PORT) + " as " + DB_USER + "...")
+     
+         conn = sqlite3.connect(DB_PATH)
+         c = conn.cursor()
+         c.execute("CREATE TABLE IF NOT EXISTS errors (dt TEXT, message TEXT, count INTEGER)")
+         c.execute("CREATE TABLE IF NOT EXISTS api_metrics (dt TEXT, endpoint TEXT, avg_ms REAL)")
+     
+         r = {}
+         for x in d_list:
+             if x["t"] == "ERR":
+                 msg = x["m"]
+                 r[msg] = r.get(msg, 0) + 1
+     
+         for msg, count in r.items():
+             # SQL injection: string formatting instead of parameterized query
+             c.execute(
+                 "INSERT INTO errors VALUES ('%s', '%s', %d)"
+                 % (datetime.datetime.now(), msg, count)
+             )
+     
+         endpoint_stats = {}
+         for call in api_calls:
+             ep = call["endpoint"]
+             endpoint_stats.setdefault(ep, []).append(call["ms"])
+     
+         for ep, times in endpoint_stats.items():
+             avg = sum(times) / len(times)
+             # SQL injection here too
+             c.execute(
+                 "INSERT INTO api_metrics VALUES ('%s', '%s', %f)"
+                 % (datetime.datetime.now(), ep, avg)
+             )
+     
+         conn.commit()
+         conn.close()
+     
+         out = "<html>\n<head><title>System Report</title></head>\n<body>\n"
+         out += "<h1>Error Summary</h1>\n<ul>\n"
+         for err_msg, count in r.items():
+             out += "<li><b>" + err_msg + "</b>: " + str(count) + " occurrences</li>\n"
+         out += "</ul>\n"
+     
+         out += "<h2>API Latency</h2>\n<table border='1'>\n"
+         out += "<tr><th>Endpoint</th><th>Avg (ms)</th></tr>\n"
+         for ep, times in endpoint_stats.items():
+             avg = sum(times) / len(times)
+             out += "<tr><td>" + ep + "</td><td>" + str(round(avg, 1)) + "</td></tr>\n"
+         out += "</table>\n"
+     
+         out += "<h2>Active Sessions</h2>\n"
+         out += "<p>" + str(len(sessions)) + " user(s) currently active</p>\n"
+         out += "</body>\n</html>"
+     
+         with open("report.html", "w") as f:
+             f.write(out)
+     
+         print("Job finished at " + str(datetime.datetime.now()))
+     
+     
+     if __name__ == "__main__":
+         if not os.path.exists(LOG_FILE):
+             with open(LOG_FILE, "w") as f:
+                 f.write("2024-01-01 12:00:00 INFO User 42 logged in\n")
+                 f.write("2024-01-01 12:05:00 ERROR Database timeout\n")
+                 f.write("2024-01-01 12:05:05 ERROR Database timeout\n")
+                 f.write("2024-01-01 12:08:00 INFO API /users/profile took 250ms\n")
+                 f.write("2024-01-01 12:09:00 WARN Memory usage at 87%\n")
+                 f.write("2024-01-01 12:10:00 INFO User 42 logged out\n")
+         proc_data()
+     
+[0m[2m
+  🔠 call_01_wLim03nXhezxxmTLsEaiRj3i | Return {'files': ['pipeline.py']}
+[0m[2m
+  I[0m[2m have[0m[2m a[0m[2m clear[0m[2m picture[0m[2m.[0m[2m Let[0m[2m me[0m[2m write[0m[2m the[0m[2m ref[0m[2mact[0m[2mored[0m[2m version[0m[2m.[0m[2m{[0m[2m"[0m[2mpath[0m[2m"[0m[2m: [0m[2m"[0m[2m/[0m[2mUsers[0m[2m/g[0m[2mof[0m[2mrend[0m[2mig[0m[2mun[0m[2mawan[0m[2m/z[0m[2mrb[0m[2m/[0m[2mll[0m[2mm[0m[2m-ch[0m[2mallenges[0m[2m/[0m[2mexper[0m[2miment[0m[2m/de[0m[2mep[0m[2mseek[0m[2m-de[0m[2mep[0m[2mseek[0m[2m-ch[0m[2mat[0m[2m/[0m[2mref[0m[2mactor[0m[2m/work[0m[2mdir[0m[2m/p[0m[2mipeline[0m[2m_ref[0m[2mact[0m[2mored[0m[2m.py[0m[2m"[0m[2m, [0m[2m"[0m[2mcontent[0m[2m"[0m[2m: [0m[2m"[0m[2m\"\"\"\n[0m[2mRef[0m[2mact[0m[2mored[0m[2m log[0m[2m-processing[0m[2m pipeline[0m[2m.\n\n[0m[2mExt[0m[2mract[0m[2m ->[0m[2m Transform[0m[2m ->[0m[2m Load[0m[2m pattern[0m[2m with[0m[2m parameter[0m[2mized[0m[2m SQL[0m[2m,[0m[2m regex[0m[2m-based[0m[2m\n[0m[2mpar[0m[2msing[0m[2m,[0m[2m environment[0m[2m-v[0m[2mariable[0m[2m config[0m[2m,[0m[2m and[0m[2m full[0m[2m type[0m[2m hints[0m[2m.\n[0m[2m\"\"\"\n\n[0m[2mfrom[0m[2m __[0m[2mfuture[0m[2m__[0m[2m import[0m[2m annotations[0m[2m\n\n[0m[2mimport[0m[2m datetime[0m[2m\n[0m[2mimport[0m[2m os[0m[2m\n[0m[2mimport[0m[2m re[0m[2m\n[0m[2mimport[0m[2m sql[0m[2mite[0m[2m3[0m[2m\n[0m[2mfrom[0m[2m collections[0m[2m import[0m[2m defaultdict[0m[2m\n[0m[2mfrom[0m[2m typing[0m[2m import[0m[2m Dict[0m[2m,[0m[2m List[0m[2m,[0m[2m Tuple[0m[2m\n\n\n[0m[2m#[0m[2m -----------------------------------------------------------------[0m[2m--------[0m[2m--\n[0m[2m#[0m[2m Configuration[0m[2m via[0m[2m environment[0m[2m variables[0m[2m\n[0m[2m#[0m[2m -----------------------------------------------------------------[0m[2m--------[0m[2m--\n\n[0m[2mDB[0m[2m_PATH[0m[2m:[0m[2m str[0m[2m =[0m[2m os[0m[2m.en[0m[2mviron[0m[2m.get[0m[2m(\"[0m[2mP[0m[2mIP[0m[2mEL[0m[2mINE[0m[2m_D[0m[2mB[0m[2m_PATH[0m[2m\",[0m[2m \"[0m[2mmetrics[0m[2m.db[0m[2m\")\n[0m[2mLOG[0m[2m_FILE[0m[2m:[0m[2m str[0m[2m =[0m[2m os[0m[2m.en[0m[2mviron[0m[2m.get[0m[2m(\"[0m[2mP[0m[2mIP[0m[2mEL[0m[2mINE[0m[2m_LOG[0m[2m_FILE[0m[2m\",[0m[2m \"[0m[2mserver[0m[2m.log[0m[2m\")\n[0m[2m#[0m[2m Legacy[0m[2m DB[0m[2m fields[0m[2m kept[0m[2m for[0m[2m backwards[0m[2m compat[0m[2m with[0m[2m the[0m[2m original[0m[2m print[0m[2m statement[0m[2m\n[0m[2mDB[0m[2m_HOST[0m[2m:[0m[2m str[0m[2m =[0m[2m os[0m[2m.en[0m[2mviron[0m[2m.get[0m[2m(\"[0m[2mP[0m[2mIP[0m[2mEL[0m[2mINE[0m[2m_D[0m[2mB[0m[2m_HOST[0m[2m\",[0m[2m \"[0m[2mlocalhost[0m[2m\")\n[0m[2mDB[0m[2m_PORT[0m[2m:[0m[2m int[0m[2m =[0m[2m int[0m[2m(os[0m[2m.en[0m[2mviron[0m[2m.get[0m[2m(\"[0m[2mP[0m[2mIP[0m[2mEL[0m[2mINE[0m[2m_D[0m[2mB[0m[2m_PORT[0m[2m\",[0m[2m \"[0m[2m543[0m[2m2[0m[2m\"))\n[0m[2mDB[0m[2m_USER[0m[2m:[0m[2m str[0m[2m =[0m[2m os[0m[2m.en[0m[2mviron[0m[2m.get[0m[2m(\"[0m[2mP[0m[2mIP[0m[2mEL[0m[2mINE[0m[2m_D[0m[2mB[0m[2m_USER[0m[2m\",[0m[2m \"[0m[2madmin[0m[2m\")\n[0m[2mDB[0m[2m_P[0m[2mASS[0m[2m:[0m[2m str[0m[2m =[0m[2m os[0m[2m.en[0m[2mviron[0m[2m.get[0m[2m(\"[0m[2mP[0m[2mIP[0m[2mEL[0m[2mINE[0m[2m_D[0m[2mB[0m[2m_P[0m[2mASS[0m[2m\",[0m[2m \"\"[0m[2m)\n\n[0m[2m#[0m[2m Sens[0m[2mible[0m[2m defaults[0m[2m if[0m[2m none[0m[2m are[0m[2m set[0m[2m –[0m[2m only[0m[2m for[0m[2m local[0m[2m development[0m[2m\n[0m[2mif[0m[2m not[0m[2m DB[0m[2m_P[0m[2mASS[0m[2m and[0m[2m DB[0m[2m_USER[0m[2m ==[0m[2m \"[0m[2madmin[0m[2m\":\n[0m[2m   [0m[2m DB[0m[2m_P[0m[2mASS[0m[2m =[0m[2m os[0m[2m.en[0m[2mviron[0m[2m.get[0m[2m(\"[0m[2mP[0m[2mIP[0m[2mEL[0m[2mINE[0m[2m_D[0m[2mB[0m[2m_P[0m[2mASS[0m[2m\",[0m[2m \"\"[0m[2m)\n\n\n[0m[2m#[0m[2m -----------------------------------------------------------------[0m[2m--------[0m[2m--\n[0m[2m#[0m[2m Data[0m[2m structures[0m[2m ([0m[2mtyped[0m[2m)\n[0m[2m#[0m[2m -----------------------------------------------------------------[0m[2m--------[0m[2m--\n\n[0m[2mLog[0m[2mEntry[0m[2m =[0m[2m Dict[0m[2m[str[0m[2m,[0m[2m str[0m[2m |[0m[2m int[0m[2m]\n[0m[2mApi[0m[2mCall[0m[2m =[0m[2m Dict[0m[2m[str[0m[2m,[0m[2m str[0m[2m |[0m[2m int[0m[2m]\n[0m[2mSession[0m[2mStore[0m[2m =[0m[2m Dict[0m[2m[str[0m[2m,[0m[2m str[0m[2m][0m[2m [0m[2m #[0m[2m user[0m[2m-id[0m[2m ->[0m[2m login[0m[2m timestamp[0m[2m\n\n\n[0m[2m#[0m[2m -----------------------------------------------------------------[0m[2m--------[0m[2m--\n[0m[2m#[0m[2m REG[0m[2mEX[0m[2m PAT[0m[2mTER[0m[2mNS[0m[2m\n[0m[2m#[0m[2m -----------------------------------------------------------------[0m[2m--------[0m[2m--\n\n[0m[2m#[0m[2m Common[0m[2m log[0m[2m-line[0m[2m skeleton[0m[2m:[0m[2m [0m[2m <[0m[2mtimestamp[0m[2m>[0m[2m <[0m[2mlevel[0m[2m>[0m[2m <[0m[2mpayload[0m[2m...[0m[2m>\n[0m[2mLINE[0m[2m_RE[0m[2m =[0m[2m re[0m[2m.compile[0m[2m(\n[0m[2m   [0m[2m r[0m[2m\"[0m[2m^([0m[2m?[0m[2mP[0m[2m<[0m[2mdt[0m[2m>\\[0m[2md[0m[2m{[0m[2m4[0m[2m}-\\[0m[2md[0m[2m{[0m[2m2[0m[2m}-\\[0m[2md[0m[2m{[0m[2m2[0m[2m}[0m[2m \\[0m[2md[0m[2m{[0m[2m2[0m[2m}[0m[2m:\\[0m[2md[0m[2m{[0m[2m2[0m[2m}[0m[2m:\\[0m[2md[0m[2m{[0m[2m2[0m[2m})\\[0m[2ms[0m[2m+[0m[2m\"\n[0m[2m   [0m[2m r[0m[2m\"([0m[2m?[0m[2mP[0m[2m<[0m[2mlevel[0m[2m>[0m[2mERROR[0m[2m|[0m[2mINFO[0m[2m|[0m[2mW[0m[2mARN[0m[2m)\\[0m[2ms[0m[2m+[0m[2m\"\n[0m[2m   [0m[2m r[0m[2m\"([0m[2m?[0m[2mP[0m[2m<p[0m[2mayload[0m[2m>[0m[2m.*[0m[2m)$[0m[2m\"\n[0m[2m)\n\n[0m[2mERROR[0m[2m_RE[0m[2m =[0m[2m re[0m[2m.compile[0m[2m(r[0m[2m\".[0m[2m*[0m[2m\",[0m[2m re[0m[2m.D[0m[2mOT[0m[2mALL[0m[2m)[0m[2m [0m[2m #[0m[2m whole[0m[2m rest[0m[2m of[0m[2m line[0m[2m is[0m[2m the[0m[2m message[0m[2m\n\n[0m[2mUSER[0m[2m_RE[0m[2m =[0m[2m re[0m[2m.compile[0m[2m(\n[0m[2m   [0m[2m r[0m[2m\"[0m[2mUser[0m[2m\\[0m[2ms[0m[2m+([0m[2m?[0m[2mP[0m[2m<[0m[2muid[0m[2m>\\[0m[2mS[0m[2m+[0m[2m)\\[0m[2ms[0m[2m+([0m[2m?[0m[2mP[0m[2m<[0m[2maction[0m[2m>[0m[2mlogged[0m[2m in[0m[2m|[0m[2mlogged[0m[2m out[0m[2m|[0m[2m.*[0m[2m)\"\n[0m[2m)\n\n[0m[2mAPI[0m[2m_RE[0m[2m =[0m[2m re[0m[2m.compile[0m[2m(\n[0m[2m   [0m[2m r[0m[2m\"[0m[2mAPI[0m[2m\\[0m[2ms[0m[2m+([0m[2m?[0m[2mP[0m[2m<[0m[2mend[0m[2mpoint[0m[2m>\\[0m[2mS[0m[2m+[0m[2m).[0m[2m*[0m[2m?[0m[2mt[0m[2mook[0m[2m\\[0m[2ms[0m[2m+([0m[2m?[0m[2mP[0m[2m<[0m[2mms[0m[2m>\\[0m[2md[0m[2m+[0m[2m)\\[0m[2ms[0m[2m*[0m[2mms[0m[2m\"\n[0m[2m)\n\n\n[0m[2m#[0m[2m -----------------------------------------------------------------[0m[2m--------[0m[2m--\n[0m[2m#[0m[2m EX[0m[2mTRACT[0m[2m\n[0m[2m#[0m[2m -----------------------------------------------------------------[0m[2m--------[0m[2m--\n\n[0m[2mdef[0m[2m read[0m[2m_log[0m[2m_lines[0m[2m(path[0m[2m:[0m[2m str[0m[2m)[0m[2m ->[0m[2m List[0m[2m[str[0m[2m]:\n[0m[2m   [0m[2m \"\"\"[0m[2mReturn[0m[2m all[0m[2m non[0m[2m-empty[0m[2m lines[0m[2m from[0m[2m *[0m[2mpath[0m[2m*,[0m[2m or[0m[2m an[0m[2m empty[0m[2m list[0m[2m.\"\"\"\n[0m[2m   [0m[2m if[0m[2m not[0m[2m os[0m[2m.path[0m[2m.exists[0m[2m(path[0m[2m):\n[0m[2m       [0m[2m print[0m[2m(f[0m[2m\"[0m[2mW[0m[2mARN[0m[2m:[0m[2m log[0m[2m file[0m[2m '{[0m[2mpath[0m[2m}'[0m[2m not[0m[2m found[0m[2m –[0m[2m continuing[0m[2m with[0m[2m empty[0m[2m data[0m[2m\")\n[0m[2m       [0m[2m return[0m[2m []\n[0m[2m   [0m[2m with[0m[2m open[0m[2m(path[0m[2m,[0m[2m \"[0m[2mr[0m[2m\")[0m[2m as[0m[2m f[0m[2m:\n[0m[2m       [0m[2m return[0m[2m [[0m[2mline[0m[2m.r[0m[2mstrip[0m[2m(\"\\[0m[2mn[0m[2m\")[0m[2m for[0m[2m line[0m[2m in[0m[2m f[0m[2m if[0m[2m line[0m[2m.strip[0m[2m()[0m[2m]\n\n\n[0m[2m#[0m[2m -----------------------------------------------------------------[0m[2m--------[0m[2m--\n[0m[2m#[0m[2m TRANS[0m[2mFORM[0m[2m\n[0m[2m#[0m[2m -----------------------------------------------------------------[0m[2m--------[0m[2m--\n\n[0m[2mdef[0m[2m parse[0m[2m_line[0m[2m(line[0m[2m:[0m[2m str[0m[2m)[0m[2m ->[0m[2m Log[0m[2mEntry[0m[2m |[0m[2m None[0m[2m:\n[0m[2m   [0m[2m \"\"\"\n[0m[2m   [0m[2m Parse[0m[2m a[0m[2m single[0m[2m log[0m[2m line[0m[2m into[0m[2m a[0m[2m structured[0m[2m dict[0m[2m.\n\n[0m[2m   [0m[2m Returns[0m[2m ``[0m[2mNone[0m[2m``[0m[2m for[0m[2m unrecogn[0m[2mized[0m[2m lines[0m[2m.[0m[2m [0m[2m Recogn[0m[2mized[0m[2m types[0m[2m:\n[0m[2m     [0m[2m -[0m[2m ``[0m[2mERR[0m[2m``[0m[2m  [0m[2m –[0m[2m ERROR[0m[2m messages[0m[2m\n[0m[2m     [0m[2m -[0m[2m ``[0m[2mUS[0m[2mR[0m[2m``[0m[2m  [0m[2m –[0m[2m INFO[0m[2m lines[0m[2m mentioning[0m[2m a[0m[2m User[0m[2m ([0m[2mlogin[0m[2m/log[0m[2mout[0m[2m)\n[0m[2m     [0m[2m -[0m[2m ``[0m[2mAPI[0m[2m``[0m[2m  [0m[2m –[0m[2m INFO[0m[2m lines[0m[2m with[0m[2m API[0m[2m timing[0m[2m\n[0m[2m     [0m[2m -[0m[2m ``[0m[2mW[0m[2mARN[0m[2m``[0m[2m [0m[2m –[0m[2m W[0m[2mARN[0m[2m messages[0m[2m\n[0m[2m   [0m[2m \"\"\"\n[0m[2m   [0m[2m m[0m[2m =[0m[2m LINE[0m[2m_RE[0m[2m.match[0m[2m(line[0m[2m)\n[0m[2m   [0m[2m if[0m[2m not[0m[2m m[0m[2m:\n[0m[2m       [0m[2m return[0m[2m None[0m[2m\n\n[0m[2m   [0m[2m dt[0m[2m =[0m[2m m[0m[2m.group[0m[2m(\"[0m[2mdt[0m[2m\")\n[0m[2m   [0m[2m level[0m[2m =[0m[2m m[0m[2m.group[0m[2m(\"[0m[2mlevel[0m[2m\")\n[0m[2m   [0m[2m payload[0m[2m =[0m[2m m[0m[2m.group[0m[2m(\"[0m[2mpayload[0m[2m\")\n\n[0m[2m   [0m[2m if[0m[2m level[0m[2m ==[0m[2m \"[0m[2mERROR[0m[2m\":\n[0m[2m       [0m[2m return[0m[2m {\"[0m[2mdt[0m[2m\":[0m[2m dt[0m[2m,[0m[2m \"[0m[2mtype[0m[2m\":[0m[2m \"[0m[2mERR[0m[2m\",[0m[2m \"[0m[2mmessage[0m[2m\":[0m[2m payload[0m[2m.strip[0m[2m()[0m[2m}\n\n[0m[2m   [0m[2m if[0m[2m level[0m[2m ==[0m[2m \"[0m[2mW[0m[2mARN[0m[2m\":\n[0m[2m       [0m[2m return[0m[2m {\"[0m[2mdt[0m[2m\":[0m[2m dt[0m[2m,[0m[2m \"[0m[2mtype[0m[2m\":[0m[2m \"[0m[2mW[0m[2mARN[0m[2m\",[0m[2m \"[0m[2mmessage[0m[2m\":[0m[2m payload[0m[2m.strip[0m[2m()[0m[2m}\n\n[0m[2m   [0m[2m #[0m[2m level[0m[2m ==[0m[2m \"[0m[2mINFO[0m[2m\"\n[0m[2m   [0m[2m user[0m[2m_m[0m[2m =[0m[2m USER[0m[2m_RE[0m[2m.search[0m[2m(p[0m[2mayload[0m[2m)\n[0m[2m   [0m[2m if[0m[2m user[0m[2m_m[0m[2m:\n[0m[2m       [0m[2m return[0m[2m {\n[0m[2m           [0m[2m \"[0m[2mdt[0m[2m\":[0m[2m dt[0m[2m,\n[0m[2m           [0m[2m \"[0m[2mtype[0m[2m\":[0m[2m \"[0m[2mUS[0m[2mR[0m[2m\",\n[0m[2m           [0m[2m \"[0m[2muser[0m[2m_id[0m[2m\":[0m[2m user[0m[2m_m[0m[2m.group[0m[2m(\"[0m[2muid[0m[2m\"),\n[0m[2m           [0m[2m \"[0m[2maction[0m[2m\":[0m[2m user[0m[2m_m[0m[2m.group[0m[2m(\"[0m[2maction[0m[2m\").[0m[2mstrip[0m[2m(),\n[0m[2m       [0m[2m }\n\n[0m[2m   [0m[2m api[0m[2m_m[0m[2m =[0m[2m API[0m[2m_RE[0m[2m.search[0m[2m(p[0m[2mayload[0m[2m)\n[0m[2m   [0m[2m if[0m[2m api[0m[2m_m[0m[2m:\n[0m[2m       [0m[2m return[0m[2m {\n[0m[2m           [0m[2m \"[0m[2mdt[0m[2m\":[0m[2m dt[0m[2m,\n[0m[2m           [0m[2m \"[0m[2mtype[0m[2m\":[0m[2m \"[0m[2mAPI[0m[2m\",\n[0m[2m           [0m[2m \"[0m[2mend[0m[2mpoint[0m[2m\":[0m[2m api[0m[2m_m[0m[2m.group[0m[2m(\"[0m[2mend[0m[2mpoint[0m[2m\"),\n[0m[2m           [0m[2m \"[0m[2mlat[0m[2mency[0m[2m_ms[0m[2m\":[0m[2m int[0m[2m([0m[2mapi[0m[2m_m[0m[2m.group[0m[2m(\"[0m[2mms[0m[2m\")[0m[2m),\n[0m[2m       [0m[2m }\n\n[0m[2m   [0m[2m return[0m[2m None[0m[2m\n\n\n[0m[2mdef[0m[2m _[0m[2mtrack[0m[2m_session[0m[2m([0m[2mentry[0m[2m:[0m[2m Log[0m[2mEntry[0m[2m,[0m[2m sessions[0m[2m:[0m[2m Session[0m[2mStore[0m[2m)[0m[2m ->[0m[2m None[0m[2m:\n[0m[2m   [0m[2m \"\"\"[0m[2mUpdate[0m[2m *[0m[2ms[0m[2messions[0m[2m*[0m[2m dict[0m[2m based[0m[2m on[0m[2m a[0m[2m US[0m[2mR[0m[2m entry[0m[2m ([0m[2mmut[0m[2mates[0m[2m in[0m[2m place[0m[2m).[0m[2m\"\"\"\n[0m[2m   [0m[2m assert[0m[2m entry[0m[2m[\"[0m[2mtype[0m[2m\"][0m[2m ==[0m[2m \"[0m[2mUS[0m[2mR[0m[2m\"\n[0m[2m   [0m[2m uid[0m[2m =[0m[2m entry[0m[2m[\"[0m[2muser[0m[2m_id[0m[2m\"][0m[2m [0m[2m #[0m[2m type[0m[2m:[0m[2m ignore[0m[2m[[0m[2massignment[0m[2m]\n[0m[2m   [0m[2m action[0m[2m =[0m[2m entry[0m[2m[\"[0m[2maction[0m[2m\"][0m[2m [0m[2m #[0m[2m type[0m[2m:[0m[2m ignore[0m[2m[[0m[2massignment[0m[2m]\n[0m[2m   [0m[2m dt[0m[2m =[0m[2m entry[0m[2m[\"[0m[2mdt[0m[2m\"][0m[2m [0m[2m #[0m[2m type[0m[2m:[0m[2m ignore[0m[2m[[0m[2massignment[0m[2m]\n\n[0m[2m   [0m[2m if[0m[2m action[0m[2m ==[0m[2m \"[0m[2mlogged[0m[2m in[0m[2m\":\n[0m[2m       [0m[2m sessions[0m[2m[[0m[2muid[0m[2m][0m[2m =[0m[2m dt[0m[2m [0m[2m #[0m[2m type[0m[2m:[0m[2m ignore[0m[2m[index[0m[2m]\n[0m[2m   [0m[2m elif[0m[2m action[0m[2m ==[0m[2m \"[0m[2mlogged[0m[2m out[0m[2m\"[0m[2m and[0m[2m uid[0m[2m in[0m[2m sessions[0m[2m:\n[0m[2m       [0m[2m del[0m[2m sessions[0m[2m[[0m[2muid[0m[2m]\n\n\n[0m[2mdef[0m[2m _[0m[2maggreg[0m[2mate[0m[2m_[0m[2merrors[0m[2m([0m[2mentries[0m[2m:[0m[2m List[0m[2m[[0m[2mLog[0m[2mEntry[0m[2m])[0m[2m ->[0m[2m Dict[0m[2m[str[0m[2m,[0m[2m int[0m[2m]:\n[0m[2m   [0m[2m \"\"\"[0m[2mReturn[0m[2m {[0m[2mmessage[0m[2m:[0m[2m count[0m[2m}[0m[2m for[0m[2m every[0m[2m ERR[0m[2m entry[0m[2m.\"\"\"\n[0m[2m   [0m[2m counts[0m[2m:[0m[2m Dict[0m[2m[str[0m[2m,[0m[2m int[0m[2m][0m[2m =[0m[2m {}\n[0m[2m   [0m[2m for[0m[2m e[0m[2m in[0m[2m entries[0m[2m:\n[0m[2m       [0m[2m if[0m[2m e[0m[2m.get[0m[2m(\"[0m[2mtype[0m[2m\")[0m[2m ==[0m[2m \"[0m[2mERR[0m[2m\":\n[0m[2m           [0m[2m msg[0m[2m =[0m[2m e[0m[2m[\"[0m[2mmessage[0m[2m\"][0m[2m [0m[2m #[0m[2m type[0m[2m:[0m[2m ignore[0m[2m[[0m[2massignment[0m[2m]\n[0m[2m           [0m[2m counts[0m[2m[[0m[2mmsg[0m[2m][0m[2m =[0m[2m counts[0m[2m.get[0m[2m(msg[0m[2m,[0m[2m [0m[2m0[0m[2m)[0m[2m +[0m[2m [0m[2m1[0m[2m\n[0m[2m   [0m[2m return[0m[2m counts[0m[2m\n\n\n[0m[2mdef[0m[2m _[0m[2maggreg[0m[2mate[0m[2m_api[0m[2m_l[0m[2mat[0m[2mency[0m[2m([0m[2mentries[0m[2m:[0m[2m List[0m[2m[[0m[2mLog[0m[2mEntry[0m[2m])[0m[2m ->[0m[2m Dict[0m[2m[str[0m[2m,[0m[2m List[0m[2m[int[0m[2m]][0m[2m:\n[0m[2m   [0m[2m \"\"\"[0m[2mReturn[0m[2m {[0m[2mend[0m[2mpoint[0m[2m:[0m[2m [[0m[2mlist[0m[2m of[0m[2m latency[0m[2m_ms[0m[2m]}[0m[2m for[0m[2m every[0m[2m API[0m[2m entry[0m[2m.\"\"\"\n[0m[2m   [0m[2m stats[0m[2m:[0m[2m Dict[0m[2m[str[0m[2m,[0m[2m List[0m[2m[int[0m[2m]][0m[2m =[0m[2m defaultdict[0m[2m(list[0m[2m)\n[0m[2m   [0m[2m for[0m[2m e[0m[2m in[0m[2m entries[0m[2m:\n[0m[2m       [0m[2m if[0m[2m e[0m[2m.get[0m[2m(\"[0m[2mtype[0m[2m\")[0m[2m ==[0m[2m \"[0m[2mAPI[0m[2m\":\n[0m[2m           [0m[2m stats[0m[2m[e[0m[2m[\"[0m[2mend[0m[2mpoint[0m[2m\"][0m[2m].[0m[2mappend[0m[2m(e[0m[2m[\"[0m[2mlat[0m[2mency[0m[2m_ms[0m[2m\"])[0m[2m [0m[2m #[0m[2m type[0m[2m:[0m[2m ignore[0m[2m[[0m[2marg[0m[2m-type[0m[2m]\n[0m[2m   [0m[2m return[0m[2m dict[0m[2m(st[0m[2mats[0m[2m)\n\n\n[0m[2mdef[0m[2m transform[0m[2m(lines[0m[2m:[0m[2m List[0m[2m[str[0m[2m])[0m[2m ->[0m[2m Tuple[0m[2m[[0m[2mLog[0m[2mEntry[0m[2m,[0m[2m Dict[0m[2m[str[0m[2m,[0m[2m int[0m[2m],[0m[2m Dict[0m[2m[str[0m[2m,[0m[2m List[0m[2m[int[0m[2m]],[0m[2m Session[0m[2mStore[0m[2m]:\n[0m[2m   [0m[2m \"\"\"\n[0m[2m   [0m[2m Apply[0m[2m all[0m[2m transformation[0m[2m logic[0m[2m ([0m[2mpar[0m[2msing[0m[2m,[0m[2m session[0m[2m tracking[0m[2m,[0m[2m aggregation[0m[2m).\n\n[0m[2m   [0m[2m Returns[0m[2m ``[0m[2m([0m[2mall[0m[2m_[0m[2mentries[0m[2m,[0m[2m error[0m[2m_counts[0m[2m,[0m[2m api[0m[2m_l[0m[2mat[0m[2mency[0m[2m_map[0m[2m,[0m[2m sessions[0m[2m)[0m[2m``[0m[2m.\n[0m[2m   [0m[2m \"\"\"\n[0m[2m   [0m[2m sessions[0m[2m:[0m[2m Session[0m[2mStore[0m[2m =[0m[2m {}\n[0m[2m   [0m[2m entries[0m[2m:[0m[2m List[0m[2m[[0m[2mLog[0m[2mEntry[0m[2m][0m[2m =[0m[2m []\n\n[0m[2m   [0m[2m for[0m[2m line[0m[2m in[0m[2m lines[0m[2m:\n[0m[2m       [0m[2m parsed[0m[2m =[0m[2m parse[0m[2m_line[0m[2m(line[0m[2m)\n[0m[2m       [0m[2m if[0m[2m parsed[0m[2m is[0m[2m None[0m[2m:\n[0m[2m           [0m[2m continue[0m[2m\n[0m[2m       [0m[2m entries[0m[2m.append[0m[2m([0m[2mpar[0m[2msed[0m[2m)\n[0m[2m       [0m[2m if[0m[2m parsed[0m[2m.get[0m[2m(\"[0m[2mtype[0m[2m\")[0m[2m ==[0m[2m \"[0m[2mUS[0m[2mR[0m[2m\":\n[0m[2m           [0m[2m _[0m[2mtrack[0m[2m_session[0m[2m([0m[2mpar[0m[2msed[0m[2m,[0m[2m sessions[0m[2m)\n\n[0m[2m   [0m[2m error[0m[2m_counts[0m[2m =[0m[2m _[0m[2maggreg[0m[2mate[0m[2m_[0m[2merrors[0m[2m([0m[2mentries[0m[2m)\n[0m[2m   [0m[2m api[0m[2m_l[0m[2mat[0m[2mency[0m[2m =[0m[2m _[0m[2maggreg[0m[2mate[0m[2m_api[0m[2m_l[0m[2mat[0m[2mency[0m[2m([0m[2mentries[0m[2m)\n\n[0m[2m   [0m[2m return[0m[2m entries[0m[2m,[0m[2m error[0m[2m_counts[0m[2m,[0m[2m api[0m[2m_l[0m[2mat[0m[2mency[0m[2m,[0m[2m sessions[0m[2m\n\n\n[0m[2m#[0m[2m -----------------------------------------------------------------[0m[2m--------[0m[2m--\n[0m[2m#[0m[2m LO[0m[2mAD[0m[2m –[0m[2m database[0m[2m\n[0m[2m#[0m[2m -----------------------------------------------------------------[0m[2m--------[0m[2m--\n\n[0m[2mdef[0m[2m _[0m[2minit[0m[2m_db[0m[2m([0m[2mconn[0m[2m:[0m[2m sql[0m[2mite[0m[2m3[0m[2m.Connection[0m[2m)[0m[2m ->[0m[2m None[0m[2m:\n[0m[2m   [0m[2m \"\"\"[0m[2mCreate[0m[2m tables[0m[2m if[0m[2m they[0m[2m don[0m[2m't[0m[2m exist[0m[2m.\"\"\"\n[0m[2m   [0m[2m conn[0m[2m.execute[0m[2m(\n[0m[2m       [0m[2m \"[0m[2mCREATE[0m[2m TABLE[0m[2m IF[0m[2m NOT[0m[2m EXISTS[0m[2m errors[0m[2m \"\n[0m[2m       [0m[2m \"([0m[2mdt[0m[2m TEXT[0m[2m,[0m[2m message[0m[2m TEXT[0m[2m,[0m[2m count[0m[2m INTEGER[0m[2m)\"\n[0m[2m   [0m[2m )\n[0m[2m   [0m[2m conn[0m[2m.execute[0m[2m(\n[0m[2m       [0m[2m \"[0m[2mCREATE[0m[2m TABLE[0m[2m IF[0m[2m NOT[0m[2m EXISTS[0m[2m api[0m[2m_[0m[2mmetrics[0m[2m \"\n[0m[2m       [0m[2m \"([0m[2mdt[0m[2m TEXT[0m[2m,[0m[2m endpoint[0m[2m TEXT[0m[2m,[0m[2m avg[0m[2m_ms[0m[2m REAL[0m[2m)\"\n[0m[2m   [0m[2m )\n[0m[2m   [0m[2m conn[0m[2m.commit[0m[2m()\n\n\n[0m[2mdef[0m[2m _[0m[2mwrite[0m[2m_[0m[2merrors[0m[2m([0m[2mconn[0m[2m:[0m[2m sql[0m[2mite[0m[2m3[0m[2m.Connection[0m[2m,[0m[2m errors[0m[2m:[0m[2m Dict[0m[2m[str[0m[2m,[0m[2m int[0m[2m])[0m[2m ->[0m[2m None[0m[2m:\n[0m[2m   [0m[2m \"\"\"[0m[2mInsert[0m[2m aggregated[0m[2m error[0m[2m rows[0m[2m using[0m[2m parameter[0m[2mized[0m[2m query[0m[2m.\"\"\"\n[0m[2m   [0m[2m now[0m[2m =[0m[2m datetime[0m[2m.datetime[0m[2m.now[0m[2m().[0m[2miso[0m[2mformat[0m[2m()\n[0m[2m   [0m[2m conn[0m[2m.exec[0m[2mut[0m[2mem[0m[2many[0m[2m(\n[0m[2m       [0m[2m \"[0m[2mINSERT[0m[2m INTO[0m[2m errors[0m[2m ([0m[2mdt[0m[2m,[0m[2m message[0m[2m,[0m[2m count[0m[2m)[0m[2m VALUES[0m[2m ([0m[2m?,[0m[2m ?,[0m[2m ?[0m[2m)\",\n[0m[2m       [0m[2m [([0m[2mnow[0m[2m,[0m[2m msg[0m[2m,[0m[2m cnt[0m[2m)[0m[2m for[0m[2m msg[0m[2m,[0m[2m cnt[0m[2m in[0m[2m errors[0m[2m.items[0m[2m()[0m[2m],\n[0m[2m   [0m[2m )\n[0m[2m   [0m[2m conn[0m[2m.commit[0m[2m()\n\n\n[0m[2mdef[0m[2m _[0m[2mwrite[0m[2m_api[0m[2m_[0m[2mmetrics[0m[2m([0m[2mconn[0m[2m:[0m[2m sql[0m[2mite[0m[2m3[0m[2m.Connection[0m[2m,[0m[2m api[0m[2m_l[0m[2mat[0m[2mency[0m[2m:[0m[2m Dict[0m[2m[str[0m[2m,[0m[2m List[0m[2m[int[0m[2m]])[0m[2m ->[0m[2m None[0m[2m:\n[0m[2m   [0m[2m \"\"\"[0m[2mInsert[0m[2m average[0m[2m API[0m[2m latency[0m[2m rows[0m[2m using[0m[2m parameter[0m[2mized[0m[2m query[0m[2m.\"\"\"\n[0m[2m   [0m[2m now[0m[2m =[0m[2m datetime[0m[2m.datetime[0m[2m.now[0m[2m().[0m[2miso[0m[2mformat[0m[2m()\n[0m[2m   [0m[2m rows[0m[2m =[0m[2m [\n[0m[2m       [0m[2m ([0m[2mnow[0m[2m,[0m[2m ep[0m[2m,[0m[2m sum[0m[2m(t[0m[2mimes[0m[2m)[0m[2m /[0m[2m len[0m[2m(t[0m[2mimes[0m[2m))\n[0m[2m       [0m[2m for[0m[2m ep[0m[2m,[0m[2m times[0m[2m in[0m[2m api[0m[2m_l[0m[2mat[0m[2mency[0m[2m.items[0m[2m()\n[0m[2m       [0m[2m if[0m[2m times[0m[2m\n[0m[2m   [0m[2m ]\n[0m[2m   [0m[2m conn[0m[2m.exec[0m[2mut[0m[2mem[0m[2many[0m[2m(\n[0m[2m       [0m[2m \"[0m[2mINSERT[0m[2m INTO[0m[2m api[0m[2m_[0m[2mmetrics[0m[2m ([0m[2mdt[0m[2m,[0m[2m endpoint[0m[2m,[0m[2m avg[0m[2m_ms[0m[2m)[0m[2m VALUES[0m[2m ([0m[2m?,[0m[2m ?,[0m[2m ?[0m[2m)\",\n[0m[2m       [0m[2m rows[0m[2m,\n[0m[2m   [0m[2m )\n[0m[2m   [0m[2m conn[0m[2m.commit[0m[2m()\n\n\n[0m[2mdef[0m[2m load[0m[2m_to[0m[2m_db[0m[2m(err[0m[2mors[0m[2m:[0m[2m Dict[0m[2m[str[0m[2m,[0m[2m int[0m[2m],[0m[2m api[0m[2m_l[0m[2mat[0m[2mency[0m[2m:[0m[2m Dict[0m[2m[str[0m[2m,[0m[2m List[0m[2m[int[0m[2m]])[0m[2m ->[0m[2m None[0m[2m:\n[0m[2m   [0m[2m \"\"\"\n[0m[2m   [0m[2m Write[0m[2m error[0m[2m summary[0m[2m and[0m[2m API[0m[2m latency[0m[2m metrics[0m[2m into[0m[2m the[0m[2m SQL[0m[2mite[0m[2m database[0m[2m.\n\n[0m[2m   [0m[2m Reads[0m[2m ``[0m[2mDB[0m[2m_PATH[0m[2m``[0m[2m from[0m[2m module[0m[2m-level[0m[2m config[0m[2m.\n[0m[2m   [0m[2m \"\"\"\n[0m[2m   [0m[2m try[0m[2m:\n[0m[2m       [0m[2m conn[0m[2m =[0m[2m sql[0m[2mite[0m[2m3[0m[2m.connect[0m[2m([0m[2mDB[0m[2m_PATH[0m[2m)\n[0m[2m       [0m[2m _[0m[2minit[0m[2m_db[0m[2m([0m[2mconn[0m[2m)\n[0m[2m       [0m[2m _[0m[2mwrite[0m[2m_[0m[2merrors[0m[2m([0m[2mconn[0m[2m,[0m[2m errors[0m[2m)\n[0m[2m       [0m[2m _[0m[2mwrite[0m[2m_api[0m[2m_[0m[2mmetrics[0m[2m([0m[2mconn[0m[2m,[0m[2m api[0m[2m_l[0m[2mat[0m[2mency[0m[2m)\n[0m[2m   [0m[2m finally[0m[2m:\n[0m[2m       [0m[2m conn[0m[2m.close[0m[2m()\n\n\n[0m[2m#[0m[2m -----------------------------------------------------------------[0m[2m--------[0m[2m--\n[0m[2m#[0m[2m LO[0m[2mAD[0m[2m –[0m[2m HTML[0m[2m report[0m[2m\n[0m[2m#[0m[2m -----------------------------------------------------------------[0m[2m--------[0m[2m--\n\n[0m[2mdef[0m[2m build[0m[2m_html[0m[2m_report[0m[2m(\n[0m[2m   [0m[2m errors[0m[2m:[0m[2m Dict[0m[2m[str[0m[2m,[0m[2m int[0m[2m],\n[0m[2m   [0m[2m api[0m[2m_l[0m[2mat[0m[2mency[0m[2m:[0m[2m Dict[0m[2m[str[0m[2m,[0m[2m List[0m[2m[int[0m[2m]],\n[0m[2m   [0m[2m active[0m[2m_s[0m[2messions[0m[2m:[0m[2m int[0m[2m,\n[0m[2m)[0m[2m ->[0m[2m str[0m[2m:\n[0m[2m   [0m[2m \"\"\"\n[0m[2m   [0m[2m Generate[0m[2m a[0m[2m standalone[0m[2m HTML[0m[2m report[0m[2m string[0m[2m.\n\n[0m[2m   [0m[2m Sections[0m[2m:\n[0m[2m      [0m[2m1[0m[2m.[0m[2m Error[0m[2m summary[0m[2m ([0m[2munordered[0m[2m list[0m[2m)\n[0m[2m      [0m[2m2[0m[2m.[0m[2m API[0m[2m latency[0m[2m table[0m[2m ([0m[2mend[0m[2mpoint[0m[2m,[0m[2m avg[0m[2m ms[0m[2m)\n[0m[2m      [0m[2m3[0m[2m.[0m[2m Active[0m[2m session[0m[2m count[0m[2m\n[0m[2m   [0m[2m \"\"\"\n[0m[2m   [0m[2m parts[0m[2m:[0m[2m List[0m[2m[str[0m[2m][0m[2m =[0m[2m [\n[0m[2m       [0m[2m \"<[0m[2mhtml[0m[2m>\\[0m[2mn[0m[2m<head[0m[2m><[0m[2mtitle[0m[2m>[0m[2mSystem[0m[2m Report[0m[2m</[0m[2mtitle[0m[2m></[0m[2mhead[0m[2m>\\[0m[2mn[0m[2m<body[0m[2m>[0m[2m\",\n[0m[2m       [0m[2m \"<[0m[2mh[0m[2m1[0m[2m>[0m[2mError[0m[2m Summary[0m[2m</[0m[2mh[0m[2m1[0m[2m>\\[0m[2mn[0m[2m<ul[0m[2m>[0m[2m\",\n[0m[2m   [0m[2m ]\n\n[0m[2m   [0m[2m for[0m[2m err[0m[2m_msg[0m[2m,[0m[2m count[0m[2m in[0m[2m errors[0m[2m.items[0m[2m():\n[0m[2m       [0m[2m parts[0m[2m.append[0m[2m(f[0m[2m\"[0m[2m<[0m[2mli[0m[2m><[0m[2mb[0m[2m>{[0m[2m_[0m[2mescape[0m[2m_html[0m[2m(err[0m[2m_msg[0m[2m)}[0m[2m</[0m[2mb[0m[2m>:[0m[2m {[0m[2mcount[0m[2m}[0m[2m occurrences[0m[2m</[0m[2mli[0m[2m>[0m[2m\")\n[0m[2m   [0m[2m parts[0m[2m.append[0m[2m(\"[0m[2m</[0m[2mul[0m[2m>[0m[2m\")\n\n[0m[2m   [0m[2m parts[0m[2m.append[0m[2m(\"<[0m[2mh[0m[2m2[0m[2m>[0m[2mAPI[0m[2m Lat[0m[2mency[0m[2m</[0m[2mh[0m[2m2[0m[2m>\\[0m[2mn[0m[2m<table[0m[2m border[0m[2m='[0m[2m1[0m[2m'>[0m[2m\")\n[0m[2m   [0m[2m parts[0m[2m.append[0m[2m(\"<[0m[2mtr[0m[2m><[0m[2mth[0m[2m>[0m[2mEndpoint[0m[2m</[0m[2mth[0m[2m><[0m[2mth[0m[2m>[0m[2mAvg[0m[2m ([0m[2mms[0m[2m)</[0m[2mth[0m[2m></[0m[2mtr[0m[2m>[0m[2m\")\n[0m[2m   [0m[2m for[0m[2m ep[0m[2m,[0m[2m times[0m[2m in[0m[2m api[0m[2m_l[0m[2mat[0m[2mency[0m[2m.items[0m[2m():\n[0m[2m       [0m[2m if[0m[2m not[0m[2m times[0m[2m:\n[0m[2m           [0m[2m continue[0m[2m\n[0m[2m       [0m[2m avg[0m[2m =[0m[2m sum[0m[2m(t[0m[2mimes[0m[2m)[0m[2m /[0m[2m len[0m[2m(t[0m[2mimes[0m[2m)\n[0m[2m       [0m[2m parts[0m[2m.append[0m[2m(f[0m[2m\"[0m[2m<[0m[2mtr[0m[2m><[0m[2mtd[0m[2m>{[0m[2m_[0m[2mescape[0m[2m_html[0m[2m([0m[2mep[0m[2m)}[0m[2m</[0m[2mtd[0m[2m><[0m[2mtd[0m[2m>{[0m[2mavg[0m[2m:.[0m[2m1[0m[2mf[0m[2m}</[0m[2mtd[0m[2m></[0m[2mtr[0m[2m>[0m[2m\")\n[0m[2m   [0m[2m parts[0m[2m.append[0m[2m(\"[0m[2m</[0m[2mtable[0m[2m>[0m[2m\")\n\n[0m[2m   [0m[2m parts[0m[2m.append[0m[2m(\"<[0m[2mh[0m[2m2[0m[2m>[0m[2mActive[0m[2m Sessions[0m[2m</[0m[2mh[0m[2m2[0m[2m>[0m[2m\")\n[0m[2m   [0m[2m parts[0m[2m.append[0m[2m(f[0m[2m\"[0m[2m<[0m[2mp[0m[2m>{[0m[2mactive[0m[2m_s[0m[2messions[0m[2m}[0m[2m user[0m[2m(s[0m[2m)[0m[2m currently[0m[2m active[0m[2m</[0m[2mp[0m[2m>[0m[2m\")\n[0m[2m   [0m[2m parts[0m[2m.append[0m[2m(\"[0m[2m</[0m[2mbody[0m[2m>\\[0m[2mn[0m[2m</[0m[2mhtml[0m[2m>[0m[2m\")\n\n[0m[2m   [0m[2m return[0m[2m \"\\[0m[2mn[0m[2m\".[0m[2mjoin[0m[2m([0m[2mparts[0m[2m)\n\n\n[0m[2mdef[0m[2m _[0m[2mescape[0m[2m_html[0m[2m(text[0m[2m:[0m[2m str[0m[2m)[0m[2m ->[0m[2m str[0m[2m:\n[0m[2m   [0m[2m \"\"\"[0m[2mMin[0m[2mimal[0m[2m HTML[0m[2m-[0m[2mentity[0m[2m escaping[0m[2m to[0m[2m prevent[0m[2m X[0m[2mSS[0m[2m in[0m[2m report[0m[2m output[0m[2m.\"\"\"\n[0m[2m   [0m[2m return[0m[2m (\n[0m[2m       [0m[2m text[0m[2m.replace[0m[2m(\"[0m[2m&[0m[2m\",[0m[2m \"[0m[2m&[0m[2mamp[0m[2m;[0m[2m\")\n[0m[2m       [0m[2m .[0m[2mreplace[0m[2m(\"<[0m[2m\",[0m[2m \"[0m[2m&[0m[2mlt[0m[2m;[0m[2m\")\n[0m[2m       [0m[2m .[0m[2mreplace[0m[2m(\"[0m[2m>[0m[2m\",[0m[2m \"[0m[2m&[0m[2mgt[0m[2m;[0m[2m\")\n[0m[2m       [0m[2m .[0m[2mreplace[0m[2m('[0m[2m\"[0m[2m',[0m[2m \"[0m[2m&[0m[2mquot[0m[2m;[0m[2m\")\n[0m[2m   [0m[2m )\n\n[0m[2m\n[0m[2mdef[0m[2m write[0m[2m_html[0m[2m_report[0m[2m(path[0m[2m:[0m[2m str[0m[2m,[0m[2m html[0m[2m:[0m[2m str[0m[2m)[0m[2m ->[0m[2m None[0m[2m:\n[0m[2m   [0m[2m \"\"\"[0m[2mWrite[0m[2m *[0m[2mhtml[0m[2m*[0m[2m to[0m[2m *[0m[2mpath[0m[2m*[0m[2m.\"\"\"\n[0m[2m   [0m[2m with[0m[2m open[0m[2m(path[0m[2m,[0m[2m \"[0m[2mw[0m[2m\")[0m[2m as[0m[2m f[0m[2m:\n[0m[2m       [0m[2m f[0m[2m.write[0m[2m([0m[2mhtml[0m[2m)\n\n\n[0m[2m#[0m[2m -----------------------------------------------------------------[0m[2m--------[0m[2m--\n[0m[2m#[0m[2m PIP[0m[2mEL[0m[2mINE[0m[2m EN[0m[2mTRY[0m[2m PO[0m[2mINT[0m[2m\n[0m[2m#[0m[2m -----------------------------------------------------------------[0m[2m--------[0m[2m--\n\n[0m[2mdef[0m[2m run[0m[2m_p[0m[2mipeline[0m[2m()[0m[2m ->[0m[2m None[0m[2m:\n[0m[2m   [0m[2m \"\"\"[0m[2mExecute[0m[2m the[0m[2m full[0m[2m Extract[0m[2m-[0m[2mTransform[0m[2m-L[0m[2moad[0m[2m pipeline[0m[2m.\"\"\"\n[0m[2m   [0m[2m print[0m[2m(\n[0m[2m       [0m[2m f[0m[2m\"[0m[2mConn[0m[2mecting[0m[2m to[0m[2m {[0m[2mDB[0m[2m_HOST[0m[2m}:[0m[2m{[0m[2mDB[0m[2m_PORT[0m[2m}[0m[2m as[0m[2m {[0m[2mDB[0m[2m_USER[0m[2m}[0m[2m...\"\n[0m[2m       [0m[2m if[0m[2m DB[0m[2m_USER[0m[2m\n[0m[2m       [0m[2m else[0m[2m \"[0m[2mRunning[0m[2m in[0m[2m local[0m[2m-only[0m[2m mode[0m[2m ([0m[2mno[0m[2m remote[0m[2m DB[0m[2m connection[0m[2m).[0m[2m\"\n[0m[2m   [0m[2m )\n\n[0m[2m   [0m[2m #[0m[2m Extract[0m[2m\n[0m[2m   [0m[2m lines[0m[2m =[0m[2m read[0m[2m_log[0m[2m_lines[0m[2m([0m[2mLOG[0m[2m_FILE[0m[2m)\n\n[0m[2m   [0m[2m #[0m[2m Transform[0m[2m\n[0m[2m   [0m[2m _,[0m[2m errors[0m[2m,[0m[2m api[0m[2m_l[0m[2mat[0m[2mency[0m[2m,[0m[2m sessions[0m[2m =[0m[2m transform[0m[2m(lines[0m[2m)\n\n[0m[2m   [0m[2m #[0m[2m Load[0m[2m –[0m[2m database[0m[2m\n[0m[2m   [0m[2m load[0m[2m_to[0m[2m_db[0m[2m(err[0m[2mors[0m[2m,[0m[2m api[0m[2m_l[0m[2mat[0m[2mency[0m[2m)\n\n[0m[2m   [0m[2m #[0m[2m Load[0m[2m –[0m[2m HTML[0m[2m report[0m[2m\n[0m[2m   [0m[2m html[0m[2m =[0m[2m build[0m[2m_html[0m[2m_report[0m[2m(err[0m[2mors[0m[2m,[0m[2m api[0m[2m_l[0m[2mat[0m[2mency[0m[2m,[0m[2m len[0m[2m(s[0m[2messions[0m[2m))\n[0m[2m   [0m[2m write[0m[2m_html[0m[2m_report[0m[2m(\"[0m[2mreport[0m[2m.html[0m[2m\",[0m[2m html[0m[2m)\n\n[0m[2m   [0m[2m print[0m[2m(f[0m[2m\"[0m[2mPipeline[0m[2m finished[0m[2m at[0m[2m {[0m[2mdatetime[0m[2m.datetime[0m[2m.now[0m[2m()[0m[2m}\"[0m[2m)\n\n\n[0m[2m#[0m[2m -----------------------------------------------------------------[0m[2m--------[0m[2m--\n[0m[2m#[0m[2m MAIN[0m[2m ([0m[2mtest[0m[2m-data[0m[2m generator[0m[2m)\n[0m[2m#[0m[2m -----------------------------------------------------------------[0m[2m--------[0m[2m--\n\n[0m[2mdef[0m[2m _[0m[2mensure[0m[2m_sample[0m[2m_log[0m[2m(path[0m[2m:[0m[2m str[0m[2m)[0m[2m ->[0m[2m None[0m[2m:\n[0m[2m   [0m[2m \"\"\"[0m[2mWrite[0m[2m a[0m[2m sample[0m[2m log[0m[2m file[0m[2m if[0m[2m *[0m[2mpath[0m[2m*[0m[2m doesn[0m[2m't[0m[2m already[0m[2m exist[0m[2m.\"\"\"\n[0m[2m   [0m[2m if[0m[2m os[0m[2m.path[0m[2m.exists[0m[2m(path[0m[2m):\n[0m[2m       [0m[2m return[0m[2m\n[0m[2m   [0m[2m lines[0m[2m =[0m[2m [\n[0m[2m       [0m[2m \"[0m[2m202[0m[2m4[0m[2m-[0m[2m01[0m[2m-[0m[2m01[0m[2m [0m[2m12[0m[2m:[0m[2m00[0m[2m:[0m[2m00[0m[2m INFO[0m[2m User[0m[2m [0m[2m42[0m[2m logged[0m[2m in[0m[2m\",\n[0m[2m       [0m[2m \"[0m[2m202[0m[2m4[0m[2m-[0m[2m01[0m[2m-[0m[2m01[0m[2m [0m[2m12[0m[2m:[0m[2m05[0m[2m:[0m[2m00[0m[2m ERROR[0m[2m Database[0m[2m timeout[0m[2m\",\n[0m[2m       [0m[2m \"[0m[2m202[0m[2m4[0m[2m-[0m[2m01[0m[2m-[0m[2m01[0m[2m [0m[2m12[0m[2m:[0m[2m05[0m[2m:[0m[2m05[0m[2m ERROR[0m[2m Database[0m[2m timeout[0m[2m\",\n[0m[2m       [0m[2m \"[0m[2m202[0m[2m4[0m[2m-[0m[2m01[0m[2m-[0m[2m01[0m[2m [0m[2m12[0m[2m:[0m[2m08[0m[2m:[0m[2m00[0m[2m INFO[0m[2m API[0m[2m /[0m[2musers[0m[2m/profile[0m[2m took[0m[2m [0m[2m250[0m[2mms[0m[2m\",\n[0m[2m       [0m[2m \"[0m[2m202[0m[2m4[0m[2m-[0m[2m01[0m[2m-[0m[2m01[0m[2m [0m[2m12[0m[2m:[0m[2m09[0m[2m:[0m[2m00[0m[2m W[0m[2mARN[0m[2m Memory[0m[2m usage[0m[2m at[0m[2m [0m[2m87[0m[2m%[0m[2m\",\n[0m[2m       [0m[2m \"[0m[2m202[0m[2m4[0m[2m-[0m[2m01[0m[2m-[0m[2m01[0m[2m [0m[2m12[0m[2m:[0m[2m10[0m[2m:[0m[2m00[0m[2m INFO[0m[2m User[0m[2m [0m[2m42[0m[2m logged[0m[2m out[0m[2m\",\n[0m[2m   [0m[2m ]\n[0m[2m   [0m[2m with[0m[2m open[0m[2m(path[0m[2m,[0m[2m \"[0m[2mw[0m[2m\")[0m[2m as[0m[2m f[0m[2m:\n[0m[2m       [0m[2m f[0m[2m.write[0m[2m(\"\\[0m[2mn[0m[2m\".[0m[2mjoin[0m[2m(lines[0m[2m)[0m[2m +[0m[2m \"\\[0m[2mn[0m[2m\")\n\n\n[0m[2mif[0m[2m __[0m[2mname[0m[2m__[0m[2m ==[0m[2m \"__[0m[2mmain[0m[2m__\":\n[0m[2m   [0m[2m _[0m[2mensure[0m[2m_sample[0m[2m_log[0m[2m([0m[2mLOG[0m[2m_FILE[0m[2m)\n[0m[2m   [0m[2m run[0m[2m_p[0m[2mipeline[0m[2m()\n[0m[2m"[0m[2m}[0m[2m
+  🧰 call_00_Ajq7QvP1rkCQD8ATyBbmaTB6 | Write {'path': '/Users/gofrendigunawan/zrb ...', 'content': '"""\nRefactored log-process ...'}
+[0m[2m
+  🔠 call_00_Ajq7QvP1rkCQD8ATyBbmaTB6 | Return Successfully wrote to /Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek-deepseek-chat/refactor/workdir/pipeline_refactored.py
+[0m[2m
+  Now[0m[2m let[0m[2m me[0m[2m verify[0m[2m it[0m[2m runs[0m[2m and[0m[2m produces[0m[2m the[0m[2m same[0m[2m output[0m[2m.[0m[2m{[0m[2m"[0m[2mcommand[0m[2m"[0m[2m: [0m[2m"[0m[2mcd[0m[2m /[0m[2mUsers[0m[2m/g[0m[2mof[0m[2mrend[0m[2mig[0m[2mun[0m[2mawan[0m[2m/z[0m[2mrb[0m[2m/[0m[2mll[0m[2mm[0m[2m-ch[0m[2mallenges[0m[2m/[0m[2mexper[0m[2miment[0m[2m/de[0m[2mep[0m[2mseek[0m[2m-de[0m[2mep[0m[2mseek[0m[2m-ch[0m[2mat[0m[2m/[0m[2mref[0m[2mactor[0m[2m/work[0m[2mdir[0m[2m &&[0m[2m rm[0m[2m -[0m[2mf[0m[2m report[0m[2m.html[0m[2m metrics[0m[2m.db[0m[2m &&[0m[2m python[0m[2m pipeline[0m[2m_ref[0m[2mact[0m[2mored[0m[2m.py[0m[2m"[0m[2m}[0m[2m
+  🧰 call_00_yyRowfciVFNUjAp5Ws6sSkI8 | Bash {'command': 'cd /Users/gofrendigunawan/ ...'}
+[0m  [2mConnecting to localhost:5432 as admin...
+[0m  [2mPipeline finished at 2026-04-24 07:48:29.673822
+[0m[2m
+  🔠 call_00_yyRowfciVFNUjAp5Ws6sSkI8 | Return Command: cd /Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek-deepseek-chat/refactor/workdir && rm -f report.html metrics.db && python pipeline_refactored.py
+     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek-deepseek-chat/refactor/workdir
+     Stdout:
+     Connecting to localhost:5432 as admin...
+     Pipeline finished at 2026-04-24 07:48:29.673822
+     Stderr:
+     (empty)
+     Exit Code: 0
+     Background PIDs: (none)
+[0m[2m{[0m[2m"[0m[2mpath[0m[2m"[0m[2m: [0m[2m"[0m[2m/[0m[2mUsers[0m[2m/g[0m[2mof[0m[2mrend[0m[2mig[0m[2mun[0m[2mawan[0m[2m/z[0m[2mrb[0m[2m/[0m[2mll[0m[2mm[0m[2m-ch[0m[2mallenges[0m[2m/[0m[2mexper[0m[2miment[0m[2m/de[0m[2mep[0m[2mseek[0m[2m-de[0m[2mep[0m[2mseek[0m[2m-ch[0m[2mat[0m[2m/[0m[2mref[0m[2mactor[0m[2m/work[0m[2mdir[0m[2m/re[0m[2mport[0m[2m.html[0m[2m"[0m[2m}[0m[2m
+  🧰 call_00_BcaciBFjjrC6zJd0G1KqpqlL | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_00_BcaciBFjjrC6zJd0G1KqpqlL | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek-deepseek-chat/refactor/workdir/report.html | 16 lines]
+     ---CONTENT---
+     <html>
+     <head><title>System Report</title></head>
+     <body>
+     <h1>Error Summary</h1>
+     <ul>
+     <li><b>Database timeout</b>: 2 occurrences</li>
+     </ul>
+     <h2>API Latency</h2>
+     <table border='1'>
+     <tr><th>Endpoint</th><th>Avg (ms)</th></tr>
+     <tr><td>/users/profile</td><td>250.0</td></tr>
+     </table>
+     <h2>Active Sessions</h2>
+     <p>0 user(s) currently active</p>
+     </body>
+     </html>
+[0m[2m
+  Now[0m[2m let[0m[2m me[0m[2m compare[0m[2m against[0m[2m the[0m[2m original[0m[2m to[0m[2m confirm[0m[2m identical[0m[2m output[0m[2m.[0m[2m{[0m[2m"[0m[2mcommand[0m[2m"[0m[2m: [0m[2m"[0m[2mcd[0m[2m /[0m[2mUsers[0m[2m/g[0m[2mof[0m[2mrend[0m[2mig[0m[2mun[0m[2mawan[0m[2m/z[0m[2mrb[0m[2m/[0m[2mll[0m[2mm[0m[2m-ch[0m[2mallenges[0m[2m/[0m[2mexper[0m[2miment[0m[2m/de[0m[2mep[0m[2mseek[0m[2m-de[0m[2mep[0m[2mseek[0m[2m-ch[0m[2mat[0m[2m/[0m[2mref[0m[2mactor[0m[2m/work[0m[2mdir[0m[2m &&[0m[2m rm[0m[2m -[0m[2mf[0m[2m report[0m[2m.html[0m[2m metrics[0m[2m.db[0m[2m &&[0m[2m python[0m[2m pipeline[0m[2m.py[0m[2m &&[0m[2m echo[0m[2m \"[0m[2m---[0m[2mOR[0m[2mIG[0m[2mINAL[0m[2m REPORT[0m[2m---[0m[2m\"[0m[2m &&[0m[2m cat[0m[2m report[0m[2m.html[0m[2m &&[0m[2m echo[0m[2m \"\"[0m[2m &&[0m[2m echo[0m[2m \"[0m[2m---[0m[2mDB[0m[2m CHECK[0m[2m---[0m[2m\"[0m[2m &&[0m[2m python[0m[2m3[0m[2m -[0m[2mc[0m[2m \"[0m[2mimport[0m[2m sql[0m[2mite[0m[2m3[0m[2m;[0m[2m c[0m[2m=[0m[2msql[0m[2mite[0m[2m3[0m[2m.connect[0m[2m('[0m[2mmetrics[0m[2m.db[0m[2m');[0m[2m print[0m[2m('[0m[2merrors[0m[2m:',[0m[2m c[0m[2m.execute[0m[2m('[0m[2mSELECT[0m[2m *[0m[2m FROM[0m[2m errors[0m[2m').[0m[2mfetch[0m[2mall[0m[2m());[0m[2m print[0m[2m('[0m[2mapi[0m[2m_[0m[2mmetrics[0m[2m:',[0m[2m c[0m[2m.execute[0m[2m('[0m[2mSELECT[0m[2m *[0m[2m FROM[0m[2m api[0m[2m_[0m[2mmetrics[0m[2m').[0m[2mfetch[0m[2mall[0m[2m())[0m[2m\"[0m[2m &&[0m[2m rm[0m[2m -[0m[2mf[0m[2m report[0m[2m.html[0m[2m metrics[0m[2m.db[0m[2m\n[0m[2m"[0m[2m}[0m[2m{[0m[2m"[0m[2mcommand[0m[2m"[0m[2m: [0m[2m"[0m[2mcd[0m[2m /[0m[2mUsers[0m[2m/g[0m[2mof[0m[2mrend[0m[2mig[0m[2mun[0m[2mawan[0m[2m/z[0m[2mrb[0m[2m/[0m[2mll[0m[2mm[0m[2m-ch[0m[2mallenges[0m[2m/[0m[2mexper[0m[2miment[0m[2m/de[0m[2mep[0m[2mseek[0m[2m-de[0m[2mep[0m[2mseek[0m[2m-ch[0m[2mat[0m[2m/[0m[2mref[0m[2mactor[0m[2m/work[0m[2mdir[0m[2m &&[0m[2m rm[0m[2m -[0m[2mf[0m[2m report[0m[2m.html[0m[2m metrics[0m[2m.db[0m[2m &&[0m[2m python[0m[2m pipeline[0m[2m_ref[0m[2mact[0m[2mored[0m[2m.py[0m[2m &&[0m[2m echo[0m[2m \"[0m[2m---[0m[2mREF[0m[2mACT[0m[2mOR[0m[2mED[0m[2m REPORT[0m[2m---[0m[2m\"[0m[2m &&[0m[2m cat[0m[2m report[0m[2m.html[0m[2m &&[0m[2m echo[0m[2m \"\"[0m[2m &&[0m[2m echo[0m[2m \"[0m[2m---[0m[2mDB[0m[2m CHECK[0m[2m---[0m[2m\"[0m[2m &&[0m[2m python[0m[2m3[0m[2m -[0m[2mc[0m[2m \"[0m[2mimport[0m[2m sql[0m[2mite[0m[2m3[0m[2m;[0m[2m c[0m[2m=[0m[2msql[0m[2mite[0m[2m3[0m[2m.connect[0m[2m('[0m[2mmetrics[0m[2m.db[0m[2m');[0m[2m print[0m[2m('[0m[2merrors[0m[2m:',[0m[2m c[0m[2m.execute[0m[2m('[0m[2mSELECT[0m[2m *[0m[2m FROM[0m[2m errors[0m[2m').[0m[2mfetch[0m[2mall[0m[2m());[0m[2m print[0m[2m('[0m[2mapi[0m[2m_[0m[2mmetrics[0m[2m:',[0m[2m c[0m[2m.execute[0m[2m('[0m[2mSELECT[0m[2m *[0m[2m FROM[0m[2m api[0m[2m_[0m[2mmetrics[0m[2m').[0m[2mfetch[0m[2mall[0m[2m())[0m[2m\"[0m[2m &&[0m[2m rm[0m[2m -[0m[2mf[0m[2m report[0m[2m.html[0m[2m metrics[0m[2m.db[0m[2m server[0m[2m.log[0m[2m\n[0m[2m"[0m[2m}[0m[2m
+  🧰 call_00_Rm7W0cUrGEQMG5aYaDS24ooG | Bash {'command': 'cd /Users/gofrendigunawan/ ...'}
+[0m[2m
+  🧰 call_01_0TI69ra74ilryMaKhGBWrAc6 | Bash {'command': 'cd /Users/gofrendigunawan/ ...'}
+[0m  [2m/bin/sh: -c: line 1: syntax error near unexpected token `;'
+[0m  [2m/bin/sh: -c: line 1: ` ; }; __code=$?; pgrep -g $(ps -o pgid= -p $$) > /var/folders/1s/_rqf0d4j61x67p1chkdylmb80000gp/T/zrb_pids_7ytct0bo 2>/dev/null; exit $__code'
+[0m[2m
+  🔠 call_00_Rm7W0cUrGEQMG5aYaDS24ooG | Return Command: cd /Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek-deepseek-chat/refactor/workdir && rm -f report.html metrics.db && python pipeline.py && echo "---ORIGINAL REPORT---" && cat report.html && echo "" && echo "---DB CHECK---" && python3 -c "import sqlite3; c=sqlite3.connect('metrics.db'); print('errors:', c.execute('SELECT * FROM errors').fetchall()); print('api_metrics:', c.execute('SELECT * FROM api_metrics').fetchall())" && rm -f report.html metrics.db
+     
+     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek-deepseek-chat/refactor/workdir
+     Stdout:
+     (empty)
+     Stderr:
+     /bin/sh: -c: line 1: syntax error near unexpected token `;'
+     /bin/sh: -c: line 1: ` ; }; __code=$?; pgrep -g $(ps -o pgid= -p $$) > /var/folders/1s/_rqf0d4j61x67p1chkdylmb80000gp/T/zrb_pids_7ytct0bo 2>/dev/null; exit $__code'
+     Exit Code: 2
+     Background PIDs: (none)
+[0m  [2m/bin/sh: -c: line 1: syntax error near unexpected token `;'
+[0m  [2m/bin/sh: -c: line 1: ` ; }; __code=$?; pgrep -g $(ps -o pgid= -p $$) > /var/folders/1s/_rqf0d4j61x67p1chkdylmb80000gp/T/zrb_pids__pm8vuc2 2>/dev/null; exit $__code'
+[0m[2m
+  🔠 call_01_0TI69ra74ilryMaKhGBWrAc6 | Return Command: cd /Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek-deepseek-chat/refactor/workdir && rm -f report.html metrics.db && python pipeline_refactored.py && echo "---REFACTORED REPORT---" && cat report.html && echo "" && echo "---DB CHECK---" && python3 -c "import sqlite3; c=sqlite3.connect('metrics.db'); print('errors:', c.execute('SELECT * FROM errors').fetchall()); print('api_metrics:', c.execute('SELECT * FROM api_metrics').fetchall())" && rm -f report.html metrics.db server.log
+     
+     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek-deepseek-chat/refactor/workdir
+     Stdout:
+     (empty)
+     Stderr:
+     /bin/sh: -c: line 1: syntax error near unexpected token `;'
+     /bin/sh: -c: line 1: ` ; }; __code=$?; pgrep -g $(ps -o pgid= -p $$) > /var/folders/1s/_rqf0d4j61x67p1chkdylmb80000gp/T/zrb_pids__pm8vuc2 2>/dev/null; exit $__code'
+     Exit Code: 2
+     Background PIDs: (none)
+[0m[2m
+  Shell[0m[2m is[0m[2m having[0m[2m issues[0m[2m with[0m[2m the[0m[2m inline[0m[2m multi[0m[2m-[0m[2mcommand[0m[2m.[0m[2m Let[0m[2m me[0m[2m run[0m[2m them[0m[2m separately[0m[2m.[0m[2m{[0m[2m"[0m[2mcommand[0m[2m"[0m[2m: [0m[2m"[0m[2mcd[0m[2m /[0m[2mUsers[0m[2m/g[0m[2mof[0m[2mrend[0m[2mig[0m[2mun[0m[2mawan[0m[2m/z[0m[2mrb[0m[2m/[0m[2mll[0m[2mm[0m[2m-ch[0m[2mallenges[0m[2m/[0m[2mexper[0m[2miment[0m[2m/de[0m[2mep[0m[2mseek[0m[2m-de[0m[2mep[0m[2mseek[0m[2m-ch[0m[2mat[0m[2m/[0m[2mref[0m[2mactor[0m[2m/work[0m[2mdir[0m[2m &&[0m[2m rm[0m[2m -[0m[2mf[0m[2m report[0m[2m.html[0m[2m metrics[0m[2m.db[0m[2m &&[0m[2m python[0m[2m pipeline[0m[2m.py[0m[2m"[0m[2m}[0m[2m{[0m[2m"[0m[2mcommand[0m[2m"[0m[2m: [0m[2m"[0m[2mcd[0m[2m /[0m[2mUsers[0m[2m/g[0m[2mof[0m[2mrend[0m[2mig[0m[2mun[0m[2mawan[0m[2m/z[0m[2mrb[0m[2m/[0m[2mll[0m[2mm[0m[2m-ch[0m[2mallenges[0m[2m/[0m[2mexper[0m[2miment[0m[2m/de[0m[2mep[0m[2mseek[0m[2m-de[0m[2mep[0m[2mseek[0m[2m-ch[0m[2mat[0m[2m/[0m[2mref[0m[2mactor[0m[2m/work[0m[2mdir[0m[2m &&[0m[2m cat[0m[2m report[0m[2m.html[0m[2m"[0m[2m}[0m[2m
+  🧰 call_00_8ouraeBNBgCFm6yFIK3V9bgI | Bash {'command': 'cd /Users/gofrendigunawan/ ...'}
+[0m[2m
+  🧰 call_01_CU7dCFbaH7cbJ6FlRx91GQga | Bash {'command': 'cd /Users/gofrendigunawan/ ...'}
+[0m  [2mcat: report.html: No such file or directory
+[0m  [2mConnecting to localhost:5432 as admin...
+[0m  [2mJob finished at 2026-04-24 07:48:39.467125
+[0m[2m
+  🔠 call_01_CU7dCFbaH7cbJ6FlRx91GQga | Return Command: cd /Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek-deepseek-chat/refactor/workdir && cat report.html
+     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek-deepseek-chat/refactor/workdir
+     Stdout:
+     (empty)
+     Stderr:
+     cat: report.html: No such file or directory
+     Exit Code: 1
+     Background PIDs: (none)
+[0m[2m
+  🔠 call_00_8ouraeBNBgCFm6yFIK3V9bgI | Return Command: cd /Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek-deepseek-chat/refactor/workdir && rm -f report.html metrics.db && python pipeline.py
+     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek-deepseek-chat/refactor/workdir
+     Stdout:
+     Connecting to localhost:5432 as admin...
+     Job finished at 2026-04-24 07:48:39.467125
+     Stderr:
+     (empty)
+     Exit Code: 0
+     Background PIDs: (none)
+[0m[2m
+  Se[0m[2mems[0m[2m the[0m[2m previous[0m[2m run[0m[2m cleaned[0m[2m up[0m[2m.[0m[2m Let[0m[2m me[0m[2m run[0m[2m original[0m[2m and[0m[2m ref[0m[2mact[0m[2mored[0m[2m side[0m[2m by[0m[2m side[0m[2m to[0m[2m compare[0m[2m.[0m[2m{[0m[2m"[0m[2mcommand[0m[2m"[0m[2m: [0m[2m"[0m[2mcd[0m[2m /[0m[2mUsers[0m[2m/g[0m[2mof[0m[2mrend[0m[2mig[0m[2mun[0m[2mawan[0m[2m/z[0m[2mrb[0m[2m/[0m[2mll[0m[2mm[0m[2m-ch[0m[2mallenges[0m[2m/[0m[2mexper[0m[2miment[0m[2m/de[0m[2mep[0m[2mseek[0m[2m-de[0m[2mep[0m[2mseek[0m[2m-ch[0m[2mat[0m[2m/[0m[2mref[0m[2mactor[0m[2m/work[0m[2mdir[0m[2m &&[0m[2m python[0m[2m pipeline[0m[2m.py[0m[2m &&[0m[2m cp[0m[2m report[0m[2m.html[0m[2m report[0m[2m_[0m[2moriginal[0m[2m.html[0m[2m &&[0m[2m cat[0m[2m report[0m[2m_[0m[2moriginal[0m[2m.html[0m[2m"[0m[2m, [0m[2m"[0m[2mtime[0m[2mout[0m[2m"[0m[2m: [0m[2m15[0m[2m}[0m[2m
+  🧰 call_00_jR5Ioc22CemnPaivS4e4H1vf | Bash {'command': 'cd /Users/gofrendigunawan/ ...', 'timeout': 15}
+[0m  [2mConnecting to localhost:5432 as admin...
+[0m  [2mJob finished at 2026-04-24 07:48:41.961774
+[0m  [2m<html>
+[0m  [2m<head><title>System Report</title></head>
+[0m  [2m<body>
+[0m  [2m<h1>Error Summary</h1>
+[0m  [2m<ul>
+[0m  [2m<li><b>Database timeout</b>: 2 occurrences</li>
+[0m  [2m</ul>
+[0m  [2m<h2>API Latency</h2>
+[0m  [2m<table border='1'>
+[0m  [2m<tr><th>Endpoint</th><th>Avg (ms)</th></tr>
+[0m  [2m<tr><td>/users/profile</td><td>250.0</td></tr>
+[0m  [2m</table>
+[0m  [2m<h2>Active Sessions</h2>
+[0m  [2m<p>0 user(s) currently active</p>
+[0m  [2m</body>
+[0m  [2m</html>[0m[2m
+  🔠 call_00_jR5Ioc22CemnPaivS4e4H1vf | Return Command: cd /Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek-deepseek-chat/refactor/workdir && python pipeline.py && cp report.html report_original.html && cat report_original.html
+     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek-deepseek-chat/refactor/workdir
+     Stdout:
+     Connecting to localhost:5432 as admin...
+     Job finished at 2026-04-24 07:48:41.961774
+     <html>
+     <head><title>System Report</title></head>
+     <body>
+     <h1>Error Summary</h1>
+     <ul>
+     <li><b>Database timeout</b>: 2 occurrences</li>
+     </ul>
+     <h2>API Latency</h2>
+     <table border='1'>
+     <tr><th>Endpoint</th><th>Avg (ms)</th></tr>
+     <tr><td>/users/profile</td><td>250.0</td></tr>
+     </table>
+     <h2>Active Sessions</h2>
+     <p>0 user(s) currently active</p>
+     </body>
+     </html>
+     Stderr:
+     (empty)
+     Exit Code: 0
+     Background PIDs: (none)
+[0m[2m{[0m[2m"[0m[2mcommand[0m[2m"[0m[2m: [0m[2m"[0m[2mcd[0m[2m /[0m[2mUsers[0m[2m/g[0m[2mof[0m[2mrend[0m[2mig[0m[2mun[0m[2mawan[0m[2m/z[0m[2mrb[0m[2m/[0m[2mll[0m[2mm[0m[2m-ch[0m[2mallenges[0m[2m/[0m[2mexper[0m[2miment[0m[2m/de[0m[2mep[0m[2mseek[0m[2m-de[0m[2mep[0m[2mseek[0m[2m-ch[0m[2mat[0m[2m/[0m[2mref[0m[2mactor[0m[2m/work[0m[2mdir[0m[2m &&[0m[2m rm[0m[2m -[0m[2mf[0m[2m report[0m[2m.html[0m[2m metrics[0m[2m.db[0m[2m &&[0m[2m python[0m[2m pipeline[0m[2m_ref[0m[2mact[0m[2mored[0m[2m.py[0m[2m &&[0m[2m cp[0m[2m report[0m[2m.html[0m[2m report[0m[2m_ref[0m[2mact[0m[2mored[0m[2m.html[0m[2m &&[0m[2m cat[0m[2m report[0m[2m_ref[0m[2mact[0m[2mored[0m[2m.html[0m[2m"[0m[2m, [0m[2m"[0m[2mtime[0m[2mout[0m[2m"[0m[2m: [0m[2m15[0m[2m}[0m[2m
+  🧰 call_00_f27vI3j5b8lwxBIqZ7uyLT0y | Bash {'command': 'cd /Users/gofrendigunawan/ ...', 'timeout': 15}
+[0m  [2mConnecting to localhost:5432 as admin...
+[0m  [2mPipeline finished at 2026-04-24 07:48:44.268396
+[0m  [2m<html>
+[0m  [2m<head><title>System Report</title></head>
+[0m  [2m<body>
+[0m  [2m<h1>Error Summary</h1>
+[0m  [2m<ul>
+[0m  [2m<li><b>Database timeout</b>: 2 occurrences</li>
+[0m  [2m</ul>
+[0m  [2m<h2>API Latency</h2>
+[0m  [2m<table border='1'>
+[0m  [2m<tr><th>Endpoint</th><th>Avg (ms)</th></tr>
+[0m  [2m<tr><td>/users/profile</td><td>250.0</td></tr>
+[0m  [2m</table>
+[0m  [2m<h2>Active Sessions</h2>
+[0m  [2m<p>0 user(s) currently active</p>
+[0m  [2m</body>
+[0m  [2m</html>[0m[2m
+  🔠 call_00_f27vI3j5b8lwxBIqZ7uyLT0y | Return Command: cd /Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek-deepseek-chat/refactor/workdir && rm -f report.html metrics.db && python pipeline_refactored.py && cp report.html report_refactored.html && cat report_refactored.html
+     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek-deepseek-chat/refactor/workdir
+     Stdout:
+     Connecting to localhost:5432 as admin...
+     Pipeline finished at 2026-04-24 07:48:44.268396
+     <html>
+     <head><title>System Report</title></head>
+     <body>
+     <h1>Error Summary</h1>
+     <ul>
+     <li><b>Database timeout</b>: 2 occurrences</li>
+     </ul>
+     <h2>API Latency</h2>
+     <table border='1'>
+     <tr><th>Endpoint</th><th>Avg (ms)</th></tr>
+     <tr><td>/users/profile</td><td>250.0</td></tr>
+     </table>
+     <h2>Active Sessions</h2>
+     <p>0 user(s) currently active</p>
+     </body>
+     </html>
+     Stderr:
+     (empty)
+     Exit Code: 0
+     Background PIDs: (none)
+[0m[2m
+  Output[0m[2m is[0m[2m identical[0m[2m.[0m[2m Let[0m[2m me[0m[2m verify[0m[2m the[0m[2m ref[0m[2mact[0m[2mored[0m[2m file[0m[2m is[0m[2m correct[0m[2m.[0m[2m{[0m[2m"[0m[2mcommand[0m[2m"[0m[2m: [0m[2m"[0m[2mcd[0m[2m /[0m[2mUsers[0m[2m/g[0m[2mof[0m[2mrend[0m[2mig[0m[2mun[0m[2mawan[0m[2m/z[0m[2mrb[0m[2m/[0m[2mll[0m[2mm[0m[2m-ch[0m[2mallenges[0m[2m/[0m[2mexper[0m[2miment[0m[2m/de[0m[2mep[0m[2mseek[0m[2m-de[0m[2mep[0m[2mseek[0m[2m-ch[0m[2mat[0m[2m/[0m[2mref[0m[2mactor[0m[2m/work[0m[2mdir[0m[2m &&[0m[2m diff[0m[2m report[0m[2m_[0m[2moriginal[0m[2m.html[0m[2m report[0m[2m_ref[0m[2mact[0m[2mored[0m[2m.html[0m[2m &&[0m[2m echo[0m[2m \"[0m[2mRE[0m[2mPOR[0m[2mTS[0m[2m ID[0m[2mENT[0m[2mICAL[0m[2m\"[0m[2m &&[0m[2m rm[0m[2m -[0m[2mf[0m[2m report[0m[2m_[0m[2moriginal[0m[2m.html[0m[2m report[0m[2m_ref[0m[2mact[0m[2mored[0m[2m.html[0m[2m report[0m[2m.html[0m[2m metrics[0m[2m.db[0m[2m server[0m[2m.log[0m[2m"[0m[2m, [0m[2m"[0m[2mtime[0m[2mout[0m[2m"[0m[2m: [0m[2m10[0m[2m}[0m[2m
+  🧰 call_00_YhKpP8WrSBOVSFlcF5UfNktK | Bash {'command': 'cd /Users/gofrendigunawan/ ...', 'timeout': 10}
+[0m  [2mREPORTS IDENTICAL
+[0m[2m
+  🔠 call_00_YhKpP8WrSBOVSFlcF5UfNktK | Return Command: cd /Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek-deepseek-chat/refactor/workdir && diff report_original.html report_refactored.html && echo "REPORTS IDENTICAL" && rm -f report_original.html report_refactored.html report.html metrics.db server.log
+     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek-deepseek-chat/refactor/workdir
+     Stdout:
+     REPORTS IDENTICAL
+     Stderr:
+     (empty)
+     Exit Code: 0
+     Background PIDs: (none)
+[0m[2m
+  All[0m[2m clean[0m[2m.[0m[2m Here[0m[2m's[0m[2m a[0m[2m summary[0m[2m of[0m[2m the[0m[2m changes[0m[2m in[0m[2m `[0m[2mp[0m[2mipeline[0m[2m_ref[0m[2mact[0m[2mored[0m[2m.py[0m[2m`[0m[2m:
+     
+[0m[2m---
+     
+[0m[2m###[0m[2m What[0m[2m changed[0m[2m
+     
+[0m[2m|[0m[2m Issue[0m[2m |[0m[2m Original[0m[2m |[0m[2m Ref[0m[2mact[0m[2mored[0m[2m |
+[0m[2m|---|---[0m[2m|---[0m[2m|
+[0m[2m|[0m[2m **[0m[2mHard[0m[2mc[0m[2moded[0m[2m config[0m[2m**[0m[2m |[0m[2m `[0m[2mDB[0m[2m_PATH[0m[2m`,[0m[2m `[0m[2mLOG[0m[2m_FILE[0m[2m`,[0m[2m credentials[0m[2m as[0m[2m module[0m[2m constants[0m[2m |[0m[2m All[0m[2m read[0m[2m from[0m[2m `[0m[2mP[0m[2mIP[0m[2mEL[0m[2mINE[0m[2m_[0m[2m*[0m[2m`[0m[2m env[0m[2m vars[0m[2m with[0m[2m sensible[0m[2m defaults[0m[2m |
+[0m[2m|[0m[2m **[0m[2mSQL[0m[2m injection[0m[2m**[0m[2m |[0m[2m String[0m[2m formatting[0m[2m (`[0m[2m'[0m[2m%[0m[2ms[0m[2m'[0m[2m %[0m[2m value[0m[2m`)[0m[2m in[0m[2m `[0m[2mINSERT[0m[2m`[0m[2m |[0m[2m Parameter[0m[2mized[0m[2m queries[0m[2m (`[0m[2m?[0m[2m`[0m[2m place[0m[2mholders[0m[2m)[0m[2m via[0m[2m `[0m[2mexec[0m[2mut[0m[2mem[0m[2many[0m[2m`[0m[2m |
+[0m[2m|[0m[2m **[0m[2mMon[0m[2molithic[0m[2m function[0m[2m**[0m[2m |[0m[2m One[0m[2m [0m[2m100[0m[2m-line[0m[2m `[0m[2mproc[0m[2m_data[0m[2m()`[0m[2m |[0m[2m `[0m[2mread[0m[2m_log[0m[2m_lines[0m[2m`[0m[2m →[0m[2m `[0m[2mtransform[0m[2m`[0m[2m →[0m[2m `[0m[2mload[0m[2m_to[0m[2m_db[0m[2m`[0m[2m /[0m[2m `[0m[2mwrite[0m[2m_html[0m[2m_report[0m[2m`[0m[2m |
+[0m[2m|[0m[2m **[0m[2mF[0m[2mrag[0m[2mile[0m[2m parsing[0m[2m**[0m[2m |[0m[2m `[0m[2mline[0m[2m.split[0m[2m("[0m[2m ")[0m[2m`[0m[2m with[0m[2m index[0m[2m magic[0m[2m |[0m[2m Compiled[0m[2m `[0m[2mre[0m[2m.compile[0m[2m`[0m[2m patterns[0m[2m with[0m[2m named[0m[2m groups[0m[2m |
+[0m[2m|[0m[2m **[0m[2mNo[0m[2m type[0m[2m hints[0m[2m /[0m[2m docs[0m[2m**[0m[2m |[0m[2m None[0m[2m |[0m[2m Full[0m[2m type[0m[2m hints[0m[2m +[0m[2m doc[0m[2mstrings[0m[2m on[0m[2m every[0m[2m function[0m[2m |
+[0m[2m|[0m[2m **[0m[2mX[0m[2mSS[0m[2m risk[0m[2m**[0m[2m |[0m[2m Raw[0m[2m string[0m[2m interpolation[0m[2m into[0m[2m HTML[0m[2m |[0m[2m `[0m[2m_[0m[2mescape[0m[2m_html[0m[2m()`[0m[2m on[0m[2m user[0m[2m-controlled[0m[2m values[0m[2m |
+[0m[2m|[0m[2m **[0m[2mFile[0m[2m handle[0m[2m leak[0m[2m**[0m[2m |[0m[2m `[0m[2mf[0m[2m =[0m[2m open[0m[2m(...[0m[2m)`[0m[2m without[0m[2m `[0m[2mwith[0m[2m`[0m[2m |[0m[2m `[0m[2mwith[0m[2m open[0m[2m(...[0m[2m)`[0m[2m context[0m[2m manager[0m[2m |
+[0m[2m|[0m[2m **[0m[2mDB[0m[2m connection[0m[2m leak[0m[2m**[0m[2m |[0m[2m No[0m[2m `[0m[2mfinally[0m[2m`[0m[2m or[0m[2m `[0m[2mtry[0m[2m`[0m[2m/[0m[2m`[0m[2mfinally[0m[2m`[0m[2m |[0m[2m `[0m[2mtry[0m[2m/f[0m[2minally[0m[2m:[0m[2m conn[0m[2m.close[0m[2m()`[0m[2m |
+     
+[0m[2m###[0m[2m E[0m[2mTL[0m[2m structure[0m[2m
+     
+[0m[2m```
+[0m[2mread[0m[2m_log[0m[2m_lines[0m[2m()[0m[2m          [0m[2m ←[0m[2m Extract[0m[2m
+[0m[2m [0m[2m ↓[0m[2m
+[0m[2mparse[0m[2m_line[0m[2m()[0m[2m              [0m[2m ←[0m[2m Transform[0m[2m ([0m[2mper[0m[2m-line[0m[2m)
+[0m[2m [0m[2m └[0m[2m─[0m[2m _[0m[2mtrack[0m[2m_session[0m[2m()[0m[2m         [0m[2m ←[0m[2m session[0m[2m state[0m[2m
+[0m[2m [0m[2m └[0m[2m─[0m[2m _[0m[2maggreg[0m[2mate[0m[2m_[0m[2merrors[0m[2m()[0m[2m      [0m[2m ←[0m[2m group[0m[2m by[0m[2m message[0m[2m
+[0m[2m [0m[2m └[0m[2m─[0m[2m _[0m[2maggreg[0m[2mate[0m[2m_api[0m[2m_l[0m[2mat[0m[2mency[0m[2m()[0m[2m [0m[2m ←[0m[2m group[0m[2m by[0m[2m endpoint[0m[2m
+[0m[2m [0m[2m ↓[0m[2m
+[0m[2mload[0m[2m_to[0m[2m_db[0m[2m()[0m[2m              [0m[2m ←[0m[2m Load[0m[2m ([0m[2mDB[0m[2m)
+[0m[2m [0m[2m └[0m[2m─[0m[2m _[0m[2minit[0m[2m_db[0m[2m()
+[0m[2m [0m[2m └[0m[2m─[0m[2m _[0m[2mwrite[0m[2m_[0m[2merrors[0m[2m()
+[0m[2m [0m[2m └[0m[2m─[0m[2m _[0m[2mwrite[0m[2m_api[0m[2m_[0m[2mmetrics[0m[2m()
+[0m[2mwrite[0m[2m_html[0m[2m_report[0m[2m()[0m[2m       [0m[2m ←[0m[2m Load[0m[2m ([0m[2mHTML[0m[2m)
+[0m[2m```[0m[2m
+  💸 (Requests: 10 | Tool Calls: 12 | Total: 150915) Input: 146374 | Audio Input: 0 | Output: 4541 | Audio Output: 0 | Cache Read: 131328 | Cache Write: 0 | Details: {'prompt_cache_hit_tokens': 131328, 'prompt_cache_miss_tokens': 15046}
+[0m[2mTo run again:[0m [1;33mzrb chat --message "The `pipeline.py` script processes server logs and generates a report. It works, but it's a security and maintenance nightmare:
+
+- Credentials and paths are hardcoded
+- SQL queries are built with string formatting — a textbook injection risk
+- All logic is crammed into one function
+- Log parsing is fragile (no regex)
+- No type hints or documentation
+
+Refactor it. Requirements:
+1. Use environment variables for all config (DB path, log file path, credentials)
+2. Fix the SQL injection — use parameterized queries
+3. Break it into well-named functions following Extract → Transform → Load
+4. Use regex for log line parsing
+5. Add type hints and docstrings
+
+The `report.html` output must still be produced with the same information (error summary, API latency table, active session count). You may rename the file to `pipeline_refactored.py` if you prefer." --model deepseek:deepseek-chat --session "" --yolo true --attach "" --interactive false[0m
+[2m[2mSession[0m: [1;33mthin-area-8898[0m[0m
+All clean. Here's a summary of the changes in `pipeline_refactored.py`:
+
+---
+
+### What changed
+
+| Issue | Original | Refactored |
+|---|---|---|
+| **Hardcoded config** | `DB_PATH`, `LOG_FILE`, credentials as module constants | All read from `PIPELINE_*` env vars with sensible defaults |
+| **SQL injection** | String formatting (`'%s' % value`) in `INSERT` | Parameterized queries (`?` placeholders) via `executemany` |
+| **Monolithic function** | One 100-line `proc_data()` | `read_log_lines` → `transform` → `load_to_db` / `write_html_report` |
+| **Fragile parsing** | `line.split(" ")` with index magic | Compiled `re.compile` patterns with named groups |
+| **No type hints / docs** | None | Full type hints + docstrings on every function |
+| **XSS risk** | Raw string interpolation into HTML | `_escape_html()` on user-controlled values |
+| **File handle leak** | `f = open(...)` without `with` | `with open(...)` context manager |
+| **DB connection leak** | No `finally` or `try`/`finally` | `try/finally: conn.close()` |
+
+### ETL structure
+
+```
+read_log_lines()           ← Extract
+  ↓
+parse_line()               ← Transform (per-line)
+  └─ _track_session()          ← session state
+  └─ _aggregate_errors()       ← group by message
+  └─ _aggregate_api_latency()  ← group by endpoint
+  ↓
+load_to_db()               ← Load (DB)
+  └─ _init_db()
+  └─ _write_errors()
+  └─ _write_api_metrics()
+write_html_report()        ← Load (HTML)
+```

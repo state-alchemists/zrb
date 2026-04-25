@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from contextvars import ContextVar
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias, Union
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias
 
 from zrb.config.config import CFG
 from zrb.llm.approval.approval_channel import ApprovalChannel, current_approval_channel
@@ -29,14 +29,14 @@ if TYPE_CHECKING:
     )
     from pydantic_ai.messages import UserPromptPart
 
-    AnyToolConfirmation: TypeAlias = Union[
+    AnyToolConfirmation: TypeAlias = (
         Callable[
             [ToolCallPart],
             ToolApproved | ToolDenied | Awaitable[ToolApproved | ToolDenied],
-        ],
-        ToolCallHandler,
-        None,
-    ]
+        ]
+        | ToolCallHandler
+        | None
+    )
 else:
     AnyToolConfirmation: TypeAlias = Any
 
@@ -57,6 +57,59 @@ def _is_prompt_too_long_error(e: Exception) -> bool:
         "maximum context",
     ]
     return any(keyword in err_str for keyword in context_keywords)
+
+
+def _is_invalid_tool_call_error(e: Exception) -> bool:
+    """Returns True if the exception is an HTTP 400 caused by an invalid/unknown tool name.
+
+    Some model APIs (e.g. Ollama) reject responses where the model referenced a tool
+    that was not in the registered tool list, returning HTTP 400 instead of handling
+    the unknown call gracefully.
+    """
+    status_code = getattr(e, "status_code", None)
+    if status_code != 400:
+        return False
+    err_str = str(e).lower()
+    tool_keywords = [
+        "tool",
+        "function",
+        "unknown",
+        "invalid",
+        "not defined",
+        "not found",
+    ]
+    return any(keyword in err_str for keyword in tool_keywords)
+
+
+def _is_retryable_error(e: Exception) -> bool:
+    """Returns True for transient provider errors (429, 5xx) worth retrying."""
+    status_code = getattr(e, "status_code", None)
+    if status_code is not None:
+        return status_code == 429 or status_code >= 500
+    response = getattr(e, "response", None)
+    if response is not None:
+        code = getattr(response, "status_code", None)
+        if code is not None:
+            return code == 429 or code >= 500
+    msg = str(e).lower()
+    return any(
+        k in msg
+        for k in ("rate limit", "rate_limit", "529", "503", "502", "overloaded")
+    )
+
+
+def _get_retry_wait(e: Exception, attempt: int, max_wait: float) -> float:
+    """Exponential backoff, honoring Retry-After header when present."""
+    response = getattr(e, "response", None)
+    if response is not None:
+        headers = getattr(response, "headers", {})
+        retry_after = headers.get("retry-after") or headers.get("Retry-After")
+        if retry_after is not None:
+            try:
+                return min(float(retry_after), max_wait)
+            except ValueError:
+                pass
+    return min(2**attempt, max_wait)
 
 
 def _drop_oldest_turn(history: list[Any]) -> list[Any]:
@@ -357,6 +410,8 @@ async def run_agent(
         prompt_content = _get_prompt_content(effective_message, attachments, print_fn)
 
         # 1. Prune & Throttle
+        history_processors = list(getattr(agent, "history_processors", None) or [])
+
         # Hook: PreCompact - invoked before history processing/summarization
         await effective_hook_manager.execute_hooks(
             HookEvent.PRE_COMPACT,
@@ -364,15 +419,18 @@ async def run_agent(
                 "history": message_history,
                 "token_count": limiter.count_tokens(message_history),
                 "message_count": len(message_history),
-                "has_history_processors": hasattr(agent, "history_processors"),
+                "has_history_processors": bool(history_processors),
             },
         )
 
-        # Process history first (e.g. summarization)
+        # Run processors once here (before pruning) so summarization runs
+        # on raw history and compresses before fit_context_window would hard-cut.
+        # pydantic-ai re-runs them per-request inside run_stream_events —
+        # that's fine: idempotent summarizers early-return when under threshold,
+        # and PII/sanitization processors must run on every outbound request.
         processed_history = message_history
-        if hasattr(agent, "history_processors"):
-            for processor in agent.history_processors:
-                processed_history = await processor(processed_history)
+        for processor in history_processors:
+            processed_history = await processor(processed_history)
 
         # Safety Check: Ensure alternating roles in history
         processed_history = ensure_alternating_roles(processed_history)
@@ -387,7 +445,7 @@ async def run_agent(
         current_tokens = limiter.count_tokens(processed_history)
         if current_tokens > effective_limit:
             print_fn(
-                f"\n[System] History too large ({current_tokens} tokens) after summarization. Force pruning..."
+                f"\n[SYSTEM] History too large ({current_tokens} tokens) after summarization. Force pruning..."
             )
             # Keep only the last message (User prompt) if possible, or clear all if even that is too big
             # Ideally we keep system prompt + last user message
@@ -435,10 +493,15 @@ async def run_agent(
         stream = None
         _context_retry_count = 0
         _MAX_CONTEXT_RETRIES = CFG.LLM_MAX_CONTEXT_RETRIES
+        _invalid_tool_retry_done = False
+        _transient_retry_count = 0
+        _MAX_TRANSIENT_RETRIES = CFG.LLM_API_MAX_RETRIES - 1
         try:
             while True:
                 # Filter out nil content before sending to API
                 current_history = _filter_nil_content(current_history)
+                # request_limit=None overrides pydantic-ai's default of 50,
+                # which would otherwise cut off long tool-use loops.
                 stream = agent.run_stream_events(
                     current_message,
                     message_history=current_history,
@@ -468,19 +531,65 @@ async def run_agent(
 
                 if stream_error is not None:
                     if (
+                        _is_retryable_error(stream_error)
+                        and _transient_retry_count < _MAX_TRANSIENT_RETRIES
+                    ):
+                        _transient_retry_count += 1
+                        wait_secs = _get_retry_wait(
+                            stream_error, _transient_retry_count, CFG.LLM_API_MAX_WAIT
+                        )
+                        print_fn(
+                            f"\n[SYSTEM] Transient provider error, retrying in {wait_secs:.0f}s"
+                            f" (attempt {_transient_retry_count}/{_MAX_TRANSIENT_RETRIES})..."
+                        )
+                        CFG.LOGGER.debug(
+                            f"Retryable error (attempt {_transient_retry_count}): {stream_error}"
+                        )
+                        await asyncio.sleep(wait_secs)
+                        continue
+                    if (
                         _is_prompt_too_long_error(stream_error)
                         and _context_retry_count < _MAX_CONTEXT_RETRIES
                     ):
                         _context_retry_count += 1
+                        _transient_retry_count = 0
                         # Drop one conversation turn from history and retry
                         current_history = _drop_oldest_turn(current_history)
                         print_fn(
-                            f"\n[System] Context too long, retrying with reduced history"
+                            f"\n[SYSTEM] Context too long, retrying with reduced history"
                             f" (attempt {_context_retry_count}/{_MAX_CONTEXT_RETRIES})..."
                         )
                         CFG.LOGGER.debug(
                             f"Prompt too long: retrying with {len(current_history)} history messages"
                         )
+                        continue
+                    if (
+                        _is_invalid_tool_call_error(stream_error)
+                        and not _invalid_tool_retry_done
+                    ):
+                        _invalid_tool_retry_done = True
+                        corrective = (
+                            "[SYSTEM] Your previous response was rejected because it referenced "
+                            "an invalid or non-existent tool name. Use only the exact tool names "
+                            "available to you — do not combine, modify, or invent tool names."
+                        )
+                        print_fn(
+                            "\n[SYSTEM] Invalid tool call detected, asking model to retry..."
+                        )
+                        CFG.LOGGER.debug(
+                            f"Invalid tool call error: {stream_error}. Injecting corrective message."
+                        )
+                        from pydantic_ai.messages import ModelRequest, UserPromptPart
+
+                        if current_message is not None and isinstance(
+                            current_message, str
+                        ):
+                            current_message = current_message + "\n\n" + corrective
+                        else:
+                            current_history = list(run_history) + [
+                                ModelRequest(parts=[UserPromptPart(content=corrective)])
+                            ]
+                            current_message = None
                         continue
                     raise stream_error
 
@@ -558,7 +667,7 @@ async def run_agent(
                     _original_output = result_output
                     _original_history = run_history
                     # Convert systemMessage to user prompt for next iteration
-                    effective_print_fn(f"\n[System] {session_end_message}\n")
+                    effective_print_fn(f"\n[SYSTEM] {session_end_message}\n")
                     # Continue the session with the system message as user prompt
                     current_message = session_end_message
                     current_history = run_history

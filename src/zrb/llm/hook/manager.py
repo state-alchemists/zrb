@@ -431,9 +431,7 @@ class HookManager:
 
         # 0. Plugins (Default Plugin -> User Plugins)
         # Default Plugin
-        default_plugin_path = (
-            Path(os.path.dirname(__file__)).parent.parent / "llm_plugin"
-        )
+        default_plugin_path = Path(__file__).parent.parent.parent / "llm_plugin"
         if default_plugin_path.exists() and default_plugin_path.is_dir():
             hooks_path = default_plugin_path / "hooks"
             if hooks_path.exists() and hooks_path.is_dir():

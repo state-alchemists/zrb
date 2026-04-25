@@ -98,13 +98,13 @@ class Session(AnySession):
 
     def terminate(self):
         self._is_terminated = True
-        for task_status in self._task_status.values():
+        for task_status in list(self._task_status.values()):
             task_status.mark_as_terminated()
-        for task in self._action_coros.values():
+        for task in list(self._action_coros.values()):
             task.cancel()
-        for task in self._monitoring_coros.values():
+        for task in list(self._monitoring_coros.values()):
             task.cancel()
-        for task in self._coros:
+        for task in list(self._coros):
             task.cancel()
 
     @property
@@ -268,14 +268,22 @@ class Session(AnySession):
                 self._upstreams[task].append(upstream)
 
     def get_root_tasks(self, task: AnyTask) -> list[AnyTask]:
-        root_tasks = []
-        upstreams = self._upstreams[task]
-        if len(upstreams) == 0:
-            root_tasks.append(task)
-        else:
-            for upstream in upstreams:
-                root_tasks += self.get_root_tasks(upstream)
-        return list(set(root_tasks))
+        visited: set[int] = set()
+        root_tasks: list[AnyTask] = []
+
+        def _traverse(t: AnyTask) -> None:
+            if id(t) in visited:
+                return
+            visited.add(id(t))
+            upstreams = self._upstreams.get(t, [])
+            if not upstreams:
+                root_tasks.append(t)
+            else:
+                for upstream in upstreams:
+                    _traverse(upstream)
+
+        _traverse(task)
+        return root_tasks
 
     def get_next_tasks(self, task: AnyTask) -> list[AnyTask]:
         self._register_single_task(task)

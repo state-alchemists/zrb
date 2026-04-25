@@ -158,3 +158,19 @@ def test_base_input_to_html():
     # Check that the HTML contains expected elements
     # BaseInput's to_html uses get_default_str which requires input rendering
     assert "input" in html.lower()
+
+
+class MinimalInput(BaseInput):
+    """Subclass that uses BaseInput.to_html without overriding it."""
+
+    pass
+
+
+def test_base_input_to_html_direct():
+    """Test BaseInput.to_html directly using a non-overriding subclass."""
+    inp = MinimalInput("my-name", description="My Description", default="my-val")
+    shared_ctx = SharedContext()
+    html = inp.to_html(shared_ctx)
+    assert 'name="my-name"' in html
+    assert 'placeholder="My Description"' in html
+    assert 'value="my-val"' in html

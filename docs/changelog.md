@@ -1,5 +1,314 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.22.6 (April 25, 2026)
+
+- **Improvement: Granular Journal Config**:
+  - New `ZRB_LLM_INCLUDE_JOURNAL_MANDATE` env var controls whether the journal mandate section appears in the system prompt independently of the reminder.
+  - New `ZRB_LLM_INCLUDE_JOURNAL_REMINDER` env var controls whether the end-of-session journaling reminder fires.
+  - Both default to `ZRB_LLM_INCLUDE_JOURNAL` when unset — fully backwards compatible.
+  - `PromptManager` gains a matching `include_journal_mandate` property; `include_journal` kept as an alias.
+
+- **Improvement: Fuzzy Matching in `replace_in_file`**:
+  - Tries exact match first, then falls back to trailing-whitespace-tolerant and indentation-flexible fuzzy matching.
+  - Fuzzy matches are reported in the success message so callers know normalization occurred.
+  - Fixed replacement count reporting when `count != -1` (now reports `min(match_count, count)` instead of total occurrences).
+
+- **Improvement: Bash Tool Enhancements**:
+  - Default `timeout` increased from 30 s to 120 s for long-running commands.
+  - New actionable `[SYSTEM SUGGESTION]` messages for common failure patterns: port already in use, command not found, Python module not found, connection refused.
+
+- **Improvement: Tool Guidance Refinements**:
+  - Clarified `DelegateToAgent` guidance: when-to-use now explicitly mentions `DelegateToAgentsParallel` as the preferred choice for independent concurrent sub-tasks.
+  - Clarified `DelegateToAgentsParallel` guidance: concurrency preference and full-context requirement stated more precisely.
+
+- **Feature: Transient Provider Error Retry**:
+  - New `_is_retryable_error()` and `_get_retry_wait()` in `run_agent.py` detect transient provider errors (HTTP 429, 5xx) and retry with exponential backoff.
+  - Honors `Retry-After` response header when present, caps wait time at configurable `LLM_API_MAX_WAIT` (default: 60s).
+  - New `LLM_API_MAX_RETRIES` config (default: 3) controls total retry attempts; set to `1` to disable.
+  - Works alongside existing context-length and invalid-tool retry loops — each error type has independent counters.
+  - Documented in `docs/configuration/llm-config.md` under retry configuration.
+
+- **Improvement: System Message Consistency and Tool Cleanup**:
+  - Normalized all system messages from mixed `[System]`/`[SYSTEM]` to consistent `[SYSTEM]` prefix across `run_agent.py` and `llm_task.py`.
+  - Removed unused sync `tool_safe` decorator from `_wrapper.py` (redundant with `_create_safe_wrapper` in `create_agent()`).
+  - Passed `request_limit=None` to `run_stream_events` to override pydantic-ai's default 50-request cap on tool-use loops.
+
+- **Maintenance: Dependency Update**:
+  - Updated `pydantic-ai-slim` from `~1.85.0` to `~1.86.1`.
+  - Added `AbstractCapability` support: new `capabilities` parameter threaded through `LLMTask` → `LLMChatTask` → `create_agent()` for pydantic-ai 1.86.x compatibility.
+
+## 2.22.5 (April 24, 2026)
+
+- **Bug Fix: More Resilient Tool Call Error Handling**:
+  - New `_is_invalid_tool_call_error()` in `run_agent.py` detects HTTP 400 errors caused by invalid or unknown tool names.
+  - Some model APIs (e.g., Ollama) reject responses referencing unregistered tools with HTTP 400 instead of handling gracefully.
+  - On first occurrence, injects a corrective `[SYSTEM]` message asking the model to use only exact available tool names, then retries.
+  - One-time retry via `_invalid_tool_retry_done` flag prevents infinite loops.
+
+- **Improvement: Challenge Runner Verification Priority**:
+  - Verification result strings (`VERIFICATION_RESULT: EXCELLENT/PASS/FAIL`) now take priority over execution status.
+  - Handles models that complete work correctly but exit with non-zero codes due to unrelated framework exceptions.
+  - Fallback to exit code only when no `VERIFICATION_RESULT` marker is present.
+
+- **Maintenance: Updated Challenge Results**:
+  - Updated `llm-challenges/experiment/` results across all model providers.
+
+## 2.22.4 (April 22, 2026)
+
+- **Security: Dependency Vulnerability Patches**:
+  - Updated `pydantic-ai-slim` from `~1.80.0` to `~1.85.0`.
+  - Updated `anthropic` from `>=0.80.0` to `>=0.96.0`.
+  - Updated `boto3` from `>=1.42.14` to `>=1.42.63`.
+  - Added `jinja2` dependency for improved web templating.
+  - Added security pins for transitive dependencies:
+    - `python-multipart >=0.0.26` (CVE-2026-40347: DoS via crafted multipart/form-data)
+    - `langchain-text-splitters >=1.1.2` (GHSA-fv5p-p927-qmxr: SSRF via redirect bypass)
+    - `langsmith >=0.7.31` (GHSA-rr7j-v2q5-chgv: Streaming token events bypass output redaction)
+  - Updated `voyageai` extra to include new security dependencies.
+
+- **Improvement: Web Frontend Enhancements**:
+  - Added `jinja2` templating engine with centralized `get_jinja_env()` function for consistent template rendering.
+  - Added local `mermaid.min.js` (3.2MB) for diagram rendering in web UI, removing external CDN dependency.
+  - Improved web route templates with better theme switching, layout, and styling.
+  - Enhanced chat interface with better CSS and JavaScript organization.
+  - Updated all web route handlers to use new Jinja2 environment for template rendering.
+
+- **Improvement: Server Configuration**:
+  - Changed server shutdown timeout from hardcoded `SHUTDOWN_TIMEOUT` to configurable `CFG.WEB_SHUTDOWN_TIMEOUT`.
+  - Server now uses milliseconds for timeout configuration (consistent with other timeout settings).
+
+- **Maintenance: Dependency Updates**:
+  - Updated `poetry.lock` with latest compatible versions.
+  - Minor cleanup in web route imports and template loading.
+
+## 2.22.3 (April 20, 2026)
+
+- **Improvement: Session Wiring via ContextVar**:
+  - `system_context` middleware now calls `set_current_session()` with `ctx.input.session`, wiring a `ContextVar` that all four todo tools (`WriteTodos`, `GetTodos`, `UpdateTodo`, `ClearTodos`) read automatically.
+  - Replaces the broken `threading.local` approach in `get_current_context_session()`. Async contexts now correctly resolve session identity without explicit `session=` arguments.
+
+- **Improvement: Active Worktree Tracking**:
+  - `EnterWorktree` now sets an `active_worktree` `ContextVar`; `ExitWorktree` clears it.
+  - The active worktree path is injected into every system context (`- Active worktree: <path>`) and delegate messages, reminding the LLM to pass `cwd` to `Bash` and use absolute paths for file tools.
+  - `EnterWorktree` now auto-adds `.zrb/worktree/` to the repo's `.gitignore` via `_ensure_gitignore()`.
+
+- **Improvement: Pending Todos in System Context**:
+  - Active (pending/in_progress) todos are now rendered into the system prompt every turn, so the LLM never starts blind.
+  - Completed and cancelled items are omitted; the section is suppressed entirely when no active todos exist.
+
+- **Improvement: Recent Commits in System Context**:
+  - Last 5 git log entries are now shown in system context (`- Recent commits:`), giving the LLM visibility into recent activity without an explicit `Bash` call.
+
+- **Bug Fix: Agent .md File Filtering**:
+  - Fixed `SubAgentManager` incorrectly treating any `.md` file as an agent definition. Now only `.md` files directly inside an `agents/` directory (case-insensitive parent check) are recognized as agents.
+
+- **Improvement: Ripgrep Acceleration for File Search**:
+  - `search_files` now tries `rg --files-with-matches` first and falls back to Python `os.walk` if `rg` is unavailable.
+  - Gracefully handles `rg` errors (exit code 2) and environments without ripgrep installed.
+
+## 2.22.2 (April 19, 2026)
+
+- **Improvement: Bash Tool Guidance Enhancement**:
+  - Added "Never use to query state already in System Context (Time, OS, CWD, available tools)" rule to Bash tool guidance.
+  - Prevents redundant system queries when information is already available in the system context.
+
+- **Improvement: Journal Reminder Reordering**:
+  - Moved "If nothing is worth journaling" before skill guidance in `journal_reminder.md` for better logical flow.
+  - Improves clarity when deciding whether to journal.
+
+- **Improvement: Mandate Simplification**:
+  - Consolidated 5-step pre-task clarity into 3 steps in `mandate.md`.
+  - Removed redundant "Context Before Action" section.
+  - Streamlined guidance for better readability and focus.
+
+## 2.22.1 (April 18, 2026)
+
+- **Improvement: Skill Activation Returns Companion Files**:
+  - `ActivateSkill` tool now returns the skill's directory path and companion file listing alongside the skill content.
+  - New `_get_companion_files()` helper identifies companion files for skills in dedicated directories (`SKILL.md`/`SKILL.py`).
+  - Available Skills section in Claude prompt now mentions companion files.
+
+- **Improvement: System Context Detection Expanded**:
+  - New `_detect_infra_types()` function detects Terraform, Kubernetes, AWS, GCP, and Azure from project markers and home config directories.
+  - Added utility tools to detection: `jq`, `curl`, `gh`, `make`, `rg`, `rtk`.
+  - Added CLI hints for tool preferences (e.g., `rg` over `grep`, `jq` for JSON extraction).
+  - Token limit now shown in system context.
+  - Deduplication of tool labels to avoid repeated entries.
+
+- **Improvement: Prompt Refinements**:
+  - `persona.md`: "Calibrate depth" → "Depth matches content"; added "Push back" rule.
+  - `mandate.md`: Major restructure — added Pre-Task Clarity, Execution Loop, Scope & Simplicity sections; expanded edge case guidance; reorganized rule priorities.
+  - Updated tool guidance in `chat.py` for `ActivateSkill`, `DelegateToAgent`, `DelegateToAgentsParallel`, and `Bash`.
+
+## 2.22.0 (April 16, 2026)
+
+- **Feature: Global Model Getter/Renderer on LLMConfig**:
+  - New `model_getter` and `model_renderer` properties on `LLMConfig` for global model transformation hooks.
+  - New `resolve_model(base_model=None)` method applies getter then renderer in sequence.
+  - Enables centralized model tiering, A/B routing, and provider mapping across all agents.
+  - Task-level `model_getter`/`model_renderer` take precedence over config-level defaults.
+
+- **Feature: Summarizer Agents Support Model Pipeline**:
+  - `create_summarizer_agent()`, `create_conversational_summarizer_agent()`, `create_message_summarizer_agent()` now accept optional `model_getter` and `model_renderer` parameters.
+  - Falls back to `llm_config.model_getter/model_renderer` when task-level hooks not provided.
+  - Ensures background summarizer agents use consistent model transformation logic.
+
+- **Feature: History Processor Model Pipeline**:
+  - `create_summarizer_history_processor()` now accepts `model_getter` and `model_renderer` parameters.
+  - Pre-creates conversational/message summarizer agents with getter/renderer when provided.
+  - History compression agents now respect global model pipeline configuration.
+
+- **Improvement: Sub-Agent Manager Model Resolution**:
+  - `SubAgentManager` now uses `llm_config.resolve_model()` for sub-agent model resolution.
+  - Passes config-level getter/renderer to history processor for consistent behavior.
+  - All delegated sub-agents now go through the global model pipeline.
+
+- **Improvement: Tool Sub-Agents Use resolve_model()**:
+  - `analyze_file()` in `file.py` now uses `llm_config.resolve_model()`.
+  - `_extract_info()` and `_summarize_info()` in `code.py` now use `llm_config.resolve_model()`.
+  - `_summarize_web_content()` in `web.py` now uses `llm_config.resolve_model()`.
+  - Ensures all background tool agents respect global getter/renderer hooks.
+
+- **Improvement: Model-Tiering Example Enhanced**:
+  - Example now registers renderer on `llm_config` for all sub-agents (web summarizer, code analyzer, history compressor).
+  - Tier tracker is task-level only (main agent) — background agents don't consume the per-request tier budget.
+  - Demonstrates separation of concerns: task-level tiering vs. global provider mapping.
+
+- **Documentation: New Python API Section**:
+  - Added "Python API: Model Getter & Renderer" section to `docs/configuration/llm-config.md`.
+  - Documents hook signatures, `resolve_model()` behavior, and precedence rules.
+  - Examples show global vs. task-level configuration patterns.
+  - Lists all agent types affected by config-level hooks.
+
+- **Tests: Coverage Expansion**:
+  - Enhanced `test/llm/config/test_llm_config.py`: Model getter/renderer property tests (+81 lines).
+  - Enhanced `test/llm/history_processor/test_history_summarizer.py`: Getter/renderer parameter tests (+35 lines).
+  - Enhanced `test/llm/task/test_llm_chat_task.py`: Config-level fallback tests (+35 lines).
+  - Enhanced `test/llm/task/test_llm_task.py`: Model pipeline resolution tests (+68 lines).
+
+## 2.21.1 (April 16, 2026)
+
+- **Bug Fix: Runner CLI UnboundLocalError**:
+  - Fixed `UnboundLocalError: cannot access local variable 'session' where it is not associated with a value` in `src/zrb/runner/cli.py`.
+  - Occurred when a task was interrupted (e.g., via `Ctrl+C`) before the `session` variable was assigned in the `try` block.
+  - Added safe handling for `None` sessions in `_print_conversation_name`.
+
+## 2.21.0 (April 16, 2026)
+
+- **Feature: Tool Guidance System**:
+  - New `ToolGuidance` dataclass in `src/zrb/llm/prompt/tool_guidance.py` for declarative per-tool usage hints.
+  - `add_tool_guidance()` method on `LLMChatTask` and `LLMTask` registers static guidance entries.
+  - `add_tool_guidance_factory()` method on `LLMChatTask` registers dynamic guidance (e.g., config-dependent tool names).
+  - `PromptManager` composes a `# Tool Usage Guide` section from registered guidance, automatically inserted between mandate and journal sections.
+  - Guidance for unregistered tools is suppressed at runtime — `LLMChatTask._exec_action` sets `prompt_manager.tool_names` from the resolved tool list.
+  - New `CFG.LLM_INCLUDE_TOOL_GUIDANCE` config toggle (default: `on`). Set `ZRB_LLM_INCLUDE_TOOL_GUIDANCE=0` to disable.
+  - All built-in tools ship with pre-registered guidance covering when-to-use and key behavioral rules (File Operations, Execution, Analysis, Research & Web, Planning, Git Worktrees, LSP, Zrb Tasks, Delegation).
+  - Guidance for factory-created tools (`ListZrbTasks`, `RunZrbTask`, `ActivateSkill`, `DelegateToAgent`, `DelegateToAgentsParallel`) uses `add_tool_guidance_factory()` to resolve dynamic names.
+  - `ToolGuidance` exported from `zrb.__init__` for public API access.
+
+- **Feature: Tool Wrapper for Structured Error Handling**:
+  - New `tool_wrapper` decorator in `src/zrb/llm/tool/_wrapper.py` catches tool exceptions and returns structured `{"error": "..."}` messages instead of raising.
+  - Applied to worktree tools (`enter_worktree`, `exit_worktree`, `list_worktrees`), delegate tools, and file tools (`list_files`, `glob_files`).
+  - LLM agent continues operating after tool errors instead of crashing the session.
+
+- **Refactoring: Tool Return Value Standardization**:
+  - `glob_files` now returns `{"files": [...], "truncation_notice": "..."}` instead of a flat list.
+  - `list_files` returns `{"error": "..."}` for nonexistent paths instead of raising `FileNotFoundError`.
+  - Consistent structured output format across file, search, and worktree tools.
+
+- **Improvement: Prompt Optimization**:
+  - Slimmed down prompt markdown files: `persona.md`, `mandate.md`, `git_mandate.md`, `journal_mandate.md`, `conversational_summarizer.md`, `message_summarizer.md`.
+  - Extracted tool-specific guidance from docstrings into explicit `add_tool_guidance()` registrations in `chat.py`.
+  - Reduced token usage in system prompts by moving verbose MANDATES from docstrings to the tool guidance section.
+
+- **Improvement: System Context Refactoring**:
+  - Restructured `system_context.py` for cleaner prompt composition and maintainability.
+
+- **Improvement: Web Tool Enhancements**:
+  - Enhanced `web.py` with improved URL handling and content fetching.
+  - Better error messages and structured returns for web operations.
+
+- **Improvement: Delegate Tool Error Messages**:
+  - `DelegateToAgent` returns structured `"Error: ..."` messages instead of raising `ValueError`.
+  - `DelegateToAgentsParallel` reports `"Error: ..."` instead of `"failed"` for consistency with other tools.
+
+- **Documentation: New and Expanded Docs**:
+  - New "LLM Prompt System" section in `AGENTS.md` documenting `PromptManager` composition and `add_tool_guidance()` API.
+  - Expanded `docs/advanced-topics/llm-integration.md`: Added detailed tool reference tables (File, Analysis/LSP, Planning, Git Worktrees, Zrb Tasks) and new "Tool Guidance" section with static and dynamic registration examples.
+  - Expanded `docs/configuration/llm-config.md`: Added `ZRB_LLM_INCLUDE_TOOL_GUIDANCE` variable and tool guidance configuration guide.
+
+- **Tests: Coverage Expansion**:
+  - New `test/llm/prompt/test_tool_guidance.py`: Tool guidance prompt rendering (+100 lines).
+  - Enhanced `test/llm/prompt/test_manager.py`: Tool guidance manager integration (+99 lines).
+  - Enhanced `test/llm/prompt/test_claude.py`: Claude prompt tests (+41 lines).
+  - Updated `test/llm/prompt/test_system_context.py`: Refactored for new structure.
+  - Enhanced `test/llm/tool/test_file.py`: Structured return values for `glob_files`, `list_files`, `search_files`; new tests for `replace_in_file` near-match suggestions, multiple matches with `count`, `search_files` files_only/case_insensitive/context_lines (+130 lines).
+  - Updated `test/llm/tool/test_delegate_tool.py`: Error handling returns structured messages instead of raising.
+  - Updated `test/llm/tool/test_worktree.py`: Error handling returns structured messages instead of raising.
+  - Updated `test/llm/tool/test_plan.py`: Compact todo format assertions.
+
+## 2.20.2 (April 15, 2026)
+
+- **Security: Dependency Vulnerability Patches**:
+  - Updated `Pillow` from `>=10.0.0` to `>=12.2.0` (CVE-2026-40192: decompression bomb via unlimited GZIP read in FITS decoding).
+  - Updated `pytest` from `^8.3.5` to `>=9.0.3` (CVE-2025-71176: local privilege escalation via `/tmp/pytest-of-{user}` directories).
+
+- **Bug Fix: SharedContext Mutable Default Arguments**:
+  - `SharedContext.__init__` changed mutable defaults (`={}`, `=[]`) to `None` with proper initialization, preventing shared state between instances.
+
+- **Bug Fix: Session.get_root_tasks() Infinite Recursion**:
+  - Replaced recursive `get_root_tasks()` with iterative traversal using a visited set to prevent infinite loops with cyclic task graphs.
+
+- **Bug Fix: Session.terminate() Mutation During Iteration**:
+  - Wrapped `dict.values()` and `list` iterations with `list()` to prevent "dictionary changed size during iteration" errors during session termination.
+
+- **Bug Fix: State Logger CPU Consumption**:
+  - Changed state logger sleep from `asyncio.sleep(0)` to `asyncio.sleep(0.1)`, capping writes at ~10 per second instead of spinning at full CPU.
+
+- **Bug Fix: Builtin Plugin Path Resolution**:
+  - Fixed `Path(os.path.dirname(__file__)).parent` to `Path(__file__).parent.parent.parent` for correct builtin path in `SkillManager`, `HookManager`, and `SubAgentManager`.
+
+- **Refactoring: Modernize Type Annotations**:
+  - Replaced `Optional[X]` → `X | None`, `Union[X, Y]` → `X | Y`, `Dict` → `dict`, `List` → `list`, `Tuple` → `tuple` across LSP, agent, prompt, and tool modules.
+
+- **Refactoring: Path Handling Migration**:
+  - Replaced `os.path.dirname(__file__)` + `os.path.join` with `Path(__file__).parent` / path operations across all web route modules and prompt loading.
+
+- **Refactoring: Deduplicate Agent Search Directory Logic**:
+  - Extracted `_add_agents_from_root()` method in `SubAgentManager` to eliminate repeated directory scanning code across user home, project, and base search sections.
+
+- **Refactoring: Deduplicate Task Group Execution**:
+  - Extracted `_execute_task_group()` and `_skip_task_group()` helper functions in `execution.py` to reduce duplication in successor/fallback execute and skip logic.
+
+- **Refactoring: Deduplicate BaseTask Append Methods**:
+  - Extracted `_append_unique_tasks()` method in `BaseTask` to consolidate `append_fallback`, `append_successor`, `append_readiness_check`, and `append_upstream`.
+
+- **Refactoring: Deduplicate File List Truncation**:
+  - Extracted `_truncate_file_list()` helper in `file.py` to share truncation logic between `list_files()` and `glob_files()`.
+
+- **Documentation: New and Expanded Docs**:
+  - New `docs/advanced-topics/mcp-support.md`: MCP server configuration and discovery guide.
+  - Expanded `docs/advanced-topics/llm-integration.md`: Added "Built-in LLM Tools" reference section covering all built-in tool categories.
+  - Expanded `docs/advanced-topics/maintainer-guide.md`: Added "Context Propagation Internals" section documenting `ContextVar` usage patterns.
+  - Expanded `docs/advanced-topics/upgrading-guide.md`: Added "Upgrading from 1.x.x to 2.x.x" section with migration table.
+  - Expanded `docs/core-concepts/session-and-context.md`: Added "Ambient Context" section documenting `get_current_ctx()` and `zrb_print()`.
+
+- **Tests: Coverage Expansion**:
+  - New `test/llm/lsp/test_lsp_protocol.py`: LSP protocol data structures (+345 lines).
+  - New `test/llm/prompt/test_system_context.py`: System context prompt generation (+228 lines).
+  - New `test/llm/tool_call/test_read_file_validation.py`: Read file validation (+48 lines).
+  - New `test/llm/tool_call/test_replace_in_file_validation.py`: Replace-in-file validation (+96 lines).
+  - New `test/llm/tool_call/tool_policy/test_auto_approve.py`: Auto-approve policy (+221 lines).
+  - New `test/task/base/test_monitoring.py`: Task monitoring (+437 lines).
+  - New `test/session/test_session.py`: Session lifecycle and root task detection (+145 lines).
+  - Enhanced `test/task/base/test_execution.py`: Execution helpers and task group logic (+222 lines).
+  - Enhanced `test/task/test_lifecycle.py`: State logger timing and lifecycle (+177 lines).
+  - New `test/builtin/llm/test_chat_tool_policy.py`: Chat tool policy (+131 lines).
+  - New `test/runner/web_route/test_task_input_api.py`, `test_logout_api_route.py`, `test/runner/web_schema/test_web_user_schema.py`, `test/llm/agent/test_common.py`, `test/util/test_util_group.py`, `test/input/test_base_input.py`.
+
+- **Maintenance: Dependency Updates**:
+  - Updated `poetry.lock` with latest compatible versions.
+
 ## 2.20.1 (April 13, 2026)
 
 - **Improvement: Parallel Chunk Summarization**:

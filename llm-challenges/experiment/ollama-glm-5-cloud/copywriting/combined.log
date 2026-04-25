@@ -1,46 +1,276 @@
 [2m
-  🧠 The[0m[2m user wants me to[0m[2m create a launch[0m[2m announcement blog post for[0m[2m their[0m[2m new tool "[0m[2mZrb-Flow[0m[2m". Let[0m[2m me understand[0m[2m what[0m[2m they want:
+  🧠 The[0m[2m user wants me to[0m[2m write[0m[2m a developer[0m[2m migration guide for Z[0m[2mrb CLI v1[0m[2m to v2.[0m[2m I need to:[0m[2m
      
-     1[0m[2m. A[0m[2m launch[0m[2m announcement blog post[0m[2m
-     2. Tool[0m[2m name[0m[2m: Zrb-[0m[2mFlow
-     3.[0m[2m It's an AI[0m[2m automation tool[0m[2m for CLI users[0m[2m
-     4. Integr[0m[2mates with Docker and[0m[2m K[0m[2m8s ([0m[2mKubernetes)
-     5[0m[2m. Key feature:[0m[2m "Self-He[0m[2maling Pipelines"[0m[2m that fixes broken scripts[0m[2m
-     6. Tone[0m[2m: Exciting and[0m[2m tech-savvy[0m[2m
-     7. Include[0m[2m installation[0m[2m instructions at[0m[2m the end
-     8[0m[2m. Save as `[0m[2mlaunch_post.md`[0m[2m
+     1. Read the[0m[2m v1_spec.md[0m[2m and v2_spec[0m[2m.md files to[0m[2m understand the differences[0m[2m
+     2. Identify[0m[2m all breaking changes[0m[2m
+     3. Create a[0m[2m well-structured migration[0m[2m guide with:[0m[2m
+        - Clear headings[0m[2m
+        - Explicit[0m[2m breaking change[0m[2m callouts[0m[2m
+        - Before/after[0m[2m code examples in[0m[2m fenced code blocks[0m[2m
+        - Step[0m[2m-by-step migration checklist[0m[2m
+        - Upgrade[0m[2m command at[0m[2m the end
      
-     This is a straightforward[0m[2m writing[0m[2m task -[0m[2m no[0m[2m need to[0m[2m delegate[0m[2m or use[0m[2m complex tools. I[0m[2m'll write[0m[2m the blog[0m[2m post and[0m[2m save it to the[0m[2m file[0m[2m.[0m[2m
-  🧠 I'll[0m[2m create an[0m[2m exciting,[0m[2m tech-savvy[0m[2m launch announcement[0m[2m for[0m[2m Z[0m[2mrb-Flow.[0m[2m
-  🧰 call_h3i5i2ge | Write {'path': '/Users/gofrendigunawan/zrb ...', 'content': '# Introducing Zrb-Flow: Se ...'}
+     Let[0m[2m me start by reading[0m[2m both spec[0m[2m files to understand the[0m[2m changes.[0m[2m
+  I[0m[2m'll read both spec[0m[2m files to identify[0m[2m all[0m[2m breaking changes and create[0m[2m a comprehensive migration guide[0m[2m.[0m[2m
+  🧰 call_hozwoss5 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
 [0m[2m
-  🔠 call_h3i5i2ge | Return Successfully wrote to /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5-cloud/copywriting/workdir/launch_post.md
+  🧰 call_qvefwbui | Read {'path': '/Users/gofrendigunawan/zrb ...'}
 [0m[2m
-  🧠 The[0m[2m file was written[0m[2m successfully. Let[0m[2m me give[0m[2m the user a quick[0m[2m summary of what I[0m[2m created.[0m[2m
-  🧠 Done[0m[2m! I[0m[2m've created `[0m[2mlaunch_post.md`[0m[2m with a tech-s[0m[2mavvy, exciting[0m[2m announcement[0m[2m that[0m[2m includes[0m[2m:
+  🔠 call_qvefwbui | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5-cloud/copywriting/workdir/v2_spec.md | 115 lines]
+     ---CONTENT---
+     # Zrb Task API — v2 Reference
      
-     - **Comp[0m[2melling hook[0m[2m** —[0m[2m Opens[0m[2m with the rel[0m[2matable "[0m[2mpipeline[0m[2m fails[0m[2m at 2 AM[0m[2m" pain point[0m[2m
-     - **Self[0m[2m-Healing Pip[0m[2melines spotlight[0m[2m** — Detailed[0m[2m explanation[0m[2m with a code[0m[2m example showing automatic[0m[2m recovery
-     - **[0m[2mDocker &[0m[2m K8s integration[0m[2m** — Highlights[0m[2m native[0m[2m support[0m[2m for both ecosystems[0m[2m
-     - **Tech[0m[2m-forward[0m[2m tone[0m[2m** — Uses relevant[0m[2m terminology[0m[2m without[0m[2m being dry[0m[2m
-     - **Clear[0m[2m installation instructions[0m[2m** — pip[0m[2m,[0m[2m Docker, and quick[0m[2m init[0m[2m command[0m[2m at the end[0m[2m
-     - **Call to[0m[2m action links[0m[2m** — Documentation[0m[2m, GitHub, Discord[0m[2m, and[0m[2m social media
+     ## What's New in v2
      
-     The[0m[2m post balances[0m[2m technical credibility[0m[2m with accessibility[0m[2m—[0m[2mspe[0m[2making to[0m[2m CLI-s[0m[2mavvy users while[0m[2m keeping things[0m[2m readable[0m[2m.[0m[2m 🚀[0m[2m
-  [2m💸 (Requests: 2 | Tool Calls: 1 | Total: 16859) Input: 15346 | Audio Input: 0 | Output: 1513 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}[0m
-[0m[2m[2mSession[0m: [1;33mgrey-coil-0295[0m[0m
-[2mTo run again:[0m [1;33mzrb chat --message "I need a launch announcement blog post for our new tool, **Zrb-Flow**. 
+     v2 introduces projects, improved pagination, and stricter auth. Several v1 fields and conventions have changed.
+     
+     ## Breaking Changes Summary
+     
+     1. All endpoints are now prefixed with `/v2/`
+     2. Authentication header changed
+     3. Task `id` type changed from integer to UUID string
+     4. Task field `done` renamed to `completed`
+     5. Task creation now requires `project_id`
+     6. List endpoints return a paginated envelope instead of a bare array
+     
+     ---
+     
+     ## Authentication
+     
+     Header changed from `X-Auth-Token` to Bearer token:
+     
+     ```
+     Authorization: Bearer <your_api_token>
+     ```
+     
+     Requests with `X-Auth-Token` will receive HTTP 401.
+     
+     ## Data Types
+     
+     ### Task Object (v2)
+     
+     ```json
+     {
+       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+       "title": "Write tests",
+       "completed": false,
+       "project_id": "proj_abc123",
+       "created_at": "2024-01-15T10:30:00Z"
+     }
+     ```
+     
+     - `id` — UUID string (was integer in v1)
+     - `title` — string (unchanged)
+     - `completed` — boolean (renamed from `done`)
+     - `project_id` — string, required (new field)
+     - `created_at` — ISO 8601 timestamp (unchanged)
+     
+     ### Paginated List Envelope
+     
+     All list endpoints now return:
+     
+     ```json
+     {
+       "items": [...],
+       "total": 42,
+       "next_cursor": "cursor_xyz"
+     }
+     ```
+     
+     Pass `?cursor=<next_cursor>` to fetch the next page.
+     
+     ## Endpoints
+     
+     ### List Tasks
+     
+     `GET /v2/tasks`
+     
+     **Query params:**
+     - `cursor` — pagination cursor (optional)
+     - `limit` — max results per page, default 20
+     
+     **Response:** paginated envelope (see above).
+     
+     ### Get Task
+     
+     `GET /v2/tasks/{id}`
+     
+     `id` is now a UUID string.
+     
+     ### Create Task
+     
+     `POST /v2/tasks`
+     
+     **Request body:**
+     ```json
+     {
+       "title": "New task title",
+       "project_id": "proj_abc123"
+     }
+     ```
+     
+     `project_id` is now **required**. Omitting it returns HTTP 422.
+     
+     **Response:** the created task object (HTTP 201).
+     
+     ### Update Task
+     
+     `PUT /v2/tasks/{id}`
+     
+     **Request body** (all fields optional):
+     ```json
+     {
+       "title": "Updated title",
+       "completed": true
+     }
+     ```
+     
+     Note: field is `completed`, not `done`.
+     
+     ### Delete Task
+     
+     `DELETE /v2/tasks/{id}`
+     
+     **Response:** HTTP 204 No Content.
+     
+[0m[2m
+  🔠 call_hozwoss5 | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5-cloud/copywriting/workdir/v1_spec.md | 83 lines]
+     ---CONTENT---
+     # Zrb Task API — v1 Reference
+     
+     ## Authentication
+     
+     All requests require an API key passed in the header:
+     
+     ```
+     X-Auth-Token: <your_api_key>
+     ```
+     
+     ## Data Types
+     
+     ### Task Object
+     
+     ```json
+     {
+       "id": 42,
+       "title": "Write tests",
+       "done": false,
+       "created_at": "2024-01-15T10:30:00Z"
+     }
+     ```
+     
+     - `id` — integer, auto-assigned
+     - `title` — string
+     - `done` — boolean, default `false`
+     - `created_at` — ISO 8601 timestamp
+     
+     ## Endpoints
+     
+     ### List Tasks
+     
+     `GET /tasks`
+     
+     Returns a bare array of task objects.
+     
+     **Response:**
+     ```json
+     [
+       {"id": 1, "title": "Buy milk", "done": false, "created_at": "..."},
+       {"id": 2, "title": "Ship v1", "done": true, "created_at": "..."}
+     ]
+     ```
+     
+     ### Get Task
+     
+     `GET /tasks/{id}`
+     
+     Returns a single task or `404`.
+     
+     ### Create Task
+     
+     `POST /tasks`
+     
+     **Request body:**
+     ```json
+     {
+       "title": "New task title"
+     }
+     ```
+     
+     **Response:** the created task object (HTTP 201).
+     
+     ### Update Task
+     
+     `PUT /tasks/{id}`
+     
+     **Request body** (all fields optional):
+     ```json
+     {
+       "title": "Updated title",
+       "done": true
+     }
+     ```
+     
+     **Response:** the updated task object.
+     
+     ### Delete Task
+     
+     `DELETE /tasks/{id}`
+     
+     **Response:** HTTP 204 No Content.
+     
+[0m[2m
+  🧠 Now[0m[2m I understand[0m[2m all[0m[2m the breaking changes between[0m[2m v1 and v[0m[2m2. Let me[0m[2m create a comprehensive migration[0m[2m guide that[0m[2m:[0m[2m
+     
+     1. Has[0m[2m clear[0m[2m structure with headings[0m[2m
+     2. Explicitly[0m[2m calls out each[0m[2m breaking change
+     3[0m[2m. Includes[0m[2m before/after code[0m[2m examples[0m[2m
+     4. Has a[0m[2m step-by-step migration[0m[2m checklist
+     5.[0m[2m Ends with the upgrade[0m[2m command
+     
+     The breaking[0m[2m changes are:
+     1[0m[2m. Endpoint[0m[2m prefix: `/tasks[0m[2m` → `/v[0m[2m2/tasks`
+     2[0m[2m. Auth[0m[2m header: `X[0m[2m-Auth-Token`[0m[2m → `Authorization[0m[2m: Bearer`[0m[2m
+     3. Task `[0m[2mid` type:[0m[2m integer → UUID string[0m[2m
+     4. Field[0m[2m rename: `done[0m[2m` → `completed[0m[2m`
+     5. New[0m[2m required field: `[0m[2mproject_id` on[0m[2m task creation
+     6[0m[2m. List[0m[2m response:[0m[2m bare array → pag[0m[2minated envelope with `[0m[2mitems`, `total[0m[2m`, `next_cursor[0m[2m`
+     
+     Let me write[0m[2m the migration[0m[2m guide.[0m[2m
+  🧰 call_7md9bckd | Write {'path': '/Users/gofrendigunawan/zrb ...', 'content': '# Zrb Task API Migration G ...'}
+[0m[2m
+  🔠 call_7md9bckd | Return Successfully wrote to /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5-cloud/copywriting/workdir/MIGRATION.md
+[0m[2m
+  🧠 The[0m[2m migration guide has been[0m[2m created[0m[2m successfully. Let me[0m[2m verify the[0m[2m content[0m[2m was written correctly by[0m[2m reading the[0m[2m file back[0m[2m.[0m[2m
+  Done[0m[2m. I[0m[2m've created `M[0m[2mIGRATION.md`[0m[2m with:[0m[2m
+     
+     - **Summary[0m[2m table** of[0m[2m all[0m[2m 6 breaking changes[0m[2m
+     - **Detailed[0m[2m sections** for[0m[2m each breaking change with[0m[2m before/after examples[0m[2m in `[0m[2mbash`, `JavaScript[0m[2m`, and `Python[0m[2m`
+     - **Task[0m[2m object comparison[0m[2m** showing the structure[0m[2m changes
+     - **[0m[2mMigration[0m[2m checklist** with[0m[2m 8 ordered[0m[2m steps
+     - **[0m[2mUpgrade command** at[0m[2m the end
+     
+     The[0m[2m guide is[0m[2m structured[0m[2m for experienced developers to[0m[2m quickly identify[0m[2m what needs[0m[2m to change and how[0m[2m to fix[0m[2m it.[0m[2m
+  💸 (Requests: 3 | Tool Calls: 3 | Total: 33032) Input: 29984 | Audio Input: 0 | Output: 3048 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
+[0m[2mTo run again:[0m [1;33mzrb chat --message "The Zrb CLI is releasing v2, which has several breaking changes from v1. Our developer community needs a clear migration guide.
 
-It's basically an AI automation thing for CLI users that hooks into Docker and K8s. One cool feature is \"Self-Healing Pipelines\" where it fixes broken scripts.
+`v1_spec.md` describes the current v1 API. `v2_spec.md` describes the new v2 API.
 
-Keep it exciting and tech-savvy. Don't forget to tell people to install it at the end. Save it as `launch_post.md`." --model ollama:glm-5:cloud --session "" --yolo true --attach "" --interactive false[0m
-Done! I've created `launch_post.md` with a tech-savvy, exciting announcement that includes:
+Write a developer migration guide and save it as `MIGRATION.md`. It should:
+- Have a clear structure with headings
+- Explicitly call out every breaking change
+- Include before/after code examples for each breaking change (use fenced code blocks)
+- Have a step-by-step migration checklist at the end
+- End with the upgrade command
 
-- **Compelling hook** — Opens with the relatable "pipeline fails at 2 AM" pain point
-- **Self-Healing Pipelines spotlight** — Detailed explanation with a code example showing automatic recovery
-- **Docker & K8s integration** — Highlights native support for both ecosystems
-- **Tech-forward tone** — Uses relevant terminology without being dry
-- **Clear installation instructions** — pip, Docker, and quick init command at the end
-- **Call to action links** — Documentation, GitHub, Discord, and social media
+The audience is experienced developers who are already using v1." --model ollama:glm-5:cloud --session "" --yolo true --attach "" --interactive false[0m
+[2m[2mSession[0m: [1;33mhigh-dust-5847[0m[0m
+Done. I've created `MIGRATION.md` with:
 
-The post balances technical credibility with accessibility—speaking to CLI-savvy users while keeping things readable. 🚀
+- **Summary table** of all 6 breaking changes
+- **Detailed sections** for each breaking change with before/after examples in `bash`, `JavaScript`, and `Python`
+- **Task object comparison** showing the structure changes
+- **Migration checklist** with 8 ordered steps
+- **Upgrade command** at the end
+
+The guide is structured for experienced developers to quickly identify what needs to change and how to fix it.

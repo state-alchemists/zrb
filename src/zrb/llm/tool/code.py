@@ -217,7 +217,6 @@ async def analyze_code(
         file_metadatas=file_metadatas,
         query=query,
         token_limit=extraction_token_threshold,
-        use_lsp=use_lsp,
     )
 
     if not extracted_infos:
@@ -245,7 +244,6 @@ def _get_file_metadatas(
     extensions: list[str],
     include_patterns: list[str] | None,
     exclude_patterns: list[str],
-    use_lsp: bool = False,
 ) -> list[dict[str, str]]:
     """Get file metadata for analysis.
 
@@ -381,10 +379,9 @@ async def _extract_info(
     file_metadatas: list[dict[str, str | dict]],
     query: str,
     token_limit: int,
-    use_lsp: bool = False,
 ) -> list[str]:
     agent = create_agent(
-        model=llm_config.model,
+        model=llm_config.resolve_model(),
         system_prompt=get_repo_extractor_system_prompt(),
     )
 
@@ -456,7 +453,7 @@ async def _summarize_info(
     token_limit: int,
 ) -> list[str]:
     agent = create_agent(
-        model=llm_config.model,
+        model=llm_config.resolve_model(),
         system_prompt=get_repo_summarizer_system_prompt(),
     )
 

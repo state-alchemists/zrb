@@ -1,5 +1,12 @@
-I need a launch announcement blog post for our new tool, **Zrb-Flow**. 
+The Zrb CLI is releasing v2, which has several breaking changes from v1. Our developer community needs a clear migration guide.
 
-It's basically an AI automation thing for CLI users that hooks into Docker and K8s. One cool feature is "Self-Healing Pipelines" where it fixes broken scripts.
+`v1_spec.md` describes the current v1 API. `v2_spec.md` describes the new v2 API.
 
-Keep it exciting and tech-savvy. Don't forget to tell people to install it at the end. Save it as `launch_post.md`.
+Write a developer migration guide and save it as `MIGRATION.md`. It should:
+- Have a clear structure with headings
+- Explicitly call out every breaking change
+- Include before/after code examples for each breaking change (use fenced code blocks)
+- Have a step-by-step migration checklist at the end
+- End with the upgrade command
+
+The audience is experienced developers who are already using v1.

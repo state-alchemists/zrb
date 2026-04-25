@@ -50,6 +50,54 @@ These variables define which LLM Zrb uses for its primary reasoning and how it c
 | DeepSeek | `deepseek:deepseek-reasoner` | (default) |
 | Groq | `groq:llama3-8b-8192` | (default) |
 
+### Python API: Model Getter & Renderer
+
+For advanced scenarios — model tiering, A/B routing, or custom provider wrapping — `LLMConfig` exposes two callable hooks that are applied throughout the entire model pipeline:
+
+| Property | Receives | Returns | Purpose |
+|----------|----------|---------|---------|
+| `model_getter` | Base model (`str \| Model`) | Active model | Decide which model to actually use per request (e.g., tier switching, A/B testing) |
+| `model_renderer` | Active model | Final pydantic-ai model | Wrap the model into a pydantic-ai `Model` object or translate tier names to real model strings |
+
+`resolve_model(base_model=None)` applies both in sequence and is used internally throughout all agent creation paths.
+
+```python
+from zrb.llm.config.config import llm_config
+
+# Example: translate a logical tier name to the real configured model
+def my_renderer(model):
+    tier_map = {
+        "my:model-pro":   "openai:gpt-4o",
+        "my:model-flash": "openai:gpt-4o-mini",
+    }
+    return tier_map.get(model, model)
+
+llm_config.model_renderer = my_renderer
+```
+
+Setting hooks on `llm_config` applies them **globally** to every agent Zrb creates, including:
+
+- The main `LLMTask` / `LLMChatTask` agent (when no task-level hooks override them)
+- Background summarizer agents (conversational history compressor, per-message compressor)
+- Sub-agent tools: web-page summarizer (`open_web_page`), code analyzer (`analyze_code`), file extractor
+- Sub-agent manager agents
+
+Task-level `model_getter` / `model_renderer` (set directly on an `LLMTask` or `LLMChatTask`) take **precedence** over the config-level defaults.
+
+```python
+from zrb import LLMChatTask
+from zrb.llm.config.config import llm_config
+
+# Config-level: affects all agents (including sub-agents)
+llm_config.model_getter = lambda m: "openai:gpt-4o-mini"
+
+# Task-level: overrides only this task's main agent; sub-agents still use config-level
+task = LLMChatTask(
+    name="chat",
+    model_getter=lambda m: "openai:gpt-4o",  # overrides config for this task only
+)
+```
+
 ---
 
 ## 2. Rate Limiting & Token Budgets
@@ -123,11 +171,34 @@ Zrb loads prompts with a multi-level override system (first found wins):
 | `ZRB_LLM_INCLUDE_PERSONA` | Include AI identity prompt | `1` |
 | `ZRB_LLM_INCLUDE_MANDATE` | Include behavioral rules | `1` |
 | `ZRB_LLM_INCLUDE_GIT_MANDATE` | Include git safety rules | `1` |
-| `ZRB_LLM_INCLUDE_JOURNAL` | Inject journal content | `1` |
+| `ZRB_LLM_INCLUDE_JOURNAL` | Master switch: inject journal mandate + reminder (sets both sub-flags when they are unset) | `1` |
+| `ZRB_LLM_INCLUDE_JOURNAL_MANDATE` | Include journal instructions in the system prompt (falls back to `ZRB_LLM_INCLUDE_JOURNAL`) | `1` |
+| `ZRB_LLM_INCLUDE_JOURNAL_REMINDER` | Append a journaling reminder at session end (falls back to `ZRB_LLM_INCLUDE_JOURNAL`) | `1` |
 | `ZRB_LLM_INCLUDE_SYSTEM_CONTEXT` | Include OS/time details | `1` |
+| `ZRB_LLM_INCLUDE_TOOL_GUIDANCE` | Include per-tool usage guidance | `1` |
 | `ZRB_LLM_INCLUDE_CLAUDE_SKILLS` | Include Claude skills | `1` |
 | `ZRB_LLM_INCLUDE_CLI_SKILLS` | Include CLI skills | `0` |
 | `ZRB_LLM_INCLUDE_PROJECT_CONTEXT` | Include project docs | `1` |
+
+### Tool Guidance
+
+The tool guidance section tells the LLM when and how to use each available tool. All built-in tools ship with guidance pre-registered. When you add a custom tool, register its guidance so the LLM knows how to use it:
+
+```python
+from zrb import LLMChatTask
+
+task = LLMChatTask(name="chat")
+task.add_tool(my_tool)
+
+task.prompt_manager.add_tool_guidance(
+    group="My Domain",
+    name="MyTool",
+    use_when="When the user asks about inventory or stock levels",
+    key_rule="Always filter by warehouse_id; an empty result means no stock, not an error.",
+)
+```
+
+Guidance entries for tools that are not registered on the task are automatically suppressed at runtime, so the prompt never grows stale. Set `ZRB_LLM_INCLUDE_TOOL_GUIDANCE=0` to disable the entire section if you manage tool instructions another way.
 
 ---
 
@@ -396,6 +467,8 @@ All interval and delay values are in **milliseconds**.
 | `ZRB_LLM_MAX_CONTEXT_RETRIES` | Maximum retries when the LLM returns a context-window error | `5` |
 | `ZRB_LLM_TOOL_MAX_RETRIES` | Maximum retries for individual tool calls | `3` |
 | `ZRB_LLM_MCP_MAX_RETRIES` | Maximum retries when connecting to MCP servers | `3` |
+| `ZRB_LLM_API_MAX_RETRIES` | Total retry attempts for transient provider errors (429, 5xx). `1` disables retrying. Works for all providers. | `3` |
+| `ZRB_LLM_API_MAX_WAIT` | Maximum seconds to wait between retries. Honors the `Retry-After` response header when present. | `60` |
 
 ---
 

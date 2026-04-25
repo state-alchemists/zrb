@@ -1,6 +1,6 @@
 import datetime
 import os
-from typing import TYPE_CHECKING, Callable, Union
+from typing import TYPE_CHECKING, Callable
 
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 from zrb.util.file import read_file, write_file
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 class FileSessionStateLogger(AnySessionStateLogger):
-    def __init__(self, session_log_dir: Union[str, Callable[[], str]]):
+    def __init__(self, session_log_dir: str | Callable[[], str]):
         self._session_log_dir_param = session_log_dir
 
     def _get_session_log_dir(self) -> str:
@@ -60,7 +60,7 @@ class FileSessionStateLogger(AnySessionStateLogger):
             self._get_session_log_dir(), "_timeline", *task_path
         )
         if not os.path.exists(timeline_dir):
-            return {"total": 0, "data": []}
+            return SessionStateLogList(total=0, data=[])
         for root, _, files in os.walk(timeline_dir):
             for file_name in files:
                 session_name = os.path.splitext(file_name)[0]

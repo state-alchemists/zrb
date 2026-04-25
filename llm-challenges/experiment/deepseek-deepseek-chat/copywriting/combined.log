@@ -1,0 +1,231 @@
+[2m
+  Let[0m[2m me[0m[2m start[0m[2m by[0m[2m reading[0m[2m both[0m[2m spec[0m[2m files[0m[2m.[0m[2m{[0m[2m"[0m[2mpath[0m[2m"[0m[2m: [0m[2m"[0m[2mv[0m[2m1[0m[2m_s[0m[2mpec[0m[2m.md[0m[2m"[0m[2m}[0m[2m{[0m[2m"[0m[2mpath[0m[2m"[0m[2m: [0m[2m"[0m[2mv[0m[2m2[0m[2m_s[0m[2mpec[0m[2m.md[0m[2m"[0m[2m}[0m[2m
+  🧰 call_00_LWgC4S82SZkbkff06ngzMWae | Read {'path': 'v1_spec.md'}
+[0m[2m
+  🧰 call_01_hHYHzlMidCtwL1WNnMSKUU7A | Read {'path': 'v2_spec.md'}
+[0m[2m
+  🔠 call_00_LWgC4S82SZkbkff06ngzMWae | Return [File: v1_spec.md | 83 lines]
+     ---CONTENT---
+     # Zrb Task API — v1 Reference
+     
+     ## Authentication
+     
+     All requests require an API key passed in the header:
+     
+     ```
+     X-Auth-Token: <your_api_key>
+     ```
+     
+     ## Data Types
+     
+     ### Task Object
+     
+     ```json
+     {
+       "id": 42,
+       "title": "Write tests",
+       "done": false,
+       "created_at": "2024-01-15T10:30:00Z"
+     }
+     ```
+     
+     - `id` — integer, auto-assigned
+     - `title` — string
+     - `done` — boolean, default `false`
+     - `created_at` — ISO 8601 timestamp
+     
+     ## Endpoints
+     
+     ### List Tasks
+     
+     `GET /tasks`
+     
+     Returns a bare array of task objects.
+     
+     **Response:**
+     ```json
+     [
+       {"id": 1, "title": "Buy milk", "done": false, "created_at": "..."},
+       {"id": 2, "title": "Ship v1", "done": true, "created_at": "..."}
+     ]
+     ```
+     
+     ### Get Task
+     
+     `GET /tasks/{id}`
+     
+     Returns a single task or `404`.
+     
+     ### Create Task
+     
+     `POST /tasks`
+     
+     **Request body:**
+     ```json
+     {
+       "title": "New task title"
+     }
+     ```
+     
+     **Response:** the created task object (HTTP 201).
+     
+     ### Update Task
+     
+     `PUT /tasks/{id}`
+     
+     **Request body** (all fields optional):
+     ```json
+     {
+       "title": "Updated title",
+       "done": true
+     }
+     ```
+     
+     **Response:** the updated task object.
+     
+     ### Delete Task
+     
+     `DELETE /tasks/{id}`
+     
+     **Response:** HTTP 204 No Content.
+     
+[0m[2m
+  🔠 call_01_hHYHzlMidCtwL1WNnMSKUU7A | Return [File: v2_spec.md | 115 lines]
+     ---CONTENT---
+     # Zrb Task API — v2 Reference
+     
+     ## What's New in v2
+     
+     v2 introduces projects, improved pagination, and stricter auth. Several v1 fields and conventions have changed.
+     
+     ## Breaking Changes Summary
+     
+     1. All endpoints are now prefixed with `/v2/`
+     2. Authentication header changed
+     3. Task `id` type changed from integer to UUID string
+     4. Task field `done` renamed to `completed`
+     5. Task creation now requires `project_id`
+     6. List endpoints return a paginated envelope instead of a bare array
+     
+     ---
+     
+     ## Authentication
+     
+     Header changed from `X-Auth-Token` to Bearer token:
+     
+     ```
+     Authorization: Bearer <your_api_token>
+     ```
+     
+     Requests with `X-Auth-Token` will receive HTTP 401.
+     
+     ## Data Types
+     
+     ### Task Object (v2)
+     
+     ```json
+     {
+       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+       "title": "Write tests",
+       "completed": false,
+       "project_id": "proj_abc123",
+       "created_at": "2024-01-15T10:30:00Z"
+     }
+     ```
+     
+     - `id` — UUID string (was integer in v1)
+     - `title` — string (unchanged)
+     - `completed` — boolean (renamed from `done`)
+     - `project_id` — string, required (new field)
+     - `created_at` — ISO 8601 timestamp (unchanged)
+     
+     ### Paginated List Envelope
+     
+     All list endpoints now return:
+     
+     ```json
+     {
+       "items": [...],
+       "total": 42,
+       "next_cursor": "cursor_xyz"
+     }
+     ```
+     
+     Pass `?cursor=<next_cursor>` to fetch the next page.
+     
+     ## Endpoints
+     
+     ### List Tasks
+     
+     `GET /v2/tasks`
+     
+     **Query params:**
+     - `cursor` — pagination cursor (optional)
+     - `limit` — max results per page, default 20
+     
+     **Response:** paginated envelope (see above).
+     
+     ### Get Task
+     
+     `GET /v2/tasks/{id}`
+     
+     `id` is now a UUID string.
+     
+     ### Create Task
+     
+     `POST /v2/tasks`
+     
+     **Request body:**
+     ```json
+     {
+       "title": "New task title",
+       "project_id": "proj_abc123"
+     }
+     ```
+     
+     `project_id` is now **required**. Omitting it returns HTTP 422.
+     
+     **Response:** the created task object (HTTP 201).
+     
+     ### Update Task
+     
+     `PUT /v2/tasks/{id}`
+     
+     **Request body** (all fields optional):
+     ```json
+     {
+       "title": "Updated title",
+       "completed": true
+     }
+     ```
+     
+     Note: field is `completed`, not `done`.
+     
+     ### Delete Task
+     
+     `DELETE /v2/tasks/{id}`
+     
+     **Response:** HTTP 204 No Content.
+     
+[0m[2m
+  Now[0m[2m I[0m[2m'll[0m[2m write[0m[2m the[0m[2m migration[0m[2m guide[0m[2m.[0m[2m{[0m[2m"[0m[2mpath[0m[2m"[0m[2m: [0m[2m"[0m[2mM[0m[2mIG[0m[2mRATION[0m[2m.md[0m[2m"[0m[2m, [0m[2m"[0m[2mcontent[0m[2m"[0m[2m: [0m[2m"[0m[2m#[0m[2m Z[0m[2mrb[0m[2m CLI[0m[2m v[0m[2m1[0m[2m →[0m[2m v[0m[2m2[0m[2m Migration[0m[2m Guide[0m[2m\n\n[0m[2mThis[0m[2m guide[0m[2m covers[0m[2m every[0m[2m breaking[0m[2m change[0m[2m between[0m[2m Z[0m[2mrb[0m[2m API[0m[2m v[0m[2m1[0m[2m and[0m[2m v[0m[2m2[0m[2m.[0m[2m Up[0m[2mgrad[0m[2ming[0m[2m is[0m[2m\n[0m[2mnot[0m[2m backward[0m[2m-com[0m[2mpatible[0m[2m —[0m[2m please[0m[2m read[0m[2m each[0m[2m section[0m[2m and[0m[2m update[0m[2m your[0m[2m code[0m[2m accordingly[0m[2m.\n\n[0m[2m##[0m[2m Table[0m[2m of[0m[2m Contents[0m[2m\n\n[0m[2m1[0m[2m.[0m[2m [[0m[2mBreaking[0m[2m Change[0m[2m Overview[0m[2m](#[0m[2mbreaking[0m[2m-change[0m[2m-over[0m[2mview[0m[2m)\n[0m[2m2[0m[2m.[0m[2m [[0m[2mAuthentication[0m[2m](#[0m[2m1[0m[2m-aut[0m[2mhentication[0m[2m-header[0m[2m-[0m[2mren[0m[2mamed[0m[2m)\n[0m[2m3[0m[2m.[0m[2m [[0m[2mBase[0m[2m URL[0m[2m &[0m[2m End[0m[2mpoint[0m[2m Path[0m[2ms[0m[2m](#[0m[2m2[0m[2m-base[0m[2m-url[0m[2m--[0m[2mend[0m[2mpoint[0m[2m-p[0m[2maths[0m[2m)\n[0m[2m4[0m[2m.[0m[2m [[0m[2mTask[0m[2m ID[0m[2m Type[0m[2m:[0m[2m Integer[0m[2m →[0m[2m UUID[0m[2m](#[0m[2m3[0m[2m-task[0m[2m-id[0m[2m-in[0m[2mteger[0m[2m--[0m[2muuid[0m[2m-string[0m[2m)\n[0m[2m5[0m[2m.[0m[2m [[0m[2mTask[0m[2m Field[0m[2m:[0m[2m `[0m[2mdone[0m[2m`[0m[2m →[0m[2m `[0m[2mcompleted[0m[2m`[0m[2m](#[0m[2m4[0m[2m-task[0m[2m-field[0m[2m-d[0m[2mone[0m[2m--[0m[2mcompleted[0m[2m)\n[0m[2m6[0m[2m.[0m[2m [[0m[2mCreating[0m[2m Tasks[0m[2m Now[0m[2m Requires[0m[2m `[0m[2mproject[0m[2m_id[0m[2m`[0m[2m](#[0m[2m5[0m[2m-cre[0m[2mating[0m[2m-t[0m[2masks[0m[2m-[0m[2mnow[0m[2m-[0m[2mrequires[0m[2m-project[0m[2m_id[0m[2m)\n[0m[2m7[0m[2m.[0m[2m [[0m[2mList[0m[2m Responses[0m[2m Are[0m[2m Now[0m[2m Pag[0m[2minated[0m[2m](#[0m[2m6[0m[2m-list[0m[2m-respons[0m[2mes[0m[2m-[0m[2mare[0m[2m-[0m[2mnow[0m[2m-en[0m[2mvelop[0m[2med[0m[2m--[0m[2mpag[0m[2minated[0m[2m)\n[0m[2m8[0m[2m.[0m[2m [[0m[2mMigration[0m[2m Checklist[0m[2m](#[0m[2mm[0m[2migration[0m[2m-checklist[0m[2m)\n[0m[2m9[0m[2m.[0m[2m [[0m[2mUp[0m[2mgrade[0m[2m Command[0m[2m](#[0m[2mup[0m[2mgrade[0m[2m-[0m[2mcommand[0m[2m)\n\n[0m[2m---\n\n[0m[2m##[0m[2m Breaking[0m[2m Change[0m[2m Overview[0m[2m\n\n[0m[2m|[0m[2m #[0m[2m |[0m[2m Area[0m[2m |[0m[2m v[0m[2m1[0m[2m |[0m[2m v[0m[2m2[0m[2m |\n[0m[2m|---[0m[2m|[0m[2m------[0m[2m|[0m[2m----[0m[2m|[0m[2m----[0m[2m|\n[0m[2m|[0m[2m [0m[2m1[0m[2m |[0m[2m Authentication[0m[2m header[0m[2m |[0m[2m `[0m[2mX[0m[2m-A[0m[2muth[0m[2m-T[0m[2moken[0m[2m`[0m[2m |[0m[2m `[0m[2mAuthorization[0m[2m:[0m[2m Bear[0m[2mer[0m[2m`[0m[2m |\n[0m[2m|[0m[2m [0m[2m2[0m[2m |[0m[2m End[0m[2mpoint[0m[2m prefix[0m[2m |[0m[2m `/[0m[2mtasks[0m[2m`[0m[2m |[0m[2m `/[0m[2mv[0m[2m2[0m[2m/t[0m[2masks[0m[2m`[0m[2m |\n[0m[2m|[0m[2m [0m[2m3[0m[2m |[0m[2m Task[0m[2m `[0m[2mid[0m[2m`[0m[2m type[0m[2m |[0m[2m integer[0m[2m |[0m[2m UUID[0m[2m string[0m[2m |\n[0m[2m|[0m[2m [0m[2m4[0m[2m |[0m[2m Task[0m[2m completion[0m[2m field[0m[2m |[0m[2m `[0m[2mdone[0m[2m`[0m[2m |[0m[2m `[0m[2mcompleted[0m[2m`[0m[2m |\n[0m[2m|[0m[2m [0m[2m5[0m[2m |[0m[2m Create[0m[2m task[0m[2m payload[0m[2m |[0m[2m `[0m[2mtitle[0m[2m`[0m[2m only[0m[2m |[0m[2m `[0m[2mtitle[0m[2m`[0m[2m +[0m[2m `[0m[2mproject[0m[2m_id[0m[2m`[0m[2m ([0m[2mrequired[0m[2m)[0m[2m |\n[0m[2m|[0m[2m [0m[2m6[0m[2m |[0m[2m List[0m[2m response[0m[2m format[0m[2m |[0m[2m bare[0m[2m array[0m[2m |[0m[2m pag[0m[2minated[0m[2m envelope[0m[2m |\n\n[0m[2m---\n\n[0m[2m##[0m[2m [0m[2m1[0m[2m.[0m[2m Authentication[0m[2m Header[0m[2m Ren[0m[2mamed[0m[2m\n\n[0m[2mThe[0m[2m `[0m[2mX[0m[2m-A[0m[2muth[0m[2m-T[0m[2moken[0m[2m`[0m[2m header[0m[2m is[0m[2m **[0m[2mrem[0m[2moved[0m[2m**.[0m[2m Use[0m[2m the[0m[2m standard[0m[2m Bear[0m[2mer[0m[2m token[0m[2m scheme[0m[2m instead[0m[2m.\n[0m[2mRequests[0m[2m with[0m[2m the[0m[2m old[0m[2m header[0m[2m receive[0m[2m `[0m[2mHTTP[0m[2m [0m[2m401[0m[2m`.\n\n[0m[2m**[0m[2mBefore[0m[2m ([0m[2mv[0m[2m1[0m[2m):[0m[2m**\n\n[0m[2m```[0m[2mhttp[0m[2m\n[0m[2mX[0m[2m-A[0m[2muth[0m[2m-T[0m[2moken[0m[2m:[0m[2m abc[0m[2m123[0m[2m\n[0m[2m```\n\n[0m[2m**[0m[2mAfter[0m[2m ([0m[2mv[0m[2m2[0m[2m):[0m[2m**\n\n[0m[2m```[0m[2mhttp[0m[2m\n[0m[2mAuthorization[0m[2m:[0m[2m Bear[0m[2mer[0m[2m <[0m[2myour[0m[2m_api[0m[2m_token[0m[2m>\n[0m[2m```\n\n[0m[2m---\n\n[0m[2m##[0m[2m [0m[2m2[0m[2m.[0m[2m Base[0m[2m URL[0m[2m /[0m[2m End[0m[2mpoint[0m[2m Path[0m[2ms[0m[2m\n\n[0m[2mAll[0m[2m endpoint[0m[2m paths[0m[2m now[0m[2m carry[0m[2m a[0m[2m `/[0m[2mv[0m[2m2[0m[2m/[0m[2m`[0m[2m prefix[0m[2m.[0m[2m Requests[0m[2m to[0m[2m `/[0m[2mtasks[0m[2m`[0m[2m will[0m[2m **[0m[2mnot[0m[2m**[0m[2m be[0m[2m\n[0m[2mforward[0m[2med[0m[2m.\n\n[0m[2m|[0m[2m Operation[0m[2m |[0m[2m v[0m[2m1[0m[2m |[0m[2m v[0m[2m2[0m[2m |\n[0m[2m|[0m[2m-----------[0m[2m|[0m[2m----[0m[2m|[0m[2m----[0m[2m|\n[0m[2m|[0m[2m List[0m[2m tasks[0m[2m |[0m[2m `[0m[2mGET[0m[2m /[0m[2mtasks[0m[2m`[0m[2m |[0m[2m `[0m[2mGET[0m[2m /[0m[2mv[0m[2m2[0m[2m/t[0m[2masks[0m[2m`[0m[2m |\n[0m[2m|[0m[2m Get[0m[2m task[0m[2m |[0m[2m `[0m[2mGET[0m[2m /[0m[2mtasks[0m[2m/{[0m[2mid[0m[2m}`[0m[2m |[0m[2m `[0m[2mGET[0m[2m /[0m[2mv[0m[2m2[0m[2m/t[0m[2masks[0m[2m/{[0m[2mid[0m[2m}`[0m[2m |\n[0m[2m|[0m[2m Create[0m[2m task[0m[2m |[0m[2m `[0m[2mPOST[0m[2m /[0m[2mtasks[0m[2m`[0m[2m |[0m[2m `[0m[2mPOST[0m[2m /[0m[2mv[0m[2m2[0m[2m/t[0m[2masks[0m[2m`[0m[2m |\n[0m[2m|[0m[2m Update[0m[2m task[0m[2m |[0m[2m `[0m[2mPUT[0m[2m /[0m[2mtasks[0m[2m/{[0m[2mid[0m[2m}`[0m[2m |[0m[2m `[0m[2mPUT[0m[2m /[0m[2mv[0m[2m2[0m[2m/t[0m[2masks[0m[2m/{[0m[2mid[0m[2m}`[0m[2m |\n[0m[2m|[0m[2m Delete[0m[2m task[0m[2m |[0m[2m `[0m[2mDELETE[0m[2m /[0m[2mtasks[0m[2m/{[0m[2mid[0m[2m}`[0m[2m |[0m[2m `[0m[2mDELETE[0m[2m /[0m[2mv[0m[2m2[0m[2m/t[0m[2masks[0m[2m/{[0m[2mid[0m[2m}`[0m[2m |\n\n[0m[2m**[0m[2mBefore[0m[2m ([0m[2mv[0m[2m1[0m[2m):[0m[2m**\n\n[0m[2m```[0m[2mbash[0m[2m\n[0m[2mcurl[0m[2m -[0m[2mH[0m[2m \"[0m[2mX[0m[2m-A[0m[2muth[0m[2m-T[0m[2moken[0m[2m:[0m[2m abc[0m[2m123[0m[2m\"[0m[2m https[0m[2m://[0m[2mapi[0m[2m.z[0m[2mrb[0m[2m.dev[0m[2m/t[0m[2masks[0m[2m\n[0m[2m```\n\n[0m[2m**[0m[2mAfter[0m[2m ([0m[2mv[0m[2m2[0m[2m):[0m[2m**\n\n[0m[2m```[0m[2mbash[0m[2m\n[0m[2mcurl[0m[2m -[0m[2mH[0m[2m \"[0m[2mAuthorization[0m[2m:[0m[2m Bear[0m[2mer[0m[2m <[0m[2mtoken[0m[2m>\"[0m[2m https[0m[2m://[0m[2mapi[0m[2m.z[0m[2mrb[0m[2m.dev[0m[2m/v[0m[2m2[0m[2m/t[0m[2masks[0m[2m\n[0m[2m```\n\n[0m[2m---\n\n[0m[2m##[0m[2m [0m[2m3[0m[2m.[0m[2m Task[0m[2m ID[0m[2m:[0m[2m Integer[0m[2m →[0m[2m UUID[0m[2m String[0m[2m\n\n[0m[2mTask[0m[2m IDs[0m[2m are[0m[2m now[0m[2m UUID[0m[2m v[0m[2m4[0m[2m strings[0m[2m instead[0m[2m of[0m[2m auto[0m[2m-in[0m[2mcrement[0m[2ming[0m[2m integers[0m[2m.[0m[2m Code[0m[2m that[0m[2m\n[0m[2mass[0m[2mumes[0m[2m a[0m[2m numeric[0m[2m type[0m[2m,[0m[2m stores[0m[2m IDs[0m[2m in[0m[2m integer[0m[2m columns[0m[2m,[0m[2m or[0m[2m constructs[0m[2m URLs[0m[2m with[0m[2m\n[0m[2minteger[0m[2m IDs[0m[2m will[0m[2m break[0m[2m.\n\n[0m[2m**[0m[2mBefore[0m[2m ([0m[2mv[0m[2m1[0m[2m):[0m[2m**\n\n[0m[2m```[0m[2mjson[0m[2m\n[0m[2m{[0m[2m \"[0m[2mid[0m[2m\":[0m[2m [0m[2m42[0m[2m,[0m[2m \"[0m[2mtitle[0m[2m\":[0m[2m \"[0m[2mWrite[0m[2m tests[0m[2m\",[0m[2m \"[0m[2mdone[0m[2m\":[0m[2m false[0m[2m }\n[0m[2m```\n\n[0m[2m**[0m[2mAfter[0m[2m ([0m[2mv[0m[2m2[0m[2m):[0m[2m**\n\n[0m[2m```[0m[2mjson[0m[2m\n[0m[2m{[0m[2m \"[0m[2mid[0m[2m\":[0m[2m \"[0m[2ma[0m[2m1[0m[2mb[0m[2m2[0m[2mc[0m[2m3[0m[2md[0m[2m4[0m[2m-e[0m[2m5[0m[2mf[0m[2m6[0m[2m-[0m[2m789[0m[2m0[0m[2m-ab[0m[2mcd[0m[2m-[0m[2mef[0m[2m123[0m[2m456[0m[2m789[0m[2m0[0m[2m\",[0m[2m \"[0m[2mtitle[0m[2m\":[0m[2m \"[0m[2mWrite[0m[2m tests[0m[2m\",[0m[2m \"[0m[2mcompleted[0m[2m\":[0m[2m false[0m[2m }\n[0m[2m```\n\n[0m[2m**[0m[2mImpact[0m[2m:**\n\n[0m[2m-[0m[2m Database[0m[2m columns[0m[2m storing[0m[2m task[0m[2m IDs[0m[2m must[0m[2m change[0m[2m from[0m[2m `[0m[2mINT[0m[2mEGER[0m[2m`[0m[2m to[0m[2m `[0m[2mUUID[0m[2m`[0m[2m /[0m[2m `[0m[2mCHAR[0m[2m([0m[2m36[0m[2m)`[0m[2m.\n[0m[2m-[0m[2m Hard[0m[2m-c[0m[2moded[0m[2m test[0m[2m IDs[0m[2m and[0m[2m fixtures[0m[2m must[0m[2m be[0m[2m updated[0m[2m.\n[0m[2m-[0m[2m Routes[0m[2m or[0m[2m clients[0m[2m that[0m[2m validate[0m[2m `[0m[2mtypeof[0m[2m id[0m[2m ===[0m[2m \"[0m[2mnumber[0m[2m\"[0m[2m`[0m[2m will[0m[2m need[0m[2m updating[0m[2m.\n\n[0m[2m---\n\n[0m[2m##[0m[2m [0m[2m4[0m[2m.[0m[2m Task[0m[2m Field[0m[2m:[0m[2m `[0m[2mdone[0m[2m`[0m[2m →[0m[2m `[0m[2mcompleted[0m[2m`\n\n[0m[2mThe[0m[2m boolean[0m[2m field[0m[2m `[0m[2mdone[0m[2m`[0m[2m has[0m[2m been[0m[2m renamed[0m[2m to[0m[2m `[0m[2mcompleted[0m[2m`.[0m[2m Both[0m[2m API[0m[2m payload[0m[2ms[0m[2m and[0m[2m\n[0m[2mserver[0m[2m responses[0m[2m use[0m[2m the[0m[2m new[0m[2m name[0m[2m.\n\n[0m[2m**[0m[2mBefore[0m[2m ([0m[2mv[0m[2m1[0m[2m)[0m[2m —[0m[2m creating[0m[2m a[0m[2m task[0m[2m:**\n\n[0m[2m```[0m[2mbash[0m[2m\n[0m[2mcurl[0m[2m -[0m[2mX[0m[2m POST[0m[2m /[0m[2mtasks[0m[2m \\\n[0m[2m [0m[2m -[0m[2mH[0m[2m \"[0m[2mX[0m[2m-A[0m[2muth[0m[2m-T[0m[2moken[0m[2m:[0m[2m abc[0m[2m123[0m[2m\"[0m[2m \\\n[0m[2m [0m[2m -[0m[2mH[0m[2m \"[0m[2mContent[0m[2m-Type[0m[2m:[0m[2m application[0m[2m/json[0m[2m\"[0m[2m \\\n[0m[2m [0m[2m -[0m[2md[0m[2m '[0m[2m{\"[0m[2mtitle[0m[2m\":[0m[2m \"[0m[2mBuy[0m[2m milk[0m[2m\",[0m[2m \"[0m[2mdone[0m[2m\":[0m[2m false[0m[2m}[0m[2m'\n[0m[2m```\n\n[0m[2m**[0m[2mAfter[0m[2m ([0m[2mv[0m[2m2[0m[2m):[0m[2m**\n\n[0m[2m```[0m[2mbash[0m[2m\n[0m[2mcurl[0m[2m -[0m[2mX[0m[2m POST[0m[2m /[0m[2mv[0m[2m2[0m[2m/t[0m[2masks[0m[2m \\\n[0m[2m [0m[2m -[0m[2mH[0m[2m \"[0m[2mAuthorization[0m[2m:[0m[2m Bear[0m[2mer[0m[2m <[0m[2mtoken[0m[2m>\"[0m[2m \\\n[0m[2m [0m[2m -[0m[2mH[0m[2m \"[0m[2mContent[0m[2m-Type[0m[2m:[0m[2m application[0m[2m/json[0m[2m\"[0m[2m \\\n[0m[2m [0m[2m -[0m[2md[0m[2m '[0m[2m{\"[0m[2mtitle[0m[2m\":[0m[2m \"[0m[2mBuy[0m[2m milk[0m[2m\",[0m[2m \"[0m[2mcompleted[0m[2m\":[0m[2m false[0m[2m,[0m[2m \"[0m[2mproject[0m[2m_id[0m[2m\":[0m[2m \"[0m[2mpro[0m[2mj[0m[2m_[0m[2mabc[0m[2m123[0m[2m\"}[0m[2m'\n[0m[2m```\n\n[0m[2m**[0m[2mBefore[0m[2m ([0m[2mv[0m[2m1[0m[2m)[0m[2m —[0m[2m updating[0m[2m a[0m[2m task[0m[2m:**\n\n[0m[2m```[0m[2mjson[0m[2m\n[0m[2m{[0m[2m \"[0m[2mtitle[0m[2m\":[0m[2m \"[0m[2mUpdated[0m[2m title[0m[2m\",[0m[2m \"[0m[2mdone[0m[2m\":[0m[2m true[0m[2m }\n[0m[2m```\n\n[0m[2m**[0m[2mAfter[0m[2m ([0m[2mv[0m[2m2[0m[2m):[0m[2m**\n\n[0m[2m```[0m[2mjson[0m[2m\n[0m[2m{[0m[2m \"[0m[2mtitle[0m[2m\":[0m[2m \"[0m[2mUpdated[0m[2m title[0m[2m\",[0m[2m \"[0m[2mcompleted[0m[2m\":[0m[2m true[0m[2m }\n[0m[2m```\n\n[0m[2mSearch[0m[2m your[0m[2m code[0m[2mbase[0m[2m for[0m[2m `[0m[2mdone[0m[2m`[0m[2m references[0m[2m in[0m[2m task[0m[2m-related[0m[2m code[0m[2m and[0m[2m rename[0m[2m to[0m[2m `[0m[2mcompleted[0m[2m`.\n\n[0m[2m---\n\n[0m[2m##[0m[2m [0m[2m5[0m[2m.[0m[2m Creating[0m[2m Tasks[0m[2m Now[0m[2m Requires[0m[2m `[0m[2mproject[0m[2m_id[0m[2m`\n\n[0m[2mv[0m[2m1[0m[2m allowed[0m[2m creating[0m[2m a[0m[2m task[0m[2m with[0m[2m just[0m[2m a[0m[2m `[0m[2mtitle[0m[2m`.[0m[2m v[0m[2m2[0m[2m makes[0m[2m `[0m[2mproject[0m[2m_id[0m[2m`[0m[2m a[0m[2m **[0m[2mrequired[0m[2m**\n[0m[2mfield[0m[2m.[0m[2m Om[0m[2mitting[0m[2m it[0m[2m returns[0m[2m `[0m[2mHTTP[0m[2m [0m[2m422[0m[2m Un[0m[2mprocess[0m[2mable[0m[2m Entity[0m[2m`.\n\n[0m[2m**[0m[2mBefore[0m[2m ([0m[2mv[0m[2m1[0m[2m):[0m[2m**\n\n[0m[2m```[0m[2mjson[0m[2m\n[0m[2mPOST[0m[2m /[0m[2mtasks[0m[2m\n[0m[2m{[0m[2m \"[0m[2mtitle[0m[2m\":[0m[2m \"[0m[2mNew[0m[2m task[0m[2m\"[0m[2m }\n[0m[2m```\n\n[0m[2m**[0m[2mAfter[0m[2m ([0m[2mv[0m[2m2[0m[2m):[0m[2m**\n\n[0m[2m```[0m[2mjson[0m[2m\n[0m[2mPOST[0m[2m /[0m[2mv[0m[2m2[0m[2m/t[0m[2masks[0m[2m\n[0m[2m{[0m[2m \"[0m[2mtitle[0m[2m\":[0m[2m \"[0m[2mNew[0m[2m task[0m[2m\",[0m[2m \"[0m[2mproject[0m[2m_id[0m[2m\":[0m[2m \"[0m[2mpro[0m[2mj[0m[2m_[0m[2mabc[0m[2m123[0m[2m\"[0m[2m }\n[0m[2m```\n\n[0m[2m**[0m[2mAction[0m[2m required[0m[2m:**\n\n[0m[2m1[0m[2m.[0m[2m Obtain[0m[2m a[0m[2m valid[0m[2m `[0m[2mproject[0m[2m_id[0m[2m`[0m[2m ([0m[2mcontact[0m[2m your[0m[2m admin[0m[2m or[0m[2m use[0m[2m the[0m[2m projects[0m[2m API[0m[2m).\n[0m[2m2[0m[2m.[0m[2m Update[0m[2m every[0m[2m task[0m[2m creation[0m[2m call[0m[2m to[0m[2m include[0m[2m `[0m[2mproject[0m[2m_id[0m[2m`.\n[0m[2m3[0m[2m.[0m[2m If[0m[2m user[0m[2m-facing[0m[2m,[0m[2m update[0m[2m your[0m[2m forms[0m[2m/[0m[2mUI[0m[2m to[0m[2m collect[0m[2m a[0m[2m project[0m[2m selection[0m[2m.\n\n[0m[2m---\n\n[0m[2m##[0m[2m [0m[2m6[0m[2m.[0m[2m List[0m[2m Responses[0m[2m Are[0m[2m Now[0m[2m En[0m[2mvelop[0m[2med[0m[2m &[0m[2m Pag[0m[2minated[0m[2m\n\n[0m[2mv[0m[2m1[0m[2m returned[0m[2m a[0m[2m bare[0m[2m JSON[0m[2m array[0m[2m.[0m[2m v[0m[2m2[0m[2m wraps[0m[2m the[0m[2m items[0m[2m in[0m[2m a[0m[2m pag[0m[2minated[0m[2m envelope[0m[2m.\n\n[0m[2m**[0m[2mBefore[0m[2m ([0m[2mv[0m[2m1[0m[2m)[0m[2m —[0m[2m list[0m[2m response[0m[2m:**\n\n[0m[2m```[0m[2mjson[0m[2m\n[0m[2m[\n[0m[2m [0m[2m {[0m[2m \"[0m[2mid[0m[2m\":[0m[2m [0m[2m1[0m[2m,[0m[2m \"[0m[2mtitle[0m[2m\":[0m[2m \"[0m[2mBuy[0m[2m milk[0m[2m\",[0m[2m \"[0m[2mdone[0m[2m\":[0m[2m false[0m[2m,[0m[2m \"[0m[2mcreated[0m[2m_at[0m[2m\":[0m[2m \"[0m[2m...\"[0m[2m },\n[0m[2m [0m[2m {[0m[2m \"[0m[2mid[0m[2m\":[0m[2m [0m[2m2[0m[2m,[0m[2m \"[0m[2mtitle[0m[2m\":[0m[2m \"[0m[2mShip[0m[2m v[0m[2m1[0m[2m\",[0m[2m \"[0m[2mdone[0m[2m\":[0m[2m true[0m[2m,[0m[2m \"[0m[2mcreated[0m[2m_at[0m[2m\":[0m[2m \"[0m[2m...\"[0m[2m }\n[0m[2m]\n[0m[2m```\n\n[0m[2m**[0m[2mAfter[0m[2m ([0m[2mv[0m[2m2[0m[2m)[0m[2m —[0m[2m list[0m[2m response[0m[2m:**\n\n[0m[2m```[0m[2mjson[0m[2m\n[0m[2m{\n[0m[2m [0m[2m \"[0m[2mitems[0m[2m\":[0m[2m [\n[0m[2m   [0m[2m {[0m[2m \"[0m[2mid[0m[2m\":[0m[2m \"[0m[2ma[0m[2m1[0m[2mb[0m[2m2[0m[2m...[0m[2m\",[0m[2m \"[0m[2mtitle[0m[2m\":[0m[2m \"[0m[2mBuy[0m[2m milk[0m[2m\",[0m[2m \"[0m[2mcompleted[0m[2m\":[0m[2m false[0m[2m,[0m[2m \"[0m[2mproject[0m[2m_id[0m[2m\":[0m[2m \"[0m[2mpro[0m[2mj[0m[2m_[0m[2mabc[0m[2m123[0m[2m\",[0m[2m \"[0m[2mcreated[0m[2m_at[0m[2m\":[0m[2m \"[0m[2m...\"[0m[2m },\n[0m[2m   [0m[2m {[0m[2m \"[0m[2mid[0m[2m\":[0m[2m \"[0m[2mc[0m[2m3[0m[2md[0m[2m4[0m[2m...[0m[2m\",[0m[2m \"[0m[2mtitle[0m[2m\":[0m[2m \"[0m[2mShip[0m[2m v[0m[2m1[0m[2m\",[0m[2m \"[0m[2mcompleted[0m[2m\":[0m[2m true[0m[2m,[0m[2m \"[0m[2mproject[0m[2m_id[0m[2m\":[0m[2m \"[0m[2mpro[0m[2mj[0m[2m_[0m[2mabc[0m[2m123[0m[2m\",[0m[2m \"[0m[2mcreated[0m[2m_at[0m[2m\":[0m[2m \"[0m[2m...\"[0m[2m }\n[0m[2m [0m[2m ],\n[0m[2m [0m[2m \"[0m[2mtotal[0m[2m\":[0m[2m [0m[2m2[0m[2m,\n[0m[2m [0m[2m \"[0m[2mnext[0m[2m_c[0m[2mursor[0m[2m\":[0m[2m \"[0m[2mcursor[0m[2m_[0m[2mxyz[0m[2m\"\n[0m[2m}\n[0m[2m```\n\n[0m[2m**[0m[2mWhat[0m[2m to[0m[2m update[0m[2m:**\n\n[0m[2m-[0m[2m Access[0m[2m list[0m[2m results[0m[2m via[0m[2m `[0m[2mresponse[0m[2m.items[0m[2m`[0m[2m instead[0m[2m of[0m[2m indexing[0m[2m the[0m[2m response[0m[2m directly[0m[2m.\n[0m[2m-[0m[2m Use[0m[2m `[0m[2mresponse[0m[2m.next[0m[2m_c[0m[2mursor[0m[2m`[0m[2m ([0m[2mpass[0m[2m as[0m[2m `[0m[2m?[0m[2mcursor[0m[2m=<[0m[2mvalue[0m[2m>[0m[2m`)[0m[2m to[0m[2m fetch[0m[2m subsequent[0m[2m pages[0m[2m.\n[0m[2m-[0m[2m The[0m[2m default[0m[2m page[0m[2m size[0m[2m is[0m[2m [0m[2m20[0m[2m items[0m[2m.[0m[2m Over[0m[2mride[0m[2m with[0m[2m `[0m[2m?[0m[2mlimit[0m[2m=[0m[2m100[0m[2m`.\n\n[0m[2m**[0m[2mBefore[0m[2m ([0m[2mv[0m[2m1[0m[2m)[0m[2m —[0m[2m iter[0m[2mating[0m[2m results[0m[2m:**\n\n[0m[2m```[0m[2mjavascript[0m[2m\n[0m[2mconst[0m[2m tasks[0m[2m =[0m[2m await[0m[2m fetch[0m[2m(\"/[0m[2mtasks[0m[2m\").[0m[2mthen[0m[2m(r[0m[2m =>[0m[2m r[0m[2m.json[0m[2m());\n[0m[2mtasks[0m[2m.forEach[0m[2m(t[0m[2m =>[0m[2m console[0m[2m.log[0m[2m(t[0m[2m.title[0m[2m));\n[0m[2m```\n\n[0m[2m**[0m[2mAfter[0m[2m ([0m[2mv[0m[2m2[0m[2m):[0m[2m**\n\n[0m[2m```[0m[2mjavascript[0m[2m\n[0m[2mconst[0m[2m {[0m[2m items[0m[2m,[0m[2m total[0m[2m,[0m[2m next[0m[2m_c[0m[2mursor[0m[2m }[0m[2m =[0m[2m await[0m[2m fetch[0m[2m(\"/[0m[2mv[0m[2m2[0m[2m/t[0m[2masks[0m[2m\").[0m[2mthen[0m[2m(r[0m[2m =>[0m[2m r[0m[2m.json[0m[2m());\n[0m[2mitems[0m[2m.forEach[0m[2m(t[0m[2m =>[0m[2m console[0m[2m.log[0m[2m(t[0m[2m.title[0m[2m));\n[0m[2m```\n\n[0m[2m---\n\n[0m[2m##[0m[2m Migration[0m[2m Checklist[0m[2m\n\n[0m[2mUse[0m[2m this[0m[2m checklist[0m[2m to[0m[2m track[0m[2m your[0m[2m migration[0m[2m progress[0m[2m.\n\n[0m[2m-[0m[2m [[0m[2m ][0m[2m **[0m[2mUpdate[0m[2m authentication[0m[2m**:[0m[2m replace[0m[2m `[0m[2mX[0m[2m-A[0m[2muth[0m[2m-T[0m[2moken[0m[2m`[0m[2m with[0m[2m `[0m[2mAuthorization[0m[2m:[0m[2m Bear[0m[2mer[0m[2m`[0m[2m in[0m[2m all[0m[2m requests[0m[2m.\n[0m[2m-[0m[2m [[0m[2m ][0m[2m **[0m[2mPrefix[0m[2m endpoints[0m[2m**:[0m[2m change[0m[2m `/[0m[2mtasks[0m[2m`[0m[2m →[0m[2m `/[0m[2mv[0m[2m2[0m[2m/t[0m[2masks[0m[2m`[0m[2m everywhere[0m[2m.\n[0m[2m-[0m[2m [[0m[2m ][0m[2m **[0m[2mChange[0m[2m ID[0m[2m types[0m[2m**:[0m[2m update[0m[2m database[0m[2m sche[0m[2mmas[0m[2m,[0m[2m models[0m[2m,[0m[2m and[0m[2m validation[0m[2m to[0m[2m handle[0m[2m UUID[0m[2m strings[0m[2m instead[0m[2m of[0m[2m integers[0m[2m.\n[0m[2m-[0m[2m [[0m[2m ][0m[2m **[0m[2mR[0m[2mename[0m[2m `[0m[2mdone[0m[2m`[0m[2m →[0m[2m `[0m[2mcompleted[0m[2m`[0m[2m**:[0m[2m update[0m[2m request[0m[2m payload[0m[2ms[0m[2m,[0m[2m response[0m[2m handlers[0m[2m,[0m[2m and[0m[2m local[0m[2m data[0m[2m models[0m[2m.\n[0m[2m-[0m[2m [[0m[2m ][0m[2m **[0m[2mAdd[0m[2m `[0m[2mproject[0m[2m_id[0m[2m`[0m[2m**:[0m[2m include[0m[2m it[0m[2m in[0m[2m every[0m[2m task[0m[2m creation[0m[2m call[0m[2m.[0m[2m Update[0m[2m forms[0m[2m and[0m[2m U[0m[2mIs[0m[2m.\n[0m[2m-[0m[2m [[0m[2m ][0m[2m **[0m[2mHandle[0m[2m pag[0m[2minated[0m[2m list[0m[2m responses[0m[2m**:[0m[2m replace[0m[2m bare[0m[2m-[0m[2marray[0m[2m access[0m[2m with[0m[2m `[0m[2mresponse[0m[2m.items[0m[2m`,[0m[2m use[0m[2m `[0m[2mnext[0m[2m_c[0m[2mursor[0m[2m`[0m[2m for[0m[2m pag[0m[2mination[0m[2m.\n[0m[2m-[0m[2m [[0m[2m ][0m[2m **[0m[2mUpdate[0m[2m tests[0m[2m and[0m[2m fixtures[0m[2m**:[0m[2m refresh[0m[2m hard[0m[2m-c[0m[2moded[0m[2m IDs[0m[2m,[0m[2m mock[0m[2m responses[0m[2m,[0m[2m and[0m[2m test[0m[2m assertions[0m[2m.\n[0m[2m-[0m[2m [[0m[2m ][0m[2m **[0m[2mUpdate[0m[2m documentation[0m[2m**:[0m[2m internal[0m[2m API[0m[2m docs[0m[2m,[0m[2m READ[0m[2mME[0m[2ms[0m[2m,[0m[2m and[0m[2m onboarding[0m[2m materials[0m[2m.\n\n[0m[2m---\n\n[0m[2m##[0m[2m Upgrade[0m[2m Command[0m[2m\n\n[0m[2mTo[0m[2m upgrade[0m[2m the[0m[2m Z[0m[2mrb[0m[2m CLI[0m[2m to[0m[2m v[0m[2m2[0m[2m:\n\n[0m[2m```[0m[2mbash[0m[2m\n[0m[2mz[0m[2mrb[0m[2m upgrade[0m[2m\n[0m[2m```\n\n[0m[2mVerify[0m[2m the[0m[2m installed[0m[2m version[0m[2m:\n\n[0m[2m```[0m[2mbash[0m[2m\n[0m[2mz[0m[2mrb[0m[2m --[0m[2mversion[0m[2m\n[0m[2m```\n[0m[2m"[0m[2m}[0m[2m
+  🧰 call_00_rSfOxL2wTvqkRJBWInddROkx | Write {'path': 'MIGRATION.md', 'content': '# Zrb CLI v1 → v2 Migratio ...'}
+[0m[2m
+  🔠 call_00_rSfOxL2wTvqkRJBWInddROkx | Return Successfully wrote to MIGRATION.md
+[0m[2m
+  Done[0m[2m.[0m[2m `[0m[2mM[0m[2mIG[0m[2mRATION[0m[2m.md[0m[2m`[0m[2m covers[0m[2m all[0m[2m [0m[2m6[0m[2m breaking[0m[2m changes[0m[2m with[0m[2m before[0m[2m/[0m[2mafter[0m[2m code[0m[2m examples[0m[2m,[0m[2m a[0m[2m checklist[0m[2m,[0m[2m and[0m[2m the[0m[2m upgrade[0m[2m command[0m[2m.[0m[2m
+  💸 (Requests: 3 | Tool Calls: 3 | Total: 31671) Input: 29597 | Audio Input: 0 | Output: 2074 | Audio Output: 0 | Cache Read: 19584 | Cache Write: 0 | Details: {'prompt_cache_hit_tokens': 19584, 'prompt_cache_miss_tokens': 10013}
+[0m[2mTo run again:[0m [1;33mzrb chat --message "The Zrb CLI is releasing v2, which has several breaking changes from v1. Our developer community needs a clear migration guide.
+
+`v1_spec.md` describes the current v1 API. `v2_spec.md` describes the new v2 API.
+
+Write a developer migration guide and save it as `MIGRATION.md`. It should:
+- Have a clear structure with headings
+- Explicitly call out every breaking change
+- Include before/after code examples for each breaking change (use fenced code blocks)
+- Have a step-by-step migration checklist at the end
+- End with the upgrade command
+
+The audience is experienced developers who are already using v1." --model deepseek:deepseek-chat --session "" --yolo true --attach "" --interactive false[0m
+[2m[2mSession[0m: [1;33mhigh-leaf-5524[0m[0m
+Done. `MIGRATION.md` covers all 6 breaking changes with before/after code examples, a checklist, and the upgrade command.

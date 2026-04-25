@@ -50,6 +50,7 @@ class Cli(Group):
         task_str_kwargs = get_task_str_kwargs(
             task=node, str_args=str_args, str_kwargs=str_kwargs, cli_mode=True
         )
+        session = None
         try:
             result, session = self._run_task(node, str_args, task_str_kwargs)
             if result is not None:
@@ -68,10 +69,12 @@ class Cli(Group):
             file=sys.stderr,
         )
 
-    def _print_conversation_name(self, task: AnyTask, session: Session):
+    def _print_conversation_name(self, task: AnyTask, session: Session | None):
         """Print conversation name if available in shared context."""
         try:
             # Check for conversation name stored by LLM chat task
+            if session is None:
+                return
             conversation_name = session.shared_ctx.xcom.get(
                 "__conversation_name__", None
             )
@@ -207,7 +210,6 @@ async def start_server(_: AnyContext):
     from uvicorn import Config, Server
 
     from zrb.runner.web_app import (
-        SHUTDOWN_TIMEOUT,
         configure_uvicorn_logging,
         create_web_app,
     )
@@ -220,7 +222,7 @@ async def start_server(_: AnyContext):
             host="0.0.0.0",
             port=CFG.WEB_HTTP_PORT,
             loop="asyncio",
-            timeout_graceful_shutdown=SHUTDOWN_TIMEOUT,
+            timeout_graceful_shutdown=CFG.WEB_SHUTDOWN_TIMEOUT // 1000,
         )
     )
     await server.serve()

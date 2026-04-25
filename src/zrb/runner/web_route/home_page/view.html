@@ -1,19 +1,22 @@
+{% extends "static/base.html" %}
+{% block content %}
 <header class="container">
     <hgroup>
-        <h1>{web_title}</h1>
-        <p>{web_jargon}</p>
+        <h1>{{ web_title }}</h1>
+        <p>{{ web_jargon }}</p>
         <nav>
             <ul>
                 <li><a href="/docs">💻 API Documentation</a></li>
             </ul>
             <ul>
-                <li>{auth_link}</li>
+                <li>{{ auth_link | safe }}</li>
             </ul>
         </nav>
     </hgroup>
 </header>
 <main class="container">
-    <p>{web_homepage_intro}</p>
-    {group_info}
-    {task_info}
+    <p>{{ web_homepage_intro }}</p>
+    {{ group_info | safe }}
+    {{ task_info | safe }}
 </main>
+{% endblock %}

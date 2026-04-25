@@ -1,23 +1,11 @@
 # Git Rules
 
-## State-Changing Commands: Require Explicit Approval
+## Requires Approval
 
-Always get explicit user approval before running:
+Get explicit approval before running: `add`, `commit`, `push`, `pull`, `merge`, `rebase`, `checkout`, `switch`, `branch -D`, `reset`, `revert`, `stash`, `clean`.
 
-`git add` · `git commit` · `git push` · `git pull` · `git merge` · `git rebase` · `git checkout` · `git switch` · `git branch -D` · `git reset` · `git revert` · `git stash` · `git tag` · `git clean`
+Always show `git status` + `git diff HEAD` before asking.
 
-**CRITICAL**: Never execute state-changing commands without explicit user approval.
+## Always OK
 
----
-
-## Read-Only Commands: Always OK
-
-`git status` · `git diff` · `git log` · `git branch` · `git show` · `git remote -v`
-
----
-
-## How to Ask
-
-1. Run `git status` and `git diff HEAD` to show current state
-2. Propose the exact command: "Should I run `git <command> <args>`?"
-3. Wait for "Yes" before proceeding
+`status`, `diff`, `log`, `branch`, `show`, `remote -v`, `worktree list`

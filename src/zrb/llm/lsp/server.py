@@ -11,7 +11,7 @@ import shutil
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 from urllib.parse import unquote, urlparse
 
 from zrb.config.config import CFG
@@ -33,9 +33,9 @@ class LSPServerConfig:
     command: list[str]
     language_ids: list[str]
     file_extensions: list[str]
-    initialization_options: Optional[dict] = None
+    initialization_options: dict | None = None
     timeout: int = 30  # seconds
-    restart_interval: Optional[int] = None  # minutes, for auto-restart
+    restart_interval: int | None = None  # minutes, for auto-restart
 
     def matches_file(self, file_path: str) -> bool:
         """Check if this server handles the given file."""
@@ -210,8 +210,8 @@ def detect_available_lsp_servers() -> dict[str, str]:
 
 
 def get_lsp_config_for_file(
-    file_path: str, preferred_servers: Optional[list[str]] = None
-) -> Optional[LSPServerConfig]:
+    file_path: str, preferred_servers: list[str] | None = None
+) -> LSPServerConfig | None:
     """Get the LSP server config for a given file.
 
     Args:
@@ -240,7 +240,7 @@ def get_lsp_config_for_file(
     return None
 
 
-def detect_language_from_file(file_path: str) -> Optional[str]:
+def detect_language_from_file(file_path: str) -> str | None:
     """Detect programming language from file extension."""
     ext = Path(file_path).suffix.lower()
     for config in LSP_SERVER_CONFIGS.values():
@@ -259,13 +259,13 @@ class LSPServer:
     ):
         self.config = config
         self.root_path = root_path
-        self.process: Optional[asyncio.subprocess.Process] = None
-        self.reader: Optional[asyncio.StreamReader] = None
-        self.writer: Optional[asyncio.StreamWriter] = None
+        self.process: asyncio.subprocess.Process | None = None
+        self.reader: asyncio.StreamReader | None = None
+        self.writer: asyncio.StreamWriter | None = None
         self.request_id = 0
-        self.pending_requests: dict[Union[str, int], asyncio.Future] = {}
+        self.pending_requests: dict[str | int, asyncio.Future] = {}
         self.initialized = False
-        self._read_task: Optional[asyncio.Task] = None
+        self._read_task: asyncio.Task | None = None
         self._message_buffer = ""
 
     @property
@@ -399,7 +399,7 @@ class LSPServer:
             return unquote(urlparse(uri).path)
         return uri
 
-    async def _send_request_raw(self, message: str) -> Optional[dict]:
+    async def _send_request_raw(self, message: str) -> dict | None:
         """Send a raw JSON-RPC request and wait for response."""
         if not self.writer:
             return None
@@ -511,7 +511,7 @@ class LSPServer:
 
     async def goto_definition(
         self, file_path: str, line: int, character: int
-    ) -> Optional[list[dict]]:
+    ) -> list[dict] | None:
         """Go to definition for symbol at position."""
         if not self.initialized:
             return None
@@ -542,7 +542,7 @@ class LSPServer:
         line: int,
         character: int,
         include_declaration: bool = True,
-    ) -> Optional[list[dict]]:
+    ) -> list[dict] | None:
         """Find all references to symbol at position."""
         if not self.initialized:
             return None
@@ -560,7 +560,7 @@ class LSPServer:
         result = await self._send_request_raw(request)
         return result if isinstance(result, list) else None
 
-    async def get_diagnostics(self, file_path: str) -> Optional[list[dict]]:
+    async def get_diagnostics(self, file_path: str) -> list[dict] | None:
         """Get diagnostics for a file."""
         if not self.initialized:
             return None
@@ -584,7 +584,7 @@ class LSPServer:
             # Some servers don't support pull diagnostics
             return None
 
-    async def document_symbols(self, file_path: str) -> Optional[list[dict]]:
+    async def document_symbols(self, file_path: str) -> list[dict] | None:
         """Get all symbols in a document."""
         if not self.initialized:
             return None
@@ -598,7 +598,7 @@ class LSPServer:
         result = await self._send_request_raw(request)
         return result if isinstance(result, list) else None
 
-    async def workspace_symbols(self, query: str = "") -> Optional[list[dict]]:
+    async def workspace_symbols(self, query: str = "") -> list[dict] | None:
         """Search for symbols across the workspace."""
         if not self.initialized:
             return None
@@ -612,7 +612,7 @@ class LSPServer:
         result = await self._send_request_raw(request)
         return result if isinstance(result, list) else None
 
-    async def hover(self, file_path: str, line: int, character: int) -> Optional[dict]:
+    async def hover(self, file_path: str, line: int, character: int) -> dict | None:
         """Get hover information at position."""
         if not self.initialized:
             return None
@@ -636,7 +636,7 @@ class LSPServer:
         character: int,
         new_name: str,
         dry_run: bool = True,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """Rename a symbol."""
         if not self.initialized:
             return None

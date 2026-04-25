@@ -152,3 +152,84 @@ def test_llm_config_model_with_api_key():
     # Should return a model string
     result = config.model
     assert result is not None
+
+
+# ---------------------------------------------------------------------------
+# model_getter / model_renderer / resolve_model
+# ---------------------------------------------------------------------------
+
+
+def test_llm_config_model_getter_none_by_default():
+    """model_getter is None by default."""
+    config = LLMConfig()
+    assert config.model_getter is None
+
+
+def test_llm_config_model_renderer_none_by_default():
+    """model_renderer is None by default."""
+    config = LLMConfig()
+    assert config.model_renderer is None
+
+
+def test_llm_config_model_getter_setter():
+    """model_getter can be set and retrieved."""
+    config = LLMConfig()
+    getter = lambda m: "overridden"
+    config.model_getter = getter
+    assert config.model_getter is getter
+
+
+def test_llm_config_model_renderer_setter():
+    """model_renderer can be set and retrieved."""
+    config = LLMConfig()
+    renderer = lambda m: m
+    config.model_renderer = renderer
+    assert config.model_renderer is renderer
+
+
+def test_llm_config_resolve_model_no_getter_renderer():
+    """resolve_model returns the base model unchanged when no hooks are set."""
+    config = LLMConfig()
+    config.model = "openai:gpt-4"
+    assert config.resolve_model() == "openai:gpt-4"
+
+
+def test_llm_config_resolve_model_explicit_base():
+    """resolve_model uses the supplied base_model, not config.model."""
+    config = LLMConfig()
+    config.model = "openai:gpt-4"
+    assert config.resolve_model("anthropic:claude-3") == "anthropic:claude-3"
+
+
+def test_llm_config_resolve_model_with_getter():
+    """resolve_model applies model_getter to the base model."""
+    config = LLMConfig()
+    config.model = "openai:gpt-4"
+    config.model_getter = lambda m: "getter-result"
+    assert config.resolve_model() == "getter-result"
+
+
+def test_llm_config_resolve_model_with_renderer():
+    """resolve_model applies model_renderer after model_getter."""
+    sentinel = object()
+    config = LLMConfig()
+    config.model = "openai:gpt-4"
+    config.model_renderer = lambda m: sentinel
+    assert config.resolve_model() is sentinel
+
+
+def test_llm_config_resolve_model_getter_then_renderer():
+    """resolve_model feeds getter output into renderer."""
+    config = LLMConfig()
+    config.model = "openai:gpt-4"
+    config.model_getter = lambda m: "intermediate"
+    config.model_renderer = lambda m: f"rendered:{m}"
+    assert config.resolve_model() == "rendered:intermediate"
+
+
+def test_llm_config_resolve_model_none_falls_back_to_default():
+    """resolve_model(None) uses config.model as the base."""
+    config = LLMConfig()
+    config.model = "openai:gpt-4"
+    config.model_getter = lambda m: f"got:{m}"
+    assert config.resolve_model(None) == "got:openai:gpt-4"

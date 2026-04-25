@@ -153,8 +153,9 @@ def test_create_project_context_prompt_listed_files_section(tmp_path):
     assert "All Documentation Files" in result
 
 
-def test_create_project_context_prompt_all_four_doc_types(tmp_path):
-    """All four recognised doc filenames are picked up when present."""
+def test_create_project_context_prompt_three_doc_types_without_readme(tmp_path):
+    """AGENTS.md, CLAUDE.md, and GEMINI.md are all included; README.md is
+    skipped when AGENTS.md is present (README.md is a fallback)."""
     for name in ("AGENTS.md", "CLAUDE.md", "GEMINI.md", "README.md"):
         (tmp_path / name).write_text(f"Content of {name}")
 
@@ -166,8 +167,42 @@ def test_create_project_context_prompt_all_four_doc_types(tmp_path):
     ):
         result = handler(ctx, "base prompt", _identity_next)
 
-    for name in ("AGENTS.md", "CLAUDE.md", "GEMINI.md", "README.md"):
+    for name in ("AGENTS.md", "CLAUDE.md", "GEMINI.md"):
         assert name in result
+    # README.md is suppressed because AGENTS.md is present
+    assert "Content of README.md" not in result
+
+
+def test_create_project_context_prompt_readme_skipped_when_agents_md_present(tmp_path):
+    """README.md content is not loaded when AGENTS.md is present."""
+    (tmp_path / "AGENTS.md").write_text("Agent guidance")
+    (tmp_path / "README.md").write_text("Readme content")
+
+    handler = create_project_context_prompt()
+    ctx = _make_ctx()
+
+    with patch(
+        "zrb.llm.prompt.claude._get_search_directories", return_value=[tmp_path]
+    ):
+        result = handler(ctx, "base prompt", _identity_next)
+
+    assert "Agent guidance" in result
+    assert "Readme content" not in result
+
+
+def test_create_project_context_prompt_readme_included_when_no_agents_md(tmp_path):
+    """README.md is included when no AGENTS.md is present (fallback)."""
+    (tmp_path / "README.md").write_text("Readme fallback content")
+
+    handler = create_project_context_prompt()
+    ctx = _make_ctx()
+
+    with patch(
+        "zrb.llm.prompt.claude._get_search_directories", return_value=[tmp_path]
+    ):
+        result = handler(ctx, "base prompt", _identity_next)
+
+    assert "Readme fallback content" in result
 
 
 def test_create_project_context_prompt_calls_next_handler(tmp_path):
