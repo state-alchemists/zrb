@@ -74,7 +74,6 @@ def _is_invalid_tool_call_error(e: Exception) -> bool:
         "tool",
         "function",
         "unknown",
-        "invalid",
         "not defined",
         "not found",
     ]
@@ -133,6 +132,7 @@ def _filter_nil_content(messages: list[Any]) -> list[Any]:
     from pydantic_ai.messages import (
         ModelRequest,
         ModelResponse,
+        TextPart,
         ToolCallPart,
         ToolReturnPart,
     )
@@ -165,12 +165,29 @@ def _filter_nil_content(messages: list[Any]) -> list[Any]:
         elif isinstance(msg, ModelResponse):
             # Filter parts in ModelResponse
             valid_parts = []
+            has_text = False
+            has_tool_call = False
             for part in msg.parts:
-                if hasattr(part, "content"):
+                if isinstance(part, TextPart):
                     if part.content is not None:
                         valid_parts.append(part)
+                        has_text = True
+                elif isinstance(part, ToolCallPart):
+                    valid_parts.append(part)
+                    has_tool_call = True
+                elif hasattr(part, "content"):
+                    if part.content is not None:
+                        valid_parts.append(part)
+                        has_text = True
                 else:
                     valid_parts.append(part)
+
+            # If it's a ModelResponse with tool calls but no text, some providers
+            # (like DeepSeek via Cloudflare) require content to be a string
+            # (even if empty) rather than null.
+            if has_tool_call and not has_text:
+                valid_parts.insert(0, TextPart(content=""))
+
             if valid_parts:
                 from dataclasses import replace
 

@@ -1,114 +1,33 @@
 import asyncio
-import fnmatch
-import json
 import logging
 import os
-import re
-import uuid
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Callable
 
-import yaml
-
 from zrb.config.config import CFG
+from zrb.llm.hook._loader_mixin import HookLoaderMixin
 from zrb.llm.hook.executor import (
     HookExecutionResult,
     ThreadPoolHookExecutor,
     get_hook_executor,
 )
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
+from zrb.llm.hook.matcher import evaluate_matchers
 from zrb.llm.hook.schema import (
     AgentHookConfig,
     CommandHookConfig,
     HookConfig,
-    MatcherConfig,
     PromptHookConfig,
 )
-from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
-from zrb.util.load import load_module_from_path
+from zrb.llm.hook.types import HookEvent, HookType
 
 logger = logging.getLogger(__name__)
 
-# --- Matcher Operator Functions ---
-# These are module-level functions to reduce cyclomatic complexity in _evaluate_matchers
+_IGNORE_DIRS: list[str] = []
 
 
-def _match_equals(value: Any, matcher_value: Any) -> bool:
-    """Check if value equals matcher value."""
-    return value == matcher_value
-
-
-def _match_not_equals(value: Any, matcher_value: Any) -> bool:
-    """Check if value does not equal matcher value."""
-    return value != matcher_value
-
-
-def _match_contains(value: Any, matcher_value: Any) -> bool:
-    """Check if value contains matcher value (string operation)."""
-    if not isinstance(value, str) or not isinstance(matcher_value, str):
-        return False
-    return matcher_value in value
-
-
-def _match_starts_with(value: Any, matcher_value: Any) -> bool:
-    """Check if value starts with matcher value (string operation)."""
-    if not isinstance(value, str) or not isinstance(matcher_value, str):
-        return False
-    return value.startswith(matcher_value)
-
-
-def _match_ends_with(value: Any, matcher_value: Any) -> bool:
-    """Check if value ends with matcher value (string operation)."""
-    if not isinstance(value, str) or not isinstance(matcher_value, str):
-        return False
-    return value.endswith(matcher_value)
-
-
-def _match_regex(value: Any, matcher_value: Any) -> bool:
-    """Check if value matches regex pattern."""
-    if not isinstance(value, str) or not isinstance(matcher_value, str):
-        return False
-    try:
-        return bool(re.search(matcher_value, value))
-    except re.error:
-        logger.warning(f"Invalid regex pattern in matcher: {matcher_value}")
-        return False
-
-
-def _match_glob(value: Any, matcher_value: Any) -> bool:
-    """Check if value matches glob pattern."""
-    if not isinstance(value, str) or not isinstance(matcher_value, str):
-        return False
-    return fnmatch.fnmatch(value, matcher_value)
-
-
-# Dispatcher dictionary for matcher operators
-_MATCHER_OPERATORS: dict[MatcherOperator, Callable[[Any, Any], bool]] = {
-    MatcherOperator.EQUALS: _match_equals,
-    MatcherOperator.NOT_EQUALS: _match_not_equals,
-    MatcherOperator.CONTAINS: _match_contains,
-    MatcherOperator.STARTS_WITH: _match_starts_with,
-    MatcherOperator.ENDS_WITH: _match_ends_with,
-    MatcherOperator.REGEX: _match_regex,
-    MatcherOperator.GLOB: _match_glob,
-}
-
-
-# Mapping from HookEvent to the field that Claude Code matchers apply to
-CLAUDE_EVENT_MATCHER_FIELDS = {
-    HookEvent.PRE_TOOL_USE: "tool_name",
-    HookEvent.POST_TOOL_USE: "tool_name",
-    HookEvent.POST_TOOL_USE_FAILURE: "tool_name",
-    HookEvent.USER_PROMPT_SUBMIT: "prompt",
-    HookEvent.SESSION_START: "source",
-    HookEvent.NOTIFICATION: "message",
-}
-
-_IGNORE_DIRS = []
-
-
-class HookManager:
+class HookManager(HookLoaderMixin):
     def __init__(
         self,
         search_dirs: list[str | Path] | None = None,
@@ -155,68 +74,6 @@ class HookManager:
 
         for search_dir in target_search_dirs:
             self._load_from_path(search_dir)
-
-    def _evaluate_matchers(
-        self, matchers: list[MatcherConfig], context: HookContext
-    ) -> bool:
-        """
-        Evaluate all matchers against the given context.
-        Returns True if ALL matchers pass, False otherwise.
-
-        Matchers can access fields in the context using dot notation.
-        For example: "metadata.project" or "event_data.file_path"
-        """
-        if not matchers:
-            return True  # No matchers means always match
-
-        for matcher in matchers:
-            # Get the value from context using dot notation
-            value = self._get_field_value(context, matcher.field)
-
-            # Apply case sensitivity if needed
-            if not matcher.case_sensitive and isinstance(value, str):
-                value = value.lower()
-                matcher_value = (
-                    matcher.value.lower()
-                    if isinstance(matcher.value, str)
-                    else matcher.value
-                )
-            else:
-                matcher_value = matcher.value
-
-            # Evaluate using operator dispatcher
-            evaluator = _MATCHER_OPERATORS.get(matcher.operator)
-            if evaluator is None:
-                logger.warning(f"Unknown matcher operator: {matcher.operator}")
-                return False
-
-            if not evaluator(value, matcher_value):
-                return False
-
-        return True
-
-    def _get_field_value(self, context: HookContext, field_path: str) -> Any:
-        """
-        Get a value from context using dot notation.
-        Supports nested access like "metadata.project.name"
-        """
-        parts = field_path.split(".")
-        current = context
-
-        for part in parts:
-            if hasattr(current, part):
-                current = getattr(current, part)
-            elif isinstance(current, dict) and part in current:
-                current = current[part]
-            else:
-                # Try to access via getattr with default
-                try:
-                    current = getattr(current, part)
-                except AttributeError:
-                    # Return None if field doesn't exist
-                    return None
-
-        return current
 
     def register(
         self,
@@ -508,253 +365,6 @@ class HookManager:
 
         return search_dirs
 
-    def _load_from_path(self, path: str | Path):
-        try:
-            search_path = Path(path).resolve()
-            if search_path.is_file():
-                if search_path.suffix in [".json", ".yaml", ".yml"]:
-                    self._load_file(search_path)
-                elif search_path.name.endswith(".hook.py"):
-                    self._load_hooks_from_python(search_path)
-            else:
-                self._scan_dir_recursive(search_path, search_path, self._max_depth, 0)
-        except Exception:
-            pass
-
-    def _scan_dir_recursive(
-        self, base_dir: Path, current_dir: Path, max_depth: int, current_depth: int
-    ):
-        """Recursively scan directories with explicit depth control."""
-        if current_depth > max_depth:
-            return
-
-        try:
-            # List directory contents
-            for item in current_dir.iterdir():
-                if item.is_dir():
-                    # Skip ignored directories
-                    if item.name in self._ignore_dirs or item.name.startswith("."):
-                        continue
-                    # Recursively scan subdirectory
-                    self._scan_dir_recursive(
-                        base_dir, item, max_depth, current_depth + 1
-                    )
-                elif item.is_file():
-                    if item.suffix in [".json", ".yaml", ".yml"]:
-                        self._load_file(item)
-                    elif item.name.endswith(".hook.py"):
-                        self._load_hooks_from_python(item)
-        except (PermissionError, OSError):
-            # Skip directories we can't access
-            pass
-
-    def _load_hooks_from_python(self, file_path: Path):
-        try:
-            module_name = f"zrb_hook_{uuid.uuid4().hex}"
-            module = load_module_from_path(module_name, str(file_path))
-            if not module:
-                return
-
-            if hasattr(module, "register") and callable(module.register):
-                module.register(self)
-            elif hasattr(module, "register_hooks") and callable(module.register_hooks):
-                module.register_hooks(self)
-        except Exception as e:
-            logger.error(f"Failed to load python hooks from {file_path}: {e}")
-
-    def _load_file(self, file_path: Path):
-        logger.debug(f"Loading hooks from {file_path}")
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                if file_path.suffix == ".json":
-                    data = json.load(f)
-                else:
-                    data = yaml.safe_load(f)
-
-            if (
-                isinstance(data, dict)
-                and "hooks" in data
-                and isinstance(data["hooks"], dict)
-            ):
-                # Claude Code Nested Format
-                self._parse_claude_format(data, str(file_path))
-            elif isinstance(data, list):
-                # Zrb Flat Format (List)
-                for item in data:
-                    self._parse_and_register(item, str(file_path))
-            elif isinstance(data, dict):
-                # Zrb Flat Format (Single Dict or unknown)
-                # Check if it looks like a Zrb hook (has 'events' and 'type')
-                if "events" in data and "type" in data:
-                    self._parse_and_register(data, str(file_path))
-                else:
-                    # Fallback or warning?
-                    pass
-
-        except Exception as e:
-            logger.error(f"Failed to load hooks from {file_path}: {e}")
-
-    def _parse_claude_format(self, data: dict, source: str):
-        """
-        Parse Claude Code nested format:
-        {
-          "hooks": {
-            "EventName": [
-              {
-                "matcher": "regex",
-                "hooks": [ ... ]
-              }
-            ]
-          }
-        }
-        """
-        hooks_map = data.get("hooks", {})
-        for event_name, matcher_groups in hooks_map.items():
-            try:
-                event = HookEvent.from_claude_string(event_name)
-            except ValueError:
-                logger.warning(f"Unknown event in Claude config: {event_name}")
-                continue
-
-            if not isinstance(matcher_groups, list):
-                continue
-
-            for group in matcher_groups:
-                pattern = group.get("matcher")
-                hooks_list = group.get("hooks", [])
-
-                # Create matchers
-                matchers = []
-                # If pattern is present, create a REGEX matcher for the appropriate field
-                if pattern:
-                    field = CLAUDE_EVENT_MATCHER_FIELDS.get(event)
-                    if field:
-                        matchers.append(
-                            MatcherConfig(
-                                field=field,
-                                operator=MatcherOperator.REGEX,
-                                value=pattern,
-                            )
-                        )
-                    else:
-                        # If no specific field, maybe matching general content?
-                        # For now, if no field mapping, we might skip matching logic or match on 'event_data'
-                        # But Claude docs imply specific fields.
-                        # We'll default to 'event_data' str representation if not mapped
-                        # matchers.append(MatcherConfig(field="event_data", operator=MatcherOperator.REGEX, value=pattern))
-                        pass
-
-                for hook_def in hooks_list:
-                    # Claude hook def: {"type": "command", "command": "...", ...}
-                    try:
-                        # Convert to Zrb HookConfig
-                        # Generate a unique name
-                        hook_name = f"claude_{event.value}_{uuid.uuid4().hex[:8]}"
-
-                        hook_type_str = hook_def.get("type", "command")
-                        # Map Claude types to Zrb types
-                        if hook_type_str == "command":
-                            zrb_type = HookType.COMMAND
-                            config = CommandHookConfig(
-                                command=hook_def.get("command", ""),
-                                shell=True,  # Claude defaults to shell
-                                working_dir=None,
-                            )
-                        else:
-                            # Unsupported type in this pass
-                            continue
-
-                        hook_config = HookConfig(
-                            name=hook_name,
-                            events=[event],
-                            type=zrb_type,
-                            config=config,
-                            matchers=matchers,
-                            is_async=hook_def.get("async", False),
-                            timeout=hook_def.get("timeout"),
-                            priority=0,  # Claude hooks execute in order, Zrb supports priority. We'll use 0.
-                        )
-
-                        # Register
-                        hook_callable = self._hydrate_hook(hook_config)
-                        self.register(hook_callable, hook_config.events, hook_config)
-                        logger.debug(
-                            f"Registered Claude hook '{hook_name}' for {event.value}"
-                        )
-
-                    except Exception as e:
-                        logger.error(f"Error parsing Claude hook in {source}: {e}")
-
-    def _parse_and_register(self, data: dict, source: str):
-        try:
-            config = self._create_hook_config(data)
-            if not config.enabled:
-                return
-
-            hook_callable = self._hydrate_hook(config)
-            self.register(hook_callable, config.events, config)
-            logger.info(f"Registered hook '{config.name}' from {source}")
-        except Exception as e:
-            logger.error(f"Error registering hook from {source}: {e}", exc_info=True)
-
-    def _create_hook_config(self, data: dict) -> HookConfig:
-        # Manual parsing because we are not using Pydantic BaseModel
-        name = data["name"]
-        events = [HookEvent(e) for e in data["events"]]
-        hook_type = HookType(data["type"])
-
-        raw_config = data["config"]
-        default_timeout = 30
-        if hook_type == HookType.COMMAND:
-            config = CommandHookConfig(
-                command=raw_config["command"],
-                shell=raw_config.get("shell", True),
-                working_dir=raw_config.get("working_dir"),
-            )
-            default_timeout = 600
-        elif hook_type == HookType.PROMPT:
-            config = PromptHookConfig(
-                user_prompt_template=raw_config["user_prompt_template"],
-                system_prompt=raw_config.get("system_prompt"),
-                model=raw_config.get("model"),
-                temperature=raw_config.get("temperature", 0.0),
-            )
-            default_timeout = 30
-        elif hook_type == HookType.AGENT:
-            config = AgentHookConfig(
-                system_prompt=raw_config["system_prompt"],
-                tools=raw_config.get("tools"),
-                model=raw_config.get("model"),
-            )
-            default_timeout = 60
-        else:
-            raise ValueError(f"Unknown hook type: {hook_type}")
-
-        matchers = []
-        for m in data.get("matchers", []):
-            matchers.append(
-                MatcherConfig(
-                    field=m["field"],
-                    operator=MatcherOperator(m["operator"]),
-                    value=m["value"],
-                    case_sensitive=m.get("case_sensitive", True),
-                )
-            )
-
-        return HookConfig(
-            name=name,
-            events=events,
-            type=hook_type,
-            config=config,
-            description=data.get("description"),
-            matchers=matchers,
-            is_async=data.get("async", False),
-            enabled=data.get("enabled", True),
-            timeout=data.get("timeout", default_timeout),
-            env=data.get("env"),
-            priority=data.get("priority", 0),
-        )
-
     def _hydrate_hook(self, config: HookConfig) -> HookCallable:
         """
         Convert HookConfig into a HookCallable using appropriate executor.
@@ -783,7 +393,7 @@ class HookManager:
         # Create wrapper that evaluates matchers
         async def hook_with_matchers(context: HookContext) -> HookResult:
             # Evaluate matchers first
-            if not self._evaluate_matchers(config.matchers, context):
+            if not evaluate_matchers(config.matchers, context):
                 logger.debug(
                     f"Hook '{config.name}' skipped due to matcher evaluation failure"
                 )

@@ -4,8 +4,10 @@ from typing import Any, TextIO
 
 from zrb.llm.agent.manager import SubAgentManager
 from zrb.llm.agent.manager import sub_agent_manager as default_sub_agent_manager
-from zrb.llm.agent.run_agent import current_ui, run_agent
+from zrb.llm.agent.run_agent import run_agent
+from zrb.llm.agent.runtime_state import get_current_ui
 from zrb.llm.config.limiter import llm_limiter
+from zrb.llm.tool.ambient_state import get_active_worktree
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.llm.ui.std_ui import StdUI
 from zrb.util.string.name import get_random_name
@@ -139,12 +141,10 @@ async def _run_agent_task(
             "or check agent registration in your zrb config.",
         )
 
-    from zrb.llm.tool.worktree import active_worktree
-
     context_parts = []
     if additional_context:
         context_parts.append(additional_context)
-    active_wt = active_worktree.get()
+    active_wt = get_active_worktree()
     if active_wt:
         context_parts.append(
             f"Active worktree: {active_wt} — pass as cwd to Bash; use absolute paths for Read/Write/Edit/Grep."
@@ -195,7 +195,7 @@ def create_delegate_to_agent_tool(
     async def delegate_to_agent(
         agent_name: str, task: str, additional_context: str = ""
     ) -> str:
-        parent_ui = current_ui.get() or StdUI()
+        parent_ui = get_current_ui() or StdUI()
         # Generate unique identifier for this agent instance
         unique_id = get_random_name(separator="-", add_random_digit=True)
         prefix = f"[{agent_name}:{unique_id}] "
@@ -253,7 +253,7 @@ def create_parallel_delegate_tool(
         if not tasks:
             return "No tasks provided."
 
-        parent_ui = current_ui.get() or StdUI()
+        parent_ui = get_current_ui() or StdUI()
         # Shared lock ensures tool approvals are processed sequentially
         # across all parallel agents to prevent UI conflicts
         ui_lock = asyncio.Lock()

@@ -1,5 +1,43 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.22.7 (April 25, 2026)
+
+- **Refactoring: Config Extract-Mixin**:
+  - `Config` class reduced from ~2435 lines to 59 lines by splitting into 12 focused mixin modules under `src/zrb/config/_mixins/`.
+  - The thin shell composes all mixins; public access stays flat (`CFG.WEB_HTTP_PORT`, `CFG.LLM_MODEL`) — no external changes needed.
+  - New mixins: `foundation.py`, `web.py`, `llm_core.py`, `llm_ui.py`, `llm_limits.py`, `llm_content.py`, `llm_prompt.py`, `llm_search.py`, `rag.py`, `internet_search.py`, `hooks.py`, `task_runtime.py`.
+
+- **Refactoring: HookManager Extract-Mixin**:
+  - Extracted `_loader_mixin.py` (filesystem traversal and format parsing) and `matcher.py` from `manager.py`.
+  - `HookManager` now focused on registration, execution, and type-specific hook factories.
+
+- **Refactoring: LLMChatTask Extract-Mixin**:
+  - Extracted `_chat_builder_mixin.py` (all `set_*`/`add_*`/`append_*`/`prepend_*` methods) and `_chat_runner_mixin.py` (interactive/non-interactive session runners).
+  - `llm_chat_task.py` now focused on `__init__` and `_exec_action` orchestration.
+
+- **Refactoring: BaseUI Extract-Mixin**:
+  - Extracted `_commands_mixin.py` (slash-command handlers and shell command execution) from `base_ui.py`.
+
+- **Improvement: ContextVar Discoverability**:
+  - New `src/zrb/contextvars.py` serves as a centralized index of every `ContextVar` in the runtime.
+  - New `runtime_state.py` for agent-run ambient state (UI, YOLO, approval channel).
+  - New `ambient_state.py` for tool-scoped ambient state (worktree, session).
+  - Each re-exports typed wrappers from their owning modules for discoverability.
+
+- **Improvement: Public API Surface Documentation**:
+  - `src/zrb/__init__.py` reorganized with section comments grouping imports by concern.
+  - `Config` class now explicitly exported.
+
+- **Bug Fix: Nil Tool Call Response**:
+  - Fixed `_filter_nil_content()` in `run_agent.py` for providers (e.g., DeepSeek via Cloudflare) that reject `null` content when the response contains only tool calls.
+  - Empty `TextPart("")` is now inserted before tool call parts to satisfy API contract.
+  - Refined `_is_invalid_tool_call_error()`: removed overly broad "invalid" keyword to reduce false positives.
+
+- **Tests: Coverage Expansion**:
+  - New `test/test_contextvars_index.py`: verifies the context vars index imports correctly.
+  - New `test/llm/agent/test_runtime_state.py`: tests for agent runtime state management.
+  - New `test/llm/tool/test_ambient_state.py`: tests for tool-scoped ambient state.
+
 ## 2.22.6 (April 25, 2026)
 
 - **Improvement: Granular Journal Config**:
