@@ -552,6 +552,7 @@ async def run_agent(
                         and _context_retry_count < _MAX_CONTEXT_RETRIES
                     ):
                         _context_retry_count += 1
+                        _transient_retry_count = 0
                         # Drop one conversation turn from history and retry
                         current_history = _drop_oldest_turn(current_history)
                         print_fn(
