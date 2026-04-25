@@ -80,7 +80,7 @@ def test_select_todo_task(sample_task):
     assert select_todo_task(todo_list, "Cheese") is None
 
 
-@patch("zrb.util.todo.read_file")
+@patch("zrb.util.todo_parser.read_file")
 def test_load_todo_list(mock_read_file):
     mock_read_file.return_value = """
     (A) 2023-10-26 Task 1 +p1
@@ -92,7 +92,7 @@ def test_load_todo_list(mock_read_file):
     assert todo_list[1].description == "Task 2"
 
 
-@patch("zrb.util.todo.write_file")
+@patch("zrb.util.todo_parser.write_file")
 def test_save_todo_list(mock_write_file, sample_task):
     todo_list = [sample_task]
     save_todo_list("dummy.txt", todo_list)
@@ -161,13 +161,13 @@ class TestLoadTodoList:
     """Tests for load_todo_list edge cases."""
 
     def test_empty_file(self):
-        with patch("zrb.util.todo.read_file") as mock_read:
+        with patch("zrb.util.todo_parser.read_file") as mock_read:
             mock_read.return_value = ""
             todo_list = load_todo_list("empty.txt")
             assert len(todo_list) == 0
 
     def test_whitespace_only_lines(self):
-        with patch("zrb.util.todo.read_file") as mock_read:
+        with patch("zrb.util.todo_parser.read_file") as mock_read:
             mock_read.return_value = "   \n\n   \n"
             todo_list = load_todo_list("whitespace.txt")
             assert len(todo_list) == 0

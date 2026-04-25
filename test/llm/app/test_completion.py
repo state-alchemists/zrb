@@ -43,7 +43,7 @@ def test_command_completion(completer, complete_event):
     assert any(c.text == "/exit" for c in completions)
 
 
-@patch("zrb.llm.app.completion.datetime")
+@patch("zrb.llm.app._completion_args.datetime")
 def test_save_completion(mock_datetime, completer, complete_event):
     mock_datetime.now.return_value = datetime(2023, 10, 27, 12, 30)
     mock_datetime.strftime = datetime.strftime
@@ -53,7 +53,7 @@ def test_save_completion(mock_datetime, completer, complete_event):
     assert any(c.text == "2023-10-27-12-30" for c in completions)
 
 
-@patch("zrb.llm.app.completion.datetime")
+@patch("zrb.llm.app._completion_args.datetime")
 def test_redirect_completion(mock_datetime, completer, complete_event):
     mock_datetime.now.return_value = datetime(2023, 10, 27, 12, 30)
 
@@ -180,11 +180,11 @@ def test_show_ollama_models_true_includes_ollama_models(
         show_pydantic_ai_models=False,  # Exclude pydantic-ai models for cleaner test
         show_ollama_models=True,
     )
-    # Set the cache directly to avoid subprocess call
-    completer._ollama_models_cache = ["ollama:llama3", "ollama:mistral"]
-    completer._ollama_cache_time = (
-        time.time() + 1000
-    )  # Future time to avoid cache expiry
+    # Pre-fill the cache to skip the subprocess call
+    completer._ollama_cache = {
+        "models": ["ollama:llama3", "ollama:mistral"],
+        "time": time.time() + 1000,
+    }
     doc = Document(text="/model ", cursor_position=7)
     completions = list(completer.get_completions(doc, complete_event))
     completion_texts = [c.text for c in completions]
@@ -241,8 +241,10 @@ def test_both_flags_false_only_custom_models(mock_history_manager, complete_even
         show_pydantic_ai_models=False,
     )
     # Even if cache has ollama models, they should NOT appear
-    completer._ollama_models_cache = ["ollama:llama3"]
-    completer._ollama_cache_time = time.time() + 1000
+    completer._ollama_cache = {
+        "models": ["ollama:llama3"],
+        "time": time.time() + 1000,
+    }
     doc = Document(text="/model ", cursor_position=7)
     completions = list(completer.get_completions(doc, complete_event))
     completion_texts = [c.text for c in completions]

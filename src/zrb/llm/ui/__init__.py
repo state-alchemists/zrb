@@ -80,7 +80,7 @@ Single Channel (CLI only):
     def my_factory(ctx, llm_task, history_manager, ui_commands,
                    initial_message, initial_conversation_name,
                    initial_yolo, initial_attachments):
-        from zrb.llm.ui.simple_ui import UIConfig
+        from zrb.llm.ui import UIConfig
         config = UIConfig.default()
         return MyUI(
             ctx=ctx,
@@ -116,20 +116,22 @@ Dual Mode (CLI + Telegram):
     # See examples/chat-telegram/
 """
 
-from zrb.llm.ui.base_ui import BaseUI
-from zrb.llm.ui.default_ui import UI
+from zrb.llm.ui.base.ui import BaseUI
+from zrb.llm.ui.default.ui import UI
 from zrb.llm.ui.multi_ui import MultiUI
-from zrb.llm.ui.simple_ui import (
-    EventDrivenUI,
-    PollingUI,
-    SimpleUI,
-    UIConfig,
+from zrb.llm.ui.buffered_output_mixin import BufferedOutputMixin
+from zrb.llm.ui.event_driven_ui import EventDrivenUI
+from zrb.llm.ui.polling_ui import PollingUI
+from zrb.llm.ui.simple_ui_base import SimpleUI
+from zrb.llm.ui.ui_config import UIConfig
+from zrb.llm.ui.ui_factory import (
     create_bot_ui_factory,
     create_http_ui_factory,
     create_ui_factory,
 )
 
 __all__ = [
+    "BufferedOutputMixin",
     # Simple API (RECOMMENDED)
     "SimpleUI",
     "EventDrivenUI",

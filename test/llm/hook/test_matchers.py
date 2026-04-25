@@ -25,7 +25,7 @@ def _create_mock_cfg():
 def hook_manager():
     # Patch CFG in all modules that import it
     mock_cfg = _create_mock_cfg()
-    with patch("zrb.llm.hook.manager.CFG", mock_cfg), patch(
+    with patch("zrb.llm.hook.manager.manager.CFG", mock_cfg), patch(
         "zrb.llm.hook.journal.CFG", mock_cfg
     ):
         return HookManager()
@@ -54,7 +54,7 @@ async def check_match(tmp_path, matchers, context_data):
         json.dump(hook_content, f)
 
     mock_cfg = _create_mock_cfg()
-    with patch("zrb.llm.hook.manager.CFG", mock_cfg), patch(
+    with patch("zrb.llm.hook.manager.manager.CFG", mock_cfg), patch(
         "zrb.llm.hook.journal.CFG", mock_cfg
     ):
         manager = HookManager()

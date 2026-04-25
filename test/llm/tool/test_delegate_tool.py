@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.agent.manager import SubAgentDefinition, SubAgentManager
+from zrb.llm.agent.subagent.manager import SubAgentDefinition, SubAgentManager
 from zrb.llm.tool.delegate import (
     BufferedUI,
     create_delegate_to_agent_tool,
