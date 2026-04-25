@@ -17,6 +17,7 @@ if TYPE_CHECKING:
         Tool,
     )
     from pydantic_ai._agent_graph import HistoryProcessor
+    from pydantic_ai.capabilities import AbstractCapability
     from pydantic_ai.models import Model
     from pydantic_ai.output import OutputDataT, OutputSpec
     from pydantic_ai.settings import ModelSettings
@@ -144,6 +145,7 @@ def create_agent(
     toolsets: list["AbstractToolset[None]"] = [],
     model_settings: "ModelSettings | None" = None,
     history_processors: list["HistoryProcessor"] | None = None,
+    capabilities: "list[AbstractCapability[Any]] | None" = None,
     output_type: "OutputSpec[OutputDataT]" = str,
     retries: int = 1,
     yolo: bool | Callable[[Any, Any, dict[str, Any]], bool] = False,
@@ -192,5 +194,6 @@ def create_agent(
         toolsets=effective_toolsets,
         model_settings=model_settings,
         history_processors=history_processors,
+        capabilities=capabilities or [],
         retries=retries,
     )

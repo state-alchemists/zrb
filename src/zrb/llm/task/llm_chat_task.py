@@ -45,6 +45,7 @@ from zrb.xcom.xcom import Xcom
 if TYPE_CHECKING:
     from pydantic_ai import Tool, UserContent
     from pydantic_ai._agent_graph import HistoryProcessor
+    from pydantic_ai.capabilities import AbstractCapability
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.tools import ToolFuncEither
@@ -111,6 +112,7 @@ class LLMChatTask(BaseTask):
             | None
         ) = None,  # noqa
         history_processors: list[HistoryProcessor] | None = None,
+        capabilities: "list[AbstractCapability[Any]] | None" = None,
         llm_config: LLMConfig | None = None,
         llm_limitter: LLMLimiter | None = None,
         model: (
@@ -264,6 +266,7 @@ class LLMChatTask(BaseTask):
         self._history_processors = (
             history_processors if history_processors is not None else []
         )
+        self._capabilities = capabilities if capabilities is not None else []
         self._model = model
         self._render_model = render_model
         self._model_settings = model_settings
@@ -603,6 +606,7 @@ class LLMChatTask(BaseTask):
             interactive,
             resolved_tools,
             resolved_toolsets,
+            self._capabilities,
         )
 
         # 6. Run Interactive or Non-Interactive
@@ -725,6 +729,7 @@ class LLMChatTask(BaseTask):
         interactive: bool,
         resolved_tools: list[Tool | ToolFuncEither],
         resolved_toolsets: list[AbstractToolset[None]],
+        capabilities: "list[AbstractCapability[Any]]",
     ) -> LLMTask:
         """Create the inner LLMTask that handles the actual processing."""
         from zrb.llm.tool_call.handler import ToolCallHandler
@@ -820,6 +825,7 @@ class LLMChatTask(BaseTask):
                     or self._llm_config.model_renderer,
                 )
             ],
+            capabilities=capabilities,
             llm_config=self._llm_config,
             llm_limitter=self._llm_limitter,
             history_manager=history_manager,

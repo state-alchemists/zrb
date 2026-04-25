@@ -73,7 +73,7 @@ async def test_llm_task_retry_logic():
 
         # Verify run_agent was called with retry notice on second attempt
         second_call_kwargs = mock_run_agent.call_args_list[1].kwargs
-        assert "[System] This is retry attempt 2" in second_call_kwargs.get(
+        assert "[SYSTEM] This is retry attempt 2" in second_call_kwargs.get(
             "message", ""
         )
 
@@ -180,7 +180,7 @@ async def test_llm_task_retry_preserves_attachments_multimodal():
 
         # Verify retry message is sent (not original message)
         retry_message = second_call_kwargs.get("message", "")
-        assert "[System] This is retry attempt 2" in retry_message
+        assert "[SYSTEM] This is retry attempt 2" in retry_message
 
 
 @pytest.mark.asyncio
@@ -247,5 +247,5 @@ async def test_llm_task_detects_multimodal_content_in_history():
         # If Bug 2 is not fixed, it would send original message instead of retry notice
         # because str(["Analyze this", BinaryContent]) != "Analyze this"
         assert (
-            "[System] This is retry attempt 2" in retry_message
+            "[SYSTEM] This is retry attempt 2" in retry_message
         ), "Multimodal content not detected in history - Bug 2 NOT FIXED"
