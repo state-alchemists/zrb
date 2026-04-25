@@ -537,7 +537,7 @@ class SubAgentManager:
             # Use dynamic YOLO checker that reads from parent's xcom via context
             # This allows YOLO toggles during sub-agent execution to be honored
             from zrb.context.any_context import AnyContext
-            from zrb.llm.agent.run_agent import current_yolo
+            from zrb.llm.agent.runtime_state import get_current_yolo
 
             def check_yolo_inheritance(
                 ctx_or_none: Any = None, *args, **kwargs
@@ -550,16 +550,15 @@ class SubAgentManager:
                 3. False (default)
                 """
                 # First check context variable (set at run_agent time)
-                yolo_from_context = current_yolo.get()
-                if yolo_from_context:
+                if get_current_yolo():
                     return True
 
                 # Try to get parent's xcom via UI context
                 # This allows dynamic YOLO toggles to propagate
                 try:
-                    from zrb.llm.agent.run_agent import current_ui
+                    from zrb.llm.agent.runtime_state import get_current_ui
 
-                    ui = current_ui.get()
+                    ui = get_current_ui()
                     if ui is not None and hasattr(ui, "_ctx"):
                         parent_ctx = ui._ctx
                         if parent_ctx is not None and hasattr(parent_ctx, "xcom"):

@@ -716,10 +716,10 @@ class BaseUI:
     ) -> "ToolApproved | ToolDenied | None":
         # Use current_ui context variable to get the correct UI (e.g., BufferedUI for parallel agents)
         # instead of self, which is the captured main UI
-        from zrb.llm.agent.run_agent import current_ui
+        from zrb.llm.agent.runtime_state import get_current_ui
         from zrb.llm.ui.multi_ui import MultiUI
 
-        ui = current_ui.get() or self
+        ui = get_current_ui() or self
         # Handle list of UIs from outer context
         if isinstance(ui, list):
             if len(ui) == 0:
