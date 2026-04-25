@@ -1,5 +1,29 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.22.6 (April 25, 2026)
+
+- **Improvement: Granular Journal Config**:
+  - New `ZRB_LLM_INCLUDE_JOURNAL_MANDATE` env var controls whether the journal mandate section appears in the system prompt independently of the reminder.
+  - New `ZRB_LLM_INCLUDE_JOURNAL_REMINDER` env var controls whether the end-of-session journaling reminder fires.
+  - Both default to `ZRB_LLM_INCLUDE_JOURNAL` when unset — fully backwards compatible.
+  - `PromptManager` gains a matching `include_journal_mandate` property; `include_journal` kept as an alias.
+
+- **Improvement: Fuzzy Matching in `replace_in_file`**:
+  - Tries exact match first, then falls back to trailing-whitespace-tolerant and indentation-flexible fuzzy matching.
+  - Fuzzy matches are reported in the success message so callers know normalization occurred.
+  - Fixed replacement count reporting when `count != -1` (now reports `min(match_count, count)` instead of total occurrences).
+
+- **Improvement: Bash Tool Enhancements**:
+  - Default `timeout` increased from 30 s to 120 s for long-running commands.
+  - New actionable `[SYSTEM SUGGESTION]` messages for common failure patterns: port already in use, command not found, Python module not found, connection refused.
+
+- **Improvement: Tool Guidance Refinements**:
+  - Clarified `DelegateToAgent` guidance: when-to-use now explicitly mentions `DelegateToAgentsParallel` as the preferred choice for independent concurrent sub-tasks.
+  - Clarified `DelegateToAgentsParallel` guidance: concurrency preference and full-context requirement stated more precisely.
+
+- **Maintenance: Dependency Update**:
+  - Updated `pydantic-ai-slim` from `~1.85.0` to `~1.86.1`.
+
 ## 2.22.5 (April 24, 2026)
 
 - **Bug Fix: More Resilient Tool Call Error Handling**:
