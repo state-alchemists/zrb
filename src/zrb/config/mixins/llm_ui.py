@@ -7,9 +7,9 @@ remains a single, flat surface.
 
 from __future__ import annotations
 
-from zrb.config._mixins.llm_ui_commands import LLMUICommandsMixin
-from zrb.config._mixins.llm_ui_runtime import LLMUIRuntimeMixin
-from zrb.config._mixins.llm_ui_styles import LLMUIStylesMixin
+from zrb.config.mixins.llm_ui_commands import LLMUICommandsMixin
+from zrb.config.mixins.llm_ui_runtime import LLMUIRuntimeMixin
+from zrb.config.mixins.llm_ui_styles import LLMUIStylesMixin
 
 
 class LLMUIMixin(LLMUIStylesMixin, LLMUICommandsMixin, LLMUIRuntimeMixin):

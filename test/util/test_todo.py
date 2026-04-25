@@ -303,35 +303,35 @@ class TestDurationFunctions:
         # M = months (2592000 seconds each)
         assert parse_duration("1M") == 2592000
 
-    def test_format_duration_zero(self):
-        from zrb.util.todo import _format_duration
+    def testformat_duration_zero(self):
+        from zrb.util.todo import format_duration
 
-        assert _format_duration(0) == "0s"
+        assert format_duration(0) == "0s"
 
 
 class TestDateToStr:
-    """Tests for _date_to_str function."""
+    """Tests for date_to_str function."""
 
-    def test_date_to_str_none(self):
-        from zrb.util.todo import _date_to_str
+    def testdate_to_str_none(self):
+        from zrb.util.todo import date_to_str
 
-        result = _date_to_str(None)
+        result = date_to_str(None)
         assert result == "".ljust(14)
 
-    def test_date_to_str_valid(self):
-        from zrb.util.todo import _date_to_str
+    def testdate_to_str_valid(self):
+        from zrb.util.todo import date_to_str
 
-        result = _date_to_str(datetime.date(2023, 10, 26))
+        result = date_to_str(datetime.date(2023, 10, 26))
         assert "2023-10-26" in result
 
 
 class TestGetLineStr:
-    """Tests for _get_line_str with different terminal widths."""
+    """Tests for get_line_str with different terminal widths."""
 
     def test_full_width(self):
-        from zrb.util.todo import _GAP_WIDTH, _get_line_str
+        from zrb.util.todo import GAP_WIDTH, get_line_str
 
-        result = _get_line_str(
+        result = get_line_str(
             terminal_width=200,
             description_width=50,
             additional_info_width=30,
@@ -346,9 +346,9 @@ class TestGetLineStr:
         assert "(A)" in result
 
     def test_medium_width(self):
-        from zrb.util.todo import _get_line_str
+        from zrb.util.todo import get_line_str
 
-        result = _get_line_str(
+        result = get_line_str(
             terminal_width=120,
             description_width=50,
             additional_info_width=30,
@@ -362,9 +362,9 @@ class TestGetLineStr:
         assert "Test task" in result
 
     def test_narrow_width(self):
-        from zrb.util.todo import _get_line_str
+        from zrb.util.todo import get_line_str
 
-        result = _get_line_str(
+        result = get_line_str(
             terminal_width=30,
             description_width=10,
             additional_info_width=0,
@@ -383,7 +383,7 @@ class TestVisualTodoLineTruncation:
     """Tests for description truncation in visual todo line."""
 
     def test_long_description_truncation(self):
-        from zrb.util.todo import _MAX_DESCRIPTION_WIDTH, get_visual_todo_line
+        from zrb.util.todo import MAX_DESCRIPTION_WIDTH, get_visual_todo_line
 
         long_task = TodoTaskModel(
             description="A" * 100,  # Very long description

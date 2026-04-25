@@ -10,13 +10,13 @@ from prompt_toolkit.completion import (
 from prompt_toolkit.document import Document
 
 from zrb.config.config import CFG
-from zrb.llm.app._completion_args import (
+from zrb.llm.app.completion.args import (
     complete_exec_arg,
     complete_load_arg,
     complete_redirect_arg,
     complete_save_arg,
 )
-from zrb.llm.app._completion_caches import (
+from zrb.llm.app.completion.caches import (
     load_cmd_history,
     load_ollama_models,
     walk_recursive_files,

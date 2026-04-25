@@ -5,6 +5,26 @@ from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias
 
 from zrb.config.config import CFG
+from zrb.llm.agent.run.deferred_calls import (
+    process_deferred_requests as _process_deferred_requests,
+)
+from zrb.llm.agent.run.deferred_calls import (
+    rebuild_for_denials,
+)
+from zrb.llm.agent.run.history_utils import filter_nil_content
+from zrb.llm.agent.run.hook_result_extractor import (
+    extract_additional_context,
+    extract_replace_response,
+    extract_system_message,
+)
+from zrb.llm.agent.run.openai_patch import patch_openai_model_response_serialization
+from zrb.llm.agent.run.prompt_content import get_prompt_content as _get_prompt_content
+from zrb.llm.agent.run.retry_loop import RetryState, handle_stream_error
+from zrb.llm.agent.run.session_extension import (
+    ExtensionState,
+    apply_session_end_extension,
+    resolve_extended_return,
+)
 from zrb.llm.approval.approval_channel import ApprovalChannel, current_approval_channel
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.hook.manager import HookManager
@@ -14,24 +34,6 @@ from zrb.llm.message import ensure_alternating_roles
 from zrb.llm.tool_call.handler import ToolCallHandler
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.llm.util.prompt import expand_prompt
-from zrb.llm.agent.run.openai_patch import patch_openai_model_response_serialization
-from zrb.llm.agent.run.history_utils import filter_nil_content
-from zrb.llm.agent.run.hook_result_extractor import (
-    extract_additional_context,
-    extract_replace_response,
-    extract_system_message,
-)
-from zrb.llm.agent.run.prompt_content import get_prompt_content as _get_prompt_content
-from zrb.llm.agent.run.retry_loop import RetryState, handle_stream_error
-from zrb.llm.agent.run.session_extension import (
-    ExtensionState,
-    apply_session_end_extension,
-    resolve_extended_return,
-)
-from zrb.llm.agent.run.deferred_calls import (
-    process_deferred_requests as _process_deferred_requests,
-    rebuild_for_denials,
-)
 
 if TYPE_CHECKING:
     from pydantic_ai import (

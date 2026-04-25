@@ -7,10 +7,9 @@ import time
 from typing import Any
 
 from zrb.config.config import CFG
+from zrb.llm.tool.file_list import DEFAULT_EXCLUDED_PATTERNS
 from zrb.util.file import is_path_excluded
 from zrb.util.truncate import truncate_output
-
-from zrb.llm.tool.file_list import DEFAULT_EXCLUDED_PATTERNS
 
 
 def _search_with_ripgrep(

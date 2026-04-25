@@ -10,8 +10,8 @@ All public and private symbols are re-exported here for backward compatibility.
 
 from zrb.util.file import read_file, write_file  # noqa: F401 — tests patch at this path
 from zrb.util.todo_duration import (  # noqa: F401
-    _format_duration,
     add_duration,
+    format_duration,
     parse_duration,
 )
 from zrb.util.todo_parser import (  # noqa: F401
@@ -24,11 +24,11 @@ from zrb.util.todo_parser import (  # noqa: F401
     todo_task_to_line,
 )
 from zrb.util.todo_render import (  # noqa: F401
-    _date_to_str,
-    _get_line_str,
+    GAP_WIDTH,
+    MAX_DESCRIPTION_WIDTH,
     _get_minimum_width,
-    _GAP_WIDTH,
-    _MAX_DESCRIPTION_WIDTH,
+    date_to_str,
+    get_line_str,
     get_visual_todo_card,
     get_visual_todo_header,
     get_visual_todo_line,

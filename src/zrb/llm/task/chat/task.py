@@ -58,7 +58,7 @@ if TYPE_CHECKING:
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
-def _parse_yolo_value(value: Any) -> "bool | frozenset[str]":
+def parse_yolo_value(value: Any) -> "bool | frozenset[str]":
     """Parse a yolo input value into bool or frozenset of tool names.
 
     - bool True/False → returned as-is
@@ -359,7 +359,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         # 1. Resolve inputs/attributes
         initial_conversation_name = self._get_initial_conversation_name(ctx)
         raw_yolo = get_attr(ctx, self._yolo, "", True)
-        initial_yolo = _parse_yolo_value(raw_yolo)
+        initial_yolo = parse_yolo_value(raw_yolo)
         if self._yolo_xcom_key not in ctx.xcom:
             ctx.xcom[self._yolo_xcom_key] = Xcom()
         ctx.xcom[self._yolo_xcom_key].set(initial_yolo)

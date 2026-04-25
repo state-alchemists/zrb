@@ -13,7 +13,7 @@ from zrb.llm.prompt.prompt import (
     get_repo_extractor_system_prompt,
     get_repo_summarizer_system_prompt,
 )
-from zrb.llm.tool._code_constants import (
+from zrb.llm.tool.code_constants import (
     DEFAULT_EXTENSIONS,
     LSP_SUPPORTED_EXTENSIONS,
     is_path_included,

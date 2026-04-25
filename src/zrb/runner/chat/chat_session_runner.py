@@ -13,8 +13,8 @@ import asyncio
 from typing import Any
 
 from zrb.config.config import CFG
-from zrb.runner.chat._http_ui import create_http_ui_factory
 from zrb.runner.chat.chat_session_manager import ChatSession, ChatSessionManager
+from zrb.runner.chat.http_ui import create_http_ui_factory
 
 
 async def run_chat_session(
@@ -92,9 +92,7 @@ async def run_chat_session(
 
                 session_manager.set_processing(session.session_id, True)
                 CFG.LOGGER.info(f"Processing message: {message[:100]}")
-                await session_manager.broadcast(
-                    session.session_id, f"[USER] {message}"
-                )
+                await session_manager.broadcast(session.session_id, f"[USER] {message}")
 
                 shared_ctx = SharedContext(
                     input={

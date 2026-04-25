@@ -30,9 +30,7 @@ def create_command_hook(config: CommandHookConfig) -> HookCallable:
         env["CLAUDE_PROJECT_DIR"] = (
             context.cwd or os.getcwd()
         )  # Best guess for project root
-        env["CLAUDE_PLUGIN_ROOT"] = (
-            ""  # TODO: Need to pass this context if available
-        )
+        env["CLAUDE_PLUGIN_ROOT"] = ""  # TODO: Need to pass this context if available
         env["CLAUDE_CODE_REMOTE"] = "false"  # Zrb is typically local for now
         if context.metadata.get("remote"):
             env["CLAUDE_CODE_REMOTE"] = "true"
@@ -180,9 +178,7 @@ def create_prompt_hook(config: PromptHookConfig) -> HookCallable:
             else:
                 # For other providers, we'd need to handle them
                 # For now, use OpenAI as default
-                logger.warning(
-                    f"Provider {provider} not fully supported, using OpenAI"
-                )
+                logger.warning(f"Provider {provider} not fully supported, using OpenAI")
                 llm_model = OpenAIModel(model)
 
             # Create agent with the prompt
@@ -215,9 +211,9 @@ def create_prompt_hook(config: PromptHookConfig) -> HookCallable:
                 import json
 
                 output_text = str(result.output)
-                if output_text.strip().startswith(
-                    "{"
-                ) and output_text.strip().endswith("}"):
+                if output_text.strip().startswith("{") and output_text.strip().endswith(
+                    "}"
+                ):
                     parsed = json.loads(output_text)
                     if isinstance(parsed, dict):
                         modifications = parsed
@@ -266,9 +262,7 @@ def create_agent_hook(config: AgentHookConfig) -> HookCallable:
             else:
                 # For other providers, we'd need to handle them
                 # For now, use OpenAI as default
-                logger.warning(
-                    f"Provider {provider} not fully supported, using OpenAI"
-                )
+                logger.warning(f"Provider {provider} not fully supported, using OpenAI")
                 llm_model = OpenAIModel(model)
 
             # Create agent with system prompt
@@ -304,9 +298,9 @@ def create_agent_hook(config: AgentHookConfig) -> HookCallable:
                 import json
 
                 output_text = str(result.output)
-                if output_text.strip().startswith(
-                    "{"
-                ) and output_text.strip().endswith("}"):
+                if output_text.strip().startswith("{") and output_text.strip().endswith(
+                    "}"
+                ):
                     parsed = json.loads(output_text)
                     if isinstance(parsed, dict):
                         modifications = parsed

@@ -103,9 +103,7 @@ def line_to_todo_task(line: str) -> "TodoTaskModel":
     for keyval_str in re.findall(r"(\S+:\S+)", raw_description):
         key, val = keyval_str.split(":", 1)
         keyval[key] = val
-    description = re.sub(
-        r"\s*\+\S+|\s*@\S+|\s*\S+:\S+", "", raw_description
-    ).strip()
+    description = re.sub(r"\s*\+\S+|\s*@\S+|\s*\S+:\S+", "", raw_description).strip()
     return TodoTaskModel(
         priority=groups["priority"],
         completed=is_completed,

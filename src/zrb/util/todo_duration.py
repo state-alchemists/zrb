@@ -16,7 +16,7 @@ _FORMAT_UNITS = [
 
 def add_duration(duration1: str, duration2: str) -> str:
     """Add two duration strings and return the result in canonical form."""
-    return _format_duration(parse_duration(duration1) + parse_duration(duration2))
+    return format_duration(parse_duration(duration1) + parse_duration(duration2))
 
 
 def parse_duration(duration: str) -> int:
@@ -27,7 +27,7 @@ def parse_duration(duration: str) -> int:
     return total_seconds
 
 
-def _format_duration(total_seconds: int) -> str:
+def format_duration(total_seconds: int) -> str:
     """Format total seconds into a compact duration string (`0s` for zero)."""
     result = []
     for unit, value_in_seconds in _FORMAT_UNITS:

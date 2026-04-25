@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 from zrb.config.config import CFG
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.task.llm_task import LLMTask
-from zrb.llm.ui.ui_config import UIConfig
 from zrb.llm.ui.simple_ui_base import SimpleUI
+from zrb.llm.ui.ui_config import UIConfig
 
 if TYPE_CHECKING:
     from pydantic_ai import UserContent

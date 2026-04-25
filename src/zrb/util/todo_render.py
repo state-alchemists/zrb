@@ -20,12 +20,12 @@ if TYPE_CHECKING:
 
 
 _DATE_TIME_STR_WIDTH = 14
-_MAX_DESCRIPTION_WIDTH = 70
+MAX_DESCRIPTION_WIDTH = 70
 _PRIORITY_WIDTH = 3
 _COMPLETED_WIDTH = 3
 _COMPLETED_AT_WIDTH = _DATE_TIME_STR_WIDTH
 _CREATED_AT_WIDTH = _DATE_TIME_STR_WIDTH
-_GAP_WIDTH = 2
+GAP_WIDTH = 2
 
 
 def get_visual_todo_list(todo_list: list["TodoTaskModel"], filter: str) -> str:
@@ -58,8 +58,8 @@ def get_visual_todo_list(todo_list: list["TodoTaskModel"], filter: str) -> str:
     )
     if max_desc_length < len("DESCRIPTION"):
         max_desc_length = len("DESCRIPTION")
-    if max_desc_length > _MAX_DESCRIPTION_WIDTH:
-        max_desc_length = _MAX_DESCRIPTION_WIDTH
+    if max_desc_length > MAX_DESCRIPTION_WIDTH:
+        max_desc_length = MAX_DESCRIPTION_WIDTH
 
     max_additional_info_length = max(
         todo_task.get_additional_info_length() for todo_task in filtered_todo_list
@@ -96,12 +96,12 @@ def get_visual_todo_header(
     completed_at_caption = "COMPLETED AT".rjust(_COMPLETED_AT_WIDTH)
     created_at_caption = "CREATED_AT".ljust(_CREATED_AT_WIDTH)
     description_caption = "DESCRIPTION".ljust(
-        min(max_desc_length, _MAX_DESCRIPTION_WIDTH)
+        min(max_desc_length, MAX_DESCRIPTION_WIDTH)
     )
     additional_info_caption = "PROJECT/CONTEXT/OTHERS".ljust(max_additional_info_length)
-    return _get_line_str(
+    return get_line_str(
         terminal_width=terminal_width,
-        description_width=min(max_desc_length, _MAX_DESCRIPTION_WIDTH),
+        description_width=min(max_desc_length, MAX_DESCRIPTION_WIDTH),
         additional_info_width=max_additional_info_length,
         priority=priority_caption,
         completed=completed_caption,
@@ -121,8 +121,8 @@ def get_visual_todo_line(
     """Render a single todo task as a styled line."""
     completed = "[x]" if todo_task.completed else "[ ]"
     priority = "   " if todo_task.priority is None else f"({todo_task.priority})"
-    completed_at = stylize_yellow(_date_to_str(todo_task.completion_date))
-    created_at = stylize_cyan(_date_to_str(todo_task.creation_date))
+    completed_at = stylize_yellow(date_to_str(todo_task.completion_date))
+    created_at = stylize_cyan(date_to_str(todo_task.creation_date))
     description = todo_task.description
     if len(description) > max_desc_length:
         description = description[: max_desc_length - 4] + " ..."
@@ -137,9 +137,9 @@ def get_visual_todo_line(
         + [stylize_cyan(f"@{context}") for context in todo_task.contexts]
         + [stylize_magenta(f"{key}:{val}") for key, val in todo_task.keyval.items()]
     )
-    return _get_line_str(
+    return get_line_str(
         terminal_width=terminal_width,
-        description_width=min(max_desc_length, _MAX_DESCRIPTION_WIDTH),
+        description_width=min(max_desc_length, MAX_DESCRIPTION_WIDTH),
         additional_info_width=max_additional_info_length,
         priority=priority,
         completed=completed,
@@ -150,7 +150,7 @@ def get_visual_todo_line(
     )
 
 
-def _get_line_str(
+def get_line_str(
     terminal_width: int,
     description_width: int,
     additional_info_width: int,
@@ -162,7 +162,7 @@ def _get_line_str(
     additional_info: str,
 ):
     """Pick a column layout that fits `terminal_width` and join the parts."""
-    gap = "".ljust(_GAP_WIDTH)
+    gap = "".ljust(GAP_WIDTH)
     if terminal_width >= _get_minimum_width(
         [
             _PRIORITY_WIDTH,
@@ -206,7 +206,7 @@ def _get_line_str(
 
 def _get_minimum_width(field_widths: list[int]) -> int:
     """Total width needed for `field_widths` plus gaps between them."""
-    gap_width = _GAP_WIDTH * (len(field_widths) - 1)
+    gap_width = GAP_WIDTH * (len(field_widths) - 1)
     return sum(field_width for field_width in field_widths) + gap_width
 
 
@@ -222,12 +222,12 @@ def get_visual_todo_card(
         status = "DOING"
     priority = todo_task.priority
     completed_at = (
-        _date_to_str(todo_task.completion_date)
+        date_to_str(todo_task.completion_date)
         if todo_task.completion_date is not None
         else ""
     )
     created_at = (
-        _date_to_str(todo_task.creation_date)
+        date_to_str(todo_task.creation_date)
         if todo_task.creation_date is not None
         else ""
     )
@@ -258,7 +258,7 @@ def get_visual_todo_card(
     return "\n".join(detail)
 
 
-def _date_to_str(date: datetime.date | None) -> str:
+def date_to_str(date: datetime.date | None) -> str:
     """Format a date as `Mon YYYY-MM-DD`. Empty padded string for None."""
     if date is None:
         return "".ljust(14)

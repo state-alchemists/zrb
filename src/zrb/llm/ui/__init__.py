@@ -117,10 +117,10 @@ Dual Mode (CLI + Telegram):
 """
 
 from zrb.llm.ui.base.ui import BaseUI
-from zrb.llm.ui.default.ui import UI
-from zrb.llm.ui.multi_ui import MultiUI
 from zrb.llm.ui.buffered_output_mixin import BufferedOutputMixin
+from zrb.llm.ui.default.ui import UI
 from zrb.llm.ui.event_driven_ui import EventDrivenUI
+from zrb.llm.ui.multi_ui import MultiUI
 from zrb.llm.ui.polling_ui import PollingUI
 from zrb.llm.ui.simple_ui_base import SimpleUI
 from zrb.llm.ui.ui_config import UIConfig

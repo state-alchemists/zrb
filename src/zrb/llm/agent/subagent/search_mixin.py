@@ -60,9 +60,7 @@ class SearchMixin:
         search_dirs.append(Path(self._root_dir))
         return search_dirs
 
-    def _add_agents_from_root(
-        self, root: Path, search_dirs: list[str | Path]
-    ) -> None:
+    def _add_agents_from_root(self, root: Path, search_dirs: list[str | Path]) -> None:
         """Append `root/agents` and any `root/plugins/*/agents` to `search_dirs`."""
         if not (root.exists() and root.is_dir()):
             return

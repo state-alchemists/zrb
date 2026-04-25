@@ -1,10 +1,9 @@
 import os
 
 from zrb.config.config import CFG
-from zrb.util.truncate import truncate_output
-
 from zrb.llm.tool.file_read import read_file
 from zrb.llm.tool.file_search import search_files
+from zrb.util.truncate import truncate_output
 
 
 async def analyze_file(path: str, query: str, auto_truncate: bool = True) -> str:

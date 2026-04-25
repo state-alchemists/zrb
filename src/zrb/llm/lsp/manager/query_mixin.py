@@ -8,8 +8,8 @@ flag. The `_find_symbol_position` helper bridges symbol names to
 
 from __future__ import annotations
 
-from zrb.llm.lsp._no_server_error import no_server_error
 from zrb.llm.lsp.manager.symbol_utils import format_document_symbols, uri_to_path
+from zrb.llm.lsp.no_server_error import no_server_error
 from zrb.llm.lsp.protocol import SymbolKind
 
 

@@ -27,9 +27,9 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
         ModelRequest,
         ModelResponse,
         TextPart,
+        ThinkingPart,
         ToolCallPart,
         ToolReturnPart,
-        ThinkingPart,
     )
 
     filtered = []

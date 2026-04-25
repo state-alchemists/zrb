@@ -43,7 +43,7 @@ def test_command_completion(completer, complete_event):
     assert any(c.text == "/exit" for c in completions)
 
 
-@patch("zrb.llm.app._completion_args.datetime")
+@patch("zrb.llm.app.completion.args.datetime")
 def test_save_completion(mock_datetime, completer, complete_event):
     mock_datetime.now.return_value = datetime(2023, 10, 27, 12, 30)
     mock_datetime.strftime = datetime.strftime
@@ -53,7 +53,7 @@ def test_save_completion(mock_datetime, completer, complete_event):
     assert any(c.text == "2023-10-27-12-30" for c in completions)
 
 
-@patch("zrb.llm.app._completion_args.datetime")
+@patch("zrb.llm.app.completion.args.datetime")
 def test_redirect_completion(mock_datetime, completer, complete_event):
     mock_datetime.now.return_value = datetime(2023, 10, 27, 12, 30)
 

@@ -70,10 +70,7 @@ def get_search_directories() -> list[str | Path]:
         for project_dir in project_dirs:
             # Claude style
             local_claude_hooks_file = project_dir / ".claude" / "hooks.json"
-            if (
-                local_claude_hooks_file.exists()
-                and local_claude_hooks_file.is_file()
-            ):
+            if local_claude_hooks_file.exists() and local_claude_hooks_file.is_file():
                 search_dirs.append(local_claude_hooks_file)
 
             local_claude_hooks_dir = project_dir / ".claude" / "hooks"

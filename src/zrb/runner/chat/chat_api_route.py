@@ -5,8 +5,8 @@ from typing import Any
 from zrb.config.config import CFG
 from zrb.config.web_auth_config import WebAuthConfig
 from zrb.group.any_group import AnyGroup
-from zrb.runner.chat._chat_session_runner import run_chat_session as _run_chat_session
 from zrb.runner.chat.chat_session_manager import ChatSessionManager
+from zrb.runner.chat.chat_session_runner import run_chat_session as _run_chat_session
 from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 from zrb.runner.web_util.user import get_user_from_request
 from zrb.util.group import NodeNotFoundError, extract_node_from_args

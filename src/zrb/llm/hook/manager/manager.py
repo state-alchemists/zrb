@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any, Callable
 
 from zrb.config.config import CFG
-from zrb.llm.hook.manager.loader_mixin import HookLoaderMixin
 from zrb.llm.hook.executor import (
     HookExecutionResult,
     ThreadPoolHookExecutor,
@@ -17,11 +16,12 @@ from zrb.llm.hook.hook_creators import (
     create_command_hook,
     create_prompt_hook,
 )
+from zrb.llm.hook.hook_loader import get_search_directories as _get_search_directories
 from zrb.llm.hook.hook_loader import (
-    get_search_directories as _get_search_directories,
     parse_hook_config,
 )
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
+from zrb.llm.hook.manager.loader_mixin import HookLoaderMixin
 from zrb.llm.hook.matcher import evaluate_matchers
 from zrb.llm.hook.schema import (
     AgentHookConfig,

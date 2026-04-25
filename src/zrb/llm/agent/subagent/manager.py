@@ -5,10 +5,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from zrb.context.any_context import AnyContext
+from zrb.llm.agent.common import create_agent
 from zrb.llm.agent.subagent.loader_mixin import LoaderMixin
 from zrb.llm.agent.subagent.search_mixin import SearchMixin
 from zrb.llm.agent.subagent.yolo import make_yolo_inheritance_checker
-from zrb.llm.agent.common import create_agent
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.summarizer import (
     create_summarizer_history_processor,

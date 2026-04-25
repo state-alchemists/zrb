@@ -161,13 +161,19 @@ class TestLspManagerLifecycle:
             mock_server2.is_alive = True
             mock_server2.start.return_value = True
 
-            with patch("zrb.llm.lsp.manager.lifecycle_mixin.LSPServer", return_value=mock_server2):
+            with patch(
+                "zrb.llm.lsp.manager.lifecycle_mixin.LSPServer",
+                return_value=mock_server2,
+            ):
                 server3 = await manager.get_server("test.py")
                 assert server3 == mock_server2
 
     @pytest.mark.asyncio
     async def test_get_server_no_config(self, manager):
-        with patch("zrb.llm.lsp.manager.lifecycle_mixin.get_lsp_config_for_file", return_value=None):
+        with patch(
+            "zrb.llm.lsp.manager.lifecycle_mixin.get_lsp_config_for_file",
+            return_value=None,
+        ):
             result = await manager.get_server("/path/to/file.unknown")
             assert result is None
 
