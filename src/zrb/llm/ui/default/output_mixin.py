@@ -23,6 +23,11 @@ logger = logging.getLogger(__name__)
 class OutputMixin:
     """Renders the output field, info bar, and status bar for the default UI."""
 
+    @property
+    def output_text(self) -> str:
+        """Get the current text in the output field."""
+        return self._output_field.text
+
     def append_to_output(
         self,
         *values: object,
@@ -98,6 +103,11 @@ class OutputMixin:
             bypass_readonly=True,
         )
         self.invalidate_ui()
+
+    @property
+    def output_field_width(self) -> int | None:
+        """Get the output field width."""
+        return self._get_output_field_width()
 
     def _get_output_field_width(self) -> int | None:
         try:

@@ -48,6 +48,10 @@ def create_http_ui_factory(
                     self._session_id, clean, kind=kind
                 )
 
+        def handle_incoming_message(self, message: str) -> None:
+            """Put an incoming message into the input queue."""
+            self._input_queue.put_nowait(message)
+
         async def get_input(self, prompt: str) -> str:
             if prompt:
                 clean_prompt = remove_style(prompt).strip()

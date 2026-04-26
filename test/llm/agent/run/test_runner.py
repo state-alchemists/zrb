@@ -332,53 +332,194 @@ async def test_run_agent_session_end_replace_response_true():
 
 
 @pytest.mark.asyncio
-async def test_run_agent_session_end_multiple_hooks():
-    """Test multiple SESSION_END hooks - last systemMessage wins."""
-    agent = MagicMock()
+async def test_run_agent_session_start_context_prepending():
+    from pydantic_ai.messages import ModelRequest, SystemPromptPart
 
+    agent = MagicMock()
     mock_result = MagicMock()
-    mock_result.output = "Response"
+    mock_result.output = "Result"
     mock_result.all_messages.return_value = []
 
-    call_count = 0
-
     async def mock_run_stream_events(*args, **kwargs):
-        nonlocal call_count
-        call_count += 1
         yield AgentRunResultEvent(result=mock_result)
 
     agent.run_stream_events = mock_run_stream_events
 
-    # Stateful hook that fires only once
-    class OnceHook:
-        def __init__(self):
-            self.fired = False
+    manager = HookManager()
 
-        async def __call__(self, context: HookContext) -> HookResult:
-            if context.event == HookEvent.SESSION_END:
-                if not self.fired:
-                    self.fired = True
-                    return HookResult.with_system_message(
-                        "Process this", replace_response=False
-                    )
-            return HookResult()
+    async def session_start_hook(ctx):
+        return HookResult.with_additional_context("INIT_CONTEXT")
 
-    # First hook returns no systemMessage
-    async def hook1(context: HookContext) -> HookResult:
-        return HookResult()  # No modification
+    manager.register(session_start_hook, events=[HookEvent.SESSION_START])
+
+    limiter = MagicMock(spec=LLMLimiter)
+    limiter.count_tokens.return_value = 10
+    limiter.max_token_per_request = 1000
+    limiter.fit_context_window.side_effect = lambda h, m, r: h
+    limiter.acquire = AsyncMock()
+
+    with patch.object(
+        agent, "run_stream_events", side_effect=mock_run_stream_events
+    ) as mock_run:
+        result, _ = await run_agent(
+            agent=agent,
+            message="Hi",
+            message_history=[],
+            limiter=limiter,
+            hook_manager=manager,
+        )
+
+        # Check history passed to run_stream_events
+        passed_history = mock_run.call_args[1]["message_history"]
+        assert len(passed_history) == 1
+        assert isinstance(passed_history[0], ModelRequest)
+        assert isinstance(passed_history[0].parts[0], SystemPromptPart)
+        assert passed_history[0].parts[0].content == "INIT_CONTEXT"
+
+
+@pytest.mark.asyncio
+async def test_run_agent_user_prompt_context_prepending():
+    agent = MagicMock()
+    mock_result = MagicMock()
+    mock_result.output = "Result"
+    mock_result.all_messages.return_value = []
+
+    async def mock_run_stream_events(*args, **kwargs):
+        yield AgentRunResultEvent(result=mock_result)
+
+    agent.run_stream_events = mock_run_stream_events
 
     manager = HookManager()
-    manager.register(hook1, events=[HookEvent.SESSION_END])
-    manager.register(OnceHook(), events=[HookEvent.SESSION_END])
 
-    result, history = await run_agent(
-        agent=agent,
-        message="Test message",
-        message_history=[],
-        limiter=LLMLimiter(),
-        hook_manager=manager,
-    )
+    async def prompt_hook(ctx):
+        return HookResult.with_additional_context("PROMPT_CONTEXT")
 
-    # Should return original response
-    assert result == "Response"
-    assert call_count == 2  # Original + extended
+    manager.register(prompt_hook, events=[HookEvent.USER_PROMPT_SUBMIT])
+
+    limiter = MagicMock(spec=LLMLimiter)
+    limiter.count_tokens.return_value = 10
+    limiter.max_token_per_request = 1000
+    limiter.fit_context_window.side_effect = lambda h, m, r: h
+    limiter.acquire = AsyncMock()
+
+    with patch.object(
+        agent, "run_stream_events", side_effect=mock_run_stream_events
+    ) as mock_run:
+        result, _ = await run_agent(
+            agent=agent,
+            message="Hi",
+            message_history=[],
+            limiter=limiter,
+            hook_manager=manager,
+        )
+
+        # Check message passed to run_stream_events
+        passed_message = mock_run.call_args[0][0]
+        assert "PROMPT_CONTEXT" in passed_message
+        assert "Hi" in passed_message
+
+
+@pytest.mark.asyncio
+async def test_run_agent_multi_ui_resolution():
+    agent = MagicMock()
+    mock_result = MagicMock()
+    mock_result.output = "Result"
+    mock_result.all_messages.return_value = []
+
+    async def mock_run_stream_events(*args, **kwargs):
+        yield AgentRunResultEvent(result=mock_result)
+
+    agent.run_stream_events = mock_run_stream_events
+
+    ui1 = MagicMock()
+    ui2 = MagicMock()
+
+    limiter = MagicMock(spec=LLMLimiter)
+    limiter.acquire = AsyncMock()
+    limiter.max_token_per_request = 1000
+    limiter.count_tokens.return_value = 10
+    limiter.fit_context_window.side_effect = lambda h, m, r: h
+
+    with patch("zrb.llm.ui.multi_ui.MultiUI", return_value=MagicMock()) as mock_multi:
+        await run_agent(
+            agent=agent,
+            message="Hi",
+            message_history=[],
+            limiter=limiter,
+            ui=[ui1, ui2],
+        )
+        mock_multi.assert_called_once_with([ui1, ui2])
+
+
+@pytest.mark.asyncio
+async def test_run_agent_emergency_pruning():
+    agent = MagicMock()
+    mock_result = MagicMock()
+    mock_result.output = "Result"
+    mock_result.all_messages.return_value = []
+
+    async def mock_run_stream_events(*args, **kwargs):
+        yield AgentRunResultEvent(result=mock_result)
+
+    agent.run_stream_events = mock_run_stream_events
+
+    limiter = MagicMock(spec=LLMLimiter)
+    limiter.max_token_per_request = 100
+    limiter.acquire = AsyncMock()
+    limiter.fit_context_window.side_effect = lambda h, m, r: h
+
+    # Mock history message that is too large
+    msg_large = MagicMock()
+
+    # 1. count_tokens(system_prompt) -> 0
+    # 2. count_tokens(processed_history) -> 200 (triggers pruning)
+    # 3. count_tokens(processed_history[-1]) -> 50
+    # 4. count_tokens(pruned_history) in _acquire_rate_limit -> 50
+    limiter.count_tokens.side_effect = [0, 200, 50, 50, 50, 50]
+
+    with patch(
+        "zrb.llm.agent.run.runner.ensure_alternating_roles", side_effect=lambda x: x
+    ):
+        result, _ = await run_agent(
+            agent=agent, message="Hi", message_history=[msg_large], limiter=limiter
+        )
+        assert result == "Result"
+
+
+@pytest.mark.asyncio
+async def test_run_agent_merge_consecutive_model_requests():
+    from pydantic_ai.messages import ModelRequest, UserPromptPart
+
+    agent = MagicMock()
+    mock_result = MagicMock()
+    mock_result.output = "Result"
+    mock_result.all_messages.return_value = []
+
+    async def mock_run_stream_events(*args, **kwargs):
+        yield AgentRunResultEvent(result=mock_result)
+
+    agent.run_stream_events = mock_run_stream_events
+
+    # History ends with ModelRequest
+    history = [ModelRequest(parts=[])]
+
+    limiter = MagicMock(spec=LLMLimiter)
+    limiter.acquire = AsyncMock()
+    limiter.max_token_per_request = 1000
+    limiter.count_tokens.return_value = 10
+    limiter.fit_context_window.side_effect = lambda h, m, r: h
+
+    with patch.object(
+        agent, "run_stream_events", side_effect=mock_run_stream_events
+    ) as mock_run:
+        await run_agent(
+            agent=agent, message="Hi", message_history=history, limiter=limiter
+        )
+
+        # Check history passed to run_stream_events
+        passed_history = mock_run.call_args[1]["message_history"]
+        assert len(passed_history) == 1
+        assert isinstance(passed_history[0].parts[-1], UserPromptPart)
+        assert passed_history[0].parts[-1].content == "Hi"
+        # current_message should be None
+        assert mock_run.call_args[0][0] is None

@@ -695,3 +695,43 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         if rendered_model is not None:
             return rendered_model
         return self._llm_config.model
+
+    @property
+    def history_manager(self) -> AnyHistoryManager | None:
+        """Get the history manager."""
+        return self._history_manager
+
+    @history_manager.setter
+    def history_manager(self, value: AnyHistoryManager | None):
+        """Set the history manager."""
+        self._history_manager = value
+
+    @property
+    def ui_factories(self) -> list[Callable[..., "UIProtocol"]]:
+        """Get the UI factories."""
+        return self._ui_factories
+
+    @ui_factories.setter
+    def ui_factories(self, value: list[Callable[..., "UIProtocol"]]):
+        """Set the UI factories."""
+        self._ui_factories = value
+
+    @property
+    def approval_channels(self) -> list["ApprovalChannel"]:
+        """Get the approval channels."""
+        return self._approval_channels
+
+    @approval_channels.setter
+    def approval_channels(self, value: list["ApprovalChannel"]):
+        """Set the approval channels."""
+        self._approval_channels = value
+
+    @property
+    def include_default_ui(self) -> bool:
+        """Check if the default UI should be included."""
+        return self._include_default_ui
+
+    @include_default_ui.setter
+    def include_default_ui(self, value: bool):
+        """Set if the default UI should be included."""
+        self._include_default_ui = value

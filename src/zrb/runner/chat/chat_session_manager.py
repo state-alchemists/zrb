@@ -47,6 +47,24 @@ class ChatSessionManager:
             cls._instance = cls()
         return cls._instance
 
+    @property
+    def history_manager(self) -> FileHistoryManager:
+        """Get the history manager."""
+        return self._history_manager
+
+    def set_history_manager(self, history_manager: FileHistoryManager):
+        """Set the history manager."""
+        self._history_manager = history_manager
+
+    def has_session(self, session_id: str) -> bool:
+        """Check if a session exists."""
+        return session_id in self._sessions
+
+    @property
+    def sessions(self) -> dict[str, ChatSession]:
+        """Get the active sessions."""
+        return self._sessions
+
     def get_active_tasks(self) -> list[asyncio.Task]:
         """Get all active task coroutines for cleanup."""
         tasks = []

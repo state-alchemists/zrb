@@ -25,11 +25,8 @@ def make_yolo_inheritance_checker() -> Callable[..., bool]:
             return True
         try:
             ui = get_current_ui()
-            if ui is not None and hasattr(ui, "_ctx"):
-                parent_ctx = ui._ctx
-                if parent_ctx is not None and hasattr(parent_ctx, "xcom"):
-                    if "yolo" in parent_ctx.xcom:
-                        return parent_ctx.xcom["yolo"].get(False)
+            if ui is not None and hasattr(ui, "yolo"):
+                return bool(ui.yolo)
         except Exception:
             pass
         return False

@@ -496,3 +496,97 @@ def test_search_files_files_only_summary(tmp_path):
     result = search_files("target", path=str(tmp_path), files_only=True)
     assert "Found" in result.get("summary", "")
     assert "2 files" in result.get("summary", "")
+
+
+# --- search_files Python fallback and truncation coverage ---
+
+
+class TestSearchFilesFallback:
+    @pytest.fixture
+    def temp_search_dir(self, tmp_path):
+        d = tmp_path / "test_search_fallback"
+        d.mkdir()
+        (d / "file1.txt").write_text(
+            "hello world\nline 2\nline 3\nline 4\nline 5\nline 6"
+        )
+        (d / "file2.py").write_text("print('hello')\n# comment")
+        return str(d)
+
+    def test_search_files_python_fallback(self, temp_search_dir):
+        from unittest.mock import patch
+
+        # Mock shutil.which to pretend 'rg' is not installed
+        with patch("shutil.which", return_value=None):
+            result = search_files("hello", path=temp_search_dir)
+
+            assert "Found 2 matches in 2 files" in result["summary"]
+            assert len(result["results"]) == 2
+            # Check if it actually used the Python fallback
+            assert "(searched" in result["summary"]
+
+    def test_search_files_python_fallback_files_only(self, temp_search_dir):
+        from unittest.mock import patch
+
+        with patch("shutil.which", return_value=None):
+            result = search_files("hello", path=temp_search_dir, files_only=True)
+
+            assert "files" in result
+            assert len(result["files"]) == 2
+
+    def test_search_files_python_fallback_no_match(self, temp_search_dir):
+        from unittest.mock import patch
+
+        with patch("shutil.which", return_value=None):
+            result = search_files("nonexistent_pattern_xyz", path=temp_search_dir)
+            assert "No matches found" in result["summary"]
+
+    def test_search_files_python_fallback_timeout(self, temp_search_dir):
+        import time
+        from unittest.mock import patch
+
+        with patch("shutil.which", return_value=None), patch(
+            "time.time", side_effect=[0, 100]
+        ):  # Fake immediate timeout
+            result = search_files("hello", path=temp_search_dir, timeout=0.1)
+            assert "warning" in result
+            assert "timed out" in result["warning"]
+
+
+class TestFileSearchTruncation:
+    def test_get_file_matches_truncation(self, tmp_path):
+        # We need to import the internal helper, but @AGENTS.md says Public API Only.
+        # We will test via search_files instead.
+        file_path = tmp_path / "large_file.txt"
+        file_path.write_text("\n".join([f"match {i}" for i in range(100)]))
+
+        from unittest.mock import patch
+
+        with patch("zrb.llm.tool.file_search.CFG") as mock_cfg, patch(
+            "shutil.which", return_value=None
+        ):
+            mock_cfg.LLM_FILE_READ_LINES = 20
+
+            result = search_files("match", path=str(tmp_path))
+            # The result for this one file should have truncation marker
+            assert any(
+                "TRUNCATED" in m["line_content"]
+                for r in result["results"]
+                for m in r["matches"]
+            )
+
+    def test_search_files_python_fallback_truncation(self, tmp_path):
+        from unittest.mock import patch
+
+        with patch("shutil.which", return_value=None), patch(
+            "zrb.llm.tool.file_search.CFG"
+        ) as mock_cfg:
+
+            # Create many matching files
+            for i in range(20):
+                (tmp_path / f"match_{i}.txt").write_text("needle")
+
+            mock_cfg.LLM_FILE_READ_LINES = 20  # preserved_head = 5, preserved_tail = 5
+
+            result = search_files("needle", path=str(tmp_path), auto_truncate=True)
+            assert "truncation_notice" in result
+            assert "TRUNCATED" in result["truncation_notice"]

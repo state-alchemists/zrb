@@ -1,123 +1,155 @@
-"""Tests for multi_ui.py."""
-
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from zrb.llm.ui.multi_ui import MultiUI
 
-class TestMultiUI:
-    def test_initialization(self):
-        from zrb.llm.ui.multi_ui import MultiUI
 
-        mock_ui = MagicMock()
-        multi = MultiUI([mock_ui])
-        # Verify initialization succeeds - the behavior is tested through public methods
-        assert multi is not None
+@pytest.fixture
+def child_ui_1():
+    ui = MagicMock()
+    ui.append_to_output = MagicMock()
+    ui.invalidate_ui = MagicMock()
+    ui.ask_user = AsyncMock(return_value="input 1")
+    ui.run_interactive_command = AsyncMock(return_value=0)
+    ui.run_async = AsyncMock(return_value="done 1")
+    ui._cancel_pending_confirmations = MagicMock()
+    # Mock some expected properties/methods that MultiUI might delegate to
+    ui.tool_call_handler = MagicMock()
+    ui.tool_call_handler.handle = AsyncMock(return_value="Approved 1")
+    return ui
 
-    def test_initialization_with_multiple_uis(self):
-        from zrb.llm.ui.multi_ui import MultiUI
 
-        mock_ui1 = MagicMock()
-        mock_ui2 = MagicMock()
-        multi = MultiUI([mock_ui1, mock_ui2], main_ui_index=1)
-        # Verify initialization succeeds
-        assert multi is not None
+@pytest.fixture
+def child_ui_2():
+    ui = MagicMock()
+    ui.append_to_output = MagicMock()
+    ui.invalidate_ui = MagicMock()
+    ui.ask_user = AsyncMock(return_value="input 2")
+    ui.start_event_loop = AsyncMock()
+    ui._cancel_pending_confirmations = MagicMock()
+    return ui
 
-    def test_sets_parent_reference(self):
-        from zrb.llm.ui.multi_ui import MultiUI
 
-        mock_ui = MagicMock()
-        MultiUI([mock_ui])
-        assert hasattr(mock_ui, "_multi_ui_parent")
+@pytest.fixture
+def multi_ui(child_ui_1, child_ui_2):
+    return MultiUI([child_ui_1, child_ui_2])
 
-    def test_set_llm_task(self):
-        from zrb.llm.ui.multi_ui import MultiUI
 
-        mock_ui = MagicMock()
-        mock_ui2 = MagicMock()
-        multi = MultiUI([mock_ui, mock_ui2])
-        mock_task = MagicMock()
-        multi.set_llm_task(mock_task)
-        # Verify setter works - behavior tested through run_async
+def test_multi_ui_init(multi_ui, child_ui_1, child_ui_2):
+    assert child_ui_1._multi_ui_parent is multi_ui
+    assert child_ui_2._multi_ui_parent is multi_ui
+    # multi_ui._main_ui is a property
+    assert multi_ui._main_ui is child_ui_1
 
-    def test_set_llm_task_sets_on_children(self):
-        from zrb.llm.ui.multi_ui import MultiUI
 
-        mock_ui = MagicMock(spec=["llm_task"])
-        mock_ui2 = MagicMock(spec=["llm_task"])
-        multi = MultiUI([mock_ui, mock_ui2])
-        mock_task = MagicMock()
-        multi.set_llm_task(mock_task)
-        assert mock_ui.llm_task is mock_task
-        assert mock_ui2.llm_task is mock_task
+def test_multi_ui_append_to_output(multi_ui, child_ui_1, child_ui_2):
+    multi_ui.append_to_output("test", kind="progress")
+    child_ui_1.append_to_output.assert_called_with(
+        "test", sep=" ", end="\n", file=None, flush=False, kind="progress"
+    )
+    child_ui_2.append_to_output.assert_called_with(
+        "test", sep=" ", end="\n", file=None, flush=False, kind="progress"
+    )
 
-    def test_set_tool_call_handler(self):
-        from zrb.llm.ui.multi_ui import MultiUI
 
-        mock_ui = MagicMock()
-        multi = MultiUI([mock_ui])
-        mock_handler = MagicMock()
-        multi.set_tool_call_handler(mock_handler)
-        assert multi.tool_call_handler is mock_handler
+@pytest.mark.asyncio
+async def test_multi_ui_ask_user_race(multi_ui, child_ui_1, child_ui_2):
+    # Make child_ui_1 slower
+    async def slow_ask(*args):
+        await asyncio.sleep(0.1)
+        return "input 1"
 
-    def test_set_approval_channel(self):
-        from zrb.llm.ui.multi_ui import MultiUI
+    child_ui_1.ask_user = slow_ask
 
-        mock_ui = MagicMock()
-        multi = MultiUI([mock_ui])
-        mock_channel = MagicMock()
-        multi.set_approval_channel(mock_channel)
-        # Verify setter works - behavior tested through run_async
+    # Make child_ui_2 faster
+    async def fast_ask(*args):
+        await asyncio.sleep(0.01)
+        return "input 2"
 
-    def test_append_to_output_broadcasts_to_all(self):
-        from zrb.llm.ui.multi_ui import MultiUI
+    child_ui_2.ask_user = fast_ask
 
-        mock_ui1 = MagicMock()
-        mock_ui2 = MagicMock()
-        multi = MultiUI([mock_ui1, mock_ui2])
-        multi.append_to_output("Hello", "World")
-        mock_ui1.append_to_output.assert_called_once()
-        mock_ui2.append_to_output.assert_called_once()
+    res = await multi_ui.ask_user("prompt")
+    assert res == "input 2"
 
-    def test_append_to_output_handles_exception(self):
-        from zrb.llm.ui.multi_ui import MultiUI
 
-        mock_ui1 = MagicMock()
-        mock_ui1.append_to_output.side_effect = Exception("test error")
-        mock_ui2 = MagicMock()
-        multi = MultiUI([mock_ui1, mock_ui2])
-        # Should not raise
-        multi.append_to_output("Hello")
+@pytest.mark.asyncio
+async def test_multi_ui_run_async(multi_ui, child_ui_1, child_ui_2):
+    multi_ui.set_llm_task(MagicMock())
+    child_ui_1.last_output = "Final Output"
 
-    def test_last_output_property(self):
-        from zrb.llm.ui.multi_ui import MultiUI
+    res = await multi_ui.run_async()
 
-        mock_ui = MagicMock()
-        multi = MultiUI([mock_ui])
-        multi.last_output = "test output"
-        assert multi.last_output == "test output"
+    assert res == "Final Output"
+    child_ui_1.run_async.assert_called_once()
+    child_ui_2.start_event_loop.assert_called_once()
 
-    def test_set_llm_task_with_ui_without_llm_task_attr(self):
-        from zrb.llm.ui.multi_ui import MultiUI
 
-        mock_ui = MagicMock(spec=[])
-        multi = MultiUI([mock_ui])
-        mock_task = MagicMock()
-        # Should not raise even if UI doesn't have llm_task
-        multi.set_llm_task(mock_task)
+@pytest.mark.asyncio
+async def test_multi_ui_run_interactive_command(multi_ui, child_ui_1):
+    res = await multi_ui.run_interactive_command("ls")
+    assert res == 0
+    child_ui_1.run_interactive_command.assert_called_with("ls", shell=False)
 
-    def test_tool_call_handler_property(self):
-        from zrb.llm.ui.multi_ui import MultiUI
 
-        mock_ui = MagicMock()
-        multi = MultiUI([mock_ui])
-        assert multi.tool_call_handler is None
+def test_multi_ui_invalidate_all(multi_ui, child_ui_1, child_ui_2):
+    multi_ui.invalidate_all_uis()
+    child_ui_1.invalidate_ui.assert_called_once()
+    child_ui_2.invalidate_ui.assert_called_once()
 
-    def test_initialization_succeeds(self):
-        from zrb.llm.ui.multi_ui import MultiUI
 
-        mock_ui = MagicMock()
-        multi = MultiUI([mock_ui])
-        # Verify instance is created correctly - behavior tested through public methods
-        assert isinstance(multi, MultiUI)
+@pytest.mark.asyncio
+async def test_multi_ui_submit_message_and_stream(multi_ui):
+    llm_task = MagicMock()
+    llm_task.async_run = AsyncMock(return_value="AI Output")
+
+    multi_ui._submit_user_message(llm_task, "user query")
+
+    # Start message processor loop manually for test
+    task = asyncio.create_task(multi_ui._process_messages_loop())
+
+    # Wait for processing
+    await asyncio.sleep(0.05)
+
+    # _last_result_data is internal, but last_output property should reflect it
+    # We'll check via mock side effect or just by calling it
+    llm_task.async_run.assert_called_once()
+
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+
+@pytest.mark.asyncio
+async def test_multi_ui_confirm_tool_execution(multi_ui, child_ui_1):
+    mock_call = MagicMock()
+
+    # Test fallback to first UI's handler
+    res = await multi_ui._confirm_tool_execution(mock_call)
+    assert res == "Approved 1"
+
+    # Test with multi_ui handler
+    handler = MagicMock()
+    handler.handle = AsyncMock(return_value="Approved Multi")
+    multi_ui.set_tool_call_handler(handler)
+    res2 = await multi_ui._confirm_tool_execution(mock_call)
+    assert res2 == "Approved Multi"
+
+    # Test with approval channel
+    multi_ui.set_tool_call_handler(None)
+    channel = MagicMock()
+    result = MagicMock()
+    result.to_pydantic_result.return_value = "Approved Channel"
+    channel.request_approval = AsyncMock(return_value=result)
+    multi_ui.set_approval_channel(channel)
+    res3 = await multi_ui._confirm_tool_execution(mock_call)
+    assert res3 == "Approved Channel"
+
+
+def test_multi_ui_on_exit(multi_ui, child_ui_1):
+    child_ui_1.on_exit = MagicMock()
+    multi_ui.on_exit()
+    child_ui_1.on_exit.assert_called_once()

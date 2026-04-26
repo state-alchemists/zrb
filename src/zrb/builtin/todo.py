@@ -217,7 +217,7 @@ def archive_todo(ctx: AnyContext):
         return get_visual_todo_list(todo_list, filter=ctx.input.filter)
     archive_file_path = os.path.join(CFG.TODO_DIR, "archive.txt")
     if not os.path.isdir(CFG.TODO_DIR):
-        os.make_dirs(CFG.TODO_DIR, exist_ok=True)
+        os.makedirs(CFG.TODO_DIR, exist_ok=True)
     # Get archived todo list
     archived_todo_list = []
     if os.path.isfile(archive_file_path):

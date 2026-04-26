@@ -256,3 +256,58 @@ def test_both_flags_false_only_custom_models(mock_history_manager, complete_even
     # They all have prefixes like "openai:", "anthropic:", etc.
     for completion in completion_texts:
         assert ":" not in completion or completion in ["model-a", "model-b"]
+
+
+class TestCaches:
+    """Test cache-bearing IO helpers used by InputCompleter."""
+
+    def test_load_cmd_history_zsh_format(self, tmp_path):
+        from zrb.llm.app.completion.caches import load_cmd_history
+
+        zsh_hist = tmp_path / ".zsh_history"
+        zsh_hist.write_text(": 1612345678:0;ls -la\n: 1612345679:0;echo 'hello'")
+
+        with patch("os.path.expanduser", return_value=str(zsh_hist)):
+            history = load_cmd_history()
+            assert "ls -la" in history
+            assert "echo 'hello'" in history
+
+    def test_load_cmd_history_exception(self):
+        from zrb.llm.app.completion.caches import load_cmd_history
+
+        with patch("os.path.exists", return_value=True), patch(
+            "builtins.open", side_effect=Exception("Read error")
+        ):
+            history = load_cmd_history()
+            assert history == []
+
+    def test_load_ollama_models_exception(self):
+        import subprocess
+
+        from zrb.llm.app.completion.caches import load_ollama_models
+
+        cache = {}
+        with patch("subprocess.run", side_effect=subprocess.SubprocessError("Failed")):
+            models = load_ollama_models(cache)
+            assert models == []
+
+    def test_walk_recursive_files_limit_dirs(self, tmp_path):
+        from zrb.llm.app.completion.caches import walk_recursive_files
+
+        d = tmp_path / "test_dir"
+        d.mkdir()
+        (d / "dir1").mkdir()
+        (d / "dir2").mkdir()
+
+        cache = {}
+        # Limit to 1 should return early
+        files = walk_recursive_files(str(d), 1, cache)
+        assert len(files) == 1
+
+    def test_walk_recursive_files_exception(self, tmp_path):
+        from zrb.llm.app.completion.caches import walk_recursive_files
+
+        cache = {}
+        with patch("os.walk", side_effect=Exception("Walk error")):
+            files = walk_recursive_files(str(tmp_path), 10, cache)
+            assert files == []
