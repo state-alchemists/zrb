@@ -28,15 +28,43 @@
   - `src/zrb/__init__.py` reorganized with section comments grouping imports by concern.
   - `Config` class now explicitly exported.
 
+- **Improvement: Public Properties on `LLMChatTask`**:
+  - Added public `history_manager`, `ui_factories`, `approval_channels`, and `include_default_ui` properties with setters.
+  - `chat_session_runner.py` now accesses these through the public API instead of private attributes.
+
+- **Improvement: Public API on `DefaultUI` Mixins**:
+  - `ConfirmationMixin`: new `submit_user_answer()` and `cancel_pending_confirmations()` methods.
+  - `LifecycleMixin`: extracted `cleanup_background_tasks()` and `handle_first_render()` as public methods.
+  - `OutputMixin`: new `output_text` and `output_field_width` properties.
+
+- **Improvement: Public API on `ChatSessionManager`**:
+  - Added `history_manager` property, `set_history_manager()`, `has_session()`, and `sessions` property.
+
+- **Improvement: Public `handle_incoming_message()` on `HttpUI`**:
+  - Exposed `handle_incoming_message()` as a public method instead of direct `_input_queue` access.
+
 - **Bug Fix: Nil Tool Call Response**:
   - Fixed `_filter_nil_content()` in `run_agent.py` for providers (e.g., DeepSeek via Cloudflare) that reject `null` content when the response contains only tool calls.
   - Empty `TextPart("")` is now inserted before tool call parts to satisfy API contract.
   - Refined `_is_invalid_tool_call_error()`: removed overly broad "invalid" keyword to reduce false positives.
 
+- **Bug Fix: `os.makedirs` Typo in `todo.py`**:
+  - Fixed `os.make_dirs` → `os.makedirs` in `archive_todo`; the archive directory was never created, causing a `FileNotFoundError`.
+
+- **Bug Fix: RAG Hash File Error Handling**:
+  - `_load_hash_file()` now catches and logs exceptions instead of propagating them, preventing crashes when the hash file is corrupted or unreadable.
+
+- **Bug Fix: YOLO Inheritance Check Simplified**:
+  - `make_yolo_inheritance_checker()` now reads `ui.yolo` directly instead of reaching into `ui._ctx.xcom["yolo"]`, removing the fragile private-attribute access.
+
+- **Bug Fix: Mutable Default Arguments in `get_group_subcommands()`**:
+  - Fixed `previous_path=[]` and `subcommands=[]` mutable defaults in `src/zrb/util/cli/subcommand.py`; replaced with `None` and proper initialization guards.
+
 - **Tests: Coverage Expansion**:
   - New `test/test_contextvars_index.py`: verifies the context vars index imports correctly.
   - New `test/llm/agent/test_runtime_state.py`: tests for agent runtime state management.
   - New `test/llm/tool/test_ambient_state.py`: tests for tool-scoped ambient state.
+  - Extensive new tests for agent run submodules (`deferred_calls`, `error_classifier`, `openai_patch`, `retry_loop`, `runner`), subagent manager, UI mixins, chat session runner, HTTP UI, web routes, LSP server, RAG tool, code tool, file tool, and CLI utilities.
 
 ## 2.22.6 (April 25, 2026)
 
