@@ -4,7 +4,9 @@ from typing import Any, TextIO
 
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.agent.run.runtime_state import get_current_ui
-from zrb.llm.agent.subagent.manager import SubAgentManager
+from zrb.llm.agent.subagent.manager import (
+    SubAgentManager,
+)
 from zrb.llm.agent.subagent.manager import (
     sub_agent_manager as default_sub_agent_manager,
 )

@@ -13,6 +13,7 @@ This guide is for developers who contribute to or maintain the Zrb project itsel
 - [Profiling Zrb](#profiling-zrb)
 - [Testing Strategies](#testing-strategies)
 - [Evaluating the LLM Agent](#evaluating-and-improving-the-llm-agent)
+- [Architecture & Philosophy](#architecture--philosophy)
 - [Context Propagation Internals](#context-propagation-internals)
 - [Quick Reference](#quick-reference)
 
@@ -123,6 +124,12 @@ python runner.py --timeout 3600 --parallelism 12 --verbose --models <model-list>
 |--------|----------|
 | Prompts | `src/zrb/llm/prompt/markdown/` |
 | Tools | `src/zrb/llm/tool/` |
+
+---
+
+## Architecture & Philosophy
+
+To understand Zrb's core design decisions (such as the strict use of `asyncio`, the `Any*` decoupled interface pattern, and the underlying data flow), please read the dedicated **[Architecture, Philosophy, & Conventions](./architecture.md)** document.
 
 ---
 
