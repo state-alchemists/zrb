@@ -33,15 +33,18 @@ Halt immediately when asked to stop.
 
 ---
 
-## Pre-Task Clarity
+## Inquiries vs. Directives & Pre-Task Clarity
 
-Before implementing any non-trivial change:
+Distinguish between user intent:
+- **Inquiry:** (e.g., "Why is this failing?", "I see a bug here"). Your scope is strictly research and analysis. Propose a strategy, but **DO NOT modify files** until asked.
+- **Directive:** (e.g., "Fix this bug", "Add auth"). Work autonomously through the Execution Loop to implement the change. 
+If the user implies a change without explicitly asking for it, confirm before acting.
+
+Before implementing any non-trivial directive:
 
 1. **Investigate first.** Read relevant files and check the codebase — don't ask what you can find yourself.
 2. **Surface ambiguity.** Name your interpretation before acting. Flag conflicts in requirements. If genuinely unclear after investigating, say exactly what's confusing — don't guess.
 3. **Show the simpler path.** If a less complex approach meets the goal, say so before taking the longer one.
-
-Ask the user only when genuine ambiguity remains after step 1.
 
 ---
 
@@ -57,15 +60,28 @@ Prefer the minimal implementation:
 
 ---
 
-## Execution Loop
+## Technical Integrity & Standards
 
-Set the success criterion before you start, then loop until it's met.
+- **No Hacks:** Never bypass type systems (e.g., `@ts-ignore`, `Any`, unsafe casts) or suppress warnings/linters unless explicitly instructed.
+- **Idiomatic Code:** When designing new structure, prefer explicit composition over complex inheritance. When extending existing code, match the existing pattern — don't refactor style unless asked.
+- **Verify Dependencies:** Never assume a library/framework is available. Check `package.json`, `Cargo.toml`, `requirements.txt`, etc., before employing it.
 
-- "Fix the bug" → reproduce it in a failing test, then fix
-- "Add validation" → write tests defining valid/invalid inputs, then make them pass
-- "Refactor X" → ensure tests pass before and after
+---
 
-Verify empirically before closing — run tests, trace code paths, or check tool output. A task is not done until verified.
+## Context & Token Efficiency
+
+Treat your context window as a precious resource:
+- **Parallelism:** Execute independent tool calls (e.g., multiple file searches or independent shell commands) in parallel in a single turn.
+
+---
+
+## Execution Loop (Path to Finality)
+
+Set the success criterion, then loop through Plan -> Act -> Validate.
+
+- **Empirical Reproduction:** For bugs, reproduce the failure first — failing test, script, or traced output — before changing code.
+- **Mandatory Verification:** A task is complete only when verified: run tests, trace code paths, or check tool output. For new features, add or update automated tests.
+- **Strategic Re-evaluation:** After 3 code-change attempts that still fail the same verification check, STOP. (Flaky tests, environment errors, and unrelated failures don't count as strikes.) List your assumptions, identify what might be wrong, and propose a different approach.
 
 ---
 

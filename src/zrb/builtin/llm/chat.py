@@ -6,6 +6,7 @@ from zrb.builtin.llm.chat_tool_policy import (
 from zrb.config.config import CFG
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
+from zrb.llm.agent.subagent.manager import sub_agent_manager
 from zrb.llm.custom_command import get_skill_custom_command
 from zrb.llm.hook.journal import create_journaling_hook_factory
 from zrb.llm.lsp.tools import create_lsp_tools
@@ -156,10 +157,9 @@ llm_chat.add_tool_guidance_factory(
     lambda ctx: ToolGuidance(
         group_name="Delegation",
         tool_name="DelegateToAgent",
-        when_to_use="A sub-task needs isolated context, produces heavy output, or requires independent verification. "
-        "Do it yourself for single lookups, one-file edits, quick commands, or when the needed context is already loaded. "
-        "Use DelegateToAgentsParallel instead when two or more such sub-tasks are independent of each other.",
-        key_rule="Always give the sub-agent full context — it cannot see your conversation history.",
+        when_to_use="Batch repetitive tasks (>3 files), high-volume outputs (builds/verbose logs), or speculative 'trial and error' research. "
+        "Do it yourself for single lookups, one-file edits, quick commands, or when the needed context is already loaded.",
+        key_rule="Keep your main session history lean. Delegate heavy lifting. Always give the sub-agent full context — it cannot see your conversation history.",
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",
@@ -229,9 +229,10 @@ llm_chat.add_custom_command(get_skill_custom_command(skill_manager))
 # ── Tool guidance ─────────────────────────────────────────────────────────────
 # When to use a tool + non-obvious gotchas. Docstrings cover what tools do.
 # Only include guidance that helps make better tool choices or prevents real mistakes.
+# Registered on both llm_chat (main agent) and sub_agent_manager (sub-agents).
 
-# File Operations
-llm_chat.add_tool_guidance(
+_static_tool_guidance = [
+    # File Operations
     ToolGuidance(
         group_name="File Operations",
         tool_name="LS",
@@ -275,10 +276,7 @@ llm_chat.add_tool_guidance(
         "Use case_sensitive=False for case-insensitive search. "
         "Use context_lines=0 to suppress surrounding lines.",
     ),
-)
-
-# Execution
-llm_chat.add_tool_guidance(
+    # Execution
     ToolGuidance(
         group_name="Execution",
         tool_name="Bash",
@@ -291,10 +289,7 @@ llm_chat.add_tool_guidance(
         "Use cwd= when operating inside a worktree or a different project directory. "
         "Prefer CLI tools listed in System Context hints over their slower alternatives.",
     ),
-)
-
-# Analysis — LLM sub-agents, expensive
-llm_chat.add_tool_guidance(
+    # Analysis — LLM sub-agents, expensive
     ToolGuidance(
         group_name="Analysis",
         tool_name="AnalyzeCode",
@@ -307,10 +302,7 @@ llm_chat.add_tool_guidance(
         when_to_use="Deep semantic understanding of a complex single file",
         key_rule="SLOW. Use Read for content retrieval. For directory-level analysis, use AnalyzeCode.",
     ),
-)
-
-# Research
-llm_chat.add_tool_guidance(
+    # Research & Web
     ToolGuidance(
         group_name="Research & Web",
         tool_name="SearchInternet",
@@ -324,10 +316,7 @@ llm_chat.add_tool_guidance(
         when_to_use="Fetching content from a known URL",
         key_rule="For searching by query, use SearchInternet first to find URLs.",
     ),
-)
-
-# Planning — persistent across sessions
-llm_chat.add_tool_guidance(
+    # Planning — persistent across sessions
     ToolGuidance(
         group_name="Planning",
         tool_name="WriteTodos",
@@ -349,10 +338,7 @@ llm_chat.add_tool_guidance(
         tool_name="ClearTodos",
         when_to_use="Discarding a completed or abandoned plan before starting a new one",
     ),
-)
-
-# Git Worktrees
-llm_chat.add_tool_guidance(
+    # Git Worktrees
     ToolGuidance(
         group_name="Git Worktrees",
         tool_name="ListWorktrees",
@@ -370,10 +356,7 @@ llm_chat.add_tool_guidance(
         when_to_use="Finishing work in a worktree — always clean up",
         key_rule="Use keep_branch=True if you plan to merge later.",
     ),
-)
-
-# LSP
-llm_chat.add_tool_guidance(
+    # LSP
     ToolGuidance(
         group_name="LSP",
         tool_name="LspListServers",
@@ -396,7 +379,9 @@ llm_chat.add_tool_guidance(
         when_to_use="Renaming a symbol safely across the codebase",
         key_rule="Use dry_run=True first. Apply only after user approval.",
     ),
-)
+]
+llm_chat.add_tool_guidance(*_static_tool_guidance)
+sub_agent_manager.add_tool_guidance(*_static_tool_guidance)
 
 # Add hook factories
 # Journaling hook will check CFG.LLM_INCLUDE_JOURNAL at execution time
