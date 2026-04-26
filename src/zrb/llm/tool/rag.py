@@ -241,8 +241,13 @@ def _compute_file_hash(file_path: str) -> str:
 
 def _load_hashes(file_path: str) -> dict:
     if os.path.exists(file_path):
-        with open(file_path, "r", encoding="utf-8") as f:
-            return json.load(f)
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            from zrb.config.config import CFG
+
+            CFG.LOGGER.error(f"Error loading hash file {file_path}: {e}")
     return {}
 
 

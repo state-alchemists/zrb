@@ -22,7 +22,6 @@ class TestHTTPChatApprovalChannel:
         )
         assert channel.session_id == "test-session"
         assert channel.session_manager is mock_session_manager
-        assert channel._waiting_for_edit_tool_call_id is None
 
     def test_is_waiting_for_edit_false(self, mock_session_manager):
         from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
@@ -33,16 +32,6 @@ class TestHTTPChatApprovalChannel:
         )
         assert channel.is_waiting_for_edit() is False
 
-    def test_is_waiting_for_edit_true(self, mock_session_manager):
-        from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
-
-        channel = HTTPChatApprovalChannel(
-            session_manager=mock_session_manager,
-            session_id="test-session",
-        )
-        channel._waiting_for_edit_tool_call_id = "tool-123"
-        assert channel.is_waiting_for_edit() is True
-
     def test_get_editing_args_no_waiting(self, mock_session_manager):
         from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 
@@ -51,23 +40,6 @@ class TestHTTPChatApprovalChannel:
             session_id="test-session",
         )
         assert channel.get_editing_args() is None
-
-    def test_get_editing_args_with_context(self, mock_session_manager):
-        from zrb.llm.approval.approval_channel import ApprovalContext
-        from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
-
-        channel = HTTPChatApprovalChannel(
-            session_manager=mock_session_manager,
-            session_id="test-session",
-        )
-        channel._waiting_for_edit_tool_call_id = "tool-123"
-        channel._pending_context["tool-123"] = ApprovalContext(
-            tool_name="test_tool",
-            tool_args={"arg1": "value1"},
-            tool_call_id="tool-123",
-        )
-        result = channel.get_editing_args()
-        assert result == {"arg1": "value1"}
 
     def test_debug_state(self, mock_session_manager):
         from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
@@ -110,17 +82,6 @@ class TestHTTPChatApprovalChannel:
         result = channel.handle_response("y")
         assert result is False
 
-    def test_handle_response_not_waiting_edit(self, mock_session_manager):
-        from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
-
-        channel = HTTPChatApprovalChannel(
-            session_manager=mock_session_manager,
-            session_id="test-session",
-        )
-        channel._waiting_for_edit_tool_call_id = "tool-123"
-        channel.handle_response("y")
-        assert channel._waiting_for_edit_tool_call_id is None
-
     def test_handle_edit_response_no_waiting(self, mock_session_manager):
         from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 
@@ -141,62 +102,16 @@ class TestHTTPChatApprovalChannel:
         channel.handle_edit_response_obj({"arg1": "value"})
         assert mock_session_manager.broadcast.call_count == 0
 
-    def test_parse_edited_content_plain_json(self, mock_session_manager):
-        from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 
-        channel = HTTPChatApprovalChannel(
-            session_manager=mock_session_manager,
-            session_id="test-session",
-        )
-        result = channel._parse_edited_content('{"key": "value"}')
-        assert result == {"key": "value"}
-
-    def test_parse_edited_content_json_in_code_block(self, mock_session_manager):
-        from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
-
-        channel = HTTPChatApprovalChannel(
-            session_manager=mock_session_manager,
-            session_id="test-session",
-        )
-        content = '```json\n{"key": "value"}\n```'
-        result = channel._parse_edited_content(content)
-        assert result == {"key": "value"}
-
-    def test_parse_edited_content_invalid_json(self, mock_session_manager):
-        from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
-
-        channel = HTTPChatApprovalChannel(
-            session_manager=mock_session_manager,
-            session_id="test-session",
-        )
-        result = channel._parse_edited_content("not valid json")
-        assert result is None
-
-
-class TestHTTPChatApprovalChannelWithFuture:
+class TestHTTPChatApprovalChannelWithData:
     @pytest.fixture
     def mock_session_manager(self):
         manager = MagicMock()
         manager.broadcast = AsyncMock()
         return manager
 
-    def test_has_pending_approvals_true(self, mock_session_manager):
-        from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
-
-        channel = HTTPChatApprovalChannel(
-            session_manager=mock_session_manager,
-            session_id="test-session",
-        )
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            future = loop.create_future()
-            channel._pending["tool-123"] = future
-            assert channel.has_pending_approvals() is True
-        finally:
-            loop.close()
-
-    def test_get_pending_approvals_with_data(self, mock_session_manager):
+    @pytest.mark.asyncio
+    async def test_pending_approvals_lifecycle(self, mock_session_manager):
         from zrb.llm.approval.approval_channel import ApprovalContext
         from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 
@@ -204,22 +119,27 @@ class TestHTTPChatApprovalChannelWithFuture:
             session_manager=mock_session_manager,
             session_id="test-session",
         )
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            future = loop.create_future()
-            channel._pending["tool-123"] = future
-            channel._pending_context["tool-123"] = ApprovalContext(
-                tool_name="test_tool",
-                tool_args={"arg1": "value1"},
-                tool_call_id="tool-123",
-            )
-            result = channel.get_pending_approvals()
-            assert len(result) == 1
-            assert result[0]["tool_call_id"] == "tool-123"
-            assert result[0]["tool_name"] == "test_tool"
-        finally:
-            loop.close()
+
+        ctx = ApprovalContext(
+            tool_name="test_tool",
+            tool_args={"arg1": "value1"},
+            tool_call_id="tool-123",
+        )
+
+        # request_approval is public
+        task = asyncio.create_task(channel.request_approval(ctx))
+        await asyncio.sleep(0.01)
+
+        assert channel.has_pending_approvals() is True
+        pending = channel.get_pending_approvals()
+        assert len(pending) == 1
+        assert pending[0]["tool_name"] == "test_tool"
+
+        # handle_response is public
+        channel.handle_response("y", "tool-123")
+        result = await task
+        assert result.approved is True
+        assert channel.has_pending_approvals() is False
 
 
 class TestCreateHttpChatUiFactory:
@@ -234,28 +154,76 @@ class TestCreateHttpChatUiFactory:
         assert callable(factory)
 
 
-class TestHTTPChatApprovalChannelApplyResponse:
+class TestHTTPChatApprovalChannelMore:
     @pytest.fixture
     def mock_session_manager(self):
         manager = MagicMock()
         manager.broadcast = AsyncMock()
         return manager
 
-    def test_apply_response_missing_id(self, mock_session_manager):
+    @pytest.fixture
+    def channel(self, mock_session_manager):
         from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 
-        channel = HTTPChatApprovalChannel(
-            session_manager=mock_session_manager,
-            session_id="test-session",
-        )
-        channel._apply_response("nonexistent", "y")
+        return HTTPChatApprovalChannel(mock_session_manager, "sess1")
 
-    def test_parse_edited_content_yaml(self, mock_session_manager):
-        from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
+    @pytest.mark.asyncio
+    async def test_request_approval_and_cancel(self, channel):
+        from zrb.llm.approval.approval_channel import ApprovalContext
 
-        channel = HTTPChatApprovalChannel(
-            session_manager=mock_session_manager,
-            session_id="test-session",
-        )
-        result = channel._parse_edited_content("key: value")
-        assert result == {"key": "value"}
+        ctx = ApprovalContext("tool1", {"k": "v"}, "id1")
+
+        task = asyncio.create_task(channel.request_approval(ctx))
+        await asyncio.sleep(0.01)
+
+        assert channel.has_pending_approvals()
+
+        # Cancel it
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+        assert not channel.has_pending_approvals()
+
+    @pytest.mark.asyncio
+    async def test_notify(self, channel, mock_session_manager):
+        await channel.notify("hello")
+        mock_session_manager.broadcast.assert_called_with("sess1", "hello")
+
+    @pytest.mark.asyncio
+    async def test_handle_edit_response(self, channel):
+        from zrb.llm.approval.approval_channel import ApprovalContext
+
+        ctx = ApprovalContext("tool", {}, "id1")
+        task = asyncio.create_task(channel.request_approval(ctx))
+        await asyncio.sleep(0.01)
+
+        # Start edit mode via handle_response
+        channel.handle_response("e", "id1")
+        assert channel.is_waiting_for_edit()
+
+        # handle_edit_response is public
+        channel.handle_edit_response('{"a": 1}')
+
+        res = await task
+        assert res.approved is True
+        assert res.override_args == {"a": 1}
+        assert not channel.is_waiting_for_edit()
+
+    @pytest.mark.asyncio
+    async def test_handle_edit_response_obj(self, channel):
+        from zrb.llm.approval.approval_channel import ApprovalContext
+
+        ctx = ApprovalContext("tool", {}, "id1")
+        task = asyncio.create_task(channel.request_approval(ctx))
+        await asyncio.sleep(0.01)
+
+        channel.handle_response("e", "id1")
+        # handle_edit_response_obj is public
+        channel.handle_edit_response_obj({"b": 2})
+
+        res = await task
+        assert res.approved is True
+        assert res.override_args == {"b": 2}

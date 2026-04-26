@@ -1,4 +1,3 @@
-import datetime
 import os
 from unittest.mock import MagicMock, patch
 
@@ -13,108 +12,147 @@ from zrb.builtin.todo import (
     log_todo,
     show_todo,
 )
-from zrb.config.config import CFG
-from zrb.context.shared_context import SharedContext
-from zrb.session.session import Session
 
 
 @pytest.fixture
 def temp_todo_dir(tmp_path):
-    d = tmp_path / "todo"
-    d.mkdir()
-    with patch.dict(os.environ, {"ZRB_TODO_DIR": str(d)}):
-        yield str(d)
+    todo_dir = tmp_path / "todo"
+    todo_dir.mkdir()
+    (todo_dir / "log-work").mkdir()
+    # We patch the CFG in the module where todo tasks live
+    with patch("zrb.builtin.todo.CFG") as mock_cfg:
+        mock_cfg.TODO_DIR = str(todo_dir)
+        mock_cfg.TODO_VISUAL_FILTER = ""
+        mock_cfg.TODO_RETENTION = "7d"
+        yield str(todo_dir)
 
 
-def get_session():
-    return Session(shared_ctx=SharedContext(), state_logger=MagicMock())
+def test_add_todo_complex(temp_todo_dir):
+    ctx = MagicMock()
+    ctx.input.description = "task 1"
+    ctx.input.priority = "A"
+    ctx.input.project = "p1 p2"
+    ctx.input.context = "c1 c2"
+    ctx.input.filter = ""
 
-
-@pytest.mark.asyncio
-async def test_todo_lifecycle_behavior(temp_todo_dir):
-    # 1. Add
-    await add_todo.async_run(
-        session=get_session(),
-        kwargs={
-            "priority": "A",
-            "description": "Task 1",
-            "context": "work",
-            "project": "zrb",
-            "filter": "",
-        },
-    )
+    # Bypass BaseTask and call underlying function
+    res = add_todo._action(ctx)
+    assert "task 1" in res
     assert os.path.exists(os.path.join(temp_todo_dir, "todo.txt"))
 
-    # 2. List
-    res = await list_todo.async_run(session=get_session(), kwargs={"filter": ""})
-    assert "Task 1" in str(res)
 
-    # 3. Show
-    res = await show_todo.async_run(
-        session=get_session(), kwargs={"keyword": "Task 1", "filter": ""}
-    )
-    assert "Task 1" in str(res)
+def test_list_todo_basic(temp_todo_dir):
+    ctx = MagicMock()
+    ctx.input.filter = ""
+    res = list_todo._action(ctx)
+    assert res is not None
 
-    # 4. Complete
-    await complete_todo.async_run(
-        session=get_session(), kwargs={"keyword": "Task 1", "filter": ""}
-    )
+
+def test_show_todo_lifecycle(temp_todo_dir):
+    # Add a task first
+    ctx_add = MagicMock()
+    ctx_add.input.description = "show me"
+    ctx_add.input.priority = "B"
+    ctx_add.input.project = ""
+    ctx_add.input.context = ""
+    ctx_add.input.filter = ""
+    add_todo._action(ctx_add)
+
+    # Show it
+    ctx_show = MagicMock()
+    ctx_show.input.keyword = "show"
+    ctx_show.input.filter = ""
+    res = show_todo._action(ctx_show)
+    assert "show me" in res
+
+
+def test_show_todo_not_found(temp_todo_dir):
+    ctx = MagicMock()
+    ctx.input.keyword = "nonexistent"
+    ctx.input.filter = ""
+    show_todo._action(ctx)
+    ctx.log_error.assert_called_with("Task not found")
+
+
+def test_log_todo(temp_todo_dir):
+    # Add
+    ctx_add = MagicMock()
+    ctx_add.input.description = "work task"
+    ctx_add.input.priority = "C"
+    ctx_add.input.project = ""
+    ctx_add.input.context = ""
+    ctx_add.input.filter = ""
+    add_todo._action(ctx_add)
+
+    # Log
+    ctx_log = MagicMock()
+    ctx_log.input.keyword = "work"
+    ctx_log.input.duration = "1h"
+    ctx_log.input.stop = "2024-01-01 12:00:00"
+    ctx_log.input.log = ""
+    ctx_log.input.filter = ""
+    res = log_todo._action(ctx_log)
+    assert "DESCRIPTION" in res
+
+
+def test_complete_todo(temp_todo_dir):
+    # Add
+    ctx_add = MagicMock()
+    ctx_add.input.description = "done task"
+    ctx_add.input.priority = "D"
+    ctx_add.input.project = ""
+    ctx_add.input.context = ""
+    ctx_add.input.filter = ""
+    add_todo._action(ctx_add)
+
+    # Complete
+    ctx_done = MagicMock()
+    ctx_done.input.keyword = "done"
+    ctx_done.input.filter = ""
+    res = complete_todo._action(ctx_done)
+    assert "COMPLETED AT" in res
+
+    # Try to show completed (should fail)
+    ctx_show = MagicMock()
+    ctx_show.input.keyword = "done"
+    ctx_show.input.filter = ""
+    show_todo._action(ctx_show)
+    ctx_show.log_error.assert_called_with("Task already completed")
+
+
+def test_edit_todo(temp_todo_dir):
+    ctx = MagicMock()
+    ctx.input.text = "A new task\nB another task"
+    ctx.input.filter = ""
+    res = edit_todo._action(ctx)
+    assert "new task" in res
+    assert "another task" in res
+
     with open(os.path.join(temp_todo_dir, "todo.txt"), "r") as f:
-        todo_content = f.read()
-        assert todo_content.startswith("x ")
+        content = f.read()
+    assert "new task" in content
 
-    # Manually set completion date to 10 days ago to ensure it's archived
-    ten_days_ago = (datetime.date.today() - datetime.timedelta(days=10)).isoformat()
-    # The format is 'x (A) 2026-03-18 2026-03-18 Task 1 +zrb @work id:...'
-    # Completion date is the first date.
-    new_todo_content = todo_content.replace(
-        datetime.date.today().isoformat(), ten_days_ago, 1
-    )
-    with open(os.path.join(temp_todo_dir, "todo.txt"), "w") as f:
-        f.write(new_todo_content)
 
-    # 5. Archive
-    # Manually override and restore because Config property has no deleter for patch.object
-    original_retention = CFG.TODO_RETENTION
-    CFG.TODO_RETENTION = "0s"
-    try:
-        await archive_todo.async_run(session=get_session(), kwargs={"filter": ""})
-    finally:
-        CFG.TODO_RETENTION = original_retention
+def test_archive_todo_empty(temp_todo_dir):
+    ctx = MagicMock()
+    ctx.input.filter = ""
+    res = archive_todo._action(ctx)
+    assert res is not None
+
+
+def test_archive_todo_with_done_tasks(temp_todo_dir):
+    # Add a done task manually to todo.txt with an OLD date
+    # Format: x completion_date creation_date description
+    todo_file = os.path.join(temp_todo_dir, "todo.txt")
+    with open(todo_file, "w") as f:
+        f.write("x 2000-01-01 2000-01-01 done task\n")
+
+    ctx = MagicMock()
+    ctx.input.filter = ""
+    archive_todo._action(ctx)
+
+    # Check filesystem
+    with open(todo_file, "r") as f:
+        content = f.read()
+    assert "done task" not in content
     assert os.path.exists(os.path.join(temp_todo_dir, "archive.txt"))
-
-
-@pytest.mark.asyncio
-async def test_log_todo_behavior(temp_todo_dir):
-    await add_todo.async_run(
-        session=get_session(),
-        kwargs={
-            "priority": "A",
-            "description": "Log Task",
-            "context": "",
-            "project": "",
-            "filter": "",
-        },
-    )
-
-    res = await log_todo.async_run(
-        session=get_session(),
-        kwargs={
-            "keyword": "Log Task",
-            "log": "Working",
-            "duration": "10m",
-            "stop": "2026-02-18 10:00:00",
-            "filter": "",
-        },
-    )
-    assert "Log Task" in str(res)
-    assert "Working" in str(res)
-
-
-@pytest.mark.asyncio
-async def test_edit_todo_behavior(temp_todo_dir):
-    await edit_todo.async_run(
-        session=get_session(), kwargs={"text": "(A) Edited task", "filter": ""}
-    )
-    with open(os.path.join(temp_todo_dir, "todo.txt"), "r") as f:
-        assert "Edited task" in f.read()

@@ -41,6 +41,21 @@ class ConfirmationMixin:
                 self._current_confirmation = None
                 self._activate_next_confirmation()
 
+    def submit_user_answer(self, text: str) -> bool:
+        """Resolve the current confirmation prompt with the given answer (public API)."""
+        if self._current_confirmation is not None:
+            self.append_to_output(text + "\n")
+            if not self._current_confirmation.done():
+                self._current_confirmation.set_result(text)
+            self._current_confirmation = None
+            self._activate_next_confirmation()
+            return True
+        return False
+
+    def cancel_pending_confirmations(self):
+        """Cancel pending confirmations so blocked `ask_user` calls release (public API)."""
+        self._cancel_pending_confirmations()
+
     def _activate_next_confirmation(self):
         """Activate the next confirmation in the queue after one completes."""
         from prompt_toolkit.application import get_app

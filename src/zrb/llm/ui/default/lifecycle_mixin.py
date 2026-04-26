@@ -18,6 +18,30 @@ if TYPE_CHECKING:
 class LifecycleMixin:
     """Background-task lifecycle and exit handling for the default UI."""
 
+    async def cleanup_background_tasks(self):
+        """Cancel and clean up all background tasks."""
+        await self._cancel_and_discard(self._process_messages_task)
+
+        while not self._message_queue.empty():
+            try:
+                self._message_queue.get_nowait()
+                self._message_queue.task_done()
+            except asyncio.QueueEmpty:
+                break
+
+        for trigger_task in self._trigger_tasks:
+            await self._cancel_and_discard(trigger_task)
+        self._trigger_tasks.clear()
+
+        await self._cancel_and_discard(self._system_info_task)
+        await self._cancel_and_discard(self._refresh_task)
+
+    def handle_application_run_error(self, exc: Exception):
+        """Handle error during application.run_async (public API)."""
+        import traceback as tb_lib
+
+        self.append_to_output(f"[Error: {exc}]\n{tb_lib.format_exc()}")
+
     async def run_async(self):
         """Run the application and manage triggers."""
         for trigger_fn in self._triggers:
@@ -53,21 +77,7 @@ class LifecycleMixin:
             if buffered_output:
                 print(buffered_output, end="")
 
-            await self._cancel_and_discard(self._process_messages_task)
-
-            while not self._message_queue.empty():
-                try:
-                    self._message_queue.get_nowait()
-                    self._message_queue.task_done()
-                except asyncio.QueueEmpty:
-                    break
-
-            for trigger_task in self._trigger_tasks:
-                await self._cancel_and_discard(trigger_task)
-            self._trigger_tasks.clear()
-
-            await self._cancel_and_discard(self._system_info_task)
-            await self._cancel_and_discard(self._refresh_task)
+            await self.cleanup_background_tasks()
 
     def _track_background(self, task: asyncio.Task | None) -> None:
         """Add a task to `_background_tasks` to prevent premature GC."""
@@ -112,6 +122,10 @@ class LifecycleMixin:
                 buffer.cursor_position = len(buffer.text)
         except Exception:
             pass
+
+    def handle_first_render(self):
+        """Handle the first render event (public API)."""
+        self._on_first_render(self._application)
 
     def _on_first_render(self, app: "Application"):
         """Submit the initial message exactly once on first render."""

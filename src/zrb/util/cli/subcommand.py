@@ -22,7 +22,9 @@ class SubCommand:
 
 
 def get_group_subcommands(
-    group: AnyGroup, previous_path: list[str] = [], subcommands: list[SubCommand] = []
+    group: AnyGroup,
+    previous_path: list[str] | None = None,
+    subcommands: list[SubCommand] | None = None,
 ) -> list[SubCommand]:
     """
     Recursively get all possible subcommands within a group hierarchy.
@@ -35,6 +37,10 @@ def get_group_subcommands(
     Returns:
         list[SubCommand]: A list of all discovered subcommands.
     """
+    if previous_path is None:
+        previous_path = []
+    if subcommands is None:
+        subcommands = []
     nexts = []
     for task_alias in get_subtasks(group):
         nexts.append(task_alias)

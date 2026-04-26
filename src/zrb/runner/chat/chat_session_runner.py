@@ -2,9 +2,9 @@
 
 Swaps the chat task's UI factory and approval-channel list to the HTTP-
 specific ones for the duration of the session and restores them on exit.
-The privately-named attributes accessed here (`_ui_factories`,
-`_approval_channels`, `_history_manager`, `_include_default_ui`) are an
-acknowledged coupling — see AGENTS.md cross-cutting notes.
+The configuration of the shared `LLMChatTask` instance is managed through
+its public properties (`ui_factories`, `approval_channels`, `history_manager`,
+`include_default_ui`).
 """
 
 from __future__ import annotations
@@ -51,13 +51,13 @@ async def run_chat_session(
 
         # Snapshot the LLMChatTask configuration so we can restore it on exit;
         # multiple chat sessions share one LLMChatTask instance.
-        saved_ui_factories = list(llm_chat_task._ui_factories)
-        saved_approval_channels = list(llm_chat_task._approval_channels)
-        saved_history_manager = llm_chat_task._history_manager
-        saved_include_default_ui = llm_chat_task._include_default_ui
+        saved_ui_factories = list(llm_chat_task.ui_factories)
+        saved_approval_channels = list(llm_chat_task.approval_channels)
+        saved_history_manager = llm_chat_task.history_manager
+        saved_include_default_ui = llm_chat_task.include_default_ui
 
         try:
-            llm_chat_task.set_history_manager(session_manager._history_manager)
+            llm_chat_task.history_manager = session_manager._history_manager
 
             approval_channel = session.approval_channel
             http_ui_factory = create_http_ui_factory(
@@ -66,9 +66,9 @@ async def run_chat_session(
                 session.session_name,
                 approval_channel,
             )
-            llm_chat_task._ui_factories = [http_ui_factory]
-            llm_chat_task._approval_channels = [approval_channel]
-            llm_chat_task._include_default_ui = False
+            llm_chat_task.ui_factories = [http_ui_factory]
+            llm_chat_task.approval_channels = [approval_channel]
+            llm_chat_task.include_default_ui = False
 
             session_manager.set_processing(session.session_id, False)
 
@@ -118,16 +118,16 @@ async def run_chat_session(
                     raise
                 session_manager.set_processing(session.session_id, False)
         finally:
-            llm_chat_task._ui_factories = saved_ui_factories
-            llm_chat_task._approval_channels = saved_approval_channels
-            llm_chat_task._history_manager = saved_history_manager
-            llm_chat_task._include_default_ui = saved_include_default_ui
+            llm_chat_task.ui_factories = saved_ui_factories
+            llm_chat_task.approval_channels = saved_approval_channels
+            llm_chat_task.history_manager = saved_history_manager
+            llm_chat_task.include_default_ui = saved_include_default_ui
     except asyncio.CancelledError:
         raise
     except Exception as e:
         import traceback
 
-        error_msg = f"[ERROR] {str(e)}\n{traceback.format_exc()}"
+        error_msg = f"[ERROR] {str(e)}\n{traceback.format_exc()}\n"
         await session_manager.broadcast(session.session_id, error_msg)
     finally:
         session_manager.set_processing(session.session_id, False)
