@@ -3,7 +3,7 @@ import os
 from contextvars import ContextVar
 from datetime import datetime
 
-from zrb.llm.tool._wrapper import tool_safe_async
+from zrb.llm.tool.wrapper import tool_safe_async
 
 active_worktree: ContextVar[str] = ContextVar("zrb_active_worktree", default="")
 

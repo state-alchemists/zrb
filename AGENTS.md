@@ -37,22 +37,22 @@ source .venv/bin/activate && poetry lock && poetry install
 ### LLM Integration (`src/zrb/llm/`)
 | Directory | Purpose |
 |-----------|---------|
-| `llm/agent/` | `SubAgentManager` – multi-agent orchestration, tool registry |
+| `llm/agent/` | Agent execution and sub-agent management. Split into `run/` (`runner.py`, `retry_loop.py`, `history_utils.py`, `error_classifier.py`, etc.) and `subagent/` (`manager.py`, `loader_mixin.py`, `search_mixin.py`, etc.). `common.py` provides `create_agent`. |
 | `llm/app/` | LLM application-level integration helpers |
 | `llm/approval/` | Tool call approval protocols (`AnyToolConfirmation`, `ApprovalChannel`) |
 | `llm/chat/` | `LLMChatTask` – interactive terminal chat sessions |
 | `llm/config/` | `LLMConfig` (model selection, rate limiting) and `LLMLimiter` (token budgets) |
 | `llm/custom_command/` | Custom CLI command integration for LLM tasks |
 | `llm/history_manager/` | `FileHistoryManager` – persist and load conversation history |
-| `llm/hook/` | `HookManager`, `HookContext` – Claude Code–compatible lifecycle hooks. Split: `manager.py` (registration + execution + executor factories), `_loader_mixin.py` (filesystem & format parsing), `matcher.py` (matcher operators + `evaluate_matchers`). |
-| `llm/lsp/` | Language Server Protocol support for LLM tools |
+| `llm/hook/` | `HookManager` – Claude Code–compatible lifecycle hooks. Split into `manager/` (`manager.py`, `loader_mixin.py`), `hook_loader.py` (search dirs + config parsing), `hook_creators.py` (command/prompt/agent factories), `matcher.py` (operator evaluation). |
+| `llm/lsp/` | Language Server Protocol support for LLM tools. Core logic split into `manager/` (`manager.py`, `lifecycle_mixin.py`, `query_mixin.py`, `symbol_utils.py`). |
 | `llm/prompt/` | System prompts, mandates, context journal; `PromptManager` composes sections; configurable tool guidance via `add_tool_guidance()` |
 | `llm/skill/` | `SkillManager` – reusable agent capabilities, dynamic activation |
 | `llm/summarizer/` | Context compression and history summarization for long conversations |
-| `llm/task/` | `LLMTask`, `LLMChatTask` – pydantic-ai–based tasks. `LLMChatTask` is split into `llm_chat_task.py` (init + `_exec_action` + `_create_llm_task_core`), `_chat_builder_mixin.py` (`add_*`/`set_*`/`append_*` API), `_chat_runner_mixin.py` (`_run_interactive_session` / `_run_non_interactive_session`). |
-| `llm/tool/` | Agent-callable tools: `bash`, `file`, `code`, `web`, `rag`, `delegate`, `plan`, `mcp`, `skill`, `worktree`, `zrb_task`, `search/` |
+| `llm/task/` | `LLMTask`, `LLMChatTask` – pydantic-ai–based tasks. `LLMChatTask` is split into `chat/` (`task.py`, `builder_mixin.py`, `runner_mixin.py`). |
+| `llm/tool/` | Agent-callable tools split by concern: `file_list`, `file_read`, `file_write`, `file_edit`, `file_search`, `file_analyze` (re-exported via `file.py`); plus `bash`, `code`, `web`, `rag`, `delegate`, `plan`, `mcp`, `skill`, `worktree`, `zrb_task`, `search/` |
 | `llm/tool_call/` | Tool call data structures and result handling |
-| `llm/ui/` | `UIProtocol` and terminal UI for streaming responses and tool approval. `BaseUI` is split into `base_ui.py` (lifecycle, AI streaming, tool confirmation) and `_commands_mixin.py` (slash-command handlers + `_run_shell_command` + `_stream_btw_response` + `_get_help_text`). |
+| `llm/ui/` | `UIProtocol` and terminal UI for streaming responses and tool approval. Split into `base/` (`ui.py`, `commands_mixin.py`) and `default/` (`ui.py`, `confirmation_mixin.py`, `keybindings_mixin.py`, `lifecycle_mixin.py`, `output_mixin.py`). |
 | `llm/util/` | Internal LLM utilities |
 
 ### Test Locations

@@ -6,7 +6,7 @@ import requests
 from zrb.config.config import CFG
 
 
-def _is_docker_installed() -> bool:
+def is_docker_installed() -> bool:
     """Check if Docker is installed and accessible."""
     try:
         result = subprocess.run(
@@ -17,7 +17,7 @@ def _is_docker_installed() -> bool:
         return False
 
 
-def _is_default_searxng_url(url: str) -> bool:
+def is_default_searxng_url(url: str) -> bool:
     """Check if the Searxng URL is the default localhost URL."""
     return url.startswith("http://localhost:") or url.startswith("http://127.0.0.1:")
 
@@ -65,8 +65,8 @@ def search_internet(
     except requests.exceptions.ConnectionError as e:
         # Check if this is a connection error to localhost (Searxng not running)
         searxng_url = CFG.SEARXNG_BASE_URL
-        is_default_url = _is_default_searxng_url(searxng_url)
-        docker_installed = _is_docker_installed()
+        is_default_url = is_default_searxng_url(searxng_url)
+        docker_installed = is_docker_installed()
 
         error_msg = (
             f"Error: Unable to connect to Searxng at {searxng_url}. Connection refused."
@@ -88,8 +88,8 @@ def search_internet(
         error_msg = f"Error: Connection to Searxng at {CFG.SEARXNG_BASE_URL} timed out."
 
         # Check conditions for suggestion
-        is_default_url = _is_default_searxng_url(CFG.SEARXNG_BASE_URL)
-        docker_installed = _is_docker_installed()
+        is_default_url = is_default_searxng_url(CFG.SEARXNG_BASE_URL)
+        docker_installed = is_docker_installed()
 
         if is_default_url and docker_installed:
             root_group = CFG.ROOT_GROUP_NAME

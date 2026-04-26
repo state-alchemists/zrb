@@ -32,7 +32,7 @@ def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
 
         # It is a Tool instance
         original_func = tool.function
-        safe_func = _create_safe_wrapper(original_func)
+        safe_func = create_safe_wrapper(original_func)
         if isinstance(tool, PydanticTool):
             return PydanticTool(
                 safe_func,
@@ -50,10 +50,10 @@ def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
         return tool
     else:
         # It is a callable
-        return _create_safe_wrapper(tool)
+        return create_safe_wrapper(tool)
 
 
-def _safe_copy_result(result: Any) -> Any:
+def safe_copy_result(result: Any) -> Any:
     """Create a safe copy of a tool result to prevent mutation.
 
     Deep copies mutable objects (lists, dicts, sets) but returns immutable
@@ -76,7 +76,7 @@ def _safe_copy_result(result: Any) -> Any:
         return result
 
 
-def _create_safe_wrapper(func: Callable) -> Callable:
+def create_safe_wrapper(func: Callable) -> Callable:
     """Create a wrapper that catches exceptions and returns ToolReturn objects."""
     from pydantic_ai import ToolReturn
 
@@ -93,7 +93,7 @@ def _create_safe_wrapper(func: Callable) -> Callable:
                 return result
 
             # Create a safe copy to prevent mutation by pydantic-ai
-            safe_result = _safe_copy_result(result)
+            safe_result = safe_copy_result(result)
 
             # Otherwise wrap successful result in ToolReturn
             return ToolReturn(
@@ -123,7 +123,7 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
                 if isinstance(result, ToolReturn):
                     return result
                 # Create a safe copy to prevent mutation by pydantic-ai
-                safe_result = _safe_copy_result(result)
+                safe_result = safe_copy_result(result)
                 return ToolReturn(
                     return_value=safe_result,
                     content=to_string(safe_result),

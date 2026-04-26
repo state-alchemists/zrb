@@ -20,18 +20,18 @@ To find a setting:
 - Task runtime intervals/cmd buffer          -> _mixins/task_runtime.py
 """
 
-from zrb.config._mixins.foundation import FoundationMixin
-from zrb.config._mixins.hooks import HooksMixin
-from zrb.config._mixins.internet_search import InternetSearchMixin
-from zrb.config._mixins.llm_content import LLMContentMixin
-from zrb.config._mixins.llm_core import LLMCoreMixin
-from zrb.config._mixins.llm_limits import LLMLimitsMixin
-from zrb.config._mixins.llm_prompt import LLMPromptMixin
-from zrb.config._mixins.llm_search import LLMSearchMixin
-from zrb.config._mixins.llm_ui import LLMUIMixin
-from zrb.config._mixins.rag import RAGMixin
-from zrb.config._mixins.task_runtime import TaskRuntimeMixin
-from zrb.config._mixins.web import WebMixin
+from zrb.config.mixins.foundation import FoundationMixin
+from zrb.config.mixins.hooks import HooksMixin
+from zrb.config.mixins.internet_search import InternetSearchMixin
+from zrb.config.mixins.llm_content import LLMContentMixin
+from zrb.config.mixins.llm_core import LLMCoreMixin
+from zrb.config.mixins.llm_limits import LLMLimitsMixin
+from zrb.config.mixins.llm_prompt import LLMPromptMixin
+from zrb.config.mixins.llm_search import LLMSearchMixin
+from zrb.config.mixins.llm_ui import LLMUIMixin
+from zrb.config.mixins.rag import RAGMixin
+from zrb.config.mixins.task_runtime import TaskRuntimeMixin
+from zrb.config.mixins.web import WebMixin
 
 
 class Config(

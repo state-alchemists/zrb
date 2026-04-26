@@ -7,7 +7,7 @@ from zrb.llm.approval.approval_channel import (
     ApprovalContext,
     ApprovalResult,
 )
-from zrb.llm.ui.simple_ui import EventDrivenUI, UIConfig
+from zrb.llm.ui import EventDrivenUI, UIConfig
 from zrb.util.cli.style import remove_style
 
 if TYPE_CHECKING:

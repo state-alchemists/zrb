@@ -1,4 +1,3 @@
-import fnmatch
 import json
 import os
 
@@ -14,78 +13,13 @@ from zrb.llm.prompt.prompt import (
     get_repo_extractor_system_prompt,
     get_repo_summarizer_system_prompt,
 )
+from zrb.llm.tool.code_constants import (
+    DEFAULT_EXTENSIONS,
+    LSP_SUPPORTED_EXTENSIONS,
+    is_path_included,
+)
 from zrb.llm.tool.file import DEFAULT_EXCLUDED_PATTERNS
 from zrb.util.file import is_path_excluded
-
-_DEFAULT_EXTENSIONS = [
-    "py",
-    "go",
-    "java",
-    "ts",
-    "js",
-    "rs",
-    "rb",
-    "php",
-    "sh",
-    "bash",
-    "c",
-    "cpp",
-    "h",
-    "hpp",
-    "cs",
-    "swift",
-    "kt",
-    "scala",
-    "m",
-    "pl",
-    "lua",
-    "sql",
-    "html",
-    "css",
-    "scss",
-    "less",
-    "json",
-    "yaml",
-    "yml",
-    "toml",
-    "ini",
-    "xml",
-    "md",
-    "rst",
-    "txt",
-]
-
-# File extensions that LSP can analyze semantically
-_LSP_SUPPORTED_EXTENSIONS = {
-    ".py",
-    ".pyi",
-    ".pyw",  # Python
-    ".go",  # Go
-    ".ts",
-    ".tsx",
-    ".js",
-    ".jsx",  # TypeScript/JavaScript
-    ".rs",  # Rust
-    ".c",
-    ".cpp",
-    ".cc",
-    ".cxx",
-    ".h",
-    ".hpp",
-    ".hxx",  # C/C++
-    ".rb",
-    ".rake",
-    ".gemspec",  # Ruby
-    ".java",  # Java
-    ".php",  # PHP
-    ".cs",  # C#
-    ".swift",  # Swift
-    ".kt",
-    ".kts",  # Kotlin
-    ".scala",
-    ".sc",  # Scala
-    ".lua",  # Lua
-}
 
 
 async def _get_lsp_context(file_path: str, abs_dir: str) -> dict | None:
@@ -165,7 +99,7 @@ async def analyze_code(
     if not os.path.exists(abs_path):
         return f"Error: Path not found: {path}"
 
-    extensions = _DEFAULT_EXTENSIONS
+    extensions = DEFAULT_EXTENSIONS
     exclude_patterns = (
         exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
     )
@@ -264,7 +198,7 @@ def _get_file_metadatas(
                 rel_path = os.path.relpath(file_path, dir_path)
                 if is_path_excluded(rel_path, exclude_patterns):
                     continue
-                if include_patterns and not _is_path_included(
+                if include_patterns and not is_path_included(
                     rel_path, include_patterns
                 ):
                     continue
@@ -307,14 +241,14 @@ async def _get_file_metadatas_with_lsp(
                 rel_path = os.path.relpath(file_path, dir_path)
                 if is_path_excluded(rel_path, exclude_patterns):
                     continue
-                if include_patterns and not _is_path_included(
+                if include_patterns and not is_path_included(
                     rel_path, include_patterns
                 ):
                     continue
 
                 # Check if LSP supports this file type
                 file_ext = os.path.splitext(file)[1].lower()
-                if file_ext in _LSP_SUPPORTED_EXTENSIONS:
+                if file_ext in LSP_SUPPORTED_EXTENSIONS:
                     # Queue LSP analysis (async)
                     lsp_tasks.append(_get_lsp_context(rel_path, dir_path))
                     file_paths.append(rel_path)
@@ -364,17 +298,6 @@ async def _get_file_metadatas_with_lsp(
     return metadata_list
 
 
-def _is_path_included(name: str, patterns: list[str]) -> bool:
-    for pattern in patterns:
-        if fnmatch.fnmatch(name, pattern):
-            return True
-        parts = name.split(os.path.sep)
-        for part in parts:
-            if fnmatch.fnmatch(part, pattern):
-                return True
-    return False
-
-
 async def _extract_info(
     file_metadatas: list[dict[str, str | dict]],
     query: str,
@@ -415,7 +338,9 @@ async def _extract_info(
 
         if current_token_count + file_tokens + base_overhead > token_limit:
             if content_buffer:
-                await _run_extraction(agent, query, content_buffer, extracted_infos)
+                await _run_repo_agent(
+                    agent, query, content_buffer, "files", extracted_infos
+                )
 
             content_buffer = [content]
             current_token_count = file_tokens
@@ -425,26 +350,9 @@ async def _extract_info(
 
     # Process remaining buffer
     if content_buffer:
-        await _run_extraction(agent, query, content_buffer, extracted_infos)
+        await _run_repo_agent(agent, query, content_buffer, "files", extracted_infos)
 
     return extracted_infos
-
-
-async def _run_extraction(agent, query, content_buffer, extracted_infos):
-    prompt_data = {
-        "main_assistant_query": query,
-        "files": content_buffer,  # List of JSON strings (either LSP context or raw content)
-    }
-    # We serialize to JSON for the prompt
-    message = json.dumps(prompt_data)
-
-    result, _ = await run_agent(
-        agent=agent,
-        message=message,
-        message_history=[],  # Stateless
-        limiter=llm_limiter,
-    )
-    extracted_infos.append(str(result))
 
 
 async def _summarize_info(
@@ -469,31 +377,36 @@ async def _summarize_info(
             > token_limit
         ):
             if content_buffer:
-                await _run_summarization(agent, query, content_buffer, summarized_infos)
+                await _run_repo_agent(
+                    agent, query, content_buffer, "extracted_info", summarized_infos
+                )
             content_buffer = info
         else:
             content_buffer += info + "\n"
 
     if content_buffer:
-        await _run_summarization(agent, query, content_buffer, summarized_infos)
+        await _run_repo_agent(
+            agent, query, content_buffer, "extracted_info", summarized_infos
+        )
 
     return summarized_infos
 
 
-async def _run_summarization(agent, query, content_buffer, summarized_infos):
-    prompt_data = {
-        "main_assistant_query": query,
-        "extracted_info": content_buffer,
-    }
-    message = json.dumps(prompt_data)
+async def _run_repo_agent(agent, query, content, content_key, output_list):
+    """Run a stateless repo-analysis agent and append its result.
 
+    `content_key` is "files" for the extractor (list of JSON strings) or
+    "extracted_info" for the summarizer (single string buffer).
+    """
+    prompt_data = {"main_assistant_query": query, content_key: content}
+    message = json.dumps(prompt_data)
     result, _ = await run_agent(
         agent=agent,
         message=message,
-        message_history=[],  # Stateless
+        message_history=[],
         limiter=llm_limiter,
     )
-    summarized_infos.append(str(result))
+    output_list.append(str(result))
 
 
 analyze_code.__name__ = "AnalyzeCode"

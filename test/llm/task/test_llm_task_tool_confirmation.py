@@ -46,7 +46,7 @@ async def test_llm_task_tool_confirmation_called():
 
 @pytest.mark.asyncio
 async def test_llm_chat_task_tool_confirmation_forwarded():
-    from zrb.llm.task.llm_chat_task import LLMChatTask
+    from zrb.llm.task.chat.task import LLMChatTask
 
     def tool_confirmation(call):
         return ToolApproved()

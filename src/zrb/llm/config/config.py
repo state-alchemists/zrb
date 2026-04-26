@@ -160,16 +160,16 @@ class LLMConfig:
         provider_name = "openai"
         if ":" in model_name:
             provider_name = model_name.split(":", 1)[0]
-        # Get built-in providers from KnownModelName
-        builtin_providers = self._get_builtin_providers()
         # Special case: "openai" always goes through resolve logic when API config is set
         # (OpenAIProvider handles both OpenAI and OpenAI-compatible APIs)
         if provider_name == "openai":
             if self.api_key or self.base_url:
                 return self._resolve_model(model_name, self.provider)
             return model_name
-        # If provider is built-in, return as-is (pydantic-ai will use its built-in provider)
-        if provider_name in builtin_providers:
+        # If provider is natively supported by pydantic-ai, return as-is
+        # (pydantic-ai will use its built-in provider, reading env vars like
+        #  OLLAMA_BASE_URL, ANTHROPIC_API_KEY, etc.)
+        if self._is_native_provider(provider_name):
             return model_name
         # Unknown provider without pydantic-ai support
         # Use OpenAIProvider if API config is set (for OpenAI-compatible endpoints)
@@ -177,35 +177,21 @@ class LLMConfig:
             return self._resolve_model(model_name, self.provider)
         return model_name
 
-    def _get_builtin_providers(self) -> set[str]:
-        # Cache the result
-        if not hasattr(self, "_cached_builtin_providers"):
+    def _is_native_provider(self, provider_name: str) -> bool:
+        """Check if pydantic-ai has native support for a provider, with caching."""
+        cache = getattr(self, "_cached_native_providers", None)
+        if cache is None:
+            self._cached_native_providers = {}
+            cache = self._cached_native_providers
+        if provider_name not in cache:
             try:
-                from typing import get_args
+                from pydantic_ai.models import infer_provider_class
 
-                from pydantic_ai.models import KnownModelName
-
-                known_models = get_args(KnownModelName.__value__)
-                providers = set()
-                for model in known_models:
-                    if ":" in model:
-                        provider = model.split(":", 1)[0]
-                        providers.add(provider)
-                self._cached_builtin_providers = providers
-            except Exception:
-                # Fallback to common providers (should match pydantic-ai's built-ins)
-                self._cached_builtin_providers = {
-                    "anthropic",
-                    "bedrock",
-                    "deepseek",
-                    "google",
-                    "google-vertex",
-                    "groq",
-                    "mistral",
-                    "ollama",
-                    "openai",
-                }
-        return self._cached_builtin_providers
+                infer_provider_class(provider_name)
+                cache[provider_name] = True
+            except (ImportError, ValueError):
+                cache[provider_name] = False
+        return cache[provider_name]
 
     def _resolve_model(
         self, model_name: str, provider: "str | Provider"

@@ -12,7 +12,7 @@ from zrb.llm.lsp.tools import create_lsp_tools
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.prompt.tool_guidance import ToolGuidance
 from zrb.llm.skill.manager import skill_manager
-from zrb.llm.task.llm_chat_task import LLMChatTask
+from zrb.llm.task.chat.task import LLMChatTask
 from zrb.llm.tool import (
     analyze_code,
     analyze_file,
