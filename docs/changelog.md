@@ -1,6 +1,6 @@
 🔖 [Documentation Home](../README.md)
 
-## 2.22.7 (April 25, 2026)
+## 2.22.7 (April 26, 2026)
 
 - **Refactoring: Config Extract-Mixin**:
   - `Config` class reduced from ~2435 lines to 59 lines by splitting into 12 focused mixin modules under `src/zrb/config/_mixins/`.
