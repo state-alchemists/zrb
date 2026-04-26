@@ -94,6 +94,10 @@ def test_create_new_task_session_api_success(app_deps, mock_user):
         assert len(coroutines) == 1
         assert coroutines[0] == mock_coro
 
+        # Clean up the unawaited coroutine to prevent RuntimeWarning
+        coro = mock_create_task.call_args[0][0]
+        coro.close()
+
 
 def test_create_new_task_session_api_not_task(app_deps, mock_user):
     client, root_group, _, _, _ = app_deps
