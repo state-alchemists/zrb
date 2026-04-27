@@ -89,6 +89,7 @@ class TestLLMTaskPublicAPI:
     async def test_model_getter_is_called_with_base_model(self, session):
         # Arrange: getter receives the base model and returns a different one
         from zrb.llm.config.config import LLMConfig
+
         received = []
 
         def getter(m):
@@ -115,6 +116,7 @@ class TestLLMTaskPublicAPI:
     async def test_model_renderer_transforms_model_passed_to_agent(self, session):
         # Arrange: renderer wraps model name in a mock Model object
         from zrb.llm.config.config import LLMConfig
+
         sentinel = MagicMock()
         renderer = lambda m: sentinel
 
@@ -140,6 +142,7 @@ class TestLLMTaskPublicAPI:
     async def test_model_getter_result_updates_ui_model(self, session):
         # Arrange: getter returns a new model name; UI should reflect it
         from zrb.llm.config.config import LLMConfig
+
         ui = MagicMock()
         ui.model = "original-model"
 
@@ -164,6 +167,7 @@ class TestLLMTaskPublicAPI:
     async def test_getter_then_renderer_pipeline(self, session):
         # Arrange: getter overrides, renderer wraps — final model passed to create_agent
         from zrb.llm.config.config import LLMConfig
+
         sentinel = MagicMock()
         config = LLMConfig()
         config.model_getter = lambda m: "getter-result"

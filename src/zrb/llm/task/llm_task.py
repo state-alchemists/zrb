@@ -398,15 +398,15 @@ class LLMTask(BaseTask):
         # Get all tools and toolsets including those from factories
         resolved_tools = self._get_all_tools(ctx)
         resolved_toolsets = self._get_all_toolsets(ctx)
-        
+
         # Resolve model using llm_config
         base_model = self._get_model(ctx)
         final_model = self._llm_config.resolve_model(base_model)
-        
+
         for ui in self._uis:
             if hasattr(ui, "model"):
                 ui.model = final_model
-                
+
         return create_agent(
             model=final_model,
             system_prompt=system_prompt,

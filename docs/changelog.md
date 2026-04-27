@@ -1,5 +1,32 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.23.0 (April 27, 2026)
+
+- **Breaking Change: Consolidated Model Resolution Pipeline**:
+  - Removed `model_getter` and `model_renderer` properties from `LLMTask` (`src/zrb/llm/task/llm_task.py`) and `LLMChatTask` (`src/zrb/llm/task/chat/`).
+  - `LLMConfig.resolve_model()` is now the single entry point for all model resolution.
+  - Simplified `LLMChatTask` builder mixin by removing `model_getter`/`model_renderer` overrides; all model pipeline hooks now go through `LLMConfig`.
+  - `create_agent()`, `SubAgentManager`, summarizer agents, history processors, hook creators, and UI commands all consistently use `LLMConfig.resolve_model()`.
+  - Removes the task-level model-getter/renderer override pattern introduced in 2.22.0 in favor of a single config-level pipeline.
+
+- **Improvement: `create_agent()` Default Retries Changed**:
+  - `create_agent()` in `src/zrb/llm/agent/common.py` now uses `CFG.LLM_TOOL_MAX_RETRIES` as the default retry count instead of hardcoded `1`.
+  - Ensures agent creation retries align with the configured tool retry policy across all callers.
+
+- **Improvement: `filter_nil_content()` Preserves Message Structure**:
+  - `_filter_nil_content()` in `src/zrb/llm/agent/run/history_utils.py` now replaces nil/empty content with an empty `TextPart("")` instead of dropping it from the message parts list.
+  - Prevents structural issues with providers that expect at least one content part in each message.
+
+- **Improvement: `/model` Command Uses `resolve_model()`**:
+  - The `/model` slash command in `commands_mixin.py` now calls `LLMConfig.resolve_model()` instead of directly accessing `model_getter`/`model_renderer`.
+  - Displays the fully resolved model name after pipeline transformation.
+
+- **Maintenance: Example and Test Cleanup**:
+  - Updated `examples/model-tiering/` README and `zrb_init.py` to use config-level resolution instead of task-level overrides.
+  - Removed obsolete tests for removed `model_getter`/`model_renderer` properties.
+  - Added new tests for `create_agent()` retries in `test/llm/agent/test_common.py`.
+  - Cleaned up test coverage in `test/llm/task/` and `test/llm/history_processor/` to match the simplified API surface.
+
 ## 2.22.8 (April 26, 2026)
 
 - **Feature: Tool Guidance Propagation to Sub-Agents**:

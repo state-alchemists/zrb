@@ -272,6 +272,7 @@ def test_llm_chat_task_custom_model_names_setter():
 
 def test_llm_chat_task_model_getter_via_config():
     from zrb.llm.config.config import LLMConfig
+
     getter = lambda m: "fixed-model"
     config = LLMConfig()
     config.model_getter = getter
@@ -281,6 +282,7 @@ def test_llm_chat_task_model_getter_via_config():
 
 def test_llm_chat_task_model_renderer_via_config():
     from zrb.llm.config.config import LLMConfig
+
     renderer = lambda m: m
     config = LLMConfig()
     config.model_renderer = renderer
@@ -297,6 +299,7 @@ def test_llm_chat_task_custom_model_names_none_by_default():
 async def test_llm_chat_task_passes_getter_renderer_to_summarizer():
     """LLMChatTask forwards effective getter/renderer to create_summarizer_history_processor via config."""
     from zrb.llm.config.config import LLMConfig
+
     getter = lambda m: "getter-model"
     renderer = lambda m: "renderer-model"
 

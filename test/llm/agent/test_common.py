@@ -285,11 +285,13 @@ def test_create_agent_with_callable_yolo():
         except Exception:
             pass  # May fail due to mocking
 
+
 def test_create_agent_retries_fallback():
     """Test create_agent correctly falls back to CFG.LLM_TOOL_MAX_RETRIES when retries is None."""
     from unittest.mock import MagicMock, patch
+
     from zrb.llm.agent.common import create_agent
-    
+
     mock_agent_class = MagicMock()
     mock_config = MagicMock()
     mock_config.model = "default-model"
@@ -297,7 +299,7 @@ def test_create_agent_retries_fallback():
     with patch("zrb.llm.agent.common.CFG") as mock_cfg:
         mock_cfg.LLM_TOOL_MAX_RETRIES = 5
         with patch("pydantic_ai.Agent", mock_agent_class):
-            
+
             # 1. retries=None (should use CFG.LLM_TOOL_MAX_RETRIES)
             create_agent(model="test-model", retries=None, yolo=True)
             args, kwargs = mock_agent_class.call_args
