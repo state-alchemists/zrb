@@ -147,7 +147,7 @@ def create_agent(
     history_processors: list["HistoryProcessor"] | None = None,
     capabilities: "list[AbstractCapability[Any]] | None" = None,
     output_type: "OutputSpec[OutputDataT]" = str,
-    retries: int = 1,
+    retries: int | None = None,
     yolo: bool | Callable[[Any, Any, dict[str, Any]], bool] = False,
 ) -> "Agent[None, Any]":
     from pydantic_ai import Agent, DeferredToolRequests
@@ -187,13 +187,16 @@ def create_agent(
     if model is None:
         model = default_llm_config.model
 
+    final_model = default_llm_config.resolve_model(model)
+    effective_retries = retries if retries is not None else CFG.LLM_TOOL_MAX_RETRIES
+
     return Agent(
-        model=model,
+        model=final_model,
         output_type=final_output_type,
         instructions=effective_system_prompt,
         toolsets=effective_toolsets,
         model_settings=model_settings,
         history_processors=history_processors,
         capabilities=capabilities or [],
-        retries=retries,
+        retries=effective_retries,
     )

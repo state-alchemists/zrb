@@ -83,32 +83,6 @@ class BuilderMixin:
     def custom_model_names(self, value: "StrListAttr | None"):
         self._custom_model_names = value
 
-    @property
-    def model_getter(
-        self,
-    ) -> "Callable[[Model | str | None], Model | str | None] | None":
-        return self._model_getter
-
-    @model_getter.setter
-    def model_getter(
-        self, value: "Callable[[Model | str | None], Model | str | None] | None"
-    ):
-        self._model_getter = value
-
-    @property
-    def model_renderer(
-        self,
-    ) -> "Callable[[Model | str | None], Model | str | None] | None":
-        return self._model_renderer
-
-    @model_renderer.setter
-    def model_renderer(
-        self, value: "Callable[[Model | str | None], Model | str | None] | None"
-    ):
-        self._model_renderer = value
-
-    # --- Approval channels ------------------------------------------------
-
     def set_approval_channel(self, channel: "ApprovalChannel | None"):
         """Set the approval channel for tool confirmations."""
         self._approval_channels = [] if channel is None else [channel]

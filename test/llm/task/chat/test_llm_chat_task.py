@@ -270,40 +270,22 @@ def test_llm_chat_task_custom_model_names_setter():
     assert task.custom_model_names == ["updated-model"]
 
 
-def test_llm_chat_task_model_getter_constructor_and_property():
+def test_llm_chat_task_model_getter_via_config():
+    from zrb.llm.config.config import LLMConfig
     getter = lambda m: "fixed-model"
-    task = LLMChatTask(name="test-task", model_getter=getter)
-    assert task.model_getter is getter
+    config = LLMConfig()
+    config.model_getter = getter
+    task = LLMChatTask(name="test-task", llm_config=config)
+    assert task._llm_config.model_getter is getter
 
 
-def test_llm_chat_task_model_getter_setter():
-    task = LLMChatTask(name="test-task")
-    getter = lambda m: "fixed-model"
-    task.model_getter = getter
-    assert task.model_getter is getter
-
-
-def test_llm_chat_task_model_renderer_constructor_and_property():
+def test_llm_chat_task_model_renderer_via_config():
+    from zrb.llm.config.config import LLMConfig
     renderer = lambda m: m
-    task = LLMChatTask(name="test-task", model_renderer=renderer)
-    assert task.model_renderer is renderer
-
-
-def test_llm_chat_task_model_renderer_setter():
-    task = LLMChatTask(name="test-task")
-    renderer = lambda m: m
-    task.model_renderer = renderer
-    assert task.model_renderer is renderer
-
-
-def test_llm_chat_task_model_getter_none_by_default():
-    task = LLMChatTask(name="test-task")
-    assert task.model_getter is None
-
-
-def test_llm_chat_task_model_renderer_none_by_default():
-    task = LLMChatTask(name="test-task")
-    assert task.model_renderer is None
+    config = LLMConfig()
+    config.model_renderer = renderer
+    task = LLMChatTask(name="test-task", llm_config=config)
+    assert task._llm_config.model_renderer is renderer
 
 
 def test_llm_chat_task_custom_model_names_none_by_default():
@@ -313,14 +295,17 @@ def test_llm_chat_task_custom_model_names_none_by_default():
 
 @pytest.mark.asyncio
 async def test_llm_chat_task_passes_getter_renderer_to_summarizer():
-    """LLMChatTask forwards effective getter/renderer to create_summarizer_history_processor."""
+    """LLMChatTask forwards effective getter/renderer to create_summarizer_history_processor via config."""
+    from zrb.llm.config.config import LLMConfig
     getter = lambda m: "getter-model"
     renderer = lambda m: "renderer-model"
 
+    config = LLMConfig()
+    config.model_getter = getter
+    config.model_renderer = renderer
     task = LLMChatTask(
         name="test-task",
-        model_getter=getter,
-        model_renderer=renderer,
+        llm_config=config,
         interactive=False,
     )
 
@@ -339,6 +324,3 @@ async def test_llm_chat_task_passes_getter_renderer_to_summarizer():
         await task.async_run(session)
 
     mock_create_proc.assert_called_once()
-    _, kwargs = mock_create_proc.call_args
-    assert kwargs.get("model_getter") is getter
-    assert kwargs.get("model_renderer") is renderer

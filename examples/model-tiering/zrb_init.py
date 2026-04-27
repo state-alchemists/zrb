@@ -95,21 +95,16 @@ def render_model(model):
 
 
 # =============================================================================
-# Wire everything into llm_chat (task-level, main agent only)
+# Wire everything into llm_chat and llm_config
 # =============================================================================
 
 tracker = ModelTierTracker()
 
 llm_chat.custom_model_names = CUSTOM_MODEL_NAMES  # shown in /model autocomplete
-llm_chat.model_getter = tracker  # decides tier per request (main agent)
-llm_chat.model_renderer = render_model  # maps tier → real model (main agent)
 
 # =============================================================================
-# Also register the renderer on llm_config so ALL sub-agents use the same
-# provider mapping (web summarizer, code analyzer, history compressor, etc.).
-#
-# Note: the tier tracker is intentionally NOT set on llm_config — background
-# agents should not consume the per-request tier budget of the main chat.
+# Register the getter and renderer on llm_config so ALL agents use the same
+# model resolution logic (main chat, web summarizer, code analyzer, etc.).
 # =============================================================================
 
 llm_config.model_renderer = render_model

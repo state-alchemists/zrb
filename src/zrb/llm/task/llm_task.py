@@ -88,10 +88,6 @@ class LLMTask(BaseTask):
             ModelSettings | Callable[[AnyContext], ModelSettings] | None
         ) = None,
         custom_model_names: StrListAttr | None = None,
-        model_getter: Callable[[Model | str | None], Model | str | None] | None = None,
-        model_renderer: (
-            Callable[[Model | str | None], Model | str | None] | None
-        ) = None,
         conversation_name: StrAttr | None = None,
         render_conversation_name: bool = True,
         history_manager: AnyHistoryManager | None = None,
@@ -181,8 +177,6 @@ class LLMTask(BaseTask):
         self._render_model = render_model
         self._model_settings = model_settings
         self._custom_model_names = custom_model_names
-        self._model_getter = model_getter
-        self._model_renderer = model_renderer
         self._conversation_name = conversation_name
         self._render_conversation_name = render_conversation_name
         self._history_manager = history_manager
@@ -236,30 +230,6 @@ class LLMTask(BaseTask):
     @custom_model_names.setter
     def custom_model_names(self, value: StrListAttr | None):
         self._custom_model_names = value
-
-    @property
-    def model_getter(
-        self,
-    ) -> Callable[[Model | str | None], Model | str | None] | None:
-        return self._model_getter
-
-    @model_getter.setter
-    def model_getter(
-        self, value: Callable[[Model | str | None], Model | str | None] | None
-    ):
-        self._model_getter = value
-
-    @property
-    def model_renderer(
-        self,
-    ) -> Callable[[Model | str | None], Model | str | None] | None:
-        return self._model_renderer
-
-    @model_renderer.setter
-    def model_renderer(
-        self, value: Callable[[Model | str | None], Model | str | None] | None
-    ):
-        self._model_renderer = value
 
     def add_toolset(self, *toolset: AbstractToolset):
         self.append_toolset(*toolset)
@@ -428,22 +398,15 @@ class LLMTask(BaseTask):
         # Get all tools and toolsets including those from factories
         resolved_tools = self._get_all_tools(ctx)
         resolved_toolsets = self._get_all_toolsets(ctx)
-        # Resolve model: base → getter (active, shown in UI) → renderer (final for pydantic_ai)
-        # Task-level getter/renderer take precedence; fall back to llm_config defaults.
+        
+        # Resolve model using llm_config
         base_model = self._get_model(ctx)
-        effective_getter = self._model_getter or self._llm_config.model_getter
-        effective_renderer = self._model_renderer or self._llm_config.model_renderer
-        active_model = (
-            effective_getter(base_model) if effective_getter is not None else base_model
-        )
+        final_model = self._llm_config.resolve_model(base_model)
+        
         for ui in self._uis:
             if hasattr(ui, "model"):
-                ui.model = active_model
-        final_model = (
-            effective_renderer(active_model)
-            if effective_renderer is not None
-            else active_model
-        )
+                ui.model = final_model
+                
         return create_agent(
             model=final_model,
             system_prompt=system_prompt,
