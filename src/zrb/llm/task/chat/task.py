@@ -125,10 +125,6 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
             ModelSettings | Callable[[AnyContext], ModelSettings] | None
         ) = None,
         custom_model_names: StrListAttr | None = None,
-        model_getter: Callable[[Model | str | None], Model | str | None] | None = None,
-        model_renderer: (
-            Callable[[Model | str | None], Model | str | None] | None
-        ) = None,
         conversation_name: StrAttr | None = None,
         render_conversation_name: bool = True,
         history_manager: AnyHistoryManager | None = None,
@@ -273,8 +269,6 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         self._render_model = render_model
         self._model_settings = model_settings
         self._custom_model_names = custom_model_names
-        self._model_getter = model_getter
-        self._model_renderer = model_renderer
         self._conversation_name = conversation_name
         self._render_conversation_name = render_conversation_name
         self._history_manager = history_manager
@@ -635,13 +629,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
             toolsets=resolved_toolsets,
             # No factories passed - tools/toolsets already resolved with parent context
             history_processors=self._history_processors
-            + [
-                create_summarizer_history_processor(
-                    model_getter=self._model_getter or self._llm_config.model_getter,
-                    model_renderer=self._model_renderer
-                    or self._llm_config.model_renderer,
-                )
-            ],
+            + [create_summarizer_history_processor()],
             capabilities=capabilities,
             llm_config=self._llm_config,
             llm_limitter=self._llm_limitter,
@@ -657,8 +645,6 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
             attachment=lambda ctx: ctx.input.attachments,
             model=lambda ctx: ctx.input.get("model"),
             render_model=False,
-            model_getter=self._model_getter,
-            model_renderer=self._model_renderer,
             summarize_command=summarize_commands,
         )
 

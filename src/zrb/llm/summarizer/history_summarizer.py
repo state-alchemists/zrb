@@ -37,8 +37,6 @@ def create_summarizer_history_processor(
     # Backward compatibility
     agent: Any = None,
     token_threshold: int | None = None,
-    model_getter: "Callable[[str | Model | None], str | Model | None] | None" = None,
-    model_renderer: "Callable[[str | Model | None], str | Model | None] | None" = None,
 ) -> "Callable[[list[ModelMessage]], Awaitable[list[ModelMessage]]]":
     """
     Creates a history processor that auto-summarizes history when it exceeds `token_threshold`.
@@ -52,16 +50,11 @@ def create_summarizer_history_processor(
         message_token_threshold = CFG.LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD
     if summary_window is None:
         summary_window = CFG.LLM_HISTORY_SUMMARIZATION_WINDOW
-    # Pre-create agents with getter/renderer when provided so they are consistent
-    # with the parent task's model pipeline.
-    if conversational_agent is None and (model_getter or model_renderer):
-        conversational_agent = create_conversational_summarizer_agent(
-            model_getter=model_getter, model_renderer=model_renderer
-        )
-    if message_agent is None and (model_getter or model_renderer):
-        message_agent = create_message_summarizer_agent(
-            model_getter=model_getter, model_renderer=model_renderer
-        )
+    # Pre-create agents when provided so they are consistent
+    if conversational_agent is None:
+        conversational_agent = create_conversational_summarizer_agent()
+    if message_agent is None:
+        message_agent = create_message_summarizer_agent()
 
     async def process_history(messages: "list[ModelMessage]") -> "list[ModelMessage]":
         # 1. Summarize individual fat messages first

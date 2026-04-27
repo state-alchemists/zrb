@@ -85,50 +85,19 @@ class TestLLMTaskPublicAPI:
         task.custom_model_names = ["updated-model"]
         assert task.custom_model_names == ["updated-model"]
 
-    def test_model_getter_constructor_and_property(self):
-        getter = lambda m: "fixed-model"
-        task = LLMTask(name="test-task", model_getter=getter)
-        assert task.model_getter is getter
-
-    def test_model_getter_setter(self):
-        task = LLMTask(name="test-task")
-        getter = lambda m: "fixed-model"
-        task.model_getter = getter
-        assert task.model_getter is getter
-
-    def test_model_renderer_constructor_and_property(self):
-        renderer = lambda m: m
-        task = LLMTask(name="test-task", model_renderer=renderer)
-        assert task.model_renderer is renderer
-
-    def test_model_renderer_setter(self):
-        task = LLMTask(name="test-task")
-        renderer = lambda m: m
-        task.model_renderer = renderer
-        assert task.model_renderer is renderer
-
-    def test_model_getter_none_by_default(self):
-        task = LLMTask(name="test-task")
-        assert task.model_getter is None
-
-    def test_model_renderer_none_by_default(self):
-        task = LLMTask(name="test-task")
-        assert task.model_renderer is None
-
-    def test_custom_model_names_none_by_default(self):
-        task = LLMTask(name="test-task")
-        assert task.custom_model_names is None
-
     @pytest.mark.asyncio
     async def test_model_getter_is_called_with_base_model(self, session):
         # Arrange: getter receives the base model and returns a different one
+        from zrb.llm.config.config import LLMConfig
         received = []
 
         def getter(m):
             received.append(m)
             return "overridden-model"
 
-        task = LLMTask(name="test-task", message="hello", model_getter=getter)
+        config = LLMConfig()
+        config.model_getter = getter
+        task = LLMTask(name="test-task", message="hello", llm_config=config)
 
         with patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent, patch(
             "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
@@ -145,14 +114,17 @@ class TestLLMTaskPublicAPI:
     @pytest.mark.asyncio
     async def test_model_renderer_transforms_model_passed_to_agent(self, session):
         # Arrange: renderer wraps model name in a mock Model object
+        from zrb.llm.config.config import LLMConfig
         sentinel = MagicMock()
         renderer = lambda m: sentinel
 
+        config = LLMConfig()
+        config.model_renderer = renderer
         task = LLMTask(
             name="test-task",
             message="hello",
             model="base-model",
-            model_renderer=renderer,
+            llm_config=config,
         )
 
         with patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent, patch(
@@ -167,13 +139,16 @@ class TestLLMTaskPublicAPI:
     @pytest.mark.asyncio
     async def test_model_getter_result_updates_ui_model(self, session):
         # Arrange: getter returns a new model name; UI should reflect it
+        from zrb.llm.config.config import LLMConfig
         ui = MagicMock()
         ui.model = "original-model"
 
+        config = LLMConfig()
+        config.model_getter = lambda m: "updated-by-getter"
         task = LLMTask(
             name="test-task",
             message="hello",
-            model_getter=lambda m: "updated-by-getter",
+            llm_config=config,
         )
         task.set_ui(ui)
 
@@ -188,12 +163,15 @@ class TestLLMTaskPublicAPI:
     @pytest.mark.asyncio
     async def test_getter_then_renderer_pipeline(self, session):
         # Arrange: getter overrides, renderer wraps — final model passed to create_agent
+        from zrb.llm.config.config import LLMConfig
         sentinel = MagicMock()
+        config = LLMConfig()
+        config.model_getter = lambda m: "getter-result"
+        config.model_renderer = lambda m: sentinel
         task = LLMTask(
             name="test-task",
             message="hello",
-            model_getter=lambda m: "getter-result",
-            model_renderer=lambda m: sentinel,
+            llm_config=config,
         )
 
         with patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent, patch(
@@ -222,74 +200,6 @@ class TestLLMTaskPublicAPI:
             # Verify behavior: result indicates compression and helper was called
             assert "compressed" in result.lower()
             mock_summarize.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_llm_config_getter_used_when_task_getter_is_none(self, session):
-        """When task model_getter is None, llm_config.model_getter is applied."""
-        from zrb.llm.config.config import LLMConfig
-
-        config = LLMConfig()
-        config.model = "base-model"
-        config.model_getter = lambda m: "config-getter-result"
-
-        task = LLMTask(name="test-task", message="hello", llm_config=config)
-        assert task.model_getter is None  # task-level getter not set
-
-        with patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent, patch(
-            "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
-        ) as mock_run_agent:
-            mock_run_agent.return_value = ("Response", [])
-            await task.async_run(session)
-
-        _, kwargs = mock_create_agent.call_args
-        assert kwargs["model"] == "config-getter-result"
-
-    @pytest.mark.asyncio
-    async def test_llm_config_renderer_used_when_task_renderer_is_none(self, session):
-        """When task model_renderer is None, llm_config.model_renderer is applied."""
-        from zrb.llm.config.config import LLMConfig
-
-        sentinel = object()
-        config = LLMConfig()
-        config.model = "base-model"
-        config.model_renderer = lambda m: sentinel
-
-        task = LLMTask(name="test-task", message="hello", llm_config=config)
-        assert task.model_renderer is None  # task-level renderer not set
-
-        with patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent, patch(
-            "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
-        ) as mock_run_agent:
-            mock_run_agent.return_value = ("Response", [])
-            await task.async_run(session)
-
-        _, kwargs = mock_create_agent.call_args
-        assert kwargs["model"] is sentinel
-
-    @pytest.mark.asyncio
-    async def test_task_getter_takes_precedence_over_llm_config_getter(self, session):
-        """Task-level model_getter overrides llm_config.model_getter."""
-        from zrb.llm.config.config import LLMConfig
-
-        config = LLMConfig()
-        config.model = "base-model"
-        config.model_getter = lambda m: "config-getter"
-
-        task = LLMTask(
-            name="test-task",
-            message="hello",
-            llm_config=config,
-            model_getter=lambda m: "task-getter",
-        )
-
-        with patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent, patch(
-            "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
-        ) as mock_run_agent:
-            mock_run_agent.return_value = ("Response", [])
-            await task.async_run(session)
-
-        _, kwargs = mock_create_agent.call_args
-        assert kwargs["model"] == "task-getter"
 
     @pytest.mark.asyncio
     async def test_llm_task_adds_tool_factory_behavior(self, session):

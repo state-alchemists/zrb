@@ -275,12 +275,7 @@ class SubAgentManager(LoaderMixin, SearchMixin):
             system_prompt=effective_system_prompt,
             tools=resolved_tools,
             toolsets=resolved_toolsets,
-            history_processors=[
-                create_summarizer_history_processor(
-                    model_getter=default_llm_config.model_getter,
-                    model_renderer=default_llm_config.model_renderer,
-                )
-            ],
+            history_processors=[create_summarizer_history_processor()],
             yolo=effective_yolo,
         )
 

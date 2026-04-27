@@ -157,7 +157,7 @@ def create_prompt_hook(config: PromptHookConfig) -> HookCallable:
         try:
             # Import here to avoid circular imports
             from pydantic_ai import Agent
-            from pydantic_ai.models.openai import OpenAIModel
+            from zrb.llm.config.config import llm_config
 
             # Get LLM configuration
             model_name = config.model or CFG.LLM_MODEL
@@ -165,25 +165,11 @@ def create_prompt_hook(config: PromptHookConfig) -> HookCallable:
                 logger.error("No LLM model configured for prompt hook")
                 return HookResult(success=False, output="No LLM model configured")
 
-            # Parse model name (format: provider:model)
-            if ":" in model_name:
-                provider, model = model_name.split(":", 1)
-            else:
-                provider = "openai"
-                model = model_name
-
-            # Create model based on provider
-            if provider == "openai":
-                llm_model = OpenAIModel(model)
-            else:
-                # For other providers, we'd need to handle them
-                # For now, use OpenAI as default
-                logger.warning(f"Provider {provider} not fully supported, using OpenAI")
-                llm_model = OpenAIModel(model)
+            final_model = llm_config.resolve_model(model_name)
 
             # Create agent with the prompt
             agent = Agent(
-                model=llm_model,
+                model=final_model,
                 system_prompt=config.system_prompt or "",
                 deps_type=dict,
             )
@@ -241,7 +227,7 @@ def create_agent_hook(config: AgentHookConfig) -> HookCallable:
         try:
             # Import here to avoid circular imports
             from pydantic_ai import Agent
-            from pydantic_ai.models.openai import OpenAIModel
+            from zrb.llm.config.config import llm_config
 
             # Get LLM configuration
             model_name = config.model or CFG.LLM_MODEL
@@ -249,25 +235,11 @@ def create_agent_hook(config: AgentHookConfig) -> HookCallable:
                 logger.error("No LLM model configured for agent hook")
                 return HookResult(success=False, output="No LLM model configured")
 
-            # Parse model name (format: provider:model)
-            if ":" in model_name:
-                provider, model = model_name.split(":", 1)
-            else:
-                provider = "openai"
-                model = model_name
-
-            # Create model based on provider
-            if provider == "openai":
-                llm_model = OpenAIModel(model)
-            else:
-                # For other providers, we'd need to handle them
-                # For now, use OpenAI as default
-                logger.warning(f"Provider {provider} not fully supported, using OpenAI")
-                llm_model = OpenAIModel(model)
+            final_model = llm_config.resolve_model(model_name)
 
             # Create agent with system prompt
             agent = Agent(
-                model=llm_model,
+                model=final_model,
                 system_prompt=config.system_prompt,
                 deps_type=dict,
             )

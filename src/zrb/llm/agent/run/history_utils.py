@@ -26,10 +26,12 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
     from pydantic_ai.messages import (
         ModelRequest,
         ModelResponse,
+        SystemPromptPart,
         TextPart,
         ThinkingPart,
         ToolCallPart,
         ToolReturnPart,
+        UserPromptPart,
     )
 
     filtered = []
@@ -44,14 +46,33 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
                         valid_parts.append(part)
                 elif isinstance(part, ToolReturnPart):
                     # Keep tool returns, ensure content is not None
-                    if part.content is not None:
+                    # Tool returns MUST match tool calls, so we cannot drop them.
+                    if part.content is None:
+                        from dataclasses import replace
+
+                        valid_parts.append(replace(part, content="null"))
+                    else:
                         valid_parts.append(part)
                 elif isinstance(part, ThinkingPart):
-                    if part.content is not None:
+                    if part.content is None:
+                        from dataclasses import replace
+
+                        valid_parts.append(replace(part, content=""))
+                    else:
+                        valid_parts.append(part)
+                elif isinstance(part, (TextPart, UserPromptPart, SystemPromptPart)):
+                    if part.content is None:
+                        from dataclasses import replace
+
+                        valid_parts.append(replace(part, content=""))
+                    else:
                         valid_parts.append(part)
                 elif hasattr(part, "content"):
-                    # TextPart, UserPromptPart, etc. - keep if content is not None
-                    if part.content is not None:
+                    if getattr(part, "content") is None:
+                        from dataclasses import replace
+
+                        valid_parts.append(replace(part, content=""))
+                    else:
                         valid_parts.append(part)
                 else:
                     # Parts without content field - keep as-is
@@ -67,19 +88,31 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
             has_tool_call = False
             for part in msg.parts:
                 if isinstance(part, TextPart):
-                    if part.content is not None:
+                    if part.content is None:
+                        from dataclasses import replace
+
+                        valid_parts.append(replace(part, content=""))
+                        has_text = True
+                    else:
                         valid_parts.append(part)
                         has_text = True
                 elif isinstance(part, ToolCallPart):
                     valid_parts.append(part)
                     has_tool_call = True
                 elif isinstance(part, ThinkingPart):
-                    if part.content is not None:
+                    if part.content is None:
+                        from dataclasses import replace
+
+                        valid_parts.append(replace(part, content=""))
+                    else:
                         valid_parts.append(part)
                 elif hasattr(part, "content"):
-                    if part.content is not None:
+                    if getattr(part, "content") is None:
+                        from dataclasses import replace
+
+                        valid_parts.append(replace(part, content=""))
+                    else:
                         valid_parts.append(part)
-                        # We don't set has_text=True for unknown parts with content
                 else:
                     valid_parts.append(part)
 

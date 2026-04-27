@@ -433,8 +433,9 @@ class CommandsMixin:
             )
             # Use the UI's selected model if set (from /model command), otherwise fallback
             model = self._model if self._model else llm_task._llm_config.model
+            final_model = llm_task._llm_config.resolve_model(model)
             agent = Agent(
-                model=model,
+                model=final_model,
                 system_prompt=_sys_prompt,
             )
 
