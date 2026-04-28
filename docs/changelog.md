@@ -1,5 +1,12 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.23.1 (April 28, 2026)
+
+- **Bug Fix: Bedrock Nil-Content Compatibility**:
+  - `_filter_nil_content()` in `src/zrb/llm/agent/run/history_utils.py` now uses `"."` instead of `""` for nil/empty content replacement.
+  - Bedrock rejects blank text fields (`ValidationException`) and Anthropic models on Bedrock reject whitespace-only text.
+  - Matches pydantic-ai's own Bedrock model convention of using `"."` as a minimal non-empty placeholder.
+
 ## 2.23.0 (April 27, 2026)
 
 - **Breaking Change: Consolidated Model Resolution Pipeline**:
