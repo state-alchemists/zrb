@@ -57,21 +57,21 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
                     if part.content is None:
                         from dataclasses import replace
 
-                        valid_parts.append(replace(part, content=""))
+                        valid_parts.append(replace(part, content="."))
                     else:
                         valid_parts.append(part)
                 elif isinstance(part, (TextPart, UserPromptPart, SystemPromptPart)):
                     if part.content is None:
                         from dataclasses import replace
 
-                        valid_parts.append(replace(part, content=""))
+                        valid_parts.append(replace(part, content="."))
                     else:
                         valid_parts.append(part)
                 elif hasattr(part, "content"):
                     if getattr(part, "content") is None:
                         from dataclasses import replace
 
-                        valid_parts.append(replace(part, content=""))
+                        valid_parts.append(replace(part, content="."))
                     else:
                         valid_parts.append(part)
                 else:
@@ -91,7 +91,7 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
                     if part.content is None:
                         from dataclasses import replace
 
-                        valid_parts.append(replace(part, content=""))
+                        valid_parts.append(replace(part, content="."))
                         has_text = True
                     else:
                         valid_parts.append(part)
@@ -103,23 +103,27 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
                     if part.content is None:
                         from dataclasses import replace
 
-                        valid_parts.append(replace(part, content=""))
+                        valid_parts.append(replace(part, content="."))
                     else:
                         valid_parts.append(part)
                 elif hasattr(part, "content"):
                     if getattr(part, "content") is None:
                         from dataclasses import replace
 
-                        valid_parts.append(replace(part, content=""))
+                        valid_parts.append(replace(part, content="."))
                     else:
                         valid_parts.append(part)
                 else:
                     valid_parts.append(part)
 
             # Some providers (e.g. DeepSeek via Cloudflare) require a non-null
-            # text content when tool calls are present.
+            # text content when tool calls are present. Use a period `"."`
+            # (not empty string, not space) because:
+            #   - Bedrock rejects blank text fields (ValidationException)
+            #   - Anthropic models on Bedrock reject whitespace-only text
+            #   - pydantic_ai's own Bedrock model uses "." for the same reason
             if has_tool_call and not has_text:
-                valid_parts.insert(0, TextPart(content=""))
+                valid_parts.insert(0, TextPart(content="."))
 
             if valid_parts:
                 from dataclasses import replace
