@@ -1,6 +1,6 @@
 """Key bindings for the default `UI`.
 
-`_setup_app_keybindings` wires the prompt-toolkit handlers; it stays one
+`setup_app_keybindings` wires the prompt-toolkit handlers; it stays one
 method because each handler is a closure capturing `self` and the event
 object. The dispatch logic for Enter — which routes through the slash
 command handlers on `BaseUI._commands_mixin` — is the bulk of the file.
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 class KeybindingsMixin:
     """Application key bindings for the default UI."""
 
-    def _setup_app_keybindings(
+    def setup_app_keybindings(
         self, app_keybindings: "KeyBindings", llm_task: "AnyTask"
     ):
         @app_keybindings.add("f6")

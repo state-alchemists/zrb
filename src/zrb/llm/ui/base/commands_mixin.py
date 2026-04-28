@@ -407,8 +407,6 @@ class CommandsMixin:
             # Load current history for context (read-only snapshot).
             # Strip SystemPromptPart entries so the main agent's system prompt
             # doesn't conflict with the btw agent's own system prompt.
-            import platform
-
             from pydantic_ai import Agent
             from pydantic_ai.messages import ModelRequest, SystemPromptPart
 
@@ -424,16 +422,13 @@ class CommandsMixin:
                 else:
                     btw_history.append(msg)
 
-            _now = datetime.now().strftime("%A, %B %d, %Y %H:%M:%S")
             _sys_prompt = (
-                f"The current time is {_now}. "
-                f"The OS is {platform.platform()}. "
-                f"The current directory is {os.getcwd()}. "
-                "Answer the user's question concisely using this information when relevant."
+                llm_task.get_system_prompt(self.ctx)
+                + "\n\nAnswer the user's question concisely using this information when relevant."
             )
             # Use the UI's selected model if set (from /model command), otherwise fallback
-            model = self._model if self._model else llm_task._llm_config.model
-            final_model = llm_task._llm_config.resolve_model(model)
+            model = self._model if self._model else llm_task.llm_config.model
+            final_model = llm_task.llm_config.resolve_model(model)
             agent = Agent(
                 model=final_model,
                 system_prompt=_sys_prompt,

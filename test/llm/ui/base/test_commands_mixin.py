@@ -31,6 +31,10 @@ class MockUI(CommandsMixin):
         self._running_llm_task = None
         self._background_tasks = set()
         self._llm_task = MagicMock()
+        self._llm_task.get_system_prompt.return_value = "mock system prompt"
+        self._llm_task.llm_config.model = "mock-model"
+        self._llm_task.llm_config.resolve_model.return_value = "mock-resolved-model"
+        self.ctx = MagicMock()
         self._model = "test-model"
         self._conversation_session_name = "default"
         self._markdown_theme = None

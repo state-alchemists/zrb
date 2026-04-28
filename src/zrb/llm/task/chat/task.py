@@ -349,6 +349,20 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         self._show_ollama_models = show_ollama_models
         self._show_pydantic_ai_models = show_pydantic_ai_models
 
+    @property
+    def llm_config(self) -> LLMConfig:
+        return self._llm_config
+
+    @property
+    def llm_limiter(self) -> LLMLimiter | None:
+        return self._llm_limitter
+
+    def get_system_prompt(self, ctx: AnyContext) -> str:
+        if self._prompt_manager is None:
+            return ""
+        compose_prompt = self._prompt_manager.compose_prompt()
+        return compose_prompt(ctx)
+
     async def _exec_action(self, ctx: AnyContext) -> Any:
         # 1. Resolve inputs/attributes
         initial_conversation_name = self._get_initial_conversation_name(ctx)
