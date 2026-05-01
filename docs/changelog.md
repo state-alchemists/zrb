@@ -1,5 +1,78 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.24.0 (May 1, 2026)
+
+- **Feature: New `remove_file` and `move_file` Agent Tools**:
+  - Added `remove_file` tool (`RM`) for deleting files and directories, with a `recursive` flag for directory removal.
+  - Added `move_file` tool (`MV`) for moving or renaming files, with automatic parent directory creation.
+  - Both tools include comprehensive tool guidance: `RM` warns about dangling references and irreversible directory removal; `MV` guides import/reference updates.
+  - New `approve_if_mv_inside_journal_dir()` auto-approval policy for `MV` operations within the journal directory.
+  - Registered in `llm_chat` toolset and linked via `chat_tool_policy.py`.
+
+- **Feature: New `search_journal` Agent Tool**:
+  - Added `SearchJournal` tool for searching past journal entries by keyword or regex pattern.
+  - Targets the configured journal directory only; case-insensitive by default.
+  - Auto-approved tool (no user confirmation needed).
+
+- **Feature: System Context Tool Auto-Detection**:
+  - `system_context.py` now auto-detects available CLI tools (`docker`, `python`, `node`, `go`, `jq`, `curl`, `gh`, `make`, `rg`, `rtk`) by checking `$PATH`.
+  - Detects project type from markers (`pyproject.toml`, `go.mod`, `Cargo.toml`, `package.json`, etc.) and advertises relevant build tools.
+  - Detects infrastructure tools (Terraform, Kubernetes, AWS, GCP, Azure) from project markers and home config directories.
+  - Displays token limit in system context for budget awareness.
+  - Uses `ThreadPoolExecutor` for parallel `shutil.which()` checks to minimize startup latency.
+
+- **Refactoring: `run_agent` God Function Split**:
+  - The monolithic 952-line `run_agent()` body (~640-line diff) was extracted into focused helper functions:
+    - `_resolve_context_dependencies()` — resolves UI, tool confirmation, YOLO, approval channel, and hook manager with fallback logic.
+    - `_setup_print_and_events()` — resolves print function and streaming event handler.
+    - `_run_startup_hooks()` — executes session-start and user-prompt-submit hooks with `additionalContext` processing.
+    - `_log_startup()` — debug logging of resolution results, extracted for testability.
+  - Main `run_agent()` now reads as a clean orchestration pipeline: resolve → set context vars → setup → hooks → prepare history → execution loop with `try/finally` cleanup.
+  - Removed stale imports (`DeferredToolRequests`, `DeferredToolResults`, `UserPromptPart`, `extract_replace_response`, `extract_system_message`).
+
+- **Bug Fix: YOLO Inheritance Checker Wrong Arguments**:
+  - `make_yolo_inheritance_checker()` was receiving incorrect arguments (`ctx`, `tool_def`, `args`) from pydantic-ai's approval callback, causing `TypeError` on most calls.
+  - Simplified to `check_yolo_inheritance(tool_def)` — only the tool definition is needed for the check.
+  - Callers in `common.py` updated from `try/except TypeError` fallback to a clean single call.
+  - Fixes a regression where `yolo` mode would not properly auto-approve agent tool calls.
+
+- **Bug Fix: History Summarization Silently Discarded**:
+  - pydantic-ai's `Agent` constructor applies `history_processors` on a shallow copy of `message_history` without writing back, making summarization a no-op.
+  - Removed `history_processors=history_processors` from `Agent()` constructor call.
+  - Stored processors as `agent._zrb_history_processors` and now apply them in `_prepare_history` (before first model call) and `_execution_loop` (between tool-call iterations) where the caller owns the history reference.
+
+- **Bug Fix: Subagent Agent Search Path**:
+  - Fixed `builtin_path` resolution in `SearchMixin`: parent traversal was off by one level, causing sub-agent discovery to miss the built-in agents directory.
+
+- **Improvement: Prompt and Mandate Refinements**:
+  - `mandate.md`: Added "Edge Cases" section for lock files, merge conflicts, test failures, and git hooks.
+  - `persona.md`: Restructured with clearer "Response Calibration" subsection.
+  - Updated tool guidance in `chat.py` for RM, MV, SearchJournal tools; Bash tool guidance now mentions `rtk gain` and `rtk` prefix for token savings.
+  - Skills section now uses `skill_manager.get_skills()` instead of `scan()` to respect already-cached/injected skills.
+  - `journal_mandate.md`: Minor clarity improvements.
+
+- **Improvement: Tool Guidance Refinements**:
+  - `Bash` timeout guidance updated from 30s to 120s (default).
+  - Guidance now references `rtk` for token-efficient command execution.
+  - `Write` guidance: calls out "For existing files, read with Read first to confirm content before overwriting."
+  - `Edit` guidance: calls out "Before editing a function, method, or class: use Grep (LspFindReferences if LSP is available) to find all call sites."
+  - `Delegation` guidance: references all available agent names (`code-reviewer`, `researcher`, `generalist`).
+
+- **Maintenance: Dependency Update**:
+  - Updated `pydantic-ai-slim` version in `poetry.lock` and `pyproject.toml`.
+
+- **Tests: Coverage Expansion**:
+  - New `test/llm/agent/run/test_history_utils.py`: 115 lines covering history utility functions.
+  - New `test/llm/tool/test_file_mv.py`: 61 lines for move_file tool.
+  - New `test/llm/tool/test_file_rm.py`: 63 lines for remove_file tool.
+  - New `test/llm/tool/test_journal.py`: 105 lines for SearchJournal tool.
+  - New `test/llm/lsp/test_configs.py`: 93 lines for LSP server configuration.
+  - New `test/llm/ui/test_buffered_output_mixin.py`: 95 lines for buffered output testing.
+  - New `test/llm/ui/test_event_driven_ui.py`: 79 lines for event-driven UI testing.
+  - New `test/llm/ui/default/test_keybindings_mixin.py`: 306 lines for keybindings lifecycle and rendering.
+  - Extended `test/llm/ui/default/test_lifecycle_mixin.py`: +103 lines.
+  - Updated `test/llm/hook/test_hook_result_processing.py`, `test/llm/ui/base/test_commands_mixin.py`, and `test/llm/ui/default/test_output_mixin.py`.
+
 ## 2.23.1 (April 28, 2026)
 
 - **Bug Fix: Bedrock Nil-Content Compatibility**:
