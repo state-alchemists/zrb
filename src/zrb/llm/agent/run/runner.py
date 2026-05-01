@@ -353,6 +353,27 @@ def _merge_consecutive_messages(current_history, current_message):
     return current_message
 
 
+async def _apply_history_processors(
+    history: list[Any], processors: list[Any]
+) -> list[Any]:
+    """Apply history processors and ensure proper message alternation.
+
+    Called between tool-call iterations so that summarization effects (e.g.
+    replacing a large tool result with a SUMMARY_PREFIX string) are written
+    back to current_history. Without this, pydantic-ai's before_model_request
+    modifies a shallow copy and result.all_messages() always returns the
+    original unsummarized content, causing large tool results to be
+    re-summarized on every subsequent model call.
+    """
+    processed = history
+    for processor in processors:
+        try:
+            processed = await processor(processed)
+        except Exception as e:
+            CFG.LOGGER.warning(f"History processor failed between tool calls: {e}")
+    return ensure_alternating_roles(processed)
+
+
 async def _execution_loop(
     agent: "Agent[None, Any]",
     current_message: Any,
@@ -372,6 +393,13 @@ async def _execution_loop(
     retry_state = RetryState()
     extension_state = ExtensionState()
     current_results = None
+    # pydantic-ai's before_model_request runs history processors on a shallow
+    # copy of ctx.state.message_history, so any summarization it does is never
+    # written back. result.all_messages() therefore always returns the original
+    # (unsummarized) content. We hold a reference to the processors here so we
+    # can apply them ourselves to persist their effects between tool call
+    # iterations.
+    history_processors = list(getattr(agent, "history_processors", None) or [])
 
     try:
         while True:
@@ -441,7 +469,9 @@ async def _execution_loop(
 
                 current_results = rebuild_for_denials(current_results)
                 current_message = None
-                current_history = run_history
+                current_history = await _apply_history_processors(
+                    run_history, history_processors
+                )
                 CFG.LOGGER.debug("Continuing to next iteration with current_results")
                 continue
 

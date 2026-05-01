@@ -85,9 +85,10 @@ def create_summarizer_history_processor(
             )
             if (
                 is_within_tokens
-                and len(to_summarize) < 0.3 * conversational_token_threshold
+                and llm_limiter.count_tokens(to_summarize)
+                < 0.3 * conversational_token_threshold
             ):
-                # There is no need to summarize if we cannot save a leat 0.3 of context window
+                # There is no need to summarize if we cannot save at least 0.3 of context window
                 return messages
 
             zrb_print(
