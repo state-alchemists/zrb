@@ -164,14 +164,14 @@ class UI(
             jargon=self._jargon,
             input_field=self._input_field,
             output_field=self._output_field,
-            info_bar_text=self._get_info_bar_text,
-            status_bar_text=self._get_status_bar_text,
+            info_bar_text=self.get_info_bar_text,
+            status_bar_text=self.get_status_bar_text,
         )
 
         from prompt_toolkit.key_binding import KeyBindings
 
         self._app_kb = KeyBindings()
-        self._setup_app_keybindings(
+        self.setup_app_keybindings(
             app_keybindings=self._app_kb, llm_task=self._llm_task
         )
         self._application = self._create_application(

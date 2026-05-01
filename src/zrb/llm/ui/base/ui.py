@@ -216,6 +216,11 @@ class BaseUI(CommandsMixin):
             self.yolo = is_yolo
 
     @property
+    def ctx(self) -> AnyContext:
+        """Get the context for this UI."""
+        return self._ctx
+
+    @property
     def tool_call_handler(self) -> Any:
         """Get the tool call handler for this UI."""
         return self._tool_call_handler

@@ -107,9 +107,6 @@ class OutputMixin:
     @property
     def output_field_width(self) -> int | None:
         """Get the output field width."""
-        return self._get_output_field_width()
-
-    def _get_output_field_width(self) -> int | None:
         try:
             width = get_terminal_size().columns - 4
             if width < 10:
@@ -118,7 +115,7 @@ class OutputMixin:
             width = None
         return width
 
-    def _get_info_bar_text(self) -> "AnyFormattedText":
+    def get_info_bar_text(self) -> "AnyFormattedText":
         from prompt_toolkit.formatted_text import HTML
         from prompt_toolkit.formatted_text.utils import fragment_list_width
 
@@ -161,7 +158,7 @@ class OutputMixin:
 
         return HTML(center_line(line1_html) + "\n" + center_line(line2_html))
 
-    def _get_status_bar_text(self) -> "AnyFormattedText":
+    def get_status_bar_text(self) -> "AnyFormattedText":
         if self._is_thinking:
             return [("class:thinking", f" ⏳ {self._assistant_name} is working... ")]
         return [("class:status", " 🚀 Ready ")]

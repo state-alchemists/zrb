@@ -351,7 +351,7 @@ class LLMTask(BaseTask):
                 ui=self._uis,
                 yolo=yolo_value,
                 approval_channel=self._approval_channel,
-                system_prompt=self._get_system_prompt(ctx),
+                system_prompt=self.get_system_prompt(ctx),
             )
         except Exception as e:
             self._handle_run_error(ctx, history_manager, conversation_name, e)
@@ -393,7 +393,7 @@ class LLMTask(BaseTask):
             if self._dynamic_yolo is not None
             else get_bool_attr(ctx, self._yolo, False)
         )
-        system_prompt = self._get_system_prompt(ctx)
+        system_prompt = self.get_system_prompt(ctx)
         ctx.log_debug(f"SYSTEM PROMPT: {system_prompt}")
         # Get all tools and toolsets including those from factories
         resolved_tools = self._get_all_tools(ctx)
@@ -544,7 +544,15 @@ class LLMTask(BaseTask):
             output = remove_style(output)
         return output
 
-    def _get_system_prompt(self, ctx: AnyContext) -> str:
+    @property
+    def llm_config(self) -> LLMConfig:
+        return self._llm_config
+
+    @property
+    def llm_limiter(self) -> LLMLimiter:
+        return self._llm_limitter
+
+    def get_system_prompt(self, ctx: AnyContext) -> str:
         if self._prompt_manager is None:
             return ""
         compose_prompt = self._prompt_manager.compose_prompt()
