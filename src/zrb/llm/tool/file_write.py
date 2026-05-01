@@ -7,7 +7,6 @@ def write_file(path: str, content: str, mode: str = "w") -> str:
 
     `mode="w"` (default) overwrites; `mode="a"` appends. For large content, write in chunks:
     first chunk with mode="w", subsequent chunks with mode="a".
-    For existing files, read with `Read` first to avoid unintentional overwrites.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     try:

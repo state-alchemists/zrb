@@ -77,7 +77,7 @@ Use when: something runs but produces wrong results, crashes at runtime, or a te
 
 ### B3 — Hypothesize and Test
 
-In a `<thinking>` block, list candidate root causes ranked by likelihood. Test the top hypothesis first with a minimal change. If refuted, eliminate it and move to the next.
+List candidate root causes ranked by likelihood. Test the top hypothesis first with a minimal change. If refuted, eliminate it and move to the next.
 
 **Common root causes:**
 - Off-by-one in loops or slices

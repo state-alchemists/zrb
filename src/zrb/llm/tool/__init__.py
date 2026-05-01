@@ -8,13 +8,19 @@ from zrb.llm.tool.file import (
     analyze_file,
     glob_files,
     list_files,
+    move_file,
     read_file,
     read_files,
+    remove_file,
     replace_in_file,
     search_files,
     write_file,
     write_files,
 )
+from zrb.llm.tool.journal import search_journal
+
+search_journal.__name__ = "SearchJournal"
+
 from zrb.llm.tool.mcp import load_mcp_config
 from zrb.llm.tool.plan import (
     clear_todos,
@@ -40,6 +46,9 @@ __all__ = [
     "replace_in_file",
     "search_files",
     "analyze_file",
+    "remove_file",
+    "move_file",
+    "search_journal",
     "load_mcp_config",
     "create_rag_from_directory",
     "create_activate_skill_tool",

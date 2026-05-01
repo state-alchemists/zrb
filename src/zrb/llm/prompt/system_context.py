@@ -11,17 +11,6 @@ from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.util.git import is_inside_git_dir
 
-_TOOL_HINTS: dict[str, str] = {
-    "rg": "prefer over grep",
-    "jq": "prefer for JSON extraction over ad-hoc parsing",
-    "gh": "prefer for GitHub operations (PRs, issues, releases)",
-    "rtk": (
-        "prefix verbose commands to compress output and save tokens "
-        "(e.g. rtk git diff, rtk pytest, rtk grep) — "
-        "run `rtk gain` to see savings"
-    ),
-}
-
 _DEFAULT_TOOLS: list[tuple[str, str]] = [
     ("docker", "Docker"),
     ("python", "Python"),
@@ -151,14 +140,11 @@ def system_context(
 
         # Collect which() results in deterministic order
         found_tools: list[str] = []
-        found_hints: list[str] = []
         seen_labels: set[str] = set()
         for _cmd, label, f in f_always_which + f_extra_which:
             if label not in seen_labels and f.result():
                 found_tools.append(label)
                 seen_labels.add(label)
-                if label in _TOOL_HINTS:
-                    found_hints.append(f"  - {label}: {_TOOL_HINTS[label]}")
 
         found_markers: list[str] = f_markers.result()
         todos_data = f_todos.result()
@@ -201,8 +187,6 @@ def system_context(
 
     if found_tools:
         parts.append(f"- Tools: {', '.join(found_tools)}")
-    if found_hints:
-        parts.append("- CLI hints:\n" + "\n".join(found_hints))
 
     parts.extend(git_lines)
 

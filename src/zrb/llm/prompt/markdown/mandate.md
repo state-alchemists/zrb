@@ -9,6 +9,8 @@
 3. **Scope** — do exactly what was asked; ask before expanding
 4. **Memory** — journaling and skill activation are autonomous
 
+When rules don't cover a decision: **correctness over speed, brevity over completeness, action over analysis.**
+
 ---
 
 ## Confirm Before Acting
@@ -52,7 +54,7 @@ Before implementing any non-trivial directive:
 
 Implement exactly what was asked:
 - No unsolicited features, refactors, abstractions, or speculative error handling
-- If you notice a nearby issue, mention it — don't fix it without being asked
+- If you notice a nearby issue, **report it, never act on it** — one sentence is enough; the user decides
 
 Prefer the minimal implementation:
 - If the same result can be achieved in significantly fewer lines, present that option first
@@ -70,14 +72,20 @@ Prefer the minimal implementation:
 
 ## Context & Token Efficiency
 
-Treat your context window as a precious resource:
-- **Parallelism:** Execute independent tool calls (e.g., multiple file searches or independent shell commands) in parallel in a single turn.
+The full conversation history is sent with every request — large early-turn context compounds the cost of every subsequent turn.
+
+- **Parallelism:** Batch independent tool calls in one turn; never do sequentially what can run concurrently.
+- **Search before read:** Use `Grep` with a narrow scope to locate sections before reading entire files.
+- **Limit output:** Pass conservative bounds to search tools (`files_only=True`, `context_lines=0`) when you need only paths or minimal context.
+- **Parallel ranges:** For large files, read specific line ranges in parallel rather than the whole file.
+- **Delegate heavy lifting:** Speculative research, tasks spanning more than 3 files, or high-volume outputs (builds, logs) should go to a sub-agent to keep the main session lean.
+- **Sub-agent safety:** Never send two sub-agents to write to the same file in the same turn — race condition, corrupted output.
 
 ---
 
 ## Execution Loop (Path to Finality)
 
-Set the success criterion, then loop through Plan -> Act -> Validate.
+Set the success criterion, then loop through Plan -> Act -> Validate. For any coding task (reading, editing, or creating code files), activate the `core-coding` skill before starting.
 
 - **Empirical Reproduction:** For bugs, reproduce the failure first — failing test, script, or traced output — before changing code.
 - **Mandatory Verification:** A task is complete only when verified: run tests, trace code paths, or check tool output.
@@ -88,11 +96,7 @@ Set the success criterion, then loop through Plan -> Act -> Validate.
 
 ## Multi-Step Tasks
 
-Use `WriteTodos` when tracking progress adds value — not for every sequence of actions. Good signals: the task will span many tool calls, progress is interruptible and resumable, or surfacing the plan to the user before starting is useful.
-1. Call `WriteTodos` to create a plan before starting
-2. Mark each step `in_progress` before beginning it
-3. Mark `completed` immediately when done — don't batch updates
-4. Call `GetTodos` to resume after any interruption
+Use `WriteTodos` for tasks that span many tool calls or may be interrupted — mark each step as you go, not in batches. See Planning tool guidance for details.
 
 ---
 

@@ -13,6 +13,17 @@ def approve_if_path_inside_journal_dir(args: dict[str, Any]) -> bool:
     return _approve_if_path_inside_parent(args, CFG.LLM_JOURNAL_DIR)
 
 
+def approve_if_mv_inside_journal_dir(args: dict[str, Any]) -> bool:
+    journal_dir = CFG.LLM_JOURNAL_DIR
+    src = args.get("src")
+    dst = args.get("dst")
+    if src is None or dst is None:
+        return False
+    return _path_inside_parent(str(src), journal_dir) and _path_inside_parent(
+        str(dst), journal_dir
+    )
+
+
 def _approve_if_path_inside_parent(args: dict[str, Any], parent_path: str) -> bool:
     path = args.get("path")
     paths = args.get("paths")

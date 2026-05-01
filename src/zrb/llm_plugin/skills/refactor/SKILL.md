@@ -12,7 +12,7 @@ When this skill is activated, you enter **Refactoring Mode**. The cardinal rule:
 **Before making any structural change, you MUST have a passing test suite.**
 
 1. Run the existing tests with `Bash`. Confirm they pass.
-2. If test coverage is insufficient for the code you intend to refactor, **stop and write characterization tests first** (use the `tdd` skill).
+2. If test coverage is insufficient for the code you intend to refactor, **stop and write characterization tests first** (use the `testing` skill).
    - A characterization test captures what the code currently does—even if that behavior is wrong—so you can detect unintended changes.
 3. Record the baseline: the exact test command and its output. This is your safety net.
 
@@ -29,7 +29,7 @@ When this skill is activated, you enter **Refactoring Mode**. The cardinal rule:
    - "This function is 150 lines and does three unrelated things."
    - "This logic is copy-pasted in 4 places with minor variations."
    - "Cyclomatic complexity is >15 due to deeply nested conditionals."
-3. **Plan atomic steps.** Each step should be small enough that a failing test immediately identifies the problematic change. Write the plan in a `<thinking>` block or as todos using `WriteTodos`.
+3. **Plan atomic steps.** Each step should be small enough that a failing test immediately identifies the problematic change. Write the plan as todos using `WriteTodos`.
 
 ---
 

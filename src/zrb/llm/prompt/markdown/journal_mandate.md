@@ -4,15 +4,9 @@ Your persistent long-term memory. The current index is embedded below — use it
 
 ## When to Write
 
-Write after sessions if you learned anything worth remembering:
+Write if the session produced anything reusable: user preferences, project decisions, architecture notes, bug root causes, or non-obvious solutions. Skip greetings, single lookups, and no-finding sessions. Never ask the user — this is your call.
 
-| Record | Skip |
-|--------|------|
-| User preferences, project context, architecture decisions | Greetings, single-question lookups, typo fixes |
-| Bug root causes, non-obvious solutions | Tasks with no reusable findings |
-| Analysis results (security, performance, architecture) | |
-
-On journal reminder: evaluate against the table. If something qualifies, read current `index.md`, append/update, keep entries dense (one fact per line). Never ask the user — this is your call.
+On journal reminder: if something qualifies, read current `index.md`, append/update, keep entries dense (one fact per line).
 
 ## How to Navigate
 
