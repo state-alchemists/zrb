@@ -289,8 +289,8 @@ class SkillManager:
                 if isinstance(skill_obj, Skill):
                     self._skills[skill_obj.name] = skill_obj
 
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.warning(f"Failed to load Python skill from {full_path}: {e}")
 
     def _load_skill_from_markdown(self, rel_path: str, full_path: str):
         try:
@@ -388,8 +388,8 @@ class SkillManager:
                 agent=agent,
                 content=content,  # Persist content to avoid re-reading
             )
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.warning(f"Failed to load Markdown skill from {full_path}: {e}")
 
     def _load_skill(self, rel_path: str, full_path: str):
         # Backward compatibility / internal helper alias
@@ -400,6 +400,11 @@ class SkillManager:
         Manually register a skill.
         """
         self._skills[skill.name] = skill
+
+    def get_skills(self) -> list[Skill]:
+        """Return all scanned skills, scanning lazily on first call."""
+        self._ensure_scanned()
+        return list(self._skills.values())
 
     def get_skill(self, name: str) -> Skill | None:
         self._ensure_scanned()

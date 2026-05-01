@@ -60,9 +60,6 @@ def create_activate_skill_tool(skill_manager: SkillManager | None = None):
         "Activates specialized expertise from a skill.\n\n"
         "Returns the skill's full content, its directory path, and a listing of any\n"
         "companion files (scripts, docs, data). Use Read/Glob on the directory to\n"
-        "access companion files referenced in the skill content.\n\n"
-        "MANDATES:\n"
-        "- Use when task matches a skill's domain.\n"
-        "- Re-activate if conversation gets long and you lose context."
+        "access companion files referenced in the skill content."
     )
     return activate_skill_impl

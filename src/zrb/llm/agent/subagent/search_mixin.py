@@ -53,7 +53,9 @@ class SearchMixin:
             if dir_path.exists() and dir_path.is_dir():
                 search_dirs.append(dir_path)
 
-        builtin_path = Path(__file__).parent.parent.parent / "llm_plugin" / "agents"
+        builtin_path = (
+            Path(__file__).parent.parent.parent.parent / "llm_plugin" / "agents"
+        )
         if builtin_path.exists() and builtin_path.is_dir():
             search_dirs.append(builtin_path)
 

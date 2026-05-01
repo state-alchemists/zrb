@@ -150,8 +150,7 @@ def _get_skills_section(
     active_skills: list[str] | None = None,
     include_claude_skills: bool = True,
 ) -> str | None:
-    # Use SkillManager's built-in search directories logic
-    skills = skill_manager.scan(search_dirs=skill_manager.get_search_directories())
+    skills = skill_manager.get_skills()
     if not skills:
         return None
 

@@ -3,12 +3,68 @@ import os
 import platform
 import shutil
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Callable
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.util.git import is_inside_git_dir
+
+_DEFAULT_TOOLS: list[tuple[str, str]] = [
+    ("docker", "Docker"),
+    ("python", "Python"),
+    ("node", "Node"),
+    ("go", "Go"),
+]
+
+_UTILITY_TOOLS: list[tuple[str, str]] = [
+    ("jq", "jq"),
+    ("curl", "curl"),
+    ("gh", "gh"),
+    ("make", "make"),
+    ("rg", "rg"),
+    ("rtk", "rtk"),
+]
+
+_PROJECT_TOOLS: dict[str, list[tuple[str, str]]] = {
+    "Rust": [("cargo", "Cargo")],
+    "Java": [("java", "Java"), ("mvn", "Maven"), ("gradle", "Gradle")],
+    "Ruby": [("ruby", "Ruby"), ("bundle", "Bundler")],
+    "PHP": [("php", "PHP")],
+    "C/C++": [("gcc", "GCC"), ("clang", "Clang"), ("cmake", "CMake")],
+    "C#": [("dotnet", ".NET")],
+}
+
+_INFRA_TOOLS: dict[str, list[tuple[str, str]]] = {
+    "Terraform": [("terraform", "terraform")],
+    "Kubernetes": [("kubectl", "kubectl"), ("helm", "helm")],
+    "AWS": [("aws", "aws")],
+    "GCP": [("gcloud", "gcloud")],
+    "Azure": [("az", "az")],
+}
+
+_PROJECT_MARKERS: list[tuple[str, str]] = [
+    ("pyproject.toml", "Python"),
+    ("requirements.txt", "Python"),
+    ("setup.py", "Python"),
+    ("go.mod", "Go"),
+    ("Cargo.toml", "Rust"),
+    ("package.json", "Node"),
+    ("pnpm-lock.yaml", "PNPM"),
+    ("yarn.lock", "Yarn"),
+    ("Gemfile", "Ruby"),
+    ("composer.json", "PHP"),
+    ("pom.xml", "Java"),
+    ("build.gradle", "Java"),
+    ("Makefile", "Make"),
+    ("CMakeLists.txt", "C/C++"),
+    ("Dockerfile", "Docker"),
+    ("docker-compose.yml", "Docker Compose"),
+    ("Chart.yaml", "Helm"),
+    ("README.md", "Docs"),
+    ("AGENTS.md", "Agents"),
+]
 
 
 def system_context(
@@ -21,8 +77,6 @@ def system_context(
     )
     from zrb.llm.tool.plan import todo_manager
 
-    # Resolve session name from context and wire it to the todo ContextVar
-    # so all todo tool calls in this turn use the correct session automatically.
     try:
         session_name = str(ctx.input.session) if hasattr(ctx, "input") else ""
     except Exception:
@@ -30,6 +84,100 @@ def system_context(
     session_name = session_name.strip() or "default"
     set_current_tool_session(session_name)
 
+    inside_git = is_inside_git_dir()
+
+    with ThreadPoolExecutor(max_workers=16) as ex:
+        # Submit all independent IO work immediately
+        f_project_types = ex.submit(_detect_project_types)
+        f_infra_types = ex.submit(_detect_infra_types)
+        f_markers = ex.submit(_detect_project_markers)
+        f_todos = ex.submit(_safe_get_todos, todo_manager, session_name)
+
+        f_git_branch = f_git_status = f_git_log = None
+        if inside_git:
+            f_git_branch = ex.submit(
+                subprocess.run,
+                ["git", "branch", "--show-current"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            f_git_status = ex.submit(
+                subprocess.run,
+                ["git", "status", "--short"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            f_git_log = ex.submit(
+                subprocess.run,
+                ["git", "log", "--oneline", "-5"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+
+        # Always-checked tools have no dependency on project types — submit immediately
+        always_tools = _DEFAULT_TOOLS + _UTILITY_TOOLS
+        f_always_which = [
+            (cmd, label, ex.submit(shutil.which, cmd)) for cmd, label in always_tools
+        ]
+
+        # Project/infra types gate the extra tool checks — wait for them, then submit
+        project_types = f_project_types.result()
+        infra_types = f_infra_types.result()
+
+        extra_tools: list[tuple[str, str]] = []
+        for pt in project_types:
+            if pt in _PROJECT_TOOLS:
+                extra_tools.extend(_PROJECT_TOOLS[pt])
+        for it in infra_types:
+            if it in _INFRA_TOOLS:
+                extra_tools.extend(_INFRA_TOOLS[it])
+        f_extra_which = [
+            (cmd, label, ex.submit(shutil.which, cmd)) for cmd, label in extra_tools
+        ]
+
+        # Collect which() results in deterministic order
+        found_tools: list[str] = []
+        seen_labels: set[str] = set()
+        for _cmd, label, f in f_always_which + f_extra_which:
+            if label not in seen_labels and f.result():
+                found_tools.append(label)
+                seen_labels.add(label)
+
+        found_markers: list[str] = f_markers.result()
+        todos_data = f_todos.result()
+
+        git_lines: list[str] = []
+        if inside_git:
+            if f_git_branch and f_git_status:
+                try:
+                    branch = f_git_branch.result().stdout.strip() or "(detached)"
+                    status = f_git_status.result().stdout.strip()
+                    status_str = (
+                        "Clean"
+                        if not status
+                        else f"Dirty ({len(status.splitlines())} changes)"
+                    )
+                    git_lines.append(f"- Git: {branch} ({status_str})")
+                except Exception:
+                    pass
+            if f_git_log:
+                try:
+                    recent_log = f_git_log.result().stdout.strip()
+                    if recent_log:
+                        log_lines = "\n".join(
+                            f"  {line}" for line in recent_log.splitlines()
+                        )
+                        git_lines.append(f"- Recent commits:\n{log_lines}")
+                except Exception:
+                    pass
+
+    # get_active_worktree reads a ContextVar — must run on the caller's thread
+    active_wt = get_active_worktree()
+
+    # Assemble in the same order as before
     parts = [
         f"- Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         f"- OS: {platform.platform()}",
@@ -37,160 +185,21 @@ def system_context(
         f"- Token limit: {CFG.LLM_MAX_TOKEN_PER_REQUEST:,} per request",
     ]
 
-    # Detect project type from markers
-    project_types = _detect_project_types()
-
-    # Always-available runtime tools
-    default_tools = [
-        ("docker", "Docker"),
-        ("python", "Python"),
-        ("node", "Node"),
-        ("go", "Go"),
-    ]
-
-    # Universal utility tools — always checked regardless of project type
-    utility_tools = [
-        ("jq", "jq"),
-        ("curl", "curl"),
-        ("gh", "gh"),
-        ("make", "make"),
-        ("rg", "rg"),
-        ("rtk", "rtk"),
-    ]
-
-    # Project-type-specific runtime tools
-    project_tools: dict[str, list[tuple[str, str]]] = {
-        "Rust": [("cargo", "Cargo")],
-        "Java": [("java", "Java"), ("mvn", "Maven"), ("gradle", "Gradle")],
-        "Ruby": [("ruby", "Ruby"), ("bundle", "Bundler")],
-        "PHP": [("php", "PHP")],
-        "C/C++": [("gcc", "GCC"), ("clang", "Clang"), ("cmake", "CMake")],
-        "C#": [("dotnet", ".NET")],
-    }
-
-    # Infrastructure tools — checked when infra markers are present
-    infra_tools: dict[str, list[tuple[str, str]]] = {
-        "Terraform": [("terraform", "terraform")],
-        "Kubernetes": [("kubectl", "kubectl"), ("helm", "helm")],
-        "AWS": [("aws", "aws")],
-        "GCP": [("gcloud", "gcloud")],
-        "Azure": [("az", "az")],
-    }
-
-    tools_to_check = default_tools + utility_tools
-    for pt in project_types:
-        if pt in project_tools:
-            tools_to_check.extend(project_tools[pt])
-
-    infra_types = _detect_infra_types()
-    for it in infra_types:
-        if it in infra_tools:
-            tools_to_check.extend(infra_tools[it])
-
-    # Tool hints: only for tools where the preference/usage is non-obvious.
-    # Well-known tools (gh, rg, jq, curl, make) need no explanation — just availability.
-    # RTK is new enough to need an explicit usage note.
-    _tool_hints: dict[str, str] = {
-        "rg": "prefer over grep",
-        "jq": "prefer for JSON extraction over ad-hoc parsing",
-        "gh": "prefer for GitHub operations (PRs, issues, releases)",
-        "rtk": "prefix verbose commands to compress output and save tokens "
-        "(e.g. rtk git diff, rtk pytest, rtk grep) — "
-        "run `rtk gain` to see savings",
-    }
-
-    found_tools = []
-    found_hints = []
-    seen_labels: set[str] = set()
-    for cmd, label in tools_to_check:
-        if label not in seen_labels and shutil.which(cmd):
-            found_tools.append(label)
-            seen_labels.add(label)
-            if label in _tool_hints:
-                found_hints.append(f"  - {label}: {_tool_hints[label]}")
     if found_tools:
         parts.append(f"- Tools: {', '.join(found_tools)}")
-    if found_hints:
-        parts.append("- CLI hints:\n" + "\n".join(found_hints))
 
-    # Git info
-    if is_inside_git_dir():
-        try:
-            branch = (
-                subprocess.run(
-                    ["git", "branch", "--show-current"],
-                    capture_output=True,
-                    text=True,
-                    timeout=5,
-                ).stdout.strip()
-                or "(detached)"
-            )
-            status = subprocess.run(
-                ["git", "status", "--short"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            ).stdout.strip()
-            status_str = (
-                "Clean" if not status else f"Dirty ({len(status.splitlines())} changes)"
-            )
-            parts.append(f"- Git: {branch} ({status_str})")
-        except Exception:
-            pass
-        try:
-            recent_log = subprocess.run(
-                ["git", "log", "--oneline", "-5"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            ).stdout.strip()
-            if recent_log:
-                log_lines = "\n".join(f"  {l}" for l in recent_log.splitlines())
-                parts.append(f"- Recent commits:\n{log_lines}")
-        except Exception:
-            pass
+    parts.extend(git_lines)
 
-    # Project files
-    project_markers = [
-        ("pyproject.toml", "Python"),
-        ("requirements.txt", "Python"),
-        ("setup.py", "Python"),
-        ("go.mod", "Go"),
-        ("Cargo.toml", "Rust"),
-        ("package.json", "Node"),
-        ("pnpm-lock.yaml", "PNPM"),
-        ("yarn.lock", "Yarn"),
-        ("Gemfile", "Ruby"),
-        ("composer.json", "PHP"),
-        ("pom.xml", "Java"),
-        ("build.gradle", "Java"),
-        ("Makefile", "Make"),
-        ("CMakeLists.txt", "C/C++"),
-        ("Dockerfile", "Docker"),
-        ("docker-compose.yml", "Docker Compose"),
-        ("Chart.yaml", "Helm"),
-        ("README.md", "Docs"),
-        ("AGENTS.md", "Agents"),
-    ]
-    found_markers = list(
-        dict.fromkeys(
-            label for marker, label in project_markers if os.path.exists(marker)
-        )
-    )
     if found_markers:
         parts.append(f"- Project: {', '.join(found_markers)}")
 
-    # Active worktree — remind the LLM which worktree it entered
-    active_wt = get_active_worktree()
     if active_wt:
         parts.append(
             f"- Active worktree: {active_wt} (pass as cwd to Bash; use absolute paths for Read/Write/Edit/Grep)"
         )
 
-    # Pending todos — inject at session start so the LLM never starts blind
-    try:
-        todos_data = todo_manager.get_todos(session_name)
-        if todos_data:
+    if todos_data:
+        try:
             active = [
                 t
                 for t in todos_data.get("todos", [])
@@ -204,15 +213,29 @@ def system_context(
                     mark = "[>]" if t["status"] == "in_progress" else "[ ]"
                     todo_lines.append(f"  {mark} [{t['id']}] {t['content']}")
                 parts.extend(todo_lines)
-    except Exception:
-        pass
+        except Exception:
+            pass
 
     context_block = "# System Context\n" + "\n".join(parts)
     return next_handler(ctx, f"{current_prompt}\n\n{context_block}")
 
 
+def _safe_get_todos(todo_manager, session_name: str):
+    try:
+        return todo_manager.get_todos(session_name)
+    except Exception:
+        return None
+
+
+def _detect_project_markers() -> list[str]:
+    return list(
+        dict.fromkeys(
+            label for marker, label in _PROJECT_MARKERS if os.path.exists(marker)
+        )
+    )
+
+
 def _detect_project_types() -> list[str]:
-    """Detect project types from existing files."""
     markers = [
         ("Cargo.toml", "Rust"),
         ("go.mod", "Go"),
@@ -240,7 +263,6 @@ def _detect_project_types() -> list[str]:
 
 
 def _detect_infra_types() -> list[str]:
-    """Detect infrastructure tooling from project markers and home config dirs."""
     found: list[str] = []
     if glob.glob("*.tf") or os.path.isdir(".terraform"):
         found.append("Terraform")

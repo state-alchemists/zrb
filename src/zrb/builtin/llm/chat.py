@@ -1,5 +1,6 @@
 from zrb.builtin.group import llm_group
 from zrb.builtin.llm.chat_tool_policy import (
+    approve_if_mv_inside_journal_dir,
     approve_if_path_inside_cwd,
     approve_if_path_inside_journal_dir,
 )
@@ -21,13 +22,16 @@ from zrb.llm.tool import (
     get_todos,
     glob_files,
     list_files,
+    move_file,
     open_web_page,
     read_file,
     read_files,
+    remove_file,
     replace_in_file,
     run_shell_command,
     search_files,
     search_internet,
+    search_journal,
     update_todo,
     write_file,
     write_files,
@@ -112,6 +116,9 @@ tools = [
     replace_in_file,
     search_files,
     analyze_file,
+    remove_file,
+    move_file,
+    search_journal,
     search_internet,
     open_web_page,
     enter_worktree,
@@ -199,6 +206,9 @@ llm_chat.add_tool_policy(
     auto_approve("Write", approve_if_path_inside_journal_dir),
     auto_approve("WriteMany", approve_if_path_inside_journal_dir),
     auto_approve("Edit", approve_if_path_inside_journal_dir),
+    auto_approve("RM", approve_if_path_inside_journal_dir),
+    auto_approve("MV", approve_if_mv_inside_journal_dir),
+    auto_approve("SearchJournal"),
     auto_approve("SearchInternet"),
     auto_approve("OpenWebPage"),
     auto_approve("ActivateSkill"),
@@ -258,6 +268,7 @@ _static_tool_guidance = [
         when_to_use="Creating new files or fully overwriting existing ones",
         key_rule="For surgical edits to an existing file, use Edit instead. "
         "For multiple files at once, use WriteMany. "
+        "For existing files, read with Read first to confirm content before overwriting. "
         "Large content: first chunk mode='w', subsequent chunks mode='a'.",
     ),
     ToolGuidance(
@@ -266,7 +277,9 @@ _static_tool_guidance = [
         key_rule="old_text must come from below ---CONTENT--- in Read output (not the header). "
         "Include 2-3 surrounding lines for uniqueness. "
         "If old_text matches multiple times, expand context or use count=1. "
-        "For new files, use Write instead.",
+        "For new files, use Write instead. "
+        "Before editing a function, method, or class: use Grep (LspFindReferences if LSP is available) "
+        "to find all call sites — update them too if the signature or name changes.",
     ),
     ToolGuidance(
         group_name="File Operations",
@@ -276,18 +289,44 @@ _static_tool_guidance = [
         "Use case_sensitive=False for case-insensitive search. "
         "Use context_lines=0 to suppress surrounding lines.",
     ),
+    ToolGuidance(
+        group_name="File Operations",
+        tool_name="RM",
+        when_to_use="Deleting a file or directory — prefer this over Bash rm",
+        key_rule="recursive=False (default): removes file or empty directory. "
+        "recursive=True: removes directory and all contents (irreversible — confirm with user first). "
+        "Before removing: use Grep to check for imports, includes, or other references to the path — "
+        "dangling references will break the codebase.",
+    ),
+    ToolGuidance(
+        group_name="File Operations",
+        tool_name="MV",
+        when_to_use="Moving or renaming a file or directory — prefer this over Bash mv",
+        key_rule="Creates missing parent directories at the destination automatically. "
+        "Before moving: use Grep (or LspFindReferences) to find all imports and references to the path — "
+        "update them to the new location after the move.",
+    ),
+    ToolGuidance(
+        group_name="Journal",
+        tool_name="SearchJournal",
+        when_to_use="Searching past journal entries by keyword or pattern",
+        key_rule="Targets the configured journal directory only. Accepts regex. "
+        "case_sensitive defaults to False.",
+    ),
     # Execution
     ToolGuidance(
         group_name="Execution",
         tool_name="Bash",
         when_to_use="System commands, package managers, test runners, and build tools",
-        key_rule="Never use for file I/O — use Read/Write/Edit/Grep. "
+        key_rule="Never use for file I/O — use Read/Write/Edit/Grep/RM/MV. "
         "Never use to query state already in System Context (Time, OS, CWD, available tools). "
         "Always pass non-interactive flags (-y, --yes, CI=true). "
-        "Timeout 30s; timed-out processes may linger — check with ps aux | grep <name>. "
+        "Default timeout is 120s; timed-out processes may linger — check with ps aux | grep <name>. "
         "Batch independent commands with && to reduce round trips. "
         "Use cwd= when operating inside a worktree or a different project directory. "
-        "Prefer CLI tools listed in System Context hints over their slower alternatives.",
+        "When available (shown in System Context tools list): prefer rg over grep, "
+        "jq for JSON parsing, gh for GitHub operations (PRs, issues, releases), "
+        "rtk to prefix verbose commands to save tokens (e.g. rtk git diff, rtk pytest) — run `rtk gain` to see savings.",
     ),
     # Analysis — LLM sub-agents, expensive
     ToolGuidance(

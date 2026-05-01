@@ -587,7 +587,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
                 ui = StdUI()
             # tool_confirmation = None (let UI handle it via approval_channel)
 
-        def check_yolo(ctx_or_none=None, tool_def=None, *args, **kwargs):
+        def check_yolo(tool_def=None):
             if self._yolo_xcom_key not in ctx.xcom:
                 return False
             yolo_value = ctx.xcom[self._yolo_xcom_key].get(False)
@@ -595,7 +595,6 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
                 return yolo_value
             if isinstance(yolo_value, frozenset):
                 if tool_def is None:
-                    # No per-tool context (e.g. called for contextvar propagation)
                     return False
                 tool_name = getattr(tool_def, "name", str(tool_def))
                 return tool_name in yolo_value
