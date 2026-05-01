@@ -206,6 +206,48 @@ async def test_summarizer_early_exit():
 
 
 @pytest.mark.asyncio
+async def test_summarizer_does_not_skip_when_to_summarize_tokens_exceed_threshold():
+    # Regression test: the early-return guard compared len(to_summarize) (message count)
+    # against 0.3 * conversational_token_threshold (a token count), which made it almost
+    # always True and silently skipped conversational summarization. It should compare
+    # the TOKEN COUNT of to_summarize instead.
+    #
+    # Setup:
+    #   conversational_token_threshold = 100  →  0.3 * 100 = 30
+    #   summary_window = 1 (keep 1 msg, summarize the rest)
+    #   5 messages × 8 chars each = 40 total tokens  →  is_within_tokens = True
+    #   to_summarize = first 4 messages = 32 tokens  >  30
+    #   Old bug: len(to_summarize)=4 < 30 → early return (wrong)
+    #   Fixed:   count_tokens(to_summarize)=32 > 30 → proceeds to summarize (correct)
+    limiter = MockLimiter()
+    content = "x" * 8  # 8 tokens each per MockLimiter
+    messages = [
+        ModelRequest(parts=[UserPromptPart(content=content)]),
+        ModelRequest(parts=[UserPromptPart(content=content)]),
+        ModelRequest(parts=[UserPromptPart(content=content)]),
+        ModelRequest(parts=[UserPromptPart(content=content)]),
+        ModelRequest(parts=[UserPromptPart(content=content)]),
+    ]
+
+    agent = MagicMock()
+    agent_result = MagicMock()
+    agent_result.output = "summary text"
+    agent.run = AsyncMock(return_value=agent_result)
+
+    result = await summarize_history(
+        messages,
+        agent=agent,
+        limiter=limiter,
+        summary_window=1,
+        conversational_token_threshold=100,
+    )
+
+    # Summarization must have run: result is compressed, not the original list
+    assert result != messages
+    assert agent.run.called
+
+
+@pytest.mark.asyncio
 async def test_create_summarizer_history_processor_flow():
     limiter = MockLimiter()
     msg_agent = MagicMock()
