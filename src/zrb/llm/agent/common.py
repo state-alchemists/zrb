@@ -173,10 +173,7 @@ def create_agent(
         if callable(yolo):
 
             def check_approval(ctx: Any, tool_def: Any, args: dict[str, Any]) -> bool:
-                try:
-                    return not yolo(ctx, tool_def, args)
-                except TypeError:
-                    return not yolo(ctx)
+                return not yolo(tool_def)
 
             effective_toolsets = [
                 ts.approval_required(check_approval) for ts in effective_toolsets
@@ -190,13 +187,19 @@ def create_agent(
     final_model = default_llm_config.resolve_model(model)
     effective_retries = retries if retries is not None else CFG.LLM_TOOL_MAX_RETRIES
 
-    return Agent(
+    agent = Agent(
         model=final_model,
         output_type=final_output_type,
         instructions=effective_system_prompt,
         toolsets=effective_toolsets,
         model_settings=model_settings,
-        history_processors=history_processors,
+        # history_processors intentionally omitted: pydantic-ai applies them on a
+        # shallow copy of message_history without writing back, so any summarization
+        # it does is immediately discarded. We apply them ourselves in _prepare_history
+        # (before the first model call) and in _execution_loop (between tool-call
+        # iterations) where we own the history reference.
         capabilities=capabilities or [],
         retries=effective_retries,
     )
+    agent._zrb_history_processors = history_processors or []  # type: ignore[attr-defined]
+    return agent

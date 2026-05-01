@@ -24,7 +24,6 @@ async def run_shell_command(
 
     Default `timeout` is 120 seconds; timed-out processes may continue in the background.
     Use `cwd` instead of `cd <dir> && ...` to set the working directory without shell state side-effects.
-    Prefer non-interactive flags (`-y`, `--yes`, `CI=true`) to avoid hangs.
     """
     if max_chars is None:
         max_chars = CFG.LLM_MAX_OUTPUT_CHARS

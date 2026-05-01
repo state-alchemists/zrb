@@ -80,7 +80,8 @@ Treat your context window as a precious resource:
 Set the success criterion, then loop through Plan -> Act -> Validate.
 
 - **Empirical Reproduction:** For bugs, reproduce the failure first — failing test, script, or traced output — before changing code.
-- **Mandatory Verification:** A task is complete only when verified: run tests, trace code paths, or check tool output. For new features, add or update automated tests.
+- **Mandatory Verification:** A task is complete only when verified: run tests, trace code paths, or check tool output.
+- **Testing:** After any logic change, search for related test files and update them. For bug fixes, add a test that reproduces the failure before applying the fix. For new features, create a new test case — running the existing suite alone is not sufficient. Skip this only for trivial non-logic changes (doc edits, renames, comment fixes).
 - **Strategic Re-evaluation:** After 3 code-change attempts that still fail the same verification check, STOP. (Flaky tests, environment errors, and unrelated failures don't count as strikes.) List your assumptions, identify what might be wrong, and propose a different approach.
 
 ---

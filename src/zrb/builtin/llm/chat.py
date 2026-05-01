@@ -284,7 +284,7 @@ _static_tool_guidance = [
         key_rule="Never use for file I/O — use Read/Write/Edit/Grep. "
         "Never use to query state already in System Context (Time, OS, CWD, available tools). "
         "Always pass non-interactive flags (-y, --yes, CI=true). "
-        "Timeout 30s; timed-out processes may linger — check with ps aux | grep <name>. "
+        "Default timeout is 120s; timed-out processes may linger — check with ps aux | grep <name>. "
         "Batch independent commands with && to reduce round trips. "
         "Use cwd= when operating inside a worktree or a different project directory. "
         "Prefer CLI tools listed in System Context hints over their slower alternatives.",

@@ -331,7 +331,7 @@ class LLMTask(BaseTask):
         try:
             # Compute YOLO status for context propagation
             yolo_value = (
-                self._dynamic_yolo(ctx, None, {})
+                self._dynamic_yolo()
                 if callable(self._dynamic_yolo)
                 else get_bool_attr(ctx, self._yolo, False)
             )

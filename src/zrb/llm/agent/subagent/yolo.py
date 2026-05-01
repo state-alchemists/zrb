@@ -20,7 +20,7 @@ def make_yolo_inheritance_checker() -> Callable[..., bool]:
     """
     from zrb.llm.agent.run.runtime_state import get_current_ui, get_current_yolo
 
-    def check_yolo_inheritance(ctx_or_none: Any = None, *args, **kwargs) -> bool:
+    def check_yolo_inheritance(tool_def: Any = None) -> bool:
         if get_current_yolo():
             return True
         try:
