@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.agent.run.runner import (
+from zrb.llm.agent.run.hook_result_extractor import (
     extract_additional_context,
     extract_system_message,
 )

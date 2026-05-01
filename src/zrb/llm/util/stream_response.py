@@ -10,6 +10,203 @@ if TYPE_CHECKING:
 PrintKind = Literal["text", "streaming", "progress", "tool_call", "usage", "thinking"]
 
 
+class StreamEventHandler:
+    """Stateful handler for agent stream events."""
+
+    def __init__(
+        self,
+        print_fn: Callable[[str, str], Any],
+        indent_level: int = 1,
+        show_tool_call_detail: bool = False,
+        show_tool_result: bool = False,
+    ):
+        self._print_fn = print_fn
+        self._indentation = indent_level * 2 * " "
+        self._show_tool_call_detail = show_tool_call_detail
+        self._show_tool_result = show_tool_result
+
+        self._progress_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+        self._progress_idx = 0
+        self._was_tool_call_delta = False
+        self._was_tool_call_start = False
+        self._event_prefix = self._indentation
+        self._printed_tool_ids = set()
+
+    def _fprint(
+        self,
+        content: str,
+        preserve_leading_newline: bool = False,
+        kind: PrintKind = "text",
+    ):
+        has_trailing_newline = content.endswith("\n")
+        if has_trailing_newline:
+            content = content[:-1]
+
+        if preserve_leading_newline:
+            if content.startswith("\n"):
+                result = "\n" + content[1:].replace("\n", f"\n{self._indentation}   ")
+            else:
+                result = "\n" + content.replace("\n", f"\n{self._indentation}   ")
+        else:
+            result = content.replace("\n", f"\n{self._indentation}   ")
+
+        if has_trailing_newline:
+            result += "\n"
+
+        return self._print_fn(result, kind)
+
+    async def __call__(self, event: "AgentStreamEvent"):
+        from pydantic_ai import (
+            AgentRunResultEvent,
+            FinalResultEvent,
+            FunctionToolCallEvent,
+            FunctionToolResultEvent,
+            PartDeltaEvent,
+            PartStartEvent,
+        )
+
+        skip_prefix_update = False
+
+        if isinstance(event, PartStartEvent):
+            skip_prefix_update = self._handle_part_start(event)
+        elif isinstance(event, PartDeltaEvent):
+            self._handle_part_delta(event)
+        elif isinstance(event, FunctionToolCallEvent):
+            self._handle_tool_call(event)
+        elif isinstance(event, FunctionToolResultEvent):
+            self._handle_tool_result(event)
+        elif isinstance(event, AgentRunResultEvent):
+            self._handle_run_result(event)
+        elif isinstance(event, FinalResultEvent):
+            self._was_tool_call_delta = False
+
+        if not skip_prefix_update:
+            self._event_prefix = f"\n{self._indentation}"
+
+    def _handle_part_start(self, event: "AgentStreamEvent") -> bool:
+        from pydantic_ai import ToolCallPart
+        from pydantic_ai.messages import TextPart
+
+        if isinstance(event.part, ToolCallPart):
+            # Show a static indicator so the user sees something while parameters
+            # are being prepared.  Providers that stream deltas (OpenAI, Anthropic)
+            # will overwrite this line with the animated spinner on the first
+            # ToolCallPartDelta.  Providers that don't stream (e.g. Ollama) will
+            # leave this line as-is, and the 🧰 line will appear below it.
+
+            if not self._show_tool_call_detail:
+                self._fprint(
+                    f"{self._event_prefix}🔄 Prepare tool parameters...",
+                    preserve_leading_newline=True,
+                    kind="progress",
+                )
+                self._was_tool_call_start = True
+            return True
+
+        if isinstance(event.part, TextPart):
+            content = _get_event_part_content(event)
+            if content:
+                self._fprint(
+                    f"{self._event_prefix}{content}",
+                    preserve_leading_newline=True,
+                    kind="streaming",
+                )
+        else:
+            content = _get_event_part_content(event)
+            self._fprint(
+                f"{self._event_prefix}🧠 {content}",
+                preserve_leading_newline=True,
+                kind="thinking",
+            )
+        self._was_tool_call_delta = False
+        self._was_tool_call_start = False
+        return False
+
+    def _handle_part_delta(self, event: "AgentStreamEvent"):
+        from pydantic_ai import TextPartDelta, ThinkingPartDelta, ToolCallPartDelta
+
+        if isinstance(event.delta, TextPartDelta):
+            self._fprint(f"{event.delta.content_delta}", kind="streaming")
+            self._was_tool_call_delta = False
+            self._was_tool_call_start = False
+        elif isinstance(event.delta, ThinkingPartDelta):
+            self._fprint(f"{event.delta.content_delta}", kind="thinking")
+            self._was_tool_call_delta = False
+            self._was_tool_call_start = False
+        elif isinstance(event.delta, ToolCallPartDelta):
+            if self._show_tool_call_detail:
+                self._fprint(f"{event.delta.args_delta}", kind="tool_call")
+                self._was_tool_call_delta = True
+                self._was_tool_call_start = False
+            else:
+                progress_char = self._progress_chars[self._progress_idx]
+                if not self._was_tool_call_delta and not self._was_tool_call_start:
+                    self._fprint("\n", kind="progress")
+                self._print_fn(
+                    f"\r{self._indentation}🔄 Prepare tool parameters {progress_char}",
+                    "progress",
+                )
+                self._progress_idx += 1
+                if self._progress_idx >= len(self._progress_chars):
+                    self._progress_idx = 0
+                self._was_tool_call_delta = True
+                self._was_tool_call_start = False
+
+    def _handle_tool_call(self, event: "AgentStreamEvent"):
+        args = _get_truncated_event_part_args(event)
+        if self._was_tool_call_delta and not self._show_tool_call_detail:
+            self._print_fn("\r", "progress")
+
+        tool_call_id = event.part.tool_call_id
+        if tool_call_id not in self._printed_tool_ids:
+            self._printed_tool_ids.add(tool_call_id)
+            self._fprint(
+                f"{self._event_prefix}🧰 {tool_call_id} | {event.part.tool_name} {args}\n",
+                preserve_leading_newline=True,
+                kind="tool_call",
+            )
+        self._was_tool_call_delta = False
+
+    def _handle_tool_result(self, event: "AgentStreamEvent"):
+        if self._show_tool_result:
+            self._fprint(
+                f"{self._event_prefix}🔠 {event.tool_call_id} | Return {event.result.content}\n",
+                preserve_leading_newline=True,
+                kind="tool_call",
+            )
+        else:
+            self._fprint(
+                f"{self._event_prefix}🔠 {event.tool_call_id} Executed\n",
+                preserve_leading_newline=True,
+                kind="tool_call",
+            )
+        self._was_tool_call_delta = False
+
+    def _handle_run_result(self, event: "AgentStreamEvent"):
+        usage = event.result.usage()
+        usage_msg = " ".join(
+            [
+                "💸",
+                f"(Requests: {usage.requests} |",
+                f"Tool Calls: {usage.tool_calls} |",
+                f"Total: {usage.total_tokens})",
+                f"Input: {usage.input_tokens} |",
+                f"Audio Input: {usage.input_audio_tokens} |",
+                f"Output: {usage.output_tokens} |",
+                f"Audio Output: {usage.output_audio_tokens} |",
+                f"Cache Read: {usage.cache_read_tokens} |",
+                f"Cache Write: {usage.cache_write_tokens} |",
+                f"Details: {usage.details}",
+            ]
+        )
+        self._fprint(
+            f"{self._event_prefix}{usage_msg}\n",
+            preserve_leading_newline=True,
+            kind="usage",
+        )
+        self._was_tool_call_delta = False
+
+
 def create_event_handler(
     print_fn: Callable[[str, str], Any],
     indent_level: int = 1,
@@ -25,181 +222,12 @@ def create_event_handler(
         show_tool_call_detail: Whether to show detailed tool call parameters.
         show_tool_result: Whether to show tool result content.
     """
-    from pydantic_ai import (
-        AgentRunResultEvent,
-        FinalResultEvent,
-        FunctionToolCallEvent,
-        FunctionToolResultEvent,
-        PartDeltaEvent,
-        PartStartEvent,
-        TextPartDelta,
-        ThinkingPartDelta,
-        ToolCallPartDelta,
+    return StreamEventHandler(
+        print_fn=print_fn,
+        indent_level=indent_level,
+        show_tool_call_detail=show_tool_call_detail,
+        show_tool_result=show_tool_result,
     )
-
-    indentation = indent_level * 2 * " "
-    progress_char_list = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
-    progress_char_index = 0
-    was_tool_call_delta = False
-    # True after PartStartEvent(ToolCallPart) prints the static indicator.
-    # Lets the first ToolCallPartDelta skip the extra newline (line already exists)
-    # and overwrite the static text. Cleared when was_tool_call_delta goes True.
-    was_tool_call_start = False
-    event_prefix = indentation
-    # Track printed tool calls to avoid duplicate prints in deferred tool flow
-    # (FunctionToolCallEvent fires twice: once when deferred, once when executed)
-    printed_tool_call_ids: set[str] = set()
-
-    def fprint(
-        content: str,
-        preserve_leading_newline: bool = False,
-        kind: PrintKind = "text",
-    ):
-        """Format and print content with proper indentation."""
-        # Handle trailing newline specially
-        has_trailing_newline = content.endswith("\n")
-        if has_trailing_newline:
-            content = content[:-1]
-
-        if preserve_leading_newline:
-            if content.startswith("\n"):
-                result = "\n" + content[1:].replace("\n", f"\n{indentation}   ")
-            else:
-                result = "\n" + content.replace("\n", f"\n{indentation}   ")
-        else:
-            result = content.replace("\n", f"\n{indentation}   ")
-
-        if has_trailing_newline:
-            result += "\n"
-
-        return print_fn(result, kind)
-
-    async def handle_event(event: "AgentStreamEvent"):
-        from pydantic_ai import ToolCallPart
-        from pydantic_ai.messages import TextPart
-
-        nonlocal progress_char_index, was_tool_call_delta, was_tool_call_start, event_prefix
-        if isinstance(event, PartStartEvent):
-            if isinstance(event.part, ToolCallPart):
-                # Show a static indicator so the user sees something while parameters
-                # are being prepared.  Providers that stream deltas (OpenAI, Anthropic)
-                # will overwrite this line with the animated spinner on the first
-                # ToolCallPartDelta.  Providers that don't stream (e.g. Ollama) will
-                # leave this line as-is, and the 🧰 line will appear below it.
-                if not show_tool_call_detail:
-                    fprint(
-                        f"{event_prefix}🔄 Prepare tool parameters...",
-                        preserve_leading_newline=True,
-                        kind="progress",
-                    )
-                    was_tool_call_start = True
-                return
-            if isinstance(event.part, TextPart):
-                content = _get_event_part_content(event)
-                if content:
-                    fprint(
-                        f"{event_prefix}{content}",
-                        preserve_leading_newline=True,
-                        kind="streaming",
-                    )
-            else:
-                content = _get_event_part_content(event)
-                fprint(
-                    f"{event_prefix}🧠 {content}",
-                    preserve_leading_newline=True,
-                    kind="thinking",
-                )
-            was_tool_call_delta = False
-            was_tool_call_start = False
-
-        elif isinstance(event, PartDeltaEvent):
-            if isinstance(event.delta, TextPartDelta):
-                fprint(f"{event.delta.content_delta}", kind="streaming")
-                was_tool_call_delta = False
-                was_tool_call_start = False
-            elif isinstance(event.delta, ThinkingPartDelta):
-                fprint(f"{event.delta.content_delta}", kind="thinking")
-                was_tool_call_delta = False
-                was_tool_call_start = False
-            elif isinstance(event.delta, ToolCallPartDelta):
-                if show_tool_call_detail:
-                    fprint(f"{event.delta.args_delta}", kind="tool_call")
-                    was_tool_call_delta = True
-                    was_tool_call_start = False
-                else:
-                    progress_char = progress_char_list[progress_char_index]
-                    if not was_tool_call_delta and not was_tool_call_start:
-                        # Neither static indicator nor prior delta: add a newline
-                        # first so the spinner starts on its own line.
-                        fprint("\n", kind="progress")
-                    # Overwrite the current line (static indicator or prior spinner)
-                    # with the animated spinner character.
-                    print_fn(
-                        f"\r{indentation}🔄 Prepare tool parameters {progress_char}",
-                        "progress",
-                    )
-                    progress_char_index += 1
-                    if progress_char_index >= len(progress_char_list):
-                        progress_char_index = 0
-                    was_tool_call_delta = True
-                    was_tool_call_start = False
-        elif isinstance(event, FunctionToolCallEvent):
-            args = _get_truncated_event_part_args(event)
-            if was_tool_call_delta and not show_tool_call_detail:
-                # Clear the animated spinner line before printing the tool call.
-                print_fn("\r", "progress")
-
-            tool_call_id = event.part.tool_call_id
-            if tool_call_id not in printed_tool_call_ids:
-                printed_tool_call_ids.add(tool_call_id)
-                fprint(
-                    f"{event_prefix}🧰 {tool_call_id} | {event.part.tool_name} {args}\n",
-                    preserve_leading_newline=True,
-                    kind="tool_call",
-                )
-            was_tool_call_delta = False
-        elif isinstance(event, FunctionToolResultEvent):
-            if show_tool_result:
-                fprint(
-                    f"{event_prefix}🔠 {event.tool_call_id} | Return {event.result.content}\n",
-                    preserve_leading_newline=True,
-                    kind="tool_call",
-                )
-            else:
-                fprint(
-                    f"{event_prefix}🔠 {event.tool_call_id} Executed\n",
-                    preserve_leading_newline=True,
-                    kind="tool_call",
-                )
-            was_tool_call_delta = False
-        elif isinstance(event, AgentRunResultEvent):
-            usage = event.result.usage()
-            usage_msg = " ".join(
-                [
-                    "💸",
-                    f"(Requests: {usage.requests} |",
-                    f"Tool Calls: {usage.tool_calls} |",
-                    f"Total: {usage.total_tokens})",
-                    f"Input: {usage.input_tokens} |",
-                    f"Audio Input: {usage.input_audio_tokens} |",
-                    f"Output: {usage.output_tokens} |",
-                    f"Audio Output: {usage.output_audio_tokens} |",
-                    f"Cache Read: {usage.cache_read_tokens} |",
-                    f"Cache Write: {usage.cache_write_tokens} |",
-                    f"Details: {usage.details}",
-                ]
-            )
-            fprint(
-                f"{event_prefix}{usage_msg}\n",
-                preserve_leading_newline=True,
-                kind="usage",
-            )
-            was_tool_call_delta = False
-        elif isinstance(event, FinalResultEvent):
-            was_tool_call_delta = False
-        event_prefix = f"\n{indentation}"
-
-    return handle_event
 
 
 def _get_truncated_event_part_args(event: "AgentStreamEvent") -> Any:
