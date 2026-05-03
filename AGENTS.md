@@ -32,7 +32,7 @@ source .venv/bin/activate && poetry lock && poetry install
 | `src/zrb/session_state_logger/` | Persistent session logging |
 | `src/zrb/task_status/` | Task status tracking (PENDING, STARTED, READY, DONE, FAILED, etc.) |
 | `src/zrb/util/` | General utility functions (git, file, string, async helpers) |
-| `src/zrb/llm_plugin/` | Plugin discovery/loading for LLM agent extensions |
+| `src/zrb/llm_plugin/` | Built-in skills (`skills/`) and sub-agent definitions (`agents/`). Each skill is a `SKILL.md` or `SKILL.py` file; each agent is a `*.agent.md` file. |
 
 ### LLM Integration (`src/zrb/llm/`)
 | Directory | Purpose |
@@ -40,7 +40,6 @@ source .venv/bin/activate && poetry lock && poetry install
 | `llm/agent/` | Agent execution and sub-agent management. Split into `run/` (`runner.py`, `retry_loop.py`, `history_utils.py`, `error_classifier.py`, etc.) and `subagent/` (`manager.py`, `loader_mixin.py`, `search_mixin.py`, etc.). `common.py` provides `create_agent`. |
 | `llm/app/` | LLM application-level integration helpers |
 | `llm/approval/` | Tool call approval protocols (`AnyToolConfirmation`, `ApprovalChannel`) |
-| `llm/chat/` | `LLMChatTask` – interactive terminal chat sessions |
 | `llm/config/` | `LLMConfig` (model selection, rate limiting) and `LLMLimiter` (token budgets) |
 | `llm/custom_command/` | Custom CLI command integration for LLM tasks |
 | `llm/history_manager/` | `FileHistoryManager` – persist and load conversation history |
@@ -95,9 +94,9 @@ Zrb propagates seven ambient-state values via `contextvars.ContextVar`. The full
 | Var | Owner | Wrapper |
 |-----|-------|---------|
 | `current_ctx` | `src/zrb/context/any_context.py` | `get_current_ctx()` |
-| `current_ui` | `src/zrb/llm/agent/run_agent.py` | `get_current_ui()` from `src/zrb/llm/agent/runtime_state.py` |
-| `current_tool_confirmation` | `src/zrb/llm/agent/run_agent.py` | `get_current_tool_confirmation()` |
-| `current_yolo` | `src/zrb/llm/agent/run_agent.py` | `get_current_yolo()` |
+| `current_ui` | `src/zrb/llm/agent/run/runner.py` | `get_current_ui()` from `src/zrb/llm/agent/run/runtime_state.py` |
+| `current_tool_confirmation` | `src/zrb/llm/agent/run/runner.py` | `get_current_tool_confirmation()` |
+| `current_yolo` | `src/zrb/llm/agent/run/runner.py` | `get_current_yolo()` |
 | `current_approval_channel` | `src/zrb/llm/approval/approval_channel.py` | `get_current_approval_channel()` |
 | `active_worktree` | `src/zrb/llm/tool/worktree.py` | `get_active_worktree()` / `set_active_worktree()` from `src/zrb/llm/tool/ambient_state.py` |
 | `_current_session` | `src/zrb/llm/tool/plan.py` | `get_current_tool_session()` / `set_current_tool_session()` |
