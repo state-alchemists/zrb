@@ -56,6 +56,7 @@ async def handle_stream_error(
     current_message: Any,
     run_history: list[Any],
     print_fn: Callable[[str], Awaitable[Any] | Any],
+    min_turns: int = 0,
 ) -> RetryOutcome:
     """Decide whether/how to retry after a stream error. Sleeps for transient errors."""
     if (
@@ -86,7 +87,7 @@ async def handle_stream_error(
     ):
         state.context_retry_count += 1
         state.transient_retry_count = 0
-        new_history = drop_oldest_turn(current_history)
+        new_history = drop_oldest_turn(current_history, min_turns=min_turns)
         print_fn(
             f"\n[SYSTEM] Context too long, retrying with reduced history"
             f" (attempt {state.context_retry_count}/{state.max_context_retries})..."

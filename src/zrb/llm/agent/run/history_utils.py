@@ -5,10 +5,24 @@ from typing import Any
 from zrb.llm.config.limiter import is_turn_start
 
 
-def drop_oldest_turn(history: list[Any]) -> list[Any]:
-    """Removes the oldest conversation turn from history."""
+def drop_oldest_turn(history: list[Any], min_turns: int = 0) -> list[Any]:
+    """Removes the oldest conversation turn from history.
+
+    If `min_turns` is specified, it will not drop turns if it would result in
+    fewer than `min_turns` remaining.
+    """
     if not history:
         return history
+
+    # Count existing turns
+    turn_count = 0
+    for msg in history:
+        if is_turn_start(msg):
+            turn_count += 1
+
+    if turn_count > 0 and turn_count <= min_turns:
+        return history
+
     # Find the start of the second turn and drop everything before it
     for i in range(1, len(history)):
         if is_turn_start(history[i]):
