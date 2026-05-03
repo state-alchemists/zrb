@@ -1,5 +1,21 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.24.1 (May 3, 2026)
+
+- **Bug Fix: Consecutive Failure When Reducing History**:
+  - `drop_oldest_turn()` in `history_utils.py` now accepts a `min_turns` parameter and refuses to drop a turn when doing so would leave fewer turns than the minimum.
+  - `_execution_loop` passes `min_turns=1` to `handle_stream_error` when deferred tool results are pending, preventing the history from being pruned down to zero turns mid-tool-call — which caused consecutive context-too-long failures with no recovery path.
+
+- **Performance: `fit_context_window` O(n²) → O(n)**:
+  - The pruning loop in `LLMLimiter.fit_context_window` previously called `_count_tokens(pruned_history)` on every iteration, re-stringifying the entire remaining history each time — O(n²) across all pruning steps.
+  - Now precomputes per-message body token counts and a backward-scanned `last_instr_from[]` index in one O(n) pass. The pruning loop subtracts costs incrementally and updates the active instruction cost in O(1) per step, giving O(n) total.
+  - Correctly replicates `_to_str`'s list-level semantics: message bodies are counted with `skip_instructions=True` and only the last instruction in the remaining window is counted once.
+  - Measured speedup: ~5× at 40 turns, ~11× at 80 turns, ~22× at 160 turns, ~46× at 320 turns.
+
+- **Performance: Deduplicated Token Count in `_prepare_history`**:
+  - `_prepare_history` previously called `limiter.count_tokens(message_history)` twice per turn — once for the `PRE_COMPACT` hook payload and once for the context-limit check — even though both operate on the same content when no history processors are registered.
+  - The count is now computed once and reused when `history_processors` is empty (the common case), saving one O(n) traversal per chat turn.
+
 ## 2.24.0 (May 1, 2026)
 
 - **Feature: New `remove_file` and `move_file` Agent Tools**:
