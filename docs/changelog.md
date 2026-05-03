@@ -1,5 +1,11 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.24.4 (May 3, 2026)
+
+- **Maintenance: Dependency Update**:
+  - Updated `google-genai` from `>=1.66.0` to `>=1.70.0`.
+  - Updated `poetry.lock` to match.
+
 ## 2.24.3 (May 3, 2026)
 
 - **Improvement: LLM Prompt & Skill Verbosity Audit**:
