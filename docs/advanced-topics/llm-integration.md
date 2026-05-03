@@ -95,6 +95,8 @@ custom_chat = cli.add_task(
 )
 ```
 
+> 📖 **API Reference:** For the full `LLMChatTask` builder API — tools, guidance, hooks, policies, triggers, and custom commands — see the [LLMChatTask API Reference](../task-types/llmchat-task.md).
+
 ### Comparison
 
 | Feature | `LLMTask` | `LLMChatTask` |

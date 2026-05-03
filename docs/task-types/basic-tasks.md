@@ -46,6 +46,8 @@ def calculate_perimeter(ctx):
     return result  # Automatically pushed to XCom
 ```
 
+> 📖 **Full Reference:** See the [`@make_task` Decorator Guide](../core-concepts/make-task.md) for all parameters, advanced patterns, and comparison with direct instantiation.
+
 ### Using Direct Instantiation with Lambda
 
 ```python

@@ -239,35 +239,42 @@ The foundational pillars of the framework.
 - [Inputs](https://github.com/state-alchemists/zrb/blob/main/docs/core-concepts/inputs.md)
 - [Environments (Envs)](https://github.com/state-alchemists/zrb/blob/main/docs/core-concepts/environments.md)
 - [Session, Context & XCom](https://github.com/state-alchemists/zrb/blob/main/docs/core-concepts/session-and-context.md)
+- [The `@make_task` Decorator](https://github.com/state-alchemists/zrb/blob/main/docs/core-concepts/make-task.md) — full parameter reference
+- [XCom Deep Dive](https://github.com/state-alchemists/zrb/blob/main/docs/core-concepts/xcom-deep-dive.md) — advanced patterns & pitfalls
 
-### II. Task Types & Built-ins
-Pre-packaged operations you can use immediately.
-- [Task & CmdTask](https://github.com/state-alchemists/zrb/blob/main/docs/task-types/basic-tasks.md)
+### II. Task Types
+All task types available in Zrb, from basic to advanced.
+- [Task & CmdTask](https://github.com/state-alchemists/zrb/blob/main/docs/task-types/basic-tasks.md) — Python actions and shell commands
+- [Custom Tasks](https://github.com/state-alchemists/zrb/blob/main/docs/task-types/custom-tasks.md) — subclassing `BaseTask` with async patterns
 - [Readiness: HttpCheck & TcpCheck](https://github.com/state-alchemists/zrb/blob/main/docs/task-types/readiness-checks.md)
 - [Automation: Triggers & Schedulers](https://github.com/state-alchemists/zrb/blob/main/docs/task-types/triggers-and-schedulers.md)
 - [File Ops: Scaffolder & RsyncTask](https://github.com/state-alchemists/zrb/blob/main/docs/task-types/file-ops.md)
 - [Built-in Helper Tasks](https://github.com/state-alchemists/zrb/blob/main/docs/task-types/builtin-helpers.md) (Git, Base64, UUID, HTTP, etc.)
 
-### III. Advanced Features
-Taking your automation to the next level.
-- [LLM Assistant (Pollux) & AI Tasks](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/llm-integration.md)
+### III. LLM & AI Integration
+- [LLM Assistant & AI Tasks](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/llm-integration.md) — `LLMTask`, tools, sub-agents, context management
+- [LLMChatTask API Reference](https://github.com/state-alchemists/zrb/blob/main/docs/task-types/llmchat-task.md) — builder API, TUI configuration
+- [Hook System (Claude Code Compatible)](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/hooks.md)
 - [MCP Support (Model Context Protocol)](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/mcp-support.md)
 - [LSP Support (Language Server Protocol)](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/lsp-support.md)
-- [Hook System (Claude Code Compatible)](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/hooks.md)
+- [Technical Spec: LLM Journal System](https://github.com/state-alchemists/zrb/blob/main/docs/technical-specs/llm-context.md)
+- [Claude Code Compatibility](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/claude-compatibility.md)
+
+### IV. Advanced Topics
+- [Architecture & Conventions](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/architecture.md) — for maintainers and contributors
+- [Web UI Guide](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/web-ui.md)
 - [White-labeling: Create a Custom CLI](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/white-labeling.md)
 - [CI/CD Integration](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/ci-cd.md)
+- [Testing Zrb Tasks](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/testing-tasks.md) — mocking context, testing pipelines
+- [Upgrading Guide](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/upgrading-guide.md)
+- [Maintainer Guide](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/maintainer-guide.md)
 
-### IV. Configuration
+### V. Configuration
 - [Environment Variables & Overrides](https://github.com/state-alchemists/zrb/blob/main/docs/configuration/env-vars.md)
 - [LLM & Rate Limiter Configuration](https://github.com/state-alchemists/zrb/blob/main/docs/configuration/llm-config.md)
 
-### V. Guides & Specifications
-- [Web UI Guide](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/web-ui.md)
-- [Upgrading Guide](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/upgrading-guide.md)
-- [Maintainer Guide](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/maintainer-guide.md)
-- [Changelog](https://github.com/state-alchemists/zrb/blob/main/docs/changelog.md)
-- [Claude Code Compatibility](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/claude-compatibility.md)
-- [Technical Spec: LLM Journal System](https://github.com/state-alchemists/zrb/blob/main/docs/technical-specs/llm-context.md)
+### VI. Changelog
+- [Changelog](https://github.com/state-alchemists/zrb/blob/main/docs/changelog.md) — full release history
 
 ---
 

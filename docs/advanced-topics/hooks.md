@@ -1,3 +1,5 @@
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Hooks
+
 # Zrb Hook System (Claude Code Compatible)
 
 The Zrb Hook System provides a powerful way to intercept and modify the execution of LLM agents. You can execute shell commands, run LLM prompts, or trigger specific scripts at key lifecycle events.
@@ -69,13 +71,8 @@ Hooks can attach to these lifecycle events:
 | `PreToolUse` | Before a tool executes | **Yes** |
 | `PostToolUse` | After tool succeeds | No |
 | `PostToolUseFailure` | After tool fails | No |
-| `PermissionRequest` | When permission is requested | **Yes** |
 | `Notification` | System notifications | No |
-| `SubagentStart` | When a subagent starts | No |
-| `SubagentStop` | When a subagent stops | No |
 | `Stop` | When execution stops | No |
-| `TeammateIdle` | When a teammate becomes idle | No |
-| `TaskCompleted` | When a task completes | No |
 | `PreCompact` | Before history summarization | No |
 
 ---
@@ -366,18 +363,20 @@ Output JSON with `"decision": "block"`:
 | `ask` | Prompt user for approval |
 | `allow` | Continue execution (implicit) |
 
-### Permission Hook Example
+### Permission / Approval Hook Example
 
 ```json
 {
   "name": "require-approval",
-  "events": ["PermissionRequest"],
+  "events": ["PreToolUse"],
   "type": "command",
   "config": {
     "command": "echo '{\"decision\": \"ask\", \"reason\": \"Requires manual approval\"}'"
   }
 }
 ```
+
+This hook triggers before every tool call, asking for user approval. The `block`, `ask`, and `allow` decisions above work with any `PreToolUse` hook.
 
 ---
 
@@ -597,7 +596,6 @@ Example hook configurations are available in [examples/hooks/](../../examples/ho
 | Event | When It Fires | Can Block? | Special |
 |-------|---------------|------------|---------|
 | `PreToolUse` | Before tool execution | Yes | - |
-| `PermissionRequest` | During permission request | Yes | - |
 | `PostToolUse` | After tool success | No | - |
 | `PostToolUseFailure` | After tool failure | No | - |
 | `SessionStart` | Session begins | No | Can inject `additionalContext` |

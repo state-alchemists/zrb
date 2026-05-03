@@ -78,6 +78,8 @@ class MyTask(Task):
 cli.add_task(MyTask(name="complex-job"))
 ```
 
+> 📖 **Guide:** For detailed patterns — async subclassing, custom constructors, and reusable task types — see [Custom Tasks (Subclassing)](./custom-tasks.md).
+
 ### Task Appearance: `color` and `icon`
 
 Every task can be given a color and an emoji icon to make it visually distinct in terminal output.

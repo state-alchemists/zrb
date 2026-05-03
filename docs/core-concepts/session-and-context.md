@@ -127,6 +127,8 @@ def task2(ctx):
     ctx.print(f"Received: {data}")
 ```
 
+> 📖 **Deep Dive:** For advanced XCom patterns — fan-in, broadcasting, pipeline stages, and edge cases — see the [XCom Deep Dive](./xcom-deep-dive.md).
+
 ---
 
 ## Ambient Context

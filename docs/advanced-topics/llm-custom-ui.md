@@ -1,3 +1,5 @@
+🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Custom UI
+
 # LLM Custom UI and Approval Channels
 
 Zrb's LLM tasks support custom UI and approval channels for non-terminal interfaces like Telegram, Slack, Discord, or web applications.

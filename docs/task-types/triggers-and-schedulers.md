@@ -162,3 +162,131 @@ When you run `zrb daily-report-scheduler`, the process remains alive in the fore
 | **Use case** | Reactive automation | Scheduled automation |
 
 ---
+
+## Schedule Syntax (Crontab)
+
+The `Scheduler` accepts standard cron expressions or preset keywords.
+
+### Preset Keywords
+
+| Keyword | Meaning | Cron Equivalent |
+|---------|---------|-----------------|
+| `@minutely` | Every minute | `* * * * *` |
+| `@hourly` | Every hour | `0 * * * *` |
+| `@daily` | Every day at midnight | `0 0 * * *` |
+| `@weekly` | Every Sunday at midnight | `0 0 * * 0` |
+| `@monthly` | 1st of month at midnight | `0 0 1 * *` |
+
+### Standard Cron Format
+
+```python
+Scheduler(
+    name="custom-schedule",
+    schedule="*/15 * * * *",  # Every 15 minutes
+    ...
+)
+```
+
+The five fields are:
+
+```
+┌───────── minute (0-59)
+│ ┌──────── hour (0-23)
+│ │ ┌─────── day of month (1-31)
+│ │ │ ┌────── month (1-12)
+│ │ │ │ ┌───── day of week (0-6, 0=Sunday)
+│ │ │ │ │
+* * * * *
+```
+
+### Cron Operators
+
+| Operator | Example | Meaning |
+|----------|---------|---------|
+| `*` | `* * * * *` | Every unit |
+| `,` | `1,15 * * * *` | Minutes 1 and 15 |
+| `-` | `9-17 * * * *` | Range (9 AM to 5 PM) |
+| `/` | `*/5 * * * *` | Step (every 5 minutes) |
+| Combined | `0 9-17/2 * * 1-5` | Every 2 hours from 9-5, weekdays |
+
+### Real-World Examples
+
+```python
+# Weekdays at 9 AM
+Scheduler(name="daily-report", schedule="0 9 * * 1-5", ...)
+
+# Every 30 minutes during business hours
+Scheduler(name="health-check", schedule="*/30 9-18 * * *", ...)
+
+# First day of every quarter
+Scheduler(name="quarterly", schedule="0 0 1 1,4,7,10 *", ...)
+
+# Every Monday at 8:30 AM
+Scheduler(name="weekly-standup", schedule="30 8 * * 1", ...)
+```
+
+---
+
+## Advanced Trigger Patterns
+
+### Trigger with Retry Logic
+
+Add retry to the trigger itself when the listening action may temporarily fail:
+
+```python
+file_watcher = cli.add_task(
+    BaseTrigger(
+        name="robust-watcher",
+        action=watch_file,
+        callback=my_callback,
+        retries=3,
+        retry_period=5.0,
+    )
+)
+```
+
+### Multiple Callbacks on One Trigger
+
+Chain multiple tasks from a single trigger using `successor` on the callback's task:
+
+```python
+notify = CmdTask(name="notify", cmd="echo 'Event detected!'")
+process = CmdTask(name="process", cmd="echo 'Processing...'", successor=[notify])
+
+my_callback = Callback(
+    task=process,
+    input_mapping={"file": "{ctx.xcom.event_queue.pop()}"}
+)
+```
+
+### Scheduler with Conditional Execution
+
+```python
+daily_backup = cli.add_task(
+    Scheduler(
+        name="backup-scheduler",
+        schedule="@daily",
+        queue_name="backup_queue",
+        callback=Callback(
+            task=CmdTask(
+                name="run-backup",
+                execute_condition=lambda ctx: ctx.env.ENABLE_BACKUP == "true",
+                cmd="echo 'Running backup at {ctx.xcom.backup_queue.pop()}'",
+            ),
+            input_mapping={"timestamp": "{ctx.xcom.backup_queue.pop()}"}
+        )
+    )
+)
+```
+
+---
+
+## Daemon Lifecycle
+
+Both `BaseTrigger` and `Scheduler` run as foreground daemon processes. To stop them:
+
+- Press `Ctrl+C` to send `SIGINT`
+- Set up a system service (systemd, launchd) for background execution
+- Use a readiness check on the daemon to confirm it's listening before proceeding
+
+---
