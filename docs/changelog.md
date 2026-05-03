@@ -1,5 +1,44 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.24.3 (May 3, 2026)
+
+- **Improvement: LLM Prompt & Skill Verbosity Audit**:
+  - Comprehensive word-level audit across all prompt components, skills, and agent definitions. Every retained word was justified; any word whose removal would not degrade agent behavior was cut (~25–30% reduction overall).
+  - `mandate.md`: Rewritten for conciseness — tightened all sections, made idiom rules language-agnostic (replaced JS-specific "composition over complex inheritance" with "never mutate or annotate objects you don't own"), quantified "when unclear" priority as `correctness > speed, brevity > completeness, action > analysis`, collapsed redundant scope rules.
+  - `persona.md`: Removed "Strategic Orchestrator" framing; simplified to "Lead Engineer" identity with "context window is precious; delegate complex or repetitive work."
+  - `journal_reminder.md`: Rewrote to prevent re-scanning already-journaled items — now instructs scanning from the turn after the last journal write, not the full session history.
+  - `journal_mandate.md`: Condensed write criteria to one directive line.
+  - `git_mandate.md`: Added "If the diff exceeds ~100 lines, show a per-file summary instead" rule.
+  - `conversational_summarizer.md`: Added `[BLOCKED: reason]` status for goals that become impossible; clarified "fully analyzed" definition (role, key functions/classes, and dependencies understood).
+  - `web_summarizer.md`: Marketing claims now rated `LOW (Omit unless directly answering the query)`.
+  - `file_extractor.md`: Extended file type coverage: `.sh`/`.bash`/`.ps1` (Scripts), `.sql` (Database), `.ts`/`.rs`/`.java` (Source), `.ini`/`.env` (Configuration), `.rst` (Documentation).
+
+- **Improvement: Skill Rewrites**:
+  - `core-coding/SKILL.md`: Added Supplementary Skill Gates table at top (testing / debug / refactor / review trigger conditions); added Language & Framework Idioms rule to Strategy phase; added reference-check mandate for signature changes (`LspFindReferences`) and file moves/removes (`Grep`).
+  - `debug/SKILL.md`: Removed persona intro; added multi-language root causes (Rust/C++ ownership, JS coercion alongside Python); specified instrumentation placement ("at failure points: entry/exit, before/after suspect operations").
+  - `testing/SKILL.md`: Removed Testing Specialist persona; tightened mode descriptions; mock threshold now `~1 second per test`.
+  - `refactor/SKILL.md`: Removed Refactoring Mode intro; renamed table column "When to Apply" → "Trigger" with tighter descriptions; removed verbose code smell examples.
+  - `review/SKILL.md`: Removed Auditor Mode intro; removed path traversal example; large diff threshold defined as `>10 changed files or >500 total changed lines`.
+  - `research-and-plan/SKILL.md`: Removed Architect/Analyst Mode intro; condensed clarification rules and delegate shorthand.
+  - `core-journaling/SKILL.md`: Trimmed "Core Philosophy" header and opening.
+  - `init/SKILL.md`: Specified representative file selection: "main entry point, one domain model or core service, and one test file."
+
+- **Improvement: Agent Definition Updates**:
+  - `generalist.agent.md`: Removed persona fluff (Polymath Executor / Swiss Army Knife); removed duplicated "Available Tools" section (frontmatter is canonical); added `RM`, `MV`, `SearchJournal`, worktree tools (`EnterWorktree`, `ExitWorktree`, `ListWorktrees`), and all LSP tools.
+  - `code-reviewer.agent.md`: Removed "Code Auditor" persona section; added `SearchJournal`; added language/framework idiom check to Maintainability dimension; condensed test-run section.
+  - `researcher.agent.md`: Added `SearchJournal` + full LSP tool suite (`LspFindDefinition`, `LspFindReferences`, `LspGetDiagnostics`, `LspGetDocumentSymbols`, `LspGetWorkspaceSymbols`, `LspGetHoverInfo`, `LspListServers`) to tool list.
+
+- **Improvement: `AGENTS.md` Accuracy**:
+  - Removed stale `llm/chat/` row (directory is empty; `LLMChatTask` lives in `llm/task/chat/`).
+  - Fixed ambient state paths: `run_agent.py` → `agent/run/runner.py`; `runtime_state.py` → `agent/run/runtime_state.py`.
+  - Updated `llm_plugin/` description to name `skills/` and `agents/` subdirectories explicitly.
+
+- **Improvement: RM Tool Guidance**:
+  - `chat.py`: RM reference-check now reads "use Grep (or LspFindReferences)" to match MV guidance consistency.
+
+- **Maintenance: Remove Stale FastApp Images**:
+  - Deleted unused `_images/fastapp/` image assets no longer referenced.
+
 ## 2.24.2 (May 3, 2026)
 
 - **Bug Fix: Summarizer Token Threshold Now Accounts for System Prompt**:
