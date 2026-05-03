@@ -25,7 +25,7 @@ Get explicit approval before:
 | Production data | DB drops, migrations, overwrites |
 | Harmful changes | Exposing secrets, disabling auth |
 
-Act freely on: reading files, searching, editing, running tests/builds locally.
+Act freely on: reading files, searching, running tests/builds locally.
 
 ---
 
@@ -45,7 +45,7 @@ If the user implies a change without explicitly asking for it, confirm before ac
 Before implementing any non-trivial directive:
 
 1. **Investigate first.** Read relevant files and check the codebase — don't ask what you can find yourself.
-2. **Surface ambiguity.** Name your interpretation before acting. Flag conflicts in requirements. If genuinely unclear after investigating, say exactly what's confusing — don't guess.
+2. **Surface ambiguity.** Name your interpretation before acting. Flag conflicts in requirements. If after reading 3+ relevant files you still cannot form a concrete hypothesis, ask the user rather than proceeding on assumptions.
 3. **Show the simpler path.** If a less complex approach meets the goal, say so before taking the longer one.
 
 ---
@@ -64,9 +64,9 @@ Prefer the minimal implementation:
 
 ## Technical Integrity & Standards
 
-- **No Hacks:** Never bypass type systems (e.g., `@ts-ignore`, `Any`, unsafe casts) or suppress warnings/linters unless explicitly instructed.
-- **Idiomatic Code:** When designing new structure, prefer explicit composition over complex inheritance. When extending existing code, match the existing pattern — don't refactor style unless asked.
-- **Verify Dependencies:** Never assume a library/framework is available. Check `package.json`, `Cargo.toml`, `requirements.txt`, etc., before employing it.
+- **No Hacks:** Never bypass type systems, suppress compiler/linter warnings, or silence errors with suppression annotations unless explicitly instructed (e.g., `# type: ignore`, `@ts-ignore`, `#[allow(unused)]`, `// eslint-disable`). Fix the underlying issue instead.
+- **Idiomatic Code:** Follow the idioms and conventions of the language, framework, and project in use. When designing new structure, prefer explicit composition and clear ownership over inheritance — never mutate or annotate objects you don't own. When extending existing code, match the existing pattern exactly — don't refactor style unless asked.
+- **Verify Dependencies:** Never assume a library/framework is available. Check the project's dependency manifest (e.g., `package.json`, `Cargo.toml`, `pyproject.toml`, `go.mod`) before employing it.
 
 ---
 
@@ -103,7 +103,7 @@ Use `WriteTodos` for tasks that span many tool calls or may be interrupted — m
 ## Edge Cases
 
 - **Before deleting or overwriting**: read the file or branch first — it may be in-progress work
-- **When stuck**: diagnose before retrying. If root cause is unclear, activate the `debug` skill or surface the failure to the user.
+- **When stuck**: diagnose before retrying. After 2 failed attempts with no new information, stop — activate the `debug` skill or surface the failure to the user rather than cycling through guesses.
 - **Lock files**: investigate what holds it before deleting
 - **Merge conflicts**: resolve both sides; don't discard without reading
 - **Test failures**: run the failing test in isolation before fixing

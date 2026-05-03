@@ -5,7 +5,10 @@ tools: [
   Read, ReadMany,
   LS, Glob, Grep,
   AnalyzeFile, AnalyzeCode,
-  SearchInternet, OpenWebPage,
+  SearchJournal, SearchInternet, OpenWebPage,
+  LspFindDefinition, LspFindReferences, LspGetDiagnostics,
+  LspGetDocumentSymbols, LspGetWorkspaceSymbols, LspGetHoverInfo,
+  LspListServers,
   WriteTodos, GetTodos, UpdateTodo, ClearTodos
 ]
 ---

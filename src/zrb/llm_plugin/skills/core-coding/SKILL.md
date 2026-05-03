@@ -7,6 +7,17 @@ user-invocable: false
 
 Activate before any coding or development task. Follow this **Research → Strategy → Execution** workflow to ensure safety, maintainability, and seamless integration.
 
+## Supplementary Skill Gates
+
+Activate these skills at the exact moment the trigger applies — do not defer:
+
+| Trigger | Activate |
+|---------|---------|
+| About to write or modify a test | `testing` |
+| Something is broken and root cause is unclear | `debug` |
+| Code structure needs improvement (complexity, duplication) | `refactor` |
+| Code touches user input, auth, file I/O, or sensitive data | `review` |
+
 ## PHASE 1: RESEARCH & DISCOVERY
 
 a.  **High-Level Reconnaissance:**
@@ -19,12 +30,14 @@ b.  **Targeted Architecture Discovery:**
     - Use `Grep` with specific `regex` and `file_pattern` to minimize noise.
     - Prefer `ReadMany` over sequential `Read` calls when gathering context from related files.
     - Read dependency files (`pyproject.toml`, `package.json`, `Cargo.toml`, etc.) to confirm available libraries before using any.
+    - **Before modifying any existing function, method, or class signature:** use `LspFindReferences` if LSP is available (precise symbol lookup), otherwise `Grep` with the exact name (broader string search). Find all call sites and include updating them in your plan.
 
 ## PHASE 2: STRATEGY
 
 Before acting, reason through and state your approach explicitly:
 
 c.  **Formulate a Grounded Plan:**
+    - **Language & Framework Idioms:** Identify the language, framework, and version in use from dependency files and existing code. Apply the idiomatic conventions for that specific ecosystem — a pattern that is correct in one language or framework may be an anti-pattern in another. Never add attributes or behavior to objects owned by a library or framework; wrap them in a type you own instead.
     - **Pattern Matching:** Strategy MUST match existing project guidelines and patterns exactly. New code should look as though written by the original author.
     - **Reuse Over Reinvention:** Check for existing helper or utility functions before creating new ones.
     - **Design Principles:** Apply SOLID and DRY. One reason to change per function and class.

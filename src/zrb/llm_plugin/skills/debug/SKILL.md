@@ -73,21 +73,23 @@ Use when: something runs but produces wrong results, crashes at runtime, or a te
    ```
 3. **Trace the data flow** from input to failure: `Grep` for callers, `LspFindDefinition`/`LspFindReferences` to navigate the call chain, `ReadMany` to read the chain of files.
 4. **Run `LspGetDiagnostics`** on suspected files — type errors often point directly to the bug.
-5. **Add temporary instrumentation** (print/log statements) with `Edit` to observe actual values at key points. Remove after diagnosis.
+5. **Add temporary instrumentation** (print/log statements) with `Edit` to observe actual values at suspected failure points: immediately before and after the operation that produces the wrong result, and at function entry/exit for functions in the call chain. Remove all instrumentation after diagnosis.
 
 ### B3 — Hypothesize and Test
 
 List candidate root causes ranked by likelihood. Test the top hypothesis first with a minimal change. If refuted, eliminate it and move to the next.
 
-**Common root causes:**
+**Common root causes** (apply equivalent reasoning for your language/runtime):
 - Off-by-one in loops or slices
-- `None`/`null` not handled at a boundary
-- Mutable default argument shared across calls (Python)
-- `async`/`await` missing (result is a coroutine, not a value)
-- `is` vs `==` / `=` vs `==`
+- Null/None/nil not handled at a boundary
+- Mutable default shared across calls (e.g., Python default argument, JS object default)
+- Missing `await` on async call (result is a promise/coroutine, not a value)
+- Identity vs. equality confusion (`is`/`===` vs `==`)
 - State leaking between test cases (shared global or fixture not reset)
-- Encoding mismatch (bytes vs str)
-- Race condition on shared state
+- Encoding mismatch (bytes vs str, UTF-8 vs Latin-1)
+- Race condition on shared mutable state
+- Ownership/lifetime error (use-after-free, moved value — Rust/C++)
+- Implicit type coercion producing unexpected values (JS `==`, SQL implicit casts)
 
 ### B4 — Fix and Verify
 

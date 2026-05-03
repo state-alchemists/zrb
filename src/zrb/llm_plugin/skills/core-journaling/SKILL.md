@@ -57,7 +57,7 @@ Every note (except `index.md`) **must** have a `## Backlinks` section at the bot
 └── activity-log/               # YYYY/YYYY-MM/YYYY-MM-DD/
 ```
 
-Create directories as needed. Each MUST have an `index.md` that links to every file in that directory.
+Create directories as needed. Each MUST have an `index.md` that links to every file in that directory. Exception: date-based leaf directories under `activity-log/` (e.g., `YYYY-MM-DD/`) do not require an `index.md` — their parent month directory's `index.md` is sufficient.
 
 ## Index Hierarchy
 1. Outer `index.md` → directory indexes only (e.g. `[projects](projects/index.md)`)

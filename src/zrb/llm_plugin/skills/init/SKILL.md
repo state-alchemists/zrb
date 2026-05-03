@@ -59,7 +59,7 @@ If multiple options exist (e.g., `make test` and `pytest`), list both and note w
 Glob src/**/*.py   # or the relevant extension
 ```
 
-Read `README.md` if it exists. Read 2-3 representative source files to understand:
+Read `README.md` if it exists. Read 2-3 representative source files to understand (choose: the main entry point, one domain model or core service, and one test file):
 - Entry points (main files, app factories, CLI entrypoints)
 - Key abstractions (core classes, interfaces, domain models)
 - Module organization pattern (feature-based, layer-based, etc.)

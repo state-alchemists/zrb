@@ -6,6 +6,7 @@ tools: [
   Read, ReadMany,
   LS, Glob, Grep,
   AnalyzeFile, AnalyzeCode,
+  SearchJournal,
   LspFindDefinition, LspFindReferences, LspGetDiagnostics,
   LspGetDocumentSymbols, LspGetWorkspaceSymbols, LspGetHoverInfo,
   LspListServers,
@@ -57,6 +58,7 @@ For every changed file, evaluate each dimension:
 - Does the code follow the project's existing patterns and conventions? (Check `CLAUDE.md`, `AGENTS.md`)
 - Is cyclomatic complexity unreasonably high? (Functions doing too many things)
 - Is there duplication that should be extracted?
+- Are language/framework idioms followed? (e.g., Go error returns, Rust ownership, Python context managers, JS async/await) — flag code that uses a different language's idioms.
 
 ### Test Quality
 - Do tests actually assert meaningful behavior, or just that no exception was raised?

@@ -14,6 +14,7 @@ When this skill is activated, you enter **Refactoring Mode**. The cardinal rule:
 1. Run the existing tests with `Bash`. Confirm they pass.
 2. If test coverage is insufficient for the code you intend to refactor, **stop and write characterization tests first** (use the `testing` skill).
    - A characterization test captures what the code currently does—even if that behavior is wrong—so you can detect unintended changes.
+   - Coverage is sufficient when all public methods and their key branches (happy path + primary error path) have at least one test each. 100% line coverage is not required, but the refactoring target must be covered.
 3. Record the baseline: the exact test command and its output. This is your safety net.
 
 **If you cannot establish a passing baseline, do not refactor.**

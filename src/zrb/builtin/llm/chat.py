@@ -295,7 +295,7 @@ _static_tool_guidance = [
         when_to_use="Deleting a file or directory — prefer this over Bash rm",
         key_rule="recursive=False (default): removes file or empty directory. "
         "recursive=True: removes directory and all contents (irreversible — confirm with user first). "
-        "Before removing: use Grep to check for imports, includes, or other references to the path — "
+        "Before removing: use Grep (or LspFindReferences) to check for imports, includes, or other references to the path — "
         "dangling references will break the codebase.",
     ),
     ToolGuidance(

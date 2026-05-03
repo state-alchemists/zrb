@@ -10,8 +10,8 @@ When this skill is activated, you enter **Architect and Analyst Mode**. Your pri
 
 ### 1. Scope & Requirements Clarification (CRITICAL)
 - **STOP AND ASK**: Before researching or strategizing, review the request for missing details.
-- If the request is high-level, **YOU MUST** ask for the Goal, Constraints (budget, time, technology), and Context.
-- **NEVER** proceed with a plan full of assumptions. Ask if you find yourself assuming preferences or system state.
+- If you cannot form a specific, actionable hypothesis after reading the request — because the goal, constraints, or context are missing — **YOU MUST** ask for them before proceeding.
+- **NEVER** proceed with a plan full of assumptions. Ask if you find yourself assuming preferences, technology choices, or system state that the user has not stated.
 
 ### 2. Discovery & Research
 - **Technical**: Map out files, symbols, and dependencies using `LS`, `Glob`, and `Grep`.

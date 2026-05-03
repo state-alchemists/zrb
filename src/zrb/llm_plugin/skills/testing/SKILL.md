@@ -36,7 +36,7 @@ Use when: implementing a new feature, adding a new function, or fixing a bug tha
 3. Run the full test suite — all tests must still pass.
 4. Repeat the cycle for the next behavior.
 
-**Integration notes**: Prefer real dependencies over mocks. Only mock what is genuinely non-deterministic (time, network, randomness) or prohibitively slow.
+**Integration notes**: Prefer real dependencies over mocks. Only mock what is genuinely non-deterministic (time, network, randomness) or would make a single test take more than ~1 second (e.g., real HTTP calls, heavy DB setup with no test fixtures).
 
 ---
 
