@@ -45,6 +45,21 @@ def test_drop_oldest_turn_multiple():
     assert new_hist == [req2, res2]
 
 
+def test_drop_oldest_turn_min_turns():
+    req1 = ModelRequest(parts=[UserPromptPart(content="1")])
+    res1 = ModelResponse(parts=[TextPart(content="2")])
+    req2 = ModelRequest(parts=[UserPromptPart(content="3")])
+    res2 = ModelResponse(parts=[TextPart(content="4")])
+
+    history = [req1, res1, req2, res2]
+
+    # min_turns=1: can drop 1st turn because 2nd turn exists
+    assert drop_oldest_turn(history, min_turns=1) == [req2, res2]
+
+    # min_turns=2: cannot drop because only 2 turns exist
+    assert drop_oldest_turn(history, min_turns=2) == history
+
+
 def test_filter_nil_content():
     # Test ModelRequest filtering
     msg1 = ModelRequest(

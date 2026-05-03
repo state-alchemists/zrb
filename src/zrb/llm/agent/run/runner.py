@@ -439,6 +439,7 @@ async def _execution_loop(
                     current_message,
                     run_history,
                     print_fn,
+                    min_turns=1 if current_results is not None else 0,
                 )
                 if not outcome.should_retry:
                     raise stream_error

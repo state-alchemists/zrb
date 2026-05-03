@@ -49,7 +49,7 @@ async def test_handle_stream_error_prompt_too_long():
     assert outcome.should_retry is True
     assert state.context_retry_count == 1
     assert outcome.new_history == ["turn2_user"]
-    mock_drop.assert_called_once_with(current_history)
+    mock_drop.assert_called_once_with(current_history, min_turns=0)
     print_fn.assert_called()
 
 
