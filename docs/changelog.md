@@ -1,5 +1,13 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.24.2 (May 3, 2026)
+
+- **Bug Fix: Summarizer Token Threshold Now Accounts for System Prompt**:
+  - The history summarizer was comparing message-history token count against `conversational_token_threshold` without deducting the system prompt's token cost, causing summarization to trigger later than intended (the usage indicator's "Total" includes the system prompt).
+  - `_prepare_history` in `runner.py` now counts system prompt tokens before invoking history processors and passes the count as a `system_prompt_overhead` argument directly to each processor.
+  - `create_summarizer_history_processor` inner function `process_history` accepts `system_prompt_overhead: int = 0` and computes `adjusted_threshold = conversational_token_threshold - system_prompt_overhead` for all threshold comparisons.
+  - Replaces the previous hacky side-channel that set `processor._system_prompt_overhead` as an attribute on the callable.
+
 ## 2.24.1 (May 3, 2026)
 
 - **Bug Fix: Consecutive Failure When Reducing History**:

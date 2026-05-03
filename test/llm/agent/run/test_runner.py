@@ -21,11 +21,11 @@ async def test_run_agent_runs_history_processors_before_pruning():
 
     calls = []
 
-    async def p1(msgs):
+    async def p1(msgs, system_prompt_overhead: int = 0):
         calls.append("p1")
         return msgs
 
-    async def p2(msgs):
+    async def p2(msgs, system_prompt_overhead: int = 0):
         calls.append("p2")
         return msgs
 
@@ -51,6 +51,51 @@ async def test_run_agent_runs_history_processors_before_pruning():
     assert result == "AI result"
     # Order is preserved; both processors were invoked in zrb's pre-prune pass.
     assert calls == ["p1", "p2"]
+
+
+@pytest.mark.asyncio
+async def test_run_agent_passes_system_prompt_overhead_to_processors():
+    """run_agent passes system-prompt token count as system_prompt_overhead to each processor."""
+    from zrb.llm.agent.common import create_agent
+
+    received_overheads = []
+
+    async def capturing_processor(msgs, system_prompt_overhead: int = 0):
+        received_overheads.append(system_prompt_overhead)
+        return msgs
+
+    agent = create_agent(
+        model="openai:gpt-4o-mini",
+        system_prompt="test",
+        history_processors=[capturing_processor],
+        yolo=True,
+    )
+
+    mock_result = MagicMock()
+    mock_result.output = "ok"
+    mock_result.all_messages.return_value = []
+
+    async def mock_run_stream_events(*args, **kwargs):
+        yield AgentRunResultEvent(result=mock_result)
+
+    agent.run_stream_events = mock_run_stream_events
+
+    limiter = MagicMock(spec=LLMLimiter)
+    limiter.max_token_per_request = 1000
+    limiter.acquire = AsyncMock()
+    limiter.fit_context_window.side_effect = lambda h, m, r: h
+    # count_tokens("sys prompt") returns 42; subsequent calls return 0
+    limiter.count_tokens.side_effect = [42] + [0] * 20
+
+    await run_agent(
+        agent=agent,
+        message="hi",
+        message_history=[],
+        limiter=limiter,
+        system_prompt="sys prompt",
+    )
+
+    assert received_overheads == [42]
 
 
 @pytest.mark.asyncio

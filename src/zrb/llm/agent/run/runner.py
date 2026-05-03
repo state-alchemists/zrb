@@ -299,6 +299,12 @@ async def _prepare_history(
 ):
     history_processors = list(getattr(agent, "_zrb_history_processors", None) or [])
 
+    # Count system prompt tokens BEFORE running processors so the summarizer
+    # can account for them in its threshold comparison (the "Total" shown in
+    # the usage indicator includes system prompt, not just message history).
+    reserved_tokens = limiter.count_tokens(system_prompt) if system_prompt else 0
+    CFG.LOGGER.debug(f"System prompt reserved tokens: {reserved_tokens}")
+
     # Count tokens once here so we can pass it to the hook without an extra O(n) call.
     pre_process_tokens = limiter.count_tokens(message_history)
 
@@ -314,12 +320,9 @@ async def _prepare_history(
 
     processed_history = message_history
     for processor in history_processors:
-        processed_history = await processor(processed_history)
+        processed_history = await processor(processed_history, reserved_tokens)
 
     processed_history = ensure_alternating_roles(processed_history)
-
-    reserved_tokens = limiter.count_tokens(system_prompt) if system_prompt else 0
-    CFG.LOGGER.debug(f"System prompt reserved tokens: {reserved_tokens}")
 
     effective_limit = max(0, limiter.max_token_per_request - reserved_tokens)
     # Reuse the token count from the hook when no processors ran — they are the only
