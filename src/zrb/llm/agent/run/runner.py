@@ -299,11 +299,14 @@ async def _prepare_history(
 ):
     history_processors = list(getattr(agent, "_zrb_history_processors", None) or [])
 
+    # Count tokens once here so we can pass it to the hook without an extra O(n) call.
+    pre_process_tokens = limiter.count_tokens(message_history)
+
     await effective_hook_manager.execute_hooks(
         HookEvent.PRE_COMPACT,
         {
             "history": message_history,
-            "token_count": limiter.count_tokens(message_history),
+            "token_count": pre_process_tokens,
             "message_count": len(message_history),
             "has_history_processors": bool(history_processors),
         },
@@ -319,7 +322,15 @@ async def _prepare_history(
     CFG.LOGGER.debug(f"System prompt reserved tokens: {reserved_tokens}")
 
     effective_limit = max(0, limiter.max_token_per_request - reserved_tokens)
-    current_tokens = limiter.count_tokens(processed_history)
+    # Reuse the token count from the hook when no processors ran — they are the only
+    # thing that can materially change the history content between the two points.
+    # ensure_alternating_roles only merges consecutive same-role messages, which is a
+    # no-op on well-formed history, so the slight approximation is safe.
+    current_tokens = (
+        limiter.count_tokens(processed_history)
+        if history_processors
+        else pre_process_tokens
+    )
     if current_tokens > effective_limit:
         print_fn(
             f"\n[SYSTEM] History too large ({current_tokens} tokens) after summarization. Force pruning..."
