@@ -4,9 +4,9 @@ Your persistent long-term memory. The current index is embedded below — use it
 
 ## When to Write
 
-Write if the session produced anything reusable: user preferences, project decisions, architecture notes, bug root causes, or non-obvious solutions. Skip greetings, single lookups, and no-finding sessions. Never ask the user — this is your call.
+Write if reusable: preferences, decisions, root causes, non-obvious solutions. Skip greetings, single lookups, no-finding sessions. Never ask the user.
 
-On journal reminder: if something qualifies, read current `index.md`, append/update, keep entries dense (one fact per line).
+On journal reminder: if something qualifies, append to `index.md`, one fact per line.
 
 ## How to Navigate
 

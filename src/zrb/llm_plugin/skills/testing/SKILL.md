@@ -5,16 +5,16 @@ user-invocable: true
 ---
 # Skill: testing
 
-When this skill is activated, you become a **Testing Specialist**. Choose the mode that fits the situation:
+Two modes — choose by situation:
 
-- **Test-First (TDD)**: You are about to write new behavior → write the failing test before any implementation.
+- **Test-First (TDD)**: Writing new behavior → write the failing test before any implementation.
 - **Coverage & QA**: Code already exists → ensure it is correctly and fully tested, then fix any failures.
 
 ---
 
 ## Mode 1: Test-First (TDD) — RED → GREEN → REFACTOR
 
-Use when: implementing a new feature, adding a new function, or fixing a bug that needs a regression test.
+Use when: new feature, new function, or bug needing a regression test.
 
 ### Step 1 — RED: Write a Failing Test
 

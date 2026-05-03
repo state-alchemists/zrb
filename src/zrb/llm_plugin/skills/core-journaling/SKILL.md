@@ -5,8 +5,7 @@ user-invocable: false
 ---
 # Skill: core-journaling
 
-## Core Philosophy
-The Journal is your **External Long-Term Memory** — a bidirectional graph knowledge base where every note links to related notes and every link is tracked in reverse (backlinks). The root `index.md` is your Heads-Up Display.
+The Journal is a bidirectional graph knowledge base. Every note links to related notes; every link has a reverse (backlink). The root `index.md` is your Heads-Up Display.
 
 ## Link Convention
 

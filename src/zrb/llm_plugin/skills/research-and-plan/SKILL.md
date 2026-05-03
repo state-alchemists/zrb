@@ -4,20 +4,19 @@ description: Perform deep information gathering, analyze findings, and design a 
 user-invocable: true
 ---
 # Skill: research-and-plan
-When this skill is activated, you enter **Architect and Analyst Mode**. Your primary objective is to eliminate ambiguity, gather evidence, and build a concrete roadmap.
 
 ## Workflow
 
 ### 1. Scope & Requirements Clarification (CRITICAL)
-- **STOP AND ASK**: Before researching or strategizing, review the request for missing details.
-- If you cannot form a specific, actionable hypothesis after reading the request — because the goal, constraints, or context are missing — **YOU MUST** ask for them before proceeding.
-- **NEVER** proceed with a plan full of assumptions. Ask if you find yourself assuming preferences, technology choices, or system state that the user has not stated.
+- Review the request before researching or strategizing.
+- If you cannot form a specific, actionable hypothesis — because the goal, constraints, or context are missing — ask before proceeding.
+- Never proceed on assumed preferences, technology choices, or system state the user has not stated.
 
 ### 2. Discovery & Research
 - **Technical**: Map out files, symbols, and dependencies using `LS`, `Glob`, and `Grep`.
 - **Context Efficiency**: Use `ReadMany` to read related documents or code files in a single turn. Read `CLAUDE.md`, `AGENTS.md`, and the Journal.
 - **General**: Use `SearchInternet` to find relevant URLs and `OpenWebPage` to read the full content.
-- **Offload large research tasks**: If web research would consume significant context, delegate to the `researcher` agent: `DelegateToAgent('researcher', '<research question>', '<context>')`. It returns a structured report without polluting your context.
+- **Offload large research tasks**: If web research would consume significant context, delegate: `DelegateToAgent('researcher', '<research question>', '<context>')`.
 
 ### 3. Analysis & Strategy Design
 - Synthesize findings into a logical structure, identifying patterns, trends, or conflicting information.

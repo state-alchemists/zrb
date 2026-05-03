@@ -5,7 +5,7 @@ user-invocable: true
 ---
 # Skill: debug
 
-When this skill is activated, you become a **Root Cause Analyst**. Find the exact cause before touching anything. A fix applied without understanding the root cause is a guess—guesses create new bugs.
+Find root cause before fixing. A fix without understanding the root cause creates new bugs.
 
 **First, determine the failure type:**
 - **Build/compilation failure** (type error, missing import, undefined symbol) → follow [Section A](#section-a-build-failures)
@@ -17,11 +17,11 @@ When this skill is activated, you become a **Root Cause Analyst**. Find the exac
 
 Use when: the compiler, type-checker, or linter is failing and you need green fast.
 
-**Mandate**: Minimum viable fix. Every extra line changed is a line that could introduce a new bug.
+**Mandate**: Minimum viable fix. Every extra line changed risks a new bug.
 
 ### A1 — Read the Full Error Output
 
-Run the failing command with `Bash`. Capture the **complete** output—never diagnose from a partial error. Later errors are often caused by earlier ones. Fix the first error first.
+Run the failing command with `Bash`. Capture complete output — later errors are often caused by earlier ones. Fix the first error first.
 
 Common commands: `make build`, `tsc`, `mypy .`, `go build ./...`, `cargo build`, `mvn compile`
 
@@ -30,7 +30,7 @@ Common commands: `make build`, `tsc`, `mypy .`, `go build ./...`, `cargo build`,
 For each error (starting from the first):
 1. Navigate to `file:line` with `Read`.
 2. Understand context (10 lines above and below).
-3. Apply the minimal fix with `Edit`. Do not rename, reformat, or improve surrounding code.
+3. Apply the minimal fix with `Edit`. Don't refactor surrounding code.
 4. Re-run the build after each fix.
 
 **Common patterns:**
@@ -43,7 +43,7 @@ For each error (starting from the first):
 
 Build exits with code 0. Run existing tests to confirm no behavioral regressions.
 
-**Boundaries**: Do not refactor while fixing. Do not change interfaces unless that is the only resolution—if so, update all call sites.
+**Boundaries**: Do not refactor while fixing. Don't change interfaces unless it's the only resolution — if so, update all call sites.
 
 ---
 
@@ -52,14 +52,14 @@ Build exits with code 0. Run existing tests to confirm no behavioral regressions
 Use when: something runs but produces wrong results, crashes at runtime, or a test fails.
 
 **Core mandates:**
-- Reproduce before anything else. Never diagnose from memory.
+- Reproduce first. Never diagnose from memory.
 - One hypothesis at a time. Test empirically, then move to the next.
 
 ### B1 — Reproduce: Make the Failure Concrete
 
 1. Understand the symptom: actual vs. expected behavior, exact error message, stack trace.
-2. Write a minimal reproduction case — a failing test or a small script. Run it with `Bash`. Confirm it fails consistently.
-3. If intermittent, add logging/assertions with `Edit` to capture state when it occurs.
+2. Write a minimal reproduction case — a failing test or a small script. Confirm it fails consistently.
+3. If intermittent, add logging with `Edit` to capture state when it occurs.
 4. **Do not proceed until you can reliably reproduce.**
 
 ### B2 — Isolate: Narrow the Search Space
@@ -73,11 +73,11 @@ Use when: something runs but produces wrong results, crashes at runtime, or a te
    ```
 3. **Trace the data flow** from input to failure: `Grep` for callers, `LspFindDefinition`/`LspFindReferences` to navigate the call chain, `ReadMany` to read the chain of files.
 4. **Run `LspGetDiagnostics`** on suspected files — type errors often point directly to the bug.
-5. **Add temporary instrumentation** (print/log statements) with `Edit` to observe actual values at suspected failure points: immediately before and after the operation that produces the wrong result, and at function entry/exit for functions in the call chain. Remove all instrumentation after diagnosis.
+5. **Add temporary instrumentation** at failure points (entry/exit, before/after suspect operations). Remove after diagnosis.
 
 ### B3 — Hypothesize and Test
 
-List candidate root causes ranked by likelihood. Test the top hypothesis first with a minimal change. If refuted, eliminate it and move to the next.
+List candidate root causes ranked by likelihood. Test the top hypothesis first. If refuted, eliminate and move to the next.
 
 **Common root causes** (apply equivalent reasoning for your language/runtime):
 - Off-by-one in loops or slices

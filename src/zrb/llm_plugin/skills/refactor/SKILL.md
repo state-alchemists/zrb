@@ -5,7 +5,7 @@ user-invocable: true
 ---
 # Skill: refactor
 
-When this skill is activated, you enter **Refactoring Mode**. The cardinal rule: **the observable behavior of the code must not change.** Refactoring is restructuring, not rewriting. It is distinct from adding features or fixing bugs.
+**Cardinal rule: observable behavior must not change.** Refactoring is restructuring, not rewriting — distinct from adding features or fixing bugs.
 
 ## Non-Negotiable Prerequisites
 
@@ -13,7 +13,7 @@ When this skill is activated, you enter **Refactoring Mode**. The cardinal rule:
 
 1. Run the existing tests with `Bash`. Confirm they pass.
 2. If test coverage is insufficient for the code you intend to refactor, **stop and write characterization tests first** (use the `testing` skill).
-   - A characterization test captures what the code currently does—even if that behavior is wrong—so you can detect unintended changes.
+   - A characterization test captures what the code currently does so you can detect unintended changes.
    - Coverage is sufficient when all public methods and their key branches (happy path + primary error path) have at least one test each. 100% line coverage is not required, but the refactoring target must be covered.
 3. Record the baseline: the exact test command and its output. This is your safety net.
 
@@ -26,10 +26,7 @@ When this skill is activated, you enter **Refactoring Mode**. The cardinal rule:
 ### PHASE 1: Understand Before Changing
 
 1. **Read the code to be refactored thoroughly** using `ReadMany` or `Read`.
-2. **Identify the code smell or structural problem** you are targeting. Be specific:
-   - "This function is 150 lines and does three unrelated things."
-   - "This logic is copy-pasted in 4 places with minor variations."
-   - "Cyclomatic complexity is >15 due to deeply nested conditionals."
+2. **Identify the code smell or structural problem** you are targeting. Be specific (name the metric or symptom).
 3. **Plan atomic steps.** Each step should be small enough that a failing test immediately identifies the problematic change. Write the plan as todos using `WriteTodos`.
 
 ---
@@ -43,18 +40,18 @@ Apply one refactoring technique at a time. After each:
 
 **Common refactoring techniques:**
 
-| Technique | When to Apply |
-|-----------|---------------|
-| **Extract Method** | A block of code can be named and reused; function is too long |
-| **Extract Variable** | A complex expression appears more than once or is hard to read |
-| **Inline Method** | A method's body is as clear as its name; indirection adds no value |
-| **Rename** | A name is ambiguous, abbreviated, or misleading |
-| **Move Method/Class** | A function uses more data from another class than its own |
-| **Replace Magic Number** | A literal value has domain meaning (use a named constant) |
-| **Replace Conditional with Guard Clause** | Deeply nested `if/else`; invert condition to return/raise early |
-| **Replace Conditional with Polymorphism** | `if/elif` chains switching on type; use subclassing or strategy pattern |
-| **Strangler Fig** | Replacing a large component; build new alongside old, migrate callers, remove old |
-| **Introduce Parameter Object** | A group of parameters always appear together; group into a dataclass/struct |
+| Technique | Trigger |
+|-----------|---------|
+| **Extract Method** | Nameable block; function too long |
+| **Extract Variable** | Complex expression repeated or unreadable |
+| **Inline Method** | Body is as clear as the name; indirection adds nothing |
+| **Rename** | Name is ambiguous, abbreviated, or misleading |
+| **Move Method/Class** | Function uses more data from another class than its own |
+| **Replace Magic Number** | Literal with domain meaning → named constant |
+| **Replace Conditional with Guard Clause** | Deeply nested if/else → invert and return early |
+| **Replace Conditional with Polymorphism** | Type-switching if/elif chain → subclass or strategy |
+| **Strangler Fig** | Large component replacement; run old and new in parallel until migration is complete |
+| **Introduce Parameter Object** | Parameters that always appear together → data class/struct |
 
 ---
 
@@ -62,14 +59,14 @@ Apply one refactoring technique at a time. After each:
 
 1. **Run the full test suite** one final time after all planned steps.
 2. **Run the linter and type-checker** (from `Makefile`, `pyproject.toml`, or `package.json`).
-3. **Read the refactored code** with `Read` and confirm it is genuinely simpler, not just different.
+3. **Confirm the refactored code is genuinely simpler**, not just different.
 4. **Do not introduce new behavior.** If you discovered a bug during refactoring, note it and fix it in a separate step after the refactoring is complete.
 
 ---
 
 ## Boundaries
 
-- **Never refactor and add features simultaneously.** These are separate commits.
+- **Never refactor and add features simultaneously.**
 - **Never refactor and fix bugs simultaneously.** Mixing changes makes failures ambiguous.
 - **Stop if you lose the green test baseline.** Debug, revert, or ask for help.
 
