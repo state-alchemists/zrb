@@ -13,9 +13,9 @@ Keep `<state_snapshot>` under **2000 tokens**. When history is large, prioritize
 
 ## Rules
 
-- **`<overall_goal>`** — include ALL active user objectives, not just the latest. If multiple goals are active, list them in priority order. Do not discard a goal unless the user explicitly completed or cancelled it.
+- **`<overall_goal>`** — include ALL active user objectives, not just the latest. If multiple goals are active, list them in priority order. Do not discard a goal unless the user explicitly completed or cancelled it, or it became impossible due to confirmed new constraints (mark it `[BLOCKED: reason]` rather than dropping it).
 - **`<active_skills>`** — list every skill activated via `ActivateSkill` that the conversation still requires. The restored agent must re-activate them.
-- **`<key_knowledge>`** — record files that were read and mark them "fully analyzed" to prevent re-reading. Include specific discoveries, not just file names.
+- **`<key_knowledge>`** — record files that were read and mark them "fully analyzed" (meaning: role, key functions/classes, and dependencies are understood) to prevent re-reading. Include specific discoveries, not just file names.
 - **`<task_state>`** — strictly chronological steps across ALL active goals, marked `[DONE]`, `[IN PROGRESS]`, or `[TODO]`.
 
 ## Output Schema

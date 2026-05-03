@@ -5,8 +5,7 @@ user-invocable: false
 ---
 # Skill: core-journaling
 
-## Core Philosophy
-The Journal is your **External Long-Term Memory** — a bidirectional graph knowledge base where every note links to related notes and every link is tracked in reverse (backlinks). The root `index.md` is your Heads-Up Display.
+The Journal is a bidirectional graph knowledge base. Every note links to related notes; every link has a reverse (backlink). The root `index.md` is your Heads-Up Display.
 
 ## Link Convention
 
@@ -57,7 +56,7 @@ Every note (except `index.md`) **must** have a `## Backlinks` section at the bot
 └── activity-log/               # YYYY/YYYY-MM/YYYY-MM-DD/
 ```
 
-Create directories as needed. Each MUST have an `index.md` that links to every file in that directory.
+Create directories as needed. Each MUST have an `index.md` that links to every file in that directory. Exception: date-based leaf directories under `activity-log/` (e.g., `YYYY-MM-DD/`) do not require an `index.md` — their parent month directory's `index.md` is sufficient.
 
 ## Index Hierarchy
 1. Outer `index.md` → directory indexes only (e.g. `[projects](projects/index.md)`)
