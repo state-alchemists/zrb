@@ -432,7 +432,6 @@ async def _execution_loop(
             try:
                 # Docs: https://pydantic.dev/docs/ai/core-concepts/agent/#streaming-events-and-final-output
                 async for event in stream:
-                    await asyncio.sleep(0)
                     if isinstance(event, AgentRunResultEvent):
                         result = event.result
                         result_output = result.output

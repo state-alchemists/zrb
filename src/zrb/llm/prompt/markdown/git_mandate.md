@@ -1,11 +1,11 @@
-# Git Rules
+# Git Rules (Supplement to Operating Rules)
 
 ## Requires Approval
 
-Get explicit approval before running: `add`, `commit`, `push`, `pull`, `merge`, `rebase`, `checkout`, `switch`, `branch -D`, `reset`, `revert`, `stash`, `clean`.
+Before requesting approval, show `git status` + `git diff HEAD`. If the diff exceeds ~100 lines, show a per-file summary instead (e.g., `src/foo.py +45 -12`).
 
-Always show `git status` + `git diff HEAD` before asking. If the diff exceeds ~100 lines, show a per-file summary instead: file path, insertions, and deletions.
+- State changes: `add`, `commit`, `push`, `pull`, `merge`, `rebase`, `checkout`, `switch`, `branch -D`, `reset`, `revert`, `stash`, `clean`
 
-## Always OK
+## No Approval Needed
 
 `status`, `diff`, `log`, `branch`, `show`, `remote -v`, `worktree list`
