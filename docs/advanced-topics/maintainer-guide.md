@@ -15,6 +15,7 @@ This guide is for developers who contribute to or maintain the Zrb project itsel
 - [Evaluating the LLM Agent](#evaluating-and-improving-the-llm-agent)
 - [Architecture & Philosophy](#architecture--philosophy)
 - [Context Propagation Internals](#context-propagation-internals)
+- [LLM History Sanitization Layer](#llm-history-sanitization-layer)
 - [Quick Reference](#quick-reference)
 
 ---
@@ -211,6 +212,131 @@ action_coro = asyncio.create_task(run_async(execute_action_with_retry(task, sess
 ```
 
 Python copies the context at `create_task()` time. If the parent coroutine resets `current_ctx` before the new task is scheduled, the new task runs with the snapshot value from creation time — which may differ from the parent's current value. This is safe in practice because `execute_action_with_retry` re-establishes its own `current_ctx` scope, but it is worth keeping in mind if the execution model changes.
+
+---
+
+## LLM History Sanitization Layer
+
+pydantic-ai passes the full conversation history to the provider on every turn. Several providers have subtle validation rules that cause them to reject a history that they themselves produced one turn earlier. This section explains those failure modes and the defensive layer Zrb adds on top of pydantic-ai.
+
+### The Core Problem: Provider Inconsistency
+
+When a model makes a tool call without accompanying text, the provider returns:
+
+```json
+{"role": "assistant", "content": null, "tool_calls": [...]}
+```
+
+This is valid per the OpenAI spec — `content: null` is explicitly allowed when `tool_calls` is set. pydantic-ai faithfully stores this as a `ModelResponse` with only a `ToolCallPart` (no `TextPart`).
+
+On the next turn, pydantic-ai serializes the same history back:
+
+```json
+{"role": "assistant", "content": null, "tool_calls": [...]}
+```
+
+Some providers — including DeepSeek and several OpenAI-compatible APIs — **reject this identical structure** with:
+
+```
+Invalid assistant message: content or tool_calls must be set
+```
+
+The provider sent `content: null` and then refuses to accept `content: null` back. This is a provider-side inconsistency, not a pydantic-ai parsing bug or a corrupt API response.
+
+The same pattern applies to thinking/reasoning models. DeepSeek R1 (and similar) emit `reasoning_content` alongside `content: null`. When that assistant message is echoed in a subsequent turn without the `reasoning_content` field, the provider returns:
+
+```
+Missing reasoning_content field
+```
+
+### Known Affected Providers
+
+| Provider / Model | Symptom | Root Cause |
+|---|---|---|
+| DeepSeek V3.2+, V4 | `"content or tool_calls must be set"` | Rejects `content: null` in echoed history |
+| DeepSeek R1 (pre pydantic-ai 1.90) | `"Missing reasoning_content field"` | `reasoning_content` dropped from echo |
+| AWS Bedrock custom models (`zai.glm-5`, etc.) | `ValidationException` (empty message) | Strict message-structure validation; exact rule not disclosed by provider |
+| Ollama (some models) | HTTP 400 with tool/function error | References non-existent tool name in response |
+
+### The Orphaned Tool Pair Problem
+
+History compression (triggered when the conversation exceeds the token limit) splits history into a "to summarize" slice and a "to keep" slice. The split point is chosen at a turn boundary, but a turn can span multiple messages: an assistant message that calls a tool and the following user message that contains the tool result.
+
+If the split falls between a `ToolCallPart` (in the assistant `ModelResponse`) and its corresponding `ToolReturnPart` (in the subsequent `ModelRequest`), compression produces a "kept" slice that has a tool call with no matching return. Bedrock and several other providers validate this pairing and return `ValidationException`.
+
+### The Sanitization Layer
+
+Zrb applies `sanitize_history()` at two points:
+
+1. **Before every `converse_stream` call** (`runner.py` — `_execution_loop`)
+2. **On the result history** after a successful stream (`runner.py` — after `AgentRunResultEvent`)
+3. **After history compression** when orphaned pairs are detected (`history_summarizer.py` — `summarize_history`)
+
+`sanitize_history()` applies four steps in a fixed order so that each step's output is valid input for the next:
+
+| Step | Function | What it fixes |
+|------|----------|---------------|
+| 1 | `filter_nil_content` | `None`/`""` content in any part type; injects `TextPart(".")` in `ModelResponse` when no text part exists |
+| 2 | `sanitize_orphaned_tool_calls` | Removes unmatched `ToolCallPart`/`ToolReturnPart` pairs; patches text-less messages left behind |
+| 3 | Drop empty messages | Removes `ModelRequest`/`ModelResponse` objects that have no parts remaining after steps 1–2 |
+| 4 | `ensure_alternating_roles` | Merges consecutive same-role messages (prevents back-to-back assistant or user messages) |
+
+Step 2 is skipped when `allow_orphaned_tool_calls=True`. This flag must be set whenever `deferred_tool_results` is provided to `agent.run_stream_events()`: in that path, `ToolCallPart` entries in the history legitimately have no matching `ToolReturnPart` in the history — their returns are in `current_results`, not in the history list. Removing them would silently break tool execution.
+
+```python
+# runner.py — _execution_loop
+current_history = sanitize_history(
+    current_history,
+    allow_orphaned_tool_calls=(current_results is not None),
+)
+```
+
+### The OpenAI Serializer Patch
+
+`filter_nil_content` fixes the problem at the `ModelMessage` object level (before serialization). There is a second, complementary fix at the serialization level: `openai_patch.py` monkey-patches `OpenAIChatModel._MapModelResponseContext._into_message_param`.
+
+The upstream implementation always sets `content = None` when there is no text:
+
+```python
+# pydantic-ai upstream (≥ 1.90.0) — still present
+if self.texts:
+    message_param['content'] = '\n\n'.join(self.texts)
+else:
+    message_param['content'] = None   # sent as "content": null
+```
+
+The patch omits `content` entirely when `tool_calls` or `thinkings` are present, which is valid per the OpenAI API spec and accepted by all known providers:
+
+```python
+# openai_patch.py
+if self.texts:
+    message_param['content'] = '\n\n'.join(self.texts)
+elif not self.tool_calls and not self.thinkings:
+    message_param['content'] = None   # only set null when nothing else is set
+```
+
+The patch is applied once at import time (`runner.py` calls `patch_openai_model_response_serialization()` at module load). It fails silently if pydantic-ai's internal class structure changes, at which point `filter_nil_content` remains the fallback.
+
+### The `strip_thinking_parts` Retry
+
+For providers that reject history containing `ThinkingPart` entries even after the above sanitization (e.g. a DeepSeek model accessed via a non-DeepSeek provider that doesn't know how to serialize `reasoning_content`), the retry loop detects a specific 400 error:
+
+```
+Missing reasoning_content field  /  reasoning_content field required
+```
+
+When detected, `strip_thinking_parts()` removes all `ThinkingPart` entries from the history and retries. This is a one-shot retry — it will not loop.
+
+### File Map
+
+| File | Responsibility |
+|------|---------------|
+| `src/zrb/llm/agent/run/history_utils.py` | `sanitize_history()`, `filter_nil_content()`, `strip_thinking_parts()` |
+| `src/zrb/llm/message.py` | `sanitize_orphaned_tool_calls()`, `ensure_alternating_roles()`, `validate_tool_pair_integrity()` |
+| `src/zrb/llm/agent/run/openai_patch.py` | Monkey-patch for `content: null` serialization |
+| `src/zrb/llm/agent/run/error_classifier.py` | `is_missing_reasoning_content_error()`, `is_invalid_tool_call_error()` |
+| `src/zrb/llm/agent/run/retry_loop.py` | Retry decisions including the `strip_thinking_parts` one-shot |
+| `src/zrb/llm/summarizer/history_summarizer.py` | Calls `sanitize_history()` on the kept slice after compression |
 
 ---
 

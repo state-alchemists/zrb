@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
+from zrb.llm.agent.run.history_utils import sanitize_history
 from zrb.llm.agent.summarizer import (
     create_conversational_summarizer_agent,
     create_message_summarizer_agent,
@@ -10,7 +11,6 @@ from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.message import (
     ensure_alternating_roles,
-    sanitize_orphaned_tool_calls,
     validate_tool_pair_integrity,
 )
 from zrb.llm.summarizer.chunk_processor import (
@@ -254,7 +254,7 @@ async def summarize_history(
                 ),
                 plain=True,
             )
-            to_keep = sanitize_orphaned_tool_calls(to_keep)
+            to_keep = sanitize_history(to_keep)
 
         return ensure_alternating_roles([summary_message] + to_keep)
     except Exception as e:

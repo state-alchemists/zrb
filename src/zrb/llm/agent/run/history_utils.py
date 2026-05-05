@@ -5,6 +5,34 @@ from typing import Any
 from zrb.llm.config.limiter import is_turn_start
 
 
+def sanitize_history(
+    messages: list[Any],
+    allow_orphaned_tool_calls: bool = False,
+) -> list[Any]:
+    """Comprehensive history sanitization applied before every model call.
+
+    Applies fixes in a fixed order so each step's output is valid input for the next:
+    1. filter_nil_content         — fix None/empty part content; inject "." placeholder
+    2. sanitize_orphaned_tool_calls — remove unmatched ToolCallPart/ToolReturnPart pairs
+       (skipped when allow_orphaned_tool_calls=True, i.e. when deferred_tool_results is set:
+        ToolCallParts in history legitimately have no matching return in that path)
+    3. Drop messages that are now empty (all parts were removed by the above steps)
+    4. ensure_alternating_roles   — merge consecutive same-role messages
+
+    This single call replaces the previous scattered filter_nil_content +
+    sanitize_orphaned_tool_calls pair and also adds the missing alternating-role
+    enforcement to the main agent loop.
+    """
+    from zrb.llm.message import ensure_alternating_roles, sanitize_orphaned_tool_calls
+
+    messages = filter_nil_content(messages)
+    if not allow_orphaned_tool_calls:
+        messages = sanitize_orphaned_tool_calls(messages)
+    messages = [m for m in messages if getattr(m, "parts", None)]
+    messages = ensure_alternating_roles(messages)
+    return messages
+
+
 def drop_oldest_turn(history: list[Any], min_turns: int = 0) -> list[Any]:
     """Removes the oldest conversation turn from history.
 
