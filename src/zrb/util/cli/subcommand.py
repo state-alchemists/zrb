@@ -3,7 +3,11 @@ from zrb.util.group import get_non_empty_subgroups, get_subtasks
 
 
 class SubCommand:
-    def __init__(self, paths: list[str] = [], nexts: list[str] = []):
+    def __init__(
+        self,
+        paths: list[str] | None = None,
+        nexts: list[str] | None = None,
+    ):
         """
         Initialize a SubCommand object.
 
@@ -11,8 +15,8 @@ class SubCommand:
             paths (list[str]): The list of path components leading to this subcommand.
             nexts (list[str]): The list of possible next subcommand or task names.
         """
-        self.paths = paths
-        self.nexts = nexts
+        self.paths = paths if paths is not None else []
+        self.nexts = nexts if nexts is not None else []
 
     def __repr__(self):
         """

@@ -258,6 +258,8 @@ Missing reasoning_content field
 | AWS Bedrock custom models (`zai.glm-5`, etc.) | `ValidationException` (empty message) | Strict message-structure validation; exact rule not disclosed by provider |
 | Ollama (some models) | HTTP 400 with tool/function error | References non-existent tool name in response |
 
+The `is_invalid_tool_call_error` classifier requires **both** an entity keyword (`"tool"`, `"function"`) **and** a problem keyword (`"unknown"`, `"invalid"`, `"not defined"`, `"not found"`) to trigger a retry. This dual-keyword check prevents false-positives on generic 400 errors like `"Invalid JSON body"` that contain a problem keyword but no entity keyword.
+
 ### The Orphaned Tool Pair Problem
 
 History compression (triggered when the conversation exceeds the token limit) splits history into a "to summarize" slice and a "to keep" slice. The split point is chosen at a turn boundary, but a turn can span multiple messages: an assistant message that calls a tool and the following user message that contains the tool result.
@@ -266,11 +268,11 @@ If the split falls between a `ToolCallPart` (in the assistant `ModelResponse`) a
 
 ### The Sanitization Layer
 
-Zrb applies `sanitize_history()` at two points:
+Zrb applies `sanitize_history()` at three points:
 
 1. **Before every `converse_stream` call** (`runner.py` — `_execution_loop`)
 2. **On the result history** after a successful stream (`runner.py` — after `AgentRunResultEvent`)
-3. **After history compression** when orphaned pairs are detected (`history_summarizer.py` — `summarize_history`)
+3. **After history compression** on the kept slice (`history_summarizer.py` — `summarize_history`), which runs *all four sanitization steps* unconditionally to guarantee the returned history is provider-clean
 
 `sanitize_history()` applies four steps in a fixed order so that each step's output is valid input for the next:
 
@@ -279,7 +281,7 @@ Zrb applies `sanitize_history()` at two points:
 | 1 | `filter_nil_content` | `None`/`""` content in any part type; injects `TextPart(".")` in `ModelResponse` when no text part exists |
 | 2 | `sanitize_orphaned_tool_calls` | Removes unmatched `ToolCallPart`/`ToolReturnPart` pairs; patches text-less messages left behind |
 | 3 | Drop empty messages | Removes `ModelRequest`/`ModelResponse` objects that have no parts remaining after steps 1–2 |
-| 4 | `ensure_alternating_roles` | Merges consecutive same-role messages (prevents back-to-back assistant or user messages) |
+| 4 | `ensure_alternating_roles` | Merges consecutive same-role messages by concatenating their `parts` lists (prevents back-to-back assistant or user messages) |
 
 Step 2 is skipped when `allow_orphaned_tool_calls=True`. This flag must be set whenever `deferred_tool_results` is provided to `agent.run_stream_events()`: in that path, `ToolCallPart` entries in the history legitimately have no matching `ToolReturnPart` in the history — their returns are in `current_results`, not in the history list. Removing them would silently break tool execution.
 
@@ -291,11 +293,13 @@ current_history = sanitize_history(
 )
 ```
 
+Before applying fixes, `_detect_problems()` scans the history for invariant violations and logs each at DEBUG level. This covers nil content, text-less `ModelResponse` objects, consecutive same-role messages, and orphaned tool pairs. It has zero production overhead (DEBUG-only) but is invaluable when tracing the root cause of provider 400 errors.
+
 ### The OpenAI Serializer Patch
 
 `filter_nil_content` fixes the problem at the `ModelMessage` object level (before serialization). There is a second, complementary fix at the serialization level: `openai_patch.py` monkey-patches `OpenAIChatModel._MapModelResponseContext._into_message_param`.
 
-The upstream implementation always sets `content = None` when there is no text:
+The upstream implementation always sets `content = None` when there is no text, which serializes to `"content": null` in JSON:
 
 ```python
 # pydantic-ai upstream (≥ 1.90.0) — still present
@@ -305,7 +309,7 @@ else:
     message_param['content'] = None   # sent as "content": null
 ```
 
-The patch omits `content` entirely when `tool_calls` or `thinkings` are present, which is valid per the OpenAI API spec and accepted by all known providers:
+The patch changes the `else` branch to only set `content` when there are *neither* `tool_calls` *nor* `thinkings`:
 
 ```python
 # openai_patch.py
@@ -315,17 +319,15 @@ elif not self.tool_calls and not self.thinkings:
     message_param['content'] = None   # only set null when nothing else is set
 ```
 
+When `tool_calls` or `thinkings` are present, the `content` key is omitted from the serialized JSON entirely (not set to `null`). This is valid per the OpenAI API spec and accepted by all known providers.
+
 The patch is applied once at import time (`runner.py` calls `patch_openai_model_response_serialization()` at module load). It fails silently if pydantic-ai's internal class structure changes, at which point `filter_nil_content` remains the fallback.
 
 ### The `strip_thinking_parts` Retry
 
-For providers that reject history containing `ThinkingPart` entries even after the above sanitization (e.g. a DeepSeek model accessed via a non-DeepSeek provider that doesn't know how to serialize `reasoning_content`), the retry loop detects a specific 400 error:
+For providers that reject history containing `ThinkingPart` entries even after the above sanitization (e.g. a DeepSeek model accessed via a non-DeepSeek provider that doesn't know how to serialize `reasoning_content`), the retry loop detects a specific 400 error matching `"missing reasoning_content"` or `"reasoning_content field"` (checked by `is_missing_reasoning_content_error`).
 
-```
-Missing reasoning_content field  /  reasoning_content field required
-```
-
-When detected, `strip_thinking_parts()` removes all `ThinkingPart` entries from the history and retries. This is a one-shot retry — it will not loop.
+When detected, `strip_thinking_parts()` removes all `ThinkingPart` entries from every `ModelResponse` and retries. If stripping leaves a message with no parts, it is replaced with a single `TextPart(".")` to keep the message valid. This is a one-shot retry — it will not loop.
 
 ### File Map
 

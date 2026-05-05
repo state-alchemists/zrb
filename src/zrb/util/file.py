@@ -4,7 +4,7 @@ import re
 from typing import Literal
 
 
-def read_file(file_path: str, replace_map: dict[str, str] = {}) -> str:
+def read_file(file_path: str, replace_map: dict[str, str] | None = None) -> str:
     """Reads a file and optionally replaces content based on a map.
 
     Args:
@@ -14,6 +14,8 @@ def read_file(file_path: str, replace_map: dict[str, str] = {}) -> str:
     Returns:
         The content of the file with replacements applied.
     """
+    if replace_map is None:
+        replace_map = {}
     abs_file_path = os.path.abspath(os.path.expanduser(file_path))
     is_pdf = abs_file_path.lower().endswith(".pdf")
     try:
@@ -81,8 +83,10 @@ def list_files(
     path: str = ".",
     include_hidden: bool = False,
     depth: int = 3,
-    excluded_patterns: list[str] = [],
+    excluded_patterns: list[str] | None = None,
 ) -> list[str]:
+    if excluded_patterns is None:
+        excluded_patterns = []
     all_files: list[str] = []
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
