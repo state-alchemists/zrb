@@ -28,7 +28,7 @@ from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.hook.types import HookEvent
-from zrb.llm.message import ensure_alternating_roles
+from zrb.llm.message import ensure_alternating_roles, sanitize_orphaned_tool_calls
 from zrb.llm.tool_call.handler import ToolCallHandler
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.llm.util.prompt import expand_prompt
@@ -418,6 +418,8 @@ async def _execution_loop(
     try:
         while True:
             current_history = filter_nil_content(current_history)
+            if current_results is None:
+                current_history = sanitize_orphaned_tool_calls(current_history)
             stream = agent.run_stream_events(
                 current_message,
                 message_history=current_history,

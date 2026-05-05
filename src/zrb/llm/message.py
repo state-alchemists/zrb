@@ -43,6 +43,75 @@ def ensure_alternating_roles(messages: list[Any]) -> list[Any]:
     return new_messages
 
 
+def sanitize_orphaned_tool_calls(messages: list[Any]) -> list[Any]:
+    """Remove ToolCallParts with no matching ToolReturnPart and vice versa.
+
+    After history compression the kept slice can contain tool calls whose
+    returns were in the summarised portion (or vice versa).  Most providers
+    (Bedrock, OpenAI) reject a conversation where a tool call has no following
+    return.  This function strips the orphaned parts and patches any messages
+    that become text-less as a result.
+    """
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        TextPart,
+        ToolCallPart,
+        ToolReturnPart,
+    )
+
+    call_ids: set[str] = set()
+    return_ids: set[str] = set()
+    for msg in messages:
+        for part in getattr(msg, "parts", []):
+            if isinstance(part, ToolCallPart) and part.tool_call_id:
+                call_ids.add(part.tool_call_id)
+            elif isinstance(part, ToolReturnPart) and part.tool_call_id:
+                return_ids.add(part.tool_call_id)
+
+    orphaned_calls = call_ids - return_ids
+    orphaned_returns = return_ids - call_ids
+
+    if not orphaned_calls and not orphaned_returns:
+        return messages
+
+    result = []
+    for msg in messages:
+        if isinstance(msg, ModelResponse) and orphaned_calls:
+            new_parts = [
+                p
+                for p in msg.parts
+                if not (
+                    isinstance(p, ToolCallPart) and p.tool_call_id in orphaned_calls
+                )
+            ]
+            if not new_parts:
+                continue  # drop empty assistant message
+            if new_parts != list(msg.parts):
+                from dataclasses import replace
+
+                has_text = any(isinstance(p, TextPart) and p.content for p in new_parts)
+                if not has_text:
+                    new_parts.insert(0, TextPart(content="."))
+                msg = replace(msg, parts=new_parts)
+        elif isinstance(msg, ModelRequest) and orphaned_returns:
+            new_parts = [
+                p
+                for p in msg.parts
+                if not (
+                    isinstance(p, ToolReturnPart) and p.tool_call_id in orphaned_returns
+                )
+            ]
+            if not new_parts:
+                continue  # drop empty user message
+            if new_parts != list(msg.parts):
+                from dataclasses import replace
+
+                msg = replace(msg, parts=new_parts)
+        result.append(msg)
+    return result
+
+
 def get_tool_pairs(messages: list[Any]) -> dict[str, dict[str, int | None]]:
     """
     Extract tool call/return pairs from messages.

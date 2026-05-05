@@ -31,6 +31,32 @@ def drop_oldest_turn(history: list[Any], min_turns: int = 0) -> list[Any]:
     return []
 
 
+def strip_thinking_parts(messages: list[Any]) -> list[Any]:
+    """Strip ThinkingParts from all ModelResponse messages.
+
+    Used when a provider rejects history because reasoning_content is present
+    in an assistant message that had tool calls but the content was dropped.
+    Stripping ThinkingParts prevents pydantic-ai from sending reasoning_content
+    at all, which is accepted by all providers.
+    """
+    from pydantic_ai.messages import ModelResponse, TextPart, ThinkingPart
+
+    result = []
+    for msg in messages:
+        if not isinstance(msg, ModelResponse):
+            result.append(msg)
+            continue
+        new_parts = [p for p in msg.parts if not isinstance(p, ThinkingPart)]
+        if not new_parts:
+            new_parts = [TextPart(content=".")]
+        elif not any(isinstance(p, TextPart) and p.content for p in new_parts):
+            new_parts.insert(0, TextPart(content="."))
+        from dataclasses import replace
+
+        result.append(replace(msg, parts=new_parts))
+    return result
+
+
 def filter_nil_content(messages: list[Any]) -> list[Any]:
     """Filter out parts with None/nil content from messages.
 
@@ -102,7 +128,7 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
             has_tool_call = False
             for part in msg.parts:
                 if isinstance(part, TextPart):
-                    if part.content is None:
+                    if not part.content:  # None or empty string
                         from dataclasses import replace
 
                         valid_parts.append(replace(part, content="."))
@@ -130,13 +156,15 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
                 else:
                     valid_parts.append(part)
 
-            # Some providers (e.g. DeepSeek via Cloudflare) require a non-null
-            # text content when tool calls are present. Use a period `"."`
-            # (not empty string, not space) because:
+            # Providers reject assistant messages with no content and no tool_calls.
+            # Use "." (not empty string, not space) because:
             #   - Bedrock rejects blank text fields (ValidationException)
             #   - Anthropic models on Bedrock reject whitespace-only text
             #   - pydantic_ai's own Bedrock model uses "." for the same reason
-            if has_tool_call and not has_text:
+            # This also covers thinking-only responses (ThinkingPart but no TextPart)
+            # where providers like DeepSeek send thinking via a separate field
+            # (e.g. reasoning_content) and serialize content as null.
+            if not has_text and valid_parts:
                 valid_parts.insert(0, TextPart(content="."))
 
             if valid_parts:
