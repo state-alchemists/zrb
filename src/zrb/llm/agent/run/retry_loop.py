@@ -19,10 +19,11 @@ from zrb.config.config import CFG
 from zrb.llm.agent.run.error_classifier import (
     get_retry_wait,
     is_invalid_tool_call_error,
+    is_missing_reasoning_content_error,
     is_prompt_too_long_error,
     is_retryable_error,
 )
-from zrb.llm.agent.run.history_utils import drop_oldest_turn
+from zrb.llm.agent.run.history_utils import drop_oldest_turn, strip_thinking_parts
 
 
 @dataclass
@@ -32,6 +33,7 @@ class RetryState:
     context_retry_count: int = 0
     transient_retry_count: int = 0
     invalid_tool_retry_done: bool = False
+    missing_reasoning_retry_done: bool = False
     max_context_retries: int = field(
         default_factory=lambda: CFG.LLM_MAX_CONTEXT_RETRIES
     )
@@ -98,6 +100,25 @@ async def handle_stream_error(
         return RetryOutcome(
             should_retry=True,
             new_history=new_history,
+            new_message=current_message,
+        )
+
+    if (
+        is_missing_reasoning_content_error(exc)
+        and not state.missing_reasoning_retry_done
+    ):
+        state.missing_reasoning_retry_done = True
+        print_fn(
+            "\n[SYSTEM] Provider requires reasoning_content in history — "
+            "stripping thinking parts and retrying..."
+        )
+        CFG.LOGGER.debug(
+            f"Missing reasoning_content error: {exc}. Stripping thinking parts from history."
+        )
+        sanitized = strip_thinking_parts(current_history)
+        return RetryOutcome(
+            should_retry=True,
+            new_history=sanitized,
             new_message=current_message,
         )
 

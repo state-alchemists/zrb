@@ -71,8 +71,13 @@ def split_history(
         messages, limiter, conversational_token_threshold, tool_pairs
     )
     if not to_summarize and not to_keep and messages:
-        split_idx = max(0, len(messages) - 2)
-        return messages[:split_idx], messages[split_idx:]
+        # Absolute last resort: keep as few messages as possible while still
+        # respecting tool pairs. Walk backwards until we find a safe split.
+        for split_idx in range(len(messages) - 1, 0, -1):
+            if is_split_safe(messages, split_idx, tool_pairs):
+                return messages[:split_idx], messages[split_idx:]
+        # Cannot split without breaking a pair — summarize everything.
+        return messages, []
 
     return to_summarize, to_keep
 

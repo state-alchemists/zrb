@@ -79,7 +79,7 @@ class LLMTask(BaseTask):
         history_processors: list[HistoryProcessor] | None = None,
         capabilities: "list[AbstractCapability[Any]] | None" = None,
         llm_config: LLMConfig | None = None,
-        llm_limitter: LLMLimiter | None = None,
+        llm_limiter: LLMLimiter | None = None,
         model: (
             Callable[[AnyContext], Model | str | fstring | None] | Model | None
         ) = None,
@@ -135,7 +135,7 @@ class LLMTask(BaseTask):
         )
         self._llm_config = default_llm_config if llm_config is None else llm_config
         self._llm_limitter = (
-            default_llm_limitter if llm_limitter is None else llm_limitter
+            default_llm_limitter if llm_limiter is None else llm_limiter
         )
         # Auto-convert system_prompt to prompt_manager if provided and prompt_manager not set
         if prompt_manager is None:

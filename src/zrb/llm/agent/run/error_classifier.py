@@ -22,20 +22,34 @@ def is_invalid_tool_call_error(e: Exception) -> bool:
     Some model APIs (e.g. Ollama) reject responses where the model referenced a tool
     that was not in the registered tool list, returning HTTP 400 instead of handling
     the unknown call gracefully.
+
+    Requires BOTH an entity word (tool/function) AND a problem word (unknown/invalid/…)
+    to avoid false-positives on generic 400 errors like "Invalid JSON body".
     """
     status_code = getattr(e, "status_code", None)
     if status_code != 400:
         return False
     err_str = str(e).lower()
-    tool_keywords = [
-        "tool",
-        "function",
-        "unknown",
-        "invalid",
-        "not defined",
-        "not found",
-    ]
-    return any(keyword in err_str for keyword in tool_keywords)
+    entity_keywords = ["tool", "function"]
+    problem_keywords = ["unknown", "invalid", "not defined", "not found"]
+    return any(e in err_str for e in entity_keywords) and any(
+        p in err_str for p in problem_keywords
+    )
+
+
+def is_missing_reasoning_content_error(e: Exception) -> bool:
+    """Returns True if the provider requires reasoning_content in a history message.
+
+    DeepSeek V3.2/V4 with tool calls requires the assistant's reasoning_content
+    to be echoed back in multi-turn conversations.
+    """
+    status_code = getattr(e, "status_code", None)
+    if status_code != 400:
+        return False
+    err_str = str(e).lower()
+    return (
+        "missing reasoning_content" in err_str or "reasoning_content field" in err_str
+    )
 
 
 def is_retryable_error(e: Exception) -> bool:

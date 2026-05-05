@@ -116,7 +116,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         history_processors: list[HistoryProcessor] | None = None,
         capabilities: "list[AbstractCapability[Any]] | None" = None,
         llm_config: LLMConfig | None = None,
-        llm_limitter: LLMLimiter | None = None,
+        llm_limiter: LLMLimiter | None = None,
         model: (
             Callable[[AnyContext], Model | str | fstring | None] | Model | None
         ) = None,
@@ -224,7 +224,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
             print_fn=print_fn,
         )
         self._llm_config = default_llm_config if llm_config is None else llm_config
-        self._llm_limitter = llm_limitter
+        self._llm_limiter = llm_limiter
         # Auto-convert system_prompt to prompt_manager if provided and prompt_manager not set
         if prompt_manager is None:
             prompt_manager = PromptManager(
@@ -355,7 +355,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
 
     @property
     def llm_limiter(self) -> LLMLimiter | None:
-        return self._llm_limitter
+        return self._llm_limiter
 
     def get_system_prompt(self, ctx: AnyContext) -> str:
         if self._prompt_manager is None:
@@ -645,7 +645,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
             + [create_summarizer_history_processor()],
             capabilities=capabilities,
             llm_config=self._llm_config,
-            llm_limitter=self._llm_limitter,
+            llm_limiter=self._llm_limiter,
             history_manager=history_manager,
             hook_manager=hook_manager,
             tool_confirmation=tool_confirmation,

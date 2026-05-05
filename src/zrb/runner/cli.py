@@ -38,7 +38,9 @@ class Cli(Group):
     def banner(self) -> str:
         return CFG.BANNER
 
-    def run(self, str_args: list[str] = []):
+    def run(self, str_args: list[str] | None = None):
+        if str_args is None:
+            str_args = []
         str_kwargs, str_args = self._extract_kwargs_from_args(str_args)
         node, node_path, str_args = extract_node_from_args(self, str_args)
         if isinstance(node, AnyGroup):

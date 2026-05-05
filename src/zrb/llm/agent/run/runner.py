@@ -11,7 +11,7 @@ from zrb.llm.agent.run.deferred_calls import (
 from zrb.llm.agent.run.deferred_calls import (
     rebuild_for_denials,
 )
-from zrb.llm.agent.run.history_utils import filter_nil_content
+from zrb.llm.agent.run.history_utils import sanitize_history
 from zrb.llm.agent.run.hook_result_extractor import (
     extract_additional_context,
 )
@@ -417,7 +417,10 @@ async def _execution_loop(
 
     try:
         while True:
-            current_history = filter_nil_content(current_history)
+            current_history = sanitize_history(
+                current_history,
+                allow_orphaned_tool_calls=(current_results is not None),
+            )
             stream = agent.run_stream_events(
                 current_message,
                 message_history=current_history,
@@ -429,14 +432,18 @@ async def _execution_loop(
             try:
                 # Docs: https://pydantic.dev/docs/ai/core-concepts/agent/#streaming-events-and-final-output
                 async for event in stream:
-                    await asyncio.sleep(0)
                     if isinstance(event, AgentRunResultEvent):
                         result = event.result
                         result_output = result.output
                         CFG.LOGGER.debug(
                             f"Got result event, result_output type: {type(result_output)}"
                         )
-                        run_history = filter_nil_content(result.all_messages())
+                        run_history = sanitize_history(
+                            result.all_messages(),
+                            allow_orphaned_tool_calls=isinstance(
+                                result_output, DeferredToolRequests
+                            ),
+                        )
                     if effective_event_handler:
                         await effective_event_handler(event)
             except Exception as _stream_exc:

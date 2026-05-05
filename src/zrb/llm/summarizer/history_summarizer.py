@@ -2,13 +2,17 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
+from zrb.llm.agent.run.history_utils import sanitize_history
 from zrb.llm.agent.summarizer import (
     create_conversational_summarizer_agent,
     create_message_summarizer_agent,
 )
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
-from zrb.llm.message import ensure_alternating_roles, validate_tool_pair_integrity
+from zrb.llm.message import (
+    ensure_alternating_roles,
+    validate_tool_pair_integrity,
+)
 from zrb.llm.summarizer.chunk_processor import (
     chunk_and_summarize,
     consolidate_summaries,
@@ -236,17 +240,21 @@ async def summarize_history(
             return messages
         if not to_keep:
             return [summary_message]
-        # Validate tool pair integrity in kept messages
-
+        # Fix orphaned tool call/return pairs before returning.
+        # Compression can leave ToolCallParts whose returns were in the summarised
+        # portion, or ToolReturnParts whose calls were dropped.  Providers like
+        # Bedrock reject such history with ValidationException.
         is_valid, problems = validate_tool_pair_integrity(to_keep)
         if not is_valid and problems:
             zrb_print(
                 stylize_yellow(
                     f"  Warning: Kept messages have tool pair issues: {', '.join(problems[:3])}"
                     + ("..." if len(problems) > 3 else "")
+                    + " — sanitizing..."
                 ),
                 plain=True,
             )
+            to_keep = sanitize_history(to_keep)
 
         return ensure_alternating_roles([summary_message] + to_keep)
     except Exception as e:
