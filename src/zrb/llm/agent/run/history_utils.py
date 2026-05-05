@@ -5,6 +5,52 @@ from typing import Any
 from zrb.llm.config.limiter import is_turn_start
 
 
+def _detect_problems(messages: list[Any]) -> list[str]:
+    """Return a list of invariant violations found in message history.
+
+    Checks semantic invariants that providers enforce but that pydantic-ai's
+    TypeAdapter does not catch (e.g. content=None on a str-typed field, orphaned
+    tool pairs, consecutive same-role messages, text-less ModelResponses).
+    Intended for DEBUG-level logging before sanitize_history runs.
+    """
+    from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, ToolCallPart
+
+    from zrb.llm.message import validate_tool_pair_integrity
+
+    problems: list[str] = []
+    prev_type: type | None = None
+
+    for i, msg in enumerate(messages):
+        parts = getattr(msg, "parts", None)
+        if not parts:
+            problems.append(f"msg[{i}] ({type(msg).__name__}) has no parts")
+            prev_type = type(msg)
+            continue
+
+        for j, part in enumerate(parts):
+            content = getattr(part, "content", "N/A")
+            if content is None or content == "":
+                problems.append(
+                    f"msg[{i}].parts[{j}] ({type(part).__name__}) has nil/empty content"
+                )
+
+        if isinstance(msg, ModelResponse):
+            has_text = any(isinstance(p, TextPart) and p.content for p in parts)
+            has_tool = any(isinstance(p, ToolCallPart) for p in parts)
+            if not has_text and not has_tool:
+                problems.append(f"msg[{i}] ModelResponse has no text and no tool calls")
+
+        if prev_type is not None and type(msg) is prev_type:
+            problems.append(
+                f"msg[{i}] and msg[{i - 1}] are consecutive {type(msg).__name__}"
+            )
+        prev_type = type(msg)
+
+    _, pair_problems = validate_tool_pair_integrity(messages)
+    problems.extend(pair_problems)
+    return problems
+
+
 def sanitize_history(
     messages: list[Any],
     allow_orphaned_tool_calls: bool = False,
@@ -19,11 +65,16 @@ def sanitize_history(
     3. Drop messages that are now empty (all parts were removed by the above steps)
     4. ensure_alternating_roles   — merge consecutive same-role messages
 
-    This single call replaces the previous scattered filter_nil_content +
-    sanitize_orphaned_tool_calls pair and also adds the missing alternating-role
-    enforcement to the main agent loop.
+    Violations found before fixing are logged at DEBUG level so that the root cause
+    of provider 400 errors can be traced in logs without any production overhead.
     """
+    from zrb.config.config import CFG
     from zrb.llm.message import ensure_alternating_roles, sanitize_orphaned_tool_calls
+
+    problems = _detect_problems(messages)
+    if problems:
+        for p in problems:
+            CFG.LOGGER.debug(f"sanitize_history [pre-fix]: {p}")
 
     messages = filter_nil_content(messages)
     if not allow_orphaned_tool_calls:

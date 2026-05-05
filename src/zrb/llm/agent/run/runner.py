@@ -439,7 +439,12 @@ async def _execution_loop(
                         CFG.LOGGER.debug(
                             f"Got result event, result_output type: {type(result_output)}"
                         )
-                        run_history = sanitize_history(result.all_messages())
+                        run_history = sanitize_history(
+                            result.all_messages(),
+                            allow_orphaned_tool_calls=isinstance(
+                                result_output, DeferredToolRequests
+                            ),
+                        )
                     if effective_event_handler:
                         await effective_event_handler(event)
             except Exception as _stream_exc:
