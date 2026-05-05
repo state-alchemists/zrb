@@ -1,5 +1,41 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.25.0 (May 5, 2026)
+
+- **Improvement: Comprehensive History Sanitization Layer**:
+  - New `sanitize_history()` in `history_utils.py` is a 4-stage pipeline (filter nil content → strip orphaned tool calls → drop empty messages → ensure alternating roles) that replaces the single `filter_nil_content()` call in the execution loop.
+  - New `_detect_problems()` logs invariant violations at DEBUG level before sanitization runs, enabling root-cause tracing of provider 400 errors.
+  - New `sanitize_orphaned_tool_calls()` in `message.py` removes unmatched `ToolCallPart`/`ToolReturnPart` pairs that can appear after history compression.
+  - New `strip_thinking_parts()` strips `ThinkingPart` from responses for providers (e.g., DeepSeek) that reject `reasoning_content` in multi-turn histories.
+  - New `is_missing_reasoning_content_error()` in `error_classifier.py` detects DeepSeek V3.2/V4 errors where the provider requires `reasoning_content` in history — triggers a one-time retry with `strip_thinking_parts`.
+  - `is_invalid_tool_call_error()` now requires BOTH an entity word ("tool"/"function") AND a problem word ("unknown"/"invalid"/etc.) to avoid false positives on generic HTTP 400 errors.
+  - `filter_nil_content()` now catches empty strings (`if not part.content` instead of `if part.content is None`) and handles thinking-only responses by injecting a `TextPart(".")` placeholder.
+  - `runner.py`: The execution loop now calls `sanitize_history()` instead of `filter_nil_content()`, with `allow_orphaned_tool_calls=True` when deferred tool results are pending.
+  - `runner.py`: Removed unnecessary `await asyncio.sleep(0)` from the streaming event loop.
+  - Documented in `docs/advanced-topics/maintainer-guide.md` under a new "LLM History Sanitization Layer" section.
+
+- **Improvement: Prompt & Mandate Overhaul**:
+  - `persona.md`: "State intent before tool calls" → "State what you're about to do, then call"; added "Skip pre-tool narration for single-tool calls" and "skip post-task summary when there's nothing to report."
+  - `mandate.md`: Changed priority tiebreaker from `action > analysis` to `analysis > action`; removed "Git state changes" from confirm-before table (moved to git_mandate.md); renamed "Edge Cases" → "Engineering Discipline" with Scientific Method, Atomic Changes, No Magic, Defensive Not Paranoid, Review Your Own Code; replaced "No Hacks" with "Avoid band-aids" (acknowledging suppression annotations are sometimes necessary); added "Modularity" and "Comments" rules; added "Prefer idiomatic code over existing style," "Minimal Changes," "Understand First" to Scope & Simplicity; consolidated token efficiency rules into two bullets (Be concise, Prioritize recent context); expanded Execution Loop with Root Cause First, Tests Are Integral (TDD), Testing Standards (≥80%, AAA, no private members), Test File Conventions; renamed "Multi-Step Tasks" to its own section; removed the Edge Cases section entirely (lock files, merge conflicts, git hooks, etc.).
+  - `git_mandate.md`: Restructured with "Requires Approval" now requiring `git status` + `git diff HEAD` before asking, with per-file summary for large diffs; "Always OK" → "No Approval Needed."
+  - `journal_mandate.md`: Refined write criteria from "Write if reusable" to "Write if it would help future sessions"; "silently — never ask the user before journaling."
+
+- **Bug Fix: Mutable Default Arguments**:
+  - `cli.py`: `str_args: list[str] = []` → `list[str] | None = None` with `if str_args is None: str_args = []`.
+  - `subcommand.py`: `paths: list[str] = []` and `nexts: list[str] = []` → `list[str] | None = None` with initialization guards.
+  - `file.py`: `replace_map: dict[str, str] = {}` and `excluded_patterns: list[str] = []` → `list[str] | None = None` with initialization guards.
+
+- **Maintenance: Dependency Update**:
+  - Updated `pydantic-ai-slim` from `~1.88.0` to `~1.90.0`.
+  - Updated `poetry.lock` to match.
+
+- **Tests: Coverage Expansion**:
+  - New `test/llm/config/test_limiter.py`: 144 lines for limiter configuration tests.
+  - New `test/llm/util/test_stream_response.py`: 400 lines for stream response handling.
+  - New `test/util/test_file_util.py`: 35 lines for file utility tests.
+  - New `test/util/test_truncate.py`: 75 lines for truncation logic tests.
+  - New `test/util/test_yaml.py`: 57 lines for YAML utility tests.
+
 ## 2.24.4 (May 3, 2026)
 
 - **Maintenance: Dependency Update**:
