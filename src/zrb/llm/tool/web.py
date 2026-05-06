@@ -69,13 +69,23 @@ async def search_internet(
             return _error_result(query, page, str(e), "brave")
         return normalize_search_result(raw, "brave")
 
-    from zrb.llm.tool.search.searxng import search_internet as searxng_search
+    if method == "searxng":
+        from zrb.llm.tool.search.searxng import search_internet as searxng_search
+
+        try:
+            raw = searxng_search(query, page=page)
+        except Exception as e:  # noqa: BLE001
+            return _error_result(query, page, str(e), "searxng")
+        return normalize_search_result(raw, "searxng")
+
+    # default: Google News RSS — free, no API key, no Docker required
+    from zrb.llm.tool.search.google_rss import search_internet as google_rss_search
 
     try:
-        raw = searxng_search(query, page=page)
+        raw = google_rss_search(query, page=page)
     except Exception as e:  # noqa: BLE001
-        return _error_result(query, page, str(e), "searxng")
-    return normalize_search_result(raw, "searxng")
+        return _error_result(query, page, str(e), "google_rss")
+    return normalize_search_result(raw, "google_rss")
 
 
 def normalize_search_result(raw: dict, backend: str) -> dict:
@@ -89,6 +99,8 @@ def normalize_search_result(raw: dict, backend: str) -> dict:
         return _normalize_serpapi(raw, query)
     if backend == "searxng":
         return _normalize_searxng(raw, query)
+    if backend == "google_rss":
+        return _normalize_google_rss(raw, query)
     return raw
 
 
@@ -151,6 +163,26 @@ def _normalize_searxng(raw: dict, query: str) -> dict:
         "results": results,
         "total": len(results),
         "page": raw.get("pageno", 1),
+        "error": None,
+    }
+
+
+def _normalize_google_rss(raw: dict, query: str) -> dict:
+    results = []
+    for item in raw.get("results", [])[:10]:
+        results.append(
+            {
+                "title": item.get("title", ""),
+                "url": item.get("url", ""),
+                "snippet": item.get("snippet", ""),
+                "source": item.get("source", "google_rss"),
+            }
+        )
+    return {
+        "query": query,
+        "results": results,
+        "total": len(results),
+        "page": raw.get("page", 1),
         "error": None,
     }
 

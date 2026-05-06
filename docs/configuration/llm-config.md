@@ -320,7 +320,12 @@ These variables control which internet search engine Zrb's LLM tools use.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_SEARCH_INTERNET_METHOD` | Search engine (`serpapi`, `brave`, `searxng`) | `serpapi` |
+| `ZRB_SEARCH_INTERNET_METHOD` | Search engine (`google_rss`, `serpapi`, `brave`, `searxng`) | `google_rss` |
+
+### Google News RSS (Default)
+
+Free, no API key, no Docker required. Fetches results from Google News RSS feed.
+No additional configuration needed.
 
 ### SerpAPI (Google)
 
