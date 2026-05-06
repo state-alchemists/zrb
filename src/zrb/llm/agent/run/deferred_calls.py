@@ -40,8 +40,6 @@ async def process_deferred_requests(
     """Run approval flow for each deferred call. Returns None if there are no requests."""
     from pydantic_ai import DeferredToolResults, ToolApproved, ToolDenied
 
-    from zrb.llm.approval.approval_channel import ApprovalContext
-
     all_requests = (result_output.calls or []) + (result_output.approvals or [])
     if not all_requests:
         return None

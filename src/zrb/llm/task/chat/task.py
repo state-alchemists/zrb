@@ -6,7 +6,6 @@ from zrb.attr.type import BoolAttr, StrAttr, StrListAttr, fstring
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
-from zrb.context.shared_context import SharedContext
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.input.bool_input import BoolInput
@@ -36,7 +35,6 @@ from zrb.llm.tool_call import (
     write_files_formatter,
 )
 from zrb.llm.util.attachment import get_attachments
-from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.task.base_task import BaseTask
 from zrb.util.attr import get_attr, get_bool_attr, get_str_attr

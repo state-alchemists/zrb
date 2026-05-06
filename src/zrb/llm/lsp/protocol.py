@@ -4,7 +4,6 @@ LSP JSON-RPC Protocol implementation.
 Handles communication with Language Server Protocol servers using JSON-RPC 2.0.
 """
 
-import asyncio
 import json
 import uuid
 from dataclasses import dataclass, field

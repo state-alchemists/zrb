@@ -8,6 +8,9 @@ from zrb.config.helper import get_env
 
 
 class LLMUIStylesMixin:
+    ENV_PREFIX: str
+    ROOT_GROUP_NAME: str
+
     def __init__(self):
         self.DEFAULT_LLM_ASSISTANT_NAME: str = ""
         self.DEFAULT_LLM_ASSISTANT_ASCII_ART: str = "default"

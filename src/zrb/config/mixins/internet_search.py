@@ -8,6 +8,8 @@ from zrb.config.helper import get_env
 
 
 class InternetSearchMixin:
+    ENV_PREFIX: str
+
     def __init__(self):
         self.DEFAULT_SEARCH_INTERNET_METHOD: str = "google_rss"
         self.DEFAULT_BRAVE_API_KEY: str = ""

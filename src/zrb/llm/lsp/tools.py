@@ -4,7 +4,6 @@ LSP Tools for zrb LLM integration.
 These tools provide IDE-like code intelligence capabilities to the LLM assistant.
 """
 
-import asyncio
 from typing import Literal
 
 from zrb.llm.lsp.manager import lsp_manager

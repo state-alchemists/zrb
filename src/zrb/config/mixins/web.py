@@ -9,6 +9,8 @@ from zrb.util.string.conversion import to_boolean
 
 
 class WebMixin:
+    ENV_PREFIX: str
+
     def __init__(self):
         self.DEFAULT_WEB_CSS_PATH: str = ""
         self.DEFAULT_WEB_JS_PATH: str = ""

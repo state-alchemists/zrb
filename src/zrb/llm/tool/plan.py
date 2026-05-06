@@ -17,14 +17,11 @@ Usage:
 from __future__ import annotations
 
 import json
-import os
-import uuid
 from contextvars import ContextVar
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
-from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
 
 # Todo status types
@@ -295,7 +292,7 @@ async def write_todos(
         }.get(todo["status"], "[?]")
         lines.append(f"  {status_char} [{todo['id']}] {todo['content']}")
 
-    lines.append(f"\nUse `update_todo` to change status; `get_todos` to check state.")
+    lines.append("\nUse `update_todo` to change status; `get_todos` to check state.")
 
     return "\n".join(lines)
 
@@ -354,9 +351,9 @@ async def update_todo(
 
     if status is None and content is None:
         return (
-            f"Error: Must provide 'status' and/or 'content' to update.\n"
-            f"[SYSTEM SUGGESTION]: Provide at least one of status "
-            f"(pending/in_progress/completed/cancelled) or content."
+            "Error: Must provide 'status' and/or 'content' to update.\n"
+            "[SYSTEM SUGGESTION]: Provide at least one of status "
+            "(pending/in_progress/completed/cancelled) or content."
         )
 
     result = todo_manager.update_todo(session_name, todo_id, status, content)

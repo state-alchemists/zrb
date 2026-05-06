@@ -12,6 +12,8 @@ from zrb.config.helper import get_env
 
 
 class LLMUICommandsMixin:
+    ENV_PREFIX: str
+
     def __init__(self):
         self.DEFAULT_LLM_UI_COMMAND_SUMMARIZE: str = "/compress, /compact"
         self.DEFAULT_LLM_UI_COMMAND_ATTACH: str = "/attach"

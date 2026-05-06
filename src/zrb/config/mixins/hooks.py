@@ -9,6 +9,8 @@ from zrb.util.string.conversion import to_boolean
 
 
 class HooksMixin:
+    ENV_PREFIX: str
+
     def __init__(self):
         self.DEFAULT_HOOKS_ENABLED: str = "on"
         self.DEFAULT_HOOKS_DIRS: str = ""

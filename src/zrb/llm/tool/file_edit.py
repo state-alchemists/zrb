@@ -6,12 +6,12 @@ def _match_line_trimmed(content: str, old_text: str) -> str | None:
     old_lines = old_text.splitlines()
     if not old_lines:
         return None
-    old_stripped = [l.rstrip() for l in old_lines]
+    old_stripped = [line.rstrip() for line in old_lines]
     content_lines = content.splitlines(keepends=True)
     n = len(old_lines)
     for i in range(len(content_lines) - n + 1):
         block = content_lines[i : i + n]
-        if [l.rstrip() for l in block] == old_stripped:
+        if [line.rstrip() for line in block] == old_stripped:
             return "".join(block)
     return None
 
@@ -23,19 +23,19 @@ def _match_indentation_flexible(content: str, old_text: str) -> str | None:
         return None  # Single-line indent shifts are too ambiguous to fuzzy-match
 
     def _min_indent(lines: list[str]) -> int:
-        non_empty = [l for l in lines if l.strip()]
+        non_empty = [line for line in lines if line.strip()]
         if not non_empty:
             return 0
-        return min(len(l) - len(l.lstrip()) for l in non_empty)
+        return min(len(line) - len(line.lstrip()) for line in non_empty)
 
-    old_dedented = [l[_min_indent(old_lines) :] for l in old_lines]
+    old_dedented = [line[_min_indent(old_lines) :] for line in old_lines]
     content_lines = content.splitlines(keepends=True)
     n = len(old_lines)
     for i in range(len(content_lines) - n + 1):
         block = content_lines[i : i + n]
-        block_clean = [l.rstrip("\n").rstrip("\r") for l in block]
+        block_clean = [line.rstrip("\n").rstrip("\r") for line in block]
         shift = _min_indent(block_clean)
-        if [l[shift:] for l in block_clean] == old_dedented:
+        if [line[shift:] for line in block_clean] == old_dedented:
             return "".join(block)
     return None
 

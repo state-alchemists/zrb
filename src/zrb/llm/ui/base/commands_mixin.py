@@ -175,7 +175,7 @@ class CommandsMixin:
                 if not snapshots:
                     self.append_to_output(
                         stylize_faint(
-                            f"\n  No snapshots yet. Snapshots are taken before each AI turn.\n"
+                            "\n  No snapshots yet. Snapshots are taken before each AI turn.\n"
                         )
                     )
                 else:

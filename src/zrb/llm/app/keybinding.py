@@ -1,12 +1,18 @@
 import string
+from typing import TYPE_CHECKING
 
-from prompt_toolkit.application import get_app
-from prompt_toolkit.filters import has_completions
-from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.widgets import TextArea
+if TYPE_CHECKING:
+    from prompt_toolkit.application import Application
+    from prompt_toolkit.key_binding import KeyBindings
+    from prompt_toolkit.widgets import TextArea
 
 
-def create_output_keybindings(input_field: TextArea) -> KeyBindings:
+def create_output_keybindings(input_field: "TextArea") -> "KeyBindings":
+    from prompt_toolkit.application import get_app
+    from prompt_toolkit.filters import has_completions
+    from prompt_toolkit.key_binding import KeyBindings
+    from prompt_toolkit.widgets import TextArea
+
     kb = KeyBindings()
 
     @kb.add("escape")
@@ -25,10 +31,6 @@ def create_output_keybindings(input_field: TextArea) -> KeyBindings:
     @kb.add("pageup")
     def _(event):
         event.current_buffer.cursor_up(count=event.app.output.get_size().rows - 4)
-
-    @kb.add("pagedown")
-    def _(event):
-        event.current_buffer.cursor_down(count=event.app.output.get_size().rows - 4)
 
     # Tab navigation
     @kb.add("tab", filter=~has_completions)

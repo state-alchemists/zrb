@@ -9,6 +9,8 @@ from zrb.util.string.conversion import to_boolean
 
 
 class LLMCoreMixin:
+    ENV_PREFIX: str
+
     def __init__(self):
         self.DEFAULT_LLM_MODEL: str = ""
         self.DEFAULT_LLM_SMALL_MODEL: str = ""

@@ -30,7 +30,6 @@ from zrb.llm.tool_call import ArgumentFormatter, ResponseHandler, ToolPolicy
 if TYPE_CHECKING:
     from pydantic_ai import Tool
     from pydantic_ai._agent_graph import HistoryProcessor
-    from pydantic_ai.models import Model
     from pydantic_ai.tools import ToolFuncEither
     from pydantic_ai.toolsets import AbstractToolset
 

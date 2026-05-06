@@ -8,6 +8,8 @@ from zrb.config.helper import get_env
 
 
 class RAGMixin:
+    ENV_PREFIX: str
+
     def __init__(self):
         self.DEFAULT_RAG_EMBEDDING_API_KEY: str = ""
         self.DEFAULT_RAG_EMBEDDING_BASE_URL: str = ""

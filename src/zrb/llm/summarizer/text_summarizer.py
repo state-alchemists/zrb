@@ -2,7 +2,7 @@ from typing import Any
 
 from zrb.context.any_context import zrb_print
 from zrb.llm.config.limiter import LLMLimiter
-from zrb.util.cli.style import stylize_error, stylize_yellow
+from zrb.util.cli.style import stylize_error
 
 
 async def summarize_text_plain(

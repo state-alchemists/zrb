@@ -9,6 +9,9 @@ from zrb.util.string.conversion import to_boolean
 
 
 class LLMSearchMixin:
+    ENV_PREFIX: str
+    ROOT_GROUP_NAME: str
+
     def __init__(self):
         self.DEFAULT_LLM_SEARCH_PROJECT: str = "on"
         self.DEFAULT_LLM_SEARCH_HOME: str = "on"

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from zrb.llm.agent.common import create_agent
 from zrb.llm.config.config import llm_config as default_llm_config

@@ -12,8 +12,6 @@ logger = logging.getLogger(__name__)
 
 def create_command_hook(config: CommandHookConfig) -> HookCallable:
     async def command_hook(context: HookContext) -> HookResult:
-        import subprocess
-
         # Prepare environment with Claude Code context variables
         env = os.environ.copy()
 
@@ -195,8 +193,6 @@ def create_prompt_hook(config: PromptHookConfig) -> HookCallable:
             modifications = {}
             try:
                 # Try to parse as JSON if it looks like JSON
-                import json
-
                 output_text = str(result.output)
                 if output_text.strip().startswith("{") and output_text.strip().endswith(
                     "}"
@@ -269,8 +265,6 @@ def create_agent_hook(config: AgentHookConfig) -> HookCallable:
             modifications = {}
             try:
                 # Try to parse as JSON if it looks like JSON
-                import json
-
                 output_text = str(result.output)
                 if output_text.strip().startswith("{") and output_text.strip().endswith(
                     "}"

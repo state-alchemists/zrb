@@ -17,9 +17,6 @@ from zrb.llm.hook.hook_creators import (
     create_prompt_hook,
 )
 from zrb.llm.hook.hook_loader import get_search_directories as _get_search_directories
-from zrb.llm.hook.hook_loader import (
-    parse_hook_config,
-)
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.manager.loader_mixin import HookLoaderMixin
 from zrb.llm.hook.matcher import evaluate_matchers

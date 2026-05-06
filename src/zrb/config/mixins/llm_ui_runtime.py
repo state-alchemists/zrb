@@ -8,6 +8,8 @@ from zrb.config.helper import get_env
 
 
 class LLMUIRuntimeMixin:
+    ENV_PREFIX: str
+
     def __init__(self):
         self.DEFAULT_LLM_UI_STATUS_INTERVAL: str = "1000"
         self.DEFAULT_LLM_UI_LONG_STATUS_INTERVAL: str = "60000"

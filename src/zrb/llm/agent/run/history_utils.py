@@ -13,7 +13,7 @@ def _detect_problems(messages: list[Any]) -> list[str]:
     tool pairs, consecutive same-role messages, text-less ModelResponses).
     Intended for DEBUG-level logging before sanitize_history runs.
     """
-    from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, ToolCallPart
+    from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart
 
     from zrb.llm.message import validate_tool_pair_integrity
 
@@ -217,7 +217,6 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
                         has_text = True
                 elif isinstance(part, ToolCallPart):
                     valid_parts.append(part)
-                    has_tool_call = True
                 elif isinstance(part, ThinkingPart):
                     if part.content is None:
                         from dataclasses import replace

@@ -8,6 +8,8 @@ from zrb.config.helper import get_env
 
 
 class TaskRuntimeMixin:
+    ENV_PREFIX: str
+
     def __init__(self):
         self.DEFAULT_SCHEDULER_TICK_INTERVAL: str = "60000"
         self.DEFAULT_HTTP_CHECK_INTERVAL: str = "5000"

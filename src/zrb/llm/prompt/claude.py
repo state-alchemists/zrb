@@ -3,7 +3,7 @@ from typing import Callable
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
-from zrb.llm.skill.manager import Skill, SkillManager
+from zrb.llm.skill.manager import SkillManager
 from zrb.util.markdown import make_markdown_section
 
 
@@ -109,7 +109,7 @@ def create_project_context_prompt():
 
         if listed_files:
             parts.append(
-                f"## All Documentation Files\n" + "\n".join(listed_files) + "\n\n"
+                "## All Documentation Files\n" + "\n".join(listed_files) + "\n\n"
                 "**NOTE:** Only the most specific files above are loaded. "
                 "Read other files with `Read` tool when needed."
             )

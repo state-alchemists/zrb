@@ -33,9 +33,9 @@ async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
     root_out, err = await root_proc.communicate()
     if root_proc.returncode != 0:
         return (
-            f"Error: Not inside a git repository.\n"
-            f"[SYSTEM SUGGESTION]: Navigate to a directory that is a git repository root, "
-            f"or provide cwd pointing to one."
+            "Error: Not inside a git repository.\n"
+            "[SYSTEM SUGGESTION]: Navigate to a directory that is a git repository root, "
+            "or provide cwd pointing to one."
         )
 
     git_root = root_out.decode().strip()
@@ -171,8 +171,8 @@ async def list_worktrees() -> str:
     stdout, stderr = await proc.communicate()
     if proc.returncode != 0:
         return (
-            f"Error: Not inside a git repository.\n"
-            f"[SYSTEM SUGGESTION]: Navigate to a git repository root."
+            "Error: Not inside a git repository.\n"
+            "[SYSTEM SUGGESTION]: Navigate to a git repository root."
         )
 
     output = stdout.decode().strip()

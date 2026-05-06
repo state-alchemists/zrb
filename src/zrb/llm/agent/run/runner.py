@@ -57,7 +57,8 @@ current_tool_confirmation: ContextVar[AnyToolConfirmation] = ContextVar(
     "current_tool_confirmation", default=None
 )
 current_yolo: ContextVar[bool] = ContextVar("current_yolo", default=False)
-patch_openai_model_response_serialization()
+
+_openai_patched = False
 
 
 async def run_agent(
@@ -79,6 +80,11 @@ async def run_agent(
     Runs the agent with rate limiting, history management, and optional CLI confirmation loop.
     Returns (result_output, new_message_history).
     """
+    global _openai_patched
+    if not _openai_patched:
+        patch_openai_model_response_serialization()
+        _openai_patched = True
+
     (
         effective_ui,
         effective_tool_confirmation,

@@ -1,5 +1,4 @@
 import asyncio
-import json
 import time
 from collections import deque
 from typing import Any, Callable

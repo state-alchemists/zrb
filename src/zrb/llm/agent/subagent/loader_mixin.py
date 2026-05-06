@@ -10,14 +10,10 @@ from __future__ import annotations
 import os
 import uuid
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import yaml
 
 from zrb.util.load import load_module_from_path
-
-if TYPE_CHECKING:
-    from zrb.llm.agent.subagent.manager import SubAgentDefinition
 
 
 class LoaderMixin:

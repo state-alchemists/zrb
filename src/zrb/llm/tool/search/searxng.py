@@ -98,6 +98,6 @@ def search_internet(
 
         raise Exception(error_msg) from e
 
-    except Exception as e:
+    except Exception:
         # Re-raise other exceptions without modification
         raise

@@ -26,7 +26,6 @@ from zrb.util.markdown import make_markdown_section
 
 if TYPE_CHECKING:
     from pydantic_ai.messages import ModelMessage
-    from pydantic_ai.models import Model
 else:
     ModelMessage = Any
 

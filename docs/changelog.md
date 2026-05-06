@@ -15,6 +15,23 @@
   - New `config/limiter.toml`: Copied alongside `settings.yml` to silence the "missing limiter config" warning at startup.
   - `config/settings.yml.new`: Replaced with the canonical `settings.yml` extracted directly from the pinned Docker image. Changes from the upstream default: added `json` to `formats` (required for the JSON API); removed `ahmia` and `torch` engine entries entirely (both require Tor and cannot be safely disabled via `disabled: true`); added `base_url: [https://yacy.searchlab.eu]` to the `yacy images` entry.
 
+- **Performance: System Context Caching**:
+  - `system_context.py`: Project type detection, infrastructure detection, marker scanning, and tool availability (`which()`) are now `@lru_cache`d per-CWD. These were previously recomputed on every turn despite being stable for the lifetime of a session.
+  - ThreadPoolExecutor reduced from 16 workers to 4 — only git status/log and todo fetching remain dynamic.
+  - `git.py`: `is_inside_git_dir()` now wraps an `@lru_cache`d `_check_git_dir(cwd)` to avoid repeated `git rev-parse` subprocess calls.
+
+- **Performance: Prompt Loading Caching**:
+  - `prompt.py`: `_find_custom_prompt()`, `_get_default_prompt_search_path()`, and `_read_package_prompt()` are now `@lru_cache`d. Prompt file search paths and bundled markdown files are computed once per CWD/name combination.
+  - `_get_prompt_replacements()` now keyed by journal index file mtime — only recomputes when the journal actually changes (previously rebuilt on every turn).
+
+- **Performance: LLMTask System Prompt Deduplication**:
+  - `llm_task.py`: `get_system_prompt()` now called once and reused for both `_create_agent()` and `run_agent()`, avoiding rebuilding the prompt (including expensive system context I/O) a second time per turn.
+
+- **Improvement: UI Confirmation Waiting Indicator**:
+  - Status bar now shows a waiting-for-confirmation indicator (`👋 <name> is waiting for confirmation`) when a tool confirmation is pending, using new `LLM_UI_STYLE_CONFIRMATION` style (default: `ansiyellow bold`).
+  - `StdUI`: Shows "👋 Zrb is waiting for confirmation" on stderr when no explicit prompt is given for tool-confirmation requests.
+  - `ConfirmationMixin`: `get_app().invalidate()` now called unconditionally (not just when prompt text is non-empty) so the status bar reflects state transitions back to "working" or "ready" when the confirmation queue empties.
+
 ## 2.25.1 (May 6, 2026)
 
 - **Bug Fix: Typo in `llm_task.py`**:

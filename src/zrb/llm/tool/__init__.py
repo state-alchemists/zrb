@@ -18,9 +18,6 @@ from zrb.llm.tool.file import (
     write_files,
 )
 from zrb.llm.tool.journal import search_journal
-
-search_journal.__name__ = "SearchJournal"
-
 from zrb.llm.tool.mcp import load_mcp_config
 from zrb.llm.tool.plan import (
     clear_todos,
@@ -33,6 +30,8 @@ from zrb.llm.tool.rag import create_rag_from_directory
 from zrb.llm.tool.skill import create_activate_skill_tool
 from zrb.llm.tool.web import open_web_page, search_internet
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
+
+search_journal.__name__ = "SearchJournal"
 
 __all__ = [
     "run_shell_command",

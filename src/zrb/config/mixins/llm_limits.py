@@ -8,6 +8,8 @@ from zrb.config.helper import get_env
 
 
 class LLMLimitsMixin:
+    ENV_PREFIX: str
+
     def __init__(self):
         self.DEFAULT_LLM_MAX_REQUEST_PER_MINUTE: str = "60"
         self.DEFAULT_LLM_MAX_TOKEN_PER_MINUTE: str = "128000"

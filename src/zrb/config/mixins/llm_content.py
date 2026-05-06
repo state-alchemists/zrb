@@ -13,6 +13,11 @@ from zrb.util.string.conversion import to_boolean
 
 
 class LLMContentMixin:
+    ENV_PREFIX: str
+    ROOT_GROUP_NAME: str
+    LLM_MAX_TOKEN_PER_MINUTE: int
+    LLM_MAX_TOKEN_PER_REQUEST: int
+
     def __init__(self):
         self.DEFAULT_LLM_HISTORY_DIR: str = ""
         self.DEFAULT_LLM_ENABLE_REWIND: str = "off"

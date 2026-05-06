@@ -23,7 +23,7 @@ def copy_searxng_setting(ctx: AnyContext):
 
     dest_config_file = os.path.join(dest_config_dir, "settings.yml")
     if not os.path.isfile(dest_config_file):
-        ctx.print(f"Creating Searxng config file")
+        ctx.print("Creating Searxng config file")
         src_config_file = os.path.join(
             os.path.dirname(__file__), "config", "settings.yml.new"
         )
