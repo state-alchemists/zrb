@@ -9,7 +9,7 @@ from zrb.config.helper import get_env
 
 class InternetSearchMixin:
     def __init__(self):
-        self.DEFAULT_SEARCH_INTERNET_METHOD: str = "serpapi"
+        self.DEFAULT_SEARCH_INTERNET_METHOD: str = "google_rss"
         self.DEFAULT_BRAVE_API_KEY: str = ""
         self.DEFAULT_BRAVE_API_SAFE: str = "off"
         self.DEFAULT_BRAVE_API_LANG: str = "en"
@@ -24,7 +24,7 @@ class InternetSearchMixin:
 
     @property
     def SEARCH_INTERNET_METHOD(self) -> str:
-        """Either serpapi or searxng."""
+        """One of: google_rss (default), serpapi, brave, searxng."""
         return get_env(
             "SEARCH_INTERNET_METHOD",
             self.DEFAULT_SEARCH_INTERNET_METHOD,

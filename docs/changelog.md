@@ -1,5 +1,20 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.25.2 (May 6, 2026)
+
+- **Feature: Google News RSS as Default Search Backend**:
+  - New `src/zrb/llm/tool/search/google_rss.py` implements `SearchInternet` via the Google News RSS feed (`https://news.google.com/rss/search`). Free, no API key, no Docker required.
+  - `web.py`: SearXNG is now only invoked when `ZRB_SEARCH_INTERNET_METHOD=searxng` is explicitly set. Google News RSS is the new default fallback when no other method matches.
+  - Added `_normalize_google_rss()` normalizer and wired it into `normalize_search_result()`.
+  - `InternetSearchMixin`: `DEFAULT_SEARCH_INTERNET_METHOD` changed from `serpapi` to `google_rss`.
+  - `docs/configuration/llm-config.md`: Added "Google News RSS (Default)" section; updated `ZRB_SEARCH_INTERNET_METHOD` options and default.
+  - `docs/advanced-topics/llm-integration.md`: Updated `SearchInternet` tool description to reflect zero-setup default.
+
+- **Fix: SearXNG Docker Setup**:
+  - `start.py`: Config is now copied to `~/.config/searxng/settings.yml` (was incorrectly placed at `~/.config/searxng/settings.yml.new`). Docker volume mount corrected from `./config/` to `./.config/searxng/`. `SEARXNG_LIMITER=false` passed as env var to suppress limiter startup noise. Docker image pinned to `docker.io/searxng/searxng:2026.5.6-36bcd6b55` (fixes Wikidata `KeyError: 'name'` present in older versions). Secret key is now generated with `secrets.token_hex(32)` at copy time instead of using the hardcoded `"ultrasecretkey"` default (which causes SearXNG to refuse to start).
+  - New `config/limiter.toml`: Copied alongside `settings.yml` to silence the "missing limiter config" warning at startup.
+  - `config/settings.yml.new`: Replaced with the canonical `settings.yml` extracted directly from the pinned Docker image. Changes from the upstream default: added `json` to `formats` (required for the JSON API); removed `ahmia` and `torch` engine entries entirely (both require Tor and cannot be safely disabled via `disabled: true`); added `base_url: [https://yacy.searchlab.eu]` to the `yacy images` entry.
+
 ## 2.25.1 (May 6, 2026)
 
 - **Bug Fix: Typo in `llm_task.py`**:

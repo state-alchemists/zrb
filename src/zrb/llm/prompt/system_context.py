@@ -5,6 +5,7 @@ import shutil
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from functools import lru_cache
 from typing import Callable
 
 from zrb.config.config import CFG
@@ -84,17 +85,36 @@ def system_context(
     session_name = session_name.strip() or "default"
     set_current_tool_session(session_name)
 
-    inside_git = is_inside_git_dir()
+    cwd = os.getcwd()
+    home = os.path.expanduser("~")
+    inside_git = is_inside_git_dir()  # cached per CWD
 
-    with ThreadPoolExecutor(max_workers=16) as ex:
-        # Submit all independent IO work immediately
-        f_project_types = ex.submit(_detect_project_types)
-        f_infra_types = ex.submit(_detect_infra_types)
-        f_markers = ex.submit(_detect_project_markers)
-        f_todos = ex.submit(_safe_get_todos, todo_manager, session_name)
+    # --- Cached per CWD: project/tool detection (stable for the lifetime of a session) ---
+    project_types = _detect_project_types(cwd)
+    infra_types = _detect_infra_types(cwd, home)
+    found_markers = list(_detect_project_markers(cwd))
 
-        f_git_branch = f_git_status = f_git_log = None
-        if inside_git:
+    extra_tools: list[tuple[str, str]] = []
+    for pt in project_types:
+        if pt in _PROJECT_TOOLS:
+            extra_tools.extend(_PROJECT_TOOLS[pt])
+    for it in infra_types:
+        if it in _INFRA_TOOLS:
+            extra_tools.extend(_INFRA_TOOLS[it])
+
+    found_tools: list[str] = []
+    seen_labels: set[str] = set()
+    for cmd, label in _DEFAULT_TOOLS + _UTILITY_TOOLS + extra_tools:
+        if label not in seen_labels and _which(cmd):  # cached per command
+            found_tools.append(label)
+            seen_labels.add(label)
+
+    # --- Dynamic: git status and todos always run fresh ---
+    git_lines: list[str] = []
+    todos_data = None
+
+    if inside_git:
+        with ThreadPoolExecutor(max_workers=4) as ex:
             f_git_branch = ex.submit(
                 subprocess.run,
                 ["git", "branch", "--show-current"],
@@ -116,72 +136,39 @@ def system_context(
                 text=True,
                 timeout=5,
             )
+            f_todos = ex.submit(_safe_get_todos, todo_manager, session_name)
 
-        # Always-checked tools have no dependency on project types — submit immediately
-        always_tools = _DEFAULT_TOOLS + _UTILITY_TOOLS
-        f_always_which = [
-            (cmd, label, ex.submit(shutil.which, cmd)) for cmd, label in always_tools
-        ]
-
-        # Project/infra types gate the extra tool checks — wait for them, then submit
-        project_types = f_project_types.result()
-        infra_types = f_infra_types.result()
-
-        extra_tools: list[tuple[str, str]] = []
-        for pt in project_types:
-            if pt in _PROJECT_TOOLS:
-                extra_tools.extend(_PROJECT_TOOLS[pt])
-        for it in infra_types:
-            if it in _INFRA_TOOLS:
-                extra_tools.extend(_INFRA_TOOLS[it])
-        f_extra_which = [
-            (cmd, label, ex.submit(shutil.which, cmd)) for cmd, label in extra_tools
-        ]
-
-        # Collect which() results in deterministic order
-        found_tools: list[str] = []
-        seen_labels: set[str] = set()
-        for _cmd, label, f in f_always_which + f_extra_which:
-            if label not in seen_labels and f.result():
-                found_tools.append(label)
-                seen_labels.add(label)
-
-        found_markers: list[str] = f_markers.result()
-        todos_data = f_todos.result()
-
-        git_lines: list[str] = []
-        if inside_git:
-            if f_git_branch and f_git_status:
-                try:
-                    branch = f_git_branch.result().stdout.strip() or "(detached)"
-                    status = f_git_status.result().stdout.strip()
-                    status_str = (
-                        "Clean"
-                        if not status
-                        else f"Dirty ({len(status.splitlines())} changes)"
+            try:
+                branch = f_git_branch.result().stdout.strip() or "(detached)"
+                status = f_git_status.result().stdout.strip()
+                status_str = (
+                    "Clean"
+                    if not status
+                    else f"Dirty ({len(status.splitlines())} changes)"
+                )
+                git_lines.append(f"- Git: {branch} ({status_str})")
+            except Exception:
+                pass
+            try:
+                recent_log = f_git_log.result().stdout.strip()
+                if recent_log:
+                    log_lines = "\n".join(
+                        f"  {line}" for line in recent_log.splitlines()
                     )
-                    git_lines.append(f"- Git: {branch} ({status_str})")
-                except Exception:
-                    pass
-            if f_git_log:
-                try:
-                    recent_log = f_git_log.result().stdout.strip()
-                    if recent_log:
-                        log_lines = "\n".join(
-                            f"  {line}" for line in recent_log.splitlines()
-                        )
-                        git_lines.append(f"- Recent commits:\n{log_lines}")
-                except Exception:
-                    pass
+                    git_lines.append(f"- Recent commits:\n{log_lines}")
+            except Exception:
+                pass
+            todos_data = f_todos.result()
+    else:
+        todos_data = _safe_get_todos(todo_manager, session_name)
 
     # get_active_worktree reads a ContextVar — must run on the caller's thread
     active_wt = get_active_worktree()
 
-    # Assemble in the same order as before
     parts = [
         f"- Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         f"- OS: {platform.platform()}",
-        f"- CWD: {os.getcwd()}",
+        f"- CWD: {cwd}",
         f"- Token limit: {CFG.LLM_MAX_TOKEN_PER_REQUEST:,} per request",
     ]
 
@@ -227,15 +214,25 @@ def _safe_get_todos(todo_manager, session_name: str):
         return None
 
 
-def _detect_project_markers() -> list[str]:
-    return list(
+@lru_cache(maxsize=32)
+def _which(cmd: str) -> bool:
+    """Check tool availability once per command — tools don't appear/disappear mid-session."""
+    return bool(shutil.which(cmd))
+
+
+@lru_cache(maxsize=8)
+def _detect_project_markers(cwd: str) -> tuple[str, ...]:
+    return tuple(
         dict.fromkeys(
-            label for marker, label in _PROJECT_MARKERS if os.path.exists(marker)
+            label
+            for marker, label in _PROJECT_MARKERS
+            if os.path.exists(os.path.join(cwd, marker))
         )
     )
 
 
-def _detect_project_types() -> list[str]:
+@lru_cache(maxsize=8)
+def _detect_project_types(cwd: str) -> tuple[str, ...]:
     markers = [
         ("Cargo.toml", "Rust"),
         ("go.mod", "Go"),
@@ -253,24 +250,26 @@ def _detect_project_types() -> list[str]:
         if lang in seen:
             continue
         if marker.startswith("*"):
-            if glob.glob(marker):
+            if glob.glob(os.path.join(cwd, marker)):
                 found.append(lang)
                 seen.add(lang)
-        elif os.path.exists(marker):
+        elif os.path.exists(os.path.join(cwd, marker)):
             found.append(lang)
             seen.add(lang)
-    return found
+    return tuple(found)
 
 
-def _detect_infra_types() -> list[str]:
+@lru_cache(maxsize=8)
+def _detect_infra_types(cwd: str, home: str) -> tuple[str, ...]:
     found: list[str] = []
-    if glob.glob("*.tf") or os.path.isdir(".terraform"):
+    if glob.glob(os.path.join(cwd, "*.tf")) or os.path.isdir(
+        os.path.join(cwd, ".terraform")
+    ):
         found.append("Terraform")
     k8s_markers = ("Chart.yaml", "k8s", "kubernetes", "manifests")
-    if any(os.path.exists(m) for m in k8s_markers):
+    if any(os.path.exists(os.path.join(cwd, m)) for m in k8s_markers):
         found.append("Kubernetes")
     try:
-        home = os.path.expanduser("~")
         if os.path.isdir(os.path.join(home, ".aws")):
             found.append("AWS")
         if os.path.isdir(os.path.join(home, ".config", "gcloud")):
@@ -279,4 +278,4 @@ def _detect_infra_types() -> list[str]:
             found.append("Azure")
     except Exception:
         pass
-    return found
+    return tuple(found)

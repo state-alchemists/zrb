@@ -136,7 +136,7 @@ The assistant comes with a rich set of built-in tools. These are automatically a
 | Tool | Function | Description |
 |------|----------|-------------|
 | `OpenWebPage` | `open_web_page` | Fetch a URL and return its content as Markdown. Optionally summarizes via a sub-agent to reduce token usage. |
-| `SearchInternet` | `search_internet` | Search the web by query string. Requires a search engine API key (SerpAPI, Brave, or SearXNG). |
+| `SearchInternet` | `search_internet` | Search the web by query string. Defaults to Google News RSS (free, no setup). Optionally use SerpAPI, Brave, or SearXNG via `ZRB_SEARCH_INTERNET_METHOD`. |
 
 ### Code Intelligence
 

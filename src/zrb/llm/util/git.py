@@ -1,9 +1,11 @@
+import os
 import subprocess
+from functools import lru_cache
 
 
-def is_inside_git_dir() -> bool:
+@lru_cache(maxsize=8)
+def _check_git_dir(cwd: str) -> bool:
     try:
-        # Check if inside git repo
         res = subprocess.run(
             ["git", "rev-parse", "--is-inside-work-tree"],
             capture_output=True,
@@ -12,3 +14,7 @@ def is_inside_git_dir() -> bool:
         return res.returncode == 0
     except Exception:
         return False
+
+
+def is_inside_git_dir() -> bool:
+    return _check_git_dir(os.getcwd())

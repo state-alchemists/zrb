@@ -1,4 +1,5 @@
 import os
+from functools import lru_cache
 from pathlib import Path
 
 from zrb.config.config import CFG
@@ -80,23 +81,20 @@ def get_journal_reminder_prompt() -> str:
 
 
 def get_default_prompt(name: str) -> str:
-    # 1. Check for local project override (configured via LLM_PROMPT_DIR)
+    cwd = os.getcwd()
     prompt_dir = CFG.LLM_PROMPT_DIR
-    for search_path in _get_default_prompt_search_path():
-        local_prompt_path = os.path.abspath(
-            os.path.join(search_path, prompt_dir, f"{name}.md")
-        )
-        if os.path.exists(local_prompt_path):
-            try:
-                with open(local_prompt_path, "r", encoding="utf-8") as f:
-                    return f.read()
-            except Exception:
-                pass
+
+    # 1. Check for local project override (configured via LLM_PROMPT_DIR)
+    custom = _find_custom_prompt(name, cwd, prompt_dir)
+    if custom:
+        return custom
+
     # 2. Load from environment
     env_prefix = CFG.ENV_PREFIX
     env_value = os.getenv(f"{env_prefix}_LLM_PROMPT_{to_snake_case(name).upper()}", "")
     if env_value:
         return env_value
+
     # 3. Check for base prompt directory (configured via LLM_BASE_PROMPT_DIR)
     base_prompt_dir = CFG.LLM_BASE_PROMPT_DIR
     if base_prompt_dir:
@@ -107,21 +105,34 @@ def get_default_prompt(name: str) -> str:
                     return f.read()
             except Exception:
                 pass
-    # 4. Fallback to package default
-    file_path = Path(__file__).parent / "markdown" / f"{name}.md"
-    if not file_path.is_file():
-        return ""
-    with open(file_path, encoding="utf-8") as f:
-        return f.read()
+
+    # 4. Fallback to package default (cached — bundled files never change at runtime)
+    return _read_package_prompt(name)
 
 
-def _get_default_prompt_search_path() -> list[str]:
-    current_path = os.path.abspath(os.getcwd())
+@lru_cache(maxsize=64)
+def _find_custom_prompt(name: str, cwd: str, prompt_dir: str) -> str:
+    """Return the first matching local override content, or empty string."""
+    for search_path in _get_default_prompt_search_path(cwd):
+        local_prompt_path = os.path.abspath(
+            os.path.join(search_path, prompt_dir, f"{name}.md")
+        )
+        if os.path.exists(local_prompt_path):
+            try:
+                with open(local_prompt_path, "r", encoding="utf-8") as f:
+                    return f.read()
+            except Exception:
+                pass
+    return ""
+
+
+@lru_cache(maxsize=32)
+def _get_default_prompt_search_path(cwd: str) -> tuple[str, ...]:
     home_path = os.path.abspath(os.path.expanduser("~"))
-    search_paths = [current_path]
+    search_paths = [cwd]
     try:
-        if os.path.commonpath([current_path, home_path]) == home_path:
-            temp_path = current_path
+        if os.path.commonpath([cwd, home_path]) == home_path:
+            temp_path = cwd
             while temp_path != home_path:
                 new_temp_path = os.path.dirname(temp_path)
                 if new_temp_path == temp_path:
@@ -130,13 +141,38 @@ def _get_default_prompt_search_path() -> list[str]:
                 search_paths.append(temp_path)
     except ValueError:
         pass
-    return search_paths
+    return tuple(search_paths)
+
+
+@lru_cache(maxsize=32)
+def _read_package_prompt(name: str) -> str:
+    """Read a bundled prompt .md file. Cached forever — these never change at runtime."""
+    file_path = Path(__file__).parent / "markdown" / f"{name}.md"
+    if not file_path.is_file():
+        return ""
+    with open(file_path, encoding="utf-8") as f:
+        return f.read()
 
 
 def _get_prompt_replacements() -> dict[str, str]:
-    """Get all configuration values that should be replaced in prompts."""
-    replacements = {}
-    # Add CFG values with {CFG_*} pattern
+    """Return replacement dict, re-computed only when the journal index changes."""
+    journal_index_file = os.path.abspath(
+        os.path.expanduser(
+            os.path.join(CFG.LLM_JOURNAL_DIR, CFG.LLM_JOURNAL_INDEX_FILE),
+        )
+    )
+    try:
+        mtime = os.path.getmtime(journal_index_file)
+    except OSError:
+        mtime = 0.0
+    return dict(_get_prompt_replacements_cached(mtime))
+
+
+@lru_cache(maxsize=4)
+def _get_prompt_replacements_cached(journal_mtime: float) -> dict[str, str]:
+    """Compute all prompt replacements; keyed by journal index mtime so it
+    refreshes automatically whenever the user updates their journal."""
+    replacements: dict[str, str] = {}
     cfg_attributes = [
         "LLM_JOURNAL_DIR",
         "LLM_JOURNAL_INDEX_FILE",
@@ -150,7 +186,7 @@ def _get_prompt_replacements() -> dict[str, str]:
             if value is not None:
                 placeholder = f"{{CFG_{attr}}}"
                 replacements[placeholder] = str(value)
-    # Add file existence status
+
     journal_dir = os.path.abspath(os.path.expanduser(CFG.LLM_JOURNAL_DIR))
     journal_index_file = os.path.abspath(
         os.path.expanduser(
@@ -163,7 +199,6 @@ def _get_prompt_replacements() -> dict[str, str]:
     replacements["{CFG_LLM_JOURNAL_INDEX_FILE_STATUS}"] = (
         "exists" if os.path.isfile(journal_index_file) else "inexist"
     )
-    # Index content
     replacements["{JOURNAL_INDEX_CONTENT}"] = "<Empty>"
     if os.path.isfile(journal_index_file):
         with open(journal_index_file, encoding="utf-8") as f:

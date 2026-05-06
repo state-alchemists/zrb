@@ -69,7 +69,10 @@ class ConfirmationMixin:
             self._current_confirmation = future
             if prompt:
                 self.append_to_output(prompt, end="")
-            get_app().invalidate()
+
+        # Always refresh so the status bar reflects the new confirmation state
+        # (including the transition back to "working" or "ready" when queue empties).
+        get_app().invalidate()
 
     def _cancel_pending_confirmations(self):
         """Cancel pending confirmations so blocked `ask_user` calls release."""
