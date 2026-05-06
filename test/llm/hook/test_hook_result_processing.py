@@ -175,8 +175,18 @@ class TestHookResultProcessing:
 class TestJournalingHookAntiRecursion:
     """Tests for JournalingHookHandler anti-recursion protection."""
 
+    @pytest.fixture(autouse=True)
+    def _enable_journal_reminder(self):
+        """Enable journal reminder for all tests in this class."""
+        from unittest.mock import patch
+
+        with patch("zrb.llm.hook.journal.CFG") as mock_cfg:
+            mock_cfg.LLM_INCLUDE_JOURNAL = True
+            mock_cfg.LLM_INCLUDE_JOURNAL_REMINDER = True
+            yield mock_cfg
+
     @pytest.mark.asyncio
-    async def test_journaling_hook_only_fires_once(self):
+    async def test_journaling_hook_only_fires_once(self, _enable_journal_reminder):
         """Verify journaling hook only sends reminder once per session."""
         from zrb.llm.hook.interface import HookContext
         from zrb.llm.hook.journal import JournalingHookHandler

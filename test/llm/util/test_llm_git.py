@@ -1,9 +1,20 @@
 """Tests for llm/util/git.py - Git utility functions."""
 
+import os
 import subprocess
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def _clear_git_cache():
+    """Clear the lru_cache on _check_git_dir before each test."""
+    from zrb.llm.util.git import _check_git_dir
+
+    _check_git_dir.cache_clear()
+    yield
+    _check_git_dir.cache_clear()
 
 
 class TestIsInsideGitDir:

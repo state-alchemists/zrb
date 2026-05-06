@@ -17,6 +17,8 @@ class MockOutputUI(OutputMixin):
         self._git_info = "main"
         self._is_thinking = False
         self._assistant_name = "Zrb"
+        self._current_confirmation = None
+        self._is_thinking = False
 
     def invalidate_ui(self):
         pass
@@ -86,3 +88,8 @@ def test_get_status_bar_text_logic():
     ui._is_thinking = True
     res2 = ui.get_status_bar_text()
     assert "working" in res2[0][1]
+
+    ui._is_thinking = False
+    ui._current_confirmation = "mock_confirmation"
+    res3 = ui.get_status_bar_text()
+    assert "confirmation" in res3[0][1]
