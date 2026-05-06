@@ -13,7 +13,7 @@ from zrb.llm.agent import AnyToolConfirmation, create_agent, run_agent
 from zrb.llm.config.config import LLMConfig
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.config.limiter import LLMLimiter
-from zrb.llm.config.limiter import llm_limiter as default_llm_limitter
+from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.hook.manager import HookManager
@@ -134,9 +134,7 @@ class LLMTask(BaseTask):
             print_fn=print_fn,
         )
         self._llm_config = default_llm_config if llm_config is None else llm_config
-        self._llm_limitter = (
-            default_llm_limitter if llm_limiter is None else llm_limiter
-        )
+        self._llm_limiter = default_llm_limiter if llm_limiter is None else llm_limiter
         # Auto-convert system_prompt to prompt_manager if provided and prompt_manager not set
         if prompt_manager is None:
             prompt_manager = PromptManager(
@@ -342,7 +340,7 @@ class LLMTask(BaseTask):
                 agent=agent,
                 message=effective_message,
                 message_history=message_history,
-                limiter=self._llm_limitter,
+                limiter=self._llm_limiter,
                 attachments=effective_attachments,
                 print_fn=lambda *args, **kwargs: ctx.print(*args, **kwargs, plain=True),
                 event_handler=None,  # Let run_agent create the event handler with proper status_fn
@@ -550,7 +548,7 @@ class LLMTask(BaseTask):
 
     @property
     def llm_limiter(self) -> LLMLimiter:
-        return self._llm_limitter
+        return self._llm_limiter
 
     def get_system_prompt(self, ctx: AnyContext) -> str:
         if self._prompt_manager is None:
