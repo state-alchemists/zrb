@@ -1,5 +1,20 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.25.1 (May 6, 2026)
+
+- **Bug Fix: Typo in `llm_task.py`**:
+  - Fixed `default_llm_limitter` → `default_llm_limiter` (triple `t` → double `t` in variable name) in import alias and all references (`self._llm_limitter` → `self._llm_limiter`, property accessor).
+
+- **Improvement: Journal Reminder Decoupled from Master Switch**:
+  - `ZRB_LLM_INCLUDE_JOURNAL_REMINDER` now defaults to `off` independently, instead of falling back to `ZRB_LLM_INCLUDE_JOURNAL` (which defaults to `on`). Setting `ZRB_LLM_INCLUDE_JOURNAL=off` still disables the reminder as a guard.
+  - `LLMPromptMixin` in `llm_prompt.py`: Added `DEFAULT_LLM_INCLUDE_JOURNAL_REMINDER: str = "off"`; updated `LLM_INCLUDE_JOURNAL_REMINDER` property to use `get_env()` with the independent default and a master-switch guard.
+  - `llm-config.md`: Updated config table defaults from `1`/`0` to `on`/`off` for all prompt flags; documented `ZRB_LLM_INCLUDE_JOURNAL_REMINDER` as default `off` with conditional on master switch.
+
+- **Improvement: Journal Mandate Expanded, Reminder Slimmed**:
+  - `journal_mandate.md`: Added "Journal autonomously — do not wait for reminders" directive at the top of the When to Write section. Added "How to scan for journal-worthy content" subsection with step-by-step instructions (scan from last journal write, use `SearchJournal` to deduplicate, activate `core-journaling` skill for structural guidance).
+  - `journal_reminder.md`: Replaced the detailed multi-line reminder with a single lightweight `[SYSTEM REMINDER]` nudge. The detailed what/how guidance now lives exclusively in the journal mandate (which is always in the system prompt), making the reminder a minimal prompt to act.
+  - `journal.py`: Updated `_build_reminder()` docstring to reflect the lightweight-nudge role.
+
 ## 2.25.0 (May 5, 2026)
 
 - **Improvement: Comprehensive History Sanitization Layer**:

@@ -19,6 +19,7 @@ class LLMPromptMixin:
         self.DEFAULT_LLM_INCLUDE_GIT_MANDATE: str = "on"
         self.DEFAULT_LLM_INCLUDE_SYSTEM_CONTEXT: str = "on"
         self.DEFAULT_LLM_INCLUDE_JOURNAL: str = "on"
+        self.DEFAULT_LLM_INCLUDE_JOURNAL_REMINDER: str = "off"
         self.DEFAULT_LLM_INCLUDE_CLAUDE_SKILLS: str = "on"
         self.DEFAULT_LLM_INCLUDE_CLI_SKILLS: str = "off"
         self.DEFAULT_LLM_INCLUDE_PROJECT_CONTEXT: str = "on"
@@ -169,10 +170,15 @@ class LLMPromptMixin:
 
     @property
     def LLM_INCLUDE_JOURNAL_REMINDER(self) -> bool:
-        explicit = os.environ.get(f"{self.ENV_PREFIX}_LLM_INCLUDE_JOURNAL_REMINDER")
-        if explicit is not None:
-            return to_boolean(explicit)
-        return self.LLM_INCLUDE_JOURNAL
+        if not self.LLM_INCLUDE_JOURNAL:
+            return False
+        return to_boolean(
+            get_env(
+                "LLM_INCLUDE_JOURNAL_REMINDER",
+                self.DEFAULT_LLM_INCLUDE_JOURNAL_REMINDER,
+                self.ENV_PREFIX,
+            )
+        )
 
     @LLM_INCLUDE_JOURNAL_REMINDER.setter
     def LLM_INCLUDE_JOURNAL_REMINDER(self, value: bool):

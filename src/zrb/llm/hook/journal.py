@@ -68,11 +68,11 @@ class JournalingHookHandler:
         return HookResult()
 
     def _build_reminder(self) -> str:
-        """Build reminder message for journaling.
+        """Build a lightweight nudge to journal.
 
-        Loads from the configurable journal_reminder prompt template,
-        which includes the core-journaling skill content (graph structure,
-        directory rules, index content).
+        Loads from the configurable journal_reminder prompt template.
+        The mandate in the system prompt handles the detailed what/how;
+        this is just a lightweight nudge.
         """
         return get_journal_reminder_prompt()
 

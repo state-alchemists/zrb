@@ -168,17 +168,17 @@ Zrb loads prompts with a multi-level override system (first found wins):
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_INCLUDE_PERSONA` | Include AI identity prompt | `1` |
-| `ZRB_LLM_INCLUDE_MANDATE` | Include behavioral rules | `1` |
-| `ZRB_LLM_INCLUDE_GIT_MANDATE` | Include git safety rules | `1` |
-| `ZRB_LLM_INCLUDE_JOURNAL` | Master switch: inject journal mandate + reminder (sets both sub-flags when they are unset) | `1` |
-| `ZRB_LLM_INCLUDE_JOURNAL_MANDATE` | Include journal instructions in the system prompt (falls back to `ZRB_LLM_INCLUDE_JOURNAL`) | `1` |
-| `ZRB_LLM_INCLUDE_JOURNAL_REMINDER` | Append a journaling reminder at session end (falls back to `ZRB_LLM_INCLUDE_JOURNAL`) | `1` |
-| `ZRB_LLM_INCLUDE_SYSTEM_CONTEXT` | Include OS/time details | `1` |
-| `ZRB_LLM_INCLUDE_TOOL_GUIDANCE` | Include per-tool usage guidance | `1` |
-| `ZRB_LLM_INCLUDE_CLAUDE_SKILLS` | Include Claude skills | `1` |
-| `ZRB_LLM_INCLUDE_CLI_SKILLS` | Include CLI skills | `0` |
-| `ZRB_LLM_INCLUDE_PROJECT_CONTEXT` | Include project docs | `1` |
+| `ZRB_LLM_INCLUDE_PERSONA` | Include AI identity prompt | `on` |
+| `ZRB_LLM_INCLUDE_MANDATE` | Include behavioral rules | `on` |
+| `ZRB_LLM_INCLUDE_GIT_MANDATE` | Include git safety rules | `on` |
+| `ZRB_LLM_INCLUDE_JOURNAL` | Master switch: inject journal mandate + reminder (sets both sub-flags when they are unset) | `on` |
+| `ZRB_LLM_INCLUDE_JOURNAL_MANDATE` | Include journal instructions in the system prompt (falls back to `ZRB_LLM_INCLUDE_JOURNAL`) | `on` |
+| `ZRB_LLM_INCLUDE_JOURNAL_REMINDER` | Append a journaling reminder at session end (only if `ZRB_LLM_INCLUDE_JOURNAL` is set to `on`) | `off` |
+| `ZRB_LLM_INCLUDE_SYSTEM_CONTEXT` | Include OS/time details | `on` |
+| `ZRB_LLM_INCLUDE_TOOL_GUIDANCE` | Include per-tool usage guidance | `on` |
+| `ZRB_LLM_INCLUDE_CLAUDE_SKILLS` | Include Claude skills | `on` |
+| `ZRB_LLM_INCLUDE_CLI_SKILLS` | Include CLI skills | `off` |
+| `ZRB_LLM_INCLUDE_PROJECT_CONTEXT` | Include project docs | `on` |
 
 ### Tool Guidance
 
