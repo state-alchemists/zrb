@@ -16,6 +16,12 @@ class StdUI:
         output = create_output(stdout=sys.stderr)
         session = PromptSession(output=output)
 
+        # Show a waiting indicator when no explicit prompt is provided
+        # (the typical case for tool-confirmation requests).
+        if not prompt:
+            sys.stderr.write("\n👋 Zrb is waiting for confirmation\n")
+            sys.stderr.flush()
+
         try:
             user_input = await session.prompt_async(prompt)
             return user_input.strip()

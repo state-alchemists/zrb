@@ -159,6 +159,13 @@ class OutputMixin:
         return HTML(center_line(line1_html) + "\n" + center_line(line2_html))
 
     def get_status_bar_text(self) -> "AnyFormattedText":
+        if self._current_confirmation is not None:
+            return [
+                (
+                    "class:confirmation",
+                    f" 👋 {self._assistant_name} is waiting for confirmation ",
+                )
+            ]
         if self._is_thinking:
             return [("class:thinking", f" ⏳ {self._assistant_name} is working... ")]
         return [("class:status", " 🚀 Ready ")]

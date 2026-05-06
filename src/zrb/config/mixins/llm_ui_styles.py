@@ -18,6 +18,7 @@ class LLMUIStylesMixin:
         self.DEFAULT_LLM_UI_STYLE_FRAME_LABEL: str = "#ffff00"
         self.DEFAULT_LLM_UI_STYLE_INPUT_FRAME: str = "#888888"
         self.DEFAULT_LLM_UI_STYLE_THINKING: str = "ansigreen italic"
+        self.DEFAULT_LLM_UI_STYLE_CONFIRMATION: str = "ansiyellow bold"
         self.DEFAULT_LLM_UI_STYLE_FAINT: str = "#888888"
         self.DEFAULT_LLM_UI_STYLE_OUTPUT_FIELD: str = "#eeeeee"
         self.DEFAULT_LLM_UI_STYLE_INPUT_FIELD: str = "#eeeeee"
@@ -125,6 +126,18 @@ class LLMUIStylesMixin:
     @LLM_UI_STYLE_THINKING.setter
     def LLM_UI_STYLE_THINKING(self, value: str):
         os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_THINKING"] = value
+
+    @property
+    def LLM_UI_STYLE_CONFIRMATION(self) -> str:
+        return get_env(
+            "LLM_UI_STYLE_CONFIRMATION",
+            self.DEFAULT_LLM_UI_STYLE_CONFIRMATION,
+            self.ENV_PREFIX,
+        )
+
+    @LLM_UI_STYLE_CONFIRMATION.setter
+    def LLM_UI_STYLE_CONFIRMATION(self, value: str):
+        os.environ[f"{self.ENV_PREFIX}_LLM_UI_STYLE_CONFIRMATION"] = value
 
     @property
     def LLM_UI_STYLE_FAINT(self) -> str:

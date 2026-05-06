@@ -321,7 +321,11 @@ class LLMTask(BaseTask):
         ):
             return "Conversation history compressed."
 
-        agent = self._create_agent(ctx)
+        # Compute system prompt once and reuse for both agent creation and run_agent.
+        # This avoids rebuilding the prompt (including expensive system_context I/O)
+        # a second time inside _create_agent.
+        system_prompt = self.get_system_prompt(ctx)
+        agent = self._create_agent(ctx, system_prompt=system_prompt)
         effective_message, effective_attachments = self._get_effective_prompt(
             ctx, user_message, user_attachments, message_history
         )
@@ -349,7 +353,7 @@ class LLMTask(BaseTask):
                 ui=self._uis,
                 yolo=yolo_value,
                 approval_channel=self._approval_channel,
-                system_prompt=self.get_system_prompt(ctx),
+                system_prompt=system_prompt,
             )
         except Exception as e:
             self._handle_run_error(ctx, history_manager, conversation_name, e)
@@ -385,13 +389,14 @@ class LLMTask(BaseTask):
             return True
         return False
 
-    def _create_agent(self, ctx: AnyContext) -> Any:
+    def _create_agent(self, ctx: AnyContext, system_prompt: str | None = None) -> Any:
         yolo = (
             self._dynamic_yolo
             if self._dynamic_yolo is not None
             else get_bool_attr(ctx, self._yolo, False)
         )
-        system_prompt = self.get_system_prompt(ctx)
+        if system_prompt is None:
+            system_prompt = self.get_system_prompt(ctx)
         ctx.log_debug(f"SYSTEM PROMPT: {system_prompt}")
         # Get all tools and toolsets including those from factories
         resolved_tools = self._get_all_tools(ctx)

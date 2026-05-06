@@ -18,7 +18,6 @@ general:
   open_metrics: ''
 
 brand:
-  new_issue_url: https://github.com/searxng/searxng/issues/new
   docs_url: https://docs.searxng.org/
   public_instances: https://searx.space
   wiki_url: https://github.com/searxng/searxng/wiki
@@ -28,12 +27,21 @@ brand:
   #   links:
   #     Uptime: https://uptime.searxng.org/history/darmarit-org
   #     About: "https://searxng.org"
+  # pwa_colors:
+  #   # Custom settings for PWA icon an colors used in manifest.json
+  #   # Default colors are:
+  #    theme_color_light: "#3050ff"
+  #    background_color_light: "fff"
+  #    theme_color_dark: "#58f"
+  #    background_color_dark: "#222428"
+  #    theme_color_black: "#3050ff"
+  #    background_color_black: "#000"
 
 search:
   # Filter results. 0: None, 1: Moderate, 2: Strict
   safe_search: 0
-  # Existing autocomplete backends: "360search", "baidu", "brave", "dbpedia", "duckduckgo", "google", "yandex",
-  # "mwmbl", "naver", "seznam", "sogou", "startpage", "stract", "swisscows", "quark", "qwant", "wikipedia" -
+  # Existing autocomplete backends: "360search", "baidu", "bing", "brave", "dbpedia", "duckduckgo", "google",
+  # "yandex", "mwmbl", "naver", "seznam", "sogou", "startpage", "swisscows", "quark", "qwant", "wikipedia" -
   # leave blank to turn it off by default.
   autocomplete: ""
   # minimun characters to type before autocompleter starts
@@ -76,6 +84,7 @@ search:
   # formats: [html, csv, json, rss]
   formats:
     - html
+    - json
 
 server:
   # Is overwritten by ${SEARXNG_PORT} and ${SEARXNG_BIND_ADDRESS}
@@ -357,8 +366,10 @@ engines:
   - name: annas archive
     engine: annas_archive
     base_url:
-      - https://annas-archive.li
-      - https://annas-archive.pm
+      - https://annas-archive.gl
+      - https://annas-archive.vg
+      - https://annas-archive.pk
+      - https://annas-archive.gd
     disabled: true
     shortcut: aa
     timeout: 5
@@ -387,16 +398,6 @@ engines:
     shortcut: aps
     disabled: true
 
-  # Requires Tor
-  - name: ahmia
-    engine: ahmia
-    # Might do up to two requests to perform a search.
-    # Since Tor is already slow by nature, the timeout is set very high.
-    timeout: 20.0
-    categories: onions
-    enable_http: true
-    shortcut: ah
-
   - name: anaconda
     engine: xpath
     paging: true
@@ -409,6 +410,27 @@ engines:
     categories: it
     timeout: 6.0
     shortcut: conda
+    disabled: true
+
+  - name: aol
+    engine: aol
+    search_type: search
+    categories: [general]
+    shortcut: aol
+    disabled: true
+
+  - name: aol images
+    engine: aol
+    search_type: image
+    categories: [images]
+    shortcut: aoli
+    disabled: true
+
+  - name: aol videos
+    engine: aol
+    search_type: video
+    categories: [videos]
+    shortcut: aolv
     disabled: true
 
   - name: arch linux wiki
@@ -536,6 +558,11 @@ engines:
       require_api_key: false
       results: HTML
 
+  - name: boardreader
+    engine: boardreader
+    shortcut: boa
+    disabled: true
+
   - name: bpb
     engine: bpb
     shortcut: bpb
@@ -652,22 +679,6 @@ engines:
     engine: yep
     shortcut: yep
     categories: general
-    search_type: web
-    timeout: 15
-    disabled: true
-
-  - name: yep images
-    engine: yep
-    shortcut: yepi
-    categories: images
-    search_type: images
-    disabled: true
-
-  - name: yep news
-    engine: yep
-    shortcut: yepn
-    categories: news
-    search_type: news
     disabled: true
 
   - name: currency
@@ -901,7 +912,12 @@ engines:
 
   - name: fynd
     engine: xpath
-    search_url: https://fynd.bot/?search={query}&offset={pageno}
+    search_url: https://fynd.bot/?search={query}&offset={pageno}{safe_search}
+    safesearch: true
+    safe_search_map:
+      0: '&safe=0'
+      1: '&safe=1'
+      2: '&safe=1'
     results_xpath: //div[contains(@class, "result-item")]
     url_xpath: .//a/@href
     title_xpath: .//div[contains(@class, "title-line")]
@@ -993,6 +1009,11 @@ engines:
     engine: gitea
     base_url: https://gitea.com
     shortcut: gitea
+    disabled: true
+
+  - name: gmx
+    engine: gmx
+    shortcut: gmx
     disabled: true
 
   - name: goodreads
@@ -1168,6 +1189,31 @@ engines:
     timeout: 3.0
     disabled: true
 
+  - name: karmasearch
+    engine: karmasearch
+    categories: [general, web]
+    search_type: web
+    shortcut: ka
+
+  - name: karmasearch images
+    engine: karmasearch
+    categories: [images, web]
+    search_type: images
+    shortcut: kai
+    paging: false
+
+  - name: karmasearch videos
+    engine: karmasearch
+    categories: [general, web]
+    search_type: videos
+    shortcut: kav
+
+  - name: karmasearch news
+    engine: karmasearch
+    categories: [news, web]
+    search_type: news
+    shortcut: kan
+
   - name: kickass
     engine: kickass
     base_url:
@@ -1247,8 +1293,9 @@ engines:
   - name: lingva
     engine: lingva
     shortcut: lv
+    timeout: 6.0
     # set lingva instance in url, by default it will use the official instance
-    # url: https://lingva.thedaviddelta.com
+    # url: https://lingva.ml
 
   - name: lobste.rs
     engine: xpath
@@ -1539,6 +1586,10 @@ engines:
     # Hide obsolete PDB entries.  Default is not to hide obsolete structures
     #  hide_obsolete: false
 
+  - name: pexels
+    engine: pexels
+    shortcut: pe
+
   - name: photon
     engine: photon
     shortcut: ph
@@ -1781,24 +1832,6 @@ engines:
     # https://docs.searxng.org/dev/engines/online/reuters.html
     # sort_order = "relevance"
 
-  - name: right dao
-    engine: xpath
-    paging: true
-    page_size: 12
-    search_url: https://rightdao.com/search?q={query}&start={pageno}
-    results_xpath: //div[contains(@class, "description")]
-    url_xpath: ../div[contains(@class, "title")]/a/@href
-    title_xpath: ../div[contains(@class, "title")]
-    content_xpath: .
-    categories: general
-    shortcut: rd
-    disabled: true
-    about:
-      website: https://rightdao.com/
-      use_official_api: false
-      require_api_key: false
-      results: HTML
-
   - name: rottentomatoes
     engine: rottentomatoes
     shortcut: rt
@@ -1906,12 +1939,6 @@ engines:
     categories: [it, q&a]
     base_url: 'https://discourse.pi-hole.net'
     disabled: true
-
-  - name: searchcode code
-    engine: searchcode_code
-    shortcut: scc
-    disabled: true
-    inactive: true
 
   # - name: searx
   #   engine: searx_engine
@@ -2028,19 +2055,6 @@ engines:
     shortcut: tm
     disabled: true
 
-  # Requires Tor
-  - name: torch
-    engine: xpath
-    paging: true
-    search_url:
-      http://xmh57jrknzkhv6y3ls3ubitzfqnkrwxhopf5aygthi7d6rplyvk3noyd.onion/cgi-bin/omega/omega?P={query}&DEFAULTOP=and
-    results_xpath: //table//tr
-    url_xpath: ./td[2]/a
-    title_xpath: ./td[2]/b
-    content_xpath: ./td[2]/small
-    categories: onions
-    enable_http: true
-    shortcut: tch
 
   # TubeArchivist is a self-hosted Youtube archivist software.
   # https://docs.searxng.org/dev/engines/online/tubearchivist.html
@@ -2452,6 +2466,8 @@ engines:
     network: yacy
     categories: images
     search_type: image
+    base_url:
+      - https://yacy.searchlab.eu
     shortcut: yai
     disabled: true
     # timeout can be reduced in 'local' search mode
@@ -2470,13 +2486,6 @@ engines:
     shortcut: rep
     disabled: true
     inactive: true
-
-  - name: livespace
-    engine: livespace
-    shortcut: ls
-    categories: videos
-    disabled: true
-    timeout: 5.0
 
   - name: wordnik
     engine: wordnik
@@ -2501,11 +2510,6 @@ engines:
       require_api_key: false
       results: HTML
       language: de
-
-  - name: stract
-    engine: stract
-    shortcut: str
-    disabled: true
 
   - name: svgrepo
     engine: svgrepo

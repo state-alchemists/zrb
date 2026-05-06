@@ -1,0 +1,3 @@
+# SearXNG bot-detection / rate-limiter configuration.
+# This file silences the "missing config file" warning.
+# Limiter is disabled in settings.yml (limiter: false), so no rules are active.
