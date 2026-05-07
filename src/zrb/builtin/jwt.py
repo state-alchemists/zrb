@@ -1,3 +1,4 @@
+import json
 from typing import Any
 
 from zrb.builtin.group import jwt_group
@@ -24,7 +25,6 @@ from zrb.task.make_task import make_task
     ],
 )
 def encode_jwt(ctx: AnyContext) -> str:
-    import json
 
     import jwt
 

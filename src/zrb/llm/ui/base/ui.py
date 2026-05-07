@@ -9,10 +9,12 @@ from typing import TYPE_CHECKING, Any, TextIO
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
+from zrb.llm.agent.run.runtime_state import get_current_ui
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import hook_manager
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.snapshot.manager import SnapshotManager
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.tool_call import (
     ArgumentFormatter,
@@ -22,6 +24,7 @@ from zrb.llm.tool_call import (
     default_response_handler,
 )
 from zrb.llm.ui.base.commands_mixin import CommandsMixin
+from zrb.llm.ui.multi_ui import MultiUI
 from zrb.session.any_session import AnySession
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
@@ -187,7 +190,6 @@ class BaseUI(CommandsMixin):
         # Snapshot / rewind
         self._snapshot_manager = None
         if enable_rewind and snapshot_dir and self._conversation_session_name:
-            from zrb.llm.snapshot.manager import SnapshotManager
 
             self._snapshot_manager = SnapshotManager(
                 snapshot_dir=snapshot_dir,
@@ -721,8 +723,6 @@ class BaseUI(CommandsMixin):
     ) -> "ToolApproved | ToolDenied | None":
         # Use current_ui context variable to get the correct UI (e.g., BufferedUI for parallel agents)
         # instead of self, which is the captured main UI
-        from zrb.llm.agent.run.runtime_state import get_current_ui
-        from zrb.llm.ui.multi_ui import MultiUI
 
         ui = get_current_ui() or self
         # Handle list of UIs from outer context

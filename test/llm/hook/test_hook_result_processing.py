@@ -337,17 +337,9 @@ class TestJournalingHookAntiRecursion:
         from zrb.llm.hook.journal import create_journaling_hook_factory
         from zrb.llm.hook.manager import HookManager
 
-        with patch("zrb.llm.hook.journal.CFG") as mock_cfg, patch(
-            "zrb.llm.hook.manager.manager.CFG"
-        ) as mock_mgr_cfg:
+        with patch("zrb.llm.hook.journal.CFG") as mock_cfg:
             mock_cfg.LLM_INCLUDE_JOURNAL = True
             mock_cfg.LLM_INCLUDE_JOURNAL_REMINDER = True
-            mock_mgr_cfg.LLM_INCLUDE_JOURNAL = False
-            mock_mgr_cfg.ROOT_GROUP_NAME = "zrb"
-            mock_mgr_cfg.LLM_PLUGIN_DIRS = []
-            mock_mgr_cfg.HOOKS_DIRS = []
-            mock_mgr_cfg.LLM_JOURNAL_DIR = "/tmp/test"
-            mock_mgr_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
 
             factory = create_journaling_hook_factory()
             manager = HookManager()
@@ -366,17 +358,9 @@ class TestJournalingHookAntiRecursion:
         from zrb.llm.hook.journal import create_journaling_hook_factory
         from zrb.llm.hook.manager import HookManager
 
-        with patch("zrb.llm.hook.journal.CFG") as mock_cfg, patch(
-            "zrb.llm.hook.manager.manager.CFG"
-        ) as mock_mgr_cfg:
+        with patch("zrb.llm.hook.journal.CFG") as mock_cfg:
             mock_cfg.LLM_INCLUDE_JOURNAL = False
             mock_cfg.LLM_INCLUDE_JOURNAL_REMINDER = False
-            mock_mgr_cfg.LLM_INCLUDE_JOURNAL = False
-            mock_mgr_cfg.ROOT_GROUP_NAME = "zrb"
-            mock_mgr_cfg.LLM_PLUGIN_DIRS = []
-            mock_mgr_cfg.HOOKS_DIRS = []
-            mock_mgr_cfg.LLM_JOURNAL_DIR = "/tmp/test"
-            mock_mgr_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
 
             factory = create_journaling_hook_factory()
             manager = HookManager()

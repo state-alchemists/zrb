@@ -4,6 +4,7 @@ import logging
 import os
 
 from zrb.config.config import CFG
+from zrb.llm.config.config import llm_config
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.schema import AgentHookConfig, CommandHookConfig, PromptHookConfig
 
@@ -34,12 +35,10 @@ def create_command_hook(config: CommandHookConfig) -> HookCallable:
             env["CLAUDE_CODE_REMOTE"] = "true"
 
         # Inject event-specific data as JSON
-        import json as json_module
-
         try:
             # Try to serialize event_data, fall back to string representation
             if context.event_data is not None:
-                env["CLAUDE_EVENT_DATA"] = json_module.dumps(context.event_data)
+                env["CLAUDE_EVENT_DATA"] = json.dumps(context.event_data)
             else:
                 env["CLAUDE_EVENT_DATA"] = "null"
         except (TypeError, ValueError):
@@ -61,7 +60,7 @@ def create_command_hook(config: CommandHookConfig) -> HookCallable:
             value = getattr(context, field, None)
             if value is not None:
                 if isinstance(value, dict):
-                    env[f"CLAUDE_{field.upper()}"] = json_module.dumps(value)
+                    env[f"CLAUDE_{field.upper()}"] = json.dumps(value)
                 else:
                     env[f"CLAUDE_{field.upper()}"] = str(value)
 
@@ -89,7 +88,7 @@ def create_command_hook(config: CommandHookConfig) -> HookCallable:
                 reason = "Blocked by hook"
 
                 try:
-                    data = json_module.loads(output)
+                    data = json.loads(output)
                     if isinstance(data, dict):
                         # Claude Code format: {"decision": "block", "reason": "...", ...}
                         modifications = data
@@ -118,7 +117,7 @@ def create_command_hook(config: CommandHookConfig) -> HookCallable:
                 # Success - parse output for modifications
                 modifications = {}
                 try:
-                    data = json_module.loads(output)
+                    data = json.loads(output)
                     if isinstance(data, dict):
                         modifications = data
                 except Exception:
@@ -155,8 +154,6 @@ def create_prompt_hook(config: PromptHookConfig) -> HookCallable:
         try:
             # Import here to avoid circular imports
             from pydantic_ai import Agent
-
-            from zrb.llm.config.config import llm_config
 
             # Get LLM configuration
             model_name = config.model or CFG.LLM_MODEL
@@ -224,8 +221,6 @@ def create_agent_hook(config: AgentHookConfig) -> HookCallable:
         try:
             # Import here to avoid circular imports
             from pydantic_ai import Agent
-
-            from zrb.llm.config.config import llm_config
 
             # Get LLM configuration
             model_name = config.model or CFG.LLM_MODEL

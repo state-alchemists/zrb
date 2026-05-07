@@ -10,14 +10,26 @@ from __future__ import annotations
 import os
 import uuid
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import yaml
 
 from zrb.util.load import load_module_from_path
 
+if TYPE_CHECKING:
+    from zrb.llm.agent.subagent.manager.manager import SubAgentDefinition
+
 
 class LoaderMixin:
     """Filesystem walker + agent-file parsers for `SubAgentManager`."""
+
+    # Host-class contract: these attributes are owned by the class that mixes
+    # this in (see `SubAgentManager.__init__`). Declared here so static type
+    # checkers can verify accesses; the block does not run at runtime.
+    if TYPE_CHECKING:
+        _ignore_dirs: list[str]
+        _root_dir: str
+        _agents: dict[str, SubAgentDefinition]
 
     def _scan_dir(self, directory: Path, max_depth: int) -> None:
         try:
@@ -68,7 +80,7 @@ class LoaderMixin:
     def _load_agent_from_python(self, rel_path: str, full_path: str) -> None:
         from pydantic_ai import Agent
 
-        from zrb.llm.agent.subagent.manager import SubAgentDefinition
+        from zrb.llm.agent.subagent.manager.manager import SubAgentDefinition
 
         try:
             module_name = f"zrb_agent_{uuid.uuid4().hex}"
@@ -109,7 +121,7 @@ class LoaderMixin:
             pass
 
     def _load_agent_from_markdown(self, rel_path: str, full_path: str) -> None:
-        from zrb.llm.agent.subagent.manager import SubAgentDefinition
+        from zrb.llm.agent.subagent.manager.manager import SubAgentDefinition
 
         try:
             with open(full_path, "r", encoding="utf-8") as f:

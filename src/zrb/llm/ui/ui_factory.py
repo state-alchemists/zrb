@@ -1,5 +1,9 @@
 from typing import Any, Callable
 
+from zrb.context.any_context import AnyContext
+from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.task.llm_task import LLMTask
+from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.ui_config import UIConfig
 
 
@@ -41,10 +45,6 @@ def create_ui_factory(
         config = UIConfig(assistant_name="MyBot")
         llm_chat.set_ui_factory(create_ui_factory(MyUI, config=config, bot=my_bot))
     """
-    from zrb.context.any_context import AnyContext
-    from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-    from zrb.llm.task.llm_task import LLMTask
-    from zrb.llm.ui.base.ui import BaseUI
 
     def factory(
         ctx: AnyContext,

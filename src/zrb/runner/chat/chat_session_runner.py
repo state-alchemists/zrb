@@ -10,11 +10,14 @@ its public properties (`ui_factories`, `approval_channels`, `history_manager`,
 from __future__ import annotations
 
 import asyncio
+import traceback
 from typing import Any
 
 from zrb.config.config import CFG
+from zrb.context.shared_context import SharedContext
 from zrb.runner.chat.chat_session_manager import ChatSession, ChatSessionManager
 from zrb.runner.chat.http_ui import create_http_ui_factory
+from zrb.session.session import Session
 
 
 async def run_chat_session(
@@ -37,17 +40,13 @@ async def run_chat_session(
             )
             raise
         except Exception:
-            import traceback as tb_lib
-
-            error_details = tb_lib.format_exc()
+            error_details = traceback.format_exc()
             await session_manager.broadcast(
                 session.session_id, f"[ERROR] {error_details}"
             )
             raise
 
     try:
-        from zrb.context.shared_context import SharedContext
-        from zrb.session.session import Session
 
         # Snapshot the LLMChatTask configuration so we can restore it on exit;
         # multiple chat sessions share one LLMChatTask instance.
@@ -125,8 +124,6 @@ async def run_chat_session(
     except asyncio.CancelledError:
         raise
     except Exception as e:
-        import traceback
-
         error_msg = f"[ERROR] {str(e)}\n{traceback.format_exc()}\n"
         await session_manager.broadcast(session.session_id, error_msg)
     finally:

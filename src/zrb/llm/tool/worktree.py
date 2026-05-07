@@ -3,6 +3,7 @@ import os
 from contextvars import ContextVar
 from datetime import datetime
 
+from zrb.config.config import CFG
 from zrb.llm.tool.wrapper import tool_safe_async
 
 active_worktree: ContextVar[str] = ContextVar("zrb_active_worktree", default="")
@@ -18,7 +19,6 @@ async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
     Use `cwd` to specify the repository root if the current directory is not the target repo.
     After creation: pass the worktree path as `cwd` to `Bash`; use absolute paths with `Read`, `Write`, `Edit`, and `Grep` (they don't accept `cwd`).
     """
-    from zrb.config.config import CFG
 
     cwd = cwd or os.getcwd()
 

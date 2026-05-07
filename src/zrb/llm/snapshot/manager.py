@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import shutil
 import subprocess
 from typing import NamedTuple
@@ -184,7 +185,6 @@ def _build_commit_message(label: str, message_count: int | None) -> str:
 
 def _parse_commit_message(raw: str) -> tuple[str, int | None]:
     """Return (human_label, message_count).  message_count is None if not present."""
-    import re
 
     m = re.search(r"\[mc:(\d+)\]$", raw)
     if m:

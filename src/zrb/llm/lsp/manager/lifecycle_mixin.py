@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from zrb.llm.lsp.server import (
     LSPServer,
@@ -37,6 +38,14 @@ _PROJECT_MARKERS = [
 
 class LifecycleMixin:
     """Server lifecycle methods for `LSPManager`."""
+
+    # Host-class contract: these attributes are owned by `LSPManager` (see
+    # the class-level declarations and `__new__` there). Declared here so
+    # static type checkers can verify accesses; the block does not run at runtime.
+    if TYPE_CHECKING:
+        _lock: asyncio.Lock | None
+        _servers: dict[str, LSPServer]
+        _project_roots: dict[str, str]
 
     @property
     def lock(self) -> asyncio.Lock:

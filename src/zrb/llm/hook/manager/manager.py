@@ -5,7 +5,6 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Callable
 
-from zrb.config.config import CFG
 from zrb.llm.hook.executor import (
     HookExecutionResult,
     ThreadPoolHookExecutor,

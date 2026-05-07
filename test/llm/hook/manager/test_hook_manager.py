@@ -28,10 +28,7 @@ def manager():
     mock_cfg.LLM_JOURNAL_DIR = "/tmp/test_journal"
     mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
 
-    # Patch CFG in all modules that import it
-    with patch("zrb.llm.hook.manager.manager.CFG", mock_cfg), patch(
-        "zrb.llm.hook.journal.CFG", mock_cfg
-    ):
+    with patch("zrb.llm.hook.journal.CFG", mock_cfg):
         yield HookManager()
 
 
@@ -126,20 +123,17 @@ class TestHookManagerLifecycle:
         )
 
         # Default depth is usually 1, so d1 is scanned, but d2 might not be if depth is small
-        mock_cfg = MagicMock()
-        mock_cfg.LLM_INCLUDE_JOURNAL = False
-        with patch("zrb.llm.hook.manager.manager.CFG", mock_cfg):
-            manager = HookManager(max_depth=1)
-            manager.scan(search_dirs=[str(tmp_path)])
+        manager = HookManager(max_depth=1)
+        manager.scan(search_dirs=[str(tmp_path)])
 
-            results = await manager.execute_hooks(HookEvent.SESSION_START, {})
-            # depth 1: tmp_path (0) -> d1 (1). d2 is at depth 2 from tmp_path.
-            assert len(results) == 0
+        results = await manager.execute_hooks(HookEvent.SESSION_START, {})
+        # depth 1: tmp_path (0) -> d1 (1). d2 is at depth 2 from tmp_path.
+        assert len(results) == 0
 
-            manager = HookManager(max_depth=2)
-            manager.scan(search_dirs=[str(tmp_path)])
-            results = await manager.execute_hooks(HookEvent.SESSION_START, {})
-            assert len(results) == 1
+        manager = HookManager(max_depth=2)
+        manager.scan(search_dirs=[str(tmp_path)])
+        results = await manager.execute_hooks(HookEvent.SESSION_START, {})
+        assert len(results) == 1
 
 
 class TestHookManagerRegistration:

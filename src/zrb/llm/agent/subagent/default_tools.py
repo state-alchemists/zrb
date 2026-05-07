@@ -24,6 +24,7 @@ from zrb.llm.tool.file import (
     write_files,
 )
 from zrb.llm.tool.mcp import load_mcp_config
+from zrb.llm.tool.plan import clear_todos, get_todos, update_todo, write_todos
 from zrb.llm.tool.skill import create_activate_skill_tool
 from zrb.llm.tool.web import open_web_page, search_internet
 from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task_tool
@@ -63,6 +64,5 @@ def register_default_tools(manager: "SubAgentManager") -> None:
 
 def _get_todo_tools():
     """Lazy import to avoid circular dependency with `tool.plan`."""
-    from zrb.llm.tool.plan import clear_todos, get_todos, update_todo, write_todos
 
     return [write_todos, get_todos, update_todo, clear_todos]

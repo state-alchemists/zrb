@@ -61,6 +61,8 @@ async def handle_stream_error(
     min_turns: int = 0,
 ) -> RetryOutcome:
     """Decide whether/how to retry after a stream error. Sleeps for transient errors."""
+    from pydantic_ai.messages import ModelRequest, UserPromptPart
+
     if (
         is_retryable_error(exc)
         and state.transient_retry_count < state.max_transient_retries
@@ -133,7 +135,6 @@ async def handle_stream_error(
         CFG.LOGGER.debug(
             f"Invalid tool call error: {exc}. Injecting corrective message."
         )
-        from pydantic_ai.messages import ModelRequest, UserPromptPart
 
         if current_message is not None and isinstance(current_message, str):
             return RetryOutcome(

@@ -1,9 +1,13 @@
 import asyncio
+import logging
 import sys
 from datetime import datetime
 from typing import Any, TextIO
 
 from zrb.config.config import CFG
+from zrb.context.shared_context import SharedContext
+from zrb.llm.approval.approval_channel import ApprovalContext
+from zrb.session.session import Session
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_faint
 
@@ -164,8 +168,6 @@ class MultiUI:
         attachments: list[Any],
     ) -> Any:
         """Create session for LLM task."""
-        from zrb.context.shared_context import SharedContext
-        from zrb.session.session import Session
 
         session_input = {
             "message": user_message,
@@ -200,7 +202,6 @@ class MultiUI:
 
         # Fall back to approval channel (e.g., Telegram buttons)
         if hasattr(self, "_approval_channel") and self._approval_channel is not None:
-            from zrb.llm.approval.approval_channel import ApprovalContext
 
             context = ApprovalContext(
                 tool_name=call.tool_name,
@@ -267,7 +268,6 @@ class MultiUI:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                import logging
 
                 logging.getLogger(__name__).error(f"Error in message queue: {e}")
                 await asyncio.sleep(CFG.LLM_UI_STATUS_INTERVAL / 1000)

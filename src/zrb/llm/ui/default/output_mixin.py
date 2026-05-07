@@ -12,16 +12,38 @@ import re
 from typing import TYPE_CHECKING, TextIO
 
 from zrb.llm.hook.interface import HookEvent
+from zrb.util.cli.style import stylize_faint
 from zrb.util.cli.terminal import get_terminal_size
 
 if TYPE_CHECKING:
+    import asyncio
+    from typing import Any
+
     from prompt_toolkit.formatted_text import AnyFormattedText
+    from pydantic_ai.models import Model
 
 logger = logging.getLogger(__name__)
 
 
 class OutputMixin:
     """Renders the output field, info bar, and status bar for the default UI."""
+
+    # Host-class contract: state owned by `BaseUI.__init__` and the default
+    # `UI.__init__` (prompt-toolkit widgets). Declared here so static type
+    # checkers can verify accesses; the block does not run at runtime.
+    if TYPE_CHECKING:
+        # From BaseUI
+        _assistant_name: str
+        _conversation_session_name: str
+        _current_confirmation: asyncio.Future[str] | None
+        _cwd: str
+        _git_info: str
+        _is_thinking: bool
+        _model: "Model | str | None"
+        # From default UI (prompt_toolkit widgets — typed as Any to avoid
+        # importing heavyweight modules at type-check time).
+        _input_field: Any
+        _output_field: Any
 
     @property
     def output_text(self) -> str:
@@ -62,7 +84,6 @@ class OutputMixin:
 
         content = sep.join([str(value) for value in values]) + end
         if kind != "text":
-            from zrb.util.cli.style import stylize_faint
 
             content = stylize_faint(content)
 

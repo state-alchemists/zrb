@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.context.any_context import AnyContext
@@ -9,8 +11,6 @@ if TYPE_CHECKING:
 def normalize_attachments(
     attachments: "list[UserContent]", print_fn: Callable[[str], Any] = print
 ) -> "list[UserContent]":
-    import os
-    from pathlib import Path
 
     from pydantic_ai import BinaryContent
 

@@ -1,7 +1,10 @@
 """Utility for formatting pydantic-ai conversation history into human-readable text."""
 
+import json
 from datetime import datetime
 from typing import TYPE_CHECKING
+
+from zrb.config.config import CFG
 
 if TYPE_CHECKING:
     from pydantic_ai import ModelMessage
@@ -26,7 +29,6 @@ def format_history_as_text(
     Returns:
         Human-readable string representation of the conversation
     """
-    from zrb.config.config import CFG
 
     if max_length is None:
         max_length = CFG.LLM_HISTORY_MAX_DISPLAY_CHARS
@@ -245,7 +247,6 @@ def _indent_lines(text: str, indent: int = 2, max_lines: int = 50) -> list[str]:
 
 def _truncate(text: str, max_length: int | None = None) -> str:
     """Truncate text to max_length with ellipsis."""
-    from zrb.config.config import CFG
 
     if max_length is None:
         max_length = CFG.LLM_HISTORY_TRUNCATE_LENGTH
@@ -256,7 +257,6 @@ def _truncate(text: str, max_length: int | None = None) -> str:
 
 def _format_args(args) -> str:
     """Format tool call arguments for display."""
-    import json
 
     if args is None:
         return "{}"
@@ -278,7 +278,6 @@ def _format_args(args) -> str:
 
 def _truncate_kwargs(kwargs: dict, max_length: int = 30) -> str:
     """Truncate keyword arguments for display."""
-    import json
 
     truncated = {}
     for key, val in kwargs.items():

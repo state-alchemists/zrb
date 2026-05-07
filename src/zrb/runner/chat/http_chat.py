@@ -2,6 +2,7 @@ import asyncio
 import json
 from typing import TYPE_CHECKING, Any
 
+from zrb.config.config import CFG
 from zrb.llm.approval.approval_channel import (
     ApprovalChannel,
     ApprovalContext,
@@ -192,7 +193,6 @@ class HTTPChatApprovalChannel(ApprovalChannel):
             self._pending_context[tool_call_id] = context
             self._waiting_for_edit_tool_call_id = tool_call_id
             args_json = json.dumps(context.tool_args, indent=2, ensure_ascii=False)
-            from zrb.config.config import CFG
 
             CFG.LOGGER.info(
                 f"ENTERING EDIT MODE: tool_call_id={tool_call_id}, tool_args={context.tool_args}"

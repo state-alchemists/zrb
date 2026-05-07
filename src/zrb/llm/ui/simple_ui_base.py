@@ -1,7 +1,8 @@
 import asyncio
 import logging
+import sys
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, TextIO
+from typing import TYPE_CHECKING, TextIO
 
 from zrb.config.config import CFG
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
@@ -175,7 +176,6 @@ class SimpleUI(BaseUI):
         except RuntimeError:
             # No running event loop - fall back to synchronous print
             # This can happen during initialization or in edge cases
-            import sys
 
             sys.stdout.write(text)
             sys.stdout.flush()

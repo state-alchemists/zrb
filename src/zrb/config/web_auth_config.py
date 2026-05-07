@@ -1,10 +1,8 @@
-from typing import TYPE_CHECKING, Callable
+from typing import Callable
 
 from zrb.config.config import CFG
+from zrb.runner.web_schema.user import User
 from zrb.task.any_task import AnyTask
-
-if TYPE_CHECKING:
-    from zrb.runner.web_schema.user import User
 
 
 class WebAuthConfig:
@@ -145,7 +143,6 @@ class WebAuthConfig:
 
     @property
     def default_user(self) -> "User":
-        from zrb.runner.web_schema.user import User
 
         if self.enable_auth:
             return User(
@@ -163,7 +160,6 @@ class WebAuthConfig:
 
     @property
     def super_admin(self) -> "User":
-        from zrb.runner.web_schema.user import User
 
         return User(
             username=self.super_admin_username,

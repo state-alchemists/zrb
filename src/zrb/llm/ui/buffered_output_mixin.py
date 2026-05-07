@@ -1,4 +1,5 @@
 import asyncio
+import re
 
 from zrb.config.config import CFG
 
@@ -79,7 +80,6 @@ class BufferedOutputMixin:
         Filters out redundant spinner/progress messages that would otherwise
         be duplicated in event-driven UIs (Telegram, Discord, etc.).
         """
-        import re
 
         # Progress characters for spinner animation
         progress_chars = "⠇⠏⠋⠙⠹⠸⠼⠴⠦⠧⠇⠁⠂⠃"

@@ -1,9 +1,6 @@
 import json
 from typing import TYPE_CHECKING, Any, Callable, Literal
 
-from zrb.context.any_context import AnyContext
-from zrb.util.cli.style import stylize_faint
-
 if TYPE_CHECKING:
     from pydantic_ai import AgentStreamEvent
 

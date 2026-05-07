@@ -7,12 +7,18 @@ home → project traversal → plugins → base → extra → builtin → root_d
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 
 
 class SearchMixin:
     """Builds the search-directory list scanned by the loader mixin."""
+
+    # Host-class contract: see `LoaderMixin` for the equivalent docs. `_root_dir`
+    # is owned by `SubAgentManager.__init__`.
+    if TYPE_CHECKING:
+        _root_dir: str
 
     def get_search_directories(self) -> list[str | Path]:
         """All agent search directories in priority order (high → low).

@@ -6,9 +6,11 @@ from typing import Any
 from zrb.attr.type import fstring
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
+from zrb.context.shared_context import SharedContext
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.session.any_session import AnySession
+from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.task.base.context import (
     build_task_context,
@@ -285,8 +287,6 @@ class BaseTask(AnyTask):
             raise e
 
     def to_function(self) -> Callable[..., Any]:
-        from zrb.context.shared_context import SharedContext
-        from zrb.session.session import Session
 
         def task_runner_fn(**kwargs) -> Any:
             task_kwargs = self._get_func_kwargs(kwargs)
@@ -308,7 +308,6 @@ class BaseTask(AnyTask):
         return fn_kwargs
 
     def _create_fn_docstring(self) -> str:
-        from zrb.context.shared_context import SharedContext
 
         stub_shared_ctx = SharedContext(print_fn=self._print_fn)
         str_input_default_values = {}
