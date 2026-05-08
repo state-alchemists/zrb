@@ -9,6 +9,8 @@ result to `README.pypi.md` (the file Poetry packages).
 
 Tag-pinning means a user landing on `pypi.org/project/zrb/<version>/` sees
 docs as they existed at that release — even if `main` later reorganises.
+Zrb's release tags are bare `major.minor.patch` (no `v` prefix), so the
+generated URLs use `/blob/<version>/...` rather than `/blob/v<version>/...`.
 
 `README.pypi.md` is a build artifact; it should be in `.gitignore`.
 """
@@ -30,7 +32,7 @@ def main() -> int:
     metadata = tomllib.loads(PYPROJECT.read_text())["tool"]["poetry"]
     version = metadata["version"]
     repo_url = metadata["repository"].rstrip("/")
-    base = f"{repo_url}/blob/v{version}"
+    base = f"{repo_url}/blob/{version}"
 
     text = SRC.read_text()
 

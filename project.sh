@@ -60,6 +60,9 @@ reload() {
         # export CFLAGS="$_OLD_CFLAGS -Wno-incompatible-function-pointer-types" # ruamel.yaml need this.
     fi
 
+    log_info 'Generating README.pypi.md (Poetry reads it as the package readme)'
+    python "${PROJECT_DIR}/scripts/build_pypi_readme.py"
+
     log_info 'Install'
     poetry lock
     poetry install --all-extras

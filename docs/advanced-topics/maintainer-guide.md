@@ -47,6 +47,26 @@ docker login -U stalchmst
 zrb publish all
 ```
 
+### About `README.pypi.md`
+
+`pyproject.toml` points at `README.pypi.md`, not `README.md`. The two READMEs differ only in their `docs/X` link format:
+
+| File | Link format | Purpose |
+|------|-------------|---------|
+| `README.md` | Relative (`docs/foo.md`) | Single source of truth — works locally, on GitHub, and offline |
+| `README.pypi.md` | Absolute, tag-pinned (`https://github.com/state-alchemists/zrb/blob/2.25.3/docs/foo.md`) | Generated artifact — packaged by Poetry, shown on the PyPI landing page |
+
+`README.pypi.md` is **gitignored** and generated on demand by `scripts/build_pypi_readme.py`, which reads the version from `pyproject.toml` and rewrites every relative `docs/X` link to a tag-pinned GitHub URL. Tag-pinning means a user landing on `pypi.org/project/zrb/2.25.3/` always sees the docs as they existed at that release.
+
+Two places already generate it for you:
+
+- `source ./project.sh` — runs the script before `poetry install` during onboarding/reload, so a fresh clone has the file ready.
+- `zrb publish pip` — runs the script before `poetry publish --build`, so each release ships with URLs pointing at the matching tag.
+
+If you ever invoke `poetry build` / `poetry publish` directly (bypassing the `zrb publish pip` task), run `python scripts/build_pypi_readme.py` first or Poetry will fail with "readme not found."
+
+> ⚠️ **Tag format.** Zrb's release tags are bare `major.minor.patch` (e.g. `2.25.3`), no `v` prefix. The script generates `/blob/2.25.3/...` accordingly — keep this convention if you ever need to rewrite the URL template.
+
 ---
 
 ## Inspecting Import Performance
