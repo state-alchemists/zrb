@@ -1,3 +1,15 @@
+"""History sanitization applied before every model call.
+
+Several providers (DeepSeek, Bedrock, Ollama, …) reject histories that they
+themselves produced one turn earlier — `content: null`, missing
+`reasoning_content`, orphaned tool-call/return pairs after compression, etc.
+`sanitize_history()` is the four-step defensive layer Zrb applies before
+each `converse_stream` call to neutralise those provider-side inconsistencies.
+
+For the full failure catalogue and the rationale behind each step, see
+docs/advanced-topics/maintainer-guide.md#llm-history-sanitization-layer.
+"""
+
 from __future__ import annotations
 
 from dataclasses import is_dataclass, replace

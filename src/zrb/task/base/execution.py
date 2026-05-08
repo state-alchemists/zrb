@@ -137,7 +137,7 @@ async def execute_action_until_ready(task: "BaseTask", session: AnySession):
 
         # Start monitoring only if readiness passed and monitoring is enabled
         if readiness_passed and monitor_readiness:
-            # Import dynamically to avoid circular dependency if monitoring imports execution
+            # lazy: circular — zrb.task.base.monitoring imports from this module.
             from zrb.task.base.monitoring import monitor_task_readiness
 
             monitor_coro = asyncio.create_task(

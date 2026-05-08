@@ -209,6 +209,8 @@ server_group = cli.add_group(
     alias="start",
 )
 async def start_server(_: AnyContext):
+    # lazy: zrb.runner.web_app imports zrb.runner.cli back through its
+    # FastAPI route registration; hoisting causes a circular import.
     from uvicorn import Config, Server
 
     from zrb.runner.web_app import (

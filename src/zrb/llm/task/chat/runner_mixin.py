@@ -81,6 +81,8 @@ class RunnerMixin:
         enable_rewind: bool = False,
         snapshot_dir: str = "",
     ) -> Any:
+        # lazy: BaseUI/UI/MultiUI live downstream of llm_task in the import
+        # graph; hoisting them here causes a circular import.
         from zrb.llm.ui.base.ui import BaseUI
 
         # Note: AsyncExitStack is handled by LLMTask._exec_action
@@ -139,6 +141,7 @@ class RunnerMixin:
                 resolved_custom_commands.append(cmd)
 
         # 3. Determine the UI to use
+        # lazy: same circular reason as above; UI is loaded on demand.
         from zrb.llm.app.lexer import CLIStyleLexer
         from zrb.llm.ui.default.ui import UI
         from zrb.llm.ui.multi_ui import MultiUI

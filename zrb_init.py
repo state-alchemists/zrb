@@ -201,7 +201,15 @@ publish_pip = publish_group.add_task(
         name="publish-zrb-to-pip",
         description="Publish Zrb as pip package",
         cwd=_DIR,
-        cmd="rm -Rf dist && poetry publish --build --skip-existing",
+        # build_pypi_readme.py generates README.pypi.md (the file Poetry packages)
+        # by rewriting README.md's relative `docs/X` links to absolute,
+        # version-tagged GitHub URLs. Run before every publish so PyPI gets
+        # links that point to the matching release's docs.
+        cmd=(
+            "rm -Rf dist"
+            " && python scripts/build_pypi_readme.py"
+            " && poetry publish --build --skip-existing"
+        ),
     ),
     alias="pip",
 )

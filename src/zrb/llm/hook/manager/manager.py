@@ -1,3 +1,15 @@
+"""`HookManager` — Claude-Code-compatible lifecycle hooks.
+
+Owns hook registration, matcher evaluation, and execution. The filesystem
+loading + JSON/YAML parsing lives in the sibling `loader_mixin.py`; the
+type-specific factories (command/prompt/agent) live in
+`zrb.llm.hook.hook_creators`; matcher operator semantics live in
+`zrb.llm.hook.matcher`.
+
+For the public hook authoring guide (formats, events, examples), see:
+  docs/advanced-topics/hooks.md
+"""
+
 import asyncio
 import logging
 import os

@@ -1,5 +1,57 @@
 🔖 [Documentation Home](../README.md)
 
+## 2.25.3 (May 8, 2026)
+
+- **Bug Fix: `filter_nil_content` Crashed on `BuiltinToolCallPart`**:
+  - `_sanitize()` in `src/zrb/llm/agent/run/history_utils.py` called `dataclasses.replace(part, content=...)` on dataclass parts that have no `content` field (e.g. `BuiltinToolCallPart`, used for provider-side tools like Anthropic web_search). The `getattr(part, "content", None)` returned `None`, the code thought the content was nil, and `replace()` raised `TypeError: __init__() got an unexpected keyword argument 'content'`. Hit on every model call when builtin tools were enabled.
+  - Fixed by gating the replace on `hasattr(part, "content")` before treating missing content as nil.
+  - Refined the placeholder check to use `BaseToolReturnPart` (parent class) so `BuiltinToolReturnPart` also gets `"null"` instead of `"."` when its content is nil.
+  - New regression tests: `test_filter_nil_content_preserves_builtin_tool_call_part` and `test_filter_nil_content_uses_null_for_builtin_tool_return`.
+
+- **Bug Fix: GLM-5 / Bedrock `ValidationException` Detection**:
+  - `is_missing_reasoning_content_error()` in `src/zrb/llm/agent/run/error_classifier.py` now also matches Bedrock `ValidationException` responses with an empty `Error.Message` field — the pattern produced by GLM-5 on Bedrock when it rejects `ThinkingPart` entries in echoed history. Previously these slipped through and surfaced as opaque 400s; now they trigger the existing `strip_thinking_parts` retry path.
+
+- **Bug Fix: Self-Import in `attachment.py`**:
+  - `normalize_attachments()` in `src/zrb/llm/util/attachment.py` had `from zrb.llm.util.attachment import get_media_type` — a self-import working around the function being defined later in the same file. Removed; `get_media_type` is in scope at call time.
+
+- **Bug Fix: Dead `mock.patch` Sites in Hook Tests**:
+  - Six tests across `test/llm/hook/{test_matchers,test_hook_result_processing}.py` and `test/llm/hook/manager/test_hook_manager.py` patched `zrb.llm.hook.manager.manager.CFG` even though `manager.py` never read `CFG`. The patches were no-ops — the tests passed only because the *other* patch in the same `with` block (`zrb.llm.hook.journal.CFG`) did the real work. Removed the dead patches and the corresponding dead `mock_mgr_cfg.*` attribute assignments.
+
+- **Refactoring: Sub-Agent Manager Nested Layout**:
+  - `src/zrb/llm/agent/subagent/{manager,loader_mixin,search_mixin}.py` moved to `src/zrb/llm/agent/subagent/manager/` to match the `hook/manager/` and `lsp/manager/` layouts. `subagent/manager/__init__.py` re-exports `SubAgentManager`, `SubAgentDefinition`, and `sub_agent_manager` so external imports continue to work.
+  - `src/zrb/llm/tool/delegate.py` now imports directly from `zrb.llm.agent.subagent.manager.manager` (the inner module) to avoid a circular import: the package `__init__.py` triggers `register_default_tools()` mid-load, which transitively pulls `tool/delegate.py` before `__init__.py` has finished re-exporting `SubAgentManager`.
+  - Six `unittest.mock.patch("zrb.llm.agent.subagent.manager.create_agent")` sites updated to `...manager.manager.create_agent` (where `create_agent` actually lives post-migration).
+
+- **Refactoring: Typed Mixin Contracts**:
+  - All eight mixin pairs in scope now declare host-class attributes via `if TYPE_CHECKING:` annotation blocks. Static type checkers see the required interface; runtime sees nothing (zero attribute leaks confirmed by `dir()`). Renaming a host attribute now produces a static type error in every mixin that reads it.
+  - Updated: `agent/subagent/manager/{loader_mixin,search_mixin}.py`, `lsp/manager/lifecycle_mixin.py`, `ui/default/{confirmation,output,keybindings,lifecycle}_mixin.py`, `ui/base/commands_mixin.py`, `hook/manager/loader_mixin.py`. The previously docstring-only contracts in `commands_mixin.py` and `hook/manager/loader_mixin.py` were converted to typed annotations and the now-redundant docstring lists removed.
+
+- **Refactoring: Lazy-Import Sweep + Documented Policy**:
+  - All 60 stdlib in-function imports (uuid, json, re, os, dataclasses, traceback, base64, pathlib, etc.) hoisted to module top across 30 files — stdlib is fast and rarely participates in zrb's circular graphs.
+  - 30 internal `zrb.*` in-function imports hoisted where safe (verified by per-file `python -c "import <module>"` smoke check).
+  - 13 internal in-function imports kept lazy with explicit `# lazy: <reason>` comments — categorized as: (a) circular avoidance, (b) transitively heavy via internal (e.g. `zrb.llm.agent` pulls `pydantic_ai`), or (c) test patch seam (tests patch the source path; hoisting binds the name at consumer-load and bypasses the mock).
+  - New `Imports` section in `AGENTS.md` documents the four lazy-import categories and the `# lazy:` tagging convention.
+
+- **Improvement: Dead Code Removal + Lint Enforcement**:
+  - `flake8 src/zrb --select=F` now runs as part of `./zrb-test.sh` (gated before pytest). Catches unused imports, redefinitions, and undefined names; respects `# noqa: F401` on intentional re-exports.
+  - Removed `zrb.util.callable.get_callable_name` and `zrb.util.truncate.truncate_str` (tested but never called from production code) plus their test files.
+  - Eight unused imports removed across `llm/app/keybinding.py`, `llm/ui/simple_ui_base.py`, `llm/util/stream_response.py`, `runner/chat/chat_session_manager.py`, `runner/web_route/login_page/login_page_route.py`, etc.
+
+- **Improvement: PyPI README Single-Source**:
+  - `README.md` is now the single source of truth and uses **relative** `docs/X` links (works locally and on GitHub).
+  - New `scripts/build_pypi_readme.py` rewrites those relative links to absolute, **version-tagged** GitHub URLs and writes `README.pypi.md` (the file Poetry packages, configured via `[tool.poetry] readme = "README.pypi.md"`).
+  - The `publish-zrb-to-pip` task in `zrb_init.py` runs the script before `poetry publish`, so each PyPI release links to the matching version's docs (e.g. v2.25.3 links to `/blob/v2.25.3/...`) — old release pages stay correct even when files reorganise on `main`.
+
+- **Improvement: Module Docstrings on Heavy Files**:
+  - Six high-traffic files now lead with a short docstring describing what the module owns, who its key collaborators are, and a doc pointer for the *why*: `llm/agent/run/{runner,history_utils,openai_patch}.py`, `llm/task/chat/task.py`, `llm/ui/base/ui.py`, `llm/hook/manager/manager.py`.
+
+- **Documentation: New LLM Chat Lifecycle Tour**:
+  - `docs/advanced-topics/llm-chat-lifecycle.md` — a single-page narrative walking `zrb llm chat "..."` through every stage from CLI bootstrap to history persistence, with file paths at each step. Linked from the README doc index, AGENTS.md, and the Maintainer Guide TOC.
+
+- **Documentation: ContextVar Count Reconciled**:
+  - The codebase has **seven** `ContextVar` instances; `architecture.md` and `maintainer-guide.md` previously said "five." Both updated. `maintainer-guide.md` now documents three layers (task / agent / tool) instead of two, with a new table for `active_worktree` and `_current_session`.
+  - Added a maintenance note in `src/zrb/contextvars.py`'s docstring listing the three docs that must be updated when the list changes, to prevent future drift.
+
 ## 2.25.2 (May 6, 2026)
 
 - **Feature: Google News RSS as Default Search Backend**:

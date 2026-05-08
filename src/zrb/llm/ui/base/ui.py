@@ -1,3 +1,21 @@
+"""Abstract base class for every chat UI in zrb.
+
+Owns conversation state that all concrete UIs share: history manager,
+snapshot manager, message queue, confirmation queue, attachments, system
+info, hook execution, and the slash-command dispatch (composed via
+`CommandsMixin`). Concrete subclasses pick a rendering layer:
+
+  default/ui.py          - prompt-toolkit TUI (the `zrb llm chat` default)
+  simple_ui_base.py      - bring-your-own print/input (for headless callers)
+  std_ui.py              - stdout streaming (e.g. CI / non-interactive)
+  multi_ui.py            - fan-out to multiple UIs at once
+  runner/chat/http_ui.py - SSE-streamed UI for the web chat endpoint
+
+For how slash commands are dispatched, see `commands_mixin.py`. For how a
+single chat turn flows from CLI down through this class, see
+docs/advanced-topics/llm-chat-lifecycle.md.
+"""
+
 import asyncio
 import inspect
 import logging

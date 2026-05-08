@@ -80,6 +80,8 @@ class LoaderMixin:
     def _load_agent_from_python(self, rel_path: str, full_path: str) -> None:
         from pydantic_ai import Agent
 
+        # lazy: SubAgentDefinition lives in the sibling module that imports
+        # this mixin; hoisting would create a circular import.
         from zrb.llm.agent.subagent.manager.manager import SubAgentDefinition
 
         try:

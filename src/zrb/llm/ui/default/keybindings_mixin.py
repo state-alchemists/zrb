@@ -80,6 +80,9 @@ class KeybindingsMixin:
             clipboard = event.app.clipboard
 
             async def _handle_paste():
+                # lazy: tests patch `zrb.llm.util.clipboard.get_clipboard_image`
+                # at the source path; hoisting would bind the name at
+                # module-load and bypass the mock.
                 from zrb.llm.util.clipboard import (
                     get_clipboard_image,
                     missing_tool_hint,

@@ -10,6 +10,9 @@ async def analyze_file(path: str, query: str, auto_truncate: bool = True) -> str
     """
     Deep semantic analysis of a file via LLM sub-agent. Slow and resource-intensive.
     """
+    # lazy: zrb.llm.agent transitively loads pydantic_ai. Keeping these
+    # imports inside the function preserves cold-start latency for callers
+    # that import this module but never invoke analyze_file.
     from zrb.llm.agent import create_agent, run_agent
     from zrb.llm.config.config import llm_config
     from zrb.llm.config.limiter import llm_limiter

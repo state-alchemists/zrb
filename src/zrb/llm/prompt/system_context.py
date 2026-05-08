@@ -71,7 +71,7 @@ _PROJECT_MARKERS: list[tuple[str, str]] = [
 def system_context(
     ctx: AnyContext, current_prompt: str, next_handler: Callable[[AnyContext, str], str]
 ) -> str:
-    # Lazy imports to avoid circular dependency (tool → ui → llm_task → prompt.manager → here)
+    # lazy: circular — tool → ui → llm_task → prompt.manager → here.
     from zrb.llm.tool.ambient_state import (
         get_active_worktree,
         set_current_tool_session,
