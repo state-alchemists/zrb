@@ -42,14 +42,27 @@ def is_missing_reasoning_content_error(e: Exception) -> bool:
 
     DeepSeek V3.2/V4 with tool calls requires the assistant's reasoning_content
     to be echoed back in multi-turn conversations.
+
+    GLM-5 on Bedrock also rejects thinking parts in history, but returns a
+    ValidationException with an empty Message field — detected by matching
+    the error code pattern with no descriptive message.
     """
     status_code = getattr(e, "status_code", None)
     if status_code != 400:
         return False
     err_str = str(e).lower()
-    return (
-        "missing reasoning_content" in err_str or "reasoning_content field" in err_str
-    )
+    if "missing reasoning_content" in err_str or "reasoning_content field" in err_str:
+        return True
+    # Bedrock ValidationException with empty message (GLM-5 pattern)
+    body = getattr(e, "body", None)
+    if isinstance(body, dict):
+        error = body.get("Error", {})
+        if isinstance(error, dict):
+            code = error.get("Code", "")
+            message = error.get("Message", "")
+            if code == "ValidationException" and not message:
+                return True
+    return False
 
 
 def is_retryable_error(e: Exception) -> bool:

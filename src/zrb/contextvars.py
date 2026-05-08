@@ -10,6 +10,11 @@ from three homes that keep bounded-context ownership of their state:
 
 Nothing here owns state. This module exists purely as a discoverable registry
 so contributors can answer "what ContextVars exist?" without grepping.
+
+When you add, remove, or rename a `ContextVar`, also update:
+  - docs/advanced-topics/maintainer-guide.md  (Context Propagation Internals — the count and per-layer table)
+  - docs/advanced-topics/architecture.md      (Implicit State via ContextVars — the count)
+  - AGENTS.md                                 (Ambient State table)
 """
 
 from __future__ import annotations

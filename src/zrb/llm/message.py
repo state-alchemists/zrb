@@ -1,3 +1,4 @@
+from dataclasses import replace
 from typing import Any
 
 
@@ -27,7 +28,6 @@ def ensure_alternating_roles(messages: list[Any]) -> list[Any]:
 
         # Case 2: Sequential ModelResponses (Assistant -> Assistant) - MERGE
         if isinstance(msg, ModelResponse) and isinstance(last_msg, ModelResponse):
-            from dataclasses import replace
 
             new_last_msg = replace(
                 last_msg, parts=list(last_msg.parts) + list(msg.parts)
@@ -85,7 +85,6 @@ def sanitize_orphaned_tool_calls(messages: list[Any]) -> list[Any]:
             if not new_parts:
                 continue  # drop empty assistant message
             if new_parts != list(msg.parts):
-                from dataclasses import replace
 
                 has_text = any(isinstance(p, TextPart) and p.content for p in new_parts)
                 if not has_text:
@@ -102,7 +101,6 @@ def sanitize_orphaned_tool_calls(messages: list[Any]) -> list[Any]:
             if not new_parts:
                 continue  # drop empty user message
             if new_parts != list(msg.parts):
-                from dataclasses import replace
 
                 msg = replace(msg, parts=new_parts)
         result.append(msg)

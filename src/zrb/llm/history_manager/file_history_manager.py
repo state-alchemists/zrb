@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
@@ -295,7 +296,6 @@ class FileHistoryManager(AnyHistoryManager):
             # Suppress Pydantic serialization warnings for BinaryContent in parts
             # (pydantic-ai's type adapter schema doesn't include BinaryContent in its
             # union, but serialization still works correctly)
-            import warnings
 
             with warnings.catch_warnings():
                 warnings.filterwarnings(

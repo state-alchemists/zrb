@@ -1,3 +1,21 @@
+"""Abstract base class for every chat UI in zrb.
+
+Owns conversation state that all concrete UIs share: history manager,
+snapshot manager, message queue, confirmation queue, attachments, system
+info, hook execution, and the slash-command dispatch (composed via
+`CommandsMixin`). Concrete subclasses pick a rendering layer:
+
+  default/ui.py          - prompt-toolkit TUI (the `zrb llm chat` default)
+  simple_ui_base.py      - bring-your-own print/input (for headless callers)
+  std_ui.py              - stdout streaming (e.g. CI / non-interactive)
+  multi_ui.py            - fan-out to multiple UIs at once
+  runner/chat/http_ui.py - SSE-streamed UI for the web chat endpoint
+
+For how slash commands are dispatched, see `commands_mixin.py`. For how a
+single chat turn flows from CLI down through this class, see
+docs/advanced-topics/llm-chat-lifecycle.md.
+"""
+
 import asyncio
 import inspect
 import logging
@@ -9,10 +27,12 @@ from typing import TYPE_CHECKING, Any, TextIO
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
+from zrb.llm.agent.run.runtime_state import get_current_ui
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import hook_manager
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.snapshot.manager import SnapshotManager
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.tool_call import (
     ArgumentFormatter,
@@ -22,6 +42,7 @@ from zrb.llm.tool_call import (
     default_response_handler,
 )
 from zrb.llm.ui.base.commands_mixin import CommandsMixin
+from zrb.llm.ui.multi_ui import MultiUI
 from zrb.session.any_session import AnySession
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
@@ -187,7 +208,6 @@ class BaseUI(CommandsMixin):
         # Snapshot / rewind
         self._snapshot_manager = None
         if enable_rewind and snapshot_dir and self._conversation_session_name:
-            from zrb.llm.snapshot.manager import SnapshotManager
 
             self._snapshot_manager = SnapshotManager(
                 snapshot_dir=snapshot_dir,
@@ -721,8 +741,6 @@ class BaseUI(CommandsMixin):
     ) -> "ToolApproved | ToolDenied | None":
         # Use current_ui context variable to get the correct UI (e.g., BufferedUI for parallel agents)
         # instead of self, which is the captured main UI
-        from zrb.llm.agent.run.runtime_state import get_current_ui
-        from zrb.llm.ui.multi_ui import MultiUI
 
         ui = get_current_ui() or self
         # Handle list of UIs from outer context

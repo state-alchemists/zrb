@@ -2,7 +2,6 @@ import string
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from prompt_toolkit.application import Application
     from prompt_toolkit.key_binding import KeyBindings
     from prompt_toolkit.widgets import TextArea
 
@@ -11,7 +10,6 @@ def create_output_keybindings(input_field: "TextArea") -> "KeyBindings":
     from prompt_toolkit.application import get_app
     from prompt_toolkit.filters import has_completions
     from prompt_toolkit.key_binding import KeyBindings
-    from prompt_toolkit.widgets import TextArea
 
     kb = KeyBindings()
 

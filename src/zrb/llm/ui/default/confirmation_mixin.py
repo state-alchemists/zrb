@@ -9,10 +9,17 @@ cancel.
 from __future__ import annotations
 
 import asyncio
+from typing import TYPE_CHECKING
 
 
 class ConfirmationMixin:
     """Per-request confirmation queue used by `ask_user`."""
+
+    # Host-class contract: state owned by `BaseUI.__init__`. Declared here so
+    # static type checkers can verify accesses; the block does not run at runtime.
+    if TYPE_CHECKING:
+        _confirmation_queue: list[tuple[asyncio.Future[str], str]]
+        _current_confirmation: asyncio.Future[str] | None
 
     async def ask_user(self, prompt: str) -> str:
         """Prompt the user for input via the main input field.

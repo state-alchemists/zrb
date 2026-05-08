@@ -1,8 +1,27 @@
+"""History sanitization applied before every model call.
+
+Several providers (DeepSeek, Bedrock, Ollama, …) reject histories that they
+themselves produced one turn earlier — `content: null`, missing
+`reasoning_content`, orphaned tool-call/return pairs after compression, etc.
+`sanitize_history()` is the four-step defensive layer Zrb applies before
+each `converse_stream` call to neutralise those provider-side inconsistencies.
+
+For the full failure catalogue and the rationale behind each step, see
+docs/advanced-topics/maintainer-guide.md#llm-history-sanitization-layer.
+"""
+
 from __future__ import annotations
 
+from dataclasses import is_dataclass, replace
 from typing import Any
 
+from zrb.config.config import CFG
 from zrb.llm.config.limiter import is_turn_start
+from zrb.llm.message import (
+    ensure_alternating_roles,
+    sanitize_orphaned_tool_calls,
+    validate_tool_pair_integrity,
+)
 
 
 def _detect_problems(messages: list[Any]) -> list[str]:
@@ -14,8 +33,6 @@ def _detect_problems(messages: list[Any]) -> list[str]:
     Intended for DEBUG-level logging before sanitize_history runs.
     """
     from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart
-
-    from zrb.llm.message import validate_tool_pair_integrity
 
     problems: list[str] = []
     prev_type: type | None = None
@@ -68,8 +85,6 @@ def sanitize_history(
     Violations found before fixing are logged at DEBUG level so that the root cause
     of provider 400 errors can be traced in logs without any production overhead.
     """
-    from zrb.config.config import CFG
-    from zrb.llm.message import ensure_alternating_roles, sanitize_orphaned_tool_calls
 
     problems = _detect_problems(messages)
     if problems:
@@ -130,126 +145,64 @@ def strip_thinking_parts(messages: list[Any]) -> list[Any]:
             new_parts = [TextPart(content=".")]
         elif not any(isinstance(p, TextPart) and p.content for p in new_parts):
             new_parts.insert(0, TextPart(content="."))
-        from dataclasses import replace
 
         result.append(replace(msg, parts=new_parts))
     return result
 
 
 def filter_nil_content(messages: list[Any]) -> list[Any]:
-    """Filter out parts with None/nil content from messages.
+    """Sanitize message history before sending to any provider.
 
-    This prevents "invalid message content type: <nil>" errors from OpenAI-compatible APIs.
-    Must be called at runtime before passing messages to the model.
+    Fixes applied in one pass:
+    - None/empty/whitespace content → "." (or "null" for ToolReturnPart)
+    - ToolCallPart with no tool_name → dropped
+    - ModelResponse with no text and no tool calls → TextPart(".") injected
+
+    Bedrock rejects blank text fields, OpenAI rejects null content.
     """
+
     from pydantic_ai.messages import (
+        BaseToolReturnPart,
         ModelRequest,
         ModelResponse,
-        SystemPromptPart,
         TextPart,
-        ThinkingPart,
         ToolCallPart,
-        ToolReturnPart,
-        UserPromptPart,
     )
+
+    def _sanitize(part: Any) -> Any:
+        """Replace bad content with provider-safe placeholder."""
+        # Skip non-dataclasses and dataclasses without a content field
+        # (e.g. BuiltinToolCallPart, which carries args instead of content).
+        if not is_dataclass(part) or not hasattr(part, "content"):
+            return part
+        content = part.content
+        if content is None or (isinstance(content, str) and not content.strip()):
+            placeholder = "null" if isinstance(part, BaseToolReturnPart) else "."
+            return replace(part, content=placeholder)
+        return part
 
     filtered = []
     for msg in messages:
-        if isinstance(msg, ModelRequest):
-            # Filter parts in ModelRequest
-            valid_parts = []
-            for part in msg.parts:
-                if isinstance(part, ToolCallPart):
-                    # Keep tool calls that have a tool_name
-                    if part.tool_name:
-                        valid_parts.append(part)
-                elif isinstance(part, ToolReturnPart):
-                    # Keep tool returns, ensure content is not None
-                    # Tool returns MUST match tool calls, so we cannot drop them.
-                    if part.content is None:
-                        from dataclasses import replace
-
-                        valid_parts.append(replace(part, content="null"))
-                    else:
-                        valid_parts.append(part)
-                elif isinstance(part, ThinkingPart):
-                    if part.content is None:
-                        from dataclasses import replace
-
-                        valid_parts.append(replace(part, content="."))
-                    else:
-                        valid_parts.append(part)
-                elif isinstance(part, (TextPart, UserPromptPart, SystemPromptPart)):
-                    if part.content is None:
-                        from dataclasses import replace
-
-                        valid_parts.append(replace(part, content="."))
-                    else:
-                        valid_parts.append(part)
-                elif hasattr(part, "content"):
-                    if getattr(part, "content") is None:
-                        from dataclasses import replace
-
-                        valid_parts.append(replace(part, content="."))
-                    else:
-                        valid_parts.append(part)
-                else:
-                    # Parts without content field - keep as-is
-                    valid_parts.append(part)
-            if valid_parts:
-                from dataclasses import replace
-
-                filtered.append(replace(msg, parts=valid_parts))
-        elif isinstance(msg, ModelResponse):
-            # Filter parts in ModelResponse
-            valid_parts = []
-            has_text = False
-            has_tool_call = False
-            for part in msg.parts:
-                if isinstance(part, TextPart):
-                    if not part.content:  # None or empty string
-                        from dataclasses import replace
-
-                        valid_parts.append(replace(part, content="."))
-                        has_text = True
-                    else:
-                        valid_parts.append(part)
-                        has_text = True
-                elif isinstance(part, ToolCallPart):
-                    valid_parts.append(part)
-                elif isinstance(part, ThinkingPart):
-                    if part.content is None:
-                        from dataclasses import replace
-
-                        valid_parts.append(replace(part, content="."))
-                    else:
-                        valid_parts.append(part)
-                elif hasattr(part, "content"):
-                    if getattr(part, "content") is None:
-                        from dataclasses import replace
-
-                        valid_parts.append(replace(part, content="."))
-                    else:
-                        valid_parts.append(part)
-                else:
-                    valid_parts.append(part)
-
-            # Providers reject assistant messages with no content and no tool_calls.
-            # Use "." (not empty string, not space) because:
-            #   - Bedrock rejects blank text fields (ValidationException)
-            #   - Anthropic models on Bedrock reject whitespace-only text
-            #   - pydantic_ai's own Bedrock model uses "." for the same reason
-            # This also covers thinking-only responses (ThinkingPart but no TextPart)
-            # where providers like DeepSeek send thinking via a separate field
-            # (e.g. reasoning_content) and serialize content as null.
-            if not has_text and valid_parts:
-                valid_parts.insert(0, TextPart(content="."))
-
-            if valid_parts:
-                from dataclasses import replace
-
-                filtered.append(replace(msg, parts=valid_parts))
-        else:
-            # Unknown message type - keep as-is
+        if not isinstance(msg, (ModelRequest, ModelResponse)):
             filtered.append(msg)
+            continue
+
+        valid_parts = []
+        has_text = False
+        for part in msg.parts:
+            if isinstance(part, ToolCallPart):
+                if part.tool_name:
+                    valid_parts.append(part)
+            else:
+                valid_parts.append(_sanitize(part))
+                if isinstance(part, TextPart):
+                    has_text = True
+
+        # Providers reject assistant messages with no text and no tool calls
+        if isinstance(msg, ModelResponse) and not has_text and valid_parts:
+            valid_parts.insert(0, TextPart(content="."))
+
+        if valid_parts:
+            filtered.append(replace(msg, parts=valid_parts))
+
     return filtered

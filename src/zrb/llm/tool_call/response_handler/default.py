@@ -18,6 +18,9 @@ async def default_response_handler(
 ) -> ToolApproved | ToolDenied | None:
     from pydantic_ai import ToolApproved, ToolDenied
 
+    # lazy: tests patch `zrb.llm.tool_call.edit_util.edit_content_via_editor`
+    # at the source path and rely on the patch taking effect inside this
+    # function. Hoisting would bind the name at module-load.
     from zrb.llm.tool_call.edit_util import edit_content_via_editor
 
     zrb_print(user_response, plain=True)

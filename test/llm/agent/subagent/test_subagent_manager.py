@@ -23,7 +23,9 @@ def test_sub_agent_manager_add_tool():
     )
     manager.add_agent(agent_def)
 
-    with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create_agent:
+    with patch(
+        "zrb.llm.agent.subagent.manager.manager.create_agent"
+    ) as mock_create_agent:
         manager.create_agent("test-agent")
         resolved_tools = mock_create_agent.call_args.kwargs["tools"]
         assert my_tool in resolved_tools
@@ -75,7 +77,9 @@ def test_sub_agent_manager_filter_delegate_tools():
     manager.add_agent(agent_def)
 
     # 4. Create the agent and check tools
-    with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create_agent:
+    with patch(
+        "zrb.llm.agent.subagent.manager.manager.create_agent"
+    ) as mock_create_agent:
         manager.create_agent("test-agent")
         mock_create_agent.assert_called_once()
         call_kwargs = mock_create_agent.call_args.kwargs
@@ -107,7 +111,9 @@ def test_sub_agent_manager_filter_delegate_tools_from_factory():
     )
     manager.add_agent(agent_def)
 
-    with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create_agent:
+    with patch(
+        "zrb.llm.agent.subagent.manager.manager.create_agent"
+    ) as mock_create_agent:
         manager.create_agent("test-agent")
         resolved_tools = mock_create_agent.call_args.kwargs["tools"]
         assert delegate_tool not in resolved_tools
@@ -174,7 +180,7 @@ def test_sub_agent_manager_add_toolset():
     agent_def = SubAgentDefinition("test", ".", "d", "p")
     manager.add_agent(agent_def)
 
-    with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create:
+    with patch("zrb.llm.agent.subagent.manager.manager.create_agent") as mock_create:
         manager.create_agent("test")
         resolved_ts = mock_create.call_args.kwargs["toolsets"]
         assert ts in resolved_ts
@@ -189,7 +195,7 @@ def test_sub_agent_manager_add_toolset_factory():
     agent_def = SubAgentDefinition("test", ".", "d", "p")
     manager.add_agent(agent_def)
 
-    with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create:
+    with patch("zrb.llm.agent.subagent.manager.manager.create_agent") as mock_create:
         manager.create_agent("test")
         resolved_ts = mock_create.call_args.kwargs["toolsets"]
         assert ts in resolved_ts

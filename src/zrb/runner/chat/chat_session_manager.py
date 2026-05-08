@@ -1,5 +1,5 @@
 import asyncio
-import json
+import os
 import re
 from dataclasses import dataclass, field
 from typing import Any
@@ -86,8 +86,6 @@ class ChatSessionManager:
     def _get_all_session_names(self) -> list[str]:
         if not CFG.LLM_HISTORY_DIR:
             return []
-        import os
-
         history_dir = CFG.LLM_HISTORY_DIR
         history_dir = os.path.expanduser(history_dir)
         if not os.path.exists(history_dir):
@@ -103,8 +101,6 @@ class ChatSessionManager:
         """Get all sessions with their file modification timestamps, newest first."""
         if not CFG.LLM_HISTORY_DIR:
             return []
-        import os
-
         history_dir = CFG.LLM_HISTORY_DIR
         history_dir = os.path.expanduser(history_dir)
         if not os.path.exists(history_dir):

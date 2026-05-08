@@ -1,13 +1,7 @@
 """Slash-command handlers for `BaseUI`.
 
 Each `_handle_*` returns `True` if the input was consumed (a command matched),
-`False` otherwise. The mixin assumes the host class provides:
-- the standard set of `_*_commands` lists and `_custom_commands` (set in BaseUI.__init__)
-- `_history_manager`, `_snapshot_manager`, `_message_queue`, `_pending_attachments`
-- `_is_thinking`, `_running_llm_task`, `_background_tasks`, `_llm_task`, `_model`
-- `_conversation_session_name`, `_markdown_theme`
-- `append_to_output(...)`, `invalidate_ui()`, `last_output`, `_submit_user_message(...)`
-- `_update_system_info()`, `_get_output_field_width()`, `yolo` (property), `on_exit()`
+`False` otherwise.
 """
 
 from __future__ import annotations
@@ -19,10 +13,20 @@ import shlex
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from zrb.llm.util.history_formatter import format_history_as_text
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_error, stylize_faint
 
 if TYPE_CHECKING:
+    from typing import Any
+
+    from pydantic_ai.messages import UserContent
+    from pydantic_ai.models import Model
+    from rich.theme import Theme
+
+    from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
+    from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+    from zrb.llm.snapshot.manager import SnapshotManager
     from zrb.llm.task.llm_task import LLMTask
 
 logger = logging.getLogger(__name__)
@@ -30,6 +34,55 @@ logger = logging.getLogger(__name__)
 
 class CommandsMixin:
     """Slash-command dispatch for BaseUI."""
+
+    # Host-class contract: state and methods owned by `BaseUI` (and concrete
+    # subclasses). Declared here so static type checkers can verify accesses;
+    # the block does not run at runtime.
+    if TYPE_CHECKING:
+        # Command lists (set in `BaseUI.__init__`)
+        _attach_commands: list[str]
+        _btw_commands: list[str]
+        _custom_commands: list["AnyCustomCommand"]
+        _exec_commands: list[str]
+        _exit_commands: list[str]
+        _info_commands: list[str]
+        _load_commands: list[str]
+        _redirect_output_commands: list[str]
+        _rewind_commands: list[str]
+        _save_commands: list[str]
+        _set_model_commands: list[str]
+        _summarize_commands: list[str]
+        _yolo_toggle_commands: list[str]
+        # Misc state
+        _background_tasks: set[asyncio.Task]
+        _conversation_session_name: str
+        _history_manager: "AnyHistoryManager"
+        _is_thinking: bool
+        _llm_task: "LLMTask"
+        _markdown_theme: "Theme | None"
+        _message_queue: asyncio.Queue
+        _model: "Model | str | None"
+        _pending_attachments: list["UserContent"]
+        _running_llm_task: asyncio.Task | None
+        _snapshot_manager: "SnapshotManager | None"
+
+        # Methods/properties provided by the host class (subclass of BaseUI).
+        last_output: Any
+
+        def append_to_output(self, text: str, end: str = "\n") -> None: ...
+
+        def invalidate_ui(self) -> None: ...
+
+        def on_exit(self) -> None: ...
+
+        def _submit_user_message(self, llm_task: "LLMTask", text: str) -> None: ...
+
+        def _update_system_info(self) -> None: ...
+
+        def _get_output_field_width(self) -> int: ...
+
+        @property
+        def yolo(self) -> bool: ...
 
     # --- exit / info ------------------------------------------------------
 
@@ -82,7 +135,6 @@ class CommandsMixin:
                 self._conversation_session_name = name
                 try:
                     history = self._history_manager.load(name)
-                    from zrb.llm.util.history_formatter import format_history_as_text
 
                     history_text = format_history_as_text(history)
                     self.append_to_output(stylize_faint(f"\n{history_text}\n"))

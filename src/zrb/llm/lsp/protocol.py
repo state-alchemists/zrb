@@ -8,7 +8,9 @@ import json
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 
 class LSPError(Exception):
@@ -309,8 +311,6 @@ class LSPProtocol:
         initialization_options: dict | None = None,
     ) -> dict:
         """Create parameters for initialize request."""
-        from pathlib import Path
-        from urllib.parse import quote
 
         # Convert to file URI
 
@@ -330,8 +330,6 @@ class LSPProtocol:
     @classmethod
     def create_text_document_identifier(cls, file_path: str) -> dict:
         """Create TextDocumentIdentifier for a file."""
-        from pathlib import Path
-        from urllib.parse import quote
 
         abs_path = Path(file_path).absolute()
         return {"uri": "file://" + quote(str(abs_path), safe="/")}

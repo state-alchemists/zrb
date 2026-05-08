@@ -4,12 +4,6 @@ This mixin holds everything that walks directories, reads JSON/YAML, and
 hydrates raw dicts into `HookConfig` objects. Splitting it out keeps the main
 `HookManager` focused on registration, execution, and the type-specific hook
 factories.
-
-The mixin assumes the host class provides:
-- `self._max_depth: int`, `self._ignore_dirs: list[str]` (set in __init__)
-- `self._hydrate_hook(config) -> HookCallable`
-- `self.register(hook, events, config) -> None`
-- `self._scan_and_load()` is implemented here and used by the host class.
 """
 
 from __future__ import annotations
@@ -18,7 +12,7 @@ import json
 import logging
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
 
@@ -33,11 +27,30 @@ from zrb.llm.hook.schema import (
 from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
 from zrb.util.load import load_module_from_path
 
+if TYPE_CHECKING:
+    from zrb.llm.hook.interface import HookCallable
+
 logger = logging.getLogger(__name__)
 
 
 class HookLoaderMixin:
     """Filesystem + format-parsing for HookManager."""
+
+    # Host-class contract: state and methods owned by `HookManager`. Declared
+    # here so static type checkers can verify accesses; the block does not run
+    # at runtime.
+    if TYPE_CHECKING:
+        _max_depth: int
+        _ignore_dirs: list[str]
+
+        def _hydrate_hook(self, config: HookConfig) -> "HookCallable": ...
+
+        def register(
+            self,
+            hook: "HookCallable",
+            events: list[HookEvent],
+            config: HookConfig,
+        ) -> None: ...
 
     # --- Filesystem traversal --------------------------------------------
 

@@ -1,10 +1,10 @@
 [tool.poetry]
 name = "zrb"
-version = "2.25.2"
+version = "2.25.3"
 description = "Your Automation Powerhouse"
 authors = ["Go Frendi Gunawan <gofrendiasgard@gmail.com>"]
 license = "AGPL-3.0-or-later"
-readme = "README.md"
+readme = "README.pypi.md"
 homepage = "https://github.com/state-alchemists/zrb"
 repository = "https://github.com/state-alchemists/zrb"
 documentation = "https://github.com/state-alchemists/zrb"

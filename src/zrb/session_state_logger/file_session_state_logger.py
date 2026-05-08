@@ -1,15 +1,10 @@
 import datetime
 import os
-from typing import TYPE_CHECKING, Callable
+from typing import Callable
 
+from zrb.session_state_log.session_state_log import SessionStateLog, SessionStateLogList
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 from zrb.util.file import read_file, write_file
-
-if TYPE_CHECKING:
-    from zrb.session_state_log.session_state_log import (
-        SessionStateLog,
-        SessionStateLogList,
-    )
 
 
 class FileSessionStateLogger(AnySessionStateLogger):
@@ -39,7 +34,6 @@ class FileSessionStateLogger(AnySessionStateLogger):
         write_file(os.path.join(timeline_dir_path, session_log.name), "")
 
     def read(self, session_name: str) -> "SessionStateLog":
-        from zrb.session_state_log.session_state_log import SessionStateLog
 
         session_file_path = self._get_session_file_path(session_name)
         return SessionStateLog.model_validate_json(read_file(session_file_path))
@@ -52,7 +46,6 @@ class FileSessionStateLogger(AnySessionStateLogger):
         page: int = 0,
         limit: int = 10,
     ) -> "SessionStateLogList":
-        from zrb.session_state_log.session_state_log import SessionStateLogList
 
         matching_sessions = []
         # Traverse the timeline directory and filter sessions

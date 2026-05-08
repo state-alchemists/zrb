@@ -8,6 +8,11 @@ reject it with ``"invalid message content type: <nil>"``.
 This module applies the fix once at import time by overriding
 ``_MapModelResponseContext._into_message_param`` to omit ``content`` entirely
 when ``tool_calls`` are present, which is valid per the OpenAI API spec.
+
+This is the *serialization-layer* fix; `history_utils.filter_nil_content` is
+the complementary *object-layer* fix that runs before every model call. See
+docs/advanced-topics/maintainer-guide.md#the-openai-serializer-patch
+for the full picture (and why both layers exist).
 """
 
 

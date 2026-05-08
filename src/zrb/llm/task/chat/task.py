@@ -1,3 +1,19 @@
+"""`LLMChatTask` — the conversational task type that powers `zrb llm chat`.
+
+Wires together: tools/skills/hooks resolution, UI factory selection (default
+TUI, std-out, http, multi-UI), approval-channel orchestration, history
+manager + snapshot lifecycle, and the inner `LLMTask` execution. Heavy.
+Most of the behaviour is decomposed into:
+
+  builder_mixin.py - construct the inner LLMTask (model, tools, prompts)
+  runner_mixin.py  - resolve UIs/triggers/custom commands, run the loop
+
+For the public API and authoring patterns, see:
+  docs/task-types/llmchat-task.md
+For the end-to-end request lifecycle (CLI -> LLMChatTask -> agent run -> UI),
+see docs/advanced-topics/llm-chat-lifecycle.md.
+"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, AsyncIterable, Callable
@@ -555,6 +571,8 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         capabilities: "list[AbstractCapability[Any]]",
     ) -> LLMTask:
         """Create the inner LLMTask that handles the actual processing."""
+        # lazy: zrb.llm.ui.* and zrb.llm.tool_call.handler sit downstream of
+        # llm_task; hoisting these to module-top creates a circular import.
         from zrb.llm.tool_call.handler import ToolCallHandler
         from zrb.llm.ui.std_ui import StdUI
 
@@ -603,6 +621,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         if len(self._approval_channels) == 1:
             effective_approval_channel = self._approval_channels[0]
         elif len(self._approval_channels) > 1:
+            # lazy: same circular reason as the imports earlier in this class.
             from zrb.llm.approval import MultiplexApprovalChannel
 
             effective_approval_channel = MultiplexApprovalChannel(
@@ -678,6 +697,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         self, ui: "UIProtocol", initial_conversation_name: str
     ) -> str:
         """Get the current conversation name from UI or fallback to initial name."""
+        # lazy: circular — see imports at top of class.
         from zrb.llm.ui.base.ui import BaseUI
 
         if isinstance(ui, BaseUI):

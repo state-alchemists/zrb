@@ -5,9 +5,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from zrb.context.any_context import AnyContext
+from zrb.context.context import Context
+from zrb.context.shared_context import SharedContext
 from zrb.llm.agent.common import create_agent
-from zrb.llm.agent.subagent.loader_mixin import LoaderMixin
-from zrb.llm.agent.subagent.search_mixin import SearchMixin
+from zrb.llm.agent.subagent.manager.loader_mixin import LoaderMixin
+from zrb.llm.agent.subagent.manager.search_mixin import SearchMixin
 from zrb.llm.agent.subagent.yolo import make_yolo_inheritance_checker
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.prompt.tool_guidance import (
@@ -223,8 +225,6 @@ class SubAgentManager(LoaderMixin, SearchMixin):
                 pass
 
         if ctx is None:
-            from zrb.context.context import Context
-            from zrb.context.shared_context import SharedContext
 
             ctx = Context(
                 shared_ctx=SharedContext(),

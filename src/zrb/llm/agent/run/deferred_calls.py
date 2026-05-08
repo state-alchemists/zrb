@@ -19,6 +19,7 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
+from zrb.llm.approval.approval_channel import ApprovalContext
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.tool_call.handler import ToolCallHandler
@@ -137,7 +138,6 @@ async def _resolve_approval(
     approval_channel: "ApprovalChannel | None",
 ):
     """Run the three-tier approval cascade for a single deferred call."""
-    from zrb.llm.approval.approval_channel import ApprovalContext
 
     # Priority 1: Tool policy (automatic approval based on rules)
     if isinstance(effective_tool_confirmation, ToolCallHandler):

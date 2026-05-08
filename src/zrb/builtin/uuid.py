@@ -1,3 +1,5 @@
+import uuid
+
 from zrb.builtin.group import (
     uuid_group,
     uuid_v1_group,
@@ -32,7 +34,6 @@ from zrb.task.make_task import make_task
     alias="generate",
 )
 def generate_uuid_v1(ctx: AnyContext) -> str:
-    import uuid
 
     result = str(
         uuid.uuid1(
@@ -64,7 +65,6 @@ def generate_uuid_v1(ctx: AnyContext) -> str:
     alias="generate",
 )
 def generate_uuid_v3(ctx: AnyContext) -> str:
-    import uuid
 
     ns_map = {
         "dns": uuid.NAMESPACE_DNS,
@@ -85,7 +85,6 @@ def generate_uuid_v3(ctx: AnyContext) -> str:
     alias="generate",
 )
 def generate_uuid_v4(ctx: AnyContext) -> str:
-    import uuid
 
     result = str(uuid.uuid4())
     ctx.print(result)
@@ -115,7 +114,6 @@ uuid_group.add_task(generate_uuid_v4, alias="generate")
     alias="generate",
 )
 def generate_uuid_v5(ctx: AnyContext) -> str:
-    import uuid
 
     ns_map = {
         "dns": uuid.NAMESPACE_DNS,
@@ -137,7 +135,6 @@ def generate_uuid_v5(ctx: AnyContext) -> str:
     alias="validate",
 )
 def validate_uuid(ctx: AnyContext) -> bool:
-    import uuid
 
     try:
         uuid.UUID(ctx.input.id, version=1)
@@ -156,7 +153,6 @@ def validate_uuid(ctx: AnyContext) -> bool:
     alias="validate",
 )
 def validate_uuid_v1(ctx: AnyContext) -> bool:
-    import uuid
 
     try:
         uuid.UUID(ctx.input.id, version=1)
@@ -175,7 +171,6 @@ def validate_uuid_v1(ctx: AnyContext) -> bool:
     alias="validate",
 )
 def validate_uuid_v3(ctx: AnyContext) -> bool:
-    import uuid
 
     try:
         uuid.UUID(ctx.input.id, version=3)
@@ -194,7 +189,6 @@ def validate_uuid_v3(ctx: AnyContext) -> bool:
     alias="validate",
 )
 def validate_uuid_v4(ctx: AnyContext) -> bool:
-    import uuid
 
     try:
         uuid.UUID(ctx.input.id, version=4)
@@ -213,7 +207,6 @@ def validate_uuid_v4(ctx: AnyContext) -> bool:
     alias="validate",
 )
 def validate_uuid_v5(ctx: AnyContext) -> bool:
-    import uuid
 
     try:
         uuid.UUID(ctx.input.id, version=5)

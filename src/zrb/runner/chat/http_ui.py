@@ -11,8 +11,11 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+from zrb.llm.approval.approval_channel import ApprovalContext
+from zrb.llm.ui import EventDrivenUI, UIConfig
 from zrb.runner.chat.chat_session_manager import ChatSessionManager
 from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
+from zrb.util.cli.style import remove_style
 
 
 def create_http_ui_factory(
@@ -22,9 +25,6 @@ def create_http_ui_factory(
     approval_channel: HTTPChatApprovalChannel,
 ):
     """Build a UI factory closed over per-session HTTP collaborators."""
-    from zrb.llm.approval.approval_channel import ApprovalContext
-    from zrb.llm.ui import EventDrivenUI, UIConfig
-    from zrb.util.cli.style import remove_style
 
     class HTTPUI(EventDrivenUI):
         def __init__(self, **kwargs):

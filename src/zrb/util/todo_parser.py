@@ -4,14 +4,10 @@ from __future__ import annotations
 
 import datetime
 import re
-from typing import TYPE_CHECKING
 
 from zrb.util.file import read_file, write_file
 from zrb.util.string.name import get_random_name
-
-if TYPE_CHECKING:
-    from zrb.util.todo_model import TodoTaskModel
-
+from zrb.util.todo_model import TodoTaskModel
 
 TODO_TXT_PATTERN = re.compile(
     r"^(?P<status>x)?\s*"  # Optional completion mark ('x')
@@ -80,7 +76,6 @@ def save_todo_list(todo_file_path: str, todo_list: list["TodoTaskModel"]):
 
 def line_to_todo_task(line: str) -> "TodoTaskModel":
     """Parse a single todo.txt line into a `TodoTaskModel`."""
-    from zrb.util.todo_model import TodoTaskModel
 
     match = TODO_TXT_PATTERN.match(line)
     if not match:

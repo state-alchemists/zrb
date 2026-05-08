@@ -50,6 +50,10 @@ async def search_internet(
 
     Requires SERPAPI_KEY, BRAVE_API_KEY, or SearXNG configuration.
     """
+    # lazy: backend modules are kept lazy so tests can patch
+    # `zrb.llm.tool.search.<backend>.search_internet` at the source path
+    # and have the patch take effect inside this function. Hoisting would
+    # bind the names at module-load and bypass test mocks.
     method = CFG.SEARCH_INTERNET_METHOD.strip().lower()
     if method == "serpapi" and CFG.SERPAPI_KEY:
         from zrb.llm.tool.search.serpapi import search_internet as serpapi_search

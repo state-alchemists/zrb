@@ -14,13 +14,30 @@ from typing import TYPE_CHECKING
 from zrb.llm.hook.interface import HookEvent
 
 if TYPE_CHECKING:
+    from typing import Any
+
     from prompt_toolkit.key_binding import KeyBindings
+    from pydantic_ai.messages import UserContent
 
     from zrb.task.any_task import AnyTask
 
 
 class KeybindingsMixin:
     """Application key bindings for the default UI."""
+
+    # Host-class contract: state owned by `BaseUI.__init__` and the default
+    # `UI.__init__`. Declared here so static type checkers can verify
+    # accesses; the block does not run at runtime.
+    if TYPE_CHECKING:
+        # From BaseUI
+        _background_tasks: set[asyncio.Task]
+        _conversation_session_name: str
+        _is_thinking: bool
+        _pending_attachments: list["UserContent"]
+        _running_llm_task: asyncio.Task | None
+        # From default UI (prompt_toolkit widgets)
+        _input_field: Any
+        _output_field: Any
 
     def setup_app_keybindings(
         self, app_keybindings: "KeyBindings", llm_task: "AnyTask"
@@ -63,6 +80,9 @@ class KeybindingsMixin:
             clipboard = event.app.clipboard
 
             async def _handle_paste():
+                # lazy: tests patch `zrb.llm.util.clipboard.get_clipboard_image`
+                # at the source path; hoisting would bind the name at
+                # module-load and bypass the mock.
                 from zrb.llm.util.clipboard import (
                     get_clipboard_image,
                     missing_tool_hint,

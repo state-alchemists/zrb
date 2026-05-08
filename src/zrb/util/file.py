@@ -1,6 +1,8 @@
+import base64
 import fnmatch
 import os
 import re
+from pathlib import Path
 from typing import Literal
 
 
@@ -28,8 +30,6 @@ def read_file(file_path: str, replace_map: dict[str, str] | None = None) -> str:
             content = content.replace(key, val)
         return content
     except Exception:
-        import base64
-        from pathlib import Path
 
         data = Path(abs_file_path).read_bytes()
         return base64.b64encode(data).decode("ascii")

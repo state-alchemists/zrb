@@ -102,7 +102,7 @@ def test_sub_agent_manager_add_tool_list_public(manager):
     )
     manager.add_agent(agent_def)
 
-    with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create:
+    with patch("zrb.llm.agent.subagent.manager.manager.create_agent") as mock_create:
         manager.create_agent("tool-test")
         resolved_tools = mock_create.call_args.kwargs["tools"]
         assert t1 in resolved_tools

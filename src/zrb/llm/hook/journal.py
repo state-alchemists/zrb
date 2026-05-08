@@ -17,6 +17,7 @@ The hook DOES:
 
 from zrb.config.config import CFG
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
+from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.prompt.prompt import get_journal_reminder_prompt
 
@@ -100,7 +101,6 @@ def create_journaling_hook_factory():
     Usage:
         llm_chat.add_hook_factory(create_journaling_hook_factory())
     """
-    from zrb.llm.hook.manager import HookManager
 
     def factory(manager: HookManager):
         # Check config at execution time (not registration time)

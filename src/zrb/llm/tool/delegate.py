@@ -4,10 +4,15 @@ from typing import Any, TextIO
 
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.agent.run.runtime_state import get_current_ui
-from zrb.llm.agent.subagent.manager import (
+
+# Import directly from the inner module to avoid a circular import: the
+# subagent package's __init__ triggers `register_default_tools`, which loads
+# zrb.llm.tool, which loads this module — so the package __init__ is still
+# mid-load when delegate.py executes its imports.
+from zrb.llm.agent.subagent.manager.manager import (
     SubAgentManager,
 )
-from zrb.llm.agent.subagent.manager import (
+from zrb.llm.agent.subagent.manager.manager import (
     sub_agent_manager as default_sub_agent_manager,
 )
 from zrb.llm.config.limiter import llm_limiter

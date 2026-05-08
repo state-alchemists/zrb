@@ -35,6 +35,9 @@ source .venv/bin/activate && poetry lock && poetry install
 | `src/zrb/llm_plugin/` | Built-in skills (`skills/`) and sub-agent definitions (`agents/`). Each skill is a `SKILL.md` or `SKILL.py` file; each agent is a `*.agent.md` file. |
 
 ### LLM Integration (`src/zrb/llm/`)
+
+> 💡 For a top-down tour of how `zrb llm chat "..."` flows through these directories — CLI → task → agent run → UI streaming → history persistence — see `docs/advanced-topics/llm-chat-lifecycle.md`.
+
 | Directory | Purpose |
 |-----------|---------|
 | `llm/agent/` | Agent execution and sub-agent management. Split into `run/` (`runner.py`, `retry_loop.py`, `history_utils.py`, `error_classifier.py`, etc.) and `subagent/` (`manager.py`, `loader_mixin.py`, `search_mixin.py`, etc.). `common.py` provides `create_agent`. |
@@ -131,6 +134,19 @@ llm_chat.prompt_manager.add_tool_guidance(
 - **Modularity**: Functions should be concise (~30-50 lines)
 - **Readability**: Place helper functions below their callers
 - **Error Handling**: For LLM tool errors, include `[SYSTEM SUGGESTION]` prefix with actionable guidance
+
+### Imports
+
+Default to module-level imports. An in-function import must justify itself in one of these ways — and should be tagged with a `# lazy: <reason>` comment so future audits can recognize the pattern:
+
+1. **Heavy third-party deferral.** `pydantic_ai`, `prompt_toolkit`, `mcp`, `fastapi`, `boto3`, `anthropic`, `openai`, `chromadb`, `playwright`, and other extras-marked packages are slow to import and not needed on every code path. Keep them lazy.
+2. **Transitively heavy via internal.** An internal `zrb.*` module that itself eagerly imports a heavy third-party package (e.g. `zrb.llm.agent` pulls in `pydantic_ai`) inherits the same rule. Hoisting it silently re-introduces the slow load.
+3. **Circular import.** When module A and B refer to each other, the inner one stays inside a function. The comment should name the cycle, e.g. `# lazy: circular — tool → ui → llm_task → here`.
+4. **Test patch seam.** Tests sometimes patch a function at its source path (`patch("zrb.X.Y.fn")`) and rely on the patch taking effect inside a consumer. Hoisting the import binds the name at consumer-load time and bypasses the mock. Keep the import lazy and note it: `# lazy: tests patch <path>; hoisting bypasses the mock`.
+
+A comment such as `# noqa: F401` belongs on imports that exist *only* as a test-patch attribute on the module itself — verify the import is actually patched against working code first; cargo-cult patches that target a name nothing reads should be deleted, not preserved.
+
+`flake8 src/zrb --select=F` runs as part of `./zrb-test.sh` and gates regressions: any unused or duplicate import in `src/` fails the test run early.
 
 ### Test Guidelines
 

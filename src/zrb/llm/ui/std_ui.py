@@ -1,5 +1,9 @@
 import asyncio
+import subprocess
+import sys
 from typing import Any, TextIO
+
+from zrb.util.cli.style import stylize_faint
 
 
 class StdUI:
@@ -7,7 +11,6 @@ class StdUI:
 
     async def ask_user(self, prompt: str) -> str:
         """Prompt user via CLI input."""
-        import sys
 
         from prompt_toolkit import PromptSession
         from prompt_toolkit.output import create_output
@@ -41,9 +44,6 @@ class StdUI:
         kind: str = "text",
     ):
         """Print output to stderr."""
-        import sys
-
-        from zrb.util.cli.style import stylize_faint
 
         content = sep.join(str(v) for v in values) + end
         if kind != "text":
@@ -73,7 +73,6 @@ class StdUI:
         self, cmd: str | list[str], shell: bool = False
     ) -> Any:
         """Run interactive commands using subprocess."""
-        import subprocess
 
         def _run():
             return subprocess.run(cmd, shell=shell)

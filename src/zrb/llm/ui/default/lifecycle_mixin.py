@@ -9,14 +9,42 @@ discard pattern repeated for each background task.
 from __future__ import annotations
 
 import asyncio
+import traceback as tb_lib
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterable, Callable
+    from typing import Any
+
     from prompt_toolkit import Application
+
+    from zrb.llm.snapshot.manager import SnapshotManager
+    from zrb.llm.task.llm_task import LLMTask
 
 
 class LifecycleMixin:
     """Background-task lifecycle and exit handling for the default UI."""
+
+    # Host-class contract: state owned by `BaseUI.__init__` and the default
+    # `UI.__init__`. Declared here so static type checkers can verify
+    # accesses; the block does not run at runtime.
+    if TYPE_CHECKING:
+        # From BaseUI
+        _background_tasks: set[asyncio.Task]
+        _initial_message: Any
+        _llm_task: LLMTask
+        _message_queue: asyncio.Queue
+        _process_messages_task: asyncio.Task | None
+        _snapshot_manager: SnapshotManager | None
+        _system_info_task: asyncio.Task | None
+        _trigger_tasks: list[asyncio.Task]
+        _triggers: list[Callable[[], AsyncIterable[Any]]]
+        # From default UI
+        _application: Application
+        _capture: Any
+        _input_field: Any
+        _output_field: Any
+        _refresh_task: asyncio.Task | None
 
     async def cleanup_background_tasks(self):
         """Cancel and clean up all background tasks."""
@@ -38,7 +66,6 @@ class LifecycleMixin:
 
     def handle_application_run_error(self, exc: Exception):
         """Handle error during application.run_async (public API)."""
-        import traceback as tb_lib
 
         self.append_to_output(f"[Error: {exc}]\n{tb_lib.format_exc()}")
 

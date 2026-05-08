@@ -1,3 +1,21 @@
+"""LLM agent run loop: drives `pydantic_ai.Agent`, sanitizes history, retries.
+
+Owns the `current_ui`, `current_tool_confirmation`, `current_yolo`, and
+`current_approval_channel` `ContextVar`s — set on entry to `run_agent()`,
+reset in `finally`. Every other module reads them through the wrappers in
+`runtime_state.py` (re-exported from `zrb.contextvars`).
+
+Sibling files in this package each own one concern:
+  retry_loop.py       - decide-retry-or-not after a model exception
+  history_utils.py    - sanitize_history(), strip_thinking_parts(), etc.
+  error_classifier.py - is_invalid_tool_call_error / is_missing_reasoning_*
+  openai_patch.py     - monkey-patch for `content: null` serialization
+  deferred_calls.py   - resume after deferred tool requests
+
+For the *why* behind history sanitization and the OpenAI patch, see
+docs/advanced-topics/maintainer-guide.md#llm-history-sanitization-layer.
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -157,6 +175,10 @@ async def run_agent(
 def _resolve_context_dependencies(
     ui, tool_confirmation, yolo, approval_channel, hook_manager
 ):
+    # lazy: zrb.llm.ui.* and zrb.llm.approval.* are imported inside this
+    # function to break a circular import — zrb.llm.agent is loaded by
+    # those packages' init paths, so module-top imports here would re-enter
+    # zrb.llm.agent before its __init__ has finished.
     from zrb.llm.ui.std_ui import StdUI
 
     ui_arg = ui if ui is not None else current_ui.get()
@@ -234,6 +256,8 @@ def _setup_print_and_events(print_fn, event_handler, effective_ui):
 
     effective_event_handler = event_handler
     if effective_event_handler is None:
+        # lazy: zrb.llm.util.stream_response transitively pulls pydantic_ai;
+        # keeping this lazy preserves cold-start latency.
         from zrb.llm.util.stream_response import create_event_handler
 
         def _event_print_fn(text: str, kind: str) -> None:

@@ -4,7 +4,6 @@ from zrb.config.config import CFG
 from zrb.config.web_auth_config import WebAuthConfig
 from zrb.group.any_group import AnyGroup
 from zrb.runner.web_route.jinja_env import get_jinja_env
-from zrb.runner.web_util.user import get_user_from_request
 
 if TYPE_CHECKING:
     # We want fastapi to only be loaded when necessary to decrease footprint

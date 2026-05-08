@@ -6,6 +6,7 @@ from typing import Any
 from zrb.config.config import CFG
 from zrb.llm.approval.approval_channel import ApprovalContext, ApprovalResult
 from zrb.llm.tool_call.edit_util import edit_content_via_editor
+from zrb.llm.tool_call.handler import ToolCallHandler
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
@@ -38,8 +39,6 @@ class TerminalApprovalChannel:
 
         # Format the approval message
         from pydantic_ai import ToolCallPart
-
-        from zrb.llm.tool_call.handler import ToolCallHandler
 
         # Create a mock ToolCallPart for formatting
         call = ToolCallPart(

@@ -1,4 +1,6 @@
 from pydantic_ai.messages import (
+    BuiltinToolCallPart,
+    BuiltinToolReturnPart,
     ModelRequest,
     ModelResponse,
     SystemPromptPart,
@@ -128,3 +130,38 @@ def test_filter_nil_content():
     assert isinstance(m3.parts[0], TextPart)
     assert m3.parts[0].content == "."
     assert isinstance(m3.parts[1], ToolCallPart)
+
+
+def test_filter_nil_content_preserves_builtin_tool_call_part():
+    # BuiltinToolCallPart is a dataclass without a `content` field; it must
+    # pass through filter_nil_content untouched rather than crashing the
+    # sanitizer when the model uses provider-side tools (e.g. web_search).
+    btc = BuiltinToolCallPart(tool_name="web_search", args="{}")
+    msg = ModelResponse(parts=[btc, TextPart(content="ok")])
+
+    filtered = filter_nil_content([msg])
+
+    assert len(filtered) == 1
+    out = filtered[0]
+    assert isinstance(out, ModelResponse)
+    assert len(out.parts) == 2
+    assert isinstance(out.parts[0], BuiltinToolCallPart)
+    assert out.parts[0].tool_name == "web_search"
+
+
+def test_filter_nil_content_uses_null_for_builtin_tool_return():
+    # BuiltinToolReturnPart is a sibling of ToolReturnPart (both extend
+    # BaseToolReturnPart). A nil content must become "null", not ".",
+    # so the placeholder is parseable as a tool result.
+    msg = ModelRequest(
+        parts=[
+            BuiltinToolReturnPart(
+                tool_name="web_search", content=None, tool_call_id="1"
+            ),
+        ]
+    )
+
+    filtered = filter_nil_content([msg])
+
+    assert len(filtered) == 1
+    assert filtered[0].parts[0].content == "null"

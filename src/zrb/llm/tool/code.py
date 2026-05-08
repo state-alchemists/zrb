@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 
@@ -221,7 +222,6 @@ async def _get_file_metadatas_with_lsp(
     This is more token-efficient than reading full file content for structure queries.
     Falls back to reading file content if LSP is not available for the file type.
     """
-    import asyncio
 
     metadata_list = []
     lsp_tasks = []

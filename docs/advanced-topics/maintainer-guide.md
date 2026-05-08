@@ -18,6 +18,8 @@ This guide is for developers who contribute to or maintain the Zrb project itsel
 - [LLM History Sanitization Layer](#llm-history-sanitization-layer)
 - [Quick Reference](#quick-reference)
 
+> 💡 **First time tracing a chat request?** Start with [LLM Chat Request Lifecycle](./llm-chat-lifecycle.md) — it walks `zrb llm chat "..."` from CLI to UI streaming, with file paths at each step. This guide goes deeper on the internals; that one stitches them together.
+
 ---
 
 ## Publishing Zrb
@@ -136,11 +138,11 @@ To understand Zrb's core design decisions (such as the strict use of `asyncio`, 
 
 ## Context Propagation Internals
 
-Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are five `ContextVar` instances across the codebase, split into two layers.
+Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are seven `ContextVar` instances across the codebase, split into three layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
 
-### The Two Layers
+### The Three Layers
 
-**Layer 1 — Task execution** (`src/zrb/context/any_context.py:229`):
+**Layer 1 — Task execution** (`src/zrb/context/any_context.py`):
 
 ```python
 current_ctx: ContextVar[AnyContext | None] = ContextVar("current_ctx", default=None)
@@ -148,7 +150,7 @@ current_ctx: ContextVar[AnyContext | None] = ContextVar("current_ctx", default=N
 
 Holds the active `Context` for the currently executing task. Set at the start of `execute_task_action()`, reset in its `finally` block.
 
-**Layer 2 — LLM agent execution** (`src/zrb/llm/agent/run_agent.py`):
+**Layer 2 — LLM agent execution** (`src/zrb/llm/agent/run/runner.py`, `src/zrb/llm/approval/approval_channel.py`):
 
 | Variable | Type | Purpose |
 |---|---|---|
@@ -158,6 +160,15 @@ Holds the active `Context` for the currently executing task. Set at the start of
 | `current_approval_channel` | `ApprovalChannel \| None` | Remote approval handler |
 
 All four are set at the start of `run_agent()` and reset in its `finally` block.
+
+**Layer 3 — Tool ambient state** (`src/zrb/llm/tool/worktree.py`, `src/zrb/llm/tool/plan.py`):
+
+| Variable | Type | Purpose |
+|---|---|---|
+| `active_worktree` | `str` | Path of the worktree the agent is currently operating in (set by `EnterWorktree`, cleared by `ExitWorktree`) |
+| `_current_session` | `str` | Session id used by the todo tools so they default to the right conversation when called without an explicit `session=` |
+
+Set/cleared by their owning tool implementations rather than at a single entry point.
 
 ### The Scoping Pattern
 

@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import io
 import os
+import shutil
 import sys
 import tempfile
 
@@ -207,13 +208,10 @@ def missing_tool_hint() -> str:
 
     if os.environ.get("WAYLAND_DISPLAY"):
         # Only show the hint when wl-paste is actually missing.
-        import shutil
 
         if shutil.which("wl-paste") is None:
             return "  Install wl-clipboard (wl-paste) for clipboard image support.\n"
         return ""
-
-    import shutil
 
     if shutil.which("xclip") is None:
         return "  Install xclip for clipboard image support.\n"
