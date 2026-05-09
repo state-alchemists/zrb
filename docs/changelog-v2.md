@@ -1,5 +1,15 @@
 🔖 [Documentation Home](../README.md)
 
+## Unreleased
+
+- **Feature: Multimodal Attachment Pipeline**:
+  - New `LLM_MULTIMODAL_MODEL` env var / `LLMConfig.multimodal_model` property for designating a vision-capable model used to describe attachments when the main model is text-only.
+  - New `LLM_MAX_IMAGE_DIMENSION` (default `1568`, Anthropic no-extra-cost tier) and `LLM_IMAGE_JPEG_QUALITY` (default `85`) knobs control image scaling.
+  - Pasted (`Alt+V` / `Ctrl+V`) and `/attach`-ed images are auto-scaled to the cap on the longest edge before being added to the prompt; opaque images re-encode to JPEG, alpha-bearing images stay PNG.
+  - Before each agent run, `runner._apply_multimodal_fallback` walks the prompt content: if the main model can't consume an image/audio attachment, the multimodal model describes it and the description text replaces the binary; if no multimodal model is configured, the attachment is dropped with a `⚠️ Dropped <modality> attachment` warning rather than silently sent to a provider that will reject or ignore it.
+  - New utilities at `src/zrb/llm/util/`: `image_scale.py` (Pillow-backed downscale), `modality.py` (per-provider name-pattern detection of image/audio/video support), `multimodal_describe.py` (one-shot describe sub-agent + substitution helper).
+  - Audio attachments via `/attach` get the same describe/transcribe fallback. Video attachments are kept as-is for Gemini-class models, dropped with a warning otherwise (auto frame-extraction is out of scope).
+
 ## 2.21.1 (April 16, 2026)
 
 - **Bug Fix: Runner CLI UnboundLocalError**:

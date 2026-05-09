@@ -12,6 +12,7 @@ import asyncio
 from typing import TYPE_CHECKING
 
 from zrb.llm.hook.interface import HookEvent
+from zrb.llm.util.image_scale import scale_image_bytes
 
 if TYPE_CHECKING:
     from typing import Any
@@ -93,14 +94,21 @@ class KeybindingsMixin:
                 if img_bytes is not None:
                     from pydantic_ai import BinaryContent
 
-                    attachment = BinaryContent(data=img_bytes, media_type="image/png")
-                    self._pending_attachments.append(attachment)
-                    size_kb = len(img_bytes) / 1024
-                    self.append_to_output(
-                        stylize_faint(
-                            f"\n  📸 Image pasted from clipboard ({size_kb:.1f} KB)\n"
-                        )
+                    scaled = scale_image_bytes(img_bytes, media_type="image/png")
+                    attachment = BinaryContent(
+                        data=scaled.data, media_type=scaled.media_type
                     )
+                    self._pending_attachments.append(attachment)
+                    size_kb = scaled.final_bytes / 1024
+                    if scaled.scaled:
+                        saved_kb = scaled.saved_bytes / 1024
+                        msg = (
+                            f"\n  📸 Image pasted from clipboard ({size_kb:.1f} KB, "
+                            f"scaled — saved {saved_kb:.1f} KB)\n"
+                        )
+                    else:
+                        msg = f"\n  📸 Image pasted from clipboard ({size_kb:.1f} KB)\n"
+                    self.append_to_output(stylize_faint(msg))
                     self.invalidate_ui()
                 else:
                     hint = missing_tool_hint()

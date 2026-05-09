@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.context.any_context import AnyContext
+from zrb.llm.util.image_scale import scale_image_bytes
 
 if TYPE_CHECKING:
     from pydantic_ai.messages import UserContent
@@ -12,6 +13,7 @@ def normalize_attachments(
     attachments: "list[UserContent]", print_fn: Callable[[str], Any] = print
 ) -> "list[UserContent]":
 
+    # lazy: pydantic_ai is heavy; only loaded when there are attachments to wrap.
     from pydantic_ai import BinaryContent
 
     final_attachments = []
@@ -26,6 +28,10 @@ def normalize_attachments(
                 if media_type:
                     try:
                         data = Path(path).read_bytes()
+                        if media_type.startswith("image/"):
+                            scaled = scale_image_bytes(data, media_type=media_type)
+                            data = scaled.data
+                            media_type = scaled.media_type
                         final_attachments.append(
                             BinaryContent(data=data, media_type=media_type)
                         )
