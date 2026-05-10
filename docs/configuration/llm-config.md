@@ -36,6 +36,7 @@ These variables define which LLM Zrb uses for its primary reasoning and how it c
 |----------|-------------|---------|
 | `ZRB_LLM_MODEL` | Primary LLM model (`provider:model-name`) | `openai:gpt-4o` (if unset) |
 | `ZRB_LLM_SMALL_MODEL` | Faster model for background tasks | Falls back to `ZRB_LLM_MODEL` |
+| `ZRB_LLM_MULTIMODAL_MODEL` | Model for multimodal tasks (image analysis) | Falls back to `ZRB_LLM_MODEL` |
 | `ZRB_LLM_API_KEY` | API key for your LLM provider | None |
 | `ZRB_LLM_BASE_URL` | Custom endpoint URL | None |
 
@@ -460,6 +461,8 @@ All interval and delay values are in **milliseconds**.
 | `ZRB_LLM_HISTORY_MAX_DISPLAY_CHARS` | Maximum characters shown by the `/history` command | `5000` |
 | `ZRB_LLM_HISTORY_TRUNCATE_LENGTH` | Maximum chars per field when formatting history entries | `100` |
 | `ZRB_LLM_PROJECT_DOC_MAX_CHARS` | Maximum chars loaded from each project doc file (e.g. CLAUDE.md) | `8000` |
+| `ZRB_LLM_MAX_IMAGE_DIMENSION` | Longest-edge cap (pixels) for attached images before sending to LLM | `1568` |
+| `ZRB_LLM_IMAGE_JPEG_QUALITY` | JPEG quality (1-95) for re-encoding photos; PNGs are unaffected | `85` |
 | `ZRB_CMD_BUFFER_LIMIT` | Asyncio subprocess read-buffer limit in bytes | `102400` |
 | `ZRB_LLM_UI_MAX_BUFFER_SIZE` | Maximum buffered output chars before a forced flush (event-driven UIs) | `2000` |
 
