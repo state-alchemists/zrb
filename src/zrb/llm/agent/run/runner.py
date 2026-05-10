@@ -141,6 +141,9 @@ async def run_agent(
         )
 
         prompt_content = _get_prompt_content(effective_message, attachments, print_fn)
+        prompt_content = await _apply_multimodal_fallback(
+            prompt_content, agent, effective_print_fn
+        )
 
         current_history = await _prepare_history(
             agent,
@@ -586,3 +589,31 @@ async def _acquire_rate_limit(
         notifier=notify_throtling,
     )
     return pruned_history
+
+
+async def _apply_multimodal_fallback(
+    prompt_content: Any,
+    agent: "Agent[None, Any]",
+    print_fn: Callable[..., Any],
+) -> Any:
+    """Replace binaries the main model can't consume with text descriptions.
+
+    No-op when *prompt_content* is a string or has no binaries. When the
+    main model is text-only and a multimodal model is configured, image and
+    audio attachments are routed through a one-shot describe sub-agent and
+    their textual output is inlined; unsupported attachments are dropped
+    with a warning rather than silently sent to a provider that will reject
+    or ignore them.
+    """
+    # lazy: util.multimodal_describe imports the agent stack; keeping it
+    # local avoids re-entering zrb.llm.agent during its own __init__ chain.
+    from zrb.llm.config.config import llm_config
+    from zrb.llm.util.multimodal_describe import replace_unsupported_attachments
+
+    main_model = getattr(agent, "model", None)
+    return await replace_unsupported_attachments(
+        prompt_content,
+        main_model=main_model,
+        multimodal_model=llm_config.multimodal_model,
+        print_fn=print_fn,
+    )

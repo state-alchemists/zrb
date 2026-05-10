@@ -31,6 +31,10 @@ class LLMLimitsMixin:
         self.DEFAULT_LLM_MAX_OUTPUT_CHARS: str = "100000"
         self.DEFAULT_LLM_PROJECT_DOC_MAX_CHARS: str = "8000"
         self.DEFAULT_LLM_MAX_COMPLETION_FILES: str = "5000"
+        # Image scaling — 1568px is Anthropic's no-extra-cost tier; JPEG q85 is
+        # near-lossless for screenshots while halving size vs. PNG re-encode.
+        self.DEFAULT_LLM_MAX_IMAGE_DIMENSION: str = "1568"
+        self.DEFAULT_LLM_IMAGE_JPEG_QUALITY: str = "85"
         super().__init__()
 
     @property
@@ -314,6 +318,36 @@ class LLMLimitsMixin:
     @LLM_MAX_OUTPUT_CHARS.setter
     def LLM_MAX_OUTPUT_CHARS(self, value: int):
         os.environ[f"{self.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS"] = str(value)
+
+    @property
+    def LLM_MAX_IMAGE_DIMENSION(self) -> int:
+        """Longest-edge cap (pixels) applied to attached images before send."""
+        return int(
+            get_env(
+                "LLM_MAX_IMAGE_DIMENSION",
+                self.DEFAULT_LLM_MAX_IMAGE_DIMENSION,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_MAX_IMAGE_DIMENSION.setter
+    def LLM_MAX_IMAGE_DIMENSION(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_MAX_IMAGE_DIMENSION"] = str(value)
+
+    @property
+    def LLM_IMAGE_JPEG_QUALITY(self) -> int:
+        """JPEG quality (1-95) used when re-encoding photos. Ignored for PNGs."""
+        return int(
+            get_env(
+                "LLM_IMAGE_JPEG_QUALITY",
+                self.DEFAULT_LLM_IMAGE_JPEG_QUALITY,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_IMAGE_JPEG_QUALITY.setter
+    def LLM_IMAGE_JPEG_QUALITY(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_IMAGE_JPEG_QUALITY"] = str(value)
 
     @property
     def LLM_PROJECT_DOC_MAX_CHARS(self) -> int:

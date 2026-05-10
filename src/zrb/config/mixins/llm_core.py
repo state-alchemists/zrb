@@ -14,6 +14,7 @@ class LLMCoreMixin:
     def __init__(self):
         self.DEFAULT_LLM_MODEL: str = ""
         self.DEFAULT_LLM_SMALL_MODEL: str = ""
+        self.DEFAULT_LLM_MULTIMODAL_MODEL: str = ""
         self.DEFAULT_LLM_BASE_URL: str = ""
         self.DEFAULT_LLM_API_KEY: str = ""
         self.DEFAULT_LLM_SHOW_OLLAMA_MODELS: str = "on"
@@ -47,6 +48,23 @@ class LLMCoreMixin:
                 del os.environ[f"{self.ENV_PREFIX}_LLM_SMALL_MODEL"]
         else:
             os.environ[f"{self.ENV_PREFIX}_LLM_SMALL_MODEL"] = value
+
+    @property
+    def LLM_MULTIMODAL_MODEL(self) -> str | None:
+        value = get_env(
+            "LLM_MULTIMODAL_MODEL",
+            self.DEFAULT_LLM_MULTIMODAL_MODEL,
+            self.ENV_PREFIX,
+        )
+        return None if value == "" else value
+
+    @LLM_MULTIMODAL_MODEL.setter
+    def LLM_MULTIMODAL_MODEL(self, value: str | None):
+        if value is None:
+            if f"{self.ENV_PREFIX}_LLM_MULTIMODAL_MODEL" in os.environ:
+                del os.environ[f"{self.ENV_PREFIX}_LLM_MULTIMODAL_MODEL"]
+        else:
+            os.environ[f"{self.ENV_PREFIX}_LLM_MULTIMODAL_MODEL"] = value
 
     @property
     def LLM_BASE_URL(self) -> str | None:

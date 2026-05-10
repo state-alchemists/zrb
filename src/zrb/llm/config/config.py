@@ -17,6 +17,7 @@ class LLMConfig:
     def __init__(self):
         self._model: "str | Model | None" = None
         self._small_model: "str | Model | None" = None
+        self._multimodal_model: "str | Model | None" = None
         self._model_settings: "ModelSettings | None" = None
         self._system_prompt: str | None = None
         self._summarization_prompt: str | None = None
@@ -67,6 +68,27 @@ class LLMConfig:
     @small_model.setter
     def small_model(self, value: "str | Model"):
         self._small_model = value
+
+    @property
+    def multimodal_model(self) -> "str | Model | None":
+        """
+        The multimodal LLM used to describe images/audio when the main model
+        is text-only. Returns None when unset — callers should fall back to
+        dropping the attachment with a warning rather than silently sending
+        binary content the main model cannot interpret.
+        """
+        if self._multimodal_model is not None:
+            return self._multimodal_model
+        model = CFG.LLM_MULTIMODAL_MODEL
+        if not model:
+            return None
+        if isinstance(model, str):
+            return self._resolve_model_by_name(model)
+        return model
+
+    @multimodal_model.setter
+    def multimodal_model(self, value: "str | Model | None"):
+        self._multimodal_model = value
 
     # --- Model Settings ---
 

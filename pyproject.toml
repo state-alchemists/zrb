@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zrb"
-version = "2.25.3"
+version = "2.26.0"
 description = "Your Automation Powerhouse"
 authors = ["Go Frendi Gunawan <gofrendiasgard@gmail.com>"]
 license = "AGPL-3.0-or-later"
@@ -50,7 +50,7 @@ ulid-py = "^1.1.0"
 psutil = "^7.0.0"
 
 # NOTE: Look at https://github.com/pydantic/pydantic-ai/blob/main/pydantic_ai_slim/pyproject.toml
-pydantic-ai-slim = "~1.90.0"
+pydantic-ai-slim = "~1.93.0"
 
 
 # NOTE: Make sure the following dependencies are not conflicting with pydantic-ai-slim
@@ -87,9 +87,11 @@ pyperclip = "^1.11.0"
 # We pin >=12.2.0 to ensure the patched version is used.
 Pillow = ">=12.2.0"
 
-# Security fix: CVE-2026-34070
-# langchain-core is a transitive dependency via voyageai
-langchain-core = {version = ">=1.2.28", optional = true}
+# Security fix: CVE-2026-34070 and CVE-2026-44843 (GHSA-pjwx-r37v-7724) - deserialization
+# uses overly broad object allowlists, enabling prompt injection / credential disclosure
+# via attacker-controlled structured input. langchain-core is a transitive dependency via voyageai.
+# We pin >=1.3.3 to cover both advisories.
+langchain-core = {version = ">=1.3.3", optional = true}
 
 # Security fix: CVE-2026-23491 - DoS via uncontrolled recursion in ASN.1 decoding
 # pyasn1 is a transitive dependency via google-auth -> pyasn1-modules and google-auth -> rsa.
@@ -111,10 +113,11 @@ aiohttp = {version = ">=3.13.4", optional = true}
 # We pin >=46.0.7 to ensure the patched version is used.
 cryptography = ">=46.0.7"
 
-# Security fix: CVE-2026-40347 - DoS via crafted multipart/form-data with large preamble/epilogue.
+# Security fix: CVE-2026-42561 (GHSA-pp6c-gr5w-3c5g) - CPU exhaustion via unlimited
+# multipart header count and size in form-data submissions.
 # python-multipart is a transitive dependency via mcp.
-# We pin >=0.0.26 to ensure the patched version is used.
-python-multipart = ">=0.0.26"
+# We pin >=0.0.27 to ensure the patched version is used.
+python-multipart = ">=0.0.27"
 
 # Security fix: GHSA-fv5p-p927-qmxr - SSRF via redirect bypass in HTMLHeaderTextSplitter.split_text_from_url().
 # langchain-text-splitters is a transitive dependency via voyageai.
