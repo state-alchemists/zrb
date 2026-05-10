@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Security: Bump `langchain-core` for CVE-2026-44843 (GHSA-pjwx-r37v-7724)**:
+  - Pin raised from `>=1.2.28` to `>=1.3.3` (still in the `voyageai` extra).
+  - LangChain's deserialization path used overly broad object allowlists, allowing prompt injection / credential disclosure via attacker-controlled structured input. CVSS 8.2.
+
+- **Security: Correct `python-multipart` advisory description (GHSA-pp6c-gr5w-3c5g)**:
+  - Pin unchanged at `>=0.0.27`. Comment updated — the actual issue is unbounded multipart **header count and size** causing CPU exhaustion, not the previously-described preamble/epilogue handling.
+
 - **Feature: Multimodal Attachment Pipeline**:
   - New `LLM_MULTIMODAL_MODEL` env var / `LLMConfig.multimodal_model` property for designating a vision-capable model used to describe attachments when the main model is text-only.
   - New `LLM_MAX_IMAGE_DIMENSION` (default `1568`, Anthropic no-extra-cost tier) and `LLM_IMAGE_JPEG_QUALITY` (default `85`) knobs control image scaling.

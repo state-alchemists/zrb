@@ -43,17 +43,31 @@ async def describe_binary_attachment(
     binary: "Any",
     multimodal_model: "str | Any | None" = None,
 ) -> str | None:
-    """Describe a `BinaryContent` via the configured multimodal model.
+    """Describe a `BinaryContent` via the supplied multimodal model.
+
+    The caller must pass an explicit *multimodal_model* — this function does
+    not consult `LLMConfig.multimodal_model`. That keeps the data flow
+    explicit (the runner resolves the global once and forwards it) and makes
+    tests independent of environment state.
 
     Returns the description text on success, ``None`` when:
     - the modality cannot be described (e.g. video),
-    - no multimodal model is configured,
-    - the configured model itself does not support the binary's modality, or
+    - *multimodal_model* is ``None``,
+    - the supplied model does not support the binary's modality, or
     - the sub-agent run fails.
     """
     media_type = getattr(binary, "media_type", "") or ""
     modality = media_type_modality(media_type)
     if modality not in ("image", "audio"):
+        return None
+
+    if multimodal_model is None:
+        return None
+
+    if not supports_modality(multimodal_model, modality):
+        CFG.LOGGER.warning(
+            f"Multimodal model does not support {modality}; cannot describe attachment."
+        )
         return None
 
     # lazy: avoid importing the agent stack at module-top — this util is
@@ -62,20 +76,6 @@ async def describe_binary_attachment(
     from zrb.llm.agent import create_agent, run_agent
     from zrb.llm.config.config import llm_config
     from zrb.llm.config.limiter import llm_limiter
-
-    effective = (
-        multimodal_model
-        if multimodal_model is not None
-        else llm_config.multimodal_model
-    )
-    if effective is None:
-        return None
-
-    if not supports_modality(effective, modality):
-        CFG.LOGGER.warning(
-            f"Multimodal model does not support {modality}; cannot describe attachment."
-        )
-        return None
 
     system_prompt = _IMAGE_PROMPT if modality == "image" else _AUDIO_PROMPT
     instruction = (
@@ -86,7 +86,7 @@ async def describe_binary_attachment(
 
     try:
         agent = create_agent(
-            model=llm_config.resolve_model(effective),
+            model=llm_config.resolve_model(multimodal_model),
             system_prompt=system_prompt,
             yolo=True,  # no tools, no approvals needed
         )
