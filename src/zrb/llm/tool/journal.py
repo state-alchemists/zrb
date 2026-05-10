@@ -10,7 +10,7 @@ from zrb.util.truncate import truncate_output
 
 def search_journal(query: str, case_sensitive: bool = False) -> dict[str, Any]:
     """
-    Searches for a text pattern across all journal files.
+    Searches for a regex pattern across all journal files in the configured journal directory.
 
     Returns matching lines with file names and line numbers.
     `case_sensitive=False` (default): case-insensitive search.

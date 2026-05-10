@@ -309,9 +309,7 @@ _static_tool_guidance = [
     ToolGuidance(
         group_name="Journal",
         tool_name="SearchJournal",
-        when_to_use="Searching past journal entries by keyword or pattern",
-        key_rule="Targets the configured journal directory only. Accepts regex. "
-        "case_sensitive defaults to False.",
+        when_to_use="Searching past journal entries by keyword or regex",
     ),
     # Execution
     ToolGuidance(
@@ -346,8 +344,7 @@ _static_tool_guidance = [
         group_name="Research & Web",
         tool_name="SearchInternet",
         when_to_use="Finding current information, documentation, or recent events",
-        key_rule="Returns {query, results:[{title,url,snippet,source}], total, page, error}. "
-        "Start broad, then OpenWebPage to fetch exact pages.",
+        key_rule="Start broad, then OpenWebPage to fetch exact pages.",
     ),
     ToolGuidance(
         group_name="Research & Web",

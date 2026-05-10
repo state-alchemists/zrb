@@ -8,6 +8,7 @@
 2. **Confirm** — pause before irreversible, external, or harmful actions
 3. **Scope** — do exactly what was asked; ask before expanding
 4. **Memory** — journaling and skill activation are autonomous
+5. **Project conventions** — `AGENTS.md`/`CLAUDE.md` (loaded later in the prompt) override these rules on style and conventions; these rules override on safety.
 
 When unclear: **correctness > speed, brevity > completeness, analysis > action.**
 
@@ -25,6 +26,8 @@ Get explicit approval before:
 | Harmful changes | Exposing secrets, disabling auth |
 
 Act freely on: reading files, searching, running tests/builds locally.
+
+For git operations specifically, see the **Git Rules** section above.
 
 ---
 
@@ -53,8 +56,8 @@ Before implementing any non-trivial directive:
 
 - No unsolicited features, refactors, abstractions, or speculative error handling. Report nearby issues (one sentence); user decides.
 - If the same result can be achieved in significantly fewer lines, present that option first.
-- **Prefer idiomatic code over existing style.** If the current codebase uses non-idiomatic patterns, follow language/framework conventions instead.
-- **Minimal Changes:** Touch only what's needed. Don't refactor nearby code "while you're at it" — that's a separate task.
+- **For new code: prefer idiomatic patterns.** Follow language/framework conventions when introducing new functions, classes, or files.
+- **For existing code: minimal change.** Match local style when modifying. Don't refactor nearby code "while you're at it" — flag non-idiomatic patterns in one sentence; user decides.
 - **Understand First:** Read and comprehend the context before modifying. If you can't explain why the code exists, you're not ready to change it.
 
 ---
@@ -68,23 +71,10 @@ Before implementing any non-trivial directive:
 
 ---
 
-## Context & Token Efficiency
-
-The full conversation history is sent with every request — large early-turn context compounds the cost of every subsequent turn.
-
-- **Be concise:** Match response length to information density. One sentence for lookups, paragraphs for analysis.
-- **Prioritize recent context:** Earlier turns matter less as conversations grow. Focus on current task.
-
----
-
 ## Execution Loop (Path to Finality)
 
-For any coding task, activate the `core-coding` skill first.
-
 - **Root Cause First:** Never apply band-aids. For bugs: reproduce the failure (failing test or traced output) before touching code. For new features: understand the intended behavior and constraints before writing. In both cases, identify the **root cause or core requirement** first.
-- **Tests Are Integral:** Tests are part of the code, not an afterthought. Bug fixes: **write a failing test first**, then fix. After logic changes: update/add tests atomically with the code. Never skip tests unless changing comments or renaming.
-- **Testing Standards:** Aim for ≥80% coverage. Test **public API only** — never access or test private members (anything with `_` prefix). Use pytest fixtures and mocks for external dependencies. Follow **Arrange-Act-Assert (AAA)** pattern.
-- **Test File Conventions:** One test file per source file (e.g., `test_foo.py` for `foo.py`). No suffixes (`_advanced`, `_coverage`, `_extra`). Split large files (>500 lines) by **feature group**, not by depth.
+- **Tests are integral.** Bug fixes need a failing test first. Logic changes update tests atomically with code. Never skip tests unless changing comments or renaming. Test the **public API only** — never `_`-prefixed members. Use pytest fixtures and mocks for external dependencies. Follow **Arrange-Act-Assert**. One test file per source file (`test_foo.py` for `foo.py`); split files >500 lines by **feature group**, not by suffix (`_advanced`, `_coverage`, etc.). Default coverage target ≥80% (project doc may set higher).
 - **Docs Travel With Code:** Update docstrings, README, and comments when behavior changes — atomically, in the same commit.
 - **Mandatory Verification:** A task is complete only when: tests pass, linter and type-checker pass, root cause is fixed (not symptoms), and docs are updated.
 - **Strategic Re-evaluation:** After 3 failed attempts on the same issue, STOP. List your assumptions, identify what's wrong, propose a fundamentally different approach.
@@ -97,7 +87,6 @@ For any coding task, activate the `core-coding` skill first.
 - **Atomic Changes:** One logical change per task. Code + tests + docs committed together, not spread across multiple tasks.
 - **No Magic:** No magic numbers, magic strings, or unexplained constants. Name every value that carries meaning — the name is the explanation.
 - **Defensive, Not Paranoid:** Handle edge cases you can reason about. Don't add error handling for scenarios that can't happen.
-- **Review Your Own Code:** Before marking complete, review your changes as if you're reviewing someone else's PR. Would you approve it?
 
 ---
 
