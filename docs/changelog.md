@@ -1,6 +1,21 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.26.1 (May 10, 2026)
+
+- **Improvement: Prompt & Mandate Refinements**:
+  - **Rule priority hierarchy** added (new rule #5): `AGENTS.md`/`CLAUDE.md` override on style/conventions; base operating rules override on safety. Resolves ambiguity between project-specific docs and the general mandate.
+  - **"New code vs existing code" split**: previously the mandate said "prefer idiomatic code over existing style" (aggressive — would override local conventions). Now: idiomatic patterns for new code; match local style for existing code.
+  - **Cross-reference to git rules** added in general mandate so the "Git Rules" section isn't discoverable only from `git_mandate.md`.
+  - **Testing rules consolidated**: three separate bullets (Tests Are Integral, Testing Standards, Test File Conventions) merged into one dense bullet. Zero content loss.
+  - **Removed redundant sections**: "Context & Token Efficiency" (covered by persona's Response Calibration), "activate core-coding skill first" (a tool-time decision), "Review Your Own Code" (implicit in Engineering Discipline).
+  - `persona.md`: "One sentence before tools" → **"Pre-tool narration"**; "Reference code" → **"Cite code"** — clearer naming.
+  - `git_mandate.md`: Diff threshold relaxed from `~100 lines` to **"too large to be useful inline"** with added **offer-to-share specific files** behavior.
+  - `chat.py`: Tool guidance for `SearchJournal` and `SearchInternet` deduplicated — removed return-type schemas and config details that are already in the tool's own pydantic docstrings.
+
+- **Improvement: Tool Docstring Clarity**:
+  - `search_journal()`: "text pattern" → "regex pattern across all journal files in the configured journal directory" — more precise about scope and pattern type.
+
 ## 2.26.0 (May 10, 2026)
 
 - **Feature: Multimodal Attachment Pipeline**:
