@@ -118,7 +118,6 @@ Dual Mode (CLI + Telegram):
 
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.buffered_output_mixin import BufferedOutputMixin
-from zrb.llm.ui.default.ui import UI as _UI
 from zrb.llm.ui.event_driven_ui import EventDrivenUI
 from zrb.llm.ui.multi_ui import MultiUI
 from zrb.llm.ui.polling_ui import PollingUI
@@ -151,6 +150,9 @@ __all__ = [
 
 def __getattr__(name):
     if name == "UI":
+        # lazy: default UI pulls prompt_toolkit (~25ms cold load); resolve
+        # only when a caller actually does `from zrb.llm.ui import UI`.
+        from zrb.llm.ui.default.ui import UI as _UI
 
         return _UI
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
