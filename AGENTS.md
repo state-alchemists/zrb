@@ -164,7 +164,7 @@ source .venv/bin/activate && ./zrb-test.sh [parameter]
 | `<test_function>` | Run a specific test | `test/llm/prompt/test_journal.py::test_journal_prompt_with_empty_journal` |
 
 **Principles:**
-- **Coverage**: Aim for ≥80%
+- **Coverage**: Aim for ≥90%
 - **Public API Only**: 
   - ❌ **NEVER** access or test private members (anything with `_` prefix)
   - This includes: `._private_attr`, `._private_method()`, accessing `._internal_state`
