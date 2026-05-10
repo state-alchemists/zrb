@@ -16,26 +16,14 @@ from __future__ import annotations
 from typing import Any
 
 from zrb.config.config import CFG
+from zrb.llm.prompt.prompt import (
+    get_multimodal_audio_prompt,
+    get_multimodal_image_prompt,
+)
 from zrb.llm.util.modality import (
     is_known_model,
     media_type_modality,
     supports_modality,
-)
-
-_IMAGE_PROMPT = (
-    "You describe images for a software engineer who cannot see them. "
-    "Be concise and concrete. If the image contains code, error messages, "
-    "stack traces, terminal output, log lines, or UI text, transcribe that "
-    "text verbatim. For diagrams, name the components and the relationships. "
-    "For screenshots, name the application and visible state. Do NOT speculate "
-    "about intent — describe only what is visible. Reply with the description "
-    "only, no preamble."
-)
-
-_AUDIO_PROMPT = (
-    "You transcribe and summarise audio for a software engineer. Provide a "
-    "verbatim transcript when speech is present. If the audio is non-speech, "
-    "describe the sound briefly. Reply with the transcript / description only."
 )
 
 
@@ -77,7 +65,11 @@ async def describe_binary_attachment(
     from zrb.llm.config.config import llm_config
     from zrb.llm.config.limiter import llm_limiter
 
-    system_prompt = _IMAGE_PROMPT if modality == "image" else _AUDIO_PROMPT
+    system_prompt = (
+        get_multimodal_image_prompt()
+        if modality == "image"
+        else get_multimodal_audio_prompt()
+    )
     instruction = (
         "Describe the attached image."
         if modality == "image"

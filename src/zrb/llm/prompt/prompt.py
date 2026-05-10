@@ -80,6 +80,18 @@ def get_journal_reminder_prompt() -> str:
     return _replace_prompt_placeholders(prompt, replacements)
 
 
+def get_multimodal_image_prompt() -> str:
+    prompt = get_default_prompt("multimodal_image")
+    replacements = _get_prompt_replacements()
+    return _replace_prompt_placeholders(prompt, replacements)
+
+
+def get_multimodal_audio_prompt() -> str:
+    prompt = get_default_prompt("multimodal_audio")
+    replacements = _get_prompt_replacements()
+    return _replace_prompt_placeholders(prompt, replacements)
+
+
 def get_default_prompt(name: str) -> str:
     cwd = os.getcwd()
     prompt_dir = CFG.LLM_PROMPT_DIR
