@@ -137,7 +137,12 @@ class LifecycleMixin:
             except Exception:
                 pass
             try:
-                await asyncio.sleep(5.0)
+                # When thinking, refresh faster for animation (every 0.5s)
+                # Otherwise, refresh every 3s to save CPU
+                if getattr(self, "_is_thinking", False):
+                    await asyncio.sleep(0.5)
+                else:
+                    await asyncio.sleep(3.0)
             except RuntimeError:
                 break
 
