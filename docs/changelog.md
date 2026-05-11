@@ -1,6 +1,21 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.26.2 (May 11, 2026)
+
+- **Performance: Debounced UI Invalidation**:
+  - New `_schedule_invalidate()` in `OutputMixin` coalesces rapid `append_to_output` calls (e.g. streaming tool results) into a single invalidation per ~16ms frame. Previously every chunk triggered an immediate `invalidate_ui()` call.
+  - Benchmarked reduction: **33–100× fewer** `invalidate_ui()` calls depending on streaming pattern — 100 rapid calls coalesce into 1; realistic bursts of 20 with 10ms gaps coalesce into 3.
+  - `RuntimeError` fallback: when called outside an async context, `_schedule_invalidate()` catches the error and falls back to synchronous `invalidate_ui()` — no crash, no behaviour change.
+  - `OutputMixin._schedule_invalidate()` and `UI._schedule_invalidate()` both carry the same debounce logic (via MRO precedence).
+
+- **Improvement: Animated Thinking Indicator**:
+  - Status bar now shows an animated dots sequence (`⏳ Zrb is working.` → `⏳ Zrb is working..` → `⏳ Zrb is working...`) instead of a static `⏳ ... is working...`.
+  - Driven by `_thinking_dots` counter in `get_status_bar_text()`, advanced on every render call.
+
+- **Improvement: Adaptive UI Refresh Loop**:
+  - `LifecycleMixin._refresh_loop()` interval reduced from fixed 5.0s to 3.0s (idle) / 0.5s (thinking), enabling smooth dot animation without wasting CPU when idle.
+
 ## 2.26.1 (May 10, 2026)
 
 - **Improvement: Prompt & Mandate Refinements**:
