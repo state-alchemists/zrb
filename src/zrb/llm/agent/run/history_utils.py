@@ -150,6 +150,62 @@ def strip_thinking_parts(messages: list[Any]) -> list[Any]:
     return result
 
 
+def strip_to_text_only(history: list[Any]) -> list[Any]:
+    """Sanitize history for retry: strip thinking, fix null/empty content.
+
+    Preserves all message structure (ToolCallPart, ToolReturnPart,
+    UserPromptPart, etc.) but ensures every content field is a valid
+    non-null, non-empty text string. Removes ThinkingPart entries,
+    which cause ``reasoning_content`` serialization issues on many
+    providers (DeepSeek, GLM-5 on Bedrock, etc.).
+
+    This is the provider-agnostic "nuclear option": it doesn't guess
+    what upset the provider — it normalises everything to the lowest
+    common denominator that every provider accepts.
+    """
+    from pydantic_ai.messages import (
+        BaseToolReturnPart,
+        ModelRequest,
+        ModelResponse,
+        TextPart,
+        ThinkingPart,
+        ToolCallPart,
+    )
+
+    def _normalize_content(part: Any) -> Any | None:
+        if isinstance(part, ThinkingPart):
+            return None
+        if isinstance(part, ToolCallPart) and not part.tool_name:
+            return None
+        if hasattr(part, "content"):
+            content = part.content
+            if content is None or (isinstance(content, str) and not content.strip()):
+                placeholder = "null" if isinstance(part, BaseToolReturnPart) else "."
+                return replace(part, content=placeholder)
+        return part
+
+    result = []
+    for msg in history:
+        if isinstance(msg, (ModelRequest, ModelResponse)):
+            parts = [_normalize_content(p) for p in msg.parts]
+            parts = [p for p in parts if p is not None]
+            if isinstance(msg, ModelResponse):
+                has_text = any(isinstance(p, TextPart) and p.content for p in parts)
+                has_tool = any(isinstance(p, ToolCallPart) for p in parts)
+                if not has_text and has_tool:
+                    parts.insert(0, TextPart(content="."))
+                elif not has_text and not has_tool:
+                    parts.insert(0, TextPart(content="."))
+            if parts:
+                result.append(replace(msg, parts=parts))
+        else:
+            result.append(msg)
+
+    if not result:
+        return history
+    return result
+
+
 def filter_nil_content(messages: list[Any]) -> list[Any]:
     """Sanitize message history before sending to any provider.
 

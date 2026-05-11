@@ -360,15 +360,28 @@ For providers that reject history containing `ThinkingPart` entries even after t
 
 When detected, `strip_thinking_parts()` removes all `ThinkingPart` entries from every `ModelResponse` and retries. If stripping leaves a message with no parts, it is replaced with a single `TextPart(".")` to keep the message valid. This is a one-shot retry — it will not loop.
 
+### The Generic Opaque-400 Fallback
+
+The `strip_thinking_parts` retry still depends on the provider returning a specific (and knowable) error string. Some providers return opaque 400s with no usable message — GLM-5 on Bedrock returns `ValidationException` with an empty `Message` field; future providers will inevitably have their own opaque patterns.
+
+Rather than catalog every variant, `retry_loop.py` has a catch-all that fires **once** for any unclassified HTTP 400:
+
+1. It applies `strip_to_text_only()` to the message history — normalising every content field to a non-null, non-empty text string, stripping `ThinkingPart` entries, while preserving `ToolCallPart`, `ToolReturnPart`, `UserPromptPart`, and `TextPart` structure.
+2. It retries the model call with the sanitised history.
+
+This is deliberately provider-agnostic. Text in the form `{"role": "user", "content": "..."}` / `{"role": "assistant", "content": "..."}` is the lowest common denominator that every text-generation provider accepts. The handler is gated on `current_message is not None` (it does not fire during tool-loop iterations with deferred results, where stripping structure could orphan tool call/return pairs).
+
+The handler sits **last** in the retry chain in `handle_stream_error`, so it only fires when all other handlers (transient, prompt-too-long, missing-reasoning, invalid-tool-call) have given up. This guarantees that the existing one-shot DeepSeek path fires first and the nuclear option is truly a last resort.
+
 ### File Map
 
 | File | Responsibility |
 |------|---------------|
-| `src/zrb/llm/agent/run/history_utils.py` | `sanitize_history()`, `filter_nil_content()`, `strip_thinking_parts()` |
+| `src/zrb/llm/agent/run/history_utils.py` | `sanitize_history()`, `filter_nil_content()`, `strip_thinking_parts()`, `strip_to_text_only()` |
 | `src/zrb/llm/message.py` | `sanitize_orphaned_tool_calls()`, `ensure_alternating_roles()`, `validate_tool_pair_integrity()` |
 | `src/zrb/llm/agent/run/openai_patch.py` | Monkey-patch for `content: null` serialization |
-| `src/zrb/llm/agent/run/error_classifier.py` | `is_missing_reasoning_content_error()`, `is_invalid_tool_call_error()` |
-| `src/zrb/llm/agent/run/retry_loop.py` | Retry decisions including the `strip_thinking_parts` one-shot |
+| `src/zrb/llm/agent/run/error_classifier.py` | `is_missing_reasoning_content_error()`, `is_opaque_validation_error()`, `is_invalid_tool_call_error()` |
+| `src/zrb/llm/agent/run/retry_loop.py` | Retry decisions including `strip_thinking_parts` and the opaque-400 fallback |
 | `src/zrb/llm/summarizer/history_summarizer.py` | Calls `sanitize_history()` on the kept slice after compression |
 
 ---

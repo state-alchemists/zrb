@@ -103,6 +103,66 @@ async def test_handle_stream_error_invalid_tool_call_without_string_message():
 
 
 @pytest.mark.asyncio
+async def test_handle_stream_error_opaque_400():
+    """Unclassified 400 with current_message fires opaque retry."""
+    state = RetryState(opaque_retry_done=False)
+    exc = Exception("Bad request")
+    exc.status_code = 400
+    current_history = ["msg1", "msg2"]
+    current_message = "hello"
+    run_history = []
+    print_fn = MagicMock()
+
+    outcome = await handle_stream_error(
+        state, exc, current_history, current_message, run_history, print_fn
+    )
+
+    assert outcome.should_retry is True
+    assert state.opaque_retry_done is True
+    assert outcome.new_message == "hello"
+    print_fn.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_handle_stream_error_opaque_400_only_once():
+    """Second unclassified 400 with same state does NOT retry."""
+    state = RetryState(opaque_retry_done=True)
+    exc = Exception("Bad request")
+    exc.status_code = 400
+    print_fn = MagicMock()
+
+    outcome = await handle_stream_error(state, exc, ["msg1"], "hello", [], print_fn)
+
+    assert outcome.should_retry is False
+
+
+@pytest.mark.asyncio
+async def test_handle_stream_error_opaque_400_skipped_when_no_message():
+    """Opaque retry is skipped when current_message is None (tool loop)."""
+    state = RetryState(opaque_retry_done=False)
+    exc = Exception("Bad request")
+    exc.status_code = 400
+    print_fn = MagicMock()
+
+    outcome = await handle_stream_error(state, exc, ["msg1"], None, [], print_fn)
+
+    assert outcome.should_retry is False
+
+
+@pytest.mark.asyncio
+async def test_handle_stream_error_opaque_400_skipped_for_non_400():
+    """Opaque retry only fires for status 400."""
+    state = RetryState(opaque_retry_done=False)
+    exc = Exception("Not found")
+    exc.status_code = 404
+    print_fn = MagicMock()
+
+    outcome = await handle_stream_error(state, exc, ["msg1"], "hello", [], print_fn)
+
+    assert outcome.should_retry is False
+
+
+@pytest.mark.asyncio
 async def test_handle_stream_error_no_retry():
     state = RetryState(transient_retry_count=10, max_transient_retries=2)
     exc = Exception("Rate limit")
