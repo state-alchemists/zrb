@@ -19,6 +19,8 @@ class MockOutputUI(OutputMixin):
         self._assistant_name = "Zrb"
         self._current_confirmation = None
         self._is_thinking = False
+        self._pending_invalidate = False
+        self._invalidate_task = None
 
     def invalidate_ui(self):
         pass
@@ -38,13 +40,11 @@ def test_append_to_output_basic():
     ui._output_field.text = "line1\n"
     ui._output_field.buffer.cursor_position = 0
 
-    # Mocking Document and set_document call
-    with patch("prompt_toolkit.document.Document") as mock_doc:
-        ui.append_to_output("line2")
-        # Verify set_document was called with expected text
-        mock_doc.assert_called()
-        # The first arg to Document() should be "line1\nline2\n"
-        assert mock_doc.call_args[0][0] == "line1\nline2\n"
+    with patch.object(ui, "_schedule_invalidate"):
+        with patch("prompt_toolkit.document.Document") as mock_doc:
+            ui.append_to_output("line2")
+            mock_doc.assert_called()
+            assert mock_doc.call_args[0][0] == "line1\nline2\n"
 
 
 def test_append_to_output_carriage_return():
@@ -52,9 +52,10 @@ def test_append_to_output_carriage_return():
     ui._output_field.text = "line1\nStatus: old"
     ui._output_field.buffer.cursor_position = 0
 
-    with patch("prompt_toolkit.document.Document") as mock_doc:
-        ui.append_to_output("\rStatus: new", end="")
-        assert mock_doc.call_args[0][0] == "line1\nStatus: new"
+    with patch.object(ui, "_schedule_invalidate"):
+        with patch("prompt_toolkit.document.Document") as mock_doc:
+            ui.append_to_output("\rStatus: new", end="")
+            assert mock_doc.call_args[0][0] == "line1\nStatus: new"
 
 
 def test_get_info_bar_text_logic():

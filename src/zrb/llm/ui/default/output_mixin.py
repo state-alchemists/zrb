@@ -7,6 +7,7 @@ from `default_ui.py` so the prompt-toolkit Application setup stays focused.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from typing import TYPE_CHECKING, TextIO
@@ -16,7 +17,6 @@ from zrb.util.cli.style import stylize_faint
 from zrb.util.cli.terminal import get_terminal_size
 
 if TYPE_CHECKING:
-    import asyncio
     from typing import Any
 
     from prompt_toolkit.formatted_text import AnyFormattedText
@@ -123,7 +123,23 @@ class OutputMixin:
             Document(new_text, cursor_position=new_cursor_position),
             bypass_readonly=True,
         )
-        self.invalidate_ui()
+        self._schedule_invalidate()
+
+    def _schedule_invalidate(self):
+        if self._pending_invalidate:
+            return
+        self._pending_invalidate = True
+
+        async def _do_invalidate():
+            await asyncio.sleep(0.016)
+            self._pending_invalidate = False
+            self.invalidate_ui()
+
+        try:
+            self._invalidate_task = asyncio.create_task(_do_invalidate())
+        except RuntimeError:
+            self._pending_invalidate = False
+            self.invalidate_ui()
 
     @property
     def output_field_width(self) -> int | None:
@@ -188,5 +204,11 @@ class OutputMixin:
                 )
             ]
         if self._is_thinking:
-            return [("class:thinking", f" ⏳ {self._assistant_name} is working... ")]
+            dots = getattr(self, "_thinking_dots", 0)
+            next_dots = (dots + 1) % 4
+            setattr(self, "_thinking_dots", next_dots)
+            dot_str = "." * next_dots + " " * (3 - next_dots)
+            return [
+                ("class:thinking", f" ⏳ {self._assistant_name} is working{dot_str} ")
+            ]
         return [("class:status", " 🚀 Ready ")]

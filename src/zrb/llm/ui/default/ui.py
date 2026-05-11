@@ -88,6 +88,8 @@ class UI(
         enable_rewind: bool = False,
         snapshot_dir: str = "",
     ):
+        self._pending_invalidate = False
+        self._invalidate_task: asyncio.Task | None = None
         super().__init__(
             ctx=ctx,
             yolo_xcom_key=yolo_xcom_key,

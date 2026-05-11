@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -38,7 +38,8 @@ def test_ui_public_methods(mock_ui_deps):
 
     # Test append_to_output
     ui.output_buffer = MagicMock()
-    ui.append_to_output("New content")
+    with patch.object(ui, "_schedule_invalidate"):
+        ui.append_to_output("New content")
     # append_to_output internally modifies output_buffer.text
     assert ui.output_buffer.text is not None
 
