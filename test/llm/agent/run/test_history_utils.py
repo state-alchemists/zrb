@@ -11,7 +11,11 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 
-from zrb.llm.agent.run.history_utils import drop_oldest_turn, filter_nil_content
+from zrb.llm.agent.run.history_utils import (
+    drop_oldest_turn,
+    filter_nil_content,
+    strip_to_text_only,
+)
 
 
 class UnknownMessage:
@@ -147,6 +151,170 @@ def test_filter_nil_content_preserves_builtin_tool_call_part():
     assert len(out.parts) == 2
     assert isinstance(out.parts[0], BuiltinToolCallPart)
     assert out.parts[0].tool_name == "web_search"
+
+
+def test_strip_to_text_only_strips_thinking_preserves_tool_structure():
+    """strip_to_text_only removes ThinkingPart but keeps ToolCallPart,
+    ToolReturnPart, UserPromptPart, and TextPart intact. Null/empty content
+    is normalized to a placeholder."""
+    history = [
+        ModelRequest(parts=[UserPromptPart(content="deploy to prod")]),
+        ModelResponse(
+            parts=[
+                ToolCallPart(
+                    tool_name="deploy", args='{"env":"prod"}', tool_call_id="c1"
+                )
+            ]
+        ),
+        ModelRequest(
+            parts=[
+                ToolReturnPart(tool_name="deploy", content="started", tool_call_id="c1")
+            ]
+        ),
+        ModelResponse(
+            parts=[
+                ThinkingPart(content="verifying"),
+                TextPart(content="Done, deployment running"),
+            ]
+        ),
+    ]
+
+    result = strip_to_text_only(history)
+
+    assert len(result) == 4
+    # 1: UserPromptPart unchanged
+    assert isinstance(result[0], ModelRequest)
+    assert isinstance(result[0].parts[0], UserPromptPart)
+    assert result[0].parts[0].content == "deploy to prod"
+
+    # 2: ToolCallPart preserved, TextPart(".") injected as text anchor
+    assert isinstance(result[1], ModelResponse)
+    parts_1 = result[1].parts
+    assert len(parts_1) == 2
+    assert isinstance(parts_1[0], TextPart)
+    assert parts_1[0].content == "."
+    assert isinstance(parts_1[1], ToolCallPart)
+
+    # 3: ToolReturnPart preserved
+    assert isinstance(result[2], ModelRequest)
+    assert isinstance(result[2].parts[0], ToolReturnPart)
+    assert result[2].parts[0].content == "started"
+
+    # 4: ThinkingPart stripped, TextPart kept
+    assert isinstance(result[3], ModelResponse)
+    assert len(result[3].parts) == 1
+    assert isinstance(result[3].parts[0], TextPart)
+    assert result[3].parts[0].content == "Done, deployment running"
+    assert not any(
+        isinstance(p, ThinkingPart) for m in result for p in getattr(m, "parts", [])
+    )
+
+
+def test_strip_to_text_only_normalizes_null_content():
+    """None/empty content in any part becomes '.' (or 'null' for tool returns)."""
+    history = [
+        ModelRequest(
+            parts=[
+                UserPromptPart(content=None),
+                ToolReturnPart(tool_name="t1", content=None, tool_call_id="c1"),
+            ]
+        ),
+        ModelResponse(
+            parts=[
+                TextPart(content=""),
+                ToolCallPart(tool_name="t2", args="{}", tool_call_id="c2"),
+            ]
+        ),
+    ]
+
+    result = strip_to_text_only(history)
+
+    assert isinstance(result[0], ModelRequest)
+    assert result[0].parts[0].content == "."
+    assert result[0].parts[1].content == "null"
+
+    assert isinstance(result[1], ModelResponse)
+    assert result[1].parts[0].content == "."
+
+
+def test_strip_to_text_only_empty_result_returns_original():
+    """A ModelResponse with only tool calls gets a TextPart('.'), not empty."""
+    history = [
+        ModelResponse(parts=[ToolCallPart(tool_name="x", args="{}", tool_call_id="c1")])
+    ]
+    result = strip_to_text_only(history)
+    assert len(result) == 1
+    assert isinstance(result[0], ModelResponse)
+    assert any(isinstance(p, TextPart) for p in result[0].parts)
+    assert any(isinstance(p, ToolCallPart) for p in result[0].parts)
+
+
+def test_strip_to_text_only_keeps_conversation_flow():
+    """Multi-turn tool-using conversation structure is preserved."""
+    history = [
+        ModelRequest(parts=[UserPromptPart(content="weather in Boston?")]),
+        ModelResponse(
+            parts=[
+                ToolCallPart(
+                    tool_name="get_weather",
+                    args='{"city":"Boston"}',
+                    tool_call_id="c1",
+                )
+            ]
+        ),
+        ModelRequest(
+            parts=[
+                ToolReturnPart(
+                    tool_name="get_weather", content="72F", tool_call_id="c1"
+                )
+            ]
+        ),
+        ModelResponse(parts=[TextPart(content="It is 72F in Boston.")]),
+        ModelRequest(parts=[UserPromptPart(content="What about NYC?")]),
+        ModelResponse(
+            parts=[
+                ToolCallPart(
+                    tool_name="get_weather",
+                    args='{"city":"NYC"}',
+                    tool_call_id="c2",
+                )
+            ]
+        ),
+        ModelRequest(
+            parts=[
+                ToolReturnPart(
+                    tool_name="get_weather", content="80F", tool_call_id="c2"
+                )
+            ]
+        ),
+        ModelResponse(parts=[TextPart(content="It is 80F in NYC.")]),
+    ]
+
+    result = strip_to_text_only(history)
+    assert len(result) == 8
+    assert isinstance(result[4].parts[0], UserPromptPart)
+    assert result[4].parts[0].content == "What about NYC?"
+    assert isinstance(result[-1].parts[0], TextPart)
+    assert result[-1].parts[0].content == "It is 80F in NYC."
+
+
+def test_strip_to_text_only_drops_empty_tool_call_part():
+    """ToolCallPart without tool_name is dropped; TextPart('.')
+
+    is injected to keep the message valid."""
+    history = [
+        ModelResponse(
+            parts=[
+                ToolCallPart(tool_name="", args="{}", tool_call_id="c1"),
+            ]
+        ),
+    ]
+    result = strip_to_text_only(history)
+    assert len(result) == 1
+    parts = result[0].parts
+    assert len(parts) == 1
+    assert isinstance(parts[0], TextPart)
+    assert parts[0].content == "."
 
 
 def test_filter_nil_content_uses_null_for_builtin_tool_return():

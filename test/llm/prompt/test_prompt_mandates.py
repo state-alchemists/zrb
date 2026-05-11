@@ -2,6 +2,7 @@ import os
 import tempfile
 from unittest.mock import patch
 
+from zrb.config.config import CFG
 from zrb.llm.prompt.prompt import (
     get_git_mandate_prompt,
     get_journal_prompt,
@@ -16,7 +17,7 @@ def test_get_persona_prompt_returns_non_empty():
     assert isinstance(prompt, str)
     assert len(prompt) > 0
     # Should contain the assistant name placeholder replacement
-    assert "zrb" in prompt  # Default assistant name from CFG
+    assert CFG.LLM_ASSISTANT_NAME in prompt
     # Should not contain raw placeholder
     assert "{ASSISTANT_NAME}" not in prompt
 

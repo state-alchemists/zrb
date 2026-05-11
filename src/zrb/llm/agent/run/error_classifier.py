@@ -65,6 +65,31 @@ def is_missing_reasoning_content_error(e: Exception) -> bool:
     return False
 
 
+def is_opaque_validation_error(e: Exception) -> bool:
+    """Returns True for Bedrock's empty ValidationException (GLM-5 pattern).
+
+    Unlike `is_missing_reasoning_content_error` which also matches DeepSeek
+    string patterns, this detects the opaque catch-all ValidationException
+    that Bedrock returns when a non-Anthropic model (GLM-5, etc.) rejects
+    any structural aspect of the message history — nil content, orphaned
+    tool pairs, thinking parts, etc. The empty Message field means the
+    provider gave no specific reason, so a single fix (strip thinking parts)
+    is unlikely to suffice; callers should use a cascading strategy.
+    """
+    status_code = getattr(e, "status_code", None)
+    if status_code != 400:
+        return False
+    body = getattr(e, "body", None)
+    if isinstance(body, dict):
+        error = body.get("Error", {})
+        if isinstance(error, dict):
+            code = error.get("Code", "")
+            message = error.get("Message", "")
+            if code == "ValidationException" and not message:
+                return True
+    return False
+
+
 def is_retryable_error(e: Exception) -> bool:
     """Returns True for transient provider errors (429, 5xx) worth retrying."""
     status_code = getattr(e, "status_code", None)

@@ -124,6 +124,12 @@ python-multipart = ">=0.0.27"
 # We pin >=1.1.2 to ensure the patched version is used.
 langchain-text-splitters = {version = ">=1.1.2", optional = true}
 
+# Security fix: CVE-2026-44432 - urllib3 does not strip cookies on HTTP redirect from HTTPS,
+# allowing cookie leakage to a same-hostname HTTP server via redirect.
+# urllib3 is a transitive dependency via requests and boto3.
+# We pin >=2.7.0 to ensure the patched version is used.
+urllib3 = ">=2.7.0"
+
 # Security fix: GHSA-rr7j-v2q5-chgv - Streaming token events bypass output redaction in LangSmith SDK.
 # langsmith is a transitive dependency via langchain-core (pulled in by voyageai).
 # We pin >=0.7.31 to ensure the patched version is used.

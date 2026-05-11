@@ -3,6 +3,8 @@ import pytest
 from zrb.llm.agent.run.error_classifier import (
     get_retry_wait,
     is_invalid_tool_call_error,
+    is_missing_reasoning_content_error,
+    is_opaque_validation_error,
     is_prompt_too_long_error,
     is_retryable_error,
 )
@@ -50,6 +52,45 @@ def test_is_retryable_error():
     # Test via message keywords
     assert is_retryable_error(Exception("overloaded")) is True
     assert is_retryable_error(Exception("rate_limit")) is True
+
+
+def test_is_opaque_validation_error():
+    # GLM-5 pattern: empty ValidationException
+    e1 = Exception("validation")
+    e1.status_code = 400
+    e1.body = {"Error": {"Code": "ValidationException", "Message": ""}}
+    assert is_opaque_validation_error(e1) is True
+    # Also still matched by the existing classifier for backward compat
+    assert is_missing_reasoning_content_error(e1) is True
+
+    # ValidationException with message (different Bedrock error) — NOT opaque
+    e2 = Exception("validation")
+    e2.status_code = 400
+    e2.body = {
+        "Error": {
+            "Code": "ValidationException",
+            "Message": "Thinking may not be enabled",
+        }
+    }
+    assert is_opaque_validation_error(e2) is False
+
+    # DeepSeek text match — NOT opaque (has specific error text)
+    e3 = Exception("Missing reasoning_content field")
+    e3.status_code = 400
+    e3.body = None
+    assert is_opaque_validation_error(e3) is False
+    assert is_missing_reasoning_content_error(e3) is True
+
+    # Non-400
+    e4 = Exception("server error")
+    e4.status_code = 500
+    assert is_opaque_validation_error(e4) is False
+
+    # Other 400 with no body
+    e5 = Exception("bad request")
+    e5.status_code = 400
+    e5.body = None
+    assert is_opaque_validation_error(e5) is False
 
 
 def test_get_retry_wait():

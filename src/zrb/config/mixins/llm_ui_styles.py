@@ -12,7 +12,7 @@ class LLMUIStylesMixin:
     ROOT_GROUP_NAME: str
 
     def __init__(self):
-        self.DEFAULT_LLM_ASSISTANT_NAME: str = ""
+        self.DEFAULT_LLM_ASSISTANT_NAME: str = "Zrb"
         self.DEFAULT_LLM_ASSISTANT_ASCII_ART: str = "default"
         self.DEFAULT_LLM_ASSISTANT_JARGON: str = ""
         self.DEFAULT_LLM_UI_STYLE_TITLE_BAR: str = "#ffffff"
@@ -20,14 +20,17 @@ class LLMUIStylesMixin:
         self.DEFAULT_LLM_UI_STYLE_FRAME: str = "#888888"
         self.DEFAULT_LLM_UI_STYLE_FRAME_LABEL: str = "#ffff00"
         self.DEFAULT_LLM_UI_STYLE_INPUT_FRAME: str = "#888888"
-        self.DEFAULT_LLM_UI_STYLE_THINKING: str = "ansigreen italic"
-        self.DEFAULT_LLM_UI_STYLE_CONFIRMATION: str = "ansiyellow bold"
+        self.DEFAULT_LLM_UI_STYLE_THINKING: str = "ansigreen"
+        self.DEFAULT_LLM_UI_STYLE_CONFIRMATION: str = "ansiyellow"
         self.DEFAULT_LLM_UI_STYLE_FAINT: str = "#888888"
         self.DEFAULT_LLM_UI_STYLE_OUTPUT_FIELD: str = "#eeeeee"
         self.DEFAULT_LLM_UI_STYLE_INPUT_FIELD: str = "#eeeeee"
         self.DEFAULT_LLM_UI_STYLE_TEXT: str = "#eeeeee"
-        self.DEFAULT_LLM_UI_STYLE_STATUS: str = "reverse"
-        self.DEFAULT_LLM_UI_STYLE_BOTTOM_TOOLBAR: str = "bg:#333333 #aaaaaa"
+        self.DEFAULT_LLM_UI_STYLE_STATUS: str = "ansiwhite"
+        # Do not inherit prompt_toolkit's default pale bottom toolbar styling.
+        # "noinherit" resets to terminal defaults (no fg/bg/bold) so only
+        # fragment styles control the text color.
+        self.DEFAULT_LLM_UI_STYLE_BOTTOM_TOOLBAR: str = "noinherit"
         super().__init__()
 
     @property

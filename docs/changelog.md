@@ -1,6 +1,17 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.26.3 (May 11, 2026)
+
+- **Bug Fix: Generic Opaque-400 Retry for Multi-Turn Format Rejection**:
+  - New `strip_to_text_only()` in `src/zrb/llm/agent/run/history_utils.py` — normalises all message content to non-null, non-empty text strings; strips `ThinkingPart` (source of `reasoning_content` serialisation issues); preserves `ToolCallPart`, `ToolReturnPart`, `UserPromptPart`, and `TextPart` structure intact.
+  - New `opaque_retry_done` flag in `RetryState` — fires a single retry for any unclassified HTTP 400 by collapsing history through `strip_to_text_only()`. Provider-agnostic: works for GLM-5 on Bedrock, local models, future providers — no per-provider error-string matching.
+  - New `is_opaque_validation_error()` in `error_classifier.py` — documents the empty-`ValidationException` pattern (GLM-5 on Bedrock) for logging/metrics without coupling the retry loop to any specific provider.
+  - The existing `is_missing_reasoning_content_error` + `strip_thinking_parts` path (DeepSeek) is preserved unchanged. The opaque handler sits last in the retry chain, so it only fires when all other handlers have given up.
+
+- **New Tests**: 10 new test cases covering `strip_to_text_only` (structure preservation, null normalisation, empty guard, multi-turn flow, empty tool-call drop), opaque retry (fires once, skipped on second call, gated on `current_message`, gated on status 400), and `is_opaque_validation_error` (GLM-5 match, non-opaque ValidationException, DeepSeek non-match).
+
+
 ## 2.26.2 (May 11, 2026)
 
 - **Performance: Debounced UI Invalidation**:

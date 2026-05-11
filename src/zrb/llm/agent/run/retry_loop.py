@@ -1,9 +1,17 @@
 """Stream-error retry decisions for `run_agent`.
 
-Encapsulates the three retry policies that share the main agent loop:
+Encapsulates the retry policies that share the main agent loop:
 - transient provider errors (429/5xx-style): exponential-ish wait, capped count
 - prompt-too-long errors: drop one history turn, capped count
 - invalid tool call: inject a single corrective system message, once
+- opaque 400: collapse history to text-only and retry once
+
+The opaque-400 handler is deliberately *not* provider-specific. When a model
+response can't round-trip through its own provider (GLM-5 on Bedrock, DeepSeek
+on third-party gateways, local models, …) the error is always a 400 with some
+provider-specific body shape. Rather than catalog every variant, the fallback
+collapses all messages to plain text — the least common denominator that every
+provider accepts.
 
 `handle_stream_error` mutates `RetryState` in place and sleeps internally
 for the transient case, returning whether the caller should retry.
@@ -23,7 +31,11 @@ from zrb.llm.agent.run.error_classifier import (
     is_prompt_too_long_error,
     is_retryable_error,
 )
-from zrb.llm.agent.run.history_utils import drop_oldest_turn, strip_thinking_parts
+from zrb.llm.agent.run.history_utils import (
+    drop_oldest_turn,
+    strip_thinking_parts,
+    strip_to_text_only,
+)
 
 
 @dataclass
@@ -34,6 +46,7 @@ class RetryState:
     transient_retry_count: int = 0
     invalid_tool_retry_done: bool = False
     missing_reasoning_retry_done: bool = False
+    opaque_retry_done: bool = False
     max_context_retries: int = field(
         default_factory=lambda: CFG.LLM_MAX_CONTEXT_RETRIES
     )
@@ -148,5 +161,28 @@ async def handle_stream_error(
             + [ModelRequest(parts=[UserPromptPart(content=corrective)])],
             new_message=None,
         )
+
+    # Generic opaque-400 retry: collapse history to text-only and retry once.
+    # This catches any 400 that wasn't classified by the handlers above —
+    # most commonly a model response that can't round-trip through its own
+    # provider (GLM-5 on Bedrock, local models, future providers, etc.).
+    # Text is the lowest common denominator every provider accepts.
+    if not state.opaque_retry_done and current_message is not None:
+        status_code = getattr(exc, "status_code", None)
+        if status_code == 400:
+            state.opaque_retry_done = True
+            sanitized = strip_to_text_only(current_history)
+            print_fn(
+                "\n[SYSTEM] Model response rejected by provider — "
+                "collapsing history to text-only and retrying..."
+            )
+            CFG.LOGGER.debug(
+                f"Opaque 400 error: {exc}. Falling back to text-only history."
+            )
+            return RetryOutcome(
+                should_retry=True,
+                new_history=sanitized,
+                new_message=current_message,
+            )
 
     return RetryOutcome(should_retry=False)
