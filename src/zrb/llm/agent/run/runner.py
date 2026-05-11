@@ -463,6 +463,7 @@ async def _execution_loop(
             CFG.LOGGER.debug(f"Stream started, current_results={current_results}")
             stream_error = None
             try:
+                # Docs: https://pydantic.dev/docs/ai/core-concepts/agent/#streaming-events-and-final-output
                 async for event in stream:
                     if isinstance(event, AgentRunResultEvent):
                         result = event.result
