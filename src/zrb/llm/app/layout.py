@@ -211,7 +211,7 @@ def create_layout(
                     Window(height=1),  # Top margin
                     Frame(
                         input_field,
-                        title="CTRL+j for newline, Alt+V to paste image, ESC to cancel",
+                        title="CTRL+j for newline, Alt+V to paste, ESC to cancel",
                         style="class:input-frame",
                     ),
                     Window(height=1),  # Bottom padding

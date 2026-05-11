@@ -12,6 +12,7 @@ import logging
 import re
 from typing import TYPE_CHECKING, TextIO
 
+from zrb.config.config import CFG
 from zrb.llm.hook.interface import HookEvent
 from zrb.util.cli.style import stylize_faint
 from zrb.util.cli.terminal import get_terminal_size
@@ -197,10 +198,14 @@ class OutputMixin:
 
     def get_status_bar_text(self) -> "AnyFormattedText":
         if self._current_confirmation is not None:
+            dots = getattr(self, "_confirmation_dots", 0)
+            next_dots = (dots + 1) % 4
+            setattr(self, "_confirmation_dots", next_dots)
+            dot_str = "." * next_dots + " " * (3 - next_dots)
             return [
                 (
-                    "class:confirmation",
-                    f" 👋 {self._assistant_name} is waiting for confirmation ",
+                    CFG.LLM_UI_STYLE_CONFIRMATION,
+                    f" 👋 {self._assistant_name} is waiting for confirmation{dot_str} ",
                 )
             ]
         if self._is_thinking:
@@ -209,6 +214,9 @@ class OutputMixin:
             setattr(self, "_thinking_dots", next_dots)
             dot_str = "." * next_dots + " " * (3 - next_dots)
             return [
-                ("class:thinking", f" ⏳ {self._assistant_name} is working{dot_str} ")
+                (
+                    CFG.LLM_UI_STYLE_THINKING,
+                    f" ⏳ {self._assistant_name} is working{dot_str} ",
+                ),
             ]
-        return [("class:status", " 🚀 Ready ")]
+        return [(CFG.LLM_UI_STYLE_STATUS, " 🚀 Ready ")]

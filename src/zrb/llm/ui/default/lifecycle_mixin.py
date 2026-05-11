@@ -137,10 +137,13 @@ class LifecycleMixin:
             except Exception:
                 pass
             try:
-                # When thinking, refresh faster for animation (every 0.5s)
-                # Otherwise, refresh every 3s to save CPU
-                if getattr(self, "_is_thinking", False):
-                    await asyncio.sleep(0.5)
+                # When thinking or waiting for confirmation, refresh faster for
+                # animation (every 0.25s). Otherwise, refresh every 3s to save CPU.
+                if (
+                    getattr(self, "_is_thinking", False)
+                    or getattr(self, "_current_confirmation", None) is not None
+                ):
+                    await asyncio.sleep(0.25)
                 else:
                     await asyncio.sleep(3.0)
             except RuntimeError:
