@@ -11,6 +11,21 @@
 
 - **New Tests**: 10 new test cases covering `strip_to_text_only` (structure preservation, null normalisation, empty guard, multi-turn flow, empty tool-call drop), opaque retry (fires once, skipped on second call, gated on `current_message`, gated on status 400), and `is_opaque_validation_error` (GLM-5 match, non-opaque ValidationException, DeepSeek non-match).
 
+- **UI: Status Bar Styling Refactored to Inline CFG Styles**:
+  - `get_status_bar_text()` now returns inline style strings from `CFG.LLM_UI_STYLE_STATUS`/`THINKING`/`CONFIRMATION` instead of CSS class names (`class:status`, etc.). Bypasses prompt_toolkit CSS class resolution — the style string goes directly to `_parse_style_str`.
+  - `DEFAULT_LLM_UI_STYLE_BOTTOM_TOOLBAR` set to `"noinherit"` so the toolbar has no background/foreground/bold of its own. Only the fragment's ANSI color applies to the text glyphs.
+  - Defaults: STATUS=`ansiwhite`, THINKING=`ansigreen`, CONFIRMATION=`ansiyellow`. All pure ANSI SGR codes (97/32/33) — no hex, no 24-bit, compatible with all terminals including tmux.
+
+- **UI: Assistant Name Capitalized**:
+  - `DEFAULT_LLM_ASSISTANT_NAME` changed from `""` (falls back to `ROOT_GROUP_NAME` → `"zrb"`) to `"Zrb"`. The name now shows as "Zrb" in the status bar and persona prompt.
+
+- **UI: Smoother Status Bar Animations**:
+  - `_refresh_loop` thinking sleep reduced from 0.5s → 0.25s for smoother dot animation.
+  - Confirmation state now also triggers fast-poll (0.25s) when `_current_confirmation is not None`, matching the thinking pattern.
+
+- **Security: urllib3 pinned to `>=2.7.0` (CVE-2026-44432)**:
+  - urllib3 is a transitive dependency via requests and boto3. The vulnerability allowed cookie leakage on HTTPS → HTTP redirect. Pin added in pyproject.toml with advisory comment.
+
 
 ## 2.26.2 (May 11, 2026)
 
