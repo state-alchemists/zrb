@@ -529,6 +529,15 @@ def test_llm_plugin_dirs(monkeypatch):
     assert config.LLM_PLUGIN_DIRS == ["dir1", "dir2"]
 
 
+def test_llm_plugin_dirs_tilde_expansion(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_PLUGIN_DIRS", "~/.bsim-ai-workflow")
+    config = Config()
+    result = config.LLM_PLUGIN_DIRS
+    assert len(result) == 1
+    assert result[0] == os.path.expanduser("~/.bsim-ai-workflow")
+    assert "~" not in result[0]
+
+
 def test_llm_small_model(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_SMALL_MODEL", "gpt-4o-mini")
     config = Config()
