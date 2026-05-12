@@ -418,9 +418,7 @@ async def test_run_agent_session_start_context_prepending():
     limiter.fit_context_window.side_effect = lambda h, m, r: h
     limiter.acquire = AsyncMock()
 
-    with patch.object(
-        agent, "run_stream_events"
-    ) as mock_run:
+    with patch.object(agent, "run_stream_events") as mock_run:
         mock_run.side_effect = _stream_from(_gen)
 
         result, _ = await run_agent(
@@ -464,9 +462,7 @@ async def test_run_agent_user_prompt_context_prepending():
     limiter.fit_context_window.side_effect = lambda h, m, r: h
     limiter.acquire = AsyncMock()
 
-    with patch.object(
-        agent, "run_stream_events"
-    ) as mock_run:
+    with patch.object(agent, "run_stream_events") as mock_run:
         mock_run.side_effect = _stream_from(_gen)
 
         result, _ = await run_agent(
@@ -573,9 +569,7 @@ async def test_run_agent_merge_consecutive_model_requests():
     limiter.count_tokens.return_value = 10
     limiter.fit_context_window.side_effect = lambda h, m, r: h
 
-    with patch.object(
-        agent, "run_stream_events"
-    ) as mock_run:
+    with patch.object(agent, "run_stream_events") as mock_run:
         mock_run.side_effect = _stream_from(_gen)
 
         await run_agent(
