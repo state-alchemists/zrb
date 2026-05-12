@@ -1,7 +1,5 @@
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from zrb.llm.ui.default.output_mixin import OutputMixin
 
 
@@ -15,12 +13,9 @@ class MockOutputUI(OutputMixin):
         self.yolo = False
         self._model = "test-model"
         self._git_info = "main"
-        self._is_thinking = False
         self._assistant_name = "Zrb"
-        self._current_confirmation = None
-        self._is_thinking = False
-        self._pending_invalidate = False
-        self._invalidate_task = None
+        self.is_thinking = False
+        self.current_confirmation = None
 
     def invalidate_ui(self):
         pass
@@ -60,7 +55,6 @@ def test_append_to_output_carriage_return():
 
 def test_get_info_bar_text_logic():
     ui = MockOutputUI()
-    # Test protected method as it's part of the implementation contract for default UI
     res = ui.get_info_bar_text()
     assert res is not None
 
@@ -86,11 +80,11 @@ def test_get_status_bar_text_logic():
     res = ui.get_status_bar_text()
     assert "Ready" in res[0][1]
 
-    ui._is_thinking = True
+    ui.is_thinking = True
     res2 = ui.get_status_bar_text()
     assert "working" in res2[0][1]
 
-    ui._is_thinking = False
-    ui._current_confirmation = "mock_confirmation"
+    ui.is_thinking = False
+    ui.current_confirmation = "mock_confirmation"
     res3 = ui.get_status_bar_text()
     assert "confirmation" in res3[0][1]
