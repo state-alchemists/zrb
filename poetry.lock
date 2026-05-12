@@ -1120,22 +1120,6 @@ dnspython = ">=2.0.0"
 idna = ">=2.0.0"
 
 [[package]]
-name = "eval-type-backport"
-version = "0.3.1"
-description = "Like `typing._eval_type`, but lets older Python versions use newer typing features."
-optional = true
-python-versions = ">=3.7"
-groups = ["main"]
-markers = "extra == \"mistral\""
-files = [
-    {file = "eval_type_backport-0.3.1-py3-none-any.whl", hash = "sha256:279ab641905e9f11129f56a8a78f493518515b83402b860f6f06dd7c011fdfa8"},
-    {file = "eval_type_backport-0.3.1.tar.gz", hash = "sha256:57e993f7b5b69d271e37482e62f74e76a0276c82490cf8e4f0dffeb6b332d5ed"},
-]
-
-[package.extras]
-tests = ["pytest"]
-
-[[package]]
 name = "fastapi"
 version = "0.123.10"
 description = "FastAPI framework, high performance, easy to learn, fast to code, ready for production"
@@ -2426,22 +2410,6 @@ files = [
 jsonpointer = ">=1.9"
 
 [[package]]
-name = "jsonpath-python"
-version = "1.1.5"
-description = "A lightweight and powerful JSONPath implementation for Python"
-optional = true
-python-versions = ">=3.8"
-groups = ["main"]
-markers = "extra == \"mistral\""
-files = [
-    {file = "jsonpath_python-1.1.5-py3-none-any.whl", hash = "sha256:a60315404d70a65e76c9a782c84e50600480221d94a58af47b7b4d437351cb4b"},
-    {file = "jsonpath_python-1.1.5.tar.gz", hash = "sha256:ceea2efd9e56add09330a2c9631ea3d55297b9619348c1055e5bfb9cb0b8c538"},
-]
-
-[package.extras]
-dev = ["poethepoet", "pytest (>=8.0)", "pytest-benchmark[histogram] (>=4.0)", "pytest-cov (>=5.0)", "ruff (>=0.3)"]
-
-[[package]]
 name = "jsonpointer"
 version = "3.0.0"
 description = "Identify specific nodes in a JSON document (RFC 6901)"
@@ -2816,34 +2784,6 @@ files = [
     {file = "mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8"},
     {file = "mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba"},
 ]
-
-[[package]]
-name = "mistralai"
-version = "2.2.0"
-description = "Python Client SDK for the Mistral AI API."
-optional = true
-python-versions = ">=3.10"
-groups = ["main"]
-markers = "extra == \"mistral\""
-files = [
-    {file = "mistralai-2.2.0-py3-none-any.whl", hash = "sha256:9e0cea19eb5281428010c9a220f186e5db0993cfe88f8855ef9d69291956f40b"},
-    {file = "mistralai-2.2.0.tar.gz", hash = "sha256:48abfa247ea5a888400ee294a5c1e090ae7e1445cc8cd008c120ae1e3b8eb9eb"},
-]
-
-[package.dependencies]
-eval-type-backport = ">=0.2.0"
-httpx = ">=0.28.1"
-jsonpath-python = ">=1.0.6"
-opentelemetry-api = ">=1.33.1,<2.0.0"
-opentelemetry-semantic-conventions = ">=0.60b1,<0.61"
-pydantic = ">=2.11.2"
-python-dateutil = ">=2.8.2"
-typing-inspection = ">=0.4.0"
-
-[package.extras]
-agents = ["authlib (>=1.5.2,<2.0)", "griffe (>=1.7.3,<2.0)", "mcp (>=1.0,<2.0)"]
-gcp = ["google-auth (>=2.27.0)", "requests (>=2.32.3)"]
-realtime = ["websockets (>=13.0)"]
 
 [[package]]
 name = "mmh3"
@@ -3431,7 +3371,7 @@ description = "OpenTelemetry Semantic Conventions"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"rag\" or extra == \"all\" or extra == \"xai\" or extra == \"mistral\""
+markers = "extra == \"rag\" or extra == \"all\" or extra == \"xai\""
 files = [
     {file = "opentelemetry_semantic_conventions-0.60b1-py3-none-any.whl", hash = "sha256:9fa8c8b0c110da289809292b0591220d3a7b53c1526a23021e977d68597893fb"},
     {file = "opentelemetry_semantic_conventions-0.60b1.tar.gz", hash = "sha256:87c228b5a0669b748c76d76df6c364c369c28f1c465e50f661e39737e84bc953"},
@@ -4738,7 +4678,7 @@ description = "Extensions to the standard Python datetime module"
 optional = true
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
 groups = ["main"]
-markers = "extra == \"rag\" or extra == \"all\" or extra == \"mistral\" or extra == \"bedrock\""
+markers = "extra == \"rag\" or extra == \"all\" or extra == \"bedrock\""
 files = [
     {file = "python-dateutil-2.9.0.post0.tar.gz", hash = "sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3"},
     {file = "python_dateutil-2.9.0.post0-py2.py3-none-any.whl", hash = "sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427"},
@@ -6756,7 +6696,6 @@ cohere = ["cohere"]
 google = ["google-genai"]
 groq = ["groq"]
 huggingface = ["huggingface-hub"]
-mistral = ["mistralai"]
 playwright = ["playwright"]
 rag = ["chromadb"]
 vertexai = ["google-auth", "pyasn1"]
@@ -6766,4 +6705,4 @@ xai = ["aiohttp", "xai-sdk"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11.0,<3.15.0"
-content-hash = "77f97cfa8bede71ae6583ce3c489cbe115cc574190ff038eba7849ba7c0d95e5"
+content-hash = "652d9b6d5e081b28116b6391d926e0939e9cda14a140ad137018f0eb02ead320"

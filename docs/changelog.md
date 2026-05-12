@@ -1,6 +1,15 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.26.7 (May 12, 2026)
+
+- **Security: Removed `mistralai` optional dependency**:
+  - `mistralai` package was quarantined on PyPI (pydantic-ai [#5382](https://github.com/pydantic/pydantic-ai/issues/5382), [#5384](https://github.com/pydantic/pydantic-ai/pull/5384)). The optional dependency declaration in `pyproject.toml:79` is now commented out to prevent installation failures.
+  - `"mistral"` removed from the `all` extras list (`pyproject.toml:158`) — was a dangling reference to the now-commented `mistral` extras group.
+  - `poetry.lock` regenerated; `mistralai` v2.2.0 and its transitive deps (`eval-type-backport`, `jsonpath-python`) purged from the lockfile.
+  - No source-level imports of `mistralai` exist in the codebase — clean removal with no breaking changes.
+
+
 ## 2.25.0 (May 12, 2026)
 
 - **Improvement: Assistant Name Auto-Capitalization**:
