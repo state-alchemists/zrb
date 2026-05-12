@@ -47,6 +47,24 @@ class OutputMixin:
         _output_field: Any
 
     @property
+    def is_thinking(self) -> bool:
+        """Whether the assistant is currently producing a response."""
+        return self._is_thinking
+
+    @is_thinking.setter
+    def is_thinking(self, value: bool) -> None:
+        self._is_thinking = value
+
+    @property
+    def current_confirmation(self) -> "asyncio.Future[str] | None":
+        """The pending tool-call confirmation future, if any."""
+        return self._current_confirmation
+
+    @current_confirmation.setter
+    def current_confirmation(self, value: "asyncio.Future[str] | None") -> None:
+        self._current_confirmation = value
+
+    @property
     def output_text(self) -> str:
         """Get the current text in the output field."""
         return self._output_field.text
@@ -197,7 +215,7 @@ class OutputMixin:
         return HTML(center_line(line1_html) + "\n" + center_line(line2_html))
 
     def get_status_bar_text(self) -> "AnyFormattedText":
-        if self._current_confirmation is not None:
+        if self.current_confirmation is not None:
             dots = getattr(self, "_confirmation_dots", 0)
             next_dots = (dots + 1) % 4
             setattr(self, "_confirmation_dots", next_dots)
@@ -208,7 +226,7 @@ class OutputMixin:
                     f" 👋 {self._assistant_name} is waiting for confirmation{dot_str} ",
                 )
             ]
-        if self._is_thinking:
+        if self.is_thinking:
             dots = getattr(self, "_thinking_dots", 0)
             next_dots = (dots + 1) % 4
             setattr(self, "_thinking_dots", next_dots)

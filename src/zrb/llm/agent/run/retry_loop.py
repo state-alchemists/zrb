@@ -74,6 +74,7 @@ async def handle_stream_error(
     min_turns: int = 0,
 ) -> RetryOutcome:
     """Decide whether/how to retry after a stream error. Sleeps for transient errors."""
+    # lazy: heavy third-party — pydantic_ai pulls in OpenAI/Anthropic SDKs.
     from pydantic_ai.messages import ModelRequest, UserPromptPart
 
     if (

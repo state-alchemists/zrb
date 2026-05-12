@@ -36,10 +36,45 @@ class Snapshot(NamedTuple):
 class SnapshotManager:
     """Manages filesystem snapshots using a shadow git repository."""
 
-    def __init__(self, snapshot_dir: str, session_name: str, workdir: str):
+    # Directories that are large, regenerable, and almost never contain
+    # hand-edited content. Skipping them turns a multi-second copy on big
+    # projects into a sub-second one. Applied symmetrically to backup and
+    # restore — entries here are never copied, never deleted by restore.
+    DEFAULT_IGNORE_DIRS: frozenset[str] = frozenset(
+        {
+            # Python
+            ".venv",
+            "venv",
+            "__pycache__",
+            ".pytest_cache",
+            ".mypy_cache",
+            ".ruff_cache",
+            ".tox",
+            ".eggs",
+            # Node / JS
+            "node_modules",
+            ".next",
+            ".nuxt",
+            ".turbo",
+            ".parcel-cache",
+            # Generic caches
+            ".cache",
+        }
+    )
+
+    def __init__(
+        self,
+        snapshot_dir: str,
+        session_name: str,
+        workdir: str,
+        ignore_dirs: "frozenset[str] | set[str] | None" = None,
+    ):
         self._workdir = os.path.abspath(workdir)
         self._shadow_dir = os.path.join(snapshot_dir, _safe_name(session_name))
         self._initialized = False
+        self._ignore_dirs: frozenset[str] = (
+            self.DEFAULT_IGNORE_DIRS if ignore_dirs is None else frozenset(ignore_dirs)
+        )
 
     def _ensure_initialized(self):
         if self._initialized:
@@ -65,7 +100,12 @@ class SnapshotManager:
         try:
             self._ensure_initialized()
             await asyncio.to_thread(
-                _sync_dirs, self._workdir, self._shadow_dir, True, True
+                _sync_dirs,
+                self._workdir,
+                self._shadow_dir,
+                True,
+                True,
+                self._ignore_dirs,
             )
             commit_msg = _build_commit_message(label, message_count)
             # Force an empty commit when message_count advanced but files didn't
@@ -112,7 +152,12 @@ class SnapshotManager:
             if _head_sha(self._shadow_dir) is not None:
                 return _head_sha(self._shadow_dir)
             await asyncio.to_thread(
-                _sync_dirs, self._workdir, self._shadow_dir, True, True
+                _sync_dirs,
+                self._workdir,
+                self._shadow_dir,
+                True,
+                True,
+                self._ignore_dirs,
             )
             commit_msg = _build_commit_message("init", message_count=0)
             return await asyncio.to_thread(
@@ -161,7 +206,12 @@ class SnapshotManager:
             self._ensure_initialized()
             await asyncio.to_thread(_git, self._shadow_dir, ["reset", "--hard", sha])
             await asyncio.to_thread(
-                _sync_dirs, self._shadow_dir, self._workdir, True, True
+                _sync_dirs,
+                self._shadow_dir,
+                self._workdir,
+                True,
+                True,
+                self._ignore_dirs,
             )
             return True
         except Exception as e:
@@ -232,7 +282,11 @@ def _git(cwd: str, args: list[str]):
 
 
 def _sync_dirs(
-    src: str, dst: str, exclude_git: bool = True, delete: bool = False
+    src: str,
+    dst: str,
+    exclude_git: bool = True,
+    delete: bool = False,
+    ignore_dirs: "frozenset[str] | None" = None,
 ) -> None:
     """Recursively copy *src* into *dst*, optionally deleting stale dst files.
 
@@ -241,14 +295,24 @@ def _sync_dirs(
         dst: Destination directory path.
         exclude_git: When True, ``.git`` subtrees are skipped in both directions.
         delete: When True, files present in *dst* but absent from *src* are removed.
+        ignore_dirs: Directory basenames to skip in both walks. Entries are
+            never copied from src and never deleted from dst — keeping
+            regenerable trees like ``node_modules`` out of the snapshot
+            without restore wiping them from the user's workdir.
     """
     os.makedirs(dst, exist_ok=True)
     src_rel_paths: set[str] = set()
+    ignored: frozenset[str] = ignore_dirs or frozenset()
+
+    def _prune(dirs: list[str]) -> None:
+        if exclude_git and ".git" in dirs:
+            dirs.remove(".git")
+        if ignored:
+            dirs[:] = [d for d in dirs if d not in ignored]
 
     # Copy src → dst
     for root, dirs, files in os.walk(src):
-        if exclude_git and ".git" in dirs:
-            dirs.remove(".git")
+        _prune(dirs)
 
         rel_root = os.path.relpath(root, src)
 
@@ -266,11 +330,11 @@ def _sync_dirs(
     if not delete:
         return
 
-    # Collect dst files (excluding .git)
+    # Collect dst files (excluding .git and ignored dirs — we never delete
+    # ignored trees because they're outside the snapshot's domain).
     dst_rel_paths: set[str] = set()
     for root, dirs, files in os.walk(dst):
-        if exclude_git and ".git" in dirs:
-            dirs.remove(".git")
+        _prune(dirs)
 
         rel_root = os.path.relpath(root, dst)
         for fname in files:
@@ -285,14 +349,16 @@ def _sync_dirs(
             pass
 
     # Remove empty directories (bottom-up).
-    # Skip any path that is, or lives inside, a .git directory.
+    # Skip any path that is, or lives inside, a .git or ignored directory.
     for root, dirs, files in os.walk(dst, topdown=False):
         if root == dst:
             continue
-        if exclude_git:
-            rel = os.path.relpath(root, dst)
-            if ".git" in rel.split(os.sep):
-                continue
+        rel = os.path.relpath(root, dst)
+        rel_parts = rel.split(os.sep)
+        if exclude_git and ".git" in rel_parts:
+            continue
+        if ignored and any(part in ignored for part in rel_parts):
+            continue
         try:
             if not os.listdir(root):
                 os.rmdir(root)

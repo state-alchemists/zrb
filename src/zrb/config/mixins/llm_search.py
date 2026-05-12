@@ -29,7 +29,9 @@ class LLMSearchMixin:
         )
         if plugin_dir_str != "":
             return [
-                path.strip() for path in plugin_dir_str.split(":") if path.strip() != ""
+                os.path.expanduser(path.strip())
+                for path in plugin_dir_str.split(":")
+                if path.strip() != ""
             ]
         return []
 

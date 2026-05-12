@@ -10,8 +10,8 @@ When `Task`, `CmdTask`, or `@make_task` aren't enough — because you need reusa
 
 - [When to Subclass](#when-to-subclass)
 - [Minimal Subclass](#minimal-subclass)
-- [The `run` Method](#the-run-method)
-- [Async Tasks](#async-tasks)
+- [The `_exec_action` Method](#the-_exec_action-method)
+- [Retry Behavior](#retry-behavior)
 - [Full Lifecycle Hooks](#full-lifecycle-hooks)
 - [Reusable Task with Configuration](#reusable-task-with-configuration)
 - [Best Practices](#best-practices)
@@ -30,13 +30,14 @@ When `Task`, `CmdTask`, or `@make_task` aren't enough — because you need reusa
 
 ## Minimal Subclass
 
-The simplest custom task requires just a `name` and a `run` method:
+The simplest custom task requires just a `name` and an `_exec_action` coroutine:
 
 ```python
 from zrb import BaseTask, cli
+from zrb.context.any_context import AnyContext
 
 class GreetTask(BaseTask):
-    def run(self, ctx):
+    async def _exec_action(self, ctx: AnyContext):
         ctx.print(f"Hello from {self.name}!")
 
 cli.add_task(GreetTask(name="greet"))
@@ -48,16 +49,18 @@ zrb greet
 ```
 
 > **Note:** `Task` is an alias for `BaseTask`. You can subclass either one.
+>
+> ⚠️ **Do not override `run()` or `async_run()`** — those are the synchronous and asynchronous *entry points* used by the CLI and have the signature `(self, session=None, str_kwargs=None, kwargs=None)`. Overriding them would break task invocation. The hook for your custom logic is `_exec_action(self, ctx)`, which all built-in subclasses (`CmdTask`, `HttpCheck`, `Scaffolder`, `Scheduler`, ...) override.
 
 ---
 
-## The `run` Method
+## The `_exec_action` Method
 
-The `run` method is the task's entry point. It receives `ctx` (the task context) and can return a value for XCom:
+`_exec_action` is an **async** method that receives `ctx` (the task context) and returns a value that is automatically pushed to XCom:
 
 ```python
 class ComputeTask(BaseTask):
-    def run(self, ctx):
+    async def _exec_action(self, ctx: AnyContext):
         result = self._compute(ctx)
         ctx.print(f"Result: {result}")
         return result  # Auto-pushed to XCom
@@ -67,18 +70,15 @@ class ComputeTask(BaseTask):
         return ctx.input.base * 2
 ```
 
----
-
-## Async Tasks
-
-For I/O-bound operations, override `async_run` instead of `run`:
+For I/O-bound work, just `await` inside `_exec_action`:
 
 ```python
 import asyncio
 from zrb import BaseTask, cli
+from zrb.context.any_context import AnyContext
 
 class AsyncComputeTask(BaseTask):
-    async def async_run(self, ctx):
+    async def _exec_action(self, ctx: AnyContext):
         ctx.print("Starting async computation...")
         await asyncio.sleep(1)
         result = 42
@@ -86,19 +86,21 @@ class AsyncComputeTask(BaseTask):
         return result
 ```
 
-> **How it works:** `BaseTask.run()` wraps the synchronous call. `BaseTask.async_run()` is the async entry point. If you override `run`, it will be called from within a synchronous wrapper. Override `async_run` for true async execution.
+> **Sync code in `_exec_action`:** Because `_exec_action` is `async`, calling sync code is fine — but blocking calls (heavy I/O, CPU work) will block the event loop and stall sibling tasks. Wrap them in `asyncio.to_thread(...)` or `loop.run_in_executor(...)` if needed.
 
-### Retry Behavior with Async Tasks
+---
 
-Async tasks participate in the same retry mechanism:
+## Retry Behavior
+
+`_exec_action` participates in the same retry mechanism as other tasks. Raise an exception to trigger a retry:
 
 ```python
 class FlakyTask(BaseTask):
     def __init__(self, **kwargs):
         super().__init__(retries=3, retry_period=1.0, **kwargs)
 
-    async def async_run(self, ctx):
-        # This will be retried up to 3 times on failure
+    async def _exec_action(self, ctx: AnyContext):
+        # This will be retried up to 3 additional times on failure
         response = await some_http_call()
         if response.status != 200:
             raise RuntimeError("API failed")
@@ -114,13 +116,16 @@ class FlakyTask(BaseTask):
 | Method | When It's Called | Override For |
 |--------|-----------------|--------------|
 | `__init__` | Task definition time | Setting defaults, custom parameters |
-| `run(ctx)` | Task execution (sync) | Main synchronous action |
-| `async_run(ctx)` | Task execution (async) | Main async action |
-| `get_task_status(session)` | Status resolution | Custom status logic |
+| `_exec_action(ctx)` *(async)* | During task execution | Main action logic — **this is the primary override** |
+
+> **Entry points (don't override):** `run(self, session, str_kwargs, kwargs)` and `async_run(...)` are public entry points used by the CLI to start a task. Their signature is fixed; override `_exec_action` instead.
 
 ### Example: Custom Task with Init-Time Setup
 
 ```python
+from zrb import BaseTask, cli
+from zrb.context.any_context import AnyContext
+
 class DatabaseTask(BaseTask):
     def __init__(self, connection_string: str = "", **kwargs):
         # Pass all standard params to BaseTask
@@ -128,7 +133,7 @@ class DatabaseTask(BaseTask):
         # Store custom params
         self._connection_string = connection_string
 
-    def run(self, ctx):
+    async def _exec_action(self, ctx: AnyContext):
         ctx.print(f"Connecting to {self._connection_string}")
         # ... database logic ...
 
@@ -180,14 +185,15 @@ class ApiCallTask(BaseTask):
         self._endpoint = endpoint
         self._method = method
 
-    def run(self, ctx):
+    async def _exec_action(self, ctx):
         import httpx
-        response = httpx.request(
-            method=self._method,
-            url=self._endpoint,
-            headers={"Authorization": f"Bearer {ctx.env.API_KEY}"},
-            data=ctx.input.payload,
-        )
+        async with httpx.AsyncClient() as client:
+            response = await client.request(
+                method=self._method,
+                url=self._endpoint,
+                headers={"Authorization": f"Bearer {ctx.env.API_KEY}"},
+                data=ctx.input.payload,
+            )
         return response.json()
 
 # Use it like any built-in task
@@ -203,11 +209,11 @@ cli.add_task(ApiCallTask(
 
 1. **Accept `**kwargs`** in your `__init__` and pass them to `super().__init__()`. This ensures all standard `BaseTask` parameters (`upstream`, `retries`, `color`, etc.) remain usable.
 
-2. **Use `async_run` for I/O.** If your task makes network calls, file I/O, or waits on external services, override `async_run`.
+2. **`_exec_action` is async.** `await` your I/O calls directly. If you have blocking work, hand it to `asyncio.to_thread` so you don't stall the event loop.
 
 3. **Document custom parameters.** If you add constructor parameters, include docstrings so they appear in IDE tooltips.
 
-4. **Match existing patterns.** Look at built-in tasks like `CmdTask`, `HttpCheck`, or `Scaffolder` for reference implementations.
+4. **Match existing patterns.** Look at built-in tasks like `CmdTask` (`src/zrb/task/cmd_task.py`), `HttpCheck`, or `Scaffolder` — they all override `_exec_action`.
 
 5. **Prefer composition over deep inheritance.** If you find yourself creating 3+ levels of subclassing, consider composing with `upstream` and `successor` instead.
 
@@ -217,16 +223,17 @@ cli.add_task(ApiCallTask(
 
 ```python
 from zrb import BaseTask, cli
+from zrb.context.any_context import AnyContext
 
-# Sync subclass
+# Minimal subclass — override _exec_action (always async)
 class MyTask(BaseTask):
-    def run(self, ctx):
+    async def _exec_action(self, ctx: AnyContext):
         ctx.print("Doing work")
         return "result"
 
-# Async subclass
+# I/O-bound subclass
 class MyAsyncTask(BaseTask):
-    async def async_run(self, ctx):
+    async def _exec_action(self, ctx: AnyContext):
         await some_io()
         return "result"
 
@@ -236,7 +243,7 @@ class MyCustomTask(BaseTask):
         super().__init__(**kwargs)
         self._custom = custom_param
 
-    def run(self, ctx):
+    async def _exec_action(self, ctx: AnyContext):
         ctx.print(f"Param: {self._custom}")
 
 # Register like any task

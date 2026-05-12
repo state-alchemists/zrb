@@ -66,14 +66,16 @@ def my_task(ctx):
 
 ### 3. Subclassing `BaseTask`
 
-Best when you need to create a reusable task type with complex internal state.
+Best when you need to create a reusable task type with complex internal state. Override the async `_exec_action(self, ctx)` hook — **not** `run()`, which is the synchronous entry point with a different signature (`session`, `str_kwargs`, `kwargs`).
 
 ```python
-from zrb import Task, cli
+from zrb import BaseTask, cli
+from zrb.context.any_context import AnyContext
 
-class MyTask(Task):
-    def run(self, ctx):
-        print("Complex logic here")
+class MyTask(BaseTask):
+    async def _exec_action(self, ctx: AnyContext):
+        ctx.print("Complex logic here")
+        return "done"  # auto-pushed to XCom
 
 cli.add_task(MyTask(name="complex-job"))
 ```
@@ -228,7 +230,7 @@ flowchart TB
 |---------------|--------|
 | Direct | `cli.add_task(CmdTask(name="x", cmd="..."))` |
 | Decorator | `@make_task(name="x", group=cli)` |
-| Subclass | `class MyTask(Task): def run(self, ctx): ...` |
+| Subclass | `class MyTask(BaseTask): async def _exec_action(self, ctx): ...` |
 
 | Dependency | Syntax |
 |------------|--------|

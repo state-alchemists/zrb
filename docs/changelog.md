@@ -1,6 +1,28 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.26.8 (May 13, 2026)
+
+- **Bug Fix: `SnapshotManager` skips large regenerable directories**:
+  - New `DEFAULT_IGNORE_DIRS` frozenset (`src/zrb/llm/snapshot/manager.py:44`) covers Python (`.venv`, `venv`, `__pycache__`, `.pytest_cache`, `.mypy_cache`, `.ruff_cache`, `.tox`, `.eggs`), Node/JS (`node_modules`, `.next`, `.nuxt`, `.turbo`, `.parcel-cache`), and generic caches (`.cache`). Skipping them reduces backup/restore from multi-second to sub-second on large projects.
+  - `_sync_dirs()` gains an `ignore_dirs` parameter; the `_prune()` helper is applied symmetrically in both `os.walk` passes (copy and delete). Empty-directory cleanup also respects ignored paths.
+  - `SnapshotManager.__init__()` accepts optional `ignore_dirs` (defaults to `DEFAULT_IGNORE_DIRS`). All three call sites (`backup`, `restore`, `init`) pass `self._ignore_dirs` through.
+
+- **Bug Fix: `ZRB_LLM_PLUGIN_DIRS` tilde expansion**:
+  - `LLMSearchMixin.LLM_PLUGIN_DIRS` (`src/zrb/config/mixins/llm_search.py:35`) now passes each path through `os.path.expanduser()` so values like `~/.bsim-ai-workflow` resolve to the absolute home path. Previously `~` was treated as a literal directory name.
+  - Test: `test_llm_plugin_dirs_tilde_expansion` added in `test/config/test_config.py`.
+
+- **Refactoring: `OutputMixin` exposes `is_thinking`/`current_confirmation` as properties**:
+  - `OutputMixin` (`src/zrb/llm/ui/default/output_mixin.py`) now defines `is_thinking` and `current_confirmation` as proper `@property` pairs with getters and setters. All internal access and test code (`test_output_mixin.py`) updated to use the public property names instead of private `_is_thinking`/`_current_confirmation`.
+
+- **Documentation: Updated stale version references and task-subclass docs**:
+  - `docs/installation/installation.md` and `docs/advanced-topics/ci-cd.md`: Docker image tags and version references updated from `2.0.0` to `2.26.7`.
+  - `docs/core-concepts/tasks-and-lifecycle.md` and `docs/task-types/custom-tasks.md`: All code examples updated from `Task`/`run()`/`async_run()` to `BaseTask`/`_exec_action()`. Added warning against overriding `run()` directly. Added `Retry Behavior` section. Removed separate "Async Tasks" heading.
+
+- **Test Infrastructure: Test files relocated**:
+  - `test/util/llm/*` → `test/llm/util/*` (7 files relocated — `test_attachment.py`, `test_clipboard.py`, `test_image_scale.py`, `test_modality.py`, `test_multimodal_describe.py`, `test_prompt.py`, `test_prompt_util.py`).
+
+
 ## 2.26.7 (May 12, 2026)
 
 - **Security: Removed `mistralai` optional dependency**:
