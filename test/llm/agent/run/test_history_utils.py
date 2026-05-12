@@ -153,10 +153,10 @@ def test_filter_nil_content_preserves_builtin_tool_call_part():
     assert out.parts[0].tool_name == "web_search"
 
 
-def test_strip_to_text_only_strips_thinking_preserves_tool_structure():
-    """strip_to_text_only removes ThinkingPart but keeps ToolCallPart,
-    ToolReturnPart, UserPromptPart, and TextPart intact. Null/empty content
-    is normalized to a placeholder."""
+def test_strip_to_text_only_converts_tool_parts_keeps_thinking():
+    """ToolCallPart → ``[Tool: name(args)]``, ToolReturnPart → ``[Result (name): content]``.
+    ThinkingPart is kept (``is_missing_reasoning_content_error`` handles it separately).
+    """
     history = [
         ModelRequest(parts=[UserPromptPart(content="deploy to prod")]),
         ModelResponse(
@@ -181,37 +181,29 @@ def test_strip_to_text_only_strips_thinking_preserves_tool_structure():
 
     result = strip_to_text_only(history)
 
+    # All 4 messages preserved (tool parts become descriptive TextPart)
     assert len(result) == 4
-    # 1: UserPromptPart unchanged
-    assert isinstance(result[0], ModelRequest)
-    assert isinstance(result[0].parts[0], UserPromptPart)
+
+    # msg[0]: UserPromptPart unchanged
     assert result[0].parts[0].content == "deploy to prod"
 
-    # 2: ToolCallPart preserved, TextPart(".") injected as text anchor
-    assert isinstance(result[1], ModelResponse)
-    parts_1 = result[1].parts
-    assert len(parts_1) == 2
-    assert isinstance(parts_1[0], TextPart)
-    assert parts_1[0].content == "."
-    assert isinstance(parts_1[1], ToolCallPart)
+    # msg[1]: ToolCallPart → "[Tool: deploy({"env":"prod"})]"
+    assert result[1].parts[0].content == '[Tool: deploy({"env":"prod"})]'
 
-    # 3: ToolReturnPart preserved
+    # msg[2]: ToolReturnPart → TextPart, not UserPromptPart
     assert isinstance(result[2], ModelRequest)
-    assert isinstance(result[2].parts[0], ToolReturnPart)
-    assert result[2].parts[0].content == "started"
+    assert isinstance(result[2].parts[0], TextPart)
+    assert result[2].parts[0].content == "[Result (deploy): started]"
 
-    # 4: ThinkingPart stripped, TextPart kept
+    # msg[3]: ThinkingPart kept, TextPart kept
     assert isinstance(result[3], ModelResponse)
-    assert len(result[3].parts) == 1
-    assert isinstance(result[3].parts[0], TextPart)
-    assert result[3].parts[0].content == "Done, deployment running"
-    assert not any(
-        isinstance(p, ThinkingPart) for m in result for p in getattr(m, "parts", [])
-    )
+    assert len(result[3].parts) == 2
+    assert isinstance(result[3].parts[0], ThinkingPart)
+    assert result[3].parts[1].content == "Done, deployment running"
 
 
 def test_strip_to_text_only_normalizes_null_content():
-    """None/empty content in any part becomes '.' (or 'null' for tool returns)."""
+    """None/empty content becomes '.'; tool parts become descriptive TextPart."""
     history = [
         ModelRequest(
             parts=[
@@ -229,28 +221,34 @@ def test_strip_to_text_only_normalizes_null_content():
 
     result = strip_to_text_only(history)
 
-    assert isinstance(result[0], ModelRequest)
+    # msg[0]: UserPromptPart fixed, ToolReturnPart → TextPart
+    assert len(result[0].parts) == 2
     assert result[0].parts[0].content == "."
-    assert result[0].parts[1].content == "null"
+    assert isinstance(result[0].parts[1], TextPart)
+    assert result[0].parts[1].content == "[Result (t1): (no value)]"
 
-    assert isinstance(result[1], ModelResponse)
+    # msg[1]: TextPart fixed, ToolCallPart → TextPart
+    assert len(result[1].parts) == 2
     assert result[1].parts[0].content == "."
+    assert result[1].parts[1].content == "[Tool: t2({})]"
 
 
 def test_strip_to_text_only_empty_result_returns_original():
-    """A ModelResponse with only tool calls gets a TextPart('.'), not empty."""
+    """A ModelResponse with only tool calls becomes a descriptive TextPart, not empty."""
     history = [
         ModelResponse(parts=[ToolCallPart(tool_name="x", args="{}", tool_call_id="c1")])
     ]
     result = strip_to_text_only(history)
     assert len(result) == 1
     assert isinstance(result[0], ModelResponse)
-    assert any(isinstance(p, TextPart) for p in result[0].parts)
-    assert any(isinstance(p, ToolCallPart) for p in result[0].parts)
+    assert len(result[0].parts) == 1
+    assert isinstance(result[0].parts[0], TextPart)
+    assert "[Tool: x({})]" == result[0].parts[0].content
 
 
 def test_strip_to_text_only_keeps_conversation_flow():
-    """Multi-turn tool-using conversation structure is preserved."""
+    """Multi-turn tool-using conversation: tool call/return parts are converted
+    to descriptive text, preserving semantic context."""
     history = [
         ModelRequest(parts=[UserPromptPart(content="weather in Boston?")]),
         ModelResponse(
@@ -291,17 +289,30 @@ def test_strip_to_text_only_keeps_conversation_flow():
     ]
 
     result = strip_to_text_only(history)
+    # All 8 messages preserved (tool parts become descriptive TextPart)
     assert len(result) == 8
-    assert isinstance(result[4].parts[0], UserPromptPart)
+
+    # msg[0] unchanged
+    assert result[0].parts[0].content == "weather in Boston?"
+    # msg[1] → "[Tool: get_weather({"city":"Boston"})]"
+    assert "get_weather" in result[1].parts[0].content
+    assert "Boston" in result[1].parts[0].content
+    # msg[2] → "[Result (get_weather): 72F]"
+    assert "[Result (get_weather): 72F]" == result[2].parts[0].content
+    # msg[3] unchanged
+    assert result[3].parts[0].content == "It is 72F in Boston."
+    # msg[4] unchanged
     assert result[4].parts[0].content == "What about NYC?"
-    assert isinstance(result[-1].parts[0], TextPart)
-    assert result[-1].parts[0].content == "It is 80F in NYC."
+    # msg[5] → "[Tool: get_weather({"city":"NYC"})]"
+    assert "NYC" in result[5].parts[0].content
+    # msg[6] → "[Result (get_weather): 80F]"
+    assert "[Result (get_weather): 80F]" == result[6].parts[0].content
+    # msg[7] unchanged
+    assert result[7].parts[0].content == "It is 80F in NYC."
 
 
-def test_strip_to_text_only_drops_empty_tool_call_part():
-    """ToolCallPart without tool_name is dropped; TextPart('.')
-
-    is injected to keep the message valid."""
+def test_strip_to_text_only_unnamed_tool_call_part():
+    """ToolCallPart without tool_name becomes ``[Tool: (unnamed)({})]``, not dropped."""
     history = [
         ModelResponse(
             parts=[
@@ -311,10 +322,9 @@ def test_strip_to_text_only_drops_empty_tool_call_part():
     ]
     result = strip_to_text_only(history)
     assert len(result) == 1
-    parts = result[0].parts
-    assert len(parts) == 1
-    assert isinstance(parts[0], TextPart)
-    assert parts[0].content == "."
+    assert len(result[0].parts) == 1
+    assert isinstance(result[0].parts[0], TextPart)
+    assert result[0].parts[0].content == "[Tool: (unnamed)({})]"
 
 
 def test_filter_nil_content_uses_null_for_builtin_tool_return():

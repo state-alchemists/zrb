@@ -199,7 +199,7 @@ def create_agent(
         # (before the first model call) and in _execution_loop (between tool-call
         # iterations) where we own the history reference.
         capabilities=capabilities or [],
-        retries=effective_retries,
+        tool_retries=effective_retries,
     )
     agent._zrb_history_processors = history_processors or []  # type: ignore[attr-defined]
     return agent

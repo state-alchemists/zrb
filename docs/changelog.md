@@ -1,6 +1,32 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.26.4 (May 12, 2026)
+
+- **Bug Fix: `create_agent` uses `tool_retries` (was `retries`)**:
+  - pydantic-ai renamed the `Agent` constructor parameter from `retries` to `tool_retries`. `common.py:202` updated to match — this was silently ignored; tool retries fell back to the default (1) regardless of configuration.
+  - Test assertion in `test_common.py` updated to check `tool_retries` instead of `retries`.
+
+- **Bug Fix: `is_invalid_tool_call_error` false-positives from wrapper metadata**:
+  - New `_get_body_message()` in `error_classifier.py` extracts the provider's error message from `e.body` dict (not `str(e)`). The `str(e)` path was matching against wrapper metadata like `{'type': 'invalid_request_error'}` — the string `"request_error"` does not contain entity words but the dict's value or JSON representation could trigger spurious entity-keyword matches. Using the body's `message` field directly eliminates the false-positive surface.
+  - All existing entity + problem keyword matching logic is preserved.
+
+- **Bug Fix: `strip_to_text_only` converts tool parts to descriptive text**:
+   - `ToolCallPart` → `TextPart("[Tool: <name>(<args>)]")`, `BaseToolReturnPart` → `TextPart("[Result (<name>): <content>]")` (was `UserPromptPart`). Both `ModelRequest` and `ModelResponse` accept `TextPart`, so the part type no longer changes with the container. Descriptive text preserves semantic context without provider-specific struct requirements.
+   - `ThinkingPart` is now preserved — `is_missing_reasoning_content_error` in `retry_loop` handles the DeepSeek-style `reasoning_content` rejection upstream, so the opaque-400 fallback can safely keep all information.
+   - Large tool results truncated to 500 chars to prevent context-window overflow during last-resort retry.
+   - Empty `ToolCallPart` (no `tool_name`) now labelled as `[Tool: (unnamed)(<args>)]` instead of being dropped.
+   - Nil/empty content in non-tool parts still normalised to `"."`.
+   - Internal refactor: helpers extracted (`_tool_call_to_text`, `_tool_return_to_text`); `_normalize_content` no longer returns `None`, removing the downstream `None`-filter pass; redundant `has_tool` fallback branch simplified away.
+
+- **Bug Fix: Stream context manager (resource leak fix)**:
+  - `runner.py`: Changed from manual `stream = agent.run_stream_events(...)` + `finally: await stream.aclose()` to `async with agent.run_stream_events(...) as stream:`. The manual pattern held a reference across the event loop; if `aclose()` wasn't reached (e.g. during cancellation), the stream was leaked. The context manager guarantees cleanup.
+  - Removed stale `stream = None` initialiser.
+
+- **Test Infrastructure: `_stream_from` helper for async-with mocks**:
+  - `test_runner.py`: All 14 `mock_run_stream_events` async generators replaced with `_stream_from()` that wraps the generator in `AgentEventStream`, matching the new context-manager interface. Two `side_effect=` assignments in `patch.object` calls (session_start and user_prompt tests) fixed — the old pattern assigned the generator directly to `side_effect` but `patch.object` creates a new mock, so the `side_effect` was set on the mock rather than on the original. Now `mock_run.side_effect = _stream_from(_gen)` sets it correctly on the mock returned by the context manager.
+
+
 ## 2.26.3 (May 11, 2026)
 
 - **Bug Fix: Generic Opaque-400 Retry for Multi-Turn Format Rejection**:
