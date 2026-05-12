@@ -150,43 +150,66 @@ def strip_thinking_parts(messages: list[Any]) -> list[Any]:
     return result
 
 
+_TOOL_RESULT_MAX_CHARS = 500
+
+
+def _tool_call_to_text(part: Any) -> str:
+    """Convert a ToolCallPart to a descriptive text label."""
+    from pydantic_ai.messages import ToolCallPart
+
+    if not isinstance(part, ToolCallPart):
+        return ""
+    name = part.tool_name or "(unnamed)"
+    args = part.args if hasattr(part, "args") and part.args else ""
+    return f"[Tool: {name}({args})]"
+
+
+def _tool_return_to_text(part: Any) -> str:
+    """Convert a BaseToolReturnPart to a descriptive text label.
+
+    Truncates large results to ``_TOOL_RESULT_MAX_CHARS`` to avoid blowing
+    up the context window during a last-resort retry.
+    """
+    from pydantic_ai.messages import BaseToolReturnPart
+
+    if not isinstance(part, BaseToolReturnPart):
+        return ""
+    name = part.tool_name if hasattr(part, "tool_name") else "(unnamed)"
+    raw = part.content
+    content = str(raw) if raw is not None else "(no value)"
+    if len(content) > _TOOL_RESULT_MAX_CHARS:
+        content = content[:_TOOL_RESULT_MAX_CHARS] + "..."
+    return f"[Result ({name}): {content}]"
+
+
 def strip_to_text_only(history: list[Any]) -> list[Any]:
-    """Sanitize history for retry: strip thinking, fix null/empty content.
+    """Sanitize history for last-resort retry.
 
-    Preserves all message structure (ToolCallPart, ToolReturnPart,
-    UserPromptPart, etc.) but ensures every content field is a valid
-    non-null, non-empty text string. Removes ThinkingPart entries,
-    which cause ``reasoning_content`` serialization issues on many
-    providers (DeepSeek, GLM-5 on Bedrock, etc.).
+    Converts ``ToolCallPart`` → ``[Tool: name(args)]`` and
+    ``BaseToolReturnPart`` → ``[Result (name): content]`` so the model
+    *loses no semantic context* about tool calls/results, but the provider
+    receives only plain-text messages — no tool-call/response structure
+    that it might reject.
 
-    This is the provider-agnostic "nuclear option": it doesn't guess
-    what upset the provider — it normalises everything to the lowest
-    common denominator that every provider accepts.
+    Does NOT strip ``ThinkingPart`` — ``is_missing_reasoning_content_error``
+    in :mod:`retry_loop` handles that case specifically, before this fires.
+
+    Null/empty content is replaced with ``"."``.  Large tool results are
+    truncated to ``_TOOL_RESULT_MAX_CHARS``.
     """
     from pydantic_ai.messages import (
         BaseToolReturnPart,
         ModelRequest,
         ModelResponse,
         TextPart,
-        ThinkingPart,
         ToolCallPart,
-        UserPromptPart,
     )
 
-    def _normalize_content(part: Any) -> Any | None:
-        if isinstance(part, ThinkingPart):
-            return None
+    def _normalize_content(part: Any) -> Any:
         if isinstance(part, ToolCallPart):
-            if part.tool_name:
-                return TextPart(content=f"[Tool: {part.tool_name}({part.args})]")
-            return None
+            return TextPart(content=_tool_call_to_text(part))
         if isinstance(part, BaseToolReturnPart):
-            content = part.content
-            if content is None or (isinstance(content, str) and not content.strip()):
-                display = "(no value)"
-            else:
-                display = content
-            return UserPromptPart(content=f"[Result ({part.tool_name}): {display}]")
+            return TextPart(content=_tool_return_to_text(part))
         if hasattr(part, "content"):
             content = part.content
             if content is None or (isinstance(content, str) and not content.strip()):
@@ -197,13 +220,10 @@ def strip_to_text_only(history: list[Any]) -> list[Any]:
     for msg in history:
         if isinstance(msg, (ModelRequest, ModelResponse)):
             parts = [_normalize_content(p) for p in msg.parts]
-            parts = [p for p in parts if p is not None]
+            # _normalize_content never returns None, so no filter needed.
             if isinstance(msg, ModelResponse):
                 has_text = any(isinstance(p, TextPart) and p.content for p in parts)
-                has_tool = any(isinstance(p, ToolCallPart) for p in parts)
-                if not has_text and has_tool:
-                    parts.insert(0, TextPart(content="."))
-                elif not has_text and not has_tool:
+                if not has_text:
                     parts.insert(0, TextPart(content="."))
             if parts:
                 result.append(replace(msg, parts=parts))

@@ -12,9 +12,12 @@
   - All existing entity + problem keyword matching logic is preserved.
 
 - **Bug Fix: `strip_to_text_only` converts tool parts to descriptive text**:
-  - `ToolCallPart` → `TextPart("[Tool: <name>(<args>)]")`, `BaseToolReturnPart` → `UserPromptPart("[Result (<name>): <content>]")`. The previous behavior preserved raw `ToolCallPart`/`ToolReturnPart` structs, which some providers still rejected on opaque 400 retries (only `ThinkingPart` was being stripped). Descriptive text preserves semantic context without provider-specific struct requirements.
-  - Removed the `"null"` placeholder for nil tool returns; replaced with `"(no value)"` inside the descriptive `[Result ...]` string.
-  - Empty `ToolCallPart` (no `tool_name`) is still dropped. Nil/empty content in non-tool parts still normalised to `"."`.
+   - `ToolCallPart` → `TextPart("[Tool: <name>(<args>)]")`, `BaseToolReturnPart` → `TextPart("[Result (<name>): <content>]")` (was `UserPromptPart`). Both `ModelRequest` and `ModelResponse` accept `TextPart`, so the part type no longer changes with the container. Descriptive text preserves semantic context without provider-specific struct requirements.
+   - `ThinkingPart` is now preserved — `is_missing_reasoning_content_error` in `retry_loop` handles the DeepSeek-style `reasoning_content` rejection upstream, so the opaque-400 fallback can safely keep all information.
+   - Large tool results truncated to 500 chars to prevent context-window overflow during last-resort retry.
+   - Empty `ToolCallPart` (no `tool_name`) now labelled as `[Tool: (unnamed)(<args>)]` instead of being dropped.
+   - Nil/empty content in non-tool parts still normalised to `"."`.
+   - Internal refactor: helpers extracted (`_tool_call_to_text`, `_tool_return_to_text`); `_normalize_content` no longer returns `None`, removing the downstream `None`-filter pass; redundant `has_tool` fallback branch simplified away.
 
 - **Bug Fix: Stream context manager (resource leak fix)**:
   - `runner.py`: Changed from manual `stream = agent.run_stream_events(...)` + `finally: await stream.aclose()` to `async with agent.run_stream_events(...) as stream:`. The manual pattern held a reference across the event loop; if `aclose()` wasn't reached (e.g. during cancellation), the stream was leaked. The context manager guarantees cleanup.
