@@ -153,9 +153,9 @@ def test_filter_nil_content_preserves_builtin_tool_call_part():
     assert out.parts[0].tool_name == "web_search"
 
 
-def test_strip_to_text_only_converts_tool_parts_keeps_thinking():
-    """ToolCallPart → ``[Tool: name(args)]``, ToolReturnPart → ``[Result (name): content]``.
-    ThinkingPart is kept (``is_missing_reasoning_content_error`` handles it separately).
+def test_strip_to_text_only_converts_all_non_text_parts():
+    """ToolCallPart → ``[Tool: name(args)]``, ToolReturnPart → ``[Result (name): content]``,
+    ThinkingPart → its text content.
     """
     history = [
         ModelRequest(parts=[UserPromptPart(content="deploy to prod")]),
@@ -195,10 +195,11 @@ def test_strip_to_text_only_converts_tool_parts_keeps_thinking():
     assert isinstance(result[2].parts[0], TextPart)
     assert result[2].parts[0].content == "[Result (deploy): started]"
 
-    # msg[3]: ThinkingPart kept, TextPart kept
+    # msg[3]: ThinkingPart → TextPart, TextPart kept
     assert isinstance(result[3], ModelResponse)
     assert len(result[3].parts) == 2
-    assert isinstance(result[3].parts[0], ThinkingPart)
+    assert isinstance(result[3].parts[0], TextPart)
+    assert result[3].parts[0].content == "verifying"
     assert result[3].parts[1].content == "Done, deployment running"
 
 

@@ -137,8 +137,14 @@ async def test_handle_stream_error_opaque_400_only_once():
 
 
 @pytest.mark.asyncio
-async def test_handle_stream_error_opaque_400_skipped_when_no_message():
-    """Opaque retry is skipped when current_message is None (tool loop)."""
+async def test_handle_stream_error_opaque_400_with_no_message():
+    """Opaque 400 with current_message=None fires retry + injects fallback prompt.
+
+    Previously this was skipped because ``current_message is not None`` guarded the
+    handler, but during tool-call iterations and outer-retry resume the user message
+    is often merged into history (making current_message None). The handler now
+    injects a fallback prompt into the text-only history as a replacement user message.
+    """
     state = RetryState(opaque_retry_done=False)
     exc = Exception("Bad request")
     exc.status_code = 400
@@ -146,7 +152,17 @@ async def test_handle_stream_error_opaque_400_skipped_when_no_message():
 
     outcome = await handle_stream_error(state, exc, ["msg1"], None, [], print_fn)
 
-    assert outcome.should_retry is False
+    assert outcome.should_retry is True
+    assert state.opaque_retry_done is True
+    assert outcome.new_message is None  # fallback baked into history
+    assert len(outcome.new_history) == 2
+    # The fallback prompt was injected as a ModelRequest with a UserPromptPart
+    from pydantic_ai.messages import ModelRequest, UserPromptPart
+
+    injected = outcome.new_history[1]
+    assert isinstance(injected, ModelRequest)
+    assert isinstance(injected.parts[0], UserPromptPart)
+    assert "plain-text" in injected.parts[0].content
 
 
 @pytest.mark.asyncio

@@ -219,14 +219,11 @@ def _detect_problems(messages: list[Any]) -> list[str]:
 def strip_to_text_only(history: list[Any]) -> list[Any]:
     """Sanitize history for last-resort retry.
 
-    Converts ``ToolCallPart`` → ``[Tool: name(args)]`` and
-    ``BaseToolReturnPart`` → ``[Result (name): content]`` so the model
-    *loses no semantic context* about tool calls/results, but the provider
-    receives only plain-text messages — no tool-call/response structure
+    Converts ``ToolCallPart`` → ``[Tool: name(args)]``,
+    ``BaseToolReturnPart`` → ``[Result (name): content]``, and
+    ``ThinkingPart`` → its text content, so the provider receives only
+    plain-text messages — no tool-call/response or reasoning structure
     that it might reject.
-
-    Does NOT strip ``ThinkingPart`` — ``is_missing_reasoning_content_error``
-    in :mod:`retry_loop` handles that case specifically, before this fires.
 
     Null/empty content is replaced with ``"."``.  Large tool results are
     truncated to ``_TOOL_RESULT_MAX_CHARS``.
@@ -236,6 +233,7 @@ def strip_to_text_only(history: list[Any]) -> list[Any]:
         ModelRequest,
         ModelResponse,
         TextPart,
+        ThinkingPart,
         ToolCallPart,
     )
 
@@ -244,6 +242,8 @@ def strip_to_text_only(history: list[Any]) -> list[Any]:
             return TextPart(content=_tool_call_to_text(part))
         if isinstance(part, BaseToolReturnPart):
             return TextPart(content=_tool_return_to_text(part))
+        if isinstance(part, ThinkingPart):
+            return TextPart(content=_thinking_part_content(part))
         if hasattr(part, "content"):
             content = part.content
             if content is None or (isinstance(content, str) and not content.strip()):
@@ -299,3 +299,13 @@ def _tool_return_to_text(part: Any) -> str:
     if len(content) > _TOOL_RESULT_MAX_CHARS:
         content = content[:_TOOL_RESULT_MAX_CHARS] + "..."
     return f"[Result ({name}): {content}]"
+
+
+def _thinking_part_content(part: Any) -> str:
+    """Extract the text content from a ThinkingPart."""
+    from pydantic_ai.messages import ThinkingPart  # lazy: heavy third-party
+
+    if not isinstance(part, ThinkingPart):
+        return ""
+    content = part.content if hasattr(part, "content") else ""
+    return str(content) if content else "."

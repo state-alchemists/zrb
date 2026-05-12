@@ -12,7 +12,13 @@ def get_persona_prompt(assistant_name: str | None = None) -> str:
     )
     prompt = get_default_prompt("persona")
     replacements = _get_prompt_replacements()
-    replacements["{ASSISTANT_NAME}"] = effective_assistant_name
+    # Capitalize first letter only — preserves existing casing on the rest
+    # (e.g. "bankai" → "Bankai", "CustomAssistant" → "CustomAssistant")
+    replacements["{ASSISTANT_NAME}"] = (
+        effective_assistant_name[0].upper() + effective_assistant_name[1:]
+        if effective_assistant_name
+        else effective_assistant_name
+    )
     return _replace_prompt_placeholders(prompt, replacements)
 
 

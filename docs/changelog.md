@@ -1,6 +1,23 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.25.0 (May 12, 2026)
+
+- **Improvement: Assistant Name Auto-Capitalization**:
+  - `LLM_ASSISTANT_NAME` first letter is now automatically capitalized in `llm_ui_styles.py`, `prompt.py`, `base/ui.py`, and `std_ui.py`. Preserves existing casing on the remainder (e.g. `"zrb"` → `"Zrb"`, `"customAssistant"` → `"CustomAssistant"`).
+  - `get_persona_prompt()` in `prompt.py` now also capitalizes the `{ASSISTANT_NAME}` placeholder.
+  - `BaseUI.__init__` in `base/ui.py`: falls back to `CFG.LLM_ASSISTANT_NAME` when `assistant_name` is empty/`None` (was left as `""`, which could produce empty assistant labels).
+  - `StdUI` now accepts a new `assistant_name` constructor parameter and uses the configured name instead of the hardcoded `"Zrb"` for the confirmation waiting indicator message.
+
+- **Bug Fix: Opaque 400 Retry Skipped During Tool-Call Iterations**:
+  - `retry_loop.py`: Removed the `current_message is not None` guard from the generic opaque-400 handler. During tool-call iterations and outer-retry resume, `_merge_consecutive_messages` merges the user message into a previous `ModelRequest`, making `current_message` `None`. Previously this skipped the text-only fallback entirely. Now injects a `[SYSTEM]` fallback prompt into the sanitized history when no message is pending, prompting a plain-text continuation instead of re-entering the tool-calling flow that triggered the rejection.
+  - Test: `test_handle_stream_error_opaque_400_skipped_when_no_message` renamed to `test_handle_stream_error_opaque_400_with_no_message`; now asserts `should_retry is True` and verifies the injected fallback prompt.
+
+- **Improvement: `strip_to_text_only` Converts `ThinkingPart`**:
+  - `history_utils.py`: `strip_to_text_only` now also converts `ThinkingPart` → `TextPart` with its text content preserved (new `_thinking_part_content` helper). Previously thinking parts were left intact for the `is_missing_reasoning_content_error` handler, but if that handler already fired (or was inapplicable), the opaque-400 text-only fallback could still fail on reasoning content. Now the text-only fallback is truly text-only.
+  - Test: `test_strip_to_text_only_converts_tool_parts_keeps_thinking` renamed to `test_strip_to_text_only_converts_all_non_text_parts`; now asserts `ThinkingPart` is converted to `TextPart`.
+
+
 ## 2.26.4 (May 12, 2026)
 
 - **Bug Fix: `create_agent` uses `tool_retries` (was `retries`)**:

@@ -38,7 +38,10 @@ class LLMUIStylesMixin:
         default = self.DEFAULT_LLM_ASSISTANT_NAME
         if default == "":
             default = self.ROOT_GROUP_NAME
-        return get_env("LLM_ASSISTANT_NAME", default, self.ENV_PREFIX)
+        raw = get_env("LLM_ASSISTANT_NAME", default, self.ENV_PREFIX)
+        # Capitalize first letter — preserves existing casing on the rest
+        # (e.g. "boom" → "Boom", "CustomAssistant" → "CustomAssistant")
+        return raw[0].upper() + raw[1:] if raw else raw
 
     @LLM_ASSISTANT_NAME.setter
     def LLM_ASSISTANT_NAME(self, value: str):

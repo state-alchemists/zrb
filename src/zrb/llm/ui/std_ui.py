@@ -3,11 +3,16 @@ import subprocess
 import sys
 from typing import Any, TextIO
 
+from zrb.config.config import CFG
 from zrb.util.cli.style import stylize_faint
 
 
 class StdUI:
     """Standard UI implementation of UIProtocol for terminal environments."""
+
+    def __init__(self, assistant_name: str | None = None):
+        raw = assistant_name if assistant_name else CFG.LLM_ASSISTANT_NAME
+        self._assistant_name = raw[0].upper() + raw[1:] if raw else raw
 
     async def ask_user(self, prompt: str) -> str:
         """Prompt user via CLI input."""
@@ -22,7 +27,9 @@ class StdUI:
         # Show a waiting indicator when no explicit prompt is provided
         # (the typical case for tool-confirmation requests).
         if not prompt:
-            sys.stderr.write("\n👋 Zrb is waiting for confirmation\n")
+            sys.stderr.write(
+                f"\n👋 {self._assistant_name} is waiting for confirmation\n"
+            )
             sys.stderr.flush()
 
         try:

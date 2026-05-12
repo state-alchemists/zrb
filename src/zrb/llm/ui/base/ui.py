@@ -174,7 +174,7 @@ class BaseUI(CommandsMixin):
         self._running_llm_task: asyncio.Task | None = None
         self._llm_task = llm_task
         self._history_manager = history_manager
-        self._assistant_name = assistant_name
+        self._assistant_name = assistant_name or CFG.LLM_ASSISTANT_NAME
         self._initial_message = initial_message
         self._conversation_session_name = conversation_session_name
         if not self._conversation_session_name:

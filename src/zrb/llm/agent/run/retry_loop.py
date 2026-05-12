@@ -165,13 +165,32 @@ async def handle_stream_error(
     # Generic opaque-400 retry: collapse history to text-only and retry once.
     # This catches any 400 that wasn't classified by the handlers above —
     # most commonly a model response that can't round-trip through its own
-    # provider (GLM-5 on Bedrock, local models, future providers, etc.).
-    # Text is the lowest common denominator every provider accepts.
-    if not state.opaque_retry_done and current_message is not None:
+    # provider (GLM-5 on Bedrock, DeepSeek, local models, …).  Text is the
+    # lowest common denominator every provider accepts.
+    #
+    # The guard used to require ``current_message is not None``, but that
+    # skipped the handler when ``_merge_consecutive_messages`` had merged
+    # the user message into a previous ``ModelRequest`` (common during tool-
+    # call iterations and outer-retry resume).  Remove the guard so every
+    # opaque 400 gets the text-only fallback regardless of message state.
+    # When ``current_message`` is *None* we inject a resume prompt so the
+    # model produces a plain-text continuation instead of re-entering the
+    # tool-calling flow that triggered the rejection.
+    if not state.opaque_retry_done:
         status_code = getattr(exc, "status_code", None)
         if status_code == 400:
             state.opaque_retry_done = True
             sanitized = strip_to_text_only(current_history)
+            fallback_message = current_message
+            if fallback_message is None:
+                fallback_message = (
+                    "[SYSTEM] The previous response was rejected by the provider. "
+                    "Please continue with a plain-text response — do not use tools."
+                )
+                sanitized = list(sanitized) + [
+                    ModelRequest(parts=[UserPromptPart(content=fallback_message)])
+                ]
+                fallback_message = None
             print_fn(
                 "\n[SYSTEM] Model response rejected by provider — "
                 "collapsing history to text-only and retrying..."
@@ -182,7 +201,7 @@ async def handle_stream_error(
             return RetryOutcome(
                 should_retry=True,
                 new_history=sanitized,
-                new_message=current_message,
+                new_message=fallback_message,
             )
 
     return RetryOutcome(should_retry=False)
