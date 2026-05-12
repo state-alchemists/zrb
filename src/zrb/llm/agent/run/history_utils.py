@@ -170,18 +170,27 @@ def strip_to_text_only(history: list[Any]) -> list[Any]:
         TextPart,
         ThinkingPart,
         ToolCallPart,
+        UserPromptPart,
     )
 
     def _normalize_content(part: Any) -> Any | None:
         if isinstance(part, ThinkingPart):
             return None
-        if isinstance(part, ToolCallPart) and not part.tool_name:
+        if isinstance(part, ToolCallPart):
+            if part.tool_name:
+                return TextPart(content=f"[Tool: {part.tool_name}({part.args})]")
             return None
+        if isinstance(part, BaseToolReturnPart):
+            content = part.content
+            if content is None or (isinstance(content, str) and not content.strip()):
+                display = "(no value)"
+            else:
+                display = content
+            return UserPromptPart(content=f"[Result ({part.tool_name}): {display}]")
         if hasattr(part, "content"):
             content = part.content
             if content is None or (isinstance(content, str) and not content.strip()):
-                placeholder = "null" if isinstance(part, BaseToolReturnPart) else "."
-                return replace(part, content=placeholder)
+                return replace(part, content=".")
         return part
 
     result = []

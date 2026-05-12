@@ -3,12 +3,27 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pydantic_ai import Agent, AgentRunResultEvent
+from pydantic_ai.result import AgentEventStream
 
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
+
+
+def _stream_from(agen_func):
+    """Wrap an async generator function into a run_stream_events mock.
+
+    The real AgentEventStream supports ``async with ... as stream:``, but
+    raw async generators do not.  This helper wraps the generator in an
+    AgentEventStream so tests pass args/kwargs through transparently.
+    """
+
+    def wrapper(*args, **kwargs):
+        return AgentEventStream(generator=agen_func(*args, **kwargs))
+
+    return wrapper
 
 
 @pytest.mark.asyncio
@@ -40,10 +55,10 @@ async def test_run_agent_runs_history_processors_before_pruning():
     mock_result.output = "AI result"
     mock_result.all_messages.return_value = []
 
-    async def mock_run_stream_events(*args, **kwargs):
+    async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = mock_run_stream_events
+    agent.run_stream_events = _stream_from(_gen)
 
     result, _ = await run_agent(
         agent=agent, message="Hi", message_history=[], limiter=LLMLimiter()
@@ -75,10 +90,10 @@ async def test_run_agent_passes_system_prompt_overhead_to_processors():
     mock_result.output = "ok"
     mock_result.all_messages.return_value = []
 
-    async def mock_run_stream_events(*args, **kwargs):
+    async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = mock_run_stream_events
+    agent.run_stream_events = _stream_from(_gen)
 
     limiter = MagicMock(spec=LLMLimiter)
     limiter.max_token_per_request = 1000
@@ -109,10 +124,10 @@ async def test_run_agent_without_history_processors_does_not_crash():
     mock_result.output = "ok"
     mock_result.all_messages.return_value = []
 
-    async def mock_run_stream_events(*args, **kwargs):
+    async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = mock_run_stream_events
+    agent.run_stream_events = _stream_from(_gen)
 
     result, _ = await run_agent(
         agent=agent, message="hi", message_history=[], limiter=LLMLimiter()
@@ -128,10 +143,10 @@ async def test_run_agent_basic():
     mock_result.output = "AI result"
     mock_result.all_messages.return_value = []
 
-    async def mock_run_stream_events(*args, **kwargs):
+    async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = mock_run_stream_events
+    agent.run_stream_events = _stream_from(_gen)
 
     result, history = await run_agent(
         agent=agent, message="Hi", message_history=[], limiter=LLMLimiter()
@@ -151,11 +166,11 @@ async def test_run_agent_with_attachments():
     # Track the message passed to run_stream_events
     captured_message = []
 
-    async def mock_run_stream_events(message, **kwargs):
+    async def _gen(message, **kwargs):
         captured_message.append(message)
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = mock_run_stream_events
+    agent.run_stream_events = _stream_from(_gen)
 
     from pydantic_ai import BinaryContent
 
@@ -185,11 +200,11 @@ async def test_run_agent_error_history_attachment():
     """Test that run_agent attaches history to exceptions."""
     agent = MagicMock()
 
-    async def mock_run_stream_events(*args, **kwargs):
+    async def _gen(*args, **kwargs):
         raise Exception("API Error")
         yield  # Make it a generator
 
-    agent.run_stream_events = mock_run_stream_events
+    agent.run_stream_events = _stream_from(_gen)
 
     try:
         await run_agent(
@@ -208,10 +223,10 @@ async def test_run_agent_empty_message():
     mock_result.output = "Resumed"
     mock_result.all_messages.return_value = []
 
-    async def mock_run_stream_events(*args, **kwargs):
+    async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = mock_run_stream_events
+    agent.run_stream_events = _stream_from(_gen)
 
     result, _ = await run_agent(
         agent=agent, message="", message_history=[], limiter=LLMLimiter()
@@ -237,7 +252,7 @@ async def test_run_agent_deferred_requests():
 
     call_count = 0
 
-    async def mock_run_stream_events(*args, **kwargs):
+    async def _gen(*args, **kwargs):
         nonlocal call_count
         call_count += 1
         if call_count == 1:
@@ -245,7 +260,7 @@ async def test_run_agent_deferred_requests():
         else:
             yield AgentRunResultEvent(result=mock_final_result)
 
-    agent.run_stream_events = mock_run_stream_events
+    agent.run_stream_events = _stream_from(_gen)
 
     # Mock tool resolution - return proper DeferredToolResults object
     with patch(
@@ -279,7 +294,7 @@ async def test_run_agent_session_end_replace_response_false():
 
     call_count = 0
 
-    async def mock_run_stream_events(*args, **kwargs):
+    async def _gen(*args, **kwargs):
         nonlocal call_count
         call_count += 1
         if call_count == 1:
@@ -287,7 +302,7 @@ async def test_run_agent_session_end_replace_response_false():
         else:
             yield AgentRunResultEvent(result=mock_extended_result)
 
-    agent.run_stream_events = mock_run_stream_events
+    agent.run_stream_events = _stream_from(_gen)
 
     # Stateful hook that only fires once (prevents infinite loop)
     class OnceHook:
@@ -336,7 +351,7 @@ async def test_run_agent_session_end_replace_response_true():
 
     call_count = 0
 
-    async def mock_run_stream_events(*args, **kwargs):
+    async def _gen(*args, **kwargs):
         nonlocal call_count
         call_count += 1
         if call_count == 1:
@@ -344,7 +359,7 @@ async def test_run_agent_session_end_replace_response_true():
         else:
             yield AgentRunResultEvent(result=mock_transformed_result)
 
-    agent.run_stream_events = mock_run_stream_events
+    agent.run_stream_events = _stream_from(_gen)
 
     # Stateful hook that only fires once (prevents infinite loop)
     class OnceHook:
@@ -385,10 +400,10 @@ async def test_run_agent_session_start_context_prepending():
     mock_result.output = "Result"
     mock_result.all_messages.return_value = []
 
-    async def mock_run_stream_events(*args, **kwargs):
+    async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = mock_run_stream_events
+    agent.run_stream_events = _stream_from(_gen)
 
     manager = HookManager()
 
@@ -404,8 +419,10 @@ async def test_run_agent_session_start_context_prepending():
     limiter.acquire = AsyncMock()
 
     with patch.object(
-        agent, "run_stream_events", side_effect=mock_run_stream_events
+        agent, "run_stream_events"
     ) as mock_run:
+        mock_run.side_effect = _stream_from(_gen)
+
         result, _ = await run_agent(
             agent=agent,
             message="Hi",
@@ -429,10 +446,10 @@ async def test_run_agent_user_prompt_context_prepending():
     mock_result.output = "Result"
     mock_result.all_messages.return_value = []
 
-    async def mock_run_stream_events(*args, **kwargs):
+    async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = mock_run_stream_events
+    agent.run_stream_events = _stream_from(_gen)
 
     manager = HookManager()
 
@@ -448,8 +465,10 @@ async def test_run_agent_user_prompt_context_prepending():
     limiter.acquire = AsyncMock()
 
     with patch.object(
-        agent, "run_stream_events", side_effect=mock_run_stream_events
+        agent, "run_stream_events"
     ) as mock_run:
+        mock_run.side_effect = _stream_from(_gen)
+
         result, _ = await run_agent(
             agent=agent,
             message="Hi",
@@ -471,10 +490,10 @@ async def test_run_agent_multi_ui_resolution():
     mock_result.output = "Result"
     mock_result.all_messages.return_value = []
 
-    async def mock_run_stream_events(*args, **kwargs):
+    async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = mock_run_stream_events
+    agent.run_stream_events = _stream_from(_gen)
 
     ui1 = MagicMock()
     ui2 = MagicMock()
@@ -503,10 +522,10 @@ async def test_run_agent_emergency_pruning():
     mock_result.output = "Result"
     mock_result.all_messages.return_value = []
 
-    async def mock_run_stream_events(*args, **kwargs):
+    async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = mock_run_stream_events
+    agent.run_stream_events = _stream_from(_gen)
 
     limiter = MagicMock(spec=LLMLimiter)
     limiter.max_token_per_request = 100
@@ -540,10 +559,10 @@ async def test_run_agent_merge_consecutive_model_requests():
     mock_result.output = "Result"
     mock_result.all_messages.return_value = []
 
-    async def mock_run_stream_events(*args, **kwargs):
+    async def _gen(*args, **kwargs):
         yield AgentRunResultEvent(result=mock_result)
 
-    agent.run_stream_events = mock_run_stream_events
+    agent.run_stream_events = _stream_from(_gen)
 
     # History ends with ModelRequest
     history = [ModelRequest(parts=[])]
@@ -555,8 +574,10 @@ async def test_run_agent_merge_consecutive_model_requests():
     limiter.fit_context_window.side_effect = lambda h, m, r: h
 
     with patch.object(
-        agent, "run_stream_events", side_effect=mock_run_stream_events
+        agent, "run_stream_events"
     ) as mock_run:
+        mock_run.side_effect = _stream_from(_gen)
+
         await run_agent(
             agent=agent, message="Hi", message_history=history, limiter=limiter
         )

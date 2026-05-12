@@ -16,6 +16,15 @@ def is_prompt_too_long_error(e: Exception) -> bool:
     return any(keyword in err_str for keyword in context_keywords)
 
 
+def _get_body_message(e: Exception) -> str:
+    """Extract the provider's error message from the body, falling back to str(e)."""
+    body = getattr(e, "body", None)
+    if isinstance(body, dict):
+        msg = body.get("message") or ""
+        return msg
+    return str(e)
+
+
 def is_invalid_tool_call_error(e: Exception) -> bool:
     """Returns True if the exception is an HTTP 400 caused by an invalid/unknown tool name.
 
@@ -23,13 +32,13 @@ def is_invalid_tool_call_error(e: Exception) -> bool:
     that was not in the registered tool list, returning HTTP 400 instead of handling
     the unknown call gracefully.
 
-    Requires BOTH an entity word (tool/function) AND a problem word (unknown/invalid/…)
-    to avoid false-positives on generic 400 errors like "Invalid JSON body".
+    Checks the body's *message* field (not the outer str(e)) to avoid false-positives
+    from wrapper metadata such as ``'type': 'invalid_request_error'``.
     """
     status_code = getattr(e, "status_code", None)
     if status_code != 400:
         return False
-    err_str = str(e).lower()
+    err_str = _get_body_message(e).lower()
     entity_keywords = ["tool", "function"]
     problem_keywords = ["unknown", "invalid", "not defined", "not found"]
     return any(e in err_str for e in entity_keywords) and any(

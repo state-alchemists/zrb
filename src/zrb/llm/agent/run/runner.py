@@ -436,7 +436,6 @@ async def _execution_loop(
 
     run_history = current_history
     result_output = None
-    stream = None
     retry_state = RetryState()
     extension_state = ExtensionState()
     current_results = None
@@ -454,36 +453,35 @@ async def _execution_loop(
                 current_history,
                 allow_orphaned_tool_calls=(current_results is not None),
             )
-            stream = agent.run_stream_events(
-                current_message,
-                message_history=current_history,
-                deferred_tool_results=current_results,
-                usage_limits=UsageLimits(request_limit=None),
-            )
-            CFG.LOGGER.debug(f"Stream started, current_results={current_results}")
             stream_error = None
             try:
                 # Docs: https://pydantic.dev/docs/ai/core-concepts/agent/#streaming-events-and-final-output
-                async for event in stream:
-                    if isinstance(event, AgentRunResultEvent):
-                        result = event.result
-                        result_output = result.output
-                        CFG.LOGGER.debug(
-                            f"Got result event, result_output type: {type(result_output)}"
-                        )
-                        run_history = sanitize_history(
-                            result.all_messages(),
-                            allow_orphaned_tool_calls=isinstance(
-                                result_output, DeferredToolRequests
-                            ),
-                        )
-                    if effective_event_handler:
-                        await effective_event_handler(event)
+                async with agent.run_stream_events(
+                    current_message,
+                    message_history=current_history,
+                    deferred_tool_results=current_results,
+                    usage_limits=UsageLimits(request_limit=None),
+                ) as stream:
+                    CFG.LOGGER.debug(
+                        f"Stream started, current_results={current_results}"
+                    )
+                    async for event in stream:
+                        if isinstance(event, AgentRunResultEvent):
+                            result = event.result
+                            result_output = result.output
+                            CFG.LOGGER.debug(
+                                f"Got result event, result_output type: {type(result_output)}"
+                            )
+                            run_history = sanitize_history(
+                                result.all_messages(),
+                                allow_orphaned_tool_calls=isinstance(
+                                    result_output, DeferredToolRequests
+                                ),
+                            )
+                        if effective_event_handler:
+                            await effective_event_handler(event)
             except Exception as _stream_exc:
                 stream_error = _stream_exc
-            finally:
-                if stream is not None and hasattr(stream, "aclose"):
-                    await stream.aclose()
 
             if stream_error is not None:
                 outcome = await handle_stream_error(
