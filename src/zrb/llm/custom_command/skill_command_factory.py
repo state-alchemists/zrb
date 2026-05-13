@@ -1,8 +1,10 @@
 import re
 from collections.abc import Callable
+from pathlib import Path
 
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.custom_command.custom_command import CustomCommand
+from zrb.llm.skill._util import format_companion_file_lines
 from zrb.llm.skill.manager import SkillManager
 
 
@@ -30,10 +32,22 @@ def _get_skill_custom_commands(skill_manager: SkillManager) -> list[AnyCustomCom
         description = skill.description
         if skill.argument_hint:
             description = f"{skill.description} {skill.argument_hint}"
+        # Prepend skill context header (directory path + companion files)
+        skill_dir = str(Path(skill.path).parent)
+        context_lines = [
+            f"Skill directory (working directory): {skill_dir}",
+            "",
+            "All file paths in the instructions below are relative to this directory.",
+            "Use companion files (scripts, tools, references) by resolving them against this path.",
+        ]
+        context_lines.extend(format_companion_file_lines(skill.companion_files))
+        context_lines.append("")
+        context_lines.append("---")
+        prompt_with_companions = "\n".join(context_lines) + "\n\n" + content
         commands.append(
             CustomCommand(
                 command=f"/{skill.name}",
-                prompt=content,
+                prompt=prompt_with_companions,
                 args=args,
                 description=description,
             )

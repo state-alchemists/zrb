@@ -54,8 +54,10 @@ class TestGetSkillCustomCommand:
         skill = MagicMock(spec=Skill)
         skill.user_invocable = True
         skill.name = "my_skill"
+        skill.path = "/some/path/SKILL.md"
         skill.description = "A test skill"
         skill.argument_hint = None
+        skill.companion_files = []
         mock_manager.scan.return_value = [skill]
         mock_manager.get_skill_content.return_value = (
             "This is skill content with $ARGUMENTS"
@@ -75,8 +77,10 @@ class TestGetSkillCustomCommand:
         skill = MagicMock(spec=Skill)
         skill.user_invocable = True
         skill.name = "test"
+        skill.path = "/some/path/SKILL.md"
         skill.description = "Test"
         skill.argument_hint = "<file>"
+        skill.companion_files = []
         mock_manager.scan.return_value = [skill]
         mock_manager.get_skill_content.return_value = "Content"
 
@@ -85,3 +89,31 @@ class TestGetSkillCustomCommand:
 
         assert len(result) == 1
         assert "<file>" in result[0].description
+
+    def test_get_skill_custom_command_with_companion_files(self):
+        """Test companion files are included in the prompt."""
+        mock_manager = MagicMock()
+        skill = MagicMock(spec=Skill)
+        skill.user_invocable = True
+        skill.name = "my_skill"
+        skill.path = "/some/path/SKILL.md"
+        skill.description = "A test skill"
+        skill.argument_hint = None
+        skill.companion_files = ["README.md", "scripts/run.sh"]
+        mock_manager.scan.return_value = [skill]
+        mock_manager.get_skill_content.return_value = "Skill content"
+
+        factory = get_skill_custom_command(mock_manager)
+        result = factory()
+
+        assert len(result) == 1
+        prompt = result[0].get_prompt({})
+        # Header elements
+        assert "Skill directory" in prompt
+        assert "Companion files available in this directory:" in prompt
+        assert "  README.md" in prompt
+        assert "  scripts/" in prompt
+        assert "    run.sh" in prompt
+        assert "---" in prompt
+        # Original content preserved
+        assert "Skill content" in prompt

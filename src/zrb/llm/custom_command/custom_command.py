@@ -58,9 +58,11 @@ class CustomCommand(AnyCustomCommand):
             prompt,
         )
 
-        # If no replacement occurred and the original prompt has no placeholders,
-        # append the arguments.
-        if prompt == self._prompt and "$" not in self._prompt:
+        # If no replacement occurred, append the arguments so the LLM
+        # sees the user's input. Don't check for "$" in the content —
+        # skills may contain dollar signs (regex patterns, shell examples,
+        # etc.) without having actual placeholder variables.
+        if prompt == self._prompt:
             args_info = (
                 kwargs.get("ARGUMENTS", "")
                 if len(self.args) == 1 and self.args[0] == "ARGUMENTS"

@@ -1,27 +1,8 @@
 from pathlib import Path
 
+from zrb.llm.skill._util import discover_companion_files, format_companion_file_lines
 from zrb.llm.skill.manager import SkillManager
 from zrb.llm.skill.manager import skill_manager as default_skill_manager
-
-
-def _get_companion_files(skill_path: str) -> list[str]:
-    """Return companion files for skills that live in their own directory.
-
-    Only applies when the skill file is named exactly SKILL.md or SKILL.py,
-    meaning it has a dedicated directory. Flat *.skill.md files share a directory
-    with other skills so companions are not reported for them.
-    """
-    skill_file = Path(skill_path)
-    if skill_file.name not in ("SKILL.md", "SKILL.py"):
-        return []
-    skill_dir = skill_file.parent
-    if not skill_dir.is_dir():
-        return []
-    return sorted(
-        str(f)
-        for f in skill_dir.iterdir()
-        if f.is_file() and f.name not in ("SKILL.md", "SKILL.py")
-    )
 
 
 def create_activate_skill_tool(skill_manager: SkillManager | None = None):
@@ -42,15 +23,19 @@ def create_activate_skill_tool(skill_manager: SkillManager | None = None):
             return f"Skill '{name}' not found."
 
         skill_dir = str(Path(skill.path).parent)
-        companion_files = _get_companion_files(skill.path)
+        companion_files = skill.companion_files or discover_companion_files(skill.path)
 
-        header_lines = [f"Skill directory: {skill_dir}"]
-        if companion_files:
-            header_lines.append("Companion files:")
-            for f in companion_files:
-                header_lines.append(f"  - {f}")
-        else:
-            header_lines.append("Companion files: none")
+        header_lines = [
+            "Skill activated. The following context applies:",
+            "",
+            f"Skill directory (working directory): {skill_dir}",
+            "",
+            "All file paths in the skill instructions below are relative to this directory.",
+            "Use companion files (scripts, tools, references) by resolving them against this path.",
+        ]
+        header_lines.extend(format_companion_file_lines(companion_files))
+        header_lines.append("")
+        header_lines.append("---")
 
         header = "\n".join(header_lines)
         return f"<ACTIVATED_SKILL>\n{header}\n\n{content}\n</ACTIVATED_SKILL>"
