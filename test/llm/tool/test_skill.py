@@ -18,6 +18,7 @@ class TestCreateActivateSkillTool:
         mock_skill.name = "test-skill"
         mock_skill.path = "/test/SKILL.md"
         mock_skill.model_invocable = True
+        mock_skill.companion_files = []
 
         mock_manager = MagicMock(spec=SkillManager)
         mock_manager.get_skill.return_value = mock_skill
@@ -54,12 +55,50 @@ class TestCreateActivateSkillTool:
         from zrb.llm.tool.skill import create_activate_skill_tool
 
         with patch("zrb.llm.tool.skill.default_skill_manager") as mock_default_manager:
-            mock_default_manager.get_skill.return_value = MagicMock()
-            # We need to return an invocable skill
-            mock_default_manager.get_skill.return_value.model_invocable = True
+            mock_skill = MagicMock()
+            mock_skill.model_invocable = True
+            mock_skill.companion_files = []
+            mock_default_manager.get_skill.return_value = mock_skill
             mock_default_manager.get_skill_content.return_value = "content"
 
             func = create_activate_skill_tool()  # No skill_manager provided
             await func(name="test")
 
             mock_default_manager.get_skill.assert_called_once_with("test")
+
+    @pytest.mark.asyncio
+    async def test_activate_skill_with_companion_files(self):
+        """Test companion files appear in activation output with grouping."""
+        from zrb.llm.skill.manager import SkillManager
+        from zrb.llm.tool.skill import create_activate_skill_tool
+
+        mock_skill = MagicMock()
+        mock_skill.name = "test-skill"
+        mock_skill.path = "/test/SKILL.md"
+        mock_skill.model_invocable = True
+        mock_skill.companion_files = [
+            "README.md",
+            "scripts/setup.sh",
+            "scripts/run.sh",
+            "config/default.yaml",
+        ]
+
+        mock_manager = MagicMock(spec=SkillManager)
+        mock_manager.get_skill.return_value = mock_skill
+        mock_manager.get_skill_content.return_value = "content"
+
+        func = create_activate_skill_tool(skill_manager=mock_manager)
+        result = await func(name="test-skill")
+
+        # Check header elements
+        assert "Skill directory (working directory): /test" in result
+        assert "Companion files available in this directory:" in result
+        # Standalone file
+        assert "  README.md" in result
+        # Grouped files
+        assert "  scripts/" in result
+        assert "    setup.sh" in result
+        assert "    run.sh" in result
+        assert "  config/" in result
+        assert "    default.yaml" in result
+        assert "---" in result

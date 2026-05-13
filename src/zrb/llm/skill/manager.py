@@ -7,6 +7,7 @@ import yaml
 
 from zrb.config.config import CFG
 from zrb.llm.hook.manager import hook_manager
+from zrb.llm.skill._util import discover_companion_files
 from zrb.util.load import load_module_from_path
 
 _IGNORE_DIRS = [
@@ -52,6 +53,7 @@ class Skill:
         agent: str | None = None,
         content: str | None = None,
         content_factory: Callable[[], str] | None = None,
+        companion_files: list[str] | None = None,
     ):
         self.name = name
         self.path = path
@@ -65,6 +67,7 @@ class Skill:
         self.agent = agent
         self.content = content
         self.content_factory = content_factory
+        self.companion_files = companion_files or []
 
 
 class SkillManager:
@@ -282,11 +285,13 @@ class SkillManager:
                 skill_obj = getattr(module, "SKILL")
 
             if isinstance(skill_obj, Skill):
+                skill_obj.companion_files = discover_companion_files(full_path)
                 self._skills[skill_obj.name] = skill_obj
             elif hasattr(module, "get_skill") and callable(module.get_skill):
                 # Factory function that returns a Skill
                 skill_obj = module.get_skill()
                 if isinstance(skill_obj, Skill):
+                    skill_obj.companion_files = discover_companion_files(full_path)
                     self._skills[skill_obj.name] = skill_obj
 
         except Exception as e:
@@ -387,6 +392,7 @@ class SkillManager:
                 context=context,
                 agent=agent,
                 content=content,  # Persist content to avoid re-reading
+                companion_files=discover_companion_files(full_path),
             )
         except Exception as e:
             CFG.LOGGER.warning(f"Failed to load Markdown skill from {full_path}: {e}")
