@@ -1,6 +1,29 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.26.9 (May 13, 2026)
+
+- **Bug Fix: `CustomCommand` dollar-sign guard suppressed args for prompts with literal `$`**:
+  - `custom_command.py` removed the `"$" not in self._prompt` guard that prevented argument appending when the prompt contained any dollar sign (regex patterns, shell examples, prices) without actual placeholder variables. Skills like `Match end of line: \d+$` now correctly pass `ARGUMENTS` through.
+  - Test: `test_get_prompt_literal_dollar_not_placeholder` in `test_custom_command.py`.
+
+- **Refactoring: Shared companion-file utilities extracted**:
+  - New `src/zrb/llm/skill/_util.py` holds `discover_companion_files()` (recursive `rglob`, excludes `SKILL.md`/`SKILL.py` itself) and `format_companion_file_lines()` (groups files by top-level directory). Shared across `tool/skill.py`, `skill_command_factory.py`, and `manager.py`.
+  - `tool/skill.py`: Private `_get_companion_files()` replaced with the shared `discover_companion_files()` from `_util.py`.
+
+- **Improvement: Skill activation headers clarified**:
+  - `ActivateSkill` tool output (`tool/skill.py`) now shows a consistent header with "Skill activated. The following context applies:" preamble, the skill directory marked as "working directory", a note that "All file paths ... are relative to this directory.", and grouped companion file listing (previously flat `-` bullet list).
+  - `SkillCommandFactory` (`skill_command_factory.py`) now prepends the same companion-file context header to skill slash-command prompts, matching the `ActivateSkill` tool behavior.
+  - Companion file formatting moved from `skill.py`'s inline `- {name}` to `format_companion_file_lines()` with directory grouping (e.g. `scripts/` → `setup.sh`, `run.sh`).
+
+- **Documentation: "Companion Files" section added**:
+  - `docs/advanced-topics/claude-compatibility.md` documents the `SKILL.md`/`SKILL.py` directory convention, companion-file auto-discovery, and example directory structure. Linked from the `ActivateSkill` tool description in the skill authoring guide.
+
+- **Test Infrastructure: `Skill` mock attribute coverage**:
+  - `companion_files` attribute added to `Skill` mocks in `test_skill.py` (2 tests) and `test_skill_command_factory.py` (3 tests) to match the new `Skill` class interface.
+  - New `test/llm/skill/test__util.py`: 8 tests covering `discover_companion_files` (flat file, SKILL.md, SKILL.py, missing directory) and `format_companion_file_lines` (empty, standalone, grouped, mixed).
+
+
 ## 2.26.8 (May 13, 2026)
 
 - **Bug Fix: `SnapshotManager` skips large regenerable directories**:
