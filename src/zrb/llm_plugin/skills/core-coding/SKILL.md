@@ -20,6 +20,8 @@ When the current step matches a trigger below, `Read` the named companion from t
 | Code touches user input, auth, file I/O, or sensitive data | `workflows/review.md` (security audit checklist) |
 | First substantial edit in a project — identify the language from the manifest | `languages/<lang>.md` (one of `python`, `typescript`, `go`, `rust`, `java`, `ruby`, `php`) |
 
+If the user has provided custom guidelines for any of the above (in CLAUDE.md, AGENTS.md, their own skills, or project files), prefer those over the core companion. Core companions fill in the gaps.
+
 ## PHASE 1: RESEARCH & DISCOVERY
 
 Follow the **Scientific Method**: form a hypothesis → test it → analyze results. Avoid random changes.
