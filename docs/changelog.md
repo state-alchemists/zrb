@@ -1,7 +1,47 @@
 🔖 [Documentation Home](../README.md)
 
 
-## 2.26.9 (May 13, 2026)
+## 2.27.0 (May 14, 2026)
+
+- **Feature: New skill architecture — 5 core skills with companion files**:
+  - Introduced 5 consolidated core skills (`core-coding`, `core-research`, `core-design`, `core-writing`, `core-journaling`) serving as methodology hubs with companion files (language guides, workflow guides, templates, tools).
+  - `core-coding`: 7 language-specific companions (`python.md`, `go.md`, `java.md`, `php.md`, `ruby.md`, `rust.md`, `typescript.md`) with language conventions, idioms, and gotchas; 4 workflow companions (`testing.md`, `debug.md`, `refactor.md`, `review.md`) with detailed step-by-step methodologies.
+  - `core-design`: Decision record template (`templates/decision-record.md`) for architecture decisions.
+  - `core-writing`: 3 writing templates (`api-doc.md`, `commit-message.md`, `readme.md`) with AIDA/PAS/FEBC copywriting frameworks.
+  - `core-journaling`: Activity log template (`templates/activity-entry.md`); journal lint tool (`tools/journal-lint.py`) for backlink validation and orphan detection.
+  - `core-research`: Scope → Discover → Synthesize → Plan workflow with approval gate enforcement.
+
+- **Feature: Skill activation table in mandate**:
+  - New Skill Activation section in `mandate.md` with a domain-to-skill mapping table (Software Engineering → `core-coding`, Research → `core-research`, Design → `core-design`, Writing → `core-writing`).
+  - Activation rules: auto-approved, silent, once per session per domain, skip for trivial lookups.
+  - Skill override hierarchy documented: core-coding overrides Engineering Standards; core-research overrides "work autonomously" directive; core-design enforces no-implementation-during-design; core-writing overrides generic Task Handling.
+
+- **Feature: Skill slash-commands refactored to thin delegation stubs**:
+  - `/debug`, `/testing`, `/review`, `/refactor`, `/research` now delegate to the appropriate core-skill companion file instead of carrying complete workflows inline.
+  - All user-invocable skills gained `disable-model-invocation: true` — only fire when the user explicitly calls the `/command`.
+  - Old `research-and-plan` skill removed (replaced by `/research` + `core-research`).
+
+- **Refactoring: Mandate (operating rules) rewritten for clarity and thoroughness**:
+  - `mandate.md`: Sections reorganized — new Session Context, Tool Use, Communication sections added; Execution Loop, Engineering Discipline, Multi-Step Tasks folded into consolidated Task Handling and Engineering Standards. Rule priority elevated Quality (#3) and Skill Activation (#5); Scope moved to #6. Tiebreaker changed from "analysis > action" to "quality > shortcuts, evidence > assumptions." Added "Strategic re-evaluation" (stop after 3 failed attempts), "Verification (path to finality)" (tests + linter + type-checker + docs), and "Default to no comments" rules.
+  - `persona.md`: Identity changed from "Lead Engineer" to "versatile engineer, researcher, and writer." Added "Plain text: no emojis" and "Quality bar" guidance. Response calibration now distinguishes depth by context type (lookups vs analysis vs structured docs).
+  - `journal_mandate.md`: Expanded with two-write-kind system (Insight vs Activity), explicit "Always journal / Always log / Skip" categories, "How to Write" section mandating `core-journaling` activation before every write, and "How to Scan" protocol for significant turns.
+  - `persona.md`: Removed redundant pre-tool-narration and post-task-summary rules (moved to Communication section in mandate).
+
+- **Improvement: Tool guidance strings tightened**:
+  - `chat.py`: All `_static_tool_guidance` entries rewritten for concision — removed redundant `when_to_use` values, shortened `key_rule` text, merged `LspFindDefinition` guidance into generic LSP guidance. Removed `SearchJournal` standalone guidance entry. Comment added: "File Operations — only non-obvious gotchas. Tool names say what they do."
+
+- **Security: CVE-2026-45134 langsmith bump**:
+  - `pyproject.toml`: langsmith pinned to `>=0.8.0` (was `>=0.7.31`) for GHSA-3644-q5cj-c5c7 — public prompt pull deserializes untrusted manifests enabling SSRF / prompt injection via attacker-controlled prompt manifests.
+  - `journal-lint.py` hardened against path traversal / shell injection in the security-fix commit.
+
+- **Bug Fix: Worktree staleness guard**:
+  - `system_context.py`: If `active_wt` path no longer exists on disk, the stale worktree is cleared from ambient state (imported `set_active_worktree`). Prevents displaying a deleted worktree path in the system context.
+  - Test fix: `test_worktree.py` creates the mock worktree directory with `os.makedirs` before the system context assertion.
+
+- **Improvement: RTK.md included in project context**:
+  - `claude.py`: Added `RTK.md` to the project context search filenames list, so RTK configuration is auto-included when present.
+
+- **Test Infrastructure**: 1621 tests pass across the LLM test suite.
 
 - **Bug Fix: `CustomCommand` dollar-sign guard suppressed args for prompts with literal `$`**:
   - `custom_command.py` removed the `"$" not in self._prompt` guard that prevented argument appending when the prompt contained any dollar sign (regex patterns, shell examples, prices) without actual placeholder variables. Skills like `Match end of line: \d+$` now correctly pass `ARGUMENTS` through.

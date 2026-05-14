@@ -248,6 +248,7 @@ async def test_enter_and_exit_worktree_reflected_in_system_context(mock_subproce
             create_mock_process(returncode=0),
         ]
         await enter_worktree(branch_name="sc-branch", cwd=tmpdir)
+        os.makedirs(worktree_path, exist_ok=True)
         assert "Active worktree:" in _capture_system_context()
 
         # Exit

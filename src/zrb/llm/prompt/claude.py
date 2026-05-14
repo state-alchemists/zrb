@@ -62,6 +62,7 @@ def create_project_context_prompt():
             "CLAUDE.md": [],
             "GEMINI.md": [],
             "README.md": [],
+            "RTK.md": [],
         }
 
         for directory in search_dirs:

@@ -1,80 +1,17 @@
 ---
 name: refactor
-description: Safe structural refactoring that preserves existing behavior. Establishes test coverage first, then makes small atomic changes with verification at each step. Use when improving code structure, reducing complexity, or removing duplication in working code.
+description: Safe structural refactoring that preserves observable behavior — establishes a test baseline, applies atomic changes, verifies at each step. Use when the user explicitly wants to improve code structure without changing behavior.
 user-invocable: true
+disable-model-invocation: true
 ---
-# Skill: refactor
+# /refactor
 
-**Cardinal rule: observable behavior must not change.** Refactoring is restructuring, not rewriting — distinct from adding features or fixing bugs.
+The user invoked `/refactor` with: $ARGUMENTS
 
-## Non-Negotiable Prerequisites
+Procedure:
 
-**Before making any structural change, you MUST have a passing test suite.**
-
-1. Run the existing tests with `Bash`. Confirm they pass.
-2. If test coverage is insufficient for the code you intend to refactor, **stop and write characterization tests first** (use the `testing` skill).
-   - A characterization test captures what the code currently does so you can detect unintended changes.
-   - Coverage is sufficient when all public methods and their key branches (happy path + primary error path) have at least one test each. 100% line coverage is not required, but the refactoring target must be covered.
-3. Record the baseline: the exact test command and its output. This is your safety net.
-
-**If you cannot establish a passing baseline, do not refactor.**
-
----
-
-## Workflow
-
-### PHASE 1: Understand Before Changing
-
-1. **Read the code to be refactored thoroughly** using `ReadMany` or `Read`.
-2. **Identify the code smell or structural problem** you are targeting. Be specific (name the metric or symptom).
-3. **Plan atomic steps.** Each step should be small enough that a failing test immediately identifies the problematic change. Write the plan as todos using `WriteTodos`.
-
----
-
-### PHASE 2: Atomic Refactoring Steps
-
-Apply one refactoring technique at a time. After each:
-- Use `Edit` (not `Write`) for surgical changes.
-- Run the full test suite with `Bash`.
-- If any test fails: **revert immediately** and diagnose. Do not proceed.
-
-**Common refactoring techniques:**
-
-| Technique | Trigger |
-|-----------|---------|
-| **Extract Method** | Nameable block; function too long |
-| **Extract Variable** | Complex expression repeated or unreadable |
-| **Inline Method** | Body is as clear as the name; indirection adds nothing |
-| **Rename** | Name is ambiguous, abbreviated, or misleading |
-| **Move Method/Class** | Function uses more data from another class than its own |
-| **Replace Magic Number** | Literal with domain meaning → named constant |
-| **Replace Conditional with Guard Clause** | Deeply nested if/else → invert and return early |
-| **Replace Conditional with Polymorphism** | Type-switching if/elif chain → subclass or strategy |
-| **Strangler Fig** | Large component replacement; run old and new in parallel until migration is complete |
-| **Introduce Parameter Object** | Parameters that always appear together → data class/struct |
-
----
-
-### PHASE 3: Verify and Integrate
-
-1. **Run the full test suite** one final time after all planned steps.
-2. **Run the linter and type-checker** (from `Makefile`, `pyproject.toml`, or `package.json`).
-3. **Confirm the refactored code is genuinely simpler**, not just different.
-4. **Do not introduce new behavior.** If you discovered a bug during refactoring, note it and fix it in a separate step after the refactoring is complete.
-
----
-
-## Boundaries
-
-- **Never refactor and add features simultaneously.**
-- **Never refactor and fix bugs simultaneously.** Mixing changes makes failures ambiguous.
-- **Stop if you lose the green test baseline.** Debug, revert, or ask for help.
-
----
-
-## Output Format
-
-1. **Code Smell Addressed**: What structural problem was fixed.
-2. **Techniques Applied**: Which refactoring patterns were used and where.
-3. **Before/After**: Key `file_path:line_number` references showing the improvement.
-4. **Test Verification**: The test command and output confirming no regressions.
+1. Ensure `core-coding` is activated for this session. If you can't recall its companion layout from earlier, re-activate via `ActivateSkill('core-coding')` — silent and auto-approved.
+2. Among `core-coding`'s companion files, locate the refactor methodology guide and Read it.
+3. **Before any structural change**, establish a passing test baseline as the guide requires. If coverage is insufficient, surface this to the user and offer to write characterization tests first (using the testing guide in the same companion set).
+4. Apply atomic refactoring steps per the guide. If any test fails after a step, revert immediately.
+5. Report in the format that guide defines (smell addressed, techniques applied, before/after refs, test verification).

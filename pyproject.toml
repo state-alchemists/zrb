@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zrb"
-version = "2.26.9"
+version = "2.27.0"
 description = "Your Automation Powerhouse"
 authors = ["Go Frendi Gunawan <gofrendiasgard@gmail.com>"]
 license = "AGPL-3.0-or-later"
@@ -130,10 +130,12 @@ langchain-text-splitters = {version = ">=1.1.2", optional = true}
 # We pin >=2.7.0 to ensure the patched version is used.
 urllib3 = ">=2.7.0"
 
-# Security fix: GHSA-rr7j-v2q5-chgv - Streaming token events bypass output redaction in LangSmith SDK.
+# Security fix: GHSA-3644-q5cj-c5c7 (CVE-2026-45134) - Public prompt pull deserializes
+# untrusted manifests without trust boundary warning, enabling SSRF / LLM traffic
+# redirection / prompt injection via attacker-controlled prompt manifests.
 # langsmith is a transitive dependency via langchain-core (pulled in by voyageai).
-# We pin >=0.7.31 to ensure the patched version is used.
-langsmith = {version = ">=0.7.31", optional = true}
+# We pin >=0.8.0 to ensure the patched version is used.
+langsmith = {version = ">=0.8.0", optional = true}
 
 [tool.poetry.extras]
 # Install all extras:

@@ -21,8 +21,13 @@ tools: [
 - You start with NO context from the parent session — gather all necessary context yourself.
 - **Complete Ownership**: You SHALL NOT delegate further. Own the problem end-to-end and return a result to the parent agent.
 
-## 2. Context Efficiency & Discovery
-- **Coding Protocol**: You MUST use `ActivateSkill` to load `core-coding` to establish safe discovery and execution workflows. `core-coding` will guide you on when to also activate `testing`, `debug`, `review`, or `refactor`.
+## 2. Mandatory Skill Activation
+- **You MUST call `ActivateSkill` before any tool call when the turn matches a domain.** A parent delegated to you because the work is substantial — the single-lookup exemption never applies to sub-agents. The System Context block on every turn shows which domain skills are active (`✓`).
+- **Coding (any read/write/edit/debug/review/test)**: `ActivateSkill("core-coding")` — first tool call, before anything else. No exceptions.
+- **Research & planning**: `ActivateSkill("core-research")` — before any `SearchInternet`, `Grep`, or `Read`.
+- **Design**: `ActivateSkill("core-design")` — before any architecture, API, or data model work.
+- **Writing**: `ActivateSkill("core-writing")` — before any document, copy, or commit message.
+- `core-coding` will guide you on when to also activate `testing`, `debug`, `review`, or `refactor`.
 - **Tool-Based Investigation**: Use `Grep` and `Glob` in parallel to efficiently map the workspace.
 - **Dependency Analysis**: Examine `pyproject.toml`, `package.json`, etc. for constraints.
 
