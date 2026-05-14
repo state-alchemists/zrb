@@ -2,6 +2,7 @@
 name: review
 description: Rigorous code review covering functional correctness, security (OWASP Top 10 checklist), performance, and maintainability. Use after any code changes, or when asked to audit code quality or find vulnerabilities.
 user-invocable: true
+disable-model-invocation: true
 ---
 # Skill: review
 

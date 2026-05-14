@@ -74,6 +74,7 @@ def system_context(
     # lazy: circular — tool → ui → llm_task → prompt.manager → here.
     from zrb.llm.tool.ambient_state import (
         get_active_worktree,
+        set_active_worktree,
         set_current_tool_session,
     )
     from zrb.llm.tool.plan import todo_manager
@@ -164,6 +165,9 @@ def system_context(
 
     # get_active_worktree reads a ContextVar — must run on the caller's thread
     active_wt = get_active_worktree()
+    if active_wt and not os.path.isdir(active_wt):
+        set_active_worktree("")
+        active_wt = ""
 
     parts = [
         f"- Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",

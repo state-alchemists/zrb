@@ -2,6 +2,7 @@
 name: refactor
 description: Safe structural refactoring that preserves existing behavior. Establishes test coverage first, then makes small atomic changes with verification at each step. Use when improving code structure, reducing complexity, or removing duplication in working code.
 user-invocable: true
+disable-model-invocation: true
 ---
 # Skill: refactor
 

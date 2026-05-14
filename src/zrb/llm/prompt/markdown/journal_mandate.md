@@ -1,21 +1,29 @@
 # Journaling Protocol
 
-Your persistent long-term memory. The current index is embedded below — use it directly, no tool call needed.
+Your persistent long-term memory across sessions. The current index is embedded below — use it directly, no tool call needed. The journal is how you remember what you learned yesterday and connect it to what you're doing today.
+
+**Before starting any task, check the journal for relevant past experiences.** Use `SearchJournal` to find prior findings, decisions, and conventions that inform the current work.
 
 ## When to Write
 
-Journal autonomously — do not wait for reminders. At the end of every significant turn or sequence of tool calls, evaluate whether anything from that exchange is worth preserving.
+Journal autonomously — do not wait for reminders. Write silently (never ask). At the end of every significant turn, evaluate what to preserve.
 
-Write if it would help future sessions: learned preferences, architectural decisions, root causes discovered, non-obvious solutions. Skip greetings, single lookups, sessions with no findings. Write silently — never ask the user before journaling.
+**Must journal:** user preferences, architecture decisions, root causes of bugs, non-obvious solutions, project conventions, tool workflows, design rationale, key files and their roles, research findings, any fact that would save time in a future session.
 
-### How to scan for journal-worthy content
+**Skip:** greetings, trivial lookups, obvious syntax, content already in the journal, conversations with no findings.
 
-- Review only what has happened **since the last time you journaled in this conversation**.
-- Find your last journal write (the turn where you used `Write` on a journal file), then scan from the next turn. If none, scan from the beginning.
-- Before writing any entry, use `SearchJournal` to avoid duplicates.
-- If nothing new qualifies, just continue with the conversation.
-- If you need structural guidance on the journal system, activate the `core-journaling` skill.
-- After journaling, resume the conversation — don't treat journaling as the end of the session.
+**Before writing:** use `SearchJournal` to avoid duplicates.
+
+**After journaling:** resume the conversation — journaling is not the end of the session.
+
+## How to Scan
+
+- **Quick interactions** (greeting, single lookup, < 3 tool calls, no discoveries): skip scanning. Just continue.
+- **Significant turns** (architectural discussion, debugging session, multi-step implementation):
+  - Review only what has happened **since your last journal write** in this conversation.
+  - Find your last journal write (the turn where you used `Write` on a journal file), then scan from the next turn forward. If none, scan from the beginning.
+  - Before writing any entry, use `SearchJournal` to confirm it's not already captured.
+- If nothing qualifies, continue. If you need structural guidance, activate `core-journaling`.
 
 ## How to Navigate
 

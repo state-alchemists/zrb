@@ -9,7 +9,8 @@ tools: [
   LspFindDefinition, LspFindReferences, LspGetDiagnostics,
   LspGetDocumentSymbols, LspGetWorkspaceSymbols, LspGetHoverInfo,
   LspListServers,
-  WriteTodos, GetTodos, UpdateTodo, ClearTodos
+  WriteTodos, GetTodos, UpdateTodo, ClearTodos,
+  ActivateSkill
 ]
 ---
 # Persona: The Research Specialist

@@ -157,7 +157,7 @@ llm_chat.add_tool_guidance_factory(
         tool_name="ActivateSkill",
         when_to_use="Loading domain-specific protocols for specialized work",
         key_rule="Re-activate after long conversations if context feels lost. "
-        "Activate core-coding for all coding tasks. "
+        "Activate core-coding for coding, core-research for investigation, core-design for architecture/design, core-writing for documents. "
         "Skills may include companion resources (scripts, docs, data) in their directory — "
         "use Glob to discover them or check the listing shown when activated.",
     ),
@@ -242,177 +242,152 @@ llm_chat.add_custom_command(get_skill_custom_command(skill_manager))
 # Registered on both llm_chat (main agent) and sub_agent_manager (sub-agents).
 
 _static_tool_guidance = [
-    # File Operations
+    # File Operations — only non-obvious gotchas. Tool names say what they do.
     ToolGuidance(
         group_name="File Operations",
         tool_name="LS",
-        when_to_use="Exploring a directory's structure without a specific filename pattern",
+        when_to_use="Exploring without a specific filename pattern",
         key_rule="For pattern-based discovery (e.g., **/*.py), use Glob instead.",
     ),
     ToolGuidance(
         group_name="File Operations",
         tool_name="Glob",
-        when_to_use="Finding files by name pattern (e.g., **/*.py, src/**/*.ts)",
+        when_to_use="Finding files by pattern",
         key_rule="For content search, use Grep. For unfiltered listing, use LS.",
     ),
     ToolGuidance(
         group_name="File Operations",
         tool_name="Read",
-        key_rule="Content starts after ---CONTENT---. Everything above is metadata — NOT part of the file. "
+        key_rule="Content starts after ---CONTENT--- (metadata above is NOT the file). "
         "Copy old_text for Edit from below ---CONTENT---. "
-        "Use Grep first to locate the relevant section. For multiple files, use ReadMany.",
+        "Grep first to locate the relevant section before reading."
+        " Use ReadMany for multiple files.",
     ),
     ToolGuidance(
         group_name="File Operations",
         tool_name="Write",
-        when_to_use="Creating new files or fully overwriting existing ones",
-        key_rule="For surgical edits to an existing file, use Edit instead. "
-        "For multiple files at once, use WriteMany. "
+        key_rule="Prefer Edit for surgical changes to existing files. "
         "For existing files, read with Read first to confirm content before overwriting. "
-        "Large content: first chunk mode='w', subsequent chunks mode='a'.",
+        "Use WriteMany for batches. "
+        "Large content: first chunk mode='w', subsequent mode='a'.",
     ),
     ToolGuidance(
         group_name="File Operations",
         tool_name="Edit",
-        key_rule="old_text must come from below ---CONTENT--- in Read output (not the header). "
-        "Include 2-3 surrounding lines for uniqueness. "
-        "If old_text matches multiple times, expand context or use count=1. "
-        "For new files, use Write instead. "
-        "Before editing a function, method, or class: use Grep (LspFindReferences if LSP is available) "
-        "to find all call sites — update them too if the signature or name changes.",
+        key_rule="old_text from below ---CONTENT--- (not header). Include 2-3 surrounding lines for uniqueness. "
+        "If multiple matches, expand context or use count=1. "
+        "Before editing: Grep/LspFindReferences call sites and update them too.",
     ),
     ToolGuidance(
         group_name="File Operations",
         tool_name="Grep",
-        key_rule="Never use Grep output as Edit's old_text — lines truncate at 1000 chars; use Read first. "
-        "Use files_only=True when you only need matching file paths (much smaller output). "
-        "Use case_sensitive=False for case-insensitive search. "
-        "Use context_lines=0 to suppress surrounding lines.",
+        key_rule="Never use Grep output as Edit old_text (1000-char truncation) — Read first. "
+        "Use files_only=True for just file paths. "
+        "Use case_sensitive=False, context_lines=0 as needed.",
     ),
     ToolGuidance(
         group_name="File Operations",
         tool_name="RM",
-        when_to_use="Deleting a file or directory — prefer this over Bash rm",
-        key_rule="recursive=False (default): removes file or empty directory. "
-        "recursive=True: removes directory and all contents (irreversible — confirm with user first). "
-        "Before removing: use Grep (or LspFindReferences) to check for imports, includes, or other references to the path — "
-        "dangling references will break the codebase.",
+        when_to_use="Prefer over Bash rm",
+        key_rule="recursive=True is irreversible — confirm first. "
+        "Check for imports/references with Grep before removing.",
     ),
     ToolGuidance(
         group_name="File Operations",
         tool_name="MV",
-        when_to_use="Moving or renaming a file or directory — prefer this over Bash mv",
-        key_rule="Creates missing parent directories at the destination automatically. "
-        "Before moving: use Grep (or LspFindReferences) to find all imports and references to the path — "
-        "update them to the new location after the move.",
-    ),
-    ToolGuidance(
-        group_name="Journal",
-        tool_name="SearchJournal",
-        when_to_use="Searching past journal entries by keyword or regex",
+        when_to_use="Prefer over Bash mv",
+        key_rule="Creates missing parent dirs automatically. Check imports/references before moving.",
     ),
     # Execution
     ToolGuidance(
         group_name="Execution",
         tool_name="Bash",
-        when_to_use="System commands, package managers, test runners, and build tools",
-        key_rule="Never use for file I/O — use Read/Write/Edit/Grep/RM/MV. "
-        "Never use to query state already in System Context (Time, OS, CWD, available tools). "
+        key_rule="Never for file I/O — use Read/Write/Edit/Grep/RM/MV. "
+        "Never use to query state already in System Context (time, OS, CWD, tools). "
         "Always pass non-interactive flags (-y, --yes, CI=true). "
-        "Default timeout is 120s; timed-out processes may linger — check with ps aux | grep <name>. "
-        "Batch independent commands with && to reduce round trips. "
-        "Use cwd= when operating inside a worktree or a different project directory. "
-        "When available (shown in System Context tools list): prefer rg over grep, "
-        "jq for JSON parsing, gh for GitHub operations (PRs, issues, releases), "
-        "rtk to prefix verbose commands to save tokens (e.g. rtk git diff, rtk pytest) — run `rtk gain` to see savings.",
+        "Default timeout is 120s; timed-out processes may linger. "
+        "Batch independent commands with &&. Use cwd= for worktrees. "
+        "Prefer rg over grep, gh for GitHub, rtk to prefix verbose commands.",
     ),
     # Analysis — LLM sub-agents, expensive
     ToolGuidance(
         group_name="Analysis",
         tool_name="AnalyzeCode",
-        when_to_use="Understanding an entire codebase's structure",
-        key_rule="VERY SLOW. Use Read + Grep first. Only invoke when they are insufficient.",
+        key_rule="VERY SLOW. Use Read + Grep first. Only invoke when insufficient.",
     ),
     ToolGuidance(
         group_name="Analysis",
         tool_name="AnalyzeFile",
-        when_to_use="Deep semantic understanding of a complex single file",
-        key_rule="SLOW. Use Read for content retrieval. For directory-level analysis, use AnalyzeCode.",
+        key_rule="SLOW. Use Read for content. For directory-level, use AnalyzeCode.",
     ),
     # Research & Web
     ToolGuidance(
         group_name="Research & Web",
         tool_name="SearchInternet",
-        when_to_use="Finding current information, documentation, or recent events",
-        key_rule="Start broad, then OpenWebPage to fetch exact pages.",
+        when_to_use="Current info, docs, recent events",
+        key_rule="Start broad, then OpenWebPage for exact pages.",
     ),
     ToolGuidance(
         group_name="Research & Web",
         tool_name="OpenWebPage",
-        when_to_use="Fetching content from a known URL",
-        key_rule="For searching by query, use SearchInternet first to find URLs.",
+        when_to_use="Fetching a known URL",
+        key_rule="Use SearchInternet first to find URLs.",
     ),
     # Planning — persistent across sessions
     ToolGuidance(
         group_name="Planning",
         tool_name="WriteTodos",
-        when_to_use="Creating a plan before starting a multi-step task",
-        key_rule="Mark steps 'in_progress' before starting, 'completed' immediately after — don't batch updates.",
+        when_to_use="Planning a multi-step task",
+        key_rule="Mark 'in_progress' before starting, 'completed' immediately after — don't batch.",
     ),
     ToolGuidance(
         group_name="Planning",
         tool_name="GetTodos",
-        when_to_use="Resuming work — check current plan at session start",
+        when_to_use="Resuming work — check current plan",
     ),
     ToolGuidance(
         group_name="Planning",
         tool_name="UpdateTodo",
-        key_rule="Update immediately on status change — don't batch at the end.",
+        key_rule="Update immediately on status change — don't batch.",
     ),
     ToolGuidance(
         group_name="Planning",
         tool_name="ClearTodos",
-        when_to_use="Discarding a completed or abandoned plan before starting a new one",
+        when_to_use="Discarding a completed/abandoned plan",
     ),
     # Git Worktrees
     ToolGuidance(
         group_name="Git Worktrees",
         tool_name="ListWorktrees",
-        when_to_use="Before creating or entering a worktree — avoid duplicates",
+        when_to_use="Check before creating/entering — avoid duplicates",
     ),
     ToolGuidance(
         group_name="Git Worktrees",
         tool_name="EnterWorktree",
-        when_to_use="Creating an isolated branch for experimental or risky changes",
-        key_rule="ListWorktrees first. Pass returned path as cwd to Bash commands.",
+        when_to_use="Isolated branch for experimental changes",
+        key_rule="ListWorktrees first. Pass returned path as Bash cwd.",
     ),
     ToolGuidance(
         group_name="Git Worktrees",
         tool_name="ExitWorktree",
-        when_to_use="Finishing work in a worktree — always clean up",
-        key_rule="Use keep_branch=True if you plan to merge later.",
+        when_to_use="Clean up after worktree work",
+        key_rule="Use keep_branch=True if merging later.",
     ),
     # LSP
     ToolGuidance(
         group_name="LSP",
         tool_name="LspListServers",
-        when_to_use="Before using any Lsp* tool — verify LSP is available",
+        when_to_use="Verify LSP is available before using Lsp* tools",
         key_rule="If empty, fall back to Read/Grep.",
     ),
     ToolGuidance(
         group_name="LSP",
-        tool_name="LspFindDefinition",
-        when_to_use="Jumping to the canonical definition of a symbol",
-    ),
-    ToolGuidance(
-        group_name="LSP",
         tool_name="LspFindReferences",
-        when_to_use="Before renaming, moving, or deleting — find all call sites first",
+        when_to_use="Find all call sites before renaming, moving, or deleting",
     ),
     ToolGuidance(
         group_name="LSP",
         tool_name="LspRenameSymbol",
-        when_to_use="Renaming a symbol safely across the codebase",
         key_rule="Use dry_run=True first. Apply only after user approval.",
     ),
 ]

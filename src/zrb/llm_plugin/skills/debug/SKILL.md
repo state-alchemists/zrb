@@ -2,6 +2,7 @@
 name: debug
 description: Systematic diagnosis for broken behavior or failing builds. Covers build error resolution, root cause analysis, regression bisection, and targeted minimal fixes. Use when something is broken and the cause is not immediately obvious.
 user-invocable: true
+disable-model-invocation: true
 ---
 # Skill: debug
 

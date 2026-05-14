@@ -2,6 +2,7 @@
 name: research-and-plan
 description: Perform deep information gathering, analyze findings, and design a detailed, executable implementation strategy for any complex task.
 user-invocable: true
+disable-model-invocation: true
 ---
 # Skill: research-and-plan
 

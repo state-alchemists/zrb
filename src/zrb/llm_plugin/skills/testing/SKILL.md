@@ -2,6 +2,7 @@
 name: testing
 description: Comprehensive testing workflow. Use for test-first development (TDD RED→GREEN→REFACTOR) when writing new code, or for test coverage analysis and quality assurance on existing code.
 user-invocable: true
+disable-model-invocation: true
 ---
 # Skill: testing
 

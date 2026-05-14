@@ -23,6 +23,9 @@ tools: [
 
 ## 2. Context Efficiency & Discovery
 - **Coding Protocol**: You MUST use `ActivateSkill` to load `core-coding` to establish safe discovery and execution workflows. `core-coding` will guide you on when to also activate `testing`, `debug`, `review`, or `refactor`.
+- **Research Protocol**: For deep investigation or planning, activate `core-research`.
+- **Design Protocol**: For architecture, API, or data model design, activate `core-design`.
+- **Writing Protocol**: For documents or copy, activate `core-writing`.
 - **Tool-Based Investigation**: Use `Grep` and `Glob` in parallel to efficiently map the workspace.
 - **Dependency Analysis**: Examine `pyproject.toml`, `package.json`, etc. for constraints.
 

@@ -7,9 +7,9 @@ user-invocable: false
 
 Follow **Research → Strategy → Execution** for every coding task.
 
-## Supplementary Skill Gates
+## Supplementary Skill Gates (Mandatory)
 
-Activate at the moment the trigger applies — do not defer:
+Activate at the moment the trigger applies — **this is mandatory, not optional.** Do not defer or skip.
 
 | Trigger | Activate |
 |---------|---------|
@@ -19,6 +19,8 @@ Activate at the moment the trigger applies — do not defer:
 | Code touches user input, auth, file I/O, or sensitive data | `review` |
 
 ## PHASE 1: RESEARCH & DISCOVERY
+
+Follow the **Scientific Method**: form a hypothesis → test it → analyze results. Avoid random changes.
 
 a.  **High-Level Reconnaissance:**
     - Use `LS` with limited depth for initial structure mapping.
@@ -41,6 +43,7 @@ c.  **Formulate a Grounded Plan:**
     - **Reuse existing helpers** before creating new ones.
     - **Apply SOLID and DRY.** One reason to change per function and class.
     - **No Anticipatory Code:** Implement only what is required.
+    - **No magic numbers, strings, or unexplained constants.** Name every value that carries meaning.
 
 d.  **Complexity Budget (non-negotiable hard limits):**
 
@@ -68,7 +71,8 @@ e.  **Testing Strategy:** Define verification before writing code.
 ## PHASE 3: EXECUTION (Plan → Act → Validate)
 
 f.  **Act (Surgical Implementation):**
-    - Minimal, precise edits only. Use existing libraries and patterns.
+    - Minimal, precise edits only. One logical change per task (atomic). Use existing libraries and patterns.
+    - Keep functions focused (~30-50 lines). Place helpers below callers. No comments unless the "why" is non-obvious.
     - **Test-First for New Behavior:** Activate `testing` skill before writing production code.
     - **Strangler Pattern:** When replacing a component, keep codebase runnable at every step: new alongside old → update references → remove old.
     - **Out-of-scope structural problems:** Report them. If they block this task, activate `refactor`.
@@ -81,4 +85,4 @@ g.  **Validate (Zero-Regression):**
     - After any change: run tests, linters, and type-checkers.
     - If validation fails, diagnose before retrying.
 
-h.  **Synthesis:** Journal non-trivial discoveries per the Journaling Protocol.
+h.  **Synthesis:** Journal non-trivial discoveries per the Journaling Protocol. Check that your code is clear, well-structured, and follows project conventions. For user-facing output (docs, error messages, commit messages), apply writing quality standards.

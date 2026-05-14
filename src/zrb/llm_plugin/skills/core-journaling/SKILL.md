@@ -47,7 +47,7 @@ Every note (except `index.md`) **must** have a `## Backlinks` section at the bot
 
 ## Directory Structure
 ```
-~/.zrb/llm-notes/
+<journal-directory>
 ├── index.md                    # Heads-Up Display (links to all directory indexes)
 ├── user/index.md
 ├── preferences/index.md
