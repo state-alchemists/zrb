@@ -7,15 +7,13 @@ user-invocable: false
 
 Follow **Constraints → Explore → Decide → Specify → Plan** for every design task.
 
-## When to Activate
+## Companion Templates
 
-Activate this skill when you need to:
-- Design a system architecture or component structure
-- Define APIs, protocols, or data models
-- Decompose a large feature into bounded components
-- Evaluate trade-offs between multiple approaches
-- Create a detailed specification before implementation
-- Assess the design implications of a change
+When the current step matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
+
+| Trigger | Companion |
+|---------|-----------|
+| Recording a design decision worth preserving (during or after the Decide step) | `templates/decision-record.md` |
 
 ## Workflow
 

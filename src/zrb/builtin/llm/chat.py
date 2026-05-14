@@ -155,11 +155,10 @@ llm_chat.add_tool_guidance_factory(
     lambda ctx: ToolGuidance(
         group_name="Delegation",
         tool_name="ActivateSkill",
-        when_to_use="Loading domain-specific protocols for specialized work",
-        key_rule="Re-activate after long conversations if context feels lost. "
-        "Activate core-coding for coding, core-research for investigation, core-design for architecture/design, core-writing for documents. "
-        "Skills may include companion resources (scripts, docs, data) in their directory — "
-        "use Glob to discover them or check the listing shown when activated.",
+        when_to_use="Loading domain-specific protocols for specialized work (see Skill Activation table)",
+        key_rule="Re-activate after long conversations or summarization if context feels lost. "
+        "Skill directories may include companion resources (scripts, docs, data) — "
+        "use Glob in the skill directory or check the listing shown when activated.",
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",

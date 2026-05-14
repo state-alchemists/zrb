@@ -7,16 +7,6 @@ user-invocable: false
 
 Follow **Scope → Discover → Synthesize → Plan** for every research task.
 
-## When to Activate
-
-Activate this skill when you need to:
-- Answer a complex question about a codebase, technology, or domain
-- Investigate a bug with unclear root cause
-- Explore an unfamiliar library, framework, or tool
-- Create a detailed implementation plan
-- Research best practices, alternatives, or design decisions
-- Analyze trade-offs between multiple approaches
-
 ## Workflow
 
 ### 1. Scope & Requirements

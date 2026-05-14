@@ -1,89 +1,117 @@
 ---
 name: core-journaling
-description: Manage the LLM journal system as a knowledge graph.
+description: "Activate before every journal write — new entry, edit, restructure, or activity log append. Provides the graph protocol (bidirectional links, indexes), the directory layout, and the activity log format that keep the journal consistent."
 user-invocable: false
 ---
 # Skill: core-journaling
 
-The Journal is a bidirectional graph knowledge base. Every note links to related notes; every link has a reverse (backlink). The root `index.md` is your Heads-Up Display.
+The Journal is a bidirectional graph knowledge base plus a chronological log book. Every note links to related notes; every link has a reverse (backlink). The root `index.md` is your Heads-Up Display. The `activity-log/` subtree records what was done over time.
 
-## Link Convention
+**Activate this skill on every journal write.** Skipping it on "small" writes is how the journal becomes a half-graph: some notes linked, others orphaned. The graph protocol IS the routine — not a special mode.
+
+## Directory Structure
+
+```
+<journal-root>/                         # CFG_LLM_JOURNAL_DIR
+├── index.md                            # HUD: critical user prefs, active constraints, recent insights
+├── user/
+│   ├── index.md
+│   └── <topic>.md                      # who the user is — role, context, history
+├── preferences/
+│   ├── index.md
+│   └── <topic>.md                      # collaboration preferences, taboos
+├── projects/
+│   ├── index.md
+│   └── <project>.md                    # per-project facts, decisions, layout
+├── technical/
+│   ├── index.md
+│   └── <topic>.md                      # cross-project know-how, patterns, gotchas
+└── activity-log/                       # chronological log of significant LLM actions
+    ├── index.md                        # links each year
+    └── YYYY/
+        ├── index.md                    # links each month
+        └── YYYY-MM/
+            ├── index.md                # links each day
+            └── YYYY-MM-DD.md           # all entries for that day
+```
+
+Each directory MUST have an `index.md` that links to every file in it. Exception: date-leaf directories under `activity-log/YYYY/YYYY-MM/` do not — the month index covers them.
+
+## Two Kinds of Writes
+
+| Kind | Where | Purpose |
+|------|-------|---------|
+| **Insight** | `user/`, `preferences/`, `projects/`, `technical/` | What was *learned* — durable facts, decisions, conventions |
+| **Activity** | `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md` | What was *done* — timestamped log of significant tasks |
+
+Both apply the graph protocol below. Both can cross-link to each other.
+
+## Graph Protocol
+
+### Link Convention
 
 Use standard markdown links for all internal references. All paths are **relative to the journal root**:
+
 - `[asyncio patterns](technical/python-asyncio.md)`
 - `[projects index](projects/index.md)`
 
-On creation, **always update the target note** with a backlink in its `## Backlinks` section.
+### Backlink Rule (Non-negotiable)
 
-### Backlink Protocol
+Every note (except `index.md` files) **must** have a `## Backlinks` section at the bottom. When you create a forward link, immediately append a backlink to the target.
 
-Every note (except `index.md`) **must** have a `## Backlinks` section at the bottom. When you create a link to a target, append the source path to `target.md`'s `## Backlinks` section.
-
-```markdown
+````markdown
 ## Backlinks
 - [projects/my-app](projects/my-app.md) — referenced for auth architecture
 - [technical/jwt](technical/jwt.md) — related algorithm
-```
+````
 
-**Rules:**
+Rules:
 1. Add a backlink immediately when you create a forward link.
 2. When deleting a link, remove the corresponding backlink in the target.
 3. Keep backlink entries short — path + one-phrase reason.
 
-## The Index File (`index.md`)
-**ROLE:** Heads-Up Display loaded by default. Contains critical info for immediate task execution.
+### Graph Invariants
 
-**Content:**
-- Critical user preferences
-- Active constraints & protocols
-- Recent technical insights (last 5, each a markdown link)
-- Links to directory indexes
+1. **BIDIRECTIONAL** — every forward link has a backlink entry in the target.
+2. **NO ORPHANS** — every file is reachable from `index.md` via forward links.
+3. **ATOMICITY** — one concept per file; split if too large.
+4. **RHIZOMATIC** — link liberally between related concepts across directories.
 
-## Graph Structure Rules
-1. **BIDIRECTIONAL:** Every forward link must have a backlink entry in the target.
-2. **NO ORPHANS:** Every file MUST be reachable from `index.md` via forward links.
-3. **ATOMICITY:** One concept per file; split if too large.
-4. **RHIZOMATIC:** Link liberally between related concepts across directories.
+## Companion Templates
 
-## Directory Structure
-```
-<journal-directory>
-├── index.md                    # Heads-Up Display (links to all directory indexes)
-├── user/index.md
-├── preferences/index.md
-├── projects/index.md
-├── technical/index.md
-└── activity-log/               # YYYY/YYYY-MM/YYYY-MM-DD/
-```
+When writing a specific kind of entry, Read the matching template from this skill's directory:
 
-Create directories as needed. Each MUST have an `index.md` that links to every file in that directory. Exception: date-based leaf directories under `activity-log/` (e.g., `YYYY-MM-DD/`) do not require an `index.md` — their parent month directory's `index.md` is sufficient.
+| Writing | Template |
+|---------|----------|
+| A day's activity log entry | `templates/activity-entry.md` |
 
-## Index Hierarchy
-1. Outer `index.md` → directory indexes only (e.g. `[projects](projects/index.md)`)
-2. Directory indexes → all files in that directory
-3. Individual files → detailed documentation with backlinks section
+## Companion Tools
 
-## Protocol
+- `tools/journal-lint.py` — validates backlinks, finds orphans, reports broken paths. Run via `Bash` periodically and after structural changes:
+  ```
+  python <skill-dir>/tools/journal-lint.py <journal-root>
+  ```
 
-### When to Journal
-Journal at **task completion** if non-trivial learning occurred (see `journal_mandate.md`).
+## Writing an Insight Note (Step-by-Step)
 
-### Creating Content
-- User preferences → outer `index.md` (critical) or directories (detailed)
-- Project facts → `projects/`
-- Technical insights → `technical/`
-- Activity logs → `activity-log/YYYY/YYYY-MM/DD/`
+1. Decide the file path under `user/`, `preferences/`, `projects/`, or `technical/` (atomic — one concept per file).
+2. Write the note body.
+3. Add forward markdown links to related notes throughout the body.
+4. Add a `## Backlinks` section at the bottom (initially empty, or pre-populated if you know who will link here).
+5. For each forward link you added, open the target file and append this note to its `## Backlinks` section.
+6. Add a markdown link to the new note from the relevant directory `index.md`.
+7. If noteworthy enough for the HUD, also add a link from outer `index.md` under *Recent Insights*.
 
-### Step-by-step for a New Note
-1. Write the note content.
-2. Add markdown links to related notes throughout the body.
-3. Add `## Backlinks` section at bottom (initially empty or pre-populated if you know who will link here).
-4. For each link you just added, open the target file and append this note to its `## Backlinks` section.
-5. Add a markdown link to the new note from the relevant directory `index.md`.
-6. If noteworthy enough for the top-level, add a link from outer `index.md` under *Recent Insights*.
+## Writing an Activity Log Entry (Step-by-Step)
 
-### Maintenance
-- Every directory needs `index.md` linking to all files in it.
-- When refactoring (rename, split, delete): update all backlinks that reference the old path.
+1. Compute today's path: `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md`.
+2. If the file does not exist, create it with an `# YYYY-MM-DD` heading. Then create or update the month index, year index, and `activity-log/index.md` as needed.
+3. Append a new section using the format in `templates/activity-entry.md`.
+4. Cross-link from the entry to any insight notes touched (`[[technical/<topic>]]`, `[[projects/<project>]]`) — and back from those notes to this entry's path under `## Backlinks` if the link is durable (not for trivial mentions).
+
+## Maintenance
+
+- Every directory needs `index.md` linking to all files in it (except date-leaf directories under `activity-log/`).
+- When refactoring (rename, split, delete): update all backlinks that reference the old path. Run `tools/journal-lint.py` after.
+- Merge tiny stubs; split files that grow beyond ~80 lines.
 - Verify no orphans after structural changes.
-- Merge tiny stubs; split files that grow beyond ~50 lines.

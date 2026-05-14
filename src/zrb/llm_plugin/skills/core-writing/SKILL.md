@@ -7,15 +7,15 @@ user-invocable: false
 
 Follow **Brief → Structure → Draft → Polish** for every writing task.
 
-## When to Activate
+## Companion Templates
 
-Activate this skill when you need to:
-- Write documentation, README, or API docs
-- Draft a proposal, design doc, or technical report
-- Craft user-facing copy: error messages, UI text, onboarding
-- Write commit messages, changelog entries, or release notes
-- Provide detailed feedback or code review comments
-- Create any text where clarity, tone, or persuasiveness matters
+When the current task matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
+
+| Trigger | Companion |
+|---------|-----------|
+| Writing or rewriting a project README | `templates/readme.md` |
+| Drafting a git commit message | `templates/commit-message.md` |
+| Documenting a function, endpoint, or CLI command | `templates/api-doc.md` |
 
 ## Workflow
 
