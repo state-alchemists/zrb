@@ -1,6 +1,47 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.27.1 (May 14, 2026)
+
+- **Refactoring: Shared filesystem-scanning utilities extracted**:
+  - New `src/zrb/util/asset_scanner.py` exposes `scan_files(directory, max_depth, on_file_found, ignore_dirs)` and a module-level `IGNORE_DIRS` constant (`.git`, `node_modules`, `__pycache__`, `venv`, `dist`, `build`, `htmlcov`). Replaces the duplicated `_scan_dir` / `_scan_dir_recursive` pattern that previously lived in both `llm/skill/manager.py` and `llm/agent/subagent/manager/loader_mixin.py`. Silently swallows `PermissionError`/`OSError` so one inaccessible branch never aborts a full scan.
+  - New `src/zrb/util/dir_search.py` exposes `get_upward_dirs(start_dir)` (root → cwd traversal for multi-tier project-config discovery) and `scan_plugin_dirs(plugins_root)` (returns plugin dirs containing a `.claude-plugin/plugin.json` manifest). Shared by the skill loader and the hook loader so the "user home → project dirs → plugins → builtin" discovery order has one canonical implementation.
+  - `llm/skill/manager.py` and `llm/agent/subagent/manager/loader_mixin.py` switched to `scan_files()` + `_on_file_found` callbacks; private `_IGNORE_DIRS` removed in favour of `asset_scanner.IGNORE_DIRS`.
+
+- **Refactoring: `hook_loader.get_search_directories()` decomposed**:
+  - One monolithic function split into `_get_plugin_hook_dirs`, `_get_home_hook_dirs`, `_get_project_hook_dirs`, `_get_custom_hook_dirs` + a shared `_collect_hook_paths(base_dir)` helper. Eliminates the repeated Claude-style/Zrb-style path-building blocks for each discovery tier.
+  - New `_zrb_dir_name()` helper evaluates `f".{CFG.ROOT_GROUP_NAME}"` lazily to dodge CFG init-ordering issues.
+  - Priority order now documented in the module docstring (high → low): plugins → user-home config → project dirs → `CFG.HOOKS_DIRS`.
+
+- **Refactoring: `file_search` output assembly deduplicated**:
+  - New helpers in `llm/tool/file_search.py`: `_build_file_match_entry`, `_count_actual_matches`, `_truncate_file_results`, `_build_search_output`. The ripgrep path and the `os.walk` fallback path now share final result-dict assembly (results / summary / truncation notice / warning), eliminating divergent code that had grown different no-match messaging and truncation behaviour.
+
+- **Refactoring: `CLIStyleLexer` color tables hoisted**:
+  - `llm/app/lexer.py`: `_STANDARD_FG` / `_BRIGHT_FG` color tables and the `_build_style(attrs, fg, bg)` composer promoted from nested closure to module-level constants. `lex_document` now declares its state as `attrs` / `fg` / `bg` (was `current_*`) for readability. Added a class docstring enumerating supported ANSI features (bold/faint/italic/underline; 8 std + 8 bright FG/BG; 24-bit RGB `38;2;R;G;B`; 256-color palette `38;5;N`; state persistence across lines).
+
+- **Refactoring: Long-method decomposition across LLM internals**:
+  - `llm/prompt/manager.py`, `llm/snapshot/manager.py`, `llm/task/chat/runner_mixin.py`, `llm/history_manager/file_history_manager.py`, `llm/hook/interface.py`, `llm/message.py`, `llm/tool/plan.py`, `llm/agent/subagent/manager/manager.py`, `llm/agent/subagent/manager/search_mixin.py`, and `task/base/monitoring.py` all received internal restructurings — extracting helpers from oversized methods, grouping related methods together, and tightening reorder for readability. No behavior changes.
+  - `llm/skill/manager.py` lost its private `_ensure_scanned()` helper (inlined where called); `LoaderMixin._scan_dir_recursive` removed (delegated to `scan_files`).
+
+- **Refactoring: `system_context.py` parallel git/todo collection extracted**:
+  - New `_collect_git_info(todo_manager, session_name)` helper runs git commands and todo fetch in parallel via `ThreadPoolExecutor`. Lazy-imports `is_inside_git_dir` at call time (was a module-level import). Module gains a docstring documenting the three auto-injections it performs beyond environment facts (session wiring, active worktree, pending todos).
+
+- **Improvement: Mandate (operating rules) tightened**:
+  - `mandate.md` rewritten for concision: emphatic prose ("MUST", "non-negotiable") softened to direct statements; redundant explanations folded into single-line bullets; rule priority list condensed; `Engineering Standards` bullets merged (`Stay in scope`, `Avoid band-aids`, `Verification (path to finality)` consolidated into `Minimal abstractions` / `Trade-offs are explicit` / `Done = verified`). New `Recovery` section codifies the missed-skill-activation and 3-distinct-failures protocols. New "soft override" framing in rule #7 makes the precedence between project conventions (`AGENTS.md`/`CLAUDE.md`) and safety rules explicit.
+  - `journal_mandate.md` condensed from ~50 lines to ~40 with the same protocol — write categories consolidated, scan/navigate guidance shortened, headings normalized to sentence case.
+  - `core-coding/SKILL.md` adds one sentence directing the LLM to prefer user-provided guidelines (`CLAUDE.md`, `AGENTS.md`, custom skills, project files) over the core companion files; core companions "fill in the gaps."
+
+- **Improvement: `AGENTS.md` deduplicated against `contextvars.py`**:
+  - The inline "Ambient State" table listing every `ContextVar`, its owning module, and its wrapper was removed. `AGENTS.md` now points readers to `src/zrb/contextvars.py` as the single source of truth. Removes a synchronization point that had previously caused drift between the table and the actual code.
+  - `contextvars.py` docstring updated: `AGENTS.md` no longer needs updating when the ContextVar list changes; `docs/advanced-topics/maintainer-guide.md` and `docs/advanced-topics/architecture.md` are now the only docs that mirror the count.
+  - System Context section in `AGENTS.md` shortened — the long bullet list of auto-injections was moved into the `system_context.py` module docstring instead.
+  - `session_state_log/` and `session_state_logger/` collapsed into one table row that explains the split (`_log` = data structures, `_logger` = persistent writer).
+  - `llm/util/` row expanded to enumerate the helper modules (`attachment`, `clipboard`, `git`, `history_formatter`, `image_scale`, `modality`, `multimodal_describe`, `prompt`, `stream_response`).
+
+- **Bug Fix: Typo `notify_throtling` → `notify_throttling`**:
+  - `llm/agent/run/runner.py:_acquire_rate_limit`: inner closure name corrected. Pure rename — no behavior change.
+
+
 ## 2.27.0 (May 14, 2026)
 
 - **Feature: New skill architecture — 5 core skills with companion files**:
