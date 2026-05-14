@@ -90,6 +90,41 @@ class TodoManager:
                 f"Warning: Failed to save todos for {session_name}: {e}", plain=True
             )
 
+    @staticmethod
+    def _compute_stats(new_todos: list[dict[str, Any]]) -> dict[str, int]:
+        """Compute todo summary counts."""
+        return {
+            "total": len(new_todos),
+            "completed": sum(1 for t in new_todos if t["status"] == "completed"),
+            "in_progress": sum(1 for t in new_todos if t["status"] == "in_progress"),
+            "pending": sum(1 for t in new_todos if t["status"] == "pending"),
+            "cancelled": sum(1 for t in new_todos if t["status"] == "cancelled"),
+        }
+
+    @staticmethod
+    def _build_todo_entry(
+        todo: dict[str, Any],
+        todo_id: str,
+        existing: dict[str, dict[str, Any]] | None,
+        replace: bool,
+        now: str,
+    ) -> dict[str, Any]:
+        """Build a single todo entry, merging with existing if not replacing."""
+        if existing and todo_id in existing and not replace:
+            existing[todo_id].update(
+                {
+                    "content": todo.get("content", existing[todo_id]["content"]),
+                    "status": todo.get("status", existing[todo_id]["status"]),
+                }
+            )
+            return existing[todo_id]
+        return {
+            "id": todo_id,
+            "content": todo.get("content", ""),
+            "status": todo.get("status", "pending"),
+            "created_at": now,
+        }
+
     def write_todos(
         self,
         session_name: str,
@@ -104,68 +139,45 @@ class TodoManager:
         """
         now = datetime.now().isoformat()
 
-        # Load existing if merging
         existing = self._load_todos(session_name) if not replace else None
         existing_todos = (
             {t["id"]: t for t in existing.get("todos", [])} if existing else {}
         )
 
-        # Process new todos
         new_todos = []
         for i, todo in enumerate(todos):
             todo_id = todo.get("id") or str(i + 1)
-            if todo_id in existing_todos and not replace:
-                # Merge: update existing
-                existing_todos[todo_id].update(
-                    {
-                        "content": todo.get(
-                            "content", existing_todos[todo_id]["content"]
-                        ),
-                        "status": todo.get("status", existing_todos[todo_id]["status"]),
-                    }
-                )
-                new_todos.append(existing_todos[todo_id])
-            else:
-                # New todo
-                new_todos.append(
-                    {
-                        "id": todo_id,
-                        "content": todo.get("content", ""),
-                        "status": todo.get("status", "pending"),
-                        "created_at": now,
-                    }
-                )
+            new_todos.append(
+                self._build_todo_entry(todo, todo_id, existing_todos, replace, now)
+            )
 
-        # If merging, include todos not in the update
+        # Include existing todos not in this update when merging
         if not replace and existing:
+            seen = {t["id"] for t in new_todos}
             for tid, t in existing_todos.items():
-                if tid not in {todo["id"] for todo in new_todos}:
+                if tid not in seen:
                     new_todos.append(t)
 
-        # Sort by id (numeric if possible)
-        def sort_key(t):
-            try:
-                return (0, int(t["id"]))
-            except (ValueError, TypeError):
-                return (1, t["id"])
+        new_todos.sort(key=self._sort_key)
 
-        new_todos.sort(key=sort_key)
-
+        stats = self._compute_stats(new_todos)
         result = {
             "todos": new_todos,
             "created_at": existing.get("created_at", now) if existing else now,
             "updated_at": now,
-            "total": len(new_todos),
-            "completed": sum(1 for t in new_todos if t["status"] == "completed"),
-            "in_progress": sum(1 for t in new_todos if t["status"] == "in_progress"),
-            "pending": sum(1 for t in new_todos if t["status"] == "pending"),
-            "cancelled": sum(1 for t in new_todos if t["status"] == "cancelled"),
+            **stats,
         }
 
         self._todos[session_name] = result
         self._save_todos(session_name)
-
         return result
+
+    @staticmethod
+    def _sort_key(t: dict[str, Any]) -> tuple[int, int | str]:
+        try:
+            return (0, int(t["id"]))
+        except (ValueError, TypeError):
+            return (1, t["id"])
 
     def get_todos(self, session_name: str) -> dict[str, Any] | None:
         """

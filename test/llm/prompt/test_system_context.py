@@ -76,7 +76,7 @@ class TestSystemContext:
             return "ok"
 
         with patch(
-            "zrb.llm.prompt.system_context.is_inside_git_dir", return_value=True
+            "zrb.llm.util.git.is_inside_git_dir", return_value=True
         ):
             with patch("subprocess.run") as mock_run:
 

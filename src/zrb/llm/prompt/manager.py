@@ -77,6 +77,11 @@ class PromptManager:
         self._render_active_skills = render_active_skills
         self._render = render
 
+    @staticmethod
+    def _resolve_flag(instance_val: bool | None, config_val: bool) -> bool:
+        """Resolve a boolean flag: instance override wins, else config default."""
+        return instance_val if instance_val is not None else config_val
+
     def _get_composed_middlewares(
         self, ctx: AnyContext
     ) -> list[PromptMiddleware | str]:
@@ -85,58 +90,20 @@ class PromptManager:
             get_str_attr(ctx, self._assistant_name) if self._assistant_name else None
         )
 
-        # Get effective values (use config defaults if None)
-        include_persona = (
-            self._include_persona
-            if self._include_persona is not None
-            else CFG.LLM_INCLUDE_PERSONA
-        )
-        include_mandate = (
-            self._include_mandate
-            if self._include_mandate is not None
-            else CFG.LLM_INCLUDE_MANDATE
-        )
-        include_git_mandate = (
-            self._include_git_mandate
-            if self._include_git_mandate is not None
-            else CFG.LLM_INCLUDE_GIT_MANDATE
-        )
-        include_system_context = (
-            self._include_system_context
-            if self._include_system_context is not None
-            else CFG.LLM_INCLUDE_SYSTEM_CONTEXT
-        )
-        include_journal_mandate = (
-            self._include_journal_mandate
-            if self._include_journal_mandate is not None
-            else CFG.LLM_INCLUDE_JOURNAL_MANDATE
-        )
-        include_claude_skills = (
-            self._include_claude_skills
-            if self._include_claude_skills is not None
-            else CFG.LLM_INCLUDE_CLAUDE_SKILLS
-        )
-        include_cli_skills = (
-            self._include_cli_skills
-            if self._include_cli_skills is not None
-            else CFG.LLM_INCLUDE_CLI_SKILLS
-        )
-        include_project_context = (
-            self._include_project_context
-            if self._include_project_context is not None
-            else CFG.LLM_INCLUDE_PROJECT_CONTEXT
-        )
-        include_tool_guidance = (
-            self._include_tool_guidance
-            if self._include_tool_guidance is not None
-            else CFG.LLM_INCLUDE_TOOL_GUIDANCE
-        )
-        # Resolve tool_names once (may be a static set or a callable)
+        include_persona = self._resolve_flag(self._include_persona, CFG.LLM_INCLUDE_PERSONA)
+        include_mandate = self._resolve_flag(self._include_mandate, CFG.LLM_INCLUDE_MANDATE)
+        include_git_mandate = self._resolve_flag(self._include_git_mandate, CFG.LLM_INCLUDE_GIT_MANDATE)
+        include_system_context = self._resolve_flag(self._include_system_context, CFG.LLM_INCLUDE_SYSTEM_CONTEXT)
+        include_journal_mandate = self._resolve_flag(self._include_journal_mandate, CFG.LLM_INCLUDE_JOURNAL_MANDATE)
+        include_claude_skills = self._resolve_flag(self._include_claude_skills, CFG.LLM_INCLUDE_CLAUDE_SKILLS)
+        include_cli_skills = self._resolve_flag(self._include_cli_skills, CFG.LLM_INCLUDE_CLI_SKILLS)
+        include_project_context = self._resolve_flag(self._include_project_context, CFG.LLM_INCLUDE_PROJECT_CONTEXT)
+        include_tool_guidance = self._resolve_flag(self._include_tool_guidance, CFG.LLM_INCLUDE_TOOL_GUIDANCE)
         tool_names_value = (
             self._tool_names(ctx) if callable(self._tool_names) else self._tool_names
         )
 
-        # 1. Identity & Always-On Rules (these must not be truncated)
+        # 1. Identity & Always-On Rules
         if include_persona:
             middlewares.append(
                 new_prompt(lambda: get_persona_prompt(assistant_name=assistant_name))
