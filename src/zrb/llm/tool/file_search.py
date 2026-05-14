@@ -197,8 +197,7 @@ def _search_with_os_walk(
         dirs[:] = [
             d
             for d in dirs
-            if not d.startswith(".")
-            and not is_path_excluded(d, patterns_to_exclude)
+            if not d.startswith(".") and not is_path_excluded(d, patterns_to_exclude)
         ]
         for filename in files:
             if time.time() - start_time > timeout:

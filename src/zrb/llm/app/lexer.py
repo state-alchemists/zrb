@@ -4,12 +4,24 @@ from prompt_toolkit.lexers import Lexer
 
 # Color lookup tables (class-level constants for reuse)
 _STANDARD_FG = [
-    "#000000", "#ff0000", "#00ff00", "#ffff00",
-    "#0000ff", "#ff00ff", "#00ffff", "#ffffff",
+    "#000000",
+    "#ff0000",
+    "#00ff00",
+    "#ffff00",
+    "#0000ff",
+    "#ff00ff",
+    "#00ffff",
+    "#ffffff",
 ]
 _BRIGHT_FG = [
-    "#555555", "#ff5555", "#55ff55", "#ffff55",
-    "#5555ff", "#ff55ff", "#55ffff", "#ffffff",
+    "#555555",
+    "#ff5555",
+    "#55ff55",
+    "#ffff55",
+    "#5555ff",
+    "#ff55ff",
+    "#55ffff",
+    "#ffffff",
 ]
 
 
@@ -144,11 +156,15 @@ def _dispatch_code(
 
     # --- Extended foreground: 38;mode;params ---
     if code == 38:
-        return _apply_extended_color(int_codes, offset, is_background=False, fg=fg, bg=bg)
+        return _apply_extended_color(
+            int_codes, offset, is_background=False, fg=fg, bg=bg
+        )
 
     # --- Extended background: 48;mode;params ---
     if code == 48:
-        return _apply_extended_color(int_codes, offset, is_background=True, fg=fg, bg=bg)
+        return _apply_extended_color(
+            int_codes, offset, is_background=True, fg=fg, bg=bg
+        )
 
     return (None, 0)
 

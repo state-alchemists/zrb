@@ -24,7 +24,9 @@ def get_upward_dirs(start_dir: str | Path) -> list[Path]:
         # Path resolution failures are non-fatal — discovery just skips this root.
         # Expected: OSError (broken symlinks, permission) and RuntimeError (loops),
         # but stay broad so unusual filesystems can't take down discovery.
-        _LOGGER.warning("Failed to resolve upward directories from %s", start_dir, exc_info=True)
+        _LOGGER.warning(
+            "Failed to resolve upward directories from %s", start_dir, exc_info=True
+        )
         return []
 
 

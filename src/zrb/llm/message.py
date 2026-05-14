@@ -89,7 +89,10 @@ def _strip_orphaned_parts(
     new_parts = [
         p
         for p in msg.parts
-        if not (isinstance(p, part_type) and getattr(p, "tool_call_id", None) in orphaned_ids)
+        if not (
+            isinstance(p, part_type)
+            and getattr(p, "tool_call_id", None) in orphaned_ids
+        )
     ]
     if not new_parts:
         return None
@@ -111,7 +114,12 @@ def sanitize_orphaned_tool_calls(messages: list[Any]) -> list[Any]:
     return.  This function strips the orphaned parts and patches any messages
     that become text-less as a result.
     """
-    from pydantic_ai.messages import ModelRequest, ModelResponse, ToolCallPart, ToolReturnPart
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        ToolCallPart,
+        ToolReturnPart,
+    )
 
     call_ids: set[str] = set()
     return_ids: set[str] = set()
@@ -130,7 +138,9 @@ def sanitize_orphaned_tool_calls(messages: list[Any]) -> list[Any]:
     result = []
     for msg in messages:
         if isinstance(msg, ModelResponse) and orphaned_calls:
-            patched = _strip_orphaned_parts(msg, orphaned_calls, ToolCallPart, ensure_text=True)
+            patched = _strip_orphaned_parts(
+                msg, orphaned_calls, ToolCallPart, ensure_text=True
+            )
             if patched is not None:
                 result.append(patched)
         elif isinstance(msg, ModelRequest) and orphaned_returns:

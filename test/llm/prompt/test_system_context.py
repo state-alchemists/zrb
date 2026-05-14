@@ -75,9 +75,7 @@ class TestSystemContext:
             received.append(prompt)
             return "ok"
 
-        with patch(
-            "zrb.llm.util.git.is_inside_git_dir", return_value=True
-        ):
+        with patch("zrb.llm.util.git.is_inside_git_dir", return_value=True):
             with patch("subprocess.run") as mock_run:
 
                 def side_effect(args, **kwargs):

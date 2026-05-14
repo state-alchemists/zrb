@@ -180,9 +180,15 @@ class RunnerMixin:
         return {
             "ctx": ctx,
             "yolo_xcom_key": self._yolo_xcom_key,
-            "greeting": get_str_attr(ctx, self._ui_greeting, "", self._render_ui_greeting),
-            "assistant_name": get_str_attr(ctx, self._ui_assistant_name, "", self._render_ui_assistant_name),
-            "ascii_art": get_str_attr(ctx, self._ui_ascii_art_name, "", self._render_ui_ascii_art_name),
+            "greeting": get_str_attr(
+                ctx, self._ui_greeting, "", self._render_ui_greeting
+            ),
+            "assistant_name": get_str_attr(
+                ctx, self._ui_assistant_name, "", self._render_ui_assistant_name
+            ),
+            "ascii_art": get_str_attr(
+                ctx, self._ui_ascii_art_name, "", self._render_ui_ascii_art_name
+            ),
             "jargon": get_str_attr(ctx, self._ui_jargon, "", self._render_ui_jargon),
             "output_lexer": None,  # resolved lazily to avoid early import
             "llm_task": llm_task_core,

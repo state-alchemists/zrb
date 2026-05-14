@@ -77,11 +77,6 @@ class SkillManager:
         self._ignore_dirs = IGNORE_DIRS if ignore_dirs is None else ignore_dirs
         self._scanned = False
 
-    def _ensure_scanned(self):
-        """Auto-scan on first access if not already scanned."""
-        if not self._scanned:
-            self.scan()
-
     def reload(self):
         """Force re-scan skills. Use after CFG changes or skill file updates."""
         self._scanned = False
@@ -129,6 +124,54 @@ class SkillManager:
             search_dirs.append(builtin_dir)
         search_dirs.append(Path(self._root_dir))
         return search_dirs
+
+    def add_skill(self, skill: Skill):
+        """
+        Manually register a skill.
+        """
+        self._skills[skill.name] = skill
+
+    def get_skills(self) -> list[Skill]:
+        """Return all scanned skills, scanning lazily on first call."""
+        self._ensure_scanned()
+        return list(self._skills.values())
+
+    def get_skill(self, name: str) -> Skill | None:
+        self._ensure_scanned()
+        skill = self._skills.get(name)
+        if not skill:
+            # Try partial match or path match
+            for s in self._skills.values():
+                if s.name == name or s.path == name:
+                    skill = s
+                    break
+        return skill
+
+    def get_skill_content(self, name: str) -> str | None:
+        self._ensure_scanned()
+        skill = self.get_skill(name)
+        if not skill:
+            return None
+
+        if skill.content:
+            return skill.content
+
+        if skill.content_factory:
+            try:
+                return skill.content_factory()
+            except Exception as e:
+                return f"Error executing skill factory: {e}"
+
+        try:
+            with open(skill.path, "r", encoding="utf-8") as f:
+                return f.read()
+        except Exception as e:
+            return f"Error reading skill file: {e}"
+
+    def _ensure_scanned(self):
+        """Auto-scan on first access if not already scanned."""
+        if not self._scanned:
+            self.scan()
 
     def _collect_skill_and_plugin_dirs(self, root: Path) -> list[Path]:
         """Collect ``skills/`` and plugin ``skills/`` directories under *root*."""
@@ -224,9 +267,7 @@ class SkillManager:
                 self._ignore_dirs,
             )
         except Exception:
-            CFG.LOGGER.warning(
-                f"Failed to scan directory: {directory}", exc_info=True
-            )
+            CFG.LOGGER.warning(f"Failed to scan directory: {directory}", exc_info=True)
 
     def _on_file_found(self, item: Path) -> None:
         full_path = str(item)
@@ -297,8 +338,6 @@ class SkillManager:
                             model_invocable = not frontmatter.get(
                                 "disable-model-invocation", False
                             )
-                            # user-invocable: false hides from / menu (for background knowledge)
-                            # Default is True (skills are visible in / menu)
                             user_invocable = frontmatter.get("user-invocable", True)
 
                             # Claude Code spec fields
@@ -334,9 +373,6 @@ class SkillManager:
                                         )
 
                 except Exception:
-                    # Frontmatter parsing failures are per-file and must not abort
-                    # the scan: malformed YAML can surface as YAMLError, ValueError,
-                    # TypeError, KeyError, etc. depending on shape and downstream use.
                     CFG.LOGGER.warning(
                         f"Failed to parse YAML frontmatter in {full_path}",
                         exc_info=True,
@@ -368,49 +404,6 @@ class SkillManager:
             )
         except Exception as e:
             CFG.LOGGER.warning(f"Failed to load Markdown skill from {full_path}: {e}")
-
-    def add_skill(self, skill: Skill):
-        """
-        Manually register a skill.
-        """
-        self._skills[skill.name] = skill
-
-    def get_skills(self) -> list[Skill]:
-        """Return all scanned skills, scanning lazily on first call."""
-        self._ensure_scanned()
-        return list(self._skills.values())
-
-    def get_skill(self, name: str) -> Skill | None:
-        self._ensure_scanned()
-        skill = self._skills.get(name)
-        if not skill:
-            # Try partial match or path match
-            for s in self._skills.values():
-                if s.name == name or s.path == name:
-                    skill = s
-                    break
-        return skill
-
-    def get_skill_content(self, name: str) -> str | None:
-        self._ensure_scanned()
-        skill = self.get_skill(name)
-        if not skill:
-            return None
-
-        if skill.content:
-            return skill.content
-
-        if skill.content_factory:
-            try:
-                return skill.content_factory()
-            except Exception as e:
-                return f"Error executing skill factory: {e}"
-
-        try:
-            with open(skill.path, "r", encoding="utf-8") as f:
-                return f.read()
-        except Exception as e:
-            return f"Error reading skill file: {e}"
 
 
 skill_manager = SkillManager()

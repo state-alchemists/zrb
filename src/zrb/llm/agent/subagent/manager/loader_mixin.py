@@ -50,9 +50,7 @@ class LoaderMixin:
         if item.name == "AGENT.py" or item.name.endswith(".agent.py"):
             self._load_agent_from_python(rel_path, full_path)
         else:
-            is_agent_file = item.name == "AGENT.md" or item.name.endswith(
-                ".agent.md"
-            )
+            is_agent_file = item.name == "AGENT.md" or item.name.endswith(".agent.md")
             # Claude also accepts plain ``.md`` files inside ``agents/``.
             if not is_agent_file and item.suffix.lower() == ".md":
                 if (

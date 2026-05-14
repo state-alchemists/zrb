@@ -76,16 +76,6 @@ class SnapshotManager:
             self.DEFAULT_IGNORE_DIRS if ignore_dirs is None else frozenset(ignore_dirs)
         )
 
-    def _ensure_initialized(self):
-        if self._initialized:
-            return
-        os.makedirs(self._shadow_dir, exist_ok=True)
-        if not os.path.isdir(os.path.join(self._shadow_dir, ".git")):
-            _git(self._shadow_dir, ["init"])
-            _git(self._shadow_dir, ["config", "user.email", "zrb-snapshot@local"])
-            _git(self._shadow_dir, ["config", "user.name", "zrb-snapshot"])
-        self._initialized = True
-
     async def take_snapshot(
         self, label: str, message_count: int | None = None
     ) -> str | None:
@@ -120,25 +110,6 @@ class SnapshotManager:
         except Exception as e:
             logger.warning(f"Snapshot failed: {e}")
             return None
-
-    def _commit(self, commit_msg: str, allow_empty: bool = False) -> str | None:
-        _git(self._shadow_dir, ["add", "-A"])
-        result = subprocess.run(
-            ["git", "diff", "--cached", "--quiet"],
-            cwd=self._shadow_dir,
-            capture_output=True,
-        )
-        if result.returncode == 0:
-            if allow_empty:
-                _git(
-                    self._shadow_dir,
-                    ["commit", "--allow-empty", "-m", commit_msg],
-                )
-                return _head_sha(self._shadow_dir)
-            # Nothing new to commit — return current HEAD sha if any
-            return _head_sha(self._shadow_dir)
-        _git(self._shadow_dir, ["commit", "-m", commit_msg])
-        return _head_sha(self._shadow_dir)
 
     async def take_init_snapshot(self) -> str | None:
         """Take an empty baseline snapshot at session start.
@@ -217,6 +188,35 @@ class SnapshotManager:
         except Exception as e:
             logger.warning(f"restore_snapshot failed: {e}")
             return False
+
+    def _ensure_initialized(self):
+        if self._initialized:
+            return
+        os.makedirs(self._shadow_dir, exist_ok=True)
+        if not os.path.isdir(os.path.join(self._shadow_dir, ".git")):
+            _git(self._shadow_dir, ["init"])
+            _git(self._shadow_dir, ["config", "user.email", "zrb-snapshot@local"])
+            _git(self._shadow_dir, ["config", "user.name", "zrb-snapshot"])
+        self._initialized = True
+
+    def _commit(self, commit_msg: str, allow_empty: bool = False) -> str | None:
+        _git(self._shadow_dir, ["add", "-A"])
+        result = subprocess.run(
+            ["git", "diff", "--cached", "--quiet"],
+            cwd=self._shadow_dir,
+            capture_output=True,
+        )
+        if result.returncode == 0:
+            if allow_empty:
+                _git(
+                    self._shadow_dir,
+                    ["commit", "--allow-empty", "-m", commit_msg],
+                )
+                return _head_sha(self._shadow_dir)
+            # Nothing new to commit — return current HEAD sha if any
+            return _head_sha(self._shadow_dir)
+        _git(self._shadow_dir, ["commit", "-m", commit_msg])
+        return _head_sha(self._shadow_dir)
 
 
 # ---------------------------------------------------------------------------
@@ -311,7 +311,9 @@ def _copy_files(
             shutil.copy2(src_path, dst_path)
 
 
-def _collect_pruned_rel_paths(root_dir: str, exclude_git: bool, ignored: frozenset[str]) -> set[str]:
+def _collect_pruned_rel_paths(
+    root_dir: str, exclude_git: bool, ignored: frozenset[str]
+) -> set[str]:
     """Walk *root_dir* (skipping .git and ignored dirs) and return relative file paths."""
     paths: set[str] = set()
     for root, dirs, files in os.walk(root_dir):
@@ -332,7 +334,9 @@ def _remove_stale_files(dst: str, stale_paths: set[str]) -> None:
             pass
 
 
-def _remove_empty_dirs(root_dir: str, exclude_git: bool, ignored: frozenset[str]) -> None:
+def _remove_empty_dirs(
+    root_dir: str, exclude_git: bool, ignored: frozenset[str]
+) -> None:
     """Remove empty directories bottom-up, skipping .git and ignored trees."""
     for root, dirs, files in os.walk(root_dir, topdown=False):
         if root == root_dir:

@@ -135,9 +135,7 @@ def _collect_git_info(
             branch = f_git_branch.result().stdout.strip() or "(detached)"
             status = f_git_status.result().stdout.strip()
             status_str = (
-                "Clean"
-                if not status
-                else f"Dirty ({len(status.splitlines())} changes)"
+                "Clean" if not status else f"Dirty ({len(status.splitlines())} changes)"
             )
             git_lines.append(f"- Git: {branch} ({status_str})")
         except Exception:
@@ -145,9 +143,7 @@ def _collect_git_info(
         try:
             recent_log = f_git_log.result().stdout.strip()
             if recent_log:
-                log_lines = "\n".join(
-                    f"  {line}" for line in recent_log.splitlines()
-                )
+                log_lines = "\n".join(f"  {line}" for line in recent_log.splitlines())
                 git_lines.append(f"- Recent commits:\n{log_lines}")
         except Exception:
             pass

@@ -50,81 +50,6 @@ class TodoManager:
             cls._instance._todo_dir.mkdir(parents=True, exist_ok=True)
         return cls._instance
 
-    def _get_todo_file(self, session_name: str) -> Path:
-        """Get the file path for a session's todos."""
-        # Sanitize session name for filesystem
-        safe_name = "".join(
-            c if c.isalnum() or c in "-_" else "_" for c in session_name
-        )
-        return self._todo_dir / f"{safe_name}.json"
-
-    def _load_todos(self, session_name: str) -> dict[str, Any] | None:
-        """Load todos from disk for a session."""
-        if session_name in self._todos:
-            return self._todos[session_name]
-
-        todo_file = self._get_todo_file(session_name)
-        if todo_file.exists():
-            try:
-                with open(todo_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    self._todos[session_name] = data
-                    return data
-            except Exception as e:
-                zrb_print(
-                    f"Warning: Failed to load todos for {session_name}: {e}", plain=True
-                )
-        return None
-
-    def _save_todos(self, session_name: str) -> None:
-        """Save todos to disk for a session."""
-        if session_name not in self._todos:
-            return
-
-        todo_file = self._get_todo_file(session_name)
-        try:
-            with open(todo_file, "w", encoding="utf-8") as f:
-                json.dump(self._todos[session_name], f, indent=2)
-        except Exception as e:
-            zrb_print(
-                f"Warning: Failed to save todos for {session_name}: {e}", plain=True
-            )
-
-    @staticmethod
-    def _compute_stats(new_todos: list[dict[str, Any]]) -> dict[str, int]:
-        """Compute todo summary counts."""
-        return {
-            "total": len(new_todos),
-            "completed": sum(1 for t in new_todos if t["status"] == "completed"),
-            "in_progress": sum(1 for t in new_todos if t["status"] == "in_progress"),
-            "pending": sum(1 for t in new_todos if t["status"] == "pending"),
-            "cancelled": sum(1 for t in new_todos if t["status"] == "cancelled"),
-        }
-
-    @staticmethod
-    def _build_todo_entry(
-        todo: dict[str, Any],
-        todo_id: str,
-        existing: dict[str, dict[str, Any]] | None,
-        replace: bool,
-        now: str,
-    ) -> dict[str, Any]:
-        """Build a single todo entry, merging with existing if not replacing."""
-        if existing and todo_id in existing and not replace:
-            existing[todo_id].update(
-                {
-                    "content": todo.get("content", existing[todo_id]["content"]),
-                    "status": todo.get("status", existing[todo_id]["status"]),
-                }
-            )
-            return existing[todo_id]
-        return {
-            "id": todo_id,
-            "content": todo.get("content", ""),
-            "status": todo.get("status", "pending"),
-            "created_at": now,
-        }
-
     def write_todos(
         self,
         session_name: str,
@@ -171,13 +96,6 @@ class TodoManager:
         self._todos[session_name] = result
         self._save_todos(session_name)
         return result
-
-    @staticmethod
-    def _sort_key(t: dict[str, Any]) -> tuple[int, int | str]:
-        try:
-            return (0, int(t["id"]))
-        except (ValueError, TypeError):
-            return (1, t["id"])
 
     def get_todos(self, session_name: str) -> dict[str, Any] | None:
         """
@@ -254,6 +172,88 @@ class TodoManager:
             except Exception:
                 return False
         return True
+
+    def _get_todo_file(self, session_name: str) -> Path:
+        """Get the file path for a session's todos."""
+        # Sanitize session name for filesystem
+        safe_name = "".join(
+            c if c.isalnum() or c in "-_" else "_" for c in session_name
+        )
+        return self._todo_dir / f"{safe_name}.json"
+
+    def _load_todos(self, session_name: str) -> dict[str, Any] | None:
+        """Load todos from disk for a session."""
+        if session_name in self._todos:
+            return self._todos[session_name]
+
+        todo_file = self._get_todo_file(session_name)
+        if todo_file.exists():
+            try:
+                with open(todo_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    self._todos[session_name] = data
+                    return data
+            except Exception as e:
+                zrb_print(
+                    f"Warning: Failed to load todos for {session_name}: {e}", plain=True
+                )
+        return None
+
+    def _save_todos(self, session_name: str) -> None:
+        """Save todos to disk for a session."""
+        if session_name not in self._todos:
+            return
+
+        todo_file = self._get_todo_file(session_name)
+        try:
+            with open(todo_file, "w", encoding="utf-8") as f:
+                json.dump(self._todos[session_name], f, indent=2)
+        except Exception as e:
+            zrb_print(
+                f"Warning: Failed to save todos for {session_name}: {e}", plain=True
+            )
+
+    @staticmethod
+    def _compute_stats(new_todos: list[dict[str, Any]]) -> dict[str, int]:
+        """Compute todo summary counts."""
+        return {
+            "total": len(new_todos),
+            "completed": sum(1 for t in new_todos if t["status"] == "completed"),
+            "in_progress": sum(1 for t in new_todos if t["status"] == "in_progress"),
+            "pending": sum(1 for t in new_todos if t["status"] == "pending"),
+            "cancelled": sum(1 for t in new_todos if t["status"] == "cancelled"),
+        }
+
+    @staticmethod
+    def _build_todo_entry(
+        todo: dict[str, Any],
+        todo_id: str,
+        existing: dict[str, dict[str, Any]] | None,
+        replace: bool,
+        now: str,
+    ) -> dict[str, Any]:
+        """Build a single todo entry, merging with existing if not replacing."""
+        if existing and todo_id in existing and not replace:
+            existing[todo_id].update(
+                {
+                    "content": todo.get("content", existing[todo_id]["content"]),
+                    "status": todo.get("status", existing[todo_id]["status"]),
+                }
+            )
+            return existing[todo_id]
+        return {
+            "id": todo_id,
+            "content": todo.get("content", ""),
+            "status": todo.get("status", "pending"),
+            "created_at": now,
+        }
+
+    @staticmethod
+    def _sort_key(t: dict[str, Any]) -> tuple[int, int | str]:
+        try:
+            return (0, int(t["id"]))
+        except (ValueError, TypeError):
+            return (1, t["id"])
 
 
 # Singleton instance

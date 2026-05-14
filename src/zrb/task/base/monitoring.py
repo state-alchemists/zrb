@@ -38,14 +38,14 @@ async def monitor_task_readiness(
             await _reset_check_tasks(session, readiness_checks, ctx)
 
             try:
-                all_ok = await _run_readiness_checks(
-                    session, readiness_checks, timeout
-                )
+                all_ok = await _run_readiness_checks(session, readiness_checks, timeout)
                 if all_ok:
                     ctx.log_info("Readiness check OK.")
                     failure_count = 0
                     continue
-                ctx.log_warning("Periodic readiness check failed (tasks did not complete).")
+                ctx.log_warning(
+                    "Periodic readiness check failed (tasks did not complete)."
+                )
                 failure_count += 1
             except asyncio.TimeoutError:
                 failure_count += 1
@@ -64,9 +64,7 @@ async def monitor_task_readiness(
                 )
 
         if failure_count >= fail_threshold:
-            ctx.log_warning(
-                f"Readiness failure threshold ({fail_threshold}) reached."
-            )
+            ctx.log_warning(f"Readiness failure threshold ({fail_threshold}) reached.")
             action_coro = await _handle_threshold_reached(
                 task, session, action_coro, ctx
             )
@@ -103,8 +101,7 @@ async def _run_readiness_checks(
             timeout=readiness_timeout,
         )
         return all(
-            session.get_task_status(check).is_completed
-            for check in readiness_checks
+            session.get_task_status(check).is_completed for check in readiness_checks
         )
     except asyncio.TimeoutError:
         for check in readiness_checks:
