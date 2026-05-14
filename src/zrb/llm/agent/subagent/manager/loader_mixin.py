@@ -1,8 +1,8 @@
-"""Filesystem scanning and agent-file parsing for `SubAgentManager`.
+"""Filesystem scanning and agent-file parsing for ``SubAgentManager``.
 
-Loads agents from `AGENT.py` / `*.agent.py` (Python) and `AGENT.md` /
-`*.agent.md` / plain `*.md` (Markdown with optional YAML frontmatter).
-Registers each parsed `SubAgentDefinition` on `self._agents`.
+Loads agents from ``AGENT.py`` / ``*.agent.py`` (Python) and ``AGENT.md`` /
+``*.agent.md`` / plain ``*.md`` (Markdown with optional YAML frontmatter).
+Registers each parsed ``SubAgentDefinition`` on ``self._agents``.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 import yaml
 
+from zrb.util.asset_scanner import scan_files
 from zrb.util.load import load_module_from_path
 
 if TYPE_CHECKING:
@@ -21,10 +22,10 @@ if TYPE_CHECKING:
 
 
 class LoaderMixin:
-    """Filesystem walker + agent-file parsers for `SubAgentManager`."""
+    """Filesystem walker + agent-file parsers for ``SubAgentManager``."""
 
     # Host-class contract: these attributes are owned by the class that mixes
-    # this in (see `SubAgentManager.__init__`). Declared here so static type
+    # this in (see ``SubAgentManager.__init__``). Declared here so static type
     # checkers can verify accesses; the block does not run at runtime.
     if TYPE_CHECKING:
         _ignore_dirs: list[str]
@@ -33,49 +34,34 @@ class LoaderMixin:
 
     def _scan_dir(self, directory: Path, max_depth: int) -> None:
         try:
-            search_path = Path(directory).resolve()
-            self._scan_dir_recursive(search_path, search_path, max_depth, 0)
+            scan_files(
+                Path(directory),
+                max_depth,
+                self._on_file_found,
+                self._ignore_dirs,
+            )
         except Exception:
             pass
 
-    def _scan_dir_recursive(
-        self,
-        base_dir: Path,
-        current_dir: Path,
-        max_depth: int,
-        current_depth: int,
-    ) -> None:
-        if current_depth > max_depth:
-            return
-        try:
-            for item in current_dir.iterdir():
-                if item.is_dir():
-                    if item.name in self._ignore_dirs or item.name.startswith("."):
-                        continue
-                    self._scan_dir_recursive(
-                        base_dir, item, max_depth, current_depth + 1
-                    )
-                elif item.is_file():
-                    full_path = str(item)
-                    rel_path = os.path.relpath(full_path, self._root_dir)
+    def _on_file_found(self, item: Path) -> None:
+        full_path = str(item)
+        rel_path = os.path.relpath(full_path, self._root_dir)
 
-                    if item.name == "AGENT.py" or item.name.endswith(".agent.py"):
-                        self._load_agent_from_python(rel_path, full_path)
-                    else:
-                        is_agent_file = item.name == "AGENT.md" or item.name.endswith(
-                            ".agent.md"
-                        )
-                        # Claude also accepts plain `.md` files inside `agents/`.
-                        if not is_agent_file and item.suffix.lower() == ".md":
-                            if (
-                                item.name.lower() != "readme.md"
-                                and item.parent.name.lower() == "agents"
-                            ):
-                                is_agent_file = True
-                        if is_agent_file:
-                            self._load_agent_from_markdown(rel_path, full_path)
-        except (PermissionError, OSError):
-            pass
+        if item.name == "AGENT.py" or item.name.endswith(".agent.py"):
+            self._load_agent_from_python(rel_path, full_path)
+        else:
+            is_agent_file = item.name == "AGENT.md" or item.name.endswith(
+                ".agent.md"
+            )
+            # Claude also accepts plain ``.md`` files inside ``agents/``.
+            if not is_agent_file and item.suffix.lower() == ".md":
+                if (
+                    item.name.lower() != "readme.md"
+                    and item.parent.name.lower() == "agents"
+                ):
+                    is_agent_file = True
+            if is_agent_file:
+                self._load_agent_from_markdown(rel_path, full_path)
 
     def _load_agent_from_python(self, rel_path: str, full_path: str) -> None:
         from pydantic_ai import Agent

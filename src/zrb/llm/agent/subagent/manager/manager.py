@@ -10,6 +10,7 @@ from zrb.context.shared_context import SharedContext
 from zrb.llm.agent.common import create_agent
 from zrb.llm.agent.subagent.manager.loader_mixin import LoaderMixin
 from zrb.llm.agent.subagent.manager.search_mixin import SearchMixin
+from zrb.util.asset_scanner import IGNORE_DIRS
 from zrb.llm.agent.subagent.yolo import make_yolo_inheritance_checker
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.prompt.tool_guidance import (
@@ -26,17 +27,6 @@ if TYPE_CHECKING:
     from pydantic_ai import Agent, Tool
     from pydantic_ai.tools import ToolFuncEither
     from pydantic_ai.toolsets import AbstractToolset
-
-_IGNORE_DIRS = [
-    ".git",
-    "node_modules",
-    "__pycache__",
-    "venv",
-    "dist",
-    "build",
-    "htmlcov",
-]
-
 
 class SubAgentDefinition:
     def __init__(
@@ -80,7 +70,7 @@ class SubAgentManager(LoaderMixin, SearchMixin):
         self._search_dirs = search_dirs
         self._max_depth = max_depth
         self._agents: dict[str, SubAgentDefinition] = {}
-        self._ignore_dirs = _IGNORE_DIRS if ignore_dirs is None else ignore_dirs
+        self._ignore_dirs = IGNORE_DIRS if ignore_dirs is None else ignore_dirs
         self._loaded: bool = False  # Track if agents have been loaded
         self._tool_guidance: ToolCatalogue = {}
         self._tool_groups: ToolGroups = []

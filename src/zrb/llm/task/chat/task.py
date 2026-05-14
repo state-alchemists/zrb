@@ -249,7 +249,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
                 include_persona=False,
                 include_mandate=False,
                 include_system_context=False,
-                include_journal=False,
+                include_journal_mandate=False,
                 include_claude_skills=False,
                 include_cli_skills=False,
                 include_project_context=False,

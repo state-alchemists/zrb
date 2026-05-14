@@ -14,7 +14,8 @@ so contributors can answer "what ContextVars exist?" without grepping.
 When you add, remove, or rename a `ContextVar`, also update:
   - docs/advanced-topics/maintainer-guide.md  (Context Propagation Internals — the count and per-layer table)
   - docs/advanced-topics/architecture.md      (Implicit State via ContextVars — the count)
-  - AGENTS.md                                 (Ambient State table)
+
+(AGENTS.md just points here, so it doesn't need updating.)
 """
 
 from __future__ import annotations

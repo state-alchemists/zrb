@@ -1,3 +1,29 @@
+"""System-context middleware: runs once per prompt build.
+
+Beyond rendering environment facts (OS, cwd, git status, project type, tool
+availability), this module performs three auto-injections that bridge prompt
+assembly to ambient runtime state:
+
+1. **Session wiring** — reads ``ctx.input.session`` and calls
+   ``set_current_tool_session()`` (``zrb.llm.tool.ambient_state``). The
+   resulting ``ContextVar`` is what the four todo tools (``WriteTodos``,
+   ``GetTodos``, ``UpdateTodo``, ``ClearTodos``) read when called without an
+   explicit ``session=`` argument, so they always target the active
+   conversation.
+
+2. **Active worktree** — if ``EnterWorktree`` was called, the path is rendered
+   as ``- Active worktree: <path>`` in every subsequent system prompt and
+   reminds the LLM to pass it as ``cwd`` to ``Bash``. Cleared automatically
+   when ``ExitWorktree`` is called. Read via ``get_active_worktree()`` from
+   ``zrb.llm.tool.ambient_state``. If the path no longer exists on disk, the
+   stale value is cleared on the spot.
+
+3. **Pending todos** — pending and in-progress todos from the current session
+   are rendered into the system context so the LLM sees them at the start of
+   every turn without needing to call ``GetTodos`` first. Completed and
+   cancelled items are omitted.
+"""
+
 import glob
 import os
 import platform

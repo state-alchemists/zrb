@@ -28,8 +28,7 @@ source .venv/bin/activate && poetry lock && poetry install
 | `src/zrb/dot_dict/` | `DotDict` – dot-notation dict used for `ctx.input.*` and `ctx.env.*` |
 | `src/zrb/cmd/` | Command rendering utilities for `CmdTask` |
 | `src/zrb/content_transformer/` | Content transformation helpers (templating, string transforms) |
-| `src/zrb/session_state_log/` | Session state data structures |
-| `src/zrb/session_state_logger/` | Persistent session logging |
+| `src/zrb/session_state_log/`, `session_state_logger/` | Session state data structures (`_log`) and the persistent logger that writes them to disk (`_logger`) |
 | `src/zrb/task_status/` | Task status tracking (PENDING, STARTED, READY, DONE, FAILED, etc.) |
 | `src/zrb/util/` | General utility functions (git, file, string, async helpers) |
 | `src/zrb/llm_plugin/` | Built-in skills (`skills/`) and sub-agent definitions (`agents/`). Each skill is a `SKILL.md` or `SKILL.py` file; each agent is a `*.agent.md` file. |
@@ -55,7 +54,7 @@ source .venv/bin/activate && poetry lock && poetry install
 | `llm/tool/` | Agent-callable tools split by concern: `file_list`, `file_read`, `file_write`, `file_edit`, `file_search`, `file_analyze` (re-exported via `file.py`); plus `bash`, `code`, `web`, `rag`, `delegate`, `plan`, `mcp`, `skill`, `worktree`, `zrb_task`, `search/` |
 | `llm/tool_call/` | Tool call data structures and result handling |
 | `llm/ui/` | `UIProtocol` and terminal UI for streaming responses and tool approval. Split into `base/` (`ui.py`, `commands_mixin.py`) and `default/` (`ui.py`, `confirmation_mixin.py`, `keybindings_mixin.py`, `lifecycle_mixin.py`, `output_mixin.py`). |
-| `llm/util/` | Internal LLM utilities |
+| `llm/util/` | LLM-specific helpers: `attachment`, `clipboard`, `git`, `history_formatter`, `image_scale`, `modality`, `multimodal_describe`, `prompt`, `stream_response` |
 
 ### Test Locations
 | Directory | Purpose |
@@ -80,29 +79,13 @@ source .venv/bin/activate && poetry lock && poetry install
 
 `PromptManager` (`src/zrb/llm/prompt/manager.py`) assembles the system prompt from ordered sections (persona → git mandate → system context → mandate → tool guidance → journal → project context → skills → user prompts). Each section can be toggled via `include_*` flags or the corresponding `CFG.LLM_INCLUDE_*` env var.
 
-### System Context Auto-Injections (`src/zrb/llm/prompt/system_context.py`)
+### System Context Auto-Injections
 
-The system context middleware runs once per prompt build and does three things beyond environment facts:
-
-1. **Session wiring** — reads `ctx.input.session` and calls `set_current_tool_session()` (`src/zrb/llm/tool/ambient_state.py`). This sets a `ContextVar` that all four todo tools (`WriteTodos`, `GetTodos`, `UpdateTodo`, `ClearTodos`) read when called without an explicit `session=` argument, ensuring they always operate on the correct conversation session.
-
-2. **Active worktree** — if `EnterWorktree` was called, its path is shown as `- Active worktree: <path>` in every subsequent system prompt, reminding the LLM to pass it as `cwd` to `Bash`. Cleared automatically when `ExitWorktree` is called. Read via `get_active_worktree()` from `src/zrb/llm/tool/ambient_state.py`.
-
-3. **Pending todos** — if the current session has `pending` or `in_progress` todos, they are rendered into the system context so the LLM sees them at the start of every turn without needing to call `GetTodos` first. Completed and cancelled items are omitted.
+`src/zrb/llm/prompt/system_context.py` runs once per prompt build. Beyond environment facts it auto-injects three ambient-state bridges: **session wiring** (so todo tools target the active conversation), **active worktree** (rendered as a reminder line; stale paths self-clear), and **pending todos** (so the LLM sees them without calling `GetTodos`). See the module's docstring for specifics.
 
 ### Ambient State (`ContextVar`s)
 
-Zrb propagates seven ambient-state values via `contextvars.ContextVar`. The full list — with their typed wrappers — is re-exported from `src/zrb/contextvars.py` (the discoverability index). The vars themselves stay in their owning module:
-
-| Var | Owner | Wrapper |
-|-----|-------|---------|
-| `current_ctx` | `src/zrb/context/any_context.py` | `get_current_ctx()` |
-| `current_ui` | `src/zrb/llm/agent/run/runner.py` | `get_current_ui()` from `src/zrb/llm/agent/run/runtime_state.py` |
-| `current_tool_confirmation` | `src/zrb/llm/agent/run/runner.py` | `get_current_tool_confirmation()` |
-| `current_yolo` | `src/zrb/llm/agent/run/runner.py` | `get_current_yolo()` |
-| `current_approval_channel` | `src/zrb/llm/approval/approval_channel.py` | `get_current_approval_channel()` |
-| `active_worktree` | `src/zrb/llm/tool/worktree.py` | `get_active_worktree()` / `set_active_worktree()` from `src/zrb/llm/tool/ambient_state.py` |
-| `_current_session` | `src/zrb/llm/tool/plan.py` | `get_current_tool_session()` / `set_current_tool_session()` |
+Zrb propagates ambient state via `contextvars.ContextVar`. The canonical index — every var, its owning module, and its typed wrapper — lives in `src/zrb/contextvars.py`. Open that file to see what's available.
 
 When you only need to **read** ambient state, prefer the wrapper. When you need to scope a value for the duration of a block (`token = var.set(...)` then `var.reset(token)`), use the underlying `ContextVar` directly — see `run_agent.py` for the canonical pattern.
 
