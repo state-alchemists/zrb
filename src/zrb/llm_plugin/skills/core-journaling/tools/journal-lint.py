@@ -55,7 +55,8 @@ class LintReport:
             "journal_root": self.journal_root,
             "issue_count": len(self.issues),
             "issues": [
-                {"kind": i.kind, "path": i.path, "detail": i.detail} for i in self.issues
+                {"kind": i.kind, "path": i.path, "detail": i.detail}
+                for i in self.issues
             ],
         }
 
@@ -100,7 +101,9 @@ def _is_date_leaf_dir(path: Path, root: Path) -> bool:
 def lint(root: Path) -> LintReport:
     if not root.is_dir():
         report = LintReport(journal_root=str(root))
-        report.issues.append(JournalIssue("broken-link", str(root), "journal root is not a directory"))
+        report.issues.append(
+            JournalIssue("broken-link", str(root), "journal root is not a directory")
+        )
         return report
 
     # Resolve once so all subsequent path operations agree (handles /tmp -> /private/tmp etc.)
@@ -120,13 +123,15 @@ def lint(root: Path) -> LintReport:
         try:
             content = f.read_text(encoding="utf-8")
         except OSError as e:
-            report.issues.append(JournalIssue("broken-link", str(f), f"unreadable: {e}"))
+            report.issues.append(
+                JournalIssue("broken-link", str(f), f"unreadable: {e}")
+            )
             continue
 
         # Split body vs Backlinks section
         backlink_match = BACKLINK_HEADER_RE.search(content)
         body = content[: backlink_match.start()] if backlink_match else content
-        backlink_section = content[backlink_match.end():] if backlink_match else ""
+        backlink_section = content[backlink_match.end() :] if backlink_match else ""
 
         # Forward links: in body only (links in the Backlinks section are the reverse direction)
         for _, target in LINK_RE.findall(body):
@@ -137,7 +142,11 @@ def lint(root: Path) -> LintReport:
                 continue
             if not resolved.exists():
                 report.issues.append(
-                    JournalIssue("broken-link", str(f.relative_to(root)), f"-> {target} (target missing)")
+                    JournalIssue(
+                        "broken-link",
+                        str(f.relative_to(root)),
+                        f"-> {target} (target missing)",
+                    )
                 )
                 continue
             forward[f].add(resolved)
@@ -185,10 +194,16 @@ def lint(root: Path) -> LintReport:
                 # date-day files under activity-log are commonly reachable only via month index;
                 # if the month index links them, they're reachable. If not, they're orphans.
                 report.issues.append(
-                    JournalIssue("orphan", str(f.relative_to(root)), "unreachable from root index.md")
+                    JournalIssue(
+                        "orphan",
+                        str(f.relative_to(root)),
+                        "unreachable from root index.md",
+                    )
                 )
     else:
-        report.issues.append(JournalIssue("missing-index", "index.md", "journal root index.md missing"))
+        report.issues.append(
+            JournalIssue("missing-index", "index.md", "journal root index.md missing")
+        )
 
     # Check 3: directory index coverage
     seen_dirs: set[Path] = set()
@@ -201,7 +216,11 @@ def lint(root: Path) -> LintReport:
             continue
         if not (d / "index.md").exists():
             report.issues.append(
-                JournalIssue("missing-index", str(d.relative_to(root)), "directory has notes but no index.md")
+                JournalIssue(
+                    "missing-index",
+                    str(d.relative_to(root)),
+                    "directory has notes but no index.md",
+                )
             )
 
     return report
