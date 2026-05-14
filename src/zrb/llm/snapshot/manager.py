@@ -281,6 +281,75 @@ def _git(cwd: str, args: list[str]):
     subprocess.run(["git"] + args, cwd=cwd, check=True, capture_output=True)
 
 
+def _prune_walk(dirs: list[str], exclude_git: bool, ignored: frozenset[str]) -> None:
+    """Remove ``.git`` and ignored directories from an ``os.walk`` *dirs* list in-place."""
+    if exclude_git and ".git" in dirs:
+        dirs.remove(".git")
+    if ignored:
+        dirs[:] = [d for d in dirs if d not in ignored]
+
+
+def _copy_files(
+    src: str,
+    dst: str,
+    exclude_git: bool,
+    ignored: frozenset[str],
+    src_rel_paths: set[str],
+) -> None:
+    """Copy all non-ignored files from *src* to *dst*, recording relative paths."""
+    for root, dirs, files in os.walk(src):
+        _prune_walk(dirs, exclude_git, ignored)
+        rel_root = os.path.relpath(root, src)
+        for fname in files:
+            src_path = os.path.join(root, fname)
+            if not os.path.isfile(src_path):
+                continue
+            rel_path = fname if rel_root == "." else os.path.join(rel_root, fname)
+            dst_path = os.path.join(dst, rel_path)
+            src_rel_paths.add(rel_path)
+            os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+            shutil.copy2(src_path, dst_path)
+
+
+def _collect_pruned_rel_paths(root_dir: str, exclude_git: bool, ignored: frozenset[str]) -> set[str]:
+    """Walk *root_dir* (skipping .git and ignored dirs) and return relative file paths."""
+    paths: set[str] = set()
+    for root, dirs, files in os.walk(root_dir):
+        _prune_walk(dirs, exclude_git, ignored)
+        rel_root = os.path.relpath(root, root_dir)
+        for fname in files:
+            rel_path = fname if rel_root == "." else os.path.join(rel_root, fname)
+            paths.add(rel_path)
+    return paths
+
+
+def _remove_stale_files(dst: str, stale_paths: set[str]) -> None:
+    """Remove files in *stale_paths* from *dst* (silently ignoring OSError)."""
+    for rel_path in stale_paths:
+        try:
+            os.remove(os.path.join(dst, rel_path))
+        except OSError:
+            pass
+
+
+def _remove_empty_dirs(root_dir: str, exclude_git: bool, ignored: frozenset[str]) -> None:
+    """Remove empty directories bottom-up, skipping .git and ignored trees."""
+    for root, dirs, files in os.walk(root_dir, topdown=False):
+        if root == root_dir:
+            continue
+        rel = os.path.relpath(root, root_dir)
+        rel_parts = rel.split(os.sep)
+        if exclude_git and ".git" in rel_parts:
+            continue
+        if ignored and any(part in ignored for part in rel_parts):
+            continue
+        try:
+            if not os.listdir(root):
+                os.rmdir(root)
+        except OSError:
+            pass
+
+
 def _sync_dirs(
     src: str,
     dst: str,
@@ -301,66 +370,14 @@ def _sync_dirs(
             without restore wiping them from the user's workdir.
     """
     os.makedirs(dst, exist_ok=True)
-    src_rel_paths: set[str] = set()
     ignored: frozenset[str] = ignore_dirs or frozenset()
+    src_rel_paths: set[str] = set()
 
-    def _prune(dirs: list[str]) -> None:
-        if exclude_git and ".git" in dirs:
-            dirs.remove(".git")
-        if ignored:
-            dirs[:] = [d for d in dirs if d not in ignored]
-
-    # Copy src → dst
-    for root, dirs, files in os.walk(src):
-        _prune(dirs)
-
-        rel_root = os.path.relpath(root, src)
-
-        for fname in files:
-            src_path = os.path.join(root, fname)
-            # Skip non-regular files (sockets, FIFOs, device files)
-            if not os.path.isfile(src_path):
-                continue
-            rel_path = fname if rel_root == "." else os.path.join(rel_root, fname)
-            dst_path = os.path.join(dst, rel_path)
-            src_rel_paths.add(rel_path)
-            os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-            shutil.copy2(src_path, dst_path)
+    _copy_files(src, dst, exclude_git, ignored, src_rel_paths)
 
     if not delete:
         return
 
-    # Collect dst files (excluding .git and ignored dirs — we never delete
-    # ignored trees because they're outside the snapshot's domain).
-    dst_rel_paths: set[str] = set()
-    for root, dirs, files in os.walk(dst):
-        _prune(dirs)
-
-        rel_root = os.path.relpath(root, dst)
-        for fname in files:
-            rel_path = fname if rel_root == "." else os.path.join(rel_root, fname)
-            dst_rel_paths.add(rel_path)
-
-    # Remove stale files
-    for rel_path in dst_rel_paths - src_rel_paths:
-        try:
-            os.remove(os.path.join(dst, rel_path))
-        except OSError:
-            pass
-
-    # Remove empty directories (bottom-up).
-    # Skip any path that is, or lives inside, a .git or ignored directory.
-    for root, dirs, files in os.walk(dst, topdown=False):
-        if root == dst:
-            continue
-        rel = os.path.relpath(root, dst)
-        rel_parts = rel.split(os.sep)
-        if exclude_git and ".git" in rel_parts:
-            continue
-        if ignored and any(part in ignored for part in rel_parts):
-            continue
-        try:
-            if not os.listdir(root):
-                os.rmdir(root)
-        except OSError:
-            pass
+    dst_rel_paths = _collect_pruned_rel_paths(dst, exclude_git, ignored)
+    _remove_stale_files(dst, dst_rel_paths - src_rel_paths)
+    _remove_empty_dirs(dst, exclude_git, ignored)

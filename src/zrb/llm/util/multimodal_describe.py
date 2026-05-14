@@ -96,6 +96,15 @@ async def describe_binary_attachment(
         return None
 
 
+def _reason_for_drop(modality: str, multimodal_model: Any | None) -> str:
+    """Return a human-readable explanation of why *modality* was dropped."""
+    if multimodal_model is None and modality in ("image", "audio"):
+        return "no LLM_MULTIMODAL_MODEL configured"
+    if modality in ("image", "audio"):
+        return f"{modality} not supported by configured multimodal model"
+    return f"{modality} attachments cannot be auto-described"
+
+
 async def replace_unsupported_attachments(
     prompt_content: "str | list[Any] | None",
     main_model: "str | Any | None",
@@ -154,15 +163,7 @@ async def replace_unsupported_attachments(
                 f"({len(described)} chars).\n"
             )
         else:
-            reason = (
-                "no LLM_MULTIMODAL_MODEL configured"
-                if multimodal_model is None and modality in ("image", "audio")
-                else (
-                    f"{modality} not supported by configured multimodal model"
-                    if modality in ("image", "audio")
-                    else f"{modality} attachments cannot be auto-described"
-                )
-            )
+            reason = _reason_for_drop(modality, multimodal_model)
             notify(
                 f"\n  ⚠️  Dropped {modality} attachment ({media_type}): "
                 f"main model is text-only and {reason}.\n"
