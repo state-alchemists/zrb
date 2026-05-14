@@ -10,24 +10,69 @@ from zrb.llm.hook.schema import (
     PromptHookConfig,
 )
 from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
+from zrb.util.dir_search import get_upward_dirs
 
 logger = logging.getLogger(__name__)
 
 
-def get_search_directories() -> list[str | Path]:
-    search_dirs: list[str | Path] = []
-    zrb_dir_name = f".{CFG.ROOT_GROUP_NAME}"
+def _zrb_dir_name() -> str:
+    """Return the Zrb config directory name (evaluated lazily to avoid CFG init ordering issues)."""
+    return f".{CFG.ROOT_GROUP_NAME}"
 
-    # 0. Plugins (Default Plugin -> User Plugins)
+
+def get_search_directories() -> list[str | Path]:
+    """Get all hook search directories/files in priority order.
+
+    Priority (high → low):
+    0. Default plugin (llm_plugin) + user plugins
+    1. User global config (~/.claude/, ~/.zrb/)
+    2. Project directories (root → cwd)
+    3. Custom directories from CFG.HOOKS_DIRS
+    """
+    dirs: list[str | Path] = []
+    dirs.extend(_get_plugin_hook_dirs())
+    dirs.extend(_get_home_hook_dirs())
+    dirs.extend(_get_project_hook_dirs())
+    dirs.extend(_get_custom_hook_dirs())
+    return dirs
+
+
+def _collect_hook_paths(base_dir: Path) -> list[str | Path]:
+    """Collect ``hooks.json`` and ``hooks/`` under *base_dir* for both Claude and Zrb styles."""
+    paths: list[str | Path] = []
+
+    claude_file = base_dir / ".claude" / "hooks.json"
+    if claude_file.exists() and claude_file.is_file():
+        paths.append(claude_file)
+
+    claude_dir = base_dir / ".claude" / "hooks"
+    if claude_dir.exists() and claude_dir.is_dir():
+        paths.append(claude_dir)
+
+    zrb_file = base_dir / _zrb_dir_name() / "hooks.json"
+    if zrb_file.exists() and zrb_file.is_file():
+        paths.append(zrb_file)
+
+    zrb_dir = base_dir / _zrb_dir_name() / "hooks"
+    if zrb_dir.exists() and zrb_dir.is_dir():
+        paths.append(zrb_dir)
+
+    return paths
+
+
+def _get_plugin_hook_dirs() -> list[str | Path]:
+    """Default plugin (llm_plugin) and user plugin hook directories."""
+    paths: list[str | Path] = []
+
     # Default Plugin
     default_plugin_path = Path(__file__).parent.parent.parent / "llm_plugin"
     if default_plugin_path.exists() and default_plugin_path.is_dir():
         hooks_path = default_plugin_path / "hooks"
         if hooks_path.exists() and hooks_path.is_dir():
-            search_dirs.append(hooks_path)
+            paths.append(hooks_path)
         hooks_file = default_plugin_path / "hooks.json"
         if hooks_file.exists() and hooks_file.is_file():
-            search_dirs.append(hooks_file)
+            paths.append(hooks_file)
 
     # User Plugins
     for plugin_path_str in CFG.LLM_PLUGIN_DIRS:
@@ -35,64 +80,43 @@ def get_search_directories() -> list[str | Path]:
         if plugin_path.exists() and plugin_path.is_dir():
             hooks_path = plugin_path / "hooks"
             if hooks_path.exists() and hooks_path.is_dir():
-                search_dirs.append(hooks_path)
+                paths.append(hooks_path)
             hooks_file = plugin_path / "hooks.json"
             if hooks_file.exists() and hooks_file.is_file():
-                search_dirs.append(hooks_file)
+                paths.append(hooks_file)
 
-    # 1. User global config (~/.zrb/hooks.json and ~/.zrb/hooks/)
+    return paths
+
+
+def _get_home_hook_dirs() -> list[str | Path]:
+    """User global config — ~/.claude/ and ~/.zrb/."""
     try:
-        home = Path.home()
-        # Claude style
-        global_claude_hooks_file = home / ".claude" / "hooks.json"
-        if global_claude_hooks_file.exists() and global_claude_hooks_file.is_file():
-            search_dirs.append(global_claude_hooks_file)
-
-        global_claude_hooks_dir = home / ".claude" / "hooks"
-        if global_claude_hooks_dir.exists() and global_claude_hooks_dir.is_dir():
-            search_dirs.append(global_claude_hooks_dir)
-
-        # Zrb style
-        global_zrb_hooks_file = home / zrb_dir_name / "hooks.json"
-        if global_zrb_hooks_file.exists() and global_zrb_hooks_file.is_file():
-            search_dirs.append(global_zrb_hooks_file)
-
-        global_zrb_hooks_dir = home / zrb_dir_name / "hooks"
-        if global_zrb_hooks_dir.exists() and global_zrb_hooks_dir.is_dir():
-            search_dirs.append(global_zrb_hooks_dir)
+        return _collect_hook_paths(Path.home())
     except Exception:
-        pass
+        # Hook discovery must never abort startup. PermissionError/OSError on path
+        # ops and RuntimeError from Path.home() (HOME unset) are the expected cases,
+        # but we swallow everything to stay resilient to unusual filesystems.
+        logger.warning("Failed to search global hook directories", exc_info=True)
+        return []
 
-    # 2. Project directories (.zrb/hooks.json and .zrb/hooks/)
+
+def _get_project_hook_dirs() -> list[str | Path]:
+    """Project directories — walk root → cwd looking for hook configs."""
     try:
-        cwd = Path.cwd()
-        project_dirs = list(cwd.parents)[::-1] + [cwd]
-        for project_dir in project_dirs:
-            # Claude style
-            local_claude_hooks_file = project_dir / ".claude" / "hooks.json"
-            if local_claude_hooks_file.exists() and local_claude_hooks_file.is_file():
-                search_dirs.append(local_claude_hooks_file)
-
-            local_claude_hooks_dir = project_dir / ".claude" / "hooks"
-            if local_claude_hooks_dir.exists() and local_claude_hooks_dir.is_dir():
-                search_dirs.append(local_claude_hooks_dir)
-
-            # Zrb style
-            local_zrb_hooks_file = project_dir / zrb_dir_name / "hooks.json"
-            if local_zrb_hooks_file.exists() and local_zrb_hooks_file.is_file():
-                search_dirs.append(local_zrb_hooks_file)
-
-            local_zrb_hooks_dir = project_dir / zrb_dir_name / "hooks"
-            if local_zrb_hooks_dir.exists() and local_zrb_hooks_dir.is_dir():
-                search_dirs.append(local_zrb_hooks_dir)
+        paths: list[str | Path] = []
+        for project_dir in get_upward_dirs(Path.cwd()):
+            paths.extend(_collect_hook_paths(project_dir))
+        return paths
     except Exception:
-        pass
+        # Same rationale as _get_home_hook_dirs: never let project discovery
+        # abort startup on unexpected filesystem state.
+        logger.warning("Failed to search project hook directories", exc_info=True)
+        return []
 
-    # 3. Custom directories from CFG
-    for d in CFG.HOOKS_DIRS:
-        search_dirs.append(Path(d))
 
-    return search_dirs
+def _get_custom_hook_dirs() -> list[str | Path]:
+    """Custom directories from ``CFG.HOOKS_DIRS``."""
+    return [Path(d) for d in CFG.HOOKS_DIRS]
 
 
 def parse_hook_config(data: dict) -> HookConfig:

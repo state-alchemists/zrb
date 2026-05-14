@@ -21,21 +21,12 @@ from zrb.llm.prompt.tool_guidance import (
 from zrb.llm.summarizer import (
     create_summarizer_history_processor,
 )
+from zrb.util.asset_scanner import IGNORE_DIRS
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent, Tool
     from pydantic_ai.tools import ToolFuncEither
     from pydantic_ai.toolsets import AbstractToolset
-
-_IGNORE_DIRS = [
-    ".git",
-    "node_modules",
-    "__pycache__",
-    "venv",
-    "dist",
-    "build",
-    "htmlcov",
-]
 
 
 class SubAgentDefinition:
@@ -80,44 +71,16 @@ class SubAgentManager(LoaderMixin, SearchMixin):
         self._search_dirs = search_dirs
         self._max_depth = max_depth
         self._agents: dict[str, SubAgentDefinition] = {}
-        self._ignore_dirs = _IGNORE_DIRS if ignore_dirs is None else ignore_dirs
+        self._ignore_dirs = IGNORE_DIRS if ignore_dirs is None else ignore_dirs
         self._loaded: bool = False  # Track if agents have been loaded
         self._tool_guidance: ToolCatalogue = {}
         self._tool_groups: ToolGroups = []
-
-    def _ensure_loaded(self):
-        """Lazy load agents on first access. No-op if already loaded."""
-        if not self._loaded:
-            self._scan_and_load()
-            self._loaded = True
 
     def reload(self):
         """Force re-scan agents. Use after CFG changes or agent file updates."""
         self._loaded = False
         self._agents = {}
         self._ensure_loaded()
-
-    def _scan_and_load(self):
-        """Internal: scan filesystem and load agents without resetting existing ones."""
-        target_search_dirs = self._search_dirs
-        if target_search_dirs is None:
-            target_search_dirs = self.get_search_directories()
-        for search_dir in target_search_dirs:
-            self._scan_dir(search_dir, max_depth=self._max_depth)
-
-    def _get_tool_registry(self) -> dict[str, Callable]:
-        return self._tool_registry
-
-    def _get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
-        """All toolsets including those resolved from factories."""
-        all_toolsets = list(self._toolsets)
-        for factory in self._toolset_factories:
-            toolset = factory(ctx)
-            if isinstance(toolset, list):
-                all_toolsets.extend(toolset)
-            else:
-                all_toolsets.append(toolset)
-        return all_toolsets
 
     def add_tool(self, *tool: Callable):
         """Register tools."""
@@ -278,6 +241,34 @@ class SubAgentManager(LoaderMixin, SearchMixin):
             history_processors=[create_summarizer_history_processor()],
             yolo=effective_yolo,
         )
+
+    def _ensure_loaded(self):
+        """Lazy load agents on first access. No-op if already loaded."""
+        if not self._loaded:
+            self._scan_and_load()
+            self._loaded = True
+
+    def _scan_and_load(self):
+        """Internal: scan filesystem and load agents without resetting existing ones."""
+        target_search_dirs = self._search_dirs
+        if target_search_dirs is None:
+            target_search_dirs = self.get_search_directories()
+        for search_dir in target_search_dirs:
+            self._scan_dir(search_dir, max_depth=self._max_depth)
+
+    def _get_tool_registry(self) -> dict[str, Callable]:
+        return self._tool_registry
+
+    def _get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
+        """All toolsets including those resolved from factories."""
+        all_toolsets = list(self._toolsets)
+        for factory in self._toolset_factories:
+            toolset = factory(ctx)
+            if isinstance(toolset, list):
+                all_toolsets.extend(toolset)
+            else:
+                all_toolsets.append(toolset)
+        return all_toolsets
 
 
 # Module-level singleton - lightweight, agents loaded on first access

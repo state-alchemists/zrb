@@ -565,7 +565,7 @@ async def _acquire_rate_limit(
 ) -> list[Any]:
     """Prunes history and waits if rate limits are exceeded."""
 
-    def notify_throtling(msg: str):
+    def notify_throttling(msg: str):
         if not msg:
             try:
                 print_fn("\r\033[K", end="")
@@ -584,7 +584,7 @@ async def _acquire_rate_limit(
     )
     await limiter.acquire(
         {"message": message, "history": pruned_history},
-        notifier=notify_throtling,
+        notifier=notify_throttling,
     )
     return pruned_history
 

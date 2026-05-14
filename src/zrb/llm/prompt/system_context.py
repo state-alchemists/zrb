@@ -1,3 +1,29 @@
+"""System-context middleware: runs once per prompt build.
+
+Beyond rendering environment facts (OS, cwd, git status, project type, tool
+availability), this module performs three auto-injections that bridge prompt
+assembly to ambient runtime state:
+
+1. **Session wiring** — reads ``ctx.input.session`` and calls
+   ``set_current_tool_session()`` (``zrb.llm.tool.ambient_state``). The
+   resulting ``ContextVar`` is what the four todo tools (``WriteTodos``,
+   ``GetTodos``, ``UpdateTodo``, ``ClearTodos``) read when called without an
+   explicit ``session=`` argument, so they always target the active
+   conversation.
+
+2. **Active worktree** — if ``EnterWorktree`` was called, the path is rendered
+   as ``- Active worktree: <path>`` in every subsequent system prompt and
+   reminds the LLM to pass it as ``cwd`` to ``Bash``. Cleared automatically
+   when ``ExitWorktree`` is called. Read via ``get_active_worktree()`` from
+   ``zrb.llm.tool.ambient_state``. If the path no longer exists on disk, the
+   stale value is cleared on the spot.
+
+3. **Pending todos** — pending and in-progress todos from the current session
+   are rendered into the system context so the LLM sees them at the start of
+   every turn without needing to call ``GetTodos`` first. Completed and
+   cancelled items are omitted.
+"""
+
 import glob
 import os
 import platform
@@ -6,11 +32,10 @@ import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from functools import lru_cache
-from typing import Callable
+from typing import Any, Callable
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
-from zrb.llm.util.git import is_inside_git_dir
 
 _DEFAULT_TOOLS: list[tuple[str, str]] = [
     ("docker", "Docker"),
@@ -68,10 +93,87 @@ _PROJECT_MARKERS: list[tuple[str, str]] = [
 ]
 
 
+def _collect_git_info(
+    todo_manager, session_name: str
+) -> tuple[list[str], "dict[str, Any] | None"]:
+    """Run git commands and todo fetch in parallel via ThreadPoolExecutor.
+
+    Returns (git_lines, todos_data).  *todos_data* is ``None`` when outside a
+    git directory and the todo call itself failed.
+    """
+    from zrb.llm.util.git import is_inside_git_dir
+
+    if not is_inside_git_dir():
+        return [], _safe_get_todos(todo_manager, session_name)
+
+    git_lines: list[str] = []
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        f_git_branch = ex.submit(
+            subprocess.run,
+            ["git", "branch", "--show-current"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        f_git_status = ex.submit(
+            subprocess.run,
+            ["git", "status", "--short"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        f_git_log = ex.submit(
+            subprocess.run,
+            ["git", "log", "--oneline", "-5"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        f_todos = ex.submit(_safe_get_todos, todo_manager, session_name)
+
+        try:
+            branch = f_git_branch.result().stdout.strip() or "(detached)"
+            status = f_git_status.result().stdout.strip()
+            status_str = (
+                "Clean" if not status else f"Dirty ({len(status.splitlines())} changes)"
+            )
+            git_lines.append(f"- Git: {branch} ({status_str})")
+        except Exception:
+            pass
+        try:
+            recent_log = f_git_log.result().stdout.strip()
+            if recent_log:
+                log_lines = "\n".join(f"  {line}" for line in recent_log.splitlines())
+                git_lines.append(f"- Recent commits:\n{log_lines}")
+        except Exception:
+            pass
+        todos_data = f_todos.result()
+
+    return git_lines, todos_data
+
+
+def _format_todo_lines(todos_data: "dict[str, Any]") -> list[str]:
+    """Format pending/in-progress todos into display lines."""
+    lines: list[str] = []
+    active = [
+        t
+        for t in todos_data.get("todos", [])
+        if t["status"] in ("pending", "in_progress")
+    ]
+    if not active:
+        return lines
+    total = todos_data["total"]
+    done = todos_data["completed"]
+    lines.append(f"- Todos ({done}/{total} done):")
+    for t in active:
+        mark = "[>]" if t["status"] == "in_progress" else "[ ]"
+        lines.append(f"  {mark} [{t['id']}] {t['content']}")
+    return lines
+
+
 def system_context(
     ctx: AnyContext, current_prompt: str, next_handler: Callable[[AnyContext, str], str]
 ) -> str:
-    # lazy: circular — tool → ui → llm_task → prompt.manager → here.
     from zrb.llm.tool.ambient_state import (
         get_active_worktree,
         set_active_worktree,
@@ -88,13 +190,52 @@ def system_context(
 
     cwd = os.getcwd()
     home = os.path.expanduser("~")
-    inside_git = is_inside_git_dir()  # cached per CWD
 
-    # --- Cached per CWD: project/tool detection (stable for the lifetime of a session) ---
+    # --- Cached per CWD: project/tool detection ---
     project_types = _detect_project_types(cwd)
     infra_types = _detect_infra_types(cwd, home)
     found_markers = list(_detect_project_markers(cwd))
+    found_tools = _resolve_available_tools(project_types, infra_types)
 
+    # --- Dynamic: git and todos ---
+    git_lines, todos_data = _collect_git_info(todo_manager, session_name)
+
+    # --- Worktree (ContextVar — must run on caller's thread) ---
+    active_wt = get_active_worktree()
+    if active_wt and not os.path.isdir(active_wt):
+        set_active_worktree("")
+        active_wt = ""
+
+    # --- Assemble context block ---
+    parts: list[str] = [
+        f"- Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        f"- OS: {platform.platform()}",
+        f"- CWD: {cwd}",
+        f"- Token limit: {CFG.LLM_MAX_TOKEN_PER_REQUEST:,} per request",
+    ]
+    if found_tools:
+        parts.append(f"- Tools: {', '.join(found_tools)}")
+    parts.extend(git_lines)
+    if found_markers:
+        parts.append(f"- Project: {', '.join(found_markers)}")
+    if active_wt:
+        parts.append(
+            f"- Active worktree: {active_wt} (pass as cwd to Bash; use absolute paths for Read/Write/Edit/Grep)"
+        )
+    if todos_data:
+        try:
+            parts.extend(_format_todo_lines(todos_data))
+        except Exception:
+            pass
+
+    context_block = "# System Context\n" + "\n".join(parts)
+    return next_handler(ctx, f"{current_prompt}\n\n{context_block}")
+
+
+def _resolve_available_tools(
+    project_types: tuple[str, ...], infra_types: tuple[str, ...]
+) -> list[str]:
+    """Resolve the available tool labels by checking project/infra types + PATH."""
     extra_tools: list[tuple[str, str]] = []
     for pt in project_types:
         if pt in _PROJECT_TOOLS:
@@ -106,109 +247,10 @@ def system_context(
     found_tools: list[str] = []
     seen_labels: set[str] = set()
     for cmd, label in _DEFAULT_TOOLS + _UTILITY_TOOLS + extra_tools:
-        if label not in seen_labels and _which(cmd):  # cached per command
+        if label not in seen_labels and _which(cmd):
             found_tools.append(label)
             seen_labels.add(label)
-
-    # --- Dynamic: git status and todos always run fresh ---
-    git_lines: list[str] = []
-    todos_data = None
-
-    if inside_git:
-        with ThreadPoolExecutor(max_workers=4) as ex:
-            f_git_branch = ex.submit(
-                subprocess.run,
-                ["git", "branch", "--show-current"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            f_git_status = ex.submit(
-                subprocess.run,
-                ["git", "status", "--short"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            f_git_log = ex.submit(
-                subprocess.run,
-                ["git", "log", "--oneline", "-5"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            f_todos = ex.submit(_safe_get_todos, todo_manager, session_name)
-
-            try:
-                branch = f_git_branch.result().stdout.strip() or "(detached)"
-                status = f_git_status.result().stdout.strip()
-                status_str = (
-                    "Clean"
-                    if not status
-                    else f"Dirty ({len(status.splitlines())} changes)"
-                )
-                git_lines.append(f"- Git: {branch} ({status_str})")
-            except Exception:
-                pass
-            try:
-                recent_log = f_git_log.result().stdout.strip()
-                if recent_log:
-                    log_lines = "\n".join(
-                        f"  {line}" for line in recent_log.splitlines()
-                    )
-                    git_lines.append(f"- Recent commits:\n{log_lines}")
-            except Exception:
-                pass
-            todos_data = f_todos.result()
-    else:
-        todos_data = _safe_get_todos(todo_manager, session_name)
-
-    # get_active_worktree reads a ContextVar — must run on the caller's thread
-    active_wt = get_active_worktree()
-    if active_wt and not os.path.isdir(active_wt):
-        set_active_worktree("")
-        active_wt = ""
-
-    parts = [
-        f"- Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-        f"- OS: {platform.platform()}",
-        f"- CWD: {cwd}",
-        f"- Token limit: {CFG.LLM_MAX_TOKEN_PER_REQUEST:,} per request",
-    ]
-
-    if found_tools:
-        parts.append(f"- Tools: {', '.join(found_tools)}")
-
-    parts.extend(git_lines)
-
-    if found_markers:
-        parts.append(f"- Project: {', '.join(found_markers)}")
-
-    if active_wt:
-        parts.append(
-            f"- Active worktree: {active_wt} (pass as cwd to Bash; use absolute paths for Read/Write/Edit/Grep)"
-        )
-
-    if todos_data:
-        try:
-            active = [
-                t
-                for t in todos_data.get("todos", [])
-                if t["status"] in ("pending", "in_progress")
-            ]
-            if active:
-                total = todos_data["total"]
-                done = todos_data["completed"]
-                todo_lines = [f"- Todos ({done}/{total} done):"]
-                for t in active:
-                    mark = "[>]" if t["status"] == "in_progress" else "[ ]"
-                    todo_lines.append(f"  {mark} [{t['id']}] {t['content']}")
-                parts.extend(todo_lines)
-        except Exception:
-            pass
-
-    context_block = "# System Context\n" + "\n".join(parts)
-    return next_handler(ctx, f"{current_prompt}\n\n{context_block}")
+    return found_tools
 
 
 def _safe_get_todos(todo_manager, session_name: str):

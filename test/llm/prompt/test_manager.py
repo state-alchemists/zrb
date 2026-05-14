@@ -12,7 +12,7 @@ def test_prompt_manager_basic():
         include_persona=False,
         include_mandate=False,
         include_system_context=False,
-        include_journal=False,
+        include_journal_mandate=False,
         include_claude_skills=False,
         include_cli_skills=False,
         include_project_context=False,
@@ -29,7 +29,7 @@ def test_prompt_manager_all_includes():
         include_persona=True,
         include_mandate=True,
         include_system_context=True,
-        include_journal=True,
+        include_journal_mandate=True,
         include_claude_skills=True,
         include_cli_skills=True,
         include_project_context=True,
@@ -46,7 +46,7 @@ def test_prompt_manager_add_prompt():
         include_persona=False,
         include_mandate=False,
         include_system_context=False,
-        include_journal=False,
+        include_journal_mandate=False,
         include_claude_skills=False,
         include_cli_skills=False,
         include_project_context=False,
@@ -72,7 +72,7 @@ def test_prompt_manager_middleware_types():
         include_persona=False,
         include_mandate=False,
         include_system_context=False,
-        include_journal=False,
+        include_journal_mandate=False,
         include_claude_skills=False,
         include_cli_skills=False,
         include_project_context=False,
@@ -130,13 +130,7 @@ def test_prompt_manager_all_property_getters_and_setters():
     manager.include_system_context = False
     assert manager.include_system_context is False
 
-    # include_journal (legacy alias for include_journal_mandate)
-    manager.include_journal = True
-    assert manager.include_journal is True
-    manager.include_journal = False
-    assert manager.include_journal is False
-
-    # include_journal_mandate (the specific toggle)
+    # include_journal_mandate
     manager.include_journal_mandate = True
     assert manager.include_journal_mandate is True
     manager.include_journal_mandate = False
@@ -167,7 +161,7 @@ def test_prompt_manager_render_true_with_string_prompt():
         include_persona=False,
         include_mandate=False,
         include_system_context=False,
-        include_journal=False,
+        include_journal_mandate=False,
         include_claude_skills=False,
         include_cli_skills=False,
         include_project_context=False,
@@ -178,10 +172,7 @@ def test_prompt_manager_render_true_with_string_prompt():
 
 
 def test_include_journal_mandate_param():
-    """include_journal_mandate is the canonical toggle; include_journal is its alias."""
-    ctx = SharedContext()
-
-    # include_journal_mandate=False disables the journal section
+    """include_journal_mandate toggles the journal section."""
     manager = PromptManager(
         include_persona=False,
         include_mandate=False,
@@ -192,20 +183,6 @@ def test_include_journal_mandate_param():
         include_project_context=False,
     )
     assert manager.include_journal_mandate is False
-    assert manager.include_journal is False  # alias reflects the same value
-
-    # include_journal=False also sets include_journal_mandate
-    manager2 = PromptManager(
-        include_persona=False,
-        include_mandate=False,
-        include_system_context=False,
-        include_journal=False,
-        include_claude_skills=False,
-        include_cli_skills=False,
-        include_project_context=False,
-    )
-    assert manager2.include_journal_mandate is False
-    assert manager2.include_journal is False
 
 
 def test_new_prompt_with_render_true():
@@ -226,7 +203,7 @@ def _guidance_manager(**extra) -> PromptManager:
         include_persona=False,
         include_mandate=False,
         include_system_context=False,
-        include_journal=False,
+        include_journal_mandate=False,
         include_claude_skills=False,
         include_cli_skills=False,
         include_project_context=False,

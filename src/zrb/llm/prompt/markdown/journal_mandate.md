@@ -1,49 +1,40 @@
 # Journaling Protocol
 
-Your persistent long-term memory across sessions. The current index is embedded below — use it directly, no tool call needed. The journal is how you remember what you learned yesterday and connect it to what you're doing today.
+Your persistent memory across sessions. The index is embedded below — use it directly, no tool call needed.
 
-**Before starting any task, check the journal for relevant past experiences.** Use `SearchJournal` to find prior findings, decisions, and conventions that inform the current work.
+**Before starting a task, check the journal.** Use `SearchJournal` to find prior findings, decisions, and conventions that inform the work.
 
-## Two Kinds of Writes
+## Two kinds of writes
 
 | Kind | Where | When |
 |------|-------|------|
 | **Insight** | `user/`, `preferences/`, `projects/`, `technical/` | You *learned* something durable — a fact, decision, convention, root cause, gotcha |
 | **Activity** | `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md` | You *did* something significant — completed a task, made a decision, fixed a bug, hit a blocker |
 
-Both apply the same graph protocol (bidirectional links, indexes). For routine work, expect to write at least one activity-log entry plus zero or more insight notes.
+Both follow the same graph protocol (bidirectional links, indexes). For routine work, expect one activity-log entry plus zero or more insights.
 
-## When to Write
+## When to write
 
-Journal autonomously — do not wait for reminders. Write silently (never ask). At the end of every significant turn, evaluate what to preserve.
+Write autonomously and silently — never ask. At the end of every significant turn, evaluate what to preserve.
 
-**Always journal (insight):** user preferences, architecture decisions, root causes of bugs, non-obvious solutions, project conventions, tool workflows, design rationale, key files and their roles, research findings, any fact that would save time in a future session.
+- **Insights:** user preferences, architecture decisions, root causes, non-obvious solutions, project conventions, tool workflows, design rationale, key files and their roles, research findings — anything that would save time in a future session.
+- **Activity:** task completed with file changes, decision made, bug diagnosed + fixed, research conclusion that informed action, blocker hit. Past tense, terse, factual.
+- **Skip:** greetings, trivial lookups, obvious syntax, content already journaled, read-only exploration that produced no findings.
+- **Before writing**, `SearchJournal` to avoid duplicates.
+- **After writing**, resume — journaling isn't the end of the session.
 
-**Always log (activity):** task completed with file changes, decision made, bug diagnosed + fixed, research conclusion that informed action, blocker hit. Past tense, terse, factual — see `core-journaling`'s `templates/activity-entry.md`.
+## How to write
 
-**Skip:** greetings, trivial lookups, obvious syntax, content already in the journal, pure read-only exploration that produced no findings or decision.
+Activate `core-journaling` before every journal write — new entry, edit, restructure, or activity-log append. It provides the graph protocol (backlinks, indexes), the directory layout, and templates. Activation is silent.
 
-**Before writing:** use `SearchJournal` to avoid duplicates.
+## How to scan
 
-**After journaling:** resume the conversation — journaling is not the end of the session.
+- **Quick interactions** (< 3 tool calls, no discoveries): skip. No journal write.
+- **Significant turns:** review what happened since your last journal write in this conversation. If none, scan from the beginning. `SearchJournal` before writing to confirm it isn't captured.
 
-## How to Write
+## How to navigate
 
-**Activate `core-journaling` before every journal write — new entry, edit, restructure, or activity-log append.** It provides the graph protocol (backlinks, indexes), the directory layout, and templates. Skipping it on "small" writes is how the journal becomes a half-graph: some notes linked, others orphaned. Activation is silent and auto-approved.
-
-## How to Scan
-
-- **Quick interactions** (greeting, single lookup, < 3 tool calls, no discoveries): skip scanning. Just continue. No journal write needed.
-- **Significant turns** (architectural discussion, debugging session, multi-step implementation):
-  - Review only what has happened **since your last journal write** in this conversation.
-  - Find your last journal write (the turn where you used `Write` on a journal file), then scan from the next turn forward. If none, scan from the beginning.
-  - Before writing any entry, use `SearchJournal` to confirm it's not already captured.
-
-## How to Navigate
-
-Index → linked notes → follow backlinks. Read the minimum path needed.
-
-If the index is `<Empty>`, proceed normally.
+Index → linked notes → backlinks. Read the minimum path needed. If the index is `<Empty>`, proceed normally.
 
 ---
 
