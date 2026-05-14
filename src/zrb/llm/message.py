@@ -3,38 +3,6 @@ from dataclasses import replace
 from typing import Any
 
 
-def _iter_tool_events(
-    messages: list[Any],
-) -> "Generator[tuple[int, str, str], None, None]":
-    """Yield ``(msg_index, tool_call_id, kind)`` for every tool part in *messages*.
-
-    *kind* is ``"call"`` for ``ToolCallPart`` and ``"return"`` for
-    ``ToolReturnPart``.  Messages and parts that lack a ``tool_call_id`` (or
-    the ``.parts`` attribute entirely) are silently skipped — this is deliberate:
-    the caller expects a best-effort traversal, not an exception.
-
-    Using a single traversal helper eliminates the duplicated for-loop /
-    try-except / isinstance pattern that previously lived in three separate
-    functions (``sanitize_orphaned_tool_calls``, ``get_tool_pairs``,
-    ``validate_tool_pair_integrity``).
-    """
-    from pydantic_ai.messages import ToolCallPart, ToolReturnPart
-
-    for msg_idx, msg in enumerate(messages):
-        try:
-            parts = getattr(msg, "parts", [])
-        except AttributeError:
-            continue
-        for part in parts:
-            tool_call_id = getattr(part, "tool_call_id", None)
-            if not tool_call_id:
-                continue
-            if isinstance(part, ToolCallPart):
-                yield msg_idx, tool_call_id, "call"
-            elif isinstance(part, ToolReturnPart):
-                yield msg_idx, tool_call_id, "return"
-
-
 def ensure_alternating_roles(messages: list[Any]) -> list[Any]:
     """
     Ensures that the message history has alternating roles (User/Model -> Model/User).
@@ -195,3 +163,35 @@ def validate_tool_pair_integrity(messages: list[Any]) -> tuple[bool, list[str]]:
         ),
     ]
     return len(problems) == 0, problems
+
+
+def _iter_tool_events(
+    messages: list[Any],
+) -> "Generator[tuple[int, str, str], None, None]":
+    """Yield ``(msg_index, tool_call_id, kind)`` for every tool part in *messages*.
+
+    *kind* is ``"call"`` for ``ToolCallPart`` and ``"return"`` for
+    ``ToolReturnPart``.  Messages and parts that lack a ``tool_call_id`` (or
+    the ``.parts`` attribute entirely) are silently skipped — this is deliberate:
+    the caller expects a best-effort traversal, not an exception.
+
+    Using a single traversal helper eliminates the duplicated for-loop /
+    try-except / isinstance pattern that previously lived in three separate
+    functions (``sanitize_orphaned_tool_calls``, ``get_tool_pairs``,
+    ``validate_tool_pair_integrity``).
+    """
+    from pydantic_ai.messages import ToolCallPart, ToolReturnPart
+
+    for msg_idx, msg in enumerate(messages):
+        try:
+            parts = getattr(msg, "parts", [])
+        except AttributeError:
+            continue
+        for part in parts:
+            tool_call_id = getattr(part, "tool_call_id", None)
+            if not tool_call_id:
+                continue
+            if isinstance(part, ToolCallPart):
+                yield msg_idx, tool_call_id, "call"
+            elif isinstance(part, ToolReturnPart):
+                yield msg_idx, tool_call_id, "return"
