@@ -96,6 +96,7 @@ class SnapshotManager:
                 True,
                 True,
                 self._ignore_dirs,
+                True,  # incremental: workdir → shadow, dst-newer means unchanged
             )
             commit_msg = _build_commit_message(label, message_count)
             # Force an empty commit when message_count advanced but files didn't
@@ -129,6 +130,7 @@ class SnapshotManager:
                 True,
                 True,
                 self._ignore_dirs,
+                True,  # incremental: workdir → shadow
             )
             commit_msg = _build_commit_message("init", message_count=0)
             return await asyncio.to_thread(
@@ -295,20 +297,58 @@ def _copy_files(
     exclude_git: bool,
     ignored: frozenset[str],
     src_rel_paths: set[str],
+    incremental: bool = False,
 ) -> None:
-    """Copy all non-ignored files from *src* to *dst*, recording relative paths."""
+    """Copy all non-ignored files from *src* to *dst*, recording relative paths.
+
+    When *incremental* is True and the destination file already matches the
+    source by size and mtime, ``shutil.copy2`` is skipped. ``copy2`` preserves
+    source mtime, so the comparison is stable across runs. This is only sound
+    when copying from a canonical source to a cache (snapshot direction). On
+    the restore path, *incremental* MUST be False — dst-newer there means the
+    user edited a file after the snapshot, and the restore is exactly the
+    operation that must undo those edits.
+    """
     for root, dirs, files in os.walk(src):
         _prune_walk(dirs, exclude_git, ignored)
         rel_root = os.path.relpath(root, src)
         for fname in files:
             src_path = os.path.join(root, fname)
-            if not os.path.isfile(src_path):
+            try:
+                src_stat = os.stat(src_path)
+            except OSError:
+                continue
+            if not _stat_is_file(src_stat):
                 continue
             rel_path = fname if rel_root == "." else os.path.join(rel_root, fname)
             dst_path = os.path.join(dst, rel_path)
             src_rel_paths.add(rel_path)
+            if incremental and _dst_is_up_to_date(dst_path, src_stat):
+                continue
             os.makedirs(os.path.dirname(dst_path), exist_ok=True)
             shutil.copy2(src_path, dst_path)
+
+
+def _stat_is_file(st: os.stat_result) -> bool:
+    import stat as _stat
+
+    return _stat.S_ISREG(st.st_mode)
+
+
+def _dst_is_up_to_date(dst_path: str, src_stat: os.stat_result) -> bool:
+    """Return True when *dst_path* exists and is at least as new as *src_stat*.
+
+    Same-size + mtime≥src guards against the common case (file unchanged) and
+    against editors that touch mtime without changing content. A pessimistic
+    miss just means we copy when we didn't have to — never the wrong content.
+    """
+    try:
+        dst_stat = os.stat(dst_path)
+    except OSError:
+        return False
+    if dst_stat.st_size != src_stat.st_size:
+        return False
+    return dst_stat.st_mtime >= src_stat.st_mtime
 
 
 def _collect_pruned_rel_paths(
@@ -360,6 +400,7 @@ def _sync_dirs(
     exclude_git: bool = True,
     delete: bool = False,
     ignore_dirs: "frozenset[str] | None" = None,
+    incremental: bool = False,
 ) -> None:
     """Recursively copy *src* into *dst*, optionally deleting stale dst files.
 
@@ -372,12 +413,19 @@ def _sync_dirs(
             never copied from src and never deleted from dst — keeping
             regenerable trees like ``node_modules`` out of the snapshot
             without restore wiping them from the user's workdir.
+        incremental: When True, skip per-file copies whose dst already matches
+            the src by size and mtime. Only safe in the **workdir → shadow**
+            direction (take_snapshot): there, dst-newer-than-src means shadow
+            already has the current version. In the **shadow → workdir**
+            direction (restore_snapshot), dst-newer means the user modified
+            after the snapshot — that file *must* be overwritten — so this
+            flag must remain False on restore.
     """
     os.makedirs(dst, exist_ok=True)
     ignored: frozenset[str] = ignore_dirs or frozenset()
     src_rel_paths: set[str] = set()
 
-    _copy_files(src, dst, exclude_git, ignored, src_rel_paths)
+    _copy_files(src, dst, exclude_git, ignored, src_rel_paths, incremental)
 
     if not delete:
         return

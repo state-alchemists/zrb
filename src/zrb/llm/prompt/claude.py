@@ -1,3 +1,4 @@
+from functools import lru_cache
 from pathlib import Path
 from typing import Callable
 
@@ -35,9 +36,23 @@ def create_claude_skills_prompt(
 
 
 def _load_file_content(file_path: Path) -> tuple[str, str]:
-    """Load file content and return (content, status)."""
+    """Load file content and return (content, status).
+
+    Cached by ``(path, mtime)`` so per-turn re-reads of unchanged AGENTS.md /
+    CLAUDE.md / etc. only pay a single stat call.
+    """
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        mtime = file_path.stat().st_mtime
+    except OSError:
+        return "", "exists (unreadable)"
+    return _load_file_content_cached(str(file_path), mtime)
+
+
+@lru_cache(maxsize=64)
+def _load_file_content_cached(path_str: str, mtime: float) -> tuple[str, str]:
+    """Cached read. Key includes mtime so edits invalidate the cache."""
+    try:
+        with open(path_str, "r", encoding="utf-8") as f:
             content = f.read()
             if content.strip():
                 return content, "loaded"
@@ -123,24 +138,36 @@ def create_project_context_prompt():
 
 
 def _get_search_directories() -> list[Path]:
-    search_dirs: list[Path] = []
-    # 1. User global config (~/.claude)
     try:
-        home = Path.home()
-        search_dirs.append(home / ".claude")
+        home_str = str(Path.home())
     except Exception:
-        pass
+        home_str = ""
+    try:
+        cwd_str = str(Path.cwd())
+    except Exception:
+        cwd_str = ""
+    return [Path(p) for p in _get_search_directories_cached(home_str, cwd_str)]
 
-    # 2. Project directories (Root -> ... -> CWD)
-    try:
-        cwd = Path.cwd()
+
+@lru_cache(maxsize=8)
+def _get_search_directories_cached(home_str: str, cwd_str: str) -> tuple[str, ...]:
+    """Compute the project-doc search path once per (home, cwd) pair.
+
+    Returned as a tuple of strings so the cache key/value are hashable. The
+    walk is pure: walking the parent chain produces the same list every
+    invocation in a session, so caching has no correctness risk.
+    """
+    dirs: list[str] = []
+    if home_str:
+        dirs.append(str(Path(home_str) / ".claude"))
+    if cwd_str:
+        cwd = Path(cwd_str)
         # Parents returns [parent, grandparent...]. We want reversed (Root first)
-        # This allows specific configs (closer to CWD) to override general ones
-        project_dirs = list(cwd.parents)[::-1] + [cwd]
-        search_dirs.extend(project_dirs)
-    except Exception:
-        pass
-    return search_dirs
+        # so specific configs (closer to CWD) override general ones.
+        for parent in reversed(list(cwd.parents)):
+            dirs.append(str(parent))
+        dirs.append(str(cwd))
+    return tuple(dirs)
 
 
 def _get_skills_section(

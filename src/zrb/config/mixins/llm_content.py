@@ -20,6 +20,7 @@ class LLMContentMixin:
 
     def __init__(self):
         self.DEFAULT_LLM_HISTORY_DIR: str = ""
+        self.DEFAULT_LLM_HISTORY_BACKUP_RETAIN: str = "3"
         self.DEFAULT_LLM_ENABLE_REWIND: str = "off"
         self.DEFAULT_LLM_SNAPSHOT_DIR: str = ""
         self.DEFAULT_LLM_JOURNAL_DIR: str = ""
@@ -52,6 +53,26 @@ class LLMContentMixin:
     @LLM_HISTORY_DIR.setter
     def LLM_HISTORY_DIR(self, value: str):
         os.environ[f"{self.ENV_PREFIX}_LLM_HISTORY_DIR"] = value
+
+    @property
+    def LLM_HISTORY_BACKUP_RETAIN(self) -> int:
+        """Number of timestamped history backups to keep per conversation.
+
+        ``0`` disables backup writes entirely. ``-1`` keeps every backup
+        (legacy behavior). The default keeps the most recent few so a
+        long-running install does not accumulate one file per turn forever.
+        """
+        return int(
+            get_env(
+                "LLM_HISTORY_BACKUP_RETAIN",
+                self.DEFAULT_LLM_HISTORY_BACKUP_RETAIN,
+                self.ENV_PREFIX,
+            )
+        )
+
+    @LLM_HISTORY_BACKUP_RETAIN.setter
+    def LLM_HISTORY_BACKUP_RETAIN(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_HISTORY_BACKUP_RETAIN"] = str(value)
 
     @property
     def LLM_ENABLE_REWIND(self) -> bool:

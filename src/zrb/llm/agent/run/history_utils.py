@@ -12,6 +12,7 @@ docs/advanced-topics/maintainer-guide.md#llm-history-sanitization-layer.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import is_dataclass, replace
 from typing import Any
 
@@ -99,15 +100,24 @@ def sanitize_history(
     of provider 400 errors can be traced in logs without any production overhead.
     """
 
-    problems = _detect_problems(messages)
-    if problems:
-        for p in problems:
-            CFG.LOGGER.debug(f"sanitize_history [pre-fix]: {p}")
+    # _detect_problems also calls validate_tool_pair_integrity (relational
+    # walk). Skip the audit entirely when DEBUG logging is off — the fix-up
+    # pipeline below is what actually mutates history.
+    if CFG.LOGGER.isEnabledFor(logging.DEBUG):
+        problems = _detect_problems(messages)
+        if problems:
+            for p in problems:
+                CFG.LOGGER.debug(f"sanitize_history [pre-fix]: {p}")
 
+    # filter_nil_content drops messages whose valid_parts list ends up empty
+    # (see line in filter_nil_content: ``if valid_parts: filtered.append(...)``).
+    # sanitize_orphaned_tool_calls drops messages whose _strip_orphaned_parts
+    # returns None. Both upstream steps already filter empties, so the
+    # standalone ``[m for m in messages if getattr(m, "parts", None)]`` pass
+    # that used to live here is redundant.
     messages = filter_nil_content(messages)
     if not allow_orphaned_tool_calls:
         messages = sanitize_orphaned_tool_calls(messages)
-    messages = [m for m in messages if getattr(m, "parts", None)]
     messages = ensure_alternating_roles(messages)
     return messages
 

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from pydantic_ai import ModelMessage
 
+from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.util.match import fuzzy_match
@@ -15,6 +16,12 @@ from zrb.util.string.conversion import to_string
 
 # Pattern to match timestamp suffix like -2024-03-18-10-30-00 or -2024-03-18-10-30
 _TIMESTAMP_PATTERN = re.compile(r"-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d{2})?$")
+
+# Pattern to match a timestamped backup filename for a given base name.
+# Captures: "<base>-YYYY-MM-DD-HH-MM[-SS][-N].json".
+_BACKUP_FILENAME_PATTERN = re.compile(
+    r"^(?P<base>.+)-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d{2})?(?:-\d+)?\.json$"
+)
 
 
 class FileHistoryManager(AnyHistoryManager):
@@ -117,12 +124,20 @@ class FileHistoryManager(AnyHistoryManager):
             # Save the main history file
             self._save_data_to_file(file_path, filtered_data)
 
-            # Create a timestamped backup
-            base_name = self._extract_base_name(conversation_name)
-            timestamp = datetime.now()
-            backup_path = self._get_backup_file_path(base_name, timestamp)
-            if backup_path:
-                self._save_data_to_file(backup_path, filtered_data)
+            # Create a timestamped backup, then enforce retention.
+            # Retention is controlled by LLM_HISTORY_BACKUP_RETAIN:
+            #   0  → backups disabled entirely
+            #  -1  → keep every backup (legacy behavior)
+            #   N  → keep the N most recent backups per conversation base name
+            backup_retain = CFG.LLM_HISTORY_BACKUP_RETAIN
+            if backup_retain != 0:
+                base_name = self._extract_base_name(conversation_name)
+                timestamp = datetime.now()
+                backup_path = self._get_backup_file_path(base_name, timestamp)
+                if backup_path:
+                    self._save_data_to_file(backup_path, filtered_data)
+                    if backup_retain > 0:
+                        self._rotate_backups(base_name, keep=backup_retain)
 
         except ValidationError as e:
             # If validation fails even after cleaning, log and don't save
@@ -340,3 +355,38 @@ class FileHistoryManager(AnyHistoryManager):
         except OSError as e:
             zrb_print(f"Error: Failed to save history to {file_path}: {e}", plain=True)
             return False
+
+    def _rotate_backups(self, base_name: str, keep: int) -> None:
+        """Delete older timestamped backups, keeping the *keep* most recent.
+
+        A no-op when *keep* is negative (unlimited retention) or zero (backups
+        disabled — no rotation needed because none are written). Errors during
+        cleanup are swallowed; backup hygiene must not break a successful save.
+        """
+        if keep < 0:
+            return
+        try:
+            entries = os.listdir(self._history_dir)
+        except OSError:
+            return
+        backups: list[str] = []
+        for name in entries:
+            match = _BACKUP_FILENAME_PATTERN.match(name)
+            if match and match.group("base") == base_name:
+                backups.append(name)
+        if len(backups) <= keep:
+            return
+        # Sort by mtime descending (newest first); delete the tail.
+        paths_with_mtime: list[tuple[str, float]] = []
+        for name in backups:
+            full = os.path.join(self._history_dir, name)
+            try:
+                paths_with_mtime.append((full, os.path.getmtime(full)))
+            except OSError:
+                continue
+        paths_with_mtime.sort(key=lambda p: p[1], reverse=True)
+        for full, _ in paths_with_mtime[keep:]:
+            try:
+                os.remove(full)
+            except OSError:
+                continue
