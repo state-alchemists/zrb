@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -349,6 +350,11 @@ class LLMTask(BaseTask):
                 approval_channel=self._approval_channel,
                 system_prompt=system_prompt,
             )
+        except asyncio.CancelledError:
+            self._save_cancelled_history(
+                history_manager, conversation_name, message_history, user_message
+            )
+            raise
         except Exception as e:
             self._handle_run_error(ctx, history_manager, conversation_name, e)
             raise e
@@ -534,6 +540,44 @@ class LLMTask(BaseTask):
         new_history.append(ModelRequest(parts=[UserPromptPart(content=error_msg)]))
         history_manager.update(conversation_name, new_history)
         history_manager.save(conversation_name)
+
+    def _save_cancelled_history(
+        self,
+        history_manager: AnyHistoryManager,
+        conversation_name: str,
+        message_history: list[Any],
+        user_message: Any,
+    ) -> None:
+        """Save partial history when a run is cancelled by the user (e.g. Escape).
+
+        Constructs a synthetic history containing the original history, the
+        user's message, and a cancellation marker so the next turn can build
+        on context rather than starting fresh.  Best-effort: failures are
+        silently swallowed.
+        """
+        try:
+            from pydantic_ai.messages import (
+                ModelRequest,
+                ModelResponse,
+                TextPart,
+                UserPromptPart,
+            )
+
+            partial_history = list(message_history)
+            partial_history.append(
+                ModelRequest(parts=[UserPromptPart(content=str(user_message))])
+            )
+            partial_history.append(
+                ModelResponse(
+                    parts=[
+                        TextPart(content="[SYSTEM: Response was interrupted by user]")
+                    ]
+                )
+            )
+            history_manager.update(conversation_name, partial_history)
+            history_manager.save(conversation_name)
+        except Exception:
+            pass
 
     def _post_process_output(self, output: Any) -> Any:
         if isinstance(output, str):
