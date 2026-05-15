@@ -293,7 +293,7 @@ _static_tool_guidance = [
     ToolGuidance(
         group_name="Execution",
         tool_name="Bash",
-        key_rule="Never for file I/O — use Read/Write/Edit/Grep/RM/MV. "
+        key_rule="NEVER use for file I/O - use Read/Write/Edit/Grep/RM/MV instead. "
         "Never use to query state already in System Context (time, OS, CWD, tools). "
         "Always pass non-interactive flags (-y, --yes, CI=true). "
         "Default timeout is 120s; timed-out processes may linger. "

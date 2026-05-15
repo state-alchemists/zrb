@@ -35,7 +35,7 @@ Skills carry domain expertise the persona deliberately doesn't. Activate **befor
 
 **Tie-break by deliverable, not by topic.** Debugging an auth feature → `core-coding` (code is the artifact). Writing the changelog for that feature → `core-writing` (text is the artifact). Investigating *whether* to build it → `core-research`.
 
-**Skip** for single-action turns: one read, one grep, one short answer, one clarifying question.
+**Also activate any available skills whose domain matches the work, not only the core skills listed above.**
 
 **Re-activate** only when the prompt no longer shows the skill as active (conversation was summarized).
 
