@@ -1,6 +1,11 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.28.1 (May 15, 2026)
+
+- **Bug Fix: `[build-system]` typo in `pyproject.toml`**:
+  - Key `build-system` inside the `[build-system]` table renamed to `build-backend` per PEP 517 spec. This was causing `BuildSystemTableValidationError` when installing the package via Poetry/pip.
+
 ## 2.28.0 (May 15, 2026)
 
 - **Breaking: `PromptManager` simplified to single `include_sections` param**:
