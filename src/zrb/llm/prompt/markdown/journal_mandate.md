@@ -1,80 +1,50 @@
-# Journaling Protocol
+# Journal Protocol
 
-You will be replaced by a fresh instance every turn. **The journal is your only memory.**
-Every finding you don't write is permanently lost. Write ruthlessly.
+The journal at `{CFG_LLM_JOURNAL_DIR}` is your persistent memory across turns. Read it first, write to it before your reply.
 
-## Before any task — SearchJournal
+## Read — `SearchJournal` before acting
 
-Run `SearchJournal` before starting. If you find relevant context, cite it — don't rediscover.
+If the user's request touches anything you've worked on before, `SearchJournal` for the relevant keywords. Cite what you find inline; don't rediscover.
 
-## Two kinds of writes — BOTH are required, not either/or
+## Write — append today's activity log before replying
 
-| Kind | Where | When to write |
-|------|-------|--------------|
-| **Insight** | `user/`, `preferences/`, `projects/`, `technical/` | What was *learned* — durable facts, decisions, conventions, root causes |
-| **Activity** | `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md` | What was *done* — timestamped log of significant tasks |
+If this turn changed files, decided between approaches, diagnosed a bug, or finished a user-requested task, append a line to `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md` **before** writing your reply.
 
-Most non-trivial turns produce **at least one activity-log entry**. Insight notes are written *on top of that* when a finding is durable. An insight without an activity entry is a half-write; the activity log is what makes the journal a memory of *what happened*, not just *what is known*.
+Format — one line, past tense, terse:
 
-## Insight triggers — write a note when ANY applies
+    - HH:MM — <what was done>. Files: <paths or —>. See: [[insight-slug]] (omit if none)
 
-| Category | Write if... |
-|----------|------------|
-| **User preference** | User stated a preference about tooling, style, format, frequency, or process |
-| **Architecture decision** | You chose one approach over alternatives (and why) |
-| **Root cause** | You found why something was broken |
-| **Non-obvious fix** | The fix involved a subtle invariant, ordering, or config |
-| **Convention discovered** | A naming pattern, file structure, or style choice in this project |
-| **Key file** | An important file that's not obvious from the project structure |
-| **Research finding** | Something learned about an external API, dependency, or system behavior |
-| **Blocker hit** | Something didn't work and you had to change approach |
-| **Design rationale** | A counterintuitive or non-obvious design decision |
+## Write — insight notes for durable findings
 
-## Activity-log triggers — append an entry when ANY applies
+A finding is durable when it answers **why** — root cause, architectural choice, project convention, user preference, external-API quirk, recurring blocker. Write or extend a note under `user/`, `preferences/`, `projects/`, or `technical/`, then add `See: [[slug]]` to today's activity line.
 
-| Category | Append if... |
-|----------|--------------|
-| **Code change shipped** | You edited, created, or deleted source/test/config files |
-| **Task completed** | A user-requested task reached a result (success, partial, or aborted) |
-| **Decision recorded** | You chose between approaches, even without code changes |
-| **Bug diagnosed** | You identified a cause, whether or not you fixed it |
-| **Research drove action** | You investigated something and the conclusion changed what you did |
-| **Blocker hit** | You stopped or pivoted because something didn't work |
-| **Significant tool work** | Multi-step refactor, multi-file change, or a non-trivial run of commands |
+Format — minimal frontmatter, three fields:
 
-The activity log is **chronological** — append to today's file at `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md`. Past tense, terse, factual. Cross-link to any insight notes you wrote in the same turn.
+    ---
+    slug: <short-kebab>
+    ---
+    # <title>
 
-Do not ask "should I journal this?" — if a trigger applies, write it.
+    **Context:** <one sentence — what situation does this apply to?>
+    **Finding:** <the durable fact, decision, or rule>
+    **Source:** <file:line, commit hash, or URL>
 
-## Format — activate `core-journaling`
+Activate `core-journaling` only for graph layout, indexes, journal-lint, or edge cases this template doesn't cover.
 
-The `core-journaling` skill owns the graph protocol (backlinks, indexes), directory layout (insight vs activity-log), entry templates, and the journal-lint tool.
+## Skip
 
-**Before writing either kind:** `ActivateSkill core-journaling` — it loads the full format specification.
+- Single-call read/grep/lookup with no finding
+- Greetings, clarifying questions, refusals
+- Anything already in the journal — extend the existing note instead
 
-## What NOT to write
+## Order of operations
 
-- **Trivial lookups** — "found the config file at src/x.py" has no durability and no activity entry
-- **Greetings / pleasantries** — not knowledge, not activity
-- **Content already in the journal** — `SearchJournal` first; extend existing entries
-- **Journaling about journaling** — never write meta-entries about the protocol itself
-- **Pure read-only exploration that produced no findings** — no insight, no activity entry
-
-## Verification gate — before your final message
-
-Silently check:
-
-1. Did you `SearchJournal` before acting? → If no, the journal is stale.
-2. Did any **activity-log trigger** apply this turn? → Append to today's `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md`.
-3. Did you **learn** anything generalizable (insight trigger)? → Write/extend the matching insight note, and cross-link from today's activity entry.
-
-If 2 or 3 is yes, **write before responding**. Do not announce the write — just do it. Finishing a non-trivial turn with no activity entry is a defect.
+Search → work → log → reply. The activity-log line is part of the turn, not an afterthought. No narration: the user sees your reply, not your bookkeeping.
 
 ---
 
-**Index root:** `{CFG_LLM_JOURNAL_DIR}`
-**Index file:** `{CFG_LLM_JOURNAL_DIR}/{CFG_LLM_JOURNAL_INDEX_FILE}` ({CFG_LLM_JOURNAL_INDEX_FILE_STATUS})
+**Index:** `{CFG_LLM_JOURNAL_INDEX_FILE}` ({CFG_LLM_JOURNAL_INDEX_FILE_STATUS})
 
-````markdown
+````
 {JOURNAL_INDEX_CONTENT}
 ````

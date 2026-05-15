@@ -4,7 +4,7 @@ These tests verify that:
 1. PromptManager uses LLM_INCLUDE_SECTIONS from CFG when include_sections is None
 2. Environment variables can override LLM_INCLUDE_SECTIONS
 3. Explicit include_sections parameter takes precedence over config defaults
-4. Backward compatibility is maintained (old boolean kwargs still work)
+4. Section ordering follows the include_sections list order
 
 Note: We test the MECHANISM, not the exact content of prompts.
 Markdown files can change (formatting, language, etc.), but the
