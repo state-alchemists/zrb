@@ -1,6 +1,6 @@
 ---
 name: testing
-description: Run a guided testing workflow — TDD for new behavior or coverage QA for existing code. Use when the user explicitly wants tests as the focus of this turn.
+description: Run a guided testing workflow — TDD for new behavior or coverage QA for existing code.
 user-invocable: true
 disable-model-invocation: true
 ---

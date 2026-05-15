@@ -3,6 +3,7 @@ from zrb.builtin.llm.chat_tool_policy import (
     approve_if_mv_inside_journal_dir,
     approve_if_path_inside_cwd,
     approve_if_path_inside_journal_dir,
+    approve_if_path_inside_skill_or_plugin_dir,
 )
 from zrb.config.config import CFG
 from zrb.input.bool_input import BoolInput
@@ -183,12 +184,16 @@ llm_chat.add_tool_policy(
     read_file_validation_policy,
     auto_approve("Read", approve_if_path_inside_cwd),
     auto_approve("Read", approve_if_path_inside_journal_dir),
+    auto_approve("Read", approve_if_path_inside_skill_or_plugin_dir),
     auto_approve("LS", approve_if_path_inside_cwd),
     auto_approve("LS", approve_if_path_inside_journal_dir),
+    auto_approve("LS", approve_if_path_inside_skill_or_plugin_dir),
     auto_approve("Glob", approve_if_path_inside_cwd),
     auto_approve("Glob", approve_if_path_inside_journal_dir),
+    auto_approve("Glob", approve_if_path_inside_skill_or_plugin_dir),
     auto_approve("Grep", approve_if_path_inside_cwd),
     auto_approve("Grep", approve_if_path_inside_journal_dir),
+    auto_approve("Grep", approve_if_path_inside_skill_or_plugin_dir),
     auto_approve("AnalyzeFile", approve_if_path_inside_cwd),
     auto_approve("AnalyzeFile", approve_if_path_inside_journal_dir),
     auto_approve("Write", approve_if_path_inside_journal_dir),

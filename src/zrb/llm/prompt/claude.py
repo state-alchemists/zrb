@@ -94,7 +94,7 @@ def create_project_context_prompt():
 
         for filename in doc_files.keys():
             if filename == "README.md" and agents_has_content:
-                break
+                continue
             occurrences = doc_files[filename]
             if not occurrences:
                 continue

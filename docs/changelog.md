@@ -1,6 +1,29 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.28.0 (May 15, 2026)
+
+- **Breaking: `PromptManager` simplified to single `include_sections` param**:
+  - `PromptManager.__init__()`: 9 individual `include_*` boolean flags (`include_persona`, `include_mandate`, `include_git_mandate`, `include_system_context`, `include_journal_mandate`, `include_claude_skills`, `include_cli_skills`, `include_project_context`, `include_tool_guidance`) replaced by a single `include_sections: list[str] | None` parameter. All 9 corresponding properties removed.
+  - New `CFG.LLM_INCLUDE_SECTIONS` config list drives prompt section composition by default; instance-level `include_sections` override wins.
+  - Removed from `zrb.llm.prompt`: `get_persona_prompt()`, `get_mandate_prompt()`, `get_git_mandate_prompt()`, `get_journal_prompt()`, `get_summarizer_system_prompt()`, `get_file_extractor_system_prompt()`, `get_repo_extractor_system_prompt()`, `get_repo_summarizer_system_prompt()`, `create_cli_skills_prompt()`. Consolidated into `get_prompt(name, **extra_replacements)`.
+  - Removed `zrb.llm.prompt.cli` module (`create_cli_skills_prompt`).
+  - Removed `chat_tool_policy.py` support for batch `paths`/`files` approval (WriteMany).
+
+- **Breaking: Tool-call internals trimmed**:
+  - Removed `tool_call/argument_formatter/write_file_formatter.py` and `tool_call/tool_policy/read_files_validation.py`.
+  - `zrb.llm.tool_call` exports reduced accordingly.
+
+- **Feature: History retention**:
+  - New `history_utils.py` `_retry_prompt_to_text()` helper; history sanitization now gated behind `DEBUG` logging for performance.
+  - `file_history_manager.py`: Snapshot rotation (`_rotate_backups`) for conversation backups.
+  - `snapshot/manager.py`: Cached file loading (`_load_file_content_cached`, `_get_search_directories_cached`).
+
+- **Improvement: File tool error handling**:
+  - `file_read.py`, `file_edit.py`, `file_search.py`: Better path validation, fuzzy matching helpers (`_find_fuzzy_match`, `_match_line_trimmed`), indentation-flexible matching (`_match_indentation_flexible`).
+
+- **Chore: Removed dead exports** — `tool/__init__.py` and `tool_call/__init__.py` cleaned up, unused `default_tools.py` tool removals.
+
 ## 2.27.1 (May 14, 2026)
 
 - **Refactoring: Shared filesystem-scanning utilities extracted**:

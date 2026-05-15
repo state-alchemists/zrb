@@ -376,16 +376,12 @@ class FileHistoryManager(AnyHistoryManager):
                 backups.append(name)
         if len(backups) <= keep:
             return
-        # Sort by mtime descending (newest first); delete the tail.
-        paths_with_mtime: list[tuple[str, float]] = []
-        for name in backups:
+        # Sort by filename descending (lexicographic = chronological for ISO-8601
+        # timestamps). More deterministic than mtime on filesystems with coarse
+        # granularity (FAT32, Docker overlayfs).
+        backups.sort(reverse=True)
+        for name in backups[keep:]:
             full = os.path.join(self._history_dir, name)
-            try:
-                paths_with_mtime.append((full, os.path.getmtime(full)))
-            except OSError:
-                continue
-        paths_with_mtime.sort(key=lambda p: p[1], reverse=True)
-        for full, _ in paths_with_mtime[keep:]:
             try:
                 os.remove(full)
             except OSError:

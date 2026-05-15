@@ -1,6 +1,6 @@
 ---
 name: init
-description: Initialize a project for AI-assisted development. Generates AGENTS.md (universal AI guide) through systematic codebase analysis. Use when setting up a new project or when no AI guidance files exist yet.
+description: Initialize a project for AI-assisted development. Generates AGENTS.md (universal AI guide) through systematic codebase analysis.
 disable-model-invocation: true
 user-invocable: true
 ---

@@ -331,6 +331,20 @@ def _get_file_matches(
         preserved_head_lines = CFG.LLM_FILE_READ_LINES // 4
     if preserved_tail_lines is None:
         preserved_tail_lines = CFG.LLM_FILE_READ_LINES // 4
+
+    def _truncate(s: str) -> str:
+        # Use truncate_output directly for consistent truncation
+        # For a single line, we use head_lines=1, tail_lines=0
+        # and max_chars=max_line_length to ensure it's truncated properly
+        truncated_str, _ = truncate_output(
+            s.rstrip(),
+            head_lines=1,
+            tail_lines=0,
+            max_line_length=max_line_length,
+            max_chars=max_line_length,
+        )
+        return truncated_str
+
     with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
         lines = f.readlines()
     matches = []
@@ -339,19 +353,6 @@ def _get_file_matches(
             line_num = line_idx + 1
             context_start = max(0, line_idx - context_lines)
             context_end = min(len(lines), line_idx + context_lines + 1)
-
-            def _truncate(s: str) -> str:
-                # Use truncate_output directly for consistent truncation
-                # For a single line, we use head_lines=1, tail_lines=0
-                # and max_chars=max_line_length to ensure it's truncated properly
-                truncated_str, _ = truncate_output(
-                    s.rstrip(),
-                    head_lines=1,
-                    tail_lines=0,
-                    max_line_length=max_line_length,
-                    max_chars=max_line_length,
-                )
-                return truncated_str
 
             match_data = {
                 "line_number": line_num,

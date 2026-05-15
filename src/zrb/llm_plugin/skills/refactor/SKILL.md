@@ -1,6 +1,6 @@
 ---
 name: refactor
-description: Safe structural refactoring that preserves observable behavior — establishes a test baseline, applies atomic changes, verifies at each step. Use when the user explicitly wants to improve code structure without changing behavior.
+description: Safe structural refactoring that preserves observable behavior — establishes a test baseline, applies atomic changes, verifies at each step.
 user-invocable: true
 disable-model-invocation: true
 ---

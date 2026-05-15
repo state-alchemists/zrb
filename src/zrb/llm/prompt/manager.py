@@ -30,7 +30,7 @@ PromptMiddleware = SimplePrompt | FullMiddleware
 
 def _render_persona_prompt(assistant_name: str | None) -> str:
     """Render persona prompt with optional assistant name override."""
-    effective = assistant_name if assistant_name else CFG.LLM_ASSISTANT_NAME
+    effective = assistant_name if assistant_name is not None else CFG.LLM_ASSISTANT_NAME
     capitalized = effective[0].upper() + effective[1:] if effective else effective
     return get_prompt("persona", ASSISTANT_NAME=capitalized)
 

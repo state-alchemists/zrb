@@ -121,8 +121,9 @@ class SnapshotManager:
         try:
             self._ensure_initialized()
             # Only create init snapshot if the repo has no commits yet
-            if _head_sha(self._shadow_dir) is not None:
-                return _head_sha(self._shadow_dir)
+            existing_sha = _head_sha(self._shadow_dir)
+            if existing_sha is not None:
+                return existing_sha
             await asyncio.to_thread(
                 _sync_dirs,
                 self._workdir,
