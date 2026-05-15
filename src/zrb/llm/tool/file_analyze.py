@@ -16,7 +16,7 @@ async def analyze_file(path: str, query: str, auto_truncate: bool = True) -> str
     from zrb.llm.agent import create_agent, run_agent
     from zrb.llm.config.config import llm_config
     from zrb.llm.config.limiter import llm_limiter
-    from zrb.llm.prompt.prompt import get_file_extractor_system_prompt
+    from zrb.llm.prompt.prompt import get_prompt
 
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
@@ -36,7 +36,7 @@ async def analyze_file(path: str, query: str, auto_truncate: bool = True) -> str
         max_chars=char_limit,
     )
 
-    system_prompt = get_file_extractor_system_prompt()
+    system_prompt = get_prompt("file_extractor")
 
     agent = create_agent(
         model=llm_config.resolve_model(),

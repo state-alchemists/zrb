@@ -66,7 +66,7 @@ Use when: something runs but produces wrong results, crashes at runtime, or a te
    git bisect bad              # current = broken
    git bisect good <commit>    # last known-good commit
    ```
-3. **Trace the data flow** from input to failure: `Grep` for callers, `LspFindDefinition`/`LspFindReferences` to navigate the call chain, `ReadMany` to read the chain of files.
+3. **Trace the data flow** from input to failure: `Grep` for callers, `LspFindDefinition`/`LspFindReferences` to navigate the call chain, parallel `Read` calls to load the chain of files.
 4. **Run `LspGetDiagnostics`** on suspected files — type errors often point directly to the bug.
 5. **Add temporary instrumentation** at failure points (entry/exit, before/after suspect operations). Remove after diagnosis.
 

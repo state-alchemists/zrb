@@ -25,7 +25,7 @@ Note: main source directories, test directories, config directories.
 
 ### 1b — Identify Build System and Language
 
-Read whichever of these exist (use `ReadMany`):
+Read whichever of these exist (issue parallel `Read` calls):
 
 | File | What it reveals |
 |------|----------------|

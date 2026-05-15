@@ -12,6 +12,76 @@ from zrb.util.file import is_path_excluded
 from zrb.util.truncate import truncate_output
 
 
+def search_files(
+    regex: str,
+    path: str = ".",
+    file_pattern: str = "",
+    auto_truncate: bool = True,
+    exclude_patterns: list[str] | None = None,
+    timeout: float = 30.0,
+    context_lines: int = 2,
+    files_only: bool = False,
+    case_sensitive: bool = True,
+) -> dict[str, Any]:
+    """
+    Searches for a regex pattern across files. Results include line numbers and context.
+
+    `context_lines` (default 2): surrounding lines shown per match.
+    `files_only=True`: returns `{"files": [...], "summary": "..."}` — much smaller output.
+    `case_sensitive=False`: case-insensitive search.
+    `file_pattern`: restrict to specific file types (e.g., `*.py`).
+    Lines are truncated at 1000 chars in output.
+    """
+    start_time = time.time()
+    flags = 0 if case_sensitive else re.IGNORECASE
+    try:
+        pattern = re.compile(regex, flags)
+    except re.error as e:
+        return {"error": f"Invalid regex pattern: {e}"}
+
+    abs_path = os.path.abspath(os.path.expanduser(path))
+    if not os.path.exists(abs_path):
+        return {"error": f"Path not found: {path}"}
+
+    preserved_head_lines = CFG.LLM_FILE_READ_LINES // 4
+    preserved_tail_lines = CFG.LLM_FILE_READ_LINES // 4
+
+    patterns_to_exclude = (
+        exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
+    )
+
+    rg_result = _search_with_ripgrep(
+        pattern=pattern,
+        regex=regex,
+        abs_path=abs_path,
+        file_pattern=file_pattern,
+        case_sensitive=case_sensitive,
+        context_lines=context_lines,
+        files_only=files_only,
+        auto_truncate=auto_truncate,
+        patterns_to_exclude=patterns_to_exclude,
+        timeout=timeout,
+        preserved_head_lines=preserved_head_lines,
+        preserved_tail_lines=preserved_tail_lines,
+    )
+    if rg_result is not None:
+        return rg_result
+
+    return _search_with_os_walk(
+        abs_path=abs_path,
+        pattern=pattern,
+        file_pattern=file_pattern,
+        patterns_to_exclude=patterns_to_exclude,
+        timeout=timeout,
+        start_time=start_time,
+        context_lines=context_lines,
+        files_only=files_only,
+        auto_truncate=auto_truncate,
+        preserved_head_lines=preserved_head_lines,
+        preserved_tail_lines=preserved_tail_lines,
+    )
+
+
 def _build_file_match_entry(
     rel_file_path: str, matches: list[dict[str, Any]], files_only: bool
 ) -> str | dict[str, Any]:
@@ -312,73 +382,3 @@ def _get_file_matches(
         return truncated_matches
 
     return matches
-
-
-def search_files(
-    regex: str,
-    path: str = ".",
-    file_pattern: str = "",
-    auto_truncate: bool = True,
-    exclude_patterns: list[str] | None = None,
-    timeout: float = 30.0,
-    context_lines: int = 2,
-    files_only: bool = False,
-    case_sensitive: bool = True,
-) -> dict[str, Any]:
-    """
-    Searches for a regex pattern across files. Results include line numbers and context.
-
-    `context_lines` (default 2): surrounding lines shown per match.
-    `files_only=True`: returns `{"files": [...], "summary": "..."}` — much smaller output.
-    `case_sensitive=False`: case-insensitive search.
-    `file_pattern`: restrict to specific file types (e.g., `*.py`).
-    Lines are truncated at 1000 chars in output.
-    """
-    start_time = time.time()
-    flags = 0 if case_sensitive else re.IGNORECASE
-    try:
-        pattern = re.compile(regex, flags)
-    except re.error as e:
-        return {"error": f"Invalid regex pattern: {e}"}
-
-    abs_path = os.path.abspath(os.path.expanduser(path))
-    if not os.path.exists(abs_path):
-        return {"error": f"Path not found: {path}"}
-
-    preserved_head_lines = CFG.LLM_FILE_READ_LINES // 4
-    preserved_tail_lines = CFG.LLM_FILE_READ_LINES // 4
-
-    patterns_to_exclude = (
-        exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
-    )
-
-    rg_result = _search_with_ripgrep(
-        pattern=pattern,
-        regex=regex,
-        abs_path=abs_path,
-        file_pattern=file_pattern,
-        case_sensitive=case_sensitive,
-        context_lines=context_lines,
-        files_only=files_only,
-        auto_truncate=auto_truncate,
-        patterns_to_exclude=patterns_to_exclude,
-        timeout=timeout,
-        preserved_head_lines=preserved_head_lines,
-        preserved_tail_lines=preserved_tail_lines,
-    )
-    if rg_result is not None:
-        return rg_result
-
-    return _search_with_os_walk(
-        abs_path=abs_path,
-        pattern=pattern,
-        file_pattern=file_pattern,
-        patterns_to_exclude=patterns_to_exclude,
-        timeout=timeout,
-        start_time=start_time,
-        context_lines=context_lines,
-        files_only=files_only,
-        auto_truncate=auto_truncate,
-        preserved_head_lines=preserved_head_lines,
-        preserved_tail_lines=preserved_tail_lines,
-    )

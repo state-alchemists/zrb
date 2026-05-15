@@ -1,40 +1,74 @@
 # Journaling Protocol
 
-Your persistent memory across sessions. The index is embedded below — use it directly, no tool call needed.
+You will be replaced by a fresh instance every turn. **The journal is your only memory.**
+Every finding you don't write is permanently lost. Write ruthlessly.
 
-**Before starting a task, check the journal.** Use `SearchJournal` to find prior findings, decisions, and conventions that inform the work.
+## Before any task — SearchJournal
 
-## Two kinds of writes
+Run `SearchJournal` before starting. If you find relevant context, cite it — don't rediscover.
 
-| Kind | Where | When |
-|------|-------|------|
-| **Insight** | `user/`, `preferences/`, `projects/`, `technical/` | You *learned* something durable — a fact, decision, convention, root cause, gotcha |
-| **Activity** | `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md` | You *did* something significant — completed a task, made a decision, fixed a bug, hit a blocker |
+## Two kinds of writes — BOTH are required, not either/or
 
-Both follow the same graph protocol (bidirectional links, indexes). For routine work, expect one activity-log entry plus zero or more insights.
+| Kind | Where | When to write |
+|------|-------|--------------|
+| **Insight** | `user/`, `preferences/`, `projects/`, `technical/` | What was *learned* — durable facts, decisions, conventions, root causes |
+| **Activity** | `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md` | What was *done* — timestamped log of significant tasks |
 
-## When to write
+Most non-trivial turns produce **at least one activity-log entry**. Insight notes are written *on top of that* when a finding is durable. An insight without an activity entry is a half-write; the activity log is what makes the journal a memory of *what happened*, not just *what is known*.
 
-Write autonomously and silently — never ask. At the end of every significant turn, evaluate what to preserve.
+## Insight triggers — write a note when ANY applies
 
-- **Insights:** user preferences, architecture decisions, root causes, non-obvious solutions, project conventions, tool workflows, design rationale, key files and their roles, research findings — anything that would save time in a future session.
-- **Activity:** task completed with file changes, decision made, bug diagnosed + fixed, research conclusion that informed action, blocker hit. Past tense, terse, factual.
-- **Skip:** greetings, trivial lookups, obvious syntax, content already journaled, read-only exploration that produced no findings.
-- **Before writing**, `SearchJournal` to avoid duplicates.
-- **After writing**, resume — journaling isn't the end of the session.
+| Category | Write if... |
+|----------|------------|
+| **User preference** | User stated a preference about tooling, style, format, frequency, or process |
+| **Architecture decision** | You chose one approach over alternatives (and why) |
+| **Root cause** | You found why something was broken |
+| **Non-obvious fix** | The fix involved a subtle invariant, ordering, or config |
+| **Convention discovered** | A naming pattern, file structure, or style choice in this project |
+| **Key file** | An important file that's not obvious from the project structure |
+| **Research finding** | Something learned about an external API, dependency, or system behavior |
+| **Blocker hit** | Something didn't work and you had to change approach |
+| **Design rationale** | A counterintuitive or non-obvious design decision |
 
-## How to write
+## Activity-log triggers — append an entry when ANY applies
 
-Activate `core-journaling` before every journal write — new entry, edit, restructure, or activity-log append. It provides the graph protocol (backlinks, indexes), the directory layout, and templates. Activation is silent.
+| Category | Append if... |
+|----------|--------------|
+| **Code change shipped** | You edited, created, or deleted source/test/config files |
+| **Task completed** | A user-requested task reached a result (success, partial, or aborted) |
+| **Decision recorded** | You chose between approaches, even without code changes |
+| **Bug diagnosed** | You identified a cause, whether or not you fixed it |
+| **Research drove action** | You investigated something and the conclusion changed what you did |
+| **Blocker hit** | You stopped or pivoted because something didn't work |
+| **Significant tool work** | Multi-step refactor, multi-file change, or a non-trivial run of commands |
 
-## How to scan
+The activity log is **chronological** — append to today's file at `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md`. Past tense, terse, factual. Cross-link to any insight notes you wrote in the same turn.
 
-- **Quick interactions** (< 3 tool calls, no discoveries): skip. No journal write.
-- **Significant turns:** review what happened since your last journal write in this conversation. If none, scan from the beginning. `SearchJournal` before writing to confirm it isn't captured.
+Do not ask "should I journal this?" — if a trigger applies, write it.
 
-## How to navigate
+## Format — activate `core-journaling`
 
-Index → linked notes → backlinks. Read the minimum path needed. If the index is `<Empty>`, proceed normally.
+The `core-journaling` skill owns the graph protocol (backlinks, indexes), directory layout (insight vs activity-log), entry templates, and the journal-lint tool.
+
+**Before writing either kind:** `ActivateSkill core-journaling` — it loads the full format specification.
+
+## What NOT to write
+
+- **Trivial lookups** — "found the config file at src/x.py" has no durability and no activity entry
+- **Greetings / pleasantries** — not knowledge, not activity
+- **Content already in the journal** — `SearchJournal` first; extend existing entries
+- **Journaling about journaling** — never write meta-entries about the protocol itself
+- **Pure read-only exploration that produced no findings** — no insight, no activity entry
+
+## Verification gate — before your final message
+
+Silently check:
+
+1. Did you `SearchJournal` before acting? → If no, the journal is stale.
+2. Did any **activity-log trigger** apply this turn? → Append to today's `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md`.
+3. Did you **learn** anything generalizable (insight trigger)? → Write/extend the matching insight note, and cross-link from today's activity entry.
+
+If 2 or 3 is yes, **write before responding**. Do not announce the write — just do it. Finishing a non-trivial turn with no activity entry is a defect.
 
 ---
 

@@ -6,96 +6,38 @@ from zrb.config.config import CFG
 from zrb.util.string.conversion import to_snake_case
 
 
-def get_persona_prompt(assistant_name: str | None = None) -> str:
-    effective_assistant_name = (
-        assistant_name if assistant_name else CFG.LLM_ASSISTANT_NAME
-    )
-    prompt = get_default_prompt("persona")
+def get_prompt(name: str, **extra_replacements: str) -> str:
+    """Load a prompt by name and apply all placeholder replacements.
+
+    This is the canonical function that replaces all individual
+    ``get_*_prompt()`` functions. Call it directly:
+
+        prompt = get_prompt("mandate")
+        prompt = get_prompt("persona", ASSISTANT_NAME="Zrb")
+
+    Standard replacements (journal dir, root group name, etc.) are
+    always applied automatically.  Pass extra keyword arguments for
+    prompt-specific placeholders such as ``ASSISTANT_NAME``.
+
+    Args:
+        name: Prompt file name (without ``.md`` suffix), e.g. ``"persona"``,
+            ``"mandate"``, ``"journal_mandate"``.
+        extra_replacements: Additional ``{PLACEHOLDER}`` → value entries
+            merged on top of the standard replacements.
+
+    Returns:
+        The rendered prompt string with all placeholders replaced.
+    """
+    prompt = get_default_prompt(name)
     replacements = _get_prompt_replacements()
-    # Capitalize first letter only — preserves existing casing on the rest
-    # (e.g. "bankai" → "Bankai", "CustomAssistant" → "CustomAssistant")
-    replacements["{ASSISTANT_NAME}"] = (
-        effective_assistant_name[0].upper() + effective_assistant_name[1:]
-        if effective_assistant_name
-        else effective_assistant_name
-    )
+    for key, value in extra_replacements.items():
+        # Allow callers to pass either "ASSISTANT_NAME" or "{ASSISTANT_NAME}"
+        placeholder = key if key.startswith("{") and key.endswith("}") else f"{{{key}}}"
+        replacements[placeholder] = value
     return _replace_prompt_placeholders(prompt, replacements)
 
 
-def get_mandate_prompt() -> str:
-    prompt = get_default_prompt("mandate")
-    replacements = _get_prompt_replacements()
-    return _replace_prompt_placeholders(prompt, replacements)
-
-
-def get_git_mandate_prompt() -> str:
-    prompt = get_default_prompt("git_mandate")
-    replacements = _get_prompt_replacements()
-    return _replace_prompt_placeholders(prompt, replacements)
-
-
-def get_summarizer_system_prompt() -> str:
-    return get_conversational_summarizer_system_prompt()
-
-
-def get_conversational_summarizer_system_prompt() -> str:
-    prompt = get_default_prompt("conversational_summarizer")
-    replacements = _get_prompt_replacements()
-    return _replace_prompt_placeholders(prompt, replacements)
-
-
-def get_message_summarizer_system_prompt() -> str:
-    prompt = get_default_prompt("message_summarizer")
-    replacements = _get_prompt_replacements()
-    return _replace_prompt_placeholders(prompt, replacements)
-
-
-def get_file_extractor_system_prompt() -> str:
-    prompt = get_default_prompt("file_extractor")
-    replacements = _get_prompt_replacements()
-    return _replace_prompt_placeholders(prompt, replacements)
-
-
-def get_repo_extractor_system_prompt() -> str:
-    prompt = get_default_prompt("repo_extractor")
-    replacements = _get_prompt_replacements()
-    return _replace_prompt_placeholders(prompt, replacements)
-
-
-def get_repo_summarizer_system_prompt() -> str:
-    prompt = get_default_prompt("repo_summarizer")
-    replacements = _get_prompt_replacements()
-    return _replace_prompt_placeholders(prompt, replacements)
-
-
-def get_web_summarizer_system_prompt() -> str:
-    prompt = get_default_prompt("web_summarizer")
-    replacements = _get_prompt_replacements()
-    return _replace_prompt_placeholders(prompt, replacements)
-
-
-def get_journal_prompt() -> str:
-    prompt = get_default_prompt("journal_mandate")
-    replacements = _get_prompt_replacements()
-    return _replace_prompt_placeholders(prompt, replacements)
-
-
-def get_journal_reminder_prompt() -> str:
-    prompt = get_default_prompt("journal_reminder")
-    replacements = _get_prompt_replacements()
-    return _replace_prompt_placeholders(prompt, replacements)
-
-
-def get_multimodal_image_prompt() -> str:
-    prompt = get_default_prompt("multimodal_image")
-    replacements = _get_prompt_replacements()
-    return _replace_prompt_placeholders(prompt, replacements)
-
-
-def get_multimodal_audio_prompt() -> str:
-    prompt = get_default_prompt("multimodal_audio")
-    replacements = _get_prompt_replacements()
-    return _replace_prompt_placeholders(prompt, replacements)
+# ── Prompt loading ──────────────────────────────────────────────────────
 
 
 def get_default_prompt(name: str) -> str:

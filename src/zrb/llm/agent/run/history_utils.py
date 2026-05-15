@@ -23,6 +23,8 @@ from zrb.llm.message import (
     validate_tool_pair_integrity,
 )
 
+_TOOL_RESULT_MAX_CHARS = 500
+
 
 def drop_oldest_turn(history: list[Any], min_turns: int = 0) -> list[Any]:
     """Removes the oldest conversation turn from history.
@@ -219,46 +221,83 @@ def _detect_problems(messages: list[Any]) -> list[str]:
 def strip_to_text_only(history: list[Any]) -> list[Any]:
     """Sanitize history for last-resort retry.
 
-    Converts ``ToolCallPart`` → ``[Tool: name(args)]``,
-    ``BaseToolReturnPart`` → ``[Result (name): content]``, and
-    ``ThinkingPart`` → its text content, so the provider receives only
-    plain-text messages — no tool-call/response or reasoning structure
-    that it might reject.
+    Collapses all structured parts into the plain-text equivalent that is
+    *legal inside its parent message type*.  pydantic-ai's
+    ``_map_user_message`` (in ``models/openai.py``) hits ``assert_never``
+    on anything in a ``ModelRequest`` that isn't ``SystemPromptPart``,
+    ``UserPromptPart``, ``ToolReturnPart``, or ``RetryPromptPart`` — so we
+    can't simply drop a ``TextPart`` into a user-role message.
 
-    Null/empty content is replaced with ``"."``.  Large tool results are
-    truncated to ``_TOOL_RESULT_MAX_CHARS``.
+    Conversions:
+
+    ``ModelResponse`` (assistant role):
+        ``BaseToolCallPart``      → ``TextPart("[Tool: name(args)]")``
+        ``BuiltinToolReturnPart`` → ``TextPart("[Result (name): content]")``
+        ``ThinkingPart``          → ``TextPart(content)``
+        ``TextPart``              → kept (empty content normalised to ``"."``)
+
+    ``ModelRequest`` (user role):
+        ``ToolReturnPart``                       → ``UserPromptPart("[Result (name): content]")``
+        ``RetryPromptPart`` with ``tool_name``   → ``UserPromptPart("[Retry (name): content]")``
+        ``UserPromptPart`` / ``SystemPromptPart``/ tool-less ``RetryPromptPart``
+                                                 → kept (empty content normalised to ``"."``)
+
+    Because both sides of every tool call/return pair are converted in
+    sympathy, no ``tool_call_id`` cross-reference survives the strip, so
+    there is nothing to orphan.  Large tool results are truncated to
+    ``_TOOL_RESULT_MAX_CHARS``.
     """
     from pydantic_ai.messages import (  # lazy: heavy third-party
+        BaseToolCallPart,
         BaseToolReturnPart,
         ModelRequest,
         ModelResponse,
+        RetryPromptPart,
+        SystemPromptPart,
         TextPart,
         ThinkingPart,
-        ToolCallPart,
+        ToolReturnPart,
+        UserPromptPart,
     )
 
-    def _normalize_content(part: Any) -> Any:
-        if isinstance(part, ToolCallPart):
-            return TextPart(content=_tool_call_to_text(part))
-        if isinstance(part, BaseToolReturnPart):
-            return TextPart(content=_tool_return_to_text(part))
-        if isinstance(part, ThinkingPart):
-            return TextPart(content=_thinking_part_content(part))
+    def _sanitize_content(part: Any) -> Any:
         if hasattr(part, "content"):
             content = part.content
             if content is None or (isinstance(content, str) and not content.strip()):
                 return replace(part, content=".")
         return part
 
+    def _normalize_for_response(part: Any) -> Any:
+        if isinstance(part, BaseToolCallPart):
+            return TextPart(content=_tool_call_to_text(part))
+        if isinstance(part, BaseToolReturnPart):
+            return TextPart(content=_tool_return_to_text(part))
+        if isinstance(part, ThinkingPart):
+            return TextPart(content=_thinking_part_content(part))
+        return _sanitize_content(part)
+
+    def _normalize_for_request(part: Any) -> Any:
+        if isinstance(part, ToolReturnPart):
+            return UserPromptPart(content=_tool_return_to_text(part))
+        if isinstance(part, RetryPromptPart) and getattr(part, "tool_name", None):
+            # tool-linked retry behaves like a tool-role message in the API —
+            # collapse it to a user-role text bucket so no tool_call_id survives.
+            return UserPromptPart(content=_retry_prompt_to_text(part))
+        if isinstance(part, (UserPromptPart, SystemPromptPart, RetryPromptPart)):
+            return _sanitize_content(part)
+        return part
+
     result = []
     for msg in history:
-        if isinstance(msg, (ModelRequest, ModelResponse)):
-            parts = [_normalize_content(p) for p in msg.parts]
-            # _normalize_content never returns None, so no filter needed.
-            if isinstance(msg, ModelResponse):
-                has_text = any(isinstance(p, TextPart) and p.content for p in parts)
-                if not has_text:
-                    parts.insert(0, TextPart(content="."))
+        if isinstance(msg, ModelRequest):
+            parts = [_normalize_for_request(p) for p in msg.parts]
+            if parts:
+                result.append(replace(msg, parts=parts))
+        elif isinstance(msg, ModelResponse):
+            parts = [_normalize_for_response(p) for p in msg.parts]
+            has_text = any(isinstance(p, TextPart) and p.content for p in parts)
+            if not has_text:
+                parts.insert(0, TextPart(content="."))
             if parts:
                 result.append(replace(msg, parts=parts))
         else:
@@ -267,9 +306,6 @@ def strip_to_text_only(history: list[Any]) -> list[Any]:
     if not result:
         return history
     return result
-
-
-_TOOL_RESULT_MAX_CHARS = 500
 
 
 def _tool_call_to_text(part: Any) -> str:
@@ -309,3 +345,17 @@ def _thinking_part_content(part: Any) -> str:
         return ""
     content = part.content if hasattr(part, "content") else ""
     return str(content) if content else "."
+
+
+def _retry_prompt_to_text(part: Any) -> str:
+    """Convert a tool-linked ``RetryPromptPart`` to a descriptive text label."""
+    from pydantic_ai.messages import RetryPromptPart  # lazy: heavy third-party
+
+    if not isinstance(part, RetryPromptPart):
+        return ""
+    name = getattr(part, "tool_name", None) or "(unnamed)"
+    raw = part.content if hasattr(part, "content") else None
+    content = str(raw) if raw not in (None, "") else "(no value)"
+    if len(content) > _TOOL_RESULT_MAX_CHARS:
+        content = content[:_TOOL_RESULT_MAX_CHARS] + "..."
+    return f"[Retry ({name}): {content}]"

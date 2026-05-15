@@ -10,10 +10,7 @@ from zrb.llm.config.limiter import llm_limiter
 
 # LSP integration for semantic pre-analysis
 from zrb.llm.lsp.manager import lsp_manager
-from zrb.llm.prompt.prompt import (
-    get_repo_extractor_system_prompt,
-    get_repo_summarizer_system_prompt,
-)
+from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.tool.code_constants import (
     DEFAULT_EXTENSIONS,
     LSP_SUPPORTED_EXTENSIONS,
@@ -305,7 +302,7 @@ async def _extract_info(
 ) -> list[str]:
     agent = create_agent(
         model=llm_config.resolve_model(),
-        system_prompt=get_repo_extractor_system_prompt(),
+        system_prompt=get_prompt("repo_extractor"),
     )
 
     extracted_infos = []
@@ -362,7 +359,7 @@ async def _summarize_info(
 ) -> list[str]:
     agent = create_agent(
         model=llm_config.resolve_model(),
-        system_prompt=get_repo_summarizer_system_prompt(),
+        system_prompt=get_prompt("repo_summarizer"),
     )
 
     summarized_infos = []

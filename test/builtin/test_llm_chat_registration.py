@@ -9,12 +9,5 @@ def test_approve_if_path_inside_cwd():
     assert approve_if_path_inside_cwd({"path": cwd}) is True
     assert approve_if_path_inside_cwd({"path": os.path.dirname(cwd)}) is False
 
-    # Test 'paths' argument
-    assert (
-        approve_if_path_inside_cwd({"paths": [cwd, os.path.join(cwd, "abc")]}) is True
-    )
-    assert approve_if_path_inside_cwd({"paths": [cwd, os.path.dirname(cwd)]}) is False
-    assert approve_if_path_inside_cwd({"paths": "not a list"}) is False
-
-    # Test no path arguments
+    # Tool args without a path key are not gated by this helper
     assert approve_if_path_inside_cwd({}) is True

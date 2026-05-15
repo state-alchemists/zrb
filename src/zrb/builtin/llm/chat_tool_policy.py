@@ -26,23 +26,8 @@ def approve_if_mv_inside_journal_dir(args: dict[str, Any]) -> bool:
 
 def _approve_if_path_inside_parent(args: dict[str, Any], parent_path: str) -> bool:
     path = args.get("path")
-    paths = args.get("paths")
-    files = args.get("files")  # For WriteMany (write_files)
     if path is not None:
         return _path_inside_parent(str(path), parent_path)
-    if paths is not None:
-        if isinstance(paths, list):
-            return all(_path_inside_parent(str(p), parent_path) for p in paths)
-        return False
-    if files is not None:
-        # Handle WriteMany: files is a list of dicts with 'path' key
-        if isinstance(files, list):
-            return all(
-                _path_inside_parent(str(f.get("path", "")), parent_path)
-                for f in files
-                if isinstance(f, dict)
-            )
-        return False
     return True
 
 

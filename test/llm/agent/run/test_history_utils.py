@@ -190,9 +190,11 @@ def test_strip_to_text_only_converts_all_non_text_parts():
     # msg[1]: ToolCallPart → "[Tool: deploy({"env":"prod"})]"
     assert result[1].parts[0].content == '[Tool: deploy({"env":"prod"})]'
 
-    # msg[2]: ToolReturnPart → TextPart, not UserPromptPart
+    # msg[2]: ToolReturnPart → UserPromptPart (TextPart is illegal in ModelRequest;
+    # pydantic-ai's _map_user_message hits assert_never on any non-{System,User,
+    # ToolReturn,Retry}PromptPart in a user-role message).
     assert isinstance(result[2], ModelRequest)
-    assert isinstance(result[2].parts[0], TextPart)
+    assert isinstance(result[2].parts[0], UserPromptPart)
     assert result[2].parts[0].content == "[Result (deploy): started]"
 
     # msg[3]: ThinkingPart → TextPart, TextPart kept
@@ -222,10 +224,11 @@ def test_strip_to_text_only_normalizes_null_content():
 
     result = strip_to_text_only(history)
 
-    # msg[0]: UserPromptPart fixed, ToolReturnPart → TextPart
+    # msg[0]: UserPromptPart fixed, ToolReturnPart → UserPromptPart (text in a
+    # ModelRequest must be UserPromptPart, not TextPart).
     assert len(result[0].parts) == 2
     assert result[0].parts[0].content == "."
-    assert isinstance(result[0].parts[1], TextPart)
+    assert isinstance(result[0].parts[1], UserPromptPart)
     assert result[0].parts[1].content == "[Result (t1): (no value)]"
 
     # msg[1]: TextPart fixed, ToolCallPart → TextPart
@@ -296,17 +299,21 @@ def test_strip_to_text_only_keeps_conversation_flow():
     # msg[0] unchanged
     assert result[0].parts[0].content == "weather in Boston?"
     # msg[1] → "[Tool: get_weather({"city":"Boston"})]"
+    assert isinstance(result[1].parts[0], TextPart)
     assert "get_weather" in result[1].parts[0].content
     assert "Boston" in result[1].parts[0].content
-    # msg[2] → "[Result (get_weather): 72F]"
+    # msg[2] → UserPromptPart "[Result (get_weather): 72F]"
+    assert isinstance(result[2].parts[0], UserPromptPart)
     assert "[Result (get_weather): 72F]" == result[2].parts[0].content
     # msg[3] unchanged
     assert result[3].parts[0].content == "It is 72F in Boston."
     # msg[4] unchanged
     assert result[4].parts[0].content == "What about NYC?"
     # msg[5] → "[Tool: get_weather({"city":"NYC"})]"
+    assert isinstance(result[5].parts[0], TextPart)
     assert "NYC" in result[5].parts[0].content
-    # msg[6] → "[Result (get_weather): 80F]"
+    # msg[6] → UserPromptPart "[Result (get_weather): 80F]"
+    assert isinstance(result[6].parts[0], UserPromptPart)
     assert "[Result (get_weather): 80F]" == result[6].parts[0].content
     # msg[7] unchanged
     assert result[7].parts[0].content == "It is 80F in NYC."
@@ -344,3 +351,92 @@ def test_filter_nil_content_uses_null_for_builtin_tool_return():
 
     assert len(filtered) == 1
     assert filtered[0].parts[0].content == "null"
+
+
+def test_strip_to_text_only_never_puts_textpart_in_modelrequest():
+    """Regression: pydantic-ai's _map_user_message asserts_never on any non
+    {System,User,ToolReturn,Retry}PromptPart inside a ModelRequest. A
+    ToolReturnPart converted to TextPart used to crash the OpenAI mapper
+    with ``AssertionError: Expected code to be unreachable, but got:
+    TextPart(content='[Result (...): ...]')``.
+    """
+    from pydantic_ai.messages import (
+        RetryPromptPart,
+        SystemPromptPart,
+    )
+
+    history = [
+        ModelRequest(
+            parts=[
+                SystemPromptPart(content="you are a helpful assistant"),
+                UserPromptPart(content="hi"),
+                ToolReturnPart(
+                    tool_name="ActivateSkill", content="ok", tool_call_id="c1"
+                ),
+                RetryPromptPart(
+                    content="malformed args",
+                    tool_name="ActivateSkill",
+                    tool_call_id="c2",
+                ),
+            ]
+        ),
+        ModelResponse(parts=[TextPart(content="ack")]),
+    ]
+
+    result = strip_to_text_only(history)
+
+    # Every part of the resulting ModelRequest must be one of the four
+    # part types the OpenAI mapper accepts.
+    allowed = (SystemPromptPart, UserPromptPart, ToolReturnPart, RetryPromptPart)
+    for msg in result:
+        if isinstance(msg, ModelRequest):
+            for p in msg.parts:
+                assert isinstance(
+                    p, allowed
+                ), f"illegal part type {type(p).__name__} in ModelRequest"
+                # And specifically: no TextPart inside ModelRequest, ever.
+                assert not isinstance(p, TextPart)
+
+
+def test_strip_to_text_only_parallel_tool_calls():
+    """N parallel tool calls in one ModelResponse paired with N returns in
+    one ModelRequest: every call/return becomes plain text and no
+    tool_call_id survives on either side. Pairing-by-id (already done in
+    sanitize_orphaned_tool_calls) is therefore moot for this output.
+    """
+    history = [
+        ModelRequest(parts=[UserPromptPart(content="run three things")]),
+        ModelResponse(
+            parts=[
+                ToolCallPart(tool_name="a", args="{}", tool_call_id="c1"),
+                ToolCallPart(tool_name="b", args="{}", tool_call_id="c2"),
+                ToolCallPart(tool_name="c", args="{}", tool_call_id="c3"),
+            ]
+        ),
+        # Returns intentionally NOT in call-order to exercise id-based reasoning
+        ModelRequest(
+            parts=[
+                ToolReturnPart(tool_name="c", content="rc", tool_call_id="c3"),
+                ToolReturnPart(tool_name="a", content="ra", tool_call_id="c1"),
+                ToolReturnPart(tool_name="b", content="rb", tool_call_id="c2"),
+            ]
+        ),
+    ]
+
+    result = strip_to_text_only(history)
+
+    # ModelResponse: three TextParts (one per call), no ToolCallParts remain.
+    assert isinstance(result[1], ModelResponse)
+    assert all(isinstance(p, TextPart) for p in result[1].parts)
+    assert all(not hasattr(p, "tool_call_id") for p in result[1].parts)
+
+    # ModelRequest: three UserPromptParts (one per return), no ToolReturnParts.
+    assert isinstance(result[2], ModelRequest)
+    assert all(isinstance(p, UserPromptPart) for p in result[2].parts)
+    # UserPromptParts carry no tool_call_id, so no cross-reference survives.
+    contents = [p.content for p in result[2].parts]
+    assert contents == [
+        "[Result (c): rc]",
+        "[Result (a): ra]",
+        "[Result (b): rb]",
+    ]

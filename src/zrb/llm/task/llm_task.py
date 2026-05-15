@@ -142,13 +142,7 @@ class LLMTask(BaseTask):
                 render=render_system_prompt,
                 active_skills=active_skills,
                 render_active_skills=render_active_skills,
-                include_persona=False,
-                include_mandate=False,
-                include_system_context=False,
-                include_journal_mandate=False,
-                include_claude_skills=False,
-                include_cli_skills=False,
-                include_project_context=False,
+                include_sections=[],
             )
         self._system_prompt = system_prompt
         self._render_system_prompt = render_system_prompt

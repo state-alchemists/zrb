@@ -4,7 +4,7 @@ from zrb.config.config import CFG
 from zrb.llm.agent import create_agent, run_agent
 from zrb.llm.config.config import llm_config
 from zrb.llm.config.limiter import llm_limiter
-from zrb.llm.prompt.prompt import get_web_summarizer_system_prompt
+from zrb.llm.prompt.prompt import get_prompt
 
 
 async def open_web_page(url: str, summarize: bool = True) -> dict:
@@ -259,7 +259,7 @@ async def _summarize_web_content(markdown_content: str, url: str) -> str:
     # Create the summarization agent
     agent = create_agent(
         model=llm_config.resolve_model(),
-        system_prompt=get_web_summarizer_system_prompt(),
+        system_prompt=get_prompt("web_summarizer"),
     )
 
     # Prepare the prompt data

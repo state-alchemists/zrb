@@ -39,46 +39,6 @@ async def write_file_formatter(
         return None
 
 
-async def write_files_formatter(
-    ui: UIProtocol,
-    call: "ToolCallPart",
-    args_section: str,
-) -> str | None:
-    """
-    Shows a diff or content for write_files tool call.
-    """
-    if call.tool_name != "WriteMany":
-        return None
-
-    try:
-        args = call.args
-        if isinstance(args, str):
-            args = json.loads(args)
-
-        files = args.get("files", [])
-        if not files:
-            return None
-
-        results = []
-        for file_info in files:
-            path = file_info.get("path")
-            content = file_info.get("content")
-            mode = file_info.get("mode", "w")
-            if not path or content is None:
-                continue
-            formatted = _format_single_write(path, content, mode, ui)
-            if formatted:
-                results.append(formatted)
-
-        if not results:
-            return None
-
-        return "\n".join(results)
-
-    except Exception:
-        return None
-
-
 def _format_single_write(path: str, new_content: str, mode: str, ui) -> str | None:
     abs_path = os.path.abspath(os.path.expanduser(path))
     old_content = ""

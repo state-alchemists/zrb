@@ -25,7 +25,6 @@ from zrb.llm.tool import (
     move_file,
     open_web_page,
     read_file,
-    read_files,
     remove_file,
     replace_in_file,
     run_shell_command,
@@ -34,7 +33,6 @@ from zrb.llm.tool import (
     search_journal,
     update_todo,
     write_file,
-    write_files,
     write_todos,
 )
 from zrb.llm.tool.delegate import (
@@ -49,12 +47,10 @@ from zrb.llm.tool_call import (
     auto_approve,
     bash_safe_command_policy,
     read_file_validation_policy,
-    read_files_validation_policy,
     replace_in_file_formatter,
     replace_in_file_response_handler,
     replace_in_file_validation_policy,
     write_file_formatter,
-    write_files_formatter,
 )
 from zrb.runner.cli import cli
 
@@ -110,9 +106,7 @@ tools = [
     list_files,
     glob_files,
     read_file,
-    read_files,
     write_file,
-    write_files,
     replace_in_file,
     search_files,
     analyze_file,
@@ -177,9 +171,7 @@ llm_chat.add_tool_guidance_factory(
 )
 
 # Add argument formatter (show arguments when asking for user confirmation)
-llm_chat.add_argument_formatter(
-    replace_in_file_formatter, write_file_formatter, write_files_formatter
-)
+llm_chat.add_argument_formatter(replace_in_file_formatter, write_file_formatter)
 
 # Add response handler (update tool)
 llm_chat.add_response_handler(replace_in_file_response_handler)
@@ -189,11 +181,8 @@ llm_chat.add_tool_policy(
     bash_safe_command_policy(),
     replace_in_file_validation_policy,
     read_file_validation_policy,
-    read_files_validation_policy,
     auto_approve("Read", approve_if_path_inside_cwd),
     auto_approve("Read", approve_if_path_inside_journal_dir),
-    auto_approve("ReadMany", approve_if_path_inside_cwd),
-    auto_approve("ReadMany", approve_if_path_inside_journal_dir),
     auto_approve("LS", approve_if_path_inside_cwd),
     auto_approve("LS", approve_if_path_inside_journal_dir),
     auto_approve("Glob", approve_if_path_inside_cwd),
@@ -203,7 +192,6 @@ llm_chat.add_tool_policy(
     auto_approve("AnalyzeFile", approve_if_path_inside_cwd),
     auto_approve("AnalyzeFile", approve_if_path_inside_journal_dir),
     auto_approve("Write", approve_if_path_inside_journal_dir),
-    auto_approve("WriteMany", approve_if_path_inside_journal_dir),
     auto_approve("Edit", approve_if_path_inside_journal_dir),
     auto_approve("RM", approve_if_path_inside_journal_dir),
     auto_approve("MV", approve_if_mv_inside_journal_dir),
@@ -259,15 +247,14 @@ _static_tool_guidance = [
         tool_name="Read",
         key_rule="Content starts after ---CONTENT--- (metadata above is NOT the file). "
         "Copy old_text for Edit from below ---CONTENT---. "
-        "Grep first to locate the relevant section before reading."
-        " Use ReadMany for multiple files.",
+        "Grep first to locate the relevant section before reading. "
+        "When you need several files at once, issue parallel Read calls in a single turn.",
     ),
     ToolGuidance(
         group_name="File Operations",
         tool_name="Write",
         key_rule="Prefer Edit for surgical changes to existing files. "
         "For existing files, read with Read first to confirm content before overwriting. "
-        "Use WriteMany for batches. "
         "Large content: first chunk mode='w', subsequent mode='a'.",
     ),
     ToolGuidance(
@@ -394,7 +381,7 @@ llm_chat.add_tool_guidance(*_static_tool_guidance)
 sub_agent_manager.add_tool_guidance(*_static_tool_guidance)
 
 # Add hook factories
-# Journaling hook will check CFG.LLM_INCLUDE_JOURNAL at execution time
+# Journaling hook will check CFG.LLM_INCLUDE_JOURNAL_REMINDER at execution time
 llm_chat.add_hook_factory(create_journaling_hook_factory())
 
 llm_group.add_task(llm_chat)

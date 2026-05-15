@@ -48,7 +48,6 @@ from zrb.llm.tool_call import (
     ToolPolicy,
     replace_in_file_formatter,
     write_file_formatter,
-    write_files_formatter,
 )
 from zrb.llm.util.attachment import get_attachments
 from zrb.task.any_task import AnyTask
@@ -246,13 +245,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
                 render=render_system_prompt,
                 active_skills=active_skills,
                 render_active_skills=render_active_skills,
-                include_persona=False,
-                include_mandate=False,
-                include_system_context=False,
-                include_journal_mandate=False,
-                include_claude_skills=False,
-                include_cli_skills=False,
-                include_project_context=False,
+                include_sections=[],
             )
         self._prompt_manager = prompt_manager
         self._system_prompt = system_prompt
@@ -353,7 +346,6 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         ) + [
             replace_in_file_formatter,
             write_file_formatter,
-            write_files_formatter,
         ]
         self._markdown_theme = markdown_theme
         self._enable_rewind = enable_rewind

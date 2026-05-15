@@ -1,6 +1,6 @@
 # README Template
 
-Use when writing a project README. Match existing project tone — read 2–3 nearby READMEs first via `Glob` + `ReadMany` to anchor style.
+Use when writing a project README. Match existing project tone — locate 2–3 nearby READMEs with `Glob`, then read them in parallel with `Read` to anchor style.
 
 ## Structure (in order)
 
