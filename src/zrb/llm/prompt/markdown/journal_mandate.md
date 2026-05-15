@@ -8,7 +8,7 @@ If the user's request touches anything you've worked on before, `SearchJournal` 
 
 ## Write — append today's activity log before replying
 
-If this turn changed files, decided between approaches, diagnosed a bug, or finished a user-requested task, append a line to `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md` **before** writing your reply.
+If this turn changed files, created significant decision, diagnosed a bug, or finished a user-requested task, append a line to `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md` **before** writing your reply.
 
 Format — one line, past tense, terse:
 
@@ -40,6 +40,8 @@ Activate `core-journaling` only for graph layout, indexes, journal-lint, or edge
 ## Order of operations
 
 Search → work → log → reply. The activity-log line is part of the turn, not an afterthought. No narration: the user sees your reply, not your bookkeeping.
+
+**Why "before reply"?** The session may close (user types `/q`) after any response. A finding not logged before replying is lost permanently. Deferring is equivalent to discarding.
 
 ---
 

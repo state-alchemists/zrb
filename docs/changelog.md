@@ -1,6 +1,12 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.28.2a1 (May 15, 2026)
+
+- **Improvement: Journal mandate wording tightened + rationale added**:
+  - `journal_mandate.md`: Changed "decided between approaches" to "created significant decision" in the activity-log trigger — more precise about what warrants a log entry (decisions that change direction, not every binary choice).
+  - Added a "Why 'before reply'?" section explaining that a finding not logged before replying is lost if the session closes. Deferring is equivalent to discarding.
+
 ## 2.28.1 (May 15, 2026)
 
 - **Bug Fix: `[build-system]` typo in `pyproject.toml`**:
