@@ -1,46 +1,50 @@
-# Journaling Protocol
+# Journal Protocol
 
-Your persistent memory across sessions. The index is embedded below — use it directly, no tool call needed.
+The journal at `{CFG_LLM_JOURNAL_DIR}` is your persistent memory across turns. Read it first, write to it before your reply.
 
-**Before starting a task, check the journal.** Use `SearchJournal` to find prior findings, decisions, and conventions that inform the work.
+## Read — `SearchJournal` before acting
 
-## Two kinds of writes
+If the user's request touches anything you've worked on before, `SearchJournal` for the relevant keywords. Cite what you find inline; don't rediscover.
 
-| Kind | Where | When |
-|------|-------|------|
-| **Insight** | `user/`, `preferences/`, `projects/`, `technical/` | You *learned* something durable — a fact, decision, convention, root cause, gotcha |
-| **Activity** | `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md` | You *did* something significant — completed a task, made a decision, fixed a bug, hit a blocker |
+## Write — append today's activity log before replying
 
-Both follow the same graph protocol (bidirectional links, indexes). For routine work, expect one activity-log entry plus zero or more insights.
+If this turn changed files, decided between approaches, diagnosed a bug, or finished a user-requested task, append a line to `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md` **before** writing your reply.
 
-## When to write
+Format — one line, past tense, terse:
 
-Write autonomously and silently — never ask. At the end of every significant turn, evaluate what to preserve.
+    - HH:MM — <what was done>. Files: <paths or —>. See: [[insight-slug]] (omit if none)
 
-- **Insights:** user preferences, architecture decisions, root causes, non-obvious solutions, project conventions, tool workflows, design rationale, key files and their roles, research findings — anything that would save time in a future session.
-- **Activity:** task completed with file changes, decision made, bug diagnosed + fixed, research conclusion that informed action, blocker hit. Past tense, terse, factual.
-- **Skip:** greetings, trivial lookups, obvious syntax, content already journaled, read-only exploration that produced no findings.
-- **Before writing**, `SearchJournal` to avoid duplicates.
-- **After writing**, resume — journaling isn't the end of the session.
+## Write — insight notes for durable findings
 
-## How to write
+A finding is durable when it answers **why** — root cause, architectural choice, project convention, user preference, external-API quirk, recurring blocker. Write or extend a note under `user/`, `preferences/`, `projects/`, or `technical/`, then add `See: [[slug]]` to today's activity line.
 
-Activate `core-journaling` before every journal write — new entry, edit, restructure, or activity-log append. It provides the graph protocol (backlinks, indexes), the directory layout, and templates. Activation is silent.
+Format — minimal frontmatter, three fields:
 
-## How to scan
+    ---
+    slug: <short-kebab>
+    ---
+    # <title>
 
-- **Quick interactions** (< 3 tool calls, no discoveries): skip. No journal write.
-- **Significant turns:** review what happened since your last journal write in this conversation. If none, scan from the beginning. `SearchJournal` before writing to confirm it isn't captured.
+    **Context:** <one sentence — what situation does this apply to?>
+    **Finding:** <the durable fact, decision, or rule>
+    **Source:** <file:line, commit hash, or URL>
 
-## How to navigate
+Activate `core-journaling` only for graph layout, indexes, journal-lint, or edge cases this template doesn't cover.
 
-Index → linked notes → backlinks. Read the minimum path needed. If the index is `<Empty>`, proceed normally.
+## Skip
+
+- Single-call read/grep/lookup with no finding
+- Greetings, clarifying questions, refusals
+- Anything already in the journal — extend the existing note instead
+
+## Order of operations
+
+Search → work → log → reply. The activity-log line is part of the turn, not an afterthought. No narration: the user sees your reply, not your bookkeeping.
 
 ---
 
-**Index root:** `{CFG_LLM_JOURNAL_DIR}`
-**Index file:** `{CFG_LLM_JOURNAL_DIR}/{CFG_LLM_JOURNAL_INDEX_FILE}` ({CFG_LLM_JOURNAL_INDEX_FILE_STATUS})
+**Index:** `{CFG_LLM_JOURNAL_INDEX_FILE}` ({CFG_LLM_JOURNAL_INDEX_FILE_STATUS})
 
-````markdown
+````
 {JOURNAL_INDEX_CONTENT}
 ````

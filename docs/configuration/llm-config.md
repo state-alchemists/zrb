@@ -165,21 +165,39 @@ Zrb loads prompts with a multi-level override system (first found wins):
 - `repo_summarizer`
 - `web_summarizer`
 
-### Prompt Component Toggles
+### Prompt Component Configuration
+
+The system prompt is assembled from an **ordered list of sections**. The list is read from `ZRB_LLM_INCLUDE_SECTIONS` (comma-separated). Order in the list controls the order each section appears in the prompt — drop a section by removing its name; reorder by rewriting the list.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_INCLUDE_PERSONA` | Include AI identity prompt | `on` |
-| `ZRB_LLM_INCLUDE_MANDATE` | Include behavioral rules | `on` |
-| `ZRB_LLM_INCLUDE_GIT_MANDATE` | Include git safety rules | `on` |
-| `ZRB_LLM_INCLUDE_JOURNAL` | Master switch: inject journal mandate + reminder (sets both sub-flags when they are unset) | `on` |
-| `ZRB_LLM_INCLUDE_JOURNAL_MANDATE` | Include journal instructions in the system prompt (falls back to `ZRB_LLM_INCLUDE_JOURNAL`) | `on` |
-| `ZRB_LLM_INCLUDE_JOURNAL_REMINDER` | Append a journaling reminder at session end (only if `ZRB_LLM_INCLUDE_JOURNAL` is set to `on`) | `off` |
-| `ZRB_LLM_INCLUDE_SYSTEM_CONTEXT` | Include OS/time details | `on` |
-| `ZRB_LLM_INCLUDE_TOOL_GUIDANCE` | Include per-tool usage guidance | `on` |
-| `ZRB_LLM_INCLUDE_CLAUDE_SKILLS` | Include Claude skills | `on` |
-| `ZRB_LLM_INCLUDE_CLI_SKILLS` | Include CLI skills | `off` |
-| `ZRB_LLM_INCLUDE_PROJECT_CONTEXT` | Include project docs | `on` |
+| `ZRB_LLM_INCLUDE_SECTIONS` | Comma-separated, order-sensitive list of sections to include | `persona,mandate,git_mandate,journal_mandate,system_context,project_context,tool_guidance,claude_skills` |
+| `ZRB_LLM_INCLUDE_JOURNAL_REMINDER` | Append a journaling reminder at session end (runtime hook, not a prompt section) | `off` |
+
+Recognised section names:
+
+| Section | Purpose |
+|---------|---------|
+| `persona` | AI identity prompt |
+| `mandate` | Behavioral rules |
+| `git_mandate` | Git safety rules (rendered only inside a git repo) |
+| `journal_mandate` | Journaling protocol |
+| `system_context` | OS / time / CWD / ambient state |
+| `project_context` | Project docs (`AGENTS.md`, `CLAUDE.md`, `README.md`, …) |
+| `tool_guidance` | Per-tool usage guidance |
+| `claude_skills` | Available skills index + active-skill contents |
+
+Examples:
+
+```bash
+# Strip the journaling mandate and project context (e.g. for benchmark runners).
+export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate,git_mandate,system_context,tool_guidance,claude_skills"
+
+# Personality-only: just persona and mandate.
+export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate"
+```
+
+To toggle a single section programmatically, mutate `CFG.LLM_INCLUDE_SECTIONS` directly (it is a `list[str]`).
 
 ### Tool Guidance
 
@@ -199,7 +217,7 @@ task.prompt_manager.add_tool_guidance(
 )
 ```
 
-Guidance entries for tools that are not registered on the task are automatically suppressed at runtime, so the prompt never grows stale. Set `ZRB_LLM_INCLUDE_TOOL_GUIDANCE=0` to disable the entire section if you manage tool instructions another way.
+Guidance entries for tools that are not registered on the task are automatically suppressed at runtime, so the prompt never grows stale. To disable the entire section, drop `tool_guidance` from `ZRB_LLM_INCLUDE_SECTIONS`.
 
 ---
 
@@ -210,6 +228,7 @@ Guidance entries for tools that are not registered on the task are automatically
 | `ZRB_LLM_JOURNAL_DIR` | Long-term notes directory | `~/.zrb/llm-notes/` |
 | `ZRB_LLM_JOURNAL_INDEX_FILE` | Main index file name | `index.md` |
 | `ZRB_LLM_HISTORY_DIR` | Conversation history directory | `~/.zrb/llm-history/` |
+| `ZRB_LLM_HISTORY_BACKUP_RETAIN` | Number of timestamped history backups to keep per conversation (`-1` = keep all, `0` = disable) | `3` |
 
 ---
 

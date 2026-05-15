@@ -2,7 +2,7 @@
 name: researcher
 description: A read-only research agent specialized in gathering information from the web and local codebase. Delegate to this agent for deep research tasks (documentation lookup, API investigation, technology comparison, codebase archaeology) to keep your primary context clean.
 tools: [
-  Read, ReadMany,
+  Read,
   LS, Glob, Grep,
   AnalyzeFile, AnalyzeCode,
   SearchJournal, SearchInternet, OpenWebPage,
@@ -32,7 +32,7 @@ You have no `Write`, `Edit`, or `Bash` tools. This is intentional. Your job is t
 - Use `SearchInternet` to find relevant documentation, issues, and discussions.
 - Use `OpenWebPage` to read full content of promising URLs.
 - Use `Grep` and `Glob` in parallel to map relevant code patterns in the local codebase.
-- Use `ReadMany` to read related files simultaneously rather than sequentially.
+- Use `Read` (call in parallel for several files at once) when you need to inspect specific files.
 - Use `AnalyzeCode` for deep understanding of a directory's architecture when needed.
 
 ## 4. Source Quality

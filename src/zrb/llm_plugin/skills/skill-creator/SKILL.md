@@ -1,6 +1,6 @@
 ---
 name: skill-creator
-description: Interactive guide for building new Agent Skills. Use when asked to create a skill, command, or automated workflow.
+description: Interactive guide for building new Agent Skills.
 user-invocable: true
 disable-model-invocation: true
 ---

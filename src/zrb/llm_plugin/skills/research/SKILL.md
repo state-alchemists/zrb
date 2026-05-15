@@ -1,6 +1,6 @@
 ---
 name: research
-description: Force explicit research mode — Scope → Discover → Synthesize → Plan — with the approval gate before any implementation. Use when the user wants investigation first, not immediate action.
+description: Force explicit research mode — Scope → Discover → Synthesize → Plan — with the approval gate before any implementation.
 user-invocable: true
 disable-model-invocation: true
 ---

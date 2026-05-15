@@ -1,6 +1,6 @@
 ---
 name: review
-description: Rigorous code review covering correctness, security (OWASP Top 10), and quality. Use after code changes, or when the user explicitly asks for an audit.
+description: Rigorous code review covering correctness, security (OWASP Top 10), and quality.
 user-invocable: true
 disable-model-invocation: true
 ---

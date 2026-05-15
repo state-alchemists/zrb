@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 from dataclasses import dataclass
 from typing import Any, TextIO
@@ -102,6 +104,13 @@ class BufferedUI(UIProtocol):
     def clear_buffer(self) -> None:
         """Clear the buffer without flushing."""
         self._buffer.clear()
+
+    @property
+    def yolo(self) -> bool | frozenset:
+        """Delegate YOLO mode to the wrapped parent UI."""
+        if hasattr(self._wrapped, "yolo"):
+            return self._wrapped.yolo
+        return False
 
     def stream_to_parent(
         self,

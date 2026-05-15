@@ -1,6 +1,53 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.28.0 (May 15, 2026)
+
+- **Breaking: `PromptManager` simplified to single `include_sections` param**:
+  - `PromptManager.__init__()`: 9 individual `include_*` boolean flags (`include_persona`, `include_mandate`, `include_git_mandate`, `include_system_context`, `include_journal_mandate`, `include_claude_skills`, `include_cli_skills`, `include_project_context`, `include_tool_guidance`) replaced by a single `include_sections: list[str] | None` parameter. All 9 corresponding properties removed.
+  - New `CFG.LLM_INCLUDE_SECTIONS` config list drives prompt section composition by default; instance-level `include_sections` override wins.
+  - Removed from `zrb.llm.prompt`: `get_persona_prompt()`, `get_mandate_prompt()`, `get_git_mandate_prompt()`, `get_journal_prompt()`, `get_summarizer_system_prompt()`, `get_file_extractor_system_prompt()`, `get_repo_extractor_system_prompt()`, `get_repo_summarizer_system_prompt()`, `create_cli_skills_prompt()`. Consolidated into `get_prompt(name, **extra_replacements)`.
+  - Removed `zrb.llm.prompt.cli` module (`create_cli_skills_prompt`).
+  - Removed `chat_tool_policy.py` support for batch `paths`/`files` approval (WriteMany).
+
+- **Breaking: ReadMany/WriteMany batch tools removed**:
+  - Removed `read_files`, `write_files` tool functions, `WriteMany`/`ReadMany` auto-approve policies, `write_files_formatter`, and `read_files_validation_policy`. `Read`/`Write` handles multiple files via parallel calls or chunked writes.
+  - `docs/advanced-topics/llm-integration.md` updated to remove `ReadMany`/`WriteMany` from the tools table.
+
+- **Breaking: Tool-call internals trimmed**:
+  - Removed `tool_call/argument_formatter/write_file_formatter.py` and `tool_call/tool_policy/read_files_validation.py`.
+  - `zrb.llm.tool_call` exports reduced accordingly.
+
+- **Feature: History retention + backup rotation**:
+  - New `_retry_prompt_to_text()` helper; history sanitization now gated behind `DEBUG` logging for performance.
+  - New `_safe_int_from_env()` helper in `LLMContentMixin` deduplicates `int(get_env(...))` pattern across 5 properties.
+  - New `CFG.LLM_HISTORY_BACKUP_RETAIN` (default `3`) controls how many timestamped backups are kept per conversation. Set to `-1` to keep all (legacy behavior) or `0` to disable backups.
+  - `file_history_manager.py`: Backup rotation now sorts by filename (lexicographic = chronological for ISO-8601 timestamps) instead of mtime — deterministic on coarse filesystems (FAT32, Docker overlayfs).
+  - `snapshot/manager.py`: Cached file loading (`_load_file_content_cached`, `_get_search_directories_cached`). New incremental sync mode that skips per-file copies when the destination already matches by size/mtime — safe for workdir→shadow direction only.
+
+- **Feature: Read/LS/Glob/Grep auto-approved on skill and plugin directories**:
+  - New `approve_if_path_inside_skill_or_plugin_dir` predicate that resolves all skill search directories (builtin, home, project, extras) via `SkillManager.get_search_directories()` and explicit `CFG.LLM_PLUGIN_DIRS` at call time — respects programmatic overrides.
+  - Registered in `chat.py` for `Read`, `LS`, `Glob`, `Grep`, `AnalyzeFile`.
+
+- **Feature: YOLO mode propagated to sub-agents**:
+  - `yolo.py`: `make_yolo_inheritance_checker()` now handles `frozenset` (selective YOLO) — when the parent has selective YOLO enabled, only the named tools are auto-approved in sub-agents. Previously selective YOLO degraded to full YOLO in sub-agents.
+  - `delegate.py`: Added `yolo` property to `BufferedUI` that delegates to the wrapped parent UI, so `check_yolo_inheritance`'s UI fallback works through the buffered wrapper.
+
+- **Feature: Escape cancellation preserves conversation history**:
+  - When pressing Escape to cancel an LLM response, the user's message and a `[SYSTEM: Response was interrupted by user]` marker are now saved to conversation history. The next turn builds on the interrupted context instead of starting fresh. No changes to `runner.py` — handled entirely in `_exec_action_inner` in `llm_task.py`.
+
+- **Improvement: Project-context file reading cached**:
+  - `claude.py`: `_load_file_content` now caches reads by `(path, mtime)` so per-turn AGENTS.md/CLAUDE.md re-reads cost only a stat call. `_get_search_directories` also cached per `(home, cwd)` pair.
+  - Fixed `break` → `continue` in `create_project_context_prompt` — was skipping all doc files after README; now correctly continues to remaining files.
+
+- **Improvement: File tool error handling**:
+  - `file_read.py`, `file_edit.py`, `file_search.py`: Better path validation, fuzzy matching helpers (`_find_fuzzy_match`, `_match_line_trimmed`), indentation-flexible matching (`_match_indentation_flexible`).
+
+- **Improvement: `assistant_name` check tightened**:
+  - `manager.py`: `if assistant_name` → `if assistant_name is not None` so empty string `""` is no longer replaced by `CFG.LLM_ASSISTANT_NAME`.
+
+- **Chore: Removed dead exports** — `tool/__init__.py` and `tool_call/__init__.py` cleaned up, unused `default_tools.py` tool removals.
+
 ## 2.27.1 (May 14, 2026)
 
 - **Refactoring: Shared filesystem-scanning utilities extracted**:

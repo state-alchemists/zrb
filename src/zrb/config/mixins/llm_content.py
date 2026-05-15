@@ -20,6 +20,7 @@ class LLMContentMixin:
 
     def __init__(self):
         self.DEFAULT_LLM_HISTORY_DIR: str = ""
+        self.DEFAULT_LLM_HISTORY_BACKUP_RETAIN: str = "3"
         self.DEFAULT_LLM_ENABLE_REWIND: str = "off"
         self.DEFAULT_LLM_SNAPSHOT_DIR: str = ""
         self.DEFAULT_LLM_JOURNAL_DIR: str = ""
@@ -40,6 +41,16 @@ class LLMContentMixin:
             factor, self.LLM_MAX_TOKEN_PER_MINUTE, self.LLM_MAX_TOKEN_PER_REQUEST
         )
 
+    def _safe_int_from_env(self, key: str, default: str) -> int:
+        """Read an env var as int, falling back to *default* if unset or unparseable."""
+        try:
+            return int(get_env(key, default, self.ENV_PREFIX))
+        except (ValueError, TypeError):
+            try:
+                return int(default)
+            except (ValueError, TypeError):
+                return 0
+
     @property
     def LLM_HISTORY_DIR(self) -> str:
         default = self.DEFAULT_LLM_HISTORY_DIR
@@ -52,6 +63,23 @@ class LLMContentMixin:
     @LLM_HISTORY_DIR.setter
     def LLM_HISTORY_DIR(self, value: str):
         os.environ[f"{self.ENV_PREFIX}_LLM_HISTORY_DIR"] = value
+
+    @property
+    def LLM_HISTORY_BACKUP_RETAIN(self) -> int:
+        """Number of timestamped history backups to keep per conversation.
+
+        ``0`` disables backup writes entirely. ``-1`` keeps every backup
+        (legacy behavior). The default keeps the most recent few so a
+        long-running install does not accumulate one file per turn forever.
+        """
+        return self._safe_int_from_env(
+            "LLM_HISTORY_BACKUP_RETAIN",
+            self.DEFAULT_LLM_HISTORY_BACKUP_RETAIN,
+        )
+
+    @LLM_HISTORY_BACKUP_RETAIN.setter
+    def LLM_HISTORY_BACKUP_RETAIN(self, value: int):
+        os.environ[f"{self.ENV_PREFIX}_LLM_HISTORY_BACKUP_RETAIN"] = str(value)
 
     @property
     def LLM_ENABLE_REWIND(self) -> bool:
@@ -105,12 +133,9 @@ class LLMContentMixin:
 
     @property
     def LLM_HISTORY_SUMMARIZATION_WINDOW(self) -> int:
-        return int(
-            get_env(
-                "LLM_HISTORY_SUMMARIZATION_WINDOW",
-                self.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW,
-                self.ENV_PREFIX,
-            )
+        return self._safe_int_from_env(
+            "LLM_HISTORY_SUMMARIZATION_WINDOW",
+            self.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW,
         )
 
     @LLM_HISTORY_SUMMARIZATION_WINDOW.setter
@@ -243,12 +268,9 @@ class LLMContentMixin:
     @property
     def LLM_HISTORY_MAX_DISPLAY_CHARS(self) -> int:
         """Maximum characters to display in history."""
-        return int(
-            get_env(
-                "LLM_HISTORY_MAX_DISPLAY_CHARS",
-                self.DEFAULT_LLM_HISTORY_MAX_DISPLAY_CHARS,
-                self.ENV_PREFIX,
-            )
+        return self._safe_int_from_env(
+            "LLM_HISTORY_MAX_DISPLAY_CHARS",
+            self.DEFAULT_LLM_HISTORY_MAX_DISPLAY_CHARS,
         )
 
     @LLM_HISTORY_MAX_DISPLAY_CHARS.setter
@@ -258,12 +280,9 @@ class LLMContentMixin:
     @property
     def LLM_HISTORY_TRUNCATE_LENGTH(self) -> int:
         """Character length for history truncation."""
-        return int(
-            get_env(
-                "LLM_HISTORY_TRUNCATE_LENGTH",
-                self.DEFAULT_LLM_HISTORY_TRUNCATE_LENGTH,
-                self.ENV_PREFIX,
-            )
+        return self._safe_int_from_env(
+            "LLM_HISTORY_TRUNCATE_LENGTH",
+            self.DEFAULT_LLM_HISTORY_TRUNCATE_LENGTH,
         )
 
     @LLM_HISTORY_TRUNCATE_LENGTH.setter
@@ -273,12 +292,9 @@ class LLMContentMixin:
     @property
     def LLM_FILE_READ_LINES(self) -> int:
         """Default number of lines to read from files (head/tail)."""
-        return int(
-            get_env(
-                "LLM_FILE_READ_LINES",
-                self.DEFAULT_LLM_FILE_READ_LINES,
-                self.ENV_PREFIX,
-            )
+        return self._safe_int_from_env(
+            "LLM_FILE_READ_LINES",
+            self.DEFAULT_LLM_FILE_READ_LINES,
         )
 
     @LLM_FILE_READ_LINES.setter

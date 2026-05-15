@@ -16,22 +16,3 @@ def write_file(path: str, content: str, mode: str = "w") -> str:
         return f"Successfully wrote to {path}"
     except Exception as e:
         return f"Error writing to file {path}: {e}"
-
-
-def write_files(files: list[dict[str, str]]) -> dict[str, str]:
-    """
-    Batch writes multiple files in a single call.
-
-    Each entry must be a dict with `path` (str), `content` (str), and optional `mode` ("w"/"a").
-    Creates parent directories automatically. Same chunking guidance as `Write`.
-    """
-    results = {}
-    for file_info in files:
-        path = file_info.get("path")
-        content = file_info.get("content")
-        mode = file_info.get("mode", "w")
-        if not path or content is None:
-            results[str(path)] = "Error: Missing path or content"
-            continue
-        results[path] = write_file(path, content, mode)
-    return results

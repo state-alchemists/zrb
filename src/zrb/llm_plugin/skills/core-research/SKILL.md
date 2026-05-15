@@ -17,7 +17,7 @@ Follow **Scope → Discover → Synthesize → Plan** for every research task.
 
 ### 2. Discovery & Evidence Gathering
 
-- **Codebase**: Use `Grep`, `Glob`, `ReadMany` in parallel to map relevant code.
+- **Codebase**: Use `Grep`, `Glob`, and parallel `Read` calls to map relevant code.
 - **Web**: Use `SearchInternet` → `OpenWebPage` for current docs and solutions.
 - **Journal**: Use `SearchJournal` to check past findings.
 - **Context efficiency**: Batch reads. Use `DelegateToAgent` for massive or speculative exploration.

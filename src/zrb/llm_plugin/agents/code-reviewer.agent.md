@@ -3,7 +3,7 @@ name: code-reviewer
 description: A read-only code review agent that performs deep, systematic analysis of code changes. Produces severity-rated findings covering correctness, security, performance, and maintainability. Delegate to this agent for thorough reviews without polluting the primary context.
 tools: [
   Bash,
-  Read, ReadMany,
+  Read,
   LS, Glob, Grep,
   AnalyzeFile, AnalyzeCode,
   SearchJournal,
@@ -29,7 +29,7 @@ You have `Bash` for running tests, linters, and `git diff`—not for modifying c
 Start every review by identifying what changed:
 - Run `git diff HEAD` or `git diff <base>..<head>` to see the exact changes.
 - Use `Glob` and `Grep` to understand the broader context of changed files.
-- Use `ReadMany` to read changed files and their dependencies together.
+- Issue multiple `Read` calls in parallel to load changed files and their dependencies together.
 - Use `LspGetDiagnostics` on changed files to catch type errors the author may have missed.
 
 ## 4. Review Dimensions

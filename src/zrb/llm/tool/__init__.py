@@ -10,12 +10,10 @@ from zrb.llm.tool.file import (
     list_files,
     move_file,
     read_file,
-    read_files,
     remove_file,
     replace_in_file,
     search_files,
     write_file,
-    write_files,
 )
 from zrb.llm.tool.journal import search_journal
 from zrb.llm.tool.mcp import load_mcp_config
@@ -39,9 +37,7 @@ __all__ = [
     "glob_files",
     "list_files",
     "read_file",
-    "read_files",
     "write_file",
-    "write_files",
     "replace_in_file",
     "search_files",
     "analyze_file",

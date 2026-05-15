@@ -11,7 +11,6 @@ from zrb.llm.hook.types import HookEvent
 def _create_mock_cfg():
     """Create mock config for tests."""
     mock_cfg = MagicMock()
-    mock_cfg.LLM_INCLUDE_JOURNAL = False
     mock_cfg.LLM_INCLUDE_JOURNAL_REMINDER = False
     mock_cfg.ROOT_GROUP_NAME = "zrb"
     mock_cfg.LLM_PLUGIN_DIRS = []

@@ -7,11 +7,9 @@ from zrb.llm.tool.file import (
     glob_files,
     list_files,
     read_file,
-    read_files,
     replace_in_file,
     search_files,
     write_file,
-    write_files,
 )
 
 
@@ -239,31 +237,6 @@ def test_read_file_non_utf8(tmp_path):
     assert "binary" in result.lower() or "non-UTF-8" in result
 
 
-# --- read_files batch function ---
-
-
-def test_read_files_batch(tmp_path):
-    file_a = tmp_path / "a.txt"
-    file_b = tmp_path / "b.txt"
-    file_a.write_text("content a")
-    file_b.write_text("content b")
-
-    results = read_files([str(file_a), str(file_b)])
-    assert isinstance(results, dict)
-    assert "content a" in results[str(file_a)]
-    assert "content b" in results[str(file_b)]
-
-
-def test_read_files_batch_with_missing_file(tmp_path):
-    file_a = tmp_path / "a.txt"
-    file_a.write_text("content a")
-    missing = str(tmp_path / "missing.txt")
-
-    results = read_files([str(file_a), missing])
-    assert "content a" in results[str(file_a)]
-    assert "Error" in results[missing]
-
-
 # --- write_file exception path ---
 
 
@@ -275,42 +248,6 @@ def test_write_file_invalid_path(tmp_path):
 
     result = write_file(invalid_path, "content")
     assert "Error" in result
-
-
-# --- write_files batch function ---
-
-
-def test_write_files_batch_success(tmp_path):
-    file_a = str(tmp_path / "a.txt")
-    file_b = str(tmp_path / "b.txt")
-
-    results = write_files(
-        [
-            {"path": file_a, "content": "hello a"},
-            {"path": file_b, "content": "hello b"},
-        ]
-    )
-
-    assert "Successfully wrote" in results[file_a]
-    assert "Successfully wrote" in results[file_b]
-    assert (tmp_path / "a.txt").read_text() == "hello a"
-    assert (tmp_path / "b.txt").read_text() == "hello b"
-
-
-def test_write_files_batch_missing_path_or_content(tmp_path):
-    file_a = str(tmp_path / "a.txt")
-
-    results = write_files(
-        [
-            {"path": file_a, "content": "hello"},
-            {"path": None, "content": "orphan"},
-            {"path": str(tmp_path / "no_content.txt")},
-        ]
-    )
-
-    assert "Successfully wrote" in results[file_a]
-    assert "Error: Missing path or content" in results["None"]
-    assert "Error: Missing path or content" in results[str(tmp_path / "no_content.txt")]
 
 
 # --- replace_in_file additional coverage ---

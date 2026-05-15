@@ -181,7 +181,6 @@ class TestJournalingHookAntiRecursion:
         from unittest.mock import patch
 
         with patch("zrb.llm.hook.journal.CFG") as mock_cfg:
-            mock_cfg.LLM_INCLUDE_JOURNAL = True
             mock_cfg.LLM_INCLUDE_JOURNAL_REMINDER = True
             yield mock_cfg
 
@@ -261,7 +260,6 @@ class TestJournalingHookAntiRecursion:
         from zrb.llm.hook.journal import JournalingHookHandler
 
         with patch("zrb.llm.hook.journal.CFG") as mock_cfg:
-            mock_cfg.LLM_INCLUDE_JOURNAL = False
             mock_cfg.LLM_INCLUDE_JOURNAL_REMINDER = False
             handler = JournalingHookHandler()
             context = HookContext(event=HookEvent.SESSION_END, event_data={})
@@ -338,7 +336,6 @@ class TestJournalingHookAntiRecursion:
         from zrb.llm.hook.manager import HookManager
 
         with patch("zrb.llm.hook.journal.CFG") as mock_cfg:
-            mock_cfg.LLM_INCLUDE_JOURNAL = True
             mock_cfg.LLM_INCLUDE_JOURNAL_REMINDER = True
 
             factory = create_journaling_hook_factory()
@@ -359,7 +356,6 @@ class TestJournalingHookAntiRecursion:
         from zrb.llm.hook.manager import HookManager
 
         with patch("zrb.llm.hook.journal.CFG") as mock_cfg:
-            mock_cfg.LLM_INCLUDE_JOURNAL = False
             mock_cfg.LLM_INCLUDE_JOURNAL_REMINDER = False
 
             factory = create_journaling_hook_factory()

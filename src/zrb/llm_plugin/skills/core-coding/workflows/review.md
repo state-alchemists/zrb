@@ -9,7 +9,7 @@ For large diffs (more than 10 changed files or more than 500 total changed lines
 ## Step 1 — Scope Identification
 
 - Run `git status` and `git diff HEAD` to identify changed files.
-- Use `ReadMany` to read changed files alongside their dependencies and tests.
+- Issue parallel `Read` calls to load changed files alongside their dependencies and tests.
 - Use `LspGetDiagnostics` on changed files to surface type errors the author may have missed.
 
 ---

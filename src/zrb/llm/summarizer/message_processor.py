@@ -82,6 +82,20 @@ async def process_tool_return_part(
     if original_content is None:
         return part, False
 
+    # Cheap early-return before deepcopy. The summarizer is idempotent on
+    # already-summarised / truncated content and on tool denial/approval
+    # markers, so re-processing them is wasted work. Avoiding the deepcopy
+    # here matters because _apply_history_processors runs once per model
+    # round-trip (see runner._execution_loop) — the prefix is walked many
+    # times during a single user turn.
+    if isinstance(original_content, (ToolDenied, ToolApproved)):
+        return part, False
+    if isinstance(original_content, str) and (
+        original_content.startswith(SUMMARY_PREFIX)
+        or original_content.startswith(TRUNCATED_PREFIX)
+    ):
+        return part, False
+
     # Create a safe copy to prevent mutation during processing
     safe_content = _safe_copy_for_summarization(original_content)
 
@@ -94,13 +108,6 @@ async def process_tool_return_part(
             content = str(safe_content)
     else:
         content = safe_content
-
-    # Skip if already summarized, truncated, or a tool denial/approval message
-    is_tool_response = isinstance(safe_content, (ToolDenied, ToolApproved))
-    is_summary = content.startswith(SUMMARY_PREFIX)
-    is_truncated = content.startswith(TRUNCATED_PREFIX)
-    if is_summary or is_truncated or is_tool_response:
-        return part, False
 
     content_tokens = limiter.count_tokens(content)
     if content_tokens <= message_threshold:

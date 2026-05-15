@@ -16,10 +16,7 @@ from __future__ import annotations
 from typing import Any
 
 from zrb.config.config import CFG
-from zrb.llm.prompt.prompt import (
-    get_multimodal_audio_prompt,
-    get_multimodal_image_prompt,
-)
+from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.util.modality import (
     is_known_model,
     media_type_modality,
@@ -66,9 +63,9 @@ async def describe_binary_attachment(
     from zrb.llm.config.limiter import llm_limiter
 
     system_prompt = (
-        get_multimodal_image_prompt()
+        get_prompt("multimodal_image")
         if modality == "image"
-        else get_multimodal_audio_prompt()
+        else get_prompt("multimodal_audio")
     )
     instruction = (
         "Describe the attached image."

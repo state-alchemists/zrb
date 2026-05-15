@@ -17,11 +17,9 @@ from zrb.llm.tool.file import (
     glob_files,
     list_files,
     read_file,
-    read_files,
     replace_in_file,
     search_files,
     write_file,
-    write_files,
 )
 from zrb.llm.tool.mcp import load_mcp_config
 from zrb.llm.tool.plan import clear_todos, get_todos, update_todo, write_todos
@@ -41,9 +39,7 @@ def register_default_tools(manager: "SubAgentManager") -> None:
         list_files,
         glob_files,
         read_file,
-        read_files,
         write_file,
-        write_files,
         replace_in_file,
         search_files,
         analyze_file,

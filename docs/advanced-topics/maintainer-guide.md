@@ -366,7 +366,10 @@ The `strip_thinking_parts` retry still depends on the provider returning a speci
 
 Rather than catalog every variant, `retry_loop.py` has a catch-all that fires **once** for any unclassified HTTP 400:
 
-1. It applies `strip_to_text_only()` to the message history — all `ToolCallPart`, `ToolReturnPart`, `UserPromptPart`, and `ThinkingPart` entries are converted to `TextPart` with descriptive labels (e.g. `[Tool: deploy({"env":"prod"})]`, `[Result (deploy): started]`). `ThinkingPart` is preserved (the `is_missing_reasoning_content_error` handler strips it upstream before this fallback fires). Nil/empty content is replaced with `"."`. Large tool results are truncated to 500 chars.
+1. It applies `strip_to_text_only()` to the message history. Each structured part is collapsed to its plain-text equivalent **inside its parent message's allowed type set**, because pydantic-ai's `_map_user_message` (`models/openai.py`) hits `assert_never` on any non-`{System,User,ToolReturn,Retry}PromptPart` it finds in a `ModelRequest`:
+   - In `ModelResponse`: `BaseToolCallPart`/`BuiltinToolReturnPart`/`ThinkingPart` → `TextPart` with descriptive labels (e.g. `[Tool: deploy({"env":"prod"})]`, `[Result (deploy): started]`).
+   - In `ModelRequest`: `ToolReturnPart` and tool-linked `RetryPromptPart` → `UserPromptPart` with the same kind of label (a `TextPart` inside a `ModelRequest` would crash the OpenAI mapper).
+   Because both sides of every tool call/return pair are stripped in sympathy, no `tool_call_id` cross-reference survives — there is nothing left to orphan. Nil/empty content is replaced with `"."`. Large tool results are truncated to 500 chars.
 2. It retries the model call with the sanitised history.
 
 This is deliberately provider-agnostic. Text in the form `{"role": "user", "content": "..."}` / `{"role": "assistant", "content": "..."}` is the lowest common denominator that every text-generation provider accepts. The handler is gated on `current_message is not None` (it does not fire during tool-loop iterations with deferred results, where stripping structure could orphan tool call/return pairs).

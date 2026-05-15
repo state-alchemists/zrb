@@ -340,31 +340,6 @@ def test_create_claude_skills_prompt_active_skill_content_loaded(tmp_path):
     assert "Deep skill body text" in result
 
 
-def test_create_claude_skills_prompt_include_claude_skills_false(tmp_path):
-    """include_claude_skills=False filters out non-core_mandate skills."""
-    skill_file = tmp_path / "ordinary.skill.md"
-    skill_file.write_text(
-        "---\nname: ordinary-skill\ndescription: Ordinary skill\n---\nContent"
-    )
-    sm = SkillManager(root_dir=str(tmp_path))
-    sm.scan(search_dirs=[tmp_path])
-
-    handler = create_claude_skills_prompt(
-        sm, active_skills=["ordinary-skill"], include_claude_skills=False
-    )
-    ctx = _make_ctx()
-
-    result = handler(ctx, "base prompt", _identity_next)
-
-    # ordinary-skill is not a core_mandate_ skill so its content should NOT
-    # appear in the active section (may still appear in Available Skills section)
-    assert (
-        "ordinary-skill" not in result.split("Active Skills")[1]
-        if "Active Skills" in result
-        else True
-    )
-
-
 def test_create_claude_skills_prompt_active_skill_missing(tmp_path):
     """Requesting a non-existent active skill does not crash."""
     sm = SkillManager(root_dir=str(tmp_path))

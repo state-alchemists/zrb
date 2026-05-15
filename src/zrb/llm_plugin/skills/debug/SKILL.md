@@ -1,6 +1,6 @@
 ---
 name: debug
-description: Systematic diagnosis for broken builds or wrong behavior — reproduce, isolate, hypothesize, fix. Use when the user explicitly wants help diagnosing a failure.
+description: Systematic diagnosis for broken builds or wrong behavior — reproduce, isolate, hypothesize, fix.
 user-invocable: true
 disable-model-invocation: true
 ---

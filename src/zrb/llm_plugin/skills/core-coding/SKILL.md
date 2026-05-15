@@ -36,7 +36,7 @@ Follow the **Scientific Method**: form a hypothesis → test it → analyze resu
 
 - Use `Glob` and `Grep` in parallel to map file structures, existing patterns, and utility functions.
 - Use `Grep` with specific `regex` and `file_pattern` to minimize noise.
-- Prefer `ReadMany` over sequential `Read` when gathering context from related files.
+- Issue several `Read` calls in parallel when gathering context from related files.
 - **Before modifying any existing function, method, or class signature:** use `LspFindReferences` if LSP is available, otherwise `Grep`. Find all call sites and include updating them in your plan.
 - **Before moving or removing any file or directory:** use `Grep` to find all imports and path references first.
 

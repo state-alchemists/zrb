@@ -19,7 +19,7 @@ from zrb.config.config import CFG
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
-from zrb.llm.prompt.prompt import get_journal_reminder_prompt
+from zrb.llm.prompt.prompt import get_prompt
 
 
 class JournalingHookHandler:
@@ -42,7 +42,6 @@ class JournalingHookHandler:
         """Check if journal reminder is enabled.
 
         Must check config dynamically because the value can change at runtime.
-        Respects ZRB_LLM_INCLUDE_JOURNAL_REMINDER; falls back to ZRB_LLM_INCLUDE_JOURNAL.
         """
         return CFG.LLM_INCLUDE_JOURNAL_REMINDER
 
@@ -75,7 +74,7 @@ class JournalingHookHandler:
         The mandate in the system prompt handles the detailed what/how;
         this is just a lightweight nudge.
         """
-        return get_journal_reminder_prompt()
+        return get_prompt("journal_reminder")
 
     def reset(self) -> None:
         """Reset session state for new turn."""
@@ -95,8 +94,8 @@ def create_journaling_hook() -> HookCallable:
 def create_journaling_hook_factory():
     """Create a factory function for journaling hook registration.
 
-    Returns a factory that checks CFG.LLM_INCLUDE_JOURNAL at execution time.
-    This allows the hook to be enabled/disabled without reloading.
+    Returns a factory that checks CFG.LLM_INCLUDE_JOURNAL_REMINDER at execution
+    time, so the hook can be enabled/disabled without reloading.
 
     Usage:
         llm_chat.add_hook_factory(create_journaling_hook_factory())

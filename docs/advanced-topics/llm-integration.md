@@ -125,11 +125,9 @@ The assistant comes with a rich set of built-in tools. These are automatically a
 | `LS` | `list_files` | Recursively list files up to 3 levels deep, auto-excluding `.git`, `node_modules`, `__pycache__`, etc. |
 | `Glob` | `glob_files` | Find files matching a glob pattern (e.g., `**/*.py`). |
 | `Grep` | `search_files` | Search file contents by regex pattern. Supports `context_lines` (default 2), `files_only=True` to return only matching file paths, `case_sensitive=False` for case-insensitive search, and `file_pattern` to restrict to specific file types. |
-| `Read` | `read_file` | Read a single file's contents with optional line-range slicing and auto-truncation. |
-| `ReadMany` | `read_files` | Read multiple files in one call — faster than sequential `Read` calls. |
+| `Read` | `read_file` | Read a single file's contents with optional line-range slicing and auto-truncation. Issue parallel `Read` calls to load several files in one turn. |
 | `Write` | `write_file` | Write or overwrite a file. |
-| `WriteMany` | `write_files` | Write multiple files in one call. |
-| `Edit` | `replace_in_file` | Make targeted string replacements in a file. |
+| `Edit` | `replace_in_file` | Make targeted string replacements in a single file. |
 
 ### Web
 

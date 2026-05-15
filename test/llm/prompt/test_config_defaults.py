@@ -1,10 +1,10 @@
 """Test PromptManager configuration defaults mechanism.
 
 These tests verify that:
-1. PromptManager uses configuration defaults when parameters are None
-2. Environment variables can override configuration defaults
-3. Explicit parameters take precedence over configuration defaults
-4. Backward compatibility is maintained (explicit booleans still work)
+1. PromptManager uses LLM_INCLUDE_SECTIONS from CFG when include_sections is None
+2. Environment variables can override LLM_INCLUDE_SECTIONS
+3. Explicit include_sections parameter takes precedence over config defaults
+4. Section ordering follows the include_sections list order
 
 Note: We test the MECHANISM, not the exact content of prompts.
 Markdown files can change (formatting, language, etc.), but the
@@ -21,227 +21,153 @@ from zrb.context.shared_context import SharedContext
 from zrb.llm.prompt.manager import PromptManager
 
 
-def test_config_property_defaults():
-    """Test that configuration properties have correct defaults."""
+def test_config_llm_include_sections_default():
+    """Test that LLM_INCLUDE_SECTIONS has the correct default."""
     # Reset CFG to ensure clean state
     CFG._instance = None
 
-    # Verify all 8 new config properties exist and have correct defaults
     assert hasattr(
-        CFG, "LLM_INCLUDE_PERSONA"
-    ), "Config should have LLM_INCLUDE_PERSONA property"
-    assert hasattr(
-        CFG, "LLM_INCLUDE_MANDATE"
-    ), "Config should have LLM_INCLUDE_MANDATE property"
-    assert hasattr(
-        CFG, "LLM_INCLUDE_GIT_MANDATE"
-    ), "Config should have LLM_INCLUDE_GIT_MANDATE property"
-    assert hasattr(
-        CFG, "LLM_INCLUDE_SYSTEM_CONTEXT"
-    ), "Config should have LLM_INCLUDE_SYSTEM_CONTEXT property"
-    assert hasattr(
-        CFG, "LLM_INCLUDE_JOURNAL"
-    ), "Config should have LLM_INCLUDE_JOURNAL property"
-    assert hasattr(
-        CFG, "LLM_INCLUDE_CLAUDE_SKILLS"
-    ), "Config should have LLM_INCLUDE_CLAUDE_SKILLS property"
-    assert hasattr(
-        CFG, "LLM_INCLUDE_CLI_SKILLS"
-    ), "Config should have LLM_INCLUDE_CLI_SKILLS property"
-    assert hasattr(
-        CFG, "LLM_INCLUDE_PROJECT_CONTEXT"
-    ), "Config should have LLM_INCLUDE_PROJECT_CONTEXT property"
-    assert hasattr(
-        CFG, "LLM_INCLUDE_JOURNAL_MANDATE"
-    ), "Config should have LLM_INCLUDE_JOURNAL_MANDATE property"
-    assert hasattr(
-        CFG, "LLM_INCLUDE_JOURNAL_REMINDER"
-    ), "Config should have LLM_INCLUDE_JOURNAL_REMINDER property"
+        CFG, "LLM_INCLUDE_SECTIONS"
+    ), "Config should have LLM_INCLUDE_SECTIONS property"
 
-    # Check default values (all True except CLI skills and JOURNAL_REMINDER which are False)
-    assert CFG.LLM_INCLUDE_PERSONA is True
-    assert CFG.LLM_INCLUDE_MANDATE is True
-    assert CFG.LLM_INCLUDE_GIT_MANDATE is True  # Enabled by default (on)
-    assert CFG.LLM_INCLUDE_SYSTEM_CONTEXT is True
-    assert CFG.LLM_INCLUDE_JOURNAL is True
-    # JOURNAL_MANDATE falls back to LLM_INCLUDE_JOURNAL when not set; JOURNAL_REMINDER has its own default
-    assert CFG.LLM_INCLUDE_JOURNAL_MANDATE is True
-    assert CFG.LLM_INCLUDE_JOURNAL_REMINDER is False
-    assert CFG.LLM_INCLUDE_CLAUDE_SKILLS is True
-    assert CFG.LLM_INCLUDE_CLI_SKILLS is False
-    assert CFG.LLM_INCLUDE_PROJECT_CONTEXT is True
+    sections = CFG.LLM_INCLUDE_SECTIONS
+    assert isinstance(sections, list)
+    # Default order: persona, mandate, git_mandate, journal_mandate,
+    # system_context, project_context, tool_guidance, claude_skills.
+    assert sections == [
+        "persona",
+        "mandate",
+        "git_mandate",
+        "journal_mandate",
+        "system_context",
+        "project_context",
+        "tool_guidance",
+        "claude_skills",
+    ]
 
 
-def test_config_property_setters():
-    """Test that configuration property setters work correctly."""
-    # Reset CFG
+def test_config_llm_include_sections_setter():
+    """Test that the LLM_INCLUDE_SECTIONS setter works."""
     CFG._instance = None
 
-    # Test setting values
-    CFG.LLM_INCLUDE_PERSONA = False
-    CFG.LLM_INCLUDE_CLI_SKILLS = True
-    CFG.LLM_INCLUDE_JOURNAL = False
+    CFG.LLM_INCLUDE_SECTIONS = ["persona", "mandate"]
+    assert CFG.LLM_INCLUDE_SECTIONS == ["persona", "mandate"]
 
-    # Verify setters worked
-    assert CFG.LLM_INCLUDE_PERSONA is False
-    assert CFG.LLM_INCLUDE_CLI_SKILLS is True
-    assert CFG.LLM_INCLUDE_JOURNAL is False
-
-    # Other values should still be defaults
-    assert CFG.LLM_INCLUDE_MANDATE is True
-    assert CFG.LLM_INCLUDE_PROJECT_CONTEXT is True
+    # Reset
+    CFG._instance = None
 
 
 def test_environment_variable_overrides():
-    """Test that environment variables can override configuration defaults."""
+    """Test that environment variables can override LLM_INCLUDE_SECTIONS."""
     env_vars = {
-        "ZRB_LLM_INCLUDE_PERSONA": "0",
-        "ZRB_LLM_INCLUDE_MANDATE": "0",
-        "ZRB_LLM_INCLUDE_CLI_SKILLS": "1",
+        "ZRB_LLM_INCLUDE_SECTIONS": "persona,system_context",
         "_ZRB_ENV_PREFIX": "ZRB",
     }
 
     with patch.dict(os.environ, env_vars):
-        # Reset CFG to pick up new env vars
         CFG._instance = None
 
-        # Verify environment variables override defaults
-        assert CFG.LLM_INCLUDE_PERSONA is False
-        assert CFG.LLM_INCLUDE_MANDATE is False
-        assert CFG.LLM_INCLUDE_CLI_SKILLS is True
-
-        # Other values should still be defaults
-        assert CFG.LLM_INCLUDE_GIT_MANDATE is True  # Default is on
-        assert CFG.LLM_INCLUDE_SYSTEM_CONTEXT is True
+        sections = CFG.LLM_INCLUDE_SECTIONS
+        assert sections == ["persona", "system_context"]
+        assert "mandate" not in sections
+        assert "git_mandate" not in sections
 
 
 def test_prompt_manager_uses_config_defaults():
-    """Test that PromptManager uses config defaults when parameters are None."""
-    # Reset CFG
+    """Test that PromptManager uses config defaults when include_sections is None."""
     CFG._instance = None
 
-    # Create context for testing
     ctx = SharedContext()
 
-    # Create PromptManager with all None parameters
-    manager = PromptManager(
-        include_persona=None,
-        include_mandate=None,
-        include_git_mandate=None,
-        include_system_context=None,
-        include_journal_mandate=None,
-        include_claude_skills=None,
-        include_cli_skills=None,
-        include_project_context=None,
-    )
+    # include_sections=None means use CFG defaults
+    manager = PromptManager()
 
-    # Compose prompt - should work without errors using config defaults
     prompt = manager.compose_prompt()(ctx)
-
-    # Verify mechanism works (prompt is generated)
     assert isinstance(prompt, str)
-    assert len(prompt) > 0  # Should have some content with defaults
+    assert len(prompt) > 0
 
 
 def test_prompt_manager_explicit_overrides():
-    """Test that explicit parameters override config defaults."""
-    # Reset CFG
+    """Test that explicit include_sections overrides config defaults."""
     CFG._instance = None
 
     ctx = SharedContext()
 
-    # Create PromptManager with explicit values that differ from defaults
+    # Explicit include_sections takes precedence
     manager = PromptManager(
-        include_persona=False,  # Default is True
-        include_cli_skills=True,  # Default is False
+        include_sections=["persona", "mandate"],
     )
 
-    # Compose prompt - should work with explicit values
     prompt = manager.compose_prompt()(ctx)
-
-    # Verify mechanism works
     assert isinstance(prompt, str)
     assert len(prompt) > 0
 
 
-def test_prompt_manager_backward_compatibility():
-    """Test backward compatibility - explicit booleans still work."""
-    # Reset CFG
+def test_prompt_manager_include_sections_explicit_subset():
+    """Explicit include_sections selects only listed sections."""
     CFG._instance = None
 
     ctx = SharedContext()
 
-    # Test with all explicit True/False values (not None)
-    # This simulates old code that passed explicit booleans
     manager = PromptManager(
-        include_persona=True,
-        include_mandate=False,
-        include_git_mandate=True,
-        include_system_context=False,
-        include_journal_mandate=True,
-        include_claude_skills=False,
-        include_cli_skills=True,
-        include_project_context=False,
+        include_sections=["persona", "git_mandate", "journal_mandate"],
     )
 
-    # Compose prompt - should work with all explicit values
     prompt = manager.compose_prompt()(ctx)
-
-    # Verify mechanism works
     assert isinstance(prompt, str)
     assert len(prompt) > 0
 
 
-def test_prompt_manager_mixed_none_and_explicit():
-    """Test mixed usage - some None (use config), some explicit."""
-    # Reset CFG
+def test_prompt_manager_include_sections_ordering():
+    """Section ordering follows include_sections order."""
     CFG._instance = None
 
     ctx = SharedContext()
 
-    # Mix of None (use config) and explicit values
     manager = PromptManager(
-        include_persona=None,  # Use config default (True)
-        include_mandate=False,  # Explicit False
-        include_cli_skills=None,  # Use config default (False)
-        include_project_context=True,  # Explicit True (same as default)
+        include_sections=["mandate", "persona"],
     )
 
-    # Compose prompt - should work with mixed values
     prompt = manager.compose_prompt()(ctx)
-
-    # Verify mechanism works
-    assert isinstance(prompt, str)
-    assert len(prompt) > 0
+    # mandate header comes before persona header
+    assert prompt.index("# Operating Rules") < prompt.index("# Identity")
 
 
 @pytest.mark.asyncio
 async def test_prompt_manager_integration():
     """Integration test - verify PromptManager works end-to-end with config."""
-    # Reset CFG
     CFG._instance = None
 
     ctx = SharedContext()
 
-    # Test 1: Default behavior
-    manager1 = PromptManager()  # All None, use config defaults
+    # Test 1: Default behavior (use CFG defaults)
+    manager1 = PromptManager()
     prompt1 = manager1.compose_prompt()(ctx)
     assert isinstance(prompt1, str)
 
     # Test 2: With environment variable overrides
     env_vars = {
-        "ZRB_LLM_INCLUDE_PERSONA": "0",
-        "ZRB_LLM_INCLUDE_CLI_SKILLS": "1",
+        "ZRB_LLM_INCLUDE_SECTIONS": "persona,mandate",
         "_ZRB_ENV_PREFIX": "ZRB",
     }
 
     with patch.dict(os.environ, env_vars):
         CFG._instance = None
 
-        manager2 = PromptManager()  # Should use env var overrides
+        manager2 = PromptManager()
         prompt2 = manager2.compose_prompt()(ctx)
         assert isinstance(prompt2, str)
 
-        # Prompt should be different (due to different config)
-        # But we don't check content - just that mechanism works
-        assert prompt1 != prompt2 or len(prompt1) > 0  # Either different or both valid
+        assert prompt1 != prompt2 or len(prompt1) > 0
+
+
+def test_prompt_manager_empty_sections_produces_no_builtin_content():
+    """include_sections=[] means no built-in sections."""
+    CFG._instance = None
+
+    ctx = SharedContext()
+
+    manager = PromptManager(include_sections=[])
+    prompt = manager.compose_prompt()(ctx)
+    # With no built-in sections and no custom prompts, result should be empty
+    assert prompt.strip() == ""

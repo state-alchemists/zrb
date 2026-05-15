@@ -14,7 +14,7 @@ Use when: new feature, new function, or bug needing a regression test.
 ### Step 1 — RED: Write a Failing Test
 
 1. **Identify the next smallest behavior.** What is the input? What is the expected output? What errors should be raised? Do not think about implementation yet.
-2. **Discover conventions.** Use `Grep` to find existing test files. Use `ReadMany` to read a sample and understand assertion style, fixture patterns, and naming.
+2. **Discover conventions.** Use `Grep` to find existing test files. Issue parallel `Read` calls on a sample to understand assertion style, fixture patterns, and naming.
 3. **Write the test.** Name it `test_should_<behavior>_when_<condition>`. One behavior per test.
 4. **Run it and confirm it FAILS.** If it passes without any implementation, it is a bad test — stop and fix it. The failure message guides implementation.
 
@@ -43,7 +43,7 @@ Use when: auditing test coverage, adding missing tests to existing code, or fixi
 
 - Identify the test framework (`pytest`, `jest`, `go test`, etc.). Check `package.json`, `pyproject.toml`, `Makefile` for the exact test command.
 - Use `Grep` and `Glob` in parallel to map: existing test files, tested vs. untested modules, fixture/mock patterns.
-- Use `ReadMany` to inspect a module and its tests together.
+- Issue parallel `Read` calls to inspect a module and its tests together.
 
 ### Step 2 — Coverage Gap Analysis
 
