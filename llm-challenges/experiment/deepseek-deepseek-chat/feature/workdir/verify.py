@@ -18,6 +18,7 @@ def verify():
 
     score = 0
     max_score = 9
+    missed: list[str] = []
 
     # 1. GET /projects still works
     res = client.get("/projects")
@@ -26,6 +27,7 @@ def verify():
         score += 1
     else:
         print(f"FAIL: GET /projects returned {res.status_code}")
+        missed.append("GET /projects basic listing")
 
     # 2. Filter by status
     res = client.get("/tasks?status=done")
@@ -35,6 +37,7 @@ def verify():
         score += 1
     else:
         print(f"FAIL: Filter by status — got {res.status_code}, results: {tasks}")
+        missed.append("filter by status")
 
     # 3. Filter by assigned_to
     res = client.get("/tasks?assigned_to=alice")
@@ -44,6 +47,7 @@ def verify():
         score += 1
     else:
         print(f"FAIL: Filter by assigned_to — got {res.status_code}")
+        missed.append("filter by assigned_to")
 
     # 4. Pagination
     res = client.get("/tasks?page=1&page_size=2")
@@ -54,6 +58,7 @@ def verify():
         score += 1
     else:
         print(f"FAIL: Pagination — got {res.status_code}, count={result_count}")
+        missed.append("pagination")
 
     # 5. POST without auth → 401
     res = client.post("/tasks", json={"title": "Unauth", "project_id": 1})
@@ -62,6 +67,7 @@ def verify():
         score += 1
     else:
         print(f"FAIL: POST without auth returned {res.status_code} (expected 401/403)")
+        missed.append("auth required (401/403) on POST")
 
     # 6. POST with valid auth and valid project_id → success
     res = client.post(
@@ -77,9 +83,11 @@ def verify():
             new_id = new_task["id"]
         else:
             print(f"FAIL: POST /tasks returned unexpected body: {new_task}")
+            missed.append("POST /tasks body shape")
             new_id = None
     else:
         print(f"FAIL: POST /tasks with auth returned {res.status_code}: {res.text[:200]}")
+        missed.append("POST /tasks with auth")
         new_id = None
 
     # 7. POST with invalid project_id → 404
@@ -93,6 +101,7 @@ def verify():
         score += 1
     else:
         print(f"FAIL: Invalid project_id returned {res.status_code} (expected 404)")
+        missed.append("invalid project_id → 404")
 
     # 8. PUT partial update with auth
     update_id = new_id if new_id else 1
@@ -106,6 +115,7 @@ def verify():
         score += 1
     else:
         print(f"FAIL: PUT /tasks/{update_id} returned {res.status_code}")
+        missed.append("PUT /tasks/{id} partial update")
 
     # 9. DELETE with auth, then verify 404
     delete_id = new_id if new_id else 3
@@ -117,13 +127,20 @@ def verify():
             score += 1
         else:
             print("FAIL: DELETE succeeded but task still accessible")
+            missed.append("DELETE /tasks/{id} actually removes")
     else:
         print(f"FAIL: DELETE /tasks/{delete_id} returned {res.status_code}")
+        missed.append("DELETE /tasks/{id}")
 
     print(f"\nScore: {score}/{max_score}")
     if score >= 8:
         print("VERIFICATION_RESULT: EXCELLENT")
     elif score >= 6:
+        missing_str = "; ".join(missed) if missed else "n/a"
+        print(
+            f"WARN: Score {score}/{max_score} — need ≥8 for EXCELLENT. "
+            f"Missing: {missing_str}"
+        )
         print("VERIFICATION_RESULT: PASS")
     else:
         print(f"FAIL: Score too low ({score}/{max_score})")

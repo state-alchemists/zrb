@@ -1,45 +1,293 @@
 [2m
-  🧰 pyd_ai_1da786aaff3d49e2b835e8497fb89a7d | LS {'path': 'app/'}
+  🧰 pyd_ai_3067ff0785dc4b87860f439b5f0333ba | ActivateSkill {'name': 'core-coding'}
 [0m[2m
-  🔠 pyd_ai_1da786aaff3d49e2b835e8497fb89a7d | Return {'files': ['__init__.py', 'auth.py', 'database.py', 'main.py', 'models.py']}
-[0m[2m
-  🧰 pyd_ai_69e66482066d4c93a774425aa0b97b59 | ReadMany {'paths': ['app/auth.py', 'app/database.py']}
-[0m[2m
-  🔠 pyd_ai_69e66482066d4c93a774425aa0b97b59 | Return {'app/auth.py': '[File: app/auth.py | 13 lines]\n---CONTENT---\nfrom fastapi import Header, HTTPException\nfrom typing import Optional\nfrom .database import VALID_API_KEYS\n\n\nasync def require_api_key(x_api_key: Optional[str] = Header(default=None)) -> str:\n    """\n    Validates X-API-Key header against VALID_API_KEYS.\n    Returns the username on success.\n    TODO: Currently does nothing — implement authentication.\n    """\n    pass\n', 'app/database.py': '[File: app/database.py | 20 lines]\n---CONTENT---\nfrom typing import Dict, List\nfrom .models import Project, Task, TaskStatus\n\nprojects: List[Project] = [\n    Project(id=1, name="Alpha", owner="alice"),\n    Project(id=2, name="Beta", owner="bob"),\n]\n\ntasks: List[Task] = [\n    Task(id=1, title="Design schema", status=TaskStatus.done, priority=5, project_id=1, assigned_to="alice"),\n    Task(id=2, title="Implement API", status=TaskStatus.in_progress, priority=4, project_id=1, assigned_to="bob"),\n    Task(id=3, title="Write tests", status=TaskStatus.todo, priority=3, project_id=1),\n    Task(id=4, title="Deploy to staging", status=TaskStatus.todo, priority=2, project_id=2, assigned_to="alice"),\n]\n\nVALID_API_KEYS: Dict[str, str] = {\n    "dev-key-alice": "alice",\n    "dev-key-bob": "bob",\n}\n'}
-[0m[2m
-  🧰 pyd_ai_be21dc593ffe4db191943ac4aba74674 | Edit {'path': 'app/auth.py', 'new_text': '    if x_api_key is None:\n ...', 'old_text': '    pass'}
-[0m[2m
-  🔠 pyd_ai_be21dc593ffe4db191943ac4aba74674 | Return Successfully updated app/auth.py (1 replacement(s))
-[0m[2m
-  🧰 pyd_ai_633a5715532847ab8b1ead090d06abb9 | ReadMany {'paths': ['app/main.py', 'app/models.py']}
-[0m[2m
-  🔠 pyd_ai_633a5715532847ab8b1ead090d06abb9 | Return {'app/main.py': '[File: app/main.py | 33 lines]\n---CONTENT---\nfrom fastapi import FastAPI, HTTPException\nfrom typing import List\nfrom .models import Task, TaskCreate, TaskUpdate, Project\nfrom .database import tasks, projects\nfrom .auth import require_api_key\n\napp = FastAPI(title="Project Management API")\n\n\n@app.get("/projects", response_model=List[Project])\nasync def list_projects():\n    return projects\n\n\n@app.get("/tasks", response_model=List[Task])\nasync def list_tasks():\n    # TODO: add filtering (status, priority, assigned_to query params)\n    # TODO: add pagination (page, page_size query params)\n    return tasks\n\n\n@app.get("/tasks/{task_id}", response_model=Task)\nasync def get_task(task_id: int):\n    for task in tasks:\n        if task.id == task_id:\n            return task\n    raise HTTPException(status_code=404, detail="Task not found")\n\n\n# TODO: POST /tasks — create a task (requires auth, validate project_id, auto-generate id)\n# TODO: PUT /tasks/{task_id} — partial update (requires auth, 404 if not found)\n# TODO: DELETE /tasks/{task_id} — delete a task (requires auth, 404 if not found)\n', 'app/models.py': '[File: app/models.py | 40 lines]\n---CONTENT---\nfrom pydantic import BaseModel\nfrom typing import Optional\nfrom enum import Enum\n\n\nclass TaskStatus(str, Enum):\n    todo = "todo"\n    in_progress = "in_progress"\n    done = "done"\n\n\nclass Task(BaseModel):\n    id: int\n    title: str\n    status: TaskStatus = TaskStatus.todo\n    priority: int = 3\n    project_id: int\n    assigned_to: Optional[str] = None\n\n\nclass TaskCreate(BaseModel):\n    title: str\n    status: TaskStatus = TaskStatus.todo\n    priority: int = 3\n    project_id: int\n    assigned_to: Optional[str] = None\n\n\nclass TaskUpdate(BaseModel):\n    title: Optional[str] = None\n    status: Optional[TaskStatus] = None\n    priority: Optional[int] = None\n    assigned_to: Optional[str] = None\n\n\nclass Project(BaseModel):\n    id: int\n    name: str\n    owner: str\n'}
-[0m[2m
-  🧰 pyd_ai_1e3fe1a328d84a18a0229bd764eb788e | Edit {'new_text': 'from fastapi import FastAP ...', 'path': 'app/main.py', 'old_text': 'async def list_tasks():\n   ...'}
-[0m[2m
-  🔠 pyd_ai_1e3fe1a328d84a18a0229bd764eb788e | Return Successfully updated app/main.py (1 replacement(s))
-[0m[2m
-  🧰 pyd_ai_4c6d887431ac4df9804f1b9847cb2301 | Edit {'path': 'app/main.py', 'old_text': '# TODO: POST /tasks — crea ...', 'new_text': '\n@app.post("/tasks", respo ...'}
-[0m[2m
-  🔠 pyd_ai_4c6d887431ac4df9804f1b9847cb2301 | Return Successfully updated app/main.py (1 replacement(s))
-[0m[2m
-  🧰 pyd_ai_17514913f49d41f5a74973e2ab032d7f | Edit {'path': 'app/main.py', 'old_text': 'from typing import List, O ...', 'new_text': 'from typing import List, O ...'}
-[0m[2m
-  🔠 pyd_ai_17514913f49d41f5a74973e2ab032d7f | Return Successfully updated app/main.py (1 replacement(s))
-[0m[2m
-  All[0m[2m requested features have been implemented:
+  🔠 pyd_ai_3067ff0785dc4b87860f439b5f0333ba | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
      
-     1.  **Authentication** (`app/[0m[2mauth.py`): The `require_api_key` dependency now validates the `X-API-Key` header against `VALID_API_KEYS` and raises HTTP 401 if missing or invalid.
-     2.[0m[2m  **Task filtering** (`GET /tasks`): Added optional query parameters `status`, `priority`, and `assigned_to` to filter tasks.
-     3.  **Pagination** (`GET /tasks`): Added `page` (default[0m[2m 1) and `page_size` (default 20) query parameters for pagination.
-     4.  **Create task** (`POST /tasks`): Implemented with authentication, `project_id` validation, auto-[0m[2mgenerated ID, and returns the created task.
-     5.  **Update task** (`PUT /tasks/{task_id}`): Allows partial updates, requires authentication, and returns 404 if the task is not found.
-     6.  [0m[2m**Delete task** (`DELETE /tasks/{task_id}`): Requires authentication and returns 404 if the task is not found.
-     I've also updated the imports in `app/main.py` to include [0m[2m`Query` and `Depends`.
+     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-coding
      
-     To verify these changes, you can run the application and test the endpoints using a tool like `curl` or Postman.
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
+     
+     Companion files available in this directory:
+       languages/
+         go.md
+         java.md
+         php.md
+         python.md
+         ruby.md
+         rust.md
+         typescript.md
+       workflows/
+         debug.md
+         refactor.md
+         review.md
+         testing.md
+     
+     ---
+     
+     ---
+     name: core-coding
+     description: "Activate before any coding task — reading, editing, or creating code files. Provides the mandatory Research → Strategy → Execution workflow plus the complexity budget and specialised deep-dive companions (testing, debug, refactor, review)."
+     user-invocable: false
+     ---
+     # Skill: core-coding
+     
+     Follow **Research → Strategy → Execution** for every coding task.
+     
+     ## Deep-Dive Companions
+     
+     When the current step matches a trigger below, `Read` the named companion from this skill's directory (the activation header lists the directory path and all companion paths). Companions are not pre-loaded — pull them on demand.
+     
+     | Trigger | Companion |
+     |---------|-----------|
+     | About to write, modify, or audit a test | `workflows/testing.md` |
+     | Something is broken and root cause is unclear | `workflows/debug.md` |
+     | Code structure needs improvement (complexity, duplication) | `workflows/refactor.md` |
+     | Reviewing changes for correctness, security, or quality | `workflows/review.md` |
+     | Code touches user input, auth, file I/O, or sensitive data | `workflows/review.md` (security audit checklist) |
+     | First substantial edit in a project — identify the language from the manifest | `languages/<lang>.md` (one of `python`, `typescript`, `go`, `rust`, `java`, `ruby`, `php`) |
+     
+     If the user has provided custom guidelines for any of the above (in CLAUDE.md, AGENTS.md, their own skills, or project files), prefer those over the core companion. Core companions fill in the gaps.
+     
+     ## PHASE 1: RESEARCH & DISCOVERY
+     
+     Follow the **Scientific Method**: form a hypothesis → test it → analyze results. Avoid random changes.
+     
+     ### a.  **High-Level Reconnaissance:**
+     
+     - Use `LS` with limited depth for initial structure mapping.
+     - Identify: source directories, test directories, config files, entry points, and utility modules.
+     - Skip if you already know specific file paths — use targeted `Glob` instead.
+     
+     ### b.  **Targeted Architecture Discovery:**
+     
+     - Use `Glob` and `Grep` in parallel to map file structures, existing patterns, and utility functions.
+     - Use `Grep` with specific `regex` and `file_pattern` to minimize noise.
+     - Issue several `Read` calls in parallel when gathering context from related files.
+     - **Before modifying any existing function, method, or class signature:** use `LspFindReferences` if LSP is available, otherwise `Grep`. Find all call sites and include updating them in your plan.
+     - **Before moving or removing any file or directory:** use `Grep` to find all imports and path references first.
+     
+     ## PHASE 2: STRATEGY
+     
+     ### c.  **Formulate a Grounded Plan:**
+     
+     - **Language & Framework Idioms:** identify the language, framework, and version from dependency files and existing code. Apply idiomatic conventions — a pattern correct in one language may be an anti-pattern in another. Never add attributes or behavior to objects owned by a library; wrap them in a type you own.
+     - **Pattern Matching:** strategy MUST match existing project guidelines and patterns exactly. New code should look as though written by the original author.
+     - **Reuse existing helpers** before creating new ones.
+     - **Apply SOLID and DRY.** One reason to change per function and class.
+     - **No magic numbers, strings, or unexplained constants.** Name every value that carries meaning.
+     
+     ### d.  **Complexity Budget (non-negotiable hard limits):**
+     
+     Exceeding any limit is a design defect — restructure before continuing.
+     
+     | Metric | Limit | Remedy when exceeded |
+     |--------|-------|----------------------|
+     | Cyclomatic complexity | ≤ 10 per function | Extract sub-functions |
+     | Cognitive complexity | ≤ 15 per function | Flatten nesting, add guard clauses |
+     | Nesting depth | ≤ 2 levels | Invert conditionals; use early returns |
+     | Function length | ≤ 30 lines | Extract cohesive blocks into named helpers |
+     | Parameters per function | ≤ 4 | Group related params into a data object |
+     
+     **Guard clause mandate:** invert conditions to exit early; the happy path must never be the deepest `else`.
+     
+     **Boolean parameter prohibition:** a boolean parameter = two functions. Split them.
+     
+     **God Class/Function prohibition:** one reason to change per class/function. If you can't name the extracted piece, it's not a coherent abstraction.
+     
+     ### e.  **Testing Strategy:** define verification before writing code. For test-first methodology, Read `workflows/testing.md`.
+     
+     - New behavior: identify the failing test (RED) first.
+     - Bug fix: identify the minimal reproduction test first.
+     - Refactoring: confirm existing tests pass as baseline before touching anything.
+     
+     ## PHASE 3: EXECUTION (Plan → Act → Validate)
+     
+     ### f.  **Act (Surgical Implementation):**
+     
+     - Minimal, precise edits only. One logical change per task (atomic). Use existing libraries and patterns.
+     - Keep functions focused (~30-50 lines). Place helpers below callers.
+     - **Strangler Pattern:** when replacing a component, keep codebase runnable at every step: new alongside old → update references → remove old.
+     - **Out-of-scope structural problems:** report them. If they block this task, Read `workflows/refactor.md` and address atomically.
+     - **Code Smell Reporting:** report poorly structured code you encounter — don't silently fix it.
+     - **Docs:** keep documentation in sync; remove deprecated references.
+     
+     ### g.  **Validate (Zero-Regression):**
+     
+     - Validation is the only path to finality.
+     - Bug fixes: reproduce before fixing. If root cause is unclear, Read `workflows/debug.md`.
+     - After any change: run tests, linters, and type-checkers.
+     - If validation fails, diagnose before retrying.
+     
+     ### h.  **Synthesis:**
+     
+     journal non-trivial discoveries per the Journaling Protocol. For user-facing output (docs, error messages, commit messages), apply writing quality standards from `core-writing`.
+     
+     </ACTIVATED_SKILL>
 [0m[2m
-  💸 (Requests: 8 | Tool Calls: 7 | Total: 76877) Input: 74733 | Audio Input: 0 | Output: 2144 | Audio Output: 0 | Cache Read: 52576 | Cache Write: 0 | Details: {'thoughts_tokens': 643, 'text_prompt_tokens': 74733, 'cached_content_tokens': 52576, 'text_cache_tokens': 52576}
+  🧰 pyd_ai_5224f436f7534408b6864e186b311c8a | LS {'path': 'app/', 'auto_truncate': False}
+[0m[2m
+  🔠 pyd_ai_5224f436f7534408b6864e186b311c8a | Return {'files': ['__init__.py', 'auth.py', 'database.py', 'main.py', 'models.py']}
+[0m[2m
+  🧰 pyd_ai_e14defe7768f4b7a9a0d0eb189c808a1 | Read {'path': 'app/auth.py'}
+[0m[2m
+  🧰 pyd_ai_edac5b2663c14345a1abb866dfebc3ea | Read {'path': 'app/database.py'}
+[0m[2m
+  🔠 pyd_ai_edac5b2663c14345a1abb866dfebc3ea | Return [File: app/database.py | 20 lines]
+     ---CONTENT---
+     from typing import Dict, List
+     from .models import Project, Task, TaskStatus
+     
+     projects: List[Project] = [
+         Project(id=1, name="Alpha", owner="alice"),
+         Project(id=2, name="Beta", owner="bob"),
+     ]
+     
+     tasks: List[Task] = [
+         Task(id=1, title="Design schema", status=TaskStatus.done, priority=5, project_id=1, assigned_to="alice"),
+         Task(id=2, title="Implement API", status=TaskStatus.in_progress, priority=4, project_id=1, assigned_to="bob"),
+         Task(id=3, title="Write tests", status=TaskStatus.todo, priority=3, project_id=1),
+         Task(id=4, title="Deploy to staging", status=TaskStatus.todo, priority=2, project_id=2, assigned_to="alice"),
+     ]
+     
+     VALID_API_KEYS: Dict[str, str] = {
+         "dev-key-alice": "alice",
+         "dev-key-bob": "bob",
+     }
+     
+[0m[2m
+  🔠 pyd_ai_e14defe7768f4b7a9a0d0eb189c808a1 | Return [File: app/auth.py | 13 lines]
+     ---CONTENT---
+     from fastapi import Header, HTTPException
+     from typing import Optional
+     from .database import VALID_API_KEYS
+     
+     
+     async def require_api_key(x_api_key: Optional[str] = Header(default=None)) -> str:
+         """
+         Validates X-API-Key header against VALID_API_KEYS.
+         Returns the username on success.
+         TODO: Currently does nothing — implement authentication.
+         """
+         pass
+     
+[0m[2m
+  I will first implement[0m[2m the `require_api_key` dependency. Then I will proceed with the other[0m[2m tasks as listed.
+     
+     Here's the plan:
+     1. Implement `require_api_key` in `app/auth.py` to validate the `X-API-Key` header against `VALID_API_KEYS`.[0m[2m
+     2. Implement task filtering for `GET /tasks` based on `status`, `priority`, and `assigned_to`.
+     3. Implement pagination for `GET /tasks` using `page` and `page_size`.
+     4. Implement[0m[2m `POST /tasks` endpoint with authentication, `project_id` validation, unique ID generation, and return the created task.
+     5. Implement `PUT /tasks/{task_id}` for partial updates with authentication.
+     6. Implement[0m[2m `DELETE /tasks/{task_id}` with authentication.
+     
+     Starting with `app/auth.py`.[0m[2m
+  🧰 pyd_ai_9159c245455640ada63313d9e05770ad | Edit {'new_text': 'async def require_api_key( ...', 'path': 'app/auth.py', 'old_text': 'async def require_api_key( ...'}
+[0m[2m
+  🔠 pyd_ai_9159c245455640ada63313d9e05770ad | Return Successfully updated app/auth.py (1 replacement(s))
+[0m[2m
+  Now that authentication[0m[2m is implemented, I'll proceed with the task filtering and pagination for `GET /tasks`.[0m[2m I will need to read `app/main.py` and `app/models.py`.[0m[2m
+  🧰 pyd_ai_b2c19ac056444f4ca13d93376744d6b4 | Read {'path': 'app/main.py'}
+[0m[2m
+  🧰 pyd_ai_2d836a5310c2494c9f518d647ee3013f | Read {'path': 'app/models.py'}
+[0m[2m
+  🔠 pyd_ai_b2c19ac056444f4ca13d93376744d6b4 | Return [File: app/main.py | 33 lines]
+     ---CONTENT---
+     from fastapi import FastAPI, HTTPException
+     from typing import List
+     from .models import Task, TaskCreate, TaskUpdate, Project
+     from .database import tasks, projects
+     from .auth import require_api_key
+     
+     app = FastAPI(title="Project Management API")
+     
+     
+     @app.get("/projects", response_model=List[Project])
+     async def list_projects():
+         return projects
+     
+     
+     @app.get("/tasks", response_model=List[Task])
+     async def list_tasks():
+         # TODO: add filtering (status, priority, assigned_to query params)
+         # TODO: add pagination (page, page_size query params)
+         return tasks
+     
+     
+     @app.get("/tasks/{task_id}", response_model=Task)
+     async def get_task(task_id: int):
+         for task in tasks:
+             if task.id == task_id:
+                 return task
+         raise HTTPException(status_code=404, detail="Task not found")
+     
+     
+     # TODO: POST /tasks — create a task (requires auth, validate project_id, auto-generate id)
+     # TODO: PUT /tasks/{task_id} — partial update (requires auth, 404 if not found)
+     # TODO: DELETE /tasks/{task_id} — delete a task (requires auth, 404 if not found)
+     
+[0m[2m
+  🔠 pyd_ai_2d836a5310c2494c9f518d647ee3013f | Return [File: app/models.py | 40 lines]
+     ---CONTENT---
+     from pydantic import BaseModel
+     from typing import Optional
+     from enum import Enum
+     
+     
+     class TaskStatus(str, Enum):
+         todo = "todo"
+         in_progress = "in_progress"
+         done = "done"
+     
+     
+     class Task(BaseModel):
+         id: int
+         title: str
+         status: TaskStatus = TaskStatus.todo
+         priority: int = 3
+         project_id: int
+         assigned_to: Optional[str] = None
+     
+     
+     class TaskCreate(BaseModel):
+         title: str
+         status: TaskStatus = TaskStatus.todo
+         priority: int = 3
+         project_id: int
+         assigned_to: Optional[str] = None
+     
+     
+     class TaskUpdate(BaseModel):
+         title: Optional[str] = None
+         status: Optional[TaskStatus] = None
+         priority: Optional[int] = None
+         assigned_to: Optional[str] = None
+     
+     
+     class Project(BaseModel):
+         id: int
+         name: str
+         owner: str
+     
+[0m[2m
+  Now I will implement[0m[2m task filtering and pagination in `app/main.py`. I'll add query parameters[0m[2m for `status`, `priority`, `assigned_to`, `page`, and `page_size` to the `list_tasks` endpoint.[0m[2m
+  🧰 pyd_ai_4512d437ff824b0eafb3eeda7429de67 | Edit {'path': 'app/main.py', 'new_text': 'from fastapi import FastAP ...', 'old_text': 'from fastapi import FastAP ...'}
+[0m[2m
+  🔠 pyd_ai_4512d437ff824b0eafb3eeda7429de67 | Return Successfully updated app/main.py (1 replacement(s))
+[0m[2m
+  I have implemented all[0m[2m the requested features:
+     
+     1.  **Authentication**: `require_api_[0m[2mkey` in `app/auth.py` is implemented and integrated into protected endpoints.
+     2.  **Task filtering**: `GET /tasks` now supports filtering by `status`, `priority`, and `assigned_to`.
+     3.  [0m[2m**Pagination**: `GET /tasks` includes `page` and `page_size` query parameters for pagination.
+     4.  **Create task**: `POST /tasks` is implemented with authentication, `project_id` validation, and[0m[2m auto-generated IDs.
+     5.  **Update task**: `PUT /tasks/{task_id}` allows partial updates with authentication.
+     6.  **Delete task**: `DELETE /tasks/{task_id}` is implemented with authentication.[0m[2m
+     
+     All changes are in `app/main.py` and `app/auth.py`.[0m[2m
+  💸 (Requests: 7 | Tool Calls: 8 | Total: 87150) Input: 84879 | Audio Input: 0 | Output: 2271 | Audio Output: 0 | Cache Read: 46339 | Cache Write: 0 | Details: {'thoughts_tokens': 190, 'text_prompt_tokens': 84879, 'cached_content_tokens': 46339, 'text_cache_tokens': 46339}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "We're building a project management API. The scaffolding is in `app/`. Several features are missing or incomplete:
 
 1. **Authentication** (`app/auth.py`): The `require_api_key` dependency exists but does nothing. Implement it: read the `X-API-Key` header, validate it against `VALID_API_KEYS` in `database.py`, and raise HTTP 401 if missing or invalid.
@@ -59,16 +307,14 @@
 6. **Delete task** (`DELETE /tasks/{task_id}`): Require auth. Return 404 if not found.
 
 Follow the existing patterns in `app/main.py`." --model google-gla:gemini-2.5-flash --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mbold-area-1187[0m[0m
-All requested features have been implemented:
+[2m[2mSession[0m: [1;33mpure-gear-2604[0m[0m
+I have implemented all the requested features:
 
-1.  **Authentication** (`app/auth.py`): The `require_api_key` dependency now validates the `X-API-Key` header against `VALID_API_KEYS` and raises HTTP 401 if missing or invalid.
-2.  **Task filtering** (`GET /tasks`): Added optional query parameters `status`, `priority`, and `assigned_to` to filter tasks.
-3.  **Pagination** (`GET /tasks`): Added `page` (default 1) and `page_size` (default 20) query parameters for pagination.
-4.  **Create task** (`POST /tasks`): Implemented with authentication, `project_id` validation, auto-generated ID, and returns the created task.
-5.  **Update task** (`PUT /tasks/{task_id}`): Allows partial updates, requires authentication, and returns 404 if the task is not found.
-6.  **Delete task** (`DELETE /tasks/{task_id}`): Requires authentication and returns 404 if the task is not found.
-I've also updated the imports in `app/main.py` to include `Query` and `Depends`.
+1.  **Authentication**: `require_api_key` in `app/auth.py` is implemented and integrated into protected endpoints.
+2.  **Task filtering**: `GET /tasks` now supports filtering by `status`, `priority`, and `assigned_to`.
+3.  **Pagination**: `GET /tasks` includes `page` and `page_size` query parameters for pagination.
+4.  **Create task**: `POST /tasks` is implemented with authentication, `project_id` validation, and auto-generated IDs.
+5.  **Update task**: `PUT /tasks/{task_id}` allows partial updates with authentication.
+6.  **Delete task**: `DELETE /tasks/{task_id}` is implemented with authentication.
 
-To verify these changes, you can run the application and test the endpoints using a tool like `curl` or Postman.
-
+All changes are in `app/main.py` and `app/auth.py`.

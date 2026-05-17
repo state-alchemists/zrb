@@ -8,25 +8,19 @@ class PaymentGateway:
         self._failure_rate = failure_rate
         self.total_charged: float = 0.0
         self.charges: List[dict] = []
-        self._charged_ids: Set[str] = set()
-        self._lock = asyncio.Lock()
+        self._charged_order_ids: Set[str] = set()
+
+    async def is_charged(self, order_id: str) -> bool:
+        await asyncio.sleep(0.01)
+        return order_id in self._charged_order_ids
 
     async def charge(self, order_id: str, amount: float) -> bool:
         await asyncio.sleep(0.03)
+        if order_id in self._charged_order_ids:
+            return True
         if random.random() < self._failure_rate:
             return False
         self.total_charged += amount
         self.charges.append({"order_id": order_id, "amount": amount})
+        self._charged_order_ids.add(order_id)
         return True
-
-    async def charge_once(self, order_id: str, amount: float) -> bool:
-        async with self._lock:
-            if order_id in self._charged_ids:
-                return False
-            self._charged_ids.add(order_id)
-
-        result = await self.charge(order_id, amount)
-        if not result:
-            async with self._lock:
-                self._charged_ids.discard(order_id)
-        return result

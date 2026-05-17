@@ -75,17 +75,13 @@ async def update_task(
     task_update: TaskUpdate,
     username: str = Depends(require_api_key)
 ):
-    for task in tasks:
+    for i, task in enumerate(tasks):
         if task.id == task_id:
-            if task_update.title is not None:
-                task.title = task_update.title
-            if task_update.status is not None:
-                task.status = task_update.status
-            if task_update.priority is not None:
-                task.priority = task_update.priority
-            if task_update.assigned_to is not None:
-                task.assigned_to = task_update.assigned_to
-            return task
+            # Apply partial updates
+            update_data = task_update.model_dump(exclude_unset=True)
+            for field, value in update_data.items():
+                setattr(tasks[i], field, value)
+            return tasks[i]
     
     raise HTTPException(status_code=404, detail="Task not found")
 
@@ -94,7 +90,7 @@ async def update_task(
 async def delete_task(task_id: int, username: str = Depends(require_api_key)):
     for i, task in enumerate(tasks):
         if task.id == task_id:
-            tasks.pop(i)
+            del tasks[i]
             return
     
     raise HTTPException(status_code=404, detail="Task not found")

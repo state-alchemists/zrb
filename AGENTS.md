@@ -54,7 +54,7 @@ source .venv/bin/activate && poetry lock && poetry install
 | `llm/tool/` | Agent-callable tools split by concern: `file_list`, `file_read`, `file_write`, `file_edit`, `file_search`, `file_analyze` (re-exported via `file.py`); plus `bash`, `code`, `web`, `rag`, `delegate`, `plan`, `mcp`, `skill`, `worktree`, `zrb_task`, `search/` |
 | `llm/tool_call/` | Tool call data structures and result handling |
 | `llm/ui/` | `UIProtocol` and terminal UI for streaming responses and tool approval. Split into `base/` (`ui.py`, `commands_mixin.py`) and `default/` (`ui.py`, `confirmation_mixin.py`, `keybindings_mixin.py`, `lifecycle_mixin.py`, `output_mixin.py`). |
-| `llm/util/` | LLM-specific helpers: `attachment`, `clipboard`, `git`, `history_formatter`, `image_scale`, `modality`, `multimodal_describe`, `prompt`, `stream_response` |
+| `llm/util/` | LLM-specific helpers: `attachment`, `capabilities` (per-model capability registry — input modalities, parallel-tool-call support; user-extensible via `register_model_capabilities`), `clipboard`, `git`, `history_formatter`, `image_scale`, `multimodal_describe`, `prompt`, `stream_response` |
 
 ### Test Locations
 | Directory | Purpose |

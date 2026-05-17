@@ -1,11 +1,11 @@
 [2m
-  🧰 1ezscizo | LS {'path': '.'}
+  🧰 c9jxlb57 | LS {'path': '.'}
 [0m[2m
-  🔠 1ezscizo | Return {'files': ['system_context.md']}
+  🔠 c9jxlb57 | Return {'files': ['system_context.md']}
 [0m[2m
-  🧰 wk67e0qc | Read {'path': 'system_context.md'}
+  🧰 6lgedx1b | Read {'path': 'system_context.md'}
 [0m[2m
-  🔠 wk67e0qc | Return [File: system_context.md | 44 lines]
+  🔠 6lgedx1b | Return [File: system_context.md | 44 lines]
      ---CONTENT---
      # System Context: Notifier Subsystem Decision
      
@@ -52,60 +52,314 @@
      - Must maintain exactly-once semantics for billing notifications
      
 [0m[2m
-  🧰 pmdrb184 | Write {'path': 'ADR-001-notification-archi ...', 'content': '# ADR-001: Notification Su ...'}
+  🧰 h7wu06hh | ActivateSkill {'name': 'core-design'}
 [0m[2m
-  🔠 pmdrb184 | Return Successfully wrote to ADR-001-notification-architecture.md
+  🧰 mlhbccyh | ActivateSkill {'name': 'core-writing'}
 [0m[2m
-  The Architecture Decision Record has been created[0m[2m and saved to `ADR-001-notification-architecture.md`.
+  🔠 h7wu06hh | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
      
-     ```markdown
-     # ADR-001[0m[2m: Selection of Redis Streams for Async Notification Processing
+     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-design
      
-     ## Title
-     ADR-001: Notification Subsystem Architecture
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
      
-     ##[0m[2m Status
-     Proposed
+     Companion files available in this directory:
+       templates/
+         decision-record.md
+     
+     ---
+     
+     ---
+     name: core-design
+     description: "Activate before any design work — system architecture, API design, data modeling, component decomposition, or trade-off analysis. Provides the Constraints → Explore → Decide → Specify → Plan workflow for sound, well-reasoned designs."
+     user-invocable: false
+     ---
+     # Skill: core-design
+     
+     Follow **Constraints → Explore → Decide → Specify → Plan** for every design task.
+     
+     ## Companion Templates
+     
+     When the current step matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
+     
+     | Trigger | Companion |
+     |---------|-----------|
+     | Recording a design decision worth preserving (during or after the Decide step) | `templates/decision-record.md` |
+     
+     ## Workflow
+     
+     ### 1. Constraints & Requirements
+     
+     - Extract explicit requirements and implicit constraints from the task.
+     - Identify what's in scope and what's out.
+     - Note non-negotiables: existing interfaces, backward compatibility, security, performance targets.
+     - If requirements are ambiguous, ask before designing further.
+     
+     ### 2. Architecture Exploration
+     
+     - Generate 2-3 distinct approaches. Avoid converging on the first idea.
+     - Compare each approach against: correctness, consistency with existing patterns, complexity, performance, maintainability, testability.
+     - Use `Grep`, `Glob`, and `Read` to study existing patterns before proposing new ones.
+     - For large or unfamiliar domains, activate `core-research` first to map the landscape.
+     
+     ### 3. Design Decision
+     
+     - Choose the best approach with explicit rationale.
+     - Document what was chosen AND what was rejected and why.
+     - The rationale should be specific enough that someone else could reconstruct the same decision from the constraints.
+     
+     ### 4. Specification
+     
+     - Define precise contracts: interfaces, data flow, error modes, edge cases.
+     - Be concrete enough that implementation is straightforward from the spec alone.
+     - Use `WriteTodos` to capture loose ends or open questions.
+     
+     ### 5. Implementation Plan
+     
+     - Break the design into discrete implementation steps.
+     - Each step: Action → Target → Verification.
+     - Order steps by dependency (what must exist before what).
+     
+     ## Safety Rules
+     
+     - **No premature implementation**: During steps 1-4, do not write or modify any code. Design decisions come before implementation.
+     - **Approval gate**: You must obtain explicit user approval of the design and plan before starting implementation.
+     
+     ## Output Standards
+     
+     - **Structured**: Clear sections matching the workflow above.
+     - **Precise**: Specific interfaces, types, and contracts — not vague descriptions.
+     - **Context-aware**: The design must fit the existing codebase, not introduce a new paradigm unless justified.
+     - **Transparent**: Surface trade-offs made and alternatives considered.
+     </ACTIVATED_SKILL>
+[0m[2m
+  🔠 mlhbccyh | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
+     
+     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-writing
+     
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
+     
+     Companion files available in this directory:
+       templates/
+         api-doc.md
+         commit-message.md
+         readme.md
+     
+     ---
+     
+     ---
+     name: core-writing
+     description: "Activate before any substantial writing — docs, copy, proposals, feedback, commit messages, or UI text. Provides copywriting frameworks, tone guidance, and editing workflow for clear, persuasive, polished output."
+     user-invocable: false
+     ---
+     # Skill: core-writing
+     
+     Follow **Brief → Structure → Draft → Polish** for every writing task.
+     
+     ## Companion Templates
+     
+     When the current task matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
+     
+     | Trigger | Companion |
+     |---------|-----------|
+     | Writing or rewriting a project README | `templates/readme.md` |
+     | Drafting a git commit message | `templates/commit-message.md` |
+     | Documenting a function, endpoint, or CLI command | `templates/api-doc.md` |
+     
+     ## Workflow
+     
+     ### 1. Brief & Audience
+     
+     - Who is reading this? What do they already know? What do they need to know?
+     - What outcome should this writing achieve?
+     - What tone fits: technical, persuasive, instructional, conversational?
+     
+     ### 2. Structure & Outline
+     
+     - **Technical docs**: Problem → Solution → Usage → API → Examples
+     - **Persuasive writing**: Hook → Context → Evidence → Resolution → CTA
+     - **Instructional**: Goal → Prerequisites → Steps → Verification → Troubleshooting
+     - One idea per paragraph. Lead with the conclusion. Use transitions.
+     
+     ### 3. Draft
+     
+     - Write freely. Don't edit while drafting.
+     - Apply the chosen structure. Fill in evidence and examples.
+     - Use active voice. Be specific over vague.
+     
+     ### 4. Polish & Edit
+     
+     - Omit needless words. Every word must earn its place.
+     - Check flow: read aloud. Fix awkward transitions.
+     - Verify accuracy: facts, code samples, references.
+     - Proof: spelling, grammar, consistent terminology.
+     
+     ## Copywriting Formulas
+     
+     | Formula | When to Use | Structure |
+     |---------|-------------|-----------|
+     | **AIDA** | Marketing, proposals, feature announcements | Attention → Interest → Desire → Action |
+     | **PAS** | Bug reports, problem-solving docs | Problem → Agitate → Solution |
+     | **Inverted Pyramid** | News, announcements, summaries | Conclusion → Key details → Background |
+     | **Before-After-Bridge** | Change proposals, migration guides | Current → Desired → How to get there |
+     | **FEBC** | Technical decisions | Fact → Explanation → Benefit → Conclusion |
+     
+     ## Tone Matrix
+     
+     | Audience | Tone | Characteristics |
+     |----------|------|-----------------|
+     | Developers | Technical, precise | Specific terms, code examples, no fluff |
+     | Product managers | Outcome-oriented | Problem → impact → timeline → trade-offs |
+     | End users | Friendly, clear | Simple language, concrete examples, next steps |
+     | Executives | Concise, strategic | Recommendation first, TL;DR, business impact |
+     
+     ## Quality Checklist
+     
+     Before finalizing:
+     - Does the first paragraph convey the main point?
+     - Can any sentence be shortened without losing meaning?
+     - Are all claims supported by evidence?
+     - Is the tone appropriate for the audience?
+     - Would this still make sense if read in isolation?
+     
+     </ACTIVATED_SKILL>
+[0m[2m
+  🧰 pfyig40x | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 pfyig40x | Return [File: /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-design/templates/decision-record.md | 76 lines]
+     ---CONTENT---
+     # Architecture Decision Record (ADR) Template
+     
+     Use this when core-design's **Decide** step produces a choice worth recording — anything a future reader (including the LLM in a later session) would want to reconstruct.
+     
+     ## File Location
+     
+     Store ADRs under the project's documentation:
+     
+     - Preferred: `docs/adr/NNNN-<short-slug>.md` (sequential, `0001`, `0002`, …)
+     - Acceptable: `.adr/`, `docs/decisions/`, or wherever the project already keeps them
+     
+     Check first with `Glob` — match existing project convention rather than inventing one.
+     
+     ## Format
+     
+     ````markdown
+     # ADR NNNN — <short title in imperative or noun phrase>
+     
+     - **Status**: Proposed | Accepted | Superseded by ADR NNNN | Deprecated
+     - **Date**: YYYY-MM-DD
+     - **Deciders**: <names or roles>
+     - **Context tags**: <comma-separated, e.g. auth, performance, storage>
      
      ## Context
-     The current notification system is synchronous, leading to 8s latency spikes, silent failures, and cascading[0m[2m connection pool exhaustion. We need to decouple this into an asynchronous process.
      
-     **Constraints:**
-     - **Team:** 6 engineers, no dedicated[0m[2m infra/SRE, no existing Kafka experience.
-     - **Timeline:** Must deliver value within 2 weeks.
-[0m[2m- **Budget:** Modest; managed Kafka (Confluent) is currently cost-prohibitive.
-     - **Current Stack:**[0m[2m Python/Flask, PostgreSQL, and Redis (already in production for sessions).
-     - **Scale:** ~500 req/s peak,[0m[2m needing to support 5,000 req/s (10x growth).
-     - **Requirements:** At[0m[2m-least-once delivery for general notifications, exactly-once semantics (EOS) for billing, and support for WebSockets.[0m[2m
+     What problem are we solving? What constraints apply? What changed that forces this decision now?
+     
+     State the situation neutrally — anyone reading this in a year should understand *why this came up* without needing the surrounding conversation.
      
      ## Decision
-     We will implement the notification subsystem using **Redis Streams**.
      
-     ### Justification
-     1. **Operational Sim[0m[2mplicity:** The team already operates Redis. Kafka introduces significant operational complexity (JVM tuning, partition management, ZooKeeper/KRaft) that[0m[2m a 6-person team cannot absorb within a 2-week delivery window.
-     2. **Infrastructure Synergy:** Redis[0m[2m Streams provides the necessary features (persistence, consumer groups, message IDs) without requiring new infrastructure or specialized Kafka expertise.
-     3. **Through[0m[2mput and Scale:** Redis can easily handle the 5,000 req/s target. Its in-memory nature provides[0m[2m lower latency for the "hot" notification path than a standard disk-bound Kafka setup.
-     4. **Exactly-Once Semantics ([0m[2mEOS):** For billing-critical notifications, we will use the **Transactional Outbox Pattern** in PostgreSQL (storing the event in the same[0m[2m transaction as the business logic) and use the message ID as an idempotency key at the consumer level. This achieves the[0m[2m requirement without the complexity of Kafka's transactional API.
-     5. **Real-time Readiness:** Redis's integration with[0m[2m WebSocket workflows (via Pub/Sub or Streams) is more straightforward for the planned real-time push features than Kafka's pull[0m[2m-based consumer model.
+     The single sentence stating what was chosen, in active voice.
      
-     ## Consequences
-     ### Pros
-     - **Immediate ROI:** Zero time spent on infrastructure provisioning or[0m[2m learning Kafka internals.
-     - **Low Operational Overhead:** No new services to monitor; leverages existing Redis backups/failover.[0m[2m
-     - **Horizontal Scaling:** Consumer groups allow multiple worker nodes to share the load.
-     - **Unified Stack:** Keeps[0m[2m the backend architecture simple and consistent.
+     > We will use <X> for <Y>.
      
-     ### Cons
-     - **Memory Management:** Redis is RAM-based; we must proactively[0m[2m use `XTRIM` or `MAXLEN` to prevent the notification history from consuming all server memory.
-     - **Manual[0m[2m Retry Logic:** We must manually handle message visibility timeouts (`XPENDING`/`XCLAIM`) to implement robust retries/[0m[2mDLQs.
-     - **Retention:** Unlike Kafka, which is designed for long-term data retention, Redis is a[0m[2m message broker; notification history should be offloaded to PostgreSQL for long-term storage.
+     Then, if needed, 1–3 paragraphs of clarification. No more.
+     
+     ## Rationale
+     
+     Why this option won. Tie back to the constraints in Context. Cite evidence (`file:line`, benchmarks, prior incidents).
      
      ## Alternatives Considered
-     ### Apache Kafka
-     - **Why[0m[2m Rejected:** Kafka is an excellent tool for massive data pipelines, but its "cost of entry" (complexity, setup time, and[0m[2m infrastructure cost) is too high for this team and project scale. The 2-week deadline makes Kafka a high-risk choice. Kafka[0m[2m’s advanced features like KSQL or massive partition counts are unnecessary for a 5,000 req/s notification system.[0m[2m
-     - **Future Pivot:** If we reach a scale where Redis memory costs exceed Kafka infrastructure costs, or if we need[0m[2m complex stream processing, the move from Redis Streams to Kafka is a logical and well-documented architectural evolution.
-     ```[0m[2m[0m[2m
-  💸 (Requests: 4 | Tool Calls: 3 | Total: 36623) Input: 32656 | Audio Input: 0 | Output: 3967 | Audio Output: 0 | Cache Read: 8019 | Cache Write: 0 | Details: {'text_prompt_tokens': 32656, 'thoughts_tokens': 2134, 'cached_content_tokens': 8019, 'text_cache_tokens': 8019}
+     
+     Each alternative gets a short paragraph:
+     - **<Option A>** — why rejected.
+     - **<Option B>** — why rejected.
+     
+     Be specific about what would have made the alternative win. ("We'd have chosen B if our throughput requirement were 10× higher.")
+     
+     ## Consequences
+     
+     What this decision *commits us to* and what it *closes off*.
+     
+     - **Positive**: <e.g., simpler operational model, fewer moving parts>
+     - **Negative**: <e.g., cannot horizontally scale beyond N without revisiting>
+     - **Follow-ups**: <concrete next steps — tests to write, docs to update, deprecations>
+     
+     ## Backlinks
+     
+     - [ADR index](index.md)
+     - <other ADRs that depend on or relate to this one>
+     ````
+     
+     ## Tone
+     
+     - Past or present tense, never future ("will" is fine in the Decision line, not in the body).
+     - Specific over vague. "We chose Postgres 16 over Redis Streams because our queue depth is bounded by row count, not message rate" beats "Postgres seemed more appropriate."
+     - Don't apologize, don't editorialize. State the decision and the evidence.
+     
+     ## ADR Lifecycle
+     
+     - **Proposed**: drafted but not yet agreed. Use during core-design's Decide step before user approval.
+     - **Accepted**: agreed and in force. Default after user approval.
+     - **Superseded**: replaced by a newer ADR. Add `Superseded by ADR NNNN` to the Status line; keep the file (do not delete history).
+     - **Deprecated**: the situation that motivated the decision no longer exists. Status line records why.
+     
+[0m[2m
+  # ADR-001-notification-architecture
+     
+     - **Status**: Proposed
+[0m[2m- **Date**: 2026-05-17
+     - **Deciders**: Engineering Team
+     - **Context tags[0m[2m**: notifications, infrastructure, messaging
+     
+     ## Context
+     
+     The current notification system in our project management platform is synchronous, leading to significant[0m[2m performance and reliability issues. Peak traffic (~500 req/s) results in request timeouts of up to 8 seconds[0m[2m and cascading failures due to connection pool exhaustion from slow webhook endpoints. Furthermore, we lack retry logic and delivery guarantees for critical[0m[2m billing events, and we must prepare for 10x traffic growth.
+     
+     Constraints include a 6-person team with no[0m[2m dedicated infrastructure engineer, a 2-week implementation deadline, a modest budget, and no existing experience with Apache Kafka. We[0m[2m already use Redis in production for session management and rate limiting.
+     
+     ## Decision
+     
+     > We will use **Redis Streams** as[0m[2m the backbone for the notification subsystem.
+     
+     We will leverage Redis Streams' consumer groups to decouple notification producers (the Flask monolith) from consumers ([0m[2mdedicated worker processes). For billing-critical notifications, we will implement idempotent consumers to ensure exactly-once semantics at the application[0m[2m level.
+     
+     ## Rationale
+     
+     Redis Streams is the optimal choice given our specific team constraints and scaling targets:
+     
+     -[0m[2m **Operational Simplicity**: The team already operates Redis in production. Adding Streams requires no new infrastructure, zero JVM tuning, and no[0m[2m management of Zookeeper or KRaft clusters, allowing us to meet the 2-week delivery deadline.
+     - **Through[0m[2mput & Scaling**: Redis can comfortably handle the 500 req/s peak and the projected 10x growth (5,[0m[2m000 req/s). Its sub-millisecond latency is ideal for the planned real-time WebSocket push notifications.[0m[2m
+     - **Reliability**: Redis Streams provides consumer groups, message acknowledgments (ACKs), and the Pending Entry List (PEL), enabling[0m[2m robust retry logic and ensuring no messages are silently dropped during consumer crashes.
+     - **Cost**: By utilizing our existing Redis[0m[2m infrastructure, we avoid the high costs associated with managed Kafka services (like Confluent Cloud) or the overhead of self-hosting[0m[2m a Kafka cluster.
+     - **Delivery Guarantees**: While Kafka offers native "exactly-once" transactions, Redis combined[0m[2m with application-level idempotency (using PostgreSQL to track processed message IDs) provides sufficient guarantees for billing events without the Kafka[0m[2m learning curve.
+     
+     ## Consequences
+     
+     - **Positive**:
+       - Immediate elimination of synchronous blocking in the HTTP request cycle.[0m[2m
+       - Minimal learning curve for the existing team.
+       - Unified infrastructure (Redis handles sessions, rate limiting, and now[0m[2m messaging).
+       - Built-in support for multiple consumers and fan-out patterns (needed for WebSockets).
+     -[0m[2m **Negative**:
+       - **Memory Pressure**: Since Redis is an in-memory store, we must use `X[0m[2mADD` with `MAXLEN` to cap stream length and prevent memory exhaustion. Long-term message retention is not feasible[0m[2m in Redis.
+       - **Manual Idempotency**: Developers must manually implement and test idempotent logic for billing events, as[0m[2m Redis lacks Kafka's end-to-end transactional guarantees.
+     - **Follow-ups**:
+       - Implement[0m[2m a Dead Letter Queue (DLQ) pattern for messages that exceed max retry attempts.
+       - Set up monitoring for[0m[2m Redis memory usage and stream consumer lag.
+     
+     ## Alternatives Considered
+     
+     - **Apache Kafka**: Rejected primarily due to high operational complexity and the [0m[2m2-week time constraint. The team lacks experience, and the cost of managed Kafka is prohibitive at our current scale. While Kafka offers[0m[2m superior disk-based retention and native exactly-once semantics, it is "over-engineering" for a 6-person team handling[0m[2m 500-5,000 req/s.
+     - **RabbitMQ**: Rejected because it introduces[0m[2m a new piece of infrastructure to manage. While it handles retries and DLQs well, it lacks the easy "replayability[0m[2m" and stream-native features of Redis Streams, and wouldn't be as performant for the upcoming WebSocket requirements.
+     
+     ##[0m[2m Backlinks
+     
+     - [system_context.md](system_context.md)[0m[2m[0m[2m
+  💸 (Requests: 5 | Tool Calls: 5 | Total: 54184) Input: 51001 | Audio Input: 0 | Output: 3183 | Audio Output: 0 | Cache Read: 24129 | Cache Write: 0 | Details: {'text_prompt_tokens': 51001, 'thoughts_tokens': 2196, 'cached_content_tokens': 24129, 'text_cache_tokens': 24129}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "Read `system_context.md`. It describes a real production system and a specific architectural problem we need to solve.
 
 Write an Architecture Decision Record (ADR) evaluating two options for the notification subsystem:
@@ -123,53 +377,55 @@ Your ADR must follow this exact structure:
 Make a definitive recommendation. Use specific technical properties (throughput, ordering guarantees, message retention, consumer groups, exactly-once semantics, operational complexity) to justify your choice given the team size and constraints described.
 
 Save as `ADR-001-notification-architecture.md`." --model google-gla:gemini-3-flash-preview --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33msoft-cube-1379[0m[0m
-The Architecture Decision Record has been created and saved to `ADR-001-notification-architecture.md`.
+[2m[2mSession[0m: [1;33mlate-fuel-3769[0m[0m
+# ADR-001-notification-architecture
 
-```markdown
-# ADR-001: Selection of Redis Streams for Async Notification Processing
-
-## Title
-ADR-001: Notification Subsystem Architecture
-
-## Status
-Proposed
+- **Status**: Proposed
+- **Date**: 2026-05-17
+- **Deciders**: Engineering Team
+- **Context tags**: notifications, infrastructure, messaging
 
 ## Context
-The current notification system is synchronous, leading to 8s latency spikes, silent failures, and cascading connection pool exhaustion. We need to decouple this into an asynchronous process.
 
-**Constraints:**
-- **Team:** 6 engineers, no dedicated infra/SRE, no existing Kafka experience.
-- **Timeline:** Must deliver value within 2 weeks.
-- **Budget:** Modest; managed Kafka (Confluent) is currently cost-prohibitive.
-- **Current Stack:** Python/Flask, PostgreSQL, and Redis (already in production for sessions).
-- **Scale:** ~500 req/s peak, needing to support 5,000 req/s (10x growth).
-- **Requirements:** At-least-once delivery for general notifications, exactly-once semantics (EOS) for billing, and support for WebSockets.
+The current notification system in our project management platform is synchronous, leading to significant performance and reliability issues. Peak traffic (~500 req/s) results in request timeouts of up to 8 seconds and cascading failures due to connection pool exhaustion from slow webhook endpoints. Furthermore, we lack retry logic and delivery guarantees for critical billing events, and we must prepare for 10x traffic growth.
+
+Constraints include a 6-person team with no dedicated infrastructure engineer, a 2-week implementation deadline, a modest budget, and no existing experience with Apache Kafka. We already use Redis in production for session management and rate limiting.
 
 ## Decision
-We will implement the notification subsystem using **Redis Streams**.
 
-### Justification
-1. **Operational Simplicity:** The team already operates Redis. Kafka introduces significant operational complexity (JVM tuning, partition management, ZooKeeper/KRaft) that a 6-person team cannot absorb within a 2-week delivery window.
-2. **Infrastructure Synergy:** Redis Streams provides the necessary features (persistence, consumer groups, message IDs) without requiring new infrastructure or specialized Kafka expertise.
-3. **Throughput and Scale:** Redis can easily handle the 5,000 req/s target. Its in-memory nature provides lower latency for the "hot" notification path than a standard disk-bound Kafka setup.
-4. **Exactly-Once Semantics (EOS):** For billing-critical notifications, we will use the **Transactional Outbox Pattern** in PostgreSQL (storing the event in the same transaction as the business logic) and use the message ID as an idempotency key at the consumer level. This achieves the requirement without the complexity of Kafka's transactional API.
-5. **Real-time Readiness:** Redis's integration with WebSocket workflows (via Pub/Sub or Streams) is more straightforward for the planned real-time push features than Kafka's pull-based consumer model.
+> We will use **Redis Streams** as the backbone for the notification subsystem.
+
+We will leverage Redis Streams' consumer groups to decouple notification producers (the Flask monolith) from consumers (dedicated worker processes). For billing-critical notifications, we will implement idempotent consumers to ensure exactly-once semantics at the application level.
+
+## Rationale
+
+Redis Streams is the optimal choice given our specific team constraints and scaling targets:
+
+- **Operational Simplicity**: The team already operates Redis in production. Adding Streams requires no new infrastructure, zero JVM tuning, and no management of Zookeeper or KRaft clusters, allowing us to meet the 2-week delivery deadline.
+- **Throughput & Scaling**: Redis can comfortably handle the 500 req/s peak and the projected 10x growth (5,000 req/s). Its sub-millisecond latency is ideal for the planned real-time WebSocket push notifications.
+- **Reliability**: Redis Streams provides consumer groups, message acknowledgments (ACKs), and the Pending Entry List (PEL), enabling robust retry logic and ensuring no messages are silently dropped during consumer crashes.
+- **Cost**: By utilizing our existing Redis infrastructure, we avoid the high costs associated with managed Kafka services (like Confluent Cloud) or the overhead of self-hosting a Kafka cluster.
+- **Delivery Guarantees**: While Kafka offers native "exactly-once" transactions, Redis combined with application-level idempotency (using PostgreSQL to track processed message IDs) provides sufficient guarantees for billing events without the Kafka learning curve.
 
 ## Consequences
-### Pros
-- **Immediate ROI:** Zero time spent on infrastructure provisioning or learning Kafka internals.
-- **Low Operational Overhead:** No new services to monitor; leverages existing Redis backups/failover.
-- **Horizontal Scaling:** Consumer groups allow multiple worker nodes to share the load.
-- **Unified Stack:** Keeps the backend architecture simple and consistent.
 
-### Cons
-- **Memory Management:** Redis is RAM-based; we must proactively use `XTRIM` or `MAXLEN` to prevent the notification history from consuming all server memory.
-- **Manual Retry Logic:** We must manually handle message visibility timeouts (`XPENDING`/`XCLAIM`) to implement robust retries/DLQs.
-- **Retention:** Unlike Kafka, which is designed for long-term data retention, Redis is a message broker; notification history should be offloaded to PostgreSQL for long-term storage.
+- **Positive**:
+  - Immediate elimination of synchronous blocking in the HTTP request cycle.
+  - Minimal learning curve for the existing team.
+  - Unified infrastructure (Redis handles sessions, rate limiting, and now messaging).
+  - Built-in support for multiple consumers and fan-out patterns (needed for WebSockets).
+- **Negative**:
+  - **Memory Pressure**: Since Redis is an in-memory store, we must use `XADD` with `MAXLEN` to cap stream length and prevent memory exhaustion. Long-term message retention is not feasible in Redis.
+  - **Manual Idempotency**: Developers must manually implement and test idempotent logic for billing events, as Redis lacks Kafka's end-to-end transactional guarantees.
+- **Follow-ups**:
+  - Implement a Dead Letter Queue (DLQ) pattern for messages that exceed max retry attempts.
+  - Set up monitoring for Redis memory usage and stream consumer lag.
 
 ## Alternatives Considered
-### Apache Kafka
-- **Why Rejected:** Kafka is an excellent tool for massive data pipelines, but its "cost of entry" (complexity, setup time, and infrastructure cost) is too high for this team and project scale. The 2-week deadline makes Kafka a high-risk choice. Kafka’s advanced features like KSQL or massive partition counts are unnecessary for a 5,000 req/s notification system.
-- **Future Pivot:** If we reach a scale where Redis memory costs exceed Kafka infrastructure costs, or if we need complex stream processing, the move from Redis Streams to Kafka is a logical and well-documented architectural evolution.
-```
+
+- **Apache Kafka**: Rejected primarily due to high operational complexity and the 2-week time constraint. The team lacks experience, and the cost of managed Kafka is prohibitive at our current scale. While Kafka offers superior disk-based retention and native exactly-once semantics, it is "over-engineering" for a 6-person team handling 500-5,000 req/s.
+- **RabbitMQ**: Rejected because it introduces a new piece of infrastructure to manage. While it handles retries and DLQs well, it lacks the easy "replayability" and stream-native features of Redis Streams, and wouldn't be as performant for the upcoming WebSocket requirements.
+
+## Backlinks
+
+- [system_context.md](system_context.md)

@@ -1,11 +1,11 @@
 # Zrb v2 Migration Guide
 
-This guide provides everything you need to migrate your integrations from Zrb v1 to Zrb v2. v2 introduces projects, improved pagination, and stricter authentication requirements.
+Zrb v2 introduces projects, improved pagination, and stricter authentication. This guide outlines the breaking changes from v1 and provides a step-by-step path to upgrade your integrations.
 
 ## Breaking Changes
 
-### 1. New API Prefix
-All API endpoints are now versioned. You must prefix all requests with `/v2/`.
+### 1. New Base URL Prefix
+All API endpoints now require a `/v2/` prefix.
 
 **Before:**
 `GET /tasks`
@@ -15,23 +15,23 @@ All API endpoints are now versioned. You must prefix all requests with `/v2/`.
 
 ---
 
-### 2. Authentication Header
-The custom `X-Auth-Token` header has been deprecated in favor of the standard `Authorization` Bearer token scheme.
+### 2. Standardized Authentication
+Authentication has moved from a custom header to the standard `Authorization` Bearer scheme.
 
 **Before:**
 ```http
-X-Auth-Token: <your_api_key>
+X-Auth-Token: your_api_key
 ```
 
 **After:**
 ```http
-Authorization: Bearer <your_api_token>
+Authorization: Bearer your_api_token
 ```
 
 ---
 
 ### 3. Task ID Type Change
-Task IDs have migrated from auto-incrementing integers to UUID strings to better support distributed systems and projects.
+Task IDs have changed from auto-incrementing integers to UUID strings to better support distributed environments and future project features.
 
 **Before:**
 ```json
@@ -51,29 +51,29 @@ Task IDs have migrated from auto-incrementing integers to UUID strings to better
 
 ---
 
-### 4. Field Rename: `done` to `completed`
-To improve clarity, the `done` boolean field on task objects has been renamed to `completed`.
+### 4. Field Renaming: `done` to `completed`
+The `done` field on Task objects has been renamed to `completed` for consistency with broader industry naming conventions.
 
 **Before:**
 ```json
 {
-  "title": "Buy milk",
-  "done": false
+  "title": "Ship v1",
+  "done": true
 }
 ```
 
 **After:**
 ```json
 {
-  "title": "Buy milk",
-  "completed": false
+  "title": "Ship v1",
+  "completed": true
 }
 ```
 
 ---
 
-### 5. Mandatory Project ID for Task Creation
-Tasks are now organized into projects. Every new task must be associated with a `project_id`.
+### 5. Mandatory `project_id` for Task Creation
+Tasks must now belong to a project. When creating a task, you must provide a valid `project_id`.
 
 **Before:**
 ```json
@@ -95,13 +95,13 @@ POST /v2/tasks
 ---
 
 ### 6. Paginated List Responses
-List endpoints no longer return a bare array. They now return a paginated envelope containing metadata and a cursor for fetching subsequent pages.
+List endpoints no longer return a bare array. Instead, they return a paginated envelope containing metadata and a cursor for fetching subsequent pages.
 
 **Before:**
 ```json
 [
-  {"id": 1, "title": "Buy milk", ...},
-  {"id": 2, "title": "Ship v1", ...}
+  {"id": 1, "title": "Buy milk"},
+  {"id": 2, "title": "Ship v1"}
 ]
 ```
 
@@ -109,11 +109,11 @@ List endpoints no longer return a bare array. They now return a paginated envelo
 ```json
 {
   "items": [
-    {"id": "a1b2...", "title": "Buy milk", ...},
-    {"id": "c3d4...", "title": "Ship v1", ...}
+    {"id": "...", "title": "Buy milk"},
+    {"id": "...", "title": "Ship v1"}
   ],
   "total": 2,
-  "next_cursor": "cursor_xyz"
+  "next_cursor": null
 }
 ```
 
@@ -121,18 +121,18 @@ List endpoints no longer return a bare array. They now return a paginated envelo
 
 ## Migration Checklist
 
-- [ ] Update all API base URLs to include the `/v2/` prefix.
-- [ ] Replace `X-Auth-Token` headers with `Authorization: Bearer <token>`.
-- [ ] Update Task data models to accept UUID strings for the `id` field.
-- [ ] Rename the `done` field to `completed` in your application logic and UI.
-- [ ] Update task creation logic to include the required `project_id`.
-- [ ] Refactor list handling to extract task items from the new paginated envelope (`.items`).
-- [ ] Implement cursor-based pagination logic using the `next_cursor` field if needed.
+1. [ ] **Update Auth Header**: Switch from `X-Auth-Token` to `Authorization: Bearer`.
+2. [ ] **Update Base URLs**: Append `/v2/` to all API request paths.
+3. [ ] **Refactor ID Handling**: Update your data models and logic to handle UUID strings instead of integers.
+4. [ ] **Rename Fields**: Update all references to the `done` field to use `completed`.
+5. [ ] **Inject Project IDs**: Ensure your `POST /v2/tasks` calls include a `project_id`.
+6. [ ] **Update List Parsing**: Adjust your response parsing logic to extract items from the `.items` property of the new paginated envelope.
+7. [ ] **Implement Pagination**: If you have many tasks, update your list logic to use the `next_cursor` and `?cursor=` query parameter.
 
 ## Upgrade Command
 
-To update your Zrb CLI to the latest version, run:
+To upgrade the Zrb CLI to the latest version, run:
 
 ```bash
-zrb upgrade
+pip install --upgrade zrb
 ```

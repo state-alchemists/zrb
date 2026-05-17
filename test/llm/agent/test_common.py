@@ -309,3 +309,50 @@ def test_create_agent_retries_fallback():
             create_agent(model="test-model", retries=2, yolo=True)
             args, kwargs = mock_agent_class.call_args
             assert kwargs.get("tool_retries") == 2
+
+
+def test_create_agent_forces_sequential_for_parallel_unsupported_model():
+    """Models in the capabilities deny-list get ``parallel_tool_calls=False``."""
+    from zrb.llm.agent.common import create_agent
+
+    mock_agent_class = MagicMock()
+    with patch("pydantic_ai.Agent", mock_agent_class):
+        create_agent(
+            model="ollama:minimax-m2.7:cloud",
+            system_prompt="test",
+            yolo=True,
+        )
+
+    _, kwargs = mock_agent_class.call_args
+    assert kwargs.get("model_settings") == {"parallel_tool_calls": False}
+
+
+def test_create_agent_respects_caller_parallel_tool_calls_override():
+    """Caller-supplied ``parallel_tool_calls`` is never overwritten."""
+    from zrb.llm.agent.common import create_agent
+
+    mock_agent_class = MagicMock()
+    with patch("pydantic_ai.Agent", mock_agent_class):
+        create_agent(
+            model="ollama:minimax-m2.7:cloud",
+            system_prompt="test",
+            model_settings={"parallel_tool_calls": True, "temperature": 0.5},
+            yolo=True,
+        )
+
+    _, kwargs = mock_agent_class.call_args
+    settings = kwargs.get("model_settings")
+    assert settings == {"parallel_tool_calls": True, "temperature": 0.5}
+
+
+def test_create_agent_leaves_unknown_models_unchanged():
+    """A model with no explicit capability entry gets no settings injection."""
+    from zrb.llm.agent.common import create_agent
+
+    mock_agent_class = MagicMock()
+    with patch("pydantic_ai.Agent", mock_agent_class):
+        create_agent(model="openai:gpt-4o", system_prompt="test", yolo=True)
+
+    _, kwargs = mock_agent_class.call_args
+    # No injection: ``model_settings`` stays as the caller passed (None here).
+    assert kwargs.get("model_settings") is None

@@ -186,13 +186,16 @@ def create_agent(
 
     final_model = default_llm_config.resolve_model(model)
     effective_retries = retries if retries is not None else CFG.LLM_TOOL_MAX_RETRIES
+    effective_model_settings = _apply_capability_constraints(
+        model, final_model, model_settings
+    )
 
     agent = Agent(
         model=final_model,
         output_type=final_output_type,
         instructions=effective_system_prompt,
         toolsets=effective_toolsets,
-        model_settings=model_settings,
+        model_settings=effective_model_settings,
         # history_processors intentionally omitted: pydantic-ai applies them on a
         # shallow copy of message_history without writing back, so any summarization
         # it does is immediately discarded. We apply them ourselves in _prepare_history
@@ -203,3 +206,41 @@ def create_agent(
     )
     agent._zrb_history_processors = history_processors or []  # type: ignore[attr-defined]
     return agent
+
+
+def _apply_capability_constraints(
+    model: "Model | str | None",
+    final_model: "Model | str | None",
+    model_settings: "ModelSettings | None",
+) -> "ModelSettings | None":
+    """Translate :mod:`zrb.llm.util.capabilities` into pydantic-ai settings.
+
+    Currently the only constraint applied here is
+    ``supports_parallel_tool_calls=False`` → ``parallel_tool_calls=False``
+    in the provider request. Caller-supplied settings always win — if
+    ``parallel_tool_calls`` is already set, this helper leaves it alone.
+
+    .. note::
+
+       This is **defense-in-depth, not the primary fix** for models that
+       malform parallel tool calls. Real OpenAI / Azure OpenAI honor the
+       flag; Ollama-cloud's OpenAI-compatible endpoint silently ignores
+       it (verified empirically against minimax-m2.7 and glm-4.7). The
+       **prompt-side** parallel-tool-call section in the Tool Usage Guide
+       (see :func:`zrb.llm.prompt.tool_guidance.get_parallel_tool_call_section`)
+       is what actually changes those models' behavior. Both layers use
+       the same capability registry, so toggling
+       ``supports_parallel_tool_calls`` in one place updates both.
+    """
+    from zrb.llm.util.capabilities import model_capabilities
+
+    capabilities = model_capabilities.get(
+        model if isinstance(model, str) else final_model
+    )
+    if capabilities.supports_parallel_tool_calls is not False:
+        return model_settings
+    if model_settings is None:
+        return {"parallel_tool_calls": False}
+    if "parallel_tool_calls" in model_settings:
+        return model_settings
+    return {**model_settings, "parallel_tool_calls": False}

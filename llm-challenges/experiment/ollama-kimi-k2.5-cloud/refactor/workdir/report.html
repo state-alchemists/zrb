@@ -1,12 +1,20 @@
+<!DOCTYPE html>
 <html>
-<head><title>System Report</title></head>
+<head>
+<title>System Report</title>
+<style>
+table { border-collapse: collapse; }
+th, td { border: 1px solid #ccc; padding: 8px; }
+th { background-color: #f0f0f0; }
+</style>
+</head>
 <body>
 <h1>Error Summary</h1>
 <ul>
 <li><b>Database timeout</b>: 2 occurrences</li>
 </ul>
 <h2>API Latency</h2>
-<table border='1'>
+<table>
 <tr><th>Endpoint</th><th>Avg (ms)</th></tr>
 <tr><td>/users/profile</td><td>250.0</td></tr>
 </table>

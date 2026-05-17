@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -101,6 +101,45 @@ def test_prompt_manager_include_sections_property():
 
     manager.include_sections = None
     assert manager.include_sections is None
+
+
+def test_prompt_manager_model_property_defaults_to_none():
+    """``PromptManager.model`` starts unset; set by the task runner."""
+    manager = PromptManager()
+    assert manager.model is None
+    manager.model = "openai:gpt-4o"
+    assert manager.model == "openai:gpt-4o"
+
+
+def test_prompt_manager_threads_model_into_system_context():
+    """``model`` set on the manager appears in the rendered system context — identity only."""
+    manager = PromptManager(include_sections=["system_context"])
+    manager.model = "ollama:minimax-m2.7:cloud"
+
+    ctx = MagicMock()
+    ctx.input.session = "manager-model-test"
+    composed = manager.compose_prompt()
+    with patch("zrb.llm.tool.plan.todo_manager") as mock_tm:
+        mock_tm.get_todos.return_value = None
+        rendered = composed(ctx)
+
+    assert "- Model: ollama:minimax-m2.7:cloud" in rendered
+    # The capability warning is in Tool Usage Guide, not system context.
+    assert "CRITICAL" not in rendered
+
+
+def test_prompt_manager_tool_guidance_sections_injected_before_catalogue():
+    """`tool_guidance_sections` content appears in the Tool Usage Guide output."""
+    manager = PromptManager(include_sections=["tool_guidance"])
+    manager.tool_guidance_sections = ["## Tool Call Parallelism\n- ⛔ Test warning."]
+
+    ctx = MagicMock()
+    composed = manager.compose_prompt()
+    rendered = composed(ctx)
+
+    assert "# Tool Usage Guide" in rendered
+    assert "## Tool Call Parallelism" in rendered
+    assert "Test warning." in rendered
 
 
 def test_prompt_manager_render_true_with_string_prompt():

@@ -63,6 +63,7 @@ def verify():
         print("VERIFICATION_RESULT: EXCELLENT")
     else:
         print("PASS: All simulation runs passed")
+        print("WARN: No concurrency primitive (Lock) detected — add one for EXCELLENT")
         print("VERIFICATION_RESULT: PASS")
     return True
 

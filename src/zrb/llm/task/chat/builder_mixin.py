@@ -152,6 +152,26 @@ class BuilderMixin:
         """Add tool guidance entries to be applied when prompt_manager is available."""
         self._pending_tool_guidance.extend(guidance)
 
+    def add_tool_guidance_section_factory(
+        self,
+        *section_factory: "Callable[[AnyContext, Any], str | None]",
+    ):
+        self.append_tool_guidance_section_factory(*section_factory)
+
+    def append_tool_guidance_section_factory(
+        self,
+        *section_factory: "Callable[[AnyContext, Any], str | None]",
+    ):
+        """Register a factory that renders a model-aware Tool Usage Guide section.
+
+        Each factory is called per-exec with ``(ctx, resolved_model)`` — the
+        same model that drives ``create_agent`` — and returns a Markdown
+        block (typically starting with ``## Heading``) or an empty string /
+        ``None`` to skip injection. Resulting blocks are inserted at the top
+        of ``# Tool Usage Guide``, above the per-tool catalogue.
+        """
+        self._tool_guidance_section_factories += list(section_factory)
+
     def _apply_tool_guidance(self):
         """Apply all pending tool guidance to the prompt manager."""
         if self._prompt_manager is None:

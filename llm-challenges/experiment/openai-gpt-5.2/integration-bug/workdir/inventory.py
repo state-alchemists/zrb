@@ -19,15 +19,15 @@ class Inventory:
             return False
 
     async def reserve(self, quantity: int) -> bool:
-        """Atomically reserve stock (decrement if available).
+        """Atomically reserve stock by decrementing it.
 
-        This prevents overselling under concurrency by making the check+decrement one step.
+        This prevents overselling under concurrent checkouts.
         """
-        async with self._lock:
-            if self._stock >= quantity:
-                self._stock -= quantity
-                return True
-            return False
+        return await self.decrement(quantity)
+
+    async def release(self, quantity: int) -> None:
+        """Release previously reserved stock."""
+        await self.increment(quantity)
 
     async def increment(self, quantity: int) -> None:
         await asyncio.sleep(0.01)

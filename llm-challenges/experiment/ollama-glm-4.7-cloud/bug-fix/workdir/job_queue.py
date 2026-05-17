@@ -27,7 +27,7 @@ class JobQueue:
                 if job["status"] == "pending":
                     job["status"] = "processing"
                     return job
-        return None
+            return None
 
     def complete(self, job_id: int, result: Any) -> None:
         self._jobs[job_id]["status"] = "done"

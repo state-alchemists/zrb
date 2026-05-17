@@ -1,6 +1,28 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.28.2a1 (May 15, 2026)
+
+- **Improvement: Journal mandate wording tightened + rationale added**:
+  - `journal_mandate.md`: Changed "decided between approaches" to "created significant decision" in the activity-log trigger — more precise about what warrants a log entry (decisions that change direction, not every binary choice).
+  - Added a "Why 'before reply'?" section explaining that a finding not logged before replying is lost if the session closes. Deferring is equivalent to discarding.
+
+- **Feature: Per-model capability registry (`zrb.llm.util.capabilities`)**:
+  - New `ModelCapabilityRegistry` class with module-level singleton `model_capabilities`. Tracks `supports_image_input`, `supports_audio_input`, `supports_video_input`, and tri-state `supports_parallel_tool_calls` (`None` unknown, `False` known-malforms) per model. Field names follow LiteLLM conventions.
+  - Built-in pattern table seeded from the previous `modality.py` entries (GPT-4o/4.1/5, Claude 3/4, Gemini, Llava, Pixtral, …) plus deny entries for `minimax-m2.7` and `glm-4.7` whose providers emit malformed concatenated tool calls when asked to batch.
+  - User-extensible from `zrb_init.py`: `model_capabilities.register("pattern", **overrides)` — most-recent-registered wins on match; unknown field names raise `TypeError`.
+  - `create_agent()` consults the registry: when `supports_parallel_tool_calls is False`, injects `parallel_tool_calls=False` into pydantic-ai `ModelSettings`. Caller-supplied settings always win.
+  - **Internal rename**: `src/zrb/llm/util/modality.py` removed; replaced by `src/zrb/llm/util/capabilities.py`. The module was not part of the public API, but `multimodal_describe.py` (the only consumer) was updated to use `model_capabilities.supports_modality(...)`.
+  - Docs: new "Model Capabilities" section in `docs/advanced-topics/llm-integration.md`.
+
+- **Improvement: Mandate refactor — MECE pass + softer rule wording**:
+  - `mandate.md`: dropped redundant "same turn" phrasing from line 27 (covered by line 42 post-activation rule); removed `Strategic re-evaluation` bullet from `Engineering Standards` (Recovery section's `Repeated failures` is the better home).
+  - Softened post-activation directive: `"…is an incomplete turn"` → `"…that's a cue to make the next tool call instead"`. Softened communication directive: `"the same turn must include the tool call"` → `"that's a cue to call the tool"`. Hard-prohibition phrasing was triggering aggressive batching attempts in weaker/non-parallel-capable models (glm-4.7 collapsed across 4 challenges); cue-framing preserves the signal for capable models while removing the trap.
+  - Softened parallelize rule: `"Parallelize independent calls"` → `"Parallelize when your runtime supports it. If your tool-call format permits multiple calls in one response, issue independent calls together. Otherwise call them sequentially — correctness over batching."`
+
+- **Improvement: Invalid-tool-call retry message covers both failure modes**:
+  - `retry_loop.py`: the corrective message injected when a model emits an invalid tool name now addresses both possibilities (invented name vs. concatenation of valid names like `ReadRead`) and gives a positive instruction ("emit exactly ONE tool call per response; the next call comes in your next response").
+
 ## 2.28.1 (May 15, 2026)
 
 - **Bug Fix: `[build-system]` typo in `pyproject.toml`**:

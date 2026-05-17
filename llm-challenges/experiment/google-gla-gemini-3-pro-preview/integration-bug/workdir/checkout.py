@@ -10,14 +10,9 @@ async def checkout(
     inventory: Inventory,
     gateway: PaymentGateway,
 ) -> bool:
-    available = await inventory.check_stock(quantity)
-    if not available:
-        print(f"Order {order_id}: out of stock")
-        return False
-
     decremented = await inventory.decrement(quantity)
     if not decremented:
-        print(f"Order {order_id}: out of stock (concurrent)")
+        print(f"Order {order_id}: out of stock")
         return False
 
     charged = await gateway.charge(order_id, quantity * price)

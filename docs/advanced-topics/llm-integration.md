@@ -12,6 +12,7 @@ Zrb comes with a powerful, built-in AI assistant that can understand your codeba
 - [Programmatic Usage](#programmatic-usage-llmtask-and-llmchattask)
 - [Built-in LLM Tools](#built-in-llm-tools)
 - [Custom Tools and Sub-agents](#custom-tools-and-sub-agents)
+- [Model Capabilities](#model-capabilities)
 - [Context Management](#context-management)
 - [Quick Reference](#quick-reference)
 
@@ -289,6 +290,54 @@ Sub-agent files are discovered from (in priority order):
 3. Paths in `ZRB_LLM_EXTRA_AGENT_DIRS`
 
 > 💡 **Benefit:** Sub-agents isolate context and keep the main conversation history clean.
+
+---
+
+## Model Capabilities
+
+Zrb maintains a per-model capability registry that tracks what each model can and can't do — image/audio/video input, whether parallel tool calls are supported, and so on. It's used internally to decide things like *"should I let pydantic-ai emit parallel tool calls for this model?"* and *"is the user attaching an image to a text-only model — describe it via the multimodal fallback?"*.
+
+The registry ships with a built-in name-pattern table (it knows about GPT-4o, Claude, Gemini, Llava, etc.) and exposes a module-level singleton you can extend from `zrb_init.py`:
+
+```python
+from zrb.llm.util.capabilities import model_capabilities
+
+# Tell zrb about your private model
+model_capabilities.register(
+    "my-private-model",
+    supports_image_input=True,
+    supports_parallel_tool_calls=False,
+)
+```
+
+`register(pattern, **overrides)` takes a case-insensitive regex matched against the bare model name (the part after `provider:`) and any subset of capability fields. Unspecified fields keep their pattern-table values. Most recently registered entries take priority on match.
+
+### Capability fields
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `supports_image_input` | `bool` | Model accepts image attachments |
+| `supports_audio_input` | `bool` | Model accepts audio attachments |
+| `supports_video_input` | `bool` | Model accepts video attachments |
+| `supports_parallel_tool_calls` | `bool \| None` | Tri-state: `True` known-good, `False` known-malforms parallel calls (zrb sets `parallel_tool_calls=False` at the provider level), `None` unknown — pass through |
+
+Field names mirror LiteLLM's `supports_*` conventions.
+
+### Querying
+
+```python
+caps = model_capabilities.get("openai:gpt-4o")
+if caps.supports_image_input:
+    ...
+
+# Convenience predicate
+if model_capabilities.supports_modality("openai:gpt-4o", "image"):
+    ...
+```
+
+`get()` returns conservative defaults (`False`/`None`) for `None` or unknown models, so callers should treat absence as "unknown — pass through" rather than "actively unsupported".
+
+> 💡 The default singleton is shared across the process. Tests that need full isolation can instantiate `ModelCapabilityRegistry()` directly.
 
 ---
 

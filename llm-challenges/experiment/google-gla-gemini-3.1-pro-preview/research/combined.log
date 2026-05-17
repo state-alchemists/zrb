@@ -1,7 +1,7 @@
 [2m
-  🧰 rv8lljuw | Read {'path': 'system_context.md'}
+  🧰 st58hxee | Read {'path': 'system_context.md'}
 [0m[2m
-  🔠 rv8lljuw | Return [File: system_context.md | 44 lines]
+  🔠 st58hxee | Return [File: system_context.md | 44 lines]
      ---CONTENT---
      # System Context: Notifier Subsystem Decision
      
@@ -48,14 +48,101 @@
      - Must maintain exactly-once semantics for billing notifications
      
 [0m[2m
-  🧰 boe5t0sl | Write {'content': '# ADR-001: Notification Su ...', 'path': 'ADR-001-notification-archi ...'}
+  🧰 lkswdk3e | ActivateSkill {'name': 'core-design'}
 [0m[2m
-  🔠 boe5t0sl | Return Successfully wrote to ADR-001-notification-architecture.md
-[0m[2m
-  The ADR has been created and saved as[0m[2m `ADR-001-notification-architecture.md`. 
+  🔠 lkswdk3e | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
      
-     I recommended **Redis Streams** due to the 2-week[0m[2m implementation constraint, the lack of infrastructure engineers, and the pre-existing Redis deployment. To meet the "exactly-once" billing notification constraint[0m[2m, the ADR dictates implementing idempotent consumers using your existing PostgreSQL database, which is much more feasible for a 6-person team than operating[0m[2m a Kafka cluster from scratch.[0m[2m[0m[2m
-  💸 (Requests: 3 | Tool Calls: 2 | Total: 28002) Input: 25203 | Audio Input: 0 | Output: 2799 | Audio Output: 0 | Cache Read: 7968 | Cache Write: 0 | Details: {'thoughts_tokens': 1681, 'text_prompt_tokens': 25203, 'cached_content_tokens': 7968, 'text_cache_tokens': 7968}
+     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-design
+     
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
+     
+     Companion files available in this directory:
+       templates/
+         decision-record.md
+     
+     ---
+     
+     ---
+     name: core-design
+     description: "Activate before any design work — system architecture, API design, data modeling, component decomposition, or trade-off analysis. Provides the Constraints → Explore → Decide → Specify → Plan workflow for sound, well-reasoned designs."
+     user-invocable: false
+     ---
+     # Skill: core-design
+     
+     Follow **Constraints → Explore → Decide → Specify → Plan** for every design task.
+     
+     ## Companion Templates
+     
+     When the current step matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
+     
+     | Trigger | Companion |
+     |---------|-----------|
+     | Recording a design decision worth preserving (during or after the Decide step) | `templates/decision-record.md` |
+     
+     ## Workflow
+     
+     ### 1. Constraints & Requirements
+     
+     - Extract explicit requirements and implicit constraints from the task.
+     - Identify what's in scope and what's out.
+     - Note non-negotiables: existing interfaces, backward compatibility, security, performance targets.
+     - If requirements are ambiguous, ask before designing further.
+     
+     ### 2. Architecture Exploration
+     
+     - Generate 2-3 distinct approaches. Avoid converging on the first idea.
+     - Compare each approach against: correctness, consistency with existing patterns, complexity, performance, maintainability, testability.
+     - Use `Grep`, `Glob`, and `Read` to study existing patterns before proposing new ones.
+     - For large or unfamiliar domains, activate `core-research` first to map the landscape.
+     
+     ### 3. Design Decision
+     
+     - Choose the best approach with explicit rationale.
+     - Document what was chosen AND what was rejected and why.
+     - The rationale should be specific enough that someone else could reconstruct the same decision from the constraints.
+     
+     ### 4. Specification
+     
+     - Define precise contracts: interfaces, data flow, error modes, edge cases.
+     - Be concrete enough that implementation is straightforward from the spec alone.
+     - Use `WriteTodos` to capture loose ends or open questions.
+     
+     ### 5. Implementation Plan
+     
+     - Break the design into discrete implementation steps.
+     - Each step: Action → Target → Verification.
+     - Order steps by dependency (what must exist before what).
+     
+     ## Safety Rules
+     
+     - **No premature implementation**: During steps 1-4, do not write or modify any code. Design decisions come before implementation.
+     - **Approval gate**: You must obtain explicit user approval of the design and plan before starting implementation.
+     
+     ## Output Standards
+     
+     - **Structured**: Clear sections matching the workflow above.
+     - **Precise**: Specific interfaces, types, and contracts — not vague descriptions.
+     - **Context-aware**: The design must fit the existing codebase, not introduce a new paradigm unless justified.
+     - **Transparent**: Surface trade-offs made and alternatives considered.
+     </ACTIVATED_SKILL>
+[0m[2m
+  🧰 1hh6zc59 | Write {'content': '# ADR-001: Notification Su ...', 'mode': 'w', 'path': 'ADR-001-notification-archi ...'}
+[0m[2m
+  🔠 1hh6zc59 | Return Successfully wrote to ADR-001-notification-architecture.md
+[0m[2m
+  I have written the Architecture Decision Record and saved it as `ADR-0[0m[2m01-notification-architecture.md`. 
+     
+     The ADR definitively recommends **Redis Streams** over Apache Kafka. 
+     
+     Here is a brief[0m[2m summary of the justification:
+     - **Constraints & Timeline:** Redis is already in your production stack. Introducing Kafka would violate the strict 2-[0m[2mweek timeline, require infrastructure overhead you don't have the headcount for, and exceed the modest budget if using a managed solution.
+     -[0m[2m **Technical Capabilities:** Redis Streams easily handles the target throughput (~5,000 req/s), provides `XREADGROUP` for[0m[2m consumer groups/competing consumers, and offers a Pending Entries List (PEL) for retry logic and at-least-[0m[2monce delivery.
+     - **Exactly-once Semantics:** To achieve the required exactly-once semantics for billing without Kafka's native transactions[0m[2m, the ADR specifies pairing Redis Streams with idempotent consumer logic and a Transactional Outbox pattern in PostgreSQL. 
+     
+     You[0m[2m can review the full file to see the detailed breakdown of the decision, consequences, and alternatives considered. Let me know if you need any[0m[2m adjustments to the ADR![0m[2m[0m[2m
+  💸 (Requests: 4 | Tool Calls: 3 | Total: 43208) Input: 39106 | Audio Input: 0 | Output: 4102 | Audio Output: 0 | Cache Read: 15983 | Cache Write: 0 | Details: {'thoughts_tokens': 2667, 'text_prompt_tokens': 39106, 'cached_content_tokens': 15983, 'text_cache_tokens': 15983}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "Read `system_context.md`. It describes a real production system and a specific architectural problem we need to solve.
 
 Write an Architecture Decision Record (ADR) evaluating two options for the notification subsystem:
@@ -73,7 +160,14 @@ Your ADR must follow this exact structure:
 Make a definitive recommendation. Use specific technical properties (throughput, ordering guarantees, message retention, consumer groups, exactly-once semantics, operational complexity) to justify your choice given the team size and constraints described.
 
 Save as `ADR-001-notification-architecture.md`." --model google-gla:gemini-3.1-pro-preview --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mlate-gate-0083[0m[0m
-The ADR has been created and saved as `ADR-001-notification-architecture.md`. 
+[2m[2mSession[0m: [1;33mtrim-bulk-1372[0m[0m
+I have written the Architecture Decision Record and saved it as `ADR-001-notification-architecture.md`. 
 
-I recommended **Redis Streams** due to the 2-week implementation constraint, the lack of infrastructure engineers, and the pre-existing Redis deployment. To meet the "exactly-once" billing notification constraint, the ADR dictates implementing idempotent consumers using your existing PostgreSQL database, which is much more feasible for a 6-person team than operating a Kafka cluster from scratch.
+The ADR definitively recommends **Redis Streams** over Apache Kafka. 
+
+Here is a brief summary of the justification:
+- **Constraints & Timeline:** Redis is already in your production stack. Introducing Kafka would violate the strict 2-week timeline, require infrastructure overhead you don't have the headcount for, and exceed the modest budget if using a managed solution.
+- **Technical Capabilities:** Redis Streams easily handles the target throughput (~5,000 req/s), provides `XREADGROUP` for consumer groups/competing consumers, and offers a Pending Entries List (PEL) for retry logic and at-least-once delivery.
+- **Exactly-once Semantics:** To achieve the required exactly-once semantics for billing without Kafka's native transactions, the ADR specifies pairing Redis Streams with idempotent consumer logic and a Transactional Outbox pattern in PostgreSQL. 
+
+You can review the full file to see the detailed breakdown of the decision, consequences, and alternatives considered. Let me know if you need any adjustments to the ADR!

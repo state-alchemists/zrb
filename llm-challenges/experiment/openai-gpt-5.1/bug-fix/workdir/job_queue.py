@@ -7,8 +7,6 @@ class JobQueue:
         self._jobs: Dict[int, Dict[str, Any]] = {}
         self._next_id = 1
         self.max_retries = max_retries
-        # Simple in-memory lock to avoid multiple workers picking the same job
-        self._lock = asyncio.Lock()
 
     def enqueue(self, payload: dict) -> int:
         job_id = self._next_id
@@ -23,14 +21,13 @@ class JobQueue:
         return job_id
 
     async def dequeue(self) -> Optional[Dict]:
-        # Ensure only one worker can pick a pending job at a time
-        async with self._lock:
-            for job in self._jobs.values():
-                if job["status"] == "pending":
-                    # Simulate small delay while "fetching" the job
-                    await asyncio.sleep(0.01)
-                    job["status"] = "processing"
-                    return job
+        # Ensure only one worker can pick up a pending job at a time
+        for job in self._jobs.values():
+            if job["status"] == "pending":
+                # Mark as processing before any async suspension to avoid race conditions
+                job["status"] = "processing"
+                await asyncio.sleep(0.01)
+                return job
         return None
 
     def complete(self, job_id: int, result: Any) -> None:

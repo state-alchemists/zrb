@@ -172,7 +172,10 @@ def _format_todo_lines(todos_data: "dict[str, Any]") -> list[str]:
 
 
 def system_context(
-    ctx: AnyContext, current_prompt: str, next_handler: Callable[[AnyContext, str], str]
+    ctx: AnyContext,
+    current_prompt: str,
+    next_handler: Callable[[AnyContext, str], str],
+    model: "Any" = None,
 ) -> str:
     from zrb.llm.tool.ambient_state import (
         get_active_worktree,
@@ -213,6 +216,9 @@ def system_context(
         f"- CWD: {cwd}",
         f"- Token limit: {CFG.LLM_MAX_TOKEN_PER_REQUEST:,} per request",
     ]
+    model_line = _format_model_line(model)
+    if model_line:
+        parts.append(model_line)
     if found_tools:
         parts.append(f"- Tools: {', '.join(found_tools)}")
     parts.extend(git_lines)
@@ -230,6 +236,25 @@ def system_context(
 
     context_block = "# System Context\n" + "\n".join(parts)
     return next_handler(ctx, f"{current_prompt}\n\n{context_block}")
+
+
+def _format_model_line(model: "Any") -> str | None:
+    """Render the "Model: …" identity line for the system context.
+
+    Returns ``None`` when *model* is None or its identifier cannot be
+    resolved (e.g. ``MagicMock`` without a real ``model_name``).
+    Capability-driven guidance (parallel tool call policy, etc.) lives
+    in the Tool Usage Guide via ``get_parallel_tool_call_section`` —
+    see ``src/zrb/builtin/llm/chat.py`` for the section-factory wiring.
+    """
+    from zrb.llm.util.capabilities import is_known_model
+
+    if model is None or not is_known_model(model):
+        return None
+    name = model if isinstance(model, str) else getattr(model, "model_name", "")
+    if not name:
+        return None
+    return f"- Model: {name}"
 
 
 def _resolve_available_tools(

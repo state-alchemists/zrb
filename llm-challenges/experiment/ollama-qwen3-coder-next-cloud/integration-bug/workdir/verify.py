@@ -86,6 +86,7 @@ def verify():
         print("VERIFICATION_RESULT: EXCELLENT")
     else:
         print("PASS: All trials passed")
+        print("WARN: No locking mechanism detected — add one for EXCELLENT")
         print("VERIFICATION_RESULT: PASS")
     return True
 

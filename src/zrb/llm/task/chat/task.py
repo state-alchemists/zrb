@@ -259,6 +259,11 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         # Guidance factories are called when tools are resolved, to register
         # guidance for dynamically-named factory tools (e.g., RunZrbTask).
         self._tool_guidance_factories: list[Callable[[AnyContext], ToolGuidance]] = []
+        # Tool-guidance section factories — produce model-aware Markdown
+        # blocks inserted above the per-tool catalogue at compose time.
+        self._tool_guidance_section_factories: list[
+            Callable[[AnyContext, Any], str | None]
+        ] = []
         # Store tool guidance until prompt_manager is available
         self._pending_tool_guidance: list[ToolGuidance] = []
         self._toolset_factories = (
@@ -407,6 +412,10 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
 
         # 4a. Auto-wire resolved tool names to the prompt manager so that
         # tool guidance is filtered to only the tools actually registered.
+        # Also wire the resolved model so the system_context section can
+        # surface model-specific capability notes (e.g. lack of parallel
+        # tool-call support). Re-set on every exec — `/model` switches
+        # update ctx.input.model, which flows through _get_model(ctx).
         if self._prompt_manager is not None:
             tool_names: set[str] = set()
             for t in resolved_tools:
@@ -414,6 +423,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
                 if name:
                     tool_names.add(name)
             self._prompt_manager.tool_names = tool_names or None
+            self._prompt_manager.model = self._get_model(ctx)
 
         # 4b. Apply pending tool guidance added via add_tool_guidance()
         self._apply_tool_guidance()
@@ -428,6 +438,16 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
                     use_when=guidance.when_to_use,
                     key_rule=guidance.key_rule,
                 )
+
+        # 4d. Resolve model-aware Tool Usage Guide intro sections.
+        if self._prompt_manager is not None:
+            resolved_model = self._get_model(ctx)
+            sections: list[str] = []
+            for section_factory in self._tool_guidance_section_factories:
+                rendered = section_factory(ctx, resolved_model)
+                if rendered:
+                    sections.append(rendered)
+            self._prompt_manager.tool_guidance_sections = sections
 
         # 5. Create core LLM task
         llm_task_core = self._create_llm_task_core(
