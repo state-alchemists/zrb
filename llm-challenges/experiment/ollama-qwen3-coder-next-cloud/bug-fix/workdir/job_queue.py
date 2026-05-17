@@ -27,21 +27,20 @@ class JobQueue:
                 if job["status"] == "pending":
                     job["status"] = "processing"
                     return job
-        return None
+            return None
 
     def complete(self, job_id: int, result: Any) -> None:
         self._jobs[job_id]["status"] = "done"
         self._jobs[job_id]["result"] = result
 
-    async def fail(self, job_id: int, error: str) -> None:
-        async with self._lock:
-            job = self._jobs[job_id]
+    def fail(self, job_id: int, error: str) -> None:
+        job = self._jobs[job_id]
+        if job["retries"] < self.max_retries:
             job["retries"] += 1
-            if job["retries"] <= self.max_retries:
-                job["status"] = "pending"
-            else:
-                job["status"] = "failed"
-                job["result"] = error
+            job["status"] = "pending"
+        else:
+            job["status"] = "failed"
+            job["result"] = error
 
     @property
     def all_jobs(self) -> Dict[int, Dict]:

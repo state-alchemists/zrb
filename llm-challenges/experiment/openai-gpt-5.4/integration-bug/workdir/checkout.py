@@ -15,10 +15,11 @@ async def checkout(
         return False
 
     charged = await gateway.charge(order_id, quantity * price)
-    if not charged:
-        await inventory.release(quantity)
-        print(f"Order {order_id}: payment failed")
-        return False
+    if charged:
+        print(f"Order {order_id}: SUCCESS")
+        return True
 
-    print(f"Order {order_id}: SUCCESS")
-    return True
+    await inventory.increment(quantity)
+    await gateway.refund(order_id)
+    print(f"Order {order_id}: payment failed")
+    return False

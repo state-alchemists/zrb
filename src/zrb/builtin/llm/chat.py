@@ -13,7 +13,7 @@ from zrb.llm.custom_command import get_skill_custom_command
 from zrb.llm.hook.journal import create_journaling_hook_factory
 from zrb.llm.lsp.tools import create_lsp_tools
 from zrb.llm.prompt.manager import PromptManager
-from zrb.llm.prompt.tool_guidance import ToolGuidance
+from zrb.llm.prompt.tool_guidance import ToolGuidance, get_parallel_tool_call_section
 from zrb.llm.skill.manager import skill_manager
 from zrb.llm.task.chat.task import LLMChatTask
 from zrb.llm.tool import (
@@ -252,8 +252,7 @@ _static_tool_guidance = [
         tool_name="Read",
         key_rule="Content starts after ---CONTENT--- (metadata above is NOT the file). "
         "Copy old_text for Edit from below ---CONTENT---. "
-        "Grep first to locate the relevant section before reading. "
-        "When you need several files at once, issue parallel Read calls in a single turn.",
+        "Grep first to locate the relevant section before reading.",
     ),
     ToolGuidance(
         group_name="File Operations",
@@ -384,6 +383,54 @@ _static_tool_guidance = [
 ]
 llm_chat.add_tool_guidance(*_static_tool_guidance)
 sub_agent_manager.add_tool_guidance(*_static_tool_guidance)
+
+# Register the same dynamically-named tool guidance on sub-agents
+sub_agent_manager.add_tool_guidance_factory(
+    lambda ctx: ToolGuidance(
+        group_name="Zrb Tasks",
+        tool_name=f"List{CFG.ROOT_GROUP_NAME.capitalize()}Tasks",
+        when_to_use=f"Before running a {CFG.ROOT_GROUP_NAME} task — confirm the task name exists",
+    ),
+    lambda ctx: ToolGuidance(
+        group_name="Zrb Tasks",
+        tool_name=f"Run{CFG.ROOT_GROUP_NAME.capitalize()}Task",
+        when_to_use=f"Executing a registered {CFG.ROOT_GROUP_NAME} task",
+        key_rule=f"Task names are case-sensitive. Verify with List{CFG.ROOT_GROUP_NAME.capitalize()}Tasks first.",
+    ),
+    lambda ctx: ToolGuidance(
+        group_name="Delegation",
+        tool_name="ActivateSkill",
+        when_to_use="Loading domain-specific protocols for specialized work (see Skill Activation table)",
+        key_rule="Re-activate after long conversations or summarization if context feels lost. "
+        "Skill directories may include companion resources (scripts, docs, data) — "
+        "use Glob in the skill directory or check the listing shown when activated.",
+    ),
+    lambda ctx: ToolGuidance(
+        group_name="Delegation",
+        tool_name="DelegateToAgent",
+        when_to_use="Batch repetitive tasks (>3 files), high-volume outputs (builds/verbose logs), or speculative 'trial and error' research. "
+        "Do it yourself for single lookups, one-file edits, quick commands, or when the needed context is already loaded.",
+        key_rule="Keep your main session history lean. Delegate heavy lifting. Always give the sub-agent full context — it cannot see your conversation history.",
+    ),
+    lambda ctx: ToolGuidance(
+        group_name="Delegation",
+        tool_name="DelegateToAgentsParallel",
+        when_to_use="Two or more independent sub-tasks that do not depend on each other's output. "
+        "Prefer this over sequential DelegateToAgent calls whenever tasks can run concurrently.",
+        key_rule="Sub-tasks must share no state and must each receive full context — they cannot see your conversation history.",
+    ),
+)
+
+# Model-aware Tool Usage Guide section: emits a parallel-tool-call policy
+# block whose tone follows the active model's capability flag (loud warning
+# when False, short encouragement when True, silent when None). Re-evaluated
+# per exec, so `/model` switches mid-session pick up the right policy.
+llm_chat.add_tool_guidance_section_factory(
+    lambda ctx, model: get_parallel_tool_call_section(model)
+)
+sub_agent_manager.add_tool_guidance_section_factory(
+    lambda ctx, model: get_parallel_tool_call_section(model)
+)
 
 # Add hook factories
 # Journaling hook will check CFG.LLM_INCLUDE_JOURNAL_REMINDER at execution time

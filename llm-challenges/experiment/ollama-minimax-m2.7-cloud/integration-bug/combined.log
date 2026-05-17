@@ -1,516 +1,580 @@
 [2m
-  🧠 Let me start by understanding the codebase structure and the issues described. I need to:
+  🧠 Let me start by understanding the codebase structure and the issues being described. I need to:
      
      1. First, activate the core-coding skill since this is a code task
-     2. Read the relevant files to understand the current implementation
-     3. Run the simulation to reproduce the issues
-     4. Fix the bugs
+     2. Read the relevant files to understand the checkout flow
+     3. Reproduce the issues
+     4. Fix the problems
      
-     Let me start by exploring the directory structure and reading the relevant files.
-[0m[2m{"path":"."}[0m[2m
-  🧰 call_function_2mfo3x2xvisd_2 | ActivateSkillLS {"name":"core-coding"}{"path":"."}
+     Let me start by reading the files to[0m[2m understand the current implementation.
 [0m[2m
-  🔠 call_function_2mfo3x2xvisd_2 | Return Unknown tool name: 'ActivateSkillLS'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'fetch_youtube_transcript', 'speak', 'search_bsim_notes', 'listen', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
-[0m
-[SYSTEM] Invalid tool call detected, asking model to retry...
-[2m
+  🧰 call_function_0k8oldmswyae_1 | ActivateSkill {'name': 'core-coding'}
+[0m[2m
+  🔠 call_function_0k8oldmswyae_1 | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
+     
+     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-coding
+     
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
+     
+     Companion files available in this directory:
+       languages/
+         go.md
+         java.md
+         php.md
+         python.md
+         ruby.md
+         rust.md
+         typescript.md
+       workflows/
+         debug.md
+         refactor.md
+         review.md
+         testing.md
+     
+     ---
+     
+     ---
+     name: core-coding
+     description: "Activate before any coding task — reading, editing, or creating code files. Provides the mandatory Research → Strategy → Execution workflow plus the complexity budget and specialised deep-dive companions (testing, debug, refactor, review)."
+     user-invocable: false
+     ---
+     # Skill: core-coding
+     
+     Follow **Research → Strategy → Execution** for every coding task.
+     
+     ## Deep-Dive Companions
+     
+     When the current step matches a trigger below, `Read` the named companion from this skill's directory (the activation header lists the directory path and all companion paths). Companions are not pre-loaded — pull them on demand.
+     
+     | Trigger | Companion |
+     |---------|-----------|
+     | About to write, modify, or audit a test | `workflows/testing.md` |
+     | Something is broken and root cause is unclear | `workflows/debug.md` |
+     | Code structure needs improvement (complexity, duplication) | `workflows/refactor.md` |
+     | Reviewing changes for correctness, security, or quality | `workflows/review.md` |
+     | Code touches user input, auth, file I/O, or sensitive data | `workflows/review.md` (security audit checklist) |
+     | First substantial edit in a project — identify the language from the manifest | `languages/<lang>.md` (one of `python`, `typescript`, `go`, `rust`, `java`, `ruby`, `php`) |
+     
+     If the user has provided custom guidelines for any of the above (in CLAUDE.md, AGENTS.md, their own skills, or project files), prefer those over the core companion. Core companions fill in the gaps.
+     
+     ## PHASE 1: RESEARCH & DISCOVERY
+     
+     Follow the **Scientific Method**: form a hypothesis → test it → analyze results. Avoid random changes.
+     
+     ### a.  **High-Level Reconnaissance:**
+     
+     - Use `LS` with limited depth for initial structure mapping.
+     - Identify: source directories, test directories, config files, entry points, and utility modules.
+     - Skip if you already know specific file paths — use targeted `Glob` instead.
+     
+     ### b.  **Targeted Architecture Discovery:**
+     
+     - Use `Glob` and `Grep` in parallel to map file structures, existing patterns, and utility functions.
+     - Use `Grep` with specific `regex` and `file_pattern` to minimize noise.
+     - Issue several `Read` calls in parallel when gathering context from related files.
+     - **Before modifying any existing function, method, or class signature:** use `LspFindReferences` if LSP is available, otherwise `Grep`. Find all call sites and include updating them in your plan.
+     - **Before moving or removing any file or directory:** use `Grep` to find all imports and path references first.
+     
+     ## PHASE 2: STRATEGY
+     
+     ### c.  **Formulate a Grounded Plan:**
+     
+     - **Language & Framework Idioms:** identify the language, framework, and version from dependency files and existing code. Apply idiomatic conventions — a pattern correct in one language may be an anti-pattern in another. Never add attributes or behavior to objects owned by a library; wrap them in a type you own.
+     - **Pattern Matching:** strategy MUST match existing project guidelines and patterns exactly. New code should look as though written by the original author.
+     - **Reuse existing helpers** before creating new ones.
+     - **Apply SOLID and DRY.** One reason to change per function and class.
+     - **No magic numbers, strings, or unexplained constants.** Name every value that carries meaning.
+     
+     ### d.  **Complexity Budget (non-negotiable hard limits):**
+     
+     Exceeding any limit is a design defect — restructure before continuing.
+     
+     | Metric | Limit | Remedy when exceeded |
+     |--------|-------|----------------------|
+     | Cyclomatic complexity | ≤ 10 per function | Extract sub-functions |
+     | Cognitive complexity | ≤ 15 per function | Flatten nesting, add guard clauses |
+     | Nesting depth | ≤ 2 levels | Invert conditionals; use early returns |
+     | Function length | ≤ 30 lines | Extract cohesive blocks into named helpers |
+     | Parameters per function | ≤ 4 | Group related params into a data object |
+     
+     **Guard clause mandate:** invert conditions to exit early; the happy path must never be the deepest `else`.
+     
+     **Boolean parameter prohibition:** a boolean parameter = two functions. Split them.
+     
+     **God Class/Function prohibition:** one reason to change per class/function. If you can't name the extracted piece, it's not a coherent abstraction.
+     
+     ### e.  **Testing Strategy:** define verification before writing code. For test-first methodology, Read `workflows/testing.md`.
+     
+     - New behavior: identify the failing test (RED) first.
+     - Bug fix: identify the minimal reproduction test first.
+     - Refactoring: confirm existing tests pass as baseline before touching anything.
+     
+     ## PHASE 3: EXECUTION (Plan → Act → Validate)
+     
+     ### f.  **Act (Surgical Implementation):**
+     
+     - Minimal, precise edits only. One logical change per task (atomic). Use existing libraries and patterns.
+     - Keep functions focused (~30-50 lines). Place helpers below callers.
+     - **Strangler Pattern:** when replacing a component, keep codebase runnable at every step: new alongside old → update references → remove old.
+     - **Out-of-scope structural problems:** report them. If they block this task, Read `workflows/refactor.md` and address atomically.
+     - **Code Smell Reporting:** report poorly structured code you encounter — don't silently fix it.
+     - **Docs:** keep documentation in sync; remove deprecated references.
+     
+     ### g.  **Validate (Zero-Regression):**
+     
+     - Validation is the only path to finality.
+     - Bug fixes: reproduce before fixing. If root cause is unclear, Read `workflows/debug.md`.
+     - After any change: run tests, linters, and type-checkers.
+     - If validation fails, diagnose before retrying.
+     
+     ### h.  **Synthesis:**
+     
+     journal non-trivial discoveries per the Journaling Protocol. For user-facing output (docs, error messages, commit messages), apply writing quality standards from `core-writing`.
+     
+     </ACTIVATED_SKILL>
+[0m[2m
   🧠 Let me start by reading the relevant files to understand the codebase structure and the issues.
 [0m[2m
   
      
-     I'll start by reading the relevant files to understand the codebase and reproduce the issues.
+     Let me start by reading the relevant files to understand the codebase.
 [0m[2m{"path":"inventory.py"}[0m[2m{"path":"payments.py"}[0m[2m{"path":"main.py"}[0m[2m
-  🧰 call_function_ez95mt1ugcw0_4 | ReadReadReadRead {"path":"checkout.py"}{"path":"inventory.py"}{"path":"payments.py"}{"path":"main.py"}
+  🧰 call_function_u093x7v7c2u7_4 | ReadReadReadRead {"path":"checkout.py"}{"path":"inventory.py"}{"path":"payments.py"}{"path":"main.py"}
 [0m[2m
-  🔠 call_function_ez95mt1ugcw0_4 | Return Unknown tool name: 'ReadReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'fetch_youtube_transcript', 'speak', 'search_bsim_notes', 'listen', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
-[0m
-[SYSTEM] Model response rejected by provider — collapsing history to text-only and retrying...
-[2m
-  🧠 Let me start by examining the codebase to understand the structure and the issues described.
-[0m[2m
-  
-     
-     I'll examine the codebase to understand the issue before making any changes.
-[0m[2m
-  🧰 call_function_nxmmgsm94nfi_1 | LS {}
-[0m[2m
-  🔠 call_function_nxmmgsm94nfi_1 | Return {'files': ['checkout.py', 'inventory.py', 'main.py', 'payments.py']}
-[0m[2m
-  🧠 Let me read all the relevant files to understand the codebase first.
-[0m[2m{"path":"inventory.py"}[0m[2m{"path":"payments.py"}[0m[2m{"path":"main.py"}[0m[2m
-  🧰 call_function_vqizbntr5s94_4 | ReadReadReadRead {"path":"checkout.py"}{"path":"inventory.py"}{"path":"payments.py"}{"path":"main.py"}
-[0m[2m
-  🔠 call_function_vqizbntr5s94_4 | Return Unknown tool name: 'ReadReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'fetch_youtube_transcript', 'speak', 'search_bsim_notes', 'listen', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
-[0m[32m260517 15:58:10.462 1/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 1/3 failed: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
-[2m
-  🧠 Let me start by understanding the codebase structure and the issue. I need to look at the files mentioned: `checkout.py`, `inventory.py`, `payments.py`, and `main.py`.
-[0m[2m
-  🧰 call_function_f2xdj4343j1b_1 | LS {}
-[0m[2m
-  🔠 call_function_f2xdj4343j1b_1 | Return {'files': ['checkout.py', 'inventory.py', 'main.py', 'payments.py']}
-[0m[2m
-  🧠 Let me read all the files to understand the current implementation and the bugs.
-[0m[2m{"path":"inventory.py"}[0m[2m{"path":"payments.py"}[0m[2m{"path":"main.py"}[0m[2m
-  🧰 call_function_9o6kje4b2son_4 | ReadReadReadRead {"path":"checkout.py"}{"path":"inventory.py"}{"path":"payments.py"}{"path":"main.py"}
-[0m[2m
-  🔠 call_function_9o6kje4b2son_4 | Return Unknown tool name: 'ReadReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'fetch_youtube_transcript', 'speak', 'search_bsim_notes', 'listen', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
+  🔠 call_function_u093x7v7c2u7_4 | Return Unknown tool name: 'ReadReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
 [0m
 [SYSTEM] Invalid tool call detected, asking model to retry...
 [2m
-  🧠 Let me start by examining the codebase to understand the checkout flow, inventory management, and payment processing. I'll look at the relevant files to understand the current implementation and identify the race conditions causing the issues.
-[0m[2m{"path":"workdir/inventory.py"}[0m[2m{"path":"workdir/payments.py"}[0m[2m{"path":"workdir/main.py"}[0m[2m
-  🧰 call_function_7ht1m2c2gz2m_4 | ReadReadReadRead {"path":"workdir/checkout.py"}{"path":"workdir/inventory.py"}{"path":"workdir/payments.py"}{"path":"workdir/main.py"}
+  🧠 Let me start by reading the relevant files to understand the codebase structure and then reproduce the issues.
 [0m[2m
-  🔠 call_function_7ht1m2c2gz2m_4 | Return Unknown tool name: 'ReadReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'fetch_youtube_transcript', 'speak', 'search_bsim_notes', 'listen', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
-[0m
-[SYSTEM] Model response rejected by provider — collapsing history to text-only and retrying...
-[2m
-  🧠 The user is asking me to fix a checkout service that has two production issues:
-     1. Overselling - inventory going negative
-     2. Ghost charges - customers charged but no item delivered, no order record
+  🧰 call_function_vnwetciylfeg_1 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_function_vnwetciylfeg_1 | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir/checkout.py | 30 lines]
+     ---CONTENT---
+     import asyncio
+     from inventory import Inventory
+     from payments import PaymentGateway
      
-     Let me first look[0m[2m at the files to understand the current implementation.
+     
+     async def checkout(
+         order_id: str,
+         quantity: int,
+         price: float,
+         inventory: Inventory,
+         gateway: PaymentGateway,
+     ) -> bool:
+         available = await inventory.check_stock(quantity)
+         if not available:
+             print(f"Order {order_id}: out of stock")
+             return False
+     
+         charged = await gateway.charge(order_id, quantity * price)
+         if not charged:
+             print(f"Order {order_id}: payment failed")
+             return False
+     
+         decremented = await inventory.decrement(quantity)
+         if not decremented:
+             print(f"Order {order_id}: inventory error after payment — item not delivered")
+             return False
+     
+         print(f"Order {order_id}: SUCCESS")
+         return True
+     
+[0m[2m
+  🧠 The checkout flow has a race condition: it checks stock, then charges, then decrements. But between check and decrement, inventory could go negative if multiple concurrent requests pass the check.
+     
+     Let me look at inventory.py and payments.py to understand the full picture.
+[0m[2m
+  🧰 call_function_h78dmtihqmfh_1 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_function_h78dmtihqmfh_1 | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir/inventory.py | 26 lines]
+     ---CONTENT---
+     import asyncio
+     
+     
+     class Inventory:
+         def __init__(self, stock: int):
+             self._stock = stock
+     
+         async def check_stock(self, quantity: int) -> bool:
+             await asyncio.sleep(0.02)
+             return self._stock >= quantity
+     
+         async def decrement(self, quantity: int) -> bool:
+             await asyncio.sleep(0.02)
+             if self._stock >= quantity:
+                 self._stock -= quantity
+                 return True
+             return False
+     
+         async def increment(self, quantity: int) -> None:
+             await asyncio.sleep(0.01)
+             self._stock += quantity
+     
+         @property
+         def stock(self) -> int:
+             return self._stock
+     
+[0m[2m
+  🧠 Now let me read the payments.py file.
+[0m[2m
+  🧰 call_function_q1502yz6969m_1 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_function_q1502yz6969m_1 | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir/payments.py | 19 lines]
+     ---CONTENT---
+     import asyncio
+     import random
+     from typing import List
+     
+     
+     class PaymentGateway:
+         def __init__(self, failure_rate: float = 0.25):
+             self._failure_rate = failure_rate
+             self.total_charged: float = 0.0
+             self.charges: List[dict] = []
+     
+         async def charge(self, order_id: str, amount: float) -> bool:
+             await asyncio.sleep(0.03)
+             if random.random() < self._failure_rate:
+                 return False
+             self.total_charged += amount
+             self.charges.append({"order_id": order_id, "amount": amount})
+             return True
+     
+[0m[2m
+  🧠 Now let me read main.py to understand the simulation.
+[0m[2m
+  🧰 call_function_0451y58bx5sc_1 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_function_0451y58bx5sc_1 | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir/main.py | 45 lines]
+     ---CONTENT---
+     import asyncio
+     from inventory import Inventory
+     from payments import PaymentGateway
+     from checkout import checkout
+     
+     ITEM_PRICE = 100.0
+     INITIAL_STOCK = 5
+     NUM_ORDERS = 12
+     
+     
+     async def main() -> None:
+         inventory = Inventory(INITIAL_STOCK)
+         gateway = PaymentGateway(failure_rate=0.25)
+     
+         print(f"Starting simulation: {NUM_ORDERS} concurrent orders, stock={INITIAL_STOCK}")
+         orders = [
+             checkout(f"order_{i}", 1, ITEM_PRICE, inventory, gateway)
+             for i in range(NUM_ORDERS)
+         ]
+         results = await asyncio.gather(*orders)
+     
+         successful = sum(results)
+         items_sold = INITIAL_STOCK - inventory.stock
+         charge_ids = [c["order_id"] for c in gateway.charges]
+         duplicates = len(charge_ids) - len(set(charge_ids))
+     
+         print(f"\n=== Results ===")
+         print(f"Successful orders:  {successful}")
+         print(f"Items sold:         {items_sold}  (initial stock: {INITIAL_STOCK})")
+         print(f"Remaining stock:    {inventory.stock}")
+         print(f"Total charged:      ${gateway.total_charged:.2f}")
+         print(f"Expected charge:    ${successful * ITEM_PRICE:.2f}")
+         print(f"Duplicate charges:  {duplicates}")
+     
+         if inventory.stock < 0:
+             print("ERROR: Inventory went negative!")
+         if abs(gateway.total_charged - successful * ITEM_PRICE) > 0.01:
+             print("ERROR: Charge amount does not match successful orders!")
+         if duplicates > 0:
+             print("ERROR: Duplicate charges detected!")
+     
+     
+     if __name__ == "__main__":
+         asyncio.run(main())
+     
+[0m[2m
+  🧠 Now I understand the bugs:
+     
+     1. **Overselling**: The checkout flow is:
+        - Check stock (read)
+        - Charge payment
+        - Decrement stock
+        
+        Between `check_stock` and `decrement`, another concurrent checkout could pass `check_stock` too (since both read the same stock value). So multiple orders pass the check, then all get charged, but only one decrement[0m[2m succeeds. The others have already charged the customer but can't deliver the item.
+     
+     2. **Ghost charges**: When payment succeeds but `decrement` fails (because stock went to 0 from a race condition), the customer is charged but no item is delivered. The checkout prints an error but doesn't refund/reverse the charge.
+     
+     The fix needs to be atomic - stock check + decrement should be a single operation, and we need to handle the case where payment succeeded but inventory failed (refund).
+     
+     Let me think about how to fix this:
+     
+     **For Inventory**: I need an atomic method that checks and decrements in one step, or uses a lock[0m[2m/mutex. But I can't change the public interface of `Inventory`. I can add methods though.
+     
+     Wait, the constraint is "Do not change the public interfaces of `Inventory` or `PaymentGateway`. You may add methods to them."
+     
+     So I can add new methods to Inventory and PaymentGateway.
+     
+     **Fix approach**:
+     
+     For Inventory:
+     - Add a `reserve(quantity)` method that atomically checks and decrements stock, returning True only if successful. This avoids the race condition between check and decrement.
+     
+     For PaymentGateway:
+     - Add a `refund(order_id)` method to reverse charges when inventory fails.
+     
+     For checkout.py:
+     - Use `reserve` instead of `check_stock` + `decrement`
+     - If `reserve` fails after charging, call `refund` to reverse the charge
+     
+     Let me implement this:
+     
+     1. Add `reserve(quantity)` to Inventory - atomic check-and-decrement
+     
+     
+     2. Add `refund(order_id)` to PaymentGateway - records and reverses charges
+     3. Update checkout to use `reserve` and call `refund` if inventory fails after payment succeeds
+     
+     The checkout logic becomes:
+     -[0m[2m Reserve inventory atomically (fails if stock insufficient)
+     - Charge payment
+     - If charge succeeds but reserve already committed, we're done
+     - If payment fails, no need to touch inventory
+     - If payment succeeds but we couldn't reserve, refund and fail
+     
+     Wait, there's a timing issue. The reserve needs to happen first, before charging. So the flow should be: attempt to reserve inventory, and only if that succeeds do we charge the customer. If the charge fails after a successful reserve, we need to release the inventory back.
+     
+     I should also check how `reserve` will work in Inventory - it needs to be atomic to prevent overselling when multiple concurrent requests come in.
 [0m[2m
   
      
-     I'll examine the codebase to understand the current implementation and reproduce the issues.
-[0m[2m
-  🧰 call_function_tvb4yyx4yap1_1 | Glob {'pattern': '**/*.py'}
-[0m[2m
-  🔠 call_function_tvb4yyx4yap1_1 | Return {'files': ['checkout.py', 'inventory.py', 'main.py', 'payments.py']}
-[0m[2m
-  🧠 Let me read all the files to understand the code structure and the issues.
-[0m[2m{"path":"inventory.py"}[0m[2m{"path":"payments.py"}[0m[2m{"path":"main.py"}[0m[2m
-  🧰 call_function_4kedepj5iy5l_4 | ReadReadReadRead {"path":"checkout.py"}{"path":"inventory.py"}{"path":"payments.py"}{"path":"main.py"}
-[0m[2m
-  🔠 call_function_4kedepj5iy5l_4 | Return Unknown tool name: 'ReadReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'fetch_youtube_transcript', 'speak', 'search_bsim_notes', 'listen', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
-[0m[32m260517 16:04:40.664 2/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 2/3 failed: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
-[2m
-  🧠 Let me start by understanding the codebase structure and the issues described. I need to:
+     Now I understand both bugs clearly:
      
-     1. Look at the checkout flow[0m[2m in `checkout.py`
-     2. Understand how `inventory.py` and `payments.py` work
-[0m[2m3. Run `main.py` to reproduce the issues
-     4. Fix the checkout logic to prevent overs[0m[2melling and ghost charges
+     1. **Overselling**: `check_stock` and `decrement` are separate operations — between them, another coroutine can pass `check_stock` with stale data, leading to multiple charges but only some decrements succeeding.
      
-     Let me first explore the directory structure and read the relevant files.
-[0m[2m
-  🧰 call_function_niojxht1bbre_1 | LS {'path': '/Users/gofrendigunawan/zrb ...'}
-[0m[2m
-  🔠 call_function_niojxht1bbre_1 | Return {'files': ['checkout.py', 'inventory.py', 'main.py', 'payments.py']}
-[0m[2m
-  🧠 Let me read all four files to understand the current implementation and identify[0m[2m the race conditions causing overselling and ghost charges.
-[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir/checkout.py"}[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir/inventory.py"}[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir/payments.py"}[0m[2m
-  🧰 call_function_0zjzv1brp5vk_3 | ReadReadReadRead {"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir/main.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir/checkout.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir/inventory.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir/payments.py"}
-[0m[2m
-  🔠 call_function_0zjzv1brp5vk_3 | Return Unknown tool name: 'ReadReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'fetch_youtube_transcript', 'speak', 'search_bsim_notes', 'listen', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
-[0m
-[SYSTEM] Invalid tool call detected, asking model to retry...
-[2m
-  🧠 Let me start by understanding the codebase structure and the issues described. I need to:
-     1. Look at the checkout flow
-     2. Understand inventory management
-     3. Understand payment gateway
-     4. Run the simulation to reproduce the issues
-     5. Fix the checkout[0m[2m logic
+     2. **Ghost charges**: When payment succeeds but `decrement` fails (due to race condition), the customer is charged but never receives the item. No refund is attempted.
      
-     Let me first explore the directory structure and read the relevant files.
+     The fix: atomic reservation + refund on failure.
+     
+     I'll add `reserve()` to Inventory (atomic check-and-decrement) and `refund()` to PaymentGateway, then update checkout.py.
+[0m[2m
+  🧰 call_function_wg0444zisf9y_1 | Edit {'new_text': 'async def reserve(self, qu ...', 'old_text': 'async def decrement(self,  ...', 'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_function_wg0444zisf9y_1 | Return Successfully updated /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir/inventory.py (1 replacement(s))
+[0m[2m
+  🧠 Now I need to update the checkout flow to use reserve-and-charge pattern. The key changes:
+     1. Use `reserve()` instead of `check_stock()` + `[0m[2mdecrement()` — this combines the check-and-decrement into one atomic operation
+     2. The issue is that even with atomic reserve, payment can fail after reservation, leaving items reserved but not sold (wasted). We need to compensate — if charge fails after reserve succeeds, we should increment back.
+     
+     Wait, but the problem with overselling is that check and decrement are separate. With `reserve()`, they become atomic — you can't oversell because the check-and-decrement happens in one locked operation.
+     
+     For the ghost charges issue: we need to ensure charge happens AFTER inventory is secured. The current flow does check_stock → charge → decrement. The[0m[2m problem is:
+     - If charge succeeds but decrement fails (rare), we get charged but no item. This is the "ghost charge" scenario.
+     - The fix should reverse[0m[2m: decrement first (atomically reserve), then charge. If charge fails, increment back.
+     
+     But wait, the current decrement returns False if stock is insufficient, and we've already charged. So if charge succeeds and then decrement fails (because stock went negative in the meantime), we get charged with no item.
+     
+     The correct pattern:
+     1. Reserve inventory (atomic check+decrement) — if fails, no payment attempted
+     2. Attempt charge
+     3. If charge fails, release inventory back
+     
+     This solves both:
+     - No overselling: reserve is atomic
+     - No ghost charges: if charge fails, inventory is released (not wasted)
+     
+     Let me update checkout.py:
+[0m[2m
+  🧰 call_function_oy946xc63ajj_1 | Edit {'new_text': 'async def checkout(\n    or ...', 'old_text': 'async def checkout(\n    or ...', 'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_function_oy946xc63ajj_1 | Return Successfully updated /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir/checkout.py (1 replacement(s))
+[0m[2m
+  🧠 Now let me run the simulation to verify the fix works.
+[0m[2m
+  🧰 call_function_ghgins0kvx07_1 | Bash {'command': 'cd /Users/gofrendigunawan/ ...'}
+[0m  [2mStarting simulation: 12 concurrent orders, stock=5
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_10: out of stock
+[0m  [2mOrder order_11: out of stock
+[0m  [2mOrder order_3: SUCCESS
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: payment failed
+[0m  [2mOrder order_4: payment failed
+[0m  [2m
+[0m  [2m=== Results ===
+[0m  [2mSuccessful orders:  1
+[0m  [2mItems sold:         1  (initial stock: 5)
+[0m  [2mRemaining stock:    4
+[0m  [2mTotal charged:      $100.00
+[0m  [2mExpected charge:    $100.00
+[0m  [2mDuplicate charges:  0
+[0m[2m
+  🔠 call_function_ghgins0kvx07_1 | Return Command: cd /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir && python main.py
+     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir
+     Stdout:
+     Starting simulation: 12 concurrent orders, stock=5
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_10: out of stock
+     Order order_11: out of stock
+     Order order_3: SUCCESS
+     Order order_0: payment failed
+     Order order_1: payment failed
+     Order order_2: payment failed
+     Order order_4: payment failed
+     
+     === Results ===
+     Successful orders:  1
+     Items sold:         1  (initial stock: 5)
+     Remaining stock:    4
+     Total charged:      $100.00
+     Expected charge:    $100.00
+     Duplicate charges:  0
+     Stderr:
+     (empty)
+     Exit Code: 0
+     Background PIDs: (none)
+[0m[2m
+  🧠 The result shows it's now working correctly - no errors, no negative inventory, no ghost charges. But only 1 order succeeded because there's only 1 successful payment (25% failure rate means most failed). The 4 remaining items match the 4 that were released when payment failed.
+     
+     Wait - 5 initial, 1 sold, 4 remaining. That's correct. And for the orders[0m[2m where payment failed (order_0, order_1, order_2, order_4), their inventory was released back via `[0m[2mincrement`.
+     
+     The fix is working. Let me run a few more times to confirm it's stable.
 [0m[2m
   
      
-     I'll investigate the checkout service to understand and fix the race conditions causing overselling and ghost charges.
+     No errors. Let me run a few more times to confirm stability:
 [0m[2m
-  🧰 call_function_3nrgvsxac4pl_1 | LS {'path': '/Users/gofrendigunawan/zrb ...'}
+  🧰 call_function_1cspy9129q5g_1 | Bash {'command': 'cd /Users/gofrendigunawan/ ...'}
+[0m  [2m=== Run 1 ===
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: SUCCESS
+[0m  [2mOrder order_4: SUCCESS
+[0m  [2m=== Results ===
+[0m  [2mItems sold:         4  (initial stock: 5)
+[0m  [2mRemaining stock:    1
+[0m  [2m
+[0m  [2m=== Run 2 ===
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_3: SUCCESS
+[0m  [2mOrder order_4: SUCCESS
+[0m  [2m=== Results ===
+[0m  [2mItems sold:         4  (initial stock: 5)
+[0m  [2mRemaining stock:    1
+[0m  [2m
+[0m  [2m=== Run 3 ===
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_2: SUCCESS
+[0m  [2mOrder order_4: SUCCESS
+[0m  [2m=== Results ===
+[0m  [2mItems sold:         3  (initial stock: 5)
+[0m  [2mRemaining stock:    2
+[0m  [2m
+[0m  [2m=== Run 4 ===
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: SUCCESS
+[0m  [2mOrder order_3: SUCCESS
+[0m  [2mOrder order_4: SUCCESS
+[0m  [2m=== Results ===
+[0m  [2mItems sold:         5  (initial stock: 5)
+[0m  [2mRemaining stock:    0
+[0m  [2m
+[0m  [2m=== Run 5 ===
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_2: SUCCESS
+[0m  [2mOrder order_3: SUCCESS
+[0m  [2mOrder order_4: SUCCESS
+[0m  [2m=== Results ===
+[0m  [2mItems sold:         4  (initial stock: 5)
+[0m  [2mRemaining stock:    1
+[0m  [2m
 [0m[2m
-  🔠 call_function_3nrgvsxac4pl_1 | Return {'files': ['checkout.py', 'inventory.py', 'main.py', 'payments.py']}
+  🔠 call_function_1cspy9129q5g_1 | Return Command: cd /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir && for i in {1..5}; do echo "=== Run $i ===" && python main.py 2>&1 | grep -E '(ERROR|Results|SUCCESS|stock:|Remaining)' && echo; done
+     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir
+     Stdout:
+     === Run 1 ===
+     Order order_0: SUCCESS
+     Order order_1: SUCCESS
+     Order order_2: SUCCESS
+     Order order_4: SUCCESS
+     === Results ===
+     Items sold:         4  (initial stock: 5)
+     Remaining stock:    1
+     
+     === Run 2 ===
+     Order order_0: SUCCESS
+     Order order_1: SUCCESS
+     Order order_3: SUCCESS
+     Order order_4: SUCCESS
+     === Results ===
+     Items sold:         4  (initial stock: 5)
+     Remaining stock:    1
+     
+     === Run 3 ===
+     Order order_0: SUCCESS
+     Order order_2: SUCCESS
+     Order order_4: SUCCESS
+     === Results ===
+     Items sold:         3  (initial stock: 5)
+     Remaining stock:    2
+     
+     === Run 4 ===
+     Order order_0: SUCCESS
+     Order order_1: SUCCESS
+     Order order_2: SUCCESS
+     Order order_3: SUCCESS
+     Order order_4: SUCCESS
+     === Results ===
+     Items sold:         5  (initial stock: 5)
+     Remaining stock:    0
+     
+     === Run 5 ===
+     Order order_0: SUCCESS
+     Order order_2: SUCCESS
+     Order order_3: SUCCESS
+     Order order_4: SUCCESS
+     === Results ===
+     Items sold:         4  (initial stock: 5)
+     Remaining stock:    1
+     Stderr:
+     (empty)
+     Exit Code: 0
+     Background PIDs: (none)
 [0m[2m
-  🧠 Let me read all the files to understand the codebase and[0m[2m the issues.
-[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir/inventory.py"}[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir/payments.py"}[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir/main.py"}[0m[2m
-  🧰 call_function_ozpp1b170ak7_4 | ReadReadReadRead {"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir/checkout.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir/inventory.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir/payments.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir/main.py"}
-[0m[2m
-  🔠 call_function_ozpp1b170ak7_4 | Return Unknown tool name: 'ReadReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'fetch_youtube_transcript', 'speak', 'search_bsim_notes', 'listen', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
-[0m
-[SYSTEM] Model response rejected by provider — collapsing history to text-only and retrying...
-[2m
-  🧠 Let me look at the codebase to understand the issue. I need to read the files mentioned: checkout.py, inventory.py, payments.py, and main.py.
+  🧠 The results look clean across 5 runs — no ERROR lines, inventory never goes negative, charges match successful orders. The fix is solid.
+     
+     Let me summarize what was changed and why:
+     - The original bug: non-atomic check-then-act (check_stock → charge → decrement). Race condition: two coroutines could pass check_stock simultaneously, both get charged, but only one decrements successfully, leaving inventory negative or ghost charges.
+     - Fix: `reserve()` does the check and decrement atomically in one operation. Payment happens after reservation. If payment fails, we release the reserved inventory via `increment()`.
 [0m[2m
   
      
-     I'll read the source files to understand the checkout flow and reproduce the issues.
-[0m[2m{"path":"inventory.py"}[0m[2m{"path":"payments.py"}[0m[2m{"path":"main.py"}[0m[2m
-  🧰 call_function_fvmwblqvw19o_4 | ReadReadReadRead {"path":"checkout.py"}{"path":"inventory.py"}{"path":"payments.py"}{"path":"main.py"}
-[0m[2m
-  🔠 call_function_fvmwblqvw19o_4 | Return Unknown tool name: 'ReadReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'fetch_youtube_transcript', 'speak', 'search_bsim_notes', 'listen', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
-[0m[32m260517 16:05:30.274 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 3/3 failed: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
-[32m260517 16:05:30.274 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Marked as permanently failed[0m
-[32m260517 16:05:30.289 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Traceback (most recent call last):
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 150, in _map_api_errors
-    yield
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 895, in _completions_create
-    return await self.client.chat.completions.create(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    ...<29 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py", line 2714, in create
-    return await self._post(
-           ^^^^^^^^^^^^^^^^^
-    ...<49 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1884, in post
-    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1669, in request
-    raise self._make_status_error_from_response(err.response) from None
-openai.BadRequestError: Error code: 400 - {'error': {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}}
-
-The above exception was the direct cause of the following exception:
-
-Traceback (most recent call last):
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 179, in execute_action_with_retry
-    result = await run_async(task._exec_action(ctx))
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 305, in _exec_action
-    return await self._exec_action_inner(ctx)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 360, in _exec_action_inner
-    raise e
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 338, in _exec_action_inner
-    output, new_history = await run_agent(
-                          ^^^^^^^^^^^^^^^^
-    ...<13 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 160, in run_agent
-    return await _execution_loop(
-           ^^^^^^^^^^^^^^^^^^^^^^
-    ...<9 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 556, in _execution_loop
-    raise e
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 497, in _execution_loop
-    raise stream_error
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 468, in _execution_loop
-    async for event in stream:
-    ...<13 lines>...
-            await effective_event_handler(event)
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/result.py", line 968, in __anext__
-    return await self._generator.__anext__()
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1252, in _run_stream_events
-    result = await task
-             ^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1211, in run_agent
-    return await self.run(
-           ^^^^^^^^^^^^^^^
-    ...<19 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 410, in run
-    node = await agent_run._run_node_with_hooks(node, _stream_step)  # pyright: ignore[reportPrivateUsage]
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 308, in _run_node_with_hooks
-    return await self._wrap_and_advance(run_context, node, step_fn)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 278, in _wrap_and_advance
-    result = await cap.on_node_run_error(run_context, node=node, error=e)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 245, in on_node_run_error
-    raise error
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 242, in on_node_run_error
-    return await capability.on_node_run_error(ctx, node=node, error=error)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 433, in on_node_run_error
-    raise error
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 276, in _wrap_and_advance
-    result = await cap.wrap_node_run(run_context, node=node, handler=step_fn)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 231, in wrap_node_run
-    return await chain(node)
-           ^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 617, in wrapped
-    return await cap.wrap_node_run(ctx, node=node, handler=inner)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 412, in wrap_node_run
-    return await handler(node)
-           ^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 392, in _stream_and_advance
-    async with n.stream(agent_run.ctx) as stream:
-               ~~~~~~~~^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
-    return await anext(self.gen)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 679, in stream
-    model_response = await self._resolve_wrap_result(ctx, run_context, wrap_request_context, result_or_exc)
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 967, in _resolve_wrap_result
-    return await ctx.deps.root_capability.on_model_request_error(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        run_context, request_context=request_context, error=exc
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 306, in on_model_request_error
-    raise error
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 303, in on_model_request_error
-    return await capability.on_model_request_error(ctx, request_context=request_context, error=error)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 514, in on_model_request_error
-    raise error
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 676, in stream
-    result_or_exc = wrap_task.result()
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 292, in wrap_model_request
-    return await chain(request_context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 581, in wrapped
-    return await cap.wrap_model_request(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    ...<3 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 491, in wrap_model_request
-    return await handler(request_context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 628, in _streaming_handler
-    async with req_ctx.model.request_stream(
-               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        req_ctx.messages, req_ctx.model_settings, req_ctx.model_request_parameters, run_context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    ) as sr:
-    ^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
-    return await anext(self.gen)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 837, in request_stream
-    response = await self._completions_create(messages, True, model_settings_cast, model_request_parameters)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 888, in _completions_create
-    with _map_api_errors(self.model_name):
-         ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 162, in __exit__
-    self.gen.throw(value)
-    ~~~~~~~~~~~~~~^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 153, in _map_api_errors
-    raise ModelHTTPError(status_code=status_code, model_name=model_name, body=e.body) from e
-pydantic_ai.exceptions.ModelHTTPError: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}
-[0m
-[32m260517 16:05:30.292 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Attempt 1/1 failed: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
-[32m260517 16:05:30.292 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Marked as permanently failed[0m
-[32m260517 16:05:30.299 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Traceback (most recent call last):
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 150, in _map_api_errors
-    yield
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 895, in _completions_create
-    return await self.client.chat.completions.create(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    ...<29 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py", line 2714, in create
-    return await self._post(
-           ^^^^^^^^^^^^^^^^^
-    ...<49 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1884, in post
-    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1669, in request
-    raise self._make_status_error_from_response(err.response) from None
-openai.BadRequestError: Error code: 400 - {'error': {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}}
-
-The above exception was the direct cause of the following exception:
-
-Traceback (most recent call last):
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 179, in execute_action_with_retry
-    result = await run_async(task._exec_action(ctx))
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/chat/task.py", line 446, in _exec_action
-    return await self._run_non_interactive_session(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    ...<6 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/chat/runner_mixin.py", line 66, in _run_non_interactive_session
-    result = await llm_task_core.async_run(session)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 240, in async_run
-    return await run_task_async(
-           ^^^^^^^^^^^^^^^^^^^^^
-    ...<5 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 91, in run_task_async
-    result = await task.exec_root_tasks(session)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 249, in exec_root_tasks
-    return await execute_root_tasks(self, session)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
-    await asyncio.gather(*root_task_coros)
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 252, in exec_chain
-    return await execute_task_chain(self, session)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 22, in execute_task_chain
-    result = await execute_task_action(task, session)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 52, in execute_task_action
-    return await run_async(execute_action_until_ready(task, session))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 86, in execute_action_until_ready
-    result = await run_async(execute_action_with_retry(task, session))
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 216, in execute_action_with_retry
-    raise e  # Re-raise the exception after handling fallbacks
-    ^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 179, in execute_action_with_retry
-    result = await run_async(task._exec_action(ctx))
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 305, in _exec_action
-    return await self._exec_action_inner(ctx)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 360, in _exec_action_inner
-    raise e
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 338, in _exec_action_inner
-    output, new_history = await run_agent(
-                          ^^^^^^^^^^^^^^^^
-    ...<13 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 160, in run_agent
-    return await _execution_loop(
-           ^^^^^^^^^^^^^^^^^^^^^^
-    ...<9 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 556, in _execution_loop
-    raise e
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 497, in _execution_loop
-    raise stream_error
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 468, in _execution_loop
-    async for event in stream:
-    ...<13 lines>...
-            await effective_event_handler(event)
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/result.py", line 968, in __anext__
-    return await self._generator.__anext__()
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1252, in _run_stream_events
-    result = await task
-             ^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1211, in run_agent
-    return await self.run(
-           ^^^^^^^^^^^^^^^
-    ...<19 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 410, in run
-    node = await agent_run._run_node_with_hooks(node, _stream_step)  # pyright: ignore[reportPrivateUsage]
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 308, in _run_node_with_hooks
-    return await self._wrap_and_advance(run_context, node, step_fn)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 278, in _wrap_and_advance
-    result = await cap.on_node_run_error(run_context, node=node, error=e)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 245, in on_node_run_error
-    raise error
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 242, in on_node_run_error
-    return await capability.on_node_run_error(ctx, node=node, error=error)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 433, in on_node_run_error
-    raise error
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 276, in _wrap_and_advance
-    result = await cap.wrap_node_run(run_context, node=node, handler=step_fn)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 231, in wrap_node_run
-    return await chain(node)
-           ^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 617, in wrapped
-    return await cap.wrap_node_run(ctx, node=node, handler=inner)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 412, in wrap_node_run
-    return await handler(node)
-           ^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 392, in _stream_and_advance
-    async with n.stream(agent_run.ctx) as stream:
-               ~~~~~~~~^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
-    return await anext(self.gen)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 679, in stream
-    model_response = await self._resolve_wrap_result(ctx, run_context, wrap_request_context, result_or_exc)
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 967, in _resolve_wrap_result
-    return await ctx.deps.root_capability.on_model_request_error(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        run_context, request_context=request_context, error=exc
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 306, in on_model_request_error
-    raise error
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 303, in on_model_request_error
-    return await capability.on_model_request_error(ctx, request_context=request_context, error=error)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 514, in on_model_request_error
-    raise error
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 676, in stream
-    result_or_exc = wrap_task.result()
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 292, in wrap_model_request
-    return await chain(request_context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 581, in wrapped
-    return await cap.wrap_model_request(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    ...<3 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 491, in wrap_model_request
-    return await handler(request_context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 628, in _streaming_handler
-    async with req_ctx.model.request_stream(
-               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        req_ctx.messages, req_ctx.model_settings, req_ctx.model_request_parameters, run_context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    ) as sr:
-    ^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
-    return await anext(self.gen)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 837, in request_stream
-    response = await self._completions_create(messages, True, model_settings_cast, model_request_parameters)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 888, in _completions_create
-    with _map_api_errors(self.model_name):
-         ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 162, in __exit__
-    self.gen.throw(value)
-    ~~~~~~~~~~~~~~^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 153, in _map_api_errors
-    raise ModelHTTPError(status_code=status_code, model_name=model_name, body=e.body) from e
-pydantic_ai.exceptions.ModelHTTPError: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}
-[0m
-[2mTo run again:[0m [1;33mzrb chat --message "# E-Commerce Checkout Service
+     All clean — no errors across 5 runs. Inventory never went negative, charges matched orders exactly, no duplicates.
+     
+     **Root cause**: The original flow had a race condition — `check_stock` → `charge` → `decrement` are three separate async operations. Two coroutines could both pass the stock check, both get charged, but only one successfully decrement (the other's would fail due to insufficient stock). This caused either inventory going negative or ghost charges with no delivery.
+     
+     **Fix**: `reserve(quantity)` combines check and decrement atomically in one async operation. Payment happens after successful reservation. If payment fails, the reserved stock is released back via `increment()`. This guarantees[0m[2m:
+     
+     - Inventory never goes below zero (reserve fails if stock insufficient)
+     - Every successful charge has inventory already decremented (item is "reserved")
+     - No double-charging (order_id is unique, charged once per checkout call)
+     - No ghost charges (failed payment → inventory released, not consumed)[0m[2m
+  💸 (Requests: 9 | Tool Calls: 8 | Total: 60885) Input: 58296 | Audio Input: 0 | Output: 2589 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
+[0m[2mTo run again:[0m [1;33mzrb chat --message "# E-Commerce Checkout Service
 
 Users have reported two production incidents:
 
@@ -527,278 +591,16 @@ Fix the checkout logic. The fix must ensure:
 - No order is charged more than once
 
 Do not change the public interfaces of `Inventory` or `PaymentGateway`. You may add methods to them." --model ollama:minimax-m2.7:cloud --session "" --yolo true --attach "" --interactive false[0m
-Traceback (most recent call last):
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 150, in _map_api_errors
-    yield
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 895, in _completions_create
-    return await self.client.chat.completions.create(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    ...<29 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py", line 2714, in create
-    return await self._post(
-           ^^^^^^^^^^^^^^^^^
-    ...<49 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1884, in post
-    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1669, in request
-    raise self._make_status_error_from_response(err.response) from None
-openai.BadRequestError: Error code: 400 - {'error': {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}}
+[2m[2mSession[0m: [1;33mmild-hand-1471[0m[0m
 
-The above exception was the direct cause of the following exception:
 
-Traceback (most recent call last):
-  File "/Users/gofrendigunawan/.local-venv/bin/zrb", line 8, in <module>
-    sys.exit(serve_cli())
-             ~~~~~~~~~^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/__main__.py", line 68, in serve_cli
-    raise e
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/__main__.py", line 61, in serve_cli
-    cli.run(sys.argv[1:])
-    ~~~~~~~^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/runner/cli.py", line 57, in run
-    result, session = self._run_task(node, str_args, task_str_kwargs)
-                      ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/runner/cli.py", line 114, in _run_task
-    result = task.run(session, str_kwargs=run_kwargs)
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 224, in run
-    return asyncio.run(
-           ~~~~~~~~~~~^
-        run_and_cleanup(
-        ^^^^^^^^^^^^^^^^
-    ...<5 lines>...
-        )
-        ^
-    )
-    ^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/asyncio/runners.py", line 194, in run
-    return runner.run(main)
-           ~~~~~~~~~~^^^^^^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/asyncio/runners.py", line 118, in run
-    return self._loop.run_until_complete(task)
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/asyncio/base_events.py", line 721, in run_until_complete
-    return future.result()
-           ~~~~~~~~~~~~~^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 34, in run_and_cleanup
-    result = await main_task_coro
-             ^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 91, in run_task_async
-    result = await task.exec_root_tasks(session)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 249, in exec_root_tasks
-    return await execute_root_tasks(self, session)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
-    await asyncio.gather(*root_task_coros)
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 252, in exec_chain
-    return await execute_task_chain(self, session)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 22, in execute_task_chain
-    result = await execute_task_action(task, session)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 52, in execute_task_action
-    return await run_async(execute_action_until_ready(task, session))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 86, in execute_action_until_ready
-    result = await run_async(execute_action_with_retry(task, session))
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 216, in execute_action_with_retry
-    raise e  # Re-raise the exception after handling fallbacks
-    ^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 179, in execute_action_with_retry
-    result = await run_async(task._exec_action(ctx))
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/chat/task.py", line 446, in _exec_action
-    return await self._run_non_interactive_session(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    ...<6 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/chat/runner_mixin.py", line 66, in _run_non_interactive_session
-    result = await llm_task_core.async_run(session)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 240, in async_run
-    return await run_task_async(
-           ^^^^^^^^^^^^^^^^^^^^^
-    ...<5 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 91, in run_task_async
-    result = await task.exec_root_tasks(session)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 249, in exec_root_tasks
-    return await execute_root_tasks(self, session)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
-    await asyncio.gather(*root_task_coros)
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 252, in exec_chain
-    return await execute_task_chain(self, session)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 22, in execute_task_chain
-    result = await execute_task_action(task, session)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 52, in execute_task_action
-    return await run_async(execute_action_until_ready(task, session))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 86, in execute_action_until_ready
-    result = await run_async(execute_action_with_retry(task, session))
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 216, in execute_action_with_retry
-    raise e  # Re-raise the exception after handling fallbacks
-    ^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 179, in execute_action_with_retry
-    result = await run_async(task._exec_action(ctx))
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
-    return await value
-           ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 305, in _exec_action
-    return await self._exec_action_inner(ctx)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 360, in _exec_action_inner
-    raise e
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 338, in _exec_action_inner
-    output, new_history = await run_agent(
-                          ^^^^^^^^^^^^^^^^
-    ...<13 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 160, in run_agent
-    return await _execution_loop(
-           ^^^^^^^^^^^^^^^^^^^^^^
-    ...<9 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 556, in _execution_loop
-    raise e
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 497, in _execution_loop
-    raise stream_error
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 468, in _execution_loop
-    async for event in stream:
-    ...<13 lines>...
-            await effective_event_handler(event)
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/result.py", line 968, in __anext__
-    return await self._generator.__anext__()
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1252, in _run_stream_events
-    result = await task
-             ^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1211, in run_agent
-    return await self.run(
-           ^^^^^^^^^^^^^^^
-    ...<19 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 410, in run
-    node = await agent_run._run_node_with_hooks(node, _stream_step)  # pyright: ignore[reportPrivateUsage]
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 308, in _run_node_with_hooks
-    return await self._wrap_and_advance(run_context, node, step_fn)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 278, in _wrap_and_advance
-    result = await cap.on_node_run_error(run_context, node=node, error=e)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 245, in on_node_run_error
-    raise error
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 242, in on_node_run_error
-    return await capability.on_node_run_error(ctx, node=node, error=error)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 433, in on_node_run_error
-    raise error
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 276, in _wrap_and_advance
-    result = await cap.wrap_node_run(run_context, node=node, handler=step_fn)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 231, in wrap_node_run
-    return await chain(node)
-           ^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 617, in wrapped
-    return await cap.wrap_node_run(ctx, node=node, handler=inner)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 412, in wrap_node_run
-    return await handler(node)
-           ^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 392, in _stream_and_advance
-    async with n.stream(agent_run.ctx) as stream:
-               ~~~~~~~~^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
-    return await anext(self.gen)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 679, in stream
-    model_response = await self._resolve_wrap_result(ctx, run_context, wrap_request_context, result_or_exc)
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 967, in _resolve_wrap_result
-    return await ctx.deps.root_capability.on_model_request_error(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        run_context, request_context=request_context, error=exc
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 306, in on_model_request_error
-    raise error
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 303, in on_model_request_error
-    return await capability.on_model_request_error(ctx, request_context=request_context, error=error)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 514, in on_model_request_error
-    raise error
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 676, in stream
-    result_or_exc = wrap_task.result()
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 292, in wrap_model_request
-    return await chain(request_context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 581, in wrapped
-    return await cap.wrap_model_request(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    ...<3 lines>...
-    )
-    ^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 491, in wrap_model_request
-    return await handler(request_context)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 628, in _streaming_handler
-    async with req_ctx.model.request_stream(
-               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        req_ctx.messages, req_ctx.model_settings, req_ctx.model_request_parameters, run_context
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    ) as sr:
-    ^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
-    return await anext(self.gen)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 837, in request_stream
-    response = await self._completions_create(messages, True, model_settings_cast, model_request_parameters)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 888, in _completions_create
-    with _map_api_errors(self.model_name):
-         ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 162, in __exit__
-    self.gen.throw(value)
-    ~~~~~~~~~~~~~~^^^^^^^
-  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 153, in _map_api_errors
-    raise ModelHTTPError(status_code=status_code, model_name=model_name, body=e.body) from e
-pydantic_ai.exceptions.ModelHTTPError: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}
+All clean — no errors across 5 runs. Inventory never went negative, charges matched orders exactly, no duplicates.
+
+**Root cause**: The original flow had a race condition — `check_stock` → `charge` → `decrement` are three separate async operations. Two coroutines could both pass the stock check, both get charged, but only one successfully decrement (the other's would fail due to insufficient stock). This caused either inventory going negative or ghost charges with no delivery.
+
+**Fix**: `reserve(quantity)` combines check and decrement atomically in one async operation. Payment happens after successful reservation. If payment fails, the reserved stock is released back via `increment()`. This guarantees:
+
+- Inventory never goes below zero (reserve fails if stock insufficient)
+- Every successful charge has inventory already decremented (item is "reserved")
+- No double-charging (order_id is unique, charged once per checkout call)
+- No ghost charges (failed payment → inventory released, not consumed)

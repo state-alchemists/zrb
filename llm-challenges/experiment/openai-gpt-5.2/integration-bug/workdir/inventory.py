@@ -8,28 +8,30 @@ class Inventory:
 
     async def check_stock(self, quantity: int) -> bool:
         await asyncio.sleep(0.02)
-        return self._stock >= quantity
+        async with self._lock:
+            return self._stock >= quantity
 
     async def decrement(self, quantity: int) -> bool:
         await asyncio.sleep(0.02)
-        if self._stock >= quantity:
-            self._stock -= quantity
-            return True
-        return False
-
-    async def increment(self, quantity: int) -> None:
-        await asyncio.sleep(0.01)
-        self._stock += quantity
-
-    async def try_reserve(self, quantity: int) -> bool:
-        await asyncio.sleep(0.02)
         async with self._lock:
-            if self._stock < quantity:
-                return False
-            self._stock -= quantity
-            return True
+            if self._stock >= quantity:
+                self._stock -= quantity
+                return True
+            return False
+
+    async def reserve(self, quantity: int) -> bool:
+        """Atomically reserve (decrement) stock.
+
+        This is identical to decrement() but explicit about intent: callers should
+        reserve before charging to prevent oversells/ghost charges.
+        """
+        return await self.decrement(quantity)
 
     async def release(self, quantity: int) -> None:
+        """Release previously reserved stock."""
+        await self.increment(quantity)
+
+    async def increment(self, quantity: int) -> None:
         await asyncio.sleep(0.01)
         async with self._lock:
             self._stock += quantity

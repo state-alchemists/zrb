@@ -1,14 +1,13 @@
-import os
 import sqlite3
 import subprocess
 import sys
 from pathlib import Path
 
 
-def test_should_generate_same_report_and_metrics_from_sample_log(tmp_path: Path) -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+def test_should_generate_report_and_store_aggregates_when_processing_log(tmp_path: Path) -> None:
     log_path = tmp_path / "server.log"
     db_path = tmp_path / "metrics.db"
+    report_path = tmp_path / "report.html"
 
     log_path.write_text(
         "2024-01-01 12:00:00 INFO User 42 logged in\n"
@@ -20,22 +19,25 @@ def test_should_generate_same_report_and_metrics_from_sample_log(tmp_path: Path)
         encoding="utf-8",
     )
 
-    env = os.environ.copy()
-    env["DB_PATH"] = str(db_path)
-    env["LOG_FILE"] = str(log_path)
-    env["DB_HOST"] = "localhost"
-    env["DB_PORT"] = "5432"
-    env["DB_USER"] = "admin"
-    env["DB_PASS"] = "password123"
-
-    subprocess.run(
-        [sys.executable, str(repo_root / "pipeline.py")],
-        cwd=tmp_path,
-        env=env,
-        check=True,
+    result = subprocess.run(
+        [sys.executable, "pipeline.py"],
+        cwd=Path(__file__).resolve().parents[1],
+        check=False,
+        capture_output=True,
+        text=True,
+        env={
+            "DB_PATH": str(db_path),
+            "LOG_FILE": str(log_path),
+            "REPORT_FILE": str(report_path),
+            "DB_HOST": "localhost",
+            "DB_PORT": "5432",
+            "DB_USER": "admin",
+            "DB_PASS": "password123",
+        },
     )
 
-    report = (tmp_path / "report.html").read_text(encoding="utf-8")
+    assert result.returncode == 0, result.stderr
+    report = report_path.read_text(encoding="utf-8")
     assert "<h1>Error Summary</h1>" in report
     assert "<li><b>Database timeout</b>: 2 occurrences</li>" in report
     assert "<h2>API Latency</h2>" in report
@@ -43,17 +45,14 @@ def test_should_generate_same_report_and_metrics_from_sample_log(tmp_path: Path)
     assert "<h2>Active Sessions</h2>" in report
     assert "<p>0 user(s) currently active</p>" in report
 
-    conn = sqlite3.connect(db_path)
-    try:
-        cur = conn.cursor()
-        errors = cur.execute(
-            "SELECT message, count FROM errors ORDER BY message"
-        ).fetchall()
-        api_metrics = cur.execute(
-            "SELECT endpoint, avg_ms FROM api_metrics ORDER BY endpoint"
-        ).fetchall()
-    finally:
-        conn.close()
+    connection = sqlite3.connect(db_path)
+    errors = connection.execute(
+        "SELECT message, count FROM errors ORDER BY message"
+    ).fetchall()
+    api_metrics = connection.execute(
+        "SELECT endpoint, avg_ms FROM api_metrics ORDER BY endpoint"
+    ).fetchall()
+    connection.close()
 
     assert errors == [("Database timeout", 2)]
-    assert api_metrics == [("/users/profile", 250.0)]
+    assert api_metrics == [('/users/profile', 250.0)]

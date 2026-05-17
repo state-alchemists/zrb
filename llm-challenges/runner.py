@@ -31,6 +31,12 @@ class ChallengeResult:
     log_path: str
     workdir: str
     verification_output: Optional[str] = None
+    # Token-usage fields — zero when the cost summary line was missing
+    # (older runs / aborted runs / non-LLM exits).
+    total_tokens: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cache_read_tokens: int = 0
 
 
 @dataclass
@@ -103,6 +109,44 @@ def extract_tool_calls(log_content: str) -> List[str]:
 def count_tool_calls(log_content: str) -> int:
     """Count tool calls by looking for the tool emoji"""
     return log_content.count("🧰")
+
+
+def extract_token_usage(log_content: str) -> Dict[str, int]:
+    """Parse the cumulative cost summary line emitted by zrb at session end.
+
+    Looks for a line shaped like:
+
+        💸 (Requests: 21 | Tool Calls: 37 | Total: 478790) Input: 472682 | Audio Input: 0 | Output: 6108 | ... | Cache Read: 412672 | Cache Write: 0
+
+    Returns the four headline metrics. Missing line (older runs, aborted
+    runs, non-LLM exits) yields zeros for all fields.
+    """
+    fields = {
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_read_tokens": 0,
+    }
+    if "💸" not in log_content:
+        return fields
+    # Take the last occurrence in case more than one line is emitted.
+    last_line = ""
+    for line in log_content.splitlines():
+        if "💸" in line:
+            last_line = line
+    if not last_line:
+        return fields
+    patterns = {
+        "total_tokens": r"Total:\s*(\d+)",
+        "input_tokens": r"\bInput:\s*(\d+)",
+        "output_tokens": r"\bOutput:\s*(\d+)",
+        "cache_read_tokens": r"Cache Read:\s*(\d+)",
+    }
+    for key, pattern in patterns.items():
+        match = re.search(pattern, last_line)
+        if match:
+            fields[key] = int(match.group(1))
+    return fields
 
 
 def sanitize_model_name_for_path(model: str) -> str:
@@ -307,6 +351,7 @@ def run_single_experiment(
     log_content = log_file.read_text() if log_file.exists() else ""
     tool_calls = extract_tool_calls(log_content)
     tool_call_count = count_tool_calls(log_content)
+    token_usage = extract_token_usage(log_content)
 
     if verbose:
         print(f"\n{model} Result after {duration:.1f}s:")
@@ -356,6 +401,10 @@ def run_single_experiment(
         log_path=str(log_file),
         workdir=str(workdir),
         verification_output=v_out if v_out else None,
+        total_tokens=token_usage["total_tokens"],
+        input_tokens=token_usage["input_tokens"],
+        output_tokens=token_usage["output_tokens"],
+        cache_read_tokens=token_usage["cache_read_tokens"],
     )
 
 
@@ -365,8 +414,10 @@ def generate_report(results: List[ChallengeResult], output_file: Path):
         f.write(f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
 
         # Summary Table
-        f.write("| Model | Challenge | Status | Time (s) | Tools | Verify |\n")
-        f.write("|---|---|---|---|---|---|\n")
+        f.write(
+            "| Model | Challenge | Status | Time (s) | Tools | Tokens | Verify |\n"
+        )
+        f.write("|---|---|---|---|---|---|---|\n")
 
         for r in results:
             verify_icon = "❓"
@@ -381,8 +432,12 @@ def generate_report(results: List[ChallengeResult], output_file: Path):
             elif r.status == "EXECUTION_FAILED" or r.status == "ERROR":
                 verify_icon = "💥"
 
+            verify_note = _summarize_verification(r.verification_output, r.status)
+            verify_cell = (
+                f"{verify_icon} {verify_note}" if verify_note else verify_icon
+            )
             f.write(
-                f"| {r.model} | {r.challenge_name} | {r.status} | {r.duration:.2f} | {r.tool_call_count} | {verify_icon} |\n"
+                f"| {r.model} | {r.challenge_name} | {r.status} | {r.duration:.2f} | {r.tool_call_count} | {_format_tokens_compact(r.total_tokens)} | {verify_cell} |\n"
             )
 
         f.write("\n\n## Detailed Results\n")
@@ -393,11 +448,101 @@ def generate_report(results: List[ChallengeResult], output_file: Path):
             f.write(f"- **Workdir:** `{r.workdir}`\n")
             f.write(f"- **Log:** `{r.log_path}`\n")
             f.write(f"- **Tools Used:** {', '.join(r.tool_calls)}\n")
+            f.write(
+                f"- **Tokens:** total {r.total_tokens:,} "
+                f"(input {r.input_tokens:,}, output {r.output_tokens:,}, "
+                f"cache read {r.cache_read_tokens:,})\n"
+            )
             if r.verification_output:
                 f.write(
                     f"\n**Verification Output:**\n```\n{r.verification_output.strip()}\n```\n"
                 )
             f.write("\n---\n")
+
+
+def _format_tokens_compact(total: int) -> str:
+    """Render a token total as e.g. "478K" / "1.2M" for the summary table.
+
+    Zero-token entries (older runs without the cost-summary line, aborted
+    runs) render as "—" to distinguish from genuinely cheap runs.
+    """
+    if total <= 0:
+        return "—"
+    if total < 1_000:
+        return str(total)
+    if total < 1_000_000:
+        return f"{total / 1_000:.1f}K".replace(".0K", "K")
+    return f"{total / 1_000_000:.2f}M".replace(".00M", "M")
+
+
+def _summarize_verification(
+    verification_output: Optional[str], status: str
+) -> str:
+    """Return a short, table-cell-friendly note from the verifier's own output.
+
+    Each verifier in ``llm-challenges/challenges/*/verify.py`` emits
+    structured prefixed lines:
+
+    - ``FAIL: <reason>`` — what failed (zero or more)
+    - ``WARN: <reason>`` — what's missing for a higher tier, e.g. why a
+      run is PASS instead of EXCELLENT (zero or more)
+    - ``PASS: <reason>`` — what succeeded (informational)
+
+    This function just picks the appropriate prefix for the run's status
+    and shows the first matching line verbatim. No inference, no
+    challenge-specific hardcoded patterns — the verifier is the
+    single source of truth.
+
+    - EXCELLENT → empty (the 🌟 emoji speaks for itself).
+    - PASS → first ``WARN:`` line if present; else first ``PASS:`` line.
+    - FAIL → first ``FAIL:`` line, optionally with ``(+N more)``.
+    """
+    if not verification_output or status == "EXCELLENT":
+        return ""
+
+    if status in ("FAIL", "VERIFY_FAILED"):
+        meaningful = _collect_verifier_lines(verification_output, "FAIL:")
+        # Drop the "Score too low" tautology when a real reason is also present.
+        non_score = [
+            f for f in meaningful if not f.lower().startswith("score too low")
+        ]
+        primary = non_score or meaningful
+        if not primary:
+            return _safe_verifier_cell("verifier rejected the output")
+        extras = len(primary) - 1
+        tail = f" (+{extras} more)" if extras else ""
+        return _safe_verifier_cell(f"{primary[0]}{tail}")
+
+    if status == "PASS":
+        warns = _collect_verifier_lines(verification_output, "WARN:")
+        if warns:
+            return _safe_verifier_cell(warns[0])
+        passes = _collect_verifier_lines(verification_output, "PASS:")
+        return _safe_verifier_cell(passes[-1]) if passes else ""
+
+    return ""
+
+
+def _collect_verifier_lines(text: str, prefix: str) -> List[str]:
+    """Return verifier lines starting with *prefix* (e.g. "FAIL:"), prefix stripped."""
+    out: List[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(prefix):
+            out.append(stripped[len(prefix):].strip())
+    return out
+
+
+def _safe_verifier_cell(text: str, limit: int = 90) -> str:
+    """Flatten + escape verifier text so it fits a markdown table cell."""
+    text = " ".join(text.split())
+    # Strip absolute-path noise (e.g. "(/Users/.../workdir/foo.py)") — the
+    # failure description itself is what's informative.
+    text = re.sub(r"\s*\([^)]*/[^)]*\)", "", text)
+    text = text.replace("|", "\\|")
+    if len(text) > limit:
+        text = text[: limit - 1].rstrip() + "…"
+    return text
 
 
 def load_existing_results(json_path: Path) -> Dict[str, ChallengeResult]:

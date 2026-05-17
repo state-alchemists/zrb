@@ -17,10 +17,10 @@ from typing import Any
 
 from zrb.config.config import CFG
 from zrb.llm.prompt.prompt import get_prompt
-from zrb.llm.util.modality import (
+from zrb.llm.util.capabilities import (
     is_known_model,
     media_type_modality,
-    supports_modality,
+    model_capabilities,
 )
 
 
@@ -49,7 +49,7 @@ async def describe_binary_attachment(
     if multimodal_model is None:
         return None
 
-    if not supports_modality(multimodal_model, modality):
+    if not model_capabilities.supports_modality(multimodal_model, modality):
         CFG.LOGGER.warning(
             f"Multimodal model does not support {modality}; cannot describe attachment."
         )
@@ -138,7 +138,7 @@ async def replace_unsupported_attachments(
         if not main_model_known:
             out.append(item)
             continue
-        if supports_modality(main_model, modality):
+        if model_capabilities.supports_modality(main_model, modality):
             out.append(item)
             continue
 

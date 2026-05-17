@@ -1,4 +1,5 @@
 import asyncio
+from typing import Optional
 
 
 class Inventory:
@@ -17,20 +18,14 @@ class Inventory:
             return True
         return False
 
-    async def reserve_stock(self, quantity: int) -> bool:
-        """Atomic check and decrement - prevents overselling."""
+    async def reserve_and_decrement(self, quantity: int) -> bool:
+        """Atomically check and decrement stock. Returns True if reservation succeeded."""
         async with self._lock:
-            await asyncio.sleep(0.01)  # Simulate I/O latency
+            await asyncio.sleep(0.02)  # Simulate DB check
             if self._stock >= quantity:
                 self._stock -= quantity
                 return True
             return False
-
-    async def cancel_reservation(self, quantity: int) -> None:
-        """Release reserved stock (rollback)."""
-        async with self._lock:
-            await asyncio.sleep(0.01)  # Simulate I/O latency
-            self._stock += quantity
 
     async def increment(self, quantity: int) -> None:
         await asyncio.sleep(0.01)

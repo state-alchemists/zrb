@@ -15,10 +15,22 @@ class PaymentGateway:
         await asyncio.sleep(0.03)
         async with self._lock:
             if order_id in self._charged_orders:
-                return False
+                return True
             if random.random() < self._failure_rate:
                 return False
             self.total_charged += amount
             self.charges.append({"order_id": order_id, "amount": amount})
             self._charged_orders.add(order_id)
             return True
+
+    async def refund(self, order_id: str) -> bool:
+        await asyncio.sleep(0.01)
+        async with self._lock:
+            for index, charge in enumerate(self.charges):
+                if charge["order_id"] != order_id:
+                    continue
+                self.total_charged -= charge["amount"]
+                self.charges.pop(index)
+                self._charged_orders.remove(order_id)
+                return True
+            return False

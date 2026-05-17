@@ -69,9 +69,58 @@ async def test_handle_stream_error_invalid_tool_call_with_string_message():
 
     assert outcome.should_retry is True
     assert state.invalid_tool_retry_done is True
-    assert "Your previous response was rejected" in outcome.new_message
+    assert "⛔ STOP" in outcome.new_message
+    assert "BROKEN" in outcome.new_message
     assert outcome.new_message.startswith("hello")
     print_fn.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_handle_stream_error_invalid_tool_call_includes_name_from_body():
+    """When the exception body names the bad tool, the corrective quotes it."""
+    state = RetryState(invalid_tool_retry_done=False)
+    exc = Exception("body unused")
+    exc.status_code = 400
+    exc.body = {"message": "Unknown tool name: 'ReadReadRead'."}
+    print_fn = MagicMock()
+
+    outcome = await handle_stream_error(state, exc, ["msg"], "hello", [], print_fn)
+
+    assert "`ReadReadRead`" in outcome.new_message
+
+
+@pytest.mark.asyncio
+async def test_handle_stream_error_invalid_tool_call_includes_name_from_history():
+    """For providers whose body is generic, scan history for the wrapper's
+    'Unknown tool name: X' rejection text."""
+    state = RetryState(invalid_tool_retry_done=False)
+    exc = Exception("body unused")
+    exc.status_code = 400
+    exc.body = {"message": "invalid tool call arguments"}  # generic — minimax/glm-style
+
+    # Synthetic history entry — only the parts/content shape matters.
+    class _Part:
+        def __init__(self, content):
+            self.content = content
+
+    class _Msg:
+        def __init__(self, parts):
+            self.parts = parts
+
+    history = [
+        _Msg(
+            [
+                _Part(
+                    "Return Unknown tool name: 'ActivateSkillReadRead'. Available tools: ..."
+                )
+            ]
+        )
+    ]
+    print_fn = MagicMock()
+
+    outcome = await handle_stream_error(state, exc, history, "hello", [], print_fn)
+
+    assert "`ActivateSkillReadRead`" in outcome.new_message
 
 
 @pytest.mark.asyncio

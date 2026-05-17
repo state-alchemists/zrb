@@ -1,15 +1,13 @@
 [2m
-  🧰 ilwtzb7n | LS {'path': '.'}
+  🧰 35kvx9ss | LS {'path': '.'}
 [0m[2m
-  🔠 ilwtzb7n | Return {'files': ['v1_spec.md', 'v2_spec.md']}
+  🔠 35kvx9ss | Return {'files': ['v1_spec.md', 'v2_spec.md']}
 [0m[2m
-  🧰 88knnwf8 | ActivateSkill {'name': 'core-writing'}
+  🧰 oa8mmar2 | Read {'path': 'v1_spec.md'}
 [0m[2m
-  🧰 jnv6s91x | Read {'path': 'v1_spec.md'}
+  🧰 wpo0qax6 | Read {'path': 'v2_spec.md'}
 [0m[2m
-  🧰 o15oduns | Read {'path': 'v2_spec.md'}
-[0m[2m
-  🔠 jnv6s91x | Return [File: v1_spec.md | 83 lines]
+  🔠 oa8mmar2 | Return [File: v1_spec.md | 83 lines]
      ---CONTENT---
      # Zrb Task API — v1 Reference
      
@@ -95,100 +93,7 @@
      **Response:** HTTP 204 No Content.
      
 [0m[2m
-  🔠 88knnwf8 | Return <ACTIVATED_SKILL>
-     Skill activated. The following context applies:
-     
-     Skill directory (working directory): /Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm_plugin/skills/core-writing
-     
-     All file paths in the skill instructions below are relative to this directory.
-     Use companion files (scripts, tools, references) by resolving them against this path.
-     
-     Companion files available in this directory:
-       templates/
-         api-doc.md
-         commit-message.md
-         readme.md
-     
-     ---
-     
-     ---
-     name: core-writing
-     description: "Activate before any substantial writing — docs, copy, proposals, feedback, commit messages, or UI text. Provides copywriting frameworks, tone guidance, and editing workflow for clear, persuasive, polished output."
-     user-invocable: false
-     ---
-     # Skill: core-writing
-     
-     Follow **Brief → Structure → Draft → Polish** for every writing task.
-     
-     ## Companion Templates
-     
-     When the current task matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
-     
-     | Trigger | Companion |
-     |---------|-----------|
-     | Writing or rewriting a project README | `templates/readme.md` |
-     | Drafting a git commit message | `templates/commit-message.md` |
-     | Documenting a function, endpoint, or CLI command | `templates/api-doc.md` |
-     
-     ## Workflow
-     
-     ### 1. Brief & Audience
-     
-     - Who is reading this? What do they already know? What do they need to know?
-     - What outcome should this writing achieve?
-     - What tone fits: technical, persuasive, instructional, conversational?
-     
-     ### 2. Structure & Outline
-     
-     - **Technical docs**: Problem → Solution → Usage → API → Examples
-     - **Persuasive writing**: Hook → Context → Evidence → Resolution → CTA
-     - **Instructional**: Goal → Prerequisites → Steps → Verification → Troubleshooting
-     - One idea per paragraph. Lead with the conclusion. Use transitions.
-     
-     ### 3. Draft
-     
-     - Write freely. Don't edit while drafting.
-     - Apply the chosen structure. Fill in evidence and examples.
-     - Use active voice. Be specific over vague.
-     
-     ### 4. Polish & Edit
-     
-     - Omit needless words. Every word must earn its place.
-     - Check flow: read aloud. Fix awkward transitions.
-     - Verify accuracy: facts, code samples, references.
-     - Proof: spelling, grammar, consistent terminology.
-     
-     ## Copywriting Formulas
-     
-     | Formula | When to Use | Structure |
-     |---------|-------------|-----------|
-     | **AIDA** | Marketing, proposals, feature announcements | Attention → Interest → Desire → Action |
-     | **PAS** | Bug reports, problem-solving docs | Problem → Agitate → Solution |
-     | **Inverted Pyramid** | News, announcements, summaries | Conclusion → Key details → Background |
-     | **Before-After-Bridge** | Change proposals, migration guides | Current → Desired → How to get there |
-     | **FEBC** | Technical decisions | Fact → Explanation → Benefit → Conclusion |
-     
-     ## Tone Matrix
-     
-     | Audience | Tone | Characteristics |
-     |----------|------|-----------------|
-     | Developers | Technical, precise | Specific terms, code examples, no fluff |
-     | Product managers | Outcome-oriented | Problem → impact → timeline → trade-offs |
-     | End users | Friendly, clear | Simple language, concrete examples, next steps |
-     | Executives | Concise, strategic | Recommendation first, TL;DR, business impact |
-     
-     ## Quality Checklist
-     
-     Before finalizing:
-     - Does the first paragraph convey the main point?
-     - Can any sentence be shortened without losing meaning?
-     - Are all claims supported by evidence?
-     - Is the tone appropriate for the audience?
-     - Would this still make sense if read in isolation?
-     
-     </ACTIVATED_SKILL>
-[0m[2m
-  🔠 o15oduns | Return [File: v2_spec.md | 115 lines]
+  🔠 wpo0qax6 | Return [File: v2_spec.md | 115 lines]
      ---CONTENT---
      # Zrb Task API — v2 Reference
      
@@ -306,155 +211,231 @@
      **Response:** HTTP 204 No Content.
      
 [0m[2m
-  I have analyzed the v1 and v2 specifications and created the migration guide.
+  🧰 vl7rmf17 | ActivateSkill {'name': 'core-writing'}
+[0m[2m
+  🔠 vl7rmf17 | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
      
-     ```markdown
-     # Zrb v[0m[2m2 Migration Guide
+     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-writing
      
-     This guide details the breaking changes introduced in Zrb v2 and provides the necessary steps to migrate your application from[0m[2m v1. v2 introduces project-based organization, improved pagination, and enhanced security.
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
      
-     ## 1. Base[0m[2m URL Versioning
-     All API endpoints are now versioned. You must update your client configuration to use the `/v2[0m[2m/` prefix for all requests.
-     
-     **v1 (Before)**
-     ```http
-     GET /tasks
-     ```
-     
-     **[0m[2mv2 (After)**
-     ```http
-     GET /v2/tasks
-     ```
-     
-     ## 2. Authentication Header[0m[2m
-     The authentication mechanism has transitioned to the standard Bearer token format. The `X-Auth-Token` header is[0m[2m deprecated and will return a `401 Unauthorized` error.
-     
-     **v1 (Before)**
-     ```http
-[0m[2mX-Auth-Token: <your_api_key>
-     ```
-     
-     **v2 (After)**
-     ```http
-     Authorization[0m[2m: Bearer <your_api_token>
-     ```
-     
-     ## 3. Task ID Type Change
-     Task IDs[0m[2m have changed from auto-incrementing integers to UUID strings to better support distributed systems. Ensure your local data structures and database[0m[2m schemas are updated to handle string-based UUIDs.
-     
-     **v1 (Before)**
-     ```json
-     {
-       "id[0m[2m": 42,
-       "title": "Write tests"
-     }
-     ```
-     
-     **v2 (After)**[0m[2m
-     ```json
-     {
-       "id": "a1b2c3d4-e5f6[0m[2m-7890-abcd-ef1234567890",
-       "title[0m[2m": "Write tests"
-     }
-     ```
-     
-     ## 4. Field Renaming: `done` to `completed[0m[2m`
-     The `done` field has been renamed to `completed` across all responses and request bodies for better clarity.[0m[2m
-     
-     **v1 (Before)**
-     ```json
-     {
-       "title": "Ship v1",
-       "done":[0m[2m true
-     }
-     ```
-     
-     **v2 (After)**
-     ```json
-     {
-       "title": "Ship[0m[2m v1",
-       "completed": true
-     }
-     ```
-     
-     ## 5. Required `project_id[0m[2m` for Task Creation
-     Tasks must now be associated with a project. The `project_id` field is now mandatory when creating a[0m[2m new task; omitting it will result in a `422 Unprocessable Entity` error.
-     
-     **v1 (Before[0m[2m)**
-     ```json
-     POST /tasks
-     {
-       "title": "New task title"
-     }
-[0m[2m```
-     
-     **v2 (After)**
-     ```json
-     POST /v2/tasks
-     {
-       "title":[0m[2m "New task title",
-       "project_id": "proj_abc123"
-     }
-[0m[2m```
-     
-     ## 6. Paginated List Responses
-     The list endpoint (`GET /v2/tasks`) no longer returns a bare array[0m[2m. It now returns a paginated envelope to support large datasets efficiently.
-     
-     **v1 (Before)**
-     ```json
-     [
-[0m[2m  {"id": 1, "title": "Buy milk", "done": false},
-       {"id": 2,[0m[2m "title": "Ship v1", "done": true}
-     ]
-     ```
-     
-     **v2 (After)**[0m[2m
-     ```json
-     {
-       "items": [
-         {"id": "...", "title": "Buy milk[0m[2m", "completed": false},
-         {"id": "...", "title": "Ship v1", "completed":[0m[2m true}
-       ],
-       "total": 2,
-       "next_cursor": "cursor_xyz[0m[2m"
-     }
-     ```
+     Companion files available in this directory:
+       templates/
+         api-doc.md
+         commit-message.md
+         readme.md
      
      ---
      
-     ## Migration Checklist
-     - [ ] Update API base URL to include the `/v[0m[2m2/` prefix.
-     - [ ] Update authentication logic to use the `Authorization: Bearer <token>` header.
-     -[0m[2m [ ] Update Task data models to support UUID strings for the `id` field.
-     - [ ] Replace all references to the[0m[2m `done` field with `completed`.
-     - [ ] Modify task creation calls to include a valid `project_id[0m[2m`.
-     - [ ] Refactor list response parsing to handle the new paginated envelope (`items` array).
-     -[0m[2m [ ] (Optional) Implement cursor-based pagination using the `next_cursor` property.
+     ---
+     name: core-writing
+     description: "Activate before any substantial writing — docs, copy, proposals, feedback, commit messages, or UI text. Provides copywriting frameworks, tone guidance, and editing workflow for clear, persuasive, polished output."
+     user-invocable: false
+     ---
+     # Skill: core-writing
      
-     ## Upgrade Command
-     To[0m[2m upgrade the Zrb CLI to the latest version, run:
+     Follow **Brief → Structure → Draft → Polish** for every writing task.
      
-     ```bash
-     npm install -g zrb@latest
-[0m[2m```
-     ```
+     ## Companion Templates
      
+     When the current task matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
+     
+     | Trigger | Companion |
+     |---------|-----------|
+     | Writing or rewriting a project README | `templates/readme.md` |
+     | Drafting a git commit message | `templates/commit-message.md` |
+     | Documenting a function, endpoint, or CLI command | `templates/api-doc.md` |
+     
+     ## Workflow
+     
+     ### 1. Brief & Audience
+     
+     - Who is reading this? What do they already know? What do they need to know?
+     - What outcome should this writing achieve?
+     - What tone fits: technical, persuasive, instructional, conversational?
+     
+     ### 2. Structure & Outline
+     
+     - **Technical docs**: Problem → Solution → Usage → API → Examples
+     - **Persuasive writing**: Hook → Context → Evidence → Resolution → CTA
+     - **Instructional**: Goal → Prerequisites → Steps → Verification → Troubleshooting
+     - One idea per paragraph. Lead with the conclusion. Use transitions.
+     
+     ### 3. Draft
+     
+     - Write freely. Don't edit while drafting.
+     - Apply the chosen structure. Fill in evidence and examples.
+     - Use active voice. Be specific over vague.
+     
+     ### 4. Polish & Edit
+     
+     - Omit needless words. Every word must earn its place.
+     - Check flow: read aloud. Fix awkward transitions.
+     - Verify accuracy: facts, code samples, references.
+     - Proof: spelling, grammar, consistent terminology.
+     
+     ## Copywriting Formulas
+     
+     | Formula | When to Use | Structure |
+     |---------|-------------|-----------|
+     | **AIDA** | Marketing, proposals, feature announcements | Attention → Interest → Desire → Action |
+     | **PAS** | Bug reports, problem-solving docs | Problem → Agitate → Solution |
+     | **Inverted Pyramid** | News, announcements, summaries | Conclusion → Key details → Background |
+     | **Before-After-Bridge** | Change proposals, migration guides | Current → Desired → How to get there |
+     | **FEBC** | Technical decisions | Fact → Explanation → Benefit → Conclusion |
+     
+     ## Tone Matrix
+     
+     | Audience | Tone | Characteristics |
+     |----------|------|-----------------|
+     | Developers | Technical, precise | Specific terms, code examples, no fluff |
+     | Product managers | Outcome-oriented | Problem → impact → timeline → trade-offs |
+     | End users | Friendly, clear | Simple language, concrete examples, next steps |
+     | Executives | Concise, strategic | Recommendation first, TL;DR, business impact |
+     
+     ## Quality Checklist
+     
+     Before finalizing:
+     - Does the first paragraph convey the main point?
+     - Can any sentence be shortened without losing meaning?
+     - Are all claims supported by evidence?
+     - Is the tone appropriate for the audience?
+     - Would this still make sense if read in isolation?
+     
+     </ACTIVATED_SKILL>
 [0m[2m
-  🧰 s4ojd28b | Write {'path': 'MIGRATION.md', 'content': '# Zrb v2 Migration Guide\n\n ...'}
+  🧰 vnwiwh6u | ListZrbTasks {}
 [0m[2m
-  🔠 s4ojd28b | Return Successfully wrote to MIGRATION.md
+  🔠 vnwiwh6u | Return Tasks in 'zrb':
+     
+       Groups:
+         - base64: 📄 Base64 operations
+         - code: 📜 Code related command
+         - docker: 🐋 Docker related command
+         - git: 🌱 Git related commands
+         - http: 🌐 HTTP request operations
+         - jwt: 🔒 JWT encode/decode
+         - llm: 🤖 LLM operations
+         - md5: 🔢 Md5 operations
+         - project: 📁 Project related commands
+         - publish: 📦 Publication related command
+         - python: 🐍 Python related commands
+         - random: 🔀 Random operation
+         - searxng: 🔎 Searxng related command
+         - server: 🌐 Server related command
+         - setup: 🔧 Setup
+         - shell: 💬 Shell related commands
+         - test: 🔍 Testing zrb codebase
+         - todo: ✅ Todo management
+         - ulid: 🔢 ULID operations
+         - uuid: 🆔 UUID operations
+     
+       Tasks:
+         - chat: 🤖 Chat with your AI Assistant
+         - version: 🌟 Get current version
 [0m[2m
-  I have created `MIGRATION.md`, a comprehensive developer guide for transitioning from Zrb v[0m[2m1 to v2.
+  🧰 6fe12j29 | LS {'path': '.'}
+[0m[2m
+  🔠 6fe12j29 | Return {'files': ['v1_spec.md', 'v2_spec.md']}
+[0m[2m
+  🧰 p905cbu8 | Bash {'command': 'zrb --help'}
+[0m  [2m
+[0m  [2m                bb
+[0m  [2m   zzzzz rr rr  bb
+[0m  [2m     zz  rrr  r bbbbbb
+[0m  [2m    zz   rr     bb   bb
+[0m  [2m   zzzzz rr     bbbbbb   2.28.2a1 Pollux
+[0m  [2m   _ _ . .  . _ .  _ . . .
+[0m  [2mYour Automation Powerhouse
+[0m  [2m☕ Donate at: https://stalchmst.com
+[0m  [2m🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
+[0m  [2m🐤 Follow us at: https://twitter.com/zarubastalchmst
+[0m  [2m
+[0m  [2m
+[0m  [2m DESCRIPTION 
+[0m  [2mYour Automation Powerhouse
+[0m  [2m
+[0m  [2m GROUPS 
+[0m  [2m  base64  : 📄 Base64 operations
+[0m  [2m  code    : 📜 Code related command
+[0m  [2m  docker  : 🐋 Docker related command
+[0m  [2m  git     : 🌱 Git related commands
+[0m  [2m  http    : 🌐 HTTP request operations
+[0m  [2m  jwt     : 🔒 JWT encode/decode
+[0m  [2m  llm     : 🤖 LLM operations
+[0m  [2m  md5     : 🔢 Md5 operations
+[0m  [2m  publish : 📦 Publication related command
+[0m  [2m  python  : 🐍 Python related commands
+[0m  [2m  random  : 🔀 Random operation
+[0m  [2m  searxng : 🔎 Searxng related command
+[0m  [2m  server  : 🌐 Server related command
+[0m  [2m  setup   : 🔧 Setup
+[0m  [2m  shell   : 💬 Shell related commands
+[0m  [2m  test    : 🔍 Testing zrb codebase
+[0m  [2m  todo    : ✅ Todo management
+[0m  [2m  uuid    : 🆔 UUID operations
+[0m  [2m
+[0m  [2m TASKS 
+[0m  [2m  chat    : 🤖 Chat with your AI Assistant
+[0m  [2m  version : 🌟 Get current version
+[0m  [2m
+[0m[2m
+  🔠 p905cbu8 | Return Command: zrb --help
+     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-flash-preview/copywriting/workdir
+     Stdout:
+     bb
+        zzzzz rr rr  bb
+          zz  rrr  r bbbbbb
+         zz   rr     bb   bb
+        zzzzz rr     bbbbbb   2.28.2a1 Pollux
+        _ _ . .  . _ .  _ . . .
+     Your Automation Powerhouse
+     ☕ Donate at: https://stalchmst.com
+     🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
+     🐤 Follow us at: https://twitter.com/zarubastalchmst
      
-     The guide covers:
-     - **API Versioning**: New `/v2/` prefix requirement.[0m[2m
-     - **Security**: Migration from `X-Auth-Token` to Bearer Authentication.
-     - **Data Model[0m[2m**: Transition from integer IDs to UUIDs and the `done` -> `completed` field rename.
-     - **Requirements**: Mand[0m[2mating `project_id` for task creation.
-     - **Pagination**: Handling the new paginated envelope for list endpoints[0m[2m.
      
-     A step-by-step checklist and the CLI upgrade command are included at the end of the document.[0m[2m[0m[2m
-  💸 (Requests: 4 | Tool Calls: 5 | Total: 48025) Input: 43915 | Audio Input: 0 | Output: 4110 | Audio Output: 0 | Cache Read: 20137 | Cache Write: 0 | Details: {'thoughts_tokens': 1953, 'text_prompt_tokens': 43915, 'cached_content_tokens': 20137, 'text_cache_tokens': 20137}
+      DESCRIPTION 
+     Your Automation Powerhouse
+     
+      GROUPS 
+       base64  : 📄 Base64 operations
+       code    : 📜 Code related command
+       docker  : 🐋 Docker related command
+       git     : 🌱 Git related commands
+       http    : 🌐 HTTP request operations
+       jwt     : 🔒 JWT encode/decode
+       llm     : 🤖 LLM operations
+       md5     : 🔢 Md5 operations
+       publish : 📦 Publication related command
+       python  : 🐍 Python related commands
+       random  : 🔀 Random operation
+       searxng : 🔎 Searxng related command
+       server  : 🌐 Server related command
+       setup   : 🔧 Setup
+       shell   : 💬 Shell related commands
+       test    : 🔍 Testing zrb codebase
+       todo    : ✅ Todo management
+       uuid    : 🆔 UUID operations
+     
+      TASKS 
+       chat    : 🤖 Chat with your AI Assistant
+       version : 🌟 Get current version
+     Stderr:
+     (empty)
+     Exit Code: 0
+     Background PIDs: (none)
+[0m[2m
+  🧰 2wcb944d | Write {'path': 'MIGRATION.md', 'content': '# Zrb v2 Migration Guide\n\n ...'}
+[0m[2m
+  🔠 2wcb944d | Return Successfully wrote to MIGRATION.md
+[0m[2m
+  I have created the `MIGRATION.md` guide. It details[0m[2m all breaking changes—including endpoint prefixing, the new Bearer token authentication, the transition from integer IDs to UUIDs[0m[2m, field renames, and the mandatory `project_id` for task creation—along with before/after code examples[0m[2m and a migration checklist.
+     
+     You can find the completed guide in `MIGRATION.md`.[0m[2m[0m[2m
+  💸 (Requests: 8 | Tool Calls: 8 | Total: 96870) Input: 91326 | Audio Input: 0 | Output: 5544 | Audio Output: 0 | Cache Read: 38163 | Cache Write: 0 | Details: {'text_prompt_tokens': 91326, 'cached_content_tokens': 38163, 'text_cache_tokens': 38163, 'thoughts_tokens': 4432}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "The Zrb CLI is releasing v2, which has several breaking changes from v1. Our developer community needs a clear migration guide.
 
 `v1_spec.md` describes the current v1 API. `v2_spec.md` describes the new v2 API.
@@ -467,14 +448,7 @@ Write a developer migration guide and save it as `MIGRATION.md`. It should:
 - End with the upgrade command
 
 The audience is experienced developers who are already using v1." --model google-gla:gemini-3-flash-preview --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mrare-hall-3430[0m[0m
-I have created `MIGRATION.md`, a comprehensive developer guide for transitioning from Zrb v1 to v2.
+[2m[2mSession[0m: [1;33mrich-base-5683[0m[0m
+I have created the `MIGRATION.md` guide. It details all breaking changes—including endpoint prefixing, the new Bearer token authentication, the transition from integer IDs to UUIDs, field renames, and the mandatory `project_id` for task creation—along with before/after code examples and a migration checklist.
 
-The guide covers:
-- **API Versioning**: New `/v2/` prefix requirement.
-- **Security**: Migration from `X-Auth-Token` to Bearer Authentication.
-- **Data Model**: Transition from integer IDs to UUIDs and the `done` -> `completed` field rename.
-- **Requirements**: Mandating `project_id` for task creation.
-- **Pagination**: Handling the new paginated envelope for list endpoints.
-
-A step-by-step checklist and the CLI upgrade command are included at the end of the document.
+You can find the completed guide in `MIGRATION.md`.

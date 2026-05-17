@@ -8,7 +8,7 @@ class PaymentGateway:
         self._failure_rate = failure_rate
         self.total_charged: float = 0.0
         self.charges: List[dict] = []
-        self._charged_order_ids: Set[str] = set()
+        self._charged_orders: Set[str] = set()
         self._lock = asyncio.Lock()
 
     async def charge(self, order_id: str, amount: float) -> bool:
@@ -20,28 +20,31 @@ class PaymentGateway:
         return True
 
     async def charge_once(self, order_id: str, amount: float) -> bool:
-        """Charge only if not already charged - prevents duplicate charges."""
+        """Charge only if order_id hasn't been charged before. Returns True if charge succeeded."""
         async with self._lock:
-            if order_id in self._charged_order_ids:
-                return False
+            if order_id in self._charged_orders:
+                return True  # Already charged, skip
             await asyncio.sleep(0.03)
             if random.random() < self._failure_rate:
                 return False
             self.total_charged += amount
             self.charges.append({"order_id": order_id, "amount": amount})
-            self._charged_order_ids.add(order_id)
+            self._charged_orders.add(order_id)
             return True
 
-    async def refund(self, order_id: str) -> bool:
-        """Refund a charge (for rollback after failed inventory reservation)."""
+    async def is_charged(self, order_id: str) -> bool:
         async with self._lock:
-            if order_id not in self._charged_order_ids:
-                return False
-            # Find and remove the charge for this order_id
-            for i, charge in enumerate(self.charges):
-                if charge["order_id"] == order_id:
-                    self.charges.pop(i)
-                    self.total_charged -= charge["amount"]
-                    self._charged_order_ids.remove(order_id)
-                    return True
-            return False
+            return order_id in self._charged_orders
+
+    async def rollback_charge(self, order_id: str) -> Optional[float]:
+        """Remove a charge for an order that failed after payment. Returns amount if found."""
+        async with self._lock:
+            if order_id in self._charged_orders:
+                self._charged_orders.discard(order_id)
+                for i, c in enumerate(self.charges):
+                    if c["order_id"] == order_id:
+                        amount = c["amount"]
+                        self.charges.pop(i)
+                        self.total_charged -= amount
+                        return amount
+            return None

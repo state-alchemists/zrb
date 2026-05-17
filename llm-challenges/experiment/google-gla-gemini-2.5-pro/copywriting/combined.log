@@ -1,8 +1,8 @@
 [2m
-  I will create a Zrb CLI v2 migration[0m[2m guide. My first step is to read `v1_spec.md` and `v2_spec.md[0m[2m` to identify all breaking changes. I will then write the guide, structuring it with clear headings, before/after code examples[0m[2m, a migration checklist, and the final upgrade command. I'll begin by reading the specification files.[0m[2m
-  🧰 pyd_ai_96fbfd1179194366bceca17c128ead02 | Read {'path': 'v1_spec.md'}
+  Got it. I[0m[2m'll write the Zrb v2 migration guide. First, I'll read the v1 and v2 specs[0m[2m to identify the changes.[0m[2m
+  🧰 pyd_ai_cbcb2f7c3f0f4c03a89885365e112f7c | Read {'path': 'v1_spec.md'}
 [0m[2m
-  🔠 pyd_ai_96fbfd1179194366bceca17c128ead02 | Return [File: v1_spec.md | 83 lines]
+  🔠 pyd_ai_cbcb2f7c3f0f4c03a89885365e112f7c | Return [File: v1_spec.md | 83 lines]
      ---CONTENT---
      # Zrb Task API — v1 Reference
      
@@ -88,9 +88,10 @@
      **Response:** HTTP 204 No Content.
      
 [0m[2m
-  🧰 pyd_ai_7c9e6f9895c64f18a73b2d09064e38d1 | Read {'path': 'v2_spec.md'}
+  Okay, I've[0m[2m reviewed the v1 spec. Now reading the v2 spec.[0m[2m
+  🧰 pyd_ai_2e174c80148241bab6a6548f2facc23f | Read {'path': 'v2_spec.md'}
 [0m[2m
-  🔠 pyd_ai_7c9e6f9895c64f18a73b2d09064e38d1 | Return [File: v2_spec.md | 115 lines]
+  🔠 pyd_ai_2e174c80148241bab6a6548f2facc23f | Return [File: v2_spec.md | 115 lines]
      ---CONTENT---
      # Zrb Task API — v2 Reference
      
@@ -208,13 +209,108 @@
      **Response:** HTTP 204 No Content.
      
 [0m[2m
-  I have analyzed[0m[2m both specifications and identified six breaking changes. I will now write the `MIGRATION.md` file, detailing each change with[0m[2m code examples, and include a step-by-step checklist and the upgrade command as requested.[0m[2m
-  🧰 pyd_ai_768a576c66e94e979c7d9855986e9f12 | Write {'path': 'MIGRATION.md', 'content': '# Zrb CLI API: v1 to v2 Mi ...'}
+  Okay, I've analyzed both specifications. I'll now write[0m[2m the migration guide, incorporating all the breaking changes, code examples, a checklist, and the final upgrade command, then save it to[0m[2m `MIGRATION.md`.[0m[2m
+  🧰 pyd_ai_dd51e4b0c8b1424dbfc6926c5c4eac46 | ActivateSkill {'name': 'core-writing'}
 [0m[2m
-  🔠 pyd_ai_768a576c66e94e979c7d9855986e9f12 | Return Successfully wrote to MIGRATION.md
+  🔠 pyd_ai_dd51e4b0c8b1424dbfc6926c5c4eac46 | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
+     
+     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-writing
+     
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
+     
+     Companion files available in this directory:
+       templates/
+         api-doc.md
+         commit-message.md
+         readme.md
+     
+     ---
+     
+     ---
+     name: core-writing
+     description: "Activate before any substantial writing — docs, copy, proposals, feedback, commit messages, or UI text. Provides copywriting frameworks, tone guidance, and editing workflow for clear, persuasive, polished output."
+     user-invocable: false
+     ---
+     # Skill: core-writing
+     
+     Follow **Brief → Structure → Draft → Polish** for every writing task.
+     
+     ## Companion Templates
+     
+     When the current task matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
+     
+     | Trigger | Companion |
+     |---------|-----------|
+     | Writing or rewriting a project README | `templates/readme.md` |
+     | Drafting a git commit message | `templates/commit-message.md` |
+     | Documenting a function, endpoint, or CLI command | `templates/api-doc.md` |
+     
+     ## Workflow
+     
+     ### 1. Brief & Audience
+     
+     - Who is reading this? What do they already know? What do they need to know?
+     - What outcome should this writing achieve?
+     - What tone fits: technical, persuasive, instructional, conversational?
+     
+     ### 2. Structure & Outline
+     
+     - **Technical docs**: Problem → Solution → Usage → API → Examples
+     - **Persuasive writing**: Hook → Context → Evidence → Resolution → CTA
+     - **Instructional**: Goal → Prerequisites → Steps → Verification → Troubleshooting
+     - One idea per paragraph. Lead with the conclusion. Use transitions.
+     
+     ### 3. Draft
+     
+     - Write freely. Don't edit while drafting.
+     - Apply the chosen structure. Fill in evidence and examples.
+     - Use active voice. Be specific over vague.
+     
+     ### 4. Polish & Edit
+     
+     - Omit needless words. Every word must earn its place.
+     - Check flow: read aloud. Fix awkward transitions.
+     - Verify accuracy: facts, code samples, references.
+     - Proof: spelling, grammar, consistent terminology.
+     
+     ## Copywriting Formulas
+     
+     | Formula | When to Use | Structure |
+     |---------|-------------|-----------|
+     | **AIDA** | Marketing, proposals, feature announcements | Attention → Interest → Desire → Action |
+     | **PAS** | Bug reports, problem-solving docs | Problem → Agitate → Solution |
+     | **Inverted Pyramid** | News, announcements, summaries | Conclusion → Key details → Background |
+     | **Before-After-Bridge** | Change proposals, migration guides | Current → Desired → How to get there |
+     | **FEBC** | Technical decisions | Fact → Explanation → Benefit → Conclusion |
+     
+     ## Tone Matrix
+     
+     | Audience | Tone | Characteristics |
+     |----------|------|-----------------|
+     | Developers | Technical, precise | Specific terms, code examples, no fluff |
+     | Product managers | Outcome-oriented | Problem → impact → timeline → trade-offs |
+     | End users | Friendly, clear | Simple language, concrete examples, next steps |
+     | Executives | Concise, strategic | Recommendation first, TL;DR, business impact |
+     
+     ## Quality Checklist
+     
+     Before finalizing:
+     - Does the first paragraph convey the main point?
+     - Can any sentence be shortened without losing meaning?
+     - Are all claims supported by evidence?
+     - Is the tone appropriate for the audience?
+     - Would this still make sense if read in isolation?
+     
+     </ACTIVATED_SKILL>
 [0m[2m
-  I have created the `M[0m[2mIGRATION.md` file as requested. It details the six breaking changes between Zrb CLI API v1 and v[0m[2m2, provides clear before-and-after code examples, includes a migration checklist, and ends with the upgrade command. The file[0m[2m is ready for the developer community.[0m[2m
-  💸 (Requests: 4 | Tool Calls: 3 | Total: 43772) Input: 41414 | Audio Input: 0 | Output: 2358 | Audio Output: 0 | Cache Read: 8328 | Cache Write: 0 | Details: {'thoughts_tokens': 588, 'text_prompt_tokens': 41414, 'cached_content_tokens': 8328, 'text_cache_tokens': 8328}
+  🧰 pyd_ai_46aae5ff643f41f4b4a41ae60cfff053 | Write {'content': '# Zrb API v1 to v2 Migrati ...', 'path': 'MIGRATION.md'}
+[0m[2m
+  🔠 pyd_ai_46aae5ff643f41f4b4a41ae60cfff053 | Return Successfully wrote to MIGRATION.md
+[0m[2m
+  I have created the `MIGR[0m[2mATION.md` file as requested. It covers all the breaking changes from v1 to v2, includes code examples, a[0m[2m migration checklist, and the upgrade command. The task is complete.[0m[2m
+  💸 (Requests: 5 | Tool Calls: 4 | Total: 56585) Input: 53601 | Audio Input: 0 | Output: 2984 | Audio Output: 0 | Cache Read: 16549 | Cache Write: 0 | Details: {'thoughts_tokens': 1203, 'text_prompt_tokens': 53601, 'cached_content_tokens': 16549, 'text_cache_tokens': 16549}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "The Zrb CLI is releasing v2, which has several breaking changes from v1. Our developer community needs a clear migration guide.
 
 `v1_spec.md` describes the current v1 API. `v2_spec.md` describes the new v2 API.
@@ -227,5 +323,5 @@ Write a developer migration guide and save it as `MIGRATION.md`. It should:
 - End with the upgrade command
 
 The audience is experienced developers who are already using v1." --model google-gla:gemini-2.5-pro --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mweak-hand-5503[0m[0m
-I have created the `MIGRATION.md` file as requested. It details the six breaking changes between Zrb CLI API v1 and v2, provides clear before-and-after code examples, includes a migration checklist, and ends with the upgrade command. The file is ready for the developer community.
+[2m[2mSession[0m: [1;33mbold-cell-1421[0m[0m
+I have created the `MIGRATION.md` file as requested. It covers all the breaking changes from v1 to v2, includes code examples, a migration checklist, and the upgrade command. The task is complete.

@@ -9,7 +9,8 @@ class Inventory:
         await asyncio.sleep(0.02)
         return self._stock >= quantity
 
-    async def decrement(self, quantity: int) -> bool:
+    async def reserve(self, quantity: int) -> bool:
+        """Atomically check and decrement stock. Returns True if reserved, False if insufficient stock."""
         await asyncio.sleep(0.02)
         if self._stock >= quantity:
             self._stock -= quantity

@@ -20,6 +20,7 @@ for the transient case, returning whether the caller should retry.
 from __future__ import annotations
 
 import asyncio
+import re
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
 
@@ -140,13 +141,33 @@ async def handle_stream_error(
 
     if is_invalid_tool_call_error(exc) and not state.invalid_tool_retry_done:
         state.invalid_tool_retry_done = True
-        corrective = (
-            "[SYSTEM] Your previous response was rejected because it referenced "
-            "an invalid or non-existent tool name. Either the name was invented "
-            "(use only the exact tool names available to you — do not invent, "
-            "abbreviate, or modify them) or multiple tool names were "
-            "concatenated like `ReadRead` (in which case make exactly ONE tool "
-            "call per response; your next response can make the next)."
+        bad_name = _extract_invalid_tool_name(exc, current_history)
+        if bad_name:
+            lead = (
+                "[SYSTEM] ⛔ STOP. Your last response is BROKEN.\n\n"
+                f"You called: `{bad_name}` — this is NOT a real tool. "
+                "It does not exist in the tool registry.\n"
+            )
+        else:
+            lead = (
+                "[SYSTEM] ⛔ STOP. Your last response is BROKEN — "
+                "you called a tool name that does NOT exist.\n"
+            )
+        corrective = lead + (
+            "\nYou likely glued multiple tool names together (e.g., "
+            "`ReadRead`, `ReadReadRead`, `ActivateSkillRead`, `EditEdit`) "
+            "or invented/abbreviated a name. BOTH are INVALID. Concatenated "
+            "names will ALWAYS be rejected. There is no `ReadRead` in any "
+            "tool registry, anywhere.\n\n"
+            "RULES — non-negotiable:\n"
+            "- ONE tool call per response. ONE name. ONE JSON arguments object.\n"
+            "- To do N actions, send N separate responses. Wait for each result.\n"
+            "- Example: reading 3 files = 3 separate responses, ONE `Read` "
+            "each, NEVER one response with `ReadReadRead`.\n"
+            "- Tool names come from the available list — verbatim, "
+            "case-sensitive. Do NOT invent, abbreviate, modify, or combine.\n\n"
+            "Now: emit exactly ONE valid tool call. Pick the single most "
+            "useful next action."
         )
         print_fn("\n[SYSTEM] Invalid tool call detected, asking model to retry...")
         CFG.LOGGER.debug(
@@ -209,3 +230,54 @@ async def handle_stream_error(
             )
 
     return RetryOutcome(should_retry=False)
+
+
+_INVALID_TOOL_NAME_PATTERNS = (
+    re.compile(
+        r"unknown\s+(?:tool|function)(?:\s+name)?[:\s]+['\"`]?([A-Za-z_][A-Za-z0-9_]*)['\"`]?",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"(?:tool|function)\s+['\"`]?([A-Za-z_][A-Za-z0-9_]*)['\"`]?\s+(?:not\s+(?:found|defined)|is\s+(?:not\s+)?invalid)",
+        re.IGNORECASE,
+    ),
+)
+
+
+def _extract_invalid_tool_name(
+    exc: Exception, current_history: list[Any]
+) -> str | None:
+    """Return the bad tool name when discoverable, else ``None``.
+
+    Looks at two sources in order:
+
+    1. The exception body (some providers include "Unknown tool: X").
+    2. The recent history — zrb's ``SafeToolsetWrapper`` writes
+       ``Unknown tool name: 'X'`` into a tool-return part when it
+       rejects a malformed call, which is the most reliable signal
+       for Ollama-cloud (whose body is the generic
+       ``invalid tool call arguments``).
+    """
+    body = getattr(exc, "body", None)
+    body_text = body.get("message") if isinstance(body, dict) else str(exc)
+    if body_text:
+        name = _match_invalid_tool_name(body_text)
+        if name:
+            return name
+    for msg in reversed(current_history or []):
+        for part in reversed(list(getattr(msg, "parts", None) or [])):
+            content = getattr(part, "content", None)
+            if not isinstance(content, str):
+                continue
+            name = _match_invalid_tool_name(content)
+            if name:
+                return name
+    return None
+
+
+def _match_invalid_tool_name(text: str) -> str | None:
+    for pattern in _INVALID_TOOL_NAME_PATTERNS:
+        match = pattern.search(text)
+        if match:
+            return match.group(1)
+    return None

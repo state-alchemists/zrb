@@ -42,6 +42,10 @@ deepseek:deepseek-chat ollama:glm-4.7:cloud ollama:glm-5:cloud ollama:glm-5.1:cl
 ollama:qwen3-coder-next:cloud ollama:kimi-k2.5:cloud ollama:kimi-k2.6:cloud ollama:minimax-m2.7:cloud \
 ollama:gemma4:31b-cloud
 
+# Run models that not support parallel tool call
+python runner.py --timeout 3600 --parallelism 12 --verbose \
+--models ollama:glm-4.7:cloud ollama:minimax-m2.7:cloud
+
 # Test a single challenge
 python runner.py --models openai:gpt-4o --filter bug-fix --timeout 120 --verbose
 

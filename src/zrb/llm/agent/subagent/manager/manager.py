@@ -75,6 +75,12 @@ class SubAgentManager(LoaderMixin, SearchMixin):
         self._loaded: bool = False  # Track if agents have been loaded
         self._tool_guidance: ToolCatalogue = {}
         self._tool_groups: ToolGroups = []
+        # Guidance factories for dynamically-named tools (e.g., RunZrbTask).
+        self._tool_guidance_factories: list[Callable[[AnyContext], ToolGuidance]] = []
+        # Section factories for model-aware Tool Usage Guide intros (e.g., parallel-tool-call policy).
+        self._tool_guidance_section_factories: list[
+            Callable[[AnyContext, Any], str | None]
+        ] = []
 
     def reload(self):
         """Force re-scan agents. Use after CFG changes or agent file updates."""
@@ -138,6 +144,27 @@ class SubAgentManager(LoaderMixin, SearchMixin):
                     if g.tool_name not in members:
                         members.append(g.tool_name)
                     break
+
+    def add_tool_guidance_factory(
+        self, *factory: "Callable[[AnyContext], ToolGuidance]"
+    ):
+        """Register guidance for dynamically-named factory tools.
+
+        Each factory is called when creating an agent. It should return
+        a single ToolGuidance object.
+        """
+        self._tool_guidance_factories.extend(factory)
+
+    def add_tool_guidance_section_factory(
+        self, *factory: "Callable[[AnyContext, Any], str | None]"
+    ):
+        """Register a factory that renders a model-aware Tool Usage Guide section.
+
+        Each factory is called per-agent with ``(ctx, resolved_model)`` and
+        returns a Markdown block (typically starting with ``## Heading``) or
+        ``None``/empty string to skip injection.
+        """
+        self._tool_guidance_section_factories.extend(factory)
 
     def scan(
         self, search_dirs: list[str | Path] | None = None
@@ -223,8 +250,26 @@ class SubAgentManager(LoaderMixin, SearchMixin):
         else:
             effective_yolo = make_yolo_inheritance_checker()
 
+        # Resolve model so section factories can use it
+        final_model = default_llm_config.resolve_model(definition.model)
+
+        # Resolve guidance factories for dynamically-named tools
+        for factory in self._tool_guidance_factories:
+            guidance = factory(ctx)
+            self.add_tool_guidance(guidance)
+
+        # Resolve section factories for model-aware guidance sections
+        section_strings: list[str] = []
+        for factory in self._tool_guidance_section_factories:
+            rendered = factory(ctx, final_model)
+            if rendered:
+                section_strings.append(rendered)
+
         guidance_prompt = get_tool_guidance_prompt(
-            None, self._tool_guidance, self._tool_groups
+            None,
+            self._tool_guidance,
+            self._tool_groups,
+            extra_sections=section_strings if section_strings else None,
         )
         effective_system_prompt = definition.system_prompt
         if guidance_prompt:
@@ -232,7 +277,6 @@ class SubAgentManager(LoaderMixin, SearchMixin):
                 f"{effective_system_prompt}\n\n{guidance_prompt}".strip()
             )
 
-        final_model = default_llm_config.resolve_model(definition.model)
         return create_agent(
             model=final_model,
             system_prompt=effective_system_prompt,

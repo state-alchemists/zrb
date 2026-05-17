@@ -1,5 +1,6 @@
 import inspect
-from typing import Callable
+from functools import partial
+from typing import Any, Callable
 
 from zrb.attr.type import StrListAttr
 from zrb.config.config import CFG
@@ -61,6 +62,16 @@ class PromptManager:
         self._active_skills = active_skills
         self._render_active_skills = render_active_skills
         self._render = render
+        # Resolved current model — used by the system_context section to
+        # surface model-specific capabilities (e.g. parallel tool call
+        # support). Set by the task runner before each compose_prompt(),
+        # so /model switches mid-session are reflected automatically.
+        self._model: Any = None
+        # Pre-rendered Markdown blocks injected above the per-tool
+        # catalogue when the ``tool_guidance`` section is composed. Set
+        # by the task runner from model-aware section factories so the
+        # blocks reflect the active model.
+        self._tool_guidance_sections: list[str] = []
 
     @property
     def prompts(self):
@@ -93,6 +104,22 @@ class PromptManager:
     @tool_names.setter
     def tool_names(self, value: "set[str] | Callable[[AnyContext], set[str]] | None"):
         self._tool_names = value
+
+    @property
+    def model(self) -> Any:
+        return self._model
+
+    @model.setter
+    def model(self, value: Any) -> None:
+        self._model = value
+
+    @property
+    def tool_guidance_sections(self) -> list[str]:
+        return self._tool_guidance_sections
+
+    @tool_guidance_sections.setter
+    def tool_guidance_sections(self, value: list[str] | None) -> None:
+        self._tool_guidance_sections = list(value) if value else []
 
     def add_tool_group(self, *, name: str) -> None:
         """Register a new tool group if it does not already exist."""
@@ -215,14 +242,17 @@ class PromptManager:
                     )
                 )
             elif section == "system_context":
-                middlewares.append(system_context)
+                # Bind the resolved model so system_context can surface
+                # capability-driven notes (e.g. "no parallel tool calls").
+                middlewares.append(partial(system_context, model=self._model))
             elif section == "mandate":
                 middlewares.append(new_prompt(lambda: get_prompt("mandate")))
             elif section == "tool_guidance":
+                _extra_sections = list(self._tool_guidance_sections)
                 middlewares.append(
                     new_prompt(
-                        lambda tn=tool_names_value, c=_catalogue, g=_groups: get_tool_guidance_prompt(
-                            tn, c, g
+                        lambda tn=tool_names_value, c=_catalogue, g=_groups, es=_extra_sections: get_tool_guidance_prompt(
+                            tn, c, g, extra_sections=es
                         )
                     )
                 )
