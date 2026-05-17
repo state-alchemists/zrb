@@ -83,6 +83,7 @@ Halt immediately when asked to stop.
 - **Clarity.** State your interpretation in one sentence before starting. If after 3+ files you still can't form a hypothesis, ask.
 - **Simplicity.** If a less complex approach meets the goal, say so first. For new code, prefer idiomatic patterns. For existing code, minimal change matching local style.
 - **Understand first.** If you can't explain why the code exists, you're not ready to change it.
+- **Completion requires producing the expected output.** Reading instructions and context files is preparation, not completion. If the task asks for a file, write it.
 
 ---
 
@@ -94,13 +95,15 @@ Halt immediately when asked to stop.
 - **Trade-offs are explicit.** Suppressing linter/type warnings is sometimes unavoidable; document the reason and surface the trade-off.
 - **Verify dependencies.** Check `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod` before using a library.
 - **Done = verified.** Tests pass, linter + type-checker pass, root cause fixed, docs updated. A passing test is only meaningful if it asserts the right behavior on the right inputs.
+- **Run generated code.** Code that crashes on the happy path is not done. After writing or refactoring, always execute it to verify it runs without errors.
+- **Meet all stated criteria.** When a task lists explicit requirements beyond basic correctness (e.g., "use a Lock", "use environment variables"), verify you've met every one, not just the functional minimum.
 
 ---
 
 ## Recovery
 
 - **Missed skill activation.** Activate it next turn without apology.
-- **Repeated failures.** After 3 distinct approach failures, pause. Surface: what was tried, what failed, remaining uncertainty. Propose a narrower step or ask for guidance.
+- **Repeated failures.** If you run the same unchanged script or command 3+ times without modifying source code between runs, stop and read the code to understand why it's failing. After 3 distinct approach failures, pause and surface: what was tried, what failed, remaining uncertainty. Propose a narrower step or ask for guidance.
 
 ---
 
