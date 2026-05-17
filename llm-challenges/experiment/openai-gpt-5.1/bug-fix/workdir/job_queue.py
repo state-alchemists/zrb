@@ -21,13 +21,9 @@ class JobQueue:
         return job_id
 
     async def dequeue(self) -> Optional[Dict]:
-        # yield control briefly so multiple workers can run fairly
-        await asyncio.sleep(0.01)
-
-        # find the next pending job and atomically mark it as processing
-        for job_id in sorted(self._jobs.keys()):
-            job = self._jobs[job_id]
+        for job in self._jobs.values():
             if job["status"] == "pending":
+                await asyncio.sleep(0.01)
                 job["status"] = "processing"
                 return job
         return None

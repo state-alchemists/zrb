@@ -142,8 +142,11 @@ async def handle_stream_error(
         state.invalid_tool_retry_done = True
         corrective = (
             "[SYSTEM] Your previous response was rejected because it referenced "
-            "an invalid or non-existent tool name. Use only the exact tool names "
-            "available to you — do not combine, modify, or invent tool names."
+            "an invalid or non-existent tool name. Either the name was invented "
+            "(use only the exact tool names available to you — do not invent, "
+            "abbreviate, or modify them) or multiple tool names were "
+            "concatenated like `ReadRead` (in which case make exactly ONE tool "
+            "call per response; your next response can make the next)."
         )
         print_fn("\n[SYSTEM] Invalid tool call detected, asking model to retry...")
         CFG.LOGGER.debug(

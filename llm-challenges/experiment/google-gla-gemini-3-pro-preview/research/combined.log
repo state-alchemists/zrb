@@ -1,87 +1,7 @@
 [2m
-  🧰 q941o78s | ActivateSkill {'name': 'core-design'}
+  🧰 dzp9dgao | Read {'path': 'system_context.md'}
 [0m[2m
-  🧰 w19lx0fx | Read {'path': 'system_context.md'}
-[0m[2m
-  🔠 q941o78s | Return <ACTIVATED_SKILL>
-     Skill activated. The following context applies:
-     
-     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-design
-     
-     All file paths in the skill instructions below are relative to this directory.
-     Use companion files (scripts, tools, references) by resolving them against this path.
-     
-     Companion files available in this directory:
-       templates/
-         decision-record.md
-     
-     ---
-     
-     ---
-     name: core-design
-     description: "Activate before any design work — system architecture, API design, data modeling, component decomposition, or trade-off analysis. Provides the Constraints → Explore → Decide → Specify → Plan workflow for sound, well-reasoned designs."
-     user-invocable: false
-     ---
-     # Skill: core-design
-     
-     Follow **Constraints → Explore → Decide → Specify → Plan** for every design task.
-     
-     ## Companion Templates
-     
-     When the current step matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
-     
-     | Trigger | Companion |
-     |---------|-----------|
-     | Recording a design decision worth preserving (during or after the Decide step) | `templates/decision-record.md` |
-     
-     ## Workflow
-     
-     ### 1. Constraints & Requirements
-     
-     - Extract explicit requirements and implicit constraints from the task.
-     - Identify what's in scope and what's out.
-     - Note non-negotiables: existing interfaces, backward compatibility, security, performance targets.
-     - If requirements are ambiguous, ask before designing further.
-     
-     ### 2. Architecture Exploration
-     
-     - Generate 2-3 distinct approaches. Avoid converging on the first idea.
-     - Compare each approach against: correctness, consistency with existing patterns, complexity, performance, maintainability, testability.
-     - Use `Grep`, `Glob`, and `Read` to study existing patterns before proposing new ones.
-     - For large or unfamiliar domains, activate `core-research` first to map the landscape.
-     
-     ### 3. Design Decision
-     
-     - Choose the best approach with explicit rationale.
-     - Document what was chosen AND what was rejected and why.
-     - The rationale should be specific enough that someone else could reconstruct the same decision from the constraints.
-     
-     ### 4. Specification
-     
-     - Define precise contracts: interfaces, data flow, error modes, edge cases.
-     - Be concrete enough that implementation is straightforward from the spec alone.
-     - Use `WriteTodos` to capture loose ends or open questions.
-     
-     ### 5. Implementation Plan
-     
-     - Break the design into discrete implementation steps.
-     - Each step: Action → Target → Verification.
-     - Order steps by dependency (what must exist before what).
-     
-     ## Safety Rules
-     
-     - **No premature implementation**: During steps 1-4, do not write or modify any code. Design decisions come before implementation.
-     - **Approval gate**: You must obtain explicit user approval of the design and plan before starting implementation.
-     
-     ## Output Standards
-     
-     - **Structured**: Clear sections matching the workflow above.
-     - **Precise**: Specific interfaces, types, and contracts — not vague descriptions.
-     - **Context-aware**: The design must fit the existing codebase, not introduce a new paradigm unless justified.
-     - **Transparent**: Surface trade-offs made and alternatives considered.
-     </ACTIVATED_SKILL>
-[0m[2m
-  🔠 w19lx0fx | Return [File: system_context.md | 44 lines]
+  🔠 dzp9dgao | Return [File: system_context.md | 44 lines]
      ---CONTENT---
      # System Context: Notifier Subsystem Decision
      
@@ -128,101 +48,111 @@
      - Must maintain exactly-once semantics for billing notifications
      
 [0m[2m
-  🧰 dndsjwdy | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+  🧰 crjb4d5v | ActivateSkill {'name': 'core-writing'}
 [0m[2m
-  🔠 dndsjwdy | Return [File: /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-design/templates/decision-record.md | 76 lines]
-     ---CONTENT---
-     # Architecture Decision Record (ADR) Template
+  🔠 crjb4d5v | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
      
-     Use this when core-design's **Decide** step produces a choice worth recording — anything a future reader (including the LLM in a later session) would want to reconstruct.
+     Skill directory (working directory): /Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm_plugin/skills/core-writing
      
-     ## File Location
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
      
-     Store ADRs under the project's documentation:
+     Companion files available in this directory:
+       templates/
+         api-doc.md
+         commit-message.md
+         readme.md
      
-     - Preferred: `docs/adr/NNNN-<short-slug>.md` (sequential, `0001`, `0002`, …)
-     - Acceptable: `.adr/`, `docs/decisions/`, or wherever the project already keeps them
+     ---
      
-     Check first with `Glob` — match existing project convention rather than inventing one.
+     ---
+     name: core-writing
+     description: "Activate before any substantial writing — docs, copy, proposals, feedback, commit messages, or UI text. Provides copywriting frameworks, tone guidance, and editing workflow for clear, persuasive, polished output."
+     user-invocable: false
+     ---
+     # Skill: core-writing
      
-     ## Format
+     Follow **Brief → Structure → Draft → Polish** for every writing task.
      
-     ````markdown
-     # ADR NNNN — <short title in imperative or noun phrase>
+     ## Companion Templates
      
-     - **Status**: Proposed | Accepted | Superseded by ADR NNNN | Deprecated
-     - **Date**: YYYY-MM-DD
-     - **Deciders**: <names or roles>
-     - **Context tags**: <comma-separated, e.g. auth, performance, storage>
+     When the current task matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
      
-     ## Context
+     | Trigger | Companion |
+     |---------|-----------|
+     | Writing or rewriting a project README | `templates/readme.md` |
+     | Drafting a git commit message | `templates/commit-message.md` |
+     | Documenting a function, endpoint, or CLI command | `templates/api-doc.md` |
      
-     What problem are we solving? What constraints apply? What changed that forces this decision now?
+     ## Workflow
      
-     State the situation neutrally — anyone reading this in a year should understand *why this came up* without needing the surrounding conversation.
+     ### 1. Brief & Audience
      
-     ## Decision
+     - Who is reading this? What do they already know? What do they need to know?
+     - What outcome should this writing achieve?
+     - What tone fits: technical, persuasive, instructional, conversational?
      
-     The single sentence stating what was chosen, in active voice.
+     ### 2. Structure & Outline
      
-     > We will use <X> for <Y>.
+     - **Technical docs**: Problem → Solution → Usage → API → Examples
+     - **Persuasive writing**: Hook → Context → Evidence → Resolution → CTA
+     - **Instructional**: Goal → Prerequisites → Steps → Verification → Troubleshooting
+     - One idea per paragraph. Lead with the conclusion. Use transitions.
      
-     Then, if needed, 1–3 paragraphs of clarification. No more.
+     ### 3. Draft
      
-     ## Rationale
+     - Write freely. Don't edit while drafting.
+     - Apply the chosen structure. Fill in evidence and examples.
+     - Use active voice. Be specific over vague.
      
-     Why this option won. Tie back to the constraints in Context. Cite evidence (`file:line`, benchmarks, prior incidents).
+     ### 4. Polish & Edit
      
-     ## Alternatives Considered
+     - Omit needless words. Every word must earn its place.
+     - Check flow: read aloud. Fix awkward transitions.
+     - Verify accuracy: facts, code samples, references.
+     - Proof: spelling, grammar, consistent terminology.
      
-     Each alternative gets a short paragraph:
-     - **<Option A>** — why rejected.
-     - **<Option B>** — why rejected.
+     ## Copywriting Formulas
      
-     Be specific about what would have made the alternative win. ("We'd have chosen B if our throughput requirement were 10× higher.")
+     | Formula | When to Use | Structure |
+     |---------|-------------|-----------|
+     | **AIDA** | Marketing, proposals, feature announcements | Attention → Interest → Desire → Action |
+     | **PAS** | Bug reports, problem-solving docs | Problem → Agitate → Solution |
+     | **Inverted Pyramid** | News, announcements, summaries | Conclusion → Key details → Background |
+     | **Before-After-Bridge** | Change proposals, migration guides | Current → Desired → How to get there |
+     | **FEBC** | Technical decisions | Fact → Explanation → Benefit → Conclusion |
      
-     ## Consequences
+     ## Tone Matrix
      
-     What this decision *commits us to* and what it *closes off*.
+     | Audience | Tone | Characteristics |
+     |----------|------|-----------------|
+     | Developers | Technical, precise | Specific terms, code examples, no fluff |
+     | Product managers | Outcome-oriented | Problem → impact → timeline → trade-offs |
+     | End users | Friendly, clear | Simple language, concrete examples, next steps |
+     | Executives | Concise, strategic | Recommendation first, TL;DR, business impact |
      
-     - **Positive**: <e.g., simpler operational model, fewer moving parts>
-     - **Negative**: <e.g., cannot horizontally scale beyond N without revisiting>
-     - **Follow-ups**: <concrete next steps — tests to write, docs to update, deprecations>
+     ## Quality Checklist
      
-     ## Backlinks
+     Before finalizing:
+     - Does the first paragraph convey the main point?
+     - Can any sentence be shortened without losing meaning?
+     - Are all claims supported by evidence?
+     - Is the tone appropriate for the audience?
+     - Would this still make sense if read in isolation?
      
-     - [ADR index](index.md)
-     - <other ADRs that depend on or relate to this one>
-     ````
-     
-     ## Tone
-     
-     - Past or present tense, never future ("will" is fine in the Decision line, not in the body).
-     - Specific over vague. "We chose Postgres 16 over Redis Streams because our queue depth is bounded by row count, not message rate" beats "Postgres seemed more appropriate."
-     - Don't apologize, don't editorialize. State the decision and the evidence.
-     
-     ## ADR Lifecycle
-     
-     - **Proposed**: drafted but not yet agreed. Use during core-design's Decide step before user approval.
-     - **Accepted**: agreed and in force. Default after user approval.
-     - **Superseded**: replaced by a newer ADR. Add `Superseded by ADR NNNN` to the Status line; keep the file (do not delete history).
-     - **Deprecated**: the situation that motivated the decision no longer exists. Status line records why.
-     
+     </ACTIVATED_SKILL>
 [0m[2m
-  🧰 9ghebj7n | Write {'content': '# ADR-001: Use Redis Strea ...', 'path': 'ADR-001-notification-archi ...'}
+  🧰 gp218o5r | Write {'path': 'ADR-001-notification-archi ...', 'mode': 'w', 'content': '# Title\nADR-001: Notificat ...'}
 [0m[2m
-  🔠 9ghebj7n | Return Successfully wrote to ADR-001-notification-architecture.md
+  🔠 gp218o5r | Return Successfully wrote to ADR-001-notification-architecture.md
 [0m[2m
-  I have evaluated the[0m[2m architecture options based on your system context and constraints. I've chosen **Redis Streams** as the definitive recommendation and drafted[0m[2m the ADR following the standard template.
+  I have created the Architecture Decision Record and saved it as `ADR[0m[2m-001-notification-architecture.md`. 
      
-     Here is a summary of the decision rationale:
-     *   **Operational Complexity & Timeline**:[0m[2m With a 6-person team, no infrastructure engineer, and a strict 2-week deadline, introducing Kafka is unfeasible[0m[2m. Redis is already running in production.
-     *   **Performance**: Redis Streams can comfortably handle the target 5,000 req/[0m[2ms.
-     *   **Features**: Redis Streams supports Consumer Groups, which enables the upcoming WebSocket requirement.
-     *   **Sem[0m[2mantics**: To meet the billing requirement without Kafka's native exactly-once semantics, we must pair Redis Streams' at-least[0m[2m-once delivery with idempotent consumers backed by the existing PostgreSQL database.
+     The ADR recommends **Redis Streams** because it satisfies all your[0m[2m technical requirements (consumer groups, retry mechanics via PEL, high throughput) while strictly adhering to your constraints (no new infra/[0m[2mbudget overhead, leveraging existing Redis knowledge, and enabling delivery within the tight 2-week window). 
      
-     The document is saved at `ADR-00[0m[2m1-notification-architecture.md`. Let me know if you would like any adjustments to the technical design or format![0m[2m[0m[2m
-  💸 (Requests: 4 | Tool Calls: 4 | Total: 47390) Input: 43130 | Audio Input: 0 | Output: 4260 | Audio Output: 0 | Cache Read: 16016 | Cache Write: 0 | Details: {'thoughts_tokens': 3235, 'text_prompt_tokens': 43130, 'cached_content_tokens': 16016, 'text_cache_tokens': 16016}
+     Idempotent consumer patterns with[0m[2m your existing PostgreSQL database were specified to satisfy the "exactly-once" delivery requirement for billing events without needing Kafka's heavier[0m[2m transaction protocol.[0m[2m[0m[2m
+  💸 (Requests: 4 | Tool Calls: 3 | Total: 46436) Input: 41391 | Audio Input: 0 | Output: 5045 | Audio Output: 0 | Cache Read: 23948 | Cache Write: 0 | Details: {'thoughts_tokens': 3847, 'text_prompt_tokens': 41391, 'cached_content_tokens': 23948, 'text_cache_tokens': 23948}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "Read `system_context.md`. It describes a real production system and a specific architectural problem we need to solve.
 
 Write an Architecture Decision Record (ADR) evaluating two options for the notification subsystem:
@@ -240,13 +170,9 @@ Your ADR must follow this exact structure:
 Make a definitive recommendation. Use specific technical properties (throughput, ordering guarantees, message retention, consumer groups, exactly-once semantics, operational complexity) to justify your choice given the team size and constraints described.
 
 Save as `ADR-001-notification-architecture.md`." --model google-gla:gemini-3-pro-preview --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mkind-dust-5942[0m[0m
-I have evaluated the architecture options based on your system context and constraints. I've chosen **Redis Streams** as the definitive recommendation and drafted the ADR following the standard template.
+[2m[2mSession[0m: [1;33mhigh-foam-8795[0m[0m
+I have created the Architecture Decision Record and saved it as `ADR-001-notification-architecture.md`. 
 
-Here is a summary of the decision rationale:
-*   **Operational Complexity & Timeline**: With a 6-person team, no infrastructure engineer, and a strict 2-week deadline, introducing Kafka is unfeasible. Redis is already running in production.
-*   **Performance**: Redis Streams can comfortably handle the target 5,000 req/s.
-*   **Features**: Redis Streams supports Consumer Groups, which enables the upcoming WebSocket requirement.
-*   **Semantics**: To meet the billing requirement without Kafka's native exactly-once semantics, we must pair Redis Streams' at-least-once delivery with idempotent consumers backed by the existing PostgreSQL database.
+The ADR recommends **Redis Streams** because it satisfies all your technical requirements (consumer groups, retry mechanics via PEL, high throughput) while strictly adhering to your constraints (no new infra/budget overhead, leveraging existing Redis knowledge, and enabling delivery within the tight 2-week window). 
 
-The document is saved at `ADR-001-notification-architecture.md`. Let me know if you would like any adjustments to the technical design or format!
+Idempotent consumer patterns with your existing PostgreSQL database were specified to satisfy the "exactly-once" delivery requirement for billing events without needing Kafka's heavier transaction protocol.

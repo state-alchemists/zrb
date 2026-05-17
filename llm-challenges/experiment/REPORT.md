@@ -1,120 +1,120 @@
 # LLM Challenge Experiment Report
 
-**Date:** 2026-05-17 09:00:41
+**Date:** 2026-05-17 16:07:37
 
 | Model | Challenge | Status | Time (s) | Tools | Verify |
 |---|---|---|---|---|---|
-| deepseek:deepseek-chat | bug-fix | PASS | 22.75 | 10 | ✅ |
-| deepseek:deepseek-chat | copywriting | EXCELLENT | 23.07 | 4 | 🌟 |
-| deepseek:deepseek-chat | feature | EXCELLENT | 32.81 | 11 | 🌟 |
-| deepseek:deepseek-chat | integration-bug | EXCELLENT | 25.90 | 9 | 🌟 |
-| deepseek:deepseek-chat | refactor | EXCELLENT | 38.53 | 9 | 🌟 |
-| deepseek:deepseek-chat | research | EXCELLENT | 190.08 | 10 | 🌟 |
-| google-gla:gemini-2.5-flash | bug-fix | FAIL | 55.73 | 16 | ❌ |
-| google-gla:gemini-2.5-flash | copywriting | EXCELLENT | 17.96 | 3 | 🌟 |
-| google-gla:gemini-2.5-flash | feature | EXCELLENT | 29.94 | 26 | 🌟 |
-| google-gla:gemini-2.5-flash | integration-bug | EXCELLENT | 26.10 | 16 | 🌟 |
-| google-gla:gemini-2.5-flash | refactor | FAIL | 13.92 | 4 | ❌ |
-| google-gla:gemini-2.5-flash | research | EXCELLENT | 28.95 | 5 | 🌟 |
-| google-gla:gemini-2.5-pro | bug-fix | EXCELLENT | 31.92 | 8 | 🌟 |
-| google-gla:gemini-2.5-pro | copywriting | EXCELLENT | 23.02 | 3 | 🌟 |
-| google-gla:gemini-2.5-pro | feature | EXCELLENT | 26.17 | 7 | 🌟 |
-| google-gla:gemini-2.5-pro | integration-bug | EXCELLENT | 62.63 | 10 | 🌟 |
-| google-gla:gemini-2.5-pro | refactor | EXCELLENT | 57.76 | 8 | 🌟 |
-| google-gla:gemini-2.5-pro | research | EXCELLENT | 32.26 | 3 | 🌟 |
-| google-gla:gemini-3-flash-preview | bug-fix | PASS | 35.95 | 10 | ✅ |
-| google-gla:gemini-3-flash-preview | copywriting | EXCELLENT | 25.31 | 5 | 🌟 |
-| google-gla:gemini-3-flash-preview | feature | EXCELLENT | 27.50 | 20 | 🌟 |
-| google-gla:gemini-3-flash-preview | integration-bug | EXCELLENT | 167.53 | 29 | 🌟 |
-| google-gla:gemini-3-flash-preview | refactor | EXCELLENT | 53.26 | 22 | 🌟 |
-| google-gla:gemini-3-flash-preview | research | EXCELLENT | 29.78 | 4 | 🌟 |
-| google-gla:gemini-3-pro-preview | bug-fix | PASS | 43.74 | 8 | ✅ |
-| google-gla:gemini-3-pro-preview | copywriting | EXCELLENT | 41.56 | 4 | 🌟 |
-| google-gla:gemini-3-pro-preview | feature | EXCELLENT | 59.85 | 11 | 🌟 |
-| google-gla:gemini-3-pro-preview | integration-bug | FAIL | 1987.79 | 150 | ❌ |
-| google-gla:gemini-3-pro-preview | refactor | EXCELLENT | 71.18 | 6 | 🌟 |
-| google-gla:gemini-3-pro-preview | research | EXCELLENT | 44.75 | 4 | 🌟 |
-| google-gla:gemini-3.1-pro-preview | bug-fix | PASS | 34.92 | 8 | ✅ |
-| google-gla:gemini-3.1-pro-preview | copywriting | EXCELLENT | 37.66 | 4 | 🌟 |
-| google-gla:gemini-3.1-pro-preview | feature | EXCELLENT | 85.49 | 12 | 🌟 |
-| google-gla:gemini-3.1-pro-preview | integration-bug | EXCELLENT | 433.08 | 36 | 🌟 |
-| google-gla:gemini-3.1-pro-preview | refactor | EXCELLENT | 59.27 | 5 | 🌟 |
-| google-gla:gemini-3.1-pro-preview | research | EXCELLENT | 35.10 | 3 | 🌟 |
-| ollama:gemma4:31b-cloud | bug-fix | PASS | 77.63 | 16 | ✅ |
-| ollama:gemma4:31b-cloud | copywriting | EXCELLENT | 54.81 | 5 | 🌟 |
-| ollama:gemma4:31b-cloud | feature | FAIL | 108.39 | 19 | ❌ |
-| ollama:gemma4:31b-cloud | integration-bug | EXCELLENT | 126.54 | 17 | 🌟 |
-| ollama:gemma4:31b-cloud | refactor | EXCELLENT | 129.83 | 14 | 🌟 |
-| ollama:gemma4:31b-cloud | research | EXCELLENT | 126.84 | 3 | 🌟 |
-| ollama:glm-4.7:cloud | bug-fix | PASS | 46.46 | 8 | ✅ |
-| ollama:glm-4.7:cloud | copywriting | EXCELLENT | 20.69 | 4 | 🌟 |
-| ollama:glm-4.7:cloud | feature | EXCELLENT | 57.53 | 13 | 🌟 |
-| ollama:glm-4.7:cloud | integration-bug | EXCELLENT | 110.15 | 14 | 🌟 |
-| ollama:glm-4.7:cloud | refactor | EXCELLENT | 127.50 | 10 | 🌟 |
-| ollama:glm-4.7:cloud | research | EXCELLENT | 13.61 | 2 | 🌟 |
-| ollama:glm-5.1:cloud | bug-fix | PASS | 58.88 | 7 | ✅ |
-| ollama:glm-5.1:cloud | copywriting | EXCELLENT | 55.84 | 4 | 🌟 |
-| ollama:glm-5.1:cloud | feature | EXCELLENT | 82.53 | 12 | 🌟 |
-| ollama:glm-5.1:cloud | integration-bug | EXCELLENT | 131.92 | 10 | 🌟 |
-| ollama:glm-5.1:cloud | refactor | EXCELLENT | 200.53 | 12 | 🌟 |
-| ollama:glm-5.1:cloud | research | EXCELLENT | 72.11 | 5 | 🌟 |
-| ollama:glm-5:cloud | bug-fix | PASS | 83.84 | 7 | ✅ |
-| ollama:glm-5:cloud | copywriting | EXCELLENT | 62.89 | 4 | 🌟 |
-| ollama:glm-5:cloud | feature | EXCELLENT | 112.37 | 11 | 🌟 |
-| ollama:glm-5:cloud | integration-bug | EXCELLENT | 107.29 | 9 | 🌟 |
-| ollama:glm-5:cloud | refactor | EXCELLENT | 236.19 | 16 | 🌟 |
-| ollama:glm-5:cloud | research | EXCELLENT | 77.86 | 2 | 🌟 |
-| ollama:kimi-k2.5:cloud | bug-fix | PASS | 160.74 | 9 | ✅ |
-| ollama:kimi-k2.5:cloud | copywriting | EXCELLENT | 72.65 | 4 | 🌟 |
-| ollama:kimi-k2.5:cloud | feature | EXCELLENT | 190.97 | 20 | 🌟 |
-| ollama:kimi-k2.5:cloud | integration-bug | EXCELLENT | 101.35 | 9 | 🌟 |
-| ollama:kimi-k2.5:cloud | refactor | FAIL | 214.99 | 7 | ❌ |
-| ollama:kimi-k2.5:cloud | research | EXCELLENT | 71.98 | 2 | 🌟 |
-| ollama:kimi-k2.6:cloud | bug-fix | EXCELLENT | 372.38 | 8 | 🌟 |
-| ollama:kimi-k2.6:cloud | copywriting | EXCELLENT | 80.66 | 4 | 🌟 |
-| ollama:kimi-k2.6:cloud | feature | EXCELLENT | 391.55 | 19 | 🌟 |
-| ollama:kimi-k2.6:cloud | integration-bug | EXCELLENT | 305.51 | 10 | 🌟 |
-| ollama:kimi-k2.6:cloud | refactor | EXCELLENT | 381.70 | 10 | 🌟 |
-| ollama:kimi-k2.6:cloud | research | EXCELLENT | 333.82 | 5 | 🌟 |
-| ollama:minimax-m2.7:cloud | bug-fix | FAIL | 268.65 | 9 | ❌ |
-| ollama:minimax-m2.7:cloud | copywriting | FAIL | 347.20 | 10 | ❌ |
-| ollama:minimax-m2.7:cloud | feature | FAIL | 312.97 | 10 | ❌ |
-| ollama:minimax-m2.7:cloud | integration-bug | FAIL | 332.69 | 11 | ❌ |
-| ollama:minimax-m2.7:cloud | refactor | EXCELLENT | 274.38 | 10 | 🌟 |
-| ollama:minimax-m2.7:cloud | research | EXCELLENT | 144.98 | 2 | 🌟 |
-| ollama:qwen3-coder-next:cloud | bug-fix | EXCELLENT | 141.74 | 12 | 🌟 |
-| ollama:qwen3-coder-next:cloud | copywriting | EXCELLENT | 40.31 | 3 | 🌟 |
-| ollama:qwen3-coder-next:cloud | feature | FAIL | 125.79 | 15 | ❌ |
-| ollama:qwen3-coder-next:cloud | integration-bug | EXCELLENT | 159.19 | 14 | 🌟 |
-| ollama:qwen3-coder-next:cloud | refactor | FAIL | 40.38 | 3 | ❌ |
-| ollama:qwen3-coder-next:cloud | research | EXCELLENT | 64.45 | 4 | 🌟 |
-| openai:gpt-5.1 | bug-fix | PASS | 25.06 | 10 | ✅ |
-| openai:gpt-5.1 | copywriting | EXCELLENT | 40.94 | 5 | 🌟 |
-| openai:gpt-5.1 | feature | EXCELLENT | 26.68 | 9 | 🌟 |
-| openai:gpt-5.1 | integration-bug | FAIL | 29.64 | 18 | ❌ |
-| openai:gpt-5.1 | refactor | EXCELLENT | 39.01 | 4 | 🌟 |
-| openai:gpt-5.1 | research | EXCELLENT | 31.55 | 2 | 🌟 |
-| openai:gpt-5.2 | bug-fix | EXCELLENT | 22.22 | 10 | 🌟 |
-| openai:gpt-5.2 | copywriting | EXCELLENT | 33.70 | 5 | 🌟 |
-| openai:gpt-5.2 | feature | EXCELLENT | 30.83 | 11 | 🌟 |
-| openai:gpt-5.2 | integration-bug | EXCELLENT | 29.93 | 12 | 🌟 |
-| openai:gpt-5.2 | refactor | FAIL | 48.36 | 10 | ❌ |
-| openai:gpt-5.2 | research | EXCELLENT | 45.18 | 2 | 🌟 |
-| openai:gpt-5.4 | bug-fix | EXCELLENT | 28.02 | 20 | 🌟 |
-| openai:gpt-5.4 | copywriting | EXCELLENT | 39.32 | 5 | 🌟 |
-| openai:gpt-5.4 | feature | EXCELLENT | 31.96 | 20 | 🌟 |
-| openai:gpt-5.4 | integration-bug | EXCELLENT | 49.65 | 35 | 🌟 |
-| openai:gpt-5.4 | refactor | FAIL | 59.20 | 25 | ❌ |
-| openai:gpt-5.4 | research | EXCELLENT | 26.68 | 4 | 🌟 |
+| deepseek:deepseek-chat | bug-fix | PASS | 20.43 | 9 | ✅ |
+| deepseek:deepseek-chat | copywriting | EXCELLENT | 22.98 | 4 | 🌟 |
+| deepseek:deepseek-chat | feature | EXCELLENT | 67.99 | 19 | 🌟 |
+| deepseek:deepseek-chat | integration-bug | EXCELLENT | 105.17 | 20 | 🌟 |
+| deepseek:deepseek-chat | refactor | EXCELLENT | 62.92 | 17 | 🌟 |
+| deepseek:deepseek-chat | research | EXCELLENT | 71.23 | 8 | 🌟 |
+| google-gla:gemini-2.5-flash | bug-fix | EXCELLENT | 22.23 | 11 | 🌟 |
+| google-gla:gemini-2.5-flash | copywriting | EXCELLENT | 19.36 | 3 | 🌟 |
+| google-gla:gemini-2.5-flash | feature | FAIL | 19.75 | 10 | ❌ |
+| google-gla:gemini-2.5-flash | integration-bug | PASS | 18.16 | 9 | ✅ |
+| google-gla:gemini-2.5-flash | refactor | EXCELLENT | 137.58 | 27 | 🌟 |
+| google-gla:gemini-2.5-flash | research | FAIL | 19.47 | 3 | ❌ |
+| google-gla:gemini-2.5-pro | bug-fix | EXCELLENT | 36.18 | 8 | 🌟 |
+| google-gla:gemini-2.5-pro | copywriting | EXCELLENT | 27.26 | 3 | 🌟 |
+| google-gla:gemini-2.5-pro | feature | EXCELLENT | 176.32 | 14 | 🌟 |
+| google-gla:gemini-2.5-pro | integration-bug | EXCELLENT | 66.78 | 14 | 🌟 |
+| google-gla:gemini-2.5-pro | refactor | EXCELLENT | 111.67 | 18 | 🌟 |
+| google-gla:gemini-2.5-pro | research | EXCELLENT | 40.10 | 2 | 🌟 |
+| google-gla:gemini-3-flash-preview | bug-fix | EXCELLENT | 46.34 | 19 | 🌟 |
+| google-gla:gemini-3-flash-preview | copywriting | EXCELLENT | 27.39 | 5 | 🌟 |
+| google-gla:gemini-3-flash-preview | feature | EXCELLENT | 39.29 | 21 | 🌟 |
+| google-gla:gemini-3-flash-preview | integration-bug | EXCELLENT | 65.44 | 19 | 🌟 |
+| google-gla:gemini-3-flash-preview | refactor | EXCELLENT | 36.35 | 7 | 🌟 |
+| google-gla:gemini-3-flash-preview | research | EXCELLENT | 36.92 | 4 | 🌟 |
+| google-gla:gemini-3-pro-preview | bug-fix | PASS | 45.03 | 9 | ✅ |
+| google-gla:gemini-3-pro-preview | copywriting | EXCELLENT | 35.23 | 4 | 🌟 |
+| google-gla:gemini-3-pro-preview | feature | EXCELLENT | 80.64 | 14 | 🌟 |
+| google-gla:gemini-3-pro-preview | integration-bug | FAIL | 606.30 | 40 | ❌ |
+| google-gla:gemini-3-pro-preview | refactor | EXCELLENT | 88.39 | 7 | 🌟 |
+| google-gla:gemini-3-pro-preview | research | EXCELLENT | 61.52 | 3 | 🌟 |
+| google-gla:gemini-3.1-pro-preview | bug-fix | PASS | 45.48 | 9 | ✅ |
+| google-gla:gemini-3.1-pro-preview | copywriting | EXCELLENT | 49.28 | 4 | 🌟 |
+| google-gla:gemini-3.1-pro-preview | feature | EXCELLENT | 101.06 | 11 | 🌟 |
+| google-gla:gemini-3.1-pro-preview | integration-bug | PASS | 617.96 | 34 | ✅ |
+| google-gla:gemini-3.1-pro-preview | refactor | EXCELLENT | 64.23 | 7 | 🌟 |
+| google-gla:gemini-3.1-pro-preview | research | EXCELLENT | 49.97 | 3 | 🌟 |
+| ollama:gemma4:31b-cloud | bug-fix | PASS | 207.96 | 15 | ✅ |
+| ollama:gemma4:31b-cloud | copywriting | EXCELLENT | 150.80 | 5 | 🌟 |
+| ollama:gemma4:31b-cloud | feature | EXCELLENT | 254.95 | 22 | 🌟 |
+| ollama:gemma4:31b-cloud | integration-bug | EXCELLENT | 211.58 | 11 | 🌟 |
+| ollama:gemma4:31b-cloud | refactor | EXCELLENT | 260.11 | 16 | 🌟 |
+| ollama:gemma4:31b-cloud | research | EXCELLENT | 147.26 | 4 | 🌟 |
+| ollama:glm-4.7:cloud | bug-fix | EXCELLENT | 71.56 | 9 | 🌟 |
+| ollama:glm-4.7:cloud | copywriting | EXCELLENT | 17.56 | 4 | 🌟 |
+| ollama:glm-4.7:cloud | feature | EXCELLENT | 24.69 | 14 | 🌟 |
+| ollama:glm-4.7:cloud | integration-bug | FAIL | 391.63 | 18 | ❌ |
+| ollama:glm-4.7:cloud | refactor | EXCELLENT | 154.60 | 10 | 🌟 |
+| ollama:glm-4.7:cloud | research | EXCELLENT | 118.36 | 2 | 🌟 |
+| ollama:glm-5.1:cloud | bug-fix | PASS | 69.28 | 6 | ✅ |
+| ollama:glm-5.1:cloud | copywriting | EXCELLENT | 84.27 | 4 | 🌟 |
+| ollama:glm-5.1:cloud | feature | EXCELLENT | 186.38 | 16 | 🌟 |
+| ollama:glm-5.1:cloud | integration-bug | EXCELLENT | 253.80 | 19 | 🌟 |
+| ollama:glm-5.1:cloud | refactor | EXCELLENT | 572.17 | 35 | 🌟 |
+| ollama:glm-5.1:cloud | research | EXCELLENT | 104.26 | 4 | 🌟 |
+| ollama:glm-5:cloud | bug-fix | PASS | 117.10 | 8 | ✅ |
+| ollama:glm-5:cloud | copywriting | EXCELLENT | 126.01 | 5 | 🌟 |
+| ollama:glm-5:cloud | feature | EXCELLENT | 236.29 | 18 | 🌟 |
+| ollama:glm-5:cloud | integration-bug | EXCELLENT | 237.91 | 19 | 🌟 |
+| ollama:glm-5:cloud | refactor | EXCELLENT | 170.05 | 11 | 🌟 |
+| ollama:glm-5:cloud | research | EXCELLENT | 71.02 | 2 | 🌟 |
+| ollama:kimi-k2.5:cloud | bug-fix | PASS | 58.29 | 7 | ✅ |
+| ollama:kimi-k2.5:cloud | copywriting | EXCELLENT | 75.80 | 4 | 🌟 |
+| ollama:kimi-k2.5:cloud | feature | EXCELLENT | 100.02 | 24 | 🌟 |
+| ollama:kimi-k2.5:cloud | integration-bug | EXCELLENT | 104.50 | 11 | 🌟 |
+| ollama:kimi-k2.5:cloud | refactor | EXCELLENT | 145.16 | 9 | 🌟 |
+| ollama:kimi-k2.5:cloud | research | EXCELLENT | 52.95 | 2 | 🌟 |
+| ollama:kimi-k2.6:cloud | bug-fix | PASS | 321.23 | 8 | ✅ |
+| ollama:kimi-k2.6:cloud | copywriting | EXCELLENT | 118.81 | 4 | 🌟 |
+| ollama:kimi-k2.6:cloud | feature | EXCELLENT | 425.82 | 14 | 🌟 |
+| ollama:kimi-k2.6:cloud | integration-bug | EXCELLENT | 888.85 | 18 | 🌟 |
+| ollama:kimi-k2.6:cloud | refactor | EXCELLENT | 676.70 | 20 | 🌟 |
+| ollama:kimi-k2.6:cloud | research | EXCELLENT | 250.97 | 2 | 🌟 |
+| ollama:minimax-m2.7:cloud | bug-fix | FAIL | 738.04 | 13 | ❌ |
+| ollama:minimax-m2.7:cloud | copywriting | FAIL | 545.10 | 11 | ❌ |
+| ollama:minimax-m2.7:cloud | feature | FAIL | 500.48 | 10 | ❌ |
+| ollama:minimax-m2.7:cloud | integration-bug | FAIL | 710.90 | 14 | ❌ |
+| ollama:minimax-m2.7:cloud | refactor | EXCELLENT | 201.84 | 4 | 🌟 |
+| ollama:minimax-m2.7:cloud | research | EXCELLENT | 172.84 | 2 | 🌟 |
+| ollama:qwen3-coder-next:cloud | bug-fix | EXCELLENT | 740.36 | 27 | 🌟 |
+| ollama:qwen3-coder-next:cloud | copywriting | EXCELLENT | 62.16 | 3 | 🌟 |
+| ollama:qwen3-coder-next:cloud | feature | EXCELLENT | 82.70 | 8 | 🌟 |
+| ollama:qwen3-coder-next:cloud | integration-bug | EXCELLENT | 269.41 | 19 | 🌟 |
+| ollama:qwen3-coder-next:cloud | refactor | EXCELLENT | 292.44 | 23 | 🌟 |
+| ollama:qwen3-coder-next:cloud | research | EXCELLENT | 70.49 | 4 | 🌟 |
+| openai:gpt-5.1 | bug-fix | PASS | 27.50 | 8 | ✅ |
+| openai:gpt-5.1 | copywriting | EXCELLENT | 37.73 | 6 | 🌟 |
+| openai:gpt-5.1 | feature | EXCELLENT | 28.93 | 10 | 🌟 |
+| openai:gpt-5.1 | integration-bug | EXCELLENT | 27.52 | 11 | 🌟 |
+| openai:gpt-5.1 | refactor | EXCELLENT | 40.28 | 3 | 🌟 |
+| openai:gpt-5.1 | research | EXCELLENT | 28.75 | 2 | 🌟 |
+| openai:gpt-5.2 | bug-fix | EXCELLENT | 26.98 | 10 | 🌟 |
+| openai:gpt-5.2 | copywriting | EXCELLENT | 40.28 | 6 | 🌟 |
+| openai:gpt-5.2 | feature | EXCELLENT | 30.59 | 12 | 🌟 |
+| openai:gpt-5.2 | integration-bug | EXCELLENT | 78.36 | 13 | 🌟 |
+| openai:gpt-5.2 | refactor | EXCELLENT | 54.10 | 9 | 🌟 |
+| openai:gpt-5.2 | research | EXCELLENT | 42.97 | 2 | 🌟 |
+| openai:gpt-5.4 | bug-fix | EXCELLENT | 45.90 | 26 | 🌟 |
+| openai:gpt-5.4 | copywriting | EXCELLENT | 43.84 | 5 | 🌟 |
+| openai:gpt-5.4 | feature | EXCELLENT | 46.51 | 22 | 🌟 |
+| openai:gpt-5.4 | integration-bug | EXCELLENT | 38.77 | 25 | 🌟 |
+| openai:gpt-5.4 | refactor | EXCELLENT | 82.74 | 35 | 🌟 |
+| openai:gpt-5.4 | research | EXCELLENT | 39.75 | 7 | 🌟 |
 
 
 ## Detailed Results
 ### deepseek:deepseek-chat / bug-fix
 - **Status:** PASS
-- **Duration:** 22.75s
+- **Duration:** 20.43s
 - **Workdir:** `experiment/deepseek-deepseek-chat/bug-fix/workdir`
 - **Log:** `experiment/deepseek-deepseek-chat/bug-fix/combined.log`
-- **Tools Used:** Read, Read, Read, ActivateSkill, Bash, Edit, Edit, Bash, Read, Read
+- **Tools Used:** Read, Read, Read, Bash, Edit, Edit, Bash, Read, Read
 
 **Verification Output:**
 ```
@@ -291,7 +291,7 @@ VERIFICATION_RESULT: PASS
 ---
 ### deepseek:deepseek-chat / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 23.07s
+- **Duration:** 22.98s
 - **Workdir:** `experiment/deepseek-deepseek-chat/copywriting/workdir`
 - **Log:** `experiment/deepseek-deepseek-chat/copywriting/combined.log`
 - **Tools Used:** Read, Read, ActivateSkill, Write
@@ -300,8 +300,8 @@ VERIFICATION_RESULT: PASS
 ```
 Verifying Migration Guide...
 PASS: Has markdown headings
-PASS: Substantial content (867 words)
-PASS: Has code examples (14 blocks)
+PASS: Substantial content (800 words)
+PASS: Has code examples (19 blocks)
 PASS: Auth header change (Authorization: Bearer) documented
 PASS: ID type change (UUID) documented
 PASS: Field rename (done → completed) documented
@@ -315,10 +315,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### deepseek:deepseek-chat / feature
 - **Status:** EXCELLENT
-- **Duration:** 32.81s
+- **Duration:** 67.99s
 - **Workdir:** `experiment/deepseek-deepseek-chat/feature/workdir`
 - **Log:** `experiment/deepseek-deepseek-chat/feature/combined.log`
-- **Tools Used:** Read, Read, Read, LS, Read, Edit, Edit, Bash, Write, Bash, RM
+- **Tools Used:** LS, Read, Read, Read, Read, ActivateSkill, Edit, Write, Bash, Bash, Write, Bash, Edit, Bash, Bash, Read, Write, Bash, RM
 
 **Verification Output:**
 ```
@@ -340,215 +340,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### deepseek:deepseek-chat / integration-bug
 - **Status:** EXCELLENT
-- **Duration:** 25.90s
+- **Duration:** 105.17s
 - **Workdir:** `experiment/deepseek-deepseek-chat/integration-bug/workdir`
 - **Log:** `experiment/deepseek-deepseek-chat/integration-bug/combined.log`
-- **Tools Used:** Read, Read, Read, Read, Bash, ActivateSkill, Edit, Write, Bash
-
-**Verification Output:**
-```
-Verifying Checkout Fix...
-Order order_0: SUCCESS
-Order order_1: SUCCESS
-Order order_2: SUCCESS
-Order order_3: SUCCESS
-Order order_5: out of stock
-Order order_4: SUCCESS
-Order order_6: out of stock
-Order order_7: out of stock
-Order order_8: out of stock
-Order order_9: out of stock
-Order order_10: out of stock
-Order order_11: out of stock
-Order order_0: SUCCESS
-Order order_1: payment failed, stock restored
-Order order_2: SUCCESS
-Order order_3: payment failed, stock restored
-Order order_4: SUCCESS
-Order order_5: SUCCESS
-Order order_7: out of stock
-Order order_6: payment failed, stock restored
-Order order_9: out of stock
-Order order_8: SUCCESS
-Order order_10: out of stock
-Order order_11: out of stock
-Order order_0: payment failed, stock restored
-Order order_1: SUCCESS
-Order order_2: SUCCESS
-Order order_3: SUCCESS
-Order order_4: SUCCESS
-Order order_6: out of stock
-Order order_5: SUCCESS
-Order order_7: out of stock
-Order order_8: out of stock
-Order order_9: out of stock
-Order order_10: out of stock
-Order order_11: out of stock
-Order order_0: payment failed, stock restored
-Order order_1: SUCCESS
-Order order_2: SUCCESS
-Order order_3: SUCCESS
-Order order_4: payment failed, stock restored
-Order order_5: SUCCESS
-Order order_7: out of stock
-Order order_6: SUCCESS
-Order order_8: out of stock
-Order order_9: out of stock
-Order order_10: out of stock
-Order order_11: out of stock
-Order order_0: payment failed, stock restored
-Order order_1: payment failed, stock restored
-Order order_2: SUCCESS
-Order order_3: payment failed, stock restored
-Order order_4: payment failed, stock restored
-Order order_5: SUCCESS
-Order order_6: SUCCESS
-Order order_9: out of stock
-Order order_7: payment failed, stock restored
-Order order_8: SUCCESS
-Order order_11: out of stock
-Order order_10: SUCCESS
-Order order_0: SUCCESS
-Order order_1: SUCCESS
-Order order_2: SUCCESS
-Order order_3: SUCCESS
-Order order_5: out of stock
-Order order_4: SUCCESS
-Order order_6: out of stock
-Order order_7: out of stock
-Order order_8: out of stock
-Order order_9: out of stock
-Order order_10: out of stock
-Order order_11: out of stock
-  Trial 1: PASS (stock=0, successful=5, charged=$500.00)
-  Trial 2: PASS (stock=0, successful=5, charged=$500.00)
-  Trial 3: PASS (stock=0, successful=5, charged=$500.00)
-  Trial 4: PASS (stock=0, successful=5, charged=$500.00)
-  Trial 5: PASS (stock=0, successful=5, charged=$500.00)
-  Trial 6: PASS (stock=0, successful=5, charged=$500.00)
-PASS: Locking mechanism detected
-VERIFICATION_RESULT: EXCELLENT
-```
-
----
-### deepseek:deepseek-chat / refactor
-- **Status:** EXCELLENT
-- **Duration:** 38.53s
-- **Workdir:** `experiment/deepseek-deepseek-chat/refactor/workdir`
-- **Log:** `experiment/deepseek-deepseek-chat/refactor/combined.log`
-- **Tools Used:** Read, Glob, Write, Bash, Bash, Bash, Bash, Bash, Bash
-
-**Verification Output:**
-```
-Verifying Pipeline Refactor...
-Checking: pipeline_refactored.py
-PASS: Environment variables used for config
-PASS: SQL queries use parameterized form (no injection)
-PASS: ETL pattern present (extract/transform/load)
-PASS: Separated into 14 function(s), 0 class(es)
-PASS: Regex used for log parsing
-PASS: Type hints and docstrings present
-Running script...
-PASS: Script runs successfully
-PASS: report.html contains all required sections
-
-Score: 8/8
-VERIFICATION_RESULT: EXCELLENT
-```
-
----
-### deepseek:deepseek-chat / research
-- **Status:** EXCELLENT
-- **Duration:** 190.08s
-- **Workdir:** `experiment/deepseek-deepseek-chat/research/workdir`
-- **Log:** `experiment/deepseek-deepseek-chat/research/combined.log`
-- **Tools Used:** Read, SearchInternet, SearchInternet, OpenWebPage, OpenWebPage, OpenWebPage, OpenWebPage, ActivateSkill, Write, Read
-
-**Verification Output:**
-```
-Verifying Architecture Decision Record...
-PASS: Substantial content (1615 words)
-PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
-PASS: Status field present
-PASS: Both Kafka and Redis Streams are evaluated
-PASS: Contains a clear recommendation
-PASS: Covers 11 technical properties (throughput, ordering, retention, consumer group...)
-PASS: Addresses team/constraint context
-PASS: Consequences include both pros and cons
-
-Score: 8/8
-VERIFICATION_RESULT: EXCELLENT
-```
-
----
-### google-gla:gemini-2.5-flash / bug-fix
-- **Status:** FAIL
-- **Duration:** 55.73s
-- **Workdir:** `experiment/google-gla-gemini-2.5-flash/bug-fix/workdir`
-- **Log:** `experiment/google-gla-gemini-2.5-flash/bug-fix/combined.log`
-- **Tools Used:** LS, ActivateSkill, Read, Read, Read, Edit, Edit, Edit, Edit, Edit, Edit, Edit, Edit, Edit, Edit, Bash
-
-**Verification Output:**
-```
-Command '['python3', 'verify.py']' timed out after 60 seconds
-```
-
----
-### google-gla:gemini-2.5-flash / copywriting
-- **Status:** EXCELLENT
-- **Duration:** 17.96s
-- **Workdir:** `experiment/google-gla-gemini-2.5-flash/copywriting/workdir`
-- **Log:** `experiment/google-gla-gemini-2.5-flash/copywriting/combined.log`
-- **Tools Used:** Read, Read, Write
-
-**Verification Output:**
-```
-Verifying Migration Guide...
-PASS: Has markdown headings
-PASS: Substantial content (831 words)
-PASS: Has code examples (25 blocks)
-PASS: Auth header change (Authorization: Bearer) documented
-PASS: ID type change (UUID) documented
-PASS: Field rename (done → completed) documented
-PASS: New project_id field and /v2/ prefix documented
-PASS: Has migration checklist or upgrade command
-
-Score: 8/8
-VERIFICATION_RESULT: EXCELLENT
-```
-
----
-### google-gla:gemini-2.5-flash / feature
-- **Status:** EXCELLENT
-- **Duration:** 29.94s
-- **Workdir:** `experiment/google-gla-gemini-2.5-flash/feature/workdir`
-- **Log:** `experiment/google-gla-gemini-2.5-flash/feature/combined.log`
-- **Tools Used:** WriteTodos, LS, UpdateTodo, Read, Read, UpdateTodo, Edit, UpdateTodo, Read, Read, UpdateTodo, UpdateTodo, Edit, Edit, UpdateTodo, UpdateTodo, Edit, Edit, UpdateTodo, Read, Edit, Edit, UpdateTodo, UpdateTodo, UpdateTodo, ClearTodos
-
-**Verification Output:**
-```
-Verifying Project Management API...
-PASS: GET /projects works
-PASS: Filter by status works
-PASS: Filter by assigned_to works
-PASS: Pagination works (page_size=2 returned 2 results)
-PASS: POST /tasks requires authentication (401/403)
-PASS: POST /tasks creates task with auth
-PASS: POST /tasks with invalid project_id returns 404
-PASS: PUT /tasks/{id} partial update works
-PASS: DELETE /tasks/{id} removes task
-
-Score: 9/9
-VERIFICATION_RESULT: EXCELLENT
-```
-
----
-### google-gla:gemini-2.5-flash / integration-bug
-- **Status:** EXCELLENT
-- **Duration:** 26.10s
-- **Workdir:** `experiment/google-gla-gemini-2.5-flash/integration-bug/workdir`
-- **Log:** `experiment/google-gla-gemini-2.5-flash/integration-bug/combined.log`
-- **Tools Used:** ActivateSkill, Read, Read, Read, Read, Edit, Edit, Edit, Edit, Edit, Edit, Edit, Bash, Edit, Bash, Edit
+- **Tools Used:** Read, Read, Read, Read, Bash, Bash, ActivateSkill, WriteTodos, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Bash, Bash, UpdateTodo
 
 **Verification Output:**
 ```
@@ -575,8 +370,8 @@ Order order_8: out of stock
 Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
-Order order_1: payment failed, stock released
-Order order_3: payment failed, stock released
+Order order_1: payment failed — stock released
+Order order_3: payment failed — stock released
 Order order_1: SUCCESS
 Order order_2: SUCCESS
 Order order_3: SUCCESS
@@ -588,7 +383,7 @@ Order order_8: out of stock
 Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
-Order order_0: payment failed, stock released
+Order order_0: payment failed — stock released
 Order order_1: SUCCESS
 Order order_2: SUCCESS
 Order order_3: SUCCESS
@@ -599,8 +394,8 @@ Order order_8: out of stock
 Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
-Order order_0: payment failed, stock released
-Order order_4: payment failed, stock released
+Order order_0: payment failed — stock released
+Order order_4: payment failed — stock released
 Order order_2: SUCCESS
 Order order_5: out of stock
 Order order_6: out of stock
@@ -609,10 +404,10 @@ Order order_8: out of stock
 Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
-Order order_0: payment failed, stock released
-Order order_1: payment failed, stock released
-Order order_3: payment failed, stock released
-Order order_4: payment failed, stock released
+Order order_0: payment failed — stock released
+Order order_1: payment failed — stock released
+Order order_3: payment failed — stock released
+Order order_4: payment failed — stock released
 Order order_0: SUCCESS
 Order order_1: SUCCESS
 Order order_2: SUCCESS
@@ -636,48 +431,48 @@ VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
-### google-gla:gemini-2.5-flash / refactor
-- **Status:** FAIL
-- **Duration:** 13.92s
-- **Workdir:** `experiment/google-gla-gemini-2.5-flash/refactor/workdir`
-- **Log:** `experiment/google-gla-gemini-2.5-flash/refactor/combined.log`
-- **Tools Used:** LS, Read, ActivateSkill, MV
+### deepseek:deepseek-chat / refactor
+- **Status:** EXCELLENT
+- **Duration:** 62.92s
+- **Workdir:** `experiment/deepseek-deepseek-chat/refactor/workdir`
+- **Log:** `experiment/deepseek-deepseek-chat/refactor/combined.log`
+- **Tools Used:** AnalyzeFile, Read, Read, ActivateSkill, Read, Write, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash
 
 **Verification Output:**
 ```
 Verifying Pipeline Refactor...
 Checking: pipeline_refactored.py
-FAIL: No os.getenv / os.environ found — credentials still hardcoded
+PASS: Environment variables used for config
 PASS: SQL queries use parameterized form (no injection)
-FAIL: ETL pattern incomplete (extract=False, transform=False, load=True)
-FAIL: Only 1 function(s) and no classes — needs more separation
-FAIL: No regex found — fragile string.split() parsing still present
-FAIL: Missing type hints (True) or docstrings (False)
+PASS: ETL pattern present (extract/transform/load)
+PASS: Separated into 13 function(s), 4 class(es)
+PASS: Regex used for log parsing
+PASS: Type hints and docstrings present
 Running script...
 PASS: Script runs successfully
 PASS: report.html contains all required sections
 
-Score: 3/8
-VERIFICATION_RESULT: FAIL
+Score: 8/8
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
-### google-gla:gemini-2.5-flash / research
+### deepseek:deepseek-chat / research
 - **Status:** EXCELLENT
-- **Duration:** 28.95s
-- **Workdir:** `experiment/google-gla-gemini-2.5-flash/research/workdir`
-- **Log:** `experiment/google-gla-gemini-2.5-flash/research/combined.log`
-- **Tools Used:** Read, ActivateSkill, Read, Read, Write
+- **Duration:** 71.23s
+- **Workdir:** `experiment/deepseek-deepseek-chat/research/workdir`
+- **Log:** `experiment/deepseek-deepseek-chat/research/combined.log`
+- **Tools Used:** Read, SearchInternet, SearchInternet, OpenWebPage, OpenWebPage, SearchInternet, ActivateSkill, Write
 
 **Verification Output:**
 ```
 Verifying Architecture Decision Record...
-PASS: Substantial content (928 words)
+PASS: Substantial content (1646 words)
 PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
 PASS: Status field present
 PASS: Both Kafka and Redis Streams are evaluated
 PASS: Contains a clear recommendation
-PASS: Covers 7 technical properties (throughput, retention, consumer group, exactly-once...)
+PASS: Covers 11 technical properties (throughput, ordering, retention, consumer group...)
 PASS: Addresses team/constraint context
 PASS: Consequences include both pros and cons
 
@@ -686,12 +481,12 @@ VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
-### google-gla:gemini-2.5-pro / bug-fix
+### google-gla:gemini-2.5-flash / bug-fix
 - **Status:** EXCELLENT
-- **Duration:** 31.92s
-- **Workdir:** `experiment/google-gla-gemini-2.5-pro/bug-fix/workdir`
-- **Log:** `experiment/google-gla-gemini-2.5-pro/bug-fix/combined.log`
-- **Tools Used:** LS, Read, Read, Read, Bash, Edit, Edit, Bash
+- **Duration:** 22.23s
+- **Workdir:** `experiment/google-gla-gemini-2.5-flash/bug-fix/workdir`
+- **Log:** `experiment/google-gla-gemini-2.5-flash/bug-fix/combined.log`
+- **Tools Used:** LS, ActivateSkill, Read, Read, Read, Edit, Edit, Edit, Edit, Edit, Bash
 
 **Verification Output:**
 ```
@@ -702,20 +497,20 @@ Verifying Job Queue Fix...
 [Worker 3] picked up job 4
 [Worker 4] picked up job 5
 [Worker 0] finished job 1
-[Worker 1] finished job 2
 [Worker 0] picked up job 6
-[Worker 2] finished job 3
+[Worker 1] finished job 2
 [Worker 1] picked up job 7
+[Worker 2] finished job 3
 [Worker 3] finished job 4
 [Worker 2] picked up job 8
-[Worker 4] finished job 5
 [Worker 3] picked up job 9
+[Worker 4] finished job 5
 [Worker 4] picked up job 10
 [Worker 0] finished job 6
 [Worker 0] picked up job 11
 [Worker 1] finished job 7
-[Worker 1] picked up job 12
 [Worker 2] finished job 8
+[Worker 1] picked up job 12
 [Worker 3] finished job 9
 [Worker 4] finished job 10
 [Worker 0] job 11 failed: processing error for job 11
@@ -723,8 +518,8 @@ Verifying Job Queue Fix...
 [Worker 0] picked up job 11
 [Worker 1] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 12 failed: processing error for job 12
 [Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
 [Worker 1] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
 [Worker 1] job 12 failed: processing error for job 12
@@ -735,8 +530,8 @@ Verifying Job Queue Fix...
 [Worker 3] picked up job 4
 [Worker 4] picked up job 5
 [Worker 0] finished job 1
-[Worker 0] picked up job 6
 [Worker 1] finished job 2
+[Worker 0] picked up job 6
 [Worker 1] picked up job 7
 [Worker 2] finished job 3
 [Worker 2] picked up job 8
@@ -747,13 +542,13 @@ Verifying Job Queue Fix...
 [Worker 0] finished job 6
 [Worker 0] picked up job 11
 [Worker 1] finished job 7
-[Worker 2] finished job 8
 [Worker 1] picked up job 12
+[Worker 2] finished job 8
 [Worker 3] finished job 9
 [Worker 4] finished job 10
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 12 failed: processing error for job 12
 [Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
 [Worker 1] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
 [Worker 1] job 12 failed: processing error for job 12
@@ -770,12 +565,12 @@ Verifying Job Queue Fix...
 [Worker 0] finished job 1
 [Worker 0] picked up job 6
 [Worker 1] finished job 2
-[Worker 1] picked up job 7
 [Worker 2] finished job 3
-[Worker 2] picked up job 8
+[Worker 1] picked up job 7
 [Worker 3] finished job 4
-[Worker 3] picked up job 9
+[Worker 2] picked up job 8
 [Worker 4] finished job 5
+[Worker 3] picked up job 9
 [Worker 4] picked up job 10
 [Worker 0] finished job 6
 [Worker 0] picked up job 11
@@ -822,12 +617,233 @@ Verifying Job Queue Fix...
 [Worker 0] picked up job 11
 [Worker 1] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 12 failed: processing error for job 12
 [Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
 [Worker 1] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
 [Worker 1] job 12 failed: processing error for job 12
   Run 4: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 5: PASS
+PASS: Concurrency control (Lock) detected
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### google-gla:gemini-2.5-flash / copywriting
+- **Status:** EXCELLENT
+- **Duration:** 19.36s
+- **Workdir:** `experiment/google-gla-gemini-2.5-flash/copywriting/workdir`
+- **Log:** `experiment/google-gla-gemini-2.5-flash/copywriting/combined.log`
+- **Tools Used:** Read, Read, Write
+
+**Verification Output:**
+```
+Verifying Migration Guide...
+PASS: Has markdown headings
+PASS: Substantial content (850 words)
+PASS: Has code examples (15 blocks)
+PASS: Auth header change (Authorization: Bearer) documented
+PASS: ID type change (UUID) documented
+PASS: Field rename (done → completed) documented
+PASS: New project_id field and /v2/ prefix documented
+PASS: Has migration checklist or upgrade command
+
+Score: 8/8
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### google-gla:gemini-2.5-flash / feature
+- **Status:** FAIL
+- **Duration:** 19.75s
+- **Workdir:** `experiment/google-gla-gemini-2.5-flash/feature/workdir`
+- **Log:** `experiment/google-gla-gemini-2.5-flash/feature/combined.log`
+- **Tools Used:** ActivateSkill, LS, Read, Read, Read, Edit, Edit, Edit, Edit, Edit
+
+**Verification Output:**
+```
+Verifying Project Management API...
+FAIL: Could not import app: name 'Optional' is not defined
+VERIFICATION_RESULT: FAIL
+```
+
+---
+### google-gla:gemini-2.5-flash / integration-bug
+- **Status:** PASS
+- **Duration:** 18.16s
+- **Workdir:** `experiment/google-gla-gemini-2.5-flash/integration-bug/workdir`
+- **Log:** `experiment/google-gla-gemini-2.5-flash/integration-bug/combined.log`
+- **Tools Used:** LS, ActivateSkill, Read, Read, Read, Read, Edit, Edit, Bash
+
+**Verification Output:**
+```
+Verifying Checkout Fix...
+Order order_5: out of stock or reservation failed
+Order order_6: out of stock or reservation failed
+Order order_7: out of stock or reservation failed
+Order order_8: out of stock or reservation failed
+Order order_9: out of stock or reservation failed
+Order order_10: out of stock or reservation failed
+Order order_11: out of stock or reservation failed
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+Order order_5: out of stock or reservation failed
+Order order_6: out of stock or reservation failed
+Order order_7: out of stock or reservation failed
+Order order_8: out of stock or reservation failed
+Order order_9: out of stock or reservation failed
+Order order_10: out of stock or reservation failed
+Order order_11: out of stock or reservation failed
+Order order_0: SUCCESS
+Order order_2: SUCCESS
+Order order_4: SUCCESS
+Order order_1: payment failed, inventory rolled back
+Order order_3: payment failed, inventory rolled back
+Order order_5: out of stock or reservation failed
+Order order_6: out of stock or reservation failed
+Order order_7: out of stock or reservation failed
+Order order_8: out of stock or reservation failed
+Order order_9: out of stock or reservation failed
+Order order_10: out of stock or reservation failed
+Order order_11: out of stock or reservation failed
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+Order order_0: payment failed, inventory rolled back
+Order order_5: out of stock or reservation failed
+Order order_6: out of stock or reservation failed
+Order order_7: out of stock or reservation failed
+Order order_8: out of stock or reservation failed
+Order order_9: out of stock or reservation failed
+Order order_10: out of stock or reservation failed
+Order order_11: out of stock or reservation failed
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_0: payment failed, inventory rolled back
+Order order_4: payment failed, inventory rolled back
+Order order_5: out of stock or reservation failed
+Order order_6: out of stock or reservation failed
+Order order_7: out of stock or reservation failed
+Order order_8: out of stock or reservation failed
+Order order_9: out of stock or reservation failed
+Order order_10: out of stock or reservation failed
+Order order_11: out of stock or reservation failed
+Order order_2: SUCCESS
+Order order_0: payment failed, inventory rolled back
+Order order_1: payment failed, inventory rolled back
+Order order_3: payment failed, inventory rolled back
+Order order_4: payment failed, inventory rolled back
+Order order_5: out of stock or reservation failed
+Order order_6: out of stock or reservation failed
+Order order_7: out of stock or reservation failed
+Order order_8: out of stock or reservation failed
+Order order_9: out of stock or reservation failed
+Order order_10: out of stock or reservation failed
+Order order_11: out of stock or reservation failed
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
+  Trial 1: PASS (stock=0, successful=5, charged=$500.00)
+  Trial 2: PASS (stock=2, successful=3, charged=$300.00)
+  Trial 3: PASS (stock=1, successful=4, charged=$400.00)
+  Trial 4: PASS (stock=2, successful=3, charged=$300.00)
+  Trial 5: PASS (stock=4, successful=1, charged=$100.00)
+  Trial 6: PASS (stock=0, successful=5, charged=$500.00)
+PASS: All trials passed
+VERIFICATION_RESULT: PASS
+```
+
+---
+### google-gla:gemini-2.5-flash / refactor
+- **Status:** EXCELLENT
+- **Duration:** 137.58s
+- **Workdir:** `experiment/google-gla-gemini-2.5-flash/refactor/workdir`
+- **Log:** `experiment/google-gla-gemini-2.5-flash/refactor/combined.log`
+- **Tools Used:** LS, Read, MV, ActivateSkill, Edit, Edit, Edit, Edit, Edit, Edit, Bash, Edit, Bash, Edit, Edit, Edit, Edit, Edit, Edit, Read, Edit, Edit, Edit, Read, Edit, Read, Edit
+
+**Verification Output:**
+```
+Verifying Pipeline Refactor...
+Checking: pipeline_refactored.py
+PASS: Environment variables used for config
+PASS: SQL queries use parameterized form (no injection)
+PASS: ETL pattern present (extract/transform/load)
+PASS: Separated into 9 function(s), 1 class(es)
+PASS: Regex used for log parsing
+PASS: Type hints and docstrings present
+Running script...
+PASS: Script runs successfully
+PASS: report.html contains all required sections
+
+Score: 8/8
+VERIFICATION_RESULT: EXCELLENT
+```
+
+---
+### google-gla:gemini-2.5-flash / research
+- **Status:** FAIL
+- **Duration:** 19.47s
+- **Workdir:** `experiment/google-gla-gemini-2.5-flash/research/workdir`
+- **Log:** `experiment/google-gla-gemini-2.5-flash/research/combined.log`
+- **Tools Used:** Read, ActivateSkill, Read
+
+**Verification Output:**
+```
+Verifying Architecture Decision Record...
+FAIL: No ADR markdown file found
+VERIFICATION_RESULT: FAIL
+```
+
+---
+### google-gla:gemini-2.5-pro / bug-fix
+- **Status:** EXCELLENT
+- **Duration:** 36.18s
+- **Workdir:** `experiment/google-gla-gemini-2.5-pro/bug-fix/workdir`
+- **Log:** `experiment/google-gla-gemini-2.5-pro/bug-fix/combined.log`
+- **Tools Used:** LS, Read, Read, Read, Bash, Edit, Edit, Bash
+
+**Verification Output:**
+```
+Verifying Job Queue Fix...
 [Worker 0] picked up job 1
 [Worker 1] picked up job 2
 [Worker 2] picked up job 3
@@ -851,8 +867,140 @@ Verifying Job Queue Fix...
 [Worker 3] finished job 9
 [Worker 4] finished job 10
 [Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 1: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 1] finished job 2
+[Worker 0] picked up job 6
+[Worker 2] finished job 3
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
 [Worker 0] picked up job 11
 [Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 2: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 3: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 1] picked up job 7
+[Worker 2] finished job 3
+[Worker 2] picked up job 8
+[Worker 3] finished job 4
+[Worker 3] picked up job 9
+[Worker 4] finished job 5
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 0] picked up job 11
+[Worker 1] finished job 7
+[Worker 1] picked up job 12
+[Worker 2] finished job 8
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+  Run 4: PASS
+[Worker 0] picked up job 1
+[Worker 1] picked up job 2
+[Worker 2] picked up job 3
+[Worker 3] picked up job 4
+[Worker 4] picked up job 5
+[Worker 0] finished job 1
+[Worker 0] picked up job 6
+[Worker 1] finished job 2
+[Worker 2] finished job 3
+[Worker 1] picked up job 7
+[Worker 3] finished job 4
+[Worker 2] picked up job 8
+[Worker 4] finished job 5
+[Worker 3] picked up job 9
+[Worker 4] picked up job 10
+[Worker 0] finished job 6
+[Worker 1] finished job 7
+[Worker 0] picked up job 11
+[Worker 2] finished job 8
+[Worker 1] picked up job 12
+[Worker 3] finished job 9
+[Worker 4] finished job 10
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
 [Worker 1] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
 [Worker 0] picked up job 11
@@ -868,7 +1016,7 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### google-gla:gemini-2.5-pro / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 23.02s
+- **Duration:** 27.26s
 - **Workdir:** `experiment/google-gla-gemini-2.5-pro/copywriting/workdir`
 - **Log:** `experiment/google-gla-gemini-2.5-pro/copywriting/combined.log`
 - **Tools Used:** Read, Read, Write
@@ -877,7 +1025,7 @@ VERIFICATION_RESULT: EXCELLENT
 ```
 Verifying Migration Guide...
 PASS: Has markdown headings
-PASS: Substantial content (637 words)
+PASS: Substantial content (619 words)
 PASS: Has code examples (13 blocks)
 PASS: Auth header change (Authorization: Bearer) documented
 PASS: ID type change (UUID) documented
@@ -892,10 +1040,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### google-gla:gemini-2.5-pro / feature
 - **Status:** EXCELLENT
-- **Duration:** 26.17s
+- **Duration:** 176.32s
 - **Workdir:** `experiment/google-gla-gemini-2.5-pro/feature/workdir`
 - **Log:** `experiment/google-gla-gemini-2.5-pro/feature/combined.log`
-- **Tools Used:** LS, Read, Read, Read, Read, Edit, Edit
+- **Tools Used:** LS, Read, Read, Read, Read, Edit, Read, Edit, Edit, Edit, Edit, Glob, Glob, Bash
 
 **Verification Output:**
 ```
@@ -917,15 +1065,68 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### google-gla:gemini-2.5-pro / integration-bug
 - **Status:** EXCELLENT
-- **Duration:** 62.63s
+- **Duration:** 66.78s
 - **Workdir:** `experiment/google-gla-gemini-2.5-pro/integration-bug/workdir`
 - **Log:** `experiment/google-gla-gemini-2.5-pro/integration-bug/combined.log`
-- **Tools Used:** LS, Read, Read, Read, Read, Bash, ActivateSkill, Edit, Edit, Bash
+- **Tools Used:** LS, Read, Read, Read, Read, Bash, Edit, Edit, Edit, Read, Edit, Edit, Bash, Bash
 
 **Verification Output:**
 ```
 Verifying Checkout Fix...
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
 Order order_5: out of stock
+Order order_4: SUCCESS
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: SUCCESS
+Order order_1: payment failed, restocking item
+Order order_2: SUCCESS
+Order order_3: payment failed, restocking item
+Order order_5: out of stock
+Order order_4: SUCCESS
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed, restocking item
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_5: out of stock
+Order order_4: SUCCESS
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed, restocking item
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_5: out of stock
+Order order_4: payment failed, restocking item
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed, restocking item
+Order order_1: payment failed, restocking item
+Order order_2: SUCCESS
+Order order_3: payment failed, restocking item
+Order order_5: out of stock
+Order order_4: payment failed, restocking item
 Order order_6: out of stock
 Order order_7: out of stock
 Order order_8: out of stock
@@ -936,67 +1137,14 @@ Order order_0: SUCCESS
 Order order_1: SUCCESS
 Order order_2: SUCCESS
 Order order_3: SUCCESS
+Order order_5: out of stock
 Order order_4: SUCCESS
-Order order_5: out of stock
 Order order_6: out of stock
 Order order_7: out of stock
 Order order_8: out of stock
 Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
-Order order_0: SUCCESS
-Order order_1: payment failed, releasing inventory
-Order order_2: SUCCESS
-Order order_3: payment failed, releasing inventory
-Order order_4: SUCCESS
-Order order_5: out of stock
-Order order_6: out of stock
-Order order_7: out of stock
-Order order_8: out of stock
-Order order_9: out of stock
-Order order_10: out of stock
-Order order_11: out of stock
-Order order_0: payment failed, releasing inventory
-Order order_1: SUCCESS
-Order order_2: SUCCESS
-Order order_3: SUCCESS
-Order order_4: SUCCESS
-Order order_5: out of stock
-Order order_6: out of stock
-Order order_7: out of stock
-Order order_8: out of stock
-Order order_9: out of stock
-Order order_10: out of stock
-Order order_11: out of stock
-Order order_0: payment failed, releasing inventory
-Order order_1: SUCCESS
-Order order_2: SUCCESS
-Order order_3: SUCCESS
-Order order_4: payment failed, releasing inventory
-Order order_5: out of stock
-Order order_6: out of stock
-Order order_7: out of stock
-Order order_8: out of stock
-Order order_9: out of stock
-Order order_10: out of stock
-Order order_11: out of stock
-Order order_0: payment failed, releasing inventory
-Order order_1: payment failed, releasing inventory
-Order order_2: SUCCESS
-Order order_3: payment failed, releasing inventory
-Order order_4: payment failed, releasing inventory
-Order order_5: out of stock
-Order order_6: out of stock
-Order order_7: out of stock
-Order order_8: out of stock
-Order order_9: out of stock
-Order order_10: out of stock
-Order order_11: out of stock
-Order order_0: SUCCESS
-Order order_1: SUCCESS
-Order order_2: SUCCESS
-Order order_3: SUCCESS
-Order order_4: SUCCESS
   Trial 1: PASS (stock=0, successful=5, charged=$500.00)
   Trial 2: PASS (stock=2, successful=3, charged=$300.00)
   Trial 3: PASS (stock=1, successful=4, charged=$400.00)
@@ -1010,10 +1158,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### google-gla:gemini-2.5-pro / refactor
 - **Status:** EXCELLENT
-- **Duration:** 57.76s
+- **Duration:** 111.67s
 - **Workdir:** `experiment/google-gla-gemini-2.5-pro/refactor/workdir`
 - **Log:** `experiment/google-gla-gemini-2.5-pro/refactor/combined.log`
-- **Tools Used:** LS, LS, LS, Read, ActivateSkill, Write, Bash, LS
+- **Tools Used:** LS, Read, ActivateSkill, Write, Edit, Edit, Edit, Edit, Edit, Bash, Read, Edit, Edit, RM, RM, Bash, Read, RM
 
 **Verification Output:**
 ```
@@ -1022,7 +1170,7 @@ Checking: pipeline_refactored.py
 PASS: Environment variables used for config
 PASS: SQL queries use parameterized form (no injection)
 PASS: ETL pattern present (extract/transform/load)
-PASS: Separated into 5 function(s), 4 class(es)
+PASS: Separated into 7 function(s), 0 class(es)
 PASS: Regex used for log parsing
 PASS: Type hints and docstrings present
 Running script...
@@ -1036,20 +1184,20 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### google-gla:gemini-2.5-pro / research
 - **Status:** EXCELLENT
-- **Duration:** 32.26s
+- **Duration:** 40.10s
 - **Workdir:** `experiment/google-gla-gemini-2.5-pro/research/workdir`
 - **Log:** `experiment/google-gla-gemini-2.5-pro/research/combined.log`
-- **Tools Used:** Read, ActivateSkill, Write
+- **Tools Used:** Read, Write
 
 **Verification Output:**
 ```
 Verifying Architecture Decision Record...
-PASS: Substantial content (551 words)
+PASS: Substantial content (648 words)
 PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
 PASS: Status field present
 PASS: Both Kafka and Redis Streams are evaluated
 PASS: Contains a clear recommendation
-PASS: Covers 7 technical properties (throughput, retention, consumer group, exactly-once...)
+PASS: Covers 8 technical properties (throughput, retention, consumer group, exactly-once...)
 PASS: Addresses team/constraint context
 PASS: Consequences include both pros and cons
 
@@ -1059,11 +1207,11 @@ VERIFICATION_RESULT: EXCELLENT
 
 ---
 ### google-gla:gemini-3-flash-preview / bug-fix
-- **Status:** PASS
-- **Duration:** 35.95s
+- **Status:** EXCELLENT
+- **Duration:** 46.34s
 - **Workdir:** `experiment/google-gla-gemini-3-flash-preview/bug-fix/workdir`
 - **Log:** `experiment/google-gla-gemini-3-flash-preview/bug-fix/combined.log`
-- **Tools Used:** LS, ActivateSkill, Read, Read, Read, Bash, Edit, Bash, Edit, Bash
+- **Tools Used:** LS, Read, Read, Read, Bash, ActivateSkill, Read, WriteTodos, UpdateTodo, Edit, Edit, GetTodos, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Bash, UpdateTodo
 
 **Verification Output:**
 ```
@@ -1117,10 +1265,10 @@ Verifying Job Queue Fix...
 [Worker 4] finished job 5
 [Worker 4] picked up job 10
 [Worker 0] finished job 6
-[Worker 0] picked up job 11
 [Worker 1] finished job 7
-[Worker 1] picked up job 12
+[Worker 0] picked up job 11
 [Worker 2] finished job 8
+[Worker 1] picked up job 12
 [Worker 3] finished job 9
 [Worker 4] finished job 10
 [Worker 0] job 11 failed: processing error for job 11
@@ -1173,8 +1321,8 @@ Verifying Job Queue Fix...
 [Worker 3] picked up job 4
 [Worker 4] picked up job 5
 [Worker 0] finished job 1
-[Worker 0] picked up job 6
 [Worker 1] finished job 2
+[Worker 0] picked up job 6
 [Worker 1] picked up job 7
 [Worker 2] finished job 3
 [Worker 2] picked up job 8
@@ -1227,30 +1375,30 @@ Verifying Job Queue Fix...
 [Worker 1] job 12 failed: processing error for job 12
 [Worker 1] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 0] picked up job 11
 [Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
 [Worker 1] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
 [Worker 1] job 12 failed: processing error for job 12
   Run 5: PASS
-PASS: All simulation runs passed
-VERIFICATION_RESULT: PASS
+PASS: Concurrency control (Lock) detected
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-3-flash-preview / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 25.31s
+- **Duration:** 27.39s
 - **Workdir:** `experiment/google-gla-gemini-3-flash-preview/copywriting/workdir`
 - **Log:** `experiment/google-gla-gemini-3-flash-preview/copywriting/combined.log`
-- **Tools Used:** LS, Read, Read, ActivateSkill, Write
+- **Tools Used:** LS, ActivateSkill, Read, Read, Write
 
 **Verification Output:**
 ```
 Verifying Migration Guide...
 PASS: Has markdown headings
-PASS: Substantial content (463 words)
-PASS: Has code examples (11 blocks)
+PASS: Substantial content (464 words)
+PASS: Has code examples (13 blocks)
 PASS: Auth header change (Authorization: Bearer) documented
 PASS: ID type change (UUID) documented
 PASS: Field rename (done → completed) documented
@@ -1264,10 +1412,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### google-gla:gemini-3-flash-preview / feature
 - **Status:** EXCELLENT
-- **Duration:** 27.50s
+- **Duration:** 39.29s
 - **Workdir:** `experiment/google-gla-gemini-3-flash-preview/feature/workdir`
 - **Log:** `experiment/google-gla-gemini-3-flash-preview/feature/combined.log`
-- **Tools Used:** LS, ActivateSkill, Read, Read, Read, Read, WriteTodos, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Edit, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, UpdateTodo, Bash
+- **Tools Used:** LS, ActivateSkill, Read, Read, Read, Read, WriteTodos, UpdateTodo, Edit, GetTodos, UpdateTodo, UpdateTodo, Edit, Edit, Read, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, UpdateTodo
 
 **Verification Output:**
 ```
@@ -1289,10 +1437,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### google-gla:gemini-3-flash-preview / integration-bug
 - **Status:** EXCELLENT
-- **Duration:** 167.53s
+- **Duration:** 65.44s
 - **Workdir:** `experiment/google-gla-gemini-3-flash-preview/integration-bug/workdir`
 - **Log:** `experiment/google-gla-gemini-3-flash-preview/integration-bug/combined.log`
-- **Tools Used:** LS, ActivateSkill, WriteTodos, UpdateTodo, Read, Read, Read, Read, UpdateTodo, UpdateTodo, Bash, UpdateTodo, UpdateTodo, Bash, UpdateTodo, UpdateTodo, Read, UpdateTodo, Bash, UpdateTodo, UpdateTodo, Edit, Edit, UpdateTodo, UpdateTodo, UpdateTodo, Bash, Bash, UpdateTodo
+- **Tools Used:** LS, Bash, ActivateSkill, Read, Read, Read, Read, Bash, WriteTodos, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Bash, Bash, UpdateTodo
 
 **Verification Output:**
 ```
@@ -1310,9 +1458,7 @@ Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
 Order order_0: SUCCESS
-Order order_1: payment failed
 Order order_2: SUCCESS
-Order order_3: payment failed
 Order order_5: out of stock
 Order order_4: SUCCESS
 Order order_6: out of stock
@@ -1321,7 +1467,8 @@ Order order_8: out of stock
 Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
-Order order_0: payment failed
+Order order_1: payment failed
+Order order_3: payment failed
 Order order_1: SUCCESS
 Order order_2: SUCCESS
 Order order_3: SUCCESS
@@ -1338,7 +1485,16 @@ Order order_1: SUCCESS
 Order order_2: SUCCESS
 Order order_3: SUCCESS
 Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_0: payment failed
 Order order_4: payment failed
+Order order_2: SUCCESS
+Order order_5: out of stock
 Order order_6: out of stock
 Order order_7: out of stock
 Order order_8: out of stock
@@ -1347,16 +1503,8 @@ Order order_10: out of stock
 Order order_11: out of stock
 Order order_0: payment failed
 Order order_1: payment failed
-Order order_2: SUCCESS
 Order order_3: payment failed
-Order order_5: out of stock
 Order order_4: payment failed
-Order order_6: out of stock
-Order order_7: out of stock
-Order order_8: out of stock
-Order order_9: out of stock
-Order order_10: out of stock
-Order order_11: out of stock
 Order order_0: SUCCESS
 Order order_1: SUCCESS
 Order order_2: SUCCESS
@@ -1382,10 +1530,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### google-gla:gemini-3-flash-preview / refactor
 - **Status:** EXCELLENT
-- **Duration:** 53.26s
+- **Duration:** 36.35s
 - **Workdir:** `experiment/google-gla-gemini-3-flash-preview/refactor/workdir`
 - **Log:** `experiment/google-gla-gemini-3-flash-preview/refactor/combined.log`
-- **Tools Used:** LS, Read, ActivateSkill, Read, Read, LS, WriteTodos, UpdateTodo, Bash, UpdateTodo, UpdateTodo, Write, UpdateTodo, UpdateTodo, Bash, Bash, Bash, UpdateTodo, UpdateTodo, Bash, RM, UpdateTodo
+- **Tools Used:** LS, Read, ActivateSkill, Read, Write, Edit, Bash
 
 **Verification Output:**
 ```
@@ -1394,7 +1542,7 @@ Checking: pipeline_refactored.py
 PASS: Environment variables used for config
 PASS: SQL queries use parameterized form (no injection)
 PASS: ETL pattern present (extract/transform/load)
-PASS: Separated into 5 function(s), 2 class(es)
+PASS: Separated into 6 function(s), 4 class(es)
 PASS: Regex used for log parsing
 PASS: Type hints and docstrings present
 Running script...
@@ -1408,7 +1556,7 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### google-gla:gemini-3-flash-preview / research
 - **Status:** EXCELLENT
-- **Duration:** 29.78s
+- **Duration:** 36.92s
 - **Workdir:** `experiment/google-gla-gemini-3-flash-preview/research/workdir`
 - **Log:** `experiment/google-gla-gemini-3-flash-preview/research/combined.log`
 - **Tools Used:** Read, ActivateSkill, Read, Write
@@ -1416,12 +1564,12 @@ VERIFICATION_RESULT: EXCELLENT
 **Verification Output:**
 ```
 Verifying Architecture Decision Record...
-PASS: Substantial content (578 words)
+PASS: Substantial content (539 words)
 PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
 PASS: Status field present
 PASS: Both Kafka and Redis Streams are evaluated
 PASS: Contains a clear recommendation
-PASS: Covers 9 technical properties (throughput, retention, consumer group, exactly-once...)
+PASS: Covers 9 technical properties (throughput, consumer group, exactly-once, at-least-once...)
 PASS: Addresses team/constraint context
 PASS: Consequences include both pros and cons
 
@@ -1432,10 +1580,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### google-gla:gemini-3-pro-preview / bug-fix
 - **Status:** PASS
-- **Duration:** 43.74s
+- **Duration:** 45.03s
 - **Workdir:** `experiment/google-gla-gemini-3-pro-preview/bug-fix/workdir`
 - **Log:** `experiment/google-gla-gemini-3-pro-preview/bug-fix/combined.log`
-- **Tools Used:** ActivateSkill, Read, Read, Read, Bash, Edit, Edit, Bash
+- **Tools Used:** ActivateSkill, LS, Read, Read, Read, Bash, Edit, Edit, Bash
 
 **Verification Output:**
 ```
@@ -1612,7 +1760,7 @@ VERIFICATION_RESULT: PASS
 ---
 ### google-gla:gemini-3-pro-preview / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 41.56s
+- **Duration:** 35.23s
 - **Workdir:** `experiment/google-gla-gemini-3-pro-preview/copywriting/workdir`
 - **Log:** `experiment/google-gla-gemini-3-pro-preview/copywriting/combined.log`
 - **Tools Used:** ActivateSkill, Read, Read, Write
@@ -1621,7 +1769,7 @@ VERIFICATION_RESULT: PASS
 ```
 Verifying Migration Guide...
 PASS: Has markdown headings
-PASS: Substantial content (476 words)
+PASS: Substantial content (528 words)
 PASS: Has code examples (13 blocks)
 PASS: Auth header change (Authorization: Bearer) documented
 PASS: ID type change (UUID) documented
@@ -1636,10 +1784,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### google-gla:gemini-3-pro-preview / feature
 - **Status:** EXCELLENT
-- **Duration:** 59.85s
+- **Duration:** 80.64s
 - **Workdir:** `experiment/google-gla-gemini-3-pro-preview/feature/workdir`
 - **Log:** `experiment/google-gla-gemini-3-pro-preview/feature/combined.log`
-- **Tools Used:** ActivateSkill, LS, Read, Read, Read, Read, Edit, Bash, Edit, Bash, Bash
+- **Tools Used:** ActivateSkill, LS, Read, Read, Read, Read, Edit, Edit, Edit, Edit, Bash, Bash, Bash, RM
 
 **Verification Output:**
 ```
@@ -1661,10 +1809,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### google-gla:gemini-3-pro-preview / integration-bug
 - **Status:** FAIL
-- **Duration:** 1987.79s
+- **Duration:** 606.30s
 - **Workdir:** `experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir`
 - **Log:** `experiment/google-gla-gemini-3-pro-preview/integration-bug/combined.log`
-- **Tools Used:** ActivateSkill, Read, Read, Read, Read, Bash, Bash, Write, Bash, Bash, Bash, Write, Bash, Bash, Bash, Write, Bash, Bash, Bash, Write, Bash, Bash, Bash, Bash, Bash, Bash, Write, Bash, Bash, Write, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Write, Write, Bash, Bash, Bash, Bash, Bash, Write, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Write, Bash, Write, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Write, Bash, Bash, Bash, Bash, Write, Write, Bash, Bash, Bash, Bash, Bash, Write, Bash, Bash, Bash, Bash, Write, Bash, Bash, Bash, Write, Write, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Write, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Write, Bash, Bash, Bash, Write, Bash, Bash, Bash
+- **Tools Used:** ActivateSkill, Read, Read, Read, Read, Bash, Bash, Bash, Bash, Write, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Write, Bash, Bash, Bash, Bash, Write, Bash, Bash
 
 **Verification Output:**
 ```
@@ -1681,11 +1829,6 @@ Order order_1: SUCCESS
 Order order_2: SUCCESS
 Order order_3: SUCCESS
 Order order_4: SUCCESS
-Order order_0: already processed
-Order order_1: already processed
-Order order_2: already processed
-Order order_3: already processed
-Order order_4: already processed
 Order order_10: out of stock
 Order order_11: out of stock
 Order order_5: SUCCESS
@@ -1693,53 +1836,12 @@ Order order_6: payment failed
 Order order_7: SUCCESS
 Order order_8: payment failed
 Order order_9: SUCCESS
-Order order_0: already processed
-Order order_1: already processed
-Order order_2: already processed
-Order order_3: already processed
-Order order_4: already processed
-Order order_5: already processed
-Order order_7: already processed
-Order order_9: already processed
 Order order_6: payment failed
 Order order_8: SUCCESS
 Order order_10: SUCCESS
 Order order_11: SUCCESS
-Order order_0: already processed
-Order order_1: already processed
-Order order_2: already processed
-Order order_3: already processed
-Order order_4: already processed
-Order order_5: already processed
-Order order_7: already processed
-Order order_8: already processed
-Order order_9: already processed
-Order order_10: already processed
-Order order_11: already processed
 Order order_6: payment failed
-Order order_0: already processed
-Order order_1: already processed
-Order order_2: already processed
-Order order_3: already processed
-Order order_4: already processed
-Order order_5: already processed
-Order order_7: already processed
-Order order_8: already processed
-Order order_9: already processed
-Order order_10: already processed
-Order order_11: already processed
 Order order_6: payment failed
-Order order_0: already processed
-Order order_1: already processed
-Order order_2: already processed
-Order order_3: already processed
-Order order_4: already processed
-Order order_5: already processed
-Order order_7: already processed
-Order order_8: already processed
-Order order_9: already processed
-Order order_10: already processed
-Order order_11: already processed
 Order order_6: SUCCESS
   Trial 1: PASS (stock=0, successful=5, charged=$500.00)
   Trial 2: FAIL — charge mismatch (charged=300.00, expected=800.00)
@@ -1754,10 +1856,10 @@ VERIFICATION_RESULT: FAIL
 ---
 ### google-gla:gemini-3-pro-preview / refactor
 - **Status:** EXCELLENT
-- **Duration:** 71.18s
+- **Duration:** 88.39s
 - **Workdir:** `experiment/google-gla-gemini-3-pro-preview/refactor/workdir`
 - **Log:** `experiment/google-gla-gemini-3-pro-preview/refactor/combined.log`
-- **Tools Used:** ActivateSkill, Read, LS, Bash, Write, Bash
+- **Tools Used:** ActivateSkill, LS, Read, Bash, Write, Bash, Bash
 
 **Verification Output:**
 ```
@@ -1780,34 +1882,34 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### google-gla:gemini-3-pro-preview / research
 - **Status:** EXCELLENT
-- **Duration:** 44.75s
+- **Duration:** 61.52s
 - **Workdir:** `experiment/google-gla-gemini-3-pro-preview/research/workdir`
 - **Log:** `experiment/google-gla-gemini-3-pro-preview/research/combined.log`
-- **Tools Used:** ActivateSkill, Read, Read, Write
+- **Tools Used:** Read, ActivateSkill, Write
 
 **Verification Output:**
 ```
 Verifying Architecture Decision Record...
-FAIL: Too short (489 words, need 500+)
+PASS: Substantial content (654 words)
 PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
 PASS: Status field present
 PASS: Both Kafka and Redis Streams are evaluated
 PASS: Contains a clear recommendation
-PASS: Covers 7 technical properties (throughput, retention, consumer group, exactly-once...)
+PASS: Covers 9 technical properties (throughput, ordering, retention, consumer group...)
 PASS: Addresses team/constraint context
 PASS: Consequences include both pros and cons
 
-Score: 7/8
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### google-gla:gemini-3.1-pro-preview / bug-fix
 - **Status:** PASS
-- **Duration:** 34.92s
+- **Duration:** 45.48s
 - **Workdir:** `experiment/google-gla-gemini-3.1-pro-preview/bug-fix/workdir`
 - **Log:** `experiment/google-gla-gemini-3.1-pro-preview/bug-fix/combined.log`
-- **Tools Used:** ActivateSkill, Read, Read, Read, Bash, Edit, Edit, Bash
+- **Tools Used:** ActivateSkill, LS, Read, Read, Read, Bash, Edit, Edit, Bash
 
 **Verification Output:**
 ```
@@ -1984,7 +2086,7 @@ VERIFICATION_RESULT: PASS
 ---
 ### google-gla:gemini-3.1-pro-preview / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 37.66s
+- **Duration:** 49.28s
 - **Workdir:** `experiment/google-gla-gemini-3.1-pro-preview/copywriting/workdir`
 - **Log:** `experiment/google-gla-gemini-3.1-pro-preview/copywriting/combined.log`
 - **Tools Used:** ActivateSkill, Read, Read, Write
@@ -1993,8 +2095,8 @@ VERIFICATION_RESULT: PASS
 ```
 Verifying Migration Guide...
 PASS: Has markdown headings
-PASS: Substantial content (433 words)
-PASS: Has code examples (11 blocks)
+PASS: Substantial content (414 words)
+PASS: Has code examples (13 blocks)
 PASS: Auth header change (Authorization: Bearer) documented
 PASS: ID type change (UUID) documented
 PASS: Field rename (done → completed) documented
@@ -2008,10 +2110,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### google-gla:gemini-3.1-pro-preview / feature
 - **Status:** EXCELLENT
-- **Duration:** 85.49s
+- **Duration:** 101.06s
 - **Workdir:** `experiment/google-gla-gemini-3.1-pro-preview/feature/workdir`
 - **Log:** `experiment/google-gla-gemini-3.1-pro-preview/feature/combined.log`
-- **Tools Used:** ActivateSkill, LS, Read, Read, Read, Read, Edit, Bash, Edit, Edit, Edit, Bash
+- **Tools Used:** ActivateSkill, LS, Read, Read, Read, Read, Bash, Edit, Read, Write, Bash
 
 **Verification Output:**
 ```
@@ -2032,104 +2134,58 @@ VERIFICATION_RESULT: EXCELLENT
 
 ---
 ### google-gla:gemini-3.1-pro-preview / integration-bug
-- **Status:** EXCELLENT
-- **Duration:** 433.08s
+- **Status:** PASS
+- **Duration:** 617.96s
 - **Workdir:** `experiment/google-gla-gemini-3.1-pro-preview/integration-bug/workdir`
 - **Log:** `experiment/google-gla-gemini-3.1-pro-preview/integration-bug/combined.log`
-- **Tools Used:** ActivateSkill, Bash, Read, Read, Read, Read, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Edit, Bash, Bash, Bash, Bash, Edit, Bash, Bash, Bash, Edit, Bash, Bash, Bash, Bash, Edit, Edit, Bash, Bash
+- **Tools Used:** ActivateSkill, Bash, Read, Read, Read, Read, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash
 
 **Verification Output:**
 ```
 Verifying Checkout Fix...
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
 Order order_0: SUCCESS
 Order order_1: SUCCESS
 Order order_2: SUCCESS
 Order order_3: SUCCESS
 Order order_4: SUCCESS
-Order order_5: inventory error after payment — item not delivered
-Order order_6: inventory error after payment — item not delivered
-Order order_7: inventory error after payment — item not delivered
-Order order_8: inventory error after payment — item not delivered
-Order order_9: inventory error after payment — item not delivered
-Order order_10: inventory error after payment — item not delivered
-Order order_11: inventory error after payment — item not delivered
-Order order_1: payment failed
-Order order_3: payment failed
+Order order_10: out of stock
+Order order_11: out of stock
+Order order_5: SUCCESS
 Order order_6: payment failed
-Order order_8: payment failed
-Order order_10: payment failed
-Order order_11: payment failed
-Order order_0: SUCCESS
-Order order_2: SUCCESS
-Order order_4: SUCCESS
-Order order_5: SUCCESS
 Order order_7: SUCCESS
-Order order_9: inventory error after payment — item not delivered
-Order order_0: payment failed
-Order order_1: SUCCESS
-Order order_2: SUCCESS
-Order order_3: SUCCESS
-Order order_4: SUCCESS
-Order order_5: SUCCESS
-Order order_6: inventory error after payment — item not delivered
-Order order_7: inventory error after payment — item not delivered
-Order order_8: inventory error after payment — item not delivered
-Order order_9: inventory error after payment — item not delivered
-Order order_10: inventory error after payment — item not delivered
-Order order_11: inventory error after payment — item not delivered
-Order order_0: payment failed
-Order order_4: payment failed
-Order order_9: payment failed
-Order order_10: payment failed
-Order order_1: SUCCESS
-Order order_2: SUCCESS
-Order order_3: SUCCESS
-Order order_5: SUCCESS
-Order order_6: SUCCESS
-Order order_7: inventory error after payment — item not delivered
-Order order_8: inventory error after payment — item not delivered
-Order order_11: inventory error after payment — item not delivered
-Order order_0: payment failed
-Order order_1: payment failed
-Order order_3: payment failed
-Order order_4: payment failed
-Order order_7: payment failed
-Order order_10: payment failed
-Order order_11: payment failed
-Order order_2: SUCCESS
-Order order_5: SUCCESS
-Order order_6: SUCCESS
-Order order_8: SUCCESS
+Order order_8: payment failed
 Order order_9: SUCCESS
-Order order_0: SUCCESS
-Order order_1: SUCCESS
-Order order_2: SUCCESS
-Order order_3: SUCCESS
-Order order_4: SUCCESS
-Order order_5: inventory error after payment — item not delivered
-Order order_6: inventory error after payment — item not delivered
-Order order_7: inventory error after payment — item not delivered
-Order order_8: inventory error after payment — item not delivered
-Order order_9: inventory error after payment — item not delivered
-Order order_10: inventory error after payment — item not delivered
-Order order_11: inventory error after payment — item not delivered
+Order order_6: payment failed
+Order order_8: SUCCESS
+Order order_10: SUCCESS
+Order order_11: SUCCESS
+Order order_6: payment failed
+Order order_6: payment failed
+Order order_6: SUCCESS
   Trial 1: PASS (stock=0, successful=5, charged=$500.00)
-  Trial 2: PASS (stock=0, successful=5, charged=$500.00)
-  Trial 3: PASS (stock=0, successful=5, charged=$500.00)
-  Trial 4: PASS (stock=0, successful=5, charged=$500.00)
-  Trial 5: PASS (stock=0, successful=5, charged=$500.00)
-  Trial 6: PASS (stock=0, successful=5, charged=$500.00)
-PASS: Locking mechanism detected
-VERIFICATION_RESULT: EXCELLENT
+  Trial 2: PASS (stock=2, successful=3, charged=$300.00)
+  Trial 3: PASS (stock=2, successful=3, charged=$300.00)
+  Trial 4: PASS (stock=5, successful=0, charged=$0.00)
+  Trial 5: PASS (stock=5, successful=0, charged=$0.00)
+  Trial 6: PASS (stock=4, successful=1, charged=$100.00)
+PASS: All trials passed
+VERIFICATION_RESULT: PASS
 ```
 
 ---
 ### google-gla:gemini-3.1-pro-preview / refactor
 - **Status:** EXCELLENT
-- **Duration:** 59.27s
+- **Duration:** 64.23s
 - **Workdir:** `experiment/google-gla-gemini-3.1-pro-preview/refactor/workdir`
 - **Log:** `experiment/google-gla-gemini-3.1-pro-preview/refactor/combined.log`
-- **Tools Used:** ActivateSkill, Read, Write, Bash, Bash
+- **Tools Used:** ActivateSkill, LS, Read, Write, Bash, Bash, RM
 
 **Verification Output:**
 ```
@@ -2152,20 +2208,20 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### google-gla:gemini-3.1-pro-preview / research
 - **Status:** EXCELLENT
-- **Duration:** 35.10s
+- **Duration:** 49.97s
 - **Workdir:** `experiment/google-gla-gemini-3.1-pro-preview/research/workdir`
 - **Log:** `experiment/google-gla-gemini-3.1-pro-preview/research/combined.log`
-- **Tools Used:** ActivateSkill, Read, Write
+- **Tools Used:** Read, ActivateSkill, Write
 
 **Verification Output:**
 ```
 Verifying Architecture Decision Record...
-PASS: Substantial content (728 words)
+PASS: Substantial content (578 words)
 PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
 PASS: Status field present
 PASS: Both Kafka and Redis Streams are evaluated
 PASS: Contains a clear recommendation
-PASS: Covers 10 technical properties (throughput, ordering, retention, consumer group...)
+PASS: Covers 10 technical properties (throughput, retention, consumer group, exactly-once...)
 PASS: Addresses team/constraint context
 PASS: Consequences include both pros and cons
 
@@ -2176,10 +2232,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:gemma4:31b-cloud / bug-fix
 - **Status:** PASS
-- **Duration:** 77.63s
+- **Duration:** 207.96s
 - **Workdir:** `experiment/ollama-gemma4-31b-cloud/bug-fix/workdir`
 - **Log:** `experiment/ollama-gemma4-31b-cloud/bug-fix/combined.log`
-- **Tools Used:** LS, ActivateSkill, Bash, Read, Read, Read, WriteTodos, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Bash, UpdateTodo
+- **Tools Used:** LS, ActivateSkill, Read, Read, Read, Bash, WriteTodos, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Bash, UpdateTodo
 
 **Verification Output:**
 ```
@@ -2356,7 +2412,7 @@ VERIFICATION_RESULT: PASS
 ---
 ### ollama:gemma4:31b-cloud / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 54.81s
+- **Duration:** 150.80s
 - **Workdir:** `experiment/ollama-gemma4-31b-cloud/copywriting/workdir`
 - **Log:** `experiment/ollama-gemma4-31b-cloud/copywriting/combined.log`
 - **Tools Used:** ActivateSkill, LS, Read, Read, Write
@@ -2365,7 +2421,7 @@ VERIFICATION_RESULT: PASS
 ```
 Verifying Migration Guide...
 PASS: Has markdown headings
-FAIL: Too short (370 words, need 400+)
+FAIL: Too short (396 words, need 400+)
 PASS: Has code examples (11 blocks)
 PASS: Auth header change (Authorization: Bearer) documented
 PASS: ID type change (UUID) documented
@@ -2379,26 +2435,36 @@ VERIFICATION_RESULT: EXCELLENT
 
 ---
 ### ollama:gemma4:31b-cloud / feature
-- **Status:** FAIL
-- **Duration:** 108.39s
+- **Status:** EXCELLENT
+- **Duration:** 254.95s
 - **Workdir:** `experiment/ollama-gemma4-31b-cloud/feature/workdir`
 - **Log:** `experiment/ollama-gemma4-31b-cloud/feature/combined.log`
-- **Tools Used:** LS, ActivateSkill, Read, Read, Read, Read, WriteTodos, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Edit, Edit, UpdateTodo, UpdateTodo, UpdateTodo
+- **Tools Used:** LS, Read, Read, Read, Read, ActivateSkill, WriteTodos, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Edit, Read, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo
 
 **Verification Output:**
 ```
 Verifying Project Management API...
-FAIL: Could not import app: name 'TaskStatus' is not defined
-VERIFICATION_RESULT: FAIL
+PASS: GET /projects works
+PASS: Filter by status works
+PASS: Filter by assigned_to works
+PASS: Pagination works (page_size=2 returned 2 results)
+PASS: POST /tasks requires authentication (401/403)
+PASS: POST /tasks creates task with auth
+PASS: POST /tasks with invalid project_id returns 404
+PASS: PUT /tasks/{id} partial update works
+PASS: DELETE /tasks/{id} removes task
+
+Score: 9/9
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:gemma4:31b-cloud / integration-bug
 - **Status:** EXCELLENT
-- **Duration:** 126.54s
+- **Duration:** 211.58s
 - **Workdir:** `experiment/ollama-gemma4-31b-cloud/integration-bug/workdir`
 - **Log:** `experiment/ollama-gemma4-31b-cloud/integration-bug/combined.log`
-- **Tools Used:** LS, Bash, ActivateSkill, Read, Read, Read, Read, WriteTodos, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Bash, UpdateTodo
+- **Tools Used:** LS, Bash, ActivateSkill, Read, Read, Read, Read, Edit, Edit, Bash, Bash
 
 **Verification Output:**
 ```
@@ -2488,10 +2554,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:gemma4:31b-cloud / refactor
 - **Status:** EXCELLENT
-- **Duration:** 129.83s
+- **Duration:** 260.11s
 - **Workdir:** `experiment/ollama-gemma4-31b-cloud/refactor/workdir`
 - **Log:** `experiment/ollama-gemma4-31b-cloud/refactor/combined.log`
-- **Tools Used:** LS, Read, ActivateSkill, WriteTodos, UpdateTodo, UpdateTodo, Write, UpdateTodo, UpdateTodo, UpdateTodo, UpdateTodo, Bash, Read, UpdateTodo
+- **Tools Used:** LS, Read, ActivateSkill, LS, Read, ActivateSkill, WriteTodos, Write, Bash, UpdateTodo, UpdateTodo, UpdateTodo, UpdateTodo, UpdateTodo, UpdateTodo, UpdateTodo
 
 **Verification Output:**
 ```
@@ -2514,34 +2580,34 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:gemma4:31b-cloud / research
 - **Status:** EXCELLENT
-- **Duration:** 126.84s
+- **Duration:** 147.26s
 - **Workdir:** `experiment/ollama-gemma4-31b-cloud/research/workdir`
 - **Log:** `experiment/ollama-gemma4-31b-cloud/research/combined.log`
-- **Tools Used:** Read, ActivateSkill, Write
+- **Tools Used:** Read, ActivateSkill, ActivateSkill, Write
 
 **Verification Output:**
 ```
 Verifying Architecture Decision Record...
-FAIL: Too short (487 words, need 500+)
+PASS: Substantial content (534 words)
 PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
 PASS: Status field present
 PASS: Both Kafka and Redis Streams are evaluated
 PASS: Contains a clear recommendation
-PASS: Covers 7 technical properties (throughput, consumer group, exactly-once, at-least-once...)
+PASS: Covers 11 technical properties (throughput, retention, consumer group, exactly-once...)
 PASS: Addresses team/constraint context
 PASS: Consequences include both pros and cons
 
-Score: 7/8
+Score: 8/8
 VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:glm-4.7:cloud / bug-fix
-- **Status:** PASS
-- **Duration:** 46.46s
+- **Status:** EXCELLENT
+- **Duration:** 71.56s
 - **Workdir:** `experiment/ollama-glm-4.7-cloud/bug-fix/workdir`
 - **Log:** `experiment/ollama-glm-4.7-cloud/bug-fix/combined.log`
-- **Tools Used:** ActivateSkill, Read, Read, Read, Bash, Edit, Edit, Bash
+- **Tools Used:** ActivateSkill, Read, Read, Read, Bash, Edit, Edit, Edit, Bash
 
 **Verification Output:**
 ```
@@ -2711,14 +2777,14 @@ Verifying Job Queue Fix...
 [Worker 0] job 11 failed: processing error for job 11
 [Worker 1] job 12 failed: processing error for job 12
   Run 5: PASS
-PASS: All simulation runs passed
-VERIFICATION_RESULT: PASS
+PASS: Concurrency control (Lock) detected
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:glm-4.7:cloud / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 20.69s
+- **Duration:** 17.56s
 - **Workdir:** `experiment/ollama-glm-4.7-cloud/copywriting/workdir`
 - **Log:** `experiment/ollama-glm-4.7-cloud/copywriting/combined.log`
 - **Tools Used:** Read, Read, ActivateSkill, Write
@@ -2727,7 +2793,7 @@ VERIFICATION_RESULT: PASS
 ```
 Verifying Migration Guide...
 PASS: Has markdown headings
-PASS: Substantial content (1006 words)
+PASS: Substantial content (903 words)
 PASS: Has code examples (20 blocks)
 PASS: Auth header change (Authorization: Bearer) documented
 PASS: ID type change (UUID) documented
@@ -2742,10 +2808,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:glm-4.7:cloud / feature
 - **Status:** EXCELLENT
-- **Duration:** 57.53s
+- **Duration:** 24.69s
 - **Workdir:** `experiment/ollama-glm-4.7-cloud/feature/workdir`
 - **Log:** `experiment/ollama-glm-4.7-cloud/feature/combined.log`
-- **Tools Used:** Read, Read, Read, Glob, Read, Read, Edit, Edit, Edit, Edit, Edit, Read, Read
+- **Tools Used:** ActivateSkill, Read, Read, Read, LS, Glob, Read, Read, Edit, Edit, Edit, Edit, Read, Read
 
 **Verification Output:**
 ```
@@ -2766,11 +2832,11 @@ VERIFICATION_RESULT: EXCELLENT
 
 ---
 ### ollama:glm-4.7:cloud / integration-bug
-- **Status:** EXCELLENT
-- **Duration:** 110.15s
+- **Status:** FAIL
+- **Duration:** 391.63s
 - **Workdir:** `experiment/ollama-glm-4.7-cloud/integration-bug/workdir`
 - **Log:** `experiment/ollama-glm-4.7-cloud/integration-bug/combined.log`
-- **Tools Used:** Read, Read, Read, Read, Edit, Edit, Edit, Edit, Edit, Bash, Bash, Bash, Bash, Bash
+- **Tools Used:** LS, Read, Read, Read, Read, Bash
 
 **Verification Output:**
 ```
@@ -2778,92 +2844,92 @@ Verifying Checkout Fix...
 Order order_0: SUCCESS
 Order order_1: SUCCESS
 Order order_2: SUCCESS
-Order order_5: out of stock
 Order order_3: SUCCESS
-Order order_6: out of stock
-Order order_7: out of stock
 Order order_4: SUCCESS
-Order order_8: out of stock
-Order order_9: out of stock
-Order order_10: out of stock
-Order order_11: out of stock
-Order order_0: SUCCESS
-Order order_2: SUCCESS
-Order order_5: out of stock
-Order order_6: out of stock
-Order order_7: out of stock
-Order order_4: SUCCESS
-Order order_8: out of stock
-Order order_9: out of stock
-Order order_10: out of stock
-Order order_11: out of stock
+Order order_5: inventory error after payment — item not delivered
+Order order_6: inventory error after payment — item not delivered
+Order order_7: inventory error after payment — item not delivered
+Order order_8: inventory error after payment — item not delivered
+Order order_9: inventory error after payment — item not delivered
+Order order_10: inventory error after payment — item not delivered
+Order order_11: inventory error after payment — item not delivered
 Order order_1: payment failed
 Order order_3: payment failed
-Order order_1: SUCCESS
+Order order_6: payment failed
+Order order_8: payment failed
+Order order_10: payment failed
+Order order_11: payment failed
+Order order_0: SUCCESS
 Order order_2: SUCCESS
-Order order_5: out of stock
-Order order_3: SUCCESS
-Order order_6: out of stock
-Order order_7: out of stock
 Order order_4: SUCCESS
-Order order_8: out of stock
-Order order_9: out of stock
-Order order_10: out of stock
-Order order_11: out of stock
+Order order_5: SUCCESS
+Order order_7: SUCCESS
+Order order_9: inventory error after payment — item not delivered
 Order order_0: payment failed
 Order order_1: SUCCESS
 Order order_2: SUCCESS
-Order order_5: out of stock
 Order order_3: SUCCESS
-Order order_6: out of stock
-Order order_7: out of stock
-Order order_8: out of stock
-Order order_9: out of stock
-Order order_10: out of stock
-Order order_11: out of stock
+Order order_4: SUCCESS
+Order order_5: SUCCESS
+Order order_6: inventory error after payment — item not delivered
+Order order_7: inventory error after payment — item not delivered
+Order order_8: inventory error after payment — item not delivered
+Order order_9: inventory error after payment — item not delivered
+Order order_10: inventory error after payment — item not delivered
+Order order_11: inventory error after payment — item not delivered
 Order order_0: payment failed
 Order order_4: payment failed
+Order order_9: payment failed
+Order order_10: payment failed
+Order order_1: SUCCESS
 Order order_2: SUCCESS
-Order order_5: out of stock
-Order order_6: out of stock
-Order order_7: out of stock
-Order order_8: out of stock
-Order order_9: out of stock
-Order order_10: out of stock
-Order order_11: out of stock
+Order order_3: SUCCESS
+Order order_5: SUCCESS
+Order order_6: SUCCESS
+Order order_7: inventory error after payment — item not delivered
+Order order_8: inventory error after payment — item not delivered
+Order order_11: inventory error after payment — item not delivered
 Order order_0: payment failed
 Order order_1: payment failed
 Order order_3: payment failed
 Order order_4: payment failed
+Order order_7: payment failed
+Order order_10: payment failed
+Order order_11: payment failed
+Order order_2: SUCCESS
+Order order_5: SUCCESS
+Order order_6: SUCCESS
+Order order_8: SUCCESS
+Order order_9: SUCCESS
 Order order_0: SUCCESS
 Order order_1: SUCCESS
 Order order_2: SUCCESS
-Order order_5: out of stock
 Order order_3: SUCCESS
-Order order_6: out of stock
-Order order_7: out of stock
 Order order_4: SUCCESS
-Order order_8: out of stock
-Order order_9: out of stock
-Order order_10: out of stock
-Order order_11: out of stock
-  Trial 1: PASS (stock=0, successful=5, charged=$500.00)
-  Trial 2: PASS (stock=2, successful=3, charged=$300.00)
-  Trial 3: PASS (stock=1, successful=4, charged=$400.00)
-  Trial 4: PASS (stock=2, successful=3, charged=$300.00)
-  Trial 5: PASS (stock=4, successful=1, charged=$100.00)
-  Trial 6: PASS (stock=0, successful=5, charged=$500.00)
-PASS: Locking mechanism detected
-VERIFICATION_RESULT: EXCELLENT
+Order order_5: inventory error after payment — item not delivered
+Order order_6: inventory error after payment — item not delivered
+Order order_7: inventory error after payment — item not delivered
+Order order_8: inventory error after payment — item not delivered
+Order order_9: inventory error after payment — item not delivered
+Order order_10: inventory error after payment — item not delivered
+Order order_11: inventory error after payment — item not delivered
+  Trial 1: FAIL — charge mismatch (charged=1200.00, expected=500.00)
+  Trial 2: FAIL — charge mismatch (charged=600.00, expected=500.00)
+  Trial 3: FAIL — charge mismatch (charged=1100.00, expected=500.00)
+  Trial 4: FAIL — charge mismatch (charged=800.00, expected=500.00)
+  Trial 5: PASS (stock=0, successful=5, charged=$500.00)
+  Trial 6: FAIL — charge mismatch (charged=1200.00, expected=500.00)
+FAIL: Only 1/6 trials passed
+VERIFICATION_RESULT: FAIL
 ```
 
 ---
 ### ollama:glm-4.7:cloud / refactor
 - **Status:** EXCELLENT
-- **Duration:** 127.50s
+- **Duration:** 154.60s
 - **Workdir:** `experiment/ollama-glm-4.7-cloud/refactor/workdir`
 - **Log:** `experiment/ollama-glm-4.7-cloud/refactor/combined.log`
-- **Tools Used:** Read, Write, Bash, Read, Bash, Bash, Read, Bash, Bash, Bash
+- **Tools Used:** Read, ActivateSkill, Write, Bash, Read, Bash, Bash
 
 **Verification Output:**
 ```
@@ -2872,7 +2938,7 @@ Checking: pipeline_refactored.py
 PASS: Environment variables used for config
 PASS: SQL queries use parameterized form (no injection)
 PASS: ETL pattern present (extract/transform/load)
-PASS: Separated into 5 function(s), 3 class(es)
+PASS: Separated into 13 function(s), 3 class(es)
 PASS: Regex used for log parsing
 PASS: Type hints and docstrings present
 Running script...
@@ -2886,7 +2952,7 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:glm-4.7:cloud / research
 - **Status:** EXCELLENT
-- **Duration:** 13.61s
+- **Duration:** 118.36s
 - **Workdir:** `experiment/ollama-glm-4.7-cloud/research/workdir`
 - **Log:** `experiment/ollama-glm-4.7-cloud/research/combined.log`
 - **Tools Used:** Read, Write
@@ -2894,12 +2960,12 @@ VERIFICATION_RESULT: EXCELLENT
 **Verification Output:**
 ```
 Verifying Architecture Decision Record...
-PASS: Substantial content (696 words)
+PASS: Substantial content (1084 words)
 PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
 PASS: Status field present
 PASS: Both Kafka and Redis Streams are evaluated
 PASS: Contains a clear recommendation
-PASS: Covers 11 technical properties (throughput, ordering, retention, consumer group...)
+PASS: Covers 12 technical properties (throughput, ordering, retention, consumer group...)
 PASS: Addresses team/constraint context
 PASS: Consequences include both pros and cons
 
@@ -2910,10 +2976,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:glm-5.1:cloud / bug-fix
 - **Status:** PASS
-- **Duration:** 58.88s
+- **Duration:** 69.28s
 - **Workdir:** `experiment/ollama-glm-5.1-cloud/bug-fix/workdir`
 - **Log:** `experiment/ollama-glm-5.1-cloud/bug-fix/combined.log`
-- **Tools Used:** Read, Read, Read, Bash, Edit, Edit, Bash
+- **Tools Used:** Read, Read, Read, Edit, Edit, Bash
 
 **Verification Output:**
 ```
@@ -3090,7 +3156,7 @@ VERIFICATION_RESULT: PASS
 ---
 ### ollama:glm-5.1:cloud / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 55.84s
+- **Duration:** 84.27s
 - **Workdir:** `experiment/ollama-glm-5.1-cloud/copywriting/workdir`
 - **Log:** `experiment/ollama-glm-5.1-cloud/copywriting/combined.log`
 - **Tools Used:** Read, Read, ActivateSkill, Write
@@ -3099,8 +3165,8 @@ VERIFICATION_RESULT: PASS
 ```
 Verifying Migration Guide...
 PASS: Has markdown headings
-PASS: Substantial content (763 words)
-PASS: Has code examples (19 blocks)
+PASS: Substantial content (553 words)
+PASS: Has code examples (15 blocks)
 PASS: Auth header change (Authorization: Bearer) documented
 PASS: ID type change (UUID) documented
 PASS: Field rename (done → completed) documented
@@ -3114,10 +3180,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:glm-5.1:cloud / feature
 - **Status:** EXCELLENT
-- **Duration:** 82.53s
+- **Duration:** 186.38s
 - **Workdir:** `experiment/ollama-glm-5.1-cloud/feature/workdir`
 - **Log:** `experiment/ollama-glm-5.1-cloud/feature/combined.log`
-- **Tools Used:** ActivateSkill, LS, Glob, Read, Read, Read, Read, Read, Write, Write, Bash, Bash
+- **Tools Used:** ActivateSkill, LS, Read, Read, Read, Read, Read, Read, Edit, Write, Bash, Bash, Bash, Bash, Bash, Bash
 
 **Verification Output:**
 ```
@@ -3139,10 +3205,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:glm-5.1:cloud / integration-bug
 - **Status:** EXCELLENT
-- **Duration:** 131.92s
+- **Duration:** 253.80s
 - **Workdir:** `experiment/ollama-glm-5.1-cloud/integration-bug/workdir`
 - **Log:** `experiment/ollama-glm-5.1-cloud/integration-bug/combined.log`
-- **Tools Used:** ActivateSkill, Read, Read, Read, Read, Bash, Edit, Edit, Write, Bash
+- **Tools Used:** ActivateSkill, Read, Read, Read, Read, Bash, WriteTodos, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Bash, UpdateTodo
 
 **Verification Output:**
 ```
@@ -3167,10 +3233,10 @@ Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
 Order order_0: SUCCESS
-Order order_1: payment failed — stock restored
 Order order_2: SUCCESS
-Order order_3: payment failed — stock restored
 Order order_4: SUCCESS
+Order order_1: payment failed
+Order order_3: payment failed
 Order order_5: out of stock
 Order order_6: out of stock
 Order order_7: out of stock
@@ -3178,11 +3244,11 @@ Order order_8: out of stock
 Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
-Order order_0: payment failed — stock restored
 Order order_1: SUCCESS
 Order order_2: SUCCESS
 Order order_3: SUCCESS
 Order order_4: SUCCESS
+Order order_0: payment failed
 Order order_5: out of stock
 Order order_6: out of stock
 Order order_7: out of stock
@@ -3190,11 +3256,11 @@ Order order_8: out of stock
 Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
-Order order_0: payment failed — stock restored
 Order order_1: SUCCESS
 Order order_2: SUCCESS
 Order order_3: SUCCESS
-Order order_4: payment failed — stock restored
+Order order_0: payment failed
+Order order_4: payment failed
 Order order_5: out of stock
 Order order_6: out of stock
 Order order_7: out of stock
@@ -3202,11 +3268,11 @@ Order order_8: out of stock
 Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
-Order order_0: payment failed — stock restored
-Order order_1: payment failed — stock restored
 Order order_2: SUCCESS
-Order order_3: payment failed — stock restored
-Order order_4: payment failed — stock restored
+Order order_0: payment failed
+Order order_1: payment failed
+Order order_3: payment failed
+Order order_4: payment failed
 Order order_5: out of stock
 Order order_6: out of stock
 Order order_7: out of stock
@@ -3232,10 +3298,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:glm-5.1:cloud / refactor
 - **Status:** EXCELLENT
-- **Duration:** 200.53s
+- **Duration:** 572.17s
 - **Workdir:** `experiment/ollama-glm-5.1-cloud/refactor/workdir`
 - **Log:** `experiment/ollama-glm-5.1-cloud/refactor/combined.log`
-- **Tools Used:** Read, LS, ActivateSkill, Read, Read, Bash, Write, Bash, Edit, Edit, Bash, Read
+- **Tools Used:** ActivateSkill, Read, Read, Read, LS, WriteTodos, Bash, Bash, UpdateTodo, UpdateTodo, Write, UpdateTodo, UpdateTodo, Write, UpdateTodo, UpdateTodo, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Read, Edit, Edit, Write, Bash, Bash, UpdateTodo, UpdateTodo, Bash, Bash, Bash, UpdateTodo
 
 **Verification Output:**
 ```
@@ -3244,7 +3310,7 @@ Checking: pipeline_refactored.py
 PASS: Environment variables used for config
 PASS: SQL queries use parameterized form (no injection)
 PASS: ETL pattern present (extract/transform/load)
-PASS: Separated into 10 function(s), 9 class(es)
+PASS: Separated into 10 function(s), 6 class(es)
 PASS: Regex used for log parsing
 PASS: Type hints and docstrings present
 Running script...
@@ -3258,15 +3324,15 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:glm-5.1:cloud / research
 - **Status:** EXCELLENT
-- **Duration:** 72.11s
+- **Duration:** 104.26s
 - **Workdir:** `experiment/ollama-glm-5.1-cloud/research/workdir`
 - **Log:** `experiment/ollama-glm-5.1-cloud/research/combined.log`
-- **Tools Used:** ActivateSkill, ActivateSkill, Read, Read, Write
+- **Tools Used:** Read, ActivateSkill, Read, Write
 
 **Verification Output:**
 ```
 Verifying Architecture Decision Record...
-PASS: Substantial content (1102 words)
+PASS: Substantial content (1629 words)
 PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
 PASS: Status field present
 PASS: Both Kafka and Redis Streams are evaluated
@@ -3282,10 +3348,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:glm-5:cloud / bug-fix
 - **Status:** PASS
-- **Duration:** 83.84s
+- **Duration:** 117.10s
 - **Workdir:** `experiment/ollama-glm-5-cloud/bug-fix/workdir`
 - **Log:** `experiment/ollama-glm-5-cloud/bug-fix/combined.log`
-- **Tools Used:** Read, Read, Read, Bash, Edit, Edit, Bash
+- **Tools Used:** LS, Read, Read, Read, Bash, Edit, Edit, Bash
 
 **Verification Output:**
 ```
@@ -3462,17 +3528,17 @@ VERIFICATION_RESULT: PASS
 ---
 ### ollama:glm-5:cloud / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 62.89s
+- **Duration:** 126.01s
 - **Workdir:** `experiment/ollama-glm-5-cloud/copywriting/workdir`
 - **Log:** `experiment/ollama-glm-5-cloud/copywriting/combined.log`
-- **Tools Used:** ActivateSkill, Read, Read, Write
+- **Tools Used:** Read, Read, ActivateSkill, Write, Write
 
 **Verification Output:**
 ```
 Verifying Migration Guide...
 PASS: Has markdown headings
-PASS: Substantial content (701 words)
-PASS: Has code examples (18 blocks)
+PASS: Substantial content (763 words)
+PASS: Has code examples (16 blocks)
 PASS: Auth header change (Authorization: Bearer) documented
 PASS: ID type change (UUID) documented
 PASS: Field rename (done → completed) documented
@@ -3486,10 +3552,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:glm-5:cloud / feature
 - **Status:** EXCELLENT
-- **Duration:** 112.37s
+- **Duration:** 236.29s
 - **Workdir:** `experiment/ollama-glm-5-cloud/feature/workdir`
 - **Log:** `experiment/ollama-glm-5-cloud/feature/combined.log`
-- **Tools Used:** Read, Read, Read, LS, Read, Edit, Edit, Edit, Edit, Read, Read
+- **Tools Used:** ActivateSkill, Read, Read, Read, Read, Edit, Edit, Edit, Edit, Read, Read, Glob, Glob, Glob, LS, Read, Bash, Bash
 
 **Verification Output:**
 ```
@@ -3511,20 +3577,27 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:glm-5:cloud / integration-bug
 - **Status:** EXCELLENT
-- **Duration:** 107.29s
+- **Duration:** 237.91s
 - **Workdir:** `experiment/ollama-glm-5-cloud/integration-bug/workdir`
 - **Log:** `experiment/ollama-glm-5-cloud/integration-bug/combined.log`
-- **Tools Used:** Read, Read, Read, Read, Bash, Edit, Edit, Bash, Bash
+- **Tools Used:** ActivateSkill, Read, Read, Read, Read, Bash, Bash, TodoWrite, WriteTodos, Edit, UpdateTodo, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, Bash, Bash, UpdateTodo
 
 **Verification Output:**
 ```
 Verifying Checkout Fix...
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
 Order order_0: SUCCESS
 Order order_1: SUCCESS
 Order order_2: SUCCESS
 Order order_3: SUCCESS
-Order order_5: out of stock
 Order order_4: SUCCESS
+Order order_5: out of stock
 Order order_6: out of stock
 Order order_7: out of stock
 Order order_8: out of stock
@@ -3533,31 +3606,21 @@ Order order_10: out of stock
 Order order_11: out of stock
 Order order_0: SUCCESS
 Order order_2: SUCCESS
-Order order_5: out of stock
 Order order_4: SUCCESS
-Order order_6: out of stock
-Order order_7: out of stock
-Order order_8: out of stock
-Order order_9: out of stock
-Order order_10: out of stock
-Order order_11: out of stock
 Order order_1: payment failed
 Order order_3: payment failed
+Order order_5: out of stock
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
 Order order_1: SUCCESS
 Order order_2: SUCCESS
 Order order_3: SUCCESS
-Order order_5: out of stock
 Order order_4: SUCCESS
-Order order_6: out of stock
-Order order_7: out of stock
-Order order_8: out of stock
-Order order_9: out of stock
-Order order_10: out of stock
-Order order_11: out of stock
 Order order_0: payment failed
-Order order_1: SUCCESS
-Order order_2: SUCCESS
-Order order_3: SUCCESS
 Order order_5: out of stock
 Order order_6: out of stock
 Order order_7: out of stock
@@ -3565,9 +3628,11 @@ Order order_8: out of stock
 Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
 Order order_0: payment failed
 Order order_4: payment failed
-Order order_2: SUCCESS
 Order order_5: out of stock
 Order order_6: out of stock
 Order order_7: out of stock
@@ -3575,22 +3640,23 @@ Order order_8: out of stock
 Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
+Order order_2: SUCCESS
 Order order_0: payment failed
 Order order_1: payment failed
 Order order_3: payment failed
 Order order_4: payment failed
-Order order_0: SUCCESS
-Order order_1: SUCCESS
-Order order_2: SUCCESS
-Order order_3: SUCCESS
 Order order_5: out of stock
-Order order_4: SUCCESS
 Order order_6: out of stock
 Order order_7: out of stock
 Order order_8: out of stock
 Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
+Order order_3: SUCCESS
+Order order_4: SUCCESS
   Trial 1: PASS (stock=0, successful=5, charged=$500.00)
   Trial 2: PASS (stock=2, successful=3, charged=$300.00)
   Trial 3: PASS (stock=1, successful=4, charged=$400.00)
@@ -3604,10 +3670,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:glm-5:cloud / refactor
 - **Status:** EXCELLENT
-- **Duration:** 236.19s
+- **Duration:** 170.05s
 - **Workdir:** `experiment/ollama-glm-5-cloud/refactor/workdir`
 - **Log:** `experiment/ollama-glm-5-cloud/refactor/combined.log`
-- **Tools Used:** Read, ActivateSkill, Read, Read, Glob, Glob, LS, Bash, Read, Read, Write, Bash, Read, Bash, Bash, Bash
+- **Tools Used:** ActivateSkill, Read, Read, LS, Read, Write, Bash, Bash, Read, Bash, Bash
 
 **Verification Output:**
 ```
@@ -3616,7 +3682,7 @@ Checking: pipeline_refactored.py
 PASS: Environment variables used for config
 PASS: SQL queries use parameterized form (no injection)
 PASS: ETL pattern present (extract/transform/load)
-PASS: Separated into 11 function(s), 6 class(es)
+PASS: Separated into 12 function(s), 7 class(es)
 PASS: Regex used for log parsing
 PASS: Type hints and docstrings present
 Running script...
@@ -3630,7 +3696,7 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:glm-5:cloud / research
 - **Status:** EXCELLENT
-- **Duration:** 77.86s
+- **Duration:** 71.02s
 - **Workdir:** `experiment/ollama-glm-5-cloud/research/workdir`
 - **Log:** `experiment/ollama-glm-5-cloud/research/combined.log`
 - **Tools Used:** Read, Write
@@ -3638,12 +3704,12 @@ VERIFICATION_RESULT: EXCELLENT
 **Verification Output:**
 ```
 Verifying Architecture Decision Record...
-PASS: Substantial content (1056 words)
+PASS: Substantial content (1220 words)
 PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
 PASS: Status field present
 PASS: Both Kafka and Redis Streams are evaluated
 PASS: Contains a clear recommendation
-PASS: Covers 11 technical properties (throughput, ordering, retention, consumer group...)
+PASS: Covers 11 technical properties (throughput, retention, consumer group, exactly-once...)
 PASS: Addresses team/constraint context
 PASS: Consequences include both pros and cons
 
@@ -3654,10 +3720,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:kimi-k2.5:cloud / bug-fix
 - **Status:** PASS
-- **Duration:** 160.74s
+- **Duration:** 58.29s
 - **Workdir:** `experiment/ollama-kimi-k2.5-cloud/bug-fix/workdir`
 - **Log:** `experiment/ollama-kimi-k2.5-cloud/bug-fix/combined.log`
-- **Tools Used:** Read, Read, Read, Bash, Edit, Edit, Bash, Read, Read
+- **Tools Used:** Read, Read, Read, Bash, Edit, Edit, Bash
 
 **Verification Output:**
 ```
@@ -3834,17 +3900,17 @@ VERIFICATION_RESULT: PASS
 ---
 ### ollama:kimi-k2.5:cloud / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 72.65s
+- **Duration:** 75.80s
 - **Workdir:** `experiment/ollama-kimi-k2.5-cloud/copywriting/workdir`
 - **Log:** `experiment/ollama-kimi-k2.5-cloud/copywriting/combined.log`
-- **Tools Used:** Read, Read, ActivateSkill, Write
+- **Tools Used:** Read, Read, Write, Read
 
 **Verification Output:**
 ```
 Verifying Migration Guide...
 PASS: Has markdown headings
-PASS: Substantial content (794 words)
-PASS: Has code examples (17 blocks)
+PASS: Substantial content (675 words)
+PASS: Has code examples (15 blocks)
 PASS: Auth header change (Authorization: Bearer) documented
 PASS: ID type change (UUID) documented
 PASS: Field rename (done → completed) documented
@@ -3858,10 +3924,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:kimi-k2.5:cloud / feature
 - **Status:** EXCELLENT
-- **Duration:** 190.97s
+- **Duration:** 100.02s
 - **Workdir:** `experiment/ollama-kimi-k2.5-cloud/feature/workdir`
 - **Log:** `experiment/ollama-kimi-k2.5-cloud/feature/combined.log`
-- **Tools Used:** ActivateSkill, Glob, Read, Read, Read, Read, WriteTodos, Edit, UpdateTodo, Edit, Edit, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, UpdateTodo, Read, Read, ClearTodos
+- **Tools Used:** ActivateSkill, LS, Read, Read, Read, Read, WriteTodos, Edit, UpdateTodo, UpdateTodo, UpdateTodo, Edit, UpdateTodo, UpdateTodo, UpdateTodo, UpdateTodo, UpdateTodo, Edit, Read, Read, Bash, UpdateTodo, UpdateTodo, UpdateTodo
 
 **Verification Output:**
 ```
@@ -3883,91 +3949,91 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:kimi-k2.5:cloud / integration-bug
 - **Status:** EXCELLENT
-- **Duration:** 101.35s
+- **Duration:** 104.50s
 - **Workdir:** `experiment/ollama-kimi-k2.5-cloud/integration-bug/workdir`
 - **Log:** `experiment/ollama-kimi-k2.5-cloud/integration-bug/combined.log`
-- **Tools Used:** Read, Read, Read, Read, Bash, Edit, Edit, Edit, Bash
+- **Tools Used:** ActivateSkill, Read, Read, Read, Read, Bash, Edit, Edit, Edit, Bash, Bash
 
 **Verification Output:**
 ```
 Verifying Checkout Fix...
+Order order_0: SUCCESS
+Order order_1: SUCCESS
+Order order_2: SUCCESS
 Order order_5: out of stock
+Order order_3: SUCCESS
 Order order_6: out of stock
 Order order_7: out of stock
+Order order_4: SUCCESS
 Order order_8: out of stock
 Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
 Order order_0: SUCCESS
+Order order_1: payment failed
+Order order_2: SUCCESS
+Order order_6: out of stock
+Order order_3: payment failed
+Order order_4: SUCCESS
+Order order_8: out of stock
+Order order_5: SUCCESS
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_7: payment failed
+Order order_11: SUCCESS
+Order order_0: payment failed
 Order order_1: SUCCESS
 Order order_2: SUCCESS
 Order order_3: SUCCESS
-Order order_4: SUCCESS
-Order order_5: out of stock
 Order order_6: out of stock
 Order order_7: out of stock
+Order order_4: SUCCESS
 Order order_8: out of stock
+Order order_5: SUCCESS
 Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
-Order order_0: SUCCESS
-Order order_2: SUCCESS
-Order order_4: SUCCESS
-Order order_1: payment failed — inventory released
-Order order_3: payment failed — inventory released
-Order order_5: out of stock
-Order order_6: out of stock
-Order order_7: out of stock
-Order order_8: out of stock
-Order order_9: out of stock
-Order order_10: out of stock
-Order order_11: out of stock
+Order order_0: payment failed
 Order order_1: SUCCESS
 Order order_2: SUCCESS
 Order order_3: SUCCESS
-Order order_4: SUCCESS
-Order order_0: payment failed — inventory released
-Order order_5: out of stock
 Order order_6: out of stock
 Order order_7: out of stock
-Order order_8: out of stock
+Order order_4: payment failed
+Order order_5: SUCCESS
 Order order_9: out of stock
 Order order_10: out of stock
+Order order_8: SUCCESS
 Order order_11: out of stock
-Order order_1: SUCCESS
+Order order_0: payment failed
+Order order_1: payment failed
 Order order_2: SUCCESS
-Order order_3: SUCCESS
-Order order_0: payment failed — inventory released
-Order order_4: payment failed — inventory released
-Order order_5: out of stock
-Order order_6: out of stock
-Order order_7: out of stock
-Order order_8: out of stock
+Order order_3: payment failed
+Order order_4: payment failed
+Order order_5: SUCCESS
 Order order_9: out of stock
 Order order_10: out of stock
+Order order_6: SUCCESS
 Order order_11: out of stock
-Order order_2: SUCCESS
-Order order_0: payment failed — inventory released
-Order order_1: payment failed — inventory released
-Order order_3: payment failed — inventory released
-Order order_4: payment failed — inventory released
-Order order_5: out of stock
-Order order_6: out of stock
-Order order_7: out of stock
-Order order_8: out of stock
-Order order_9: out of stock
-Order order_10: out of stock
-Order order_11: out of stock
+Order order_7: payment failed
+Order order_8: SUCCESS
 Order order_0: SUCCESS
 Order order_1: SUCCESS
 Order order_2: SUCCESS
+Order order_5: out of stock
 Order order_3: SUCCESS
+Order order_6: out of stock
+Order order_7: out of stock
 Order order_4: SUCCESS
+Order order_8: out of stock
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
   Trial 1: PASS (stock=0, successful=5, charged=$500.00)
-  Trial 2: PASS (stock=2, successful=3, charged=$300.00)
-  Trial 3: PASS (stock=1, successful=4, charged=$400.00)
-  Trial 4: PASS (stock=2, successful=3, charged=$300.00)
-  Trial 5: PASS (stock=4, successful=1, charged=$100.00)
+  Trial 2: PASS (stock=0, successful=5, charged=$500.00)
+  Trial 3: PASS (stock=0, successful=5, charged=$500.00)
+  Trial 4: PASS (stock=0, successful=5, charged=$500.00)
+  Trial 5: PASS (stock=1, successful=4, charged=$400.00)
   Trial 6: PASS (stock=0, successful=5, charged=$500.00)
 PASS: Locking mechanism detected
 VERIFICATION_RESULT: EXCELLENT
@@ -3975,11 +4041,11 @@ VERIFICATION_RESULT: EXCELLENT
 
 ---
 ### ollama:kimi-k2.5:cloud / refactor
-- **Status:** FAIL
-- **Duration:** 214.99s
+- **Status:** EXCELLENT
+- **Duration:** 145.16s
 - **Workdir:** `experiment/ollama-kimi-k2.5-cloud/refactor/workdir`
 - **Log:** `experiment/ollama-kimi-k2.5-cloud/refactor/combined.log`
-- **Tools Used:** Read, ActivateSkill, Write, Bash, Read, Bash, Bash
+- **Tools Used:** Read, ActivateSkill, Write, Bash, Bash, Bash, Read, Bash, Bash
 
 **Verification Output:**
 ```
@@ -3988,29 +4054,21 @@ Checking: pipeline_refactored.py
 PASS: Environment variables used for config
 PASS: SQL queries use parameterized form (no injection)
 PASS: ETL pattern present (extract/transform/load)
-PASS: Separated into 13 function(s), 5 class(es)
+PASS: Separated into 9 function(s), 5 class(es)
 PASS: Regex used for log parsing
 PASS: Type hints and docstrings present
 Running script...
-FAIL: Script exited with 1
-Traceback (most recent call last):
-  File "/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-kimi-k2.5-cloud/refactor/workdir/pipeline_refactored.py", line 486, in <module>
-    config = get_config()
-  File "/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-kimi-k2.5-cloud/refactor/workdir/pipeline_refactored.py", line 47, in get_config
-    raise ValueError(
-    ...<2 lines>...
-    )
-ValueError: Database credentials required via LOGPIPELINE_DB_USER and LOGPIPELINE_DB_PASS envi
+PASS: Script runs successfully
 PASS: report.html contains all required sections
 
-Score: 7/8
-VERIFICATION_RESULT: FAIL
+Score: 8/8
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:kimi-k2.5:cloud / research
 - **Status:** EXCELLENT
-- **Duration:** 71.98s
+- **Duration:** 52.95s
 - **Workdir:** `experiment/ollama-kimi-k2.5-cloud/research/workdir`
 - **Log:** `experiment/ollama-kimi-k2.5-cloud/research/combined.log`
 - **Tools Used:** Read, Write
@@ -4018,12 +4076,12 @@ VERIFICATION_RESULT: FAIL
 **Verification Output:**
 ```
 Verifying Architecture Decision Record...
-PASS: Substantial content (1039 words)
+PASS: Substantial content (742 words)
 PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
 PASS: Status field present
 PASS: Both Kafka and Redis Streams are evaluated
 PASS: Contains a clear recommendation
-PASS: Covers 8 technical properties (throughput, retention, consumer group, exactly-once...)
+PASS: Covers 10 technical properties (throughput, retention, consumer group, exactly-once...)
 PASS: Addresses team/constraint context
 PASS: Consequences include both pros and cons
 
@@ -4033,11 +4091,11 @@ VERIFICATION_RESULT: EXCELLENT
 
 ---
 ### ollama:kimi-k2.6:cloud / bug-fix
-- **Status:** EXCELLENT
-- **Duration:** 372.38s
+- **Status:** PASS
+- **Duration:** 321.23s
 - **Workdir:** `experiment/ollama-kimi-k2.6-cloud/bug-fix/workdir`
 - **Log:** `experiment/ollama-kimi-k2.6-cloud/bug-fix/combined.log`
-- **Tools Used:** Read, Read, Read, Bash, Edit, Edit, Edit, Bash
+- **Tools Used:** ActivateSkill, Read, Read, Read, Bash, Edit, Edit, Bash
 
 **Verification Output:**
 ```
@@ -4048,29 +4106,29 @@ Verifying Job Queue Fix...
 [Worker 3] picked up job 4
 [Worker 4] picked up job 5
 [Worker 0] finished job 1
-[Worker 0] picked up job 6
 [Worker 1] finished job 2
-[Worker 1] picked up job 7
 [Worker 2] finished job 3
-[Worker 2] picked up job 8
 [Worker 3] finished job 4
-[Worker 3] picked up job 9
 [Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
 [Worker 4] picked up job 10
 [Worker 0] finished job 6
-[Worker 0] picked up job 11
 [Worker 1] finished job 7
-[Worker 1] picked up job 12
 [Worker 2] finished job 8
 [Worker 3] finished job 9
 [Worker 4] finished job 10
-[Worker 0] job 11 failed: processing error for job 11
 [Worker 0] picked up job 11
-[Worker 1] job 12 failed: processing error for job 12
 [Worker 1] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 0] picked up job 11
 [Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
 [Worker 1] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
 [Worker 1] job 12 failed: processing error for job 12
@@ -4081,29 +4139,29 @@ Verifying Job Queue Fix...
 [Worker 3] picked up job 4
 [Worker 4] picked up job 5
 [Worker 0] finished job 1
-[Worker 0] picked up job 6
 [Worker 1] finished job 2
-[Worker 1] picked up job 7
 [Worker 2] finished job 3
-[Worker 2] picked up job 8
 [Worker 3] finished job 4
-[Worker 3] picked up job 9
 [Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
 [Worker 4] picked up job 10
 [Worker 0] finished job 6
-[Worker 0] picked up job 11
 [Worker 1] finished job 7
-[Worker 1] picked up job 12
 [Worker 2] finished job 8
 [Worker 3] finished job 9
 [Worker 4] finished job 10
-[Worker 0] job 11 failed: processing error for job 11
 [Worker 0] picked up job 11
-[Worker 1] job 12 failed: processing error for job 12
 [Worker 1] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 0] picked up job 11
 [Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
 [Worker 1] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
 [Worker 1] job 12 failed: processing error for job 12
@@ -4114,29 +4172,29 @@ Verifying Job Queue Fix...
 [Worker 3] picked up job 4
 [Worker 4] picked up job 5
 [Worker 0] finished job 1
-[Worker 0] picked up job 6
 [Worker 1] finished job 2
-[Worker 1] picked up job 7
 [Worker 2] finished job 3
-[Worker 2] picked up job 8
 [Worker 3] finished job 4
-[Worker 3] picked up job 9
 [Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
 [Worker 4] picked up job 10
 [Worker 0] finished job 6
-[Worker 0] picked up job 11
 [Worker 1] finished job 7
-[Worker 1] picked up job 12
 [Worker 2] finished job 8
 [Worker 3] finished job 9
 [Worker 4] finished job 10
-[Worker 0] job 11 failed: processing error for job 11
 [Worker 0] picked up job 11
-[Worker 1] job 12 failed: processing error for job 12
 [Worker 1] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 0] picked up job 11
 [Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
 [Worker 1] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
 [Worker 1] job 12 failed: processing error for job 12
@@ -4147,29 +4205,29 @@ Verifying Job Queue Fix...
 [Worker 3] picked up job 4
 [Worker 4] picked up job 5
 [Worker 0] finished job 1
-[Worker 0] picked up job 6
 [Worker 1] finished job 2
-[Worker 1] picked up job 7
 [Worker 2] finished job 3
-[Worker 2] picked up job 8
 [Worker 3] finished job 4
-[Worker 3] picked up job 9
 [Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
 [Worker 4] picked up job 10
 [Worker 0] finished job 6
-[Worker 0] picked up job 11
 [Worker 1] finished job 7
-[Worker 1] picked up job 12
 [Worker 2] finished job 8
 [Worker 3] finished job 9
 [Worker 4] finished job 10
-[Worker 0] job 11 failed: processing error for job 11
 [Worker 0] picked up job 11
-[Worker 1] job 12 failed: processing error for job 12
 [Worker 1] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 0] picked up job 11
 [Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
 [Worker 1] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
 [Worker 1] job 12 failed: processing error for job 12
@@ -4180,51 +4238,51 @@ Verifying Job Queue Fix...
 [Worker 3] picked up job 4
 [Worker 4] picked up job 5
 [Worker 0] finished job 1
-[Worker 0] picked up job 6
 [Worker 1] finished job 2
-[Worker 1] picked up job 7
 [Worker 2] finished job 3
-[Worker 2] picked up job 8
 [Worker 3] finished job 4
-[Worker 3] picked up job 9
 [Worker 4] finished job 5
+[Worker 0] picked up job 6
+[Worker 1] picked up job 7
+[Worker 2] picked up job 8
+[Worker 3] picked up job 9
 [Worker 4] picked up job 10
 [Worker 0] finished job 6
-[Worker 0] picked up job 11
 [Worker 1] finished job 7
-[Worker 1] picked up job 12
 [Worker 2] finished job 8
 [Worker 3] finished job 9
 [Worker 4] finished job 10
-[Worker 0] job 11 failed: processing error for job 11
 [Worker 0] picked up job 11
-[Worker 1] job 12 failed: processing error for job 12
 [Worker 1] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 0] picked up job 11
 [Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
+[Worker 1] picked up job 12
+[Worker 0] job 11 failed: processing error for job 11
+[Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
 [Worker 1] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
 [Worker 1] job 12 failed: processing error for job 12
   Run 5: PASS
-PASS: Concurrency control (Lock) detected
-VERIFICATION_RESULT: EXCELLENT
+PASS: All simulation runs passed
+VERIFICATION_RESULT: PASS
 ```
 
 ---
 ### ollama:kimi-k2.6:cloud / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 80.66s
+- **Duration:** 118.81s
 - **Workdir:** `experiment/ollama-kimi-k2.6-cloud/copywriting/workdir`
 - **Log:** `experiment/ollama-kimi-k2.6-cloud/copywriting/combined.log`
-- **Tools Used:** ActivateSkill, Read, Read, Write
+- **Tools Used:** Read, Read, ActivateSkill, Write
 
 **Verification Output:**
 ```
 Verifying Migration Guide...
 PASS: Has markdown headings
-PASS: Substantial content (665 words)
-PASS: Has code examples (15 blocks)
+PASS: Substantial content (703 words)
+PASS: Has code examples (14 blocks)
 PASS: Auth header change (Authorization: Bearer) documented
 PASS: ID type change (UUID) documented
 PASS: Field rename (done → completed) documented
@@ -4238,10 +4296,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:kimi-k2.6:cloud / feature
 - **Status:** EXCELLENT
-- **Duration:** 391.55s
+- **Duration:** 425.82s
 - **Workdir:** `experiment/ollama-kimi-k2.6-cloud/feature/workdir`
 - **Log:** `experiment/ollama-kimi-k2.6-cloud/feature/combined.log`
-- **Tools Used:** ActivateSkill, ActivateSkill, Read, Read, Read, Read, Glob, Bash, Read, LS, WriteTodos, Edit, Edit, Bash, Bash, Bash, WriteTodos, Read, Read
+- **Tools Used:** ActivateSkill, Read, Read, Read, Read, WriteTodos, Write, Write, Glob, Bash, Read, Bash, Bash, WriteTodos
 
 **Verification Output:**
 ```
@@ -4263,10 +4321,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:kimi-k2.6:cloud / integration-bug
 - **Status:** EXCELLENT
-- **Duration:** 305.51s
+- **Duration:** 888.85s
 - **Workdir:** `experiment/ollama-kimi-k2.6-cloud/integration-bug/workdir`
 - **Log:** `experiment/ollama-kimi-k2.6-cloud/integration-bug/combined.log`
-- **Tools Used:** ActivateSkill, Read, Read, Read, Read, Bash, Edit, Edit, Edit, Bash
+- **Tools Used:** ActivateSkill, Glob, Read, Read, Read, Read, Bash, Bash, WriteTodos, Write, Write, Write, UpdateTodo, UpdateTodo, UpdateTodo, UpdateTodo, Bash, UpdateTodo
 
 **Verification Output:**
 ```
@@ -4291,10 +4349,10 @@ Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
 Order order_0: SUCCESS
-Order order_2: SUCCESS
-Order order_4: SUCCESS
 Order order_1: payment failed
+Order order_2: SUCCESS
 Order order_3: payment failed
+Order order_4: SUCCESS
 Order order_5: out of stock
 Order order_6: out of stock
 Order order_7: out of stock
@@ -4302,11 +4360,11 @@ Order order_8: out of stock
 Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
+Order order_0: payment failed
 Order order_1: SUCCESS
 Order order_2: SUCCESS
 Order order_3: SUCCESS
 Order order_4: SUCCESS
-Order order_0: payment failed
 Order order_5: out of stock
 Order order_6: out of stock
 Order order_7: out of stock
@@ -4314,10 +4372,10 @@ Order order_8: out of stock
 Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
+Order order_0: payment failed
 Order order_1: SUCCESS
 Order order_2: SUCCESS
 Order order_3: SUCCESS
-Order order_0: payment failed
 Order order_4: payment failed
 Order order_5: out of stock
 Order order_6: out of stock
@@ -4326,9 +4384,9 @@ Order order_8: out of stock
 Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
-Order order_2: SUCCESS
 Order order_0: payment failed
 Order order_1: payment failed
+Order order_2: SUCCESS
 Order order_3: payment failed
 Order order_4: payment failed
 Order order_5: out of stock
@@ -4356,10 +4414,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:kimi-k2.6:cloud / refactor
 - **Status:** EXCELLENT
-- **Duration:** 381.70s
+- **Duration:** 676.70s
 - **Workdir:** `experiment/ollama-kimi-k2.6-cloud/refactor/workdir`
 - **Log:** `experiment/ollama-kimi-k2.6-cloud/refactor/combined.log`
-- **Tools Used:** ActivateSkill, Read, LS, Write, Bash, Edit, Edit, Bash, Grep, Bash
+- **Tools Used:** Glob, Read, ActivateSkill, Read, Glob, Glob, Bash, Bash, Bash, Write, Bash, Bash, Bash, Bash, Bash, Edit, Edit, Bash, Bash, Read
 
 **Verification Output:**
 ```
@@ -4368,7 +4426,7 @@ Checking: pipeline_refactored.py
 PASS: Environment variables used for config
 PASS: SQL queries use parameterized form (no injection)
 PASS: ETL pattern present (extract/transform/load)
-PASS: Separated into 8 function(s), 6 class(es)
+PASS: Separated into 6 function(s), 5 class(es)
 PASS: Regex used for log parsing
 PASS: Type hints and docstrings present
 Running script...
@@ -4382,20 +4440,20 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:kimi-k2.6:cloud / research
 - **Status:** EXCELLENT
-- **Duration:** 333.82s
+- **Duration:** 250.97s
 - **Workdir:** `experiment/ollama-kimi-k2.6-cloud/research/workdir`
 - **Log:** `experiment/ollama-kimi-k2.6-cloud/research/combined.log`
-- **Tools Used:** Read, ActivateSkill, ActivateSkill, Read, Write
+- **Tools Used:** Read, Write
 
 **Verification Output:**
 ```
 Verifying Architecture Decision Record...
-PASS: Substantial content (984 words)
+PASS: Substantial content (1075 words)
 PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
 PASS: Status field present
 PASS: Both Kafka and Redis Streams are evaluated
 PASS: Contains a clear recommendation
-PASS: Covers 11 technical properties (throughput, ordering, retention, consumer group...)
+PASS: Covers 9 technical properties (throughput, retention, consumer group, exactly-once...)
 PASS: Addresses team/constraint context
 PASS: Consequences include both pros and cons
 
@@ -4406,10 +4464,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:minimax-m2.7:cloud / bug-fix
 - **Status:** FAIL
-- **Duration:** 268.65s
+- **Duration:** 738.04s
 - **Workdir:** `experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir`
 - **Log:** `experiment/ollama-minimax-m2.7-cloud/bug-fix/combined.log`
-- **Tools Used:** ReadReadRead, ReadReadRead, ReadReadRead, ActivateSkillGlob, ReadReadActivateSkillRead, ReadReadRead, ReadReadRead, ActivateSkillLS, ReadReadRead
+- **Tools Used:** ActivateSkillReadReadRead, ReadReadRead, Glob, ReadReadRead, ReadReadRead, ActivateSkill, ReadReadRead, ReadReadRead, ReadReadRead, LS, ReadReadRead, Glob, ReadReadRead
 
 **Verification Output:**
 ```
@@ -5026,10 +5084,10 @@ VERIFICATION_RESULT: FAIL
 ---
 ### ollama:minimax-m2.7:cloud / copywriting
 - **Status:** FAIL
-- **Duration:** 347.20s
+- **Duration:** 545.10s
 - **Workdir:** `experiment/ollama-minimax-m2.7-cloud/copywriting/workdir`
 - **Log:** `experiment/ollama-minimax-m2.7-cloud/copywriting/combined.log`
-- **Tools Used:** ActivateSkillReadRead, ReadRead, ReadRead, ActivateSkillReadRead, Glob, ReadRead, ReadRead, ActivateSkillGlob, ActivateSkillReadRead, ReadRead
+- **Tools Used:** ReadRead, ReadRead, ActivateSkillGlob, ReadReadActivateSkill, ActivateSkillGlob, ReadRead, Glob, ReadRead, Glob, ReadRead, ReadRead
 
 **Verification Output:**
 ```
@@ -5041,10 +5099,10 @@ VERIFICATION_RESULT: FAIL
 ---
 ### ollama:minimax-m2.7:cloud / feature
 - **Status:** FAIL
-- **Duration:** 312.97s
+- **Duration:** 500.48s
 - **Workdir:** `experiment/ollama-minimax-m2.7-cloud/feature/workdir`
 - **Log:** `experiment/ollama-minimax-m2.7-cloud/feature/combined.log`
-- **Tools Used:** ActivateSkillLS, ReadLSReadRead, ReadReadReadActivateSkill, ActivateSkillLS, ReadReadLSRead, LS, ReadReadReadRead, LSGlob, LSGlob, LSGlob
+- **Tools Used:** LS, ReadReadReadRead, ActivateSkillLS, ActivateSkillLS, ActivateSkillLS, LSReadReadRead, LSGlob, ReadReadReadGlob, LSActivateSkill, ReadReadReadLS
 
 **Verification Output:**
 ```
@@ -5067,10 +5125,10 @@ VERIFICATION_RESULT: FAIL
 ---
 ### ollama:minimax-m2.7:cloud / integration-bug
 - **Status:** FAIL
-- **Duration:** 332.69s
+- **Duration:** 710.90s
 - **Workdir:** `experiment/ollama-minimax-m2.7-cloud/integration-bug/workdir`
 - **Log:** `experiment/ollama-minimax-m2.7-cloud/integration-bug/combined.log`
-- **Tools Used:** ActivateSkillLS, LSReadReadReadRead, ActivateSkillReadReadReadRead, Glob, ReadReadReadRead, ReadReadReadRead, Glob, ReadReadReadRead, ReadReadReadRead, LSActivateSkill, ReadReadReadRead
+- **Tools Used:** ActivateSkillLS, ReadReadReadRead, LS, ReadReadReadRead, LS, ReadReadReadRead, ReadReadReadRead, Glob, ReadReadReadRead, LS, ReadReadReadRead, LS, ReadReadReadRead, ReadReadReadRead
 
 **Verification Output:**
 ```
@@ -5160,10 +5218,10 @@ VERIFICATION_RESULT: FAIL
 ---
 ### ollama:minimax-m2.7:cloud / refactor
 - **Status:** EXCELLENT
-- **Duration:** 274.38s
+- **Duration:** 201.84s
 - **Workdir:** `experiment/ollama-minimax-m2.7-cloud/refactor/workdir`
 - **Log:** `experiment/ollama-minimax-m2.7-cloud/refactor/combined.log`
-- **Tools Used:** GlobGlob, ActivateSkillRead, GlobActivateSkill, Read, ActivateSkill, Write, Bash, Edit, Bash, Read
+- **Tools Used:** Read, Write, Bash, Read
 
 **Verification Output:**
 ```
@@ -5172,7 +5230,7 @@ Checking: pipeline_refactored.py
 PASS: Environment variables used for config
 PASS: SQL queries use parameterized form (no injection)
 PASS: ETL pattern present (extract/transform/load)
-PASS: Separated into 9 function(s), 3 class(es)
+PASS: Separated into 11 function(s), 7 class(es)
 PASS: Regex used for log parsing
 PASS: Type hints and docstrings present
 Running script...
@@ -5186,7 +5244,7 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:minimax-m2.7:cloud / research
 - **Status:** EXCELLENT
-- **Duration:** 144.98s
+- **Duration:** 172.84s
 - **Workdir:** `experiment/ollama-minimax-m2.7-cloud/research/workdir`
 - **Log:** `experiment/ollama-minimax-m2.7-cloud/research/combined.log`
 - **Tools Used:** Read, Write
@@ -5194,12 +5252,12 @@ VERIFICATION_RESULT: EXCELLENT
 **Verification Output:**
 ```
 Verifying Architecture Decision Record...
-PASS: Substantial content (1287 words)
+PASS: Substantial content (1073 words)
 PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
 PASS: Status field present
 PASS: Both Kafka and Redis Streams are evaluated
 PASS: Contains a clear recommendation
-PASS: Covers 12 technical properties (throughput, ordering, retention, consumer group...)
+PASS: Covers 11 technical properties (throughput, retention, consumer group, exactly-once...)
 PASS: Addresses team/constraint context
 PASS: Consequences include both pros and cons
 
@@ -5210,10 +5268,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:qwen3-coder-next:cloud / bug-fix
 - **Status:** EXCELLENT
-- **Duration:** 141.74s
+- **Duration:** 740.36s
 - **Workdir:** `experiment/ollama-qwen3-coder-next-cloud/bug-fix/workdir`
 - **Log:** `experiment/ollama-qwen3-coder-next-cloud/bug-fix/combined.log`
-- **Tools Used:** Read, Read, Read, Bash, Edit, Edit, Bash, Read, Edit, Edit, Bash, Bash
+- **Tools Used:** Read, Read, Read, Bash, Edit, Edit, Edit, Edit, Edit, Bash, Read, Edit, Edit, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Bash, Read, Read, Bash, Bash
 
 **Verification Output:**
 ```
@@ -5390,7 +5448,7 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### ollama:qwen3-coder-next:cloud / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 40.31s
+- **Duration:** 62.16s
 - **Workdir:** `experiment/ollama-qwen3-coder-next-cloud/copywriting/workdir`
 - **Log:** `experiment/ollama-qwen3-coder-next-cloud/copywriting/combined.log`
 - **Tools Used:** Read, Read, Write
@@ -5399,8 +5457,8 @@ VERIFICATION_RESULT: EXCELLENT
 ```
 Verifying Migration Guide...
 PASS: Has markdown headings
-PASS: Substantial content (600 words)
-PASS: Has code examples (15 blocks)
+PASS: Substantial content (852 words)
+PASS: Has code examples (19 blocks)
 PASS: Auth header change (Authorization: Bearer) documented
 PASS: ID type change (UUID) documented
 PASS: Field rename (done → completed) documented
@@ -5413,11 +5471,11 @@ VERIFICATION_RESULT: EXCELLENT
 
 ---
 ### ollama:qwen3-coder-next:cloud / feature
-- **Status:** FAIL
-- **Duration:** 125.79s
+- **Status:** EXCELLENT
+- **Duration:** 82.70s
 - **Workdir:** `experiment/ollama-qwen3-coder-next-cloud/feature/workdir`
 - **Log:** `experiment/ollama-qwen3-coder-next-cloud/feature/combined.log`
-- **Tools Used:** Read, Read, Read, Read, ActivateSkill, Glob, Read, Read, Glob, Glob, LS, Read, Bash, Write, Write
+- **Tools Used:** Read, Read, Read, Glob, Read, Write, Write, Edit
 
 **Verification Output:**
 ```
@@ -5426,73 +5484,72 @@ PASS: GET /projects works
 PASS: Filter by status works
 PASS: Filter by assigned_to works
 PASS: Pagination works (page_size=2 returned 2 results)
-FAIL: POST without auth returned 422 (expected 401/403)
-FAIL: POST /tasks with auth returned 422: {"detail":[{"type":"missing","loc":["query","api_user"],"msg":"Field required","input":null}]}
-FAIL: Invalid project_id returned 422 (expected 404)
-FAIL: PUT /tasks/1 returned 422
-FAIL: DELETE /tasks/3 returned 422
+PASS: POST /tasks requires authentication (401/403)
+PASS: POST /tasks creates task with auth
+PASS: POST /tasks with invalid project_id returns 404
+PASS: PUT /tasks/{id} partial update works
+PASS: DELETE /tasks/{id} removes task
 
-Score: 4/9
-FAIL: Score too low (4/9)
-VERIFICATION_RESULT: FAIL
+Score: 9/9
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:qwen3-coder-next:cloud / integration-bug
 - **Status:** EXCELLENT
-- **Duration:** 159.19s
+- **Duration:** 269.41s
 - **Workdir:** `experiment/ollama-qwen3-coder-next-cloud/integration-bug/workdir`
 - **Log:** `experiment/ollama-qwen3-coder-next-cloud/integration-bug/combined.log`
-- **Tools Used:** Read, Read, Read, Read, Bash, Write, Write, Write, Read, Edit, Bash, Edit, Bash, Bash
+- **Tools Used:** Read, Read, Read, Read, Bash, Bash, Bash, Bash, Bash, ActivateSkill, Edit, Edit, Edit, Bash, Bash, Bash, Bash, Bash, RM
 
 **Verification Output:**
 ```
 Verifying Checkout Fix...
+Order order_0: SUCCESS
 Order order_5: out of stock
+Order order_1: SUCCESS
 Order order_6: out of stock
 Order order_7: out of stock
 Order order_8: out of stock
+Order order_2: SUCCESS
 Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
-Order order_0: SUCCESS
-Order order_1: SUCCESS
-Order order_2: SUCCESS
 Order order_3: SUCCESS
 Order order_4: SUCCESS
+Order order_0: SUCCESS
 Order order_5: out of stock
 Order order_6: out of stock
 Order order_7: out of stock
 Order order_8: out of stock
+Order order_2: SUCCESS
 Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
-Order order_0: SUCCESS
-Order order_2: SUCCESS
-Order order_4: SUCCESS
 Order order_1: payment failed
 Order order_3: payment failed
-Order order_5: out of stock
-Order order_6: out of stock
-Order order_7: out of stock
-Order order_8: out of stock
-Order order_9: out of stock
-Order order_10: out of stock
-Order order_11: out of stock
-Order order_1: SUCCESS
-Order order_2: SUCCESS
-Order order_3: SUCCESS
 Order order_4: SUCCESS
-Order order_0: payment failed
 Order order_5: out of stock
+Order order_1: SUCCESS
 Order order_6: out of stock
 Order order_7: out of stock
 Order order_8: out of stock
+Order order_2: SUCCESS
 Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
+Order order_3: SUCCESS
+Order order_0: payment failed
+Order order_4: SUCCESS
+Order order_5: out of stock
 Order order_1: SUCCESS
+Order order_6: out of stock
+Order order_7: out of stock
+Order order_8: out of stock
 Order order_2: SUCCESS
+Order order_9: out of stock
+Order order_10: out of stock
+Order order_11: out of stock
 Order order_3: SUCCESS
 Order order_0: payment failed
 Order order_4: payment failed
@@ -5500,24 +5557,24 @@ Order order_5: out of stock
 Order order_6: out of stock
 Order order_7: out of stock
 Order order_8: out of stock
+Order order_2: SUCCESS
 Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
-Order order_2: SUCCESS
 Order order_0: payment failed
 Order order_1: payment failed
 Order order_3: payment failed
 Order order_4: payment failed
+Order order_0: SUCCESS
 Order order_5: out of stock
+Order order_1: SUCCESS
 Order order_6: out of stock
 Order order_7: out of stock
 Order order_8: out of stock
+Order order_2: SUCCESS
 Order order_9: out of stock
 Order order_10: out of stock
 Order order_11: out of stock
-Order order_0: SUCCESS
-Order order_1: SUCCESS
-Order order_2: SUCCESS
 Order order_3: SUCCESS
 Order order_4: SUCCESS
   Trial 1: PASS (stock=0, successful=5, charged=$500.00)
@@ -5532,34 +5589,34 @@ VERIFICATION_RESULT: EXCELLENT
 
 ---
 ### ollama:qwen3-coder-next:cloud / refactor
-- **Status:** FAIL
-- **Duration:** 40.38s
+- **Status:** EXCELLENT
+- **Duration:** 292.44s
 - **Workdir:** `experiment/ollama-qwen3-coder-next-cloud/refactor/workdir`
 - **Log:** `experiment/ollama-qwen3-coder-next-cloud/refactor/combined.log`
-- **Tools Used:** Read, ActivateSkill, Read
+- **Tools Used:** Read, Read, Read, ActivateSkill, Write, Bash, Bash, Read, Bash, Write, Bash, Read, Bash, Bash, Bash, Grep, Grep, Grep, Grep, Grep, Grep, Bash, Bash
 
 **Verification Output:**
 ```
 Verifying Pipeline Refactor...
-Checking: pipeline.py
-FAIL: No os.getenv / os.environ found — credentials still hardcoded
+Checking: pipeline_refactored.py
+PASS: Environment variables used for config
 PASS: SQL queries use parameterized form (no injection)
-FAIL: ETL pattern incomplete (extract=False, transform=False, load=True)
-FAIL: Only 1 function(s) and no classes — needs more separation
-FAIL: No regex found — fragile string.split() parsing still present
-FAIL: Missing type hints (True) or docstrings (False)
+PASS: ETL pattern present (extract/transform/load)
+PASS: Separated into 12 function(s), 4 class(es)
+PASS: Regex used for log parsing
+PASS: Type hints and docstrings present
 Running script...
 PASS: Script runs successfully
 PASS: report.html contains all required sections
 
-Score: 3/8
-VERIFICATION_RESULT: FAIL
+Score: 8/8
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### ollama:qwen3-coder-next:cloud / research
 - **Status:** EXCELLENT
-- **Duration:** 64.45s
+- **Duration:** 70.49s
 - **Workdir:** `experiment/ollama-qwen3-coder-next-cloud/research/workdir`
 - **Log:** `experiment/ollama-qwen3-coder-next-cloud/research/combined.log`
 - **Tools Used:** Read, ActivateSkill, Read, Write
@@ -5567,12 +5624,12 @@ VERIFICATION_RESULT: FAIL
 **Verification Output:**
 ```
 Verifying Architecture Decision Record...
-PASS: Substantial content (960 words)
+PASS: Substantial content (752 words)
 PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
 PASS: Status field present
 PASS: Both Kafka and Redis Streams are evaluated
 PASS: Contains a clear recommendation
-PASS: Covers 11 technical properties (throughput, ordering, retention, consumer group...)
+PASS: Covers 10 technical properties (throughput, retention, consumer group, exactly-once...)
 PASS: Addresses team/constraint context
 PASS: Consequences include both pros and cons
 
@@ -5583,178 +5640,638 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### openai:gpt-5.1 / bug-fix
 - **Status:** PASS
-- **Duration:** 25.06s
+- **Duration:** 27.50s
 - **Workdir:** `experiment/openai-gpt-5.1/bug-fix/workdir`
 - **Log:** `experiment/openai-gpt-5.1/bug-fix/combined.log`
-- **Tools Used:** ActivateSkill, LS, Glob, Read, Read, Read, Bash, Edit, Edit, Bash
+- **Tools Used:** ActivateSkill, LS, Bash, Read, Read, Read, Edit, Bash
 
 **Verification Output:**
 ```
 Verifying Job Queue Fix...
 [Worker 0] picked up job 1
-[Worker 1] picked up job 2
-[Worker 2] picked up job 3
-[Worker 3] picked up job 4
-[Worker 4] picked up job 5
+[Worker 1] picked up job 1
+[Worker 2] picked up job 1
+[Worker 3] picked up job 1
+[Worker 4] picked up job 1
 [Worker 0] finished job 1
+[Worker 1] finished job 1
+[Worker 2] finished job 1
+[Worker 3] finished job 1
+[Worker 4] finished job 1
+[Worker 0] picked up job 2
+[Worker 1] picked up job 2
+[Worker 2] picked up job 2
+[Worker 3] picked up job 2
+[Worker 4] picked up job 2
+[Worker 0] finished job 2
 [Worker 1] finished job 2
+[Worker 2] finished job 2
+[Worker 3] finished job 2
+[Worker 4] finished job 2
+[Worker 0] picked up job 3
+[Worker 1] picked up job 3
+[Worker 2] picked up job 3
+[Worker 3] picked up job 3
+[Worker 4] picked up job 3
+[Worker 0] finished job 3
+[Worker 1] finished job 3
 [Worker 2] finished job 3
+[Worker 3] finished job 3
+[Worker 4] finished job 3
+[Worker 0] picked up job 4
+[Worker 1] picked up job 4
+[Worker 2] picked up job 4
+[Worker 3] picked up job 4
+[Worker 4] picked up job 4
+[Worker 0] finished job 4
+[Worker 1] finished job 4
+[Worker 2] finished job 4
 [Worker 3] finished job 4
+[Worker 4] finished job 4
+[Worker 0] picked up job 5
+[Worker 1] picked up job 5
+[Worker 2] picked up job 5
+[Worker 3] picked up job 5
+[Worker 4] picked up job 5
+[Worker 0] finished job 5
+[Worker 1] finished job 5
+[Worker 2] finished job 5
+[Worker 3] finished job 5
 [Worker 4] finished job 5
 [Worker 0] picked up job 6
-[Worker 1] picked up job 7
-[Worker 2] picked up job 8
-[Worker 3] picked up job 9
-[Worker 4] picked up job 10
+[Worker 1] picked up job 6
+[Worker 2] picked up job 6
+[Worker 3] picked up job 6
+[Worker 4] picked up job 6
 [Worker 0] finished job 6
+[Worker 1] finished job 6
+[Worker 2] finished job 6
+[Worker 3] finished job 6
+[Worker 4] finished job 6
+[Worker 0] picked up job 7
+[Worker 1] picked up job 7
+[Worker 2] picked up job 7
+[Worker 3] picked up job 7
+[Worker 4] picked up job 7
+[Worker 0] finished job 7
 [Worker 1] finished job 7
+[Worker 2] finished job 7
+[Worker 3] finished job 7
+[Worker 4] finished job 7
+[Worker 0] picked up job 8
+[Worker 1] picked up job 8
+[Worker 2] picked up job 8
+[Worker 3] picked up job 8
+[Worker 4] picked up job 8
+[Worker 0] finished job 8
+[Worker 1] finished job 8
 [Worker 2] finished job 8
+[Worker 3] finished job 8
+[Worker 4] finished job 8
+[Worker 0] picked up job 9
+[Worker 1] picked up job 9
+[Worker 2] picked up job 9
+[Worker 3] picked up job 9
+[Worker 4] picked up job 9
+[Worker 0] finished job 9
+[Worker 1] finished job 9
+[Worker 2] finished job 9
 [Worker 3] finished job 9
+[Worker 4] finished job 9
+[Worker 0] picked up job 10
+[Worker 1] picked up job 10
+[Worker 2] picked up job 10
+[Worker 3] picked up job 10
+[Worker 4] picked up job 10
+[Worker 0] finished job 10
+[Worker 1] finished job 10
+[Worker 2] finished job 10
+[Worker 3] finished job 10
 [Worker 4] finished job 10
 [Worker 0] picked up job 11
-[Worker 1] picked up job 12
+[Worker 1] picked up job 11
+[Worker 2] picked up job 11
+[Worker 3] picked up job 11
+[Worker 4] picked up job 11
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] job 11 failed: processing error for job 11
+[Worker 2] job 11 failed: processing error for job 11
+[Worker 3] job 11 failed: processing error for job 11
+[Worker 4] job 11 failed: processing error for job 11
 [Worker 0] picked up job 11
-[Worker 1] picked up job 12
+[Worker 1] picked up job 11
+[Worker 2] picked up job 12
+[Worker 3] picked up job 12
+[Worker 4] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 12 failed: processing error for job 12
-[Worker 0] picked up job 11
-[Worker 1] picked up job 12
-[Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] job 11 failed: processing error for job 11
+[Worker 2] job 12 failed: processing error for job 12
+[Worker 3] job 12 failed: processing error for job 12
+[Worker 4] job 12 failed: processing error for job 12
+[Worker 2] picked up job 12
+[Worker 3] picked up job 12
+[Worker 2] job 12 failed: processing error for job 12
+[Worker 3] job 12 failed: processing error for job 12
   Run 1: PASS
 [Worker 0] picked up job 1
-[Worker 1] picked up job 2
-[Worker 2] picked up job 3
-[Worker 3] picked up job 4
-[Worker 4] picked up job 5
+[Worker 1] picked up job 1
+[Worker 2] picked up job 1
+[Worker 3] picked up job 1
+[Worker 4] picked up job 1
 [Worker 0] finished job 1
+[Worker 1] finished job 1
+[Worker 2] finished job 1
+[Worker 3] finished job 1
+[Worker 4] finished job 1
+[Worker 0] picked up job 2
+[Worker 1] picked up job 2
+[Worker 2] picked up job 2
+[Worker 3] picked up job 2
+[Worker 4] picked up job 2
+[Worker 0] finished job 2
 [Worker 1] finished job 2
+[Worker 2] finished job 2
+[Worker 3] finished job 2
+[Worker 4] finished job 2
+[Worker 0] picked up job 3
+[Worker 1] picked up job 3
+[Worker 2] picked up job 3
+[Worker 3] picked up job 3
+[Worker 4] picked up job 3
+[Worker 0] finished job 3
+[Worker 1] finished job 3
 [Worker 2] finished job 3
+[Worker 3] finished job 3
+[Worker 4] finished job 3
+[Worker 0] picked up job 4
+[Worker 1] picked up job 4
+[Worker 2] picked up job 4
+[Worker 3] picked up job 4
+[Worker 4] picked up job 4
+[Worker 0] finished job 4
+[Worker 1] finished job 4
+[Worker 2] finished job 4
 [Worker 3] finished job 4
+[Worker 4] finished job 4
+[Worker 0] picked up job 5
+[Worker 1] picked up job 5
+[Worker 2] picked up job 5
+[Worker 3] picked up job 5
+[Worker 4] picked up job 5
+[Worker 0] finished job 5
+[Worker 1] finished job 5
+[Worker 2] finished job 5
+[Worker 3] finished job 5
 [Worker 4] finished job 5
 [Worker 0] picked up job 6
-[Worker 1] picked up job 7
-[Worker 2] picked up job 8
-[Worker 3] picked up job 9
-[Worker 4] picked up job 10
+[Worker 1] picked up job 6
+[Worker 2] picked up job 6
+[Worker 3] picked up job 6
+[Worker 4] picked up job 6
 [Worker 0] finished job 6
+[Worker 1] finished job 6
+[Worker 2] finished job 6
+[Worker 3] finished job 6
+[Worker 4] finished job 6
+[Worker 0] picked up job 7
+[Worker 1] picked up job 7
+[Worker 2] picked up job 7
+[Worker 3] picked up job 7
+[Worker 4] picked up job 7
+[Worker 0] finished job 7
 [Worker 1] finished job 7
+[Worker 2] finished job 7
+[Worker 3] finished job 7
+[Worker 4] finished job 7
+[Worker 0] picked up job 8
+[Worker 1] picked up job 8
+[Worker 2] picked up job 8
+[Worker 3] picked up job 8
+[Worker 4] picked up job 8
+[Worker 0] finished job 8
+[Worker 1] finished job 8
 [Worker 2] finished job 8
+[Worker 3] finished job 8
+[Worker 4] finished job 8
+[Worker 0] picked up job 9
+[Worker 1] picked up job 9
+[Worker 2] picked up job 9
+[Worker 3] picked up job 9
+[Worker 4] picked up job 9
+[Worker 0] finished job 9
+[Worker 1] finished job 9
+[Worker 2] finished job 9
 [Worker 3] finished job 9
+[Worker 4] finished job 9
+[Worker 0] picked up job 10
+[Worker 1] picked up job 10
+[Worker 2] picked up job 10
+[Worker 3] picked up job 10
+[Worker 4] picked up job 10
+[Worker 0] finished job 10
+[Worker 1] finished job 10
+[Worker 2] finished job 10
+[Worker 3] finished job 10
 [Worker 4] finished job 10
 [Worker 0] picked up job 11
-[Worker 1] picked up job 12
+[Worker 1] picked up job 11
+[Worker 2] picked up job 11
+[Worker 3] picked up job 11
+[Worker 4] picked up job 11
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] job 11 failed: processing error for job 11
+[Worker 2] job 11 failed: processing error for job 11
+[Worker 3] job 11 failed: processing error for job 11
+[Worker 4] job 11 failed: processing error for job 11
 [Worker 0] picked up job 11
-[Worker 1] picked up job 12
+[Worker 1] picked up job 11
+[Worker 2] picked up job 12
+[Worker 3] picked up job 12
+[Worker 4] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 12 failed: processing error for job 12
-[Worker 0] picked up job 11
-[Worker 1] picked up job 12
-[Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] job 11 failed: processing error for job 11
+[Worker 2] job 12 failed: processing error for job 12
+[Worker 3] job 12 failed: processing error for job 12
+[Worker 4] job 12 failed: processing error for job 12
+[Worker 2] picked up job 12
+[Worker 3] picked up job 12
+[Worker 2] job 12 failed: processing error for job 12
+[Worker 3] job 12 failed: processing error for job 12
   Run 2: PASS
 [Worker 0] picked up job 1
-[Worker 1] picked up job 2
-[Worker 2] picked up job 3
-[Worker 3] picked up job 4
-[Worker 4] picked up job 5
+[Worker 1] picked up job 1
+[Worker 2] picked up job 1
+[Worker 3] picked up job 1
+[Worker 4] picked up job 1
 [Worker 0] finished job 1
+[Worker 1] finished job 1
+[Worker 2] finished job 1
+[Worker 3] finished job 1
+[Worker 4] finished job 1
+[Worker 0] picked up job 2
+[Worker 1] picked up job 2
+[Worker 2] picked up job 2
+[Worker 3] picked up job 2
+[Worker 4] picked up job 2
+[Worker 0] finished job 2
 [Worker 1] finished job 2
+[Worker 2] finished job 2
+[Worker 3] finished job 2
+[Worker 4] finished job 2
+[Worker 0] picked up job 3
+[Worker 1] picked up job 3
+[Worker 2] picked up job 3
+[Worker 3] picked up job 3
+[Worker 4] picked up job 3
+[Worker 0] finished job 3
+[Worker 1] finished job 3
 [Worker 2] finished job 3
+[Worker 3] finished job 3
+[Worker 4] finished job 3
+[Worker 0] picked up job 4
+[Worker 1] picked up job 4
+[Worker 2] picked up job 4
+[Worker 3] picked up job 4
+[Worker 4] picked up job 4
+[Worker 0] finished job 4
+[Worker 1] finished job 4
+[Worker 2] finished job 4
 [Worker 3] finished job 4
+[Worker 4] finished job 4
+[Worker 0] picked up job 5
+[Worker 1] picked up job 5
+[Worker 2] picked up job 5
+[Worker 3] picked up job 5
+[Worker 4] picked up job 5
+[Worker 0] finished job 5
+[Worker 1] finished job 5
+[Worker 2] finished job 5
+[Worker 3] finished job 5
 [Worker 4] finished job 5
 [Worker 0] picked up job 6
-[Worker 1] picked up job 7
-[Worker 2] picked up job 8
-[Worker 3] picked up job 9
-[Worker 4] picked up job 10
+[Worker 1] picked up job 6
+[Worker 2] picked up job 6
+[Worker 3] picked up job 6
+[Worker 4] picked up job 6
 [Worker 0] finished job 6
+[Worker 1] finished job 6
+[Worker 2] finished job 6
+[Worker 3] finished job 6
+[Worker 4] finished job 6
+[Worker 0] picked up job 7
+[Worker 1] picked up job 7
+[Worker 2] picked up job 7
+[Worker 3] picked up job 7
+[Worker 4] picked up job 7
+[Worker 0] finished job 7
 [Worker 1] finished job 7
+[Worker 2] finished job 7
+[Worker 3] finished job 7
+[Worker 4] finished job 7
+[Worker 0] picked up job 8
+[Worker 1] picked up job 8
+[Worker 2] picked up job 8
+[Worker 3] picked up job 8
+[Worker 4] picked up job 8
+[Worker 0] finished job 8
+[Worker 1] finished job 8
 [Worker 2] finished job 8
+[Worker 3] finished job 8
+[Worker 4] finished job 8
+[Worker 0] picked up job 9
+[Worker 1] picked up job 9
+[Worker 2] picked up job 9
+[Worker 3] picked up job 9
+[Worker 4] picked up job 9
+[Worker 0] finished job 9
+[Worker 1] finished job 9
+[Worker 2] finished job 9
 [Worker 3] finished job 9
+[Worker 4] finished job 9
+[Worker 0] picked up job 10
+[Worker 1] picked up job 10
+[Worker 2] picked up job 10
+[Worker 3] picked up job 10
+[Worker 4] picked up job 10
+[Worker 0] finished job 10
+[Worker 1] finished job 10
+[Worker 2] finished job 10
+[Worker 3] finished job 10
 [Worker 4] finished job 10
 [Worker 0] picked up job 11
-[Worker 1] picked up job 12
+[Worker 1] picked up job 11
+[Worker 2] picked up job 11
+[Worker 3] picked up job 11
+[Worker 4] picked up job 11
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] job 11 failed: processing error for job 11
+[Worker 2] job 11 failed: processing error for job 11
+[Worker 3] job 11 failed: processing error for job 11
+[Worker 4] job 11 failed: processing error for job 11
 [Worker 0] picked up job 11
-[Worker 1] picked up job 12
+[Worker 1] picked up job 11
+[Worker 2] picked up job 12
+[Worker 3] picked up job 12
+[Worker 4] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 12 failed: processing error for job 12
-[Worker 0] picked up job 11
-[Worker 1] picked up job 12
-[Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] job 11 failed: processing error for job 11
+[Worker 2] job 12 failed: processing error for job 12
+[Worker 3] job 12 failed: processing error for job 12
+[Worker 4] job 12 failed: processing error for job 12
+[Worker 2] picked up job 12
+[Worker 3] picked up job 12
+[Worker 2] job 12 failed: processing error for job 12
+[Worker 3] job 12 failed: processing error for job 12
   Run 3: PASS
 [Worker 0] picked up job 1
-[Worker 1] picked up job 2
-[Worker 2] picked up job 3
-[Worker 3] picked up job 4
-[Worker 4] picked up job 5
+[Worker 1] picked up job 1
+[Worker 2] picked up job 1
+[Worker 3] picked up job 1
+[Worker 4] picked up job 1
 [Worker 0] finished job 1
+[Worker 1] finished job 1
+[Worker 2] finished job 1
+[Worker 3] finished job 1
+[Worker 4] finished job 1
+[Worker 0] picked up job 2
+[Worker 1] picked up job 2
+[Worker 2] picked up job 2
+[Worker 3] picked up job 2
+[Worker 4] picked up job 2
+[Worker 0] finished job 2
 [Worker 1] finished job 2
+[Worker 2] finished job 2
+[Worker 3] finished job 2
+[Worker 4] finished job 2
+[Worker 0] picked up job 3
+[Worker 1] picked up job 3
+[Worker 2] picked up job 3
+[Worker 3] picked up job 3
+[Worker 4] picked up job 3
+[Worker 0] finished job 3
+[Worker 1] finished job 3
 [Worker 2] finished job 3
+[Worker 3] finished job 3
+[Worker 4] finished job 3
+[Worker 0] picked up job 4
+[Worker 1] picked up job 4
+[Worker 2] picked up job 4
+[Worker 3] picked up job 4
+[Worker 4] picked up job 4
+[Worker 0] finished job 4
+[Worker 1] finished job 4
+[Worker 2] finished job 4
 [Worker 3] finished job 4
+[Worker 4] finished job 4
+[Worker 0] picked up job 5
+[Worker 1] picked up job 5
+[Worker 2] picked up job 5
+[Worker 3] picked up job 5
+[Worker 4] picked up job 5
+[Worker 0] finished job 5
+[Worker 1] finished job 5
+[Worker 2] finished job 5
+[Worker 3] finished job 5
 [Worker 4] finished job 5
 [Worker 0] picked up job 6
-[Worker 1] picked up job 7
-[Worker 2] picked up job 8
-[Worker 3] picked up job 9
-[Worker 4] picked up job 10
+[Worker 1] picked up job 6
+[Worker 2] picked up job 6
+[Worker 3] picked up job 6
+[Worker 4] picked up job 6
 [Worker 0] finished job 6
+[Worker 1] finished job 6
+[Worker 2] finished job 6
+[Worker 3] finished job 6
+[Worker 4] finished job 6
+[Worker 0] picked up job 7
+[Worker 1] picked up job 7
+[Worker 2] picked up job 7
+[Worker 3] picked up job 7
+[Worker 4] picked up job 7
+[Worker 0] finished job 7
 [Worker 1] finished job 7
+[Worker 2] finished job 7
+[Worker 3] finished job 7
+[Worker 4] finished job 7
+[Worker 0] picked up job 8
+[Worker 1] picked up job 8
+[Worker 2] picked up job 8
+[Worker 3] picked up job 8
+[Worker 4] picked up job 8
+[Worker 0] finished job 8
+[Worker 1] finished job 8
 [Worker 2] finished job 8
+[Worker 3] finished job 8
+[Worker 4] finished job 8
+[Worker 0] picked up job 9
+[Worker 1] picked up job 9
+[Worker 2] picked up job 9
+[Worker 3] picked up job 9
+[Worker 4] picked up job 9
+[Worker 0] finished job 9
+[Worker 1] finished job 9
+[Worker 2] finished job 9
 [Worker 3] finished job 9
+[Worker 4] finished job 9
+[Worker 0] picked up job 10
+[Worker 1] picked up job 10
+[Worker 2] picked up job 10
+[Worker 3] picked up job 10
+[Worker 4] picked up job 10
+[Worker 0] finished job 10
+[Worker 1] finished job 10
+[Worker 2] finished job 10
+[Worker 3] finished job 10
 [Worker 4] finished job 10
 [Worker 0] picked up job 11
-[Worker 1] picked up job 12
+[Worker 1] picked up job 11
+[Worker 2] picked up job 11
+[Worker 3] picked up job 11
+[Worker 4] picked up job 11
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] job 11 failed: processing error for job 11
+[Worker 2] job 11 failed: processing error for job 11
+[Worker 3] job 11 failed: processing error for job 11
+[Worker 4] job 11 failed: processing error for job 11
 [Worker 0] picked up job 11
-[Worker 1] picked up job 12
+[Worker 1] picked up job 11
+[Worker 2] picked up job 12
+[Worker 3] picked up job 12
+[Worker 4] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 12 failed: processing error for job 12
-[Worker 0] picked up job 11
-[Worker 1] picked up job 12
-[Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] job 11 failed: processing error for job 11
+[Worker 2] job 12 failed: processing error for job 12
+[Worker 3] job 12 failed: processing error for job 12
+[Worker 4] job 12 failed: processing error for job 12
+[Worker 2] picked up job 12
+[Worker 3] picked up job 12
+[Worker 2] job 12 failed: processing error for job 12
+[Worker 3] job 12 failed: processing error for job 12
   Run 4: PASS
 [Worker 0] picked up job 1
-[Worker 1] picked up job 2
-[Worker 2] picked up job 3
-[Worker 3] picked up job 4
-[Worker 4] picked up job 5
+[Worker 1] picked up job 1
+[Worker 2] picked up job 1
+[Worker 3] picked up job 1
+[Worker 4] picked up job 1
 [Worker 0] finished job 1
+[Worker 1] finished job 1
+[Worker 2] finished job 1
+[Worker 3] finished job 1
+[Worker 4] finished job 1
+[Worker 0] picked up job 2
+[Worker 1] picked up job 2
+[Worker 2] picked up job 2
+[Worker 3] picked up job 2
+[Worker 4] picked up job 2
+[Worker 0] finished job 2
 [Worker 1] finished job 2
+[Worker 2] finished job 2
+[Worker 3] finished job 2
+[Worker 4] finished job 2
+[Worker 0] picked up job 3
+[Worker 1] picked up job 3
+[Worker 2] picked up job 3
+[Worker 3] picked up job 3
+[Worker 4] picked up job 3
+[Worker 0] finished job 3
+[Worker 1] finished job 3
 [Worker 2] finished job 3
+[Worker 3] finished job 3
+[Worker 4] finished job 3
+[Worker 0] picked up job 4
+[Worker 1] picked up job 4
+[Worker 2] picked up job 4
+[Worker 3] picked up job 4
+[Worker 4] picked up job 4
+[Worker 0] finished job 4
+[Worker 1] finished job 4
+[Worker 2] finished job 4
 [Worker 3] finished job 4
+[Worker 4] finished job 4
+[Worker 0] picked up job 5
+[Worker 1] picked up job 5
+[Worker 2] picked up job 5
+[Worker 3] picked up job 5
+[Worker 4] picked up job 5
+[Worker 0] finished job 5
+[Worker 1] finished job 5
+[Worker 2] finished job 5
+[Worker 3] finished job 5
 [Worker 4] finished job 5
 [Worker 0] picked up job 6
-[Worker 1] picked up job 7
-[Worker 2] picked up job 8
-[Worker 3] picked up job 9
-[Worker 4] picked up job 10
+[Worker 1] picked up job 6
+[Worker 2] picked up job 6
+[Worker 3] picked up job 6
+[Worker 4] picked up job 6
 [Worker 0] finished job 6
+[Worker 1] finished job 6
+[Worker 2] finished job 6
+[Worker 3] finished job 6
+[Worker 4] finished job 6
+[Worker 0] picked up job 7
+[Worker 1] picked up job 7
+[Worker 2] picked up job 7
+[Worker 3] picked up job 7
+[Worker 4] picked up job 7
+[Worker 0] finished job 7
 [Worker 1] finished job 7
+[Worker 2] finished job 7
+[Worker 3] finished job 7
+[Worker 4] finished job 7
+[Worker 0] picked up job 8
+[Worker 1] picked up job 8
+[Worker 2] picked up job 8
+[Worker 3] picked up job 8
+[Worker 4] picked up job 8
+[Worker 0] finished job 8
+[Worker 1] finished job 8
 [Worker 2] finished job 8
+[Worker 3] finished job 8
+[Worker 4] finished job 8
+[Worker 0] picked up job 9
+[Worker 1] picked up job 9
+[Worker 2] picked up job 9
+[Worker 3] picked up job 9
+[Worker 4] picked up job 9
+[Worker 0] finished job 9
+[Worker 1] finished job 9
+[Worker 2] finished job 9
 [Worker 3] finished job 9
+[Worker 4] finished job 9
+[Worker 0] picked up job 10
+[Worker 1] picked up job 10
+[Worker 2] picked up job 10
+[Worker 3] picked up job 10
+[Worker 4] picked up job 10
+[Worker 0] finished job 10
+[Worker 1] finished job 10
+[Worker 2] finished job 10
+[Worker 3] finished job 10
 [Worker 4] finished job 10
 [Worker 0] picked up job 11
-[Worker 1] picked up job 12
+[Worker 1] picked up job 11
+[Worker 2] picked up job 11
+[Worker 3] picked up job 11
+[Worker 4] picked up job 11
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] job 11 failed: processing error for job 11
+[Worker 2] job 11 failed: processing error for job 11
+[Worker 3] job 11 failed: processing error for job 11
+[Worker 4] job 11 failed: processing error for job 11
 [Worker 0] picked up job 11
-[Worker 1] picked up job 12
+[Worker 1] picked up job 11
+[Worker 2] picked up job 12
+[Worker 3] picked up job 12
+[Worker 4] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 12 failed: processing error for job 12
-[Worker 0] picked up job 11
-[Worker 1] picked up job 12
-[Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 12 failed: processing error for job 12
+[Worker 1] job 11 failed: processing error for job 11
+[Worker 2] job 12 failed: processing error for job 12
+[Worker 3] job 12 failed: processing error for job 12
+[Worker 4] job 12 failed: processing error for job 12
+[Worker 2] picked up job 12
+[Worker 3] picked up job 12
+[Worker 2] job 12 failed: processing error for job 12
+[Worker 3] job 12 failed: processing error for job 12
   Run 5: PASS
 PASS: All simulation runs passed
 VERIFICATION_RESULT: PASS
@@ -5763,17 +6280,17 @@ VERIFICATION_RESULT: PASS
 ---
 ### openai:gpt-5.1 / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 40.94s
+- **Duration:** 37.73s
 - **Workdir:** `experiment/openai-gpt-5.1/copywriting/workdir`
 - **Log:** `experiment/openai-gpt-5.1/copywriting/combined.log`
-- **Tools Used:** ActivateSkill, Glob, Read, Read, Write
+- **Tools Used:** ActivateSkill, Glob, LS, Read, Read, Write
 
 **Verification Output:**
 ```
 Verifying Migration Guide...
 PASS: Has markdown headings
-PASS: Substantial content (1943 words)
-PASS: Has code examples (33 blocks)
+PASS: Substantial content (1622 words)
+PASS: Has code examples (32 blocks)
 PASS: Auth header change (Authorization: Bearer) documented
 PASS: ID type change (UUID) documented
 PASS: Field rename (done → completed) documented
@@ -5787,10 +6304,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### openai:gpt-5.1 / feature
 - **Status:** EXCELLENT
-- **Duration:** 26.68s
+- **Duration:** 28.93s
 - **Workdir:** `experiment/openai-gpt-5.1/feature/workdir`
 - **Log:** `experiment/openai-gpt-5.1/feature/combined.log`
-- **Tools Used:** ActivateSkill, LS, Glob, Read, Read, Read, Read, Edit, Edit
+- **Tools Used:** ActivateSkill, LS, Glob, Glob, Read, Read, Read, Read, Edit, Edit
 
 **Verification Output:**
 ```
@@ -5811,104 +6328,104 @@ VERIFICATION_RESULT: EXCELLENT
 
 ---
 ### openai:gpt-5.1 / integration-bug
-- **Status:** FAIL
-- **Duration:** 29.64s
+- **Status:** EXCELLENT
+- **Duration:** 27.52s
 - **Workdir:** `experiment/openai-gpt-5.1/integration-bug/workdir`
 - **Log:** `experiment/openai-gpt-5.1/integration-bug/combined.log`
-- **Tools Used:** ActivateSkill, LS, Bash, Read, Read, Read, Read, Edit, Edit, Edit, Edit, Edit, Edit, Edit, Read, Read, Read, Bash
+- **Tools Used:** ActivateSkill, LS, Glob, Read, Read, Read, Read, Bash, Edit, Edit, Bash
 
 **Verification Output:**
 ```
 Verifying Checkout Fix...
+Order order_5: inventory changed concurrently; could not reserve stock
+Order order_6: inventory changed concurrently; could not reserve stock
+Order order_7: inventory changed concurrently; could not reserve stock
+Order order_8: inventory changed concurrently; could not reserve stock
+Order order_9: inventory changed concurrently; could not reserve stock
+Order order_10: inventory changed concurrently; could not reserve stock
+Order order_11: inventory changed concurrently; could not reserve stock
 Order order_0: SUCCESS
 Order order_1: SUCCESS
 Order order_2: SUCCESS
 Order order_3: SUCCESS
 Order order_4: SUCCESS
-Order order_5: inventory error after payment — item not delivered
-Order order_6: inventory error after payment — item not delivered
-Order order_7: inventory error after payment — item not delivered
-Order order_8: inventory error after payment — item not delivered
-Order order_9: inventory error after payment — item not delivered
-Order order_10: inventory error after payment — item not delivered
-Order order_11: inventory error after payment — item not delivered
-Order order_1: payment failed
-Order order_3: payment failed
-Order order_6: payment failed
-Order order_8: payment failed
-Order order_10: payment failed
-Order order_11: payment failed
+Order order_5: inventory changed concurrently; could not reserve stock
+Order order_6: inventory changed concurrently; could not reserve stock
+Order order_7: inventory changed concurrently; could not reserve stock
+Order order_8: inventory changed concurrently; could not reserve stock
+Order order_9: inventory changed concurrently; could not reserve stock
+Order order_10: inventory changed concurrently; could not reserve stock
+Order order_11: inventory changed concurrently; could not reserve stock
 Order order_0: SUCCESS
 Order order_2: SUCCESS
 Order order_4: SUCCESS
-Order order_5: SUCCESS
-Order order_7: SUCCESS
-Order order_9: inventory error after payment — item not delivered
-Order order_0: payment failed
+Order order_1: payment failed, stock released
+Order order_3: payment failed, stock released
+Order order_5: inventory changed concurrently; could not reserve stock
+Order order_6: inventory changed concurrently; could not reserve stock
+Order order_7: inventory changed concurrently; could not reserve stock
+Order order_8: inventory changed concurrently; could not reserve stock
+Order order_9: inventory changed concurrently; could not reserve stock
+Order order_10: inventory changed concurrently; could not reserve stock
+Order order_11: inventory changed concurrently; could not reserve stock
 Order order_1: SUCCESS
 Order order_2: SUCCESS
 Order order_3: SUCCESS
 Order order_4: SUCCESS
-Order order_5: SUCCESS
-Order order_6: inventory error after payment — item not delivered
-Order order_7: inventory error after payment — item not delivered
-Order order_8: inventory error after payment — item not delivered
-Order order_9: inventory error after payment — item not delivered
-Order order_10: inventory error after payment — item not delivered
-Order order_11: inventory error after payment — item not delivered
-Order order_0: payment failed
-Order order_4: payment failed
-Order order_9: payment failed
-Order order_10: payment failed
+Order order_0: payment failed, stock released
+Order order_5: inventory changed concurrently; could not reserve stock
+Order order_6: inventory changed concurrently; could not reserve stock
+Order order_7: inventory changed concurrently; could not reserve stock
+Order order_8: inventory changed concurrently; could not reserve stock
+Order order_9: inventory changed concurrently; could not reserve stock
+Order order_10: inventory changed concurrently; could not reserve stock
+Order order_11: inventory changed concurrently; could not reserve stock
 Order order_1: SUCCESS
 Order order_2: SUCCESS
 Order order_3: SUCCESS
-Order order_5: SUCCESS
-Order order_6: SUCCESS
-Order order_7: inventory error after payment — item not delivered
-Order order_8: inventory error after payment — item not delivered
-Order order_11: inventory error after payment — item not delivered
-Order order_0: payment failed
-Order order_1: payment failed
-Order order_3: payment failed
-Order order_4: payment failed
-Order order_7: payment failed
-Order order_10: payment failed
-Order order_11: payment failed
+Order order_0: payment failed, stock released
+Order order_4: payment failed, stock released
+Order order_5: inventory changed concurrently; could not reserve stock
+Order order_6: inventory changed concurrently; could not reserve stock
+Order order_7: inventory changed concurrently; could not reserve stock
+Order order_8: inventory changed concurrently; could not reserve stock
+Order order_9: inventory changed concurrently; could not reserve stock
+Order order_10: inventory changed concurrently; could not reserve stock
+Order order_11: inventory changed concurrently; could not reserve stock
 Order order_2: SUCCESS
-Order order_5: SUCCESS
-Order order_6: SUCCESS
-Order order_8: SUCCESS
-Order order_9: SUCCESS
+Order order_0: payment failed, stock released
+Order order_1: payment failed, stock released
+Order order_3: payment failed, stock released
+Order order_4: payment failed, stock released
+Order order_5: inventory changed concurrently; could not reserve stock
+Order order_6: inventory changed concurrently; could not reserve stock
+Order order_7: inventory changed concurrently; could not reserve stock
+Order order_8: inventory changed concurrently; could not reserve stock
+Order order_9: inventory changed concurrently; could not reserve stock
+Order order_10: inventory changed concurrently; could not reserve stock
+Order order_11: inventory changed concurrently; could not reserve stock
 Order order_0: SUCCESS
 Order order_1: SUCCESS
 Order order_2: SUCCESS
 Order order_3: SUCCESS
 Order order_4: SUCCESS
-Order order_5: inventory error after payment — item not delivered
-Order order_6: inventory error after payment — item not delivered
-Order order_7: inventory error after payment — item not delivered
-Order order_8: inventory error after payment — item not delivered
-Order order_9: inventory error after payment — item not delivered
-Order order_10: inventory error after payment — item not delivered
-Order order_11: inventory error after payment — item not delivered
-  Trial 1: FAIL — charge mismatch (charged=1200.00, expected=500.00)
-  Trial 2: FAIL — charge mismatch (charged=600.00, expected=500.00)
-  Trial 3: FAIL — charge mismatch (charged=1100.00, expected=500.00)
-  Trial 4: FAIL — charge mismatch (charged=800.00, expected=500.00)
-  Trial 5: PASS (stock=0, successful=5, charged=$500.00)
-  Trial 6: FAIL — charge mismatch (charged=1200.00, expected=500.00)
-FAIL: Only 1/6 trials passed
-VERIFICATION_RESULT: FAIL
+  Trial 1: PASS (stock=0, successful=5, charged=$500.00)
+  Trial 2: PASS (stock=2, successful=3, charged=$300.00)
+  Trial 3: PASS (stock=1, successful=4, charged=$400.00)
+  Trial 4: PASS (stock=2, successful=3, charged=$300.00)
+  Trial 5: PASS (stock=4, successful=1, charged=$100.00)
+  Trial 6: PASS (stock=0, successful=5, charged=$500.00)
+PASS: Locking mechanism detected
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### openai:gpt-5.1 / refactor
 - **Status:** EXCELLENT
-- **Duration:** 39.01s
+- **Duration:** 40.28s
 - **Workdir:** `experiment/openai-gpt-5.1/refactor/workdir`
 - **Log:** `experiment/openai-gpt-5.1/refactor/combined.log`
-- **Tools Used:** Glob, Read, ActivateSkill, Write
+- **Tools Used:** LS, Read, Write
 
 **Verification Output:**
 ```
@@ -5917,7 +6434,7 @@ Checking: pipeline_refactored.py
 PASS: Environment variables used for config
 PASS: SQL queries use parameterized form (no injection)
 PASS: ETL pattern present (extract/transform/load)
-PASS: Separated into 8 function(s), 1 class(es)
+PASS: Separated into 9 function(s), 2 class(es)
 PASS: Regex used for log parsing
 PASS: Type hints and docstrings present
 Running script...
@@ -5931,7 +6448,7 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### openai:gpt-5.1 / research
 - **Status:** EXCELLENT
-- **Duration:** 31.55s
+- **Duration:** 28.75s
 - **Workdir:** `experiment/openai-gpt-5.1/research/workdir`
 - **Log:** `experiment/openai-gpt-5.1/research/combined.log`
 - **Tools Used:** Read, Write
@@ -5939,7 +6456,7 @@ VERIFICATION_RESULT: EXCELLENT
 **Verification Output:**
 ```
 Verifying Architecture Decision Record...
-PASS: Substantial content (1743 words)
+PASS: Substantial content (1494 words)
 PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
 PASS: Status field present
 PASS: Both Kafka and Redis Streams are evaluated
@@ -5955,10 +6472,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### openai:gpt-5.2 / bug-fix
 - **Status:** EXCELLENT
-- **Duration:** 22.22s
+- **Duration:** 26.98s
 - **Workdir:** `experiment/openai-gpt-5.2/bug-fix/workdir`
 - **Log:** `experiment/openai-gpt-5.2/bug-fix/combined.log`
-- **Tools Used:** ActivateSkill, LS, Read, Read, Read, Bash, Edit, Edit, Edit, Bash
+- **Tools Used:** ActivateSkill, Read, Read, Read, LS, Bash, Edit, Edit, Edit, Bash
 
 **Verification Output:**
 ```
@@ -6135,17 +6652,17 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### openai:gpt-5.2 / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 33.70s
+- **Duration:** 40.28s
 - **Workdir:** `experiment/openai-gpt-5.2/copywriting/workdir`
 - **Log:** `experiment/openai-gpt-5.2/copywriting/combined.log`
-- **Tools Used:** Glob, LS, Read, Read, Write
+- **Tools Used:** Glob, Glob, Read, Read, ActivateSkill, Write
 
 **Verification Output:**
 ```
 Verifying Migration Guide...
 PASS: Has markdown headings
-PASS: Substantial content (905 words)
-PASS: Has code examples (25 blocks)
+PASS: Substantial content (1023 words)
+PASS: Has code examples (17 blocks)
 PASS: Auth header change (Authorization: Bearer) documented
 PASS: ID type change (UUID) documented
 PASS: Field rename (done → completed) documented
@@ -6159,10 +6676,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### openai:gpt-5.2 / feature
 - **Status:** EXCELLENT
-- **Duration:** 30.83s
+- **Duration:** 30.59s
 - **Workdir:** `experiment/openai-gpt-5.2/feature/workdir`
 - **Log:** `experiment/openai-gpt-5.2/feature/combined.log`
-- **Tools Used:** ActivateSkill, LS, Glob, Read, Read, Read, Read, Read, Edit, Edit, Bash
+- **Tools Used:** ActivateSkill, LS, Read, Read, Read, Glob, Read, Edit, Edit, Edit, Edit, Bash
 
 **Verification Output:**
 ```
@@ -6184,10 +6701,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### openai:gpt-5.2 / integration-bug
 - **Status:** EXCELLENT
-- **Duration:** 29.93s
+- **Duration:** 78.36s
 - **Workdir:** `experiment/openai-gpt-5.2/integration-bug/workdir`
 - **Log:** `experiment/openai-gpt-5.2/integration-bug/combined.log`
-- **Tools Used:** ActivateSkill, LS, Read, Read, Read, Read, Bash, Edit, Edit, Edit, Bash, Bash
+- **Tools Used:** ActivateSkill, LS, Read, Read, Read, Read, Bash, Edit, Edit, Edit, Bash, Bash, Bash
 
 **Verification Output:**
 ```
@@ -6276,11 +6793,11 @@ VERIFICATION_RESULT: EXCELLENT
 
 ---
 ### openai:gpt-5.2 / refactor
-- **Status:** FAIL
-- **Duration:** 48.36s
+- **Status:** EXCELLENT
+- **Duration:** 54.10s
 - **Workdir:** `experiment/openai-gpt-5.2/refactor/workdir`
 - **Log:** `experiment/openai-gpt-5.2/refactor/combined.log`
-- **Tools Used:** ActivateSkill, LS, Glob, Glob, Grep, Grep, Read, Write, Bash, Read
+- **Tools Used:** ActivateSkill, LS, Glob, Glob, Glob, Read, Write, Bash, Read
 
 **Verification Output:**
 ```
@@ -6289,28 +6806,21 @@ Checking: pipeline_refactored.py
 PASS: Environment variables used for config
 PASS: SQL queries use parameterized form (no injection)
 PASS: ETL pattern present (extract/transform/load)
-PASS: Separated into 13 function(s), 2 class(es)
+PASS: Separated into 14 function(s), 4 class(es)
 PASS: Regex used for log parsing
 PASS: Type hints and docstrings present
 Running script...
-FAIL: Script exited with 1
-Traceback (most recent call last):
-  File "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai-gpt-5.2/refactor/workdir/pipeline_refactored.py", line 315, in <module>
-    main()
-    ~~~~^^
-  File "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai-gpt-5.2/refactor/workdir/pipeline_refactored.py", line 309, in main
-    config = load_config_from_env()
-  File "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai-gpt-5.2/refactor/workdir/pipeline_refactored.py", line 85, in l
+PASS: Script runs successfully
 PASS: report.html contains all required sections
 
-Score: 7/8
-VERIFICATION_RESULT: FAIL
+Score: 8/8
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### openai:gpt-5.2 / research
 - **Status:** EXCELLENT
-- **Duration:** 45.18s
+- **Duration:** 42.97s
 - **Workdir:** `experiment/openai-gpt-5.2/research/workdir`
 - **Log:** `experiment/openai-gpt-5.2/research/combined.log`
 - **Tools Used:** Read, Write
@@ -6318,12 +6828,12 @@ VERIFICATION_RESULT: FAIL
 **Verification Output:**
 ```
 Verifying Architecture Decision Record...
-PASS: Substantial content (1017 words)
+PASS: Substantial content (937 words)
 PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
 PASS: Status field present
 PASS: Both Kafka and Redis Streams are evaluated
 PASS: Contains a clear recommendation
-PASS: Covers 10 technical properties (throughput, ordering, retention, consumer group...)
+PASS: Covers 9 technical properties (throughput, ordering, retention, consumer group...)
 PASS: Addresses team/constraint context
 PASS: Consequences include both pros and cons
 
@@ -6334,10 +6844,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### openai:gpt-5.4 / bug-fix
 - **Status:** EXCELLENT
-- **Duration:** 28.02s
+- **Duration:** 45.90s
 - **Workdir:** `experiment/openai-gpt-5.4/bug-fix/workdir`
 - **Log:** `experiment/openai-gpt-5.4/bug-fix/combined.log`
-- **Tools Used:** ActivateSkill, LS, Read, Glob, Grep, Read, Read, Read, Grep, Bash, Read, Edit, Edit, Edit, Bash, LspListServers, Read, Read, LspGetDiagnostics, LspGetDiagnostics
+- **Tools Used:** ActivateSkill, Read, Read, LS, Read, Read, Read, Bash, Glob, Glob, Glob, Edit, Edit, Edit, Bash, LspListServers, Read, Read, Read, LS, Write, Bash, Read, Edit, Bash, Bash
 
 **Verification Output:**
 ```
@@ -6348,25 +6858,25 @@ Verifying Job Queue Fix...
 [Worker 3] picked up job 4
 [Worker 4] picked up job 5
 [Worker 0] finished job 1
-[Worker 1] finished job 2
 [Worker 0] picked up job 6
-[Worker 2] finished job 3
+[Worker 1] finished job 2
 [Worker 1] picked up job 7
+[Worker 2] finished job 3
 [Worker 2] picked up job 8
 [Worker 3] finished job 4
 [Worker 3] picked up job 9
 [Worker 4] finished job 5
 [Worker 4] picked up job 10
 [Worker 0] finished job 6
-[Worker 1] finished job 7
 [Worker 0] picked up job 11
-[Worker 2] finished job 8
+[Worker 1] finished job 7
 [Worker 1] picked up job 12
+[Worker 2] finished job 8
 [Worker 3] finished job 9
 [Worker 4] finished job 10
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 0] picked up job 11
 [Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
 [Worker 1] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
 [Worker 0] picked up job 11
@@ -6385,21 +6895,21 @@ Verifying Job Queue Fix...
 [Worker 1] finished job 2
 [Worker 1] picked up job 7
 [Worker 2] finished job 3
-[Worker 3] finished job 4
 [Worker 2] picked up job 8
-[Worker 4] finished job 5
+[Worker 3] finished job 4
 [Worker 3] picked up job 9
+[Worker 4] finished job 5
 [Worker 4] picked up job 10
 [Worker 0] finished job 6
-[Worker 1] finished job 7
 [Worker 0] picked up job 11
-[Worker 2] finished job 8
+[Worker 1] finished job 7
 [Worker 1] picked up job 12
+[Worker 2] finished job 8
 [Worker 3] finished job 9
 [Worker 4] finished job 10
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 12 failed: processing error for job 12
 [Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
 [Worker 1] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
 [Worker 0] picked up job 11
@@ -6464,8 +6974,8 @@ Verifying Job Queue Fix...
 [Worker 3] finished job 9
 [Worker 4] finished job 10
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 0] picked up job 11
 [Worker 1] job 12 failed: processing error for job 12
+[Worker 0] picked up job 11
 [Worker 1] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
 [Worker 1] job 12 failed: processing error for job 12
@@ -6497,12 +7007,12 @@ Verifying Job Queue Fix...
 [Worker 3] finished job 9
 [Worker 4] finished job 10
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 12 failed: processing error for job 12
 [Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
 [Worker 1] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
-[Worker 1] job 12 failed: processing error for job 12
 [Worker 0] picked up job 11
+[Worker 1] job 12 failed: processing error for job 12
 [Worker 1] picked up job 12
 [Worker 0] job 11 failed: processing error for job 11
 [Worker 1] job 12 failed: processing error for job 12
@@ -6514,17 +7024,17 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### openai:gpt-5.4 / copywriting
 - **Status:** EXCELLENT
-- **Duration:** 39.32s
+- **Duration:** 43.84s
 - **Workdir:** `experiment/openai-gpt-5.4/copywriting/workdir`
 - **Log:** `experiment/openai-gpt-5.4/copywriting/combined.log`
-- **Tools Used:** ActivateSkill, LS, Read, Read, Write
+- **Tools Used:** ActivateSkill, Glob, Read, Read, Write
 
 **Verification Output:**
 ```
 Verifying Migration Guide...
 PASS: Has markdown headings
-PASS: Substantial content (1304 words)
-PASS: Has code examples (42 blocks)
+PASS: Substantial content (1317 words)
+PASS: Has code examples (23 blocks)
 PASS: Auth header change (Authorization: Bearer) documented
 PASS: ID type change (UUID) documented
 PASS: Field rename (done → completed) documented
@@ -6538,10 +7048,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### openai:gpt-5.4 / feature
 - **Status:** EXCELLENT
-- **Duration:** 31.96s
+- **Duration:** 46.51s
 - **Workdir:** `experiment/openai-gpt-5.4/feature/workdir`
 - **Log:** `experiment/openai-gpt-5.4/feature/combined.log`
-- **Tools Used:** ActivateSkill, LS, Glob, Read, Read, Read, Grep, Read, Read, Read, Glob, Glob, Glob, Grep, Edit, Edit, Bash, Bash, Read, LspGetDiagnostics
+- **Tools Used:** ActivateSkill, Glob, Read, Read, Read, Glob, Glob, Read, Read, Read, Glob, Glob, Glob, Glob, Edit, Edit, LspGetDiagnostics, LspGetDiagnostics, Read, Bash, Read, Bash
 
 **Verification Output:**
 ```
@@ -6563,10 +7073,10 @@ VERIFICATION_RESULT: EXCELLENT
 ---
 ### openai:gpt-5.4 / integration-bug
 - **Status:** EXCELLENT
-- **Duration:** 49.65s
+- **Duration:** 38.77s
 - **Workdir:** `experiment/openai-gpt-5.4/integration-bug/workdir`
 - **Log:** `experiment/openai-gpt-5.4/integration-bug/combined.log`
-- **Tools Used:** ActivateSkill, LS, Glob, Read, Read, Read, Read, Read, Read, Bash, LspListServers, LspFindReferences, LspFindReferences, LspFindReferences, Grep, Glob, Bash, Grep, Grep, Grep, Read, Read, Read, Read, Write, Bash, Read, Edit, Edit, Edit, LspGetDiagnostics, LspGetDiagnostics, LspGetDiagnostics, Bash, Bash
+- **Tools Used:** ActivateSkill, LS, Glob, Read, Read, Read, Read, Read, Read, Bash, LspListServers, Grep, Grep, Grep, Glob, Glob, Glob, Glob, Edit, Edit, Edit, Bash, Read, Read, Read
 
 **Verification Output:**
 ```
@@ -6655,54 +7165,47 @@ VERIFICATION_RESULT: EXCELLENT
 
 ---
 ### openai:gpt-5.4 / refactor
-- **Status:** FAIL
-- **Duration:** 59.20s
+- **Status:** EXCELLENT
+- **Duration:** 82.74s
 - **Workdir:** `experiment/openai-gpt-5.4/refactor/workdir`
 - **Log:** `experiment/openai-gpt-5.4/refactor/combined.log`
-- **Tools Used:** ActivateSkill, LS, Glob, Glob, Glob, Glob, Glob, Read, Read, Read, Read, Bash, Grep, WriteTodos, Write, Bash, LspGetDiagnostics, Bash, Bash, Bash, Bash, Bash, Bash, UpdateTodo, UpdateTodo
+- **Tools Used:** ActivateSkill, LS, Glob, Glob, Glob, Glob, Glob, Read, Read, Read, Read, WriteTodos, Bash, Grep, Read, Bash, Bash, UpdateTodo, UpdateTodo, Read, Glob, Bash, Write, Bash, UpdateTodo, UpdateTodo, Write, LspGetDiagnostics, Bash, UpdateTodo, UpdateTodo, Bash, Read, Bash, UpdateTodo
 
 **Verification Output:**
 ```
 Verifying Pipeline Refactor...
-Checking: pipeline_refactored.py
+Checking: pipeline.py
 PASS: Environment variables used for config
 PASS: SQL queries use parameterized form (no injection)
 PASS: ETL pattern present (extract/transform/load)
-PASS: Separated into 13 function(s), 5 class(es)
+PASS: Separated into 14 function(s), 7 class(es)
 PASS: Regex used for log parsing
 PASS: Type hints and docstrings present
 Running script...
-FAIL: Script exited with 1
-Traceback (most recent call last):
-  File "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai-gpt-5.4/refactor/workdir/pipeline_refactored.py", line 289, in <module>
-    run_pipeline()
-    ~~~~~~~~~~~~^^
-  File "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai-gpt-5.4/refactor/workdir/pipeline_refactored.py", line 78, in run_pipeline
-    config = load_config()
-  File "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai-gpt-5.4/refactor/workdir/pipeline_refactored.py",
+PASS: Script runs successfully
 PASS: report.html contains all required sections
 
-Score: 7/8
-VERIFICATION_RESULT: FAIL
+Score: 8/8
+VERIFICATION_RESULT: EXCELLENT
 ```
 
 ---
 ### openai:gpt-5.4 / research
 - **Status:** EXCELLENT
-- **Duration:** 26.68s
+- **Duration:** 39.75s
 - **Workdir:** `experiment/openai-gpt-5.4/research/workdir`
 - **Log:** `experiment/openai-gpt-5.4/research/combined.log`
-- **Tools Used:** ActivateSkill, Read, LS, Write
+- **Tools Used:** ActivateSkill, Read, GetTodos, WriteTodos, Write, UpdateTodo, UpdateTodo
 
 **Verification Output:**
 ```
 Verifying Architecture Decision Record...
-PASS: Substantial content (937 words)
+PASS: Substantial content (1090 words)
 PASS: All ADR sections present (Context, Decision, Consequences, Alternatives)
 PASS: Status field present
 PASS: Both Kafka and Redis Streams are evaluated
 PASS: Contains a clear recommendation
-PASS: Covers 11 technical properties (throughput, ordering, retention, consumer group...)
+PASS: Covers 10 technical properties (throughput, ordering, retention, consumer group...)
 PASS: Addresses team/constraint context
 PASS: Consequences include both pros and cons
 

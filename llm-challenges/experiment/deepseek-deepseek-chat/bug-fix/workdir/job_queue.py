@@ -20,17 +20,13 @@ class JobQueue:
         }
         return job_id
 
-    def _claim_job(self) -> Optional[Dict]:
-        """Atomically claim a pending job — no yield points between check and set."""
+    async def dequeue(self) -> Optional[Dict]:
         for job in self._jobs.values():
             if job["status"] == "pending":
                 job["status"] = "processing"
+                await asyncio.sleep(0.01)
                 return job
         return None
-
-    async def dequeue(self) -> Optional[Dict]:
-        await asyncio.sleep(0.01)
-        return self._claim_job()
 
     def complete(self, job_id: int, result: Any) -> None:
         self._jobs[job_id]["status"] = "done"

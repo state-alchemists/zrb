@@ -1,116 +1,103 @@
 [2m
-  🧠 The[0m[2m user wants[0m[2m me to[0m[2m write a[0m[2m migration guide[0m[2m from v[0m[2m1 to[0m[2m v2[0m[2m of the[0m[2m Zrb[0m[2m CLI.[0m[2m I need[0m[2m to:[0m[2m
-     1.[0m[2m Read `[0m[2mv1[0m[2m_spec.md[0m[2m` and[0m[2m `v[0m[2m2_spec[0m[2m.md`[0m[2m to understand[0m[2m the changes[0m[2m
-     2[0m[2m. Write[0m[2m a `[0m[2mMIG[0m[2mRATION.md[0m[2m` that[0m[2m:[0m[2m
-        -[0m[2m Has clear[0m[2m structure with[0m[2m headings[0m[2m
-        -[0m[2m Explicitly[0m[2m calls out[0m[2m every breaking[0m[2m change[0m[2m
-        -[0m[2m Includes before[0m[2m/after[0m[2m code examples[0m[2m for each[0m[2m breaking change[0m[2m
-        - Has[0m[2m a step[0m[2m-by-step[0m[2m migration checklist[0m[2m at the[0m[2m end[0m[2m
-        -[0m[2m Ends with[0m[2m the upgrade[0m[2m command[0m[2m
+  🧠 The[0m[2m user wants[0m[2m me to[0m[2m write a[0m[2m migration guide[0m[2m from Z[0m[2mrb[0m[2m CLI[0m[2m v1[0m[2m to v[0m[2m2.[0m[2m I need[0m[2m to:[0m[2m
+     1.[0m[2m Read `[0m[2mv1[0m[2m_spec.md[0m[2m` and[0m[2m `v[0m[2m2_spec[0m[2m.md`[0m[2m to understand[0m[2m the APIs[0m[2m
+     2[0m[2m. Activate[0m[2m the core[0m[2m-writing[0m[2m skill since[0m[2m the[0m[2m deliverable[0m[2m is a[0m[2m document[0m[2m
+     3[0m[2m. Write[0m[2m `[0m[2mMIG[0m[2mRATION.md[0m[2m` with[0m[2m the[0m[2m specified[0m[2m structure[0m[2m
      
-     First[0m[2m, I[0m[2m should activate[0m[2m the relevant[0m[2m skill[0m[2m since[0m[2m this[0m[2m involves[0m[2m writing documentation[0m[2m. The[0m[2m deliver[0m[2mable is[0m[2m a[0m[2m text document[0m[2m,[0m[2m so `[0m[2mcore-writing[0m[2m` is[0m[2m appropriate.[0m[2m I also[0m[2m need to[0m[2m read the[0m[2m spec[0m[2m files,[0m[2m so I'll[0m[2m need[0m[2m `[0m[2mRead`.[0m[2m Since[0m[2m I'm[0m[2m creating[0m[2m a[0m[2m new file[0m[2m, `[0m[2mWrite`[0m[2m will[0m[2m be used[0m[2m.
-     
-     Let[0m[2m me activate[0m[2m core[0m[2m-writing[0m[2m and read[0m[2m both[0m[2m spec[0m[2m files in[0m[2m parallel.[0m[2m
-  🧰 functions.ActivateSkill:0 | ActivateSkill {'name': 'core-writing'}
+     Let me[0m[2m start by[0m[2m reading both[0m[2m spec[0m[2m files and[0m[2m activating[0m[2m the writing[0m[2m skill.[0m[2m
+  🧰 functions.Read:0 | Read {'path': 'v1_spec.md'}
 [0m[2m
-  🧰 functions.Read:1 | Read {'path': 'v1_spec.md'}
+  🧰 functions.Read:1 | Read {'path': 'v2_spec.md'}
 [0m[2m
-  🧰 functions.Read:2 | Read {'path': 'v2_spec.md'}
+  🧰 functions.ActivateSkill:2 | ActivateSkill {'name': 'core-writing'}
 [0m[2m
-  🔠 functions.ActivateSkill:0 | Return <ACTIVATED_SKILL>
-     Skill activated. The following context applies:
+  🔠 functions.Read:0 | Return [File: v1_spec.md | 83 lines]
+     ---CONTENT---
+     # Zrb Task API — v1 Reference
      
-     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-writing
+     ## Authentication
      
-     All file paths in the skill instructions below are relative to this directory.
-     Use companion files (scripts, tools, references) by resolving them against this path.
+     All requests require an API key passed in the header:
      
-     Companion files available in this directory:
-       templates/
-         api-doc.md
-         commit-message.md
-         readme.md
+     ```
+     X-Auth-Token: <your_api_key>
+     ```
      
-     ---
+     ## Data Types
      
-     ---
-     name: core-writing
-     description: "Activate before any substantial writing — docs, copy, proposals, feedback, commit messages, or UI text. Provides copywriting frameworks, tone guidance, and editing workflow for clear, persuasive, polished output."
-     user-invocable: false
-     ---
-     # Skill: core-writing
+     ### Task Object
      
-     Follow **Brief → Structure → Draft → Polish** for every writing task.
+     ```json
+     {
+       "id": 42,
+       "title": "Write tests",
+       "done": false,
+       "created_at": "2024-01-15T10:30:00Z"
+     }
+     ```
      
-     ## Companion Templates
+     - `id` — integer, auto-assigned
+     - `title` — string
+     - `done` — boolean, default `false`
+     - `created_at` — ISO 8601 timestamp
      
-     When the current task matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
+     ## Endpoints
      
-     | Trigger | Companion |
-     |---------|-----------|
-     | Writing or rewriting a project README | `templates/readme.md` |
-     | Drafting a git commit message | `templates/commit-message.md` |
-     | Documenting a function, endpoint, or CLI command | `templates/api-doc.md` |
+     ### List Tasks
      
-     ## Workflow
+     `GET /tasks`
      
-     ### 1. Brief & Audience
+     Returns a bare array of task objects.
      
-     - Who is reading this? What do they already know? What do they need to know?
-     - What outcome should this writing achieve?
-     - What tone fits: technical, persuasive, instructional, conversational?
+     **Response:**
+     ```json
+     [
+       {"id": 1, "title": "Buy milk", "done": false, "created_at": "..."},
+       {"id": 2, "title": "Ship v1", "done": true, "created_at": "..."}
+     ]
+     ```
      
-     ### 2. Structure & Outline
+     ### Get Task
      
-     - **Technical docs**: Problem → Solution → Usage → API → Examples
-     - **Persuasive writing**: Hook → Context → Evidence → Resolution → CTA
-     - **Instructional**: Goal → Prerequisites → Steps → Verification → Troubleshooting
-     - One idea per paragraph. Lead with the conclusion. Use transitions.
+     `GET /tasks/{id}`
      
-     ### 3. Draft
+     Returns a single task or `404`.
      
-     - Write freely. Don't edit while drafting.
-     - Apply the chosen structure. Fill in evidence and examples.
-     - Use active voice. Be specific over vague.
+     ### Create Task
      
-     ### 4. Polish & Edit
+     `POST /tasks`
      
-     - Omit needless words. Every word must earn its place.
-     - Check flow: read aloud. Fix awkward transitions.
-     - Verify accuracy: facts, code samples, references.
-     - Proof: spelling, grammar, consistent terminology.
+     **Request body:**
+     ```json
+     {
+       "title": "New task title"
+     }
+     ```
      
-     ## Copywriting Formulas
+     **Response:** the created task object (HTTP 201).
      
-     | Formula | When to Use | Structure |
-     |---------|-------------|-----------|
-     | **AIDA** | Marketing, proposals, feature announcements | Attention → Interest → Desire → Action |
-     | **PAS** | Bug reports, problem-solving docs | Problem → Agitate → Solution |
-     | **Inverted Pyramid** | News, announcements, summaries | Conclusion → Key details → Background |
-     | **Before-After-Bridge** | Change proposals, migration guides | Current → Desired → How to get there |
-     | **FEBC** | Technical decisions | Fact → Explanation → Benefit → Conclusion |
+     ### Update Task
      
-     ## Tone Matrix
+     `PUT /tasks/{id}`
      
-     | Audience | Tone | Characteristics |
-     |----------|------|-----------------|
-     | Developers | Technical, precise | Specific terms, code examples, no fluff |
-     | Product managers | Outcome-oriented | Problem → impact → timeline → trade-offs |
-     | End users | Friendly, clear | Simple language, concrete examples, next steps |
-     | Executives | Concise, strategic | Recommendation first, TL;DR, business impact |
+     **Request body** (all fields optional):
+     ```json
+     {
+       "title": "Updated title",
+       "done": true
+     }
+     ```
      
-     ## Quality Checklist
+     **Response:** the updated task object.
      
-     Before finalizing:
-     - Does the first paragraph convey the main point?
-     - Can any sentence be shortened without losing meaning?
-     - Are all claims supported by evidence?
-     - Is the tone appropriate for the audience?
-     - Would this still make sense if read in isolation?
+     ### Delete Task
      
-     </ACTIVATED_SKILL>
+     `DELETE /tasks/{id}`
+     
+     **Response:** HTTP 204 No Content.
+     
 [0m[2m
-  🔠 functions.Read:2 | Return [File: v2_spec.md | 115 lines]
+  🔠 functions.Read:1 | Return [File: v2_spec.md | 115 lines]
      ---CONTENT---
      # Zrb Task API — v2 Reference
      
@@ -228,127 +215,137 @@
      **Response:** HTTP 204 No Content.
      
 [0m[2m
-  🔠 functions.Read:1 | Return [File: v1_spec.md | 83 lines]
-     ---CONTENT---
-     # Zrb Task API — v1 Reference
+  🔠 functions.ActivateSkill:2 | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
      
-     ## Authentication
+     Skill directory (working directory): /Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm_plugin/skills/core-writing
      
-     All requests require an API key passed in the header:
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
      
-     ```
-     X-Auth-Token: <your_api_key>
-     ```
+     Companion files available in this directory:
+       templates/
+         api-doc.md
+         commit-message.md
+         readme.md
      
-     ## Data Types
+     ---
      
-     ### Task Object
+     ---
+     name: core-writing
+     description: "Activate before any substantial writing — docs, copy, proposals, feedback, commit messages, or UI text. Provides copywriting frameworks, tone guidance, and editing workflow for clear, persuasive, polished output."
+     user-invocable: false
+     ---
+     # Skill: core-writing
      
-     ```json
-     {
-       "id": 42,
-       "title": "Write tests",
-       "done": false,
-       "created_at": "2024-01-15T10:30:00Z"
-     }
-     ```
+     Follow **Brief → Structure → Draft → Polish** for every writing task.
      
-     - `id` — integer, auto-assigned
-     - `title` — string
-     - `done` — boolean, default `false`
-     - `created_at` — ISO 8601 timestamp
+     ## Companion Templates
      
-     ## Endpoints
+     When the current task matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
      
-     ### List Tasks
+     | Trigger | Companion |
+     |---------|-----------|
+     | Writing or rewriting a project README | `templates/readme.md` |
+     | Drafting a git commit message | `templates/commit-message.md` |
+     | Documenting a function, endpoint, or CLI command | `templates/api-doc.md` |
      
-     `GET /tasks`
+     ## Workflow
      
-     Returns a bare array of task objects.
+     ### 1. Brief & Audience
      
-     **Response:**
-     ```json
-     [
-       {"id": 1, "title": "Buy milk", "done": false, "created_at": "..."},
-       {"id": 2, "title": "Ship v1", "done": true, "created_at": "..."}
-     ]
-     ```
+     - Who is reading this? What do they already know? What do they need to know?
+     - What outcome should this writing achieve?
+     - What tone fits: technical, persuasive, instructional, conversational?
      
-     ### Get Task
+     ### 2. Structure & Outline
      
-     `GET /tasks/{id}`
+     - **Technical docs**: Problem → Solution → Usage → API → Examples
+     - **Persuasive writing**: Hook → Context → Evidence → Resolution → CTA
+     - **Instructional**: Goal → Prerequisites → Steps → Verification → Troubleshooting
+     - One idea per paragraph. Lead with the conclusion. Use transitions.
      
-     Returns a single task or `404`.
+     ### 3. Draft
      
-     ### Create Task
+     - Write freely. Don't edit while drafting.
+     - Apply the chosen structure. Fill in evidence and examples.
+     - Use active voice. Be specific over vague.
      
-     `POST /tasks`
+     ### 4. Polish & Edit
      
-     **Request body:**
-     ```json
-     {
-       "title": "New task title"
-     }
-     ```
+     - Omit needless words. Every word must earn its place.
+     - Check flow: read aloud. Fix awkward transitions.
+     - Verify accuracy: facts, code samples, references.
+     - Proof: spelling, grammar, consistent terminology.
      
-     **Response:** the created task object (HTTP 201).
+     ## Copywriting Formulas
      
-     ### Update Task
+     | Formula | When to Use | Structure |
+     |---------|-------------|-----------|
+     | **AIDA** | Marketing, proposals, feature announcements | Attention → Interest → Desire → Action |
+     | **PAS** | Bug reports, problem-solving docs | Problem → Agitate → Solution |
+     | **Inverted Pyramid** | News, announcements, summaries | Conclusion → Key details → Background |
+     | **Before-After-Bridge** | Change proposals, migration guides | Current → Desired → How to get there |
+     | **FEBC** | Technical decisions | Fact → Explanation → Benefit → Conclusion |
      
-     `PUT /tasks/{id}`
+     ## Tone Matrix
      
-     **Request body** (all fields optional):
-     ```json
-     {
-       "title": "Updated title",
-       "done": true
-     }
-     ```
+     | Audience | Tone | Characteristics |
+     |----------|------|-----------------|
+     | Developers | Technical, precise | Specific terms, code examples, no fluff |
+     | Product managers | Outcome-oriented | Problem → impact → timeline → trade-offs |
+     | End users | Friendly, clear | Simple language, concrete examples, next steps |
+     | Executives | Concise, strategic | Recommendation first, TL;DR, business impact |
      
-     **Response:** the updated task object.
+     ## Quality Checklist
      
-     ### Delete Task
+     Before finalizing:
+     - Does the first paragraph convey the main point?
+     - Can any sentence be shortened without losing meaning?
+     - Are all claims supported by evidence?
+     - Is the tone appropriate for the audience?
+     - Would this still make sense if read in isolation?
      
-     `DELETE /tasks/{id}`
-     
-     **Response:** HTTP 204 No Content.
-     
+     </ACTIVATED_SKILL>
 [0m[2m
-  🧠 Now[0m[2m I have[0m[2m both spec[0m[2m files.[0m[2m Let[0m[2m me analyze[0m[2m the breaking[0m[2m changes:[0m[2m
+  🧠 The[0m[2m user wants[0m[2m me to[0m[2m write a[0m[2m migration guide[0m[2m from Z[0m[2mrb CLI[0m[2m v1[0m[2m to v[0m[2m2.[0m[2m I've[0m[2m already read[0m[2m both spec[0m[2m files and[0m[2m activated the[0m[2m core-writing[0m[2m skill.[0m[2m Now I[0m[2m need to[0m[2m write[0m[2m the M[0m[2mIGRATION[0m[2m.md file[0m[2m.
      
-     1.[0m[2m **Endpoint[0m[2m prefix changed[0m[2m**: All[0m[2m endpoints now[0m[2m prefixed with[0m[2m `/v[0m[2m2/[0m[2m`
-     2[0m[2m. **[0m[2mAuthentication header[0m[2m changed**:[0m[2m `X[0m[2m-Auth[0m[2m-Token[0m[2m`[0m[2m → `[0m[2mAuthorization:[0m[2m Bearer`[0m[2m
-     3.[0m[2m **Task[0m[2m `[0m[2mid`[0m[2m type changed[0m[2m**: integer[0m[2m → UUID[0m[2m string[0m[2m
-     4.[0m[2m **Task[0m[2m field `[0m[2mdone`[0m[2m renamed to[0m[2m `completed[0m[2m`**[0m[2m
-     5.[0m[2m **Task[0m[2m creation now[0m[2m requires `[0m[2mproject_id[0m[2m`**[0m[2m
-     6.[0m[2m **List[0m[2m endpoints return[0m[2m paginated[0m[2m envelope instead[0m[2m of bare[0m[2m array**[0m[2m
+     Let[0m[2m me analyze[0m[2m the breaking[0m[2m changes from[0m[2m v1[0m[2m to v[0m[2m2:[0m[2m
      
-     The[0m[2m audience[0m[2m is experienced[0m[2m developers already[0m[2m using v[0m[2m1.[0m[2m I[0m[2m should[0m[2m write[0m[2m clear[0m[2m, technical[0m[2m documentation[0m[2m with before[0m[2m/after[0m[2m code examples[0m[2m.[0m[2m
+     1.[0m[2m **Base[0m[2m URL /[0m[2m Endpoint prefix[0m[2m**: v[0m[2m1 uses[0m[2m `/tasks[0m[2m`, v[0m[2m2 uses[0m[2m `/v[0m[2m2/tasks[0m[2m`
+     2[0m[2m. **[0m[2mAuthentication header[0m[2m**:[0m[2m v1[0m[2m uses `[0m[2mX-[0m[2mAuth-[0m[2mToken`,[0m[2m v2[0m[2m uses `[0m[2mAuthorization:[0m[2m Bearer`[0m[2m
+     3.[0m[2m **Task[0m[2m `[0m[2mid`[0m[2m type**:[0m[2m v1[0m[2m integer[0m[2m, v[0m[2m2 UUID[0m[2m string[0m[2m
+     4.[0m[2m **Field[0m[2m rename[0m[2m**: `[0m[2mdone`[0m[2m → `[0m[2mcompleted`[0m[2m
+     5.[0m[2m **Task[0m[2m creation requires[0m[2m `project[0m[2m_id`[0m[2m**: v[0m[2m1 only[0m[2m needs[0m[2m `title[0m[2m`, v[0m[2m2 needs[0m[2m `title[0m[2m` +[0m[2m `project[0m[2m_id`[0m[2m
+     6.[0m[2m **List[0m[2m response[0m[2m format[0m[2m**:[0m[2m v1[0m[2m returns bare[0m[2m array,[0m[2m v2[0m[2m returns pag[0m[2minated envelope[0m[2m with `[0m[2mitems`,[0m[2m `total[0m[2m`, `[0m[2mnext_cursor[0m[2m`
      
-     Let[0m[2m me structure[0m[2m the migration[0m[2m guide:[0m[2m
-     1[0m[2m. Title[0m[2m &[0m[2m intro[0m[2m
-     2[0m[2m. Breaking[0m[2m Changes[0m[2m ([0m[2meach[0m[2m one[0m[2m with heading[0m[2m, description[0m[2m, before[0m[2m/after[0m[2m examples[0m[2m)
-     3[0m[2m. Migration[0m[2m Checklist[0m[2m
-     4[0m[2m. Upgrade[0m[2m Command[0m[2m
+     I[0m[2m need[0m[2m to write[0m[2m a migration[0m[2m guide with[0m[2m:
+     -[0m[2m Clear structure[0m[2m with headings[0m[2m
+     -[0m[2m Explicitly[0m[2m call out[0m[2m every breaking[0m[2m change[0m[2m
+     - Before[0m[2m/after[0m[2m code examples[0m[2m for each[0m[2m breaking change[0m[2m (f[0m[2menced code[0m[2m blocks)[0m[2m
+     - Step[0m[2m-by-step[0m[2m migration checklist[0m[2m at the[0m[2m end[0m[2m
+     - End[0m[2m with the[0m[2m upgrade command[0m[2m
      
-     I need[0m[2m to make[0m[2m sure I[0m[2m use[0m[2m fenced code[0m[2m blocks properly[0m[2m and[0m[2m follow[0m[2m the "[0m[2mBefore-[0m[2mAfter-[0m[2mBridge"[0m[2m formula from[0m[2m the writing[0m[2m skill[0m[2m.
+     The[0m[2m audience is[0m[2m experienced developers[0m[2m already using[0m[2m v1[0m[2m.[0m[2m Tone should[0m[2m be technical[0m[2m and[0m[2m precise.[0m[2m
      
-     Let[0m[2m me draft[0m[2m this[0m[2m and[0m[2m write it[0m[2m to `[0m[2mMIG[0m[2mRATION.md[0m[2m`.[0m[2m
-  🧰 functions.Write:3 | Write {'path': 'MIGRATION.md', 'content': '# Zrb CLI v1 → v2 Migratio ...'}
+     Let me[0m[2m write[0m[2m the M[0m[2mIGRATION[0m[2m.md file[0m[2m.[0m[2m
+  🧰 functions.Write:3 | Write {'content': '# Zrb CLI v1 to v2 Migrati ...', 'path': 'MIGRATION.md'}
 [0m[2m
   🔠 functions.Write:3 | Return Successfully wrote to MIGRATION.md
 [0m[2m
-  🧠 The[0m[2m task[0m[2m is[0m[2m complete.[0m[2m I have[0m[2m read[0m[2m both[0m[2m spec[0m[2m files,[0m[2m identified the[0m[2m six[0m[2m breaking changes[0m[2m, and[0m[2m written a[0m[2m comprehensive migration[0m[2m guide to[0m[2m `M[0m[2mIGRATION[0m[2m.md`[0m[2m following[0m[2m the[0m[2m user's[0m[2m requirements.[0m[2m The[0m[2m guide includes[0m[2m:[0m[2m
+  🧠 The[0m[2m user hasn't[0m[2m provided[0m[2m a new[0m[2m message.[0m[2m The[0m[2m previous[0m[2m action[0m[2m successfully[0m[2m wrote M[0m[2mIGRATION[0m[2m.md.[0m[2m Let[0m[2m me provide[0m[2m a concise[0m[2m summary of[0m[2m what was[0m[2m delivered[0m[2m.[0m[2m
+  Done[0m[2m. The[0m[2m guide[0m[2m is saved[0m[2m at `[0m[2mMIG[0m[2mRATION.md[0m[2m`.
      
-     - Clear[0m[2m structure with[0m[2m headings[0m[2m
-     - Explicit[0m[2m call[0m[2m-outs[0m[2m for[0m[2m every breaking[0m[2m change[0m[2m
-     - Before[0m[2m/after[0m[2m code examples[0m[2m ([0m[2mfenced[0m[2m code blocks[0m[2m) for[0m[2m each change[0m[2m
-     -[0m[2m A step[0m[2m-by-step[0m[2m migration checklist[0m[2m at the[0m[2m end[0m[2m
-     - The[0m[2m upgrade command[0m[2m at the[0m[2m very end[0m[2m
+     It[0m[2m covers all[0m[2m 6[0m[2m breaking changes[0m[2m from[0m[2m `[0m[2mv1[0m[2m_spec.md[0m[2m` and[0m[2m `v[0m[2m2_spec[0m[2m.md`:[0m[2m
+     1.[0m[2m `/[0m[2mv2[0m[2m/` URL[0m[2m prefix[0m[2m
+     2.[0m[2m `Authorization[0m[2m: Bearer[0m[2m` replacing[0m[2m `X[0m[2m-Auth[0m[2m-Token[0m[2m`
+     3[0m[2m. Integer[0m[2m IDs[0m[2m to[0m[2m UUID strings[0m[2m
+     4[0m[2m. `[0m[2mdone`[0m[2m renamed to[0m[2m `completed[0m[2m`
+     5[0m[2m. Required[0m[2m `project[0m[2m_id`[0m[2m on task[0m[2m creation[0m[2m
+     6.[0m[2m Bare[0m[2m arrays[0m[2m replaced by[0m[2m paginated[0m[2m envelopes (`[0m[2mitems`,[0m[2m `total[0m[2m`, `[0m[2mnext_cursor[0m[2m`)
      
-     The[0m[2m writing[0m[2m follows the[0m[2m core[0m[2m-writing skill[0m[2m guidance[0m[2m: audience[0m[2m-aware[0m[2m ([0m[2mexper[0m[2mienced developers[0m[2m), concise[0m[2m, and[0m[2m technical[0m[2m. No[0m[2m further[0m[2m action is[0m[2m needed.[0m[2m
-  The[0m[2m migration guide[0m[2m is ready[0m[2m at[0m[2m `M[0m[2mIGRATION[0m[2m.md`.[0m[2m It covers[0m[2m all six[0m[2m breaking changes[0m[2m from[0m[2m v1[0m[2m to v[0m[2m2,[0m[2m each with[0m[2m its[0m[2m own section[0m[2m, before[0m[2m/after[0m[2m code blocks[0m[2m, and[0m[2m a final[0m[2m migration checklist[0m[2m plus[0m[2m the upgrade[0m[2m command.[0m[2m
-  💸 (Requests: 3 | Tool Calls: 4 | Total: 30351) Input: 28173 | Audio Input: 0 | Output: 2178 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
+     Each[0m[2m section has[0m[2m before/[0m[2mafter `[0m[2mcurl[0m[2m` and[0m[2m JSON examples[0m[2m, followed[0m[2m by an[0m[2m 8-step[0m[2m migration checklist[0m[2m and the[0m[2m upgrade command[0m[2m.[0m[2m
+  💸 (Requests: 3 | Tool Calls: 4 | Total: 31786) Input: 29441 | Audio Input: 0 | Output: 2345 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "The Zrb CLI is releasing v2, which has several breaking changes from v1. Our developer community needs a clear migration guide.
 
 `v1_spec.md` describes the current v1 API. `v2_spec.md` describes the new v2 API.
@@ -361,5 +358,15 @@ Write a developer migration guide and save it as `MIGRATION.md`. It should:
 - End with the upgrade command
 
 The audience is experienced developers who are already using v1." --model ollama:kimi-k2.6:cloud --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33msafe-film-9188[0m[0m
-The migration guide is ready at `MIGRATION.md`. It covers all six breaking changes from v1 to v2, each with its own section, before/after code blocks, and a final migration checklist plus the upgrade command.
+[2m[2mSession[0m: [1;33mrich-bolt-8678[0m[0m
+Done. The guide is saved at `MIGRATION.md`.
+
+It covers all 6 breaking changes from `v1_spec.md` and `v2_spec.md`:
+1. `/v2/` URL prefix
+2. `Authorization: Bearer` replacing `X-Auth-Token`
+3. Integer IDs to UUID strings
+4. `done` renamed to `completed`
+5. Required `project_id` on task creation
+6. Bare arrays replaced by paginated envelopes (`items`, `total`, `next_cursor`)
+
+Each section has before/after `curl` and JSON examples, followed by an 8-step migration checklist and the upgrade command.

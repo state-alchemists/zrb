@@ -16,3 +16,13 @@ class PaymentGateway:
         self.total_charged += amount
         self.charges.append({"order_id": order_id, "amount": amount})
         return True
+
+    async def refund(self, order_id: str, amount: float) -> bool:
+        """Refund a previous charge. Returns True if found and refunded."""
+        await asyncio.sleep(0.02)
+        for i, c in enumerate(self.charges):
+            if c["order_id"] == order_id and abs(c["amount"] - amount) < 0.01:
+                self.charges.pop(i)
+                self.total_charged -= amount
+                return True
+        return False

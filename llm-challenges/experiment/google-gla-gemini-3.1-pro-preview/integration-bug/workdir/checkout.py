@@ -2,14 +2,8 @@ import asyncio
 from inventory import Inventory
 from payments import PaymentGateway
 
-_locks = {}
-_locks_lock = asyncio.Lock()
-
-async def _get_lock(order_id: str):
-    async with _locks_lock:
-        if order_id not in _locks:
-            _locks[order_id] = asyncio.Lock()
-        return _locks[order_id]
+_processing = set()
+_processed = set()
 
 async def checkout(
     order_id: str,
@@ -18,27 +12,34 @@ async def checkout(
     inventory: Inventory,
     gateway: PaymentGateway,
 ) -> bool:
-    lock = await _get_lock(order_id)
-    async with lock:
-        if gateway.has_charged(order_id):
-            return True
-
-        available = await inventory.check_stock(quantity)
-        if not available:
+    # Ensure idempotency and avoid duplicate concurrent processing
+    if order_id in _processed or order_id in _processing:
+        return False
+        
+    _processing.add(order_id)
+    try:
+        # 1. Reserve inventory first to prevent overselling
+        decremented = await inventory.decrement(quantity)
+        if not decremented:
             print(f"Order {order_id}: out of stock")
             return False
 
-        charged = await gateway.charge(order_id, quantity * price)
+        # 2. Process payment only after securing inventory
+        try:
+            charged = await gateway.charge(order_id, quantity * price)
+        except Exception:
+            # Rollback on unexpected error
+            await inventory.increment(quantity)
+            raise
+            
         if not charged:
             print(f"Order {order_id}: payment failed")
+            # 3. Rollback inventory if payment fails
+            await inventory.increment(quantity)
             return False
 
-        decremented = await inventory.decrement(quantity)
-        if not decremented:
-            print(f"Order {order_id}: inventory error after payment — item not delivered")
-            await gateway.refund(order_id, quantity * price)
-            return False
-
+        _processed.add(order_id)
         print(f"Order {order_id}: SUCCESS")
         return True
-
+    finally:
+        _processing.remove(order_id)

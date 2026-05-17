@@ -1,11 +1,11 @@
 [2m
-  🧰 x3xxj15z | LS {'path': '.'}
+  🧰 tlzt4w1w | LS {'path': '.'}
 [0m[2m
-  🔠 x3xxj15z | Return {'files': ['pipeline.py']}
+  🔠 tlzt4w1w | Return {'files': ['pipeline.py']}
 [0m[2m
-  🧰 8n4f6n1w | Read {'path': 'pipeline.py'}
+  🧰 zst0hujw | Read {'path': 'pipeline.py'}
 [0m[2m
-  🔠 8n4f6n1w | Return [File: pipeline.py | 121 lines]
+  🔠 zst0hujw | Return [File: pipeline.py | 121 lines]
      ---CONTENT---
      import datetime
      import os
@@ -129,12 +129,12 @@
          proc_data()
      
 [0m[2m
-  🧰 hv49w9km | ActivateSkill {'name': 'core-coding'}
+  🧰 6bc1enln | ActivateSkill {'name': 'core-coding'}
 [0m[2m
-  🔠 hv49w9km | Return <ACTIVATED_SKILL>
+  🔠 6bc1enln | Return <ACTIVATED_SKILL>
      Skill activated. The following context applies:
      
-     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-coding
+     Skill directory (working directory): /Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm_plugin/skills/core-coding
      
      All file paths in the skill instructions below are relative to this directory.
      Use companion files (scripts, tools, references) by resolving them against this path.
@@ -256,11 +256,9 @@
      
      </ACTIVATED_SKILL>
 [0m[2m
-  🧰 wmbx2erf | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+  🧰 iuz6himq | Read {'path': '/Users/gofrendigunawan/.lo ...'}
 [0m[2m
-  🧰 206c6zcr | Read {'path': '/Users/gofrendigunawan/zrb ...'}
-[0m[2m
-  🔠 wmbx2erf | Return [File: /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-coding/languages/python.md | 58 lines]
+  🔠 iuz6himq | Return [File: /Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm_plugin/skills/core-coding/languages/python.md | 58 lines]
      ---CONTENT---
      # Python Guide
      
@@ -321,181 +319,19 @@
      If `pyproject.toml` declares a `[tool.poetry]` or `[tool.uv]` section, prefix commands with `poetry run` or `uv run` respectively.
      
 [0m[2m
-  🔠 206c6zcr | Return [File: /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-coding/workflows/refactor.md | 76 lines]
-     ---CONTENT---
-     # Refactor Methodology
-     
-     **Cardinal rule: observable behavior must not change.** Refactoring is restructuring, not rewriting — distinct from adding features or fixing bugs.
-     
-     ## Non-Negotiable Prerequisites
-     
-     **Before making any structural change, you MUST have a passing test suite.**
-     
-     1. Run the existing tests with `Bash`. Confirm they pass.
-     2. If test coverage is insufficient for the code you intend to refactor, **stop and write characterization tests first** (see `testing.md` in this directory).
-        - A characterization test captures what the code currently does so you can detect unintended changes.
-        - Coverage is sufficient when all public methods and their key branches (happy path + primary error path) have at least one test each. 100% line coverage is not required, but the refactoring target must be covered.
-     3. Record the baseline: the exact test command and its output. This is your safety net.
-     
-     **If you cannot establish a passing baseline, do not refactor.**
-     
-     ---
-     
-     ## Workflow
-     
-     ### PHASE 1: Understand Before Changing
-     
-     1. **Read the code to be refactored thoroughly** using `Read` (call in parallel for several files at once).
-     2. **Identify the code smell or structural problem** you are targeting. Be specific (name the metric or symptom).
-     3. **Plan atomic steps.** Each step should be small enough that a failing test immediately identifies the problematic change. Write the plan as todos using `WriteTodos`.
-     
-     ---
-     
-     ### PHASE 2: Atomic Refactoring Steps
-     
-     Apply one refactoring technique at a time. After each:
-     - Use `Edit` (not `Write`) for surgical changes.
-     - Run the full test suite with `Bash`.
-     - If any test fails: **revert immediately** and diagnose. Do not proceed.
-     
-     **Common refactoring techniques:**
-     
-     | Technique | Trigger |
-     |-----------|---------|
-     | **Extract Method** | Nameable block; function too long |
-     | **Extract Variable** | Complex expression repeated or unreadable |
-     | **Inline Method** | Body is as clear as the name; indirection adds nothing |
-     | **Rename** | Name is ambiguous, abbreviated, or misleading |
-     | **Move Method/Class** | Function uses more data from another class than its own |
-     | **Replace Magic Number** | Literal with domain meaning → named constant |
-     | **Replace Conditional with Guard Clause** | Deeply nested if/else → invert and return early |
-     | **Replace Conditional with Polymorphism** | Type-switching if/elif chain → subclass or strategy |
-     | **Strangler Fig** | Large component replacement; run old and new in parallel until migration is complete |
-     | **Introduce Parameter Object** | Parameters that always appear together → data class/struct |
-     
-     ---
-     
-     ### PHASE 3: Verify and Integrate
-     
-     1. **Run the full test suite** one final time after all planned steps.
-     2. **Run the linter and type-checker** (from `Makefile`, `pyproject.toml`, or `package.json`).
-     3. **Confirm the refactored code is genuinely simpler**, not just different.
-     4. **Do not introduce new behavior.** If you discovered a bug during refactoring, note it and fix it in a separate step after the refactoring is complete.
-     
-     ---
-     
-     ## Boundaries
-     
-     - **Never refactor and add features simultaneously.**
-     - **Never refactor and fix bugs simultaneously.** Mixing changes makes failures ambiguous.
-     - **Stop if you lose the green test baseline.** Debug, revert, or ask for help.
-     
-     ---
-     
-     ## Output Format
-     
-     1. **Code Smell Addressed**: what structural problem was fixed.
-     2. **Techniques Applied**: which refactoring patterns were used and where.
-     3. **Before/After**: key `file_path:line_number` references showing the improvement.
-     4. **Test Verification**: the test command and output confirming no regressions.
-     
+  🧰 go9aielp | Write {'content': 'import datetime\nimport os\n ...', 'path': 'pipeline_refactored.py'}
 [0m[2m
-  🧰 ych50lr4 | LS {'path': '.'}
+  🔠 go9aielp | Return Successfully wrote to pipeline_refactored.py
 [0m[2m
-  🔠 ych50lr4 | Return {'files': ['pipeline.py']}
+  🧰 r00ehhfq | Edit {'path': 'pipeline_refactored.py', 'new_text': 'def main() -> None:\n    "" ...', 'old_text': 'def main() -> None:\n    "" ...'}
 [0m[2m
-  🧰 md2fscii | WriteTodos {'todos': [{'status': 'pending', 'id': 'baseline_run', 'content': 'Run original pipeline.py to generate baseline report.html'}, {'id': 'refactor_implementation', 'status': 'pending', 'content': 'Create pipeline_refactored.py with ETL structure, regex parsing, and parameterized queries'}, {'content': 'Verify pipeline_refactored.py output matches baseline report.html', 'status': 'pending', 'id': 'verification'}, {'id': 'finalization', 'status': 'pending', 'content': 'Clean up and finalize documentation'}]}
+  🔠 r00ehhfq | Return Successfully updated pipeline_refactored.py (1 replacement(s))
 [0m[2m
-  🔠 md2fscii | Return [vast-frog-1562] 0/4 done, 0 in progress
-       [ ] [baseline_run] Run original pipeline.py to generate baseline report.html
-       [ ] [finalization] Clean up and finalize documentation
-       [ ] [refactor_implementation] Create pipeline_refactored.py with ETL structure, regex parsing, and parameterized queries
-       [ ] [verification] Verify pipeline_refactored.py output matches baseline report.html
-     
-     Use `update_todo` to change status; `get_todos` to check state.
-[0m[2m
-  🧰 nli3u2tj | UpdateTodo {'todo_id': 'baseline_run', 'status': 'in_progress'}
-[0m[2m
-  🧰 3pkpd9yw | Bash {'command': 'python3 pipeline.py && cp  ...'}
-[0m[2m
-  🔠 nli3u2tj | Return [vast-frog-1562] Updated: [baseline_run] Run original pipeline.py to generate baseline report.html -> in_progress
-     Progress: 0/4 done, 1 in progress
-     In progress: [baseline_run] Run original pipeline.py to generate baseline report.html
-     Pending: [finalization] Clean up and finalize documentation, [refactor_implementation] Create pipeline_refactored.py with ETL structure, regex parsing, and parameterized queries, [verification] Verify pipeline_refactored.py output matches baseline report.html
+  🧰 jqldgkl6 | Bash {'command': 'python3 pipeline_refactore ...'}
 [0m  [2mConnecting to localhost:5432 as admin...
-[0m  [2mJob finished at 2026-05-17 08:27:33.667655
-[0m[2m
-  🔠 3pkpd9yw | Return Command: python3 pipeline.py && cp report.html report_baseline.html
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-flash-preview/refactor/workdir
-     Stdout:
-     Connecting to localhost:5432 as admin...
-     Job finished at 2026-05-17 08:27:33.667655
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  🧰 i6a0bev6 | UpdateTodo {'todo_id': 'baseline_run', 'status': 'completed'}
-[0m[2m
-  🧰 14spbkit | UpdateTodo {'todo_id': 'refactor_implementation', 'status': 'in_progress'}
-[0m[2m
-  🧰 9mseplpg | Write {'path': 'pipeline_refactored.py', 'content': 'import datetime\nimport os\n ...'}
-[0m[2m
-  🔠 14spbkit | Return [vast-frog-1562] Updated: [refactor_implementation] Create pipeline_refactored.py with ETL structure, regex parsing, and parameterized queries -> in_progress
-     Progress: 1/4 done, 1 in progress
-     In progress: [refactor_implementation] Create pipeline_refactored.py with ETL structure, regex parsing, and parameterized queries
-     Pending: [finalization] Clean up and finalize documentation, [verification] Verify pipeline_refactored.py output matches baseline report.html
-[0m[2m
-  🔠 i6a0bev6 | Return [vast-frog-1562] Updated: [baseline_run] Run original pipeline.py to generate baseline report.html -> completed
-     Progress: 1/4 done, 0 in progress
-     Pending: [finalization] Clean up and finalize documentation, [refactor_implementation] Create pipeline_refactored.py with ETL structure, regex parsing, and parameterized queries, [verification] Verify pipeline_refactored.py output matches baseline report.html
-[0m[2m
-  🔠 9mseplpg | Return Successfully wrote to pipeline_refactored.py
-[0m[2m
-  🧰 wp41ozll | UpdateTodo {'todo_id': 'refactor_implementation', 'status': 'completed'}
-[0m[2m
-  🧰 apwt2wkk | UpdateTodo {'todo_id': 'verification', 'status': 'in_progress'}
-[0m[2m
-  🧰 89w4o9su | Bash {'command': 'python3 pipeline_refactore ...'}
-[0m[2m
-  🔠 apwt2wkk | Return [vast-frog-1562] Updated: [verification] Verify pipeline_refactored.py output matches baseline report.html -> in_progress
-     Progress: 2/4 done, 1 in progress
-     In progress: [verification] Verify pipeline_refactored.py output matches baseline report.html
-     Pending: [finalization] Clean up and finalize documentation
-[0m[2m
-  🔠 wp41ozll | Return [vast-frog-1562] Updated: [refactor_implementation] Create pipeline_refactored.py with ETL structure, regex parsing, and parameterized queries -> completed
-     Progress: 2/4 done, 0 in progress
-     Pending: [finalization] Clean up and finalize documentation, [verification] Verify pipeline_refactored.py output matches baseline report.html
-[0m  [2mConnecting to localhost:5432 as admin...
-[0m  [2mJob finished at 2026-05-17 08:27:52.871336
-[0m[2m
-  🔠 89w4o9su | Return Command: python3 pipeline_refactored.py && diff report.html report_baseline.html || true
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-flash-preview/refactor/workdir
-     Stdout:
-     Connecting to localhost:5432 as admin...
-     Job finished at 2026-05-17 08:27:52.871336
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  🧰 25a7w5w6 | Bash {'command': 'cat report.html && echo "- ...'}
-[0m  [2m<html>
-[0m  [2m<head><title>System Report</title></head>
-[0m  [2m<body>
-[0m  [2m<h1>Error Summary</h1>
-[0m  [2m<ul>
-[0m  [2m<li><b>Database timeout</b>: 2 occurrences</li>
-[0m  [2m</ul>
-[0m  [2m<h2>API Latency</h2>
-[0m  [2m<table border='1'>
-[0m  [2m<tr><th>Endpoint</th><th>Avg (ms)</th></tr>
-[0m  [2m<tr><td>/users/profile</td><td>250.0</td></tr>
-[0m  [2m</table>
-[0m  [2m<h2>Active Sessions</h2>
-[0m  [2m<p>0 user(s) currently active</p>
-[0m  [2m</body>
-[0m  [2m</html>---
+[0m  [2mJob finished at 2026-05-17 15:43:21.760959
+[0m  [2m-rw-r--r--@ 1 gofrendigunawan  staff  12288 17 May 15:43 metrics.db
+[0m  [2m-rw-r--r--@ 1 gofrendigunawan  staff    352 17 May 15:43 report.html
 [0m  [2m<html>
 [0m  [2m<head><title>System Report</title></head>
 [0m  [2m<body>
@@ -512,25 +348,13 @@
 [0m  [2m<p>0 user(s) currently active</p>
 [0m  [2m</body>
 [0m  [2m</html>[0m[2m
-  🔠 25a7w5w6 | Return Command: cat report.html && echo "---" && cat report_baseline.html
+  🔠 jqldgkl6 | Return Command: python3 pipeline_refactored.py && ls -l report.html metrics.db && cat report.html
      Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-flash-preview/refactor/workdir
      Stdout:
-     <html>
-     <head><title>System Report</title></head>
-     <body>
-     <h1>Error Summary</h1>
-     <ul>
-     <li><b>Database timeout</b>: 2 occurrences</li>
-     </ul>
-     <h2>API Latency</h2>
-     <table border='1'>
-     <tr><th>Endpoint</th><th>Avg (ms)</th></tr>
-     <tr><td>/users/profile</td><td>250.0</td></tr>
-     </table>
-     <h2>Active Sessions</h2>
-     <p>0 user(s) currently active</p>
-     </body>
-     </html>---
+     Connecting to localhost:5432 as admin...
+     Job finished at 2026-05-17 15:43:21.760959
+     -rw-r--r--@ 1 gofrendigunawan  staff  12288 17 May 15:43 metrics.db
+     -rw-r--r--@ 1 gofrendigunawan  staff    352 17 May 15:43 report.html
      <html>
      <head><title>System Report</title></head>
      <body>
@@ -552,86 +376,32 @@
      Exit Code: 0
      Background PIDs: (none)
 [0m[2m
-  🧰 fgrtji8k | Bash {'command': 'diff -u report_baseline.ht ...'}
-[0m[2m
-  🔠 fgrtji8k | Return Command: diff -u report_baseline.html report.html
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-flash-preview/refactor/workdir
-     Stdout:
-     (empty)
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  🧰 lykkzgd0 | UpdateTodo {'todo_id': 'verification', 'status': 'completed'}
-[0m[2m
-  🧰 86jn8b62 | UpdateTodo {'status': 'in_progress', 'todo_id': 'finalization'}
-[0m[2m
-  🧰 a7spz9qs | Bash {'command': 'ruff check pipeline_refact ...'}
-[0m[2m
-  🔠 lykkzgd0 | Return [vast-frog-1562] Updated: [verification] Verify pipeline_refactored.py output matches baseline report.html -> completed
-     Progress: 3/4 done, 0 in progress
-     Pending: [finalization] Clean up and finalize documentation
-[0m[2m
-  🔠 86jn8b62 | Return [vast-frog-1562] Updated: [finalization] Clean up and finalize documentation -> in_progress
-     Progress: 3/4 done, 1 in progress
-     In progress: [finalization] Clean up and finalize documentation
-[0m  [2m/bin/sh: ruff: command not found
-[0m  [2mruff not found
-[0m  [2m/bin/sh: mypy: command not found
-[0m  [2mmypy not found
-[0m[2m
-  🔠 a7spz9qs | Return Command: ruff check pipeline_refactored.py || echo "ruff not found" && mypy pipeline_refactored.py || echo "mypy not found"
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-flash-preview/refactor/workdir
-     Stdout:
-     ruff not found
-     mypy not found
-     Stderr:
-     /bin/sh: ruff: command not found
-     /bin/sh: mypy: command not found
-     Exit Code: 0
-     Background PIDs: (none)
+  The `pipeline.py` script has been refactored into [0m[2m`pipeline_refactored.py`. The new implementation addresses all security and maintenance concerns while preserving the required report output.
      
-     [SYSTEM SUGGESTION]: Command not found. Check that the tool is installed and on PATH. If using a virtualenv or nvm/pyenv, verify it is activated.
-[0m[2m
-  🧰 f2fbd212 | RM {'path': 'report_baseline.html'}
-[0m[2m
-  🧰 mofvx62d | UpdateTodo {'todo_id': 'finalization', 'status': 'completed'}
-[0m[2m
-  🔠 f2fbd212 | Return Removed: report_baseline.html
-[0m[2m
-  🔠 mofvx62d | Return [vast-frog-1562] Updated: [finalization] Clean up and finalize documentation -> completed
-     Progress: 4/4 done, 0 in progress
-[0m[2m
-  The `pipeline.py` script has been refactored into `pipeline_refact[0m[2mored.py`. The new implementation follows the **Extract-Transform-Load (ETL)** pattern, improves security by[0m[2m using parameterized queries, and increases robustness through regex-based log parsing.
+[0m[2m### Key Improvements
      
-     ### Key Improvements
-     
-     1.  **Security**: Re[0m[2mplaced unsafe string formatting in SQL queries with parameterized queries (`cursor.execute(sql, params)`) to eliminate SQL injection risks.
-[0m[2m2.  **Configuration**: Introduced a `LogConfig` dataclass that pulls configuration (DB path, credentials, file[0m[2m paths) from environment variables with sensible defaults.
-     3.  **Robust Parsing**: Replaced fragile `split(" ")` logic with[0m[2m structured regular expressions to parse timestamps, log levels, user actions, and API metrics accurately.
-     4.  **ETL[0m[2m Architecture**:
-         *   `extract_logs`: Handles file I/O and initial ingestion.
-         *   `transform_[0m[2mlogs`: Processes raw lines into a structured `ProcessedData` container.
-         *   `load_to_db`:[0m[2m Persists data using efficient batch inserts (`executemany`).
-         *   `generate_report`: Separates HTML[0m[2m generation logic from data processing.
-     5.  **Maintainability**: Added type hints, comprehensive docstrings, and utilized[0m[2m modern Python features like `pathlib.Path`, `dataclasses`, and `contextlib` (via `with sqlite[0m[2m3.connect`).
+     1.  **Security**:
+         *   **Environment Variables**: All configurations (database path, credentials,[0m[2m log path) are now managed via `PipelineConfig` using `os.environ.get`.
+         *   **Parameterized Queries**:[0m[2m Replaced string formatting in SQL with `?` placeholders, eliminating SQL injection risks.
+     2.  **Maintainability &[0m[2m Structure**:
+         *   **ETL Pattern**: Logic is separated into `parse_logs` (Extract), [0m[2m`transform_metrics` (Transform), and `load_to_db`/`generate_report` (Load).
+         *   [0m[2m**Type Safety**: Added type hints and `dataclasses` (`LogEntry`, `ApiMetric`) for structured data handling[0m[2m.
+         *   **Documentation**: Included docstrings for all functions and classes.
+     3.  **Robust Parsing**:
+         [0m[2m*   **Regex**: Replaced fragile `split()` calls with structured regex patterns for log lines, API metrics, and user events[0m[2m.
+         *   **Modern Python**: Utilized `pathlib.Path` for file operations and `with` context managers for[0m[2m resource safety.
      
      ### Verification
-     The output of `pipeline_refactored.py` was compared against the original script[0m[2m's output. The generated `report.html` is identical in content and structure, ensuring no regressions in the reported metrics ([0m[2merror summary, API latency, and active session count).
+     The script was executed successfully, generating both the `metrics.db` SQLite database ([0m[2musing safe queries) and the `report.html` file with the expected error summary, latency table, and session count.
      
-     ### Usage
-     To run the refactored pipeline:
-     ```bash
-[0m[2m# Optional: Set environment variables
-     export DB_PATH="custom_metrics.db"
-     export LOG_FILE="production.log[0m[2m"
-     
+[0m[2m```python
+     # Run with default config
      python3 pipeline_refactored.py
-     ```
      
-     The script remains compatible with the original `server.log[0m[2m` format and continues to generate `report.html`.[0m[2m[0m[2m
-  💸 (Requests: 14 | Tool Calls: 22 | Total: 254373) Input: 246304 | Audio Input: 0 | Output: 8069 | Audio Output: 0 | Cache Read: 128879 | Cache Write: 0 | Details: {'cached_content_tokens': 128879, 'thoughts_tokens': 5070, 'text_prompt_tokens': 246304, 'text_cache_tokens': 128879}
+     # Run with custom environment variables
+     LOG[0m[2m_FILE_PATH=prod.log DB_PATH=prod.db python3 pipeline_refactored.py[0m[2m
+     ```[0m[2m[0m[2m
+  💸 (Requests: 8 | Tool Calls: 7 | Total: 120323) Input: 115097 | Audio Input: 0 | Output: 5226 | Audio Output: 0 | Cache Read: 76678 | Cache Write: 0 | Details: {'thoughts_tokens': 2431, 'text_prompt_tokens': 115097, 'cached_content_tokens': 76678, 'text_cache_tokens': 76678}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "The `pipeline.py` script processes server logs and generates a report. It works, but it's a security and maintenance nightmare:
 
 - Credentials and paths are hardcoded
@@ -648,32 +418,29 @@ Refactor it. Requirements:
 5. Add type hints and docstrings
 
 The `report.html` output must still be produced with the same information (error summary, API latency table, active session count). You may rename the file to `pipeline_refactored.py` if you prefer." --model google-gla:gemini-3-flash-preview --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mvast-frog-1562[0m[0m
-The `pipeline.py` script has been refactored into `pipeline_refactored.py`. The new implementation follows the **Extract-Transform-Load (ETL)** pattern, improves security by using parameterized queries, and increases robustness through regex-based log parsing.
+[2m[2mSession[0m: [1;33mneat-coal-0090[0m[0m
+The `pipeline.py` script has been refactored into `pipeline_refactored.py`. The new implementation addresses all security and maintenance concerns while preserving the required report output.
 
 ### Key Improvements
 
-1.  **Security**: Replaced unsafe string formatting in SQL queries with parameterized queries (`cursor.execute(sql, params)`) to eliminate SQL injection risks.
-2.  **Configuration**: Introduced a `LogConfig` dataclass that pulls configuration (DB path, credentials, file paths) from environment variables with sensible defaults.
-3.  **Robust Parsing**: Replaced fragile `split(" ")` logic with structured regular expressions to parse timestamps, log levels, user actions, and API metrics accurately.
-4.  **ETL Architecture**:
-    *   `extract_logs`: Handles file I/O and initial ingestion.
-    *   `transform_logs`: Processes raw lines into a structured `ProcessedData` container.
-    *   `load_to_db`: Persists data using efficient batch inserts (`executemany`).
-    *   `generate_report`: Separates HTML generation logic from data processing.
-5.  **Maintainability**: Added type hints, comprehensive docstrings, and utilized modern Python features like `pathlib.Path`, `dataclasses`, and `contextlib` (via `with sqlite3.connect`).
+1.  **Security**:
+    *   **Environment Variables**: All configurations (database path, credentials, log path) are now managed via `PipelineConfig` using `os.environ.get`.
+    *   **Parameterized Queries**: Replaced string formatting in SQL with `?` placeholders, eliminating SQL injection risks.
+2.  **Maintainability & Structure**:
+    *   **ETL Pattern**: Logic is separated into `parse_logs` (Extract), `transform_metrics` (Transform), and `load_to_db`/`generate_report` (Load).
+    *   **Type Safety**: Added type hints and `dataclasses` (`LogEntry`, `ApiMetric`) for structured data handling.
+    *   **Documentation**: Included docstrings for all functions and classes.
+3.  **Robust Parsing**:
+    *   **Regex**: Replaced fragile `split()` calls with structured regex patterns for log lines, API metrics, and user events.
+    *   **Modern Python**: Utilized `pathlib.Path` for file operations and `with` context managers for resource safety.
 
 ### Verification
-The output of `pipeline_refactored.py` was compared against the original script's output. The generated `report.html` is identical in content and structure, ensuring no regressions in the reported metrics (error summary, API latency, and active session count).
+The script was executed successfully, generating both the `metrics.db` SQLite database (using safe queries) and the `report.html` file with the expected error summary, latency table, and session count.
 
-### Usage
-To run the refactored pipeline:
-```bash
-# Optional: Set environment variables
-export DB_PATH="custom_metrics.db"
-export LOG_FILE="production.log"
-
+```python
+# Run with default config
 python3 pipeline_refactored.py
-```
 
-The script remains compatible with the original `server.log` format and continues to generate `report.html`.
+# Run with custom environment variables
+LOG_FILE_PATH=prod.log DB_PATH=prod.db python3 pipeline_refactored.py
+```

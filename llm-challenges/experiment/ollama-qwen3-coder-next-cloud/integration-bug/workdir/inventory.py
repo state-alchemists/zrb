@@ -17,20 +17,24 @@ class Inventory:
             return True
         return False
 
-    async def increment(self, quantity: int) -> None:
-        await asyncio.sleep(0.01)
-        self._stock += quantity
-
-    async def reserve_and_decrement(self, quantity: int) -> bool:
-        """
-        Atomically check, reserve, and decrement stock.
-        Returns True if the reservation was successful, False otherwise.
-        """
+    async def reserve_stock(self, quantity: int) -> bool:
+        """Atomic check and decrement - prevents overselling."""
         async with self._lock:
+            await asyncio.sleep(0.01)  # Simulate I/O latency
             if self._stock >= quantity:
                 self._stock -= quantity
                 return True
             return False
+
+    async def cancel_reservation(self, quantity: int) -> None:
+        """Release reserved stock (rollback)."""
+        async with self._lock:
+            await asyncio.sleep(0.01)  # Simulate I/O latency
+            self._stock += quantity
+
+    async def increment(self, quantity: int) -> None:
+        await asyncio.sleep(0.01)
+        self._stock += quantity
 
     @property
     def stock(self) -> int:

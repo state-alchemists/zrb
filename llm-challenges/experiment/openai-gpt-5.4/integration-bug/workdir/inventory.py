@@ -13,20 +13,19 @@ class Inventory:
 
     async def decrement(self, quantity: int) -> bool:
         await asyncio.sleep(0.02)
-        return await self.reserve(quantity)
+        async with self._lock:
+            if self._stock >= quantity:
+                self._stock -= quantity
+                return True
+            return False
+
+    async def reserve(self, quantity: int) -> bool:
+        return await self.decrement(quantity)
 
     async def increment(self, quantity: int) -> None:
         await asyncio.sleep(0.01)
         async with self._lock:
             self._stock += quantity
-
-    async def reserve(self, quantity: int) -> bool:
-        await asyncio.sleep(0.02)
-        async with self._lock:
-            if self._stock < quantity:
-                return False
-            self._stock -= quantity
-            return True
 
     async def release(self, quantity: int) -> None:
         await self.increment(quantity)

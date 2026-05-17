@@ -1,13 +1,194 @@
 [2m
-  🧰 za5xoant | LS {'path': '.'}
+  🧰 ilwtzb7n | LS {'path': '.'}
 [0m[2m
-  🔠 za5xoant | Return {'files': ['v1_spec.md', 'v2_spec.md']}
+  🔠 ilwtzb7n | Return {'files': ['v1_spec.md', 'v2_spec.md']}
 [0m[2m
-  🧰 u61h6dx7 | Read {'path': 'v1_spec.md'}
+  🧰 88knnwf8 | ActivateSkill {'name': 'core-writing'}
 [0m[2m
-  🧰 g2l9x39x | Read {'path': 'v2_spec.md'}
+  🧰 jnv6s91x | Read {'path': 'v1_spec.md'}
 [0m[2m
-  🔠 g2l9x39x | Return [File: v2_spec.md | 115 lines]
+  🧰 o15oduns | Read {'path': 'v2_spec.md'}
+[0m[2m
+  🔠 jnv6s91x | Return [File: v1_spec.md | 83 lines]
+     ---CONTENT---
+     # Zrb Task API — v1 Reference
+     
+     ## Authentication
+     
+     All requests require an API key passed in the header:
+     
+     ```
+     X-Auth-Token: <your_api_key>
+     ```
+     
+     ## Data Types
+     
+     ### Task Object
+     
+     ```json
+     {
+       "id": 42,
+       "title": "Write tests",
+       "done": false,
+       "created_at": "2024-01-15T10:30:00Z"
+     }
+     ```
+     
+     - `id` — integer, auto-assigned
+     - `title` — string
+     - `done` — boolean, default `false`
+     - `created_at` — ISO 8601 timestamp
+     
+     ## Endpoints
+     
+     ### List Tasks
+     
+     `GET /tasks`
+     
+     Returns a bare array of task objects.
+     
+     **Response:**
+     ```json
+     [
+       {"id": 1, "title": "Buy milk", "done": false, "created_at": "..."},
+       {"id": 2, "title": "Ship v1", "done": true, "created_at": "..."}
+     ]
+     ```
+     
+     ### Get Task
+     
+     `GET /tasks/{id}`
+     
+     Returns a single task or `404`.
+     
+     ### Create Task
+     
+     `POST /tasks`
+     
+     **Request body:**
+     ```json
+     {
+       "title": "New task title"
+     }
+     ```
+     
+     **Response:** the created task object (HTTP 201).
+     
+     ### Update Task
+     
+     `PUT /tasks/{id}`
+     
+     **Request body** (all fields optional):
+     ```json
+     {
+       "title": "Updated title",
+       "done": true
+     }
+     ```
+     
+     **Response:** the updated task object.
+     
+     ### Delete Task
+     
+     `DELETE /tasks/{id}`
+     
+     **Response:** HTTP 204 No Content.
+     
+[0m[2m
+  🔠 88knnwf8 | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
+     
+     Skill directory (working directory): /Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm_plugin/skills/core-writing
+     
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
+     
+     Companion files available in this directory:
+       templates/
+         api-doc.md
+         commit-message.md
+         readme.md
+     
+     ---
+     
+     ---
+     name: core-writing
+     description: "Activate before any substantial writing — docs, copy, proposals, feedback, commit messages, or UI text. Provides copywriting frameworks, tone guidance, and editing workflow for clear, persuasive, polished output."
+     user-invocable: false
+     ---
+     # Skill: core-writing
+     
+     Follow **Brief → Structure → Draft → Polish** for every writing task.
+     
+     ## Companion Templates
+     
+     When the current task matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
+     
+     | Trigger | Companion |
+     |---------|-----------|
+     | Writing or rewriting a project README | `templates/readme.md` |
+     | Drafting a git commit message | `templates/commit-message.md` |
+     | Documenting a function, endpoint, or CLI command | `templates/api-doc.md` |
+     
+     ## Workflow
+     
+     ### 1. Brief & Audience
+     
+     - Who is reading this? What do they already know? What do they need to know?
+     - What outcome should this writing achieve?
+     - What tone fits: technical, persuasive, instructional, conversational?
+     
+     ### 2. Structure & Outline
+     
+     - **Technical docs**: Problem → Solution → Usage → API → Examples
+     - **Persuasive writing**: Hook → Context → Evidence → Resolution → CTA
+     - **Instructional**: Goal → Prerequisites → Steps → Verification → Troubleshooting
+     - One idea per paragraph. Lead with the conclusion. Use transitions.
+     
+     ### 3. Draft
+     
+     - Write freely. Don't edit while drafting.
+     - Apply the chosen structure. Fill in evidence and examples.
+     - Use active voice. Be specific over vague.
+     
+     ### 4. Polish & Edit
+     
+     - Omit needless words. Every word must earn its place.
+     - Check flow: read aloud. Fix awkward transitions.
+     - Verify accuracy: facts, code samples, references.
+     - Proof: spelling, grammar, consistent terminology.
+     
+     ## Copywriting Formulas
+     
+     | Formula | When to Use | Structure |
+     |---------|-------------|-----------|
+     | **AIDA** | Marketing, proposals, feature announcements | Attention → Interest → Desire → Action |
+     | **PAS** | Bug reports, problem-solving docs | Problem → Agitate → Solution |
+     | **Inverted Pyramid** | News, announcements, summaries | Conclusion → Key details → Background |
+     | **Before-After-Bridge** | Change proposals, migration guides | Current → Desired → How to get there |
+     | **FEBC** | Technical decisions | Fact → Explanation → Benefit → Conclusion |
+     
+     ## Tone Matrix
+     
+     | Audience | Tone | Characteristics |
+     |----------|------|-----------------|
+     | Developers | Technical, precise | Specific terms, code examples, no fluff |
+     | Product managers | Outcome-oriented | Problem → impact → timeline → trade-offs |
+     | End users | Friendly, clear | Simple language, concrete examples, next steps |
+     | Executives | Concise, strategic | Recommendation first, TL;DR, business impact |
+     
+     ## Quality Checklist
+     
+     Before finalizing:
+     - Does the first paragraph convey the main point?
+     - Can any sentence be shortened without losing meaning?
+     - Are all claims supported by evidence?
+     - Is the tone appropriate for the audience?
+     - Would this still make sense if read in isolation?
+     
+     </ACTIVATED_SKILL>
+[0m[2m
+  🔠 o15oduns | Return [File: v2_spec.md | 115 lines]
      ---CONTENT---
      # Zrb Task API — v2 Reference
      
@@ -125,276 +306,89 @@
      **Response:** HTTP 204 No Content.
      
 [0m[2m
-  🔠 u61h6dx7 | Return [File: v1_spec.md | 83 lines]
-     ---CONTENT---
-     # Zrb Task API — v1 Reference
-     
-     ## Authentication
-     
-     All requests require an API key passed in the header:
-     
-     ```
-     X-Auth-Token: <your_api_key>
-     ```
-     
-     ## Data Types
-     
-     ### Task Object
-     
-     ```json
-     {
-       "id": 42,
-       "title": "Write tests",
-       "done": false,
-       "created_at": "2024-01-15T10:30:00Z"
-     }
-     ```
-     
-     - `id` — integer, auto-assigned
-     - `title` — string
-     - `done` — boolean, default `false`
-     - `created_at` — ISO 8601 timestamp
-     
-     ## Endpoints
-     
-     ### List Tasks
-     
-     `GET /tasks`
-     
-     Returns a bare array of task objects.
-     
-     **Response:**
-     ```json
-     [
-       {"id": 1, "title": "Buy milk", "done": false, "created_at": "..."},
-       {"id": 2, "title": "Ship v1", "done": true, "created_at": "..."}
-     ]
-     ```
-     
-     ### Get Task
-     
-     `GET /tasks/{id}`
-     
-     Returns a single task or `404`.
-     
-     ### Create Task
-     
-     `POST /tasks`
-     
-     **Request body:**
-     ```json
-     {
-       "title": "New task title"
-     }
-     ```
-     
-     **Response:** the created task object (HTTP 201).
-     
-     ### Update Task
-     
-     `PUT /tasks/{id}`
-     
-     **Request body** (all fields optional):
-     ```json
-     {
-       "title": "Updated title",
-       "done": true
-     }
-     ```
-     
-     **Response:** the updated task object.
-     
-     ### Delete Task
-     
-     `DELETE /tasks/{id}`
-     
-     **Response:** HTTP 204 No Content.
-     
-[0m[2m
-  🧰 qtno8a7v | ActivateSkill {'name': 'core-writing'}
-[0m[2m
-  🔠 qtno8a7v | Return <ACTIVATED_SKILL>
-     Skill activated. The following context applies:
-     
-     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-writing
-     
-     All file paths in the skill instructions below are relative to this directory.
-     Use companion files (scripts, tools, references) by resolving them against this path.
-     
-     Companion files available in this directory:
-       templates/
-         api-doc.md
-         commit-message.md
-         readme.md
-     
-     ---
-     
-     ---
-     name: core-writing
-     description: "Activate before any substantial writing — docs, copy, proposals, feedback, commit messages, or UI text. Provides copywriting frameworks, tone guidance, and editing workflow for clear, persuasive, polished output."
-     user-invocable: false
-     ---
-     # Skill: core-writing
-     
-     Follow **Brief → Structure → Draft → Polish** for every writing task.
-     
-     ## Companion Templates
-     
-     When the current task matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
-     
-     | Trigger | Companion |
-     |---------|-----------|
-     | Writing or rewriting a project README | `templates/readme.md` |
-     | Drafting a git commit message | `templates/commit-message.md` |
-     | Documenting a function, endpoint, or CLI command | `templates/api-doc.md` |
-     
-     ## Workflow
-     
-     ### 1. Brief & Audience
-     
-     - Who is reading this? What do they already know? What do they need to know?
-     - What outcome should this writing achieve?
-     - What tone fits: technical, persuasive, instructional, conversational?
-     
-     ### 2. Structure & Outline
-     
-     - **Technical docs**: Problem → Solution → Usage → API → Examples
-     - **Persuasive writing**: Hook → Context → Evidence → Resolution → CTA
-     - **Instructional**: Goal → Prerequisites → Steps → Verification → Troubleshooting
-     - One idea per paragraph. Lead with the conclusion. Use transitions.
-     
-     ### 3. Draft
-     
-     - Write freely. Don't edit while drafting.
-     - Apply the chosen structure. Fill in evidence and examples.
-     - Use active voice. Be specific over vague.
-     
-     ### 4. Polish & Edit
-     
-     - Omit needless words. Every word must earn its place.
-     - Check flow: read aloud. Fix awkward transitions.
-     - Verify accuracy: facts, code samples, references.
-     - Proof: spelling, grammar, consistent terminology.
-     
-     ## Copywriting Formulas
-     
-     | Formula | When to Use | Structure |
-     |---------|-------------|-----------|
-     | **AIDA** | Marketing, proposals, feature announcements | Attention → Interest → Desire → Action |
-     | **PAS** | Bug reports, problem-solving docs | Problem → Agitate → Solution |
-     | **Inverted Pyramid** | News, announcements, summaries | Conclusion → Key details → Background |
-     | **Before-After-Bridge** | Change proposals, migration guides | Current → Desired → How to get there |
-     | **FEBC** | Technical decisions | Fact → Explanation → Benefit → Conclusion |
-     
-     ## Tone Matrix
-     
-     | Audience | Tone | Characteristics |
-     |----------|------|-----------------|
-     | Developers | Technical, precise | Specific terms, code examples, no fluff |
-     | Product managers | Outcome-oriented | Problem → impact → timeline → trade-offs |
-     | End users | Friendly, clear | Simple language, concrete examples, next steps |
-     | Executives | Concise, strategic | Recommendation first, TL;DR, business impact |
-     
-     ## Quality Checklist
-     
-     Before finalizing:
-     - Does the first paragraph convey the main point?
-     - Can any sentence be shortened without losing meaning?
-     - Are all claims supported by evidence?
-     - Is the tone appropriate for the audience?
-     - Would this still make sense if read in isolation?
-     
-     </ACTIVATED_SKILL>
-[0m[2m
-  I have analyzed the differences between the Z[0m[2mrb Task API v1 and v2. I will now create the migration guide.
+  I have analyzed the v1 and v2 specifications and created the migration guide.
      
      ```markdown
      # Zrb v[0m[2m2 Migration Guide
      
-     This guide provides the necessary steps to migrate your application from Zrb v1 to v2. Version[0m[2m 2 introduces project-based task management, improved pagination, and enhanced security standards.
+     This guide details the breaking changes introduced in Zrb v2 and provides the necessary steps to migrate your application from[0m[2m v1. v2 introduces project-based organization, improved pagination, and enhanced security.
      
-     ## Breaking Changes
+     ## 1. Base[0m[2m URL Versioning
+     All API endpoints are now versioned. You must update your client configuration to use the `/v2[0m[2m/` prefix for all requests.
      
-     ### 1.[0m[2m API Endpoint Prefixing
-     All API endpoints are now versioned. You must prefix your request paths with `/v2/`.
-     
-     **Before ([0m[2mv1):**
-     `GET /tasks`
-     
-     **After (v2):**
-     `GET /v2[0m[2m/tasks`
-     
-     ---
-     
-     ### 2. Authentication Header
-     The proprietary `X-Auth-Token` header has been replaced with[0m[2m the standard `Authorization` Bearer token format. Requests using the old header will now return a `401 Unauthorized[0m[2m` error.
-     
-     **Before (v1):**
+     **v1 (Before)**
      ```http
-     X-Auth-Token: your_api_key
-[0m[2m```
-     
-     **After (v2):**
-     ```http
-     Authorization: Bearer your_api_token
+     GET /tasks
      ```
      
-[0m[2m---
+     **[0m[2mv2 (After)**
+     ```http
+     GET /v2/tasks
+     ```
      
-     ### 3. Task ID Type Change
-     To support distributed systems and prevent ID scraping, Task `id` fields[0m[2m have changed from auto-incrementing integers to UUID strings.
+     ## 2. Authentication Header[0m[2m
+     The authentication mechanism has transitioned to the standard Bearer token format. The `X-Auth-Token` header is[0m[2m deprecated and will return a `401 Unauthorized` error.
      
-     **Before (v1):**
+     **v1 (Before)**
+     ```http
+[0m[2mX-Auth-Token: <your_api_key>
+     ```
+     
+     **v2 (After)**
+     ```http
+     Authorization[0m[2m: Bearer <your_api_token>
+     ```
+     
+     ## 3. Task ID Type Change
+     Task IDs[0m[2m have changed from auto-incrementing integers to UUID strings to better support distributed systems. Ensure your local data structures and database[0m[2m schemas are updated to handle string-based UUIDs.
+     
+     **v1 (Before)**
      ```json
-     {[0m[2m
-       "id": 42,
+     {
+       "id[0m[2m": 42,
        "title": "Write tests"
      }
      ```
      
-     **After (v[0m[2m2):**
+     **v2 (After)**[0m[2m
      ```json
      {
-       "id": "a1b2c3d4-e[0m[2m5f6-7890-abcd-ef1234567890",
-[0m[2m  "title": "Write tests"
+       "id": "a1b2c3d4-e5f6[0m[2m-7890-abcd-ef1234567890",
+       "title[0m[2m": "Write tests"
      }
      ```
      
-     ---
+     ## 4. Field Renaming: `done` to `completed[0m[2m`
+     The `done` field has been renamed to `completed` across all responses and request bodies for better clarity.[0m[2m
      
-     ### 4. Field Rename: `done[0m[2m` to `completed`
-     The boolean field indicating task status has been renamed from `done` to `completed` for better[0m[2m clarity across the platform.
-     
-     **Before (v1):**
+     **v1 (Before)**
      ```json
      {
-       "title": "Write[0m[2m tests",
-       "done": true
+       "title": "Ship v1",
+       "done":[0m[2m true
      }
      ```
      
-     **After (v2):**
+     **v2 (After)**
      ```json
      {
-[0m[2m  "title": "Write tests",
+       "title": "Ship[0m[2m v1",
        "completed": true
      }
      ```
      
-     ---
+     ## 5. Required `project_id[0m[2m` for Task Creation
+     Tasks must now be associated with a project. The `project_id` field is now mandatory when creating a[0m[2m new task; omitting it will result in a `422 Unprocessable Entity` error.
      
-     ### 5[0m[2m. Required `project_id` for Task Creation
-     Tasks can no longer exist in isolation. Every task must be associated[0m[2m with a project. You must include a valid `project_id` when creating a task.
-     
-     **Before (v[0m[2m1):**
+     **v1 (Before[0m[2m)**
      ```json
      POST /tasks
      {
        "title": "New task title"
      }
-     ```
+[0m[2m```
      
-[0m[2m**After (v2):**
+     **v2 (After)**
      ```json
      POST /v2/tasks
      {
@@ -403,68 +397,64 @@
      }
 [0m[2m```
      
-     ---
+     ## 6. Paginated List Responses
+     The list endpoint (`GET /v2/tasks`) no longer returns a bare array[0m[2m. It now returns a paginated envelope to support large datasets efficiently.
      
-     ### 6. Paginated Response Envelopes
-     List endpoints (such as `GET /v2/tasks`) no longer[0m[2m return a bare array. They now return a paginated envelope containing metadata and a cursor for fetching subsequent pages.
-     
-     **Before[0m[2m (v1):**
+     **v1 (Before)**
      ```json
      [
-       {"id": 1, "title": "Buy milk[0m[2m"},
-       {"id": 2, "title": "Ship v1"}
+[0m[2m  {"id": 1, "title": "Buy milk", "done": false},
+       {"id": 2,[0m[2m "title": "Ship v1", "done": true}
      ]
      ```
      
-     **After[0m[2m (v2):**
+     **v2 (After)**[0m[2m
      ```json
      {
        "items": [
-         {"id": "uuid-1", "title":[0m[2m "Buy milk"},
-         {"id": "uuid-2", "title": "Ship v1"}
-       [0m[2m],
-       "total": 42,
-       "next_cursor": "cursor_xyz"
-     }[0m[2m
+         {"id": "...", "title": "Buy milk[0m[2m", "completed": false},
+         {"id": "...", "title": "Ship v1", "completed":[0m[2m true}
+       ],
+       "total": 2,
+       "next_cursor": "cursor_xyz[0m[2m"
+     }
      ```
+     
+     ---
      
      ## Migration Checklist
-     
-     - [ ] **Prefix Endpoints**: Update all API call URLs to include the `/v2/[0m[2m` segment.
-     - [ ] **Update Auth**: Change your header implementation to use `Authorization: Bearer <token>`.
-     - [[0m[2m ] **Refactor IDs**: Update your data models and database schemas to store Task IDs as strings/UUIDs instead of integers.
-     - [[0m[2m ] **Rename Fields**: Search and replace `done` with `completed` in your frontend components and backend logic.
-     -[0m[2m [ ] **Add Project Context**: Ensure your task creation workflow captures and sends a `project_id`.
-     - [ ] **Handle[0m[2m Pagination**: Update your list fetching logic to extract data from the `items` key and implement cursor-based pagination using [0m[2m`next_cursor`.
+     - [ ] Update API base URL to include the `/v[0m[2m2/` prefix.
+     - [ ] Update authentication logic to use the `Authorization: Bearer <token>` header.
+     -[0m[2m [ ] Update Task data models to support UUID strings for the `id` field.
+     - [ ] Replace all references to the[0m[2m `done` field with `completed`.
+     - [ ] Modify task creation calls to include a valid `project_id[0m[2m`.
+     - [ ] Refactor list response parsing to handle the new paginated envelope (`items` array).
+     -[0m[2m [ ] (Optional) Implement cursor-based pagination using the `next_cursor` property.
      
      ## Upgrade Command
-     
-     To install the latest version of the Zrb CLI, run:
+     To[0m[2m upgrade the Zrb CLI to the latest version, run:
      
      ```bash
-     pip install --[0m[2mupgrade zrb
+     npm install -g zrb@latest
+[0m[2m```
      ```
-     ```
-     
-     I have created `MIGRATION.md` with the requested structure, including code examples and a checklist[0m[2m.
      
 [0m[2m
-  🧰 xl9w9qzl | Write {'path': 'MIGRATION.md', 'content': '# Zrb v2 Migration Guide\n\n ...'}
+  🧰 s4ojd28b | Write {'path': 'MIGRATION.md', 'content': '# Zrb v2 Migration Guide\n\n ...'}
 [0m[2m
-  🔠 xl9w9qzl | Return Successfully wrote to MIGRATION.md
+  🔠 s4ojd28b | Return Successfully wrote to MIGRATION.md
 [0m[2m
-  I have completed the developer migration guide.[0m[2m
+  I have created `MIGRATION.md`, a comprehensive developer guide for transitioning from Zrb v[0m[2m1 to v2.
      
-     I analyzed the specifications for v1 and v2, identifying six primary breaking changes:
-     - **Endpoint Prefixing**: Transition[0m[2ming from root paths to `/v2/` prefixes.
-     - **Authentication**: Moving from `X-Auth-Token` to standard[0m[2m `Authorization: Bearer` headers.
-     - **ID Types**: Changing task IDs from integers to UUID strings.
-     -[0m[2m **Field Renaming**: Updating the `done` status field to `completed`.
-     - **Schema Requirements**: Introducing mandatory[0m[2m `project_id` for task creation.
-     - **Response Structure**: Moving from bare arrays to paginated response envelopes.[0m[2m
+     The guide covers:
+     - **API Versioning**: New `/v2/` prefix requirement.[0m[2m
+     - **Security**: Migration from `X-Auth-Token` to Bearer Authentication.
+     - **Data Model[0m[2m**: Transition from integer IDs to UUIDs and the `done` -> `completed` field rename.
+     - **Requirements**: Mand[0m[2mating `project_id` for task creation.
+     - **Pagination**: Handling the new paginated envelope for list endpoints[0m[2m.
      
-     The guide is saved as `MIGRATION.md` and includes code examples for each change, a step-by-step checklist[0m[2m, and the upgrade command.[0m[2m[0m[2m
-  💸 (Requests: 5 | Tool Calls: 5 | Total: 56288) Input: 52154 | Audio Input: 0 | Output: 4134 | Audio Output: 0 | Cache Read: 16106 | Cache Write: 0 | Details: {'text_prompt_tokens': 52154, 'thoughts_tokens': 1904, 'cached_content_tokens': 16106, 'text_cache_tokens': 16106}
+     A step-by-step checklist and the CLI upgrade command are included at the end of the document.[0m[2m[0m[2m
+  💸 (Requests: 4 | Tool Calls: 5 | Total: 48025) Input: 43915 | Audio Input: 0 | Output: 4110 | Audio Output: 0 | Cache Read: 20137 | Cache Write: 0 | Details: {'thoughts_tokens': 1953, 'text_prompt_tokens': 43915, 'cached_content_tokens': 20137, 'text_cache_tokens': 20137}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "The Zrb CLI is releasing v2, which has several breaking changes from v1. Our developer community needs a clear migration guide.
 
 `v1_spec.md` describes the current v1 API. `v2_spec.md` describes the new v2 API.
@@ -477,15 +467,14 @@ Write a developer migration guide and save it as `MIGRATION.md`. It should:
 - End with the upgrade command
 
 The audience is experienced developers who are already using v1." --model google-gla:gemini-3-flash-preview --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mlong-chip-7964[0m[0m
-I have completed the developer migration guide.
+[2m[2mSession[0m: [1;33mrare-hall-3430[0m[0m
+I have created `MIGRATION.md`, a comprehensive developer guide for transitioning from Zrb v1 to v2.
 
-I analyzed the specifications for v1 and v2, identifying six primary breaking changes:
-- **Endpoint Prefixing**: Transitioning from root paths to `/v2/` prefixes.
-- **Authentication**: Moving from `X-Auth-Token` to standard `Authorization: Bearer` headers.
-- **ID Types**: Changing task IDs from integers to UUID strings.
-- **Field Renaming**: Updating the `done` status field to `completed`.
-- **Schema Requirements**: Introducing mandatory `project_id` for task creation.
-- **Response Structure**: Moving from bare arrays to paginated response envelopes.
+The guide covers:
+- **API Versioning**: New `/v2/` prefix requirement.
+- **Security**: Migration from `X-Auth-Token` to Bearer Authentication.
+- **Data Model**: Transition from integer IDs to UUIDs and the `done` -> `completed` field rename.
+- **Requirements**: Mandating `project_id` for task creation.
+- **Pagination**: Handling the new paginated envelope for list endpoints.
 
-The guide is saved as `MIGRATION.md` and includes code examples for each change, a step-by-step checklist, and the upgrade command.
+A step-by-step checklist and the CLI upgrade command are included at the end of the document.

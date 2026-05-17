@@ -1,142 +1,15 @@
 [2m
-  🧰 wp3q3yep | LS {'path': '.'}
+  🧰 sipcqt0r | LS {'path': '.'}
 [0m[2m
-  🔠 wp3q3yep | Return {'files': ['job_queue.py', 'main.py', 'worker.py']}
+  🔠 sipcqt0r | Return {'files': ['job_queue.py', 'main.py', 'worker.py']}
 [0m[2m
-  🧰 dwbwslnc | ActivateSkill {'name': 'core-coding'}
+  🧰 zugfwfs3 | Read {'path': 'job_queue.py'}
 [0m[2m
-  🔠 dwbwslnc | Return <ACTIVATED_SKILL>
-     Skill activated. The following context applies:
-     
-     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-coding
-     
-     All file paths in the skill instructions below are relative to this directory.
-     Use companion files (scripts, tools, references) by resolving them against this path.
-     
-     Companion files available in this directory:
-       languages/
-         go.md
-         java.md
-         php.md
-         python.md
-         ruby.md
-         rust.md
-         typescript.md
-       workflows/
-         debug.md
-         refactor.md
-         review.md
-         testing.md
-     
-     ---
-     
-     ---
-     name: core-coding
-     description: "Activate before any coding task — reading, editing, or creating code files. Provides the mandatory Research → Strategy → Execution workflow plus the complexity budget and specialised deep-dive companions (testing, debug, refactor, review)."
-     user-invocable: false
-     ---
-     # Skill: core-coding
-     
-     Follow **Research → Strategy → Execution** for every coding task.
-     
-     ## Deep-Dive Companions
-     
-     When the current step matches a trigger below, `Read` the named companion from this skill's directory (the activation header lists the directory path and all companion paths). Companions are not pre-loaded — pull them on demand.
-     
-     | Trigger | Companion |
-     |---------|-----------|
-     | About to write, modify, or audit a test | `workflows/testing.md` |
-     | Something is broken and root cause is unclear | `workflows/debug.md` |
-     | Code structure needs improvement (complexity, duplication) | `workflows/refactor.md` |
-     | Reviewing changes for correctness, security, or quality | `workflows/review.md` |
-     | Code touches user input, auth, file I/O, or sensitive data | `workflows/review.md` (security audit checklist) |
-     | First substantial edit in a project — identify the language from the manifest | `languages/<lang>.md` (one of `python`, `typescript`, `go`, `rust`, `java`, `ruby`, `php`) |
-     
-     If the user has provided custom guidelines for any of the above (in CLAUDE.md, AGENTS.md, their own skills, or project files), prefer those over the core companion. Core companions fill in the gaps.
-     
-     ## PHASE 1: RESEARCH & DISCOVERY
-     
-     Follow the **Scientific Method**: form a hypothesis → test it → analyze results. Avoid random changes.
-     
-     ### a.  **High-Level Reconnaissance:**
-     
-     - Use `LS` with limited depth for initial structure mapping.
-     - Identify: source directories, test directories, config files, entry points, and utility modules.
-     - Skip if you already know specific file paths — use targeted `Glob` instead.
-     
-     ### b.  **Targeted Architecture Discovery:**
-     
-     - Use `Glob` and `Grep` in parallel to map file structures, existing patterns, and utility functions.
-     - Use `Grep` with specific `regex` and `file_pattern` to minimize noise.
-     - Issue several `Read` calls in parallel when gathering context from related files.
-     - **Before modifying any existing function, method, or class signature:** use `LspFindReferences` if LSP is available, otherwise `Grep`. Find all call sites and include updating them in your plan.
-     - **Before moving or removing any file or directory:** use `Grep` to find all imports and path references first.
-     
-     ## PHASE 2: STRATEGY
-     
-     ### c.  **Formulate a Grounded Plan:**
-     
-     - **Language & Framework Idioms:** identify the language, framework, and version from dependency files and existing code. Apply idiomatic conventions — a pattern correct in one language may be an anti-pattern in another. Never add attributes or behavior to objects owned by a library; wrap them in a type you own.
-     - **Pattern Matching:** strategy MUST match existing project guidelines and patterns exactly. New code should look as though written by the original author.
-     - **Reuse existing helpers** before creating new ones.
-     - **Apply SOLID and DRY.** One reason to change per function and class.
-     - **No magic numbers, strings, or unexplained constants.** Name every value that carries meaning.
-     
-     ### d.  **Complexity Budget (non-negotiable hard limits):**
-     
-     Exceeding any limit is a design defect — restructure before continuing.
-     
-     | Metric | Limit | Remedy when exceeded |
-     |--------|-------|----------------------|
-     | Cyclomatic complexity | ≤ 10 per function | Extract sub-functions |
-     | Cognitive complexity | ≤ 15 per function | Flatten nesting, add guard clauses |
-     | Nesting depth | ≤ 2 levels | Invert conditionals; use early returns |
-     | Function length | ≤ 30 lines | Extract cohesive blocks into named helpers |
-     | Parameters per function | ≤ 4 | Group related params into a data object |
-     
-     **Guard clause mandate:** invert conditions to exit early; the happy path must never be the deepest `else`.
-     
-     **Boolean parameter prohibition:** a boolean parameter = two functions. Split them.
-     
-     **God Class/Function prohibition:** one reason to change per class/function. If you can't name the extracted piece, it's not a coherent abstraction.
-     
-     ### e.  **Testing Strategy:** define verification before writing code. For test-first methodology, Read `workflows/testing.md`.
-     
-     - New behavior: identify the failing test (RED) first.
-     - Bug fix: identify the minimal reproduction test first.
-     - Refactoring: confirm existing tests pass as baseline before touching anything.
-     
-     ## PHASE 3: EXECUTION (Plan → Act → Validate)
-     
-     ### f.  **Act (Surgical Implementation):**
-     
-     - Minimal, precise edits only. One logical change per task (atomic). Use existing libraries and patterns.
-     - Keep functions focused (~30-50 lines). Place helpers below callers.
-     - **Strangler Pattern:** when replacing a component, keep codebase runnable at every step: new alongside old → update references → remove old.
-     - **Out-of-scope structural problems:** report them. If they block this task, Read `workflows/refactor.md` and address atomically.
-     - **Code Smell Reporting:** report poorly structured code you encounter — don't silently fix it.
-     - **Docs:** keep documentation in sync; remove deprecated references.
-     
-     ### g.  **Validate (Zero-Regression):**
-     
-     - Validation is the only path to finality.
-     - Bug fixes: reproduce before fixing. If root cause is unclear, Read `workflows/debug.md`.
-     - After any change: run tests, linters, and type-checkers.
-     - If validation fails, diagnose before retrying.
-     
-     ### h.  **Synthesis:**
-     
-     journal non-trivial discoveries per the Journaling Protocol. For user-facing output (docs, error messages, commit messages), apply writing quality standards from `core-writing`.
-     
-     </ACTIVATED_SKILL>
+  🧰 zwh55ico | Read {'path': 'worker.py'}
 [0m[2m
-  🧰 z6ofri17 | Read {'path': 'job_queue.py'}
+  🧰 a36y4qf8 | Read {'path': 'main.py'}
 [0m[2m
-  🧰 0v77v72g | Read {'path': 'worker.py'}
-[0m[2m
-  🧰 waf7bz2w | Read {'path': 'main.py'}
-[0m[2m
-  🔠 z6ofri17 | Return [File: job_queue.py | 47 lines]
+  🔠 zugfwfs3 | Return [File: job_queue.py | 47 lines]
      ---CONTENT---
      import asyncio
      from typing import Any, Dict, Optional
@@ -186,7 +59,7 @@
              return self._jobs
      
 [0m[2m
-  🔠 0v77v72g | Return [File: worker.py | 21 lines]
+  🔠 zwh55ico | Return [File: worker.py | 21 lines]
      ---CONTENT---
      import asyncio
      
@@ -210,7 +83,7 @@
                  print(f"[Worker {worker_id}] job {job['id']} failed: {e}")
      
 [0m[2m
-  🔠 waf7bz2w | Return [File: main.py | 30 lines]
+  🔠 a36y4qf8 | Return [File: main.py | 30 lines]
      ---CONTENT---
      import asyncio
      from job_queue import JobQueue
@@ -243,7 +116,7 @@
          asyncio.run(main())
      
 [0m[2m
-  🧰 j8sy7h9p | Bash {'command': 'python3 main.py'}
+  🧰 xfya5uek | Bash {'command': 'python3 main.py'}
 [0m  [2m[Worker 0] picked up job 1
 [0m  [2m[Worker 1] picked up job 1
 [0m  [2m[Worker 2] picked up job 1
@@ -370,7 +243,7 @@
 [0m  [2mFailed: 0 (expected 2)
 [0m  [2mStuck:  2 (expected 0)
 [0m[2m
-  🔠 j8sy7h9p | Return Command: python3 main.py
+  🔠 xfya5uek | Return Command: python3 main.py
      Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-flash-preview/bug-fix/workdir
      Stdout:
      [Worker 0] picked up job 1
@@ -503,83 +376,306 @@
      Exit Code: 0
      Background PIDs: (none)
 [0m[2m
-  🧰 r682eof9 | Edit {'old_text': '    async def dequeue(self ...', 'path': 'job_queue.py', 'new_text': '    async def dequeue(self ...'}
+  🧰 nkd712m1 | ActivateSkill {'name': 'core-coding'}
 [0m[2m
-  🔠 r682eof9 | Return Successfully updated job_queue.py (1 replacement(s))
-[0m[2m
-  🧰 ank473y2 | Bash {'command': 'python3 main.py'}
-[0m  [2m[Worker 0] picked up job 1
-[0m  [2m[Worker 1] picked up job 2
-[0m  [2m[Worker 2] picked up job 3
-[0m  [2m[Worker 3] picked up job 4
-[0m  [2m[Worker 4] picked up job 5
-[0m  [2m[Worker 0] finished job 1
-[0m  [2m[Worker 0] picked up job 6
-[0m  [2m[Worker 1] finished job 2
-[0m  [2m[Worker 1] picked up job 7
-[0m  [2m[Worker 2] finished job 3
-[0m  [2m[Worker 2] picked up job 8
-[0m  [2m[Worker 3] finished job 4
-[0m  [2m[Worker 3] picked up job 9
-[0m  [2m[Worker 4] finished job 5
-[0m  [2m[Worker 4] picked up job 10
-[0m  [2m[Worker 0] finished job 6
-[0m  [2m[Worker 0] picked up job 11
-[0m  [2m[Worker 1] finished job 7
-[0m  [2m[Worker 1] picked up job 12
-[0m  [2m[Worker 2] finished job 8
-[0m  [2m[Worker 3] finished job 9
-[0m  [2m[Worker 4] finished job 10
-[0m  [2m[Worker 0] job 11 failed: processing error for job 11
-[0m  [2m[Worker 1] job 12 failed: processing error for job 12
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mDone:   10 (expected 10)
-[0m  [2mFailed: 0 (expected 2)
-[0m  [2mStuck:  2 (expected 0)
-[0m[2m
-  🔠 ank473y2 | Return Command: python3 main.py
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-flash-preview/bug-fix/workdir
-     Stdout:
-     [Worker 0] picked up job 1
-     [Worker 1] picked up job 2
-     [Worker 2] picked up job 3
-     [Worker 3] picked up job 4
-     [Worker 4] picked up job 5
-     [Worker 0] finished job 1
-     [Worker 0] picked up job 6
-     [Worker 1] finished job 2
-     [Worker 1] picked up job 7
-     [Worker 2] finished job 3
-     [Worker 2] picked up job 8
-     [Worker 3] finished job 4
-     [Worker 3] picked up job 9
-     [Worker 4] finished job 5
-     [Worker 4] picked up job 10
-     [Worker 0] finished job 6
-     [Worker 0] picked up job 11
-     [Worker 1] finished job 7
-     [Worker 1] picked up job 12
-     [Worker 2] finished job 8
-     [Worker 3] finished job 9
-     [Worker 4] finished job 10
-     [Worker 0] job 11 failed: processing error for job 11
-     [Worker 1] job 12 failed: processing error for job 12
+  🔠 nkd712m1 | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
      
-     === Results ===
-     Done:   10 (expected 10)
-     Failed: 0 (expected 2)
-     Stuck:  2 (expected 0)
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
+     Skill directory (working directory): /Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm_plugin/skills/core-coding
+     
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
+     
+     Companion files available in this directory:
+       languages/
+         go.md
+         java.md
+         php.md
+         python.md
+         ruby.md
+         rust.md
+         typescript.md
+       workflows/
+         debug.md
+         refactor.md
+         review.md
+         testing.md
+     
+     ---
+     
+     ---
+     name: core-coding
+     description: "Activate before any coding task — reading, editing, or creating code files. Provides the mandatory Research → Strategy → Execution workflow plus the complexity budget and specialised deep-dive companions (testing, debug, refactor, review)."
+     user-invocable: false
+     ---
+     # Skill: core-coding
+     
+     Follow **Research → Strategy → Execution** for every coding task.
+     
+     ## Deep-Dive Companions
+     
+     When the current step matches a trigger below, `Read` the named companion from this skill's directory (the activation header lists the directory path and all companion paths). Companions are not pre-loaded — pull them on demand.
+     
+     | Trigger | Companion |
+     |---------|-----------|
+     | About to write, modify, or audit a test | `workflows/testing.md` |
+     | Something is broken and root cause is unclear | `workflows/debug.md` |
+     | Code structure needs improvement (complexity, duplication) | `workflows/refactor.md` |
+     | Reviewing changes for correctness, security, or quality | `workflows/review.md` |
+     | Code touches user input, auth, file I/O, or sensitive data | `workflows/review.md` (security audit checklist) |
+     | First substantial edit in a project — identify the language from the manifest | `languages/<lang>.md` (one of `python`, `typescript`, `go`, `rust`, `java`, `ruby`, `php`) |
+     
+     If the user has provided custom guidelines for any of the above (in CLAUDE.md, AGENTS.md, their own skills, or project files), prefer those over the core companion. Core companions fill in the gaps.
+     
+     ## PHASE 1: RESEARCH & DISCOVERY
+     
+     Follow the **Scientific Method**: form a hypothesis → test it → analyze results. Avoid random changes.
+     
+     ### a.  **High-Level Reconnaissance:**
+     
+     - Use `LS` with limited depth for initial structure mapping.
+     - Identify: source directories, test directories, config files, entry points, and utility modules.
+     - Skip if you already know specific file paths — use targeted `Glob` instead.
+     
+     ### b.  **Targeted Architecture Discovery:**
+     
+     - Use `Glob` and `Grep` in parallel to map file structures, existing patterns, and utility functions.
+     - Use `Grep` with specific `regex` and `file_pattern` to minimize noise.
+     - Issue several `Read` calls in parallel when gathering context from related files.
+     - **Before modifying any existing function, method, or class signature:** use `LspFindReferences` if LSP is available, otherwise `Grep`. Find all call sites and include updating them in your plan.
+     - **Before moving or removing any file or directory:** use `Grep` to find all imports and path references first.
+     
+     ## PHASE 2: STRATEGY
+     
+     ### c.  **Formulate a Grounded Plan:**
+     
+     - **Language & Framework Idioms:** identify the language, framework, and version from dependency files and existing code. Apply idiomatic conventions — a pattern correct in one language may be an anti-pattern in another. Never add attributes or behavior to objects owned by a library; wrap them in a type you own.
+     - **Pattern Matching:** strategy MUST match existing project guidelines and patterns exactly. New code should look as though written by the original author.
+     - **Reuse existing helpers** before creating new ones.
+     - **Apply SOLID and DRY.** One reason to change per function and class.
+     - **No magic numbers, strings, or unexplained constants.** Name every value that carries meaning.
+     
+     ### d.  **Complexity Budget (non-negotiable hard limits):**
+     
+     Exceeding any limit is a design defect — restructure before continuing.
+     
+     | Metric | Limit | Remedy when exceeded |
+     |--------|-------|----------------------|
+     | Cyclomatic complexity | ≤ 10 per function | Extract sub-functions |
+     | Cognitive complexity | ≤ 15 per function | Flatten nesting, add guard clauses |
+     | Nesting depth | ≤ 2 levels | Invert conditionals; use early returns |
+     | Function length | ≤ 30 lines | Extract cohesive blocks into named helpers |
+     | Parameters per function | ≤ 4 | Group related params into a data object |
+     
+     **Guard clause mandate:** invert conditions to exit early; the happy path must never be the deepest `else`.
+     
+     **Boolean parameter prohibition:** a boolean parameter = two functions. Split them.
+     
+     **God Class/Function prohibition:** one reason to change per class/function. If you can't name the extracted piece, it's not a coherent abstraction.
+     
+     ### e.  **Testing Strategy:** define verification before writing code. For test-first methodology, Read `workflows/testing.md`.
+     
+     - New behavior: identify the failing test (RED) first.
+     - Bug fix: identify the minimal reproduction test first.
+     - Refactoring: confirm existing tests pass as baseline before touching anything.
+     
+     ## PHASE 3: EXECUTION (Plan → Act → Validate)
+     
+     ### f.  **Act (Surgical Implementation):**
+     
+     - Minimal, precise edits only. One logical change per task (atomic). Use existing libraries and patterns.
+     - Keep functions focused (~30-50 lines). Place helpers below callers.
+     - **Strangler Pattern:** when replacing a component, keep codebase runnable at every step: new alongside old → update references → remove old.
+     - **Out-of-scope structural problems:** report them. If they block this task, Read `workflows/refactor.md` and address atomically.
+     - **Code Smell Reporting:** report poorly structured code you encounter — don't silently fix it.
+     - **Docs:** keep documentation in sync; remove deprecated references.
+     
+     ### g.  **Validate (Zero-Regression):**
+     
+     - Validation is the only path to finality.
+     - Bug fixes: reproduce before fixing. If root cause is unclear, Read `workflows/debug.md`.
+     - After any change: run tests, linters, and type-checkers.
+     - If validation fails, diagnose before retrying.
+     
+     ### h.  **Synthesis:**
+     
+     journal non-trivial discoveries per the Journaling Protocol. For user-facing output (docs, error messages, commit messages), apply writing quality standards from `core-writing`.
+     
+     </ACTIVATED_SKILL>
 [0m[2m
-  🧰 a2evga97 | Edit {'new_text': '        except Exception a ...', 'path': 'worker.py', 'old_text': '        except Exception a ...'}
+  🧰 7zg3ax4t | Read {'path': '/Users/gofrendigunawan/.lo ...'}
 [0m[2m
-  🔠 a2evga97 | Return Successfully updated worker.py (1 replacement(s))
+  🔠 7zg3ax4t | Return [File: /Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm_plugin/skills/core-coding/workflows/debug.md | 106 lines]
+     ---CONTENT---
+     # Debug Methodology
+     
+     Find root cause before fixing. A fix without understanding the root cause creates new bugs.
+     
+     **First, determine the failure type:**
+     - **Build/compilation failure** (type error, missing import, undefined symbol) → follow [Section A](#section-a-build-failures)
+     - **Behavioral failure** (wrong output, crash, test failure, unexpected behavior) → follow [Section B](#section-b-behavioral-failures)
+     
+     ---
+     
+     ## Section A: Build Failures
+     
+     Use when: the compiler, type-checker, or linter is failing and you need green fast.
+     
+     **Mandate**: minimum viable fix. Every extra line changed risks a new bug.
+     
+     ### A1 — Read the Full Error Output
+     
+     Run the failing command with `Bash`. Capture complete output — later errors are often caused by earlier ones. Fix the first error first.
+     
+     Common commands: `make build`, `tsc`, `mypy .`, `go build ./...`, `cargo build`, `mvn compile`
+     
+     ### A2 — Fix One Error at a Time
+     
+     For each error (starting from the first):
+     1. Navigate to `file:line` with `Read`.
+     2. Understand context (10 lines above and below).
+     3. Apply the minimal fix with `Edit`. Don't refactor surrounding code.
+     4. Re-run the build after each fix.
+     
+     **Common patterns:**
+     - Missing import / undefined symbol → add import or fix reference
+     - Type mismatch → adjust type annotation or cast
+     - Wrong number of arguments → align call site with signature
+     - Missing required field → add field with appropriate value
+     
+     ### A3 — Verify
+     
+     Build exits with code 0. Run existing tests to confirm no behavioral regressions.
+     
+     **Boundaries**: do not refactor while fixing. Don't change interfaces unless it's the only resolution — if so, update all call sites.
+     
+     ---
+     
+     ## Section B: Behavioral Failures
+     
+     Use when: something runs but produces wrong results, crashes at runtime, or a test fails.
+     
+     **Core mandates:**
+     - Reproduce first. Never diagnose from memory.
+     - One hypothesis at a time. Test empirically, then move to the next.
+     
+     ### B1 — Reproduce: Make the Failure Concrete
+     
+     1. Understand the symptom: actual vs. expected behavior, exact error message, stack trace.
+     2. Write a minimal reproduction case — a failing test or a small script. Confirm it fails consistently.
+     3. If intermittent, add logging with `Edit` to capture state when it occurs.
+     4. **Do not proceed until you can reliably reproduce.**
+     
+     ### B2 — Isolate: Narrow the Search Space
+     
+     1. **Check recent changes first.** `git log --oneline -20` and `git diff` — most bugs are regressions.
+     2. **Use git bisect for regressions** where the failure appeared at an unknown point:
+        ```
+        git bisect start
+        git bisect bad              # current = broken
+        git bisect good <commit>    # last known-good commit
+        ```
+     3. **Trace the data flow** from input to failure: `Grep` for callers, `LspFindDefinition`/`LspFindReferences` to navigate the call chain, parallel `Read` calls to load the chain of files.
+     4. **Run `LspGetDiagnostics`** on suspected files — type errors often point directly to the bug.
+     5. **Add temporary instrumentation** at failure points (entry/exit, before/after suspect operations). Remove after diagnosis.
+     
+     ### B3 — Hypothesize and Test
+     
+     List candidate root causes ranked by likelihood. Test the top hypothesis first. If refuted, eliminate and move to the next.
+     
+     **Common root causes** (apply equivalent reasoning for your language/runtime):
+     - Off-by-one in loops or slices
+     - Null/None/nil not handled at a boundary
+     - Mutable default shared across calls (e.g., Python default argument, JS object default)
+     - Missing `await` on async call (result is a promise/coroutine, not a value)
+     - Identity vs. equality confusion (`is`/`===` vs `==`)
+     - State leaking between test cases (shared global or fixture not reset)
+     - Encoding mismatch (bytes vs str, UTF-8 vs Latin-1)
+     - Race condition on shared mutable state
+     - Ownership/lifetime error (use-after-free, moved value — Rust/C++)
+     - Implicit type coercion producing unexpected values (JS `==`, SQL implicit casts)
+     
+     ### B4 — Fix and Verify
+     
+     1. Apply the minimal fix with `Edit`. Change only what caused the bug.
+     2. Run the reproduction case — must now pass.
+     3. Run the full test suite — no new failures.
+     4. Remove any temporary instrumentation added in B2.
+     5. If the fix is non-obvious, add a short comment explaining the "why."
+     
+     ---
+     
+     ## Output Format
+     
+     1. **Failure type**: build failure or behavioral failure.
+     2. **Root cause**: one precise sentence — what, where, and why.
+     3. **Evidence**: reproduction case output before and after.
+     4. **Fix**: `file_path:line_number` — what changed.
+     5. **Verification**: test/build output confirming green.
+     
 [0m[2m
-  🧰 71r0txff | Bash {'command': 'python3 main.py'}
+  🧰 7tv7o2cp | WriteTodos {'todos': [{'status': 'pending', 'todo_id': 'fix_duplicate_processing', 'content': 'Fix race condition in JobQueue.dequeue to prevent duplicate processing'}, {'content': 'Call queue.fail in worker.py when a job fails to prevent vanishing failures', 'todo_id': 'fix_vanishing_failures', 'status': 'pending'}, {'status': 'pending', 'todo_id': 'verify_fixes', 'content': 'Verify fixes by running main.py and checking results'}]}
+[0m[2m
+  🔠 7tv7o2cp | Return [long-hall-9185] 0/3 done, 0 in progress
+       [ ] [1] Fix race condition in JobQueue.dequeue to prevent duplicate processing
+       [ ] [2] Call queue.fail in worker.py when a job fails to prevent vanishing failures
+       [ ] [3] Verify fixes by running main.py and checking results
+     
+     Use `update_todo` to change status; `get_todos` to check state.
+[0m[2m
+  🧰 oo83kxdp | UpdateTodo {'status': 'in_progress', 'todo_id': 'fix_duplicate_processing'}
+[0m[2m
+  🧰 8ra2yc60 | Edit {'old_text': '    def __init__(self, max ...', 'path': 'job_queue.py', 'new_text': '    def __init__(self, max ...'}
+[0m[2m
+  🧰 xafu5y6n | Edit {'old_text': '    async def dequeue(self ...', 'new_text': '    async def dequeue(self ...', 'path': 'job_queue.py'}
+[0m[2m
+  🔠 8ra2yc60 | Return Successfully updated job_queue.py (1 replacement(s))
+[0m[2m
+  🔠 oo83kxdp | Return Error: Todo 'fix_duplicate_processing' not found in session 'long-hall-9185'.
+     [SYSTEM SUGGESTION]: Use `get_todos` to see valid todo IDs.
+[0m[2m
+  🔠 xafu5y6n | Return Successfully updated job_queue.py (1 replacement(s))
+[0m[2m
+  🧰 0lmwalsf | GetTodos {}
+[0m[2m
+  🔠 0lmwalsf | Return [long-hall-9185] Progress: 0/3 done, 0 in progress, 3 pending
+     Updated: 2026-05-17T15:43:29.125154
+       [ ] [1] Fix race condition in JobQueue.dequeue to prevent duplicate processing -> pending
+       [ ] [2] Call queue.fail in worker.py when a job fails to prevent vanishing failures -> pending
+       [ ] [3] Verify fixes by running main.py and checking results -> pending
+     
+     Progress: 0%
+[0m[2m
+  🧰 83wansa9 | UpdateTodo {'status': 'completed', 'todo_id': '1'}
+[0m[2m
+  🧰 urrxkv9y | UpdateTodo {'todo_id': '2', 'status': 'in_progress'}
+[0m[2m
+  🧰 c2egnzt9 | Edit {'path': 'worker.py', 'new_text': '        except Exception a ...', 'old_text': '        except Exception a ...'}
+[0m[2m
+  🔠 83wansa9 | Return [long-hall-9185] Updated: [1] Fix race condition in JobQueue.dequeue to prevent duplicate processing -> completed
+     Progress: 1/3 done, 0 in progress
+     Pending: [2] Call queue.fail in worker.py when a job fails to prevent vanishing failures, [3] Verify fixes by running main.py and checking results
+[0m[2m
+  🔠 c2egnzt9 | Return Successfully updated worker.py (1 replacement(s))
+[0m[2m
+  🔠 urrxkv9y | Return [long-hall-9185] Updated: [2] Call queue.fail in worker.py when a job fails to prevent vanishing failures -> in_progress
+     Progress: 1/3 done, 1 in progress
+     In progress: [2] Call queue.fail in worker.py when a job fails to prevent vanishing failures
+     Pending: [3] Verify fixes by running main.py and checking results
+[0m[2m
+  🧰 w6h3ocmx | UpdateTodo {'status': 'completed', 'todo_id': '2'}
+[0m[2m
+  🧰 ymi3beg8 | UpdateTodo {'status': 'in_progress', 'todo_id': '3'}
+[0m[2m
+  🧰 2g1ib8za | Bash {'command': 'python3 main.py'}
+[0m[2m
+  🔠 ymi3beg8 | Return [long-hall-9185] Updated: [3] Verify fixes by running main.py and checking results -> in_progress
+     Progress: 2/3 done, 1 in progress
+     In progress: [3] Verify fixes by running main.py and checking results
+[0m[2m
+  🔠 w6h3ocmx | Return [long-hall-9185] Updated: [2] Call queue.fail in worker.py when a job fails to prevent vanishing failures -> completed
+     Progress: 2/3 done, 0 in progress
+     Pending: [3] Verify fixes by running main.py and checking results
 [0m  [2m[Worker 0] picked up job 1
 [0m  [2m[Worker 1] picked up job 2
 [0m  [2m[Worker 2] picked up job 3
@@ -603,8 +699,8 @@
 [0m  [2m[Worker 3] finished job 9
 [0m  [2m[Worker 4] finished job 10
 [0m  [2m[Worker 0] job 11 failed: processing error for job 11
-[0m  [2m[Worker 0] picked up job 11
 [0m  [2m[Worker 1] job 12 failed: processing error for job 12
+[0m  [2m[Worker 0] picked up job 11
 [0m  [2m[Worker 1] picked up job 12
 [0m  [2m[Worker 0] job 11 failed: processing error for job 11
 [0m  [2m[Worker 0] picked up job 11
@@ -618,7 +714,7 @@
 [0m  [2mFailed: 2 (expected 2)
 [0m  [2mStuck:  0 (expected 0)
 [0m[2m
-  🔠 71r0txff | Return Command: python3 main.py
+  🔠 2g1ib8za | Return Command: python3 main.py
      Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-flash-preview/bug-fix/workdir
      Stdout:
      [Worker 0] picked up job 1
@@ -644,8 +740,8 @@
      [Worker 3] finished job 9
      [Worker 4] finished job 10
      [Worker 0] job 11 failed: processing error for job 11
-     [Worker 0] picked up job 11
      [Worker 1] job 12 failed: processing error for job 12
+     [Worker 0] picked up job 11
      [Worker 1] picked up job 12
      [Worker 0] job 11 failed: processing error for job 11
      [Worker 0] picked up job 11
@@ -663,23 +759,36 @@
      Exit Code: 0
      Background PIDs: (none)
 [0m[2m
-  I have fixed the two reported issues in the background job processor.
+  🧰 79qspopj | UpdateTodo {'status': 'completed', 'todo_id': '3'}
+[0m[2m
+  🔠 79qspopj | Return [long-hall-9185] Updated: [3] Verify fixes by running main.py and checking results -> completed
+     Progress: 3/3 done, 0 in progress
+[0m[2m
+  I have[0m[2m fixed both issues in the background job processor.
      
-     ### Root Causes Identified
-[0m[2m1.  **Duplicate processing**: In `job_queue.py`, the `dequeue` method had an `await asyncio.sleep([0m[2m0.01)` between checking if a job was "pending" and marking it as "processing". In an asynchronous environment, this allowed multiple[0m[2m workers to see the same job as "pending" and pick it up simultaneously.
-     2.  **Vanishing failures**: In `worker[0m[2m.py`, the `process_job` function caught exceptions during job execution but did not notify the `JobQueue[0m[2m` that the job had failed. Consequently, the job remained in the "processing" state indefinitely and was never retried or marked[0m[2m as "failed".
+     ### Root Causes
      
-     ### Changes Made
-     - **`job_queue.py`**: Removed the `await asyncio.sleep([0m[2m0.01)` in `dequeue` to ensure the status check and update happen atomically within the event loop iteration.
-[0m[2m- **`worker.py`**: Added a call to `queue.fail(job["id"], str(e))` in the[0m[2m `except` block to correctly report failures back to the queue, enabling the retry logic.
+     1.  **Duplicate Processing**: The `JobQueue.dequeue[0m[2m` method was not thread-safe (or rather, task-safe). It performed an `await asyncio.sleep(0.0[0m[2m1)` between checking if a job was "pending" and setting it to "processing". During this sleep, other workers could enter[0m[2m the same block, see the same job as "pending", and also pick it up.
+     2.  **Vanishing Failures[0m[2m**: The `process_job` function in `worker.py` caught exceptions but never notified the queue of the failure. Consequently[0m[2m, failed jobs remained in the "processing" state indefinitely and were never transitioned to "failed" or retried.
+     
+     ### Fixes[0m[2m
+     
+     1.  **`job_queue.py`**: Introduced an `asyncio.Lock` in the `JobQueue` class.[0m[2m The `dequeue` method now uses this lock to ensure that the check-and-update operation is atomic.
+     2.  [0m[2m**`worker.py`**: Added a call to `queue.fail(job["id"], str(e))` in the[0m[2m exception handler within `process_job` to ensure the queue updates the job status appropriately.
      
      ### Verification Results
-     Running[0m[2m the simulation in `main.py` now produces the expected results:
-     - **Done**: 10 (all[0m[2m successful tasks completed).
-     - **Failed**: 2 (both "bad" tasks failed after exhausting retries).
-     - **St[0m[2muck**: 0 (no jobs left in the "processing" state).
-     - **Duplicates**: No job IDs are picked up or[0m[2m finished more than once.[0m[2m[0m[2m
-  💸 (Requests: 9 | Tool Calls: 10 | Total: 128691) Input: 124152 | Audio Input: 0 | Output: 4539 | Audio Output: 0 | Cache Read: 76531 | Cache Write: 0 | Details: {'cached_content_tokens': 76531, 'thoughts_tokens': 3815, 'text_prompt_tokens': 124152, 'text_cache_tokens': 76531}
+     
+     Running[0m[2m the simulation in `main.py` now yields the expected results:
+     
+     ```text
+     === Results ===
+     Done:   10 ([0m[2mexpected 10)
+     Failed: 2 (expected 2)
+     Stuck:  0 (expected [0m[2m0)
+     ```
+     
+     Both duplicate processing and vanishing failures have been resolved.[0m[2m[0m[2m
+  💸 (Requests: 12 | Tool Calls: 19 | Total: 205769) Input: 200361 | Audio Input: 0 | Output: 5408 | Audio Output: 0 | Cache Read: 144978 | Cache Write: 0 | Details: {'thoughts_tokens': 4163, 'text_prompt_tokens': 200361, 'cached_content_tokens': 144978, 'text_cache_tokens': 144978}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "Our background job processor has been acting up in production. Two separate issues have been reported:
 
 1. **Duplicate processing**: Some jobs appear to be executed more than once. We've seen side effects (emails, charges) triggered twice for a single job ID.
@@ -688,20 +797,28 @@
 The system is in `job_queue.py` (the queue) and `worker.py` (the processor). `main.py` runs a simulation you can use to reproduce the issues.
 
 Find the root causes and fix them. Do not change the public method signatures." --model google-gla:gemini-3-flash-preview --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mcalm-gear-4192[0m[0m
-I have fixed the two reported issues in the background job processor.
+[2m[2mSession[0m: [1;33mlong-hall-9185[0m[0m
+I have fixed both issues in the background job processor.
 
-### Root Causes Identified
-1.  **Duplicate processing**: In `job_queue.py`, the `dequeue` method had an `await asyncio.sleep(0.01)` between checking if a job was "pending" and marking it as "processing". In an asynchronous environment, this allowed multiple workers to see the same job as "pending" and pick it up simultaneously.
-2.  **Vanishing failures**: In `worker.py`, the `process_job` function caught exceptions during job execution but did not notify the `JobQueue` that the job had failed. Consequently, the job remained in the "processing" state indefinitely and was never retried or marked as "failed".
+### Root Causes
 
-### Changes Made
-- **`job_queue.py`**: Removed the `await asyncio.sleep(0.01)` in `dequeue` to ensure the status check and update happen atomically within the event loop iteration.
-- **`worker.py`**: Added a call to `queue.fail(job["id"], str(e))` in the `except` block to correctly report failures back to the queue, enabling the retry logic.
+1.  **Duplicate Processing**: The `JobQueue.dequeue` method was not thread-safe (or rather, task-safe). It performed an `await asyncio.sleep(0.01)` between checking if a job was "pending" and setting it to "processing". During this sleep, other workers could enter the same block, see the same job as "pending", and also pick it up.
+2.  **Vanishing Failures**: The `process_job` function in `worker.py` caught exceptions but never notified the queue of the failure. Consequently, failed jobs remained in the "processing" state indefinitely and were never transitioned to "failed" or retried.
+
+### Fixes
+
+1.  **`job_queue.py`**: Introduced an `asyncio.Lock` in the `JobQueue` class. The `dequeue` method now uses this lock to ensure that the check-and-update operation is atomic.
+2.  **`worker.py`**: Added a call to `queue.fail(job["id"], str(e))` in the exception handler within `process_job` to ensure the queue updates the job status appropriately.
 
 ### Verification Results
-Running the simulation in `main.py` now produces the expected results:
-- **Done**: 10 (all successful tasks completed).
-- **Failed**: 2 (both "bad" tasks failed after exhausting retries).
-- **Stuck**: 0 (no jobs left in the "processing" state).
-- **Duplicates**: No job IDs are picked up or finished more than once.
+
+Running the simulation in `main.py` now yields the expected results:
+
+```text
+=== Results ===
+Done:   10 (expected 10)
+Failed: 2 (expected 2)
+Stuck:  0 (expected 0)
+```
+
+Both duplicate processing and vanishing failures have been resolved.

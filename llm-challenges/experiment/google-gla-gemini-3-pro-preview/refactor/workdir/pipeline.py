@@ -2,178 +2,167 @@ import datetime
 import os
 import re
 import sqlite3
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Set
 
-# Environment configurations with defaults
-DB_PATH = os.getenv("DB_PATH", "metrics.db")
-LOG_FILE = os.getenv("LOG_FILE", "server.log")
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = int(os.getenv("DB_PORT", "5432"))
-DB_USER = os.getenv("DB_USER", "admin")
-DB_PASS = os.getenv("DB_PASS", "password123")
+# Configuration using environment variables
+DB_PATH: str = os.environ.get("DB_PATH", "metrics.db")
+LOG_FILE: str = os.environ.get("LOG_FILE", "server.log")
+DB_HOST: str = os.environ.get("DB_HOST", "localhost")
+DB_PORT: int = int(os.environ.get("DB_PORT", "5432"))
+DB_USER: str = os.environ.get("DB_USER", "admin")
+DB_PASS: str = os.environ.get("DB_PASS", "password123")
 
 # Regular expressions for log parsing
-LOG_PATTERN = re.compile(
-    r"^(?P<date>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+(?P<level>\w+)\s+(?P<message>.*)$"
-)
-USER_PATTERN = re.compile(r"^User (?P<uid>\S+) (?P<action>.*)$")
-API_PATTERN = re.compile(r"^API (?P<endpoint>\S+) took (?P<ms>\d+)ms$")
+LOG_PATTERN = re.compile(r"^(?P<date>\d{4}-\d{2}-\d{2}) (?P<time>\d{2}:\d{2}:\d{2}) (?P<level>\w+) (?P<message>.*)$")
+USER_PATTERN = re.compile(r"^User (?P<uid>\S+)\s+(?P<action>.*)$")
+API_PATTERN = re.compile(r"^API (?P<endpoint>\S+)(?:.*took (?P<duration>\d+)ms)?.*$")
 
 
-def extract_logs(log_file: str) -> List[Dict[str, str]]:
+def extract_logs(file_path: str) -> List[str]:
     """
-    Extracts raw log lines from the given log file and parses basic structures.
-
-    Args:
-        log_file: Path to the log file.
-
-    Returns:
-        A list of dictionaries, each containing 'date', 'level', and 'message' keys.
+    Extract log lines from the given file path.
+    
+    :param file_path: Path to the log file.
+    :return: List of log lines.
     """
-    parsed_logs = []
-    if not os.path.exists(log_file):
-        return parsed_logs
-
-    with open(log_file, "r") as f:
-        for line in f:
-            match = LOG_PATTERN.match(line.strip())
-            if match:
-                parsed_logs.append(match.groupdict())
-
-    return parsed_logs
+    if not os.path.exists(file_path):
+        return []
+    with open(file_path, "r", encoding="utf-8") as f:
+        return f.readlines()
 
 
-def transform_data(raw_logs: List[Dict[str, str]]) -> Tuple[Dict[str, int], Dict[str, float], int]:
+def transform_logs(log_lines: List[str]) -> Tuple[Dict[str, int], Dict[str, List[int]], int]:
     """
-    Transforms raw logs into aggregated metrics.
-
-    Args:
-        raw_logs: List of parsed log entries.
-
-    Returns:
-        A tuple containing:
-        - Dictionary of error messages to their occurrence count
-        - Dictionary of API endpoints to their average latency in ms
-        - Integer representing the count of currently active sessions
+    Parse log lines and aggregate metrics.
+    
+    :param log_lines: List of raw log string lines.
+    :return: A tuple containing:
+             - Dictionary of error messages and their counts.
+             - Dictionary of API endpoints and lists of their latency times.
+             - Integer count of currently active sessions.
     """
     errors: Dict[str, int] = {}
-    sessions: Dict[str, str] = {}
-    api_calls: Dict[str, List[int]] = {}
+    api_metrics: Dict[str, List[int]] = {}
+    active_sessions: Set[str] = set()
 
-    for log in raw_logs:
-        lvl = log["level"]
-        msg = log["message"]
-        dt = log["date"]
-
-        if lvl == "ERROR":
-            errors[msg] = errors.get(msg, 0) + 1
-
-        elif lvl == "INFO":
-            user_match = USER_PATTERN.match(msg)
+    for line in log_lines:
+        match = LOG_PATTERN.match(line.strip())
+        if not match:
+            continue
+            
+        level = match.group("level")
+        message = match.group("message")
+        
+        if level == "ERROR":
+            errors[message] = errors.get(message, 0) + 1
+            
+        elif level == "INFO":
+            user_match = USER_PATTERN.match(message)
             if user_match:
                 uid = user_match.group("uid")
                 action = user_match.group("action")
                 if "logged in" in action:
-                    sessions[uid] = dt
-                elif "logged out" in action and uid in sessions:
-                    sessions.pop(uid)
+                    active_sessions.add(uid)
+                elif "logged out" in action:
+                    active_sessions.discard(uid)
                 continue
-
-            api_match = API_PATTERN.match(msg)
+                
+            api_match = API_PATTERN.match(message)
             if api_match:
                 endpoint = api_match.group("endpoint")
-                ms = int(api_match.group("ms"))
-                api_calls.setdefault(endpoint, []).append(ms)
-
-    avg_api_latency: Dict[str, float] = {}
-    for ep, times in api_calls.items():
-        avg_api_latency[ep] = sum(times) / len(times)
-
-    return errors, avg_api_latency, len(sessions)
+                duration_str = api_match.group("duration")
+                duration = int(duration_str) if duration_str else 0
+                api_metrics.setdefault(endpoint, []).append(duration)
+                
+    return errors, api_metrics, len(active_sessions)
 
 
-def load_data_to_db(errors: Dict[str, int], api_metrics: Dict[str, float], db_path: str) -> None:
+def load_to_db(errors: Dict[str, int], api_metrics: Dict[str, List[int]]) -> None:
     """
-    Loads transformed metrics into the database securely using parameterized queries.
-
-    Args:
-        errors: Dictionary mapping error messages to their counts.
-        api_metrics: Dictionary mapping API endpoints to their average latency.
-        db_path: Path to the SQLite database.
+    Load aggregated metrics into the SQLite database.
+    
+    :param errors: Dictionary of error messages and their counts.
+    :param api_metrics: Dictionary of API endpoints and latency lists.
     """
     print(f"Connecting to {DB_HOST}:{DB_PORT} as {DB_USER}...")
-
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute("CREATE TABLE IF NOT EXISTS errors (dt TEXT, message TEXT, count INTEGER)")
-    c.execute("CREATE TABLE IF NOT EXISTS api_metrics (dt TEXT, endpoint TEXT, avg_ms REAL)")
-
-    now = datetime.datetime.now().isoformat()
-
-    # Fixed SQL Injection: Using parameterized queries (?) instead of string formatting
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute("CREATE TABLE IF NOT EXISTS errors (dt TEXT, message TEXT, count INTEGER)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS api_metrics (dt TEXT, endpoint TEXT, avg_ms REAL)")
+    
+    now = str(datetime.datetime.now())
+    
+    # Insert errors using parameterized query
     for msg, count in errors.items():
-        c.execute(
+        cursor.execute(
             "INSERT INTO errors (dt, message, count) VALUES (?, ?, ?)",
-            (now, msg, count),
+            (now, msg, count)
         )
-
-    for ep, avg in api_metrics.items():
-        c.execute(
-            "INSERT INTO api_metrics (dt, endpoint, avg_ms) VALUES (?, ?, ?)",
-            (now, ep, avg),
-        )
-
+        
+    # Insert API metrics using parameterized query
+    for endpoint, times in api_metrics.items():
+        if times:
+            avg_ms = sum(times) / len(times)
+            cursor.execute(
+                "INSERT INTO api_metrics (dt, endpoint, avg_ms) VALUES (?, ?, ?)",
+                (now, endpoint, avg_ms)
+            )
+            
     conn.commit()
     conn.close()
 
 
-def generate_html_report(
-    errors: Dict[str, int], api_metrics: Dict[str, float], active_sessions: int, output_file: str = "report.html"
-) -> None:
+def generate_report(errors: Dict[str, int], api_metrics: Dict[str, List[int]], active_session_count: int, output_path: str = "report.html") -> None:
     """
-    Generates an HTML report summarizing errors, API latencies, and active sessions.
-
-    Args:
-        errors: Dictionary mapping error messages to their counts.
-        api_metrics: Dictionary mapping API endpoints to their average latency.
-        active_sessions: Number of active sessions.
-        output_file: The path where the HTML report will be saved.
+    Generate an HTML report with the processed metrics.
+    
+    :param errors: Dictionary of error messages and their counts.
+    :param api_metrics: Dictionary of API endpoints and latency lists.
+    :param active_session_count: Number of currently active sessions.
+    :param output_path: Path to write the HTML report.
     """
-    out = "<html>\n<head><title>System Report</title></head>\n<body>\n"
-    out += "<h1>Error Summary</h1>\n<ul>\n"
-    for err_msg, count in errors.items():
-        out += f"<li><b>{err_msg}</b>: {count} occurrences</li>\n"
-    out += "</ul>\n"
-
-    out += "<h2>API Latency</h2>\n<table border='1'>\n"
-    out += "<tr><th>Endpoint</th><th>Avg (ms)</th></tr>\n"
-    for ep, avg in api_metrics.items():
-        out += f"<tr><td>{ep}</td><td>{round(avg, 1)}</td></tr>\n"
-    out += "</table>\n"
-
-    out += "<h2>Active Sessions</h2>\n"
-    out += f"<p>{active_sessions} user(s) currently active</p>\n"
-    out += "</body>\n</html>"
-
-    with open(output_file, "w") as f:
-        f.write(out)
-
-    print(f"Job finished at {datetime.datetime.now()}")
+    html = ["<html>\n<head><title>System Report</title></head>\n<body>\n"]
+    
+    html.append("<h1>Error Summary</h1>\n<ul>\n")
+    for msg, count in errors.items():
+        html.append(f"<li><b>{msg}</b>: {count} occurrences</li>\n")
+    html.append("</ul>\n")
+    
+    html.append("<h2>API Latency</h2>\n<table border='1'>\n")
+    html.append("<tr><th>Endpoint</th><th>Avg (ms)</th></tr>\n")
+    for endpoint, times in api_metrics.items():
+        if times:
+            avg = sum(times) / len(times)
+            html.append(f"<tr><td>{endpoint}</td><td>{round(avg, 1)}</td></tr>\n")
+    html.append("</table>\n")
+    
+    html.append("<h2>Active Sessions</h2>\n")
+    html.append(f"<p>{active_session_count} user(s) currently active</p>\n")
+    
+    html.append("</body>\n</html>")
+    
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write("".join(html))
 
 
 def run_pipeline() -> None:
     """
-    Orchestrates the ETL pipeline: extracts logs, transforms data, loads into DB, and generates a report.
+    Execute the ETL pipeline and generate the report.
     """
-    raw_logs = extract_logs(LOG_FILE)
-    errors, api_metrics, active_sessions = transform_data(raw_logs)
-    load_data_to_db(errors, api_metrics, DB_PATH)
-    generate_html_report(errors, api_metrics, active_sessions)
+    log_lines = extract_logs(LOG_FILE)
+    errors, api_metrics, active_session_count = transform_logs(log_lines)
+    
+    load_to_db(errors, api_metrics)
+    generate_report(errors, api_metrics, active_session_count)
+    
+    print(f"Job finished at {datetime.datetime.now()}")
 
 
 if __name__ == "__main__":
     if not os.path.exists(LOG_FILE):
-        with open(LOG_FILE, "w") as f:
+        with open(LOG_FILE, "w", encoding="utf-8") as f:
             f.write("2024-01-01 12:00:00 INFO User 42 logged in\n")
             f.write("2024-01-01 12:05:00 ERROR Database timeout\n")
             f.write("2024-01-01 12:05:05 ERROR Database timeout\n")

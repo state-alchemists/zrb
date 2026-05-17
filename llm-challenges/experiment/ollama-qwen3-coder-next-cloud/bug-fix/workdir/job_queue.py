@@ -33,14 +33,15 @@ class JobQueue:
         self._jobs[job_id]["status"] = "done"
         self._jobs[job_id]["result"] = result
 
-    def fail(self, job_id: int, error: str) -> None:
-        job = self._jobs[job_id]
-        if job["retries"] < self.max_retries:
+    async def fail(self, job_id: int, error: str) -> None:
+        async with self._lock:
+            job = self._jobs[job_id]
             job["retries"] += 1
-            job["status"] = "pending"
-        else:
-            job["status"] = "failed"
-            job["result"] = error
+            if job["retries"] <= self.max_retries:
+                job["status"] = "pending"
+            else:
+                job["status"] = "failed"
+                job["result"] = error
 
     @property
     def all_jobs(self) -> Dict[int, Dict]:

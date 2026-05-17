@@ -1,485 +1,641 @@
 [2m
-  🧠 The user[0m[2m is reporting two issues with a background job processor:
+  🧠 The user wants me to find and fix two bugs in a background job processor:
      1. Duplicate processing - jobs executed more than once
-     2. Vanishing failures - jobs[0m[2m that crash never show up as failed
-     
-     Let me start by reading the relevant files to understand the codebase.[0m[2m
-  I'll start[0m[2m by reading the relevant files to understand the codebase and reproduce the issues.
-[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/worker.py"}[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/main.py"}[0m[2m
-  🧰 call_function_em835kln7flw_3 | ReadReadRead {"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/job_queue.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/worker.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/main.py"}
-[0m[2m
-  🔠 call_function_em835kln7flw_3 | Return Unknown tool name: 'ReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
-[0m
-[SYSTEM] Invalid tool call detected, asking model to retry...
-[2m
-  🧠 The[0m[2m user wants me to investigate and fix two issues in a background job processor:
-     1. Duplicate processing - jobs executed more than once
-     2. Vanishing failures - jobs that crash disappear instead[0m[2m of being marked as failed
-     
-     Let me start by reading the relevant files to understand the codebase.[0m[2m
-  I'll investigate the job processor to find the root causes of both issues.
-[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/worker.py"}[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/main.py"}[0m[2m
-  🧰 call_function_80lchmu3mfx9_3 | ReadReadRead {"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/job_queue.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/worker.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/main.py"}
-[0m[2m
-  🔠 call_function_80lchmu3mfx9_3 | Return Unknown tool name: 'ReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
-[0m
-[SYSTEM] Model response rejected by provider — collapsing history to text-only and retrying...
-[2m
-  🧠 The user is reporting two issues with a background job processor:
-     1. Duplicate processing - jobs being executed multiple times
-     2. Vanishing failures - jobs that crash with exceptions disappear instead of being marked as failed
-     
-     The files are:
-     - `job_queue.py` - the queue
-     - `worker.py` - the processor
-     - `main.py` - runs a simulation to reproduce issues
-     
-     Let me start by reading these files to understand the codebase and find the root causes.[0m[2m
-  
-     
-     I'll investigate the job processor issues. Let me start by reading the relevant files to understand the system.
-[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/worker.py"}[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/main.py"}[0m[2m
-  🧰 call_function_8wki33bd6fi6_3 | ReadReadRead {"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/job_queue.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/worker.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/main.py"}
-[0m[2m
-  🔠 call_function_8wki33bd6fi6_3 | Return Unknown tool name: 'ReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
-[0m[32m260517 08:39:02.686 1/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 1/3 failed: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
-[2m
-  🧠 The user is reporting two issues with a background job processor:
-     1. Duplicate processing - jobs executed more than once
-     2. Vanishing failures - jobs that crash don't show as "failed"
-     
-     Let me start by activating the coding skill and then reading the relevant files to understand the codebase.[0m[2m{"pattern":"**/*.py"}[0m[2m
-  🧰 call_function_kom8cz2zn7z6_2 | ActivateSkillGlob {"name":"core-coding"}{"pattern":"**/*.py"}
-[0m[2m
-  🔠 call_function_kom8cz2zn7z6_2 | Return Unknown tool name: 'ActivateSkillGlob'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
-[0m
-[SYSTEM] Invalid tool call detected, asking model to retry...
-[2m
-  🧠 Let me start by reading the relevant files to understand the codebase and reproduce the issues.[0m[2m{"path":"main.py"}[0m[2m{"name":"core-coding"}[0m[2m{"path":"job_queue.py"}[0m[2m
-  🧰 call_function_xog1if9oppsl_2 | ReadReadActivateSkillRead {"path":"worker.py"}{"path":"main.py"}{"name":"core-coding"}{"path":"job_queue.py"}
-[0m[2m
-  🔠 call_function_xog1if9oppsl_2 | Return Unknown tool name: 'ReadReadActivateSkillRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
-[0m
-[SYSTEM] Model response rejected by provider — collapsing history to text-only and retrying...
-[2m
-  🧠 The user[0m[2m is reporting two issues with a background job processor:
-     1. Duplicate processing - jobs executed more than once
-     2. Vanishing failures - jobs that crash[0m[2m never show as "failed"
-     
-     I need to look at the code to understand the issues. Let me start by reading the relevant files.[0m[2m
-  I'll investigate the job[0m[2m processor issues by first reading the relevant files.
-[0m[2m{"path":"worker.py"}[0m[2m{"path":"main.py"}[0m[2m
-  🧰 call_function_luvn2w1qggw1_3 | ReadReadRead {"path":"job_queue.py"}{"path":"worker.py"}{"path":"main.py"}
-[0m[2m
-  🔠 call_function_luvn2w1qggw1_3 | Return Unknown tool name: 'ReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
-[0m[32m260517 08:40:04.338 2/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 2/3 failed: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
-[2m
-  🧠 The user[0m[2m is reporting two issues with a background job processor:
-     1. Duplicate processing - jobs executed multiple times
-     2. Vanishing failures - jobs that crash never show up as failed
-     
-     The files are `[0m[2mjob_queue.py` (queue), `worker.py` (processor), and `main.py` (simulation).
-     
-     Let me start by reading these files to understand the system and find the root causes.[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/main.py"}[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/job_queue.py"}[0m[2m
-  🧰 call_function_710hkuooiaps_1 | ReadReadRead {"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/worker.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/main.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/job_queue.py"}
-[0m[2m
-  🔠 call_function_710hkuooiaps_1 | Return Unknown tool name: 'ReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
-[0m
-[SYSTEM] Invalid tool call detected, asking model to retry...
-[2m
-  🧠 The user is reporting two issues with their background job processor:
-     1. Duplicate processing - jobs executed multiple times
-     2. Vanishing failures - jobs that crash disappear without being marked as failed
-     
-     Let me start by activating the coding skill and then exploring the codebase to understand the issues.
-[0m[2m{}[0m[2m
-  🧰 call_function_lcjxv62ake70_2 | ActivateSkillLS {"name":"core-coding"}{}
-[0m[2m
-  🔠 call_function_lcjxv62ake70_2 | Return Unknown tool name: 'ActivateSkillLS'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
-[0m
-[SYSTEM] Model response rejected by provider — collapsing history to text-only and retrying...
-[2m
-  🧠 The user is reporting two issues with a background job processor:
-     1. Duplicate processing - jobs executed multiple times
-     2. Vanishing failures - jobs that crash disappear instead of being marked as failed
-     
-     The files are `job_queue.py`, `worker.py`, and `main.py`. I need to find and fix the root causes without changing public method signatures.
+     2. Vanishing failures - jobs that crash never show as "failed"
      
      Let me start by reading the relevant files to understand the codebase.
 [0m[2m
   
      
-     I'll investigate the job processor issues. Let me start by reading the relevant files to understand the codebase.
-[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/worker.py"}[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/main.py"}[0m[2m
-  🧰 call_function_e66bjbmgahcn_3 | ReadReadRead {"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/job_queue.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/worker.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/main.py"}
+     I'll start by reading the relevant files to understand the codebase and reproduce the issues.
+[0m[2m{"path":"job_queue.py"}[0m[2m{"path":"worker.py"}[0m[2m{"path":"main.py"}[0m[2m
+  🧰 call_function_yrzvv904w7uz_4 | ActivateSkillReadReadRead {"name":"core-coding"}{"path":"job_queue.py"}{"path":"worker.py"}{"path":"main.py"}
 [0m[2m
-  🔠 call_function_e66bjbmgahcn_3 | Return Unknown tool name: 'ReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
-[0m[32m260517 08:40:47.535 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 3/3 failed: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
-[32m260517 08:40:47.535 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Marked as permanently failed[0m
-[32m260517 08:40:47.544 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Traceback (most recent call last):
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 150, in _map_api_errors
+  🔠 call_function_yrzvv904w7uz_4 | Return Unknown tool name: 'ActivateSkillReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'fetch_youtube_transcript', 'speak', 'search_bsim_notes', 'listen', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
+[0m
+[SYSTEM] Invalid tool call detected, asking model to retry...
+[2m
+  🧠 The user wants me to investigate and fix two issues in a background job processor:
+     1. Duplicate processing - jobs executed multiple times
+     2. Vanishing failures - jobs that crash disappear without being marked as failed
+     
+     Let me start by reading the relevant files to understand the codebase.
+[0m[2m
+  
+     
+     I'll investigate the job processor to find the root causes of both issues. Let me start by reading the relevant files.
+[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/worker.py"}[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/main.py"}[0m[2m
+  🧰 call_function_94cvwdplow84_3 | ReadReadRead {"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/job_queue.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/worker.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/main.py"}
+[0m[2m
+  🔠 call_function_94cvwdplow84_3 | Return Unknown tool name: 'ReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'fetch_youtube_transcript', 'speak', 'search_bsim_notes', 'listen', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
+[0m
+[SYSTEM] Model response rejected by provider — collapsing history to text-only and retrying...
+[2m
+  🧠 Let me start by understanding the codebase structure and the files involved. I'll look at the job_queue.py, worker.py, and main.py files to understand the system and reproduce the issues.
+[0m[2m
+  
+     
+     I'll investigate the job processing system to find the root causes of both issues.
+[0m[2m
+  🧰 call_function_s79rj96siu5q_1 | Glob {'pattern': '**/*.py'}
+[0m[2m
+  🔠 call_function_s79rj96siu5q_1 | Return {'files': ['job_queue.py', 'main.py', 'worker.py']}
+[0m[2m
+  🧠 Let me read all three files to understand the codebase before diagnosing issues.
+[0m[2m{"path":"job_queue.py"}[0m[2m{"path":"worker.py"}[0m[2m
+  🧰 call_function_23mqvaeck77l_2 | ReadReadRead {"path":"main.py"}{"path":"job_queue.py"}{"path":"worker.py"}
+[0m[2m
+  🔠 call_function_23mqvaeck77l_2 | Return Unknown tool name: 'ReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'fetch_youtube_transcript', 'speak', 'search_bsim_notes', 'listen', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
+[0m[32m260517 15:58:51.697 1/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 1/3 failed: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
+[2m
+  🧠 The user is reporting two issues with a background job processor:
+     1. Duplicate processing - jobs executed more than once
+     2. Vanishing failures - jobs that crash disappear instead of being marked as failed
+     
+     Let me start by reading the relevant[0m[2m files to understand the system and find the root causes.
+[0m[2m
+  
+     
+     I'll investigate the job processor system to find the root causes of both issues. Let me start by reading the relevant files.
+[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/worker.py"}[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/main.py"}[0m[2m
+  🧰 call_function_th7vax48o4ll_3 | ReadReadRead {"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/job_queue.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/worker.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/main.py"}
+[0m[2m
+  🔠 call_function_th7vax48o4ll_3 | Return Unknown tool name: 'ReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'fetch_youtube_transcript', 'speak', 'search_bsim_notes', 'listen', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
+[0m
+[SYSTEM] Invalid tool call detected, asking model to retry...
+[2m
+  🧠 The user[0m[2m is reporting two issues with a background job processor:
+     1. Duplicate processing - jobs being executed more than once
+     2. Vanishing failures - jobs that crash never show up as "failed"
+     
+     I need to find and fix[0m[2m the root causes in `job_queue.py` and `worker.py`. Let me start by reading these files to understand the code structure.
+[0m[2m
+     Let me activate the core-coding skill since this is a code investigation and fix task.[0m[2m
+  🧰 call_function_hc0ua597v1fb_1 | ActivateSkill {'name': 'core-coding'}
+[0m[2m
+  🔠 call_function_hc0ua597v1fb_1 | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
+     
+     Skill directory (working directory): /Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm_plugin/skills/core-coding
+     
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
+     
+     Companion files available in this directory:
+       languages/
+         go.md
+         java.md
+         php.md
+         python.md
+         ruby.md
+         rust.md
+         typescript.md
+       workflows/
+         debug.md
+         refactor.md
+         review.md
+         testing.md
+     
+     ---
+     
+     ---
+     name: core-coding
+     description: "Activate before any coding task — reading, editing, or creating code files. Provides the mandatory Research → Strategy → Execution workflow plus the complexity budget and specialised deep-dive companions (testing, debug, refactor, review)."
+     user-invocable: false
+     ---
+     # Skill: core-coding
+     
+     Follow **Research → Strategy → Execution** for every coding task.
+     
+     ## Deep-Dive Companions
+     
+     When the current step matches a trigger below, `Read` the named companion from this skill's directory (the activation header lists the directory path and all companion paths). Companions are not pre-loaded — pull them on demand.
+     
+     | Trigger | Companion |
+     |---------|-----------|
+     | About to write, modify, or audit a test | `workflows/testing.md` |
+     | Something is broken and root cause is unclear | `workflows/debug.md` |
+     | Code structure needs improvement (complexity, duplication) | `workflows/refactor.md` |
+     | Reviewing changes for correctness, security, or quality | `workflows/review.md` |
+     | Code touches user input, auth, file I/O, or sensitive data | `workflows/review.md` (security audit checklist) |
+     | First substantial edit in a project — identify the language from the manifest | `languages/<lang>.md` (one of `python`, `typescript`, `go`, `rust`, `java`, `ruby`, `php`) |
+     
+     If the user has provided custom guidelines for any of the above (in CLAUDE.md, AGENTS.md, their own skills, or project files), prefer those over the core companion. Core companions fill in the gaps.
+     
+     ## PHASE 1: RESEARCH & DISCOVERY
+     
+     Follow the **Scientific Method**: form a hypothesis → test it → analyze results. Avoid random changes.
+     
+     ### a.  **High-Level Reconnaissance:**
+     
+     - Use `LS` with limited depth for initial structure mapping.
+     - Identify: source directories, test directories, config files, entry points, and utility modules.
+     - Skip if you already know specific file paths — use targeted `Glob` instead.
+     
+     ### b.  **Targeted Architecture Discovery:**
+     
+     - Use `Glob` and `Grep` in parallel to map file structures, existing patterns, and utility functions.
+     - Use `Grep` with specific `regex` and `file_pattern` to minimize noise.
+     - Issue several `Read` calls in parallel when gathering context from related files.
+     - **Before modifying any existing function, method, or class signature:** use `LspFindReferences` if LSP is available, otherwise `Grep`. Find all call sites and include updating them in your plan.
+     - **Before moving or removing any file or directory:** use `Grep` to find all imports and path references first.
+     
+     ## PHASE 2: STRATEGY
+     
+     ### c.  **Formulate a Grounded Plan:**
+     
+     - **Language & Framework Idioms:** identify the language, framework, and version from dependency files and existing code. Apply idiomatic conventions — a pattern correct in one language may be an anti-pattern in another. Never add attributes or behavior to objects owned by a library; wrap them in a type you own.
+     - **Pattern Matching:** strategy MUST match existing project guidelines and patterns exactly. New code should look as though written by the original author.
+     - **Reuse existing helpers** before creating new ones.
+     - **Apply SOLID and DRY.** One reason to change per function and class.
+     - **No magic numbers, strings, or unexplained constants.** Name every value that carries meaning.
+     
+     ### d.  **Complexity Budget (non-negotiable hard limits):**
+     
+     Exceeding any limit is a design defect — restructure before continuing.
+     
+     | Metric | Limit | Remedy when exceeded |
+     |--------|-------|----------------------|
+     | Cyclomatic complexity | ≤ 10 per function | Extract sub-functions |
+     | Cognitive complexity | ≤ 15 per function | Flatten nesting, add guard clauses |
+     | Nesting depth | ≤ 2 levels | Invert conditionals; use early returns |
+     | Function length | ≤ 30 lines | Extract cohesive blocks into named helpers |
+     | Parameters per function | ≤ 4 | Group related params into a data object |
+     
+     **Guard clause mandate:** invert conditions to exit early; the happy path must never be the deepest `else`.
+     
+     **Boolean parameter prohibition:** a boolean parameter = two functions. Split them.
+     
+     **God Class/Function prohibition:** one reason to change per class/function. If you can't name the extracted piece, it's not a coherent abstraction.
+     
+     ### e.  **Testing Strategy:** define verification before writing code. For test-first methodology, Read `workflows/testing.md`.
+     
+     - New behavior: identify the failing test (RED) first.
+     - Bug fix: identify the minimal reproduction test first.
+     - Refactoring: confirm existing tests pass as baseline before touching anything.
+     
+     ## PHASE 3: EXECUTION (Plan → Act → Validate)
+     
+     ### f.  **Act (Surgical Implementation):**
+     
+     - Minimal, precise edits only. One logical change per task (atomic). Use existing libraries and patterns.
+     - Keep functions focused (~30-50 lines). Place helpers below callers.
+     - **Strangler Pattern:** when replacing a component, keep codebase runnable at every step: new alongside old → update references → remove old.
+     - **Out-of-scope structural problems:** report them. If they block this task, Read `workflows/refactor.md` and address atomically.
+     - **Code Smell Reporting:** report poorly structured code you encounter — don't silently fix it.
+     - **Docs:** keep documentation in sync; remove deprecated references.
+     
+     ### g.  **Validate (Zero-Regression):**
+     
+     - Validation is the only path to finality.
+     - Bug fixes: reproduce before fixing. If root cause is unclear, Read `workflows/debug.md`.
+     - After any change: run tests, linters, and type-checkers.
+     - If validation fails, diagnose before retrying.
+     
+     ### h.  **Synthesis:**
+     
+     journal non-trivial discoveries per the Journaling Protocol. For user-facing output (docs, error messages, commit messages), apply writing quality standards from `core-writing`.
+     
+     </ACTIVATED_SKILL>
+[0m[2m
+  🧠 Let me[0m[2m read the files in the workdir to understand the codebase structure first.[0m[2m{"path":"worker.py"}[0m[2m{"path":"main.py"}[0m[2m
+  🧰 call_function_6wu6qo3spxnf_3 | ReadReadRead {"path":"job_queue.py"}{"path":"worker.py"}{"path":"main.py"}
+[0m[2m
+  🔠 call_function_6wu6qo3spxnf_3 | Return Unknown tool name: 'ReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'fetch_youtube_transcript', 'speak', 'search_bsim_notes', 'listen', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
+[0m
+[SYSTEM] Model response rejected by provider — collapsing history to text-only and retrying...
+[2m
+  🧠 The[0m[2m user is reporting two issues with a background job processor:
+     1. Duplicate processing - jobs executed more than once
+     2. Vanishing failures - jobs that crash[0m[2m disappear instead of being marked as failed
+     
+     The files are `job_queue.py` and `worker.py`, with `main.py` for simulation.
+[0m[2m
+     I need to read these files to understand the issues and find root causes. Let me start by reading all three files.[0m[2m
+  I'll[0m[2m read the relevant files to understand the job processing system and identify the root causes.
+[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/worker.py"}[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/main.py"}[0m[2m
+  🧰 call_function_xn5m6imrmekb_3 | ReadReadRead {"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/job_queue.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/worker.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/main.py"}
+[0m[2m
+  🔠 call_function_xn5m6imrmekb_3 | Return Unknown tool name: 'ReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'fetch_youtube_transcript', 'speak', 'search_bsim_notes', 'listen', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
+[0m[32m260517 16:01:14.649 2/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 2/3 failed: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
+[2m
+  🧠 Let me start by reading the files mentioned to understand the codebase and reproduce the issues.[0m[2m
+  
+     
+     I'll investigate the job queue system to find the root causes of both issues.
+[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/worker.py"}[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/main.py"}[0m[2m
+  🧰 call_function_e0ukle6j347j_3 | ReadReadRead {"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/job_queue.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/worker.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/main.py"}
+[0m[2m
+  🔠 call_function_e0ukle6j347j_3 | Return Unknown tool name: 'ReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'fetch_youtube_transcript', 'speak', 'search_bsim_notes', 'listen', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
+[0m
+[SYSTEM] Invalid tool call detected, asking model to retry...
+[2m
+  🧠 The user is reporting two issues with a background job processor:
+     1. Duplicate processing - jobs executed more than once
+     2. Vanishing failures - jobs that crash never show as "failed"
+     
+[0m[2mLet me start by examining the codebase to understand the structure and find the root causes.
+[0m[2m
+  
+     
+     I'll investigate the job processor issues. Let me start by examining the codebase structure and understanding how the queue and worker operate.
+[0m[2m
+  🧰 call_function_45ehymmhmpxr_1 | LS {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_function_45ehymmhmpxr_1 | Return {'files': ['job_queue.py', 'main.py', 'worker.py']}
+[0m[2m
+  🧠 Let me read all three files to understand the codebase and reproduce the issues.
+[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/worker.py"}[0m[2m{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/main.py"}[0m[2m
+  🧰 call_function_dxxhwimdua71_3 | ReadReadRead {"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/job_queue.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/worker.py"}{"path":"/Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-minimax-m2.7-cloud/bug-fix/workdir/main.py"}
+[0m[2m
+  🔠 call_function_dxxhwimdua71_3 | Return Unknown tool name: 'ReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'fetch_youtube_transcript', 'speak', 'search_bsim_notes', 'listen', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
+[0m
+[SYSTEM] Model response rejected by provider — collapsing history to text-only and retrying...
+[2m
+  🧠 The user[0m[2m is asking me to investigate and fix two issues in a background job processor:
+     1. Duplicate processing - jobs being executed more than once
+     2. Vanishing failures - jobs that crash never[0m[2m show up as "failed"
+     
+     The files are `job_queue.py` (the queue), `worker.py` (the processor), and `main.py` runs a simulation.
+     
+     Let me start by reading these[0m[2m files to understand the codebase and find the root causes.[0m[2m
+  I'll investigate the job processor issues by reading the relevant files first.
+[0m[2m
+  🧰 call_function_dy7j4n2dalrm_1 | Glob {'pattern': '**/*.py'}
+[0m[2m
+  🔠 call_function_dy7j4n2dalrm_1 | Return {'files': ['job_queue.py', 'main.py', 'worker.py']}
+[0m[2m
+  🧠 Let me read all three files to understand the system.
+[0m[2m{"path":"worker.py"}[0m[2m{"path":"main.py"}[0m[2m
+  🧰 call_function_rzkc9raqaew9_3 | ReadReadRead {"path":"job_queue.py"}{"path":"worker.py"}{"path":"main.py"}
+[0m[2m
+  🔠 call_function_rzkc9raqaew9_3 | Return Unknown tool name: 'ReadReadRead'. Available tools: 'Bash', 'AnalyzeCode', 'LS', 'Glob', 'Read', 'Write', 'Edit', 'Grep', 'AnalyzeFile', 'RM', 'MV', 'SearchJournal', 'SearchInternet', 'OpenWebPage', 'EnterWorktree', 'ExitWorktree', 'ListWorktrees', 'LspFindDefinition', 'LspFindReferences', 'LspGetDiagnostics', 'LspGetDocumentSymbols', 'LspGetWorkspaceSymbols', 'LspGetHoverInfo', 'LspRenameSymbol', 'LspListServers', 'WriteTodos', 'GetTodos', 'UpdateTodo', 'ClearTodos', 'fetch_youtube_transcript', 'speak', 'search_bsim_notes', 'listen', 'ListZrbTasks', 'RunZrbTask', 'ActivateSkill', 'DelegateToAgent', 'DelegateToAgentsParallel'
+[0m[32m260517 16:07:32.699 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 3/3 failed: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
+[32m260517 16:07:32.699 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Marked as permanently failed[0m
+[32m260517 16:07:32.714 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Traceback (most recent call last):
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 150, in _map_api_errors
     yield
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 895, in _completions_create
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 895, in _completions_create
     return await self.client.chat.completions.create(
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     ...<29 lines>...
     )
     ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/resources/chat/completions/completions.py", line 2714, in create
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py", line 2714, in create
     return await self._post(
            ^^^^^^^^^^^^^^^^^
     ...<49 lines>...
     )
     ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1884, in post
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1884, in post
     return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1669, in request
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1669, in request
     raise self._make_status_error_from_response(err.response) from None
 openai.BadRequestError: Error code: 400 - {'error': {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}}
 
 The above exception was the direct cause of the following exception:
 
 Traceback (most recent call last):
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 179, in execute_action_with_retry
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 179, in execute_action_with_retry
     result = await run_async(task._exec_action(ctx))
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
     return await value
            ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 305, in _exec_action
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 305, in _exec_action
     return await self._exec_action_inner(ctx)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 360, in _exec_action_inner
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 360, in _exec_action_inner
     raise e
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 338, in _exec_action_inner
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 338, in _exec_action_inner
     output, new_history = await run_agent(
                           ^^^^^^^^^^^^^^^^
     ...<13 lines>...
     )
     ^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run/runner.py", line 160, in run_agent
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 160, in run_agent
     return await _execution_loop(
            ^^^^^^^^^^^^^^^^^^^^^^
     ...<9 lines>...
     )
     ^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run/runner.py", line 556, in _execution_loop
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 556, in _execution_loop
     raise e
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run/runner.py", line 497, in _execution_loop
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 497, in _execution_loop
     raise stream_error
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run/runner.py", line 468, in _execution_loop
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 468, in _execution_loop
     async for event in stream:
     ...<13 lines>...
             await effective_event_handler(event)
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/result.py", line 968, in __anext__
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/result.py", line 968, in __anext__
     return await self._generator.__anext__()
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 1252, in _run_stream_events
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1252, in _run_stream_events
     result = await task
              ^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 1211, in run_agent
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1211, in run_agent
     return await self.run(
            ^^^^^^^^^^^^^^^
     ...<19 lines>...
     )
     ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 410, in run
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 410, in run
     node = await agent_run._run_node_with_hooks(node, _stream_step)  # pyright: ignore[reportPrivateUsage]
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/run.py", line 308, in _run_node_with_hooks
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 308, in _run_node_with_hooks
     return await self._wrap_and_advance(run_context, node, step_fn)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/run.py", line 278, in _wrap_and_advance
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 278, in _wrap_and_advance
     result = await cap.on_node_run_error(run_context, node=node, error=e)
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 245, in on_node_run_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 245, in on_node_run_error
     raise error
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 242, in on_node_run_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 242, in on_node_run_error
     return await capability.on_node_run_error(ctx, node=node, error=error)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 433, in on_node_run_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 433, in on_node_run_error
     raise error
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/run.py", line 276, in _wrap_and_advance
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 276, in _wrap_and_advance
     result = await cap.wrap_node_run(run_context, node=node, handler=step_fn)
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 231, in wrap_node_run
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 231, in wrap_node_run
     return await chain(node)
            ^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 617, in wrapped
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 617, in wrapped
     return await cap.wrap_node_run(ctx, node=node, handler=inner)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 412, in wrap_node_run
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 412, in wrap_node_run
     return await handler(node)
            ^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 392, in _stream_and_advance
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 392, in _stream_and_advance
     async with n.stream(agent_run.ctx) as stream:
                ~~~~~~~~^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 214, in __aenter__
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
     return await anext(self.gen)
            ^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 679, in stream
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 679, in stream
     model_response = await self._resolve_wrap_result(ctx, run_context, wrap_request_context, result_or_exc)
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 967, in _resolve_wrap_result
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 967, in _resolve_wrap_result
     return await ctx.deps.root_capability.on_model_request_error(
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
         run_context, request_context=request_context, error=exc
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     )
     ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 306, in on_model_request_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 306, in on_model_request_error
     raise error
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 303, in on_model_request_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 303, in on_model_request_error
     return await capability.on_model_request_error(ctx, request_context=request_context, error=error)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 514, in on_model_request_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 514, in on_model_request_error
     raise error
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 676, in stream
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 676, in stream
     result_or_exc = wrap_task.result()
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 292, in wrap_model_request
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 292, in wrap_model_request
     return await chain(request_context)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 581, in wrapped
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 581, in wrapped
     return await cap.wrap_model_request(
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     ...<3 lines>...
     )
     ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 491, in wrap_model_request
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 491, in wrap_model_request
     return await handler(request_context)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 628, in _streaming_handler
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 628, in _streaming_handler
     async with req_ctx.model.request_stream(
                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
         req_ctx.messages, req_ctx.model_settings, req_ctx.model_request_parameters, run_context
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     ) as sr:
     ^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 214, in __aenter__
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
     return await anext(self.gen)
            ^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 837, in request_stream
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 837, in request_stream
     response = await self._completions_create(messages, True, model_settings_cast, model_request_parameters)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 888, in _completions_create
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 888, in _completions_create
     with _map_api_errors(self.model_name):
          ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 162, in __exit__
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 162, in __exit__
     self.gen.throw(value)
     ~~~~~~~~~~~~~~^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 153, in _map_api_errors
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 153, in _map_api_errors
     raise ModelHTTPError(status_code=status_code, model_name=model_name, body=e.body) from e
 pydantic_ai.exceptions.ModelHTTPError: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}
 [0m
-[32m260517 08:40:47.546 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Attempt 1/1 failed: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
-[32m260517 08:40:47.546 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Marked as permanently failed[0m
-[32m260517 08:40:47.553 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Traceback (most recent call last):
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 150, in _map_api_errors
+[32m260517 16:07:32.716 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Attempt 1/1 failed: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}[0m
+[32m260517 16:07:32.716 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Marked as permanently failed[0m
+[32m260517 16:07:32.723 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Traceback (most recent call last):
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 150, in _map_api_errors
     yield
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 895, in _completions_create
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 895, in _completions_create
     return await self.client.chat.completions.create(
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     ...<29 lines>...
     )
     ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/resources/chat/completions/completions.py", line 2714, in create
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py", line 2714, in create
     return await self._post(
            ^^^^^^^^^^^^^^^^^
     ...<49 lines>...
     )
     ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1884, in post
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1884, in post
     return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1669, in request
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1669, in request
     raise self._make_status_error_from_response(err.response) from None
 openai.BadRequestError: Error code: 400 - {'error': {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}}
 
 The above exception was the direct cause of the following exception:
 
 Traceback (most recent call last):
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 179, in execute_action_with_retry
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 179, in execute_action_with_retry
     result = await run_async(task._exec_action(ctx))
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
     return await value
            ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/chat/task.py", line 446, in _exec_action
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/chat/task.py", line 446, in _exec_action
     return await self._run_non_interactive_session(
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     ...<6 lines>...
     )
     ^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/chat/runner_mixin.py", line 66, in _run_non_interactive_session
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/chat/runner_mixin.py", line 66, in _run_non_interactive_session
     result = await llm_task_core.async_run(session)
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 240, in async_run
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 240, in async_run
     return await run_task_async(
            ^^^^^^^^^^^^^^^^^^^^^
     ...<5 lines>...
     )
     ^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 91, in run_task_async
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 91, in run_task_async
     result = await task.exec_root_tasks(session)
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 249, in exec_root_tasks
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 249, in exec_root_tasks
     return await execute_root_tasks(self, session)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
     await asyncio.gather(*root_task_coros)
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
     return await value
            ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 252, in exec_chain
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 252, in exec_chain
     return await execute_task_chain(self, session)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 22, in execute_task_chain
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 22, in execute_task_chain
     result = await execute_task_action(task, session)
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 52, in execute_task_action
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 52, in execute_task_action
     return await run_async(execute_action_until_ready(task, session))
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
     return await value
            ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 86, in execute_action_until_ready
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 86, in execute_action_until_ready
     result = await run_async(execute_action_with_retry(task, session))
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
     return await value
            ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 216, in execute_action_with_retry
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 216, in execute_action_with_retry
     raise e  # Re-raise the exception after handling fallbacks
     ^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 179, in execute_action_with_retry
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 179, in execute_action_with_retry
     result = await run_async(task._exec_action(ctx))
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
     return await value
            ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 305, in _exec_action
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 305, in _exec_action
     return await self._exec_action_inner(ctx)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 360, in _exec_action_inner
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 360, in _exec_action_inner
     raise e
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 338, in _exec_action_inner
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 338, in _exec_action_inner
     output, new_history = await run_agent(
                           ^^^^^^^^^^^^^^^^
     ...<13 lines>...
     )
     ^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run/runner.py", line 160, in run_agent
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 160, in run_agent
     return await _execution_loop(
            ^^^^^^^^^^^^^^^^^^^^^^
     ...<9 lines>...
     )
     ^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run/runner.py", line 556, in _execution_loop
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 556, in _execution_loop
     raise e
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run/runner.py", line 497, in _execution_loop
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 497, in _execution_loop
     raise stream_error
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run/runner.py", line 468, in _execution_loop
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 468, in _execution_loop
     async for event in stream:
     ...<13 lines>...
             await effective_event_handler(event)
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/result.py", line 968, in __anext__
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/result.py", line 968, in __anext__
     return await self._generator.__anext__()
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 1252, in _run_stream_events
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1252, in _run_stream_events
     result = await task
              ^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 1211, in run_agent
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1211, in run_agent
     return await self.run(
            ^^^^^^^^^^^^^^^
     ...<19 lines>...
     )
     ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 410, in run
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 410, in run
     node = await agent_run._run_node_with_hooks(node, _stream_step)  # pyright: ignore[reportPrivateUsage]
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/run.py", line 308, in _run_node_with_hooks
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 308, in _run_node_with_hooks
     return await self._wrap_and_advance(run_context, node, step_fn)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/run.py", line 278, in _wrap_and_advance
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 278, in _wrap_and_advance
     result = await cap.on_node_run_error(run_context, node=node, error=e)
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 245, in on_node_run_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 245, in on_node_run_error
     raise error
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 242, in on_node_run_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 242, in on_node_run_error
     return await capability.on_node_run_error(ctx, node=node, error=error)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 433, in on_node_run_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 433, in on_node_run_error
     raise error
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/run.py", line 276, in _wrap_and_advance
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 276, in _wrap_and_advance
     result = await cap.wrap_node_run(run_context, node=node, handler=step_fn)
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 231, in wrap_node_run
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 231, in wrap_node_run
     return await chain(node)
            ^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 617, in wrapped
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 617, in wrapped
     return await cap.wrap_node_run(ctx, node=node, handler=inner)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 412, in wrap_node_run
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 412, in wrap_node_run
     return await handler(node)
            ^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 392, in _stream_and_advance
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 392, in _stream_and_advance
     async with n.stream(agent_run.ctx) as stream:
                ~~~~~~~~^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 214, in __aenter__
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
     return await anext(self.gen)
            ^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 679, in stream
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 679, in stream
     model_response = await self._resolve_wrap_result(ctx, run_context, wrap_request_context, result_or_exc)
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 967, in _resolve_wrap_result
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 967, in _resolve_wrap_result
     return await ctx.deps.root_capability.on_model_request_error(
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
         run_context, request_context=request_context, error=exc
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     )
     ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 306, in on_model_request_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 306, in on_model_request_error
     raise error
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 303, in on_model_request_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 303, in on_model_request_error
     return await capability.on_model_request_error(ctx, request_context=request_context, error=error)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 514, in on_model_request_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 514, in on_model_request_error
     raise error
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 676, in stream
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 676, in stream
     result_or_exc = wrap_task.result()
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 292, in wrap_model_request
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 292, in wrap_model_request
     return await chain(request_context)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 581, in wrapped
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 581, in wrapped
     return await cap.wrap_model_request(
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     ...<3 lines>...
     )
     ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 491, in wrap_model_request
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 491, in wrap_model_request
     return await handler(request_context)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 628, in _streaming_handler
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 628, in _streaming_handler
     async with req_ctx.model.request_stream(
                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
         req_ctx.messages, req_ctx.model_settings, req_ctx.model_request_parameters, run_context
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     ) as sr:
     ^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 214, in __aenter__
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
     return await anext(self.gen)
            ^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 837, in request_stream
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 837, in request_stream
     response = await self._completions_create(messages, True, model_settings_cast, model_request_parameters)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 888, in _completions_create
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 888, in _completions_create
     with _map_api_errors(self.model_name):
          ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 162, in __exit__
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 162, in __exit__
     self.gen.throw(value)
     ~~~~~~~~~~~~~~^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 153, in _map_api_errors
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 153, in _map_api_errors
     raise ModelHTTPError(status_code=status_code, model_name=model_name, body=e.body) from e
 pydantic_ai.exceptions.ModelHTTPError: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}
 [0m
@@ -492,44 +648,44 @@ The system is in `job_queue.py` (the queue) and `worker.py` (the processor). `ma
 
 Find the root causes and fix them. Do not change the public method signatures." --model ollama:minimax-m2.7:cloud --session "" --yolo true --attach "" --interactive false[0m
 Traceback (most recent call last):
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 150, in _map_api_errors
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 150, in _map_api_errors
     yield
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 895, in _completions_create
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 895, in _completions_create
     return await self.client.chat.completions.create(
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     ...<29 lines>...
     )
     ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/resources/chat/completions/completions.py", line 2714, in create
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py", line 2714, in create
     return await self._post(
            ^^^^^^^^^^^^^^^^^
     ...<49 lines>...
     )
     ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1884, in post
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1884, in post
     return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1669, in request
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1669, in request
     raise self._make_status_error_from_response(err.response) from None
 openai.BadRequestError: Error code: 400 - {'error': {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}}
 
 The above exception was the direct cause of the following exception:
 
 Traceback (most recent call last):
-  File "/Users/gofrendigunawan/zrb/.venv/bin/zrb", line 6, in <module>
+  File "/Users/gofrendigunawan/.local-venv/bin/zrb", line 8, in <module>
     sys.exit(serve_cli())
              ~~~~~~~~~^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/__main__.py", line 68, in serve_cli
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/__main__.py", line 68, in serve_cli
     raise e
-  File "/Users/gofrendigunawan/zrb/src/zrb/__main__.py", line 61, in serve_cli
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/__main__.py", line 61, in serve_cli
     cli.run(sys.argv[1:])
     ~~~~~~~^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/runner/cli.py", line 57, in run
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/runner/cli.py", line 57, in run
     result, session = self._run_task(node, str_args, task_str_kwargs)
                       ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/runner/cli.py", line 114, in _run_task
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/runner/cli.py", line 114, in _run_task
     result = task.run(session, str_kwargs=run_kwargs)
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 224, in run
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 224, in run
     return asyncio.run(
            ~~~~~~~~~~~^
         run_and_cleanup(
@@ -539,230 +695,230 @@ Traceback (most recent call last):
         ^
     )
     ^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/asyncio/runners.py", line 204, in run
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/asyncio/runners.py", line 194, in run
     return runner.run(main)
            ~~~~~~~~~~^^^^^^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/asyncio/runners.py", line 127, in run
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/asyncio/runners.py", line 118, in run
     return self._loop.run_until_complete(task)
            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/asyncio/base_events.py", line 719, in run_until_complete
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/asyncio/base_events.py", line 721, in run_until_complete
     return future.result()
            ~~~~~~~~~~~~~^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 34, in run_and_cleanup
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 34, in run_and_cleanup
     result = await main_task_coro
              ^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 91, in run_task_async
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 91, in run_task_async
     result = await task.exec_root_tasks(session)
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 249, in exec_root_tasks
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 249, in exec_root_tasks
     return await execute_root_tasks(self, session)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
     await asyncio.gather(*root_task_coros)
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
     return await value
            ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 252, in exec_chain
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 252, in exec_chain
     return await execute_task_chain(self, session)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 22, in execute_task_chain
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 22, in execute_task_chain
     result = await execute_task_action(task, session)
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 52, in execute_task_action
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 52, in execute_task_action
     return await run_async(execute_action_until_ready(task, session))
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
     return await value
            ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 86, in execute_action_until_ready
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 86, in execute_action_until_ready
     result = await run_async(execute_action_with_retry(task, session))
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
     return await value
            ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 216, in execute_action_with_retry
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 216, in execute_action_with_retry
     raise e  # Re-raise the exception after handling fallbacks
     ^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 179, in execute_action_with_retry
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 179, in execute_action_with_retry
     result = await run_async(task._exec_action(ctx))
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
     return await value
            ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/chat/task.py", line 446, in _exec_action
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/chat/task.py", line 446, in _exec_action
     return await self._run_non_interactive_session(
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     ...<6 lines>...
     )
     ^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/chat/runner_mixin.py", line 66, in _run_non_interactive_session
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/chat/runner_mixin.py", line 66, in _run_non_interactive_session
     result = await llm_task_core.async_run(session)
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 240, in async_run
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 240, in async_run
     return await run_task_async(
            ^^^^^^^^^^^^^^^^^^^^^
     ...<5 lines>...
     )
     ^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 91, in run_task_async
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 91, in run_task_async
     result = await task.exec_root_tasks(session)
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 249, in exec_root_tasks
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 249, in exec_root_tasks
     return await execute_root_tasks(self, session)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
     await asyncio.gather(*root_task_coros)
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
     return await value
            ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base_task.py", line 252, in exec_chain
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 252, in exec_chain
     return await execute_task_chain(self, session)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 22, in execute_task_chain
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 22, in execute_task_chain
     result = await execute_task_action(task, session)
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 52, in execute_task_action
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 52, in execute_task_action
     return await run_async(execute_action_until_ready(task, session))
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
     return await value
            ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 86, in execute_action_until_ready
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 86, in execute_action_until_ready
     result = await run_async(execute_action_with_retry(task, session))
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
     return await value
            ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 216, in execute_action_with_retry
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 216, in execute_action_with_retry
     raise e  # Re-raise the exception after handling fallbacks
     ^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/task/base/execution.py", line 179, in execute_action_with_retry
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 179, in execute_action_with_retry
     result = await run_async(task._exec_action(ctx))
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/util/run.py", line 19, in run_async
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
     return await value
            ^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 305, in _exec_action
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 305, in _exec_action
     return await self._exec_action_inner(ctx)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 360, in _exec_action_inner
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 360, in _exec_action_inner
     raise e
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/task/llm_task.py", line 338, in _exec_action_inner
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 338, in _exec_action_inner
     output, new_history = await run_agent(
                           ^^^^^^^^^^^^^^^^
     ...<13 lines>...
     )
     ^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run/runner.py", line 160, in run_agent
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 160, in run_agent
     return await _execution_loop(
            ^^^^^^^^^^^^^^^^^^^^^^
     ...<9 lines>...
     )
     ^
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run/runner.py", line 556, in _execution_loop
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 556, in _execution_loop
     raise e
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run/runner.py", line 497, in _execution_loop
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 497, in _execution_loop
     raise stream_error
-  File "/Users/gofrendigunawan/zrb/src/zrb/llm/agent/run/runner.py", line 468, in _execution_loop
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 468, in _execution_loop
     async for event in stream:
     ...<13 lines>...
             await effective_event_handler(event)
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/result.py", line 968, in __anext__
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/result.py", line 968, in __anext__
     return await self._generator.__anext__()
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 1252, in _run_stream_events
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1252, in _run_stream_events
     result = await task
              ^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 1211, in run_agent
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1211, in run_agent
     return await self.run(
            ^^^^^^^^^^^^^^^
     ...<19 lines>...
     )
     ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 410, in run
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 410, in run
     node = await agent_run._run_node_with_hooks(node, _stream_step)  # pyright: ignore[reportPrivateUsage]
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/run.py", line 308, in _run_node_with_hooks
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 308, in _run_node_with_hooks
     return await self._wrap_and_advance(run_context, node, step_fn)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/run.py", line 278, in _wrap_and_advance
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 278, in _wrap_and_advance
     result = await cap.on_node_run_error(run_context, node=node, error=e)
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 245, in on_node_run_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 245, in on_node_run_error
     raise error
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 242, in on_node_run_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 242, in on_node_run_error
     return await capability.on_node_run_error(ctx, node=node, error=error)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 433, in on_node_run_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 433, in on_node_run_error
     raise error
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/run.py", line 276, in _wrap_and_advance
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 276, in _wrap_and_advance
     result = await cap.wrap_node_run(run_context, node=node, handler=step_fn)
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 231, in wrap_node_run
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 231, in wrap_node_run
     return await chain(node)
            ^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 617, in wrapped
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 617, in wrapped
     return await cap.wrap_node_run(ctx, node=node, handler=inner)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 412, in wrap_node_run
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 412, in wrap_node_run
     return await handler(node)
            ^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/agent/abstract.py", line 392, in _stream_and_advance
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 392, in _stream_and_advance
     async with n.stream(agent_run.ctx) as stream:
                ~~~~~~~~^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 214, in __aenter__
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
     return await anext(self.gen)
            ^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 679, in stream
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 679, in stream
     model_response = await self._resolve_wrap_result(ctx, run_context, wrap_request_context, result_or_exc)
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 967, in _resolve_wrap_result
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 967, in _resolve_wrap_result
     return await ctx.deps.root_capability.on_model_request_error(
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
         run_context, request_context=request_context, error=exc
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     )
     ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 306, in on_model_request_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 306, in on_model_request_error
     raise error
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 303, in on_model_request_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 303, in on_model_request_error
     return await capability.on_model_request_error(ctx, request_context=request_context, error=error)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 514, in on_model_request_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 514, in on_model_request_error
     raise error
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 676, in stream
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 676, in stream
     result_or_exc = wrap_task.result()
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 292, in wrap_model_request
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 292, in wrap_model_request
     return await chain(request_context)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/combined.py", line 581, in wrapped
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 581, in wrapped
     return await cap.wrap_model_request(
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     ...<3 lines>...
     )
     ^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/capabilities/abstract.py", line 491, in wrap_model_request
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 491, in wrap_model_request
     return await handler(request_context)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/_agent_graph.py", line 628, in _streaming_handler
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 628, in _streaming_handler
     async with req_ctx.model.request_stream(
                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
         req_ctx.messages, req_ctx.model_settings, req_ctx.model_request_parameters, run_context
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     ) as sr:
     ^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 214, in __aenter__
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
     return await anext(self.gen)
            ^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 837, in request_stream
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 837, in request_stream
     response = await self._completions_create(messages, True, model_settings_cast, model_request_parameters)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 888, in _completions_create
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 888, in _completions_create
     with _map_api_errors(self.model_name):
          ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "/Users/gofrendigunawan/.pyenv/versions/3.14.2/lib/python3.14/contextlib.py", line 162, in __exit__
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 162, in __exit__
     self.gen.throw(value)
     ~~~~~~~~~~~~~~^^^^^^^
-  File "/Users/gofrendigunawan/zrb/.venv/lib/python3.14/site-packages/pydantic_ai/models/openai.py", line 153, in _map_api_errors
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 153, in _map_api_errors
     raise ModelHTTPError(status_code=status_code, model_name=model_name, body=e.body) from e
 pydantic_ai.exceptions.ModelHTTPError: status_code: 400, model_name: minimax-m2.7:cloud, body: {'message': 'invalid tool call arguments', 'type': 'invalid_request_error', 'param': None, 'code': None}

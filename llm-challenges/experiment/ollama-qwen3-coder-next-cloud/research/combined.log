@@ -1,7 +1,7 @@
 [2m
-  🧰 call_m1pkjcws | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+  🧰 call_0cs12ky0 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
 [0m[2m
-  🔠 call_m1pkjcws | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/research/workdir/system_context.md | 44 lines]
+  🔠 call_0cs12ky0 | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/research/workdir/system_context.md | 44 lines]
      ---CONTENT---
      # System Context: Notifier Subsystem Decision
      
@@ -48,12 +48,12 @@
      - Must maintain exactly-once semantics for billing notifications
      
 [0m[2m
-  🧰 call_0yd6aaku | ActivateSkill {'name': 'core-design'}
+  🧰 call_e72ollg8 | ActivateSkill {'name': 'core-design'}
 [0m[2m
-  🔠 call_0yd6aaku | Return <ACTIVATED_SKILL>
+  🔠 call_e72ollg8 | Return <ACTIVATED_SKILL>
      Skill activated. The following context applies:
      
-     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-design
+     Skill directory (working directory): /Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm_plugin/skills/core-design
      
      All file paths in the skill instructions below are relative to this directory.
      Use companion files (scripts, tools, references) by resolving them against this path.
@@ -128,9 +128,9 @@
      - **Transparent**: Surface trade-offs made and alternatives considered.
      </ACTIVATED_SKILL>
 [0m[2m
-  🧰 call_aicmkpnn | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+  🧰 call_59ridbtj | Read {'path': '/Users/gofrendigunawan/.lo ...'}
 [0m[2m
-  🔠 call_aicmkpnn | Return [File: /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-design/templates/decision-record.md | 76 lines]
+  🔠 call_59ridbtj | Return [File: /Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm_plugin/skills/core-design/templates/decision-record.md | 76 lines]
      ---CONTENT---
      # Architecture Decision Record (ADR) Template
      
@@ -209,31 +209,14 @@
      - **Deprecated**: the situation that motivated the decision no longer exists. Status line records why.
      
 [0m[2m
-  Based[0m[2m on[0m[2m the[0m[2m system[0m[2m context[0m[2m and[0m[2m design[0m[2m constraints[0m[2m,[0m[2m I[0m[2m'll[0m[2m write[0m[2m an[0m[2m A[0m[2mDR[0m[2m for[0m[2m the[0m[2m notification[0m[2m subsystem[0m[2m using[0m[2m Redis[0m[2m Streams[0m[2m.[0m[2m
-     
-     I[0m[2m'm[0m[2m choosing[0m[2m Redis[0m[2m Streams[0m[2m because[0m[2m:[0m[2m
-     -[0m[2m Existing[0m[2m Redis[0m[2m deployment[0m[2m reduces[0m[2m operational[0m[2m overhead[0m[2m ([0m[2mno[0m[2m new[0m[2m infrastructure[0m[2m to[0m[2m learn[0m[2m/set[0m[2m up[0m[2m)[0m[2m
-     -[0m[2m The[0m[2m team[0m[2m already[0m[2m uses[0m[2m Redis[0m[2m for[0m[2m sessions[0m[2m and[0m[2m rate[0m[2m limiting[0m[2m —[0m[2m lower[0m[2m learning[0m[2m curve[0m[2m than[0m[2m Kafka[0m[2m
-     -[0m[2m Exactly[0m[2m-on[0m[2mce[0m[2m semantics[0m[2m are[0m[2m achievable[0m[2m via[0m[2m Redis[0m[2m consumer[0m[2m groups + client-side ded[0m[2mup[0m[2mlication[0m[2m
-     -[0m[2m Through[0m[2mput[0m[2m ([0m[2m1[0m[2m0[0m[2m0[0m[2mK[0m[2m+[0m[2m msg[0m[2m/s[0m[2m per[0m[2m Redis[0m[2m instance[0m[2m)[0m[2m exceeds[0m[2m the[0m[2m 2[0m[2mM[0m[2m tasks[0m[2m/month[0m[2m (~[0m[2m7[0m[2m0[0m[2m0[0m[2m tasks[0m[2m/day[0m[2m or[0m[2m ~[0m[2m1[0m[2m msg[0m[2m/s[0m[2m average[0m[2m,[0m[2m peak[0m[2m ~[0m[2m5[0m[2m0[0m[2m0[0m[2m q[0m[2mps[0m[2m)[0m[2m
-     -[0m[2m Simple[0m[2m retry[0m[2m with[0m[2m exponential[0m[2m back[0m[2moff[0m[2m can[0m[2m be[0m[2m implemented[0m[2m at[0m[2m the[0m[2m consumer[0m[2m level[0m[2m
-     -[0m[2m Budget[0m[2m and[0m[2m team[0m[2m-size[0m[2m constraints[0m[2m favor[0m[2m Redis[0m[2m: no[0m[2m Con[0m[2mfl[0m[2muent[0m[2m Cloud[0m[2m costs[0m[2m,[0m[2m simpler[0m[2m debugging[0m[2m and[0m[2m monitoring[0m[2m
-     
-     Let[0m[2m me[0m[2m write[0m[2m the[0m[2m A[0m[2mDR[0m[2m:[0m[2m
-  🧰 call_mninyik9 | Write {'path': '/Users/gofrendigunawan/zrb ...', 'content': '# ADR-001 — Notification S ...'}
+  🧰 call_0k820hlb | Write {'path': '/Users/gofrendigunawan/zrb ...', 'content': '# ADR-001 — Notification S ...'}
 [0m[2m
-  🔠 call_mninyik9 | Return Successfully wrote to /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/research/workdir/ADR-001-notification-architecture.md
+  🔠 call_0k820hlb | Return Successfully wrote to /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/research/workdir/ADR-001-notification-architecture.md
 [0m[2m
-  ADR[0m[2m written[0m[2m to[0m[2m `[0m[2mADR[0m[2m-[0m[2m0[0m[2m0[0m[2m1[0m[2m-notification[0m[2m-[0m[2marchitecture[0m[2m.md[0m[2m`.[0m[2m
+  Done[0m[2m.[0m[2m I[0m[2m wrote[0m[2m **[0m[2mADR[0m[2m-[0m[2m0[0m[2m0[0m[2m1[0m[2m-notification[0m[2m-[0m[2marchitecture[0m[2m.md[0m[2m**,[0m[2m which[0m[2m recommends[0m[2m Redis[0m[2m Streams[0m[2m over[0m[2m Apache[0m[2m Kafka[0m[2m for[0m[2m the[0m[2m notification[0m[2m subsystem[0m[2m.[0m[2m
      
-     **[0m[2mRecommend[0m[2mation[0m[2m**:[0m[2m Redis[0m[2m Streams[0m[2m.[0m[2m
-     
-     **[0m[2mKey[0m[2m just[0m[2mifications[0m[2m**[0m[2m:[0m[2m
-     -[0m[2m Through[0m[2mput[0m[2m ([0m[2m1[0m[2m0[0m[2m0[0m[2mK[0m[2m+[0m[2m msg[0m[2m/s[0m[2m)[0m[2m dwar[0m[2mfs[0m[2m needs[0m[2m ([0m[2m≈[0m[2m1[0m[2m msg[0m[2m/s[0m[2m currently[0m[2m 1[0m[2m0[0m[2m msg[0m[2m/s[0m[2m at[0m[2m 1[0m[2m0[0m[2m×[0m[2m growth[0m[2m)
-     - Existing Redis[0m[2m deployment[0m[2m =[0m[2m zero[0m[2m new[0m[2m infrastructure[0m[2m,[0m[2m team[0m[2m already[0m[2m operational[0m[2m on[0m[2m Redis[0m[2m
-     -[0m[2m Exactly[0m[2m-on[0m[2mce[0m[2m via[0m[2m client[0m[2m-side[0m[2m `[0m[2mded[0m[2mup[0m[2m_id[0m[2m`[0m[2m +[0m[2m Redis[0m[2m SET[0m[2m with[0m[2m TTL[0m[2m is[0m[2m implement[0m[2mable[0m[2m in[0m[2m <1[0m[2m day[0m[2m
-     -[0m[2m Kafka[0m[2m would[0m[2m add[0m[2m complexity[0m[2m ([0m[2mbranch[0m[2ming[0m[2m,[0m[2m tuning[0m[2m,[0m[2m troubleshooting[0m[2m)[0m[2m that[0m[2m the[0m[2m 6[0m[2m-person[0m[2m team[0m[2m cannot[0m[2m sustain[0m[2m within[0m[2m the[0m[2m 2[0m[2m-week[0m[2m constraint[0m[2m
-  💸 (Requests: 5 | Tool Calls: 4 | Total: 58945) Input: 56990 | Audio Input: 0 | Output: 1955 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
+     The[0m[2m recommendation[0m[2m is[0m[2m based[0m[2m on[0m[2m align[0m[2ming[0m[2m technical[0m[2m requirements[0m[2m ([0m[2mthrough[0m[2mput[0m[2m,[0m[2m delivery[0m[2m semantics[0m[2m,[0m[2m retry[0m[2m,[0m[2m exactly[0m[2m-on[0m[2mce[0m[2m)[0m[2m with[0m[2m team[0m[2m and[0m[2m operational[0m[2m constraints[0m[2m ([0m[2mno[0m[2m Kafka[0m[2m experience[0m[2m,[0m[2m existing[0m[2m Redis[0m[2m in[0m[2m prod[0m[2m,[0m[2m 2[0m[2m-week[0m[2m deployment[0m[2m window[0m[2m,[0m[2m modest[0m[2m budget[0m[2m).[0m[2m The[0m[2m A[0m[2mDR[0m[2m includes[0m[2m a[0m[2m side[0m[2m-by[0m[2m-side[0m[2m comparison[0m[2m of[0m[2m key[0m[2m properties[0m[2m and[0m[2m explicit[0m[2m rationale[0m[2m for[0m[2m rejecting[0m[2m Kafka[0m[2m despite[0m[2m its[0m[2m production[0m[2m maturity[0m[2m.[0m[2m
+  💸 (Requests: 5 | Tool Calls: 4 | Total: 61181) Input: 59631 | Audio Input: 0 | Output: 1550 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "Read `system_context.md`. It describes a real production system and a specific architectural problem we need to solve.
 
 Write an Architecture Decision Record (ADR) evaluating two options for the notification subsystem:
@@ -251,13 +234,7 @@ Your ADR must follow this exact structure:
 Make a definitive recommendation. Use specific technical properties (throughput, ordering guarantees, message retention, consumer groups, exactly-once semantics, operational complexity) to justify your choice given the team size and constraints described.
 
 Save as `ADR-001-notification-architecture.md`." --model ollama:qwen3-coder-next:cloud --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mlong-bolt-1441[0m[0m
-ADR written to `ADR-001-notification-architecture.md`.
+[2m[2mSession[0m: [1;33mthin-arch-8270[0m[0m
+Done. I wrote **ADR-001-notification-architecture.md**, which recommends Redis Streams over Apache Kafka for the notification subsystem.
 
-**Recommendation**: Redis Streams.
-
-**Key justifications**:
-- Throughput (100K+ msg/s) dwarfs needs (≈1 msg/s currently 10 msg/s at 10× growth)
-- Existing Redis deployment = zero new infrastructure, team already operational on Redis
-- Exactly-once via client-side `dedup_id` + Redis SET with TTL is implementable in <1 day
-- Kafka would add complexity (branching, tuning, troubleshooting) that the 6-person team cannot sustain within the 2-week constraint
+The recommendation is based on aligning technical requirements (throughput, delivery semantics, retry, exactly-once) with team and operational constraints (no Kafka experience, existing Redis in prod, 2-week deployment window, modest budget). The ADR includes a side-by-side comparison of key properties and explicit rationale for rejecting Kafka despite its production maturity.

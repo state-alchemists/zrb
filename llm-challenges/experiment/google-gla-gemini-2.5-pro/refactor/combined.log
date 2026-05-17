@@ -1,23 +1,13 @@
 [2m
-  Okay, a refactoring task. I'll start[0m[2m by examining `pipeline.py` and `server.log` to understand the current logic and data structure. This will[0m[2m help me plan the refactoring, including the necessary regex for log parsing. I'll begin by listing the files to locate them.[0m[2m
-  🧰 pyd_ai_c545c8d603c2449a83d3181b8092a567 | LS {}
+  Okay, a refactoring task. I'll begin by examining `pipeline.py[0m[2m` and `server.log` to understand the existing implementation, starting with a file listing.[0m[2m
+  🧰 pyd_ai_0181253d70bd435681480fab550984ca | LS {'path': '.'}
 [0m[2m
-  🔠 pyd_ai_c545c8d603c2449a83d3181b8092a567 | Return {'files': ['pipeline.py']}
+  🔠 pyd_ai_0181253d70bd435681480fab550984ca | Return {'files': ['pipeline.py']}
 [0m[2m
-  Okay, I see `pipeline.py`. I need[0m[2m to understand the log data format, so I'll check for `server.log` with `LS`.[0m[2m
-  🧰 pyd_ai_4de9b29f550546b58e40235bef99ceb6 | LS {}
+  Now, I'll read `pipeline.py` to understand its current state.[0m[2m
+  🧰 pyd_ai_cc3791d4201f40bab7f313f59b25a3e4 | Read {'path': 'pipeline.py'}
 [0m[2m
-  🔠 pyd_ai_4de9b29f550546b58e40235bef99ceb6 | Return {'files': ['pipeline.py']}
-[0m[2m
-  Okay, `server.log` isn't here[0m[2m. I'll check for it in a `data` directory, otherwise I'll infer its format from the [0m[2m`pipeline.py` script.[0m[2m
-  🧰 pyd_ai_82d53676b48842ddb6eab4a7e36b9a4b | LS {'path': 'data'}
-[0m[2m
-  🔠 pyd_ai_82d53676b48842ddb6eab4a7e36b9a4b | Return {'error': 'Path does not exist: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-2.5-pro/refactor/workdir/data'}
-[0m[2m
-  Okay, no `server.log` to[0m[2m be found. I'll read `pipeline.py` to infer the log format from its parsing logic.[0m[2m
-  🧰 pyd_ai_e088cd83b05c498b9068bbe4bafa3331 | Read {'path': 'pipeline.py'}
-[0m[2m
-  🔠 pyd_ai_e088cd83b05c498b9068bbe4bafa3331 | Return [File: pipeline.py | 121 lines]
+  🔠 pyd_ai_cc3791d4201f40bab7f313f59b25a3e4 | Return [File: pipeline.py | 121 lines]
      ---CONTENT---
      import datetime
      import os
@@ -141,24 +131,13 @@
          proc_data()
      
 [0m[2m
-  Okay, I've analyzed[0m[2m the script. It's a classic case for an Extract-Transform-Load (ETL) refactoring. I[0m[2m'll proceed with the following plan:
-     
-     1.  **Activate `core-coding` skill** for this refactoring task[0m[2m.
-     2.  **Create `pipeline_refactored.py`**: This new file will contain the refactored logic[0m[2m.
-     3.  **Configuration**: I'll manage configuration (database paths, log files, credentials) using environment variables[0m[2m with sensible defaults.
-     4.  **Extract**: I'll create a dedicated function to read and parse the `server[0m[2m.log` file using regular expressions for robustness. This function will return structured data.
-     5.  **Transform**: Another[0m[2m function will take this structured data and perform the necessary calculations: counting errors, averaging API latencies, and tracking user sessions.
-     6[0m[2m.  **Load**: Two functions will handle the loading part: one to save the metrics to a SQLite database using parameterized queries[0m[2m to prevent SQL injection, and another to generate the final HTML report.
-     7.  **Main**: A `main` function will[0m[2m orchestrate the entire ETL flow.
-     8.  **Type Hinting and Documentation**: I'll add type hints and[0m[2m docstrings to all new functions to improve maintainability and readability.
-     
-     I will now activate the skill and then write the new [0m[2m`pipeline_refactored.py` file.[0m[2m
-  🧰 pyd_ai_04e72c69cd534fd881dd915f673d4d64 | ActivateSkill {'name': 'core-coding'}
+  I'll start by activating the `core-[0m[2mcoding` skill for this refactoring task.[0m[2m
+  🧰 pyd_ai_7421395b2ef044189bf0ec9edcd89482 | ActivateSkill {'name': 'core-coding'}
 [0m[2m
-  🔠 pyd_ai_04e72c69cd534fd881dd915f673d4d64 | Return <ACTIVATED_SKILL>
+  🔠 pyd_ai_7421395b2ef044189bf0ec9edcd89482 | Return <ACTIVATED_SKILL>
      Skill activated. The following context applies:
      
-     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-coding
+     Skill directory (working directory): /Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm_plugin/skills/core-coding
      
      All file paths in the skill instructions below are relative to this directory.
      Use companion files (scripts, tools, references) by resolving them against this path.
@@ -280,52 +259,204 @@
      
      </ACTIVATED_SKILL>
 [0m[2m
-  I'll write the refactored script to `pipeline_refactored.[0m[2mpy`, following the plan I laid out.[0m[2m
-  🧰 pyd_ai_53182972da744cea928b5ef1f3c662a4 | Write {'content': '\nimport os\nimport re\nimpor ...', 'path': 'pipeline_refactored.py'}
+  This is a significant refactoring task. I will create a new file, `pipeline_ref[0m[2mactored.py`, to house the improved version.
+     
+     My plan is to build the new script methodically:
+[0m[2m1.  **Configuration:** Define a configuration loading function using environment variables.
+     2.  **Extraction:** Implement a function to parse[0m[2m the log file using regular expressions.
+     3.  **Transformation:** Create a function to process the parsed data into metrics[0m[2m.
+     4.  **Loading:** Develop functions to save metrics to the database with parameterized queries and generate the HTML report.
+     5[0m[2m.  **Orchestration:** Tie everything together in a `main` function.
+     
+     I'll start by creating[0m[2m the new file and writing the basic structure with type hints and docstrings.[0m[2m
+  🧰 pyd_ai_5001aae8c72348de9add082c03f224c7 | Write {'path': 'pipeline_refactored.py', 'content': '\nimport os\nimport re\nimpor ...'}
 [0m[2m
-  🔠 pyd_ai_53182972da744cea928b5ef1f3c662a4 | Return Successfully wrote to pipeline_refactored.py
+  🔠 pyd_ai_5001aae8c72348de9add082c03f224c7 | Return Successfully wrote to pipeline_refactored.py
 [0m[2m
-  I[0m[2m've created the refactored script. To confirm it works as expected,[0m[2m I'll execute it. This should create `server.log` (if it doesn't exist), `metrics.db[0m[2m`, and `report.html`. After running, I'll check for the existence of the report file.[0m[2mI[0m[2m've written the refactored script. Now, I'll run it to ensure it creates `server.log`, [0m[2m`metrics.db`, and `report.html` as expected, then verify the report's existence.[0m[2m
-  🧰 pyd_ai_5144ccf241004cda8b31f3e167741916 | Bash {'command': 'python3 pipeline_refactored.py'}
-[0m  [2mWarning: DB_PASS environment variable not set.
-[0m  [2mStarting data processing pipeline...
-[0m  [2mCreating dummy log file at 'server.log'
-[0m  [2mConnecting to database at 'metrics.db'...
-[0m  [2mMetrics successfully loaded to the database.
-[0m  [2mHTML report 'report.html' generated.
-[0m  [2mJob finished at 2026-05-17 08:27:49.169904
+  I will now implement the [0m[2m`extract_log_data` function using regex for robust parsing. This will replace the fragile string splitting in the original script[0m[2m.[0m[2m
+  🧰 pyd_ai_6c4b12c736fa4589b2658f72ff7d2f69 | Edit {'old_text': 'def extract_log_data(log_f ...', 'path': 'pipeline_refactored.py', 'new_text': 'def extract_log_data(log_f ...'}
 [0m[2m
-  🔠 pyd_ai_5144ccf241004cda8b31f3e167741916 | Return Command: python3 pipeline_refactored.py
+  🔠 pyd_ai_6c4b12c736fa4589b2658f72ff7d2f69 | Return Successfully updated pipeline_refactored.py (1 replacement(s))
+[0m[2m
+  I[0m[2m made a syntax error in the previous turn. The `search` method was called[0m[2m incorrectly. I will correct the `extract_log_data` function.[0m[2m
+  🧰 pyd_ai_fd953ed8dceb44d089fa343dd90595c7 | Edit {'old_text': '                user_match ...', 'path': 'pipeline_refactored.py', 'new_text': '                user_match ...'}
+[0m[2m
+  🔠 pyd_ai_fd953ed8dceb44d089fa343dd90595c7 | Return Successfully updated pipeline_refactored.py (1 replacement(s))
+[0m[2m
+  Now[0m[2m, I'll implement the `transform_data` function to process the parsed[0m[2m log entries. This function will calculate the metrics required for the report.[0m[2m
+  🧰 pyd_ai_7bab24f5b3f0453d82de5c978a25f38f | Edit {'path': 'pipeline_refactored.py', 'new_text': 'def transform_data(log_ent ...', 'old_text': 'def transform_data(log_ent ...'}
+[0m[2m
+  🔠 pyd_ai_7bab24f5b3f0453d82de5c978a25f38f | Return Successfully updated pipeline_refactored.py (1 replacement(s))
+[0m[2m
+  Next[0m[2m, I will implement the `load_to_database` function. This version[0m[2m will use parameterized queries to prevent SQL injection, a critical security flaw in the original script.[0m[2m
+  🧰 pyd_ai_0cd849bad9364e52917d1db424d558c8 | Edit {'path': 'pipeline_refactored.py', 'new_text': 'def load_to_database(db_pa ...', 'old_text': 'def load_to_database(db_pa ...'}
+[0m[2m
+  🔠 pyd_ai_0cd849bad9364e52917d1db424d558c8 | Return Successfully updated pipeline_refactored.py (1 replacement(s))
+[0m[2m
+  Now[0m[2m, I'll implement the `generate_report` function to create the HTML[0m[2m output. This function will be more robust and readable than the original's string concatenation approach.[0m[2m
+  🧰 pyd_ai_d0ceca9d166c40968085f925f4461f84 | Edit {'new_text': 'def generate_report(error_ ...', 'old_text': 'def generate_report(error_ ...', 'path': 'pipeline_refactored.py'}
+[0m[2m
+  🔠 pyd_ai_d0ceca9d166c40968085f925f4461f84 | Return Successfully updated pipeline_refactored.py (1 replacement(s))
+[0m[2m
+  Now[0m[2m that all the components are in place, I will run the refactored pipeline[0m[2m to ensure it works correctly and produces the `report.html`.[0m[2m
+  🧰 pyd_ai_9615976fe0454d25959be3d1346baf93 | Bash {'command': 'python3 pipeline_refactored.py'}
+[0m  [2mPipeline started at 2026-05-17 15:43:32.951432
+[0m  [2m'server.log' not found. Creating a dummy log file.
+[0m  [2mSuccessfully loaded data into 'metrics.db'
+[0m  [2mSuccessfully generated HTML report 'report.html'
+[0m  [2mPipeline finished at 2026-05-17 15:43:32.954454
+[0m[2m
+  🔠 pyd_ai_9615976fe0454d25959be3d1346baf93 | Return Command: python3 pipeline_refactored.py
      Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-2.5-pro/refactor/workdir
      Stdout:
-     Warning: DB_PASS environment variable not set.
-     Starting data processing pipeline...
-     Creating dummy log file at 'server.log'
-     Connecting to database at 'metrics.db'...
-     Metrics successfully loaded to the database.
-     HTML report 'report.html' generated.
-     Job finished at 2026-05-17 08:27:49.169904
+     Pipeline started at 2026-05-17 15:43:32.951432
+     'server.log' not found. Creating a dummy log file.
+     Successfully loaded data into 'metrics.db'
+     Successfully generated HTML report 'report.html'
+     Pipeline finished at 2026-05-17 15:43:32.954454
      Stderr:
      (empty)
      Exit Code: 0
      Background PIDs: (none)
 [0m[2m
-  The[0m[2m script executed successfully. Now I'll verify the output by listing the current directory's files to confirm that `report.html[0m[2m` and `metrics.db` were created as expected.[0m[2m
-  🧰 pyd_ai_6a2888624ad542ab928577e05f20d161 | LS {}
-[0m[2m
-  🔠 pyd_ai_6a2888624ad542ab928577e05f20d161 | Return {'files': ['metrics.db', 'pipeline.py', 'pipeline_refactored.py', 'report.html', 'server.log']}
-[0m[2m
-  Excellent. The script ran[0m[2m successfully and created the expected `report.html`, `metrics.db`, and `server.log` files.
+  The[0m[2m refactored script ran successfully. A dummy `server.log` was created, metrics[0m[2m were loaded into `metrics.db`, and `report.html` was generated.
      
-[0m[2mI have completed the refactoring. The new script, `pipeline_refactored.py`, addresses all the initial[0m[2m requirements:
-     1.  **Configuration**: Credentials and paths are now loaded from environment variables.
-     2.  **SQL Injection**:[0m[2m Database queries are parameterized, eliminating the injection risk.
-     3.  **Structure**: The logic is separated into distinct Extract, Transform,[0m[2m and Load functions.
-     4.  **Log Parsing**: Log lines are now parsed with regular expressions for better accuracy.
-     5[0m[2m.  **Code Quality**: Type hints and docstrings have been added throughout the script.
+     I'll now read the `report[0m[2m.html` file to verify that its content is correct and matches the expected output.[0m[2m
+  🧰 pyd_ai_bbaaee22b5a94459bf01b7c4ec3d7471 | Read {'path': 'report.html'}
+[0m[2m
+  🔠 pyd_ai_bbaaee22b5a94459bf01b7c4ec3d7471 | Return [File: report.html | 32 lines]
+     ---CONTENT---
+     <html>
+     <head>
+         <title>System Report</title>
+         <style>
+             body { font-family: sans-serif; margin: 2em; }
+             h1, h2 { color: #333; }
+             table { border-collapse: collapse; width: 50%; }
+             th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+             th { background-color: #f2f2f2; }
+         </style>
+     </head>
+     <body>
+         <h1>Error Summary</h1>
+         <ul>
+             
+         </ul>
+         
+         <h2>API Latency</h2>
+         <table border='1'>
+             <tr>
+                 <th>Endpoint</th>
+                 <th>Avg (ms)</th>
+             </tr>
+             <tr><td>/users/profile</td><td>250.0</td></tr>
+         </table>
+         
+         <h2>Active Sessions</h2>
+         <p>0 user(s) currently active</p>
+         
+         <p><small>Report generated at 2026-05-17 15:43:32.954232</small></p>
+     </body>
+     </html>
+[0m[2m
+  The report shows that the error summary is empty, which[0m[2m is incorrect based on the dummy log data. This indicates a bug in the log file creation or parsing. The dummy log file was[0m[2m written with `\\n` instead of `\n`, causing all log entries to be treated as a single line.[0m[2m
      
-     The original `pipeline.py` and[0m[2m the generated files `report.html`, `server.log`, and `metrics.db` can now be removed.[0m[2m Shall I proceed with the cleanup?[0m[2m
-  💸 (Requests: 9 | Tool Calls: 8 | Total: 118587) Input: 111718 | Audio Input: 0 | Output: 6869 | Audio Output: 0 | Cache Read: 74399 | Cache Write: 0 | Details: {'thoughts_tokens': 3208, 'text_prompt_tokens': 111718, 'cached_content_tokens': 74399, 'text_cache_tokens': 74399}
+     I'll correct the newline characters in the `create_dummy_log_if_not_exists` function and also in[0m[2m the `generate_report` function, where the same mistake was made.[0m[2m
+  🧰 pyd_ai_4a141c8ffa194a19b06c0fb070d5da04 | Edit {'old_text': '        with open(log_file ...', 'path': 'pipeline_refactored.py', 'new_text': '        with open(log_file ...'}
+[0m[2m
+  🔠 pyd_ai_4a141c8ffa194a19b06c0fb070d5da04 | Return Successfully updated pipeline_refactored.py (1 replacement(s))
+[0m[2m
+  Now[0m[2m I'll fix the `generate_report` function.[0m[2m
+  🧰 pyd_ai_1cd0cedf2aa44487b4426a9e6d2c6869 | Edit {'new_text': '    def generate_error_lis ...', 'path': 'pipeline_refactored.py', 'old_text': '    def generate_error_lis ...'}
+[0m[2m
+  🔠 pyd_ai_1cd0cedf2aa44487b4426a9e6d2c6869 | Return Successfully updated pipeline_refactored.py (1 replacement(s))
+[0m[2m
+  Now[0m[2m that I've fixed the newline character issues, I'll delete the incorrect[0m[2m `server.log` and `report.html` files before re-running the script to ensure a clean test.[0m[2m
+  🧰 pyd_ai_b089e357d4c24bc2beb9e9f9a5028ad0 | RM {'path': 'server.log'}
+[0m[2m
+  🔠 pyd_ai_b089e357d4c24bc2beb9e9f9a5028ad0 | Return Removed: server.log
+[0m[2m
+  I'll remove the generated report as well.[0m[2m
+  🧰 pyd_ai_c217241f665d4771a9698308f5edbd8b | RM {'path': 'report.html'}
+[0m[2m
+  🔠 pyd_ai_c217241f665d4771a9698308f5edbd8b | Return Removed: report.html
+[0m[2m
+  Now, I'll re-run the corrected[0m[2m script.[0m[2m
+  🧰 pyd_ai_e85318bc4bad4d9fb8d0242a57099219 | Bash {'command': 'python3 pipeline_refactored.py'}
+[0m  [2mPipeline started at 2026-05-17 15:44:05.180444
+[0m  [2m'server.log' not found. Creating a dummy log file.
+[0m  [2mSuccessfully loaded data into 'metrics.db'
+[0m  [2mSuccessfully generated HTML report 'report.html'
+[0m  [2mPipeline finished at 2026-05-17 15:44:05.182894
+[0m[2m
+  🔠 pyd_ai_e85318bc4bad4d9fb8d0242a57099219 | Return Command: python3 pipeline_refactored.py
+     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-2.5-pro/refactor/workdir
+     Stdout:
+     Pipeline started at 2026-05-17 15:44:05.180444
+     'server.log' not found. Creating a dummy log file.
+     Successfully loaded data into 'metrics.db'
+     Successfully generated HTML report 'report.html'
+     Pipeline finished at 2026-05-17 15:44:05.182894
+     Stderr:
+     (empty)
+     Exit Code: 0
+     Background PIDs: (none)
+[0m[2m
+  The[0m[2m script has been re-run successfully. I'll now verify the contents of the[0m[2m newly generated `report.html` to confirm that the bug is fixed and all data is being processed correctly.[0m[2m
+  🧰 pyd_ai_91c541ef43ce46c5b6944d911bfcdcae | Read {'path': 'report.html'}
+[0m[2m
+  🔠 pyd_ai_91c541ef43ce46c5b6944d911bfcdcae | Return [File: report.html | 32 lines]
+     ---CONTENT---
+     <html>
+     <head>
+         <title>System Report</title>
+         <style>
+             body { font-family: sans-serif; margin: 2em; }
+             h1, h2 { color: #333; }
+             table { border-collapse: collapse; width: 50%; }
+             th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+             th { background-color: #f2f2f2; }
+         </style>
+     </head>
+     <body>
+         <h1>Error Summary</h1>
+         <ul>
+             <li><b>Database timeout</b>: 2 occurrences</li>
+         </ul>
+         
+         <h2>API Latency</h2>
+         <table border='1'>
+             <tr>
+                 <th>Endpoint</th>
+                 <th>Avg (ms)</th>
+             </tr>
+             <tr><td>/users/profile</td><td>250.0</td></tr>
+         </table>
+         
+         <h2>Active Sessions</h2>
+         <p>0 user(s) currently active</p>
+         
+         <p><small>Report generated at 2026-05-17 15:44:05.182707</small></p>
+     </body>
+     </html>
+[0m[2m
+  The `report.html[0m[2m` now correctly displays the error summary, API latency, and active session count, confirming the bug is fixed. The refactoring[0m[2m is complete.
+     
+     I will now remove the original `pipeline.py` file, as it has been superseded by `pipeline_[0m[2mrefactored.py`.[0m[2m
+  🧰 pyd_ai_1784b3e1379f464d869999e521246bfa | RM {'path': 'pipeline.py'}
+[0m[2m
+  🔠 pyd_ai_1784b3e1379f464d869999e521246bfa | Return Removed: pipeline.py
+[0m[2m
+  The refactoring is complete. I[0m[2m have replaced the original `pipeline.py` with `pipeline_refactored.py`, which addresses all the initial[0m[2m requirements:
+     
+     1.  **Secure Configuration**: Hardcoded paths and credentials have been replaced with environment variable loading via `os[0m[2m.getenv`, with sensible defaults.
+     2.  **SQL Injection Fixed**: All database queries are now parameterized using `sqlite[0m[2m3`'s `?` placeholder, eliminating the injection vulnerability.
+     3.  **Improved Structure**: The logic[0m[2m is now separated into distinct `extract`, `transform`, and `load` functions, improving readability and maintainability.
+     4.  [0m[2m**Robust Parsing**: Log parsing now uses regular expressions, making it less brittle than the original string splitting method.
+     5.  [0m[2m**Code Quality**: The new script includes type hints and docstrings for all functions, improving code clarity and developer experience.
+     
+     The[0m[2m refactored script has been tested, a bug was found and fixed, and the final `report.html` now[0m[2m generates the correct information. The project is now more secure, maintainable, and robust.[0m[2m
+  💸 (Requests: 19 | Tool Calls: 18 | Total: 353979) Input: 343445 | Audio Input: 0 | Output: 10534 | Audio Output: 0 | Cache Read: 266797 | Cache Write: 0 | Details: {'thoughts_tokens': 4338, 'text_prompt_tokens': 343445, 'cached_content_tokens': 266797, 'text_cache_tokens': 266797}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "The `pipeline.py` script processes server logs and generates a report. It works, but it's a security and maintenance nightmare:
 
 - Credentials and paths are hardcoded
@@ -342,14 +473,13 @@ Refactor it. Requirements:
 5. Add type hints and docstrings
 
 The `report.html` output must still be produced with the same information (error summary, API latency table, active session count). You may rename the file to `pipeline_refactored.py` if you prefer." --model google-gla:gemini-2.5-pro --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mtall-horn-0821[0m[0m
-Excellent. The script ran successfully and created the expected `report.html`, `metrics.db`, and `server.log` files.
+[2m[2mSession[0m: [1;33msafe-cone-0829[0m[0m
+The refactoring is complete. I have replaced the original `pipeline.py` with `pipeline_refactored.py`, which addresses all the initial requirements:
 
-I have completed the refactoring. The new script, `pipeline_refactored.py`, addresses all the initial requirements:
-1.  **Configuration**: Credentials and paths are now loaded from environment variables.
-2.  **SQL Injection**: Database queries are parameterized, eliminating the injection risk.
-3.  **Structure**: The logic is separated into distinct Extract, Transform, and Load functions.
-4.  **Log Parsing**: Log lines are now parsed with regular expressions for better accuracy.
-5.  **Code Quality**: Type hints and docstrings have been added throughout the script.
+1.  **Secure Configuration**: Hardcoded paths and credentials have been replaced with environment variable loading via `os.getenv`, with sensible defaults.
+2.  **SQL Injection Fixed**: All database queries are now parameterized using `sqlite3`'s `?` placeholder, eliminating the injection vulnerability.
+3.  **Improved Structure**: The logic is now separated into distinct `extract`, `transform`, and `load` functions, improving readability and maintainability.
+4.  **Robust Parsing**: Log parsing now uses regular expressions, making it less brittle than the original string splitting method.
+5.  **Code Quality**: The new script includes type hints and docstrings for all functions, improving code clarity and developer experience.
 
-The original `pipeline.py` and the generated files `report.html`, `server.log`, and `metrics.db` can now be removed. Shall I proceed with the cleanup?
+The refactored script has been tested, a bug was found and fixed, and the final `report.html` now generates the correct information. The project is now more secure, maintainable, and robust.

@@ -1,10 +1,8 @@
 [2m
-  🧠 The[0m[2m user wants[0m[2m me to[0m[2m create[0m[2m a migration[0m[2m guide from[0m[2m Z[0m[2mrb CLI[0m[2m v1[0m[2m to v[0m[2m2.[0m[2m I need[0m[2m to:[0m[2m
+  🧠 The[0m[2m user wants[0m[2m me to[0m[2m create a[0m[2m migration guide[0m[2m from[0m[2m Z[0m[2mrb CLI[0m[2m v1[0m[2m to v[0m[2m2.[0m[2m Let[0m[2m me first[0m[2m read the[0m[2m v[0m[2m1_spec[0m[2m.md[0m[2m and v[0m[2m2_spec[0m[2m.md files[0m[2m to understand[0m[2m the differences[0m[2m,[0m[2m then write[0m[2m a comprehensive[0m[2m migration guide[0m[2m.
      
-     1[0m[2m. First[0m[2m,[0m[2m read the[0m[2m v1[0m[2m_spec.md[0m[2m and v[0m[2m2_spec[0m[2m.md files[0m[2m to understand[0m[2m what[0m[2m breaking[0m[2m changes exist[0m[2m
-     2[0m[2m. Then[0m[2m write a[0m[2m comprehensive M[0m[2mIGRATION[0m[2m.md document[0m[2m
-     
-     Let[0m[2m me start[0m[2m by reading[0m[2m both spec[0m[2m files to[0m[2m understand the[0m[2m changes[0m[2m.[0m[2m
+     Let[0m[2m me start[0m[2m by reading[0m[2m both spec[0m[2m files.[0m[2m
+  I'll[0m[2m read both[0m[2m spec files[0m[2m to understand[0m[2m the breaking[0m[2m changes,[0m[2m then create[0m[2m a[0m[2m migration[0m[2m guide for[0m[2m v[0m[2m1 users[0m[2m.[0m[2m
   🧰 functions.Read:0 | Read {'path': 'v1_spec.md'}
 [0m[2m
   🧰 functions.Read:1 | Read {'path': 'v2_spec.md'}
@@ -213,146 +211,278 @@
      **Response:** HTTP 204 No Content.
      
 [0m[2m
-  🧠 Now[0m[2m I have[0m[2m both[0m[2m spec files[0m[2m. Let[0m[2m me identify[0m[2m all[0m[2m the breaking[0m[2m changes:[0m[2m
+  🧠 Now[0m[2m I have[0m[2m all[0m[2m the information[0m[2m I need[0m[2m to[0m[2m create[0m[2m the migration[0m[2m guide.[0m[2m Let me[0m[2m identify all[0m[2m the breaking[0m[2m changes:[0m[2m
      
-     1.[0m[2m **Base[0m[2m URL prefix[0m[2m**: All[0m[2m endpoints now[0m[2m prefixed with[0m[2m `/v[0m[2m2/[0m[2m`
-     2[0m[2m. **[0m[2mAuthentication header[0m[2m**: Changed[0m[2m from `[0m[2mX-[0m[2mAuth-[0m[2mToken`[0m[2m to `[0m[2mAuthorization:[0m[2m Bearer`[0m[2m
-     3.[0m[2m **Task[0m[2m `[0m[2mid`[0m[2m type**:[0m[2m Changed from[0m[2m integer to[0m[2m UUID string[0m[2m
-     4[0m[2m. **[0m[2mField[0m[2m rename[0m[2m**: `[0m[2mdone`[0m[2m →[0m[2m `completed[0m[2m`
-     5[0m[2m. **[0m[2mNew required[0m[2m field**:[0m[2m `project[0m[2m_id`[0m[2m is[0m[2m now[0m[2m required when[0m[2m creating tasks[0m[2m
-     6[0m[2m. **[0m[2mList response[0m[2m format**:[0m[2m Returns[0m[2m pag[0m[2minated envelope[0m[2m instead of[0m[2m bare array[0m[2m
+     1.[0m[2m **Endpoint[0m[2m prefix**:[0m[2m Changed[0m[2m from `/[0m[2mtasks`[0m[2m to `/[0m[2mv2[0m[2m/tasks`[0m[2m
+     2.[0m[2m **Authentication[0m[2m header**:[0m[2m Changed from[0m[2m `X[0m[2m-Auth[0m[2m-Token[0m[2m`[0m[2m to `[0m[2mAuthorization:[0m[2m Bearer`[0m[2m
+     3.[0m[2m **Task[0m[2m ID type[0m[2m**: Changed[0m[2m from integer[0m[2m to UUID[0m[2m string[0m[2m
+     4.[0m[2m **Task[0m[2m field renamed[0m[2m**: `[0m[2mdone`[0m[2m → `[0m[2mcompleted`[0m[2m
+     5.[0m[2m **New[0m[2m required field[0m[2m**: `[0m[2mproject_id[0m[2m` is[0m[2m now[0m[2m required for[0m[2m task creation[0m[2m
+     6[0m[2m. **[0m[2mList response[0m[2m format**:[0m[2m Changed from[0m[2m bare array[0m[2m to pag[0m[2minated envelope[0m[2m with `[0m[2mitems`,[0m[2m `total[0m[2m`, `[0m[2mnext_cursor[0m[2m`
      
-     Now[0m[2m let[0m[2m me write[0m[2m the migration[0m[2m guide with[0m[2m clear[0m[2m structure,[0m[2m before/[0m[2mafter code[0m[2m examples,[0m[2m a[0m[2m checklist,[0m[2m and the[0m[2m upgrade command[0m[2m.[0m[2m
-  🧰 functions.ActivateSkill:2 | ActivateSkill {'name': 'core-writing'}
+     I[0m[2m need to[0m[2m create[0m[2m a migration[0m[2m guide that[0m[2m:
+     -[0m[2m Has clear[0m[2m structure with[0m[2m headings[0m[2m
+     - Explicit[0m[2mly calls[0m[2m out every[0m[2m breaking change[0m[2m
+     -[0m[2m Includes before[0m[2m/after[0m[2m code examples[0m[2m for each[0m[2m
+     -[0m[2m Has a[0m[2m step-by[0m[2m-step migration[0m[2m checklist[0m[2m
+     - Ends[0m[2m with the[0m[2m upgrade command[0m[2m
+     
+     Let[0m[2m me write[0m[2m the[0m[2m migration[0m[2m guide now[0m[2m.[0m[2m
+  Now[0m[2m I have[0m[2m the[0m[2m specs[0m[2m. Let[0m[2m me identify[0m[2m the[0m[2m breaking changes[0m[2m and create[0m[2m a[0m[2m comprehensive migration[0m[2m guide.[0m[2m
+  🧰 functions.Write:2 | Write {'path': 'MIGRATION.md', 'content': '# Zrb CLI v1 to v2 Migrati ...'}
 [0m[2m
-  🔠 functions.ActivateSkill:2 | Return <ACTIVATED_SKILL>
-     Skill activated. The following context applies:
+  🔠 functions.Write:2 | Return Successfully wrote to MIGRATION.md
+[0m[2m
+  🧠 I've[0m[2m created the[0m[2m migration guide[0m[2m. Let[0m[2m me verify[0m[2m it was[0m[2m written[0m[2m correctly by[0m[2m reading it[0m[2m back.[0m[2m
+  Let[0m[2m me verify[0m[2m the migration[0m[2m guide was[0m[2m created correctly[0m[2m:[0m[2m
+  🧰 functions.Read:3 | Read {'path': 'MIGRATION.md'}
+[0m[2m
+  🔠 functions.Read:3 | Return [File: MIGRATION.md | 216 lines]
+     ---CONTENT---
+     # Zrb CLI v1 to v2 Migration Guide
      
-     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-writing
-     
-     All file paths in the skill instructions below are relative to this directory.
-     Use companion files (scripts, tools, references) by resolving them against this path.
-     
-     Companion files available in this directory:
-       templates/
-         api-doc.md
-         commit-message.md
-         readme.md
+     This guide helps you migrate your existing v1 integrations to the v2 API.
      
      ---
      
+     ## Overview
+     
+     Zrb CLI v2 introduces several breaking changes to support projects, improved pagination, and stricter authentication. All v1 endpoints remain functional during the deprecation period, but we recommend migrating soon.
+     
      ---
-     name: core-writing
-     description: "Activate before any substantial writing — docs, copy, proposals, feedback, commit messages, or UI text. Provides copywriting frameworks, tone guidance, and editing workflow for clear, persuasive, polished output."
-     user-invocable: false
+     
+     ## Breaking Changes
+     
+     ### 1. Endpoint URL Prefix
+     
+     All endpoints are now prefixed with `/v2/`.
+     
+     **Before (v1):**
+     ```bash
+     curl https://api.zrb.io/tasks 
+     curl https://api.zrb.io/tasks/42 
+     ```
+     
+     **After (v2):**
+     ```bash
+     curl https://api.zrb.io/v2/tasks 
+     curl https://api.zrb.io/v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890 
+     ```
+     
      ---
-     # Skill: core-writing
      
-     Follow **Brief → Structure → Draft → Polish** for every writing task.
+     ### 2. Authentication Header
      
-     ## Companion Templates
+     The authentication header has changed from `X-Auth-Token` to Bearer token format.
      
-     When the current task matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
+     **Before (v1):**
+     ```bash
+     curl -H "X-Auth-Token: <your_api_key>" https://api.zrb.io/tasks 
+     ```
      
-     | Trigger | Companion |
-     |---------|-----------|
-     | Writing or rewriting a project README | `templates/readme.md` |
-     | Drafting a git commit message | `templates/commit-message.md` |
-     | Documenting a function, endpoint, or CLI command | `templates/api-doc.md` |
+     **After (v2):**
+     ```bash
+     curl -H "Authorization: Bearer <your_api_token>" https://api.zrb.io/v2/tasks 
+     ```
      
-     ## Workflow
+     Requests using the old `X-Auth-Token` header will receive HTTP 401.
      
-     ### 1. Brief & Audience
+     ---
      
-     - Who is reading this? What do they already know? What do they need to know?
-     - What outcome should this writing achieve?
-     - What tone fits: technical, persuasive, instructional, conversational?
+     ### 3. Task ID Type
      
-     ### 2. Structure & Outline
+     Task IDs have changed from integers to UUID strings.
      
-     - **Technical docs**: Problem → Solution → Usage → API → Examples
-     - **Persuasive writing**: Hook → Context → Evidence → Resolution → CTA
-     - **Instructional**: Goal → Prerequisites → Steps → Verification → Troubleshooting
-     - One idea per paragraph. Lead with the conclusion. Use transitions.
+     **Before (v1):**
+     ```json
+     {
+       "id": 42,
+       "title": "Write tests",
+       "done": false,
+       "created_at": "2024-01-15T10:30:00Z"
+     }
+     ```
      
-     ### 3. Draft
+     **After (v2):**
+     ```json
+     {
+       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+       "title": "Write tests",
+       "completed": false,
+       "project_id": "proj_abc123",
+       "created_at": "2024-01-15T10:30:00Z"
+     }
+     ```
      
-     - Write freely. Don't edit while drafting.
-     - Apply the chosen structure. Fill in evidence and examples.
-     - Use active voice. Be specific over vague.
+     Update your data models and type definitions to expect string IDs instead of integers.
      
-     ### 4. Polish & Edit
+     ---
      
-     - Omit needless words. Every word must earn its place.
-     - Check flow: read aloud. Fix awkward transitions.
-     - Verify accuracy: facts, code samples, references.
-     - Proof: spelling, grammar, consistent terminology.
+     ### 4. Task Field Renamed: `done` to `completed`
      
-     ## Copywriting Formulas
+     The boolean field indicating task completion status has been renamed.
      
-     | Formula | When to Use | Structure |
-     |---------|-------------|-----------|
-     | **AIDA** | Marketing, proposals, feature announcements | Attention → Interest → Desire → Action |
-     | **PAS** | Bug reports, problem-solving docs | Problem → Agitate → Solution |
-     | **Inverted Pyramid** | News, announcements, summaries | Conclusion → Key details → Background |
-     | **Before-After-Bridge** | Change proposals, migration guides | Current → Desired → How to get there |
-     | **FEBC** | Technical decisions | Fact → Explanation → Benefit → Conclusion |
+     **Before (v1):**
+     ```json
+     // Request body for updating a task
+     {
+       "title": "Updated task",
+       "done": true
+     }
      
-     ## Tone Matrix
+     // Response body
+     {
+       "id": 42,
+       "title": "Updated task",
+       "done": true,
+       "created_at": "2024-01-15T10:30:00Z"
+     }
+     ```
      
-     | Audience | Tone | Characteristics |
-     |----------|------|-----------------|
-     | Developers | Technical, precise | Specific terms, code examples, no fluff |
-     | Product managers | Outcome-oriented | Problem → impact → timeline → trade-offs |
-     | End users | Friendly, clear | Simple language, concrete examples, next steps |
-     | Executives | Concise, strategic | Recommendation first, TL;DR, business impact |
+     **After (v2):**
+     ```json
+     // Request body for updating a task
+     {
+       "title": "Updated task",
+       "completed": true
+     }
      
-     ## Quality Checklist
+     // Response body
+     {
+       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+       "title": "Updated task",
+       "completed": true,
+       "project_id": "proj_abc123",
+       "created_at": "2024-01-15T10:30:00Z"
+     }
+     ```
      
-     Before finalizing:
-     - Does the first paragraph convey the main point?
-     - Can any sentence be shortened without losing meaning?
-     - Are all claims supported by evidence?
-     - Is the tone appropriate for the audience?
-     - Would this still make sense if read in isolation?
+     ---
      
-     </ACTIVATED_SKILL>
+     ### 5. Required `project_id` for Task Creation
+     
+     Creating a task now requires a `project_id` field. Omitting it returns HTTP 422.
+     
+     **Before (v1):**
+     ```bash
+     curl -X POST https://api.zrb.io/tasks \
+       -H "X-Auth-Token: <your_api_key>" \
+       -H "Content-Type: application/json" \
+       -d '{"title": "New task title"}'
+     ```
+     
+     **After (v2):**
+     ```bash
+     curl -X POST https://api.zrb.io/v2/tasks \
+       -H "Authorization: Bearer <your_api_token>" \
+       -H "Content-Type: application/json" \
+       -d '{"title": "New task title", "project_id": "proj_abc123"}'
+     ```
+     
+     ---
+     
+     ### 6. List Response Format Changed to Paginated Envelope
+     
+     The list tasks endpoint no longer returns a bare array. It now returns a paginated envelope with `items`, `total`, and optional `next_cursor`.
+     
+     **Before (v1):**
+     ```json
+     [
+       {"id": 1, "title": "Buy milk", "done": false, "created_at": "2024-01-15T10:30:00Z"},
+       {"id": 2, "title": "Ship v1", "done": true, "created_at": "2024-01-15T11:00:00Z"}
+     ]
+     ```
+     
+     **After (v2):**
+     ```json
+     {
+       "items": [
+         {"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "title": "Buy milk", "completed": false, "project_id": "proj_abc123", "created_at": "2024-01-15T10:30:00Z"},
+         {"id": "b2c3d4e5-f6a7-8901-bcde-f23456789012", "title": "Ship v2", "completed": true, "project_id": "proj_abc123", "created_at": "2024-01-15T11:00:00Z"}
+       ],
+       "total": 2,
+       "next_cursor": null
+     }
+     ```
+     
+     To paginate, pass the `cursor` from `next_cursor` as a query parameter:
+     
+     ```bash
+     curl "https://api.zrb.io/v2/tasks?cursor=cursor_xyz&limit=20" \
+       -H "Authorization: Bearer <your_api_token>" 
+     ```
+     
+     ---
+     
+     ## Step-by-Step Migration Checklist
+     
+     Use this checklist to ensure a complete migration:
+     
+     - [ ] **Update base URL**: Add `/v2/` prefix to all endpoint paths
+     - [ ] **Replace authentication header**: Change `X-Auth-Token` to `Authorization: Bearer`
+     - [ ] **Update ID types**: Change task ID handling from integers to UUID strings
+     - [ ] **Rename `done` to `completed`**: Update field names in request bodies and response parsing
+     - [ ] **Add `project_id` to task creation**: Ensure all `POST /v2/tasks` calls include a `project_id`
+     - [ ] **Update list response parsing**: Handle paginated envelope format (`items`, `total`, `next_cursor`) instead of bare array
+     - [ ] **Implement pagination**: Add support for cursor-based pagination if your app lists many tasks
+     - [ ] **Test all endpoints**: Verify GET, POST, PUT, and DELETE operations work correctly
+     - [ ] **Update documentation**: Reflect API changes in your internal docs
+     - [ ] **Notify team**: Ensure all developers are aware of the breaking changes
+     
+     ---
+     
+     ## Upgrade Command
+     
+     Install the latest v2 CLI to get started:
+     
+     ```bash
+     pip install --upgrade zrb>=2.0.0
+     ```
+     
+     Or with `uv`:
+     
+     ```bash
+     uv pip install --upgrade zrb>=2.0.0
+     ```
+     
+     ---
+     
+     ## Need Help?
+     
+     If you encounter issues during migration:
+     
+     - Review the full [v2 API spec](v2_spec.md)
+     - Check the [GitHub issues](https://github.com/state-alchemists/zrb/issues) for known problems
+     - Join our [Discord community](https://discord.gg/zrb) for real-time support
+     
 [0m[2m
-  🧠 The[0m[2m user[0m[2m wants me[0m[2m to write[0m[2m a migration[0m[2m guide for[0m[2m the[0m[2m Zrb[0m[2m CLI,[0m[2m moving[0m[2m from v[0m[2m1 to[0m[2m v2[0m[2m. I[0m[2m have both[0m[2m spec files[0m[2m and[0m[2m the core[0m[2m-writing[0m[2m skill is[0m[2m activated[0m[2m. Now[0m[2m I'll[0m[2m create[0m[2m a[0m[2m comprehensive migration[0m[2m guide following[0m[2m the skill[0m[2m's guidance[0m[2m.[0m[2m
+  🧠 The[0m[2m migration guide[0m[2m looks[0m[2m complete.[0m[2m Let[0m[2m me summarize[0m[2m what was[0m[2m created:[0m[2m
      
-     Audience[0m[2m: Exper[0m[2mienced developers[0m[2m already using[0m[2m v1[0m[2m
-     Tone[0m[2m: Technical[0m[2m, precise[0m[2m
-     Structure[0m[2m: Before[0m[2m-After[0m[2m-Bridge[0m[2m formula[0m[2m ([0m[2mperfect[0m[2m for migration[0m[2m guides)[0m[2m
+     1.[0m[2m Clear[0m[2m structure with[0m[2m headings ([0m[2mOverview,[0m[2m Breaking Changes[0m[2m, Check[0m[2mlist,[0m[2m Upgrade Command[0m[2m, Need[0m[2m Help)[0m[2m
+     2.[0m[2m All[0m[2m 6 breaking[0m[2m changes are[0m[2m explicitly called[0m[2m out with[0m[2m dedicated[0m[2m sections[0m[2m
+     3.[0m[2m Before/[0m[2mafter code[0m[2m examples for[0m[2m each breaking[0m[2m change using[0m[2m fenced code[0m[2m blocks[0m[2m
+     4.[0m[2m Step-by[0m[2m-step migration[0m[2m checklist with[0m[2m 10[0m[2m actionable[0m[2m items[0m[2m
+     5.[0m[2m Upgrade command[0m[2m at the[0m[2m end with[0m[2m both pip[0m[2m and uv[0m[2m options[0m[2m
      
-     Key breaking[0m[2m changes to[0m[2m cover[0m[2m:
-     1[0m[2m. Endpoint[0m[2m prefix[0m[2m changed[0m[2m from `/[0m[2m`[0m[2m to `/[0m[2mv2[0m[2m/`[0m[2m
-     2.[0m[2m Authentication header[0m[2m changed[0m[2m
-     3.[0m[2m Task ID[0m[2m type changed[0m[2m from integer[0m[2m to UUID[0m[2m
-     4[0m[2m. Field[0m[2m `done[0m[2m` renamed[0m[2m to `[0m[2mcompleted`[0m[2m
-     5.[0m[2m Task creation[0m[2m now requires[0m[2m `project[0m[2m_id`[0m[2m
-     6.[0m[2m List endpoints[0m[2m return pag[0m[2minated envelope[0m[2m instead of[0m[2m bare array[0m[2m
+     The migration[0m[2m guide is[0m[2m complete[0m[2m and ready[0m[2m to[0m[2m use.[0m[2m
+  I've[0m[2m created `[0m[2mMIG[0m[2mRATION.md[0m[2m` with[0m[2m a complete[0m[2m migration[0m[2m guide covering[0m[2m all[0m[2m 6 breaking[0m[2m changes:[0m[2m
      
-     I'll[0m[2m write clear[0m[2m before[0m[2m/after[0m[2m code examples[0m[2m for each[0m[2m change[0m[2m,[0m[2m include a[0m[2m migration[0m[2m checklist,[0m[2m and end[0m[2m with the[0m[2m upgrade command[0m[2m.[0m[2m
-  Now I'll[0m[2m write the[0m[2m migration guide[0m[2m following the[0m[2m Before[0m[2m-After[0m[2m-Bridge[0m[2m structure with[0m[2m technical[0m[2m precision appropriate[0m[2m for experienced[0m[2m developers.[0m[2m
-  🧰 functions.Write:3 | Write {'path': 'MIGRATION.md', 'content': '# Migrating from Zrb CLI v ...'}
-[0m[2m
-  🔠 functions.Write:3 | Return Successfully wrote to MIGRATION.md
-[0m[2m
-  🧠 The[0m[2m migration guide[0m[2m has been[0m[2m written successfully[0m[2m. Let[0m[2m me summarize[0m[2m what was[0m[2m created.[0m[2m
-  Created[0m[2m `M[0m[2mIGRATION[0m[2m.md`[0m[2m with:[0m[2m
+     |[0m[2m Breaking[0m[2m Change |[0m[2m Description[0m[2m |
+     |----------------[0m[2m-|-------------[0m[2m|
+     |[0m[2m 1[0m[2m. Endpoint[0m[2m prefix[0m[2m | `/[0m[2mtasks[0m[2m` →[0m[2m `/v[0m[2m2/tasks[0m[2m` |[0m[2m
+     |[0m[2m 2.[0m[2m Auth header[0m[2m | `[0m[2mX-[0m[2mAuth-[0m[2mToken`[0m[2m → `[0m[2mAuthorization:[0m[2m Bearer`[0m[2m |
+     |[0m[2m 3[0m[2m. Task[0m[2m ID type[0m[2m | Integer[0m[2m → UUID[0m[2m string |[0m[2m
+     |[0m[2m 4.[0m[2m Field rename[0m[2m | `[0m[2mdone`[0m[2m → `[0m[2mcompleted`[0m[2m |
+     |[0m[2m 5[0m[2m. Required[0m[2m field |[0m[2m `project[0m[2m_id`[0m[2m now required[0m[2m for task[0m[2m creation |[0m[2m
+     |[0m[2m 6.[0m[2m List response[0m[2m |[0m[2m Bare array[0m[2m → Pag[0m[2minated envelope[0m[2m |[0m[2m
      
-     **[0m[2m6[0m[2m documented[0m[2m breaking changes[0m[2m**, each[0m[2m with before[0m[2m/after[0m[2m code examples[0m[2m:
-     1[0m[2m. API[0m[2m version[0m[2m prefix (`[0m[2m/v[0m[2m2/[0m[2m`)
-     2[0m[2m. Authentication[0m[2m header ([0m[2mBearer token[0m[2m)
-     3[0m[2m. Task[0m[2m ID type[0m[2m (integer[0m[2m → UUID[0m[2m string)[0m[2m
-     4.[0m[2m Field rename[0m[2m (`done[0m[2m` →[0m[2m `completed[0m[2m`)
-     5[0m[2m. Required[0m[2m `project[0m[2m_id`[0m[2m for task[0m[2m creation[0m[2m
-     6.[0m[2m Paginated[0m[2m list envelope[0m[2m response[0m[2m
-     
-     Plus[0m[2m a complete[0m[2m integration[0m[2m example ([0m[2mJavaScript[0m[2m),[0m[2m a comprehensive[0m[2m 10-item[0m[2m migration checklist[0m[2m, and[0m[2m installation[0m[2m commands for[0m[2m npm[0m[2m/y[0m[2marn/p[0m[2mip.[0m[2m
-     
-     The guide[0m[2m follows the[0m[2m Before[0m[2m-After[0m[2m-Bridge[0m[2m structure with[0m[2m technical precision[0m[2m appropriate for[0m[2m experienced developers[0m[2m already familiar[0m[2m with v[0m[2m1.[0m[2m
-  💸 (Requests: 4 | Tool Calls: 4 | Total: 40035) Input: 37226 | Audio Input: 0 | Output: 2809 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
+     The guide[0m[2m includes:[0m[2m
+     - Clear[0m[2m heading[0m[2m structure with[0m[2m overview[0m[2m and[0m[2m 6 breaking[0m[2m change sections[0m[2m
+     -[0m[2m Before/[0m[2mafter code[0m[2m examples ([0m[2mbash[0m[2m curls[0m[2m and JSON[0m[2m) for[0m[2m every[0m[2m breaking[0m[2m change[0m[2m
+     -[0m[2m 10-item[0m[2m step[0m[2m-by-step[0m[2m migration checklist[0m[2m
+     -[0m[2m Upgrade command[0m[2m with[0m[2m both[0m[2m `pip[0m[2m` and[0m[2m `uv[0m[2m` syntax[0m[2m
+     -[0m[2m Links[0m[2m to v[0m[2m2 spec[0m[2m,[0m[2m GitHub[0m[2m issues,[0m[2m and Discord[0m[2m support[0m[2m
+  💸 (Requests: 4 | Tool Calls: 4 | Total: 42870) Input: 40377 | Audio Input: 0 | Output: 2493 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "The Zrb CLI is releasing v2, which has several breaking changes from v1. Our developer community needs a clear migration guide.
 
 `v1_spec.md` describes the current v1 API. `v2_spec.md` describes the new v2 API.
@@ -365,17 +495,21 @@ Write a developer migration guide and save it as `MIGRATION.md`. It should:
 - End with the upgrade command
 
 The audience is experienced developers who are already using v1." --model ollama:kimi-k2.5:cloud --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mcalm-cone-9433[0m[0m
-Created `MIGRATION.md` with:
+[2m[2mSession[0m: [1;33msoft-cell-0415[0m[0m
+I've created `MIGRATION.md` with a complete migration guide covering all 6 breaking changes:
 
-**6 documented breaking changes**, each with before/after code examples:
-1. API version prefix (`/v2/`)
-2. Authentication header (Bearer token)
-3. Task ID type (integer → UUID string)
-4. Field rename (`done` → `completed`)
-5. Required `project_id` for task creation
-6. Paginated list envelope response
+| Breaking Change | Description |
+|-----------------|-------------|
+| 1. Endpoint prefix | `/tasks` → `/v2/tasks` |
+| 2. Auth header | `X-Auth-Token` → `Authorization: Bearer` |
+| 3. Task ID type | Integer → UUID string |
+| 4. Field rename | `done` → `completed` |
+| 5. Required field | `project_id` now required for task creation |
+| 6. List response | Bare array → Paginated envelope |
 
-Plus a complete integration example (JavaScript), a comprehensive 10-item migration checklist, and installation commands for npm/yarn/pip.
-
-The guide follows the Before-After-Bridge structure with technical precision appropriate for experienced developers already familiar with v1.
+The guide includes:
+- Clear heading structure with overview and 6 breaking change sections
+- Before/after code examples (bash curls and JSON) for every breaking change
+- 10-item step-by-step migration checklist
+- Upgrade command with both `pip` and `uv` syntax
+- Links to v2 spec, GitHub issues, and Discord support

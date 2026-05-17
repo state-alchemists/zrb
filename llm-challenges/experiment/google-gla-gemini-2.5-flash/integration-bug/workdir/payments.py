@@ -8,7 +8,6 @@ class PaymentGateway:
         self._failure_rate = failure_rate
         self.total_charged: float = 0.0
         self.charges: List[dict] = []
-        self.refunds: List[dict] = []
 
     async def charge(self, order_id: str, amount: float) -> bool:
         await asyncio.sleep(0.03)
@@ -17,9 +16,3 @@ class PaymentGateway:
         self.total_charged += amount
         self.charges.append({"order_id": order_id, "amount": amount})
         return True
-
-    async def refund(self, order_id: str, amount: float) -> None:
-        await asyncio.sleep(0.01)
-        self.total_charged -= amount
-        self.refunds.append({"order_id": order_id, "amount": amount})
-        print(f"Order {order_id}: REFUNDED ${amount:.2f}")

@@ -1,10 +1,8 @@
-from typing import Annotated, List
-
-from fastapi import Depends, FastAPI, HTTPException, Query, status
-
-from .auth import require_api_key
-from .database import projects, tasks
+from fastapi import Depends, FastAPI, HTTPException, Query
+from typing import List
 from .models import Project, Task, TaskCreate, TaskStatus, TaskUpdate
+from .database import projects, tasks
+from .auth import require_api_key
 
 app = FastAPI(title="Project Management API")
 
@@ -16,90 +14,80 @@ async def list_projects():
 
 @app.get("/tasks", response_model=List[Task])
 async def list_tasks(
-    status_filter: Annotated[TaskStatus | None, Query(alias="status")] = None,
+    status: TaskStatus | None = None,
     priority: int | None = None,
     assigned_to: str | None = None,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1),
 ):
-    filtered_tasks = tasks
-
-    if status_filter is not None:
-        filtered_tasks = [task for task in filtered_tasks if task.status == status_filter]
-    if priority is not None:
-        filtered_tasks = [task for task in filtered_tasks if task.priority == priority]
-    if assigned_to is not None:
-        filtered_tasks = [task for task in filtered_tasks if task.assigned_to == assigned_to]
-
-    start_index = (page - 1) * page_size
-    end_index = start_index + page_size
-    return filtered_tasks[start_index:end_index]
+    filtered_tasks = [
+        task
+        for task in tasks
+        if (status is None or task.status == status)
+        and (priority is None or task.priority == priority)
+        and (assigned_to is None or task.assigned_to == assigned_to)
+    ]
+    start = (page - 1) * page_size
+    end = start + page_size
+    return filtered_tasks[start:end]
 
 
 @app.get("/tasks/{task_id}", response_model=Task)
 async def get_task(task_id: int):
-    return find_task_or_404(task_id)
-
-
-@app.post("/tasks", response_model=Task, status_code=status.HTTP_201_CREATED)
-async def create_task(
-    task_data: TaskCreate,
-    _: Annotated[str, Depends(require_api_key)],
-):
-    validate_project_exists(task_data.project_id)
-
-    task = Task(id=get_next_task_id(), **task_data.model_dump())
-    tasks.append(task)
+    task = _find_task(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
     return task
 
 
+@app.post("/tasks", response_model=Task)
+async def create_task(task: TaskCreate, _: str = Depends(require_api_key)):
+    if _find_project(task.project_id) is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    new_task = Task(id=_next_task_id(), **task.model_dump())
+    tasks.append(new_task)
+    return new_task
+
+
 @app.put("/tasks/{task_id}", response_model=Task)
-async def update_task(
-    task_id: int,
-    task_update: TaskUpdate,
-    _: Annotated[str, Depends(require_api_key)],
-):
-    task = find_task_or_404(task_id)
-    updated_task = task.model_copy(update=task_update.model_dump(exclude_unset=True))
+async def update_task(task_id: int, task_update: TaskUpdate, _: str = Depends(require_api_key)):
+    task = _find_task(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
 
-    for index, existing_task in enumerate(tasks):
-        if existing_task.id == task_id:
-            tasks[index] = updated_task
-            return updated_task
-
-    raise HTTPException(status_code=404, detail="Task not found")
+    updates = task_update.model_dump(exclude_unset=True)
+    updated_task = task.model_copy(update=updates)
+    index = tasks.index(task)
+    tasks[index] = updated_task
+    return updated_task
 
 
-@app.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_task(
-    task_id: int,
-    _: Annotated[str, Depends(require_api_key)],
-):
-    find_task_or_404(task_id)
+@app.delete("/tasks/{task_id}")
+async def delete_task(task_id: int, _: str = Depends(require_api_key)):
+    task = _find_task(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
 
-    for index, task in enumerate(tasks):
-        if task.id == task_id:
-            tasks.pop(index)
-            return None
-
-    raise HTTPException(status_code=404, detail="Task not found")
+    tasks.remove(task)
+    return {"detail": "Task deleted"}
 
 
-def find_task_or_404(task_id: int) -> Task:
+def _find_task(task_id: int) -> Task | None:
     for task in tasks:
         if task.id == task_id:
             return task
-    raise HTTPException(status_code=404, detail="Task not found")
+    return None
 
 
-def validate_project_exists(project_id: int) -> None:
+def _find_project(project_id: int) -> Project | None:
     for project in projects:
         if project.id == project_id:
-            return
-    raise HTTPException(status_code=404, detail="Project not found")
+            return project
+    return None
 
 
-def get_next_task_id() -> int:
+def _next_task_id() -> int:
     if not tasks:
         return 1
     return max(task.id for task in tasks) + 1
