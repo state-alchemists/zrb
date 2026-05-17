@@ -21,18 +21,14 @@ class JobQueue:
         return job_id
 
     async def dequeue(self) -> Optional[Dict]:
-        # Atomically pick a single pending job to avoid duplicate processing
-        pending_jobs = [job for job in self._jobs.values() if job["status"] == "pending"]
-        if not pending_jobs:
-            return None
-
-        # Simulate a small delay before actually handing out the job
-        await asyncio.sleep(0.01)
-
-        # Pick the first pending job and immediately mark it as processing
-        job = pending_jobs[0]
-        job["status"] = "processing"
-        return job
+        # Ensure only one worker can pick up a pending job at a time
+        for job in self._jobs.values():
+            if job["status"] == "pending":
+                # Mark as processing before any async suspension to avoid race conditions
+                job["status"] = "processing"
+                await asyncio.sleep(0.01)
+                return job
+        return None
 
     def complete(self, job_id: int, result: Any) -> None:
         self._jobs[job_id]["status"] = "done"

@@ -1,7 +1,87 @@
 [2m
-  🧰 11xqdgjh | Read {'path': 'system_context.md'}
+  🧰 slxfsjlk | ActivateSkill {'name': 'core-design'}
 [0m[2m
-  🔠 11xqdgjh | Return [File: system_context.md | 44 lines]
+  🧰 nrck8jp5 | Read {'path': 'system_context.md'}
+[0m[2m
+  🔠 slxfsjlk | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
+     
+     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-design
+     
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
+     
+     Companion files available in this directory:
+       templates/
+         decision-record.md
+     
+     ---
+     
+     ---
+     name: core-design
+     description: "Activate before any design work — system architecture, API design, data modeling, component decomposition, or trade-off analysis. Provides the Constraints → Explore → Decide → Specify → Plan workflow for sound, well-reasoned designs."
+     user-invocable: false
+     ---
+     # Skill: core-design
+     
+     Follow **Constraints → Explore → Decide → Specify → Plan** for every design task.
+     
+     ## Companion Templates
+     
+     When the current step matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
+     
+     | Trigger | Companion |
+     |---------|-----------|
+     | Recording a design decision worth preserving (during or after the Decide step) | `templates/decision-record.md` |
+     
+     ## Workflow
+     
+     ### 1. Constraints & Requirements
+     
+     - Extract explicit requirements and implicit constraints from the task.
+     - Identify what's in scope and what's out.
+     - Note non-negotiables: existing interfaces, backward compatibility, security, performance targets.
+     - If requirements are ambiguous, ask before designing further.
+     
+     ### 2. Architecture Exploration
+     
+     - Generate 2-3 distinct approaches. Avoid converging on the first idea.
+     - Compare each approach against: correctness, consistency with existing patterns, complexity, performance, maintainability, testability.
+     - Use `Grep`, `Glob`, and `Read` to study existing patterns before proposing new ones.
+     - For large or unfamiliar domains, activate `core-research` first to map the landscape.
+     
+     ### 3. Design Decision
+     
+     - Choose the best approach with explicit rationale.
+     - Document what was chosen AND what was rejected and why.
+     - The rationale should be specific enough that someone else could reconstruct the same decision from the constraints.
+     
+     ### 4. Specification
+     
+     - Define precise contracts: interfaces, data flow, error modes, edge cases.
+     - Be concrete enough that implementation is straightforward from the spec alone.
+     - Use `WriteTodos` to capture loose ends or open questions.
+     
+     ### 5. Implementation Plan
+     
+     - Break the design into discrete implementation steps.
+     - Each step: Action → Target → Verification.
+     - Order steps by dependency (what must exist before what).
+     
+     ## Safety Rules
+     
+     - **No premature implementation**: During steps 1-4, do not write or modify any code. Design decisions come before implementation.
+     - **Approval gate**: You must obtain explicit user approval of the design and plan before starting implementation.
+     
+     ## Output Standards
+     
+     - **Structured**: Clear sections matching the workflow above.
+     - **Precise**: Specific interfaces, types, and contracts — not vague descriptions.
+     - **Context-aware**: The design must fit the existing codebase, not introduce a new paradigm unless justified.
+     - **Transparent**: Surface trade-offs made and alternatives considered.
+     </ACTIVATED_SKILL>
+[0m[2m
+  🔠 nrck8jp5 | Return [File: system_context.md | 44 lines]
      ---CONTENT---
      # System Context: Notifier Subsystem Decision
      
@@ -48,16 +128,14 @@
      - Must maintain exactly-once semantics for billing notifications
      
 [0m[2m
-  🧰 4c8zf1e2 | Write {'path': 'ADR-001-notification-archi ...', 'content': '# ADR-001: Notification Su ...'}
+  🧰 gxtfsg0w | Write {'path': 'ADR-001-notification-archi ...', 'content': '# ADR-001: Notification Su ...', 'mode': 'w'}
 [0m[2m
-  🔠 4c8zf1e2 | Return Successfully wrote to ADR-001-notification-architecture.md
+  🔠 gxtfsg0w | Return Successfully wrote to ADR-001-notification-architecture.md
 [0m[2m
-  I have created the Architecture Decision Record (ADR)[0m[2m and saved it as `ADR-001-notification-architecture.md`. 
+  I have created the[0m[2m Architecture Decision Record (ADR) as requested. The file `ADR-001-notification-architecture.md` evaluates Redis[0m[2m Streams against Apache Kafka based on the specific constraints of your team and system (small team, 2-week deadline, existing Redis[0m[2m, no Kafka experience). 
      
-     The document strictly follows the requested structure and[0m[2m decisively recommends **Redis Streams** over Apache Kafka. The justification centers on your 6-person team size, the strict 2-week timeline[0m[2m, the modest budget, and the fact that Redis is already in your stack. It also explains how to achieve the required[0m[2m exactly-once semantics for billing via application-level idempotency, offsetting Redis Streams' native at-least-once delivery. [0m[2m
-     
-     Let me know if you would like to adjust any of the technical details or tradeoffs mentioned in the document![0m[2m[0m[2m
-  💸 (Requests: 3 | Tool Calls: 2 | Total: 29819) Input: 27025 | Audio Input: 0 | Output: 2794 | Audio Output: 0 | Cache Read: 15944 | Cache Write: 0 | Details: {'thoughts_tokens': 1615, 'text_prompt_tokens': 27025, 'cached_content_tokens': 15944, 'text_cache_tokens': 15944}
+     It recommends **Redis Streams** combined with a Transactional Outbox pattern to satisfy the exactly-once billing[0m[2m requirement while avoiding the operational overhead and cost of Kafka.[0m[2m[0m[2m
+  💸 (Requests: 3 | Tool Calls: 3 | Total: 32667) Input: 29980 | Audio Input: 0 | Output: 2687 | Audio Output: 0 | Cache Read: 15992 | Cache Write: 0 | Details: {'thoughts_tokens': 1505, 'text_prompt_tokens': 29980, 'cached_content_tokens': 15992, 'text_cache_tokens': 15992}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "Read `system_context.md`. It describes a real production system and a specific architectural problem we need to solve.
 
 Write an Architecture Decision Record (ADR) evaluating two options for the notification subsystem:
@@ -75,9 +153,7 @@ Your ADR must follow this exact structure:
 Make a definitive recommendation. Use specific technical properties (throughput, ordering guarantees, message retention, consumer groups, exactly-once semantics, operational complexity) to justify your choice given the team size and constraints described.
 
 Save as `ADR-001-notification-architecture.md`." --model google-gla:gemini-3-pro-preview --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mpure-dust-0347[0m[0m
-I have created the Architecture Decision Record (ADR) and saved it as `ADR-001-notification-architecture.md`. 
+[2m[2mSession[0m: [1;33mlong-atom-9409[0m[0m
+I have created the Architecture Decision Record (ADR) as requested. The file `ADR-001-notification-architecture.md` evaluates Redis Streams against Apache Kafka based on the specific constraints of your team and system (small team, 2-week deadline, existing Redis, no Kafka experience). 
 
-The document strictly follows the requested structure and decisively recommends **Redis Streams** over Apache Kafka. The justification centers on your 6-person team size, the strict 2-week timeline, the modest budget, and the fact that Redis is already in your stack. It also explains how to achieve the required exactly-once semantics for billing via application-level idempotency, offsetting Redis Streams' native at-least-once delivery. 
-
-Let me know if you would like to adjust any of the technical details or tradeoffs mentioned in the document!
+It recommends **Redis Streams** combined with a Transactional Outbox pattern to satisfy the exactly-once billing requirement while avoiding the operational overhead and cost of Kafka.

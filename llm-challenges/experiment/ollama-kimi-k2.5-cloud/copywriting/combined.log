@@ -1,10 +1,7 @@
 [2m
-  🧠 The[0m[2m user wants[0m[2m me to[0m[2m create a[0m[2m migration guide[0m[2m from[0m[2m v1[0m[2m to v[0m[2m2 of[0m[2m the Z[0m[2mrb CLI[0m[2m. I[0m[2m need to[0m[2m:
+  🧠 The[0m[2m user wants[0m[2m me to[0m[2m write a[0m[2m migration guide[0m[2m from[0m[2m Z[0m[2mrb CLI[0m[2m v1[0m[2m to v[0m[2m2.[0m[2m I need[0m[2m to first[0m[2m read the[0m[2m v1[0m[2m and v[0m[2m2 spec[0m[2m files to[0m[2m understand what[0m[2m breaking[0m[2m changes exist[0m[2m,[0m[2m then write[0m[2m a comprehensive[0m[2m migration guide[0m[2m.
      
-     1[0m[2m. First[0m[2m read both[0m[2m spec[0m[2m files to[0m[2m understand the[0m[2m differences[0m[2m
-     2.[0m[2m Create[0m[2m a comprehensive[0m[2m migration guide[0m[2m
-     
-     Let[0m[2m me start[0m[2m by reading[0m[2m the two[0m[2m spec files[0m[2m to understand[0m[2m the breaking[0m[2m changes.[0m[2m
+     Let[0m[2m me start[0m[2m by reading[0m[2m both[0m[2m spec files[0m[2m.[0m[2m
   🧰 functions.Read:0 | Read {'path': 'v1_spec.md'}
 [0m[2m
   🧰 functions.Read:1 | Read {'path': 'v2_spec.md'}
@@ -213,17 +210,9 @@
      **Response:** HTTP 204 No Content.
      
 [0m[2m
-  🧠 I[0m[2m have identified[0m[2m 6 breaking[0m[2m changes between[0m[2m v1[0m[2m and v[0m[2m2 of[0m[2m the API[0m[2m. Now[0m[2m I need[0m[2m to structure[0m[2m a[0m[2m `[0m[2mMIG[0m[2mRATION.md[0m[2m` file[0m[2m that guides[0m[2m developers[0m[2m through this[0m[2m transition.[0m[2m
+  🧠 The[0m[2m breaking[0m[2m changes are[0m[2m clear[0m[2m:[0m[2m API[0m[2m version[0m[2m prefix,[0m[2m authentication header[0m[2m, resource[0m[2m ID type[0m[2m, a[0m[2m renamed[0m[2m field,[0m[2m a new[0m[2m required field[0m[2m for[0m[2m creation,[0m[2m and a[0m[2m shift[0m[2m to cursor[0m[2m-based pagination[0m[2m.[0m[2m These[0m[2m require[0m[2m global[0m[2m changes[0m[2m to[0m[2m URL construction[0m[2m, request[0m[2m headers[0m[2m, and[0m[2m response[0m[2m parsing logic[0m[2m.
      
-     Hmm[0m[2m, the[0m[2m authentication[0m[2m change is[0m[2m straightforward[0m[2m but[0m[2m critical[0m[2m—the[0m[2m shift[0m[2m from `[0m[2mX-[0m[2mAuth-[0m[2mToken`[0m[2m to `[0m[2mAuthorization:[0m[2m Bearer`[0m[2m will break[0m[2m all[0m[2m existing clients[0m[2m immediately[0m[2m if[0m[2m not updated[0m[2m. I'll[0m[2m prioritize[0m[2m this[0m[2m.
-     
-     Wait[0m[2m, the[0m[2m `[0m[2mproject[0m[2m_id`[0m[2m requirement in[0m[2m v2[0m[2m is a[0m[2m significant architectural[0m[2m shift.[0m[2m In[0m[2m v1[0m[2m, tasks[0m[2m were standalone[0m[2m,[0m[2m but now[0m[2m they must[0m[2m be associated[0m[2m with a[0m[2m project.[0m[2m I[0m[2m should[0m[2m make[0m[2m it[0m[2m clear that[0m[2m this[0m[2m isn't[0m[2m just a[0m[2m new[0m[2m field,[0m[2m but a[0m[2m mandatory relationship[0m[2m that might[0m[2m require developers[0m[2m to first[0m[2m create or[0m[2m retrieve[0m[2m project[0m[2m IDs before[0m[2m task[0m[2m creation.[0m[2m 
-     
-     The[0m[2m `[0m[2mid`[0m[2m change[0m[2m from Integer[0m[2m to UUID[0m[2m and the[0m[2m boolean[0m[2m rename[0m[2m from `[0m[2mdone`[0m[2m to `[0m[2mcompleted`[0m[2m are breaking[0m[2m changes that[0m[2m likely[0m[2m affect database[0m[2m schemas[0m[2m and JSON[0m[2m parsing[0m[2m logic.[0m[2m I'll provide[0m[2m specific[0m[2m examples[0m[2m showing[0m[2m how to[0m[2m update type[0m[2m definitions[0m[2m.[0m[2m
-     
-     The[0m[2m most[0m[2m impactful[0m[2m change for[0m[2m frontend[0m[2m developers[0m[2m will[0m[2m be the[0m[2m pag[0m[2minated envelope[0m[2m.[0m[2m Moving[0m[2m from a[0m[2m flat[0m[2m array to[0m[2m a nested[0m[2m `[0m[2mitems`[0m[2m structure requires[0m[2m updating[0m[2m loop[0m[2m logic.[0m[2m I'll show[0m[2m a clear[0m[2m before[0m[2m-and[0m[2m-after for[0m[2m this[0m[2m.
-     
-     Actually[0m[2m, I[0m[2m should also[0m[2m include a[0m[2m quick[0m[2m reference[0m[2m CLI[0m[2m command at[0m[2m the end[0m[2m for[0m[2m upgrading[0m[2m the SDK[0m[2m,[0m[2m as that's[0m[2m a common[0m[2m pain[0m[2m point.[0m[2m I[0m[2m have[0m[2m enough[0m[2m information to[0m[2m draft a[0m[2m comprehensive guide[0m[2m now[0m[2m.[0m[2m
+     To[0m[2m address[0m[2m the[0m[2m user's[0m[2m request effectively[0m[2m, I[0m[2m will[0m[2m now[0m[2m activate[0m[2m the `[0m[2mcore-writing[0m[2m` skill[0m[2m. This[0m[2m will provide[0m[2m the necessary[0m[2m framework[0m[2m and[0m[2m stylist[0m[2mic conventions[0m[2m to[0m[2m produce[0m[2m the[0m[2m high-quality[0m[2m migration[0m[2m guide required[0m[2m,[0m[2m ensuring I[0m[2m cover all[0m[2m points[0m[2m with practical[0m[2m code[0m[2m examples.[0m[2m
   🧰 functions.ActivateSkill:2 | ActivateSkill {'name': 'core-writing'}
 [0m[2m
   🔠 functions.ActivateSkill:2 | Return <ACTIVATED_SKILL>
@@ -319,372 +308,39 @@
      
      </ACTIVATED_SKILL>
 [0m[2m
-  🧠 Hmm[0m[2m, moving[0m[2m from v[0m[2m1 to[0m[2m v2[0m[2m isn't just[0m[2m a simple[0m[2m version bump[0m[2m. The[0m[2m requirements[0m[2m have[0m[2m shifted[0m[2m significantly:[0m[2m authentication[0m[2m is moving[0m[2m to headers[0m[2m, IDs[0m[2m are now[0m[2m UUIDs[0m[2m, and[0m[2m the '[0m[2mdone'[0m[2m field is[0m[2m deprecated[0m[2m in[0m[2m favor of[0m[2m 'completed[0m[2m'. I[0m[2m also noticed[0m[2m that[0m[2m `[0m[2mproject_id[0m[2m` is[0m[2m now mandatory[0m[2m,[0m[2m and the[0m[2m response[0m[2m structure[0m[2m for lists[0m[2m has[0m[2m changed to[0m[2m a pag[0m[2minated envelope[0m[2m with[0m[2m a mandatory[0m[2m `/v[0m[2m2/`[0m[2m path[0m[2m prefix.[0m[2m
+  🧠 Now[0m[2m I have[0m[2m a[0m[2m clear picture[0m[2m of the[0m[2m v[0m[2m1 to[0m[2m v2[0m[2m changes.[0m[2m Let me[0m[2m identify[0m[2m all[0m[2m the breaking[0m[2m changes:[0m[2m
      
-     Wait[0m[2m, I[0m[2m shouldn't[0m[2m just list[0m[2m these changes[0m[2m in[0m[2m a vacuum[0m[2m. These[0m[2m are[0m[2m breaking[0m[2m changes that[0m[2m will break[0m[2m existing integrations[0m[2m if not[0m[2m handled carefully[0m[2m. I[0m[2m need to[0m[2m provide[0m[2m a structured[0m[2m path forward[0m[2m.[0m[2m Who[0m[2m is this[0m[2m for[0m[2m? It's[0m[2m for[0m[2m developers already[0m[2m using[0m[2m v1[0m[2m who need[0m[2m to update[0m[2m their scripts[0m[2m and[0m[2m applications[0m[2m.[0m[2m
+     1.[0m[2m **Endpoint[0m[2m**[0m[2m —[0m[2m Changed[0m[2m from `/[0m[2mtasks`[0m[2m to `/[0m[2mv2[0m[2m/tasks`[0m[2m (version[0m[2m prefix added[0m[2m)
+     2[0m[2m. **[0m[2mAuthentication**[0m[2m — Changed[0m[2m from `[0m[2mX-[0m[2mAuth-[0m[2mToken`[0m[2m to[0m[2m `Authorization[0m[2m: Bearer[0m[2m`
+     3[0m[2m. **[0m[2mTask ID[0m[2m type[0m[2m** —[0m[2m Changed from[0m[2m integer to[0m[2m UUID ([0m[2me[0m[2m.g.,[0m[2m `42[0m[2m` →[0m[2m `"[0m[2ma1[0m[2mb2[0m[2mc3[0m[2md4[0m[2m-e5[0m[2mf6[0m[2m-789[0m[2m0-ab[0m[2mcd-[0m[2mef123[0m[2m456789[0m[2m0"[0m[2m`)
+     4[0m[2m. **[0m[2mTask[0m[2m field**[0m[2m — `[0m[2mdone`[0m[2m renamed to[0m[2m `completed[0m[2m`
+     5[0m[2m. **[0m[2mCreate[0m[2m Task**[0m[2m — Now[0m[2m requires `[0m[2mproject_id[0m[2m`[0m[2m
+     6.[0m[2m **List[0m[2m Tasks[0m[2m response[0m[2m** —[0m[2m Changed from[0m[2m bare array[0m[2m to pag[0m[2minated envelope[0m[2m with `[0m[2mitems`,[0m[2m `total[0m[2m`, `[0m[2mnext_cursor[0m[2m`
      
-     Looking[0m[2m at the[0m[2m "[0m[2mBefore-[0m[2mAfter-[0m[2mBridge"[0m[2m framework,[0m[2m it's[0m[2m the perfect[0m[2m way[0m[2m to organize[0m[2m this.[0m[2m I'll[0m[2m start by[0m[2m contrasting[0m[2m the old[0m[2m v1[0m[2m patterns[0m[2m with the[0m[2m new v[0m[2m2 requirements[0m[2m.[0m[2m I[0m[2m need to[0m[2m make sure[0m[2m I[0m[2m explicitly[0m[2m call[0m[2m out every[0m[2m breaking change[0m[2m,[0m[2m like[0m[2m the removal[0m[2m of the[0m[2m `X[0m[2m-Auth[0m[2m-Token[0m[2m` in[0m[2m favor[0m[2m of the[0m[2m standard[0m[2m `Authorization[0m[2m: Bearer[0m[2m` header[0m[2m.[0m[2m
-     
-     Actually[0m[2m, the[0m[2m transition from[0m[2m integer[0m[2m IDs to[0m[2m UUIDs[0m[2m and[0m[2m the new[0m[2m `[0m[2mproject_id[0m[2m` requirement[0m[2m for[0m[2m task[0m[2m creation are[0m[2m particularly[0m[2m important[0m[2m to[0m[2m illustrate[0m[2m with[0m[2m code examples[0m[2m to[0m[2m prevent[0m[2m runtime[0m[2m errors.[0m[2m A[0m[2m simple checklist[0m[2m at[0m[2m the end[0m[2m will also[0m[2m help them[0m[2m verify[0m[2m every[0m[2m step is[0m[2m complete[0m[2m.[0m[2m This[0m[2m guide[0m[2m needs[0m[2m to be[0m[2m technical[0m[2m,[0m[2m precise,[0m[2m and above[0m[2m all[0m[2m, actionable[0m[2m. Now[0m[2m, I'll[0m[2m structure[0m[2m the document[0m[2m based[0m[2m on these[0m[2m requirements[0m[2m and proceed[0m[2m with writing[0m[2m the migration[0m[2m guide.[0m[2m
-  Now[0m[2m I'll write[0m[2m the migration[0m[2m guide,[0m[2m following the[0m[2m Before[0m[2m-After[0m[2m-Bridge[0m[2m formula[0m[2m suitable[0m[2m for migration[0m[2m guides,[0m[2m with a[0m[2m technical and[0m[2m precise tone[0m[2m for experienced[0m[2m developers.[0m[2m
-  🧰 functions.Write:3 | Write {'path': 'MIGRATION.md', 'content': '# Migrating from Zrb CLI v ...'}
+     Now[0m[2m I'll write[0m[2m the migration[0m[2m guide following[0m[2m the core[0m[2m-writing[0m[2m skill guidelines[0m[2m,[0m[2m using a[0m[2m technical[0m[2m, precise[0m[2m tone suitable[0m[2m for developers[0m[2m.[0m[2m
+  🧰 functions.Write:3 | Write {'path': 'MIGRATION.md', 'content': '# Zrb CLI v1 to v2 Migrati ...'}
 [0m[2m
   🔠 functions.Write:3 | Return Successfully wrote to MIGRATION.md
 [0m[2m
-  🧠 The[0m[2m file[0m[2m has been[0m[2m written successfully[0m[2m. Let[0m[2m me verify[0m[2m it[0m[2m by[0m[2m reading it[0m[2m back to[0m[2m make sure[0m[2m it looks[0m[2m correct[0m[2m and[0m[2m meets all[0m[2m the user's[0m[2m requirements.[0m[2m
-  🧰 functions.Read:4 | Read {'path': 'MIGRATION.md'}
-[0m[2m
-  🔠 functions.Read:4 | Return [File: MIGRATION.md | 314 lines]
-     ---CONTENT---
-     # Migrating from Zrb CLI v1 to v2
-     
-     This guide helps you migrate your codebase from Zrb CLI v1 to v2. v2 introduces projects, improved pagination, and stricter authentication. All breaking changes are listed below with before/after code examples.
-     
-     ## Breaking Changes
-     
-     ### 1. Base URL Path Prefix
-     
-     All endpoints are now prefixed with `/v2/`.
-     
-     **Before (v1):**
-     ```bash
-     curl https://api.zrb.io/tasks
-     curl https://api.zrb.io/tasks/42
-     ```
-     
-     **After (v2):**
-     ```bash
-     curl https://api.zrb.io/v2/tasks
-     curl https://api.zrb.io/v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890
-     ```
-     
-     ---
-     
-     ### 2. Authentication Header Changed
-     
-     The `X-Auth-Token` header is deprecated. Use Bearer token format instead. Requests with the old header will receive HTTP 401.
-     
-     **Before (v1):**
-     ```bash
-     curl -H "X-Auth-Token: <your_api_key>" https://api.zrb.io/tasks
-     ```
-     
-     ```javascript
-     // JavaScript
-     fetch('/tasks', {
-       headers: { 'X-Auth-Token': apiKey }
-     });
-     ```
-     
-     ```python
-     # Python
-     requests.get('/tasks', headers={'X-Auth-Token': api_key})
-     ```
-     
-     **After (v2):**
-     ```bash
-     curl -H "Authorization: Bearer <your_api_token>" https://api.zrb.io/v2/tasks
-     ```
-     
-     ```javascript
-     // JavaScript
-     fetch('/v2/tasks', {
-       headers: { 'Authorization': `Bearer ${apiToken}` }
-     });
-     ```
-     
-     ```python
-     # Python
-     requests.get('/v2/tasks', headers={'Authorization': f'Bearer {api_token}'})
-     ```
-     
-     ---
-     
-     ### 3. Task ID Changed from Integer to UUID
-     
-     Task IDs are now UUID strings. Update any code that expects integer IDs or performs ID arithmetic.
-     
-     **Before (v1):**
-     ```json
-     {
-       "id": 42,
-       "title": "Write tests",
-       "done": false
-     }
-     ```
-     
-     ```javascript
-     // JavaScript — parsing as integer
-     const taskId = parseInt(response.id);
-     ```
-     
-     ```python
-     # Python — expecting integer
-     task_id: int = task["id"]
-     ```
-     
-     **After (v2):**
-     ```json
-     {
-       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-       "title": "Write tests",
-       "completed": false
-     }
-     ```
-     
-     ```javascript
-     // JavaScript — UUID is a string
-     const taskId = response.id; // "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-     ```
-     
-     ```python
-     # Python — UUID as string
-     task_id: str = task["id"]  # "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-     ```
-     
-     ---
-     
-     ### 4. Field Renamed: `done` → `completed`
-     
-     The task status field has been renamed. Update all references in request bodies and response handling.
-     
-     **Before (v1):**
-     ```json
-     {
-       "title": "Ship feature",
-       "done": true
-     }
-     ```
-     
-     ```javascript
-     // JavaScript
-     const isDone = task.done;
-     await updateTask(id, { done: true });
-     ```
-     
-     ```python
-     # Python
-     is_done = task["done"]
-     update_task(id, done=True)
-     ```
-     
-     **After (v2):**
-     ```json
-     {
-       "title": "Ship feature",
-       "completed": true
-     }
-     ```
-     
-     ```javascript
-     // JavaScript
-     const isCompleted = task.completed;
-     await updateTask(id, { completed: true });
-     ```
-     
-     ```python
-     # Python
-     is_completed = task["completed"]
-     update_task(id, completed=True)
-     ```
-     
-     ---
-     
-     ### 5. Task Creation Requires `project_id`
-     
-     Creating a task now requires a `project_id` field. Omitting it returns HTTP 422.
-     
-     **Before (v1):**
-     ```bash
-     curl -X POST https://api.zrb.io/tasks \
-       -H "Content-Type: application/json" \
-       -H "X-Auth-Token: <key>" \
-       -d '{"title": "New task"}'
-     ```
-     
-     ```javascript
-     // JavaScript
-     await fetch('/tasks', {
-       method: 'POST',
-       headers: { 'Content-Type': 'application/json', 'X-Auth-Token': apiKey },
-       body: JSON.stringify({ title: 'New task' })
-     });
-     ```
-     
-     ```python
-     # Python
-     requests.post('/tasks', json={"title": "New task"})
-     ```
-     
-     **After (v2):**
-     ```bash
-     curl -X POST https://api.zrb.io/v2/tasks \
-       -H "Content-Type: application/json" \
-       -H "Authorization: Bearer <token>" \
-       -d '{"title": "New task", "project_id": "proj_abc123"}'
-     ```
-     
-     ```javascript
-     // JavaScript
-     await fetch('/v2/tasks', {
-       method: 'POST',
-       headers: { 
-         'Content-Type': 'application/json', 
-         'Authorization': `Bearer ${apiToken}` 
-       },
-       body: JSON.stringify({ title: 'New task', project_id: 'proj_abc123' })
-     });
-     ```
-     
-     ```python
-     # Python
-     requests.post(
-         '/v2/tasks', 
-         headers={'Authorization': f'Bearer {api_token}'},
-         json={"title": "New task", "project_id": "proj_abc123"}
-     )
-     ```
-     
-     ---
-     
-     ### 6. List Endpoints Return Paginated Envelope
-     
-     List endpoints no longer return a bare array. They now return a paginated envelope with `items`, `total`, and `next_cursor`. Use cursor-based pagination instead of offset.
-     
-     **Before (v1):**
-     ```json
-     // GET /tasks
-     [
-       {"id": 1, "title": "Buy milk", "done": false},
-       {"id": 2, "title": "Ship v1", "done": true}
-     ]
-     ```
-     
-     ```javascript
-     // JavaScript — direct array access
-     const tasks = await response.json();
-     tasks.forEach(task => console.log(task.title));
-     ```
-     
-     ```python
-     # Python — list directly
-     tasks = response.json()
-     for task in tasks:
-         print(task["title"])
-     ```
-     
-     **After (v2):**
-     ```json
-     // GET /v2/tasks
-     {
-       "items": [
-         {"id": "a1b2...", "title": "Buy milk", "completed": false},
-         {"id": "c3d4...", "title": "Ship v2", "completed": true}
-       ],
-       "total": 42,
-       "next_cursor": "cursor_xyz"
-     }
-     ```
-     
-     ```javascript
-     // JavaScript — extract items from envelope
-     const data = await response.json();
-     const tasks = data.items;
-     data.items.forEach(task => console.log(task.title));
-     
-     // Pagination
-     const nextPage = await fetch(`/v2/tasks?cursor=${data.next_cursor}`);
-     ```
-     
-     ```python
-     # Python — extract items from envelope
-     data = response.json()
-     tasks = data["items"]
-     for task in tasks:
-         print(task["title"])
-     
-     # Pagination
-     next_page = requests.get(f'/v2/tasks?cursor={data["next_cursor"]}')
-     ```
-     
-     ---
-     
-     ## Migration Checklist
-     
-     Use this checklist to ensure your migration is complete:
-     
-     - [ ] Update base URLs to include `/v2/` prefix
-     - [ ] Replace `X-Auth-Token` header with `Authorization: Bearer <token>`
-     - [ ] Update type definitions: change task `id` from `number`/`int` to `string` (UUID)
-     - [ ] Rename all references from `done` to `completed` in request bodies and responses
-     - [ ] Add `project_id` to all task creation requests
-     - [ ] Update list endpoint handling to parse paginated envelope (`items`, `total`, `next_cursor`)
-     - [ ] Implement cursor-based pagination (replace offset/limit if used)
-     - [ ] Update test mocks and fixtures to reflect new data types
-     - [ ] Verify error handling for new HTTP 422 responses (missing `project_id`)
-     - [ ] Run integration tests against v2 endpoints
-     
-     ---
-     
-     ## Upgrade Command
-     
-     Install the latest v2 CLI:
-     
-     ```bash
-     npm install -g @zrb/cli@latest
-     # or
-     pip install --upgrade zrb-cli
-     ```
-     
-     Verify your installation:
-     
-     ```bash
-     zrb --version  # Should output 2.x.x
-     ```
-     
-     ---
-     
-     ## Need Help?
-     
-     - Review the full [v2 API specification](v2_spec.md)
-     - [Open an issue](https://github.com/zrb-io/zrb/issues) for migration questions
-     - Join the [Discord community](https://discord.gg/zrb) for real-time support
-     
-[0m[2m
-  🧠 The[0m[2m migration[0m[2m guide is[0m[2m complete.[0m[2m Let[0m[2m me summarize[0m[2m what was[0m[2m done[0m[2m:
-     
-     1[0m[2m. Created[0m[2m `[0m[2mMIG[0m[2mRATION.md[0m[2m` with[0m[2m a[0m[2m clear structure[0m[2m
-     2[0m[2m. Listed[0m[2m all[0m[2m 6 breaking[0m[2m changes as[0m[2m separate[0m[2m sections[0m[2m
-     3.[0m[2m Each[0m[2m breaking[0m[2m change has[0m[2m before/[0m[2mafter code[0m[2m examples with[0m[2m fenced[0m[2m code[0m[2m blocks[0m[2m
-     4.[0m[2m Code[0m[2m examples include[0m[2m bash[0m[2m/c[0m[2murl,[0m[2m JavaScript[0m[2m, and[0m[2m Python[0m[2m
-     5.[0m[2m Included[0m[2m a step[0m[2m-by-step[0m[2m migration checklist[0m[2m at the[0m[2m end[0m[2m
-     6.[0m[2m Included the[0m[2m upgrade command[0m[2m
-     7[0m[2m. End[0m[2med with[0m[2m support[0m[2m/resources[0m[2m section[0m[2m
-     
-     Everything[0m[2m looks[0m[2m good.[0m[2m
-  The migration[0m[2m guide is[0m[2m complete at[0m[2m `M[0m[2mIGRATION[0m[2m.md`.[0m[2m It includes[0m[2m:
+  🧠 The[0m[2m migration guide[0m[2m has been[0m[2m written successfully[0m[2m. Let[0m[2m me summarize[0m[2m what I[0m[2m created for[0m[2m the user[0m[2m.[0m[2m
+  Created[0m[2m `M[0m[2mIGRATION[0m[2m.md`[0m[2m with:[0m[2m
      
      **[0m[2mStructure:**[0m[2m
-     - Clear[0m[2m H[0m[2m1[0m[2m title[0m[2m and intro[0m[2m paragraph[0m[2m
-     -[0m[2m "[0m[2mBreaking Changes[0m[2m" section[0m[2m with[0m[2m 6 sub[0m[2msections ([0m[2mone[0m[2m per breaking[0m[2m change)[0m[2m
-     - "[0m[2mMigration Check[0m[2mlist"[0m[2m with[0m[2m 10 actionable[0m[2m items[0m[2m
-     - "[0m[2mUpgrade Command[0m[2m" section[0m[2m
-     - "[0m[2mNeed Help[0m[2m?" resources[0m[2m section[0m[2m
+     - Introduction[0m[2m with clear[0m[2m purpose and[0m[2m audience[0m[2m targeting[0m[2m
+     -[0m[2m Six[0m[2m dedicated[0m[2m sections covering[0m[2m each breaking[0m[2m change ([0m[2mprefix[0m[2m, auth[0m[2m, ID[0m[2m type,[0m[2m field rename[0m[2m, required[0m[2m field,[0m[2m pagination)[0m[2m
+     - Step[0m[2m-by-step[0m[2m migration checklist[0m[2m
+     -[0m[2m Upgrade command[0m[2m at the[0m[2m end[0m[2m
      
-     **All[0m[2m breaking[0m[2m changes covered[0m[2m:**
-     1[0m[2m. Base[0m[2m URL `/[0m[2mv2[0m[2m/` prefix[0m[2m
-     2[0m[2m. Authentication[0m[2m header changed[0m[2m (`X[0m[2m-Auth[0m[2m-Token[0m[2m` →[0m[2m `Authorization[0m[2m: Bearer[0m[2m`)
-     3[0m[2m. Task[0m[2m ID type[0m[2m ([0m[2minteger →[0m[2m UUID string[0m[2m)
-     4[0m[2m. Field[0m[2m rename[0m[2m (`done[0m[2m` →[0m[2m `completed[0m[2m`)
-     5[0m[2m. Required[0m[2m `project[0m[2m_id`[0m[2m on[0m[2m task creation[0m[2m
-     6[0m[2m. Pag[0m[2minated list[0m[2m envelope[0m[2m (bare[0m[2m array →[0m[2m `{[0m[2mitems,[0m[2m total,[0m[2m next_cursor[0m[2m}`)[0m[2m
+     **Before[0m[2m/after[0m[2m examples for[0m[2m every[0m[2m breaking[0m[2m change:**[0m[2m
+     1[0m[2m. **[0m[2mAPI prefix[0m[2m** —[0m[2m shows[0m[2m old[0m[2m bare[0m[2m `/[0m[2mtasks`[0m[2m paths[0m[2m vs new[0m[2m `/v[0m[2m2/tasks[0m[2m` paths[0m[2m
+     2[0m[2m. **[0m[2mAuth[0m[2m header**[0m[2m — `[0m[2mX-[0m[2mAuth-[0m[2mToken`[0m[2m →[0m[2m `Authorization[0m[2m: Bearer[0m[2m`
+     3[0m[2m. **[0m[2mID type[0m[2m** —[0m[2m integer `[0m[2m42`[0m[2m → UUID[0m[2m string[0m[2m `"a[0m[2m1b[0m[2m2c[0m[2m3d[0m[2m4-[0m[2m..."`[0m[2m
+     4.[0m[2m **Field[0m[2m rename**[0m[2m — `[0m[2mdone`[0m[2m → `[0m[2mcompleted`[0m[2m in requests[0m[2m and responses[0m[2m
+     5[0m[2m. **[0m[2mRequired `[0m[2mproject_id[0m[2m`** —[0m[2m shows old[0m[2m minimal[0m[2m create[0m[2m vs[0m[2m new required[0m[2m field[0m[2m
+     6.[0m[2m **Pagination[0m[2m** —[0m[2m bare array[0m[2m `[[0m[2m...[0m[2m]` →[0m[2m envelope[0m[2m `[0m[2m{"items[0m[2m": [...[0m[2m], "[0m[2mtotal":[0m[2m ..., "[0m[2mnext_cursor[0m[2m": ...[0m[2m}`[0m[2m
      
-     **Code[0m[2m examples:**[0m[2m Each breaking[0m[2m change includes[0m[2m before[0m[2m/after[0m[2m examples in[0m[2m bash/c[0m[2murl,[0m[2m JavaScript[0m[2m, and[0m[2m Python with[0m[2m fenced code[0m[2m blocks.[0m[2m
-     
-     **Check[0m[2mlist:**[0m[2m 10[0m[2m items covering[0m[2m code[0m[2m changes[0m[2m, type[0m[2m updates[0m[2m, testing[0m[2m, and[0m[2m verification.[0m[2m
-     
-     **Upgrade[0m[2m commands[0m[2m:** npm[0m[2m and pip[0m[2m install[0m[2m commands with[0m[2m version[0m[2m verification.[0m[2m
-  💸 (Requests: 5 | Tool Calls: 5 | Total: 57538) Input: 54287 | Audio Input: 0 | Output: 3251 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
+     The checklist[0m[2m includes[0m[2m 9[0m[2m actionable[0m[2m items covering[0m[2m code[0m[2m changes[0m[2m, type[0m[2m updates[0m[2m, test[0m[2m updates[0m[2m, and[0m[2m error handling[0m[2m verification.[0m[2m
+  💸 (Requests: 4 | Tool Calls: 4 | Total: 38574) Input: 36480 | Audio Input: 0 | Output: 2094 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "The Zrb CLI is releasing v2, which has several breaking changes from v1. Our developer community needs a clear migration guide.
 
 `v1_spec.md` describes the current v1 API. `v2_spec.md` describes the new v2 API.
@@ -697,26 +353,21 @@ Write a developer migration guide and save it as `MIGRATION.md`. It should:
 - End with the upgrade command
 
 The audience is experienced developers who are already using v1." --model ollama:kimi-k2.5:cloud --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mrare-gate-0659[0m[0m
-The migration guide is complete at `MIGRATION.md`. It includes:
+[2m[2mSession[0m: [1;33mpure-beam-1755[0m[0m
+Created `MIGRATION.md` with:
 
 **Structure:**
-- Clear H1 title and intro paragraph
-- "Breaking Changes" section with 6 subsections (one per breaking change)
-- "Migration Checklist" with 10 actionable items
-- "Upgrade Command" section
-- "Need Help?" resources section
+- Introduction with clear purpose and audience targeting
+- Six dedicated sections covering each breaking change (prefix, auth, ID type, field rename, required field, pagination)
+- Step-by-step migration checklist
+- Upgrade command at the end
 
-**All breaking changes covered:**
-1. Base URL `/v2/` prefix
-2. Authentication header changed (`X-Auth-Token` → `Authorization: Bearer`)
-3. Task ID type (integer → UUID string)
-4. Field rename (`done` → `completed`)
-5. Required `project_id` on task creation
-6. Paginated list envelope (bare array → `{items, total, next_cursor}`)
+**Before/after examples for every breaking change:**
+1. **API prefix** — shows old bare `/tasks` paths vs new `/v2/tasks` paths
+2. **Auth header** — `X-Auth-Token` → `Authorization: Bearer`
+3. **ID type** — integer `42` → UUID string `"a1b2c3d4-..."`
+4. **Field rename** — `done` → `completed` in requests and responses
+5. **Required `project_id`** — shows old minimal create vs new required field
+6. **Pagination** — bare array `[...]` → envelope `{"items": [...], "total": ..., "next_cursor": ...}`
 
-**Code examples:** Each breaking change includes before/after examples in bash/curl, JavaScript, and Python with fenced code blocks.
-
-**Checklist:** 10 items covering code changes, type updates, testing, and verification.
-
-**Upgrade commands:** npm and pip install commands with version verification.
+The checklist includes 9 actionable items covering code changes, type updates, test updates, and error handling verification.

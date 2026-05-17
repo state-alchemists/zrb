@@ -1,108 +1,13 @@
 [2m
-  🧠 The[0m[2m user wants me to[0m[2m write a migration guide[0m[2m for Z[0m[2mrb CLI v1[0m[2m to v2.[0m[2m Let[0m[2m me activate[0m[2m the core[0m[2m-writing skill since[0m[2m I[0m[2m'll[0m[2m be creating[0m[2m documentation[0m[2m, then[0m[2m read the spec[0m[2m files to understand the[0m[2m breaking changes.
+  🧠 I[0m[2m need to write a[0m[2m migration guide for Z[0m[2mrb CLI[0m[2m v1[0m[2m to v2.[0m[2m Let me start[0m[2m by reading both[0m[2m spec files to understand[0m[2m what[0m[2m the[0m[2m breaking changes are.[0m[2m
      
-     Let[0m[2m me start[0m[2m by activating[0m[2m the skill[0m[2m and reading both[0m[2m spec files.[0m[2m
-  I'll write[0m[2m the[0m[2m migration guide after[0m[2m reviewing[0m[2m both[0m[2m spec files. Let[0m[2m me start[0m[2m by reading them.[0m[2m
-  🧰 call_ts7u3gud | ActivateSkill {'name': 'core-writing'}
+     This[0m[2m is a writing[0m[2m task,[0m[2m so I should activate[0m[2m the core-writing[0m[2m skill first[0m[2m.[0m[2m
+  I[0m[2m'll create[0m[2m a migration[0m[2m guide for the[0m[2m Zrb CLI v[0m[2m1[0m[2m to v2.[0m[2m Let me first read[0m[2m both[0m[2m specification[0m[2m files to understand the[0m[2m breaking changes.[0m[2m
+  🧰 call_jaf86fmi | Read {'path': '/Users/gofrendigunawan/zrb ...'}
 [0m[2m
-  🧰 call_twpde5kp | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+  🧰 call_yky55pdn | Read {'path': '/Users/gofrendigunawan/zrb ...'}
 [0m[2m
-  🧰 call_q3p7526c | Read {'path': '/Users/gofrendigunawan/zrb ...'}
-[0m[2m
-  🔠 call_ts7u3gud | Return <ACTIVATED_SKILL>
-     Skill activated. The following context applies:
-     
-     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-writing
-     
-     All file paths in the skill instructions below are relative to this directory.
-     Use companion files (scripts, tools, references) by resolving them against this path.
-     
-     Companion files available in this directory:
-       templates/
-         api-doc.md
-         commit-message.md
-         readme.md
-     
-     ---
-     
-     ---
-     name: core-writing
-     description: "Activate before any substantial writing — docs, copy, proposals, feedback, commit messages, or UI text. Provides copywriting frameworks, tone guidance, and editing workflow for clear, persuasive, polished output."
-     user-invocable: false
-     ---
-     # Skill: core-writing
-     
-     Follow **Brief → Structure → Draft → Polish** for every writing task.
-     
-     ## Companion Templates
-     
-     When the current task matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
-     
-     | Trigger | Companion |
-     |---------|-----------|
-     | Writing or rewriting a project README | `templates/readme.md` |
-     | Drafting a git commit message | `templates/commit-message.md` |
-     | Documenting a function, endpoint, or CLI command | `templates/api-doc.md` |
-     
-     ## Workflow
-     
-     ### 1. Brief & Audience
-     
-     - Who is reading this? What do they already know? What do they need to know?
-     - What outcome should this writing achieve?
-     - What tone fits: technical, persuasive, instructional, conversational?
-     
-     ### 2. Structure & Outline
-     
-     - **Technical docs**: Problem → Solution → Usage → API → Examples
-     - **Persuasive writing**: Hook → Context → Evidence → Resolution → CTA
-     - **Instructional**: Goal → Prerequisites → Steps → Verification → Troubleshooting
-     - One idea per paragraph. Lead with the conclusion. Use transitions.
-     
-     ### 3. Draft
-     
-     - Write freely. Don't edit while drafting.
-     - Apply the chosen structure. Fill in evidence and examples.
-     - Use active voice. Be specific over vague.
-     
-     ### 4. Polish & Edit
-     
-     - Omit needless words. Every word must earn its place.
-     - Check flow: read aloud. Fix awkward transitions.
-     - Verify accuracy: facts, code samples, references.
-     - Proof: spelling, grammar, consistent terminology.
-     
-     ## Copywriting Formulas
-     
-     | Formula | When to Use | Structure |
-     |---------|-------------|-----------|
-     | **AIDA** | Marketing, proposals, feature announcements | Attention → Interest → Desire → Action |
-     | **PAS** | Bug reports, problem-solving docs | Problem → Agitate → Solution |
-     | **Inverted Pyramid** | News, announcements, summaries | Conclusion → Key details → Background |
-     | **Before-After-Bridge** | Change proposals, migration guides | Current → Desired → How to get there |
-     | **FEBC** | Technical decisions | Fact → Explanation → Benefit → Conclusion |
-     
-     ## Tone Matrix
-     
-     | Audience | Tone | Characteristics |
-     |----------|------|-----------------|
-     | Developers | Technical, precise | Specific terms, code examples, no fluff |
-     | Product managers | Outcome-oriented | Problem → impact → timeline → trade-offs |
-     | End users | Friendly, clear | Simple language, concrete examples, next steps |
-     | Executives | Concise, strategic | Recommendation first, TL;DR, business impact |
-     
-     ## Quality Checklist
-     
-     Before finalizing:
-     - Does the first paragraph convey the main point?
-     - Can any sentence be shortened without losing meaning?
-     - Are all claims supported by evidence?
-     - Is the tone appropriate for the audience?
-     - Would this still make sense if read in isolation?
-     
-     </ACTIVATED_SKILL>
-[0m[2m
-  🔠 call_twpde5kp | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5-cloud/copywriting/workdir/v1_spec.md | 83 lines]
+  🔠 call_jaf86fmi | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5-cloud/copywriting/workdir/v1_spec.md | 83 lines]
      ---CONTENT---
      # Zrb Task API — v1 Reference
      
@@ -188,7 +93,7 @@
      **Response:** HTTP 204 No Content.
      
 [0m[2m
-  🔠 call_q3p7526c | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5-cloud/copywriting/workdir/v2_spec.md | 115 lines]
+  🔠 call_yky55pdn | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5-cloud/copywriting/workdir/v2_spec.md | 115 lines]
      ---CONTENT---
      # Zrb Task API — v2 Reference
      
@@ -306,51 +211,264 @@
      **Response:** HTTP 204 No Content.
      
 [0m[2m
-  🧠 Now[0m[2m I have both[0m[2m spec[0m[2m files. Let me[0m[2m analyze the breaking changes[0m[2m:
+  🧠 Now[0m[2m I have all the[0m[2m information I need.[0m[2m Let me analyze[0m[2m the breaking changes:[0m[2m
      
-     1[0m[2m. **Endpoint[0m[2m prefix**: `/[0m[2mtasks[0m[2m` → `/v[0m[2m2/tasks[0m[2m`
-     2. **[0m[2mAuth[0m[2m header**: `X[0m[2m-Auth-Token`[0m[2m → `Authorization[0m[2m: Bearer`[0m[2m
-     3. **Task[0m[2m ID type**: integer[0m[2m → UUID string[0m[2m
-     4. **Field[0m[2m rename[0m[2m**: `done`[0m[2m → `completed`[0m[2m
-     5. **Required[0m[2m field**: `project[0m[2m_id` now required[0m[2m for[0m[2m task creation
-     6[0m[2m. **List[0m[2m response format**: bare[0m[2m array → paginated[0m[2m envelope with `{[0m[2mitems, total,[0m[2m next_cursor}`[0m[2m
+     1. **Authentication[0m[2m header**:[0m[2m Changed[0m[2m from `X-[0m[2mAuth-Token` to[0m[2m `Authorization: B[0m[2mearer`
+     2.[0m[2m **URL[0m[2m prefix**: All endpoints[0m[2m now have `/v[0m[2m2/` prefix[0m[2m
+     3. **[0m[2mTask ID type**:[0m[2m Changed from integer to[0m[2m UUID string
+     4[0m[2m. **Field[0m[2m rename[0m[2m**: `done`[0m[2m → `completed`[0m[2m
+     5. **New[0m[2m required field**: `[0m[2mproject_id` is[0m[2m now required for[0m[2m task creation
+     6[0m[2m. **Response[0m[2m format**: List[0m[2m endpoints now[0m[2m return pag[0m[2minated envelope instead of[0m[2m bare array
      
-     I'll write a[0m[2m migration guide using the[0m[2m Before-After-B[0m[2mridge formula[0m[2m since[0m[2m this is a migration[0m[2m guide. The[0m[2m audience is experienced developers[0m[2m who know[0m[2m v1, so[0m[2m I can[0m[2m be technical and[0m[2m concise[0m[2m.
-     
-     Let me structure[0m[2m it[0m[2m:
-     1[0m[2m. Overview ([0m[2mbrief[0m[2m)
-     2. Breaking[0m[2m changes section[0m[2m with before/after[0m[2m for[0m[2m each
-     3.[0m[2m Migration checklist
-     4[0m[2m. Upgrade command[0m[2m
-  Now I'll[0m[2m write the migration guide[0m[2m based[0m[2m on the spec[0m[2m differences.[0m[2m
-  🧰 call_u36x0xac | Write {'path': '/Users/gofrendigunawan/zrb ...', 'content': '# Zrb Task API v1 → v2 Mig ...'}
+     Time[0m[2m to write the[0m[2m migration guide. This[0m[2m is a writing task[0m[2m, so I should[0m[2m activate core-writing[0m[2m skill.[0m[2m
+  Now[0m[2m I'll[0m[2m write the migration guide[0m[2m based on the breaking[0m[2m changes between v1[0m[2m and v2.[0m[2m
+  🧰 call_o0ghvbr8 | Write {'path': '/Users/gofrendigunawan/zrb ...', 'content': '# Zrb CLI v1 to v2 Migrati ...'}
 [0m[2m
-  🔠 call_u36x0xac | Return Successfully wrote to /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5-cloud/copywriting/workdir/MIGRATION.md
+  🔠 call_o0ghvbr8 | Return Successfully wrote to /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5-cloud/copywriting/workdir/MIGRATION.md
 [0m[2m
-  🧠 The[0m[2m migration guide has been[0m[2m written successfully. Let[0m[2m me summarize[0m[2m what was created[0m[2m:[0m[2m
+  🧠 The[0m[2m migration[0m[2m guide[0m[2m has been written[0m[2m successfully. Let[0m[2m me verify[0m[2m it[0m[2m was created correctly[0m[2m by reading[0m[2m it back[0m[2m.[0m[2m
+  🧰 call_t27ak5gd | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_t27ak5gd | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5-cloud/copywriting/workdir/MIGRATION.md | 217 lines]
+     ---CONTENT---
+     # Zrb CLI v1 to v2 Migration Guide
      
-     The[0m[2m M[0m[2mIGRATION.md file[0m[2m includes:
-     1.[0m[2m A clear structure[0m[2m with headings[0m[2m and[0m[2m an[0m[2m overview table of[0m[2m breaking changes
-     2[0m[2m. All[0m[2m 6 breaking changes[0m[2m explicitly called out with[0m[2m before/after code[0m[2m examples:[0m[2m
-        - Endpoint[0m[2m prefix
-        -[0m[2m Authentication header[0m[2m
-        - Task ID type[0m[2m ([0m[2minteger to[0m[2m UUID)
-        -[0m[2m Field rename (done[0m[2m →[0m[2m completed)
-        -[0m[2m Required project_id for[0m[2m task[0m[2m creation
-        -[0m[2m Paginated envelope[0m[2m for[0m[2m list endpoints[0m[2m
-     3. A[0m[2m step-by-step migration[0m[2m checklist at[0m[2m the end
-     4[0m[2m. The upgrade command[0m[2m
+     This guide covers all breaking changes between Zrb CLI v1 and v2. If you're currently using v1, follow this guide to update your integration.
      
-     This[0m[2m matches[0m[2m the user[0m[2m's requirements.[0m[2m The guide is written[0m[2m for experienced developers,[0m[2m so[0m[2m it's technical and[0m[2m concise without[0m[2m unnecessary[0m[2m fluff.[0m[2m
-  Created[0m[2m `MIGRATION[0m[2m.md` with:[0m[2m
+     ---
      
-     - **Overview[0m[2m table** summar[0m[2mizing all 6[0m[2m breaking changes
-     -[0m[2m **Detailed[0m[2m sections** for[0m[2m each breaking[0m[2m change with before/[0m[2mafter fenced[0m[2m code blocks in[0m[2m bash,[0m[2m JavaScript[0m[2m, and JSON[0m[2m
-     - **Migration checklist[0m[2m** with[0m[2m 9 step[0m[2m-by-step items[0m[2m
-     - **Upgrade[0m[2m command** at the[0m[2m end
+     ## Breaking Changes Overview
      
-     The guide[0m[2m follows the Before-[0m[2mAfter-Bridge formula[0m[2m, leading[0m[2m with what[0m[2m changed and showing[0m[2m exactly[0m[2m how to update code[0m[2m.[0m[2m Written[0m[2m for experienced developers who[0m[2m already[0m[2m know v1 —[0m[2m technical[0m[2m, concise[0m[2m, no[0m[2m fluff.[0m[2m
-  💸 (Requests: 3 | Tool Calls: 4 | Total: 36280) Input: 33898 | Audio Input: 0 | Output: 2382 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
+     v2 introduces six breaking changes:
+     
+     1. **Authentication header changed** — `X-Auth-Token` replaced with `Authorization: Bearer`
+     2. **API prefix added** — All endpoints now require `/v2/` prefix
+     3. **Task ID type changed** — Integer IDs replaced with UUID strings
+     4. **Field renamed** — `done` field renamed to `completed`
+     5. **Required field added** — `project_id` is now mandatory for task creation
+     6. **List response format changed** — Bare arrays replaced with paginated envelope
+     
+     ---
+     
+     ## Breaking Change 1: Authentication Header
+     
+     The `X-Auth-Token` header is no longer supported. All requests must use Bearer token authentication.
+     
+     **Before (v1):**
+     ```bash
+     curl -H "X-Auth-Token: your_api_key" https://api.zrb.io/tasks
+     ```
+     
+     **After (v2):**
+     ```bash
+     curl -H "Authorization: Bearer your_api_token" https://api.zrb.io/v2/tasks
+     ```
+     
+     Requests using the old `X-Auth-Token` header will receive **HTTP 401 Unauthorized**.
+     
+     ---
+     
+     ## Breaking Change 2: API Path Prefix
+     
+     All endpoints now require the `/v2/` prefix.
+     
+     **Before (v1):**
+     ```bash
+     GET /tasks
+     GET /tasks/42
+     POST /tasks
+     PUT /tasks/42
+     DELETE /tasks/42
+     ```
+     
+     **After (v2):**
+     ```bash
+     GET /v2/tasks
+     GET /v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890
+     POST /v2/tasks
+     PUT /v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890
+     DELETE /v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890
+     ```
+     
+     ---
+     
+     ## Breaking Change 3: Task ID Type
+     
+     Task IDs have changed from auto-assigned integers to UUID strings.
+     
+     **Before (v1):**
+     ```json
+     {
+       "id": 42
+     }
+     ```
+     
+     **After (v2):**
+     ```json
+     {
+       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+     }
+     ```
+     
+     **Impact:** Any code that assumes integer IDs (e.g., type validation, sorting, URL path construction) must be updated to handle UUID strings.
+     
+     ---
+     
+     ## Breaking Change 4: Field Rename (`done` → `completed`)
+     
+     The `done` field has been renamed to `completed`.
+     
+     **Before (v1):**
+     ```json
+     {
+       "id": 42,
+       "title": "Write tests",
+       "done": false
+     }
+     ```
+     
+     **After (v2):**
+     ```json
+     {
+       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+       "title": "Write tests",
+       "completed": false
+     }
+     ```
+     
+     **Before (v1) — Update request:**
+     ```json
+     {
+       "done": true
+     }
+     ```
+     
+     **After (v2) — Update request:**
+     ```json
+     {
+       "completed": true
+     }
+     ```
+     
+     **Impact:** Any code referencing `task.done` or sending `{"done": ...}` in update requests must use `completed` instead.
+     
+     ---
+     
+     ## Breaking Change 5: Required `project_id` Field
+     
+     Task creation now requires a `project_id`. Omitting it returns **HTTP 422 Unprocessable Entity**.
+     
+     **Before (v1):**
+     ```json
+     {
+       "title": "New task title"
+     }
+     ```
+     
+     **After (v2):**
+     ```json
+     {
+       "title": "New task title",
+       "project_id": "proj_abc123"
+     }
+     ```
+     
+     **Impact:** You must obtain a project ID before creating tasks. Update your workflow to include project assignment at task creation time.
+     
+     ---
+     
+     ## Breaking Change 6: Paginated List Response
+     
+     List endpoints no longer return bare arrays. They now return a paginated envelope.
+     
+     **Before (v1):**
+     ```json
+     [
+       {"id": 1, "title": "Buy milk", "done": false, "created_at": "..."},
+       {"id": 2, "title": "Ship v2", "done": true, "created_at": "..."}
+     ]
+     ```
+     
+     **After (v2):**
+     ```json
+     {
+       "items": [
+         {"id": "a1b2...", "title": "Buy milk", "completed": false, "project_id": "proj_abc", "created_at": "..."},
+         {"id": "c3d4...", "title": "Ship v2", "completed": true, "project_id": "proj_abc", "created_at": "..."}
+       ],
+       "total": 42,
+       "next_cursor": "cursor_xyz"
+     }
+     ```
+     
+     **Impact:**
+     - Code expecting a bare array must access `response.items`
+     - Consider implementing pagination with `?cursor=<next_cursor>` to fetch all results
+     - Use `?limit=N` to control page size (default: 20)
+     
+     ---
+     
+     ## Migration Checklist
+     
+     Use this checklist to ensure you've addressed all breaking changes:
+     
+     - [ ] **Update authentication header**
+       - Replace `X-Auth-Token: <key>` with `Authorization: Bearer <token>`
+     
+     - [ ] **Update API endpoints**
+       - Add `/v2/` prefix to all API paths
+     
+     - [ ] **Update task ID handling**
+       - Change integer type to string/UUID type in models and validation
+       - Update any ID-based sorting or comparison logic
+     
+     - [ ] **Rename `done` to `completed`**
+       - Update response parsing to read `completed` instead of `done`
+       - Update update requests to send `completed` instead of `done`
+     
+     - [ ] **Add `project_id` to task creation**
+       - Ensure your workflow includes project ID assignment
+       - Update create requests to include `"project_id": "..."`
+     
+     - [ ] **Update list response handling**
+       - Change array handling to access `response.items`
+       - Optionally implement pagination using `next_cursor` and `?cursor=` parameter
+     
+     - [ ] **Test all endpoints**
+       - Verify authentication works
+       - Test create, read, update, delete operations
+       - Validate pagination behavior
+     
+     ---
+     
+     ## Upgrade Command
+     
+     ```bash
+     zrb upgrade --to v2
+     ```
+     
+     For issues or questions, consult the [Zrb Documentation](https://docs.zrb.io) or visit our community forum.
+[0m[2m
+  🧠 The[0m[2m migration[0m[2m guide[0m[2m has been successfully[0m[2m created. Let[0m[2m me summarize[0m[2m what was done[0m[2m:
+     
+     The[0m[2m guide[0m[2m covers all[0m[2m 6 breaking[0m[2m changes from[0m[2m the v[0m[2m1[0m[2m and v[0m[2m2 specs[0m[2m:
+     1[0m[2m. Authentication[0m[2m header[0m[2m change[0m[2m
+     2[0m[2m. API[0m[2m path prefix[0m[2m
+     3. Task[0m[2m ID type[0m[2m change
+     4[0m[2m. Field[0m[2m rename ([0m[2mdone →[0m[2m completed)
+     5[0m[2m. Required[0m[2m project_id[0m[2m field
+     6[0m[2m. Pag[0m[2minated list[0m[2m response format[0m[2m
+     
+     The document[0m[2m includes:
+     - Clear[0m[2m structure[0m[2m with headings[0m[2m
+     -[0m[2m Explicit call[0m[2mouts[0m[2m for each breaking[0m[2m change
+     -[0m[2m Before/[0m[2mafter code[0m[2m examples in fenced[0m[2m code[0m[2m blocks
+     - A[0m[2m step-by[0m[2m-step migration[0m[2m checklist
+     -[0m[2m The upgrade[0m[2m command at the[0m[2m end
+     
+     This[0m[2m should[0m[2m be complete[0m[2m.[0m[2m I[0m[2m'll[0m[2m provide[0m[2m a brief[0m[2m summary to[0m[2m the user.[0m[2m
+  Done.[0m[2m The[0m[2m migration guide has[0m[2m been saved[0m[2m to `M[0m[2mIGRATION[0m[2m.md` with[0m[2m all[0m[2m 6 breaking[0m[2m changes documented[0m[2m,[0m[2m before[0m[2m/after code[0m[2m examples for[0m[2m each, a[0m[2m step-by-step[0m[2m checklist, and[0m[2m the upgrade command[0m[2m at[0m[2m the end.[0m[2m
+  💸 (Requests: 4 | Tool Calls: 4 | Total: 47710) Input: 45639 | Audio Input: 0 | Output: 2071 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "The Zrb CLI is releasing v2, which has several breaking changes from v1. Our developer community needs a clear migration guide.
 
 `v1_spec.md` describes the current v1 API. `v2_spec.md` describes the new v2 API.
@@ -363,12 +481,5 @@ Write a developer migration guide and save it as `MIGRATION.md`. It should:
 - End with the upgrade command
 
 The audience is experienced developers who are already using v1." --model ollama:glm-5:cloud --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mlong-area-5181[0m[0m
-Created `MIGRATION.md` with:
-
-- **Overview table** summarizing all 6 breaking changes
-- **Detailed sections** for each breaking change with before/after fenced code blocks in bash, JavaScript, and JSON
-- **Migration checklist** with 9 step-by-step items
-- **Upgrade command** at the end
-
-The guide follows the Before-After-Bridge formula, leading with what changed and showing exactly how to update code. Written for experienced developers who already know v1 — technical, concise, no fluff.
+[2m[2mSession[0m: [1;33mtall-arch-7496[0m[0m
+Done. The migration guide has been saved to `MIGRATION.md` with all 6 breaking changes documented, before/after code examples for each, a step-by-step checklist, and the upgrade command at the end.

@@ -26,10 +26,9 @@ class JobQueue:
             for job in self._jobs.values():
                 if job["status"] != "pending":
                     continue
-
                 job["status"] = "processing"
                 return job
-
+        await asyncio.sleep(0.01)
         return None
 
     def complete(self, job_id: int, result: Any) -> None:

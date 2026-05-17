@@ -2,7 +2,8 @@ import asyncio
 from inventory import Inventory
 from payments import PaymentGateway
 
-_locks = set()
+_order_locks = {}
+_successful_orders = set()
 
 async def checkout(
     order_id: str,
@@ -11,19 +12,14 @@ async def checkout(
     inventory: Inventory,
     gateway: PaymentGateway,
 ) -> bool:
-    for charge in gateway.charges:
-        if charge["order_id"] == order_id:
+    if order_id not in _order_locks:
+        _order_locks[order_id] = asyncio.Lock()
+
+    async with _order_locks[order_id]:
+        if order_id in _successful_orders:
+            print(f"Order {order_id}: already processed")
             return True
 
-    while order_id in _locks:
-        await asyncio.sleep(0.01)
-
-    for charge in gateway.charges:
-        if charge["order_id"] == order_id:
-            return True
-
-    _locks.add(order_id)
-    try:
         decremented = await inventory.decrement(quantity)
         if not decremented:
             print(f"Order {order_id}: out of stock")
@@ -31,11 +27,10 @@ async def checkout(
 
         charged = await gateway.charge(order_id, quantity * price)
         if not charged:
-            await inventory.increment(quantity)
             print(f"Order {order_id}: payment failed")
+            await inventory.increment(quantity)
             return False
 
+        _successful_orders.add(order_id)
         print(f"Order {order_id}: SUCCESS")
         return True
-    finally:
-        _locks.remove(order_id)

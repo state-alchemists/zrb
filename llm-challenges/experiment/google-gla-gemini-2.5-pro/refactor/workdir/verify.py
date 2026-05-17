@@ -33,6 +33,7 @@ def verify():
     content_lower = content.lower()
     score = 0
     critical_ok = True
+    missed: list[str] = []
 
     # 1. Env vars used
     if "os.getenv" in content or "os.environ" in content:
@@ -40,6 +41,7 @@ def verify():
         score += 1
     else:
         print("FAIL: No os.getenv / os.environ found — credentials still hardcoded")
+        missed.append("env-var-based config")
 
     # 2. No SQL injection (no string formatting inside execute calls)
     sql_lines = [l for l in content.split("\n") if "execute(" in l.lower()]
@@ -66,6 +68,7 @@ def verify():
         score += 1
     else:
         print(f"FAIL: ETL pattern incomplete (extract={has_extract}, transform={has_transform}, load={has_load})")
+        missed.append("ETL pattern (extract/transform/load)")
 
     # 4. Multiple functions or class (separation of concerns)
     fn_count = len(re.findall(r"^def\s+\w+", content, re.MULTILINE))
@@ -75,6 +78,7 @@ def verify():
         score += 1
     else:
         print(f"FAIL: Only {fn_count} function(s) and no classes — needs more separation")
+        missed.append("separation of concerns (≥3 functions or a class)")
 
     # 5. Regex used for parsing
     if "import re" in content or re.search(r"\bre\.(search|match|findall|compile)", content):
@@ -82,6 +86,7 @@ def verify():
         score += 1
     else:
         print("FAIL: No regex found — fragile string.split() parsing still present")
+        missed.append("regex log parsing")
 
     # 6. Type hints and docstrings
     has_types = bool(re.search(r"->\s*\w|\:\s*(str|int|float|List|Dict|Optional|bool)", content))
@@ -91,6 +96,7 @@ def verify():
         score += 1
     else:
         print(f"FAIL: Missing type hints ({has_types}) or docstrings ({has_docs})")
+        missed.append("type hints + docstrings")
 
     # 7. Script runs and produces report.html — CRITICAL
     print("Running script...")
@@ -153,6 +159,11 @@ def verify():
     if score >= 7:
         print("VERIFICATION_RESULT: EXCELLENT")
     elif score >= 5:
+        missing_str = "; ".join(missed) if missed else "n/a"
+        print(
+            f"WARN: Score {score}/8 — need ≥7 for EXCELLENT. "
+            f"Missing: {missing_str}"
+        )
         print("VERIFICATION_RESULT: PASS")
     else:
         print("VERIFICATION_RESULT: FAIL")

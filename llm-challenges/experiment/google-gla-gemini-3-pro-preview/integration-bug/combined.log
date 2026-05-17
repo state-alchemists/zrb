@@ -1,31 +1,7 @@
 [2m
-  🧰 o98xqgg6 | Bash {'command': 'ls -la'}
-[0m  [2mtotal 32
-[0m  [2mdrwxr-xr-x@ 6 gofrendigunawan  staff   192 25 Apr 08:33 .
-[0m  [2mdrwxr-xr-x@ 4 gofrendigunawan  staff   128 17 May 18:55 ..
-[0m  [2m-rw-r--r--@ 1 gofrendigunawan  staff   775 25 Apr 08:33 checkout.py
-[0m  [2m-rw-r--r--@ 1 gofrendigunawan  staff   625 25 Apr 08:33 inventory.py
-[0m  [2m-rw-r--r--@ 1 gofrendigunawan  staff  1468 25 Apr 08:33 main.py
-[0m  [2m-rw-r--r--@ 1 gofrendigunawan  staff   551 25 Apr 08:33 payments.py
+  🧰 5t1zo8w6 | ActivateSkill {'name': 'core-coding'}
 [0m[2m
-  🔠 o98xqgg6 | Return Command: ls -la
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     total 32
-     drwxr-xr-x@ 6 gofrendigunawan  staff   192 25 Apr 08:33 .
-     drwxr-xr-x@ 4 gofrendigunawan  staff   128 17 May 18:55 ..
-     -rw-r--r--@ 1 gofrendigunawan  staff   775 25 Apr 08:33 checkout.py
-     -rw-r--r--@ 1 gofrendigunawan  staff   625 25 Apr 08:33 inventory.py
-     -rw-r--r--@ 1 gofrendigunawan  staff  1468 25 Apr 08:33 main.py
-     -rw-r--r--@ 1 gofrendigunawan  staff   551 25 Apr 08:33 payments.py
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  🧰 uhxwggr7 | ActivateSkill {'name': 'core-coding'}
-[0m[2m
-  🔠 uhxwggr7 | Return <ACTIVATED_SKILL>
+  🔠 5t1zo8w6 | Return <ACTIVATED_SKILL>
      Skill activated. The following context applies:
      
      Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-coding
@@ -150,44 +126,35 @@
      
      </ACTIVATED_SKILL>
 [0m[2m
-  🧰 sf0bb6ln | Read {'path': 'checkout.py'}
+  🧰 wa6dfr67 | Bash {'command': 'ls -l'}
+[0m  [2mtotal 32
+[0m  [2m-rw-r--r--@ 1 gofrendigunawan  staff   775 25 Apr 08:33 checkout.py
+[0m  [2m-rw-r--r--@ 1 gofrendigunawan  staff   625 25 Apr 08:33 inventory.py
+[0m  [2m-rw-r--r--@ 1 gofrendigunawan  staff  1468 25 Apr 08:33 main.py
+[0m  [2m-rw-r--r--@ 1 gofrendigunawan  staff   551 25 Apr 08:33 payments.py
 [0m[2m
-  🧰 7wqaf4dp | Read {'path': 'inventory.py'}
+  🔠 wa6dfr67 | Return Command: ls -l
+     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
+     Stdout:
+     total 32
+     -rw-r--r--@ 1 gofrendigunawan  staff   775 25 Apr 08:33 checkout.py
+     -rw-r--r--@ 1 gofrendigunawan  staff   625 25 Apr 08:33 inventory.py
+     -rw-r--r--@ 1 gofrendigunawan  staff  1468 25 Apr 08:33 main.py
+     -rw-r--r--@ 1 gofrendigunawan  staff   551 25 Apr 08:33 payments.py
+     Stderr:
+     (empty)
+     Exit Code: 0
+     Background PIDs: (none)
 [0m[2m
-  🧰 rnah2z5h | Read {'path': 'payments.py'}
+  🧰 4yhz78zx | Read {'path': 'checkout.py'}
 [0m[2m
-  🧰 iyksy8br | Read {'path': 'main.py'}
+  🧰 f86lxn1f | Read {'path': 'inventory.py'}
 [0m[2m
-  🔠 7wqaf4dp | Return [File: inventory.py | 26 lines]
-     ---CONTENT---
-     import asyncio
-     
-     
-     class Inventory:
-         def __init__(self, stock: int):
-             self._stock = stock
-     
-         async def check_stock(self, quantity: int) -> bool:
-             await asyncio.sleep(0.02)
-             return self._stock >= quantity
-     
-         async def decrement(self, quantity: int) -> bool:
-             await asyncio.sleep(0.02)
-             if self._stock >= quantity:
-                 self._stock -= quantity
-                 return True
-             return False
-     
-         async def increment(self, quantity: int) -> None:
-             await asyncio.sleep(0.01)
-             self._stock += quantity
-     
-         @property
-         def stock(self) -> int:
-             return self._stock
-     
+  🧰 9hxrlvd9 | Read {'path': 'payments.py'}
 [0m[2m
-  🔠 iyksy8br | Return [File: main.py | 45 lines]
+  🧰 u3sxnja4 | Read {'path': 'main.py'}
+[0m[2m
+  🔠 u3sxnja4 | Return [File: main.py | 45 lines]
      ---CONTENT---
      import asyncio
      from inventory import Inventory
@@ -235,7 +202,7 @@
          asyncio.run(main())
      
 [0m[2m
-  🔠 sf0bb6ln | Return [File: checkout.py | 30 lines]
+  🔠 4yhz78zx | Return [File: checkout.py | 30 lines]
      ---CONTENT---
      import asyncio
      from inventory import Inventory
@@ -268,7 +235,7 @@
          return True
      
 [0m[2m
-  🔠 rnah2z5h | Return [File: payments.py | 19 lines]
+  🔠 9hxrlvd9 | Return [File: payments.py | 19 lines]
      ---CONTENT---
      import asyncio
      import random
@@ -290,1042 +257,236 @@
              return True
      
 [0m[2m
-  🧰 e7zb4z5w | Bash {'command': 'python main.py'}
+  🔠 f86lxn1f | Return [File: inventory.py | 26 lines]
+     ---CONTENT---
+     import asyncio
+     
+     
+     class Inventory:
+         def __init__(self, stock: int):
+             self._stock = stock
+     
+         async def check_stock(self, quantity: int) -> bool:
+             await asyncio.sleep(0.02)
+             return self._stock >= quantity
+     
+         async def decrement(self, quantity: int) -> bool:
+             await asyncio.sleep(0.02)
+             if self._stock >= quantity:
+                 self._stock -= quantity
+                 return True
+             return False
+     
+         async def increment(self, quantity: int) -> None:
+             await asyncio.sleep(0.01)
+             self._stock += quantity
+     
+         @property
+         def stock(self) -> int:
+             return self._stock
+     
+[0m[2m
+  🧰 flel5wsn | Bash {'command': 'python3 main.py'}
+[0m  [2mStarting simulation: 12 concurrent orders, stock=5
+[0m  [2mOrder order_10: payment failed
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: SUCCESS
+[0m  [2mOrder order_3: SUCCESS
+[0m  [2mOrder order_4: SUCCESS
+[0m  [2mOrder order_5: inventory error after payment — item not delivered
+[0m  [2mOrder order_6: inventory error after payment — item not delivered
+[0m  [2mOrder order_7: inventory error after payment — item not delivered
+[0m  [2mOrder order_8: inventory error after payment — item not delivered
+[0m  [2mOrder order_9: inventory error after payment — item not delivered
+[0m  [2mOrder order_11: inventory error after payment — item not delivered
+[0m  [2m
+[0m  [2m=== Results ===
+[0m  [2mSuccessful orders:  5
+[0m  [2mItems sold:         5  (initial stock: 5)
+[0m  [2mRemaining stock:    0
+[0m  [2mTotal charged:      $1100.00
+[0m  [2mExpected charge:    $500.00
+[0m  [2mDuplicate charges:  0
+[0m  [2mERROR: Charge amount does not match successful orders!
+[0m[2m
+  🔠 flel5wsn | Return Command: python3 main.py
+     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
+     Stdout:
+     Starting simulation: 12 concurrent orders, stock=5
+     Order order_10: payment failed
+     Order order_0: SUCCESS
+     Order order_1: SUCCESS
+     Order order_2: SUCCESS
+     Order order_3: SUCCESS
+     Order order_4: SUCCESS
+     Order order_5: inventory error after payment — item not delivered
+     Order order_6: inventory error after payment — item not delivered
+     Order order_7: inventory error after payment — item not delivered
+     Order order_8: inventory error after payment — item not delivered
+     Order order_9: inventory error after payment — item not delivered
+     Order order_11: inventory error after payment — item not delivered
+     
+     === Results ===
+     Successful orders:  5
+     Items sold:         5  (initial stock: 5)
+     Remaining stock:    0
+     Total charged:      $1100.00
+     Expected charge:    $500.00
+     Duplicate charges:  0
+     ERROR: Charge amount does not match successful orders!
+     Stderr:
+     (empty)
+     Exit Code: 0
+     Background PIDs: (none)
+[0m[2m
+  🧰 10zcypb5 | Bash {'command': 'for i in {1..5}; do python ...'}
+[0m  [2mStarting simulation: 12 concurrent orders, stock=5
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_9: payment failed
+[0m  [2mOrder order_11: payment failed
+[0m  [2mOrder order_2: SUCCESS
+[0m  [2mOrder order_3: SUCCESS
+[0m  [2mOrder order_4: SUCCESS
+[0m  [2mOrder order_5: SUCCESS
+[0m  [2mOrder order_6: SUCCESS
+[0m  [2mOrder order_7: inventory error after payment — item not delivered
+[0m  [2mOrder order_8: inventory error after payment — item not delivered
+[0m  [2mOrder order_10: inventory error after payment — item not delivered
+[0m  [2m
+[0m  [2m=== Results ===
+[0m  [2mSuccessful orders:  5
+[0m  [2mItems sold:         5  (initial stock: 5)
+[0m  [2mRemaining stock:    0
+[0m  [2mTotal charged:      $800.00
+[0m  [2mExpected charge:    $500.00
+[0m  [2mDuplicate charges:  0
+[0m  [2mERROR: Charge amount does not match successful orders!
+[0m  [2mStarting simulation: 12 concurrent orders, stock=5
+[0m  [2mOrder order_3: payment failed
+[0m  [2mOrder order_4: payment failed
+[0m  [2mOrder order_5: payment failed
+[0m  [2mOrder order_7: payment failed
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: SUCCESS
+[0m  [2mOrder order_6: SUCCESS
+[0m  [2mOrder order_8: SUCCESS
+[0m  [2mOrder order_9: inventory error after payment — item not delivered
+[0m  [2mOrder order_10: inventory error after payment — item not delivered
+[0m  [2mOrder order_11: inventory error after payment — item not delivered
+[0m  [2m
+[0m  [2m=== Results ===
+[0m  [2mSuccessful orders:  5
+[0m  [2mItems sold:         5  (initial stock: 5)
+[0m  [2mRemaining stock:    0
+[0m  [2mTotal charged:      $800.00
+[0m  [2mExpected charge:    $500.00
+[0m  [2mDuplicate charges:  0
+[0m  [2mERROR: Charge amount does not match successful orders!
 [0m  [2mStarting simulation: 12 concurrent orders, stock=5
 [0m  [2mOrder order_1: payment failed
-[0m  [2mOrder order_6: payment failed
+[0m  [2mOrder order_3: payment failed
+[0m  [2mOrder order_7: payment failed
+[0m  [2mOrder order_10: payment failed
 [0m  [2mOrder order_11: payment failed
 [0m  [2mOrder order_0: SUCCESS
 [0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
 [0m  [2mOrder order_4: SUCCESS
 [0m  [2mOrder order_5: SUCCESS
-[0m  [2mOrder order_7: inventory error after payment — item not delivered
+[0m  [2mOrder order_6: SUCCESS
 [0m  [2mOrder order_8: inventory error after payment — item not delivered
 [0m  [2mOrder order_9: inventory error after payment — item not delivered
-[0m  [2mOrder order_10: inventory error after payment — item not delivered
 [0m  [2m
 [0m  [2m=== Results ===
 [0m  [2mSuccessful orders:  5
 [0m  [2mItems sold:         5  (initial stock: 5)
 [0m  [2mRemaining stock:    0
-[0m  [2mTotal charged:      $900.00
+[0m  [2mTotal charged:      $700.00
 [0m  [2mExpected charge:    $500.00
 [0m  [2mDuplicate charges:  0
 [0m  [2mERROR: Charge amount does not match successful orders!
-[0m[2m
-  🔠 e7zb4z5w | Return Command: python main.py
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     Starting simulation: 12 concurrent orders, stock=5
-     Order order_1: payment failed
-     Order order_6: payment failed
-     Order order_11: payment failed
-     Order order_0: SUCCESS
-     Order order_2: SUCCESS
-     Order order_3: SUCCESS
-     Order order_4: SUCCESS
-     Order order_5: SUCCESS
-     Order order_7: inventory error after payment — item not delivered
-     Order order_8: inventory error after payment — item not delivered
-     Order order_9: inventory error after payment — item not delivered
-     Order order_10: inventory error after payment — item not delivered
-     
-     === Results ===
-     Successful orders:  5
-     Items sold:         5  (initial stock: 5)
-     Remaining stock:    0
-     Total charged:      $900.00
-     Expected charge:    $500.00
-     Duplicate charges:  0
-     ERROR: Charge amount does not match successful orders!
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  🧰 atdbiy14 | Bash {'command': 'for i in {1..10}; do pytho ...'}
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m[2m
-  🔠 atdbiy14 | Return Command: for i in {1..10}; do python main.py | grep "ERROR"; done
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  🧰 0j3kqkkv | Bash {'command': "cat << 'EOF' > test_inv.py ..."}
-[0m  [2m0
-[0m[2m
-  🔠 0j3kqkkv | Return Command: cat << 'EOF' > test_inv.py
-     import asyncio
-     from inventory import Inventory
-     
-     async def main():
-         inv = Inventory(5)
-         async def dec():
-             await inv.decrement(1)
-         await asyncio.gather(*[dec() for _ in range(10)])
-         print(inv.stock)
-     
-     asyncio.run(main())
-     EOF
-     python test_inv.py
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     0
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  🧰 igx9shr3 | Bash {'command': "cat << 'EOF' > test_negati ..."}
-[0m  [2m/bin/sh: -c: line 11: syntax error: unexpected end of file
-[0m[2m
-  🔠 igx9shr3 | Return Command: cat << 'EOF' > test_negative.py
-     import asyncio
-     from inventory import Inventory
-     
-     async def main():
-         inv = Inventory(5)
-         async def dec():
-             await asyncio.sleep(0.01)
-             if await inv.check_stock(1):
-                 inv._stock -= 1 # this is not what checkout does
-     EOF
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     (empty)
-     Stderr:
-     /bin/sh: -c: line 11: syntax error: unexpected end of file
-     Exit Code: 2
-     Background PIDs: (none)
-[0m[2m
-  🧰 su5o2g75 | Bash {'command': "cat << 'EOF' > test_negati ..."}
-[0m  [2m0
-[0m[2m
-  🔠 su5o2g75 | Return Command: cat << 'EOF' > test_negative.py
-     import asyncio
-     from inventory import Inventory
-     
-     async def main():
-         inv = Inventory(5)
-         async def dec():
-             # simulate what checkout.py does
-             if await inv.check_stock(1):
-                 await asyncio.sleep(0.03) # simulate gateway.charge
-                 await inv.decrement(1)
-                 
-         await asyncio.gather(*[dec() for _ in range(10)])
-         print(inv.stock)
-     
-     asyncio.run(main())
-     EOF
-     python test_negative.py
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     0
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  🧰 kiim2u98 | Bash {'command': 'for i in {1..20}; do pytho ...'}
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m[2m
-  🔠 kiim2u98 | Return Command: for i in {1..20}; do python main.py | grep "ERROR"; done
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     ERROR: Charge amount does not match successful orders!
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  🧰 kheave26 | Bash {'command': 'python main.py'}
 [0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_7: payment failed
-[0m  [2mOrder order_8: payment failed
+[0m  [2mOrder order_3: payment failed
+[0m  [2mOrder order_4: payment failed
+[0m  [2mOrder order_5: payment failed
+[0m  [2mOrder order_11: payment failed
 [0m  [2mOrder order_0: SUCCESS
 [0m  [2mOrder order_1: SUCCESS
 [0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_5: inventory error after payment — item not delivered
-[0m  [2mOrder order_6: inventory error after payment — item not delivered
+[0m  [2mOrder order_6: SUCCESS
+[0m  [2mOrder order_7: SUCCESS
+[0m  [2mOrder order_8: inventory error after payment — item not delivered
 [0m  [2mOrder order_9: inventory error after payment — item not delivered
 [0m  [2mOrder order_10: inventory error after payment — item not delivered
-[0m  [2mOrder order_11: inventory error after payment — item not delivered
 [0m  [2m
 [0m  [2m=== Results ===
 [0m  [2mSuccessful orders:  5
 [0m  [2mItems sold:         5  (initial stock: 5)
 [0m  [2mRemaining stock:    0
-[0m  [2mTotal charged:      $1000.00
+[0m  [2mTotal charged:      $800.00
 [0m  [2mExpected charge:    $500.00
 [0m  [2mDuplicate charges:  0
 [0m  [2mERROR: Charge amount does not match successful orders!
-[0m[2m
-  🔠 kheave26 | Return Command: python main.py
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     Starting simulation: 12 concurrent orders, stock=5
-     Order order_7: payment failed
-     Order order_8: payment failed
-     Order order_0: SUCCESS
-     Order order_1: SUCCESS
-     Order order_2: SUCCESS
-     Order order_3: SUCCESS
-     Order order_4: SUCCESS
-     Order order_5: inventory error after payment — item not delivered
-     Order order_6: inventory error after payment — item not delivered
-     Order order_9: inventory error after payment — item not delivered
-     Order order_10: inventory error after payment — item not delivered
-     Order order_11: inventory error after payment — item not delivered
-     
-     === Results ===
-     Successful orders:  5
-     Items sold:         5  (initial stock: 5)
-     Remaining stock:    0
-     Total charged:      $1000.00
-     Expected charge:    $500.00
-     Duplicate charges:  0
-     ERROR: Charge amount does not match successful orders!
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  🧰 ruc8offo | Bash {'command': "cat << 'EOF' > test_main.p ..."}
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_5: inventory error after payment — item not delivered
-[0m  [2mOrder order_6: inventory error after payment — item not delivered
-[0m  [2mOrder order_7: inventory error after payment — item not delivered
-[0m  [2mOrder order_8: inventory error after payment — item not delivered
-[0m  [2mOrder order_9: inventory error after payment — item not delivered
-[0m  [2mOrder order_10: inventory error after payment — item not delivered
-[0m  [2mOrder order_11: inventory error after payment — item not delivered
-[0m  [2mOrder order_12: inventory error after payment — item not delivered
-[0m  [2mOrder order_13: inventory error after payment — item not delivered
-[0m  [2mOrder order_14: inventory error after payment — item not delivered
-[0m  [2mOrder order_15: inventory error after payment — item not delivered
-[0m  [2mOrder order_16: inventory error after payment — item not delivered
-[0m  [2mOrder order_17: inventory error after payment — item not delivered
-[0m  [2mOrder order_18: inventory error after payment — item not delivered
-[0m  [2mOrder order_19: inventory error after payment — item not delivered
-[0m  [2mOrder order_20: inventory error after payment — item not delivered
-[0m  [2mOrder order_21: inventory error after payment — item not delivered
-[0m  [2mOrder order_22: inventory error after payment — item not delivered
-[0m  [2mOrder order_23: inventory error after payment — item not delivered
-[0m  [2mOrder order_24: inventory error after payment — item not delivered
-[0m  [2mOrder order_25: inventory error after payment — item not delivered
-[0m  [2mOrder order_26: inventory error after payment — item not delivered
-[0m  [2mOrder order_27: inventory error after payment — item not delivered
-[0m  [2mOrder order_28: inventory error after payment — item not delivered
-[0m  [2mOrder order_29: inventory error after payment — item not delivered
-[0m  [2mOrder order_30: inventory error after payment — item not delivered
-[0m  [2mOrder order_31: inventory error after payment — item not delivered
-[0m  [2mOrder order_32: inventory error after payment — item not delivered
-[0m  [2mOrder order_33: inventory error after payment — item not delivered
-[0m  [2mOrder order_34: inventory error after payment — item not delivered
-[0m  [2mOrder order_35: inventory error after payment — item not delivered
-[0m  [2mOrder order_36: inventory error after payment — item not delivered
-[0m  [2mOrder order_37: inventory error after payment — item not delivered
-[0m  [2mOrder order_38: inventory error after payment — item not delivered
-[0m  [2mOrder order_39: inventory error after payment — item not delivered
-[0m  [2mOrder order_40: inventory error after payment — item not delivered
-[0m  [2mOrder order_41: inventory error after payment — item not delivered
-[0m  [2mOrder order_42: inventory error after payment — item not delivered
-[0m  [2mOrder order_43: inventory error after payment — item not delivered
-[0m  [2mOrder order_44: inventory error after payment — item not delivered
-[0m  [2mOrder order_45: inventory error after payment — item not delivered
-[0m  [2mOrder order_46: inventory error after payment — item not delivered
-[0m  [2mOrder order_47: inventory error after payment — item not delivered
-[0m  [2mOrder order_48: inventory error after payment — item not delivered
-[0m  [2mOrder order_49: inventory error after payment — item not delivered
-[0m  [2mOrder order_50: inventory error after payment — item not delivered
-[0m  [2mOrder order_51: inventory error after payment — item not delivered
-[0m  [2mOrder order_52: inventory error after payment — item not delivered
-[0m  [2mOrder order_53: inventory error after payment — item not delivered
-[0m  [2mOrder order_54: inventory error after payment — item not delivered
-[0m  [2mOrder order_55: inventory error after payment — item not delivered
-[0m  [2mOrder order_56: inventory error after payment — item not delivered
-[0m  [2mOrder order_57: inventory error after payment — item not delivered
-[0m  [2mOrder order_58: inventory error after payment — item not delivered
-[0m  [2mOrder order_59: inventory error after payment — item not delivered
-[0m  [2mOrder order_60: inventory error after payment — item not delivered
-[0m  [2mOrder order_61: inventory error after payment — item not delivered
-[0m  [2mOrder order_62: inventory error after payment — item not delivered
-[0m  [2mOrder order_63: inventory error after payment — item not delivered
-[0m  [2mOrder order_64: inventory error after payment — item not delivered
-[0m  [2mOrder order_65: inventory error after payment — item not delivered
-[0m  [2mOrder order_66: inventory error after payment — item not delivered
-[0m  [2mOrder order_67: inventory error after payment — item not delivered
-[0m  [2mOrder order_68: inventory error after payment — item not delivered
-[0m  [2mOrder order_69: inventory error after payment — item not delivered
-[0m  [2mOrder order_70: inventory error after payment — item not delivered
-[0m  [2mOrder order_71: inventory error after payment — item not delivered
-[0m  [2mOrder order_72: inventory error after payment — item not delivered
-[0m  [2mOrder order_73: inventory error after payment — item not delivered
-[0m  [2mOrder order_74: inventory error after payment — item not delivered
-[0m  [2mOrder order_75: inventory error after payment — item not delivered
-[0m  [2mOrder order_76: inventory error after payment — item not delivered
-[0m  [2mOrder order_77: inventory error after payment — item not delivered
-[0m  [2mOrder order_78: inventory error after payment — item not delivered
-[0m  [2mOrder order_79: inventory error after payment — item not delivered
-[0m  [2mOrder order_80: inventory error after payment — item not delivered
-[0m  [2mOrder order_81: inventory error after payment — item not delivered
-[0m  [2mOrder order_82: inventory error after payment — item not delivered
-[0m  [2mOrder order_83: inventory error after payment — item not delivered
-[0m  [2mOrder order_84: inventory error after payment — item not delivered
-[0m  [2mOrder order_85: inventory error after payment — item not delivered
-[0m  [2mOrder order_86: inventory error after payment — item not delivered
-[0m  [2mOrder order_87: inventory error after payment — item not delivered
-[0m  [2mOrder order_88: inventory error after payment — item not delivered
-[0m  [2mOrder order_89: inventory error after payment — item not delivered
-[0m  [2mOrder order_90: inventory error after payment — item not delivered
-[0m  [2mOrder order_91: inventory error after payment — item not delivered
-[0m  [2mOrder order_92: inventory error after payment — item not delivered
-[0m  [2mOrder order_93: inventory error after payment — item not delivered
-[0m  [2mOrder order_94: inventory error after payment — item not delivered
-[0m  [2mOrder order_95: inventory error after payment — item not delivered
-[0m  [2mOrder order_96: inventory error after payment — item not delivered
-[0m  [2mOrder order_97: inventory error after payment — item not delivered
-[0m  [2mOrder order_98: inventory error after payment — item not delivered
-[0m  [2mOrder order_99: inventory error after payment — item not delivered
-[0m  [2m0
-[0m[2m
-  🔠 ruc8offo | Return Command: cat << 'EOF' > test_main.py
-     import asyncio
-     from inventory import Inventory
-     from payments import PaymentGateway
-     from checkout import checkout
-     
-     async def main():
-         inv = Inventory(5)
-         gw = PaymentGateway(0)
-         orders = [checkout(f"order_{i}", 1, 100, inv, gw) for i in range(100)]
-         await asyncio.gather(*orders)
-         print(inv.stock)
-     
-     asyncio.run(main())
-     EOF
-     python test_main.py
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     Order order_0: SUCCESS
-     Order order_1: SUCCESS
-     Order order_2: SUCCESS
-     Order order_3: SUCCESS
-     Order order_4: SUCCESS
-     Order order_5: inventory error after payment — item not delivered
-     Order order_6: inventory error after payment — item not delivered
-     Order order_7: inventory error after payment — item not delivered
-     Order order_8: inventory error after payment — item not delivered
-     Order order_9: inventory error after payment — item not delivered
-     Order order_10: inventory error after payment — item not delivered
-     Order order_11: inventory error after payment — item not delivered
-     Order order_12: inventory error after payment — item not delivered
-     Order order_13: inventory error after payment — item not delivered
-     Order order_14: inventory error after payment — item not delivered
-     Order order_15: inventory error after payment — item not delivered
-     Order order_16: inventory error after payment — item not delivered
-     Order order_17: inventory error after payment — item not delivered
-     Order order_18: inventory error after payment — item not delivered
-     Order order_19: inventory error after payment — item not delivered
-     Order order_20: inventory error after payment — item not delivered
-     Order order_21: inventory error after payment — item not delivered
-     Order order_22: inventory error after payment — item not delivered
-     Order order_23: inventory error after payment — item not delivered
-     Order order_24: inventory error after payment — item not delivered
-     Order order_25: inventory error after payment — item not delivered
-     Order order_26: inventory error after payment — item not delivered
-     Order order_27: inventory error after payment — item not delivered
-     Order order_28: inventory error after payment — item not delivered
-     Order order_29: inventory error after payment — item not delivered
-     Order order_30: inventory error after payment — item not delivered
-     Order order_31: inventory error after payment — item not delivered
-     Order order_32: inventory error after payment — item not delivered
-     Order order_33: inventory error after payment — item not delivered
-     Order order_34: inventory error after payment — item not delivered
-     Order order_35: inventory error after payment — item not delivered
-     Order order_36: inventory error after payment — item not delivered
-     Order order_37: inventory error after payment — item not delivered
-     Order order_38: inventory error after payment — item not delivered
-     Order order_39: inventory error after payment — item not delivered
-     Order order_40: inventory error after payment — item not delivered
-     Order order_41: inventory error after payment — item not delivered
-     Order order_42: inventory error after payment — item not delivered
-     Order order_43: inventory error after payment — item not delivered
-     Order order_44: inventory error after payment — item not delivered
-     Order order_45: inventory error after payment — item not delivered
-     Order order_46: inventory error after payment — item not delivered
-     Order order_47: inventory error after payment — item not delivered
-     Order order_48: inventory error after payment — item not delivered
-     Order order_49: inventory error after payment — item not delivered
-     Order order_50: inventory error after payment — item not delivered
-     Order order_51: inventory error after payment — item not delivered
-     Order order_52: inventory error after payment — item not delivered
-     Order order_53: inventory error after payment — item not delivered
-     Order order_54: inventory error after payment — item not delivered
-     Order order_55: inventory error after payment — item not delivered
-     Order order_56: inventory error after payment — item not delivered
-     Order order_57: inventory error after payment — item not delivered
-     Order order_58: inventory error after payment — item not delivered
-     Order order_59: inventory error after payment — item not delivered
-     Order order_60: inventory error after payment — item not delivered
-     Order order_61: inventory error after payment — item not delivered
-     Order order_62: inventory error after payment — item not delivered
-     Order order_63: inventory error after payment — item not delivered
-     Order order_64: inventory error after payment — item not delivered
-     Order order_65: inventory error after payment — item not delivered
-     Order order_66: inventory error after payment — item not delivered
-     Order order_67: inventory error after payment — item not delivered
-     Order order_68: inventory error after payment — item not delivered
-     Order order_69: inventory error after payment — item not delivered
-     Order order_70: inventory error after payment — item not delivered
-     Order order_71: inventory error after payment — item not delivered
-     Order order_72: inventory error after payment — item not delivered
-     Order order_73: inventory error after payment — item not delivered
-     Order order_74: inventory error after payment — item not delivered
-     Order order_75: inventory error after payment — item not delivered
-     Order order_76: inventory error after payment — item not delivered
-     Order order_77: inventory error after payment — item not delivered
-     Order order_78: inventory error after payment — item not delivered
-     Order order_79: inventory error after payment — item not delivered
-     Order order_80: inventory error after payment — item not delivered
-     Order order_81: inventory error after payment — item not delivered
-     Order order_82: inventory error after payment — item not delivered
-     Order order_83: inventory error after payment — item not delivered
-     Order order_84: inventory error after payment — item not delivered
-     Order order_85: inventory error after payment — item not delivered
-     Order order_86: inventory error after payment — item not delivered
-     Order order_87: inventory error after payment — item not delivered
-     Order order_88: inventory error after payment — item not delivered
-     Order order_89: inventory error after payment — item not delivered
-     Order order_90: inventory error after payment — item not delivered
-     Order order_91: inventory error after payment — item not delivered
-     Order order_92: inventory error after payment — item not delivered
-     Order order_93: inventory error after payment — item not delivered
-     Order order_94: inventory error after payment — item not delivered
-     Order order_95: inventory error after payment — item not delivered
-     Order order_96: inventory error after payment — item not delivered
-     Order order_97: inventory error after payment — item not delivered
-     Order order_98: inventory error after payment — item not delivered
-     Order order_99: inventory error after payment — item not delivered
-     0
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  🧰 3xhcgvhj | Bash {'command': "cat << 'EOF' > force_negat ..."}
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mOrder order_1: inventory error after payment — item not delivered
-[0m  [2mStock: 0
-[0m[2m
-  🔠 3xhcgvhj | Return Command: cat << 'EOF' > force_negative.py
-     import asyncio
-     from inventory import Inventory
-     from payments import PaymentGateway
-     from checkout import checkout
-     
-     async def main():
-         inv = Inventory(5)
-         gw = PaymentGateway(0)
-         
-         # Try to cause overselling by calling check_stock, then bypass checkout?
-         # No, we must use checkout.
-         
-         orders = [checkout(f"order_1", 1, 100, inv, gw) for i in range(100)]
-         await asyncio.gather(*orders)
-         print(f"Stock: {inv.stock}")
-     
-     asyncio.run(main())
-     EOF
-     python force_negative.py
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     Order order_1: SUCCESS
-     Order order_1: SUCCESS
-     Order order_1: SUCCESS
-     Order order_1: SUCCESS
-     Order order_1: SUCCESS
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Order order_1: inventory error after payment — item not delivered
-     Stock: 0
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  🧰 ihz726mx | Bash {'command': 'for i in {1..100}; do pyth ...'}
-[0m[2m
-  🔠 ihz726mx | Return Command: for i in {1..100}; do python main.py | grep negative; done
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     (empty)
-     Stderr:
-     (empty)
-     Exit Code: 1
-     Background PIDs: (none)
-[0m[2m
-  🧰 ty52mjqh | Bash {'command': "cat << 'EOF' > test_negati ..."}
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_5: inventory error after payment — item not delivered
-[0m  [2mOrder order_6: inventory error after payment — item not delivered
-[0m  [2mOrder order_7: inventory error after payment — item not delivered
-[0m  [2mOrder order_8: inventory error after payment — item not delivered
-[0m  [2mOrder order_9: inventory error after payment — item not delivered
-[0m  [2mOrder order_10: inventory error after payment — item not delivered
-[0m  [2mOrder order_11: inventory error after payment — item not delivered
-[0m  [2mOrder order_12: inventory error after payment — item not delivered
-[0m  [2mOrder order_13: inventory error after payment — item not delivered
-[0m  [2mOrder order_14: inventory error after payment — item not delivered
-[0m  [2mOrder order_15: inventory error after payment — item not delivered
-[0m  [2mOrder order_16: inventory error after payment — item not delivered
-[0m  [2mOrder order_17: inventory error after payment — item not delivered
-[0m  [2mOrder order_18: inventory error after payment — item not delivered
-[0m  [2mOrder order_19: inventory error after payment — item not delivered
-[0m  [2mOrder order_20: inventory error after payment — item not delivered
-[0m  [2mOrder order_21: inventory error after payment — item not delivered
-[0m  [2mOrder order_22: inventory error after payment — item not delivered
-[0m  [2mOrder order_23: inventory error after payment — item not delivered
-[0m  [2mOrder order_24: inventory error after payment — item not delivered
-[0m  [2mOrder order_25: inventory error after payment — item not delivered
-[0m  [2mOrder order_26: inventory error after payment — item not delivered
-[0m  [2mOrder order_27: inventory error after payment — item not delivered
-[0m  [2mOrder order_28: inventory error after payment — item not delivered
-[0m  [2mOrder order_29: inventory error after payment — item not delivered
-[0m  [2mOrder order_30: inventory error after payment — item not delivered
-[0m  [2mOrder order_31: inventory error after payment — item not delivered
-[0m  [2mOrder order_32: inventory error after payment — item not delivered
-[0m  [2mOrder order_33: inventory error after payment — item not delivered
-[0m  [2mOrder order_34: inventory error after payment — item not delivered
-[0m  [2mOrder order_35: inventory error after payment — item not delivered
-[0m  [2mOrder order_36: inventory error after payment — item not delivered
-[0m  [2mOrder order_37: inventory error after payment — item not delivered
-[0m  [2mOrder order_38: inventory error after payment — item not delivered
-[0m  [2mOrder order_39: inventory error after payment — item not delivered
-[0m  [2mOrder order_40: inventory error after payment — item not delivered
-[0m  [2mOrder order_41: inventory error after payment — item not delivered
-[0m  [2mOrder order_42: inventory error after payment — item not delivered
-[0m  [2mOrder order_43: inventory error after payment — item not delivered
-[0m  [2mOrder order_44: inventory error after payment — item not delivered
-[0m  [2mOrder order_45: inventory error after payment — item not delivered
-[0m  [2mOrder order_46: inventory error after payment — item not delivered
-[0m  [2mOrder order_47: inventory error after payment — item not delivered
-[0m  [2mOrder order_48: inventory error after payment — item not delivered
-[0m  [2mOrder order_49: inventory error after payment — item not delivered
-[0m  [2mOrder order_50: inventory error after payment — item not delivered
-[0m  [2mOrder order_51: inventory error after payment — item not delivered
-[0m  [2mOrder order_52: inventory error after payment — item not delivered
-[0m  [2mOrder order_53: inventory error after payment — item not delivered
-[0m  [2mOrder order_54: inventory error after payment — item not delivered
-[0m  [2mOrder order_55: inventory error after payment — item not delivered
-[0m  [2mOrder order_56: inventory error after payment — item not delivered
-[0m  [2mOrder order_57: inventory error after payment — item not delivered
-[0m  [2mOrder order_58: inventory error after payment — item not delivered
-[0m  [2mOrder order_59: inventory error after payment — item not delivered
-[0m  [2mOrder order_60: inventory error after payment — item not delivered
-[0m  [2mOrder order_61: inventory error after payment — item not delivered
-[0m  [2mOrder order_62: inventory error after payment — item not delivered
-[0m  [2mOrder order_63: inventory error after payment — item not delivered
-[0m  [2mOrder order_64: inventory error after payment — item not delivered
-[0m  [2mOrder order_65: inventory error after payment — item not delivered
-[0m  [2mOrder order_66: inventory error after payment — item not delivered
-[0m  [2mOrder order_67: inventory error after payment — item not delivered
-[0m  [2mOrder order_68: inventory error after payment — item not delivered
-[0m  [2mOrder order_69: inventory error after payment — item not delivered
-[0m  [2mOrder order_70: inventory error after payment — item not delivered
-[0m  [2mOrder order_71: inventory error after payment — item not delivered
-[0m  [2mOrder order_72: inventory error after payment — item not delivered
-[0m  [2mOrder order_73: inventory error after payment — item not delivered
-[0m  [2mOrder order_74: inventory error after payment — item not delivered
-[0m  [2mOrder order_75: inventory error after payment — item not delivered
-[0m  [2mOrder order_76: inventory error after payment — item not delivered
-[0m  [2mOrder order_77: inventory error after payment — item not delivered
-[0m  [2mOrder order_78: inventory error after payment — item not delivered
-[0m  [2mOrder order_79: inventory error after payment — item not delivered
-[0m  [2mOrder order_80: inventory error after payment — item not delivered
-[0m  [2mOrder order_81: inventory error after payment — item not delivered
-[0m  [2mOrder order_82: inventory error after payment — item not delivered
-[0m  [2mOrder order_83: inventory error after payment — item not delivered
-[0m  [2mOrder order_84: inventory error after payment — item not delivered
-[0m  [2mOrder order_85: inventory error after payment — item not delivered
-[0m  [2mOrder order_86: inventory error after payment — item not delivered
-[0m  [2mOrder order_87: inventory error after payment — item not delivered
-[0m  [2mOrder order_88: inventory error after payment — item not delivered
-[0m  [2mOrder order_89: inventory error after payment — item not delivered
-[0m  [2mOrder order_90: inventory error after payment — item not delivered
-[0m  [2mOrder order_91: inventory error after payment — item not delivered
-[0m  [2mOrder order_92: inventory error after payment — item not delivered
-[0m  [2mOrder order_93: inventory error after payment — item not delivered
-[0m  [2mOrder order_94: inventory error after payment — item not delivered
-[0m  [2mOrder order_95: inventory error after payment — item not delivered
-[0m  [2mOrder order_96: inventory error after payment — item not delivered
-[0m  [2mOrder order_97: inventory error after payment — item not delivered
-[0m  [2mOrder order_98: inventory error after payment — item not delivered
-[0m  [2mOrder order_99: inventory error after payment — item not delivered
-[0m  [2mStock: 0
-[0m[2m
-  🔠 ty52mjqh | Return Command: cat << 'EOF' > test_negative_2.py
-     import asyncio
-     from inventory import Inventory
-     from payments import PaymentGateway
-     from checkout import checkout
-     
-     async def main():
-         inv = Inventory(5)
-         gw = PaymentGateway(0)
-         
-         # We want to see if we can oversell by hitting checkout many times.
-         orders = [checkout(f"order_{i}", 1, 100, inv, gw) for i in range(100)]
-         await asyncio.gather(*orders)
-         print(f"Stock: {inv.stock}")
-     
-     asyncio.run(main())
-     EOF
-     python test_negative_2.py
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     Order order_0: SUCCESS
-     Order order_1: SUCCESS
-     Order order_2: SUCCESS
-     Order order_3: SUCCESS
-     Order order_4: SUCCESS
-     Order order_5: inventory error after payment — item not delivered
-     Order order_6: inventory error after payment — item not delivered
-     Order order_7: inventory error after payment — item not delivered
-     Order order_8: inventory error after payment — item not delivered
-     Order order_9: inventory error after payment — item not delivered
-     Order order_10: inventory error after payment — item not delivered
-     Order order_11: inventory error after payment — item not delivered
-     Order order_12: inventory error after payment — item not delivered
-     Order order_13: inventory error after payment — item not delivered
-     Order order_14: inventory error after payment — item not delivered
-     Order order_15: inventory error after payment — item not delivered
-     Order order_16: inventory error after payment — item not delivered
-     Order order_17: inventory error after payment — item not delivered
-     Order order_18: inventory error after payment — item not delivered
-     Order order_19: inventory error after payment — item not delivered
-     Order order_20: inventory error after payment — item not delivered
-     Order order_21: inventory error after payment — item not delivered
-     Order order_22: inventory error after payment — item not delivered
-     Order order_23: inventory error after payment — item not delivered
-     Order order_24: inventory error after payment — item not delivered
-     Order order_25: inventory error after payment — item not delivered
-     Order order_26: inventory error after payment — item not delivered
-     Order order_27: inventory error after payment — item not delivered
-     Order order_28: inventory error after payment — item not delivered
-     Order order_29: inventory error after payment — item not delivered
-     Order order_30: inventory error after payment — item not delivered
-     Order order_31: inventory error after payment — item not delivered
-     Order order_32: inventory error after payment — item not delivered
-     Order order_33: inventory error after payment — item not delivered
-     Order order_34: inventory error after payment — item not delivered
-     Order order_35: inventory error after payment — item not delivered
-     Order order_36: inventory error after payment — item not delivered
-     Order order_37: inventory error after payment — item not delivered
-     Order order_38: inventory error after payment — item not delivered
-     Order order_39: inventory error after payment — item not delivered
-     Order order_40: inventory error after payment — item not delivered
-     Order order_41: inventory error after payment — item not delivered
-     Order order_42: inventory error after payment — item not delivered
-     Order order_43: inventory error after payment — item not delivered
-     Order order_44: inventory error after payment — item not delivered
-     Order order_45: inventory error after payment — item not delivered
-     Order order_46: inventory error after payment — item not delivered
-     Order order_47: inventory error after payment — item not delivered
-     Order order_48: inventory error after payment — item not delivered
-     Order order_49: inventory error after payment — item not delivered
-     Order order_50: inventory error after payment — item not delivered
-     Order order_51: inventory error after payment — item not delivered
-     Order order_52: inventory error after payment — item not delivered
-     Order order_53: inventory error after payment — item not delivered
-     Order order_54: inventory error after payment — item not delivered
-     Order order_55: inventory error after payment — item not delivered
-     Order order_56: inventory error after payment — item not delivered
-     Order order_57: inventory error after payment — item not delivered
-     Order order_58: inventory error after payment — item not delivered
-     Order order_59: inventory error after payment — item not delivered
-     Order order_60: inventory error after payment — item not delivered
-     Order order_61: inventory error after payment — item not delivered
-     Order order_62: inventory error after payment — item not delivered
-     Order order_63: inventory error after payment — item not delivered
-     Order order_64: inventory error after payment — item not delivered
-     Order order_65: inventory error after payment — item not delivered
-     Order order_66: inventory error after payment — item not delivered
-     Order order_67: inventory error after payment — item not delivered
-     Order order_68: inventory error after payment — item not delivered
-     Order order_69: inventory error after payment — item not delivered
-     Order order_70: inventory error after payment — item not delivered
-     Order order_71: inventory error after payment — item not delivered
-     Order order_72: inventory error after payment — item not delivered
-     Order order_73: inventory error after payment — item not delivered
-     Order order_74: inventory error after payment — item not delivered
-     Order order_75: inventory error after payment — item not delivered
-     Order order_76: inventory error after payment — item not delivered
-     Order order_77: inventory error after payment — item not delivered
-     Order order_78: inventory error after payment — item not delivered
-     Order order_79: inventory error after payment — item not delivered
-     Order order_80: inventory error after payment — item not delivered
-     Order order_81: inventory error after payment — item not delivered
-     Order order_82: inventory error after payment — item not delivered
-     Order order_83: inventory error after payment — item not delivered
-     Order order_84: inventory error after payment — item not delivered
-     Order order_85: inventory error after payment — item not delivered
-     Order order_86: inventory error after payment — item not delivered
-     Order order_87: inventory error after payment — item not delivered
-     Order order_88: inventory error after payment — item not delivered
-     Order order_89: inventory error after payment — item not delivered
-     Order order_90: inventory error after payment — item not delivered
-     Order order_91: inventory error after payment — item not delivered
-     Order order_92: inventory error after payment — item not delivered
-     Order order_93: inventory error after payment — item not delivered
-     Order order_94: inventory error after payment — item not delivered
-     Order order_95: inventory error after payment — item not delivered
-     Order order_96: inventory error after payment — item not delivered
-     Order order_97: inventory error after payment — item not delivered
-     Order order_98: inventory error after payment — item not delivered
-     Order order_99: inventory error after payment — item not delivered
-     Stock: 0
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  🧰 wfuqcf7l | Bash {'command': "cat << 'EOF' > test_negati ..."}
-[0m  [2m-5
-[0m[2m
-  🔠 wfuqcf7l | Return Command: cat << 'EOF' > test_negative_3.py
-     import asyncio
-     from inventory import Inventory
-     
-     async def main():
-         inv = Inventory(5)
-         async def dec():
-             await inv.check_stock(1)
-             await asyncio.sleep(0.01)
-             # Directly decrement to see if inventory can go negative under concurrent modification
-             inv._stock -= 1 
-     
-         await asyncio.gather(*[dec() for _ in range(10)])
-         print(inv.stock)
-     
-     asyncio.run(main())
-     EOF
-     python test_negative_3.py
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     -5
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  🧰 11zqcmoj | Bash {'command': 'python test_negative_2.py  ...'}
-[0m  [2m      95
-[0m[2m
-  🔠 11zqcmoj | Return Command: python test_negative_2.py | grep "inventory error" | wc -l
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     95
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  🧰 gwe8e3ml | Bash {'command': 'python main.py'}
 [0m  [2mStarting simulation: 12 concurrent orders, stock=5
 [0m  [2mOrder order_0: payment failed
-[0m  [2mOrder order_8: payment failed
+[0m  [2mOrder order_5: payment failed
+[0m  [2mOrder order_7: payment failed
+[0m  [2mOrder order_9: payment failed
+[0m  [2mOrder order_11: payment failed
 [0m  [2mOrder order_1: SUCCESS
 [0m  [2mOrder order_2: SUCCESS
 [0m  [2mOrder order_3: SUCCESS
 [0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_5: SUCCESS
-[0m  [2mOrder order_6: inventory error after payment — item not delivered
-[0m  [2mOrder order_7: inventory error after payment — item not delivered
-[0m  [2mOrder order_9: inventory error after payment — item not delivered
+[0m  [2mOrder order_6: SUCCESS
+[0m  [2mOrder order_8: inventory error after payment — item not delivered
 [0m  [2mOrder order_10: inventory error after payment — item not delivered
-[0m  [2mOrder order_11: inventory error after payment — item not delivered
 [0m  [2m
 [0m  [2m=== Results ===
 [0m  [2mSuccessful orders:  5
 [0m  [2mItems sold:         5  (initial stock: 5)
 [0m  [2mRemaining stock:    0
-[0m  [2mTotal charged:      $1000.00
+[0m  [2mTotal charged:      $700.00
 [0m  [2mExpected charge:    $500.00
 [0m  [2mDuplicate charges:  0
 [0m  [2mERROR: Charge amount does not match successful orders!
 [0m[2m
-  🔠 gwe8e3ml | Return Command: python main.py
+  🔠 10zcypb5 | Return Command: for i in {1..5}; do python3 main.py; done
      Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
      Stdout:
      Starting simulation: 12 concurrent orders, stock=5
      Order order_0: payment failed
-     Order order_8: payment failed
-     Order order_1: SUCCESS
+     Order order_1: payment failed
+     Order order_9: payment failed
+     Order order_11: payment failed
      Order order_2: SUCCESS
      Order order_3: SUCCESS
      Order order_4: SUCCESS
      Order order_5: SUCCESS
-     Order order_6: inventory error after payment — item not delivered
+     Order order_6: SUCCESS
      Order order_7: inventory error after payment — item not delivered
+     Order order_8: inventory error after payment — item not delivered
+     Order order_10: inventory error after payment — item not delivered
+     
+     === Results ===
+     Successful orders:  5
+     Items sold:         5  (initial stock: 5)
+     Remaining stock:    0
+     Total charged:      $800.00
+     Expected charge:    $500.00
+     Duplicate charges:  0
+     ERROR: Charge amount does not match successful orders!
+     Starting simulation: 12 concurrent orders, stock=5
+     Order order_3: payment failed
+     Order order_4: payment failed
+     Order order_5: payment failed
+     Order order_7: payment failed
+     Order order_0: SUCCESS
+     Order order_1: SUCCESS
+     Order order_2: SUCCESS
+     Order order_6: SUCCESS
+     Order order_8: SUCCESS
      Order order_9: inventory error after payment — item not delivered
      Order order_10: inventory error after payment — item not delivered
      Order order_11: inventory error after payment — item not delivered
@@ -1334,7 +495,73 @@
      Successful orders:  5
      Items sold:         5  (initial stock: 5)
      Remaining stock:    0
-     Total charged:      $1000.00
+     Total charged:      $800.00
+     Expected charge:    $500.00
+     Duplicate charges:  0
+     ERROR: Charge amount does not match successful orders!
+     Starting simulation: 12 concurrent orders, stock=5
+     Order order_1: payment failed
+     Order order_3: payment failed
+     Order order_7: payment failed
+     Order order_10: payment failed
+     Order order_11: payment failed
+     Order order_0: SUCCESS
+     Order order_2: SUCCESS
+     Order order_4: SUCCESS
+     Order order_5: SUCCESS
+     Order order_6: SUCCESS
+     Order order_8: inventory error after payment — item not delivered
+     Order order_9: inventory error after payment — item not delivered
+     
+     === Results ===
+     Successful orders:  5
+     Items sold:         5  (initial stock: 5)
+     Remaining stock:    0
+     Total charged:      $700.00
+     Expected charge:    $500.00
+     Duplicate charges:  0
+     ERROR: Charge amount does not match successful orders!
+     Starting simulation: 12 concurrent orders, stock=5
+     Order order_3: payment failed
+     Order order_4: payment failed
+     Order order_5: payment failed
+     Order order_11: payment failed
+     Order order_0: SUCCESS
+     Order order_1: SUCCESS
+     Order order_2: SUCCESS
+     Order order_6: SUCCESS
+     Order order_7: SUCCESS
+     Order order_8: inventory error after payment — item not delivered
+     Order order_9: inventory error after payment — item not delivered
+     Order order_10: inventory error after payment — item not delivered
+     
+     === Results ===
+     Successful orders:  5
+     Items sold:         5  (initial stock: 5)
+     Remaining stock:    0
+     Total charged:      $800.00
+     Expected charge:    $500.00
+     Duplicate charges:  0
+     ERROR: Charge amount does not match successful orders!
+     Starting simulation: 12 concurrent orders, stock=5
+     Order order_0: payment failed
+     Order order_5: payment failed
+     Order order_7: payment failed
+     Order order_9: payment failed
+     Order order_11: payment failed
+     Order order_1: SUCCESS
+     Order order_2: SUCCESS
+     Order order_3: SUCCESS
+     Order order_4: SUCCESS
+     Order order_6: SUCCESS
+     Order order_8: inventory error after payment — item not delivered
+     Order order_10: inventory error after payment — item not delivered
+     
+     === Results ===
+     Successful orders:  5
+     Items sold:         5  (initial stock: 5)
+     Remaining stock:    0
+     Total charged:      $700.00
      Expected charge:    $500.00
      Duplicate charges:  0
      ERROR: Charge amount does not match successful orders!
@@ -1343,43 +570,53 @@
      Exit Code: 0
      Background PIDs: (none)
 [0m[2m
-  🧰 r36xj6se | Bash {'command': "cat << 'EOF' > test_duplic ..."}
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mCharges: [{'order_id': 'order_1', 'amount': 100}, {'order_id': 'order_1', 'amount': 100}]
+  🧰 uurstxqn | Edit {'path': 'checkout.py', 'count': -1, 'new_text': 'async def checkout(\n    or ...', 'old_text': 'async def checkout(\n    or ...'}
 [0m[2m
-  🔠 r36xj6se | Return Command: cat << 'EOF' > test_duplicate.py
-     import asyncio
-     from inventory import Inventory
-     from payments import PaymentGateway
-     from checkout import checkout
-     
-     async def main():
-         inv = Inventory(5)
-         gw = PaymentGateway(0) # 0 failure rate
-         
-         # Concurrent checkout with SAME order_id
-         orders = [
-             checkout("order_1", 1, 100, inv, gw),
-             checkout("order_1", 1, 100, inv, gw)
-         ]
-         await asyncio.gather(*orders)
-         print(f"Charges: {gw.charges}")
-         
-     asyncio.run(main())
-     EOF
-     python test_duplicate.py
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     Order order_1: SUCCESS
-     Order order_1: SUCCESS
-     Charges: [{'order_id': 'order_1', 'amount': 100}, {'order_id': 'order_1', 'amount': 100}]
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
+  🔠 uurstxqn | Return Successfully updated checkout.py (1 replacement(s))
 [0m[2m
-  🧰 85jjjrik | Bash {'command': "cat << 'EOF' > checkout.py ..."}
+  🧰 eq0051o8 | Bash {'command': 'for i in {1..5}; do python ...'}
+[0m  [2mStarting simulation: 12 concurrent orders, stock=5
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_10: out of stock
+[0m  [2mOrder order_11: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: SUCCESS
+[0m  [2mOrder order_3: payment failed
+[0m  [2mOrder order_4: SUCCESS
+[0m  [2m
+[0m  [2m=== Results ===
+[0m  [2mSuccessful orders:  3
+[0m  [2mItems sold:         3  (initial stock: 5)
+[0m  [2mRemaining stock:    2
+[0m  [2mTotal charged:      $300.00
+[0m  [2mExpected charge:    $300.00
+[0m  [2mDuplicate charges:  0
+[0m  [2mStarting simulation: 12 concurrent orders, stock=5
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_10: out of stock
+[0m  [2mOrder order_11: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: payment failed
+[0m  [2mOrder order_3: SUCCESS
+[0m  [2mOrder order_4: SUCCESS
+[0m  [2m
+[0m  [2m=== Results ===
+[0m  [2mSuccessful orders:  3
+[0m  [2mItems sold:         3  (initial stock: 5)
+[0m  [2mRemaining stock:    2
+[0m  [2mTotal charged:      $300.00
+[0m  [2mExpected charge:    $300.00
+[0m  [2mDuplicate charges:  0
 [0m  [2mStarting simulation: 12 concurrent orders, stock=5
 [0m  [2mOrder order_5: out of stock
 [0m  [2mOrder order_6: out of stock
@@ -1390,8 +627,8 @@
 [0m  [2mOrder order_11: out of stock
 [0m  [2mOrder order_0: SUCCESS
 [0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_2: payment failed
-[0m  [2mOrder order_3: SUCCESS
+[0m  [2mOrder order_2: SUCCESS
+[0m  [2mOrder order_3: payment failed
 [0m  [2mOrder order_4: SUCCESS
 [0m  [2m
 [0m  [2m=== Results ===
@@ -1401,287 +638,6 @@
 [0m  [2mTotal charged:      $400.00
 [0m  [2mExpected charge:    $400.00
 [0m  [2mDuplicate charges:  0
-[0m[2m
-  🔠 85jjjrik | Return Command: cat << 'EOF' > checkout.py
-     import asyncio
-     from inventory import Inventory
-     from payments import PaymentGateway
-     
-     _order_locks = {}
-     _processed_orders = set()
-     
-     async def checkout(
-         order_id: str,
-         quantity: int,
-         price: float,
-         inventory: Inventory,
-         gateway: PaymentGateway,
-     ) -> bool:
-         if order_id not in _order_locks:
-             _order_locks[order_id] = asyncio.Lock()
-     
-         async with _order_locks[order_id]:
-             if order_id in _processed_orders:
-                 print(f"Order {order_id}: already processed")
-                 return False
-     
-             decremented = await inventory.decrement(quantity)
-             if not decremented:
-                 print(f"Order {order_id}: out of stock")
-                 return False
-     
-             charged = await gateway.charge(order_id, quantity * price)
-             if not charged:
-                 print(f"Order {order_id}: payment failed")
-                 await inventory.increment(quantity)
-                 return False
-     
-             _processed_orders.add(order_id)
-             print(f"Order {order_id}: SUCCESS")
-             return True
-     EOF
-     python main.py
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     Starting simulation: 12 concurrent orders, stock=5
-     Order order_5: out of stock
-     Order order_6: out of stock
-     Order order_7: out of stock
-     Order order_8: out of stock
-     Order order_9: out of stock
-     Order order_10: out of stock
-     Order order_11: out of stock
-     Order order_0: SUCCESS
-     Order order_1: SUCCESS
-     Order order_2: payment failed
-     Order order_3: SUCCESS
-     Order order_4: SUCCESS
-     
-     === Results ===
-     Successful orders:  4
-     Items sold:         4  (initial stock: 5)
-     Remaining stock:    1
-     Total charged:      $400.00
-     Expected charge:    $400.00
-     Duplicate charges:  0
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  🧰 s45vfne1 | Bash {'command': 'python test_negative_2.py'}
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_12: out of stock
-[0m  [2mOrder order_13: out of stock
-[0m  [2mOrder order_14: out of stock
-[0m  [2mOrder order_15: out of stock
-[0m  [2mOrder order_16: out of stock
-[0m  [2mOrder order_17: out of stock
-[0m  [2mOrder order_18: out of stock
-[0m  [2mOrder order_19: out of stock
-[0m  [2mOrder order_20: out of stock
-[0m  [2mOrder order_21: out of stock
-[0m  [2mOrder order_22: out of stock
-[0m  [2mOrder order_23: out of stock
-[0m  [2mOrder order_24: out of stock
-[0m  [2mOrder order_25: out of stock
-[0m  [2mOrder order_26: out of stock
-[0m  [2mOrder order_27: out of stock
-[0m  [2mOrder order_28: out of stock
-[0m  [2mOrder order_29: out of stock
-[0m  [2mOrder order_30: out of stock
-[0m  [2mOrder order_31: out of stock
-[0m  [2mOrder order_32: out of stock
-[0m  [2mOrder order_33: out of stock
-[0m  [2mOrder order_34: out of stock
-[0m  [2mOrder order_35: out of stock
-[0m  [2mOrder order_36: out of stock
-[0m  [2mOrder order_37: out of stock
-[0m  [2mOrder order_38: out of stock
-[0m  [2mOrder order_39: out of stock
-[0m  [2mOrder order_40: out of stock
-[0m  [2mOrder order_41: out of stock
-[0m  [2mOrder order_42: out of stock
-[0m  [2mOrder order_43: out of stock
-[0m  [2mOrder order_44: out of stock
-[0m  [2mOrder order_45: out of stock
-[0m  [2mOrder order_46: out of stock
-[0m  [2mOrder order_47: out of stock
-[0m  [2mOrder order_48: out of stock
-[0m  [2mOrder order_49: out of stock
-[0m  [2mOrder order_50: out of stock
-[0m  [2mOrder order_51: out of stock
-[0m  [2mOrder order_52: out of stock
-[0m  [2mOrder order_53: out of stock
-[0m  [2mOrder order_54: out of stock
-[0m  [2mOrder order_55: out of stock
-[0m  [2mOrder order_56: out of stock
-[0m  [2mOrder order_57: out of stock
-[0m  [2mOrder order_58: out of stock
-[0m  [2mOrder order_59: out of stock
-[0m  [2mOrder order_60: out of stock
-[0m  [2mOrder order_61: out of stock
-[0m  [2mOrder order_62: out of stock
-[0m  [2mOrder order_63: out of stock
-[0m  [2mOrder order_64: out of stock
-[0m  [2mOrder order_65: out of stock
-[0m  [2mOrder order_66: out of stock
-[0m  [2mOrder order_67: out of stock
-[0m  [2mOrder order_68: out of stock
-[0m  [2mOrder order_69: out of stock
-[0m  [2mOrder order_70: out of stock
-[0m  [2mOrder order_71: out of stock
-[0m  [2mOrder order_72: out of stock
-[0m  [2mOrder order_73: out of stock
-[0m  [2mOrder order_74: out of stock
-[0m  [2mOrder order_75: out of stock
-[0m  [2mOrder order_76: out of stock
-[0m  [2mOrder order_77: out of stock
-[0m  [2mOrder order_78: out of stock
-[0m  [2mOrder order_79: out of stock
-[0m  [2mOrder order_80: out of stock
-[0m  [2mOrder order_81: out of stock
-[0m  [2mOrder order_82: out of stock
-[0m  [2mOrder order_83: out of stock
-[0m  [2mOrder order_84: out of stock
-[0m  [2mOrder order_85: out of stock
-[0m  [2mOrder order_86: out of stock
-[0m  [2mOrder order_87: out of stock
-[0m  [2mOrder order_88: out of stock
-[0m  [2mOrder order_89: out of stock
-[0m  [2mOrder order_90: out of stock
-[0m  [2mOrder order_91: out of stock
-[0m  [2mOrder order_92: out of stock
-[0m  [2mOrder order_93: out of stock
-[0m  [2mOrder order_94: out of stock
-[0m  [2mOrder order_95: out of stock
-[0m  [2mOrder order_96: out of stock
-[0m  [2mOrder order_97: out of stock
-[0m  [2mOrder order_98: out of stock
-[0m  [2mOrder order_99: out of stock
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mStock: 0
-[0m[2m
-  🔠 s45vfne1 | Return Command: python test_negative_2.py
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     Order order_5: out of stock
-     Order order_6: out of stock
-     Order order_7: out of stock
-     Order order_8: out of stock
-     Order order_9: out of stock
-     Order order_10: out of stock
-     Order order_11: out of stock
-     Order order_12: out of stock
-     Order order_13: out of stock
-     Order order_14: out of stock
-     Order order_15: out of stock
-     Order order_16: out of stock
-     Order order_17: out of stock
-     Order order_18: out of stock
-     Order order_19: out of stock
-     Order order_20: out of stock
-     Order order_21: out of stock
-     Order order_22: out of stock
-     Order order_23: out of stock
-     Order order_24: out of stock
-     Order order_25: out of stock
-     Order order_26: out of stock
-     Order order_27: out of stock
-     Order order_28: out of stock
-     Order order_29: out of stock
-     Order order_30: out of stock
-     Order order_31: out of stock
-     Order order_32: out of stock
-     Order order_33: out of stock
-     Order order_34: out of stock
-     Order order_35: out of stock
-     Order order_36: out of stock
-     Order order_37: out of stock
-     Order order_38: out of stock
-     Order order_39: out of stock
-     Order order_40: out of stock
-     Order order_41: out of stock
-     Order order_42: out of stock
-     Order order_43: out of stock
-     Order order_44: out of stock
-     Order order_45: out of stock
-     Order order_46: out of stock
-     Order order_47: out of stock
-     Order order_48: out of stock
-     Order order_49: out of stock
-     Order order_50: out of stock
-     Order order_51: out of stock
-     Order order_52: out of stock
-     Order order_53: out of stock
-     Order order_54: out of stock
-     Order order_55: out of stock
-     Order order_56: out of stock
-     Order order_57: out of stock
-     Order order_58: out of stock
-     Order order_59: out of stock
-     Order order_60: out of stock
-     Order order_61: out of stock
-     Order order_62: out of stock
-     Order order_63: out of stock
-     Order order_64: out of stock
-     Order order_65: out of stock
-     Order order_66: out of stock
-     Order order_67: out of stock
-     Order order_68: out of stock
-     Order order_69: out of stock
-     Order order_70: out of stock
-     Order order_71: out of stock
-     Order order_72: out of stock
-     Order order_73: out of stock
-     Order order_74: out of stock
-     Order order_75: out of stock
-     Order order_76: out of stock
-     Order order_77: out of stock
-     Order order_78: out of stock
-     Order order_79: out of stock
-     Order order_80: out of stock
-     Order order_81: out of stock
-     Order order_82: out of stock
-     Order order_83: out of stock
-     Order order_84: out of stock
-     Order order_85: out of stock
-     Order order_86: out of stock
-     Order order_87: out of stock
-     Order order_88: out of stock
-     Order order_89: out of stock
-     Order order_90: out of stock
-     Order order_91: out of stock
-     Order order_92: out of stock
-     Order order_93: out of stock
-     Order order_94: out of stock
-     Order order_95: out of stock
-     Order order_96: out of stock
-     Order order_97: out of stock
-     Order order_98: out of stock
-     Order order_99: out of stock
-     Order order_0: SUCCESS
-     Order order_1: SUCCESS
-     Order order_2: SUCCESS
-     Order order_3: SUCCESS
-     Order order_4: SUCCESS
-     Stock: 0
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  🧰 ghwplnww | Bash {'command': "cat << 'EOF' > checkout.py ..."}
 [0m  [2mStarting simulation: 12 concurrent orders, stock=5
 [0m  [2mOrder order_5: out of stock
 [0m  [2mOrder order_6: out of stock
@@ -1703,56 +659,94 @@
 [0m  [2mTotal charged:      $500.00
 [0m  [2mExpected charge:    $500.00
 [0m  [2mDuplicate charges:  0
+[0m  [2mStarting simulation: 12 concurrent orders, stock=5
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_10: out of stock
+[0m  [2mOrder order_11: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: payment failed
+[0m  [2mOrder order_3: SUCCESS
+[0m  [2mOrder order_4: payment failed
+[0m  [2m
+[0m  [2m=== Results ===
+[0m  [2mSuccessful orders:  3
+[0m  [2mItems sold:         3  (initial stock: 5)
+[0m  [2mRemaining stock:    2
+[0m  [2mTotal charged:      $300.00
+[0m  [2mExpected charge:    $300.00
+[0m  [2mDuplicate charges:  0
 [0m[2m
-  🔠 ghwplnww | Return Command: cat << 'EOF' > checkout.py
-     import asyncio
-     from inventory import Inventory
-     from payments import PaymentGateway
-     
-     _order_locks = {}
-     _processed_orders = set()
-     _global_lock = asyncio.Lock()
-     
-     async def checkout(
-         order_id: str,
-         quantity: int,
-         price: float,
-         inventory: Inventory,
-         gateway: PaymentGateway,
-     ) -> bool:
-         async with _global_lock:
-             if order_id not in _order_locks:
-                 _order_locks[order_id] = asyncio.Lock()
-             lock = _order_locks[order_id]
-     
-         async with lock:
-             if order_id in _processed_orders:
-                 print(f"Order {order_id}: already processed")
-                 return False
-     
-             decremented = await inventory.decrement(quantity)
-             if not decremented:
-                 print(f"Order {order_id}: out of stock")
-                 return False
-     
-             charged = await gateway.charge(order_id, quantity * price)
-             if not charged:
-                 print(f"Order {order_id}: payment failed")
-                 await inventory.increment(quantity)
-                 return False
-     
-             _processed_orders.add(order_id)
-             
-             async with _global_lock:
-                 if order_id in _order_locks:
-                     del _order_locks[order_id]
-     
-             print(f"Order {order_id}: SUCCESS")
-             return True
-     EOF
-     python main.py
+  🔠 eq0051o8 | Return Command: for i in {1..5}; do python3 main.py; done
      Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
      Stdout:
+     Starting simulation: 12 concurrent orders, stock=5
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_10: out of stock
+     Order order_11: out of stock
+     Order order_0: SUCCESS
+     Order order_1: payment failed
+     Order order_2: SUCCESS
+     Order order_3: payment failed
+     Order order_4: SUCCESS
+     
+     === Results ===
+     Successful orders:  3
+     Items sold:         3  (initial stock: 5)
+     Remaining stock:    2
+     Total charged:      $300.00
+     Expected charge:    $300.00
+     Duplicate charges:  0
+     Starting simulation: 12 concurrent orders, stock=5
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_10: out of stock
+     Order order_11: out of stock
+     Order order_0: payment failed
+     Order order_1: SUCCESS
+     Order order_2: payment failed
+     Order order_3: SUCCESS
+     Order order_4: SUCCESS
+     
+     === Results ===
+     Successful orders:  3
+     Items sold:         3  (initial stock: 5)
+     Remaining stock:    2
+     Total charged:      $300.00
+     Expected charge:    $300.00
+     Duplicate charges:  0
+     Starting simulation: 12 concurrent orders, stock=5
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_10: out of stock
+     Order order_11: out of stock
+     Order order_0: SUCCESS
+     Order order_1: SUCCESS
+     Order order_2: SUCCESS
+     Order order_3: payment failed
+     Order order_4: SUCCESS
+     
+     === Results ===
+     Successful orders:  4
+     Items sold:         4  (initial stock: 5)
+     Remaining stock:    1
+     Total charged:      $400.00
+     Expected charge:    $400.00
+     Duplicate charges:  0
      Starting simulation: 12 concurrent orders, stock=5
      Order order_5: out of stock
      Order order_6: out of stock
@@ -1774,144 +768,7 @@
      Total charged:      $500.00
      Expected charge:    $500.00
      Duplicate charges:  0
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  🧰 bo95g8qj | Bash {'command': 'for i in {1..20}; do pytho ...'}
-[0m[2m
-  🔠 bo95g8qj | Return Command: for i in {1..20}; do python main.py | grep ERROR; done
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     (empty)
-     Stderr:
-     (empty)
-     Exit Code: 1
-     Background PIDs: (none)
-[0m[2m
-  🧰 2hi4mtl6 | Bash {'command': "cat << 'EOF' > test_negati ..."}
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_12: out of stock
-[0m  [2mOrder order_13: out of stock
-[0m  [2mOrder order_14: out of stock
-[0m  [2mOrder order_15: out of stock
-[0m  [2mOrder order_16: out of stock
-[0m  [2mOrder order_17: out of stock
-[0m  [2mOrder order_18: out of stock
-[0m  [2mOrder order_19: out of stock
-[0m  [2mOrder order_20: out of stock
-[0m  [2mOrder order_21: out of stock
-[0m  [2mOrder order_22: out of stock
-[0m  [2mOrder order_23: out of stock
-[0m  [2mOrder order_24: out of stock
-[0m  [2mOrder order_25: out of stock
-[0m  [2mOrder order_26: out of stock
-[0m  [2mOrder order_27: out of stock
-[0m  [2mOrder order_28: out of stock
-[0m  [2mOrder order_29: out of stock
-[0m  [2mOrder order_30: out of stock
-[0m  [2mOrder order_31: out of stock
-[0m  [2mOrder order_32: out of stock
-[0m  [2mOrder order_33: out of stock
-[0m  [2mOrder order_34: out of stock
-[0m  [2mOrder order_35: out of stock
-[0m  [2mOrder order_36: out of stock
-[0m  [2mOrder order_37: out of stock
-[0m  [2mOrder order_38: out of stock
-[0m  [2mOrder order_39: out of stock
-[0m  [2mOrder order_40: out of stock
-[0m  [2mOrder order_41: out of stock
-[0m  [2mOrder order_42: out of stock
-[0m  [2mOrder order_43: out of stock
-[0m  [2mOrder order_44: out of stock
-[0m  [2mOrder order_45: out of stock
-[0m  [2mOrder order_46: out of stock
-[0m  [2mOrder order_47: out of stock
-[0m  [2mOrder order_48: out of stock
-[0m  [2mOrder order_49: out of stock
-[0m  [2mOrder order_50: out of stock
-[0m  [2mOrder order_51: out of stock
-[0m  [2mOrder order_52: out of stock
-[0m  [2mOrder order_53: out of stock
-[0m  [2mOrder order_54: out of stock
-[0m  [2mOrder order_55: out of stock
-[0m  [2mOrder order_56: out of stock
-[0m  [2mOrder order_57: out of stock
-[0m  [2mOrder order_58: out of stock
-[0m  [2mOrder order_59: out of stock
-[0m  [2mOrder order_60: out of stock
-[0m  [2mOrder order_61: out of stock
-[0m  [2mOrder order_62: out of stock
-[0m  [2mOrder order_63: out of stock
-[0m  [2mOrder order_64: out of stock
-[0m  [2mOrder order_65: out of stock
-[0m  [2mOrder order_66: out of stock
-[0m  [2mOrder order_67: out of stock
-[0m  [2mOrder order_68: out of stock
-[0m  [2mOrder order_69: out of stock
-[0m  [2mOrder order_70: out of stock
-[0m  [2mOrder order_71: out of stock
-[0m  [2mOrder order_72: out of stock
-[0m  [2mOrder order_73: out of stock
-[0m  [2mOrder order_74: out of stock
-[0m  [2mOrder order_75: out of stock
-[0m  [2mOrder order_76: out of stock
-[0m  [2mOrder order_77: out of stock
-[0m  [2mOrder order_78: out of stock
-[0m  [2mOrder order_79: out of stock
-[0m  [2mOrder order_80: out of stock
-[0m  [2mOrder order_81: out of stock
-[0m  [2mOrder order_82: out of stock
-[0m  [2mOrder order_83: out of stock
-[0m  [2mOrder order_84: out of stock
-[0m  [2mOrder order_85: out of stock
-[0m  [2mOrder order_86: out of stock
-[0m  [2mOrder order_87: out of stock
-[0m  [2mOrder order_88: out of stock
-[0m  [2mOrder order_89: out of stock
-[0m  [2mOrder order_90: out of stock
-[0m  [2mOrder order_91: out of stock
-[0m  [2mOrder order_92: out of stock
-[0m  [2mOrder order_93: out of stock
-[0m  [2mOrder order_94: out of stock
-[0m  [2mOrder order_95: out of stock
-[0m  [2mOrder order_96: out of stock
-[0m  [2mOrder order_97: out of stock
-[0m  [2mOrder order_98: out of stock
-[0m  [2mOrder order_99: out of stock
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mStock: 0
-[0m[2m
-  🔠 2hi4mtl6 | Return Command: cat << 'EOF' > test_negative_4.py
-     import asyncio
-     from inventory import Inventory
-     from payments import PaymentGateway
-     from checkout import checkout
-     
-     async def main():
-         inv = Inventory(5)
-         gw = PaymentGateway(0)
-         
-         orders = [checkout(f"order_{i}", 1, 100, inv, gw) for i in range(100)]
-         await asyncio.gather(*orders)
-         print(f"Stock: {inv.stock}")
-     
-     asyncio.run(main())
-     EOF
-     python test_negative_4.py
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
+     Starting simulation: 12 concurrent orders, stock=5
      Order order_5: out of stock
      Order order_6: out of stock
      Order order_7: out of stock
@@ -1919,345 +776,123 @@
      Order order_9: out of stock
      Order order_10: out of stock
      Order order_11: out of stock
-     Order order_12: out of stock
-     Order order_13: out of stock
-     Order order_14: out of stock
-     Order order_15: out of stock
-     Order order_16: out of stock
-     Order order_17: out of stock
-     Order order_18: out of stock
-     Order order_19: out of stock
-     Order order_20: out of stock
-     Order order_21: out of stock
-     Order order_22: out of stock
-     Order order_23: out of stock
-     Order order_24: out of stock
-     Order order_25: out of stock
-     Order order_26: out of stock
-     Order order_27: out of stock
-     Order order_28: out of stock
-     Order order_29: out of stock
-     Order order_30: out of stock
-     Order order_31: out of stock
-     Order order_32: out of stock
-     Order order_33: out of stock
-     Order order_34: out of stock
-     Order order_35: out of stock
-     Order order_36: out of stock
-     Order order_37: out of stock
-     Order order_38: out of stock
-     Order order_39: out of stock
-     Order order_40: out of stock
-     Order order_41: out of stock
-     Order order_42: out of stock
-     Order order_43: out of stock
-     Order order_44: out of stock
-     Order order_45: out of stock
-     Order order_46: out of stock
-     Order order_47: out of stock
-     Order order_48: out of stock
-     Order order_49: out of stock
-     Order order_50: out of stock
-     Order order_51: out of stock
-     Order order_52: out of stock
-     Order order_53: out of stock
-     Order order_54: out of stock
-     Order order_55: out of stock
-     Order order_56: out of stock
-     Order order_57: out of stock
-     Order order_58: out of stock
-     Order order_59: out of stock
-     Order order_60: out of stock
-     Order order_61: out of stock
-     Order order_62: out of stock
-     Order order_63: out of stock
-     Order order_64: out of stock
-     Order order_65: out of stock
-     Order order_66: out of stock
-     Order order_67: out of stock
-     Order order_68: out of stock
-     Order order_69: out of stock
-     Order order_70: out of stock
-     Order order_71: out of stock
-     Order order_72: out of stock
-     Order order_73: out of stock
-     Order order_74: out of stock
-     Order order_75: out of stock
-     Order order_76: out of stock
-     Order order_77: out of stock
-     Order order_78: out of stock
-     Order order_79: out of stock
-     Order order_80: out of stock
-     Order order_81: out of stock
-     Order order_82: out of stock
-     Order order_83: out of stock
-     Order order_84: out of stock
-     Order order_85: out of stock
-     Order order_86: out of stock
-     Order order_87: out of stock
-     Order order_88: out of stock
-     Order order_89: out of stock
-     Order order_90: out of stock
-     Order order_91: out of stock
-     Order order_92: out of stock
-     Order order_93: out of stock
-     Order order_94: out of stock
-     Order order_95: out of stock
-     Order order_96: out of stock
-     Order order_97: out of stock
-     Order order_98: out of stock
-     Order order_99: out of stock
      Order order_0: SUCCESS
      Order order_1: SUCCESS
-     Order order_2: SUCCESS
+     Order order_2: payment failed
      Order order_3: SUCCESS
-     Order order_4: SUCCESS
-     Stock: 0
+     Order order_4: payment failed
+     
+     === Results ===
+     Successful orders:  3
+     Items sold:         3  (initial stock: 5)
+     Remaining stock:    2
+     Total charged:      $300.00
+     Expected charge:    $300.00
+     Duplicate charges:  0
      Stderr:
      (empty)
      Exit Code: 0
      Background PIDs: (none)
 [0m[2m
-  🧰 b63f7anu | Bash {'command': "cat << 'EOF' > test_negati ..."}
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mStock: 0
+  🧰 06to8myd | Bash {'command': "cat << 'EOF' > test_duplic ..."}
+[0m  [2mOrder order_X: SUCCESS
+[0m  [2mOrder order_X: SUCCESS
+[0m  [2mOrder order_X: SUCCESS
+[0m  [2mCharges: [{'order_id': 'order_X', 'amount': 100.0}, {'order_id': 'order_X', 'amount': 100.0}, {'order_id': 'order_X', 'amount': 100.0}]
+[0m  [2mStock: 2
 [0m[2m
-  🔠 b63f7anu | Return Command: cat << 'EOF' > test_negative_5.py
+  🔠 06to8myd | Return Command: cat << 'EOF' > test_duplicates.py
      import asyncio
      from inventory import Inventory
      from payments import PaymentGateway
      from checkout import checkout
      
      async def main():
-         inv = Inventory(5)
-         gw = PaymentGateway(0)
+         inventory = Inventory(5)
+         gateway = PaymentGateway(failure_rate=0.0) # Always succeed
          
-         # 10 checkouts for the same item at the same time
-         # but using the SAME order ID.  We handle this now with locks and sets.
-         # What if they use DIFFERENT order IDs but all try to buy 1 item when stock is 5?
-         orders = [checkout(f"order_{i}", 1, 100, inv, gw) for i in range(10)]
+         # Send 3 concurrent checkouts for the SAME order_id
+         orders = [
+             checkout("order_X", 1, 100.0, inventory, gateway)
+             for _ in range(3)
+         ]
          await asyncio.gather(*orders)
-         print(f"Stock: {inv.stock}")
+         
+         print("Charges:", gateway.charges)
+         print("Stock:", inventory.stock)
      
      asyncio.run(main())
      EOF
-     python test_negative_5.py
+     python3 test_duplicates.py
      Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
      Stdout:
-     Order order_5: out of stock
-     Order order_6: out of stock
-     Order order_7: out of stock
-     Order order_8: out of stock
-     Order order_9: out of stock
-     Order order_0: SUCCESS
-     Order order_1: SUCCESS
-     Order order_2: SUCCESS
-     Order order_3: SUCCESS
-     Order order_4: SUCCESS
-     Stock: 0
+     Order order_X: SUCCESS
+     Order order_X: SUCCESS
+     Order order_X: SUCCESS
+     Charges: [{'order_id': 'order_X', 'amount': 100.0}, {'order_id': 'order_X', 'amount': 100.0}, {'order_id': 'order_X', 'amount': 100.0}]
+     Stock: 2
      Stderr:
      (empty)
      Exit Code: 0
      Background PIDs: (none)
 [0m[2m
-  🧰 yajp0k8s | Bash {'command': "cat << 'EOF' > test_negati ..."}
-[0m  [2m/bin/sh: -c: line 34: syntax error: unexpected end of file
+  🧰 iuvzyf44 | Edit {'new_text': 'class PaymentGateway:\n     ...', 'old_text': 'class PaymentGateway:\n     ...', 'count': -1, 'path': 'payments.py'}
 [0m[2m
-  🔠 yajp0k8s | Return Command: cat << 'EOF' > test_negative_6.py
+  🔠 iuvzyf44 | Return Successfully updated payments.py (1 replacement(s))
+[0m[2m
+  🧰 7lkprxrn | Bash {'command': "cat << 'EOF' > test_invent ..."}
+[0m  [2m0: True
+[0m  [2m1: True
+[0m  [2m2: True
+[0m  [2m3: True
+[0m  [2m4: True
+[0m  [2m5: False
+[0m  [2m6: False
+[0m  [2m7: False
+[0m  [2m8: False
+[0m  [2m9: False
+[0m  [2m10: False
+[0m  [2m11: False
+[0m  [2mFinal stock: 0
+[0m[2m
+  🔠 7lkprxrn | Return Command: cat << 'EOF' > test_inventory.py
      import asyncio
      from inventory import Inventory
-     from payments import PaymentGateway
-     from checkout import checkout
      
      async def main():
-         inv = Inventory(5)
-         gw = PaymentGateway(0)
+         inventory = Inventory(5)
          
-         # Wait, the previous output from main.py before we modified checkout.py showed overselling.
-         # What was wrong with checkout before?
-         # 
-         # original checkout.py:
-         # available = await inventory.check_stock(quantity)
-         # if not available: ...
-         # charged = await gateway.charge(...)
-         # if not charged: ...
-         # decremented = await inventory.decrement(...)
-         # 
-         # The problem: if 10 concurrent requests arrive, they all pass check_stock(1), then 5 of them charge successfully, and then they all try to decrement.
-         # Wait, decrement does:
-         # if self._stock >= quantity:
-         #     self._stock -= quantity
-         #     return True
-         # return False
-         # But wait, decrement has `await asyncio.sleep(0.02)` before checking!
-         # So 10 requests hit decrement. 
-         # Request 1 sleeps. Request 2 sleeps... Request 10 sleeps.
-         # Request 1 wakes up, stock >= quantity, stock -= quantity.
-         # Oh! `self._stock >= quantity` and `self._stock -= quantity` are synchronous! 
-         # In asyncio, without an await between them, they are atomic!
-         pass
+         async def decrement_and_print(i):
+             ok = await inventory.decrement(1)
+             print(f"{i}: {ok}")
+     
+         await asyncio.gather(*(decrement_and_print(i) for i in range(12)))
+         print("Final stock:", inventory.stock)
+     
+     asyncio.run(main())
      EOF
+     python3 test_inventory.py
      Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
      Stdout:
-     (empty)
+     0: True
+     1: True
+     2: True
+     3: True
+     4: True
+     5: False
+     6: False
+     7: False
+     8: False
+     9: False
+     10: False
+     11: False
+     Final stock: 0
      Stderr:
-     /bin/sh: -c: line 34: syntax error: unexpected end of file
-     Exit Code: 2
+     (empty)
+     Exit Code: 0
      Background PIDs: (none)
 [0m[2m
-  🧰 su2cpxj4 | Bash {'command': 'git checkout checkout.py'}
-[0m  [2mfatal: not a git repository (or any of the parent directories): .git
-[0m[2m
-  🔠 su2cpxj4 | Return Command: git checkout checkout.py
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     (empty)
-     Stderr:
-     fatal: not a git repository (or any of the parent directories): .git
-     Exit Code: 128
-     Background PIDs: (none)
-[0m[2m
-  🧰 gzeh2j2n | Bash {'command': "cat << 'EOF' > checkout.py ..."}
-[0m  [2m/bin/sh: -c: line 31: syntax error: unexpected end of file
-[0m[2m
-  🔠 gzeh2j2n | Return Command: cat << 'EOF' > checkout.py
-     import asyncio
-     from inventory import Inventory
-     from payments import PaymentGateway
-     
-     
-     async def checkout(
-         order_id: str,
-         quantity: int,
-         price: float,
-         inventory: Inventory,
-         gateway: PaymentGateway,
-     ) -> bool:
-         available = await inventory.check_stock(quantity)
-         if not available:
-             print(f"Order {order_id}: out of stock")
-             return False
-     
-         charged = await gateway.charge(order_id, quantity * price)
-         if not charged:
-             print(f"Order {order_id}: payment failed")
-             return False
-     
-         decremented = await inventory.decrement(quantity)
-         if not decremented:
-             print(f"Order {order_id}: inventory error after payment — item not delivered")
-             return False
-     
-         print(f"Order {order_id}: SUCCESS")
-         return True
-     EOF
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     (empty)
-     Stderr:
-     /bin/sh: -c: line 31: syntax error: unexpected end of file
-     Exit Code: 2
-     Background PIDs: (none)
-[0m[2m
-  🧰 clgvls1b | Bash {'command': "cat << 'EOF' > checkout.py ..."}
-[0m  [2m/bin/sh: -c: line 31: syntax error: unexpected end of file
-[0m[2m
-  🔠 clgvls1b | Return Command: cat << 'EOF' > checkout.py
-     import asyncio
-     from inventory import Inventory
-     from payments import PaymentGateway
-     
-     async def checkout(
-         order_id: str,
-         quantity: int,
-         price: float,
-         inventory: Inventory,
-         gateway: PaymentGateway,
-     ) -> bool:
-         available = await inventory.check_stock(quantity)
-         if not available:
-             print(f"Order {order_id}: out of stock")
-             return False
-     
-         charged = await gateway.charge(order_id, quantity * price)
-         if not charged:
-             print(f"Order {order_id}: payment failed")
-             return False
-     
-         decremented = await inventory.decrement(quantity)
-         if not decremented:
-             print(f"Order {order_id}: inventory error after payment — item not delivered")
-             return False
-     
-         print(f"Order {order_id}: SUCCESS")
-         return True
-     
-     EOF
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     (empty)
-     Stderr:
-     /bin/sh: -c: line 31: syntax error: unexpected end of file
-     Exit Code: 2
-     Background PIDs: (none)
-[0m[2m
-  🧰 tfl7afy5 | Bash {'command': "cat > checkout.py << 'EOF' ..."}
-[0m  [2m/bin/sh: -c: line 32: syntax error: unexpected end of file
-[0m[2m
-  🔠 tfl7afy5 | Return Command: cat > checkout.py << 'EOF'
-     import asyncio
-     from inventory import Inventory
-     from payments import PaymentGateway
-     
-     
-     async def checkout(
-         order_id: str,
-         quantity: int,
-         price: float,
-         inventory: Inventory,
-         gateway: PaymentGateway,
-     ) -> bool:
-         available = await inventory.check_stock(quantity)
-         if not available:
-             print(f"Order {order_id}: out of stock")
-             return False
-     
-         charged = await gateway.charge(order_id, quantity * price)
-         if not charged:
-             print(f"Order {order_id}: payment failed")
-             return False
-     
-         decremented = await inventory.decrement(quantity)
-         if not decremented:
-             print(f"Order {order_id}: inventory error after payment — item not delivered")
-             return False
-     
-         print(f"Order {order_id}: SUCCESS")
-         return True
-     
-     EOF
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     (empty)
-     Stderr:
-     /bin/sh: -c: line 32: syntax error: unexpected end of file
-     Exit Code: 2
-     Background PIDs: (none)
-[0m[2m
-  🧰 hw2zuu2l | Write {'path': 'checkout.py', 'content': 'import asyncio\nfrom invent ...'}
-[0m[2m
-  🔠 hw2zuu2l | Return Successfully wrote to checkout.py
-[0m[2m
-  🧰 r34avl1i | Bash {'command': 'python main.py'}
+  🧰 49u6pk4z | Bash {'command': 'python3 main.py'}
 [0m  [2mStarting simulation: 12 concurrent orders, stock=5
 [0m  [2mOrder order_5: out of stock
 [0m  [2mOrder order_6: out of stock
@@ -2267,9 +902,9 @@
 [0m  [2mOrder order_10: out of stock
 [0m  [2mOrder order_11: out of stock
 [0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_1: SUCCESS
 [0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
+[0m  [2mOrder order_3: payment failed
 [0m  [2mOrder order_4: SUCCESS
 [0m  [2m
 [0m  [2m=== Results ===
@@ -2280,7 +915,7 @@
 [0m  [2mExpected charge:    $400.00
 [0m  [2mDuplicate charges:  0
 [0m[2m
-  🔠 r34avl1i | Return Command: python main.py
+  🔠 49u6pk4z | Return Command: python3 main.py
      Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
      Stdout:
      Starting simulation: 12 concurrent orders, stock=5
@@ -2292,9 +927,9 @@
      Order order_10: out of stock
      Order order_11: out of stock
      Order order_0: SUCCESS
-     Order order_1: payment failed
+     Order order_1: SUCCESS
      Order order_2: SUCCESS
-     Order order_3: SUCCESS
+     Order order_3: payment failed
      Order order_4: SUCCESS
      
      === Results ===
@@ -2309,363 +944,1348 @@
      Exit Code: 0
      Background PIDs: (none)
 [0m[2m
-  🧰 ibcqrtsl | Bash {'command': "cat << 'EOF' > test_negati ..."}
-[0m  [2m0
+  🧰 iqwgmga6 | Bash {'command': 'git checkout payments.py | ...'}
+[0m  [2mfatal: not a git repository (or any of the parent directories): .git
 [0m[2m
-  🔠 ibcqrtsl | Return Command: cat << 'EOF' > test_negative_6.py
+  🔠 iqwgmga6 | Return Command: git checkout payments.py || true
+     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
+     Stdout:
+     (empty)
+     Stderr:
+     fatal: not a git repository (or any of the parent directories): .git
+     Exit Code: 0
+     Background PIDs: (none)
+[0m[2m
+  🧰 2y8stub5 | Bash {'command': 'cat test_duplicates.py &&  ...'}
+[0m  [2mimport asyncio
+[0m  [2mfrom inventory import Inventory
+[0m  [2mfrom payments import PaymentGateway
+[0m  [2mfrom checkout import checkout
+[0m  [2m
+[0m  [2masync def main():
+[0m  [2m    inventory = Inventory(5)
+[0m  [2m    gateway = PaymentGateway(failure_rate=0.0) # Always succeed
+[0m  [2m    
+[0m  [2m    # Send 3 concurrent checkouts for the SAME order_id
+[0m  [2m    orders = [
+[0m  [2m        checkout("order_X", 1, 100.0, inventory, gateway)
+[0m  [2m        for _ in range(3)
+[0m  [2m    ]
+[0m  [2m    await asyncio.gather(*orders)
+[0m  [2m    
+[0m  [2m    print("Charges:", gateway.charges)
+[0m  [2m    print("Stock:", inventory.stock)
+[0m  [2m
+[0m  [2masyncio.run(main())
+[0m  [2mOrder order_X: payment failed
+[0m  [2mOrder order_X: payment failed
+[0m  [2mOrder order_X: SUCCESS
+[0m  [2mCharges: [{'order_id': 'order_X', 'amount': 100.0}]
+[0m  [2mStock: 4
+[0m[2m
+  🔠 2y8stub5 | Return Command: cat test_duplicates.py && python3 test_duplicates.py
+     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
+     Stdout:
      import asyncio
      from inventory import Inventory
+     from payments import PaymentGateway
+     from checkout import checkout
      
      async def main():
-         inv = Inventory(5)
-         async def dec():
-             await inv.decrement(1)
+         inventory = Inventory(5)
+         gateway = PaymentGateway(failure_rate=0.0) # Always succeed
+         
+         # Send 3 concurrent checkouts for the SAME order_id
+         orders = [
+             checkout("order_X", 1, 100.0, inventory, gateway)
+             for _ in range(3)
+         ]
+         await asyncio.gather(*orders)
+         
+         print("Charges:", gateway.charges)
+         print("Stock:", inventory.stock)
      
-         # 10 concurrent requests to decrement
-         await asyncio.gather(*[dec() for _ in range(10)])
-         print(inv.stock)
+     asyncio.run(main())
+     Order order_X: payment failed
+     Order order_X: payment failed
+     Order order_X: SUCCESS
+     Charges: [{'order_id': 'order_X', 'amount': 100.0}]
+     Stock: 4
+     Stderr:
+     (empty)
+     Exit Code: 0
+     Background PIDs: (none)
+[0m[2m
+  🧰 w2czzy0m | Edit {'count': -1, 'path': 'payments.py', 'new_text': 'class PaymentGateway:\n     ...', 'old_text': 'class PaymentGateway:\n     ...'}
+[0m[2m
+  🔠 w2czzy0m | Return Successfully updated payments.py (1 replacement(s))
+[0m[2m
+  🧰 iaab2pcn | Edit {'path': 'payments.py', 'count': -1, 'new_text': 'class PaymentGateway:\n     ...', 'old_text': 'class PaymentGateway:\n     ...'}
+[0m[2m
+  🔠 iaab2pcn | Return Successfully updated payments.py (1 replacement(s))
+[0m[2m
+  🧰 tr0hiofj | Bash {'command': "cat << 'EOF' > test_hammer ..."}
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: SUCCESS
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: payment failed
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: payment failed
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_3: out of stock
+[0m  [2mOrder order_4: out of stock
+[0m  [2mOrder order_5: out of stock
+[0m  [2mOrder order_6: out of stock
+[0m  [2mOrder order_7: out of stock
+[0m  [2mOrder order_8: out of stock
+[0m  [2mOrder order_9: out of stock
+[0m  [2mOrder order_1: out of stock
+[0m  [2mOrder order_2: out of stock
+[0m  [2mOrder order_0: SUCCESS
+[0m  [2mOrder order_1: payment failed
+[0m  [2mDone
+[0m[2m
+  🔠 tr0hiofj | Return Command: cat << 'EOF' > test_hammer.py
+     import asyncio
+     from inventory import Inventory
+     from payments import PaymentGateway
+     from checkout import checkout
+     
+     async def main():
+         for _ in range(50):
+             inventory = Inventory(2)
+             gateway = PaymentGateway(failure_rate=0.5)
+             
+             # 10 orders, 2 duplicate pairs
+             orders = [
+                 checkout(f"order_{i}", 1, 100.0, inventory, gateway)
+                 for i in range(10)
+             ] + [
+                 checkout("order_1", 1, 100.0, inventory, gateway),
+                 checkout("order_2", 1, 100.0, inventory, gateway)
+             ]
+             
+             results = await asyncio.gather(*orders)
+             
+             successful = sum(results)
+             items_sold = 2 - inventory.stock
+             charge_ids = [c["order_id"] for c in gateway.charges]
+             duplicates = len(charge_ids) - len(set(charge_ids))
+             
+             if inventory.stock < 0:
+                 print("ERROR: negative inventory")
+             if abs(gateway.total_charged - successful * 100.0) > 0.01:
+                 print("ERROR: ghost charge")
+             if duplicates > 0:
+                 print("ERROR: duplicate charge")
+                 
+         print("Done")
      
      asyncio.run(main())
      EOF
-     python test_negative_6.py
+     python3 test_hammer.py
      Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
      Stdout:
-     0
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  🧰 jdvwhmo0 | Bash {'command': 'for i in {1..20}; do pytho ...'}
-[0m[2m
-  🔠 jdvwhmo0 | Return Command: for i in {1..20}; do python main.py | grep ERROR; done
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     (empty)
-     Stderr:
-     (empty)
-     Exit Code: 1
-     Background PIDs: (none)
-[0m[2m
-  🧰 kqb7pgk4 | Bash {'command': 'python test_negative_4.py'}
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_12: out of stock
-[0m  [2mOrder order_13: out of stock
-[0m  [2mOrder order_14: out of stock
-[0m  [2mOrder order_15: out of stock
-[0m  [2mOrder order_16: out of stock
-[0m  [2mOrder order_17: out of stock
-[0m  [2mOrder order_18: out of stock
-[0m  [2mOrder order_19: out of stock
-[0m  [2mOrder order_20: out of stock
-[0m  [2mOrder order_21: out of stock
-[0m  [2mOrder order_22: out of stock
-[0m  [2mOrder order_23: out of stock
-[0m  [2mOrder order_24: out of stock
-[0m  [2mOrder order_25: out of stock
-[0m  [2mOrder order_26: out of stock
-[0m  [2mOrder order_27: out of stock
-[0m  [2mOrder order_28: out of stock
-[0m  [2mOrder order_29: out of stock
-[0m  [2mOrder order_30: out of stock
-[0m  [2mOrder order_31: out of stock
-[0m  [2mOrder order_32: out of stock
-[0m  [2mOrder order_33: out of stock
-[0m  [2mOrder order_34: out of stock
-[0m  [2mOrder order_35: out of stock
-[0m  [2mOrder order_36: out of stock
-[0m  [2mOrder order_37: out of stock
-[0m  [2mOrder order_38: out of stock
-[0m  [2mOrder order_39: out of stock
-[0m  [2mOrder order_40: out of stock
-[0m  [2mOrder order_41: out of stock
-[0m  [2mOrder order_42: out of stock
-[0m  [2mOrder order_43: out of stock
-[0m  [2mOrder order_44: out of stock
-[0m  [2mOrder order_45: out of stock
-[0m  [2mOrder order_46: out of stock
-[0m  [2mOrder order_47: out of stock
-[0m  [2mOrder order_48: out of stock
-[0m  [2mOrder order_49: out of stock
-[0m  [2mOrder order_50: out of stock
-[0m  [2mOrder order_51: out of stock
-[0m  [2mOrder order_52: out of stock
-[0m  [2mOrder order_53: out of stock
-[0m  [2mOrder order_54: out of stock
-[0m  [2mOrder order_55: out of stock
-[0m  [2mOrder order_56: out of stock
-[0m  [2mOrder order_57: out of stock
-[0m  [2mOrder order_58: out of stock
-[0m  [2mOrder order_59: out of stock
-[0m  [2mOrder order_60: out of stock
-[0m  [2mOrder order_61: out of stock
-[0m  [2mOrder order_62: out of stock
-[0m  [2mOrder order_63: out of stock
-[0m  [2mOrder order_64: out of stock
-[0m  [2mOrder order_65: out of stock
-[0m  [2mOrder order_66: out of stock
-[0m  [2mOrder order_67: out of stock
-[0m  [2mOrder order_68: out of stock
-[0m  [2mOrder order_69: out of stock
-[0m  [2mOrder order_70: out of stock
-[0m  [2mOrder order_71: out of stock
-[0m  [2mOrder order_72: out of stock
-[0m  [2mOrder order_73: out of stock
-[0m  [2mOrder order_74: out of stock
-[0m  [2mOrder order_75: out of stock
-[0m  [2mOrder order_76: out of stock
-[0m  [2mOrder order_77: out of stock
-[0m  [2mOrder order_78: out of stock
-[0m  [2mOrder order_79: out of stock
-[0m  [2mOrder order_80: out of stock
-[0m  [2mOrder order_81: out of stock
-[0m  [2mOrder order_82: out of stock
-[0m  [2mOrder order_83: out of stock
-[0m  [2mOrder order_84: out of stock
-[0m  [2mOrder order_85: out of stock
-[0m  [2mOrder order_86: out of stock
-[0m  [2mOrder order_87: out of stock
-[0m  [2mOrder order_88: out of stock
-[0m  [2mOrder order_89: out of stock
-[0m  [2mOrder order_90: out of stock
-[0m  [2mOrder order_91: out of stock
-[0m  [2mOrder order_92: out of stock
-[0m  [2mOrder order_93: out of stock
-[0m  [2mOrder order_94: out of stock
-[0m  [2mOrder order_95: out of stock
-[0m  [2mOrder order_96: out of stock
-[0m  [2mOrder order_97: out of stock
-[0m  [2mOrder order_98: out of stock
-[0m  [2mOrder order_99: out of stock
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mStock: 0
-[0m[2m
-  🔠 kqb7pgk4 | Return Command: python test_negative_4.py
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
      Order order_5: out of stock
      Order order_6: out of stock
      Order order_7: out of stock
      Order order_8: out of stock
      Order order_9: out of stock
-     Order order_10: out of stock
-     Order order_11: out of stock
-     Order order_12: out of stock
-     Order order_13: out of stock
-     Order order_14: out of stock
-     Order order_15: out of stock
-     Order order_16: out of stock
-     Order order_17: out of stock
-     Order order_18: out of stock
-     Order order_19: out of stock
-     Order order_20: out of stock
-     Order order_21: out of stock
-     Order order_22: out of stock
-     Order order_23: out of stock
-     Order order_24: out of stock
-     Order order_25: out of stock
-     Order order_26: out of stock
-     Order order_27: out of stock
-     Order order_28: out of stock
-     Order order_29: out of stock
-     Order order_30: out of stock
-     Order order_31: out of stock
-     Order order_32: out of stock
-     Order order_33: out of stock
-     Order order_34: out of stock
-     Order order_35: out of stock
-     Order order_36: out of stock
-     Order order_37: out of stock
-     Order order_38: out of stock
-     Order order_39: out of stock
-     Order order_40: out of stock
-     Order order_41: out of stock
-     Order order_42: out of stock
-     Order order_43: out of stock
-     Order order_44: out of stock
-     Order order_45: out of stock
-     Order order_46: out of stock
-     Order order_47: out of stock
-     Order order_48: out of stock
-     Order order_49: out of stock
-     Order order_50: out of stock
-     Order order_51: out of stock
-     Order order_52: out of stock
-     Order order_53: out of stock
-     Order order_54: out of stock
-     Order order_55: out of stock
-     Order order_56: out of stock
-     Order order_57: out of stock
-     Order order_58: out of stock
-     Order order_59: out of stock
-     Order order_60: out of stock
-     Order order_61: out of stock
-     Order order_62: out of stock
-     Order order_63: out of stock
-     Order order_64: out of stock
-     Order order_65: out of stock
-     Order order_66: out of stock
-     Order order_67: out of stock
-     Order order_68: out of stock
-     Order order_69: out of stock
-     Order order_70: out of stock
-     Order order_71: out of stock
-     Order order_72: out of stock
-     Order order_73: out of stock
-     Order order_74: out of stock
-     Order order_75: out of stock
-     Order order_76: out of stock
-     Order order_77: out of stock
-     Order order_78: out of stock
-     Order order_79: out of stock
-     Order order_80: out of stock
-     Order order_81: out of stock
-     Order order_82: out of stock
-     Order order_83: out of stock
-     Order order_84: out of stock
-     Order order_85: out of stock
-     Order order_86: out of stock
-     Order order_87: out of stock
-     Order order_88: out of stock
-     Order order_89: out of stock
-     Order order_90: out of stock
-     Order order_91: out of stock
-     Order order_92: out of stock
-     Order order_93: out of stock
-     Order order_94: out of stock
-     Order order_95: out of stock
-     Order order_96: out of stock
-     Order order_97: out of stock
-     Order order_98: out of stock
-     Order order_99: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: SUCCESS
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
      Order order_0: SUCCESS
      Order order_1: SUCCESS
-     Order order_2: SUCCESS
-     Order order_3: SUCCESS
-     Order order_4: SUCCESS
-     Stock: 0
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  🧰 6ozvdv2g | Bash {'command': 'python test_duplicate.py'}
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_1: already processed
-[0m  [2mCharges: [{'order_id': 'order_1', 'amount': 100}]
-[0m[2m
-  🔠 6ozvdv2g | Return Command: python test_duplicate.py
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     Order order_1: SUCCESS
-     Order order_1: already processed
-     Charges: [{'order_id': 'order_1', 'amount': 100}]
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  🧰 0vd7qfep | Bash {'command': 'rm test_*.py'}
-[0m[2m
-  🔠 0vd7qfep | Return Command: rm test_*.py
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     (empty)
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
-[0m[2m
-  🧰 l797q9w0 | Bash {'command': 'python main.py'}
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_0: payment failed
-[0m  [2mOrder order_1: payment failed
-[0m  [2mOrder order_2: payment failed
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  2
-[0m  [2mItems sold:         2  (initial stock: 5)
-[0m  [2mRemaining stock:    3
-[0m  [2mTotal charged:      $200.00
-[0m  [2mExpected charge:    $200.00
-[0m  [2mDuplicate charges:  0
-[0m[2m
-  🔠 l797q9w0 | Return Command: python main.py
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     Starting simulation: 12 concurrent orders, stock=5
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
      Order order_5: out of stock
      Order order_6: out of stock
      Order order_7: out of stock
      Order order_8: out of stock
      Order order_9: out of stock
-     Order order_10: out of stock
-     Order order_11: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: SUCCESS
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: SUCCESS
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
      Order order_0: payment failed
      Order order_1: payment failed
-     Order order_2: payment failed
-     Order order_3: SUCCESS
-     Order order_4: SUCCESS
-     
-     === Results ===
-     Successful orders:  2
-     Items sold:         2  (initial stock: 5)
-     Remaining stock:    3
-     Total charged:      $200.00
-     Expected charge:    $200.00
-     Duplicate charges:  0
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: SUCCESS
+     Order order_1: SUCCESS
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: SUCCESS
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: SUCCESS
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: SUCCESS
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: SUCCESS
+     Order order_1: SUCCESS
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: SUCCESS
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: SUCCESS
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: SUCCESS
+     Order order_1: SUCCESS
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: SUCCESS
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: SUCCESS
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: SUCCESS
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: SUCCESS
+     Order order_1: SUCCESS
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: SUCCESS
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: SUCCESS
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: SUCCESS
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: SUCCESS
+     Order order_1: SUCCESS
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: SUCCESS
+     Order order_1: SUCCESS
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: SUCCESS
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: SUCCESS
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: SUCCESS
+     Order order_1: SUCCESS
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: SUCCESS
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: SUCCESS
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: SUCCESS
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: SUCCESS
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: SUCCESS
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: SUCCESS
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: SUCCESS
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: SUCCESS
+     Order order_1: SUCCESS
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: SUCCESS
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: payment failed
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: SUCCESS
+     Order order_1: payment failed
+     Order order_2: out of stock
+     Order order_3: out of stock
+     Order order_4: out of stock
+     Order order_5: out of stock
+     Order order_6: out of stock
+     Order order_7: out of stock
+     Order order_8: out of stock
+     Order order_9: out of stock
+     Order order_1: out of stock
+     Order order_2: out of stock
+     Order order_0: SUCCESS
+     Order order_1: payment failed
+     Done
      Stderr:
      (empty)
      Exit Code: 0
      Background PIDs: (none)
 [0m[2m
-  🧰 u64ldrg3 | Bash {'command': 'for i in {1..20}; do pytho ...'}
-[0m[2m
-  🔠 u64ldrg3 | Return Command: for i in {1..20}; do python main.py | grep ERROR; done
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/integration-bug/workdir
-     Stdout:
-     (empty)
-     Stderr:
-     (empty)
-     Exit Code: 1
-     Background PIDs: (none)
-[0m[2m
-  I have investigated and resolved both incidents by restructuring the concurrency logic in the[0m[2m `checkout` function.
+  I've fixed both production[0m[2m incidents by rearranging the sequence of operations and implementing a duplicate charge guard.
      
-     ### Root Causes
-     1. **Overselling**: The original workflow was `check_stock` ->[0m[2m `charge` -> `decrement`. Because `check_stock` simply returned the current available amount, multiple concurrent requests could see[0m[2m the same available stock, process the charge, and then attempt to decrement. `inventory.decrement` would then correctly block the decrement and[0m[2m return `False`, resulting in a "ghost charge" where the customer paid but the item was never delivered.
-     2. **Double[0m[2m Charging (Duplicate processing)**: There was no concurrency control at the order level. Two requests with the same `order_[0m[2mid` arriving at the exact same time could both process the entire checkout flow and charge the customer twice.
+     ### 1.[0m[2m Overselling (Inventory goes negative)
+     **Issue:** The original code called `check_stock()` (which didn't reserve[0m[2m items), waited for payment, and then blindly decremented inventory. Since `check_stock()` and `decrement()` were separate[0m[2m operations and asyncio tasks yield execution during `sleep`, multiple requests could pass the `check_stock()` check before any decre[0m[2mmented the inventory, causing stock to go negative.
+     **Fix:** I changed the `checkout` function to decrement the[0m[2m inventory *first*. If `decrement` fails, it returns `False` immediately, ensuring we never oversell. If the[0m[2m payment subsequently fails, the item is returned to inventory via `increment()`.
      
-     ### Fixes[0m[2m Implemented
-     I modified `checkout.py` to correctly lock and sequence the operations without altering the public interfaces of [0m[2m`Inventory` and `PaymentGateway`:
+     ### 2. Ghost charges (Duplicate[0m[2m billing)
+     **Issue:** Since `checkout` could be called multiple times with the same `order_id` in a[0m[2m concurrent environment, it was possible to charge a customer repeatedly for a single order intent.
+     **Fix:** I updated `PaymentGateway.charge[0m[2m` to keep track of processed `order_id`s using a set `_processed`. This ensures each `order_id` is[0m[2m only ever charged once. If the charge operation fails due to the simulated failure rate, the `order_id` is removed[0m[2m from the set so it can be retried if necessary.
      
-     1. **Order-Level Concurrency Control**: Added an asynchronous per-order lock mechanism[0m[2m and a `_processed_orders` set. If two requests for the same order arrive concurrently, the first will acquire[0m[2m the lock and process, while the second will wait, see it is already processed, and exit safely.
-     2. **Reserve[0m[2m Before Charge**: Modified the flow to reserve stock first (`await inventory.decrement(quantity)`) before attempting to charge the customer.
-[0m[2m   * If stock is unavailable, the order is safely rejected before any payment is initiated.
-        * If the charge succeeds,[0m[2m the order is marked as successful.
-        * If the charge fails (e.g. random gateway failure), the system rolls[0m[2m back the reserved inventory (`await inventory.increment(quantity)`) so the item can be sold to another customer.
-     
-     Running[0m[2m the simulation concurrently now produces accurate and error-free results, with no inventory dipping below zero and charges exactly matching delivered items.[0m[2m[0m[2m
-  💸 (Requests: 39 | Tool Calls: 41 | Total: 1235529) Input: 1198040 | Audio Input: 0 | Output: 37489 | Audio Output: 0 | Cache Read: 1082743 | Cache Write: 0 | Details: {'thoughts_tokens': 32909, 'text_prompt_tokens': 1198040, 'cached_content_tokens': 1082743, 'text_cache_tokens': 1082743}
+     The modifications are self-contained and respect the existing [0m[2m`Inventory` and `PaymentGateway` interfaces while introducing the necessary state to handle concurrency safely. The simulation now runs flawlessly without negative[0m[2m inventory or ghost charges.[0m[2m
+  💸 (Requests: 17 | Tool Calls: 19 | Total: 356018) Input: 314536 | Audio Input: 0 | Output: 41482 | Audio Output: 0 | Cache Read: 248873 | Cache Write: 0 | Details: {'thoughts_tokens': 38739, 'text_prompt_tokens': 314536, 'cached_content_tokens': 248873, 'text_cache_tokens': 248873}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "# E-Commerce Checkout Service
 
 Users have reported two production incidents:
@@ -2683,20 +2303,15 @@ Fix the checkout logic. The fix must ensure:
 - No order is charged more than once
 
 Do not change the public interfaces of `Inventory` or `PaymentGateway`. You may add methods to them." --model google-gla:gemini-3-pro-preview --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mlong-beam-7603[0m[0m
-I have investigated and resolved both incidents by restructuring the concurrency logic in the `checkout` function.
+[2m[2mSession[0m: [1;33mcalm-bell-8665[0m[0m
+I've fixed both production incidents by rearranging the sequence of operations and implementing a duplicate charge guard.
 
-### Root Causes
-1. **Overselling**: The original workflow was `check_stock` -> `charge` -> `decrement`. Because `check_stock` simply returned the current available amount, multiple concurrent requests could see the same available stock, process the charge, and then attempt to decrement. `inventory.decrement` would then correctly block the decrement and return `False`, resulting in a "ghost charge" where the customer paid but the item was never delivered.
-2. **Double Charging (Duplicate processing)**: There was no concurrency control at the order level. Two requests with the same `order_id` arriving at the exact same time could both process the entire checkout flow and charge the customer twice.
+### 1. Overselling (Inventory goes negative)
+**Issue:** The original code called `check_stock()` (which didn't reserve items), waited for payment, and then blindly decremented inventory. Since `check_stock()` and `decrement()` were separate operations and asyncio tasks yield execution during `sleep`, multiple requests could pass the `check_stock()` check before any decremented the inventory, causing stock to go negative.
+**Fix:** I changed the `checkout` function to decrement the inventory *first*. If `decrement` fails, it returns `False` immediately, ensuring we never oversell. If the payment subsequently fails, the item is returned to inventory via `increment()`.
 
-### Fixes Implemented
-I modified `checkout.py` to correctly lock and sequence the operations without altering the public interfaces of `Inventory` and `PaymentGateway`:
+### 2. Ghost charges (Duplicate billing)
+**Issue:** Since `checkout` could be called multiple times with the same `order_id` in a concurrent environment, it was possible to charge a customer repeatedly for a single order intent.
+**Fix:** I updated `PaymentGateway.charge` to keep track of processed `order_id`s using a set `_processed`. This ensures each `order_id` is only ever charged once. If the charge operation fails due to the simulated failure rate, the `order_id` is removed from the set so it can be retried if necessary.
 
-1. **Order-Level Concurrency Control**: Added an asynchronous per-order lock mechanism and a `_processed_orders` set. If two requests for the same order arrive concurrently, the first will acquire the lock and process, while the second will wait, see it is already processed, and exit safely.
-2. **Reserve Before Charge**: Modified the flow to reserve stock first (`await inventory.decrement(quantity)`) before attempting to charge the customer.
-   * If stock is unavailable, the order is safely rejected before any payment is initiated.
-   * If the charge succeeds, the order is marked as successful.
-   * If the charge fails (e.g. random gateway failure), the system rolls back the reserved inventory (`await inventory.increment(quantity)`) so the item can be sold to another customer.
-
-Running the simulation concurrently now produces accurate and error-free results, with no inventory dipping below zero and charges exactly matching delivered items.
+The modifications are self-contained and respect the existing `Inventory` and `PaymentGateway` interfaces while introducing the necessary state to handle concurrency safely. The simulation now runs flawlessly without negative inventory or ghost charges.

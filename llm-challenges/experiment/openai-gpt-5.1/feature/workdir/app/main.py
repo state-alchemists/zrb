@@ -23,11 +23,11 @@ async def list_tasks(
     # Filtering
     filtered_tasks = tasks
     if status is not None:
-        filtered_tasks = [t for t in filtered_tasks if t.status == status]
+        filtered_tasks = [task for task in filtered_tasks if task.status == status]
     if priority is not None:
-        filtered_tasks = [t for t in filtered_tasks if t.priority == priority]
+        filtered_tasks = [task for task in filtered_tasks if task.priority == priority]
     if assigned_to is not None:
-        filtered_tasks = [t for t in filtered_tasks if t.assigned_to == assigned_to]
+        filtered_tasks = [task for task in filtered_tasks if task.assigned_to == assigned_to]
 
     # Pagination
     if page < 1:
@@ -49,30 +49,44 @@ async def get_task(task_id: int):
 
 @app.post("/tasks", response_model=Task)
 async def create_task(task_in: TaskCreate, username: str = Depends(require_api_key)):
-    # Validate project_id exists
-    project_exists = any(project.id == task_in.project_id for project in projects)
-    if not project_exists:
+    # Validate project exists
+    for project in projects:
+        if project.id == task_in.project_id:
+            break
+    else:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Auto-generate unique ID
+    # Generate new unique ID
     if tasks:
         new_id = max(task.id for task in tasks) + 1
     else:
         new_id = 1
 
-    new_task = Task(id=new_id, **task_in.dict())
+    new_task = Task(
+        id=new_id,
+        title=task_in.title,
+        status=task_in.status,
+        priority=task_in.priority,
+        project_id=task_in.project_id,
+        assigned_to=task_in.assigned_to,
+    )
     tasks.append(new_task)
     return new_task
 
 
 @app.put("/tasks/{task_id}", response_model=Task)
 async def update_task(task_id: int, task_update: TaskUpdate, username: str = Depends(require_api_key)):
-    for index, task in enumerate(tasks):
+    for task in tasks:
         if task.id == task_id:
-            update_data = task_update.dict(exclude_unset=True)
-            updated_task = task.copy(update=update_data)
-            tasks[index] = updated_task
-            return updated_task
+            if task_update.title is not None:
+                task.title = task_update.title
+            if task_update.status is not None:
+                task.status = task_update.status
+            if task_update.priority is not None:
+                task.priority = task_update.priority
+            if task_update.assigned_to is not None:
+                task.assigned_to = task_update.assigned_to
+            return task
     raise HTTPException(status_code=404, detail="Task not found")
 
 

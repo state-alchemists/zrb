@@ -4,9 +4,10 @@ from .database import VALID_API_KEYS
 
 
 async def require_api_key(x_api_key: Optional[str] = Header(default=None)) -> str:
-    """Validate X-API-Key header against VALID_API_KEYS and return the username.
+    """Validate the X-API-Key header and return the associated username.
 
-    Raises HTTP 401 if the header is missing or the key is invalid.
+    Raises:
+        HTTPException: 401 if the API key is missing or invalid.
     """
     if x_api_key is None:
         raise HTTPException(status_code=401, detail="Missing X-API-Key header")

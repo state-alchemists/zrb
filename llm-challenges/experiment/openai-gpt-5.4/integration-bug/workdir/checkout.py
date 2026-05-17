@@ -20,6 +20,5 @@ async def checkout(
         return True
 
     await inventory.increment(quantity)
-    await gateway.refund(order_id)
     print(f"Order {order_id}: payment failed")
     return False

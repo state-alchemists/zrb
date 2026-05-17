@@ -1,0 +1,3 @@
+2024-01-01 12:00:00 INFO User 42 logged in
+2024-01-01 12:01:00 INFO User 43 logged in
+2024-01-01 12:10:00 INFO User 42 logged out

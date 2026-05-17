@@ -28,6 +28,7 @@ def verify():
     content_lower = content.lower()
     score = 0
     max_score = 8
+    missed: list[str] = []
 
     # 1. Minimum word count
     words = len(content.split())
@@ -36,6 +37,7 @@ def verify():
         score += 1
     else:
         print(f"FAIL: Too short ({words} words, need 500+)")
+        missed.append("≥500 words")
 
     # 2. Has required ADR sections
     required_sections = ["context", "decision", "consequences", "alternatives"]
@@ -48,6 +50,8 @@ def verify():
         score += 1
     else:
         print(f"FAIL: Missing ADR sections (found: {found}, need: {required_sections})")
+        missing_sections = [s for s in required_sections if s not in content_lower]
+        missed.append(f"ADR sections ({', '.join(missing_sections)})")
 
     # 3. Has Status field
     if "status" in content_lower and any(s in content_lower for s in ["proposed", "accepted", "draft"]):
@@ -55,6 +59,7 @@ def verify():
         score += 1
     else:
         print("FAIL: Missing Status field (Proposed/Accepted/Draft)")
+        missed.append("Status field")
 
     # 4. Evaluates both Kafka and Redis
     has_kafka = "kafka" in content_lower
@@ -64,6 +69,7 @@ def verify():
         score += 1
     else:
         print(f"FAIL: Missing evaluation — kafka={has_kafka}, redis={has_redis}")
+        missed.append("evaluation of both Kafka and Redis")
 
     # 5. Makes a definitive choice
     decision_terms = ["we will use", "we choose", "we adopt", "decision:", "chosen:", "recommend"]
@@ -78,6 +84,7 @@ def verify():
         score += 1
     else:
         print("FAIL: No definitive recommendation found")
+        missed.append("clear recommendation")
 
     # 6. Covers specific technical properties
     tech_terms = [
@@ -91,6 +98,7 @@ def verify():
         score += 1
     else:
         print(f"FAIL: Only {len(covered)} technical terms (need 4+): {covered}")
+        missed.append("≥4 technical properties")
 
     # 7. Addresses team/constraint context (references system_context.md details)
     constraint_terms = ["team", "engineer", "redis", "operational complexity", "experience", "budget", "migration"]
@@ -100,6 +108,7 @@ def verify():
         score += 1
     else:
         print(f"FAIL: Doesn't sufficiently address constraints (found: {covered_constraints})")
+        missed.append("team/constraint context (≥3 terms)")
 
     # 8. Has pros AND cons of chosen option
     has_pros = any(t in content_lower for t in ["pro", "advantage", "benefit", "positive"])
@@ -109,11 +118,17 @@ def verify():
         score += 1
     else:
         print(f"FAIL: Consequences missing pros ({has_pros}) or cons ({has_cons})")
+        missed.append("pros and cons of chosen option")
 
     print(f"\nScore: {score}/{max_score}")
     if score >= 7:
         print("VERIFICATION_RESULT: EXCELLENT")
     elif score >= 5:
+        missing_str = "; ".join(missed) if missed else "n/a"
+        print(
+            f"WARN: Score {score}/{max_score} — need ≥7 for EXCELLENT. "
+            f"Missing: {missing_str}"
+        )
         print("VERIFICATION_RESULT: PASS")
     else:
         print(f"FAIL: Score too low ({score}/{max_score})")

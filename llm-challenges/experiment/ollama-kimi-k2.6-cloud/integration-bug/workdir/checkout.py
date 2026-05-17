@@ -10,6 +10,10 @@ async def checkout(
     inventory: Inventory,
     gateway: PaymentGateway,
 ) -> bool:
+    if await gateway.is_charged(order_id):
+        print(f"Order {order_id}: already charged")
+        return True
+
     decremented = await inventory.decrement(quantity)
     if not decremented:
         print(f"Order {order_id}: out of stock")
