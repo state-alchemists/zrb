@@ -1,7 +1,7 @@
 [2m
-  🧰 call_ipph2cka | Read {'path': 'system_context.md'}
+  🧰 call_yslx57az | Read {'path': 'system_context.md'}
 [0m[2m
-  🔠 call_ipph2cka | Return [File: system_context.md | 44 lines]
+  🔠 call_yslx57az | Return [File: system_context.md | 44 lines]
      ---CONTENT---
      # System Context: Notifier Subsystem Decision
      
@@ -48,14 +48,110 @@
      - Must maintain exactly-once semantics for billing notifications
      
 [0m[2m
-  🧰 call_8q5kex2y | Write {'content': '# ADR 001: Notification Su ...', 'path': 'ADR-001-notification-archi ...'}
+  🧰 call_6zsltiay | ActivateSkill {'name': 'core-writing'}
 [0m[2m
-  🔠 call_8q5kex2y | Return Successfully wrote to ADR-001-notification-architecture.md
-[0m[2m
-  The[0m[2m Architecture[0m[2m Decision[0m[2m Record[0m[2m has[0m[2m been[0m[2m created[0m[2m as[0m[2m `[0m[2mAD[0m[2mR[0m[2m-[0m[2m0[0m[2m0[0m[2m1[0m[2m-[0m[2mnotification[0m[2m-[0m[2marchitecture[0m[2m.[0m[2mmd[0m[2m`.[0m[2m [0m[2m
+  🔠 call_6zsltiay | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
      
-[0m[2mI[0m[2m recommended[0m[2m **[0m[2mRedis[0m[2m Streams[0m[2m**[0m[2m over[0m[2m Apache[0m[2m Kafka[0m[2m because[0m[2m the[0m[2m team[0m[2m'[0m[2ms[0m[2m size[0m[2m ([0m[2m6[0m[2m people[0m[2m,[0m[2m no[0m[2m dedicated[0m[2m infra[0m[2m engineer[0m[2m)[0m[2m and[0m[2m the[0m[2m tight[0m[2m [0m[2m2[0m[2m-[0m[2mweek[0m[2m timeline[0m[2m make[0m[2m Kafka[0m[2m'[0m[2ms[0m[2m operational[0m[2m overhead[0m[2m and[0m[2m learning[0m[2m curve[0m[2m a[0m[2m significant[0m[2m risk[0m[2m.[0m[2m Since[0m[2m Redis[0m[2m is[0m[2m already[0m[2m in[0m[2m production[0m[2m,[0m[2m it[0m[2m provides[0m[2m the[0m[2m necessary[0m[2m consumer[0m[2m group[0m[2m support[0m[2m and[0m[2m throughput[0m[2m to[0m[2m handle[0m[2m the[0m[2m [0m[2m1[0m[2m0[0m[2mx[0m[2m growth[0m[2m target[0m[2m while[0m[2m minimizing[0m[2m architectural[0m[2m complexity[0m[2m.[0m[2m Exactly[0m[2m-[0m[2monce[0m[2m semantics[0m[2m for[0m[2m billing[0m[2m will[0m[2m be[0m[2m handled[0m[2m via[0m[2m idempot[0m[2mency[0m[2m keys[0m[2m in[0m[2m PostgreSQL[0m[2m to[0m[2m ensure[0m[2m correctness[0m[2m.[0m[2m
-  💸 (Requests: 3 | Tool Calls: 2 | Total: 24692) Input: 23720 | Audio Input: 0 | Output: 972 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
+     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-writing
+     
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
+     
+     Companion files available in this directory:
+       templates/
+         api-doc.md
+         commit-message.md
+         readme.md
+     
+     ---
+     
+     ---
+     name: core-writing
+     description: "Activate before any substantial writing — docs, copy, proposals, feedback, commit messages, or UI text. Provides copywriting frameworks, tone guidance, and editing workflow for clear, persuasive, polished output."
+     user-invocable: false
+     ---
+     # Skill: core-writing
+     
+     Follow **Brief → Structure → Draft → Polish** for every writing task.
+     
+     ## Companion Templates
+     
+     When the current task matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
+     
+     | Trigger | Companion |
+     |---------|-----------|
+     | Writing or rewriting a project README | `templates/readme.md` |
+     | Drafting a git commit message | `templates/commit-message.md` |
+     | Documenting a function, endpoint, or CLI command | `templates/api-doc.md` |
+     
+     ## Workflow
+     
+     ### 1. Brief & Audience
+     
+     - Who is reading this? What do they already know? What do they need to know?
+     - What outcome should this writing achieve?
+     - What tone fits: technical, persuasive, instructional, conversational?
+     
+     ### 2. Structure & Outline
+     
+     - **Technical docs**: Problem → Solution → Usage → API → Examples
+     - **Persuasive writing**: Hook → Context → Evidence → Resolution → CTA
+     - **Instructional**: Goal → Prerequisites → Steps → Verification → Troubleshooting
+     - One idea per paragraph. Lead with the conclusion. Use transitions.
+     
+     ### 3. Draft
+     
+     - Write freely. Don't edit while drafting.
+     - Apply the chosen structure. Fill in evidence and examples.
+     - Use active voice. Be specific over vague.
+     
+     ### 4. Polish & Edit
+     
+     - Omit needless words. Every word must earn its place.
+     - Check flow: read aloud. Fix awkward transitions.
+     - Verify accuracy: facts, code samples, references.
+     - Proof: spelling, grammar, consistent terminology.
+     
+     ## Copywriting Formulas
+     
+     | Formula | When to Use | Structure |
+     |---------|-------------|-----------|
+     | **AIDA** | Marketing, proposals, feature announcements | Attention → Interest → Desire → Action |
+     | **PAS** | Bug reports, problem-solving docs | Problem → Agitate → Solution |
+     | **Inverted Pyramid** | News, announcements, summaries | Conclusion → Key details → Background |
+     | **Before-After-Bridge** | Change proposals, migration guides | Current → Desired → How to get there |
+     | **FEBC** | Technical decisions | Fact → Explanation → Benefit → Conclusion |
+     
+     ## Tone Matrix
+     
+     | Audience | Tone | Characteristics |
+     |----------|------|-----------------|
+     | Developers | Technical, precise | Specific terms, code examples, no fluff |
+     | Product managers | Outcome-oriented | Problem → impact → timeline → trade-offs |
+     | End users | Friendly, clear | Simple language, concrete examples, next steps |
+     | Executives | Concise, strategic | Recommendation first, TL;DR, business impact |
+     
+     ## Quality Checklist
+     
+     Before finalizing:
+     - Does the first paragraph convey the main point?
+     - Can any sentence be shortened without losing meaning?
+     - Are all claims supported by evidence?
+     - Is the tone appropriate for the audience?
+     - Would this still make sense if read in isolation?
+     
+     </ACTIVATED_SKILL>
+[0m[2m
+  🧰 call_yzomfvfn | Write {'content': '# ADR-001: Notification Su ...', 'path': 'ADR-001-notification-archi ...'}
+[0m[2m
+  🔠 call_yzomfvfn | Return Successfully wrote to ADR-001-notification-architecture.md
+[0m[2m
+  I[0m[2m have completed[0m[2m the Architecture[0m[2m Decision Record.[0m[2m
+     
+     **Summary[0m[2m of action[0m[2m:**
+     Created[0m[2m `ADR-0[0m[2m01-notification-[0m[2marchitecture.md` recommending[0m[2m **Redis Streams** over[0m[2m Apache Kafka. The[0m[2m decision is[0m[2m based on the small[0m[2m team size ([0m[2m6 people,[0m[2m no DevOps), existing[0m[2m Redis[0m[2m infrastructure, and the [0m[2m2-week time[0m[2m constraint,[0m[2m while addressing the scaling[0m[2m target[0m[2m ([0m[2m5[0m[2mk req/s)[0m[2m and reliability[0m[2m requirements via[0m[2m an[0m[2m idempotent consumer pattern for[0m[2m billing.[0m[2m
+  💸 (Requests: 4 | Tool Calls: 3 | Total: 38311) Input: 37393 | Audio Input: 0 | Output: 918 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "Read `system_context.md`. It describes a real production system and a specific architectural problem we need to solve.
 
 Write an Architecture Decision Record (ADR) evaluating two options for the notification subsystem:
@@ -73,7 +169,8 @@ Your ADR must follow this exact structure:
 Make a definitive recommendation. Use specific technical properties (throughput, ordering guarantees, message retention, consumer groups, exactly-once semantics, operational complexity) to justify your choice given the team size and constraints described.
 
 Save as `ADR-001-notification-architecture.md`." --model ollama:gemma4:31b-cloud --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mwild-clay-8773[0m[0m
-The Architecture Decision Record has been created as `ADR-001-notification-architecture.md`. 
+[2m[2mSession[0m: [1;33mtall-gear-5371[0m[0m
+I have completed the Architecture Decision Record.
 
-I recommended **Redis Streams** over Apache Kafka because the team's size (6 people, no dedicated infra engineer) and the tight 2-week timeline make Kafka's operational overhead and learning curve a significant risk. Since Redis is already in production, it provides the necessary consumer group support and throughput to handle the 10x growth target while minimizing architectural complexity. Exactly-once semantics for billing will be handled via idempotency keys in PostgreSQL to ensure correctness.
+**Summary of action:**
+Created `ADR-001-notification-architecture.md` recommending **Redis Streams** over Apache Kafka. The decision is based on the small team size (6 people, no DevOps), existing Redis infrastructure, and the 2-week time constraint, while addressing the scaling target (5k req/s) and reliability requirements via an idempotent consumer pattern for billing.

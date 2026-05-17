@@ -1,3 +1,4 @@
+import asyncio
 from inventory import Inventory
 from payments import PaymentGateway
 
@@ -15,10 +16,14 @@ async def checkout(
         return False
 
     charged = await gateway.charge(order_id, quantity * price)
-    if not charged:
-        await inventory.release(quantity)
-        print(f"Order {order_id}: payment failed")
+    if charged:
+        print(f"Order {order_id}: SUCCESS")
+        return True
+
+    await inventory.release(quantity)
+    if await gateway.is_charged(order_id):
+        print(f"Order {order_id}: already charged")
         return False
 
-    print(f"Order {order_id}: SUCCESS")
-    return True
+    print(f"Order {order_id}: payment failed")
+    return False

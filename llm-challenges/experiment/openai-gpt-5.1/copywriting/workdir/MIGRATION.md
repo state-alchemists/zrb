@@ -1,16 +1,36 @@
 # Zrb Task API v1 → v2 Migration Guide
 
-This guide walks through all breaking changes in the Zrb Task API v2 and shows how to update an existing v1 integration. It assumes you are already familiar with the v1 API.
+This guide is for teams already using the Zrb Task API v1 and migrating clients, SDKs, and integrations to v2.
+
+v2 introduces projects, cursor-based pagination, and stricter authentication. It also contains several breaking changes. This document walks through each one with concrete before/after examples and ends with a practical migration checklist.
 
 ---
 
-## 1. Versioned Endpoint Paths (`/tasks` → `/v2/tasks`)
+## Overview of Breaking Changes
 
-**What changed**  
-All endpoints are now explicitly versioned under the `/v2/` prefix.
+v2 makes the following breaking changes compared to v1:
 
-- v1: `/tasks`, `/tasks/{id}`
-- v2: `/v2/tasks`, `/v2/tasks/{id}`
+1. All endpoints are now prefixed with `/v2/`.
+2. Authentication header changed from `X-Auth-Token` to `Authorization: Bearer ...`.
+3. Task `id` type changed from integer to UUID string.
+4. Task field `done` renamed to `completed`.
+5. Task creation now requires `project_id`.
+6. List endpoints return a paginated envelope instead of a bare array.
+
+Each section below details the impact and shows before/after code.
+
+---
+
+## 1. Endpoint prefix `/v2/`
+
+### What changed
+
+All task endpoints now live under the `/v2/` prefix. Existing `/tasks...` URLs will continue to exist only for v1; v2 clients must use `/v2/tasks...`.
+
+### Impact
+
+- Any hard-coded URLs must be updated.
+- API clients/SDKs that generate URLs must include the `/v2/` prefix.
 
 ### Before (v1)
 
@@ -40,35 +60,64 @@ Host: api.example.com
 Authorization: Bearer <your_api_token>
 ```
 
-**Action:** Update every hard‑coded path from `/tasks` to `/v2/tasks` (and similarly for any other Zrb endpoints when they are introduced in v2).
+### Example client change (JavaScript)
+
+```js
+// v1
+const BASE_URL = 'https://api.example.com';
+
+async function listTasksV1(token) {
+  const res = await fetch(`${BASE_URL}/tasks`, {
+    headers: { 'X-Auth-Token': token },
+  });
+  return res.json(); // returns Task[]
+}
+```
+
+```js
+// v2
+const BASE_URL = 'https://api.example.com';
+
+async function listTasksV2(token) {
+  const res = await fetch(`${BASE_URL}/v2/tasks`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const body = await res.json();
+  return body.items; // returns Task[] from envelope
+}
+```
 
 ---
 
-## 2. Authentication Header (`X-Auth-Token` → `Authorization: Bearer`)
+## 2. Authentication header change
 
-**What changed**  
-Authentication has moved from a custom header to the standard Bearer token header.
+### What changed
+
+v1 used a custom header. v2 uses a standard Bearer token scheme.
 
 - v1: `X-Auth-Token: <your_api_key>`
 - v2: `Authorization: Bearer <your_api_token>`
 
-Requests that still use `X-Auth-Token` will receive **HTTP 401** in v2.
+Requests using `X-Auth-Token` against v2 endpoints will receive HTTP 401.
+
+### Impact
+
+- HTTP clients, SDKs, and CLI tools must send the new header.
+- Shared middleware (e.g., Axios interceptors, Fetch wrappers) must be updated.
 
 ### Before (v1)
 
 ```http
 GET /tasks HTTP/1.1
 Host: api.example.com
-X-Auth-Token: v1_example_key
+X-Auth-Token: my-v1-key
 ```
 
 ```js
-// JavaScript (v1)
-const res = await fetch('https://api.example.com/tasks', {
-  headers: {
-    'X-Auth-Token': process.env.ZRB_API_KEY,
-  },
-});
+// v1 Node.js fetch helper
+function authHeadersV1(apiKey) {
+  return { 'X-Auth-Token': apiKey };
+}
 ```
 
 ### After (v2)
@@ -76,35 +125,25 @@ const res = await fetch('https://api.example.com/tasks', {
 ```http
 GET /v2/tasks HTTP/1.1
 Host: api.example.com
-Authorization: Bearer v2_example_token
+Authorization: Bearer my-v2-token
 ```
 
 ```js
-// JavaScript (v2)
-const res = await fetch('https://api.example.com/v2/tasks', {
-  headers: {
-    Authorization: `Bearer ${process.env.ZRB_API_TOKEN}`,
-  },
-});
+// v2 Node.js fetch helper
+function authHeadersV2(apiToken) {
+  return { Authorization: `Bearer ${apiToken}` };
+}
 ```
-
-**Action:** Replace all uses of `X-Auth-Token` with `Authorization: Bearer <token>` and ensure you provision a v2‑compatible token.
 
 ---
 
-## 3. Task Identifier Type (integer → UUID string)
+## 3. Task `id` type: integer → UUID string
 
-**What changed**  
-Task `id` values are now UUID strings instead of integers.
+### What changed
 
-- v1: `id: 42` (integer)
-- v2: `id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"` (string)
+The `id` field on tasks changed from an integer to a UUID string.
 
-This affects URL path parameters, database schemas, and any type definitions.
-
-### Before (v1)
-
-**Response example:**
+- v1 example:
 
 ```json
 {
@@ -115,29 +154,7 @@ This affects URL path parameters, database schemas, and any type definitions.
 }
 ```
 
-**TypeScript model (v1):**
-
-```ts
-export interface TaskV1 {
-  id: number;
-  title: string;
-  done: boolean;
-  created_at: string; // ISO 8601
-}
-```
-
-**Using the id (v1):**
-
-```ts
-async function fetchTask(id: number): Promise<TaskV1> {
-  const res = await fetch(`https://api.example.com/tasks/${id}`);
-  return res.json();
-}
-```
-
-### After (v2)
-
-**Response example:**
+- v2 example:
 
 ```json
 {
@@ -149,48 +166,84 @@ async function fetchTask(id: number): Promise<TaskV1> {
 }
 ```
 
-**TypeScript model (v2):**
+### Impact
+
+- Client models/types that assume `id: number` must be updated to `string`.
+- URL builders and route parameters must treat `id` as a string.
+- Databases that mirror the API may need schema migrations (e.g., integer → string/UUID column).
+
+### Before (v1 TypeScript model)
 
 ```ts
+// v1
+export interface TaskV1 {
+  id: number;
+  title: string;
+  done: boolean;
+  created_at: string;
+}
+
+async function getTaskV1(id: number): Promise<TaskV1> {
+  const res = await fetch(`/tasks/${id}`);
+  return res.json();
+}
+```
+
+### After (v2 TypeScript model)
+
+```ts
+// v2
 export interface TaskV2 {
   id: string; // UUID
   title: string;
   completed: boolean;
   project_id: string;
-  created_at: string; // ISO 8601
+  created_at: string;
 }
-```
 
-**Using the id (v2):**
-
-```ts
-async function fetchTask(id: string): Promise<TaskV2> {
-  const res = await fetch(`https://api.example.com/v2/tasks/${id}`);
+async function getTaskV2(id: string): Promise<TaskV2> {
+  const res = await fetch(`/v2/tasks/${id}`);
   return res.json();
 }
 ```
 
-**Action:**
-- Change any numeric `id` types to string/UUID types.
-- Update route builders and validators to treat `id` as a string.
+### Before (v1 URL usage)
+
+```js
+// id treated as number
+const id = 42;
+fetch(`/tasks/${id}`);
+```
+
+### After (v2 URL usage)
+
+```js
+// id is a UUID string
+const id = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+fetch(`/v2/tasks/${id}`);
+```
 
 ---
 
-## 4. Task Completion Field (`done` → `completed`)
+## 4. Task field rename: `done` → `completed`
 
-**What changed**  
-The boolean field indicating completion has been renamed from `done` to `completed`.
+### What changed
 
-- v1: `done: boolean`
-- v2: `completed: boolean`
+The boolean field indicating task completion was renamed from `done` to `completed`.
 
-This impacts both read and write paths (task payloads and any serialization/deserialization code).
+- v1 field: `done: boolean`
+- v2 field: `completed: boolean`
 
-### Before (v1)
+### Impact
 
-**Task JSON:**
+- All serializers/deserializers must reference `completed` instead of `done`.
+- Update requests must use `completed` in the JSON body.
+- UI code bound to `task.done` must switch to `task.completed`.
+
+### Before (v1 JSON payloads)
 
 ```json
+// v1 task
 {
   "id": 42,
   "title": "Write tests",
@@ -199,12 +252,8 @@ This impacts both read and write paths (task payloads and any serialization/dese
 }
 ```
 
-**Update request (v1):**
-
 ```http
 PUT /tasks/42 HTTP/1.1
-Host: api.example.com
-X-Auth-Token: <your_api_key>
 Content-Type: application/json
 
 {
@@ -212,27 +261,17 @@ Content-Type: application/json
 }
 ```
 
-**Consumer code (v1):**
-
-```py
-# Python v1 client
-@dataclass
-class TaskV1:
-  id: int
-  title: str
-  done: bool
-  created_at: str
-
-
-if task.done:
-    print("Task is complete")
+```js
+// v1 UI binding
+if (task.done) {
+  renderCheckmark();
+}
 ```
 
-### After (v2)
-
-**Task JSON:**
+### After (v2 JSON payloads)
 
 ```json
+// v2 task
 {
   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "title": "Write tests",
@@ -242,12 +281,8 @@ if task.done:
 }
 ```
 
-**Update request (v2):**
-
 ```http
 PUT /v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890 HTTP/1.1
-Host: api.example.com
-Authorization: Bearer <your_api_token>
 Content-Type: application/json
 
 {
@@ -255,42 +290,61 @@ Content-Type: application/json
 }
 ```
 
-**Consumer code (v2):**
-
-```py
-# Python v2 client
-@dataclass
-class TaskV2:
-  id: str
-  title: str
-  completed: bool
-  project_id: str
-  created_at: str
-
-
-if task.completed:
-    print("Task is complete")
+```js
+// v2 UI binding
+if (task.completed) {
+  renderCheckmark();
+}
 ```
 
-**Action:** Search your codebase for the `done` property on Zrb tasks and rename it to `completed`. Be careful not to touch unrelated `done` fields.
+### Transitional adapter example
+
+If you need to support both v1 and v2 payloads temporarily, introduce an adapter layer:
+
+```ts
+type TaskAny =
+  | { id: number; title: string; done: boolean; created_at: string }
+  | { id: string; title: string; completed: boolean; project_id: string; created_at: string };
+
+interface NormalizedTask {
+  id: string;
+  title: string;
+  completed: boolean;
+  projectId?: string;
+  createdAt: string;
+}
+
+function normalizeTask(task: TaskAny): NormalizedTask {
+  return {
+    id: String(task.id),
+    title: task.title,
+    completed: 'completed' in task ? task.completed : task.done,
+    projectId: 'project_id' in task ? task.project_id : undefined,
+    createdAt: task.created_at,
+  };
+}
+```
 
 ---
 
-## 5. Required `project_id` on Task Creation
+## 5. Task creation requires `project_id`
 
-**What changed**  
-Tasks must now belong to a project at creation time. The `project_id` field is **required** in `POST /v2/tasks`.
+### What changed
 
-Omitting `project_id` will result in **HTTP 422 Unprocessable Entity**.
+Creating a task now requires a `project_id` field. Omitting it results in HTTP 422.
 
-### Before (v1)
+- v1 allowed creating a task with just `title`.
+- v2 requires both `title` and `project_id`.
 
-**Create request (v1):**
+### Impact
+
+- Any code that creates tasks must supply a valid `project_id`.
+- UI forms and CLI commands must collect or infer a `project_id`.
+
+### Before (v1 Create Task)
 
 ```http
 POST /tasks HTTP/1.1
-Host: api.example.com
-X-Auth-Token: <your_api_key>
 Content-Type: application/json
 
 {
@@ -298,28 +352,22 @@ Content-Type: application/json
 }
 ```
 
-**Typical code (v1):**
-
 ```js
-// No project context in v1
-await fetch('https://api.example.com/tasks', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'X-Auth-Token': process.env.ZRB_API_KEY,
-  },
-  body: JSON.stringify({ title: 'New task title' }),
-});
+// v1 create call
+async function createTaskV1(title) {
+  const res = await fetch('/tasks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title }),
+  });
+  return res.json();
+}
 ```
 
-### After (v2)
-
-**Create request (v2):**
+### After (v2 Create Task)
 
 ```http
 POST /v2/tasks HTTP/1.1
-Host: api.example.com
-Authorization: Bearer <your_api_token>
 Content-Type: application/json
 
 {
@@ -328,69 +376,74 @@ Content-Type: application/json
 }
 ```
 
-**Typical code (v2):**
-
 ```js
-// v2: tasks are scoped to a project
-await fetch('https://api.example.com/v2/tasks', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${process.env.ZRB_API_TOKEN}`,
-  },
-  body: JSON.stringify({
-    title: 'New task title',
-    project_id: currentProjectId,
-  }),
-});
-```
+// v2 create call
+async function createTaskV2(title, projectId) {
+  const res = await fetch('/v2/tasks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, project_id: projectId }),
+  });
 
-**Action:**
-- Decide how your application maps tasks to projects.
-- Ensure you always pass a valid `project_id` when creating tasks.
-- Update client‑side validation and server‑side tests to expect `422` when `project_id` is missing.
+  if (!res.ok) {
+    throw new Error(`Create failed: ${res.status}`);
+  }
+
+  return res.json();
+}
+```
 
 ---
 
-## 6. List Response Shape (bare array → paginated envelope)
+## 6. List endpoints now return a paginated envelope
 
-**What changed**  
-List endpoints now return a paginated envelope instead of a bare array.
+### What changed
 
-- v1: `GET /tasks` returns `Task[]`
-- v2: `GET /v2/tasks` returns `{ items: Task[], total: number, next_cursor: string | null }`
+`GET /tasks` no longer returns a bare JSON array. In v2, `GET /v2/tasks` returns a paginated envelope:
 
-### Before (v1)
+```json
+{
+  "items": [ /* Task objects */ ],
+  "total": 42,
+  "next_cursor": "cursor_xyz"
+}
+```
 
-**HTTP response:**
+Use `?cursor=<next_cursor>` to retrieve subsequent pages. If `next_cursor` is `null` or missing, there is no next page.
+
+### Impact
+
+- Client code must read tasks from `items` instead of treating the response as `Task[]`.
+- List UIs can now show accurate totals and handle infinite scroll via `next_cursor`.
+
+### Before (v1 List Tasks)
 
 ```http
+GET /tasks HTTP/1.1
+
 HTTP/1.1 200 OK
 Content-Type: application/json
 
 [
-  {"id": 1, "title": "Buy milk", "done": false, "created_at": "..."},
-  {"id": 2, "title": "Ship v1", "done": true, "created_at": "..."}
+  { "id": 1, "title": "Buy milk", "done": false, "created_at": "..." },
+  { "id": 2, "title": "Ship v1", "done": true, "created_at": "..." }
 ]
 ```
 
-**Consumer code (v1):**
-
-```ts
-// tasks is an array
-const res = await fetch('https://api.example.com/tasks');
-const tasks: TaskV1[] = await res.json();
-
-for (const task of tasks) {
-  console.log(task.title);
+```js
+// v1 client: assume response is Task[]
+async function listTasksV1() {
+  const res = await fetch('/tasks');
+  const tasks = await res.json(); // tasks: Task[]
+  return tasks;
 }
 ```
 
-### After (v2)
-
-**HTTP response:**
+### After (v2 List Tasks)
 
 ```http
+GET /v2/tasks?limit=20 HTTP/1.1
+
 HTTP/1.1 200 OK
 Content-Type: application/json
 
@@ -404,10 +457,10 @@ Content-Type: application/json
       "created_at": "..."
     },
     {
-      "id": "b2c3d4e5-f6a1-8907-bcda-fe2345678901",
+      "id": "b2c3d4e5-f6a1-8907-abcd-ef1234567890",
       "title": "Ship v2",
       "completed": true,
-      "project_id": "proj_def456",
+      "project_id": "proj_xyz789",
       "created_at": "..."
     }
   ],
@@ -416,208 +469,133 @@ Content-Type: application/json
 }
 ```
 
-**Consumer code (v2):**
+```js
+// v2 client: handle envelope and pagination
+async function listTasksV2(cursor) {
+  const params = new URLSearchParams();
+  if (cursor) params.set('cursor', cursor);
 
-```ts
-interface TaskListV2 {
-  items: TaskV2[];
-  total: number;
-  next_cursor: string | null;
+  const res = await fetch(`/v2/tasks?${params.toString()}`);
+  const { items, total, next_cursor } = await res.json();
+
+  return { tasks: items, total, nextCursor: next_cursor };
 }
 
-const res = await fetch('https://api.example.com/v2/tasks?limit=20');
-const page: TaskListV2 = await res.json();
+async function listAllTasksV2() {
+  let cursor = undefined;
+  const all = [];
 
-for (const task of page.items) {
-  console.log(task.title);
+  do {
+    const { tasks, nextCursor } = await listTasksV2(cursor);
+    all.push(...tasks);
+    cursor = nextCursor;
+  } while (cursor);
+
+  return all;
 }
-
-if (page.next_cursor) {
-  const nextRes = await fetch(
-    `https://api.example.com/v2/tasks?cursor=${encodeURIComponent(page.next_cursor)}`,
-  );
-  const nextPage: TaskListV2 = await nextRes.json();
-  // ...
-}
-```
-
-**Action:**
-- Update all consumers of list endpoints to read from `items` instead of assuming the root is an array.
-- Implement cursor‑based pagination using the `cursor` query param and `next_cursor` response field.
-
----
-
-## 7. Endpoint-by-Endpoint Migration Summary
-
-This section summarizes the concrete changes per endpoint.
-
-### 7.1 List Tasks
-
-- **Path:** `/tasks` → `/v2/tasks`
-- **Auth:** `X-Auth-Token` → `Authorization: Bearer ...`
-- **Response:** `Task[]` → `{ items: TaskV2[], total, next_cursor }`
-- **New query params:** `cursor`, `limit`
-
-**Before:**
-
-```http
-GET /tasks HTTP/1.1
-X-Auth-Token: <your_api_key>
-```
-
-**After:**
-
-```http
-GET /v2/tasks?limit=20 HTTP/1.1
-Authorization: Bearer <your_api_token>
-```
-
-### 7.2 Get Task
-
-- **Path:** `/tasks/{id}` → `/v2/tasks/{id}`
-- **Auth:** `X-Auth-Token` → `Authorization: Bearer ...`
-- **Id type:** integer → UUID string
-- **Field rename:** `done` → `completed`
-
-**Before:**
-
-```http
-GET /tasks/42 HTTP/1.1
-X-Auth-Token: <your_api_key>
-```
-
-**After:**
-
-```http
-GET /v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890 HTTP/1.1
-Authorization: Bearer <your_api_token>
-```
-
-### 7.3 Create Task
-
-- **Path:** `/tasks` → `/v2/tasks`
-- **Auth:** `X-Auth-Token` → `Authorization: Bearer ...`
-- **Required field:** new `project_id` is required
-- **Id type:** response now uses UUID string
-
-**Before:**
-
-```http
-POST /tasks HTTP/1.1
-X-Auth-Token: <your_api_key>
-Content-Type: application/json
-
-{
-  "title": "New task title"
-}
-```
-
-**After:**
-
-```http
-POST /v2/tasks HTTP/1.1
-Authorization: Bearer <your_api_token>
-Content-Type: application/json
-
-{
-  "title": "New task title",
-  "project_id": "proj_abc123"
-}
-```
-
-### 7.4 Update Task
-
-- **Path:** `/tasks/{id}` → `/v2/tasks/{id}`
-- **Auth:** `X-Auth-Token` → `Authorization: Bearer ...`
-- **Id type:** integer → UUID string
-- **Field rename:** `done` → `completed`
-
-**Before:**
-
-```http
-PUT /tasks/42 HTTP/1.1
-X-Auth-Token: <your_api_key>
-Content-Type: application/json
-
-{
-  "title": "Updated title",
-  "done": true
-}
-```
-
-**After:**
-
-```http
-PUT /v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890 HTTP/1.1
-Authorization: Bearer <your_api_token>
-Content-Type: application/json
-
-{
-  "title": "Updated title",
-  "completed": true
-}
-```
-
-### 7.5 Delete Task
-
-- **Path:** `/tasks/{id}` → `/v2/tasks/{id}`
-- **Auth:** `X-Auth-Token` → `Authorization: Bearer ...`
-- **Id type:** integer → UUID string
-
-**Before:**
-
-```http
-DELETE /tasks/42 HTTP/1.1
-X-Auth-Token: <your_api_key>
-```
-
-**After:**
-
-```http
-DELETE /v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890 HTTP/1.1
-Authorization: Bearer <your_api_token>
 ```
 
 ---
 
-## 8. Migration Checklist
+## Endpoint-by-endpoint comparison
 
-Use this checklist to drive and validate your migration.
+### List Tasks
 
-1. **Authentication**
-   - [ ] Replace all `X-Auth-Token` headers with `Authorization: Bearer <your_api_token>`.
-   - [ ] Rotate or provision tokens if v2 uses a different credential set.
+- v1: `GET /tasks` → `Task[]`
+- v2: `GET /v2/tasks` → `{ items: TaskV2[], total: number, next_cursor: string | null }`
 
-2. **Endpoint Paths**
-   - [ ] Update all Zrb API URLs from `/tasks` to `/v2/tasks` (including any hard‑coded paths and documentation).
+### Get Task
 
-3. **Identifier Types**
-   - [ ] Change task `id` types from integer to string/UUID in models, DTOs, and database schemas where applicable.
-   - [ ] Update any validation logic or route builders that assumed numeric IDs.
+- v1: `GET /tasks/{id}` where `id` is an integer.
+- v2: `GET /v2/tasks/{id}` where `id` is a UUID string.
 
-4. **Task Fields**
-   - [ ] Rename all uses of the `done` field on Zrb tasks to `completed`.
-   - [ ] Ensure update payloads use `"completed"` instead of `"done"`.
+### Create Task
 
-5. **Task Creation**
-   - [ ] Decide how your app determines `project_id` for new tasks.
-   - [ ] Add `project_id` to every `POST /v2/tasks` request body.
-   - [ ] Adjust tests to expect HTTP 422 when `project_id` is missing.
+- v1: `POST /tasks` with body `{ "title": string }`.
+- v2: `POST /v2/tasks` with body `{ "title": string, "project_id": string }`.
 
-6. **List Responses & Pagination**
-   - [ ] Update consumers of list endpoints to read from `response.items` instead of assuming the root is an array.
-   - [ ] Implement cursor‑based pagination using the `cursor` query param and `next_cursor` response field.
+### Update Task
 
-7. **End-to-End Verification**
-   - [ ] Run your test suite against v2 and ensure all API tests pass.
-   - [ ] Manually verify core flows: list tasks, view task, create, update, delete.
-   - [ ] Monitor logs for 401/404/422 responses after migration.
+- v1: `PUT /tasks/{id}` with body `{ "title"?: string, "done"?: boolean }`.
+- v2: `PUT /v2/tasks/{id}` with body `{ "title"?: string, "completed"?: boolean }`.
+
+### Delete Task
+
+- v1: `DELETE /tasks/{id}`.
+- v2: `DELETE /v2/tasks/{id}`.
 
 ---
 
-## 9. Upgrade Command
+## Migration Strategy
 
-Once your code changes are in place, upgrade the Zrb CLI to v2:
+You can migrate incrementally by introducing v2-specific types and clients alongside v1, then switching call sites.
+
+1. **Introduce v2 models and clients**
+   - Add new `TaskV2` types with `id: string`, `completed: boolean`, and `project_id: string`.
+   - Implement v2 client methods that target `/v2/...` endpoints and handle the new auth and pagination.
+
+2. **Add an adapter layer (optional but recommended)**
+   - Normalize both v1 and v2 responses to a common internal shape so your UI/business logic only changes once.
+
+3. **Migrate authentication handling**
+   - Update your HTTP client middleware/interceptors to send `Authorization: Bearer <token>` instead of `X-Auth-Token`.
+   - Verify that all v2 calls include the correct header and that v1 calls continue to work during the transition if needed.
+
+4. **Update ID handling**
+   - Change any `number`-typed task IDs to `string`.
+   - Review routing code, cache keys, and database schemas that assume numeric IDs.
+
+5. **Rename `done` → `completed` in your codebase**
+   - Update models, serializers, and UI bindings.
+   - Ensure all update/create payloads use `completed`.
+
+6. **Require and propagate `project_id`**
+   - Decide how your app obtains `project_id` (user selection, default project, etc.).
+   - Update all task-creation flows to set `project_id` and handle 422 errors for missing/invalid IDs.
+
+7. **Adopt paginated list handling**
+   - Refactor list views and batch processors to consume the envelope.
+   - Implement cursor-based pagination where large result sets are expected.
+
+8. **Switch traffic to v2**
+   - Flip your feature flags or configuration to point all task traffic to v2.
+   - Monitor logs for 4xx/5xx errors and adjust as needed.
+
+---
+
+## Step-by-step migration checklist
+
+Use this checklist to track your migration.
+
+1. [ ] Update all task endpoint URLs to use `/v2/...`.
+2. [ ] Replace `X-Auth-Token` with `Authorization: Bearer <your_api_token>` everywhere.
+3. [ ] Change task ID types from `number` to `string` in models, APIs, and database schemas.
+4. [ ] Replace all usages of `done` with `completed` in:
+   - [ ] Type/Model definitions
+   - [ ] JSON serializers/deserializers
+   - [ ] UI bindings and templates
+   - [ ] Update payloads (`PUT /v2/tasks/{id}`)
+5. [ ] Ensure all task creation calls send `project_id`:
+   - [ ] Update request builders/clients
+   - [ ] Update forms/CLI arguments
+   - [ ] Handle HTTP 422 responses gracefully
+6. [ ] Update list consumers to handle the paginated envelope:
+   - [ ] Read tasks from `items`
+   - [ ] Use `next_cursor` for subsequent pages
+   - [ ] Use `total` for counts where needed
+7. [ ] Add or update tests for:
+   - [ ] Authentication header behavior
+   - [ ] UUID `id` handling
+   - [ ] `completed` field behavior
+   - [ ] `project_id` requirements
+   - [ ] Pagination logic
+8. [ ] Remove deprecated v1-specific code paths once all consumers are on v2.
+
+---
+
+## Upgrade command
+
+Run the following command to upgrade your Zrb CLI to v2:
 
 ```bash
 zrb upgrade --major

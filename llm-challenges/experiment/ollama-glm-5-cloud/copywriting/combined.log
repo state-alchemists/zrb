@@ -1,22 +1,19 @@
 [2m
-  🧠 The[0m[2m user wants me to[0m[2m write[0m[2m a developer[0m[2m migration guide for Z[0m[2mrb CLI v1[0m[2m to v2.[0m[2m I need to:[0m[2m
+  🧠 The[0m[2m user[0m[2m wants me to write[0m[2m a migration[0m[2m guide for Z[0m[2mrb[0m[2m CLI v1[0m[2m to v[0m[2m2. This[0m[2m is a writing[0m[2m task that[0m[2m requires:
+     1.[0m[2m Reading `[0m[2mv1_spec[0m[2m.md` and `[0m[2mv2_spec.md[0m[2m` to[0m[2m understand the[0m[2m breaking[0m[2m changes
+     2[0m[2m. Creating[0m[2m a well[0m[2m-structured migration[0m[2m guide with[0m[2m specific[0m[2m requirements[0m[2m
      
-     1. Read the[0m[2m v1_spec.md[0m[2m and v2_spec[0m[2m.md files to[0m[2m understand the differences[0m[2m
-     2. Identify[0m[2m all breaking changes[0m[2m
-     3. Create a[0m[2m well-structured migration[0m[2m guide with:[0m[2m
-        - Clear headings[0m[2m
-        - Explicit[0m[2m breaking change[0m[2m callouts[0m[2m
-        - Before/after[0m[2m code examples in[0m[2m fenced code blocks[0m[2m
-        - Step[0m[2m-by-step migration checklist[0m[2m
-        - Upgrade[0m[2m command at[0m[2m the end
+     Let[0m[2m me first[0m[2m read[0m[2m both[0m[2m spec files to understand[0m[2m the[0m[2m differences.[0m[2m
      
-     Let[0m[2m me start by reading[0m[2m both spec[0m[2m files to understand the[0m[2m changes.[0m[2m
-  I[0m[2m'll read both spec[0m[2m files to identify[0m[2m all[0m[2m breaking changes and create[0m[2m a comprehensive migration guide[0m[2m.[0m[2m
-  🧰 call_hozwoss5 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+     Since[0m[2m this is a writing[0m[2m task ([0m[2mdeliver[0m[2mable[0m[2m is a document[0m[2m), I[0m[2m should activate the[0m[2m `core-writing[0m[2m` skill first[0m[2m.[0m[2m
+  I[0m[2m'll activate the[0m[2m writing skill and[0m[2m read both[0m[2m spec files to understand[0m[2m the breaking[0m[2m changes.[0m[2m
+  🧰 call_6vq0qmd1 | ActivateSkill {'name': 'core-writing'}
 [0m[2m
-  🧰 call_qvefwbui | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+  🧰 call_o83xmdt2 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
 [0m[2m
-  🔠 call_qvefwbui | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5-cloud/copywriting/workdir/v2_spec.md | 115 lines]
+  🧰 call_9x0bcii7 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_9x0bcii7 | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5-cloud/copywriting/workdir/v2_spec.md | 115 lines]
      ---CONTENT---
      # Zrb Task API — v2 Reference
      
@@ -134,7 +131,100 @@
      **Response:** HTTP 204 No Content.
      
 [0m[2m
-  🔠 call_hozwoss5 | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5-cloud/copywriting/workdir/v1_spec.md | 83 lines]
+  🔠 call_6vq0qmd1 | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
+     
+     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-writing
+     
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
+     
+     Companion files available in this directory:
+       templates/
+         api-doc.md
+         commit-message.md
+         readme.md
+     
+     ---
+     
+     ---
+     name: core-writing
+     description: "Activate before any substantial writing — docs, copy, proposals, feedback, commit messages, or UI text. Provides copywriting frameworks, tone guidance, and editing workflow for clear, persuasive, polished output."
+     user-invocable: false
+     ---
+     # Skill: core-writing
+     
+     Follow **Brief → Structure → Draft → Polish** for every writing task.
+     
+     ## Companion Templates
+     
+     When the current task matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
+     
+     | Trigger | Companion |
+     |---------|-----------|
+     | Writing or rewriting a project README | `templates/readme.md` |
+     | Drafting a git commit message | `templates/commit-message.md` |
+     | Documenting a function, endpoint, or CLI command | `templates/api-doc.md` |
+     
+     ## Workflow
+     
+     ### 1. Brief & Audience
+     
+     - Who is reading this? What do they already know? What do they need to know?
+     - What outcome should this writing achieve?
+     - What tone fits: technical, persuasive, instructional, conversational?
+     
+     ### 2. Structure & Outline
+     
+     - **Technical docs**: Problem → Solution → Usage → API → Examples
+     - **Persuasive writing**: Hook → Context → Evidence → Resolution → CTA
+     - **Instructional**: Goal → Prerequisites → Steps → Verification → Troubleshooting
+     - One idea per paragraph. Lead with the conclusion. Use transitions.
+     
+     ### 3. Draft
+     
+     - Write freely. Don't edit while drafting.
+     - Apply the chosen structure. Fill in evidence and examples.
+     - Use active voice. Be specific over vague.
+     
+     ### 4. Polish & Edit
+     
+     - Omit needless words. Every word must earn its place.
+     - Check flow: read aloud. Fix awkward transitions.
+     - Verify accuracy: facts, code samples, references.
+     - Proof: spelling, grammar, consistent terminology.
+     
+     ## Copywriting Formulas
+     
+     | Formula | When to Use | Structure |
+     |---------|-------------|-----------|
+     | **AIDA** | Marketing, proposals, feature announcements | Attention → Interest → Desire → Action |
+     | **PAS** | Bug reports, problem-solving docs | Problem → Agitate → Solution |
+     | **Inverted Pyramid** | News, announcements, summaries | Conclusion → Key details → Background |
+     | **Before-After-Bridge** | Change proposals, migration guides | Current → Desired → How to get there |
+     | **FEBC** | Technical decisions | Fact → Explanation → Benefit → Conclusion |
+     
+     ## Tone Matrix
+     
+     | Audience | Tone | Characteristics |
+     |----------|------|-----------------|
+     | Developers | Technical, precise | Specific terms, code examples, no fluff |
+     | Product managers | Outcome-oriented | Problem → impact → timeline → trade-offs |
+     | End users | Friendly, clear | Simple language, concrete examples, next steps |
+     | Executives | Concise, strategic | Recommendation first, TL;DR, business impact |
+     
+     ## Quality Checklist
+     
+     Before finalizing:
+     - Does the first paragraph convey the main point?
+     - Can any sentence be shortened without losing meaning?
+     - Are all claims supported by evidence?
+     - Is the tone appropriate for the audience?
+     - Would this still make sense if read in isolation?
+     
+     </ACTIVATED_SKILL>
+[0m[2m
+  🔠 call_o83xmdt2 | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5-cloud/copywriting/workdir/v1_spec.md | 83 lines]
      ---CONTENT---
      # Zrb Task API — v1 Reference
      
@@ -220,38 +310,42 @@
      **Response:** HTTP 204 No Content.
      
 [0m[2m
-  🧠 Now[0m[2m I understand[0m[2m all[0m[2m the breaking changes between[0m[2m v1 and v[0m[2m2. Let me[0m[2m create a comprehensive migration[0m[2m guide that[0m[2m:[0m[2m
+  🧠 Now[0m[2m I[0m[2m have both[0m[2m specs[0m[2m. Let me identify[0m[2m all[0m[2m breaking[0m[2m changes[0m[2m and[0m[2m write a[0m[2m clear[0m[2m migration guide[0m[2m.
      
-     1. Has[0m[2m clear[0m[2m structure with headings[0m[2m
-     2. Explicitly[0m[2m calls out each[0m[2m breaking change
-     3[0m[2m. Includes[0m[2m before/after code[0m[2m examples[0m[2m
-     4. Has a[0m[2m step-by-step migration[0m[2m checklist
-     5.[0m[2m Ends with the upgrade[0m[2m command
+     **Breaking[0m[2m changes identified[0m[2m:**
+     1[0m[2m. Authentication[0m[2m header[0m[2m: `[0m[2mX-[0m[2mAuth-Token[0m[2m` →[0m[2m `Authorization[0m[2m: B[0m[2mearer[0m[2m`[0m[2m
+     2. Endpoint[0m[2m prefix[0m[2m: `/[0m[2mtasks[0m[2m` → `/[0m[2mv2[0m[2m/tasks`
+     3[0m[2m. Task[0m[2m `[0m[2mid`[0m[2m type: integer[0m[2m → UUID[0m[2m string[0m[2m
+     4[0m[2m. Task field[0m[2m `[0m[2mdone[0m[2m` → `completed[0m[2m`
+     5[0m[2m. Task[0m[2m creation[0m[2m now[0m[2m requires `[0m[2mproject_id[0m[2m`
+     6[0m[2m. List[0m[2m endpoints[0m[2m return pag[0m[2minated envelope[0m[2m instead of bare[0m[2m array
      
-     The breaking[0m[2m changes are:
-     1[0m[2m. Endpoint[0m[2m prefix: `/tasks[0m[2m` → `/v[0m[2m2/tasks`
-     2[0m[2m. Auth[0m[2m header: `X[0m[2m-Auth-Token`[0m[2m → `Authorization[0m[2m: Bearer`[0m[2m
-     3. Task `[0m[2mid` type:[0m[2m integer → UUID string[0m[2m
-     4. Field[0m[2m rename: `done[0m[2m` → `completed[0m[2m`
-     5. New[0m[2m required field: `[0m[2mproject_id` on[0m[2m task creation
-     6[0m[2m. List[0m[2m response:[0m[2m bare array → pag[0m[2minated envelope with `[0m[2mitems`, `total[0m[2m`, `next_cursor[0m[2m`
+     **Aud[0m[2mience:**[0m[2m Experienced developers[0m[2m already using[0m[2m v1[0m[2m
      
-     Let me write[0m[2m the migration[0m[2m guide.[0m[2m
-  🧰 call_7md9bckd | Write {'path': '/Users/gofrendigunawan/zrb ...', 'content': '# Zrb Task API Migration G ...'}
+     **T[0m[2mone[0m[2m:** Technical[0m[2m, precise[0m[2m ([0m[2mfrom[0m[2m tone[0m[2m matrix[0m[2m for developers[0m[2m)
+     
+     **Structure[0m[2m:** I[0m[2m'll use the[0m[2m Before-[0m[2mAfter-B[0m[2mridge formula[0m[2m mentioned[0m[2m in the skill[0m[2m,[0m[2m adapted[0m[2m for a[0m[2m migration guide:[0m[2m
+     - Overview[0m[2m/context[0m[2m
+     -[0m[2m Breaking changes[0m[2m with[0m[2m before[0m[2m/after[0m[2m examples[0m[2m
+     - Migration[0m[2m checklist
+     - Upgrade[0m[2m command
+     
+     Let[0m[2m me write[0m[2m this migration[0m[2m guide now[0m[2m.[0m[2m
+  I[0m[2m have[0m[2m both[0m[2m specs. Now[0m[2m I'll write the[0m[2m migration guide using[0m[2m the Before-After[0m[2m-Bridge structure[0m[2m with[0m[2m clear before[0m[2m/after code[0m[2m examples[0m[2m for each breaking[0m[2m change.[0m[2m
+  🧰 call_gf67spgi | Write {'path': '/Users/gofrendigunawan/zrb ...', 'content': '# Zrb Task API v1 → v2 Mig ...'}
 [0m[2m
-  🔠 call_7md9bckd | Return Successfully wrote to /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5-cloud/copywriting/workdir/MIGRATION.md
+  🔠 call_gf67spgi | Return Successfully wrote to /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5-cloud/copywriting/workdir/MIGRATION.md
 [0m[2m
-  🧠 The[0m[2m migration guide has been[0m[2m created[0m[2m successfully. Let me[0m[2m verify the[0m[2m content[0m[2m was written correctly by[0m[2m reading the[0m[2m file back[0m[2m.[0m[2m
-  Done[0m[2m. I[0m[2m've created `M[0m[2mIGRATION.md`[0m[2m with:[0m[2m
+  🧠 The[0m[2m migration[0m[2m guide[0m[2m has been written[0m[2m.[0m[2m Let me provide[0m[2m a brief[0m[2m summary of[0m[2m what was created[0m[2m.[0m[2m
+  Done[0m[2m. Created[0m[2m `M[0m[2mIGRATION[0m[2m.md` with:[0m[2m
      
-     - **Summary[0m[2m table** of[0m[2m all[0m[2m 6 breaking changes[0m[2m
-     - **Detailed[0m[2m sections** for[0m[2m each breaking change with[0m[2m before/after examples[0m[2m in `[0m[2mbash`, `JavaScript[0m[2m`, and `Python[0m[2m`
-     - **Task[0m[2m object comparison[0m[2m** showing the structure[0m[2m changes
-     - **[0m[2mMigration[0m[2m checklist** with[0m[2m 8 ordered[0m[2m steps
-     - **[0m[2mUpgrade command** at[0m[2m the end
+     - **[0m[2mOverview table[0m[2m** summar[0m[2mizing all 6[0m[2m breaking changes
+     -[0m[2m **D[0m[2medicated[0m[2m sections** for[0m[2m each breaking[0m[2m change with before[0m[2m/after code[0m[2m examples ([0m[2mHTTP requests[0m[2m, JSON[0m[2m payloads[0m[2m, and JavaScript[0m[2m snippets[0m[2m)
+     -[0m[2m **Migration[0m[2m checklist** covering[0m[2m auth[0m[2m, endpoints[0m[2m, ID[0m[2m types, field[0m[2m ren[0m[2mames, required[0m[2m fields, and[0m[2m response[0m[2m format[0m[2m changes[0m[2m
+     -[0m[2m **Upgrade[0m[2m command[0m[2m** for[0m[2m npm[0m[2m and CLI[0m[2m
      
-     The[0m[2m guide is[0m[2m structured[0m[2m for experienced developers to[0m[2m quickly identify[0m[2m what needs[0m[2m to change and how[0m[2m to fix[0m[2m it.[0m[2m
-  💸 (Requests: 3 | Tool Calls: 3 | Total: 33032) Input: 29984 | Audio Input: 0 | Output: 3048 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
+     The guide[0m[2m targets experienced[0m[2m developers already[0m[2m using[0m[2m v1[0m[2m, so it[0m[2m focuses[0m[2m on what[0m[2m changed rather than teaching[0m[2m concepts from[0m[2m scratch.[0m[2m
+  💸 (Requests: 3 | Tool Calls: 4 | Total: 35826) Input: 33704 | Audio Input: 0 | Output: 2122 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "The Zrb CLI is releasing v2, which has several breaking changes from v1. Our developer community needs a clear migration guide.
 
 `v1_spec.md` describes the current v1 API. `v2_spec.md` describes the new v2 API.
@@ -264,13 +358,12 @@ Write a developer migration guide and save it as `MIGRATION.md`. It should:
 - End with the upgrade command
 
 The audience is experienced developers who are already using v1." --model ollama:glm-5:cloud --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mhigh-dust-5847[0m[0m
-Done. I've created `MIGRATION.md` with:
+[2m[2mSession[0m: [1;33mfast-cell-5795[0m[0m
+Done. Created `MIGRATION.md` with:
 
-- **Summary table** of all 6 breaking changes
-- **Detailed sections** for each breaking change with before/after examples in `bash`, `JavaScript`, and `Python`
-- **Task object comparison** showing the structure changes
-- **Migration checklist** with 8 ordered steps
-- **Upgrade command** at the end
+- **Overview table** summarizing all 6 breaking changes
+- **Dedicated sections** for each breaking change with before/after code examples (HTTP requests, JSON payloads, and JavaScript snippets)
+- **Migration checklist** covering auth, endpoints, ID types, field renames, required fields, and response format changes
+- **Upgrade command** for npm and CLI
 
-The guide is structured for experienced developers to quickly identify what needs to change and how to fix it.
+The guide targets experienced developers already using v1, so it focuses on what changed rather than teaching concepts from scratch.

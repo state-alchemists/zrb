@@ -1,7 +1,8 @@
 [2m
-  🧰 pyd_ai_7d39f8d8f00946f0926ceed83527e623 | Read {'path': 'system_context.md'}
+  Okay, I will read the system context, write an ADR evaluating Kafka and Redis Streams[0m[2m, and save it as `ADR-001-notification-architecture.md` with the required structure and[0m[2m a definitive recommendation. First, I'll read the context file.[0m[2m
+  🧰 pyd_ai_c257cf1e87a344d08ffb749b6751172c | Read {'path': 'system_context.md'}
 [0m[2m
-  🔠 pyd_ai_7d39f8d8f00946f0926ceed83527e623 | Return [File: system_context.md | 44 lines]
+  🔠 pyd_ai_c257cf1e87a344d08ffb749b6751172c | Return [File: system_context.md | 44 lines]
      ---CONTENT---
      # System Context: Notifier Subsystem Decision
      
@@ -48,12 +49,108 @@
      - Must maintain exactly-once semantics for billing notifications
      
 [0m[2m
-  🧰 pyd_ai_b6560e27e6ff408a8182b92abaacaa4c | Write {'content': '# ADR-001: Notification Su ...', 'path': 'ADR-001-notification-archi ...'}
+  🧰 pyd_ai_421fc6471f64446cb0ef062deeef0f4c | ActivateSkill {'name': 'core-writing'}
 [0m[2m
-  🔠 pyd_ai_b6560e27e6ff408a8182b92abaacaa4c | Return Successfully wrote to ADR-001-notification-architecture.md
+  🔠 pyd_ai_421fc6471f64446cb0ef062deeef0f4c | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
+     
+     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-writing
+     
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
+     
+     Companion files available in this directory:
+       templates/
+         api-doc.md
+         commit-message.md
+         readme.md
+     
+     ---
+     
+     ---
+     name: core-writing
+     description: "Activate before any substantial writing — docs, copy, proposals, feedback, commit messages, or UI text. Provides copywriting frameworks, tone guidance, and editing workflow for clear, persuasive, polished output."
+     user-invocable: false
+     ---
+     # Skill: core-writing
+     
+     Follow **Brief → Structure → Draft → Polish** for every writing task.
+     
+     ## Companion Templates
+     
+     When the current task matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
+     
+     | Trigger | Companion |
+     |---------|-----------|
+     | Writing or rewriting a project README | `templates/readme.md` |
+     | Drafting a git commit message | `templates/commit-message.md` |
+     | Documenting a function, endpoint, or CLI command | `templates/api-doc.md` |
+     
+     ## Workflow
+     
+     ### 1. Brief & Audience
+     
+     - Who is reading this? What do they already know? What do they need to know?
+     - What outcome should this writing achieve?
+     - What tone fits: technical, persuasive, instructional, conversational?
+     
+     ### 2. Structure & Outline
+     
+     - **Technical docs**: Problem → Solution → Usage → API → Examples
+     - **Persuasive writing**: Hook → Context → Evidence → Resolution → CTA
+     - **Instructional**: Goal → Prerequisites → Steps → Verification → Troubleshooting
+     - One idea per paragraph. Lead with the conclusion. Use transitions.
+     
+     ### 3. Draft
+     
+     - Write freely. Don't edit while drafting.
+     - Apply the chosen structure. Fill in evidence and examples.
+     - Use active voice. Be specific over vague.
+     
+     ### 4. Polish & Edit
+     
+     - Omit needless words. Every word must earn its place.
+     - Check flow: read aloud. Fix awkward transitions.
+     - Verify accuracy: facts, code samples, references.
+     - Proof: spelling, grammar, consistent terminology.
+     
+     ## Copywriting Formulas
+     
+     | Formula | When to Use | Structure |
+     |---------|-------------|-----------|
+     | **AIDA** | Marketing, proposals, feature announcements | Attention → Interest → Desire → Action |
+     | **PAS** | Bug reports, problem-solving docs | Problem → Agitate → Solution |
+     | **Inverted Pyramid** | News, announcements, summaries | Conclusion → Key details → Background |
+     | **Before-After-Bridge** | Change proposals, migration guides | Current → Desired → How to get there |
+     | **FEBC** | Technical decisions | Fact → Explanation → Benefit → Conclusion |
+     
+     ## Tone Matrix
+     
+     | Audience | Tone | Characteristics |
+     |----------|------|-----------------|
+     | Developers | Technical, precise | Specific terms, code examples, no fluff |
+     | Product managers | Outcome-oriented | Problem → impact → timeline → trade-offs |
+     | End users | Friendly, clear | Simple language, concrete examples, next steps |
+     | Executives | Concise, strategic | Recommendation first, TL;DR, business impact |
+     
+     ## Quality Checklist
+     
+     Before finalizing:
+     - Does the first paragraph convey the main point?
+     - Can any sentence be shortened without losing meaning?
+     - Are all claims supported by evidence?
+     - Is the tone appropriate for the audience?
+     - Would this still make sense if read in isolation?
+     
+     </ACTIVATED_SKILL>
 [0m[2m
-  Done. Is there anything else I can help with?[0m[2m
-  💸 (Requests: 3 | Tool Calls: 2 | Total: 27763) Input: 25049 | Audio Input: 0 | Output: 2714 | Audio Output: 0 | Cache Read: 8138 | Cache Write: 0 | Details: {'thoughts_tokens': 1789, 'text_prompt_tokens': 25049, 'cached_content_tokens': 8138, 'text_cache_tokens': 8138}
+  I've analyzed the system context. I will now write the ADR with[0m[2m a definitive recommendation and save it.[0m[2m
+  🧰 pyd_ai_710b63311bf946c59bf97152cd5e89da | Write {'content': '# ADR-001: Asynchronous No ...', 'path': 'ADR-001-notification-archi ...'}
+[0m[2m
+  🔠 pyd_ai_710b63311bf946c59bf97152cd5e89da | Return Successfully wrote to ADR-001-notification-architecture.md
+[0m[2m
+  I have created the ADR as requested and saved it to `ADR-001-[0m[2mnotification-architecture.md`. The document provides a detailed evaluation of Redis Streams and Apache Kafka for the notification subsystem, with[0m[2m a clear recommendation based on the project's specific constraints and requirements. Let me know if you have any other tasks.[0m[2m
+  💸 (Requests: 4 | Tool Calls: 3 | Total: 42566) Input: 39424 | Audio Input: 0 | Output: 3142 | Audio Output: 0 | Cache Read: 16378 | Cache Write: 0 | Details: {'thoughts_tokens': 2142, 'text_prompt_tokens': 39424, 'cached_content_tokens': 16378, 'text_cache_tokens': 16378}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "Read `system_context.md`. It describes a real production system and a specific architectural problem we need to solve.
 
 Write an Architecture Decision Record (ADR) evaluating two options for the notification subsystem:
@@ -71,5 +168,5 @@ Your ADR must follow this exact structure:
 Make a definitive recommendation. Use specific technical properties (throughput, ordering guarantees, message retention, consumer groups, exactly-once semantics, operational complexity) to justify your choice given the team size and constraints described.
 
 Save as `ADR-001-notification-architecture.md`." --model google-gla:gemini-2.5-pro --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mvast-cone-3295[0m[0m
-Done. Is there anything else I can help with?
+[2m[2mSession[0m: [1;33mpure-disk-5374[0m[0m
+I have created the ADR as requested and saved it to `ADR-001-notification-architecture.md`. The document provides a detailed evaluation of Redis Streams and Apache Kafka for the notification subsystem, with a clear recommendation based on the project's specific constraints and requirements. Let me know if you have any other tasks.

@@ -1,33 +1,245 @@
 [2m
-  🧰 exsmxq0h | Bash {'command': 'ls -la'}
-[0m  [2mtotal 24
-[0m  [2mdrwxr-xr-x@ 6 gofrendigunawan  staff   192 20 Apr 20:32 .
-[0m  [2mdrwxr-xr-x@ 4 gofrendigunawan  staff   128 24 Apr 07:46 ..
-[0m  [2m-rw-r--r--@ 1 gofrendigunawan  staff     0 31 Jan 12:15 .gitkeep
-[0m  [2m-rw-r--r--@ 1 gofrendigunawan  staff  1334 20 Apr 20:32 job_queue.py
-[0m  [2m-rw-r--r--@ 1 gofrendigunawan  staff   909 20 Apr 20:32 main.py
-[0m  [2m-rw-r--r--@ 1 gofrendigunawan  staff   655 20 Apr 20:32 worker.py
+  🧰 41atk47n | ActivateSkill {'name': 'core-coding'}
 [0m[2m
-  🔠 exsmxq0h | Return Command: ls -la
-     Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/bug-fix/workdir
-     Stdout:
-     total 24
-     drwxr-xr-x@ 6 gofrendigunawan  staff   192 20 Apr 20:32 .
-     drwxr-xr-x@ 4 gofrendigunawan  staff   128 24 Apr 07:46 ..
-     -rw-r--r--@ 1 gofrendigunawan  staff     0 31 Jan 12:15 .gitkeep
-     -rw-r--r--@ 1 gofrendigunawan  staff  1334 20 Apr 20:32 job_queue.py
-     -rw-r--r--@ 1 gofrendigunawan  staff   909 20 Apr 20:32 main.py
-     -rw-r--r--@ 1 gofrendigunawan  staff   655 20 Apr 20:32 worker.py
-     Stderr:
-     (empty)
-     Exit Code: 0
-     Background PIDs: (none)
+  🔠 41atk47n | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
+     
+     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-coding
+     
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
+     
+     Companion files available in this directory:
+       languages/
+         go.md
+         java.md
+         php.md
+         python.md
+         ruby.md
+         rust.md
+         typescript.md
+       workflows/
+         debug.md
+         refactor.md
+         review.md
+         testing.md
+     
+     ---
+     
+     ---
+     name: core-coding
+     description: "Activate before any coding task — reading, editing, or creating code files. Provides the mandatory Research → Strategy → Execution workflow plus the complexity budget and specialised deep-dive companions (testing, debug, refactor, review)."
+     user-invocable: false
+     ---
+     # Skill: core-coding
+     
+     Follow **Research → Strategy → Execution** for every coding task.
+     
+     ## Deep-Dive Companions
+     
+     When the current step matches a trigger below, `Read` the named companion from this skill's directory (the activation header lists the directory path and all companion paths). Companions are not pre-loaded — pull them on demand.
+     
+     | Trigger | Companion |
+     |---------|-----------|
+     | About to write, modify, or audit a test | `workflows/testing.md` |
+     | Something is broken and root cause is unclear | `workflows/debug.md` |
+     | Code structure needs improvement (complexity, duplication) | `workflows/refactor.md` |
+     | Reviewing changes for correctness, security, or quality | `workflows/review.md` |
+     | Code touches user input, auth, file I/O, or sensitive data | `workflows/review.md` (security audit checklist) |
+     | First substantial edit in a project — identify the language from the manifest | `languages/<lang>.md` (one of `python`, `typescript`, `go`, `rust`, `java`, `ruby`, `php`) |
+     
+     If the user has provided custom guidelines for any of the above (in CLAUDE.md, AGENTS.md, their own skills, or project files), prefer those over the core companion. Core companions fill in the gaps.
+     
+     ## PHASE 1: RESEARCH & DISCOVERY
+     
+     Follow the **Scientific Method**: form a hypothesis → test it → analyze results. Avoid random changes.
+     
+     ### a.  **High-Level Reconnaissance:**
+     
+     - Use `LS` with limited depth for initial structure mapping.
+     - Identify: source directories, test directories, config files, entry points, and utility modules.
+     - Skip if you already know specific file paths — use targeted `Glob` instead.
+     
+     ### b.  **Targeted Architecture Discovery:**
+     
+     - Use `Glob` and `Grep` in parallel to map file structures, existing patterns, and utility functions.
+     - Use `Grep` with specific `regex` and `file_pattern` to minimize noise.
+     - Issue several `Read` calls in parallel when gathering context from related files.
+     - **Before modifying any existing function, method, or class signature:** use `LspFindReferences` if LSP is available, otherwise `Grep`. Find all call sites and include updating them in your plan.
+     - **Before moving or removing any file or directory:** use `Grep` to find all imports and path references first.
+     
+     ## PHASE 2: STRATEGY
+     
+     ### c.  **Formulate a Grounded Plan:**
+     
+     - **Language & Framework Idioms:** identify the language, framework, and version from dependency files and existing code. Apply idiomatic conventions — a pattern correct in one language may be an anti-pattern in another. Never add attributes or behavior to objects owned by a library; wrap them in a type you own.
+     - **Pattern Matching:** strategy MUST match existing project guidelines and patterns exactly. New code should look as though written by the original author.
+     - **Reuse existing helpers** before creating new ones.
+     - **Apply SOLID and DRY.** One reason to change per function and class.
+     - **No magic numbers, strings, or unexplained constants.** Name every value that carries meaning.
+     
+     ### d.  **Complexity Budget (non-negotiable hard limits):**
+     
+     Exceeding any limit is a design defect — restructure before continuing.
+     
+     | Metric | Limit | Remedy when exceeded |
+     |--------|-------|----------------------|
+     | Cyclomatic complexity | ≤ 10 per function | Extract sub-functions |
+     | Cognitive complexity | ≤ 15 per function | Flatten nesting, add guard clauses |
+     | Nesting depth | ≤ 2 levels | Invert conditionals; use early returns |
+     | Function length | ≤ 30 lines | Extract cohesive blocks into named helpers |
+     | Parameters per function | ≤ 4 | Group related params into a data object |
+     
+     **Guard clause mandate:** invert conditions to exit early; the happy path must never be the deepest `else`.
+     
+     **Boolean parameter prohibition:** a boolean parameter = two functions. Split them.
+     
+     **God Class/Function prohibition:** one reason to change per class/function. If you can't name the extracted piece, it's not a coherent abstraction.
+     
+     ### e.  **Testing Strategy:** define verification before writing code. For test-first methodology, Read `workflows/testing.md`.
+     
+     - New behavior: identify the failing test (RED) first.
+     - Bug fix: identify the minimal reproduction test first.
+     - Refactoring: confirm existing tests pass as baseline before touching anything.
+     
+     ## PHASE 3: EXECUTION (Plan → Act → Validate)
+     
+     ### f.  **Act (Surgical Implementation):**
+     
+     - Minimal, precise edits only. One logical change per task (atomic). Use existing libraries and patterns.
+     - Keep functions focused (~30-50 lines). Place helpers below callers.
+     - **Strangler Pattern:** when replacing a component, keep codebase runnable at every step: new alongside old → update references → remove old.
+     - **Out-of-scope structural problems:** report them. If they block this task, Read `workflows/refactor.md` and address atomically.
+     - **Code Smell Reporting:** report poorly structured code you encounter — don't silently fix it.
+     - **Docs:** keep documentation in sync; remove deprecated references.
+     
+     ### g.  **Validate (Zero-Regression):**
+     
+     - Validation is the only path to finality.
+     - Bug fixes: reproduce before fixing. If root cause is unclear, Read `workflows/debug.md`.
+     - After any change: run tests, linters, and type-checkers.
+     - If validation fails, diagnose before retrying.
+     
+     ### h.  **Synthesis:**
+     
+     journal non-trivial discoveries per the Journaling Protocol. For user-facing output (docs, error messages, commit messages), apply writing quality standards from `core-writing`.
+     
+     </ACTIVATED_SKILL>
 [0m[2m
-  🧰 0wl4djni | ReadMany {'paths': ['job_queue.py', 'worker.py', 'main.py']}
+  🧰 3kxxl9s1 | Read {'path': 'job_queue.py'}
 [0m[2m
-  🔠 0wl4djni | Return {'job_queue.py': '[File: job_queue.py | 47 lines]\n---CONTENT---\nimport asyncio\nfrom typing import Any, Dict, Optional\n\n\nclass JobQueue:\n    def __init__(self, max_retries: int = 3):\n        self._jobs: Dict[int, Dict[str, Any]] = {}\n        self._next_id = 1\n        self.max_retries = max_retries\n\n    def enqueue(self, payload: dict) -> int:\n        job_id = self._next_id\n        self._next_id += 1\n        self._jobs[job_id] = {\n            "id": job_id,\n            "payload": payload,\n            "status": "pending",\n            "retries": 0,\n            "result": None,\n        }\n        return job_id\n\n    async def dequeue(self) -> Optional[Dict]:\n        for job in self._jobs.values():\n            if job["status"] == "pending":\n                await asyncio.sleep(0.01)\n                job["status"] = "processing"\n                return job\n        return None\n\n    def complete(self, job_id: int, result: Any) -> None:\n        self._jobs[job_id]["status"] = "done"\n        self._jobs[job_id]["result"] = result\n\n    def fail(self, job_id: int, error: str) -> None:\n        job = self._jobs[job_id]\n        if job["retries"] < self.max_retries:\n            job["retries"] += 1\n            job["status"] = "pending"\n        else:\n            job["status"] = "failed"\n            job["result"] = error\n\n    @property\n    def all_jobs(self) -> Dict[int, Dict]:\n        return self._jobs\n', 'worker.py': '[File: worker.py | 21 lines]\n---CONTENT---\nimport asyncio\n\n\nasync def process_job(queue, worker_id: int) -> None:\n    while True:\n        job = await queue.dequeue()\n        if job is None:\n            return\n\n        print(f"[Worker {worker_id}] picked up job {job[\'id\']}")\n        try:\n            await asyncio.sleep(0.05)\n\n            if job["payload"].get("raise_error"):\n                raise RuntimeError(f"processing error for job {job[\'id\']}")\n\n            queue.complete(job["id"], f"processed by worker {worker_id}")\n            print(f"[Worker {worker_id}] finished job {job[\'id\']}")\n        except Exception as e:\n            print(f"[Worker {worker_id}] job {job[\'id\']} failed: {e}")\n', 'main.py': '[File: main.py | 30 lines]\n---CONTENT---\nimport asyncio\nfrom job_queue import JobQueue\nfrom worker import process_job\n\n\nasync def main() -> None:\n    queue = JobQueue(max_retries=2)\n\n    for i in range(10):\n        queue.enqueue({"name": f"task_{i}", "raise_error": False})\n    queue.enqueue({"name": "bad_task_1", "raise_error": True})\n    queue.enqueue({"name": "bad_task_2", "raise_error": True})\n\n    workers = [process_job(queue, i) for i in range(5)]\n    await asyncio.gather(*workers)\n\n    jobs = queue.all_jobs\n    done = [j for j in jobs.values() if j["status"] == "done"]\n    failed = [j for j in jobs.values() if j["status"] == "failed"]\n    stuck = [j for j in jobs.values() if j["status"] == "processing"]\n\n    print(f"\\n=== Results ===")\n    print(f"Done:   {len(done)} (expected 10)")\n    print(f"Failed: {len(failed)} (expected 2)")\n    print(f"Stuck:  {len(stuck)} (expected 0)")\n\n\nif __name__ == "__main__":\n    asyncio.run(main())\n'}
+  🧰 e78uu3it | Read {'path': 'worker.py'}
 [0m[2m
-  🧰 p35640jl | Bash {'command': 'python main.py'}
+  🧰 rnly5hd8 | Read {'path': 'main.py'}
+[0m[2m
+  🔠 e78uu3it | Return [File: worker.py | 21 lines]
+     ---CONTENT---
+     import asyncio
+     
+     
+     async def process_job(queue, worker_id: int) -> None:
+         while True:
+             job = await queue.dequeue()
+             if job is None:
+                 return
+     
+             print(f"[Worker {worker_id}] picked up job {job['id']}")
+             try:
+                 await asyncio.sleep(0.05)
+     
+                 if job["payload"].get("raise_error"):
+                     raise RuntimeError(f"processing error for job {job['id']}")
+     
+                 queue.complete(job["id"], f"processed by worker {worker_id}")
+                 print(f"[Worker {worker_id}] finished job {job['id']}")
+             except Exception as e:
+                 print(f"[Worker {worker_id}] job {job['id']} failed: {e}")
+     
+[0m[2m
+  🔠 3kxxl9s1 | Return [File: job_queue.py | 47 lines]
+     ---CONTENT---
+     import asyncio
+     from typing import Any, Dict, Optional
+     
+     
+     class JobQueue:
+         def __init__(self, max_retries: int = 3):
+             self._jobs: Dict[int, Dict[str, Any]] = {}
+             self._next_id = 1
+             self.max_retries = max_retries
+     
+         def enqueue(self, payload: dict) -> int:
+             job_id = self._next_id
+             self._next_id += 1
+             self._jobs[job_id] = {
+                 "id": job_id,
+                 "payload": payload,
+                 "status": "pending",
+                 "retries": 0,
+                 "result": None,
+             }
+             return job_id
+     
+         async def dequeue(self) -> Optional[Dict]:
+             for job in self._jobs.values():
+                 if job["status"] == "pending":
+                     await asyncio.sleep(0.01)
+                     job["status"] = "processing"
+                     return job
+             return None
+     
+         def complete(self, job_id: int, result: Any) -> None:
+             self._jobs[job_id]["status"] = "done"
+             self._jobs[job_id]["result"] = result
+     
+         def fail(self, job_id: int, error: str) -> None:
+             job = self._jobs[job_id]
+             if job["retries"] < self.max_retries:
+                 job["retries"] += 1
+                 job["status"] = "pending"
+             else:
+                 job["status"] = "failed"
+                 job["result"] = error
+     
+         @property
+         def all_jobs(self) -> Dict[int, Dict]:
+             return self._jobs
+     
+[0m[2m
+  🔠 rnly5hd8 | Return [File: main.py | 30 lines]
+     ---CONTENT---
+     import asyncio
+     from job_queue import JobQueue
+     from worker import process_job
+     
+     
+     async def main() -> None:
+         queue = JobQueue(max_retries=2)
+     
+         for i in range(10):
+             queue.enqueue({"name": f"task_{i}", "raise_error": False})
+         queue.enqueue({"name": "bad_task_1", "raise_error": True})
+         queue.enqueue({"name": "bad_task_2", "raise_error": True})
+     
+         workers = [process_job(queue, i) for i in range(5)]
+         await asyncio.gather(*workers)
+     
+         jobs = queue.all_jobs
+         done = [j for j in jobs.values() if j["status"] == "done"]
+         failed = [j for j in jobs.values() if j["status"] == "failed"]
+         stuck = [j for j in jobs.values() if j["status"] == "processing"]
+     
+         print(f"\n=== Results ===")
+         print(f"Done:   {len(done)} (expected 10)")
+         print(f"Failed: {len(failed)} (expected 2)")
+         print(f"Stuck:  {len(stuck)} (expected 0)")
+     
+     
+     if __name__ == "__main__":
+         asyncio.run(main())
+     
+[0m[2m
+  🧰 hqbhpl02 | Bash {'command': 'python main.py'}
 [0m  [2m[Worker 0] picked up job 1
 [0m  [2m[Worker 1] picked up job 1
 [0m  [2m[Worker 2] picked up job 1
@@ -154,7 +366,7 @@
 [0m  [2mFailed: 0 (expected 2)
 [0m  [2mStuck:  2 (expected 0)
 [0m[2m
-  🔠 p35640jl | Return Command: python main.py
+  🔠 hqbhpl02 | Return Command: python main.py
      Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/bug-fix/workdir
      Stdout:
      [Worker 0] picked up job 1
@@ -287,15 +499,15 @@
      Exit Code: 0
      Background PIDs: (none)
 [0m[2m
-  🧰 ewj8fri7 | Edit {'old_text': '    async def dequeue(self ...', 'path': 'job_queue.py', 'new_text': '    async def dequeue(self ...'}
+  🧰 itu4kud7 | Edit {'path': 'job_queue.py', 'new_text': '    async def dequeue(self ...', 'old_text': '    async def dequeue(self ...', 'count': -1}
 [0m[2m
-  🔠 ewj8fri7 | Return Successfully updated job_queue.py (1 replacement(s))
+  🧰 efsz895z | Edit {'old_text': '        except Exception a ...', 'count': -1, 'new_text': '        except Exception a ...', 'path': 'worker.py'}
 [0m[2m
-  🧰 akq1n7a3 | Edit {'path': 'worker.py', 'new_text': '        except Exception a ...', 'old_text': '        except Exception a ...'}
+  🔠 itu4kud7 | Return Successfully updated job_queue.py (1 replacement(s))
 [0m[2m
-  🔠 akq1n7a3 | Return Successfully updated worker.py (1 replacement(s))
+  🔠 efsz895z | Return Successfully updated worker.py (1 replacement(s))
 [0m[2m
-  🧰 aspdpqyk | Bash {'command': 'python main.py'}
+  🧰 k2rfajps | Bash {'command': 'python main.py'}
 [0m  [2m[Worker 0] picked up job 1
 [0m  [2m[Worker 1] picked up job 2
 [0m  [2m[Worker 2] picked up job 3
@@ -334,7 +546,7 @@
 [0m  [2mFailed: 2 (expected 2)
 [0m  [2mStuck:  0 (expected 0)
 [0m[2m
-  🔠 aspdpqyk | Return Command: python main.py
+  🔠 k2rfajps | Return Command: python main.py
      Directory: /Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla-gemini-3-pro-preview/bug-fix/workdir
      Stdout:
      [Worker 0] picked up job 1
@@ -379,13 +591,18 @@
      Exit Code: 0
      Background PIDs: (none)
 [0m[2m
-  Both issues have been found[0m[2m and resolved:
+  I have[0m[2m identified and fixed the two issues in the background job processor:
      
-     1. **Duplicate processing**: The `JobQueue.dequeue` method had a race condition. It[0m[2m awaited an async operation (`asyncio.sleep(0.01)`) *before* marking the job as `"[0m[2mprocessing"`. This yielded control to the event loop, allowing multiple workers to concurrently find the same job in the `"pending"` state and pick[0m[2m it up. I fixed this by marking the job as `"processing"` synchronously before the `await`.
-     2. **[0m[2mVanishing failures**: The `process_job` worker in `worker.py` was catching exceptions but never notifying the queue about them. Since[0m[2m the queue never received a `.complete()` or `.fail()` call, the job stayed in the `"processing"` state forever.[0m[2m I added a call to `queue.fail(job["id"], str(e))` in the exception handler to ensure failures[0m[2m are routed back to the queue to be retried or marked as completely failed. 
+     1. **Duplicate processing[0m[2m (Race condition in `dequeue`)**:
+        - **Root Cause**: The `dequeue` method in `job_queue.py` had[0m[2m an `await asyncio.sleep(0.01)` *before* changing the job status from `"pending"` to `"processing"[0m[2m`. Because this is an async coroutine, yielding control allowed other workers to dequeue the exact same `"pending"` job before the[0m[2m first worker could update its status.
+        - **Fix**: I moved the status update `job["status"] = "[0m[2mprocessing"` to happen immediately before the `await asyncio.sleep(0.01)`, ensuring that once a worker identifies[0m[2m a pending job, it claims it synchronously before yielding control.
      
-     The simulation results now match expectations cleanly[0m[2m (10 done, 2 failed, 0 stuck).[0m[2m[0m[2m
-  💸 (Requests: 7 | Tool Calls: 6 | Total: 82497) Input: 79289 | Audio Input: 0 | Output: 3208 | Audio Output: 0 | Cache Read: 44063 | Cache Write: 0 | Details: {'thoughts_tokens': 2643, 'text_prompt_tokens': 79289, 'cached_content_tokens': 44063, 'text_cache_tokens': 44063}
+     2. **Vanishing failures (Missing failure handling in[0m[2m worker)**:
+        - **Root Cause**: When a job raised an exception in `worker.py`, the `except Exception[0m[2m as e:` block caught the error and printed a message, but it never notified the `JobQueue` that the job failed[0m[2m. As a result, the job's status remained `"processing"`, effectively disappearing from the queue and becoming "stuck".
+        -[0m[2m **Fix**: I added a call to `queue.fail(job["id"], str(e))` inside the `except` block in[0m[2m `worker.py`. This ensures the queue is aware of the failure, allowing it to correctly handle retries or mark the job as permanently[0m[2m `"failed"`.
+     
+     The simulation now runs successfully, with 10 jobs completed, 2 failed (after exhausting[0m[2m retries), and 0 stuck. The public method signatures remain unchanged.[0m[2m
+  💸 (Requests: 6 | Tool Calls: 8 | Total: 84615) Input: 81182 | Audio Input: 0 | Output: 3433 | Audio Output: 0 | Cache Read: 48192 | Cache Write: 0 | Details: {'thoughts_tokens': 2713, 'text_prompt_tokens': 81182, 'cached_content_tokens': 48192, 'text_cache_tokens': 48192}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "Our background job processor has been acting up in production. Two separate issues have been reported:
 
 1. **Duplicate processing**: Some jobs appear to be executed more than once. We've seen side effects (emails, charges) triggered twice for a single job ID.
@@ -394,10 +611,15 @@
 The system is in `job_queue.py` (the queue) and `worker.py` (the processor). `main.py` runs a simulation you can use to reproduce the issues.
 
 Find the root causes and fix them. Do not change the public method signatures." --model google-gla:gemini-3-pro-preview --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mmild-bone-1037[0m[0m
-Both issues have been found and resolved:
+[2m[2mSession[0m: [1;33mhard-film-8679[0m[0m
+I have identified and fixed the two issues in the background job processor:
 
-1. **Duplicate processing**: The `JobQueue.dequeue` method had a race condition. It awaited an async operation (`asyncio.sleep(0.01)`) *before* marking the job as `"processing"`. This yielded control to the event loop, allowing multiple workers to concurrently find the same job in the `"pending"` state and pick it up. I fixed this by marking the job as `"processing"` synchronously before the `await`.
-2. **Vanishing failures**: The `process_job` worker in `worker.py` was catching exceptions but never notifying the queue about them. Since the queue never received a `.complete()` or `.fail()` call, the job stayed in the `"processing"` state forever. I added a call to `queue.fail(job["id"], str(e))` in the exception handler to ensure failures are routed back to the queue to be retried or marked as completely failed. 
+1. **Duplicate processing (Race condition in `dequeue`)**:
+   - **Root Cause**: The `dequeue` method in `job_queue.py` had an `await asyncio.sleep(0.01)` *before* changing the job status from `"pending"` to `"processing"`. Because this is an async coroutine, yielding control allowed other workers to dequeue the exact same `"pending"` job before the first worker could update its status.
+   - **Fix**: I moved the status update `job["status"] = "processing"` to happen immediately before the `await asyncio.sleep(0.01)`, ensuring that once a worker identifies a pending job, it claims it synchronously before yielding control.
 
-The simulation results now match expectations cleanly (10 done, 2 failed, 0 stuck).
+2. **Vanishing failures (Missing failure handling in worker)**:
+   - **Root Cause**: When a job raised an exception in `worker.py`, the `except Exception as e:` block caught the error and printed a message, but it never notified the `JobQueue` that the job failed. As a result, the job's status remained `"processing"`, effectively disappearing from the queue and becoming "stuck".
+   - **Fix**: I added a call to `queue.fail(job["id"], str(e))` inside the `except` block in `worker.py`. This ensures the queue is aware of the failure, allowing it to correctly handle retries or mark the job as permanently `"failed"`.
+
+The simulation now runs successfully, with 10 jobs completed, 2 failed (after exhausting retries), and 0 stuck. The public method signatures remain unchanged.

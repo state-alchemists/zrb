@@ -10,20 +10,24 @@ async def checkout(
     inventory: Inventory,
     gateway: PaymentGateway,
 ) -> bool:
-    # Reserve stock atomically before charging
+    # Check if already charged to prevent duplicate charges
+    if await gateway.has_charged(order_id):
+        print(f"Order {order_id}: already charged, skipping")
+        return False
+
+    # Atomically reserve inventory (prevents overselling)
     reserved = await inventory.reserve(quantity)
     if not reserved:
         print(f"Order {order_id}: out of stock")
         return False
 
-    # Charge payment (idempotent - won't charge same order twice)
+    # Charge payment
     charged = await gateway.charge(order_id, quantity * price)
     if not charged:
-        # Payment failed, release the reservation
+        # Compensation: release reserved inventory
         await inventory.release(quantity)
         print(f"Order {order_id}: payment failed")
         return False
 
-    # Payment succeeded, stock already reserved
     print(f"Order {order_id}: SUCCESS")
     return True

@@ -1,22 +1,6 @@
-from fastapi import FastAPI, HTTPException
-from typing import List
-from .models import Task, TaskCreate, TaskUpdate, Project
-from .database import tasks, projects
-from .auth import require_api_key
-
-app = FastAPI(title="Project Management API")
-
-
-@app.get("/projects", response_model=List[Project])
-async def list_projects():
-    return projects
-
-
-@app.get("/tasks", response_model=List[Task])
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Depends, Query
 from typing import List, Optional
-from fastapi import Depends
-from .models import Task, TaskCreate, TaskUpdate, Project, TaskStatus
+from .models import TaskStatus, Task, TaskCreate, TaskUpdate, Project
 from .database import tasks, projects
 from .auth import require_api_key
 
@@ -30,9 +14,9 @@ async def list_projects():
 
 @app.get("/tasks", response_model=List[Task])
 async def list_tasks(
-    status: Optional[TaskStatus] = Query(None),
-    priority: Optional[int] = Query(None),
-    assigned_to: Optional[str] = Query(None),
+    status: Optional[TaskStatus] = None,
+    priority: Optional[int] = None,
+    assigned_to: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100)
 ):
@@ -44,7 +28,6 @@ async def list_tasks(
     if assigned_to:
         filtered_tasks = [task for task in filtered_tasks if task.assigned_to == assigned_to]
 
-    # Apply pagination
     start_index = (page - 1) * page_size
     end_index = start_index + page_size
     return filtered_tasks[start_index:end_index]
@@ -75,17 +58,18 @@ async def create_task(task: TaskCreate, api_key: str = Depends(require_api_key))
 async def update_task(task_id: int, task_update: TaskUpdate, api_key: str = Depends(require_api_key)):
     for idx, task in enumerate(tasks):
         if task.id == task_id:
-            updated_data = task_update.dict(exclude_unset=True)
-            for key, value in updated_data.items():
-                setattr(tasks[idx], key, value)
-            return tasks[idx]
+            updated_task_data = task_update.dict(exclude_unset=True)
+            updated_task = task.copy(update=updated_task_data)
+            tasks[idx] = updated_task
+            return updated_task
     raise HTTPException(status_code=404, detail="Task not found")
 
 
 @app.delete("/tasks/{task_id}", status_code=204)
 async def delete_task(task_id: int, api_key: str = Depends(require_api_key)):
-    original_len = len(tasks)
-    tasks[:] = [task for task in tasks if task.id != task_id]
-    if len(tasks) == original_len:
-        raise HTTPException(status_code=404, detail="Task not found")
-    return {"message": "Task deleted successfully"}
+    for idx, task in enumerate(tasks):
+        if task.id == task_id:
+            del tasks[idx]
+            return
+    raise HTTPException(status_code=404, detail="Task not found")
+

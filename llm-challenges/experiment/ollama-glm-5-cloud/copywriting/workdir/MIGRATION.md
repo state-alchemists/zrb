@@ -1,19 +1,17 @@
-# Zrb Task API Migration Guide: v1 → v2
+# Zrb Task API v1 → v2 Migration Guide
 
-This guide covers all breaking changes when upgrading from v1 to v2. The v2 release introduces projects, pagination, and a stricter authentication model.
-
----
+v2 introduces projects, cursor-based pagination, and stricter authentication. This guide covers every breaking change and how to update your integration.
 
 ## Breaking Changes Overview
 
 | Change | v1 | v2 |
 |--------|----|----|
-| Endpoint prefix | `/tasks` | `/v2/tasks` |
+| API prefix | `/tasks` | `/v2/tasks` |
 | Authentication header | `X-Auth-Token` | `Authorization: Bearer` |
 | Task ID type | integer | UUID string |
 | Task status field | `done` | `completed` |
-| Task creation | `project_id` optional | `project_id` **required** |
-| List response | bare array | paginated envelope |
+| Required fields on create | `title` | `title`, `project_id` |
+| List response format | bare array | paginated envelope |
 
 ---
 
@@ -21,92 +19,51 @@ This guide covers all breaking changes when upgrading from v1 to v2. The v2 rele
 
 The authentication header has changed from a custom header to standard Bearer token authentication.
 
-**Breaking change:** Requests using `X-Auth-Token` will receive HTTP 401 Unauthorized.
-
-### Before (v1)
-
-```bash
-curl -H "X-Auth-Token: your_api_key" https://api.example.com/tasks
+**Before (v1):**
+```http
+GET /tasks HTTP/1.1
+X-Auth-Token: your_api_key
 ```
 
-```javascript
-// JavaScript
-fetch('/tasks', {
-  headers: {
-    'X-Auth-Token': apiKey
-  }
-});
+**After (v2):**
+```http
+GET /v2/tasks HTTP/1.1
+Authorization: Bearer your_api_token
 ```
 
-```python
-# Python
-import requests
-
-headers = {'X-Auth-Token': api_key}
-response = requests.get('https://api.example.com/tasks', headers=headers)
-```
-
-### After (v2)
-
-```bash
-curl -H "Authorization: Bearer your_api_token" https://api.example.com/v2/tasks
-```
-
-```javascript
-// JavaScript
-fetch('/v2/tasks', {
-  headers: {
-    'Authorization': `Bearer ${apiToken}`
-  }
-});
-```
-
-```python
-# Python
-import requests
-
-headers = {'Authorization': f'Bearer {api_token}'}
-response = requests.get('https://api.example.com/v2/tasks', headers=headers)
-```
+Requests using the old `X-Auth-Token` header will receive HTTP 401 Unauthorized.
 
 ---
 
 ## 2. Endpoint Prefix
 
-All endpoints are now prefixed with `/v2/`.
+All endpoints are now versioned under `/v2/`.
 
-**Breaking change:** v1 endpoints will return HTTP 404.
-
-### Before (v1)
-
-```bash
+**Before (v1):**
+```
 GET /tasks
-GET /tasks/{id}
+GET /tasks/42
 POST /tasks
-PUT /tasks/{id}
-DELETE /tasks/{id}
+PUT /tasks/42
+DELETE /tasks/42
 ```
 
-### After (v2)
-
-```bash
+**After (v2):**
+```
 GET /v2/tasks
-GET /v2/tasks/{id}
+GET /v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890
 POST /v2/tasks
-PUT /v2/tasks/{id}
-DELETE /v2/tasks/{id}
+PUT /v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890
+DELETE /v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890
 ```
 
 ---
 
-## 3. Task ID Type Change
+## 3. Task ID Type
 
-Task IDs have changed from auto-increment integers to UUID strings.
+Task IDs are now UUID strings instead of integers.
 
-**Breaking change:** Any code parsing, storing, or validating IDs as integers will fail.
-
-### Before (v1)
-
+**Before (v1):**
 ```json
 {
   "id": 42,
@@ -114,24 +71,7 @@ Task IDs have changed from auto-increment integers to UUID strings.
 }
 ```
 
-```javascript
-// JavaScript - Integer validation
-if (typeof task.id === 'number') {
-  // ...
-}
-
-// URL construction with integer
-const url = `/tasks/${taskId}`;
-```
-
-```python
-# Python - Integer type hints
-def get_task(task_id: int) -> dict:
-    return requests.get(f'/tasks/{task_id}').json()
-```
-
-### After (v2)
-
+**After (v2):**
 ```json
 {
   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
@@ -139,309 +79,165 @@ def get_task(task_id: int) -> dict:
 }
 ```
 
-```javascript
-// JavaScript - String validation
-if (typeof task.id === 'string') {
-  // ...
-}
-
-// URL construction works the same
-const url = `/v2/tasks/${taskId}`;
-```
-
-```python
-# Python - UUID/string type hints
-def get_task(task_id: str) -> dict:
-    return requests.get(f'/v2/tasks/{task_id}').json()
-```
+If you store task IDs in your database, update the column type from integer to string (VARCHAR/TEXT).
 
 ---
 
-## 4. Field Rename: `done` → `completed`
+## 4. Task Status Field Rename
 
-The `done` field has been renamed to `completed` for clarity.
+The `done` field has been renamed to `completed`.
 
-**Breaking change:** Code referencing `done` will fail. The v2 API will reject `done` in request bodies.
-
-### Before (v1)
-
+**Before (v1):**
 ```json
-// Task object
 {
-  "id": 1,
-  "title": "Buy milk",
-  "done": false
+  "id": 42,
+  "title": "Write tests",
+  "done": true
 }
 ```
 
-```bash
-# Update task
-curl -X PUT /tasks/1 -d '{"done": true}'
+**After (v2):**
+```json
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "title": "Write tests",
+  "completed": true
+}
 ```
 
+Update any client code that reads or writes the `done` field:
+
+**Before (v1):**
 ```javascript
-// JavaScript
 if (task.done) {
-  console.log('Task completed!');
+  console.log("Task completed!");
 }
 
-// Update request
-await fetch(`/tasks/${id}`, {
+// Updating task status
+await fetch('/tasks/42', {
   method: 'PUT',
   body: JSON.stringify({ done: true })
 });
 ```
 
-```python
-# Python
-if task['done']:
-    print('Task completed!')
-
-# Update request
-requests.put(f'/tasks/{id}', json={'done': True})
-```
-
-### After (v2)
-
-```json
-// Task object
-{
-  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "title": "Buy milk",
-  "completed": false
-}
-```
-
-```bash
-# Update task
-curl -X PUT /v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890 -d '{"completed": true}'
-```
-
+**After (v2):**
 ```javascript
-// JavaScript
 if (task.completed) {
-  console.log('Task completed!');
+  console.log("Task completed!");
 }
 
-// Update request
-await fetch(`/v2/tasks/${id}`, {
+// Updating task status
+await fetch('/v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890', {
   method: 'PUT',
   body: JSON.stringify({ completed: true })
 });
-```
-
-```python
-# Python
-if task['completed']:
-    print('Task completed!')
-
-# Update request
-requests.put(f'/v2/tasks/{id}', json={'completed': True})
 ```
 
 ---
 
 ## 5. Required `project_id` on Task Creation
 
-Creating a task now requires a `project_id` field.
+Creating a task now requires a `project_id`. Tasks must belong to a project.
 
-**Breaking change:** Creating a task without `project_id` will return HTTP 422 Unprocessable Entity.
-
-### Before (v1)
-
-```bash
-curl -X POST /tasks -d '{"title": "New task title"}'
+**Before (v1):**
+```json
+POST /tasks
+{
+  "title": "New task title"
+}
 ```
 
-```javascript
-// JavaScript
-const task = await fetch('/tasks', {
-  method: 'POST',
-  body: JSON.stringify({ title: 'New task title' })
-});
+**After (v2):**
+```json
+POST /v2/tasks
+{
+  "title": "New task title",
+  "project_id": "proj_abc123"
+}
 ```
 
-```python
-# Python
-task = requests.post('/tasks', json={'title': 'New task title'})
-```
-
-### After (v2)
-
-```bash
-curl -X POST /v2/tasks -d '{"title": "New task title", "project_id": "proj_abc123"}'
-```
-
-```javascript
-// JavaScript
-const task = await fetch('/v2/tasks', {
-  method: 'POST',
-  body: JSON.stringify({
-    title: 'New task title',
-    project_id: 'proj_abc123'
-  })
-});
-```
-
-```python
-# Python
-task = requests.post('/v2/tasks', json={
-    'title': 'New task title',
-    'project_id': 'proj_abc123'
-})
-```
+Omitting `project_id` returns HTTP 422 Unprocessable Entity. Retrieve available projects via `GET /v2/projects`.
 
 ---
 
 ## 6. Paginated List Response
 
-List endpoints now return a paginated envelope with metadata instead of a bare array.
+List endpoints now return a paginated envelope instead of a bare array.
 
-**Breaking change:** Code expecting a direct array will need to access `.items` and handle pagination.
-
-### Before (v1)
-
+**Before (v1):**
 ```json
+GET /tasks
+
 [
   {"id": 1, "title": "Buy milk", "done": false, "created_at": "..."},
   {"id": 2, "title": "Ship v1", "done": true, "created_at": "..."}
 ]
 ```
 
-```javascript
-// JavaScript
-const tasks = await fetch('/tasks').then(r => r.json());
-tasks.forEach(task => console.log(task.title));
-```
-
-```python
-# Python
-tasks = requests.get('/tasks').json()
-for task in tasks:
-    print(task['title'])
-```
-
-### After (v2)
-
+**After (v2):**
 ```json
+GET /v2/tasks
+
 {
   "items": [
     {"id": "a1b2...", "title": "Buy milk", "completed": false, "project_id": "proj_abc", "created_at": "..."},
-    {"id": "b2c3...", "title": "Ship v1", "completed": true, "project_id": "proj_abc", "created_at": "..."}
+    {"id": "b2c3...", "title": "Ship v2", "completed": true, "project_id": "proj_xyz", "created_at": "..."}
   ],
   "total": 42,
   "next_cursor": "cursor_xyz"
 }
 ```
 
+Update your client code to:
+
+1. Access tasks via `response.items` instead of treating the response as an array
+2. Handle pagination using `next_cursor`
+
+**Before (v1):**
 ```javascript
-// JavaScript - Access items from envelope
+const tasks = await fetch('/tasks').then(r => r.json());
+tasks.forEach(task => console.log(task.title));
+```
+
+**After (v2):**
+```javascript
 const response = await fetch('/v2/tasks').then(r => r.json());
 response.items.forEach(task => console.log(task.title));
 
 // Pagination
 if (response.next_cursor) {
-  const nextPage = await fetch(`/v2/tasks?cursor=${response.next_cursor}`);
+  const next = await fetch(`/v2/tasks?cursor=${response.next_cursor}`).then(r => r.json());
 }
 ```
 
-```python
-# Python - Access items from envelope
-response = requests.get('/v2/tasks').json()
-for task in response['items']:
-    print(task['title'])
-
-# Pagination
-if response['next_cursor']:
-    next_page = requests.get(f"/v2/tasks?cursor={response['next_cursor']}")
-```
-
----
-
-## 7. Task Object Structure
-
-The v2 task object includes a new field and a renamed field.
-
-### Before (v1)
-
-```json
-{
-  "id": 42,
-  "title": "Write tests",
-  "done": false,
-  "created_at": "2024-01-15T10:30:00Z"
-}
-```
-
-### After (v2)
-
-```json
-{
-  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "title": "Write tests",
-  "completed": false,
-  "project_id": "proj_abc123",
-  "created_at": "2024-01-15T10:30:00Z"
-}
-```
+Pagination query parameters:
+- `cursor` — pagination cursor from `next_cursor` (optional)
+- `limit` — max results per page, default 20 (optional)
 
 ---
 
 ## Migration Checklist
 
-Follow these steps in order:
-
-- [ ] **1. Update authentication headers**
-  - Change `X-Auth-Token` to `Authorization: Bearer <token>`
-  - Verify all API clients use the new header
-
-- [ ] **2. Update API endpoint URLs**
-  - Add `/v2` prefix to all endpoints
-  - Update base URLs in configuration files
-
-- [ ] **3. Update ID handling**
-  - Change task ID type from `int` to `str` (or UUID)
-  - Update database schemas if storing IDs
-  - Update validation logic for UUID format
-
-- [ ] **4. Rename `done` to `completed`**
-  - Update all code reading `task.done` → `task.completed`
-  - Update all API request bodies using `done` → `completed`
-  - Update database column names if applicable
-
-- [ ] **5. Add `project_id` to task creation**
-  - Update all task creation calls to include `project_id`
-  - Implement project selection UI if needed
-  - Ensure project IDs are available before creating tasks
-
-- [ ] **6. Update list response handling**
-  - Change array access to `.items` property access
-  - Implement pagination logic using `next_cursor` and `limit`
-  - Update any `total` count references (now in envelope)
-
-- [ ] **7. Update tests and integration suites**
-  - Mock responses with v2 format
-  - Add tests for pagination
-  - Add tests for auth header changes
-
-- [ ] **8. Monitor for HTTP 401/404/422 errors**
-  - Set up alerts for authentication failures
-  - Log endpoint mismatches for quick identification
+- [ ] Update authentication header from `X-Auth-Token` to `Authorization: Bearer`
+- [ ] Prefix all endpoints with `/v2/`
+- [ ] Update task ID handling from integer to UUID string (database schemas, type definitions, URL builders)
+- [ ] Rename all `done` field references to `completed` (read and write operations)
+- [ ] Add `project_id` to all task creation requests
+- [ ] Update list endpoint handlers to access `response.items` instead of treating response as array
+- [ ] Implement pagination handling for list endpoints using `next_cursor`
+- [ ] Run integration tests against v2 endpoints
+- [ ] Update SDK/client library versions if applicable
 
 ---
 
 ## Upgrade Command
 
 ```bash
-npm install zrb-task-api-client@2.0.0
-# or
-pip install zrb-task-api-client==2.0.0
+npm install zrb-client@^2.0.0
 ```
 
----
+Or if using the CLI directly:
 
-## Support
-
-For questions or issues with migration:
-- GitHub Issues: https://github.com/zrb/task-api/issues
-- Discord: https://discord.gg/zrb-dev
+```bash
+zrb upgrade --version 2
+```

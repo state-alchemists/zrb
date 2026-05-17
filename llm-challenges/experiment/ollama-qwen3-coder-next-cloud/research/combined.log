@@ -1,7 +1,7 @@
 [2m
-  🧰 call_qf8z0es8 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+  🧰 call_m1pkjcws | Read {'path': '/Users/gofrendigunawan/zrb ...'}
 [0m[2m
-  🔠 call_qf8z0es8 | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/research/workdir/system_context.md | 44 lines]
+  🔠 call_m1pkjcws | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/research/workdir/system_context.md | 44 lines]
      ---CONTENT---
      # System Context: Notifier Subsystem Decision
      
@@ -48,14 +48,192 @@
      - Must maintain exactly-once semantics for billing notifications
      
 [0m[2m
-  🧰 call_v0f9bsa8 | Write {'path': '/Users/gofrendigunawan/zrb ...', 'content': '# ADR-001: Notification Su ...'}
+  🧰 call_0yd6aaku | ActivateSkill {'name': 'core-design'}
 [0m[2m
-  🔠 call_v0f9bsa8 | Return Successfully wrote to /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/research/workdir/ADR-001-notification-architecture.md
-[0m[2m
-  Done[0m[2m.[0m[2m Saved[0m[2m `[0m[2mADR[0m[2m-[0m[2m0[0m[2m0[0m[2m1[0m[2m-notification[0m[2m-[0m[2marchitecture[0m[2m.md[0m[2m`[0m[2m with[0m[2m a[0m[2m definitive[0m[2m recommendation[0m[2m for[0m[2m **[0m[2mRedis[0m[2m Streams[0m[2m**[0m[2m.[0m[2m
+  🔠 call_0yd6aaku | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
      
-     **[0m[2mKey[0m[2m justification[0m[2m:**[0m[2m For[0m[2m a[0m[2m 6[0m[2m-person[0m[2m team[0m[2m with[0m[2m no[0m[2m Kafka[0m[2m expertise[0m[2m,[0m[2m Redis[0m[2m Streams[0m[2m meets[0m[2m all[0m[2m technical[0m[2m requirements[0m[2m ([0m[2mas[0m[2mynchronous[0m[2m dec[0m[2mou[0m[2mpling[0m[2m,[0m[2m exactly[0m[2m-on[0m[2mce[0m[2m via[0m[2m id[0m[2memp[0m[2motent[0m[2m ded[0m[2mup[0m[2mlication[0m[2m,[0m[2m exponential[0m[2m back[0m[2moff[0m[2m retry[0m[2m,[0m[2m 1[0m[2m0[0m[2mx[0m[2m scale[0m[2m head[0m[2mroom[0m[2m)[0m[2m while[0m[2m staying[0m[2m within[0m[2m the[0m[2m 2[0m[2m-week[0m[2m operational constraint[0m[2m and[0m[2m existing[0m[2m infrastructure[0m[2m ([0m[2mRedis[0m[2m).[0m[2m Kafka[0m[2m’s[0m[2m superior[0m[2m throughput[0m[2m and[0m[2m retention[0m[2m are[0m[2m unnecessary[0m[2m at[0m[2m 2[0m[2mM[0m[2m events[0m[2m/month[0m[2m,[0m[2m and[0m[2m its[0m[2m operational[0m[2m complexity[0m[2m would[0m[2m delay[0m[2m delivery[0m[2m and[0m[2m increase[0m[2m incident[0m[2m risk[0m[2m.[0m[2m
-  💸 (Requests: 3 | Tool Calls: 2 | Total: 29978) Input: 28342 | Audio Input: 0 | Output: 1636 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
+     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-design
+     
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
+     
+     Companion files available in this directory:
+       templates/
+         decision-record.md
+     
+     ---
+     
+     ---
+     name: core-design
+     description: "Activate before any design work — system architecture, API design, data modeling, component decomposition, or trade-off analysis. Provides the Constraints → Explore → Decide → Specify → Plan workflow for sound, well-reasoned designs."
+     user-invocable: false
+     ---
+     # Skill: core-design
+     
+     Follow **Constraints → Explore → Decide → Specify → Plan** for every design task.
+     
+     ## Companion Templates
+     
+     When the current step matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
+     
+     | Trigger | Companion |
+     |---------|-----------|
+     | Recording a design decision worth preserving (during or after the Decide step) | `templates/decision-record.md` |
+     
+     ## Workflow
+     
+     ### 1. Constraints & Requirements
+     
+     - Extract explicit requirements and implicit constraints from the task.
+     - Identify what's in scope and what's out.
+     - Note non-negotiables: existing interfaces, backward compatibility, security, performance targets.
+     - If requirements are ambiguous, ask before designing further.
+     
+     ### 2. Architecture Exploration
+     
+     - Generate 2-3 distinct approaches. Avoid converging on the first idea.
+     - Compare each approach against: correctness, consistency with existing patterns, complexity, performance, maintainability, testability.
+     - Use `Grep`, `Glob`, and `Read` to study existing patterns before proposing new ones.
+     - For large or unfamiliar domains, activate `core-research` first to map the landscape.
+     
+     ### 3. Design Decision
+     
+     - Choose the best approach with explicit rationale.
+     - Document what was chosen AND what was rejected and why.
+     - The rationale should be specific enough that someone else could reconstruct the same decision from the constraints.
+     
+     ### 4. Specification
+     
+     - Define precise contracts: interfaces, data flow, error modes, edge cases.
+     - Be concrete enough that implementation is straightforward from the spec alone.
+     - Use `WriteTodos` to capture loose ends or open questions.
+     
+     ### 5. Implementation Plan
+     
+     - Break the design into discrete implementation steps.
+     - Each step: Action → Target → Verification.
+     - Order steps by dependency (what must exist before what).
+     
+     ## Safety Rules
+     
+     - **No premature implementation**: During steps 1-4, do not write or modify any code. Design decisions come before implementation.
+     - **Approval gate**: You must obtain explicit user approval of the design and plan before starting implementation.
+     
+     ## Output Standards
+     
+     - **Structured**: Clear sections matching the workflow above.
+     - **Precise**: Specific interfaces, types, and contracts — not vague descriptions.
+     - **Context-aware**: The design must fit the existing codebase, not introduce a new paradigm unless justified.
+     - **Transparent**: Surface trade-offs made and alternatives considered.
+     </ACTIVATED_SKILL>
+[0m[2m
+  🧰 call_aicmkpnn | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_aicmkpnn | Return [File: /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-design/templates/decision-record.md | 76 lines]
+     ---CONTENT---
+     # Architecture Decision Record (ADR) Template
+     
+     Use this when core-design's **Decide** step produces a choice worth recording — anything a future reader (including the LLM in a later session) would want to reconstruct.
+     
+     ## File Location
+     
+     Store ADRs under the project's documentation:
+     
+     - Preferred: `docs/adr/NNNN-<short-slug>.md` (sequential, `0001`, `0002`, …)
+     - Acceptable: `.adr/`, `docs/decisions/`, or wherever the project already keeps them
+     
+     Check first with `Glob` — match existing project convention rather than inventing one.
+     
+     ## Format
+     
+     ````markdown
+     # ADR NNNN — <short title in imperative or noun phrase>
+     
+     - **Status**: Proposed | Accepted | Superseded by ADR NNNN | Deprecated
+     - **Date**: YYYY-MM-DD
+     - **Deciders**: <names or roles>
+     - **Context tags**: <comma-separated, e.g. auth, performance, storage>
+     
+     ## Context
+     
+     What problem are we solving? What constraints apply? What changed that forces this decision now?
+     
+     State the situation neutrally — anyone reading this in a year should understand *why this came up* without needing the surrounding conversation.
+     
+     ## Decision
+     
+     The single sentence stating what was chosen, in active voice.
+     
+     > We will use <X> for <Y>.
+     
+     Then, if needed, 1–3 paragraphs of clarification. No more.
+     
+     ## Rationale
+     
+     Why this option won. Tie back to the constraints in Context. Cite evidence (`file:line`, benchmarks, prior incidents).
+     
+     ## Alternatives Considered
+     
+     Each alternative gets a short paragraph:
+     - **<Option A>** — why rejected.
+     - **<Option B>** — why rejected.
+     
+     Be specific about what would have made the alternative win. ("We'd have chosen B if our throughput requirement were 10× higher.")
+     
+     ## Consequences
+     
+     What this decision *commits us to* and what it *closes off*.
+     
+     - **Positive**: <e.g., simpler operational model, fewer moving parts>
+     - **Negative**: <e.g., cannot horizontally scale beyond N without revisiting>
+     - **Follow-ups**: <concrete next steps — tests to write, docs to update, deprecations>
+     
+     ## Backlinks
+     
+     - [ADR index](index.md)
+     - <other ADRs that depend on or relate to this one>
+     ````
+     
+     ## Tone
+     
+     - Past or present tense, never future ("will" is fine in the Decision line, not in the body).
+     - Specific over vague. "We chose Postgres 16 over Redis Streams because our queue depth is bounded by row count, not message rate" beats "Postgres seemed more appropriate."
+     - Don't apologize, don't editorialize. State the decision and the evidence.
+     
+     ## ADR Lifecycle
+     
+     - **Proposed**: drafted but not yet agreed. Use during core-design's Decide step before user approval.
+     - **Accepted**: agreed and in force. Default after user approval.
+     - **Superseded**: replaced by a newer ADR. Add `Superseded by ADR NNNN` to the Status line; keep the file (do not delete history).
+     - **Deprecated**: the situation that motivated the decision no longer exists. Status line records why.
+     
+[0m[2m
+  Based[0m[2m on[0m[2m the[0m[2m system[0m[2m context[0m[2m and[0m[2m design[0m[2m constraints[0m[2m,[0m[2m I[0m[2m'll[0m[2m write[0m[2m an[0m[2m A[0m[2mDR[0m[2m for[0m[2m the[0m[2m notification[0m[2m subsystem[0m[2m using[0m[2m Redis[0m[2m Streams[0m[2m.[0m[2m
+     
+     I[0m[2m'm[0m[2m choosing[0m[2m Redis[0m[2m Streams[0m[2m because[0m[2m:[0m[2m
+     -[0m[2m Existing[0m[2m Redis[0m[2m deployment[0m[2m reduces[0m[2m operational[0m[2m overhead[0m[2m ([0m[2mno[0m[2m new[0m[2m infrastructure[0m[2m to[0m[2m learn[0m[2m/set[0m[2m up[0m[2m)[0m[2m
+     -[0m[2m The[0m[2m team[0m[2m already[0m[2m uses[0m[2m Redis[0m[2m for[0m[2m sessions[0m[2m and[0m[2m rate[0m[2m limiting[0m[2m —[0m[2m lower[0m[2m learning[0m[2m curve[0m[2m than[0m[2m Kafka[0m[2m
+     -[0m[2m Exactly[0m[2m-on[0m[2mce[0m[2m semantics[0m[2m are[0m[2m achievable[0m[2m via[0m[2m Redis[0m[2m consumer[0m[2m groups + client-side ded[0m[2mup[0m[2mlication[0m[2m
+     -[0m[2m Through[0m[2mput[0m[2m ([0m[2m1[0m[2m0[0m[2m0[0m[2mK[0m[2m+[0m[2m msg[0m[2m/s[0m[2m per[0m[2m Redis[0m[2m instance[0m[2m)[0m[2m exceeds[0m[2m the[0m[2m 2[0m[2mM[0m[2m tasks[0m[2m/month[0m[2m (~[0m[2m7[0m[2m0[0m[2m0[0m[2m tasks[0m[2m/day[0m[2m or[0m[2m ~[0m[2m1[0m[2m msg[0m[2m/s[0m[2m average[0m[2m,[0m[2m peak[0m[2m ~[0m[2m5[0m[2m0[0m[2m0[0m[2m q[0m[2mps[0m[2m)[0m[2m
+     -[0m[2m Simple[0m[2m retry[0m[2m with[0m[2m exponential[0m[2m back[0m[2moff[0m[2m can[0m[2m be[0m[2m implemented[0m[2m at[0m[2m the[0m[2m consumer[0m[2m level[0m[2m
+     -[0m[2m Budget[0m[2m and[0m[2m team[0m[2m-size[0m[2m constraints[0m[2m favor[0m[2m Redis[0m[2m: no[0m[2m Con[0m[2mfl[0m[2muent[0m[2m Cloud[0m[2m costs[0m[2m,[0m[2m simpler[0m[2m debugging[0m[2m and[0m[2m monitoring[0m[2m
+     
+     Let[0m[2m me[0m[2m write[0m[2m the[0m[2m A[0m[2mDR[0m[2m:[0m[2m
+  🧰 call_mninyik9 | Write {'path': '/Users/gofrendigunawan/zrb ...', 'content': '# ADR-001 — Notification S ...'}
+[0m[2m
+  🔠 call_mninyik9 | Return Successfully wrote to /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-qwen3-coder-next-cloud/research/workdir/ADR-001-notification-architecture.md
+[0m[2m
+  ADR[0m[2m written[0m[2m to[0m[2m `[0m[2mADR[0m[2m-[0m[2m0[0m[2m0[0m[2m1[0m[2m-notification[0m[2m-[0m[2marchitecture[0m[2m.md[0m[2m`.[0m[2m
+     
+     **[0m[2mRecommend[0m[2mation[0m[2m**:[0m[2m Redis[0m[2m Streams[0m[2m.[0m[2m
+     
+     **[0m[2mKey[0m[2m just[0m[2mifications[0m[2m**[0m[2m:[0m[2m
+     -[0m[2m Through[0m[2mput[0m[2m ([0m[2m1[0m[2m0[0m[2m0[0m[2mK[0m[2m+[0m[2m msg[0m[2m/s[0m[2m)[0m[2m dwar[0m[2mfs[0m[2m needs[0m[2m ([0m[2m≈[0m[2m1[0m[2m msg[0m[2m/s[0m[2m currently[0m[2m 1[0m[2m0[0m[2m msg[0m[2m/s[0m[2m at[0m[2m 1[0m[2m0[0m[2m×[0m[2m growth[0m[2m)
+     - Existing Redis[0m[2m deployment[0m[2m =[0m[2m zero[0m[2m new[0m[2m infrastructure[0m[2m,[0m[2m team[0m[2m already[0m[2m operational[0m[2m on[0m[2m Redis[0m[2m
+     -[0m[2m Exactly[0m[2m-on[0m[2mce[0m[2m via[0m[2m client[0m[2m-side[0m[2m `[0m[2mded[0m[2mup[0m[2m_id[0m[2m`[0m[2m +[0m[2m Redis[0m[2m SET[0m[2m with[0m[2m TTL[0m[2m is[0m[2m implement[0m[2mable[0m[2m in[0m[2m <1[0m[2m day[0m[2m
+     -[0m[2m Kafka[0m[2m would[0m[2m add[0m[2m complexity[0m[2m ([0m[2mbranch[0m[2ming[0m[2m,[0m[2m tuning[0m[2m,[0m[2m troubleshooting[0m[2m)[0m[2m that[0m[2m the[0m[2m 6[0m[2m-person[0m[2m team[0m[2m cannot[0m[2m sustain[0m[2m within[0m[2m the[0m[2m 2[0m[2m-week[0m[2m constraint[0m[2m
+  💸 (Requests: 5 | Tool Calls: 4 | Total: 58945) Input: 56990 | Audio Input: 0 | Output: 1955 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "Read `system_context.md`. It describes a real production system and a specific architectural problem we need to solve.
 
 Write an Architecture Decision Record (ADR) evaluating two options for the notification subsystem:
@@ -73,7 +251,13 @@ Your ADR must follow this exact structure:
 Make a definitive recommendation. Use specific technical properties (throughput, ordering guarantees, message retention, consumer groups, exactly-once semantics, operational complexity) to justify your choice given the team size and constraints described.
 
 Save as `ADR-001-notification-architecture.md`." --model ollama:qwen3-coder-next:cloud --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mhard-fuel-1345[0m[0m
-Done. Saved `ADR-001-notification-architecture.md` with a definitive recommendation for **Redis Streams**.
+[2m[2mSession[0m: [1;33mlong-bolt-1441[0m[0m
+ADR written to `ADR-001-notification-architecture.md`.
 
-**Key justification:** For a 6-person team with no Kafka expertise, Redis Streams meets all technical requirements (asynchronous decoupling, exactly-once via idempotent deduplication, exponential backoff retry, 10x scale headroom) while staying within the 2-week operational constraint and existing infrastructure (Redis). Kafka’s superior throughput and retention are unnecessary at 2M events/month, and its operational complexity would delay delivery and increase incident risk.
+**Recommendation**: Redis Streams.
+
+**Key justifications**:
+- Throughput (100K+ msg/s) dwarfs needs (≈1 msg/s currently 10 msg/s at 10× growth)
+- Existing Redis deployment = zero new infrastructure, team already operational on Redis
+- Exactly-once via client-side `dedup_id` + Redis SET with TTL is implementable in <1 day
+- Kafka would add complexity (branching, tuning, troubleshooting) that the 6-person team cannot sustain within the 2-week constraint

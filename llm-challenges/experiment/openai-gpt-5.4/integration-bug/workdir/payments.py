@@ -22,3 +22,7 @@ class PaymentGateway:
             self.charges.append({"order_id": order_id, "amount": amount})
             self._charged_orders.add(order_id)
             return True
+
+    async def is_charged(self, order_id: str) -> bool:
+        async with self._lock:
+            return order_id in self._charged_orders
