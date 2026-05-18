@@ -1,15 +1,637 @@
 
 [SYSTEM] Transient provider error, retrying in 2s (attempt 1/2)...
+
+[SYSTEM] Transient provider error, retrying in 4s (attempt 2/2)...
+[32m260518 07:04:49.693 1/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 1/3 failed: status_code: 429, model_name: gemma4:31b-cloud, body: too many concurrent requests[0m
 [2m
-  🧰 call_ex3eg4h3 | LS {'path': '.'}
+  🧰 call_e3e8fi5l | ActivateSkill {'name': 'core-writing'}
 [0m[2m
-  🔠 call_ex3eg4h3 | Return {'files': ['v1_spec.md', 'v2_spec.md']}
+  🧰 call_v1ks9a67 | LS {'path': '.'}
 [0m[2m
-  🧰 call_zwpy64by | Read {'path': 'v1_spec.md'}
+  🔠 call_v1ks9a67 | Return {'files': ['v1_spec.md', 'v2_spec.md']}
 [0m[2m
-  🧰 call_e71z2sn3 | Read {'path': 'v2_spec.md'}
+  🔠 call_e3e8fi5l | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
+     
+     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-writing
+     
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
+     
+     Companion files available in this directory:
+       templates/
+         api-doc.md
+         commit-message.md
+         readme.md
+     
+     ---
+     
+     ---
+     name: core-writing
+     description: "Activate before any substantial writing — docs, copy, proposals, feedback, commit messages, or UI text. Provides copywriting frameworks, tone guidance, and editing workflow for clear, persuasive, polished output."
+     user-invocable: false
+     ---
+     # Skill: core-writing
+     
+     Follow **Brief → Structure → Draft → Polish** for every writing task.
+     
+     ## Companion Templates
+     
+     When the current task matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
+     
+     | Trigger | Companion |
+     |---------|-----------|
+     | Writing or rewriting a project README | `templates/readme.md` |
+     | Drafting a git commit message | `templates/commit-message.md` |
+     | Documenting a function, endpoint, or CLI command | `templates/api-doc.md` |
+     
+     ## Workflow
+     
+     ### 1. Brief & Audience
+     
+     - Who is reading this? What do they already know? What do they need to know?
+     - What outcome should this writing achieve?
+     - What tone fits: technical, persuasive, instructional, conversational?
+     
+     ### 2. Structure & Outline
+     
+     - **Technical docs**: Problem → Solution → Usage → API → Examples
+     - **Persuasive writing**: Hook → Context → Evidence → Resolution → CTA
+     - **Instructional**: Goal → Prerequisites → Steps → Verification → Troubleshooting
+     - One idea per paragraph. Lead with the conclusion. Use transitions.
+     
+     ### 3. Draft
+     
+     - Write freely. Don't edit while drafting.
+     - Apply the chosen structure. Fill in evidence and examples.
+     - Use active voice. Be specific over vague.
+     
+     ### 4. Polish & Edit
+     
+     - Omit needless words. Every word must earn its place.
+     - Check flow: read aloud. Fix awkward transitions.
+     - Verify accuracy: facts, code samples, references.
+     - Proof: spelling, grammar, consistent terminology.
+     
+     ## Copywriting Formulas
+     
+     | Formula | When to Use | Structure |
+     |---------|-------------|-----------|
+     | **AIDA** | Marketing, proposals, feature announcements | Attention → Interest → Desire → Action |
+     | **PAS** | Bug reports, problem-solving docs | Problem → Agitate → Solution |
+     | **Inverted Pyramid** | News, announcements, summaries | Conclusion → Key details → Background |
+     | **Before-After-Bridge** | Change proposals, migration guides | Current → Desired → How to get there |
+     | **FEBC** | Technical decisions | Fact → Explanation → Benefit → Conclusion |
+     
+     ## Tone Matrix
+     
+     | Audience | Tone | Characteristics |
+     |----------|------|-----------------|
+     | Developers | Technical, precise | Specific terms, code examples, no fluff |
+     | Product managers | Outcome-oriented | Problem → impact → timeline → trade-offs |
+     | End users | Friendly, clear | Simple language, concrete examples, next steps |
+     | Executives | Concise, strategic | Recommendation first, TL;DR, business impact |
+     
+     ## Quality Checklist
+     
+     Before finalizing:
+     - Does the first paragraph convey the main point?
+     - Can any sentence be shortened without losing meaning?
+     - Are all claims supported by evidence?
+     - Is the tone appropriate for the audience?
+     - Would this still make sense if read in isolation?
+     
+     </ACTIVATED_SKILL>
 [0m[2m
-  🔠 call_e71z2sn3 | Return [File: v2_spec.md | 115 lines]
+  🧰 call_lje5eze3 | Read {'path': 'v1_spec.md'}
+[0m[2m
+  🧰 call_yriqggnl | Read {'path': 'v2_spec.md'}
+[0m[2m
+  🔠 call_lje5eze3 | Return [File: v1_spec.md | 83 lines]
+     ---CONTENT---
+     # Zrb Task API — v1 Reference
+     
+     ## Authentication
+     
+     All requests require an API key passed in the header:
+     
+     ```
+     X-Auth-Token: <your_api_key>
+     ```
+     
+     ## Data Types
+     
+     ### Task Object
+     
+     ```json
+     {
+       "id": 42,
+       "title": "Write tests",
+       "done": false,
+       "created_at": "2024-01-15T10:30:00Z"
+     }
+     ```
+     
+     - `id` — integer, auto-assigned
+     - `title` — string
+     - `done` — boolean, default `false`
+     - `created_at` — ISO 8601 timestamp
+     
+     ## Endpoints
+     
+     ### List Tasks
+     
+     `GET /tasks`
+     
+     Returns a bare array of task objects.
+     
+     **Response:**
+     ```json
+     [
+       {"id": 1, "title": "Buy milk", "done": false, "created_at": "..."},
+       {"id": 2, "title": "Ship v1", "done": true, "created_at": "..."}
+     ]
+     ```
+     
+     ### Get Task
+     
+     `GET /tasks/{id}`
+     
+     Returns a single task or `404`.
+     
+     ### Create Task
+     
+     `POST /tasks`
+     
+     **Request body:**
+     ```json
+     {
+       "title": "New task title"
+     }
+     ```
+     
+     **Response:** the created task object (HTTP 201).
+     
+     ### Update Task
+     
+     `PUT /tasks/{id}`
+     
+     **Request body** (all fields optional):
+     ```json
+     {
+       "title": "Updated title",
+       "done": true
+     }
+     ```
+     
+     **Response:** the updated task object.
+     
+     ### Delete Task
+     
+     `DELETE /tasks/{id}`
+     
+     **Response:** HTTP 204 No Content.
+     
+[0m[2m
+  🔠 call_yriqggnl | Return [File: v2_spec.md | 115 lines]
+     ---CONTENT---
+     # Zrb Task API — v2 Reference
+     
+     ## What's New in v2
+     
+     v2 introduces projects, improved pagination, and stricter auth. Several v1 fields and conventions have changed.
+     
+     ## Breaking Changes Summary
+     
+     1. All endpoints are now prefixed with `/v2/`
+     2. Authentication header changed
+     3. Task `id` type changed from integer to UUID string
+     4. Task field `done` renamed to `completed`
+     5. Task creation now requires `project_id`
+     6. List endpoints return a paginated envelope instead of a bare array
+     
+     ---
+     
+     ## Authentication
+     
+     Header changed from `X-Auth-Token` to Bearer token:
+     
+     ```
+     Authorization: Bearer <your_api_token>
+     ```
+     
+     Requests with `X-Auth-Token` will receive HTTP 401.
+     
+     ## Data Types
+     
+     ### Task Object (v2)
+     
+     ```json
+     {
+       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+       "title": "Write tests",
+       "completed": false,
+       "project_id": "proj_abc123",
+       "created_at": "2024-01-15T10:30:00Z"
+     }
+     ```
+     
+     - `id` — UUID string (was integer in v1)
+     - `title` — string (unchanged)
+     - `completed` — boolean (renamed from `done`)
+     - `project_id` — string, required (new field)
+     - `created_at` — ISO 8601 timestamp (unchanged)
+     
+     ### Paginated List Envelope
+     
+     All list endpoints now return:
+     
+     ```json
+     {
+       "items": [...],
+       "total": 42,
+       "next_cursor": "cursor_xyz"
+     }
+     ```
+     
+     Pass `?cursor=<next_cursor>` to fetch the next page.
+     
+     ## Endpoints
+     
+     ### List Tasks
+     
+     `GET /v2/tasks`
+     
+     **Query params:**
+     - `cursor` — pagination cursor (optional)
+     - `limit` — max results per page, default 20
+     
+     **Response:** paginated envelope (see above).
+     
+     ### Get Task
+     
+     `GET /v2/tasks/{id}`
+     
+     `id` is now a UUID string.
+     
+     ### Create Task
+     
+     `POST /v2/tasks`
+     
+     **Request body:**
+     ```json
+     {
+       "title": "New task title",
+       "project_id": "proj_abc123"
+     }
+     ```
+     
+     `project_id` is now **required**. Omitting it returns HTTP 422.
+     
+     **Response:** the created task object (HTTP 201).
+     
+     ### Update Task
+     
+     `PUT /v2/tasks/{id}`
+     
+     **Request body** (all fields optional):
+     ```json
+     {
+       "title": "Updated title",
+       "completed": true
+     }
+     ```
+     
+     Note: field is `completed`, not `done`.
+     
+     ### Delete Task
+     
+     `DELETE /v2/tasks/{id}`
+     
+     **Response:** HTTP 204 No Content.
+     
+[0m
+[SYSTEM] Transient provider error, retrying in 2s (attempt 1/2)...
+
+[SYSTEM] Transient provider error, retrying in 4s (attempt 2/2)...
+[2m
+  🧰 call_w34w5vhp | ActivateSkill {'name': 'core-writing'}
+[0m[2m
+  🧰 call_9ij91ler | LS {'path': '.'}
+[0m[2m
+  🔠 call_w34w5vhp | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
+     
+     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-writing
+     
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
+     
+     Companion files available in this directory:
+       templates/
+         api-doc.md
+         commit-message.md
+         readme.md
+     
+     ---
+     
+     ---
+     name: core-writing
+     description: "Activate before any substantial writing — docs, copy, proposals, feedback, commit messages, or UI text. Provides copywriting frameworks, tone guidance, and editing workflow for clear, persuasive, polished output."
+     user-invocable: false
+     ---
+     # Skill: core-writing
+     
+     Follow **Brief → Structure → Draft → Polish** for every writing task.
+     
+     ## Companion Templates
+     
+     When the current task matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
+     
+     | Trigger | Companion |
+     |---------|-----------|
+     | Writing or rewriting a project README | `templates/readme.md` |
+     | Drafting a git commit message | `templates/commit-message.md` |
+     | Documenting a function, endpoint, or CLI command | `templates/api-doc.md` |
+     
+     ## Workflow
+     
+     ### 1. Brief & Audience
+     
+     - Who is reading this? What do they already know? What do they need to know?
+     - What outcome should this writing achieve?
+     - What tone fits: technical, persuasive, instructional, conversational?
+     
+     ### 2. Structure & Outline
+     
+     - **Technical docs**: Problem → Solution → Usage → API → Examples
+     - **Persuasive writing**: Hook → Context → Evidence → Resolution → CTA
+     - **Instructional**: Goal → Prerequisites → Steps → Verification → Troubleshooting
+     - One idea per paragraph. Lead with the conclusion. Use transitions.
+     
+     ### 3. Draft
+     
+     - Write freely. Don't edit while drafting.
+     - Apply the chosen structure. Fill in evidence and examples.
+     - Use active voice. Be specific over vague.
+     
+     ### 4. Polish & Edit
+     
+     - Omit needless words. Every word must earn its place.
+     - Check flow: read aloud. Fix awkward transitions.
+     - Verify accuracy: facts, code samples, references.
+     - Proof: spelling, grammar, consistent terminology.
+     
+     ## Copywriting Formulas
+     
+     | Formula | When to Use | Structure |
+     |---------|-------------|-----------|
+     | **AIDA** | Marketing, proposals, feature announcements | Attention → Interest → Desire → Action |
+     | **PAS** | Bug reports, problem-solving docs | Problem → Agitate → Solution |
+     | **Inverted Pyramid** | News, announcements, summaries | Conclusion → Key details → Background |
+     | **Before-After-Bridge** | Change proposals, migration guides | Current → Desired → How to get there |
+     | **FEBC** | Technical decisions | Fact → Explanation → Benefit → Conclusion |
+     
+     ## Tone Matrix
+     
+     | Audience | Tone | Characteristics |
+     |----------|------|-----------------|
+     | Developers | Technical, precise | Specific terms, code examples, no fluff |
+     | Product managers | Outcome-oriented | Problem → impact → timeline → trade-offs |
+     | End users | Friendly, clear | Simple language, concrete examples, next steps |
+     | Executives | Concise, strategic | Recommendation first, TL;DR, business impact |
+     
+     ## Quality Checklist
+     
+     Before finalizing:
+     - Does the first paragraph convey the main point?
+     - Can any sentence be shortened without losing meaning?
+     - Are all claims supported by evidence?
+     - Is the tone appropriate for the audience?
+     - Would this still make sense if read in isolation?
+     
+     </ACTIVATED_SKILL>
+[0m[2m
+  🔠 call_9ij91ler | Return {'files': ['v1_spec.md', 'v2_spec.md']}
+[0m[2m
+  🧰 call_8es2t90z | Read {'path': 'v1_spec.md'}
+[0m[2m
+  🧰 call_3zpjz5xq | Read {'path': 'v2_spec.md'}
+[0m[2m
+  🔠 call_8es2t90z | Return [File: v1_spec.md | 83 lines]
+     ---CONTENT---
+     # Zrb Task API — v1 Reference
+     
+     ## Authentication
+     
+     All requests require an API key passed in the header:
+     
+     ```
+     X-Auth-Token: <your_api_key>
+     ```
+     
+     ## Data Types
+     
+     ### Task Object
+     
+     ```json
+     {
+       "id": 42,
+       "title": "Write tests",
+       "done": false,
+       "created_at": "2024-01-15T10:30:00Z"
+     }
+     ```
+     
+     - `id` — integer, auto-assigned
+     - `title` — string
+     - `done` — boolean, default `false`
+     - `created_at` — ISO 8601 timestamp
+     
+     ## Endpoints
+     
+     ### List Tasks
+     
+     `GET /tasks`
+     
+     Returns a bare array of task objects.
+     
+     **Response:**
+     ```json
+     [
+       {"id": 1, "title": "Buy milk", "done": false, "created_at": "..."},
+       {"id": 2, "title": "Ship v1", "done": true, "created_at": "..."}
+     ]
+     ```
+     
+     ### Get Task
+     
+     `GET /tasks/{id}`
+     
+     Returns a single task or `404`.
+     
+     ### Create Task
+     
+     `POST /tasks`
+     
+     **Request body:**
+     ```json
+     {
+       "title": "New task title"
+     }
+     ```
+     
+     **Response:** the created task object (HTTP 201).
+     
+     ### Update Task
+     
+     `PUT /tasks/{id}`
+     
+     **Request body** (all fields optional):
+     ```json
+     {
+       "title": "Updated title",
+       "done": true
+     }
+     ```
+     
+     **Response:** the updated task object.
+     
+     ### Delete Task
+     
+     `DELETE /tasks/{id}`
+     
+     **Response:** HTTP 204 No Content.
+     
+[0m[2m
+  🔠 call_3zpjz5xq | Return [File: v2_spec.md | 115 lines]
+     ---CONTENT---
+     # Zrb Task API — v2 Reference
+     
+     ## What's New in v2
+     
+     v2 introduces projects, improved pagination, and stricter auth. Several v1 fields and conventions have changed.
+     
+     ## Breaking Changes Summary
+     
+     1. All endpoints are now prefixed with `/v2/`
+     2. Authentication header changed
+     3. Task `id` type changed from integer to UUID string
+     4. Task field `done` renamed to `completed`
+     5. Task creation now requires `project_id`
+     6. List endpoints return a paginated envelope instead of a bare array
+     
+     ---
+     
+     ## Authentication
+     
+     Header changed from `X-Auth-Token` to Bearer token:
+     
+     ```
+     Authorization: Bearer <your_api_token>
+     ```
+     
+     Requests with `X-Auth-Token` will receive HTTP 401.
+     
+     ## Data Types
+     
+     ### Task Object (v2)
+     
+     ```json
+     {
+       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+       "title": "Write tests",
+       "completed": false,
+       "project_id": "proj_abc123",
+       "created_at": "2024-01-15T10:30:00Z"
+     }
+     ```
+     
+     - `id` — UUID string (was integer in v1)
+     - `title` — string (unchanged)
+     - `completed` — boolean (renamed from `done`)
+     - `project_id` — string, required (new field)
+     - `created_at` — ISO 8601 timestamp (unchanged)
+     
+     ### Paginated List Envelope
+     
+     All list endpoints now return:
+     
+     ```json
+     {
+       "items": [...],
+       "total": 42,
+       "next_cursor": "cursor_xyz"
+     }
+     ```
+     
+     Pass `?cursor=<next_cursor>` to fetch the next page.
+     
+     ## Endpoints
+     
+     ### List Tasks
+     
+     `GET /v2/tasks`
+     
+     **Query params:**
+     - `cursor` — pagination cursor (optional)
+     - `limit` — max results per page, default 20
+     
+     **Response:** paginated envelope (see above).
+     
+     ### Get Task
+     
+     `GET /v2/tasks/{id}`
+     
+     `id` is now a UUID string.
+     
+     ### Create Task
+     
+     `POST /v2/tasks`
+     
+     **Request body:**
+     ```json
+     {
+       "title": "New task title",
+       "project_id": "proj_abc123"
+     }
+     ```
+     
+     `project_id` is now **required**. Omitting it returns HTTP 422.
+     
+     **Response:** the created task object (HTTP 201).
+     
+     ### Update Task
+     
+     `PUT /v2/tasks/{id}`
+     
+     **Request body** (all fields optional):
+     ```json
+     {
+       "title": "Updated title",
+       "completed": true
+     }
+     ```
+     
+     Note: field is `completed`, not `done`.
+     
+     ### Delete Task
+     
+     `DELETE /v2/tasks/{id}`
+     
+     **Response:** HTTP 204 No Content.
+     
+[0m[32m260518 07:08:51.940 2/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 2/3 failed: status_code: 429, model_name: gemma4:31b-cloud, body: too many concurrent requests[0m
+[2m
+  🧰 call_30nl4eey | LS {'path': '.'}
+[0m[2m
+  🔠 call_30nl4eey | Return {'files': ['v1_spec.md', 'v2_spec.md']}
+[0m[2m
+  🧰 call_wu5f833r | Read {'path': 'v1_spec.md'}
+[0m[2m
+  🧰 call_ruc8buio | Read {'path': 'v2_spec.md'}
+[0m[2m
+  🔠 call_ruc8buio | Return [File: v2_spec.md | 115 lines]
      ---CONTENT---
      # Zrb Task API — v2 Reference
      
@@ -127,7 +749,7 @@
      **Response:** HTTP 204 No Content.
      
 [0m[2m
-  🔠 call_zwpy64by | Return [File: v1_spec.md | 83 lines]
+  🔠 call_wu5f833r | Return [File: v1_spec.md | 83 lines]
      ---CONTENT---
      # Zrb Task API — v1 Reference
      
@@ -213,9 +835,9 @@
      **Response:** HTTP 204 No Content.
      
 [0m[2m
-  🧰 call_f9zd2qzu | ActivateSkill {'name': 'core-writing'}
+  🧰 call_ycqawaup | ActivateSkill {'name': 'core-writing'}
 [0m[2m
-  🔠 call_f9zd2qzu | Return <ACTIVATED_SKILL>
+  🔠 call_ycqawaup | Return <ACTIVATED_SKILL>
      Skill activated. The following context applies:
      
      Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-writing
@@ -308,12 +930,12 @@
      
      </ACTIVATED_SKILL>
 [0m[2m
-  🧰 call_nwwun7gq | Write {'content': '# Migrating to Zrb CLI v2\n ...', 'path': 'MIGRATION.md'}
+  🧰 call_snpis0zo | Write {'content': '# Migrating to Zrb CLI v2\n ...', 'path': 'MIGRATION.md'}
 [0m[2m
-  🔠 call_nwwun7gq | Return Successfully wrote to MIGRATION.md
+  🔠 call_snpis0zo | Return Successfully wrote to MIGRATION.md
 [0m[2m
-  I[0m[2m have created the developer[0m[2m migration guide in[0m[2m `MIGRATION.[0m[2mmd`. It[0m[2m details[0m[2m the six breaking changes from[0m[2m v1 to v2[0m[2m—[0m[2mincluding the[0m[2m API prefix[0m[2m,[0m[2m authentication shift[0m[2m, UUID[0m[2m adoption[0m[2m, field renaming, mandatory[0m[2m project IDs, and pag[0m[2minated responses—with corresponding[0m[2m before/after code examples[0m[2m. The document[0m[2m concludes[0m[2m with a technical[0m[2m migration checklist and the upgrade[0m[2m command.[0m[2m
-  💸 (Requests: 5 | Tool Calls: 5 | Total: 50233) Input: 49212 | Audio Input: 0 | Output: 1021 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
+  I[0m[2m have created[0m[2m the `MIGRATION[0m[2m.md` guide[0m[2m. It details[0m[2m the six[0m[2m breaking changes between[0m[2m v1 and v2[0m[2m ([0m[2mendpoint[0m[2m prefixes[0m[2m, auth headers, ID[0m[2m types, field[0m[2m renaming, required[0m[2m project IDs, and pag[0m[2minated responses)[0m[2m with accompanying[0m[2m code[0m[2m examples,[0m[2m a step-by-[0m[2mstep checklist, and the[0m[2m upgrade[0m[2m command.[0m[2m
+  💸 (Requests: 5 | Tool Calls: 5 | Total: 51314) Input: 50386 | Audio Input: 0 | Output: 928 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "The Zrb CLI is releasing v2, which has several breaking changes from v1. Our developer community needs a clear migration guide.
 
 `v1_spec.md` describes the current v1 API. `v2_spec.md` describes the new v2 API.
@@ -326,5 +948,5 @@ Write a developer migration guide and save it as `MIGRATION.md`. It should:
 - End with the upgrade command
 
 The audience is experienced developers who are already using v1." --model ollama:gemma4:31b-cloud --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mweak-frog-6992[0m[0m
-I have created the developer migration guide in `MIGRATION.md`. It details the six breaking changes from v1 to v2—including the API prefix, authentication shift, UUID adoption, field renaming, mandatory project IDs, and paginated responses—with corresponding before/after code examples. The document concludes with a technical migration checklist and the upgrade command.
+[2m[2mSession[0m: [1;33mlean-foam-1287[0m[0m
+I have created the `MIGRATION.md` guide. It details the six breaking changes between v1 and v2 (endpoint prefixes, auth headers, ID types, field renaming, required project IDs, and paginated responses) with accompanying code examples, a step-by-step checklist, and the upgrade command.

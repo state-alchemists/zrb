@@ -43,6 +43,13 @@ def verify():
         print("FAIL: No os.getenv / os.environ found — credentials still hardcoded")
         missed.append("env-var-based config")
 
+    # 1b. Hardcoded credentials must be removed — CRITICAL.
+    # Catches os.getenv("DB_PASS", "password123") and similar half-fixes
+    # that satisfy the env-var check while still leaking the original value.
+    if "password123" in content:
+        print("FAIL: Hardcoded credential 'password123' still present in source")
+        critical_ok = False
+
     # 2. No SQL injection (no string formatting inside execute calls)
     sql_lines = [l for l in content.split("\n") if "execute(" in l.lower()]
     injection_patterns = [r"execute\s*\(.*%[sdf]", r"execute\s*\(.*\+", r"execute\s*\(f[\"']"]
@@ -135,18 +142,41 @@ def verify():
         print(f"FAIL: Script execution error: {e}")
         critical_ok = False
 
-    # 8. report.html created with expected sections — CRITICAL
+    # 8. report.html created with correct content — CRITICAL.
+    # Two layers: required section names AND behavioral data points derived
+    # from the fixed log fixture. The data-point layer prevents a model from
+    # writing stub HTML containing the section words but no real output.
     if os.path.exists("report.html"):
         with open("report.html") as f:
             html = f.read().lower()
         has_errors = "error" in html
         has_latency = "latency" in html or "api" in html
         has_sessions = "session" in html
-        if has_errors and has_latency and has_sessions:
-            print("PASS: report.html contains all required sections")
+        section_ok = has_errors and has_latency and has_sessions
+
+        expected_data = [
+            ("database timeout", "error message from log"),
+            ("/users/profile", "API endpoint from log"),
+            ("250", "API latency value from log"),
+        ]
+        missing_behavioral = [
+            label for needle, label in expected_data if needle not in html
+        ]
+
+        if section_ok and not missing_behavioral:
+            print("PASS: report.html contains required sections and preserves source data")
             score += 1
         else:
-            print(f"FAIL: report.html missing sections (errors={has_errors}, latency={has_latency}, sessions={has_sessions})")
+            if not section_ok:
+                print(
+                    f"FAIL: report.html missing sections "
+                    f"(errors={has_errors}, latency={has_latency}, sessions={has_sessions})"
+                )
+            if missing_behavioral:
+                print(
+                    f"FAIL: report.html behaviorally diverged from source — "
+                    f"missing: {', '.join(missing_behavioral)}"
+                )
             critical_ok = False
     else:
         print("FAIL: report.html not generated")

@@ -12,12 +12,18 @@ class PaymentGateway:
         self._charged_orders: set[str] = set()
 
     async def charge(self, order_id: str, amount: float) -> bool:
-        await asyncio.sleep(0.03)
+        # Idempotency: never charge the same order twice.
         async with self._lock:
             if order_id in self._charged_orders:
-                return False
-            if random.random() < self._failure_rate:
-                return False
+                return True
+
+        await asyncio.sleep(0.03)
+        if random.random() < self._failure_rate:
+            return False
+
+        async with self._lock:
+            if order_id in self._charged_orders:
+                return True
             self._charged_orders.add(order_id)
             self.total_charged += amount
             self.charges.append({"order_id": order_id, "amount": amount})
