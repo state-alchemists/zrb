@@ -1,6 +1,5 @@
 import asyncio
 
-
 class Inventory:
     def __init__(self, stock: int):
         self._stock = stock

@@ -8,11 +8,26 @@ class PaymentGateway:
         self._failure_rate = failure_rate
         self.total_charged: float = 0.0
         self.charges: List[dict] = []
+        self._lock = asyncio.Lock()
 
     async def charge(self, order_id: str, amount: float) -> bool:
         await asyncio.sleep(0.03)
         if random.random() < self._failure_rate:
             return False
-        self.total_charged += amount
-        self.charges.append({"order_id": order_id, "amount": amount})
+        async with self._lock:
+            # Ensure we never double-charge the same order_id
+            if any(c["order_id"] == order_id for c in self.charges):
+                return False
+            self.total_charged += amount
+            self.charges.append({"order_id": order_id, "amount": amount})
         return True
+
+    async def refund(self, order_id: str, amount: float) -> None:
+        await asyncio.sleep(0.02)
+        async with self._lock:
+            # Idempotent refund: if we already have a negative entry for this order,
+            # don't apply another refund.
+            if any(c["order_id"] == order_id and c["amount"] < 0 for c in self.charges):
+                return
+            self.total_charged -= amount
+            self.charges.append({"order_id": order_id, "amount": -amount})

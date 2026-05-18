@@ -21,10 +21,12 @@ class JobQueue:
         return job_id
 
     async def dequeue(self) -> Optional[Dict]:
-        # Ensure only one worker can pick up a pending job at a time
+        # NOTE: This simple in-memory queue is not thread-safe and is intended
+        # for use with a single-threaded asyncio event loop. We mutate the
+        # status before yielding control to avoid multiple workers picking up
+        # the same pending job.
         for job in self._jobs.values():
             if job["status"] == "pending":
-                # Mark as processing before any async suspension to avoid race conditions
                 job["status"] = "processing"
                 await asyncio.sleep(0.01)
                 return job

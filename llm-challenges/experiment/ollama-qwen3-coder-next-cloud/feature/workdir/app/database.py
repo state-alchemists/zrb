@@ -1,9 +1,6 @@
 from typing import Dict, List
 from .models import Project, Task, TaskStatus
 
-# Track the maximum task ID for auto-generating new IDs
-MAX_TASK_ID: int = max((t.id for t in tasks), default=0)
-
 projects: List[Project] = [
     Project(id=1, name="Alpha", owner="alice"),
     Project(id=2, name="Beta", owner="bob"),
@@ -20,10 +17,3 @@ VALID_API_KEYS: Dict[str, str] = {
     "dev-key-alice": "alice",
     "dev-key-bob": "bob",
 }
-
-
-def generate_task_id() -> int:
-    """Generate a unique integer task ID."""
-    global MAX_TASK_ID
-    MAX_TASK_ID += 1
-    return MAX_TASK_ID

@@ -1,58 +1,10 @@
 [2m
-  🧠 Let[0m[2m me start by reading[0m[2m the system context[0m[2m file to understand the[0m[2m production system and constraints[0m[2m.[0m[2m
-  🧰 call_iknw2nwy | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+  🧠 Let[0m[2m me start by reading[0m[2m the system context[0m[2m file to understand the[0m[2m production system and architectural[0m[2m problem.[0m[2m
+  🧰 call_mfu62o7b | Read {'path': '/Users/gofrendigunawan/zrb ...'}
 [0m[2m
-  🔠 call_iknw2nwy | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5.1-cloud/research/workdir/system_context.md | 44 lines]
-     ---CONTENT---
-     # System Context: Notifier Subsystem Decision
-     
-     ## Product Overview
-     
-     We run a SaaS project management platform. Current metrics:
-     - 85,000 monthly active users
-     - ~2M tasks created per month
-     - Peak: ~500 req/s during business hours
-     
-     ## Current Architecture
-     
-     - **Backend**: Python/Flask monolith (~50k lines)
-     - **Database**: PostgreSQL (single primary, one read replica)
-     - **Infrastructure**: 4 web servers behind an nginx load balancer, hosted on AWS
-     - **Cache**: Redis (used for session storage and rate limiting today)
-     - **Notifications**: Handled synchronously inside the HTTP request cycle
-     
-     ## The Problem
-     
-     The notifications module sends emails and webhooks when tasks are updated, assigned, or completed. As usage has grown, this has caused:
-     
-     1. **Request timeouts**: Sending notifications blocks the response. Average latency 800ms, spikes to 8s during peak hours.
-     2. **Silent failures**: If an email provider or webhook endpoint is down, the notification is silently dropped. No retry, no dead-letter queue.
-     3. **Cascading failures**: Two incidents this year where a slow webhook endpoint caused connection pool exhaustion, taking down unrelated features.
-     4. **No delivery guarantees**: Billing-critical notifications (e.g., "trial expired", "payment failed") must be delivered exactly once, but the current system has no such guarantee.
-     
-     ## Scaling Target
-     
-     We need to:
-     - Decouple notifications from the HTTP request cycle (async processing)
-     - Support retry with exponential backoff
-     - Guarantee at-least-once delivery for billing events, exactly-once where feasible
-     - Add real-time WebSocket push notifications within 2 quarters
-     - Handle 10x traffic growth without re-architecting
-     
-     ## Constraints
-     
-     - Engineering team: 6 people (3 senior, 3 mid-level), no dedicated infrastructure engineer
-     - We already run Redis in production (session/rate limiting)
-     - No Kafka experience on the team today
-     - Must not require more than 2 weeks of setup/migration work before delivering value
-     - Budget: modest — cannot afford managed Confluent Cloud at full scale today
-     - Must maintain exactly-once semantics for billing notifications
-     
+  🧰 call_6o33cgdc | ActivateSkill {'name': 'core-design'}
 [0m[2m
-  🧠 Now[0m[2m I have the full[0m[2m context. Let me[0m[2m activate[0m[2m the core-design[0m[2m skill since this is[0m[2m an architecture decision,[0m[2m then write the A[0m[2mDR.[0m[2m
-  🧰 call_k7lpipez | ActivateSkill {'name': 'core-design'}
-[0m[2m
-  🔠 call_k7lpipez | Return <ACTIVATED_SKILL>
+  🔠 call_6o33cgdc | Return <ACTIVATED_SKILL>
      Skill activated. The following context applies:
      
      Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-design
@@ -130,10 +82,67 @@
      - **Transparent**: Surface trade-offs made and alternatives considered.
      </ACTIVATED_SKILL>
 [0m[2m
-  🧠 Let[0m[2m me read the A[0m[2mDR template from[0m[2m the skill's companion[0m[2m files to[0m[2m align[0m[2m the[0m[2m format[0m[2m.[0m[2m
-  🧰 call_pmqce5pg | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+  🔠 call_mfu62o7b | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5.1-cloud/research/workdir/system_context.md | 44 lines]
+     ---CONTENT---
+     # System Context: Notifier Subsystem Decision
+     
+     ## Product Overview
+     
+     We run a SaaS project management platform. Current metrics:
+     - 85,000 monthly active users
+     - ~2M tasks created per month
+     - Peak: ~500 req/s during business hours
+     
+     ## Current Architecture
+     
+     - **Backend**: Python/Flask monolith (~50k lines)
+     - **Database**: PostgreSQL (single primary, one read replica)
+     - **Infrastructure**: 4 web servers behind an nginx load balancer, hosted on AWS
+     - **Cache**: Redis (used for session storage and rate limiting today)
+     - **Notifications**: Handled synchronously inside the HTTP request cycle
+     
+     ## The Problem
+     
+     The notifications module sends emails and webhooks when tasks are updated, assigned, or completed. As usage has grown, this has caused:
+     
+     1. **Request timeouts**: Sending notifications blocks the response. Average latency 800ms, spikes to 8s during peak hours.
+     2. **Silent failures**: If an email provider or webhook endpoint is down, the notification is silently dropped. No retry, no dead-letter queue.
+     3. **Cascading failures**: Two incidents this year where a slow webhook endpoint caused connection pool exhaustion, taking down unrelated features.
+     4. **No delivery guarantees**: Billing-critical notifications (e.g., "trial expired", "payment failed") must be delivered exactly once, but the current system has no such guarantee.
+     
+     ## Scaling Target
+     
+     We need to:
+     - Decouple notifications from the HTTP request cycle (async processing)
+     - Support retry with exponential backoff
+     - Guarantee at-least-once delivery for billing events, exactly-once where feasible
+     - Add real-time WebSocket push notifications within 2 quarters
+     - Handle 10x traffic growth without re-architecting
+     
+     ## Constraints
+     
+     - Engineering team: 6 people (3 senior, 3 mid-level), no dedicated infrastructure engineer
+     - We already run Redis in production (session/rate limiting)
+     - No Kafka experience on the team today
+     - Must not require more than 2 weeks of setup/migration work before delivering value
+     - Budget: modest — cannot afford managed Confluent Cloud at full scale today
+     - Must maintain exactly-once semantics for billing notifications
+     
 [0m[2m
-  🔠 call_pmqce5pg | Return [File: /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-design/templates/decision-record.md | 76 lines]
+  🧠 Let[0m[2m me read the decision[0m[2m-record[0m[2m template to[0m[2m follow the proper[0m[2m structure[0m[2m, then write the[0m[2m ADR.[0m[2m
+  🧰 call_bkiinc1c | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_bkiinc1c | Return Error: File not found: /Users/gofrendigunawan/zrb/src/zrb/llm-plugin/skills/core-design/templates/decision-record.md
+[0m[2m
+  🧠 The[0m[2m template file[0m[2m doesn[0m[2m't exist. Let[0m[2m me check[0m[2m the skill[0m[2m directory structure[0m[2m.[0m[2m
+  🧰 call_rvtm4t51 | LS {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_rvtm4t51 | Return {'files': ['SKILL.md', 'templates/decision-record.md']}
+[0m[2m
+  🧠 The[0m[2m path uses[0m[2m underscores[0m[2m not[0m[2m hy[0m[2mphens. Let[0m[2m me read[0m[2m the template[0m[2m from[0m[2m the correct path.[0m[2m
+  🧰 call_lvil4t6e | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_lvil4t6e | Return [File: /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-design/templates/decision-record.md | 76 lines]
      ---CONTENT---
      # Architecture Decision Record (ADR) Template
      
@@ -211,113 +220,671 @@
      - **Superseded**: replaced by a newer ADR. Add `Superseded by ADR NNNN` to the Status line; keep the file (do not delete history).
      - **Deprecated**: the situation that motivated the decision no longer exists. Status line records why.
      
+[0m
+[SYSTEM] Transient provider error, retrying in 2s (attempt 1/2)...
+[2m
+  🧠 Let[0m[2m me start by reading[0m[2m the system_context.md[0m[2m file to understand the[0m[2m production system and constraints[0m[2m.[0m[2m
+  🧰 call_3495ey3z | Read {'path': '/Users/gofrendigunawan/zrb ...'}
 [0m[2m
-  🧠 Now[0m[2m I have both[0m[2m the system[0m[2m context and the A[0m[2mDR template. Let[0m[2m me analyze the constraints[0m[2m and make[0m[2m the[0m[2m decision.[0m[2m
-     
-     Key constraints:
-     -[0m[2m 6[0m[2m-person team ([0m[2m3 senior,[0m[2m 3 mid),[0m[2m no dedicated infra[0m[2m engineer
-     - Already[0m[2m running[0m[2m Redis in production[0m[2m
-     - No Kafka experience[0m[2m on the[0m[2m team
-     - Must[0m[2m deliver value within[0m[2m 2 weeks
-     -[0m[2m Modest budget ([0m[2mcan't afford managed[0m[2m Confluent at[0m[2m scale[0m[2m)
-     - Must maintain[0m[2m exactly-once semantics[0m[2m for billing notifications[0m[2m
-     - Need to[0m[2m handle 10x[0m[2m traffic growth ([0m[2mso[0m[2m ~5,000[0m[2m req/s peak[0m[2m eventually[0m[2m)
-     - Need WebSocket[0m[2m push within[0m[2m 2 quarters[0m[2m
-     
-     Let me think[0m[2m through both[0m[2m options carefully:
-     
-     **[0m[2mApache Kafka:[0m[2m**
-     - Through[0m[2mput: Excellent[0m[2m,[0m[2m can[0m[2m handle millions of messages[0m[2m/sec
-     - Ordering[0m[2m: Per[0m[2m-partition ordering[0m[2m guaranteed
-     - Message[0m[2m retention: Config[0m[2murable, days[0m[2m to weeks[0m[2m by default
-     -[0m[2m Consumer groups: Native[0m[2m, mature[0m[2m implementation[0m[2m
-     - Exactly-on[0m[2mce semantics: Supported[0m[2m via idempotent[0m[2m producers and transaction[0m[2mal consumers[0m[2m ([0m[2msince[0m[2m Kafka 0[0m[2m.11)
-     -[0m[2m Operational complexity: High[0m[2m.[0m[2m Requires Zoo[0m[2mKeeper ([0m[2mor KRaft[0m[2m mode in[0m[2m newer versions), broker[0m[2m management, partition[0m[2m rebalancing,[0m[2m monitoring.[0m[2m No[0m[2m managed[0m[2m service[0m[2m within[0m[2m budget.
-     - Team[0m[2m fit[0m[2m: No experience[0m[2m,[0m[2m steep learning[0m[2m curve
-     - Time[0m[2m to value[0m[2m: Weeks[0m[2m to months[0m[2m for a[0m[2m team with no[0m[2m experience[0m[2m
-     - Cost[0m[2m: Self[0m[2m-man[0m[2maged is[0m[2m cheap[0m[2m in $[0m[2m/[0m[2mserver[0m[2m but expensive[0m[2m in engineer[0m[2m-hours[0m[2m.[0m[2m Managed[0m[2m ([0m[2mConfluent)[0m[2m is out[0m[2m of budget.
-     
-     **[0m[2mRedis Streams:**[0m[2m
-     - Throughput:[0m[2m Very[0m[2m good, hundreds[0m[2m of thousands of messages[0m[2m/sec on[0m[2m a single instance[0m[2m
-     - Ordering[0m[2m: Strict[0m[2m ordering within a single[0m[2m stream
-     - Message[0m[2m retention: Configurable[0m[2m (MAX[0m[2mLEN, time[0m[2m-based), but[0m[2m not[0m[2m as flexible[0m[2m as Kafka[0m[2m
-     - Consumer groups[0m[2m: Supported[0m[2m ([0m[2mXGROUP, X[0m[2mREADGROUP[0m[2m)[0m[2m
-     - Exactly[0m[2m-once semantics:[0m[2m Not n[0m[2matively supported. Redis[0m[2m Streams[0m[2m provide[0m[2m at-least-on[0m[2mce by[0m[2m default. Exactly[0m[2m-once requires[0m[2m application-level ded[0m[2muplication (id[0m[2mempot[0m[2mency keys, which[0m[2m is[0m[2m the[0m[2m standard approach[0m[2m).[0m[2m
-     - Operational[0m[2m complexity: Low[0m[2m. They[0m[2m already run Redis.[0m[2m Adding Streams[0m[2m is a feature[0m[2m,[0m[2m not a new infrastructure[0m[2m.
-     - Team[0m[2m fit: Fam[0m[2miliar with Redis,[0m[2m lower[0m[2m learning curve
-     -[0m[2m Time to value:[0m[2m Days[0m[2m.[0m[2m They[0m[2m already have Redis[0m[2m running[0m[2m.[0m[2m
-     - Cost[0m[2m: Essentially[0m[2m free[0m[2m since[0m[2m they already operate[0m[2m Redis.
-     
-     The[0m[2m critical[0m[2m question:[0m[2m exactly-once semantics[0m[2m for billing notifications.[0m[2m
-     
-     Kafka supports[0m[2m exactly-once semantics[0m[2m ([0m[2mEOS) at the[0m[2m broker level, but[0m[2m this[0m[2m is complex to implement[0m[2m correctly and requires careful[0m[2m transaction management. In[0m[2m practice, many teams[0m[2m using Kafka still[0m[2m implement application[0m[2m-level idempot[0m[2mency for critical[0m[2m paths[0m[2m.
-     
-     Redis Streams does[0m[2m NOT support[0m[2m exactly-once at[0m[2m the broker level.[0m[2m However, the standard[0m[2m and[0m[2m practically[0m[2m proven approach is[0m[2m:[0m[2m
-     1. At[0m[2m-least-once[0m[2m delivery via[0m[2m consumer groups with[0m[2m XACK
-     2[0m[2m. Application[0m[2m-level id[0m[2mempotency using[0m[2m ded[0m[2muplication keys[0m[2m (store[0m[2m notification IDs[0m[2m in PostgreSQL[0m[2m before[0m[2m processing,[0m[2m use[0m[2m id[0m[2mempot[0m[2mency keys on[0m[2m the[0m[2m email/webhook sender[0m[2m side)[0m[2m
-     
-     Since[0m[2m they[0m[2m already have PostgreSQL[0m[2m and[0m[2m are[0m[2m processing[0m[2m notifications[0m[2m ([0m[2mnot financial[0m[2m transactions), this[0m[2m hybrid[0m[2m approach is standard[0m[2m and well[0m[2m-understood.
-     
-     Given[0m[2m the constraints[0m[2m —[0m[2m 6-person team[0m[2m, no infra[0m[2m engineer, no Kafka[0m[2m experience, 2[0m[2m-week deadline[0m[2m, modest[0m[2m budget —[0m[2m Redis Streams is clearly[0m[2m the right choice.[0m[2m The[0m[2m team can use[0m[2m their[0m[2m existing Redis instance[0m[2m, implement[0m[2m consumer[0m[2m groups for[0m[2m parallel[0m[2m processing, and add[0m[2m application[0m[2m-level idempot[0m[2mency for billing notifications[0m[2m.[0m[2m
-     
-     K[0m[2mafka would be the[0m[2m better[0m[2m choice if they[0m[2m had[0m[2m:[0m[2m an[0m[2m infra team[0m[2m, higher[0m[2m throughput requirements ([0m[2mmill[0m[2mions of messages/sec[0m[2m), need[0m[2m for multi-service[0m[2m event[0m[2m streaming ([0m[2mnot just notifications[0m[2m), or Kafka[0m[2m expertise[0m[2m on[0m[2m the team. None[0m[2m of those[0m[2m are[0m[2m true.
-     
-     Let me[0m[2m write the ADR[0m[2m now, following the[0m[2m user's required[0m[2m structure exactly[0m[2m:[0m[2m
-     - Title[0m[2m
-     - Status
-     -[0m[2m Context
-     - Decision[0m[2m
-     - Con[0m[2msequences ([0m[2mpros AND cons)[0m[2m
-     - Alternatives Consider[0m[2med[0m[2m
-     
-     But[0m[2m I'll also incorporate[0m[2m elements[0m[2m from the skill[0m[2m's template[0m[2m where[0m[2m they[0m[2m add[0m[2m value (R[0m[2mationale, etc[0m[2m.)[0m[2m while[0m[2m maintaining[0m[2m the exact[0m[2m structure the user asked[0m[2m for.
-     
-     Actually,[0m[2m looking[0m[2m more[0m[2m carefully,[0m[2m the user's required[0m[2m structure is:
-     1[0m[2m. Title
-     2[0m[2m. Status
-     3[0m[2m. Context
-     4[0m[2m. Decision[0m[2m
-     5. Con[0m[2msequences —[0m[2m pros AND cons[0m[2m
-     6. Altern[0m[2matives Considered[0m[2m
-     
-     And[0m[2m my[0m[2m skill[0m[2m template has:[0m[2m Context[0m[2m, Decision, R[0m[2mationale, Altern[0m[2matives Considered,[0m[2m Consequences, Back[0m[2mlinks.
-     
-     I[0m[2m should[0m[2m follow the user's[0m[2m exact structure since[0m[2m they specified[0m[2m it. Let[0m[2m me map[0m[2m:[0m[2m
-     - Title[0m[2m ✓[0m[2m
-     - Status[0m[2m ✓
-     - Context[0m[2m ✓
-     - Decision[0m[2m ✓ (I[0m[2m'll include rationale[0m[2m within[0m[2m this[0m[2m section)[0m[2m
-     - Consequences ✓[0m[2m (I[0m[2m'll cover[0m[2m pros[0m[2m AND[0m[2m cons here[0m[2m)
-     - Alternatives[0m[2m Considered ✓[0m[2m
-     
-     I[0m[2m'll incorporate[0m[2m relevant[0m[2m metadata[0m[2m from the template[0m[2m but[0m[2m follow[0m[2m the user's structure[0m[2m strictly[0m[2m.[0m[2m
-  🧰 call_doy5njub | Write {'path': '/Users/gofrendigunawan/zrb ...', 'content': '# ADR 001 — Notification S ...'}
+  🧰 call_pso0iw3a | ActivateSkill {'name': 'core-design'}
 [0m[2m
-  🔠 call_doy5njub | Return Successfully wrote to /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5.1-cloud/research/workdir/ADR-001-notification-architecture.md
-[0m[2m
-  🧠 The[0m[2m ADR has[0m[2m been written. Let[0m[2m me provide a brief[0m[2m summary of[0m[2m what was done.[0m[2m
-  The ADR[0m[2m is saved at `[0m[2mADR-001-notification[0m[2m-architecture.md`.[0m[2m The recommendation is **[0m[2mRedis Streams** over[0m[2m Apache[0m[2m Kafka, grounded[0m[2m in the[0m[2m specific constraints:[0m[2m 6-person team[0m[2m with no Kafka expertise[0m[2m, 2-week[0m[2m delivery window, existing[0m[2m Redis in[0m[2m production, and a[0m[2m throughput[0m[2m profile[0m[2m ([0m[2meven[0m[2m at 10[0m[2mx growth[0m[2m) that sits[0m[2m an[0m[2m order of magnitude below[0m[2m Kafka's design[0m[2m point.[0m[2m
+  🔠 call_pso0iw3a | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
      
-     The[0m[2m key design[0m[2m decision is using[0m[2m application-level idemp[0m[2motency (Post[0m[2mgreSQL ded[0m[2muplication table)[0m[2m to achieve[0m[2m exactly-once semantics[0m[2m for billing notifications,[0m[2m since Redis Streams provides[0m[2m at-least-on[0m[2mce but[0m[2m not broker-level exactly[0m[2m-once. The[0m[2m ADR also documents[0m[2m when[0m[2m this[0m[2m decision should[0m[2m be revisited —[0m[2m namely[0m[2m, if the[0m[2m team[0m[2m needs a general-purpose[0m[2m event bus spanning[0m[2m multiple services at[0m[2m high[0m[2m scale[0m[2m.[0m[2m
-  💸 (Requests: 5 | Tool Calls: 4 | Total: 56254) Input: 53124 | Audio Input: 0 | Output: 3130 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
-[0m[2mTo run again:[0m [1;33mzrb chat --message "Read `system_context.md`. It describes a real production system and a specific architectural problem we need to solve.
+     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-design
+     
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
+     
+     Companion files available in this directory:
+       templates/
+         decision-record.md
+     
+     ---
+     
+     ---
+     name: core-design
+     description: "Activate before any design work — system architecture, API design, data modeling, component decomposition, or trade-off analysis. Provides the Constraints → Explore → Decide → Specify → Plan workflow for sound, well-reasoned designs."
+     user-invocable: false
+     ---
+     # Skill: core-design
+     
+     Follow **Constraints → Explore → Decide → Specify → Plan** for every design task.
+     
+     ## Companion Templates
+     
+     When the current step matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
+     
+     | Trigger | Companion |
+     |---------|-----------|
+     | Recording a design decision worth preserving (during or after the Decide step) | `templates/decision-record.md` |
+     
+     ## Workflow
+     
+     ### 1. Constraints & Requirements
+     
+     - Extract explicit requirements and implicit constraints from the task.
+     - Identify what's in scope and what's out.
+     - Note non-negotiables: existing interfaces, backward compatibility, security, performance targets.
+     - If requirements are ambiguous, ask before designing further.
+     
+     ### 2. Architecture Exploration
+     
+     - Generate 2-3 distinct approaches. Avoid converging on the first idea.
+     - Compare each approach against: correctness, consistency with existing patterns, complexity, performance, maintainability, testability.
+     - Use `Grep`, `Glob`, and `Read` to study existing patterns before proposing new ones.
+     - For large or unfamiliar domains, activate `core-research` first to map the landscape.
+     
+     ### 3. Design Decision
+     
+     - Choose the best approach with explicit rationale.
+     - Document what was chosen AND what was rejected and why.
+     - The rationale should be specific enough that someone else could reconstruct the same decision from the constraints.
+     
+     ### 4. Specification
+     
+     - Define precise contracts: interfaces, data flow, error modes, edge cases.
+     - Be concrete enough that implementation is straightforward from the spec alone.
+     - Use `WriteTodos` to capture loose ends or open questions.
+     
+     ### 5. Implementation Plan
+     
+     - Break the design into discrete implementation steps.
+     - Each step: Action → Target → Verification.
+     - Order steps by dependency (what must exist before what).
+     
+     ## Safety Rules
+     
+     - **No premature implementation**: During steps 1-4, do not write or modify any code. Design decisions come before implementation.
+     - **Approval gate**: You must obtain explicit user approval of the design and plan before starting implementation.
+     
+     ## Output Standards
+     
+     - **Structured**: Clear sections matching the workflow above.
+     - **Precise**: Specific interfaces, types, and contracts — not vague descriptions.
+     - **Context-aware**: The design must fit the existing codebase, not introduce a new paradigm unless justified.
+     - **Transparent**: Surface trade-offs made and alternatives considered.
+     </ACTIVATED_SKILL>
+[0m[2m
+  🔠 call_3495ey3z | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5.1-cloud/research/workdir/system_context.md | 44 lines]
+     ---CONTENT---
+     # System Context: Notifier Subsystem Decision
+     
+     ## Product Overview
+     
+     We run a SaaS project management platform. Current metrics:
+     - 85,000 monthly active users
+     - ~2M tasks created per month
+     - Peak: ~500 req/s during business hours
+     
+     ## Current Architecture
+     
+     - **Backend**: Python/Flask monolith (~50k lines)
+     - **Database**: PostgreSQL (single primary, one read replica)
+     - **Infrastructure**: 4 web servers behind an nginx load balancer, hosted on AWS
+     - **Cache**: Redis (used for session storage and rate limiting today)
+     - **Notifications**: Handled synchronously inside the HTTP request cycle
+     
+     ## The Problem
+     
+     The notifications module sends emails and webhooks when tasks are updated, assigned, or completed. As usage has grown, this has caused:
+     
+     1. **Request timeouts**: Sending notifications blocks the response. Average latency 800ms, spikes to 8s during peak hours.
+     2. **Silent failures**: If an email provider or webhook endpoint is down, the notification is silently dropped. No retry, no dead-letter queue.
+     3. **Cascading failures**: Two incidents this year where a slow webhook endpoint caused connection pool exhaustion, taking down unrelated features.
+     4. **No delivery guarantees**: Billing-critical notifications (e.g., "trial expired", "payment failed") must be delivered exactly once, but the current system has no such guarantee.
+     
+     ## Scaling Target
+     
+     We need to:
+     - Decouple notifications from the HTTP request cycle (async processing)
+     - Support retry with exponential backoff
+     - Guarantee at-least-once delivery for billing events, exactly-once where feasible
+     - Add real-time WebSocket push notifications within 2 quarters
+     - Handle 10x traffic growth without re-architecting
+     
+     ## Constraints
+     
+     - Engineering team: 6 people (3 senior, 3 mid-level), no dedicated infrastructure engineer
+     - We already run Redis in production (session/rate limiting)
+     - No Kafka experience on the team today
+     - Must not require more than 2 weeks of setup/migration work before delivering value
+     - Budget: modest — cannot afford managed Confluent Cloud at full scale today
+     - Must maintain exactly-once semantics for billing notifications
+     
+[0m[2m
+  🧠 Let[0m[2m me first[0m[2m read the ADR[0m[2m template from[0m[2m the skill's[0m[2m companion files, then[0m[2m write the ADR[0m[2m based on my[0m[2m analysis of the system[0m[2m context.[0m[2m
+  🧰 call_7bxtll3w | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_7bxtll3w | Return [File: /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-design/templates/decision-record.md | 76 lines]
+     ---CONTENT---
+     # Architecture Decision Record (ADR) Template
+     
+     Use this when core-design's **Decide** step produces a choice worth recording — anything a future reader (including the LLM in a later session) would want to reconstruct.
+     
+     ## File Location
+     
+     Store ADRs under the project's documentation:
+     
+     - Preferred: `docs/adr/NNNN-<short-slug>.md` (sequential, `0001`, `0002`, …)
+     - Acceptable: `.adr/`, `docs/decisions/`, or wherever the project already keeps them
+     
+     Check first with `Glob` — match existing project convention rather than inventing one.
+     
+     ## Format
+     
+     ````markdown
+     # ADR NNNN — <short title in imperative or noun phrase>
+     
+     - **Status**: Proposed | Accepted | Superseded by ADR NNNN | Deprecated
+     - **Date**: YYYY-MM-DD
+     - **Deciders**: <names or roles>
+     - **Context tags**: <comma-separated, e.g. auth, performance, storage>
+     
+     ## Context
+     
+     What problem are we solving? What constraints apply? What changed that forces this decision now?
+     
+     State the situation neutrally — anyone reading this in a year should understand *why this came up* without needing the surrounding conversation.
+     
+     ## Decision
+     
+     The single sentence stating what was chosen, in active voice.
+     
+     > We will use <X> for <Y>.
+     
+     Then, if needed, 1–3 paragraphs of clarification. No more.
+     
+     ## Rationale
+     
+     Why this option won. Tie back to the constraints in Context. Cite evidence (`file:line`, benchmarks, prior incidents).
+     
+     ## Alternatives Considered
+     
+     Each alternative gets a short paragraph:
+     - **<Option A>** — why rejected.
+     - **<Option B>** — why rejected.
+     
+     Be specific about what would have made the alternative win. ("We'd have chosen B if our throughput requirement were 10× higher.")
+     
+     ## Consequences
+     
+     What this decision *commits us to* and what it *closes off*.
+     
+     - **Positive**: <e.g., simpler operational model, fewer moving parts>
+     - **Negative**: <e.g., cannot horizontally scale beyond N without revisiting>
+     - **Follow-ups**: <concrete next steps — tests to write, docs to update, deprecations>
+     
+     ## Backlinks
+     
+     - [ADR index](index.md)
+     - <other ADRs that depend on or relate to this one>
+     ````
+     
+     ## Tone
+     
+     - Past or present tense, never future ("will" is fine in the Decision line, not in the body).
+     - Specific over vague. "We chose Postgres 16 over Redis Streams because our queue depth is bounded by row count, not message rate" beats "Postgres seemed more appropriate."
+     - Don't apologize, don't editorialize. State the decision and the evidence.
+     
+     ## ADR Lifecycle
+     
+     - **Proposed**: drafted but not yet agreed. Use during core-design's Decide step before user approval.
+     - **Accepted**: agreed and in force. Default after user approval.
+     - **Superseded**: replaced by a newer ADR. Add `Superseded by ADR NNNN` to the Status line; keep the file (do not delete history).
+     - **Deprecated**: the situation that motivated the decision no longer exists. Status line records why.
+     
+[0m
+[SYSTEM] Transient provider error, retrying in 4s (attempt 2/2)...
+[2m
+  🧠 Let[0m[2m me start by reading[0m[2m the system context[0m[2m file to understand the[0m[2m production system and constraints[0m[2m.[0m[2m
+  🧰 call_kdv95mnd | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🧰 call_xsnmjrr5 | ActivateSkill {'name': 'core-design'}
+[0m[2m
+  🔠 call_kdv95mnd | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5.1-cloud/research/workdir/system_context.md | 44 lines]
+     ---CONTENT---
+     # System Context: Notifier Subsystem Decision
+     
+     ## Product Overview
+     
+     We run a SaaS project management platform. Current metrics:
+     - 85,000 monthly active users
+     - ~2M tasks created per month
+     - Peak: ~500 req/s during business hours
+     
+     ## Current Architecture
+     
+     - **Backend**: Python/Flask monolith (~50k lines)
+     - **Database**: PostgreSQL (single primary, one read replica)
+     - **Infrastructure**: 4 web servers behind an nginx load balancer, hosted on AWS
+     - **Cache**: Redis (used for session storage and rate limiting today)
+     - **Notifications**: Handled synchronously inside the HTTP request cycle
+     
+     ## The Problem
+     
+     The notifications module sends emails and webhooks when tasks are updated, assigned, or completed. As usage has grown, this has caused:
+     
+     1. **Request timeouts**: Sending notifications blocks the response. Average latency 800ms, spikes to 8s during peak hours.
+     2. **Silent failures**: If an email provider or webhook endpoint is down, the notification is silently dropped. No retry, no dead-letter queue.
+     3. **Cascading failures**: Two incidents this year where a slow webhook endpoint caused connection pool exhaustion, taking down unrelated features.
+     4. **No delivery guarantees**: Billing-critical notifications (e.g., "trial expired", "payment failed") must be delivered exactly once, but the current system has no such guarantee.
+     
+     ## Scaling Target
+     
+     We need to:
+     - Decouple notifications from the HTTP request cycle (async processing)
+     - Support retry with exponential backoff
+     - Guarantee at-least-once delivery for billing events, exactly-once where feasible
+     - Add real-time WebSocket push notifications within 2 quarters
+     - Handle 10x traffic growth without re-architecting
+     
+     ## Constraints
+     
+     - Engineering team: 6 people (3 senior, 3 mid-level), no dedicated infrastructure engineer
+     - We already run Redis in production (session/rate limiting)
+     - No Kafka experience on the team today
+     - Must not require more than 2 weeks of setup/migration work before delivering value
+     - Budget: modest — cannot afford managed Confluent Cloud at full scale today
+     - Must maintain exactly-once semantics for billing notifications
+     
+[0m[2m
+  🔠 call_xsnmjrr5 | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
+     
+     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-design
+     
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
+     
+     Companion files available in this directory:
+       templates/
+         decision-record.md
+     
+     ---
+     
+     ---
+     name: core-design
+     description: "Activate before any design work — system architecture, API design, data modeling, component decomposition, or trade-off analysis. Provides the Constraints → Explore → Decide → Specify → Plan workflow for sound, well-reasoned designs."
+     user-invocable: false
+     ---
+     # Skill: core-design
+     
+     Follow **Constraints → Explore → Decide → Specify → Plan** for every design task.
+     
+     ## Companion Templates
+     
+     When the current step matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
+     
+     | Trigger | Companion |
+     |---------|-----------|
+     | Recording a design decision worth preserving (during or after the Decide step) | `templates/decision-record.md` |
+     
+     ## Workflow
+     
+     ### 1. Constraints & Requirements
+     
+     - Extract explicit requirements and implicit constraints from the task.
+     - Identify what's in scope and what's out.
+     - Note non-negotiables: existing interfaces, backward compatibility, security, performance targets.
+     - If requirements are ambiguous, ask before designing further.
+     
+     ### 2. Architecture Exploration
+     
+     - Generate 2-3 distinct approaches. Avoid converging on the first idea.
+     - Compare each approach against: correctness, consistency with existing patterns, complexity, performance, maintainability, testability.
+     - Use `Grep`, `Glob`, and `Read` to study existing patterns before proposing new ones.
+     - For large or unfamiliar domains, activate `core-research` first to map the landscape.
+     
+     ### 3. Design Decision
+     
+     - Choose the best approach with explicit rationale.
+     - Document what was chosen AND what was rejected and why.
+     - The rationale should be specific enough that someone else could reconstruct the same decision from the constraints.
+     
+     ### 4. Specification
+     
+     - Define precise contracts: interfaces, data flow, error modes, edge cases.
+     - Be concrete enough that implementation is straightforward from the spec alone.
+     - Use `WriteTodos` to capture loose ends or open questions.
+     
+     ### 5. Implementation Plan
+     
+     - Break the design into discrete implementation steps.
+     - Each step: Action → Target → Verification.
+     - Order steps by dependency (what must exist before what).
+     
+     ## Safety Rules
+     
+     - **No premature implementation**: During steps 1-4, do not write or modify any code. Design decisions come before implementation.
+     - **Approval gate**: You must obtain explicit user approval of the design and plan before starting implementation.
+     
+     ## Output Standards
+     
+     - **Structured**: Clear sections matching the workflow above.
+     - **Precise**: Specific interfaces, types, and contracts — not vague descriptions.
+     - **Context-aware**: The design must fit the existing codebase, not introduce a new paradigm unless justified.
+     - **Transparent**: Surface trade-offs made and alternatives considered.
+     </ACTIVATED_SKILL>
+[0m[2m
+  🧠 Now[0m[2m I have the system[0m[2m context and the design[0m[2m skill activated. Let[0m[2m me follow[0m[2m the workflow[0m[2m:[0m[2m
+     
+     1. **Constraints[0m[2m & Requirements** -[0m[2m I've read[0m[2m the system context.[0m[2m Let me extract the[0m[2m key points[0m[2m.
+     2. **[0m[2mArchitecture Exploration** -[0m[2m Compare[0m[2m Kafka vs[0m[2m Redis Streams against[0m[2m the constraints[0m[2m.
+     3. **[0m[2mDesign Decision** -[0m[2m Choose[0m[2m one with[0m[2m rationale[0m[2m.[0m[2m
+     
+     Let me first[0m[2m read the decision[0m[2m-record template,[0m[2m then write the A[0m[2mDR.
+     
+     Key constraints[0m[2m from[0m[2m the document[0m[2m:
+     - 85[0m[2mK MAU,[0m[2m ~2M tasks[0m[2m/month, peak[0m[2m ~500 req/s[0m[2m
+     - Python[0m[2m/Flask mon[0m[2molith, PostgreSQL[0m[2m, Redis already in[0m[2m prod[0m[2m
+     - Notifications[0m[2m are[0m[2m synchronous, causing[0m[2m timeouts[0m[2m ([0m[2m800ms avg[0m[2m, 8s[0m[2m spikes)[0m[2m
+     - Silent failures,[0m[2m no retry[0m[2m, no DL[0m[2mQ
+     - Casc[0m[2mading failures from[0m[2m slow web[0m[2mhooks
+     - Need[0m[2m:[0m[2m async[0m[2m processing, retry[0m[2m+[0m[2mbackoff, at[0m[2m-least-on[0m[2mce for[0m[2m billing, exactly-on[0m[2mce where feasible,[0m[2m WebSocket push in[0m[2m 2 quarters,[0m[2m 10x scaling[0m[2m
+     - Team[0m[2m: 6 people[0m[2m (3 senior,[0m[2m 3 mid),[0m[2m no dedicated infra engineer[0m[2m
+     - Already[0m[2m run[0m[2m Redis in prod[0m[2m
+     - No Kafka[0m[2m experience
+     - ≤[0m[2m2 weeks setup before[0m[2m value[0m[2m
+     - Mod[0m[2mest budget[0m[2m
+     - Exactly[0m[2m-once for[0m[2m billing notifications
+     
+     Now[0m[2m let me analyze[0m[2m both options technically[0m[2m before[0m[2m writing.[0m[2m
+     
+     **Apache[0m[2m Kafka:**
+     -[0m[2m Throughput:[0m[2m 100K+ msg[0m[2m/s per partition[0m[2m
+     - Ordering[0m[2m: Per[0m[2m-partition ordering[0m[2m guarantee[0m[2m
+     - Message retention[0m[2m: Config[0m[2murable (hours[0m[2m to[0m[2m forever[0m[2m), stored[0m[2m on disk
+     -[0m[2m Consumer groups: Native[0m[2m, mature[0m[2m
+     - Exactly-on[0m[2mce semantics: Supported[0m[2m via id[0m[2mempotent producer[0m[2m +[0m[2m transactions (Kafka[0m[2m 0.11[0m[2m+)
+     - Operational[0m[2m complexity: HIGH[0m[2m — Zoo[0m[2mKeeper or[0m[2m KRaft,[0m[2m broker[0m[2m management, partition[0m[2m rebalancing,[0m[2m monitoring
+     - Team[0m[2m fit[0m[2m: No experience[0m[2m, steep[0m[2m learning curve
+     -[0m[2m Time[0m[2m to value: Weeks[0m[2m to months[0m[2m
+     - Cost[0m[2m: Self[0m[2m-host[0m[2med requires[0m[2m 3+ brokers[0m[2m for[0m[2m production[0m[2m; managed ([0m[2mConfluent)[0m[2m is expensive at[0m[2m scale
+     
+     **Redis[0m[2m Streams:**
+     -[0m[2m Throughput: ~[0m[2m100K+ msg[0m[2m/s ([0m[2msingle instance[0m[2m),[0m[2m sufficient[0m[2m for current[0m[2m and[0m[2m 10x scale[0m[2m
+     - Ordering[0m[2m: Per-stream[0m[2m ordering with[0m[2m mill[0m[2misecond timestamps
+     -[0m[2m Message retention: Config[0m[2murable (MAX[0m[2mLEN, time[0m[2m-based), but primarily[0m[2m memory[0m[2m-based
+     - Consumer[0m[2m groups: Supported[0m[2m since Redis[0m[2m 5.0[0m[2m (XREADGROUP[0m[2m, XP[0m[2mENDING, XACK[0m[2m)
+     - Exactly-on[0m[2mce semantics: Achie[0m[2mvable via idemp[0m[2motency keys[0m[2m + consumer group[0m[2m acknowledgment[0m[2m
+     - Operational[0m[2m complexity: LOW[0m[2m — already running[0m[2m Redis, team[0m[2m familiar[0m[2m
+     - Team[0m[2m fit: Already[0m[2m operates[0m[2m Redis[0m[2m
+     - Time to value[0m[2m: Days[0m[2m
+     - Cost[0m[2m: Already[0m[2m paid[0m[2m for;[0m[2m minimal[0m[2m incremental[0m[2m cost
+     
+     Given[0m[2m the constraints[0m[2m ([0m[2m6-person team,[0m[2m no Kafka experience,[0m[2m 2-week[0m[2m deadline[0m[2m, already[0m[2m running Redis, modest[0m[2m budget), Redis[0m[2m Streams is the clear[0m[2m choice[0m[2m for[0m[2m the[0m[2m current stage[0m[2m. The[0m[2m 10x growth[0m[2m target (5[0m[2m,000 req/s[0m[2m peak) is[0m[2m still[0m[2m well within Redis Streams[0m[2m' capacity[0m[2m.
+     
+     Let me read[0m[2m the template[0m[2m and then write the[0m[2m ADR.[0m[2m
+  🧰 call_tewxk3gn | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_tewxk3gn | Return [File: /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-design/templates/decision-record.md | 76 lines]
+     ---CONTENT---
+     # Architecture Decision Record (ADR) Template
+     
+     Use this when core-design's **Decide** step produces a choice worth recording — anything a future reader (including the LLM in a later session) would want to reconstruct.
+     
+     ## File Location
+     
+     Store ADRs under the project's documentation:
+     
+     - Preferred: `docs/adr/NNNN-<short-slug>.md` (sequential, `0001`, `0002`, …)
+     - Acceptable: `.adr/`, `docs/decisions/`, or wherever the project already keeps them
+     
+     Check first with `Glob` — match existing project convention rather than inventing one.
+     
+     ## Format
+     
+     ````markdown
+     # ADR NNNN — <short title in imperative or noun phrase>
+     
+     - **Status**: Proposed | Accepted | Superseded by ADR NNNN | Deprecated
+     - **Date**: YYYY-MM-DD
+     - **Deciders**: <names or roles>
+     - **Context tags**: <comma-separated, e.g. auth, performance, storage>
+     
+     ## Context
+     
+     What problem are we solving? What constraints apply? What changed that forces this decision now?
+     
+     State the situation neutrally — anyone reading this in a year should understand *why this came up* without needing the surrounding conversation.
+     
+     ## Decision
+     
+     The single sentence stating what was chosen, in active voice.
+     
+     > We will use <X> for <Y>.
+     
+     Then, if needed, 1–3 paragraphs of clarification. No more.
+     
+     ## Rationale
+     
+     Why this option won. Tie back to the constraints in Context. Cite evidence (`file:line`, benchmarks, prior incidents).
+     
+     ## Alternatives Considered
+     
+     Each alternative gets a short paragraph:
+     - **<Option A>** — why rejected.
+     - **<Option B>** — why rejected.
+     
+     Be specific about what would have made the alternative win. ("We'd have chosen B if our throughput requirement were 10× higher.")
+     
+     ## Consequences
+     
+     What this decision *commits us to* and what it *closes off*.
+     
+     - **Positive**: <e.g., simpler operational model, fewer moving parts>
+     - **Negative**: <e.g., cannot horizontally scale beyond N without revisiting>
+     - **Follow-ups**: <concrete next steps — tests to write, docs to update, deprecations>
+     
+     ## Backlinks
+     
+     - [ADR index](index.md)
+     - <other ADRs that depend on or relate to this one>
+     ````
+     
+     ## Tone
+     
+     - Past or present tense, never future ("will" is fine in the Decision line, not in the body).
+     - Specific over vague. "We chose Postgres 16 over Redis Streams because our queue depth is bounded by row count, not message rate" beats "Postgres seemed more appropriate."
+     - Don't apologize, don't editorialize. State the decision and the evidence.
+     
+     ## ADR Lifecycle
+     
+     - **Proposed**: drafted but not yet agreed. Use during core-design's Decide step before user approval.
+     - **Accepted**: agreed and in force. Default after user approval.
+     - **Superseded**: replaced by a newer ADR. Add `Superseded by ADR NNNN` to the Status line; keep the file (do not delete history).
+     - **Deprecated**: the situation that motivated the decision no longer exists. Status line records why.
+     
+[0m[32m260518 07:08:21.514 1/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 1/3 failed: status_code: 429, model_name: glm-5.1:cloud, body: too many concurrent requests[0m
 
-Write an Architecture Decision Record (ADR) evaluating two options for the notification subsystem:
-1. **Apache Kafka**
-2. **Redis Streams**
-
-Your ADR must follow this exact structure:
-- **Title**
-- **Status** (e.g. \"Proposed\")
-- **Context** — the problem and constraints
-- **Decision** — which option you choose and a clear justification
-- **Consequences** — pros AND cons of your decision
-- **Alternatives Considered** — why you rejected the other option
-
-Make a definitive recommendation. Use specific technical properties (throughput, ordering guarantees, message retention, consumer groups, exactly-once semantics, operational complexity) to justify your choice given the team size and constraints described.
-
-Save as `ADR-001-notification-architecture.md`." --model ollama:glm-5.1:cloud --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mneat-hall-7152[0m[0m
-The ADR is saved at `ADR-001-notification-architecture.md`. The recommendation is **Redis Streams** over Apache Kafka, grounded in the specific constraints: 6-person team with no Kafka expertise, 2-week delivery window, existing Redis in production, and a throughput profile (even at 10x growth) that sits an order of magnitude below Kafka's design point.
-
-The key design decision is using application-level idempotency (PostgreSQL deduplication table) to achieve exactly-once semantics for billing notifications, since Redis Streams provides at-least-once but not broker-level exactly-once. The ADR also documents when this decision should be revisited — namely, if the team needs a general-purpose event bus spanning multiple services at high scale.
+[SYSTEM] Transient provider error, retrying in 2s (attempt 1/2)...
+[2m
+  🧠 Let[0m[2m me start by reading[0m[2m the system_context.md[0m[2m file to understand the[0m[2m production system and architectural[0m[2m problem.[0m[2m
+  🧰 call_8l55z4w3 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_8l55z4w3 | Return [File: /Users/gofrendigunawan/zrb/llm-challenges/experiment/ollama-glm-5.1-cloud/research/workdir/system_context.md | 44 lines]
+     ---CONTENT---
+     # System Context: Notifier Subsystem Decision
+     
+     ## Product Overview
+     
+     We run a SaaS project management platform. Current metrics:
+     - 85,000 monthly active users
+     - ~2M tasks created per month
+     - Peak: ~500 req/s during business hours
+     
+     ## Current Architecture
+     
+     - **Backend**: Python/Flask monolith (~50k lines)
+     - **Database**: PostgreSQL (single primary, one read replica)
+     - **Infrastructure**: 4 web servers behind an nginx load balancer, hosted on AWS
+     - **Cache**: Redis (used for session storage and rate limiting today)
+     - **Notifications**: Handled synchronously inside the HTTP request cycle
+     
+     ## The Problem
+     
+     The notifications module sends emails and webhooks when tasks are updated, assigned, or completed. As usage has grown, this has caused:
+     
+     1. **Request timeouts**: Sending notifications blocks the response. Average latency 800ms, spikes to 8s during peak hours.
+     2. **Silent failures**: If an email provider or webhook endpoint is down, the notification is silently dropped. No retry, no dead-letter queue.
+     3. **Cascading failures**: Two incidents this year where a slow webhook endpoint caused connection pool exhaustion, taking down unrelated features.
+     4. **No delivery guarantees**: Billing-critical notifications (e.g., "trial expired", "payment failed") must be delivered exactly once, but the current system has no such guarantee.
+     
+     ## Scaling Target
+     
+     We need to:
+     - Decouple notifications from the HTTP request cycle (async processing)
+     - Support retry with exponential backoff
+     - Guarantee at-least-once delivery for billing events, exactly-once where feasible
+     - Add real-time WebSocket push notifications within 2 quarters
+     - Handle 10x traffic growth without re-architecting
+     
+     ## Constraints
+     
+     - Engineering team: 6 people (3 senior, 3 mid-level), no dedicated infrastructure engineer
+     - We already run Redis in production (session/rate limiting)
+     - No Kafka experience on the team today
+     - Must not require more than 2 weeks of setup/migration work before delivering value
+     - Budget: modest — cannot afford managed Confluent Cloud at full scale today
+     - Must maintain exactly-once semantics for billing notifications
+     
+[0m[2m
+  🧠 Now[0m[2m I have the full[0m[2m context. Let me[0m[2m analyze this[0m[2m carefully before[0m[2m writing the ADR[0m[2m.
+     
+     Key constraints:[0m[2m
+     1. 6[0m[2m-person team, no[0m[2m Kafka[0m[2m experience, no dedicated[0m[2m infra engineer
+     2[0m[2m. Already run Redis[0m[2m in production
+     3[0m[2m.[0m[2m 2-week[0m[2m setup/m[0m[2migration deadline
+     4[0m[2m. Modest budget[0m[2m ([0m[2mcan't afford managed[0m[2m Confluent Cloud[0m[2m)
+     5. Need[0m[2m exactly-once for[0m[2m billing,[0m[2m at-least-on[0m[2mce for others[0m[2m
+     6. Need[0m[2m 10x growth without[0m[2m re-architect[0m[2ming
+     7.[0m[2m Need WebSocket push within[0m[2m 2 quarters[0m[2m
+     8. Current peak[0m[2m: ~[0m[2m500 req/s[0m[2m
+     
+     Let me think about[0m[2m the trade[0m[2moffs[0m[2m:
+     
+     **Redis[0m[2m Streams:**
+     -[0m[2m Pros[0m[2m: Already in production[0m[2m, team knows[0m[2m Redis[0m[2m, fast[0m[2m setup, sufficient[0m[2m throughput[0m[2m for current[0m[2m scale ([0m[2m500 req/s peak[0m[2m,[0m[2m even[0m[2m 10x =[0m[2m 5k req[0m[2m/s is well within[0m[2m Redis capability[0m[2m), consumer groups exist[0m[2m since[0m[2m Redis[0m[2m 5.x[0m[2m, lightweight[0m[2m operation[0m[2mally
+     - Cons[0m[2m: No[0m[2m built[0m[2m-in exactly-once[0m[2m (need[0m[2m application[0m[2m-level id[0m[2mempotency),[0m[2m limited[0m[2m message retention ([0m[2mmemory-bound[0m[2m), no built[0m[2m-in replay/comp[0m[2maction like[0m[2m Kafka, operational[0m[2m maturity[0m[2m for[0m[2m large-scale streaming[0m[2m is less[0m[2m proven, less[0m[2m tool[0m[2ming ecosystem[0m[2m
+     
+     **Apache[0m[2m Kafka:**
+     -[0m[2m Pros: Superior[0m[2m throughput at[0m[2m scale, native[0m[2m consumer[0m[2m groups, log comp[0m[2maction for long[0m[2m retention, stronger[0m[2m ordering[0m[2m guarantees, better[0m[2m ecosystem for[0m[2m streaming[0m[2m, exactly-once[0m[2m semantics (EOS[0m[2m) in[0m[2m Kafka 0[0m[2m.11+ with[0m[2m idempotent producers[0m[2m and transactional consumers[0m[2m
+     - Cons[0m[2m: Team[0m[2m has no experience[0m[2m, operational[0m[2m complexity is significant ([0m[2mZoo[0m[2mKeeper or[0m[2m KRaft,[0m[2m broker[0m[2m management),[0m[2m 2-week[0m[2m timeline unrealistic[0m[2m for[0m[2m team[0m[2m with[0m[2m no experience, budget[0m[2m constraint[0m[2m rules[0m[2m out managed Confl[0m[2muent, self[0m[2m-man[0m[2maged Kafka with[0m[2m a[0m[2m 6-person team[0m[2m and no infra[0m[2m engineer is risky[0m[2m, over[0m[2mkill for current[0m[2m scale
+     
+     The[0m[2m clear[0m[2m recommendation given[0m[2m the[0m[2m constraints is **Redis[0m[2m Streams**. Here[0m[2m's why:[0m[2m
+     
+     1. **[0m[2m2-week constraint**:[0m[2m Redis[0m[2m Streams can[0m[2m be set up in[0m[2m days since Redis[0m[2m is already in production[0m[2m. Kafka would[0m[2m take weeks just[0m[2m for the[0m[2m team to learn,[0m[2m let alone operate[0m[2m reliably.[0m[2m
+     
+     2. **Team[0m[2m size[0m[2m and expertise[0m[2m**:[0m[2m 6 people with no[0m[2m Kafka experience and[0m[2m no infra[0m[2m engineer —[0m[2m self-managing[0m[2m Kafka clusters[0m[2m is a significant[0m[2m operational burden.[0m[2m Redis is[0m[2m already running[0m[2m and understood.
+     
+     3[0m[2m. **Scale[0m[2m adequ[0m[2macy**: Current[0m[2m peak is[0m[2m 500 req/s.[0m[2m Even 10x[0m[2m ([0m[2m5,000 req[0m[2m/s) is trivial[0m[2m for Redis Streams.[0m[2m Kafka[0m[2m's[0m[2m throughput advantage ([0m[2m100[0m[2mk+/[0m[2ms)[0m[2m is[0m[2m overkill here[0m[2m.
+     
+     4. **[0m[2mBudget**: Managed[0m[2m Kafka[0m[2m ([0m[2mConfluent Cloud[0m[2m) is ruled[0m[2m out.[0m[2m Self-managed Kafka[0m[2m requires[0m[2m 3+ brokers[0m[2m minimum[0m[2m for fault[0m[2m tolerance, plus[0m[2m Zoo[0m[2mKeeper/K[0m[2mRaft — significant[0m[2m compute[0m[2m costs[0m[2m and[0m[2m operational to[0m[2mil.
+     
+     5.[0m[2m **Exactly-once[0m[2m**: This[0m[2m is the[0m[2m strongest[0m[2m argument for[0m[2m Kafka,[0m[2m but the system[0m[2m context[0m[2m says "exactly[0m[2m-once where feasible[0m[2m" — meaning application[0m[2m-level idempot[0m[2mency is[0m[2m acceptable. Redis[0m[2m Streams with[0m[2m idempotency[0m[2m keys ([0m[2mstored[0m[2m in Redis[0m[2m or PostgreSQL) can[0m[2m achieve effectively[0m[2m-on[0m[2mce delivery[0m[2m for[0m[2m billing events[0m[2m.
+     
+     6[0m[2m. **WebSocket[0m[2m push**: Redis[0m[2m Pub/Sub is[0m[2m a[0m[2m natural complement[0m[2m for real[0m[2m-time fan[0m[2m-out, and the[0m[2m team already knows[0m[2m Redis.
+     
+     I[0m[2m'll write a[0m[2m thorough,[0m[2m definitive[0m[2m ADR recommending[0m[2m Redis Streams.[0m[2m
+  🧰 call_t48ql9wg | ActivateSkill {'name': 'core-writing'}
+[0m[2m
+  🔠 call_t48ql9wg | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
+     
+     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-writing
+     
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
+     
+     Companion files available in this directory:
+       templates/
+         api-doc.md
+         commit-message.md
+         readme.md
+     
+     ---
+     
+     ---
+     name: core-writing
+     description: "Activate before any substantial writing — docs, copy, proposals, feedback, commit messages, or UI text. Provides copywriting frameworks, tone guidance, and editing workflow for clear, persuasive, polished output."
+     user-invocable: false
+     ---
+     # Skill: core-writing
+     
+     Follow **Brief → Structure → Draft → Polish** for every writing task.
+     
+     ## Companion Templates
+     
+     When the current task matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
+     
+     | Trigger | Companion |
+     |---------|-----------|
+     | Writing or rewriting a project README | `templates/readme.md` |
+     | Drafting a git commit message | `templates/commit-message.md` |
+     | Documenting a function, endpoint, or CLI command | `templates/api-doc.md` |
+     
+     ## Workflow
+     
+     ### 1. Brief & Audience
+     
+     - Who is reading this? What do they already know? What do they need to know?
+     - What outcome should this writing achieve?
+     - What tone fits: technical, persuasive, instructional, conversational?
+     
+     ### 2. Structure & Outline
+     
+     - **Technical docs**: Problem → Solution → Usage → API → Examples
+     - **Persuasive writing**: Hook → Context → Evidence → Resolution → CTA
+     - **Instructional**: Goal → Prerequisites → Steps → Verification → Troubleshooting
+     - One idea per paragraph. Lead with the conclusion. Use transitions.
+     
+     ### 3. Draft
+     
+     - Write freely. Don't edit while drafting.
+     - Apply the chosen structure. Fill in evidence and examples.
+     - Use active voice. Be specific over vague.
+     
+     ### 4. Polish & Edit
+     
+     - Omit needless words. Every word must earn its place.
+     - Check flow: read aloud. Fix awkward transitions.
+     - Verify accuracy: facts, code samples, references.
+     - Proof: spelling, grammar, consistent terminology.
+     
+     ## Copywriting Formulas
+     
+     | Formula | When to Use | Structure |
+     |---------|-------------|-----------|
+     | **AIDA** | Marketing, proposals, feature announcements | Attention → Interest → Desire → Action |
+     | **PAS** | Bug reports, problem-solving docs | Problem → Agitate → Solution |
+     | **Inverted Pyramid** | News, announcements, summaries | Conclusion → Key details → Background |
+     | **Before-After-Bridge** | Change proposals, migration guides | Current → Desired → How to get there |
+     | **FEBC** | Technical decisions | Fact → Explanation → Benefit → Conclusion |
+     
+     ## Tone Matrix
+     
+     | Audience | Tone | Characteristics |
+     |----------|------|-----------------|
+     | Developers | Technical, precise | Specific terms, code examples, no fluff |
+     | Product managers | Outcome-oriented | Problem → impact → timeline → trade-offs |
+     | End users | Friendly, clear | Simple language, concrete examples, next steps |
+     | Executives | Concise, strategic | Recommendation first, TL;DR, business impact |
+     
+     ## Quality Checklist
+     
+     Before finalizing:
+     - Does the first paragraph convey the main point?
+     - Can any sentence be shortened without losing meaning?
+     - Are all claims supported by evidence?
+     - Is the tone appropriate for the audience?
+     - Would this still make sense if read in isolation?
+     
+     </ACTIVATED_SKILL>
+[0m[2m
+  🧠 Now[0m[2m let[0m[2m me draft[0m[2m the ADR.[0m[2m Audience[0m[2m is[0m[2m the engineering team —[0m[2m technical, precise tone[0m[2m. Structure[0m[2m follows A[0m[2mDR format as[0m[2m specified. Let[0m[2m me use the FE[0m[2mBC formula[0m[2m internally[0m[2m since[0m[2m this is a technical[0m[2m decision document[0m[2m.
+     
+     Key decision[0m[2m: **Redis Streams[0m[2m** —[0m[2m the[0m[2m constraints[0m[2m make[0m[2m this[0m[2m clear[0m[2m.
+     
+     Let me write[0m
+[Runner] Timeout of 600s exceeded.

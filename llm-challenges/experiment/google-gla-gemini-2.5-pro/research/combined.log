@@ -1,8 +1,8 @@
 [2m
-  I will first read the `system_context.md` to understand the architectural problem and constraints[0m[2m, then write an ADR recommending either Kafka or Redis Streams, and save it as `ADR-001-[0m[2mnotification-architecture.md`.[0m[2m
-  🧰 pyd_ai_03b4d4f94d084cea9c52b2234c5efb28 | Read {'path': 'system_context.md'}
+  I will[0m[2m analyze the system context, evaluate Kafka and Redis Streams, and produce a definitive Architecture Decision Record as requested.[0m[2m
+  🧰 pyd_ai_98dc27471639409e9957159143915c0e | Read {'path': 'system_context.md'}
 [0m[2m
-  🔠 pyd_ai_03b4d4f94d084cea9c52b2234c5efb28 | Return [File: system_context.md | 44 lines]
+  🔠 pyd_ai_98dc27471639409e9957159143915c0e | Return [File: system_context.md | 44 lines]
      ---CONTENT---
      # System Context: Notifier Subsystem Decision
      
@@ -49,13 +49,109 @@
      - Must maintain exactly-once semantics for billing notifications
      
 [0m[2m
-  I have analyzed the system context and will now write the ADR[0m[2m. Given the team's constraints and existing infrastructure, Redis Streams is the more pragmatic choice. The key trade-off is[0m[2m accepting application-level responsibility for exactly-once semantics in exchange for dramatically lower operational complexity and faster implementation.[0m[2m
-  🧰 pyd_ai_3d0e0e104e964595a85e17f8831c8b69 | Write {'content': '# ADR-001: Notification Su ...', 'path': 'ADR-001-notification-archi ...'}
+  I will now create the Architecture Decision Record based on the system context provided, evaluating Apache Kafka and Redis Streams and making a definitive recommendation.[0m[2m
+  🧰 pyd_ai_3d773f3774e64bdcac1f77c8df19e6aa | ActivateSkill {'name': 'core-writing'}
 [0m[2m
-  🔠 pyd_ai_3d0e0e104e964595a85e17f8831c8b69 | Return Successfully wrote to ADR-001-notification-architecture.md
+  🔠 pyd_ai_3d773f3774e64bdcac1f77c8df19e6aa | Return <ACTIVATED_SKILL>
+     Skill activated. The following context applies:
+     
+     Skill directory (working directory): /Users/gofrendigunawan/zrb/src/zrb/llm_plugin/skills/core-writing
+     
+     All file paths in the skill instructions below are relative to this directory.
+     Use companion files (scripts, tools, references) by resolving them against this path.
+     
+     Companion files available in this directory:
+       templates/
+         api-doc.md
+         commit-message.md
+         readme.md
+     
+     ---
+     
+     ---
+     name: core-writing
+     description: "Activate before any substantial writing — docs, copy, proposals, feedback, commit messages, or UI text. Provides copywriting frameworks, tone guidance, and editing workflow for clear, persuasive, polished output."
+     user-invocable: false
+     ---
+     # Skill: core-writing
+     
+     Follow **Brief → Structure → Draft → Polish** for every writing task.
+     
+     ## Companion Templates
+     
+     When the current task matches a trigger below, `Read` the named companion from this skill's directory (path provided in the activation header). Companions are not pre-loaded — pull them on demand.
+     
+     | Trigger | Companion |
+     |---------|-----------|
+     | Writing or rewriting a project README | `templates/readme.md` |
+     | Drafting a git commit message | `templates/commit-message.md` |
+     | Documenting a function, endpoint, or CLI command | `templates/api-doc.md` |
+     
+     ## Workflow
+     
+     ### 1. Brief & Audience
+     
+     - Who is reading this? What do they already know? What do they need to know?
+     - What outcome should this writing achieve?
+     - What tone fits: technical, persuasive, instructional, conversational?
+     
+     ### 2. Structure & Outline
+     
+     - **Technical docs**: Problem → Solution → Usage → API → Examples
+     - **Persuasive writing**: Hook → Context → Evidence → Resolution → CTA
+     - **Instructional**: Goal → Prerequisites → Steps → Verification → Troubleshooting
+     - One idea per paragraph. Lead with the conclusion. Use transitions.
+     
+     ### 3. Draft
+     
+     - Write freely. Don't edit while drafting.
+     - Apply the chosen structure. Fill in evidence and examples.
+     - Use active voice. Be specific over vague.
+     
+     ### 4. Polish & Edit
+     
+     - Omit needless words. Every word must earn its place.
+     - Check flow: read aloud. Fix awkward transitions.
+     - Verify accuracy: facts, code samples, references.
+     - Proof: spelling, grammar, consistent terminology.
+     
+     ## Copywriting Formulas
+     
+     | Formula | When to Use | Structure |
+     |---------|-------------|-----------|
+     | **AIDA** | Marketing, proposals, feature announcements | Attention → Interest → Desire → Action |
+     | **PAS** | Bug reports, problem-solving docs | Problem → Agitate → Solution |
+     | **Inverted Pyramid** | News, announcements, summaries | Conclusion → Key details → Background |
+     | **Before-After-Bridge** | Change proposals, migration guides | Current → Desired → How to get there |
+     | **FEBC** | Technical decisions | Fact → Explanation → Benefit → Conclusion |
+     
+     ## Tone Matrix
+     
+     | Audience | Tone | Characteristics |
+     |----------|------|-----------------|
+     | Developers | Technical, precise | Specific terms, code examples, no fluff |
+     | Product managers | Outcome-oriented | Problem → impact → timeline → trade-offs |
+     | End users | Friendly, clear | Simple language, concrete examples, next steps |
+     | Executives | Concise, strategic | Recommendation first, TL;DR, business impact |
+     
+     ## Quality Checklist
+     
+     Before finalizing:
+     - Does the first paragraph convey the main point?
+     - Can any sentence be shortened without losing meaning?
+     - Are all claims supported by evidence?
+     - Is the tone appropriate for the audience?
+     - Would this still make sense if read in isolation?
+     
+     </ACTIVATED_SKILL>
 [0m[2m
-  ADR saved successfully. It captures the decision to use Redis Streams, balancing the technical[0m[2m requirements against the team's operational constraints.[0m[2m
-  💸 (Requests: 3 | Tool Calls: 2 | Total: 30460) Input: 27093 | Audio Input: 0 | Output: 3367 | Audio Output: 0 | Cache Read: 8159 | Cache Write: 0 | Details: {'thoughts_tokens': 2294, 'text_prompt_tokens': 27093, 'cached_content_tokens': 8159, 'text_cache_tokens': 8159}
+  I have analyzed the system context and will now write the Architecture Decision Record. The choice hinges on balancing technical capabilities against the team[0m[2m's operational constraints. Redis Streams is the more pragmatic choice due to the team's existing expertise and the project's velocity[0m[2m requirements.[0m[2m
+  🧰 pyd_ai_0034d6c39ff34904890625b3ce875d71 | Write {'path': 'ADR-001-notification-archi ...', 'content': '\n# ADR-001: Notification S ...'}
+[0m[2m
+  🔠 pyd_ai_0034d6c39ff34904890625b3ce875d71 | Return Successfully wrote to ADR-001-notification-architecture.md
+[0m[2m
+  I have created the ADR and saved it as `ADR-001-notification-architecture.md[0m[2m`. It recommends Redis Streams based on the existing team expertise and operational constraints, while acknowledging the trade-offs against a more complex[0m[2m system like Kafka.[0m[2m
+  💸 (Requests: 4 | Tool Calls: 3 | Total: 43798) Input: 40429 | Audio Input: 0 | Output: 3369 | Audio Output: 0 | Cache Read: 16388 | Cache Write: 0 | Details: {'thoughts_tokens': 2075, 'text_prompt_tokens': 40429, 'cached_content_tokens': 16388, 'text_cache_tokens': 16388}
 [0m[2mTo run again:[0m [1;33mzrb chat --message "Read `system_context.md`. It describes a real production system and a specific architectural problem we need to solve.
 
 Write an Architecture Decision Record (ADR) evaluating two options for the notification subsystem:
@@ -73,5 +169,5 @@ Your ADR must follow this exact structure:
 Make a definitive recommendation. Use specific technical properties (throughput, ordering guarantees, message retention, consumer groups, exactly-once semantics, operational complexity) to justify your choice given the team size and constraints described.
 
 Save as `ADR-001-notification-architecture.md`." --model google-gla:gemini-2.5-pro --session "" --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mlong-area-1822[0m[0m
-ADR saved successfully. It captures the decision to use Redis Streams, balancing the technical requirements against the team's operational constraints.
+[2m[2mSession[0m: [1;33mfast-bolt-4725[0m[0m
+I have created the ADR and saved it as `ADR-001-notification-architecture.md`. It recommends Redis Streams based on the existing team expertise and operational constraints, while acknowledging the trade-offs against a more complex system like Kafka.

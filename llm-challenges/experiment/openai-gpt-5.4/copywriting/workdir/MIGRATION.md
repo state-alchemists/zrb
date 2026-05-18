@@ -1,102 +1,109 @@
-# Migrating from Zrb CLI/API v1 to v2
+# Migrating from Zrb Task API v1 to v2
 
-Zrb v2 is not a drop-in upgrade for v1 clients. If your integration already works against v1, you will need to update request paths, authentication, task field names, ID handling, task creation payloads, and list response parsing.
+Zrb Task API v2 introduces several breaking changes that require updates in existing v1 clients. The biggest changes are the new `/v2/` route prefix, Bearer-token authentication, UUID task IDs, the `done` → `completed` field rename, required `project_id` on task creation, and paginated list responses.
 
-This guide covers every documented breaking change between v1 and v2 and shows exactly what to change.
+This guide is for developers already using v1 and focuses only on what you must change to get a v1 integration working against v2.
 
-## At a Glance
+## At a glance
 
-The v2 breaking changes are:
+These are all of the breaking changes between v1 and v2:
 
-1. All endpoints now use the `/v2/` prefix.
-2. Authentication changed from `X-Auth-Token` to `Authorization: Bearer`.
-3. Task `id` changed from an integer to a UUID string.
-4. Task field `done` was renamed to `completed`.
-5. Creating a task now requires `project_id`.
-6. List endpoints now return a paginated envelope instead of a bare array.
+1. All endpoints are now prefixed with `/v2/`
+2. Authentication changed from `X-Auth-Token` to `Authorization: Bearer ...`
+3. Task `id` changed from integer to UUID string
+4. Task field `done` was renamed to `completed`
+5. Creating a task now requires `project_id`
+6. List endpoints now return a paginated envelope instead of a bare array
 
-## 1. Update All Endpoint Paths
+## 1. Update all endpoint paths
 
-Every v1 endpoint moved under the `/v2/` prefix. Any hard-coded v1 paths will break until they are updated.
+In v1, task endpoints were mounted at `/tasks`. In v2, every endpoint is versioned under `/v2/`.
 
-### What changed
-
-- v1: `/tasks`
-- v2: `/v2/tasks`
-
-This affects list, get, create, update, and delete operations.
+If you hardcoded URLs anywhere in your SDK, CLI wrapper, tests, or application code, update them all.
 
 ### Before
 
-```bash
-curl https://api.example.com/tasks
-curl https://api.example.com/tasks/42
-curl -X POST https://api.example.com/tasks
-curl -X PUT https://api.example.com/tasks/42
-curl -X DELETE https://api.example.com/tasks/42
+```http
+GET /tasks
+GET /tasks/42
+POST /tasks
+PUT /tasks/42
+DELETE /tasks/42
 ```
 
 ### After
 
-```bash
-curl https://api.example.com/v2/tasks
-curl https://api.example.com/v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890
-curl -X POST https://api.example.com/v2/tasks
-curl -X PUT https://api.example.com/v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890
-curl -X DELETE https://api.example.com/v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890
+```http
+GET /v2/tasks
+GET /v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890
+POST /v2/tasks
+PUT /v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890
+DELETE /v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890
 ```
 
-## 2. Replace `X-Auth-Token` with Bearer Authentication
+### Example
 
-v2 no longer accepts the v1 authentication header. Requests using `X-Auth-Token` will return `401`.
+Before:
 
-### What changed
+```js
+const response = await fetch(`${baseUrl}/tasks`);
+```
 
-- v1 header: `X-Auth-Token: <your_api_key>`
-- v2 header: `Authorization: Bearer <your_api_token>`
+After:
+
+```js
+const response = await fetch(`${baseUrl}/v2/tasks`);
+```
+
+## 2. Replace `X-Auth-Token` with Bearer authentication
+
+v1 accepted an API key in the `X-Auth-Token` header. v2 requires a Bearer token in the `Authorization` header.
+
+Requests that continue sending `X-Auth-Token` will receive `401 Unauthorized`.
 
 ### Before
 
-```bash
-curl https://api.example.com/tasks \
-  -H 'X-Auth-Token: my-api-key'
+```http
+X-Auth-Token: <your_api_key>
 ```
 
 ### After
 
-```bash
-curl https://api.example.com/v2/tasks \
-  -H 'Authorization: Bearer my-api-token'
+```http
+Authorization: Bearer <your_api_token>
 ```
 
-### Before
+### Example
 
-```javascript
-const response = await fetch('https://api.example.com/tasks', {
+Before:
+
+```js
+const response = await fetch(`${baseUrl}/tasks`, {
   headers: {
     'X-Auth-Token': apiKey,
   },
 });
 ```
 
-### After
+After:
 
-```javascript
-const response = await fetch('https://api.example.com/v2/tasks', {
+```js
+const response = await fetch(`${baseUrl}/v2/tasks`, {
   headers: {
     Authorization: `Bearer ${apiToken}`,
   },
 });
 ```
 
-## 3. Treat Task IDs as UUID Strings, Not Integers
+## 3. Treat task IDs as strings, not integers
 
-In v1, task IDs were integers. In v2, task IDs are UUID strings. Any code that parses IDs as numbers, stores them in integer columns, or validates them as numeric values must be updated.
+In v1, `task.id` was an integer. In v2, `task.id` is a UUID string.
 
-### What changed
-
-- v1 task ID: `42`
-- v2 task ID: `"a1b2c3d4-e5f6-7890-abcd-ef1234567890"`
+This is a breaking change anywhere you:
+- parse IDs as numbers
+- validate IDs as integers
+- use numeric database columns or schema types for cached task IDs
+- build routes, maps, or typed models that assume `id: number`
 
 ### Before
 
@@ -121,46 +128,51 @@ In v1, task IDs were integers. In v2, task IDs are UUID strings. Any code that p
 }
 ```
 
-### Before
+### Example
 
-```javascript
-const taskId = Number(inputTaskId);
-const response = await fetch(`https://api.example.com/tasks/${taskId}`);
+Before:
+
+```ts
+type Task = {
+  id: number;
+  title: string;
+  done: boolean;
+  created_at: string;
+};
+
+function getTaskUrl(id: number) {
+  return `/tasks/${id}`;
+}
 ```
 
-### After
+After:
 
-```javascript
-const taskId = inputTaskId;
-const response = await fetch(`https://api.example.com/v2/tasks/${taskId}`);
+```ts
+type Task = {
+  id: string;
+  title: string;
+  completed: boolean;
+  project_id: string;
+  created_at: string;
+};
+
+function getTaskUrl(id: string) {
+  return `/v2/tasks/${id}`;
+}
 ```
-
-### Migration notes
-
-- Do not cast task IDs to numbers.
-- Update schemas and types from integer to string.
-- Update route validation and serializers to accept UUID-shaped strings.
-- If you persist task IDs locally, verify the storage type can hold string UUIDs.
 
 ## 4. Rename `done` to `completed`
 
-The task status field was renamed. Any code that reads or writes `done` must be changed to use `completed`.
+The task status field has been renamed from `done` to `completed`.
 
-### What changed
-
-- v1 field: `done`
-- v2 field: `completed`
-
-This affects both response parsing and update payloads.
+This affects both response handling and update payloads. Any code still reading or writing `done` must be updated.
 
 ### Before
 
 ```json
 {
-  "id": 42,
-  "title": "Write tests",
-  "done": false,
-  "created_at": "2024-01-15T10:30:00Z"
+  "title": "Updated title",
+  "done": true
 }
 ```
 
@@ -168,22 +180,35 @@ This affects both response parsing and update payloads.
 
 ```json
 {
-  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "title": "Write tests",
-  "completed": false,
-  "project_id": "proj_abc123",
-  "created_at": "2024-01-15T10:30:00Z"
+  "title": "Updated title",
+  "completed": true
 }
 ```
 
-### Before
+### Example: reading task state
 
-```javascript
+Before:
+
+```js
 if (task.done) {
-  console.log('Task is finished');
+  console.log('Task is complete');
 }
+```
 
-await fetch(`https://api.example.com/tasks/${task.id}`, {
+After:
+
+```js
+if (task.completed) {
+  console.log('Task is complete');
+}
+```
+
+### Example: updating task state
+
+Before:
+
+```js
+await fetch(`${baseUrl}/tasks/42`, {
   method: 'PUT',
   headers: {
     'Content-Type': 'application/json',
@@ -193,14 +218,10 @@ await fetch(`https://api.example.com/tasks/${task.id}`, {
 });
 ```
 
-### After
+After:
 
-```javascript
-if (task.completed) {
-  console.log('Task is finished');
-}
-
-await fetch(`https://api.example.com/v2/tasks/${task.id}`, {
+```js
+await fetch(`${baseUrl}/v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890`, {
   method: 'PUT',
   headers: {
     'Content-Type': 'application/json',
@@ -210,42 +231,35 @@ await fetch(`https://api.example.com/v2/tasks/${task.id}`, {
 });
 ```
 
-## 5. Include `project_id` When Creating Tasks
+## 5. Include `project_id` when creating tasks
 
-Task creation is stricter in v2. A create request without `project_id` now fails with `422`.
+In v1, creating a task required only `title`. In v2, `project_id` is required for every task creation request.
 
-### What changed
-
-- v1 create payload required only `title`
-- v2 create payload requires both `title` and `project_id`
+If you omit `project_id`, the API returns `422 Unprocessable Entity`.
 
 ### Before
 
-```bash
-curl -X POST https://api.example.com/tasks \
-  -H 'X-Auth-Token: my-api-key' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "title": "New task title"
-  }'
+```json
+{
+  "title": "New task title"
+}
 ```
 
 ### After
 
-```bash
-curl -X POST https://api.example.com/v2/tasks \
-  -H 'Authorization: Bearer my-api-token' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "title": "New task title",
-    "project_id": "proj_abc123"
-  }'
+```json
+{
+  "title": "New task title",
+  "project_id": "proj_abc123"
+}
 ```
 
-### Before
+### Example
 
-```javascript
-await fetch('https://api.example.com/tasks', {
+Before:
+
+```js
+await fetch(`${baseUrl}/tasks`, {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -257,10 +271,10 @@ await fetch('https://api.example.com/tasks', {
 });
 ```
 
-### After
+After:
 
-```javascript
-await fetch('https://api.example.com/v2/tasks', {
+```js
+await fetch(`${baseUrl}/v2/tasks`, {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -273,19 +287,13 @@ await fetch('https://api.example.com/v2/tasks', {
 });
 ```
 
-### Migration notes
+## 6. Update list handling for paginated responses
 
-- Make sure your application has access to the correct `project_id` before creating tasks.
-- Update any validation logic so `project_id` is required for create operations.
-- If your UI or CLI previously created tasks without project context, you now need to collect or derive that value.
+In v1, `GET /tasks` returned a bare array. In v2, list endpoints return an envelope with `items`, `total`, and `next_cursor`.
 
-## 6. Parse List Responses as Paginated Envelopes
+This is a breaking change for any code that assumes the response itself is an array.
 
-This is the biggest response-shape change in v2. List endpoints no longer return a bare array. They now return an envelope with `items`, `total`, and `next_cursor`.
-
-### What changed
-
-v1 list response:
+### Before
 
 ```json
 [
@@ -294,7 +302,7 @@ v1 list response:
 ]
 ```
 
-v2 list response:
+### After
 
 ```json
 {
@@ -319,136 +327,119 @@ v2 list response:
 }
 ```
 
-### Before
+### Example: reading the list response
 
-```javascript
-const response = await fetch('https://api.example.com/tasks', {
+Before:
+
+```js
+const response = await fetch(`${baseUrl}/tasks`, {
   headers: {
     'X-Auth-Token': apiKey,
   },
 });
 
 const tasks = await response.json();
-
 for (const task of tasks) {
-  console.log(task.title, task.done);
+  console.log(task.title);
 }
 ```
 
-### After
+After:
 
-```javascript
-const response = await fetch('https://api.example.com/v2/tasks?limit=20', {
+```js
+const response = await fetch(`${baseUrl}/v2/tasks?limit=20`, {
   headers: {
     Authorization: `Bearer ${apiToken}`,
   },
 });
 
 const page = await response.json();
-
 for (const task of page.items) {
-  console.log(task.title, task.completed);
+  console.log(task.title);
 }
 
-console.log('Total tasks:', page.total);
-console.log('Next cursor:', page.next_cursor);
+if (page.next_cursor) {
+  console.log(`Fetch next page with cursor=${page.next_cursor}`);
+}
 ```
+
+### Example: following pagination
+
+Before:
+
+```js
+const tasks = await fetch(`${baseUrl}/tasks`).then((r) => r.json());
+```
+
+After:
+
+```js
+let cursor;
+const allTasks = [];
+
+while (true) {
+  const url = new URL(`${baseUrl}/v2/tasks`);
+  if (cursor) url.searchParams.set('cursor', cursor);
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${apiToken}`,
+    },
+  });
+
+  const page = await response.json();
+  allTasks.push(...page.items);
+
+  if (!page.next_cursor) break;
+  cursor = page.next_cursor;
+}
+```
+
+## Consolidated task model changes
+
+If your codebase defines a shared task type, update it in one pass:
 
 ### Before
 
-```bash
-curl https://api.example.com/tasks \
-  -H 'X-Auth-Token: my-api-key'
+```ts
+type Task = {
+  id: number;
+  title: string;
+  done: boolean;
+  created_at: string;
+};
 ```
 
 ### After
 
-```bash
-curl 'https://api.example.com/v2/tasks?limit=20&cursor=cursor_xyz' \
-  -H 'Authorization: Bearer my-api-token'
+```ts
+type Task = {
+  id: string;
+  title: string;
+  completed: boolean;
+  project_id: string;
+  created_at: string;
+};
 ```
 
-### Migration notes
+## Migration checklist
 
-- Update any code that assumes the top-level response is an array.
-- Iterate over `items`, not the root object.
-- If you need complete result sets, follow `next_cursor` until it is empty or null.
-- If you rely on total counts, use the new `total` field.
-
-## Full Request Examples
-
-### Get a Task
-
-#### Before
-
-```bash
-curl https://api.example.com/tasks/42 \
-  -H 'X-Auth-Token: my-api-key'
-```
-
-#### After
-
-```bash
-curl https://api.example.com/v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890 \
-  -H 'Authorization: Bearer my-api-token'
-```
-
-### Update a Task
-
-#### Before
-
-```bash
-curl -X PUT https://api.example.com/tasks/42 \
-  -H 'X-Auth-Token: my-api-key' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "title": "Updated title",
-    "done": true
-  }'
-```
-
-#### After
-
-```bash
-curl -X PUT https://api.example.com/v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890 \
-  -H 'Authorization: Bearer my-api-token' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "title": "Updated title",
-    "completed": true
-  }'
-```
-
-### Delete a Task
-
-#### Before
-
-```bash
-curl -X DELETE https://api.example.com/tasks/42 \
-  -H 'X-Auth-Token: my-api-key'
-```
-
-#### After
-
-```bash
-curl -X DELETE https://api.example.com/v2/tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890 \
-  -H 'Authorization: Bearer my-api-token'
-```
-
-## Migration Checklist
-
-1. Change every request path from `/tasks` to `/v2/tasks`.
-2. Replace the `X-Auth-Token` header with `Authorization: Bearer <token>`.
-3. Update all task ID types from integer to string/UUID.
-4. Remove numeric parsing or numeric validation for task IDs.
-5. Rename all reads of `task.done` to `task.completed`.
-6. Rename all writes of `done` in request payloads to `completed`.
-7. Update task creation flows to always include `project_id`.
-8. Add validation so create requests fail locally if `project_id` is missing.
-9. Update list response parsing to read `items` instead of treating the response as an array.
-10. If you fetch multiple pages, implement cursor handling with `next_cursor`.
-11. If you depend on list counts, read `total` from the paginated response.
-12. Run integration tests against all list, get, create, update, and delete paths before rolling out.
+1. Change every task API route from `/tasks` to `/v2/tasks`.
+2. Replace `X-Auth-Token` with `Authorization: Bearer <token>` in every request.
+3. Update all task ID handling from integer/number to UUID string.
+4. Rename every `done` field reference to `completed`.
+5. Add `project_id` to every task creation request.
+6. Update task models, validators, serializers, and database/cache schemas to reflect:
+   - `id: string`
+   - `completed: boolean`
+   - `project_id: string`
+7. Change list-response parsing from a bare array to the paginated envelope:
+   - read tasks from `items`
+   - use `next_cursor` to fetch additional pages
+   - optionally use `limit`
+8. Update tests and fixtures to use `/v2/` paths, Bearer auth, UUID IDs, `completed`, and `project_id`.
+9. Verify create flows fail fast if `project_id` is missing, since v2 returns HTTP 422.
+10. Run an end-to-end smoke test for list, get, create, update, and delete against the v2 API.
 
 Upgrade command:
 
