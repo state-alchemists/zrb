@@ -1,6 +1,14 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.28.3 (May 18, 2026)
+
+- **Improvement: Mandate tightened with production-readiness rules**:
+  - **New "Completion requires producing the expected output" rule** in Task Handling: reading instructions and context files is preparation, not completion — if the task asks for a file, write it.
+  - **New "Run generated code" rule** in Engineering Standards: after writing or refactoring, always execute it to verify it runs without errors.
+  - **New "Meet all stated criteria" rule** in Engineering Standards: when a task lists explicit requirements beyond basic correctness (e.g., "use a Lock", "use environment variables"), verify every one is met, not just the functional minimum.
+  - **"Repeated failures" recovery refined**: now explicitly catches the pattern of running the same unchanged script/command 3+ times without modifying source code — stop, read the code, understand why it's failing, then continue the protocol (3 distinct approach failures → pause and surface).
+
 ## 2.28.2a1 (May 15, 2026)
 
 - **Improvement: Journal mandate wording tightened + rationale added**:
