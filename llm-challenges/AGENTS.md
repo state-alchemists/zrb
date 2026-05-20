@@ -4,100 +4,159 @@
 **OBJECTIVE:** Run, Evaluate, and Improve the `zrb` LLM framework.
 
 ## Mission
-Your goal is to ensure `zrb llm chat` can autonomously and correctly solve complex software engineering tasks. You will run a series of challenges, evaluate the results against strict criteria, and modify the `zrb` source code (prompts and tool definitions) to fix any failures.
+Your goal is to ensure `zrb llm chat` can autonomously and correctly solve
+complex software engineering tasks. You will run a series of challenges via
+[`zrb-llm-evaluator`](https://github.com/state-alchemists/zrb-llm-evaluator),
+evaluate the results against strict criteria, and modify the `zrb` source code
+(prompts and tool definitions) to fix any failures.
 
 ## The Challenges
-Located in: `challenges/` (relative to this directory)
+Located in `challenges/` (relative to this directory). Each subdirectory is a
+single test case in the format `zrb-llm-evaluator` expects:
+
+```
+challenges/<name>/
+├── instruction.txt   # prompt sent to the LLM
+├── workdir/          # scaffolding files staged into the trial cwd
+└── validator.py      # exposes a `validator` implementing ValidatorProtocol
+```
+
+Current challenges:
 - `bug-fix`
 - `copywriting`
 - `feature`
+- `integration-bug`
 - `refactor`
 - `research`
 
 ## Execution Protocol
 
-**Prerequisite:** Open a terminal in the `llm-challenges/` directory.
+**Prerequisite:** `zrb-llm-evaluator` installed (`pipx install zrb-llm-evaluator`
+or `poetry install` from its repo). `zrb` itself must be on PATH and configured
+with the appropriate API keys.
 
-### 1. EXECUTE (Run the Automated Runner)
-We have a powerful runner script to orchestrate experiments.
+### 1. EXECUTE
+
+Run the full grid (all challenges × the models you care about):
 
 ```bash
-# Run with default settings
-python3 runner.py
-
-# Run with specific models and parallelism
-python3 runner.py --models openai:gpt-4o google-gla:gemini-2.5-flash deepseek:deepseek-chat
-
-# Run quick verification test (replaces test_single.py functionality)
-python3 runner.py --models openai:gpt-4o google-gla:gemini-2.5-flash deepseek:deepseek-chat --timeout 120 --parallelism 1 --verbose
-
-# Run with verbose output for debugging
-python3 runner.py --verbose
-
-# Run full test
-python runner.py --timeout 600 --parallelism 24 --verbose \
---models openai:gpt-5.1 openai:gpt-5.2 openai:gpt-5.4 \
-google-gla:gemini-2.5-flash google-gla:gemini-2.5-pro google-gla:gemini-3-flash-preview google-gla:gemini-3-pro-preview google-gla:gemini-3.1-pro-preview \
-deepseek:deepseek-chat ollama:glm-4.7:cloud ollama:glm-5:cloud ollama:glm-5.1:cloud \
-ollama:qwen3-coder-next:cloud ollama:kimi-k2.5:cloud ollama:kimi-k2.6:cloud ollama:minimax-m2.7:cloud \
-ollama:gemma4:31b-cloud
-
-# Run models that not support parallel tool call
-python runner.py --timeout 300 --parallelism 12 --verbose \
---models ollama:glm-4.7:cloud ollama:minimax-m2.7:cloud
-
-# Test a single challenge
-python runner.py --models openai:gpt-4o --filter bug-fix --timeout 120 --verbose
-
-# Test only Gemini models
-python runner.py --models google-gla:gemini-2.5-flash google-gla:gemini-1.5-pro --parallelism 2
+zrb-llm-evaluator run \
+  --models openai:gpt-4o,google-gla:gemini-2.5-flash,deepseek:deepseek-chat \
+  --test-cases ./challenges/bug-fix,./challenges/copywriting,./challenges/feature,./challenges/integration-bug,./challenges/refactor,./challenges/research \
+  --trials 3 \
+  --parallelism 4 \
+  --timeout 300 \
+  --output-dir ./experiment
 ```
 
-This script will:
-1.  Clean and recreate the `experiment/` directory.
-2.  Run `zrb chat` for every combination of Model x Challenge.
-3.  Automatically execute `verify.sh` or `verify.py` if present in the challenge folder.
-4.  Generate a consolidated `REPORT.md` and `results.json` in `experiment/`.
+Quick smoke test (single model, single challenge, one trial):
 
-### 2. ANALYZE (Read the Report)
-Open `experiment/REPORT.md`.
+```bash
+zrb-llm-evaluator run \
+  --models openai:gpt-4o \
+  --test-cases ./challenges/bug-fix \
+  --trials 1 \
+  --parallelism 1 \
+  --timeout 120 \
+  --output-dir ./experiment
+```
 
-*   **Green Check (✅)**: The agent finished successfully and passed automated verification.
-*   **Warning (⚠️)**: The agent finished, but automated verification failed.
-*   **Red Cross (❌)**: The agent crashed or timed out.
+The runner will:
+1. Build the full grid of model × test_case × trial cells.
+2. Stage each test case's `workdir/` into an isolated cell directory under
+   `experiment/<model>/<test_case>/trial-N/`.
+3. Invoke `zrb chat --interactive false --message <instruction>` in that cell.
+4. Invoke the test case's `validator.py` against the cell directory and the
+   conversation log.
+5. Write `experiment/results.json` atomically after each trial and a
+   `experiment/report.md` at the end.
 
-### 3. OPTIMIZE (Fix the Root Cause)
+Resume support is automatic — re-running with the same `--output-dir` skips
+cells whose status is already terminal (`EXCELLENT | PASS | FAIL | TIMEOUT |
+ERROR`).
+
+To regenerate the Markdown report from existing results without re-running:
+
+```bash
+zrb-llm-evaluator report --dir ./experiment
+```
+
+### 2. ANALYZE
+
+Open `experiment/report.md` (or inspect `experiment/results.json` directly).
+
+| Status      | Meaning                                                          |
+|-------------|------------------------------------------------------------------|
+| `EXCELLENT` | All checks passed, including the stricter optional ones.         |
+| `PASS`      | Core criteria met; stricter bar missed.                          |
+| `FAIL`      | Validator rejected the output.                                   |
+| `TIMEOUT`   | Subprocess hit `--timeout`; output preserved as far as it got.   |
+| `ERROR`     | Validator raised, or `zrb` exited non-zero with no marker.       |
+
+For per-cell forensics, look under `experiment/<model>/<test_case>/trial-N/`:
+- `chat.log` — combined stdout/stderr
+- `history/<session>.json` — `ZRB_LLM_HISTORY_DIR` recording
+- Any files the model produced (validators read from this directory)
+
+### 3. OPTIMIZE
+
 **IF AND ONLY IF** a challenge fails or is solved inefficiently:
-1.  **Analyze**: Look at the logs linked in the report.
-2.  **Refactor `zrb`**: Modify the core framework files.
-    -   **Prompts**: `src/zrb/llm/prompt/markdown/`, especially `persona.py` and `mandates.py`
-    -   **Tools**: `src/zrb/llm/tool/`
-3.  **Retry**: Run `python3 runner.py` again to verify the fix.
+1. **Analyze**: Read `chat.log` and `history/<session>.json` for the failing
+   trial(s).
+2. **Refactor `zrb`**: Modify the core framework files.
+   - **Prompts**: `src/zrb/llm/prompt/markdown/`, especially `persona.py` and
+     `mandates.py`
+   - **Tools**: `src/zrb/llm/tool/`
+3. **Retry**: Re-run the evaluator. Resume support lets you target just the
+   challenges that regressed by deleting their entries from `results.json`
+   (or by using a fresh `--output-dir`).
 
 ## Creating New Challenges
+
 To create a new challenge:
-1.  Create a folder `challenges/<name>`.
-2.  Add `instruction.md` (The prompt for the agent).
-3.  Add `workdir/` (The initial files for the agent).
-4.  (Optional) Add `verify.sh` or `verify.py` (Script to assert success).
+1. Create `challenges/<name>/`.
+2. Add `instruction.txt` — the prompt for the agent.
+3. Add `workdir/` — the initial files the agent will see in its cwd.
+4. Add `validator.py` exposing a top-level `validator` object that implements
+   `ValidatorProtocol` (see `zrb_llm_evaluator.protocols.ValidatorProtocol`).
+   Return a `ValidationResult` with `status`, `score`, and `details`.
 
-## Enhanced Runner Features
-The `runner.py` script now includes all functionality from `test_single.py`:
+Minimal validator template:
 
-1. **Verbose Output**: Use `--verbose` to see real-time execution details and tool call detection
-2. **Enhanced Model Configuration**: Better API key handling for gpt-4o and deepseek-chat
-3. **Tool Call Detection**: Improved detection of "🧰" emoji in output
-4. **Flexible Filtering**: Use `--filter` to test specific challenges
-5. **Configurable Timeout**: Adjust timeout per challenge with `--timeout`
+```python
+from pathlib import Path
+from zrb_llm_evaluator.models import ValidationCheck, ValidationResult
+from zrb_llm_evaluator.protocols import ValidatorProtocol
 
-## Quick Verification (replaces test_single.py)
-To run a quick verification test similar to the old `test_single.py`:
-```bash
-python3 runner.py --models gemini-2.5-flash gpt-4o deepseek-chat --timeout 120 --parallelism 1 --verbose
+
+class MyValidator:
+    def validate(self, output_dir: Path, log_content: str) -> ValidationResult:
+        produced = (output_dir / "expected_artifact.md").is_file()
+        return ValidationResult(
+            status="PASS" if produced else "FAIL",
+            score=1.0 if produced else 0.0,
+            details=[
+                ValidationCheck(
+                    name="expected_artifact",
+                    passed=produced,
+                    message="expected_artifact.md present" if produced
+                            else "expected_artifact.md not produced",
+                ),
+            ],
+        )
+
+
+validator = MyValidator()
 ```
 
+The framework validates protocol conformance at load time — a `validator.py`
+that doesn't implement `ValidatorProtocol` is rejected before any trial runs.
+
 ## Rules of Engagement
-1.  **DO NOT MODIFY CHALLENGES**: You are testing `zrb`, not the test itself.
-2.  **BE RUTHLESS**: Partial credit is FAILURE.
-3.  **SELF-CORRECTION**: If the `runner.py` script fails due to environment issues, fix the environment or the script.
-4.  **USE QUICK TESTS FIRST**: Always run a quick verification test to verify your setup before running full experiments.
+1. **DO NOT MODIFY CHALLENGES**: You are testing `zrb`, not the test itself.
+2. **BE RUTHLESS**: Partial credit is FAILURE.
+3. **SELF-CORRECTION**: If `zrb-llm-evaluator` itself fails due to environment
+   issues, fix the environment. If it fails due to an evaluator bug, file an
+   issue or patch the evaluator — don't paper over it in the validators.
+4. **SMOKE TEST FIRST**: Always run a single-trial, single-challenge smoke
+   test to validate your setup before launching a full grid.
