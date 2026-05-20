@@ -44,6 +44,22 @@ def test_create_banner_empty_art():
         assert res == "text"
 
 
+def test_create_banner_max_width_hides_art_when_overflow():
+    with patch("zrb.util.ascii_art.banner._get_art_only", return_value="ASCII\nART"):
+        # art_width=5, separator=2, text_width=11 → 18 columns total.
+        # max_width=10 forces the art to be dropped.
+        res = create_banner(None, "Hello World", max_width=10)
+        assert res == "Hello World"
+        assert "ASCII" not in res
+
+
+def test_create_banner_max_width_keeps_art_when_fits():
+    with patch("zrb.util.ascii_art.banner._get_art_only", return_value="ASCII\nART"):
+        res = create_banner(None, "Hi", max_width=80)
+        assert "ASCII" in res
+        assert "Hi" in res
+
+
 def test_get_art_only_file_not_found():
     from zrb.util.ascii_art.banner import _get_art_only
 

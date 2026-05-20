@@ -580,10 +580,7 @@ class CommandsMixin:
             "Ask a side question without saving to history (usage: {cmd} <question>)",
         )
         for custom_cmd in self._custom_commands:
-            usage = f"{custom_cmd.command} " + " ".join(
-                [f"<{a}>" for a in custom_cmd.args]
-            )
-            raw_lines.append((custom_cmd.command, usage))
+            raw_lines.append((custom_cmd.command, custom_cmd.description))
 
         if not raw_lines:
             return ""
@@ -595,5 +592,20 @@ class CommandsMixin:
                 help_lines.append("  ... and more")
                 break
             help_lines.append(f"  {cmd:<{max_cmd_len}} : {desc}")
+
+        shortcuts: list[tuple[str, str]] = [
+            ("Ctrl+J", "Insert a newline (multi-line input)"),
+            ("Ctrl+V / Alt+V", "Paste text or image from clipboard"),
+            ("Tab / Shift+Tab", "Move focus between input and output"),
+            ("F6", "Toggle focus between input and output"),
+            ("Esc", "Cancel running task or clear input"),
+            ("Ctrl+Y", "Toggle YOLO mode"),
+            ("Ctrl+C", "Copy selection, clear input, or exit"),
+            ("↑ / ↓", "Navigate input history"),
+        ]
+        max_key_len = max(len(k) for k, _ in shortcuts)
+        help_lines.append("\nKeyboard Shortcuts:")
+        for key, desc in shortcuts:
+            help_lines.append(f"  {key:<{max_key_len}} : {desc}")
 
         return "\n".join(help_lines) + "\n"
