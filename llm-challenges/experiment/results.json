@@ -1,0 +1,1875 @@
+[
+  {
+    "id": "3a37dc36-ead3-45d4-83b2-9a032c405e32",
+    "model": "google-gla:gemini-2.5-flash",
+    "test_case": "bug-fix",
+    "trial_index": 1,
+    "status": "FAIL",
+    "duration": 103.58635845800745,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/bug-fix/trial-1/history/google-gla_gemini-2.5-flash-bug-fix-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/bug-fix/trial-1/stdout.log",
+    "verification_result": {
+      "status": "FAIL",
+      "score": 0.0,
+      "details": [
+        {
+          "name": "run_1",
+          "passed": false,
+          "message": "done=10, failed=0, stuck=2"
+        },
+        {
+          "name": "run_2",
+          "passed": false,
+          "message": "done=10, failed=0, stuck=2"
+        },
+        {
+          "name": "run_3",
+          "passed": false,
+          "message": "done=10, failed=0, stuck=2"
+        },
+        {
+          "name": "run_4",
+          "passed": false,
+          "message": "done=10, failed=0, stuck=2"
+        },
+        {
+          "name": "run_5",
+          "passed": false,
+          "message": "done=10, failed=0, stuck=2"
+        },
+        {
+          "name": "concurrency_primitive",
+          "passed": false,
+          "message": "No Lock primitive detected"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "d2db716c-a1d4-4d92-9107-43a317d48634",
+    "model": "google-gla:gemini-2.5-flash",
+    "test_case": "bug-fix",
+    "trial_index": 2,
+    "status": "FAIL",
+    "duration": 38.73716150000109,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/bug-fix/trial-2/history/google-gla_gemini-2.5-flash-bug-fix-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/bug-fix/trial-2/stdout.log",
+    "verification_result": {
+      "status": "FAIL",
+      "score": 0.0,
+      "details": [
+        {
+          "name": "run_1",
+          "passed": false,
+          "message": "done=10, failed=0, stuck=2"
+        },
+        {
+          "name": "run_2",
+          "passed": false,
+          "message": "done=10, failed=0, stuck=2"
+        },
+        {
+          "name": "run_3",
+          "passed": false,
+          "message": "done=10, failed=0, stuck=2"
+        },
+        {
+          "name": "run_4",
+          "passed": false,
+          "message": "done=10, failed=0, stuck=2"
+        },
+        {
+          "name": "run_5",
+          "passed": false,
+          "message": "done=10, failed=0, stuck=2"
+        },
+        {
+          "name": "concurrency_primitive",
+          "passed": false,
+          "message": "No Lock primitive detected"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "781ccbe8-ef15-4af4-ae52-781943c051ee",
+    "model": "google-gla:gemini-2.5-flash",
+    "test_case": "bug-fix",
+    "trial_index": 3,
+    "status": "PASS",
+    "duration": 106.48743804197875,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/bug-fix/trial-3/history/google-gla_gemini-2.5-flash-bug-fix-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/bug-fix/trial-3/stdout.log",
+    "verification_result": {
+      "status": "PASS",
+      "score": 0.85,
+      "details": [
+        {
+          "name": "run_1",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_2",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_3",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_4",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_5",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "concurrency_primitive",
+          "passed": false,
+          "message": "No Lock primitive detected"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "4a0e27ab-e5e7-4629-9a7a-92605b2a44d7",
+    "model": "google-gla:gemini-2.5-flash",
+    "test_case": "copywriting",
+    "trial_index": 2,
+    "status": "EXCELLENT",
+    "duration": 116.38691662502242,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/copywriting/trial-2/history/google-gla_gemini-2.5-flash-copywriting-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/copywriting/trial-2/stdout.log",
+    "verification_result": {
+      "status": "EXCELLENT",
+      "score": 1.0,
+      "details": [
+        {
+          "name": "migration_file",
+          "passed": true,
+          "message": "Using MIGRATION.md"
+        },
+        {
+          "name": "markdown_headings",
+          "passed": true,
+          "message": "Has markdown headings"
+        },
+        {
+          "name": "substantial_content",
+          "passed": true,
+          "message": "1019 words (need \u2265400)"
+        },
+        {
+          "name": "code_blocks",
+          "passed": true,
+          "message": "26 fenced code block(s) (need \u22653)"
+        },
+        {
+          "name": "auth_header_change",
+          "passed": true,
+          "message": "Authorization: Bearer documented"
+        },
+        {
+          "name": "uuid_id_change",
+          "passed": true,
+          "message": "UUID id change documented"
+        },
+        {
+          "name": "field_rename",
+          "passed": true,
+          "message": "done\u2192completed rename documented"
+        },
+        {
+          "name": "project_id_and_v2_prefix",
+          "passed": true,
+          "message": "project_id + /v2/ prefix covered"
+        },
+        {
+          "name": "checklist_or_upgrade",
+          "passed": true,
+          "message": "Checklist or upgrade command present"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "bb0b04a7-52df-483f-a289-a305b5dd9e32",
+    "model": "google-gla:gemini-2.5-flash",
+    "test_case": "copywriting",
+    "trial_index": 1,
+    "status": "EXCELLENT",
+    "duration": 123.94702291701105,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/copywriting/trial-1/history/google-gla_gemini-2.5-flash-copywriting-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/copywriting/trial-1/stdout.log",
+    "verification_result": {
+      "status": "EXCELLENT",
+      "score": 1.0,
+      "details": [
+        {
+          "name": "migration_file",
+          "passed": true,
+          "message": "Using MIGRATION.md"
+        },
+        {
+          "name": "markdown_headings",
+          "passed": true,
+          "message": "Has markdown headings"
+        },
+        {
+          "name": "substantial_content",
+          "passed": true,
+          "message": "945 words (need \u2265400)"
+        },
+        {
+          "name": "code_blocks",
+          "passed": true,
+          "message": "17 fenced code block(s) (need \u22653)"
+        },
+        {
+          "name": "auth_header_change",
+          "passed": true,
+          "message": "Authorization: Bearer documented"
+        },
+        {
+          "name": "uuid_id_change",
+          "passed": true,
+          "message": "UUID id change documented"
+        },
+        {
+          "name": "field_rename",
+          "passed": true,
+          "message": "done\u2192completed rename documented"
+        },
+        {
+          "name": "project_id_and_v2_prefix",
+          "passed": true,
+          "message": "project_id + /v2/ prefix covered"
+        },
+        {
+          "name": "checklist_or_upgrade",
+          "passed": true,
+          "message": "Checklist or upgrade command present"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "238e74d5-c8bb-4c3f-b6d8-dc8937ff9ddc",
+    "model": "google-gla:gemini-2.5-flash",
+    "test_case": "copywriting",
+    "trial_index": 3,
+    "status": "EXCELLENT",
+    "duration": 138.04699079098646,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/copywriting/trial-3/history/google-gla_gemini-2.5-flash-copywriting-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/copywriting/trial-3/stdout.log",
+    "verification_result": {
+      "status": "EXCELLENT",
+      "score": 1.0,
+      "details": [
+        {
+          "name": "migration_file",
+          "passed": true,
+          "message": "Using MIGRATION.md"
+        },
+        {
+          "name": "markdown_headings",
+          "passed": true,
+          "message": "Has markdown headings"
+        },
+        {
+          "name": "substantial_content",
+          "passed": true,
+          "message": "943 words (need \u2265400)"
+        },
+        {
+          "name": "code_blocks",
+          "passed": true,
+          "message": "17 fenced code block(s) (need \u22653)"
+        },
+        {
+          "name": "auth_header_change",
+          "passed": true,
+          "message": "Authorization: Bearer documented"
+        },
+        {
+          "name": "uuid_id_change",
+          "passed": true,
+          "message": "UUID id change documented"
+        },
+        {
+          "name": "field_rename",
+          "passed": true,
+          "message": "done\u2192completed rename documented"
+        },
+        {
+          "name": "project_id_and_v2_prefix",
+          "passed": true,
+          "message": "project_id + /v2/ prefix covered"
+        },
+        {
+          "name": "checklist_or_upgrade",
+          "passed": true,
+          "message": "Checklist or upgrade command present"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "00801f03-32ce-4ed5-aba4-e44f420b4f3f",
+    "model": "google-gla:gemini-2.5-flash",
+    "test_case": "feature",
+    "trial_index": 2,
+    "status": "FAIL",
+    "duration": 102.864052541001,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/feature/trial-2/history/google-gla_gemini-2.5-flash-feature-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/feature/trial-2/stdout.log",
+    "verification_result": {
+      "status": "FAIL",
+      "score": 0.0,
+      "details": [
+        {
+          "name": "import",
+          "passed": false,
+          "message": "Traceback (most recent call last):\n  File \"<string>\", line 6, in <module>\n    from fastapi.testclient import TestClient\nModuleNotFoundError: No module named 'fastapi'\n"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "4f699620-8aaa-4a06-855f-3d9da907584e",
+    "model": "google-gla:gemini-2.5-flash",
+    "test_case": "feature",
+    "trial_index": 1,
+    "status": "FAIL",
+    "duration": 131.6200627500075,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/feature/trial-1/history/google-gla_gemini-2.5-flash-feature-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/feature/trial-1/stdout.log",
+    "verification_result": {
+      "status": "FAIL",
+      "score": 0.0,
+      "details": [
+        {
+          "name": "import",
+          "passed": false,
+          "message": "Traceback (most recent call last):\n  File \"<string>\", line 6, in <module>\n    from fastapi.testclient import TestClient\nModuleNotFoundError: No module named 'fastapi'\n"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "581d65a5-12bc-4136-a8a7-c476202872c9",
+    "model": "google-gla:gemini-2.5-flash",
+    "test_case": "feature",
+    "trial_index": 3,
+    "status": "FAIL",
+    "duration": 142.56990541602136,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/feature/trial-3/history/google-gla_gemini-2.5-flash-feature-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/feature/trial-3/stdout.log",
+    "verification_result": {
+      "status": "FAIL",
+      "score": 0.0,
+      "details": [
+        {
+          "name": "import",
+          "passed": false,
+          "message": "Traceback (most recent call last):\n  File \"<string>\", line 6, in <module>\n    from fastapi.testclient import TestClient\nModuleNotFoundError: No module named 'fastapi'\n"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "72783273-073c-4b0a-973b-9b650be5c6a1",
+    "model": "google-gla:gemini-2.5-flash",
+    "test_case": "integration-bug",
+    "trial_index": 1,
+    "status": "FAIL",
+    "duration": 128.98171991700656,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/integration-bug/trial-1/history/google-gla_gemini-2.5-flash-integration-bug-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/integration-bug/trial-1/stdout.log",
+    "verification_result": {
+      "status": "FAIL",
+      "score": 0.16666666666666666,
+      "details": [
+        {
+          "name": "trial_1",
+          "passed": false,
+          "message": "charge mismatch (charged=1200.00, expected=500.00)"
+        },
+        {
+          "name": "trial_2",
+          "passed": false,
+          "message": "charge mismatch (charged=600.00, expected=500.00)"
+        },
+        {
+          "name": "trial_3",
+          "passed": false,
+          "message": "charge mismatch (charged=1100.00, expected=500.00)"
+        },
+        {
+          "name": "trial_4",
+          "passed": false,
+          "message": "charge mismatch (charged=800.00, expected=500.00)"
+        },
+        {
+          "name": "trial_5",
+          "passed": true,
+          "message": "stock=0, successful=5, charged=$500.00"
+        },
+        {
+          "name": "trial_6",
+          "passed": false,
+          "message": "charge mismatch (charged=1200.00, expected=500.00)"
+        },
+        {
+          "name": "locking_mechanism",
+          "passed": false,
+          "message": "No Lock primitive detected"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "1b07c3b0-8939-4019-b38b-861ac31dcc6a",
+    "model": "google-gla:gemini-2.5-flash",
+    "test_case": "refactor",
+    "trial_index": 1,
+    "status": "FAIL",
+    "duration": 116.90842983301263,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/refactor/trial-1/history/google-gla_gemini-2.5-flash-refactor-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/refactor/trial-1/stdout.log",
+    "verification_result": {
+      "status": "FAIL",
+      "score": 0.375,
+      "details": [
+        {
+          "name": "refactor_file",
+          "passed": true,
+          "message": "Checking pipeline.py"
+        },
+        {
+          "name": "env_var_config",
+          "passed": false,
+          "message": "No os.getenv/os.environ usage"
+        },
+        {
+          "name": "no_hardcoded_credential",
+          "passed": false,
+          "message": "Hardcoded 'password123' still present"
+        },
+        {
+          "name": "sql_injection_check",
+          "passed": true,
+          "message": "SQL queries appear parameterized"
+        },
+        {
+          "name": "etl_pattern",
+          "passed": false,
+          "message": "extract=False, transform=False, load=True"
+        },
+        {
+          "name": "separation_of_concerns",
+          "passed": false,
+          "message": "1 function(s), 0 class(es)"
+        },
+        {
+          "name": "regex_parsing",
+          "passed": false,
+          "message": "No regex usage detected"
+        },
+        {
+          "name": "type_hints_and_docstrings",
+          "passed": false,
+          "message": "types=True, docstrings=False"
+        },
+        {
+          "name": "script_runs",
+          "passed": true,
+          "message": "Script exited 0"
+        },
+        {
+          "name": "report_html",
+          "passed": true,
+          "message": "Sections present and source data preserved"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "b5f4a317-ef13-4783-ab88-33619c99d3ce",
+    "model": "google-gla:gemini-2.5-flash",
+    "test_case": "integration-bug",
+    "trial_index": 2,
+    "status": "FAIL",
+    "duration": 216.34377437498188,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/integration-bug/trial-2/history/google-gla_gemini-2.5-flash-integration-bug-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/integration-bug/trial-2/stdout.log",
+    "verification_result": {
+      "status": "FAIL",
+      "score": 0.16666666666666666,
+      "details": [
+        {
+          "name": "trial_1",
+          "passed": false,
+          "message": "charge mismatch (charged=1200.00, expected=500.00)"
+        },
+        {
+          "name": "trial_2",
+          "passed": false,
+          "message": "charge mismatch (charged=600.00, expected=500.00)"
+        },
+        {
+          "name": "trial_3",
+          "passed": false,
+          "message": "charge mismatch (charged=1100.00, expected=500.00)"
+        },
+        {
+          "name": "trial_4",
+          "passed": false,
+          "message": "charge mismatch (charged=800.00, expected=500.00)"
+        },
+        {
+          "name": "trial_5",
+          "passed": true,
+          "message": "stock=0, successful=5, charged=$500.00"
+        },
+        {
+          "name": "trial_6",
+          "passed": false,
+          "message": "charge mismatch (charged=1200.00, expected=500.00)"
+        },
+        {
+          "name": "locking_mechanism",
+          "passed": false,
+          "message": "No Lock primitive detected"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "41537e17-2875-457a-8375-0f83b8eef5ec",
+    "model": "google-gla:gemini-2.5-flash",
+    "test_case": "refactor",
+    "trial_index": 2,
+    "status": "FAIL",
+    "duration": 126.06714199998532,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/refactor/trial-2/history/google-gla_gemini-2.5-flash-refactor-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/refactor/trial-2/stdout.log",
+    "verification_result": {
+      "status": "FAIL",
+      "score": 0.375,
+      "details": [
+        {
+          "name": "refactor_file",
+          "passed": true,
+          "message": "Checking pipeline.py"
+        },
+        {
+          "name": "env_var_config",
+          "passed": false,
+          "message": "No os.getenv/os.environ usage"
+        },
+        {
+          "name": "no_hardcoded_credential",
+          "passed": false,
+          "message": "Hardcoded 'password123' still present"
+        },
+        {
+          "name": "sql_injection_check",
+          "passed": true,
+          "message": "SQL queries appear parameterized"
+        },
+        {
+          "name": "etl_pattern",
+          "passed": false,
+          "message": "extract=False, transform=False, load=True"
+        },
+        {
+          "name": "separation_of_concerns",
+          "passed": false,
+          "message": "1 function(s), 0 class(es)"
+        },
+        {
+          "name": "regex_parsing",
+          "passed": false,
+          "message": "No regex usage detected"
+        },
+        {
+          "name": "type_hints_and_docstrings",
+          "passed": false,
+          "message": "types=True, docstrings=False"
+        },
+        {
+          "name": "script_runs",
+          "passed": true,
+          "message": "Script exited 0"
+        },
+        {
+          "name": "report_html",
+          "passed": true,
+          "message": "Sections present and source data preserved"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "646eeb82-45ff-4789-8298-3a1e36813e9c",
+    "model": "google-gla:gemini-2.5-flash",
+    "test_case": "refactor",
+    "trial_index": 3,
+    "status": "FAIL",
+    "duration": 52.76544499999727,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/refactor/trial-3/history/google-gla_gemini-2.5-flash-refactor-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/refactor/trial-3/stdout.log",
+    "verification_result": {
+      "status": "FAIL",
+      "score": 0.375,
+      "details": [
+        {
+          "name": "refactor_file",
+          "passed": true,
+          "message": "Checking pipeline.py"
+        },
+        {
+          "name": "env_var_config",
+          "passed": false,
+          "message": "No os.getenv/os.environ usage"
+        },
+        {
+          "name": "no_hardcoded_credential",
+          "passed": false,
+          "message": "Hardcoded 'password123' still present"
+        },
+        {
+          "name": "sql_injection_check",
+          "passed": true,
+          "message": "SQL queries appear parameterized"
+        },
+        {
+          "name": "etl_pattern",
+          "passed": false,
+          "message": "extract=False, transform=False, load=True"
+        },
+        {
+          "name": "separation_of_concerns",
+          "passed": false,
+          "message": "1 function(s), 0 class(es)"
+        },
+        {
+          "name": "regex_parsing",
+          "passed": false,
+          "message": "No regex usage detected"
+        },
+        {
+          "name": "type_hints_and_docstrings",
+          "passed": false,
+          "message": "types=True, docstrings=False"
+        },
+        {
+          "name": "script_runs",
+          "passed": true,
+          "message": "Script exited 0"
+        },
+        {
+          "name": "report_html",
+          "passed": true,
+          "message": "Sections present and source data preserved"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "dd8e95e6-7b9d-4df9-a885-fda24c06ca52",
+    "model": "google-gla:gemini-2.5-flash",
+    "test_case": "integration-bug",
+    "trial_index": 3,
+    "status": "TIMEOUT",
+    "duration": 300.01605445798486,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/integration-bug/trial-3/history/google-gla_gemini-2.5-flash-integration-bug-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/integration-bug/trial-3/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "967cd4f1-b103-4226-b189-2ba54e863fd5",
+    "model": "google-gla:gemini-2.5-flash",
+    "test_case": "research",
+    "trial_index": 3,
+    "status": "EXCELLENT",
+    "duration": 118.16677908299607,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/research/trial-3/history/google-gla_gemini-2.5-flash-research-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/research/trial-3/stdout.log",
+    "verification_result": {
+      "status": "EXCELLENT",
+      "score": 1.0,
+      "details": [
+        {
+          "name": "adr_file",
+          "passed": true,
+          "message": "Using ADR-001-notification-architecture.md"
+        },
+        {
+          "name": "substantial_content",
+          "passed": true,
+          "message": "1611 words (need \u2265500)"
+        },
+        {
+          "name": "adr_sections",
+          "passed": true,
+          "message": "found=['context', 'decision', 'consequences', 'alternatives']"
+        },
+        {
+          "name": "status_field",
+          "passed": true,
+          "message": "Status field present"
+        },
+        {
+          "name": "evaluates_both_options",
+          "passed": true,
+          "message": "kafka=True, redis=True"
+        },
+        {
+          "name": "clear_recommendation",
+          "passed": true,
+          "message": "Recommendation present"
+        },
+        {
+          "name": "technical_properties",
+          "passed": true,
+          "message": "covered 10/12 (throughput, ordering, retention, consumer group...)"
+        },
+        {
+          "name": "constraint_context",
+          "passed": true,
+          "message": "covered 7 constraint terms"
+        },
+        {
+          "name": "pros_and_cons",
+          "passed": true,
+          "message": "pros=True, cons=True"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "cd5ac366-fc2a-4807-b4bb-a8e9b8caf16d",
+    "model": "google-gla:gemini-2.5-flash",
+    "test_case": "research",
+    "trial_index": 2,
+    "status": "EXCELLENT",
+    "duration": 127.47348687500926,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/research/trial-2/history/google-gla_gemini-2.5-flash-research-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/research/trial-2/stdout.log",
+    "verification_result": {
+      "status": "EXCELLENT",
+      "score": 1.0,
+      "details": [
+        {
+          "name": "adr_file",
+          "passed": true,
+          "message": "Using ADR-001-notification-architecture.md"
+        },
+        {
+          "name": "substantial_content",
+          "passed": true,
+          "message": "1417 words (need \u2265500)"
+        },
+        {
+          "name": "adr_sections",
+          "passed": true,
+          "message": "found=['context', 'decision', 'consequences', 'alternatives']"
+        },
+        {
+          "name": "status_field",
+          "passed": true,
+          "message": "Status field present"
+        },
+        {
+          "name": "evaluates_both_options",
+          "passed": true,
+          "message": "kafka=True, redis=True"
+        },
+        {
+          "name": "clear_recommendation",
+          "passed": true,
+          "message": "Recommendation present"
+        },
+        {
+          "name": "technical_properties",
+          "passed": true,
+          "message": "covered 11/12 (throughput, ordering, retention, consumer group...)"
+        },
+        {
+          "name": "constraint_context",
+          "passed": true,
+          "message": "covered 7 constraint terms"
+        },
+        {
+          "name": "pros_and_cons",
+          "passed": true,
+          "message": "pros=True, cons=True"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "508334d4-fb8d-458a-b1c7-086a940f75af",
+    "model": "google-gla:gemini-2.5-flash",
+    "test_case": "research",
+    "trial_index": 1,
+    "status": "EXCELLENT",
+    "duration": 146.68995629198616,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/research/trial-1/history/google-gla_gemini-2.5-flash-research-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-2.5-flash/research/trial-1/stdout.log",
+    "verification_result": {
+      "status": "EXCELLENT",
+      "score": 1.0,
+      "details": [
+        {
+          "name": "adr_file",
+          "passed": true,
+          "message": "Using ADR-001-notification-architecture.md"
+        },
+        {
+          "name": "substantial_content",
+          "passed": true,
+          "message": "2120 words (need \u2265500)"
+        },
+        {
+          "name": "adr_sections",
+          "passed": true,
+          "message": "found=['context', 'decision', 'consequences', 'alternatives']"
+        },
+        {
+          "name": "status_field",
+          "passed": true,
+          "message": "Status field present"
+        },
+        {
+          "name": "evaluates_both_options",
+          "passed": true,
+          "message": "kafka=True, redis=True"
+        },
+        {
+          "name": "clear_recommendation",
+          "passed": true,
+          "message": "Recommendation present"
+        },
+        {
+          "name": "technical_properties",
+          "passed": true,
+          "message": "covered 10/12 (throughput, retention, consumer group, exactly-once...)"
+        },
+        {
+          "name": "constraint_context",
+          "passed": true,
+          "message": "covered 7 constraint terms"
+        },
+        {
+          "name": "pros_and_cons",
+          "passed": true,
+          "message": "pros=True, cons=True"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "ea6c4b7a-afc1-4d82-a84a-4b679585e7da",
+    "model": "deepseek:deepseek-chat",
+    "test_case": "bug-fix",
+    "trial_index": 3,
+    "status": "EXCELLENT",
+    "duration": 67.9491408749891,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/bug-fix/trial-3/history/deepseek_deepseek-chat-bug-fix-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/bug-fix/trial-3/stdout.log",
+    "verification_result": {
+      "status": "EXCELLENT",
+      "score": 1.0,
+      "details": [
+        {
+          "name": "run_1",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_2",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_3",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_4",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_5",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "concurrency_primitive",
+          "passed": true,
+          "message": "Lock found in source"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "b776c2b8-4b0b-4515-ba94-82d0e5c8fd3d",
+    "model": "deepseek:deepseek-chat",
+    "test_case": "copywriting",
+    "trial_index": 2,
+    "status": "FAIL",
+    "duration": 69.46438725001644,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/copywriting/trial-2/history/deepseek_deepseek-chat-copywriting-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/copywriting/trial-2/stdout.log",
+    "verification_result": {
+      "status": "FAIL",
+      "score": 0.0,
+      "details": [
+        {
+          "name": "migration_file",
+          "passed": false,
+          "message": "MIGRATION.md not found"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "921ea463-3cb1-4ef7-a9d3-dfd2e1814475",
+    "model": "deepseek:deepseek-chat",
+    "test_case": "copywriting",
+    "trial_index": 1,
+    "status": "EXCELLENT",
+    "duration": 120.05601358300191,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/copywriting/trial-1/history/deepseek_deepseek-chat-copywriting-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/copywriting/trial-1/stdout.log",
+    "verification_result": {
+      "status": "EXCELLENT",
+      "score": 1.0,
+      "details": [
+        {
+          "name": "migration_file",
+          "passed": true,
+          "message": "Using MIGRATION.md"
+        },
+        {
+          "name": "markdown_headings",
+          "passed": true,
+          "message": "Has markdown headings"
+        },
+        {
+          "name": "substantial_content",
+          "passed": true,
+          "message": "954 words (need \u2265400)"
+        },
+        {
+          "name": "code_blocks",
+          "passed": true,
+          "message": "14 fenced code block(s) (need \u22653)"
+        },
+        {
+          "name": "auth_header_change",
+          "passed": true,
+          "message": "Authorization: Bearer documented"
+        },
+        {
+          "name": "uuid_id_change",
+          "passed": true,
+          "message": "UUID id change documented"
+        },
+        {
+          "name": "field_rename",
+          "passed": true,
+          "message": "done\u2192completed rename documented"
+        },
+        {
+          "name": "project_id_and_v2_prefix",
+          "passed": true,
+          "message": "project_id + /v2/ prefix covered"
+        },
+        {
+          "name": "checklist_or_upgrade",
+          "passed": true,
+          "message": "Checklist or upgrade command present"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "cb45c4b6-406c-4e64-b1d4-90c0183a93b1",
+    "model": "deepseek:deepseek-chat",
+    "test_case": "bug-fix",
+    "trial_index": 1,
+    "status": "EXCELLENT",
+    "duration": 163.42048104200512,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/bug-fix/trial-1/history/deepseek_deepseek-chat-bug-fix-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/bug-fix/trial-1/stdout.log",
+    "verification_result": {
+      "status": "EXCELLENT",
+      "score": 1.0,
+      "details": [
+        {
+          "name": "run_1",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_2",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_3",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_4",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_5",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "concurrency_primitive",
+          "passed": true,
+          "message": "Lock found in source"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "0d60eb00-9eae-4c35-b53a-4621c009050d",
+    "model": "deepseek:deepseek-chat",
+    "test_case": "bug-fix",
+    "trial_index": 2,
+    "status": "PASS",
+    "duration": 208.05940133301192,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/bug-fix/trial-2/history/deepseek_deepseek-chat-bug-fix-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/bug-fix/trial-2/stdout.log",
+    "verification_result": {
+      "status": "PASS",
+      "score": 0.85,
+      "details": [
+        {
+          "name": "run_1",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_2",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_3",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_4",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_5",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "concurrency_primitive",
+          "passed": false,
+          "message": "No Lock primitive detected"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "d54b4606-9ed3-420a-bd20-2ceca81a633c",
+    "model": "deepseek:deepseek-chat",
+    "test_case": "feature",
+    "trial_index": 1,
+    "status": "FAIL",
+    "duration": 123.25215704200673,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/feature/trial-1/history/deepseek_deepseek-chat-feature-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/feature/trial-1/stdout.log",
+    "verification_result": {
+      "status": "FAIL",
+      "score": 0.0,
+      "details": [
+        {
+          "name": "import",
+          "passed": false,
+          "message": "Traceback (most recent call last):\n  File \"<string>\", line 6, in <module>\n    from fastapi.testclient import TestClient\nModuleNotFoundError: No module named 'fastapi'\n"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "1f36aa59-27a9-40bc-85bd-c51b406e06eb",
+    "model": "deepseek:deepseek-chat",
+    "test_case": "feature",
+    "trial_index": 2,
+    "status": "FAIL",
+    "duration": 129.14305054198485,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/feature/trial-2/history/deepseek_deepseek-chat-feature-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/feature/trial-2/stdout.log",
+    "verification_result": {
+      "status": "FAIL",
+      "score": 0.0,
+      "details": [
+        {
+          "name": "import",
+          "passed": false,
+          "message": "Traceback (most recent call last):\n  File \"<string>\", line 6, in <module>\n    from fastapi.testclient import TestClient\nModuleNotFoundError: No module named 'fastapi'\n"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "01a016e5-84c3-4d0e-bbe7-ffa158db9610",
+    "model": "deepseek:deepseek-chat",
+    "test_case": "copywriting",
+    "trial_index": 3,
+    "status": "EXCELLENT",
+    "duration": 132.3425772920018,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/copywriting/trial-3/history/deepseek_deepseek-chat-copywriting-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/copywriting/trial-3/stdout.log",
+    "verification_result": {
+      "status": "EXCELLENT",
+      "score": 1.0,
+      "details": [
+        {
+          "name": "migration_file",
+          "passed": true,
+          "message": "Using MIGRATION.md"
+        },
+        {
+          "name": "markdown_headings",
+          "passed": true,
+          "message": "Has markdown headings"
+        },
+        {
+          "name": "substantial_content",
+          "passed": true,
+          "message": "1137 words (need \u2265400)"
+        },
+        {
+          "name": "code_blocks",
+          "passed": true,
+          "message": "22 fenced code block(s) (need \u22653)"
+        },
+        {
+          "name": "auth_header_change",
+          "passed": true,
+          "message": "Authorization: Bearer documented"
+        },
+        {
+          "name": "uuid_id_change",
+          "passed": true,
+          "message": "UUID id change documented"
+        },
+        {
+          "name": "field_rename",
+          "passed": true,
+          "message": "done\u2192completed rename documented"
+        },
+        {
+          "name": "project_id_and_v2_prefix",
+          "passed": true,
+          "message": "project_id + /v2/ prefix covered"
+        },
+        {
+          "name": "checklist_or_upgrade",
+          "passed": true,
+          "message": "Checklist or upgrade command present"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "7193f110-736e-4b2f-859c-5771b05cceb8",
+    "model": "deepseek:deepseek-chat",
+    "test_case": "feature",
+    "trial_index": 3,
+    "status": "FAIL",
+    "duration": 126.53036987499218,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/feature/trial-3/history/deepseek_deepseek-chat-feature-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/feature/trial-3/stdout.log",
+    "verification_result": {
+      "status": "FAIL",
+      "score": 0.0,
+      "details": [
+        {
+          "name": "import",
+          "passed": false,
+          "message": "Traceback (most recent call last):\n  File \"<string>\", line 6, in <module>\n    from fastapi.testclient import TestClient\nModuleNotFoundError: No module named 'fastapi'\n"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "8708f357-0b46-46e0-8b52-eca98d3f8856",
+    "model": "deepseek:deepseek-chat",
+    "test_case": "integration-bug",
+    "trial_index": 1,
+    "status": "PASS",
+    "duration": 274.8682840830006,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/integration-bug/trial-1/history/deepseek_deepseek-chat-integration-bug-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/integration-bug/trial-1/stdout.log",
+    "verification_result": {
+      "status": "PASS",
+      "score": 0.85,
+      "details": [
+        {
+          "name": "trial_1",
+          "passed": true,
+          "message": "stock=0, successful=5, charged=$500.00"
+        },
+        {
+          "name": "trial_2",
+          "passed": true,
+          "message": "stock=2, successful=3, charged=$300.00"
+        },
+        {
+          "name": "trial_3",
+          "passed": true,
+          "message": "stock=1, successful=4, charged=$400.00"
+        },
+        {
+          "name": "trial_4",
+          "passed": true,
+          "message": "stock=2, successful=3, charged=$300.00"
+        },
+        {
+          "name": "trial_5",
+          "passed": true,
+          "message": "stock=4, successful=1, charged=$100.00"
+        },
+        {
+          "name": "trial_6",
+          "passed": true,
+          "message": "stock=0, successful=5, charged=$500.00"
+        },
+        {
+          "name": "locking_mechanism",
+          "passed": false,
+          "message": "No Lock primitive detected"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "a8d8d1be-7fee-42a4-bf80-3dd1db4faf94",
+    "model": "deepseek:deepseek-chat",
+    "test_case": "integration-bug",
+    "trial_index": 2,
+    "status": "TIMEOUT",
+    "duration": 300.0147715410276,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/integration-bug/trial-2/history/deepseek_deepseek-chat-integration-bug-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/integration-bug/trial-2/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "bcdb494e-0a80-45d9-890e-800ab32155d3",
+    "model": "deepseek:deepseek-chat",
+    "test_case": "integration-bug",
+    "trial_index": 3,
+    "status": "TIMEOUT",
+    "duration": 300.01015204098076,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/integration-bug/trial-3/history/deepseek_deepseek-chat-integration-bug-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/integration-bug/trial-3/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "91b2bc16-9a0b-4cb0-bf58-3922fcd53616",
+    "model": "deepseek:deepseek-chat",
+    "test_case": "refactor",
+    "trial_index": 1,
+    "status": "FAIL",
+    "duration": 277.7034499589936,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/refactor/trial-1/history/deepseek_deepseek-chat-refactor-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/refactor/trial-1/stdout.log",
+    "verification_result": {
+      "status": "FAIL",
+      "score": 1.0,
+      "details": [
+        {
+          "name": "refactor_file",
+          "passed": true,
+          "message": "Checking pipeline_refactored.py"
+        },
+        {
+          "name": "env_var_config",
+          "passed": true,
+          "message": "Env-var config present"
+        },
+        {
+          "name": "no_hardcoded_credential",
+          "passed": false,
+          "message": "Hardcoded 'password123' still present"
+        },
+        {
+          "name": "sql_injection_check",
+          "passed": true,
+          "message": "SQL queries appear parameterized"
+        },
+        {
+          "name": "etl_pattern",
+          "passed": true,
+          "message": "extract=True, transform=True, load=True"
+        },
+        {
+          "name": "separation_of_concerns",
+          "passed": true,
+          "message": "10 function(s), 0 class(es)"
+        },
+        {
+          "name": "regex_parsing",
+          "passed": true,
+          "message": "Uses re module"
+        },
+        {
+          "name": "type_hints_and_docstrings",
+          "passed": true,
+          "message": "types=True, docstrings=True"
+        },
+        {
+          "name": "script_runs",
+          "passed": true,
+          "message": "Script exited 0"
+        },
+        {
+          "name": "report_html",
+          "passed": true,
+          "message": "Sections present and source data preserved"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "b54911b3-91c2-448d-8618-d6e801bead4e",
+    "model": "deepseek:deepseek-chat",
+    "test_case": "research",
+    "trial_index": 1,
+    "status": "EXCELLENT",
+    "duration": 101.84790116598015,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/research/trial-1/history/deepseek_deepseek-chat-research-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/research/trial-1/stdout.log",
+    "verification_result": {
+      "status": "EXCELLENT",
+      "score": 1.0,
+      "details": [
+        {
+          "name": "adr_file",
+          "passed": true,
+          "message": "Using ADR-001-notification-architecture.md"
+        },
+        {
+          "name": "substantial_content",
+          "passed": true,
+          "message": "1221 words (need \u2265500)"
+        },
+        {
+          "name": "adr_sections",
+          "passed": true,
+          "message": "found=['context', 'decision', 'consequences', 'alternatives']"
+        },
+        {
+          "name": "status_field",
+          "passed": true,
+          "message": "Status field present"
+        },
+        {
+          "name": "evaluates_both_options",
+          "passed": true,
+          "message": "kafka=True, redis=True"
+        },
+        {
+          "name": "clear_recommendation",
+          "passed": true,
+          "message": "Recommendation present"
+        },
+        {
+          "name": "technical_properties",
+          "passed": true,
+          "message": "covered 10/12 (throughput, ordering, retention, consumer group...)"
+        },
+        {
+          "name": "constraint_context",
+          "passed": true,
+          "message": "covered 6 constraint terms"
+        },
+        {
+          "name": "pros_and_cons",
+          "passed": true,
+          "message": "pros=True, cons=True"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "90525917-7ec0-4235-882d-44b7bdf5a1fa",
+    "model": "deepseek:deepseek-chat",
+    "test_case": "research",
+    "trial_index": 2,
+    "status": "EXCELLENT",
+    "duration": 218.5071407079813,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/research/trial-2/history/deepseek_deepseek-chat-research-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/research/trial-2/stdout.log",
+    "verification_result": {
+      "status": "EXCELLENT",
+      "score": 1.0,
+      "details": [
+        {
+          "name": "adr_file",
+          "passed": true,
+          "message": "Using ADR-001-notification-architecture.md"
+        },
+        {
+          "name": "substantial_content",
+          "passed": true,
+          "message": "1576 words (need \u2265500)"
+        },
+        {
+          "name": "adr_sections",
+          "passed": true,
+          "message": "found=['context', 'decision', 'consequences', 'alternatives']"
+        },
+        {
+          "name": "status_field",
+          "passed": true,
+          "message": "Status field present"
+        },
+        {
+          "name": "evaluates_both_options",
+          "passed": true,
+          "message": "kafka=True, redis=True"
+        },
+        {
+          "name": "clear_recommendation",
+          "passed": true,
+          "message": "Recommendation present"
+        },
+        {
+          "name": "technical_properties",
+          "passed": true,
+          "message": "covered 12/12 (throughput, ordering, retention, consumer group...)"
+        },
+        {
+          "name": "constraint_context",
+          "passed": true,
+          "message": "covered 6 constraint terms"
+        },
+        {
+          "name": "pros_and_cons",
+          "passed": true,
+          "message": "pros=True, cons=True"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "06f70899-6cce-42c5-b584-09cb85d2b594",
+    "model": "deepseek:deepseek-chat",
+    "test_case": "refactor",
+    "trial_index": 2,
+    "status": "EXCELLENT",
+    "duration": 296.02398520801216,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/refactor/trial-2/history/deepseek_deepseek-chat-refactor-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/refactor/trial-2/stdout.log",
+    "verification_result": {
+      "status": "EXCELLENT",
+      "score": 1.0,
+      "details": [
+        {
+          "name": "refactor_file",
+          "passed": true,
+          "message": "Checking pipeline_refactored.py"
+        },
+        {
+          "name": "env_var_config",
+          "passed": true,
+          "message": "Env-var config present"
+        },
+        {
+          "name": "no_hardcoded_credential",
+          "passed": true,
+          "message": "No hardcoded credential"
+        },
+        {
+          "name": "sql_injection_check",
+          "passed": true,
+          "message": "SQL queries appear parameterized"
+        },
+        {
+          "name": "etl_pattern",
+          "passed": true,
+          "message": "extract=True, transform=True, load=True"
+        },
+        {
+          "name": "separation_of_concerns",
+          "passed": true,
+          "message": "10 function(s), 0 class(es)"
+        },
+        {
+          "name": "regex_parsing",
+          "passed": true,
+          "message": "Uses re module"
+        },
+        {
+          "name": "type_hints_and_docstrings",
+          "passed": true,
+          "message": "types=True, docstrings=True"
+        },
+        {
+          "name": "script_runs",
+          "passed": true,
+          "message": "Script exited 0"
+        },
+        {
+          "name": "report_html",
+          "passed": true,
+          "message": "Sections present and source data preserved"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "f2d5bb1d-90c3-4d66-95fe-80969fe2fa8b",
+    "model": "deepseek:deepseek-chat",
+    "test_case": "research",
+    "trial_index": 3,
+    "status": "EXCELLENT",
+    "duration": 192.48581545901834,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/research/trial-3/history/deepseek_deepseek-chat-research-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/research/trial-3/stdout.log",
+    "verification_result": {
+      "status": "EXCELLENT",
+      "score": 1.0,
+      "details": [
+        {
+          "name": "adr_file",
+          "passed": true,
+          "message": "Using ADR-001-notification-architecture.md"
+        },
+        {
+          "name": "substantial_content",
+          "passed": true,
+          "message": "1397 words (need \u2265500)"
+        },
+        {
+          "name": "adr_sections",
+          "passed": true,
+          "message": "found=['context', 'decision', 'consequences', 'alternatives']"
+        },
+        {
+          "name": "status_field",
+          "passed": true,
+          "message": "Status field present"
+        },
+        {
+          "name": "evaluates_both_options",
+          "passed": true,
+          "message": "kafka=True, redis=True"
+        },
+        {
+          "name": "clear_recommendation",
+          "passed": true,
+          "message": "Recommendation present"
+        },
+        {
+          "name": "technical_properties",
+          "passed": true,
+          "message": "covered 10/12 (throughput, ordering, retention, consumer group...)"
+        },
+        {
+          "name": "constraint_context",
+          "passed": true,
+          "message": "covered 5 constraint terms"
+        },
+        {
+          "name": "pros_and_cons",
+          "passed": true,
+          "message": "pros=True, cons=True"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "10572288-37f0-4222-bf28-56b917fea6bf",
+    "model": "deepseek:deepseek-chat",
+    "test_case": "refactor",
+    "trial_index": 3,
+    "status": "TIMEOUT",
+    "duration": 300.0129474999849,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/refactor/trial-3/history/deepseek_deepseek-chat-refactor-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-chat/refactor/trial-3/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  }
+]

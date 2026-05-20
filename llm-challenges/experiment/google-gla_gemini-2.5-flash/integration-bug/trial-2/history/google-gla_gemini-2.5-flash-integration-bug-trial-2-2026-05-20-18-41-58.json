@@ -1,0 +1,11 @@
+[
+  {
+    "parts": [
+      {
+        "part_kind": "user-prompt",
+        "content": "[SYSTEM] Error occurred: status_code: 400, model_name: deepseek-v4-flash:cloud, body: {'message': 'invalid message content type: <nil>', 'type': 'invalid_request_error', 'param': None, 'code': None}"
+      }
+    ],
+    "kind": "request"
+  }
+]

@@ -1,0 +1,95 @@
+[2m
+  🧠 Let[0m[2m me start[0m[2m by reading the[0m[2m `[0m[2msystem_context.md[0m[2m` file to[0m[2m understand the production[0m[2m system and the[0m[2marchitectural problem.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_wnbxd54i | Read {'path': 'system_context.md'}
+[0m[2m
+  🔠 call_wnbxd54i Executed
+[0m[2m
+  🧠 Now[0m[2m I have a clear[0m[2m picture of the system[0m[2m.[0m[2m Let me analyze[0m[2m both[0m[2m options against[0m[2m the constraints[0m[2m and write[0m[2m the[0m[2m ADR.[0m[2m
+     
+     Key constraints[0m[2m to[0m[2m weigh:[0m[2m
+     1. Team[0m[2m size[0m[2m: 6 people[0m[2m, no infra[0m[2m engineer, no[0m[2m Kafka experience[0m[2m
+     2. Already[0m[2m running Redis in[0m[2m production
+     3.[0m[2m Need[0m[2m:[0m[2m async processing,[0m[2m retry, at[0m[2m-least-on[0m[2mce delivery[0m[2m, exactly-once[0m[2m for billing[0m[2m
+     4.[0m[2m 10x[0m[2m traffic[0m[2m growth ([0m[2mpeak[0m[2m ~500[0m[2m0[0m[2m req/s)[0m[2m
+     5. Budget[0m[2m modest[0m[2m -[0m[2m no Con[0m[2mfluent Cloud[0m[2m
+     6.[0m[2m Need[0m[2m Web[0m[2mSocket push[0m[2m within 2 quarters[0m[2m
+     7.[0m[2m Must deliver[0m[2m value within 2[0m[2m weeks[0m[2m
+     
+     Let me think[0m[2m through the trade[0m[2m-offs:
+     
+     **[0m[2mRedis Streams:[0m[2m**
+     - Pros[0m[2m: Already[0m[2m running[0m[2m Redis, team[0m[2m knows it[0m[2m.[0m[2m Much[0m[2m simpler operational[0m[2m overhead[0m[2m. Consumer[0m[2m groups built[0m[2m-in[0m[2m. Auto[0m[2m-bal[0m[2mancing[0m[2m.[0m[2m Can[0m[2m use[0m[2m same[0m[2m Redis instance[0m[2m ([0m[2mor a dedicated[0m[2m one).[0m[2m Sub[0m[2m-mill[0m[2misecond latency[0m[2m. Good[0m[2m for pub[0m[2m/sub for[0m[2m WebSocket push[0m[2m.[0m[2m Easy[0m[2m to set[0m[2m up in[0m[2m <2[0m[2m weeks.
+     -[0m[2m Cons: No[0m[2m native[0m[2m exactly-once[0m[2m delivery[0m[2m (but[0m[2m can be done[0m[2m with id[0m[2mempotency[0m[2m keys). Data[0m[2m persistence[0m[2m is disk[0m[2m-backed[0m[2m ([0m[2mRDB/A[0m[2mOF)[0m[2m but not as[0m[2m robust[0m[2m as Kafka[0m[2m's. Stream[0m[2m retention is memory[0m[2m-bound[0m[2m unless[0m[2m using[0m[2m ev[0m[2miction.[0m[2m Consumer[0m[2m group re[0m[2mbalancing less[0m[2m sophisticated.[0m[2m Through[0m[2mput limited[0m[2m to[0m[2m single-node[0m[2m Redis (~[0m[2m50[0m[2m-100k msg[0m[2m/s). Scaling[0m[2m reads[0m[2m requires more[0m[2m consumer[0m[2m groups or[0m[2m sharding manually[0m[2m.
+     
+     **Apache[0m[2m Kafka:**
+     -[0m[2m Pros: Industry[0m[2m standard[0m[2m for event streaming[0m[2m. Exactly[0m[2m-once semantics[0m[2m built-in.[0m[2m D[0m[2murable log[0m[2m-based[0m[2m storage with[0m[2m configurable retention[0m[2m. High[0m[2m throughput ([0m[2mmill[0m[2mions msg[0m[2m/s). Easy[0m[2m horizontal scaling.[0m[2m Strong partitioning[0m[2m guarantees[0m[2m. Dead[0m[2m-letter[0m[2m queues native[0m[2m pattern[0m[2m.
+     - Cons[0m[2m: Team[0m[2m has zero[0m[2m experience -[0m[2m steep learning curve[0m[2m. Requires[0m[2m Z[0m[2mookeeper[0m[2m/KRaft cluster[0m[2m to[0m[2m operate[0m[2m. Operational[0m[2m complexity high[0m[2m. Need[0m[2m to manage[0m[2m Kafka[0m[2m cluster[0m[2m (or pay[0m[2m for Con[0m[2mfluent Cloud[0m[2m which[0m[2m bust[0m[2ms budget).[0m[2m Can[0m[2m't deliver[0m[2m value in[0m[2m 2 weeks with[0m[2m a[0m[2m team learning[0m[2m Kafka from[0m[2m scratch. Over[0m[2mkill for[0m[2m current scale[0m[2m (500[0m[2m req/s[0m[2m peak, even[0m[2m 10[0m[2mx =[0m[2m 5000 req[0m[2m/s).[0m[2m
+     
+     Given[0m[2m the constraints[0m[2m -[0m[2m 6-person[0m[2m team, no[0m[2m dedicated[0m[2m infra,[0m[2m already using[0m[2m Redis, need[0m[2m value[0m[2m in 2 weeks[0m[2m, modest[0m[2m budget -[0m[2m Redis Streams is[0m[2m the clear winner[0m[2m.[0m[2m Kafka would[0m[2m be a premature[0m[2m optimization that[0m[2m introduces significant[0m[2m operational risk[0m[2m and[0m[2m delays[0m[2m time[0m[2m-to-value.[0m[2m
+     
+     For[0m[2m exactly-once[0m[2m:[0m[2m Use[0m[2m Redis Streams with[0m[2m idempot[0m[2mency keys in[0m[2m PostgreSQL[0m[2m (or Redis[0m[2m itself) for[0m[2m the[0m[2m billing-critical[0m[2m notifications. This[0m[2m is a well-established[0m[2m pattern.[0m[2m
+     
+     For[0m[2m 10x growth[0m[2m: Redis[0m[2m Stream[0m[2ms can handle[0m[2m 5000 req[0m[2m/s easily[0m[2m,[0m[2m especially[0m[2m with Redis[0m[2m Cluster[0m[2m or[0m[2m a dedicated Redis[0m[2m instance for streams[0m[2m.
+     
+     Let me write[0m[2m the AD[0m[2mR.[0m[2m
+  Now I[0m[2m have the full[0m[2m context[0m[2m. Let[0m[2m me write[0m[2m the AD[0m[2mR.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_4jufaa59 | Write {'path': 'ADR-001-notification-archi ...', 'content': '# ADR-001: Notification Su ...'}
+[0m[2m
+  🔠 call_4jufaa59 Executed
+[0m[2m
+  🧠 The[0m[2m ADR has[0m[2m been written.[0m[2m Let me verify[0m[2m it[0m[2m matches[0m[2m the required structure[0m[2m:[0m[2m
+     
+     1[0m[2m. **Title**[0m[2m ✅ - "[0m[2mADR-001:[0m[2m Notification Sub[0m[2msystem Architecture"[0m[2m
+     2. **Status[0m[2m** ✅ -[0m[2m "Pro[0m[2mposed"[0m[2m
+     3. **Context[0m[2m** ✅[0m[2m - Problem[0m[2m and[0m[2m constraints clearly[0m[2m described
+     4.[0m[2m **Decision[0m[2m** ✅[0m[2m - Redis Streams[0m[2m chosen[0m[2m,[0m[2m with detailed[0m[2m justification
+     5[0m[2m. **Consequences[0m[2m** ✅ - Both[0m[2m pros ([0m[2m7 items[0m[2m) and cons[0m[2m (6[0m[2m items)[0m[2m
+     6. **Altern[0m[2matives Considered**[0m[2m ✅ - Apache[0m[2m Kafka (re[0m[2mjected) and Rabbit[0m[2mMQ ([0m[2mrejected, lower[0m[2m priority)
+     
+     Plus[0m[2m a Migration[0m[2m Plan Summary[0m[2m for[0m[2m completeness.[0m[2m Let[0m[2m me also make[0m[2m sure I[0m[2m addressed[0m[2m the specific technical properties[0m[2m mentioned[0m[2m: throughput[0m[2m, ordering guarantees[0m[2m, message[0m[2m retention, consumer[0m[2m groups, exactly[0m[2m-once[0m[2m semantics, operational[0m[2m complexity.[0m[2m
+     
+     Let me check[0m[2m:
+     -[0m[2m Throughput:[0m[2m Covered in Pros[0m[2m #[0m[2m4[0m[2m (sub[0m[2m-millisecond[0m[2m latency),[0m[2m Cons #4 ([0m[2msingle-node[0m[2m ceiling), and[0m[2m in Kafka[0m[2m section[0m[2m (over[0m[2mkill for[0m[2m current scale)[0m[2m
+     - Order[0m[2ming guarantees:[0m[2m Covered in Rabbit[0m[2mMQ section[0m[2m and[0m[2m implicitly[0m[2m in consumer[0m[2m group[0m[2m discussion
+     - Message[0m[2m retention: Covered[0m[2m in Pros #5[0m[2m (MAX[0m[2mLEN)[0m[2m and Cons[0m[2m #2 (memory[0m[2m-bound retention[0m[2m)
+     - Consumer[0m[2m groups: Covered[0m[2m in Pros #3[0m[2m (X[0m[2mREADGROUP auto[0m[2m-balancing),[0m[2m Cons #3 ([0m[2mno re[0m[2mbalance protocol)[0m[2m
+     - Exactly[0m[2m-once semantics:[0m[2m Covered in Pros[0m[2m #0[0m[2m (application[0m[2m-level id[0m[2mempotency[0m[2m), Cons[0m[2m #1 (no[0m[2m native exactly[0m[2m-once),[0m[2m Cons #5 ([0m[2mno[0m[2m cross[0m[2m-res[0m[2mource exactly[0m[2m-once)[0m[2m
+     - Operational[0m[2m complexity: Covered[0m[2m in[0m[2m Pros #1[0m[2m (low operational[0m[2m delta), Kafka[0m[2m section (oper[0m[2mational complexity argument[0m[2m)
+     
+     All[0m[2m good. The[0m[2m ADR is complete[0m[2m.[0m[2m
+  Written[0m[2m. The AD[0m[2mR recommends[0m[2m Redis[0m[2m Streams based[0m[2m on three[0m[2m decisive factors[0m[2m against[0m[2m the[0m[2m stated[0m[2m constraints:
+     
+     1[0m[2m. **Existing[0m[2m Redis**[0m[2m — zero[0m[2m new infrastructure, team[0m[2m already[0m[2m knows its[0m[2m failure modes.[0m[2m
+     2. **[0m[2m2-week timeline[0m[2m** — a[0m[2m prototype works[0m[2m in a[0m[2m week;[0m[2m Kafka would[0m[2m take months to[0m[2m production[0m[2m-h[0m[2marden.
+     3[0m[2m. **[0m[2mNo[0m[2m dedicated[0m[2m infra engineer**[0m[2m — a[0m[2m 6-person team[0m[2m cannot[0m[2m absorb[0m[2m Kafka[0m[2m's operational[0m[2m tax[0m[2m (JVM[0m[2m tuning, partition[0m[2m sizing[0m[2m, ISR monitoring[0m[2m, Z[0m[2mK/K[0m[2mRaft clustering[0m[2m).
+     
+     The "[0m[2mexactly-on[0m[2mce for[0m[2m billing" requirement[0m[2m is addressed[0m[2m via[0m[2m application-level id[0m[2mempotency[0m[2m keys —[0m[2m a well[0m[2m-known[0m[2m pattern that[0m[2m avoids depending[0m[2m on Kafka[0m[2m's complex[0m[2m transaction coordinator protocol[0m[2m. Redis[0m[2m Streams handles[0m[2m 15k[0m[2m msg/s ([0m[2m10[0m[2mx projection[0m[2m) comfortably[0m[2m on a single node[0m[2m at[0m[2m ~$[0m[2m30[0m[2m–60[0m[2m/month.[0m[2m
+  💸 (Requests: 3 | Tool Calls: 2 | Total: 42453) Input: 38826 | Audio Input: 0 | Output: 3627 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
+[0m[2mTo run again:[0m [1;33mzrb chat --message "Read `system_context.md`. It describes a real production system and a specific architectural problem we need to solve.
+
+Write an Architecture Decision Record (ADR) evaluating two options for the notification subsystem:
+1. **Apache Kafka**
+2. **Redis Streams**
+
+Your ADR must follow this exact structure:
+- **Title**
+- **Status** (e.g. \"Proposed\")
+- **Context** — the problem and constraints
+- **Decision** — which option you choose and a clear justification
+- **Consequences** — pros AND cons of your decision
+- **Alternatives Considered** — why you rejected the other option
+
+Make a definitive recommendation. Use specific technical properties (throughput, ordering guarantees, message retention, consumer groups, exactly-once semantics, operational complexity) to justify your choice given the team size and constraints described.
+
+Save as `ADR-001-notification-architecture.md`.
+" --model "" --session google-gla_gemini-2.5-flash-research-trial-3 --yolo true --attach "" --interactive false[0m
+[2m[2mSession[0m: [1;33mgoogle-gla_gemini-2.5-flash-research-trial-3[0m[0m
+Written. The ADR recommends Redis Streams based on three decisive factors against the stated constraints:
+
+1. **Existing Redis** — zero new infrastructure, team already knows its failure modes.
+2. **2-week timeline** — a prototype works in a week; Kafka would take months to production-harden.
+3. **No dedicated infra engineer** — a 6-person team cannot absorb Kafka's operational tax (JVM tuning, partition sizing, ISR monitoring, ZK/KRaft clustering).
+
+The "exactly-once for billing" requirement is addressed via application-level idempotency keys — a well-known pattern that avoids depending on Kafka's complex transaction coordinator protocol. Redis Streams handles 15k msg/s (10x projection) comfortably on a single node at ~$30–60/month.
