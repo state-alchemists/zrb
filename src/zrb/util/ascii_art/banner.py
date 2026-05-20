@@ -12,7 +12,11 @@ def _get_visible_length(text: str) -> int:
     return len(ANSI_ESCAPE.sub("", text))
 
 
-def create_banner(art: str | None = None, text: str | None = None) -> str:
+def create_banner(
+    art: str | None = None,
+    text: str | None = None,
+    max_width: int | None = None,
+) -> str:
     # First get art using _get_art_only
     art_content = _get_art_only(art)
 
@@ -27,6 +31,15 @@ def create_banner(art: str | None = None, text: str | None = None) -> str:
 
     # Find the maximum visual line length in the art
     max_art_length = max(_get_visible_length(line) for line in art_lines)
+
+    # Hide the art if the combined width would overflow the terminal: the
+    # separator is 2 spaces and we compare against the widest text line.
+    if max_width is not None:
+        max_text_length = max(
+            (_get_visible_length(line) for line in text.splitlines()), default=0
+        )
+        if max_art_length + 2 + max_text_length > max_width:
+            return text
 
     # Pad all art lines to the same visual length
     padded_art_lines = [

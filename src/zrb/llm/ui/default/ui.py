@@ -154,8 +154,12 @@ class UI(
             show_pydantic_ai_models=show_pydantic_ai_models,
         )
 
-        help_text = self._get_help_text(limit=25)
-        full_greeting = create_banner(self._ascii_art, f"{greeting}\n{help_text}")
+        help_text = self._get_help_text(limit=15)
+        full_greeting = create_banner(
+            self._ascii_art,
+            f"{greeting}\n{help_text}",
+            max_width=get_terminal_size().columns,
+        )
         custom_output_kb = create_output_keybindings(self._input_field)
         self._output_field = create_output_field(
             full_greeting, output_lexer, key_bindings=custom_output_kb

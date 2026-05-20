@@ -1407,6 +1407,10 @@ class TestBaseUICommandHandlers:
         assert "/exit" in help_text
         assert "/help" in help_text
         assert "/attach" in help_text
+        assert "Keyboard Shortcuts:" in help_text
+        assert "Ctrl+J" in help_text
+        assert "Ctrl+V / Alt+V" in help_text
+        assert "Tab / Shift+Tab" in help_text
 
     def test_get_help_text_with_limit(self, simple_ui_instance):
         """Test _get_help_text respects limit parameter."""
