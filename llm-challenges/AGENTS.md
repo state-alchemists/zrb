@@ -37,14 +37,34 @@ with the appropriate API keys.
 
 ### 1. EXECUTE
 
-Run the full grid (all challenges × the models you care about):
+Run the full grid (all challenges × the models you care about). The default
+list keeps an eye on economy: three frontier-API baselines plus every
+Ollama Cloud model that is locally pulled (`ollama ls`) — those are covered
+by the $20/mo subscription. Verify identifiers in
+[pydantic-ai](https://ai.pydantic.dev/models/) and at
+[ollama.com/search?c=cloud](https://ollama.com/search?c=cloud) before adding
+new ones, since cloud-side names rotate.
 
 ```bash
 zrb-llm-evaluator run \
-  --models openai:gpt-4o,google-gla:gemini-2.5-flash,deepseek:deepseek-chat \
+  --models openai:gpt-4o,,google-gla:gemini-2.5-flash,google-gla:gemini-3-flash-preview,deepseek:deepseek-v4-flash,ollama:deepseek-v4-flash:cloud,ollama:deepseek-v4-pro:cloud,ollama:deepseek-v3.2:cloud,ollama:gemma4:31b-cloud,ollama:qwen3.5:397b-cloud,ollama:qwen3-next:80b-cloud,ollama:qwen3-coder-next:cloud,ollama:qwen3-vl:235b-cloud,ollama:glm-4.7:cloud,ollama:glm-5:cloud,ollama:glm-5.1:cloud,ollama:kimi-k2.5:cloud,ollama:kimi-k2.6:cloud,ollama:minimax-m2.5:cloud,ollama:minimax-m2.7:cloud,ollama:gpt-oss:120b-cloud \
   --test-cases ./challenges/bug-fix,./challenges/copywriting,./challenges/feature,./challenges/integration-bug,./challenges/refactor,./challenges/research \
   --trials 3 \
-  --parallelism 4 \
+  --parallelism 8 \
+  --timeout 300 \
+  --output-dir ./experiment
+```
+
+Some Ollama Cloud models do not support parallel tool calls and benefit from
+a lower parallelism. Run them in a dedicated pass against the same
+`--output-dir` so resume support fills in just those cells:
+
+```bash
+zrb-llm-evaluator run \
+  --models ollama:glm-4.7:cloud,ollama:minimax-m2.7:cloud \
+  --test-cases ./challenges/bug-fix,./challenges/copywriting,./challenges/feature,./challenges/integration-bug,./challenges/refactor,./challenges/research \
+  --trials 3 \
+  --parallelism 1 \
   --timeout 300 \
   --output-dir ./experiment
 ```
