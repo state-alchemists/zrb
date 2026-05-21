@@ -182,7 +182,6 @@ class BuilderMixin:
                 name=g.tool_name,
                 use_when=g.when_to_use,
                 key_rule=g.key_rule,
-                group_description=g.group_description,
             )
         self._pending_tool_guidance.clear()
 

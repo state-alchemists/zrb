@@ -12,7 +12,6 @@ from zrb.llm.prompt.claude import (
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.prompt.system_context import system_context
 from zrb.llm.prompt.tool_guidance import (
-    GroupDescriptions,
     ToolCatalogue,
     ToolGroups,
     get_tool_guidance_prompt,
@@ -59,7 +58,6 @@ class PromptManager:
             tool_guidance if tool_guidance is not None else {}
         )
         self._tool_groups: ToolGroups = tool_groups if tool_groups is not None else []
-        self._tool_group_descriptions: GroupDescriptions = {}
         self._skill_manager = skill_manager or default_skill_manager
         self._active_skills = active_skills
         self._render_active_skills = render_active_skills
@@ -123,15 +121,8 @@ class PromptManager:
     def tool_guidance_sections(self, value: list[str] | None) -> None:
         self._tool_guidance_sections = list(value) if value else []
 
-    def add_tool_group(self, *, name: str, description: str | None = None) -> None:
-        """Register a new tool group if it does not already exist.
-
-        If *description* is provided, it is recorded (or overwrites the existing
-        description) as a preamble rendered between the group heading and its
-        tool bullets. Pass ``None`` to leave any prior description untouched.
-        """
-        if description is not None:
-            self._tool_group_descriptions[name] = description
+    def add_tool_group(self, *, name: str) -> None:
+        """Register a new tool group if it does not already exist."""
         for label, _ in self._tool_groups:
             if label == name:
                 return
@@ -144,18 +135,15 @@ class PromptManager:
         name: str,
         use_when: str | None = None,
         key_rule: str | None = None,
-        group_description: str | None = None,
     ) -> None:
         """Add or update a tool entry within a group.
 
         If *group* does not yet exist it is created automatically.
         If *name* already exists in the catalogue its entry is
         overwritten, but its position inside the group is preserved.
-        When *group_description* is provided it is stored as the group's
-        preamble (shared by every tool in the group).
         """
-        # Ensure the group exists (and record description if provided)
-        self.add_tool_group(name=group, description=group_description)
+        # Ensure the group exists
+        self.add_tool_group(name=group)
 
         # Update catalogue
         self._tool_guidance[name] = (use_when, key_rule)
@@ -238,7 +226,6 @@ class PromptManager:
         # Capture values to avoid late-binding in lambdas
         _catalogue = self._tool_guidance
         _groups = self._tool_groups
-        _group_descriptions = self._tool_group_descriptions
         _skill_mgr = self._skill_manager
 
         middlewares: list[PromptMiddleware | str] = []
@@ -264,8 +251,8 @@ class PromptManager:
                 _extra_sections = list(self._tool_guidance_sections)
                 middlewares.append(
                     new_prompt(
-                        lambda tn=tool_names_value, c=_catalogue, g=_groups, gd=_group_descriptions, es=_extra_sections: get_tool_guidance_prompt(
-                            tn, c, g, extra_sections=es, group_descriptions=gd
+                        lambda tn=tool_names_value, c=_catalogue, g=_groups, es=_extra_sections: get_tool_guidance_prompt(
+                            tn, c, g, extra_sections=es
                         )
                     )
                 )

@@ -8,7 +8,6 @@ if TYPE_CHECKING:
 
 ToolCatalogue = dict[str, tuple[str, str | None]]
 ToolGroups = list[tuple[str, list[str]]]
-GroupDescriptions = dict[str, str]
 
 
 @dataclass
@@ -17,7 +16,6 @@ class ToolGuidance:
     tool_name: str
     when_to_use: str | None = None
     key_rule: str | None = None
-    group_description: str | None = None
 
 
 def get_tool_guidance_prompt(
@@ -25,7 +23,6 @@ def get_tool_guidance_prompt(
     catalogue: ToolCatalogue,
     groups: ToolGroups,
     extra_sections: list[str] | None = None,
-    group_descriptions: GroupDescriptions | None = None,
 ) -> str:
     """
     Renders a compact tool guidance section.
@@ -34,7 +31,6 @@ def get_tool_guidance_prompt(
         # Tool Usage Guide
         <extra sections, e.g. parallel-tool-call policy>
         ## Group
-        <group description, if registered>
         - **ToolName**: use_when
           * key_rule (if present)
 
@@ -42,10 +38,6 @@ def get_tool_guidance_prompt(
     ``## Heading``) inserted before the per-tool catalogue. Used by callers
     that need to surface model-aware policies (e.g.
     :func:`get_parallel_tool_call_section`).
-
-    *group_descriptions* — per-group preamble text rendered between the group
-    heading and its tool bullets. Used to share content across all tools in a
-    group (e.g. the list of available subagents for the Delegation group).
 
     Only emits guidance for tools that are both in `tool_names` and `catalogue`.
     If a tool has only `use_when` (no `key_rule`), it is omitted unless the
@@ -74,14 +66,7 @@ def get_tool_guidance_prompt(
                 group_lines.append(bullet)
 
             if group_lines:
-                parts = [f"## {group_label}"]
-                description = (
-                    group_descriptions.get(group_label) if group_descriptions else None
-                )
-                if description:
-                    parts.append(description)
-                parts.append("\n".join(group_lines))
-                sections.append("\n".join(parts))
+                sections.append(f"## {group_label}\n" + "\n".join(group_lines))
 
     if not sections:
         return ""

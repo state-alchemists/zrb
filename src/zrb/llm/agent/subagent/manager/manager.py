@@ -13,7 +13,6 @@ from zrb.llm.agent.subagent.manager.search_mixin import SearchMixin
 from zrb.llm.agent.subagent.yolo import make_yolo_inheritance_checker
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.prompt.tool_guidance import (
-    GroupDescriptions,
     ToolCatalogue,
     ToolGroups,
     ToolGuidance,
@@ -76,7 +75,6 @@ class SubAgentManager(LoaderMixin, SearchMixin):
         self._loaded: bool = False  # Track if agents have been loaded
         self._tool_guidance: ToolCatalogue = {}
         self._tool_groups: ToolGroups = []
-        self._tool_group_descriptions: GroupDescriptions = {}
         # Guidance factories for dynamically-named tools (e.g., RunZrbTask).
         self._tool_guidance_factories: list[Callable[[AnyContext], ToolGuidance]] = []
         # Section factories for model-aware Tool Usage Guide intros (e.g., parallel-tool-call policy).
@@ -131,9 +129,7 @@ class SubAgentManager(LoaderMixin, SearchMixin):
         """Append toolset factories."""
         self._toolset_factories += list(factory)
 
-    def add_tool_group(self, *, name: str, description: str | None = None) -> None:
-        if description is not None:
-            self._tool_group_descriptions[name] = description
+    def add_tool_group(self, *, name: str) -> None:
         for label, _ in self._tool_groups:
             if label == name:
                 return
@@ -141,7 +137,7 @@ class SubAgentManager(LoaderMixin, SearchMixin):
 
     def add_tool_guidance(self, *guidances: ToolGuidance) -> None:
         for g in guidances:
-            self.add_tool_group(name=g.group_name, description=g.group_description)
+            self.add_tool_group(name=g.group_name)
             self._tool_guidance[g.tool_name] = (g.when_to_use, g.key_rule)
             for label, members in self._tool_groups:
                 if label == g.group_name:
@@ -274,7 +270,6 @@ class SubAgentManager(LoaderMixin, SearchMixin):
             self._tool_guidance,
             self._tool_groups,
             extra_sections=section_strings if section_strings else None,
-            group_descriptions=self._tool_group_descriptions,
         )
         effective_system_prompt = definition.system_prompt
         if guidance_prompt:
@@ -323,8 +318,12 @@ class SubAgentManager(LoaderMixin, SearchMixin):
 # Module-level singleton - lightweight, agents loaded on first access
 sub_agent_manager = SubAgentManager()
 
-# Register the zrb-shipped tools. Lives in a sibling module so the visible
-# tool surface stays in one place.
-from zrb.llm.agent.subagent.default_tools import register_default_tools  # noqa: E402
 
-register_default_tools(sub_agent_manager)
+# Imported here (after SubAgentManager is defined) to break a circular import:
+# default_tools pulls in zrb.llm.tool, whose __init__ loads delegate.py, which
+# imports SubAgentManager from this module. Importing at the top would hit
+# this module mid-load before the class exists.
+
+from zrb.llm.agent.common_tools import apply_common_tools
+
+apply_common_tools(sub_agent_manager)

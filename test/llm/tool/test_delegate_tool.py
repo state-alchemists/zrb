@@ -7,7 +7,6 @@ from zrb.llm.tool.delegate import (
     BufferedUI,
     create_delegate_to_agent_tool,
     create_parallel_delegate_tool,
-    get_available_agents_section,
 )
 
 
@@ -27,12 +26,8 @@ def mock_sub_agent_manager():
 
 def test_create_delegate_tool_docstring(mock_sub_agent_manager):
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
-    # Docstring no longer embeds the agent catalogue — it points to the
-    # Delegation tool guidance group, which carries it as a group description.
-    assert "Delegation" in tool.__doc__
-    section = get_available_agents_section(mock_sub_agent_manager)
-    assert "test-agent" in section
-    assert "A test agent" in section
+    assert "test-agent" in tool.__doc__
+    assert "A test agent" in tool.__doc__
 
 
 @pytest.mark.asyncio
@@ -165,13 +160,11 @@ async def test_buffered_ui_ask_user_no_prefix():
 def test_create_parallel_delegate_tool_docstring(mock_sub_agent_manager):
     """Test parallel delegate tool has proper docstring."""
     tool = create_parallel_delegate_tool(mock_sub_agent_manager)
-    # Docstring no longer embeds the agent catalogue — see Delegation group.
-    assert "Delegation" in tool.__doc__
+    # Parallel delegate keeps its docstring lean — points to DelegateToAgent
+    # rather than re-listing the agent catalogue.
+    assert "DelegateToAgent" in tool.__doc__
     assert "parallel" in tool.__doc__.lower()
     assert "DelegateToAgentsParallel" == tool.__name__
-    section = get_available_agents_section(mock_sub_agent_manager)
-    assert "test-agent" in section
-    assert "A test agent" in section
 
 
 @pytest.mark.asyncio
