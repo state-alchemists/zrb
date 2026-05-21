@@ -1,0 +1,41 @@
+[2m
+  🧠 Let[0m[2m me start[0m[2m by reading[0m[2m the two spec[0m[2m files to understand[0m[2m the differences[0m[2m between v1 and[0m[2m v2 APIs[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_koyacps0 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🧰 call_fngiu6ee | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_koyacps0 Executed
+[0m[2m
+  🔠 call_fngiu6ee Executed
+[0m[2m
+  🧠 Now[0m[2m I[0m[2m have[0m[2m both[0m[2m specs[0m[2m.[0m[2m Let[0m[2m me[0m[2m identify[0m[2m all[0m[2m breaking[0m[2m changes[0m[2m and[0m[2m write[0m[2m a[0m[2m comprehensive[0m[2m migration[0m[2m guide[0m[2m.[0m[2m
+     
+     Breaking[0m[2m changes[0m[2m:[0m[2m
+     1[0m[2m.[0m[2m **[0m[2mURL[0m[2m prefix[0m[2m**:[0m[2m `/[0m[2mtasks[0m[2m`[0m[2m →[0m[2m `/[0m[2mv[0m[2m2[0m[2m/t[0m[2masks[0m[2m`[0m[2m
+     2[0m[2m.[0m[2m **[0m[2mAuth[0m[2m header[0m[2m**:[0m[2m `[0m[2mX[0m[2m-A[0m[2muth[0m[2m-T[0m[2moken[0m[2m`[0m[2m →[0m[2m `[0m[2mAuthorization[0m[2m:[0m[2m Bear[0m[2mer[0m[2m`[0m[2m
+     3[0m[2m.[0m[2m **[0m[2mTask[0m[2m ID[0m[2m type[0m[2m**:[0m[2m integer[0m[2m →[0m[2m UUID[0m[2m string[0m[2m
+     4[0m[2m.[0m[2m **[0m[2mField[0m[2m rename[0m[2m**:[0m[2m `[0m[2mdone[0m[2m`[0m[2m →[0m[2m `[0m[2mcompleted[0m[2m`[0m[2m
+     5[0m[2m.[0m[2m **[0m[2mNew[0m[2m required[0m[2m field[0m[2m**:[0m[2m `[0m[2mproject[0m[2m_id[0m[2m`[0m[2m on[0m[2m create[0m[2m
+     6[0m[2m.[0m[2m **[0m[2mList[0m[2m response[0m[2m format[0m[2m**:[0m[2m bare[0m[2m array[0m[2m →[0m[2m pag[0m[2minated[0m[2m envelope[0m[2m (`[0m[2m{[0m[2mitems[0m[2m,[0m[2m total[0m[2m,[0m[2m next[0m[2m_c[0m[2mursor[0m[2m}`[0m[2m)[0m[2m
+     
+     Let[0m[2m me[0m[2m activate[0m[2m the[0m[2m core[0m[2m-writing[0m[2m skill[0m[2m for[0m[2m this[0m[2m,[0m[2m then[0m[2m write[0m[2m the[0m[2m guide[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_n10ibxnh | ActivateSkill {'name': 'core-writing'}
+[0m[2m
+  🔠 call_n10ibxnh Executed
+[0m[2m
+  🧠 Now[0m[2m I[0m[2m have[0m[2m the[0m[2m skill[0m[2m activated[0m[2m and[0m[2m both[0m[2m specs[0m[2m read[0m[2m.[0m[2m Let[0m[2m me[0m[2m write[0m[2m the[0m[2m migration[0m[2m guide[0m[2m.[0m[2m
+     
+     **[0m[2mBrief[0m[2m &[0m[2m Audience[0m[2m**:[0m[2m Exper[0m[2mienced[0m[2m developers[0m[2m already[0m[2m using[0m[2m v[0m[2m1[0m[2m.[0m[2m They[0m[2m know[0m[2m the[0m[2m API[0m[2m.[0m[2m They[0m[2m need[0m[2m a[0m[2m precise[0m[2m,[0m[2m complete[0m[2m list[0m[2m of[0m[2m what[0m[2m changed[0m[2m and[0m[2m exactly[0m[2m how[0m[2m to[0m[2m update[0m[2m their[0m[2m code[0m[2m.[0m[2m Tone[0m[2m:[0m[2m technical[0m[2m,[0m[2m direct[0m[2m,[0m[2m no[0m[2m fl[0m[2muff[0m[2m.[0m[2m
+     
+     **[0m[2mStructure[0m[2m**[0m[2m ([0m[2mBefore[0m[2m-A[0m[2mfter[0m[2m-B[0m[2mridge[0m[2m formula[0m[2m works[0m[2m well[0m[2m for[0m[2m migration[0m[2m guides[0m[2m):[0m[2m
+     
+     1[0m[2m.[0m[2m Title[0m[2m +[0m[2m TL[0m[2m;DR[0m[2m overview[0m[2m of[0m[2m all[0m[2m breaking[0m[2m changes[0m[2m
+     2[0m[2m.[0m[2m Each[0m[2m breaking[0m[2m change[0m[2m with[0m[2m before[0m[2m/[0m[2mafter[0m[2m code[0m[2m examples[0m[2m
+     3[0m[2m.[0m[2m Step[0m[2m-by[0m[2m-step[0m[2m migration[0m[2m checklist[0m[2m
+     4[0m[2m.[0m[2m Upgrade[0m[2m command[0m[2m
+     
+     Let[0m
+[TIMEOUT after 300s]

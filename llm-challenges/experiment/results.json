@@ -1871,5 +1871,1551 @@
     "cache_read_tokens": 0,
     "tool_calls": [],
     "tool_call_count": 0
+  },
+  {
+    "id": "08591b9d-260e-4d96-9ce8-1c5987a65f13",
+    "model": "openai:gpt-4o",
+    "test_case": "copywriting",
+    "trial_index": 1,
+    "status": "EXCELLENT",
+    "duration": 178.82539929099948,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/copywriting/trial-1/history/openai_gpt-4o-copywriting-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/copywriting/trial-1/stdout.log",
+    "verification_result": {
+      "status": "EXCELLENT",
+      "score": 1.0,
+      "details": [
+        {
+          "name": "migration_file",
+          "passed": true,
+          "message": "Using MIGRATION.md"
+        },
+        {
+          "name": "markdown_headings",
+          "passed": true,
+          "message": "Has markdown headings"
+        },
+        {
+          "name": "substantial_content",
+          "passed": true,
+          "message": "1099 words (need \u2265400)"
+        },
+        {
+          "name": "code_blocks",
+          "passed": true,
+          "message": "23 fenced code block(s) (need \u22653)"
+        },
+        {
+          "name": "auth_header_change",
+          "passed": true,
+          "message": "Authorization: Bearer documented"
+        },
+        {
+          "name": "uuid_id_change",
+          "passed": true,
+          "message": "UUID id change documented"
+        },
+        {
+          "name": "field_rename",
+          "passed": true,
+          "message": "done\u2192completed rename documented"
+        },
+        {
+          "name": "project_id_and_v2_prefix",
+          "passed": true,
+          "message": "project_id + /v2/ prefix covered"
+        },
+        {
+          "name": "checklist_or_upgrade",
+          "passed": true,
+          "message": "Checklist or upgrade command present"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "f8c6486e-852e-41ed-9134-d9084776a2e6",
+    "model": "openai:gpt-4o",
+    "test_case": "bug-fix",
+    "trial_index": 3,
+    "status": "PASS",
+    "duration": 230.21525108400056,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/bug-fix/trial-3/history/openai_gpt-4o-bug-fix-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/bug-fix/trial-3/stdout.log",
+    "verification_result": {
+      "status": "PASS",
+      "score": 0.85,
+      "details": [
+        {
+          "name": "run_1",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_2",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_3",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_4",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_5",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "concurrency_primitive",
+          "passed": false,
+          "message": "No Lock primitive detected"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "13ec88ac-15f5-4ad1-bf58-a5af96ef3bf5",
+    "model": "openai:gpt-4o",
+    "test_case": "copywriting",
+    "trial_index": 3,
+    "status": "EXCELLENT",
+    "duration": 260.52798716599955,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/copywriting/trial-3/history/openai_gpt-4o-copywriting-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/copywriting/trial-3/stdout.log",
+    "verification_result": {
+      "status": "EXCELLENT",
+      "score": 1.0,
+      "details": [
+        {
+          "name": "migration_file",
+          "passed": true,
+          "message": "Using MIGRATION.md"
+        },
+        {
+          "name": "markdown_headings",
+          "passed": true,
+          "message": "Has markdown headings"
+        },
+        {
+          "name": "substantial_content",
+          "passed": true,
+          "message": "982 words (need \u2265400)"
+        },
+        {
+          "name": "code_blocks",
+          "passed": true,
+          "message": "17 fenced code block(s) (need \u22653)"
+        },
+        {
+          "name": "auth_header_change",
+          "passed": true,
+          "message": "Authorization: Bearer documented"
+        },
+        {
+          "name": "uuid_id_change",
+          "passed": true,
+          "message": "UUID id change documented"
+        },
+        {
+          "name": "field_rename",
+          "passed": true,
+          "message": "done\u2192completed rename documented"
+        },
+        {
+          "name": "project_id_and_v2_prefix",
+          "passed": true,
+          "message": "project_id + /v2/ prefix covered"
+        },
+        {
+          "name": "checklist_or_upgrade",
+          "passed": true,
+          "message": "Checklist or upgrade command present"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "4b067420-f396-461a-b8d4-b9f5be8687c3",
+    "model": "openai:gpt-4o",
+    "test_case": "copywriting",
+    "trial_index": 2,
+    "status": "EXCELLENT",
+    "duration": 269.1568367079999,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/copywriting/trial-2/history/openai_gpt-4o-copywriting-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/copywriting/trial-2/stdout.log",
+    "verification_result": {
+      "status": "EXCELLENT",
+      "score": 1.0,
+      "details": [
+        {
+          "name": "migration_file",
+          "passed": true,
+          "message": "Using MIGRATION.md"
+        },
+        {
+          "name": "markdown_headings",
+          "passed": true,
+          "message": "Has markdown headings"
+        },
+        {
+          "name": "substantial_content",
+          "passed": true,
+          "message": "1172 words (need \u2265400)"
+        },
+        {
+          "name": "code_blocks",
+          "passed": true,
+          "message": "21 fenced code block(s) (need \u22653)"
+        },
+        {
+          "name": "auth_header_change",
+          "passed": true,
+          "message": "Authorization: Bearer documented"
+        },
+        {
+          "name": "uuid_id_change",
+          "passed": true,
+          "message": "UUID id change documented"
+        },
+        {
+          "name": "field_rename",
+          "passed": true,
+          "message": "done\u2192completed rename documented"
+        },
+        {
+          "name": "project_id_and_v2_prefix",
+          "passed": true,
+          "message": "project_id + /v2/ prefix covered"
+        },
+        {
+          "name": "checklist_or_upgrade",
+          "passed": true,
+          "message": "Checklist or upgrade command present"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "a5000d9e-db50-45e1-bc07-1b56299e84c8",
+    "model": "openai:gpt-4o",
+    "test_case": "bug-fix",
+    "trial_index": 1,
+    "status": "TIMEOUT",
+    "duration": 300.1107394589999,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/bug-fix/trial-1/history/openai_gpt-4o-bug-fix-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/bug-fix/trial-1/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "8ef29155-94ed-49ad-817f-c47393374f47",
+    "model": "openai:gpt-4o",
+    "test_case": "feature",
+    "trial_index": 2,
+    "status": "TIMEOUT",
+    "duration": 300.0351701669997,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/feature/trial-2/history/openai_gpt-4o-feature-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/feature/trial-2/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "f61dfc51-901a-4b5f-a10e-a15d3e52daf0",
+    "model": "openai:gpt-4o",
+    "test_case": "feature",
+    "trial_index": 1,
+    "status": "TIMEOUT",
+    "duration": 300.0583926250001,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/feature/trial-1/history/openai_gpt-4o-feature-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/feature/trial-1/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "ad78d76a-9f2b-48e9-86dc-6c1eb92a6ff2",
+    "model": "openai:gpt-4o",
+    "test_case": "bug-fix",
+    "trial_index": 2,
+    "status": "TIMEOUT",
+    "duration": 300.12798391700017,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/bug-fix/trial-2/history/openai_gpt-4o-bug-fix-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/bug-fix/trial-2/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "eda677bd-b1c6-432a-8748-e788cdba8630",
+    "model": "openai:gpt-4o",
+    "test_case": "feature",
+    "trial_index": 3,
+    "status": "TIMEOUT",
+    "duration": 300.0109333749997,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/feature/trial-3/history/openai_gpt-4o-feature-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/feature/trial-3/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "acba48a2-b37f-4d32-bdf2-b3303053dcc6",
+    "model": "openai:gpt-4o",
+    "test_case": "integration-bug",
+    "trial_index": 1,
+    "status": "TIMEOUT",
+    "duration": 300.01356837500043,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/integration-bug/trial-1/history/openai_gpt-4o-integration-bug-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/integration-bug/trial-1/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "9e78ce1a-c92e-4d02-aed2-4c077d56e224",
+    "model": "openai:gpt-4o",
+    "test_case": "integration-bug",
+    "trial_index": 2,
+    "status": "TIMEOUT",
+    "duration": 300.01600999999937,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/integration-bug/trial-2/history/openai_gpt-4o-integration-bug-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/integration-bug/trial-2/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "bc0fce12-a270-4299-add4-7fe85258c414",
+    "model": "openai:gpt-4o",
+    "test_case": "integration-bug",
+    "trial_index": 3,
+    "status": "TIMEOUT",
+    "duration": 300.0121428749999,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/integration-bug/trial-3/history/openai_gpt-4o-integration-bug-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/integration-bug/trial-3/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "855bcc72-0795-40e0-9ee3-83d562cd28ee",
+    "model": "openai:gpt-4o",
+    "test_case": "refactor",
+    "trial_index": 1,
+    "status": "TIMEOUT",
+    "duration": 300.0342217079997,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/refactor/trial-1/history/openai_gpt-4o-refactor-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/refactor/trial-1/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "4d00fb4d-b4c5-4f74-be3e-844c719ea87b",
+    "model": "openai:gpt-4o",
+    "test_case": "refactor",
+    "trial_index": 3,
+    "status": "TIMEOUT",
+    "duration": 300.03038474999994,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/refactor/trial-3/history/openai_gpt-4o-refactor-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/refactor/trial-3/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "ec8e75e3-4aae-4cac-aacb-0e256d063db9",
+    "model": "openai:gpt-4o",
+    "test_case": "refactor",
+    "trial_index": 2,
+    "status": "TIMEOUT",
+    "duration": 300.03820204100066,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/refactor/trial-2/history/openai_gpt-4o-refactor-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/refactor/trial-2/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "78aa441b-db28-4bf9-95b1-678acde26bc0",
+    "model": "openai:gpt-4o",
+    "test_case": "research",
+    "trial_index": 1,
+    "status": "TIMEOUT",
+    "duration": 300.0338545000004,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/research/trial-1/history/openai_gpt-4o-research-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/research/trial-1/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "14c06084-5f6e-46e4-9647-43b462e64001",
+    "model": "openai:gpt-4o",
+    "test_case": "research",
+    "trial_index": 2,
+    "status": "FAIL",
+    "duration": 221.28646795799978,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/research/trial-2/history/openai_gpt-4o-research-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/research/trial-2/stdout.log",
+    "verification_result": {
+      "status": "FAIL",
+      "score": 0.0,
+      "details": [
+        {
+          "name": "adr_file",
+          "passed": false,
+          "message": "No ADR markdown file found"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "09850556-a433-460d-b08d-263390fd39bb",
+    "model": "google-gla:gemini-3-flash-preview",
+    "test_case": "copywriting",
+    "trial_index": 3,
+    "status": "EXCELLENT",
+    "duration": 154.76257537499987,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/copywriting/trial-3/history/google-gla_gemini-3-flash-preview-copywriting-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/copywriting/trial-3/stdout.log",
+    "verification_result": {
+      "status": "EXCELLENT",
+      "score": 1.0,
+      "details": [
+        {
+          "name": "migration_file",
+          "passed": true,
+          "message": "Using MIGRATION.md"
+        },
+        {
+          "name": "markdown_headings",
+          "passed": true,
+          "message": "Has markdown headings"
+        },
+        {
+          "name": "substantial_content",
+          "passed": true,
+          "message": "1091 words (need \u2265400)"
+        },
+        {
+          "name": "code_blocks",
+          "passed": true,
+          "message": "18 fenced code block(s) (need \u22653)"
+        },
+        {
+          "name": "auth_header_change",
+          "passed": true,
+          "message": "Authorization: Bearer documented"
+        },
+        {
+          "name": "uuid_id_change",
+          "passed": true,
+          "message": "UUID id change documented"
+        },
+        {
+          "name": "field_rename",
+          "passed": true,
+          "message": "done\u2192completed rename documented"
+        },
+        {
+          "name": "project_id_and_v2_prefix",
+          "passed": true,
+          "message": "project_id + /v2/ prefix covered"
+        },
+        {
+          "name": "checklist_or_upgrade",
+          "passed": true,
+          "message": "Checklist or upgrade command present"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "5832cf93-2830-4348-801c-859efbf2fc5e",
+    "model": "google-gla:gemini-3-flash-preview",
+    "test_case": "bug-fix",
+    "trial_index": 1,
+    "status": "PASS",
+    "duration": 201.7761700840001,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/bug-fix/trial-1/history/google-gla_gemini-3-flash-preview-bug-fix-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/bug-fix/trial-1/stdout.log",
+    "verification_result": {
+      "status": "PASS",
+      "score": 0.85,
+      "details": [
+        {
+          "name": "run_1",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_2",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_3",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_4",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "run_5",
+          "passed": true,
+          "message": "done=10, failed=2, stuck=0"
+        },
+        {
+          "name": "concurrency_primitive",
+          "passed": false,
+          "message": "No Lock primitive detected"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "c03d51bc-8602-4ed9-8200-6c0b9cb0172c",
+    "model": "openai:gpt-4o",
+    "test_case": "research",
+    "trial_index": 3,
+    "status": "TIMEOUT",
+    "duration": 300.01240795800004,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/research/trial-3/history/openai_gpt-4o-research-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/openai_gpt-4o/research/trial-3/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "063f72fc-aacd-4308-8a48-66f34cf92e4a",
+    "model": "google-gla:gemini-3-flash-preview",
+    "test_case": "copywriting",
+    "trial_index": 1,
+    "status": "EXCELLENT",
+    "duration": 262.4823316659995,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/copywriting/trial-1/history/google-gla_gemini-3-flash-preview-copywriting-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/copywriting/trial-1/stdout.log",
+    "verification_result": {
+      "status": "EXCELLENT",
+      "score": 1.0,
+      "details": [
+        {
+          "name": "migration_file",
+          "passed": true,
+          "message": "Using MIGRATION.md"
+        },
+        {
+          "name": "markdown_headings",
+          "passed": true,
+          "message": "Has markdown headings"
+        },
+        {
+          "name": "substantial_content",
+          "passed": true,
+          "message": "900 words (need \u2265400)"
+        },
+        {
+          "name": "code_blocks",
+          "passed": true,
+          "message": "22 fenced code block(s) (need \u22653)"
+        },
+        {
+          "name": "auth_header_change",
+          "passed": true,
+          "message": "Authorization: Bearer documented"
+        },
+        {
+          "name": "uuid_id_change",
+          "passed": true,
+          "message": "UUID id change documented"
+        },
+        {
+          "name": "field_rename",
+          "passed": true,
+          "message": "done\u2192completed rename documented"
+        },
+        {
+          "name": "project_id_and_v2_prefix",
+          "passed": true,
+          "message": "project_id + /v2/ prefix covered"
+        },
+        {
+          "name": "checklist_or_upgrade",
+          "passed": true,
+          "message": "Checklist or upgrade command present"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "77ffed21-42c4-411f-bae5-37465d0dc871",
+    "model": "google-gla:gemini-3-flash-preview",
+    "test_case": "bug-fix",
+    "trial_index": 2,
+    "status": "TIMEOUT",
+    "duration": 300.0176283339997,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/bug-fix/trial-2/history/google-gla_gemini-3-flash-preview-bug-fix-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/bug-fix/trial-2/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "2f278301-08f7-4c36-877a-a73532aad509",
+    "model": "google-gla:gemini-3-flash-preview",
+    "test_case": "bug-fix",
+    "trial_index": 3,
+    "status": "TIMEOUT",
+    "duration": 300.01280787499945,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/bug-fix/trial-3/history/google-gla_gemini-3-flash-preview-bug-fix-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/bug-fix/trial-3/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "5c4901b5-f44b-4dd8-897a-85a02cc4e591",
+    "model": "google-gla:gemini-3-flash-preview",
+    "test_case": "copywriting",
+    "trial_index": 2,
+    "status": "TIMEOUT",
+    "duration": 300.01935608299937,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/copywriting/trial-2/history/google-gla_gemini-3-flash-preview-copywriting-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/copywriting/trial-2/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "06bd15e7-3c6c-4f95-b593-484544016010",
+    "model": "google-gla:gemini-3-flash-preview",
+    "test_case": "feature",
+    "trial_index": 1,
+    "status": "TIMEOUT",
+    "duration": 300.0104061669999,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/feature/trial-1/history/google-gla_gemini-3-flash-preview-feature-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/feature/trial-1/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "5a83c499-7b25-4c62-af51-fc3cd3d7f5fa",
+    "model": "google-gla:gemini-3-flash-preview",
+    "test_case": "feature",
+    "trial_index": 2,
+    "status": "TIMEOUT",
+    "duration": 300.01079816699985,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/feature/trial-2/history/google-gla_gemini-3-flash-preview-feature-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/feature/trial-2/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "1b945d2c-4147-4832-af3f-8ab13e6a96b5",
+    "model": "google-gla:gemini-3-flash-preview",
+    "test_case": "feature",
+    "trial_index": 3,
+    "status": "TIMEOUT",
+    "duration": 300.0163617090002,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/feature/trial-3/history/google-gla_gemini-3-flash-preview-feature-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/feature/trial-3/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "69c06d2a-905c-4992-b193-036df4819a9c",
+    "model": "google-gla:gemini-3-flash-preview",
+    "test_case": "integration-bug",
+    "trial_index": 1,
+    "status": "TIMEOUT",
+    "duration": 300.0108351660001,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/integration-bug/trial-1/history/google-gla_gemini-3-flash-preview-integration-bug-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/integration-bug/trial-1/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "4f3a50ab-a059-4065-a0d9-9507c078af46",
+    "model": "google-gla:gemini-3-flash-preview",
+    "test_case": "integration-bug",
+    "trial_index": 2,
+    "status": "TIMEOUT",
+    "duration": 300.01369241700013,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/integration-bug/trial-2/history/google-gla_gemini-3-flash-preview-integration-bug-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/integration-bug/trial-2/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "9469c28e-3e54-4f5f-b5ac-d3fa4e49d1b0",
+    "model": "google-gla:gemini-3-flash-preview",
+    "test_case": "integration-bug",
+    "trial_index": 3,
+    "status": "TIMEOUT",
+    "duration": 300.01744383299956,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/integration-bug/trial-3/history/google-gla_gemini-3-flash-preview-integration-bug-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/integration-bug/trial-3/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "a073ad11-6b50-4739-8f77-27e2a8c34b5c",
+    "model": "google-gla:gemini-3-flash-preview",
+    "test_case": "refactor",
+    "trial_index": 1,
+    "status": "TIMEOUT",
+    "duration": 300.0160659160001,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/refactor/trial-1/history/google-gla_gemini-3-flash-preview-refactor-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/refactor/trial-1/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "b6c1b9fc-d293-4def-8d70-831542b8fc68",
+    "model": "google-gla:gemini-3-flash-preview",
+    "test_case": "refactor",
+    "trial_index": 2,
+    "status": "TIMEOUT",
+    "duration": 300.00678037499983,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/refactor/trial-2/history/google-gla_gemini-3-flash-preview-refactor-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/refactor/trial-2/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "d06d4f88-2983-4b3f-bd2b-998c3782297f",
+    "model": "google-gla:gemini-3-flash-preview",
+    "test_case": "refactor",
+    "trial_index": 3,
+    "status": "EXCELLENT",
+    "duration": 295.38178654199965,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/refactor/trial-3/history/google-gla_gemini-3-flash-preview-refactor-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/refactor/trial-3/stdout.log",
+    "verification_result": {
+      "status": "EXCELLENT",
+      "score": 1.0,
+      "details": [
+        {
+          "name": "refactor_file",
+          "passed": true,
+          "message": "Checking pipeline_refactored.py"
+        },
+        {
+          "name": "env_var_config",
+          "passed": true,
+          "message": "Env-var config present"
+        },
+        {
+          "name": "no_hardcoded_credential",
+          "passed": true,
+          "message": "No hardcoded credential"
+        },
+        {
+          "name": "sql_injection_check",
+          "passed": true,
+          "message": "SQL queries appear parameterized"
+        },
+        {
+          "name": "etl_pattern",
+          "passed": true,
+          "message": "extract=True, transform=True, load=True"
+        },
+        {
+          "name": "separation_of_concerns",
+          "passed": true,
+          "message": "10 function(s), 1 class(es)"
+        },
+        {
+          "name": "regex_parsing",
+          "passed": true,
+          "message": "Uses re module"
+        },
+        {
+          "name": "type_hints_and_docstrings",
+          "passed": true,
+          "message": "types=True, docstrings=True"
+        },
+        {
+          "name": "script_runs",
+          "passed": true,
+          "message": "Script exited 0"
+        },
+        {
+          "name": "report_html",
+          "passed": true,
+          "message": "Sections present and source data preserved"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "8ca4bfa9-6c27-45fd-b085-194b121fd2f2",
+    "model": "google-gla:gemini-3-flash-preview",
+    "test_case": "research",
+    "trial_index": 3,
+    "status": "EXCELLENT",
+    "duration": 202.00878820800062,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/research/trial-3/history/google-gla_gemini-3-flash-preview-research-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/research/trial-3/stdout.log",
+    "verification_result": {
+      "status": "EXCELLENT",
+      "score": 1.0,
+      "details": [
+        {
+          "name": "adr_file",
+          "passed": true,
+          "message": "Using ADR-001-notification-architecture.md"
+        },
+        {
+          "name": "substantial_content",
+          "passed": true,
+          "message": "1284 words (need \u2265500)"
+        },
+        {
+          "name": "adr_sections",
+          "passed": true,
+          "message": "found=['context', 'decision', 'consequences', 'alternatives']"
+        },
+        {
+          "name": "status_field",
+          "passed": true,
+          "message": "Status field present"
+        },
+        {
+          "name": "evaluates_both_options",
+          "passed": true,
+          "message": "kafka=True, redis=True"
+        },
+        {
+          "name": "clear_recommendation",
+          "passed": true,
+          "message": "Recommendation present"
+        },
+        {
+          "name": "technical_properties",
+          "passed": true,
+          "message": "covered 8/12 (retention, consumer group, exactly-once, at-least-once...)"
+        },
+        {
+          "name": "constraint_context",
+          "passed": true,
+          "message": "covered 5 constraint terms"
+        },
+        {
+          "name": "pros_and_cons",
+          "passed": true,
+          "message": "pros=True, cons=True"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "e5d76973-dd0e-40cd-acb7-850dc9094dba",
+    "model": "google-gla:gemini-3-flash-preview",
+    "test_case": "research",
+    "trial_index": 1,
+    "status": "TIMEOUT",
+    "duration": 300.0187768329997,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/research/trial-1/history/google-gla_gemini-3-flash-preview-research-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/research/trial-1/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "76b9a154-8291-41e0-83b3-af0fbb1e517e",
+    "model": "google-gla:gemini-3-flash-preview",
+    "test_case": "research",
+    "trial_index": 2,
+    "status": "TIMEOUT",
+    "duration": 300.0146686249991,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/research/trial-2/history/google-gla_gemini-3-flash-preview-research-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/google-gla_gemini-3-flash-preview/research/trial-2/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "63c4f813-ce4f-435d-8357-d26500245c00",
+    "model": "deepseek:deepseek-v4-flash",
+    "test_case": "bug-fix",
+    "trial_index": 1,
+    "status": "TIMEOUT",
+    "duration": 300.0167789579991,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/bug-fix/trial-1/history/deepseek_deepseek-v4-flash-bug-fix-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/bug-fix/trial-1/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "62003b11-4a83-40d8-a571-afd34da51786",
+    "model": "deepseek:deepseek-v4-flash",
+    "test_case": "bug-fix",
+    "trial_index": 2,
+    "status": "TIMEOUT",
+    "duration": 300.00952137499917,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/bug-fix/trial-2/history/deepseek_deepseek-v4-flash-bug-fix-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/bug-fix/trial-2/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "0e1d8931-c178-4eb1-b51d-8b7e15002851",
+    "model": "deepseek:deepseek-v4-flash",
+    "test_case": "bug-fix",
+    "trial_index": 3,
+    "status": "TIMEOUT",
+    "duration": 300.00765354100076,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/bug-fix/trial-3/history/deepseek_deepseek-v4-flash-bug-fix-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/bug-fix/trial-3/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "36fa3367-3edf-45fa-b8a5-295a69ff3990",
+    "model": "deepseek:deepseek-v4-flash",
+    "test_case": "copywriting",
+    "trial_index": 1,
+    "status": "TIMEOUT",
+    "duration": 300.0103612499988,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/copywriting/trial-1/history/deepseek_deepseek-v4-flash-copywriting-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/copywriting/trial-1/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "0a0fd262-4a4c-4dbe-8edf-8c73dffda644",
+    "model": "deepseek:deepseek-v4-flash",
+    "test_case": "copywriting",
+    "trial_index": 2,
+    "status": "TIMEOUT",
+    "duration": 300.0104453750009,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/copywriting/trial-2/history/deepseek_deepseek-v4-flash-copywriting-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/copywriting/trial-2/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "a4419400-b90b-4e72-8191-3759a9232ec4",
+    "model": "deepseek:deepseek-v4-flash",
+    "test_case": "copywriting",
+    "trial_index": 3,
+    "status": "TIMEOUT",
+    "duration": 300.01228520899895,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/copywriting/trial-3/history/deepseek_deepseek-v4-flash-copywriting-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/copywriting/trial-3/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "b8deab06-1e00-42bd-8d77-b912da69ff23",
+    "model": "deepseek:deepseek-v4-flash",
+    "test_case": "feature",
+    "trial_index": 1,
+    "status": "TIMEOUT",
+    "duration": 300.018194708,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/feature/trial-1/history/deepseek_deepseek-v4-flash-feature-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/feature/trial-1/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "fe0418d3-0c3a-4139-b8d7-c61fe3c1839b",
+    "model": "deepseek:deepseek-v4-flash",
+    "test_case": "feature",
+    "trial_index": 2,
+    "status": "TIMEOUT",
+    "duration": 300.01065412499884,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/feature/trial-2/history/deepseek_deepseek-v4-flash-feature-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/feature/trial-2/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "c9119ddb-ccb0-4148-82c1-29323daafa36",
+    "model": "deepseek:deepseek-v4-flash",
+    "test_case": "feature",
+    "trial_index": 3,
+    "status": "TIMEOUT",
+    "duration": 300.00958733399966,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/feature/trial-3/history/deepseek_deepseek-v4-flash-feature-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/feature/trial-3/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "04704e02-7044-447a-b508-f48caff76f1a",
+    "model": "deepseek:deepseek-v4-flash",
+    "test_case": "integration-bug",
+    "trial_index": 1,
+    "status": "TIMEOUT",
+    "duration": 300.0089239580011,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/integration-bug/trial-1/history/deepseek_deepseek-v4-flash-integration-bug-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/integration-bug/trial-1/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "596a3dd7-c0dc-4ee5-9860-d33db8383c98",
+    "model": "deepseek:deepseek-v4-flash",
+    "test_case": "refactor",
+    "trial_index": 3,
+    "status": "FAIL",
+    "duration": 123.87415895800041,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/refactor/trial-3/history/deepseek_deepseek-v4-flash-refactor-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/refactor/trial-3/stdout.log",
+    "verification_result": {
+      "status": "FAIL",
+      "score": 0.375,
+      "details": [
+        {
+          "name": "refactor_file",
+          "passed": true,
+          "message": "Checking pipeline.py"
+        },
+        {
+          "name": "env_var_config",
+          "passed": false,
+          "message": "No os.getenv/os.environ usage"
+        },
+        {
+          "name": "no_hardcoded_credential",
+          "passed": false,
+          "message": "Hardcoded 'password123' still present"
+        },
+        {
+          "name": "sql_injection_check",
+          "passed": true,
+          "message": "SQL queries appear parameterized"
+        },
+        {
+          "name": "etl_pattern",
+          "passed": false,
+          "message": "extract=False, transform=False, load=True"
+        },
+        {
+          "name": "separation_of_concerns",
+          "passed": false,
+          "message": "1 function(s), 0 class(es)"
+        },
+        {
+          "name": "regex_parsing",
+          "passed": false,
+          "message": "No regex usage detected"
+        },
+        {
+          "name": "type_hints_and_docstrings",
+          "passed": false,
+          "message": "types=True, docstrings=False"
+        },
+        {
+          "name": "script_runs",
+          "passed": true,
+          "message": "Script exited 0"
+        },
+        {
+          "name": "report_html",
+          "passed": true,
+          "message": "Sections present and source data preserved"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "4fd88868-50c1-459b-93ed-1bda4d750f6d",
+    "model": "deepseek:deepseek-v4-flash",
+    "test_case": "refactor",
+    "trial_index": 2,
+    "status": "FAIL",
+    "duration": 145.23308095799985,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/refactor/trial-2/history/deepseek_deepseek-v4-flash-refactor-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/refactor/trial-2/stdout.log",
+    "verification_result": {
+      "status": "FAIL",
+      "score": 0.375,
+      "details": [
+        {
+          "name": "refactor_file",
+          "passed": true,
+          "message": "Checking pipeline.py"
+        },
+        {
+          "name": "env_var_config",
+          "passed": false,
+          "message": "No os.getenv/os.environ usage"
+        },
+        {
+          "name": "no_hardcoded_credential",
+          "passed": false,
+          "message": "Hardcoded 'password123' still present"
+        },
+        {
+          "name": "sql_injection_check",
+          "passed": true,
+          "message": "SQL queries appear parameterized"
+        },
+        {
+          "name": "etl_pattern",
+          "passed": false,
+          "message": "extract=False, transform=False, load=True"
+        },
+        {
+          "name": "separation_of_concerns",
+          "passed": false,
+          "message": "1 function(s), 0 class(es)"
+        },
+        {
+          "name": "regex_parsing",
+          "passed": false,
+          "message": "No regex usage detected"
+        },
+        {
+          "name": "type_hints_and_docstrings",
+          "passed": false,
+          "message": "types=True, docstrings=False"
+        },
+        {
+          "name": "script_runs",
+          "passed": true,
+          "message": "Script exited 0"
+        },
+        {
+          "name": "report_html",
+          "passed": true,
+          "message": "Sections present and source data preserved"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "15d871ce-d9a9-4eea-be21-d246d32a9a4b",
+    "model": "deepseek:deepseek-v4-flash",
+    "test_case": "research",
+    "trial_index": 1,
+    "status": "FAIL",
+    "duration": 114.88146937500096,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/research/trial-1/history/deepseek_deepseek-v4-flash-research-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/research/trial-1/stdout.log",
+    "verification_result": {
+      "status": "FAIL",
+      "score": 0.0,
+      "details": [
+        {
+          "name": "adr_file",
+          "passed": false,
+          "message": "No ADR markdown file found"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "038261b2-bcc8-4817-ac10-c3483abaa03e",
+    "model": "deepseek:deepseek-v4-flash",
+    "test_case": "refactor",
+    "trial_index": 1,
+    "status": "FAIL",
+    "duration": 183.33872308299942,
+    "exit_code": 0,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/refactor/trial-1/history/deepseek_deepseek-v4-flash-refactor-trial-1.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/refactor/trial-1/stdout.log",
+    "verification_result": {
+      "status": "FAIL",
+      "score": 0.375,
+      "details": [
+        {
+          "name": "refactor_file",
+          "passed": true,
+          "message": "Checking pipeline.py"
+        },
+        {
+          "name": "env_var_config",
+          "passed": false,
+          "message": "No os.getenv/os.environ usage"
+        },
+        {
+          "name": "no_hardcoded_credential",
+          "passed": false,
+          "message": "Hardcoded 'password123' still present"
+        },
+        {
+          "name": "sql_injection_check",
+          "passed": true,
+          "message": "SQL queries appear parameterized"
+        },
+        {
+          "name": "etl_pattern",
+          "passed": false,
+          "message": "extract=False, transform=False, load=True"
+        },
+        {
+          "name": "separation_of_concerns",
+          "passed": false,
+          "message": "1 function(s), 0 class(es)"
+        },
+        {
+          "name": "regex_parsing",
+          "passed": false,
+          "message": "No regex usage detected"
+        },
+        {
+          "name": "type_hints_and_docstrings",
+          "passed": false,
+          "message": "types=True, docstrings=False"
+        },
+        {
+          "name": "script_runs",
+          "passed": true,
+          "message": "Script exited 0"
+        },
+        {
+          "name": "report_html",
+          "passed": true,
+          "message": "Sections present and source data preserved"
+        }
+      ]
+    },
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "c65f0c6a-ebce-4303-af53-4cf0da6d1fe9",
+    "model": "deepseek:deepseek-v4-flash",
+    "test_case": "integration-bug",
+    "trial_index": 2,
+    "status": "TIMEOUT",
+    "duration": 300.01240212500124,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/integration-bug/trial-2/history/deepseek_deepseek-v4-flash-integration-bug-trial-2.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/integration-bug/trial-2/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
+  },
+  {
+    "id": "e6d4bf04-c103-4c91-a1a6-e46eceb6eb9f",
+    "model": "deepseek:deepseek-v4-flash",
+    "test_case": "integration-bug",
+    "trial_index": 3,
+    "status": "TIMEOUT",
+    "duration": 300.01598495799954,
+    "exit_code": -1,
+    "log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/integration-bug/trial-3/history/deepseek_deepseek-v4-flash-integration-bug-trial-3.json",
+    "stdout_log_path": "/Users/gofrendigunawan/zrb/llm-challenges/experiment/deepseek_deepseek-v4-flash/integration-bug/trial-3/stdout.log",
+    "verification_result": null,
+    "total_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cache_read_tokens": 0,
+    "tool_calls": [],
+    "tool_call_count": 0
   }
 ]

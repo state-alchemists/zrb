@@ -1,0 +1,119 @@
+[2m
+  🧠 Let[0m[2m me[0m[2m read[0m[2m the[0m[2m v[0m[2m1[0m[2m and[0m[2m v[0m[2m2[0m[2m spec[0m[2m files[0m[2m to[0m[2m understand[0m[2m the[0m[2m changes[0m[2m before[0m[2m writing[0m[2m the[0m[2m migration[0m[2m guide[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_zv6phzqp | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🧰 call_2bt5tihr | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_zv6phzqp Executed
+[0m[2m
+  🔠 call_2bt5tihr Executed
+[0m[2m
+  🧠 Now[0m[2m I[0m[2m have[0m[2m both[0m[2m specs[0m[2m.[0m[2m Let[0m[2m me[0m[2m identify[0m[2m all[0m[2m the[0m[2m breaking[0m[2m changes[0m[2m and[0m[2m craft[0m[2m a[0m[2m comprehensive[0m[2m migration[0m[2m guide[0m[2m.[0m[2m
+     
+     Breaking[0m[2m changes[0m[2m:[0m[2m
+     1[0m[2m.[0m[2m **[0m[2mAuthentication[0m[2m**:[0m[2m `[0m[2mX[0m[2m-A[0m[2muth[0m[2m-T[0m[2moken[0m[2m`[0m[2m header[0m[2m →[0m[2m `[0m[2mAuthorization[0m[2m:[0m[2m Bear[0m[2mer[0m[2m`[0m[2m header[0m[2m
+     2[0m[2m.[0m[2m **[0m[2mEndpoint[0m[2m prefix[0m[2m**:[0m[2m `/[0m[2mtasks[0m[2m/*[0m[2m`[0m[2m →[0m[2m `/[0m[2mv[0m[2m2[0m[2m/t[0m[2masks[0m[2m/*[0m[2m`[0m[2m
+     3[0m[2m.[0m[2m **[0m[2mTask[0m[2m ID[0m[2m type[0m[2m**:[0m[2m integer[0m[2m →[0m[2m UUID[0m[2m string[0m[2m
+     4[0m[2m.[0m[2m **[0m[2mField[0m[2m rename[0m[2m**:[0m[2m `[0m[2mdone[0m[2m`[0m[2m →[0m[2m `[0m[2mcompleted[0m[2m`[0m[2m
+     5[0m[2m.[0m[2m **[0m[2mRequired[0m[2m field[0m[2m**:[0m[2m `[0m[2mproject[0m[2m_id[0m[2m`[0m[2m is[0m[2m now[0m[2m required[0m[2m when[0m[2m creating[0m[2m tasks[0m[2m
+     6[0m[2m.[0m[2m **[0m[2mList[0m[2m response[0m[2m format[0m[2m**:[0m[2m bare[0m[2m array[0m[2m →[0m[2m pag[0m[2minated[0m[2m envelope[0m[2m (`[0m[2m{[0m[2mitems[0m[2m,[0m[2m total[0m[2m,[0m[2m next[0m[2m_c[0m[2mursor[0m[2m}`[0m[2m)[0m[2m
+     7[0m[2m.[0m[2m **[0m[2mP[0m[2magination[0m[2m**:[0m[2m now[0m[2m cursor[0m[2m-based[0m[2m with[0m[2m `[0m[2m?[0m[2mcursor[0m[2m=`[0m[2m and[0m[2m `[0m[2m?[0m[2mlimit[0m[2m=[0m[2m`[0m[2m
+     
+     Let[0m[2m me[0m[2m now[0m[2m write[0m[2m the[0m[2m migration[0m[2m guide[0m[2m.[0m[2m I[0m[2m'll[0m[2m activate[0m[2m the[0m[2m core[0m[2m-writing[0m[2m skill[0m[2m for[0m[2m this[0m[2m.[0m[2m
+  Now[0m[2m I[0m[2m have[0m[2m both[0m[2m specs[0m[2m.[0m[2m Let[0m[2m me[0m[2m activate[0m[2m the[0m[2m writing[0m[2m skill[0m[2m and[0m[2m produce[0m[2m the[0m[2m guide[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_7cueu8ww | ActivateSkill {'name': 'core-writing'}
+[0m[2m
+  🔠 call_7cueu8ww Executed
+[0m[2m
+  🧠 Now[0m[2m I[0m[2m have[0m[2m all[0m[2m the[0m[2m information[0m[2m I[0m[2m need[0m[2m.[0m[2m Let[0m[2m me[0m[2m write[0m[2m the[0m[2m migration[0m[2m guide[0m[2m.[0m[2m Following[0m[2m the[0m[2m Before[0m[2m-A[0m[2mfter[0m[2m-B[0m[2mridge[0m[2m formula[0m[2m which[0m[2m is[0m[2m perfect[0m[2m for[0m[2m migration[0m[2m guides[0m[2m,[0m[2m and[0m[2m the[0m[2m technical[0m[2m/[0m[2mdeveloper[0m[2m tone[0m[2m.[0m[2m
+     
+     Let[0m[2m me[0m[2m structure[0m[2m it[0m[2m:[0m[2m
+     
+     1[0m[2m.[0m[2m Title[0m[2m +[0m[2m brief[0m[2m intro[0m[2m ([0m[2mwhat[0m[2m's[0m[2m new[0m[2m,[0m[2m audience[0m[2m,[0m[2m tone[0m[2m)[0m[2m
+     2[0m[2m.[0m[2m Breaking[0m[2m Changes[0m[2m ([0m[2mone[0m[2m by[0m[2m one[0m[2m,[0m[2m each[0m[2m with[0m[2m before[0m[2m/[0m[2mafter[0m[2m)[0m[2m
+     3[0m[2m.[0m[2m Migration[0m[2m Checklist[0m[2m
+     4[0m[2m.[0m[2m Upgrade[0m[2m Command[0m[2m
+     
+     Breaking[0m[2m changes[0m[2m identified[0m[2m:[0m[2m
+     1[0m[2m.[0m[2m Authentication[0m[2m header[0m[2m change[0m[2m (`[0m[2mX[0m[2m-A[0m[2muth[0m[2m-T[0m[2moken[0m[2m`[0m[2m →[0m[2m `[0m[2mAuthorization[0m[2m:[0m[2m Bear[0m[2mer[0m[2m`)[0m[2m
+     2[0m[2m.[0m[2m End[0m[2mpoint[0m[2m path[0m[2m change[0m[2m (`[0m[2m/[0m[2mtasks[0m[2m`[0m[2m →[0m[2m `/[0m[2mv[0m[2m2[0m[2m/t[0m[2masks[0m[2m`)[0m[2m
+     3[0m[2m.[0m[2m Task[0m[2m ID[0m[2m type[0m[2m change[0m[2m ([0m[2minteger[0m[2m →[0m[2m UUID[0m[2m string[0m[2m)[0m[2m
+     4[0m[2m.[0m[2m `[0m[2mdone[0m[2m`[0m[2m →[0m[2m `[0m[2mcompleted[0m[2m`[0m[2m field[0m[2m rename[0m[2m
+     5[0m[2m.[0m[2m `[0m[2mproject[0m[2m_id[0m[2m`[0m[2m required[0m[2m on[0m[2m creation[0m[2m
+     6[0m[2m.[0m[2m List[0m[2m response[0m[2m format[0m[2m ([0m[2mbare[0m[2m array[0m[2m →[0m[2m pag[0m[2minated[0m[2m envelope[0m[2m)[0m[2m
+     7[0m[2m.[0m[2m C[0m[2mursor[0m[2m-based[0m[2m pag[0m[2mination[0m[2m ([0m[2mnew[0m[2m)[0m[2m
+     
+     Let[0m[2m me[0m[2m write[0m[2m this[0m[2m carefully[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_i7zjzz7d | Write {'path': '/Users/gofrendigunawan/zrb ...', 'content': '# Zrb Task API — v1 to v2  ...'}
+[0m[2m
+  🔠 call_i7zjzz7d Executed
+[0m[2m
+  🧠 The[0m[2m migration[0m[2m guide[0m[2m has[0m[2m been[0m[2m written[0m[2m.[0m[2m Let[0m[2m me[0m[2m verify[0m[2m it[0m[2m covers[0m[2m everything[0m[2m asked[0m[2m for[0m[2m in[0m[2m the[0m[2m requirements[0m[2m:[0m[2m
+     
+     1[0m[2m.[0m[2m ✅[0m[2m Clear[0m[2m structure[0m[2m with[0m[2m headings[0m[2m -[0m[2m organized[0m[2m into[0m[2m sections[0m[2m with[0m[2m clear[0m[2m hierarchy[0m[2m
+     2[0m[2m.[0m[2m ✅[0m[2m Every[0m[2m breaking[0m[2m change[0m[2m explicitly[0m[2m called[0m[2m out[0m[2m -[0m[2m all[0m[2m 7[0m[2m identified[0m[2m and[0m[2m detailed[0m[2m
+     3[0m[2m.[0m[2m ✅[0m[2m Before[0m[2m/[0m[2mafter[0m[2m code[0m[2m examples[0m[2m for[0m[2m each[0m[2m breaking[0m[2m change[0m[2m -[0m[2m f[0m[2menced[0m[2m code[0m[2m blocks[0m[2m used[0m[2m throughout[0m[2m
+     4[0m[2m.[0m[2m ✅[0m[2m Step[0m[2m-by[0m[2m-step[0m[2m migration[0m[2m checklist[0m[2m at[0m[2m the[0m[2m end[0m[2m -[0m[2m checkbox[0m[2m list[0m[2m with[0m[2m 7[0m[2m items[0m[2m
+     5[0m[2m.[0m[2m ✅[0m[2m Ends[0m[2m with[0m[2m upgrade[0m[2m command[0m[2m -[0m[2m `[0m[2mpip[0m[2m install[0m[2m --[0m[2mup[0m[2mgrade[0m[2m z[0m[2mrb[0m[2m`[0m[2m
+     
+     Let[0m[2m me[0m[2m also[0m[2m log[0m[2m this[0m[2m in[0m[2m the[0m[2m journal[0m[2m.[0m[2m
+  Let[0m[2m me[0m[2m log[0m[2m this[0m[2m in[0m[2m the[0m[2m journal[0m[2m before[0m[2m rep[0m[2mlying[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_xr7c32eu | SearchJournal {'query': 'migration guide', 'case_sensitive': False}
+[0m[2m
+  🔠 call_xr7c32eu Executed
+[0m[2m
+  🧠 Let[0m[2m me[0m[2m check[0m[2m if[0m[2m the[0m[2m activity[0m[2m log[0m[2m file[0m[2m exists[0m[2m and[0m[2m what[0m[2m date[0m[2m it[0m[2m is[0m[2m.[0m[2m The[0m[2m current[0m[2m time[0m[2m is[0m[2m 202[0m[2m6[0m[2m-[0m[2m05[0m[2m-[0m[2m21[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_t2aspw90 | Glob {'pattern': 'activity-log/2026/2026-05/ ...'}
+[0m[2m
+  🔠 call_t2aspw90 Executed
+[0m[2m
+  🧠 Let[0m[2m me[0m[2m create[0m[2m the[0m[2m activity[0m[2m log[0m[2m entry[0m[2m and[0m[2m write[0m[2m the[0m[2m journal[0m[2m note[0m[2m in[0m[2m one[0m[2m go[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_83ivd048 | Write {'path': '/Users/gofrendigunawan/.zr ...', 'content': '- 06:47 — Wrote MIGRATION. ...'}
+[0m[2m
+  🔠 call_83ivd048 Executed
+[0m[2m
+  🧠 Done[0m[2m.[0m[2m Let[0m[2m me[0m[2m summarize[0m[2m the[0m[2m work[0m[2m for[0m[2m the[0m[2m user[0m[2m.[0m[2m
+  Written[0m[2m to[0m[2m `[0m[2mM[0m[2mIG[0m[2mRATION[0m[2m.md[0m[2m`.[0m[2m The[0m[2m guide[0m[2m covers[0m[2m all[0m[2m 7[0m[2m breaking[0m[2m changes[0m[2m with[0m[2m before[0m[2m/[0m[2mafter[0m[2m code[0m[2m examples[0m[2m:[0m[2m
+     
+     1[0m[2m.[0m[2m **[0m[2mAuthentication[0m[2m**[0m[2m —[0m[2m `[0m[2mX[0m[2m-A[0m[2muth[0m[2m-T[0m[2moken[0m[2m`[0m[2m →[0m[2m `[0m[2mAuthorization[0m[2m:[0m[2m Bear[0m[2mer[0m[2m`[0m[2m
+     2[0m[2m.[0m[2m **[0m[2mEndpoint[0m[2m prefix[0m[2m**[0m[2m —[0m[2m `/[0m[2mtasks[0m[2m`[0m[2m →[0m[2m `/[0m[2mv[0m[2m2[0m[2m/t[0m[2masks[0m[2m`[0m[2m
+     3[0m[2m.[0m[2m **[0m[2mTask[0m[2m ID[0m[2m type[0m[2m**[0m[2m —[0m[2m integer[0m[2m →[0m[2m UUID[0m[2m string[0m[2m ([0m[2mincludes[0m[2m Python[0m[2m +[0m[2m Type[0m[2mScript[0m[2m examples[0m[2m)[0m[2m
+     4[0m[2m.[0m[2m **[0m[2m`[0m[2mdone[0m[2m`[0m[2m →[0m[2m `[0m[2mcompleted[0m[2m`[0m[2m**[0m[2m —[0m[2m both[0m[2m read[0m[2m and[0m[2m write[0m[2m paths[0m[2m
+     5[0m[2m.[0m[2m **[0m[2m`[0m[2mproject[0m[2m_id[0m[2m`[0m[2m required[0m[2m**[0m[2m —[0m[2m creation[0m[2m now[0m[2m returns[0m[2m 422[0m[2m if[0m[2m omitted[0m[2m
+     6[0m[2m.[0m[2m **[0m[2mList[0m[2m response[0m[2m**[0m[2m —[0m[2m bare[0m[2m array[0m[2m →[0m[2m `[0m[2m{[0m[2mitems[0m[2m,[0m[2m total[0m[2m,[0m[2m next[0m[2m_c[0m[2mursor[0m[2m}`[0m[2m envelope[0m[2m
+     7[0m[2m.[0m[2m **[0m[2mCursor[0m[2m pag[0m[2mination[0m[2m**[0m[2m —[0m[2m full[0m[2m pag[0m[2mination[0m[2m loop[0m[2m example[0m[2m included[0m[2m
+     
+     End[0m[2ms[0m[2m with[0m[2m a[0m[2m checkbox[0m[2m checklist[0m[2m and[0m[2m the[0m[2m `[0m[2mpip[0m[2m install[0m[2m --[0m[2mup[0m[2mgrade[0m[2m z[0m[2mrb[0m[2m`[0m[2m command[0m[2m.[0m[2m
+  💸 (Requests: 7 | Tool Calls: 7 | Total: 118201) Input: 114933 | Audio Input: 0 | Output: 3268 | Audio Output: 0 | Cache Read: 0 | Cache Write: 0 | Details: {}
+[0m[2mTo run again:[0m [1;33mzrb chat --message "The Zrb CLI is releasing v2, which has several breaking changes from v1. Our developer community needs a clear migration guide.
+
+`v1_spec.md` describes the current v1 API. `v2_spec.md` describes the new v2 API.
+
+Write a developer migration guide and save it as `MIGRATION.md`. It should:
+- Have a clear structure with headings
+- Explicitly call out every breaking change
+- Include before/after code examples for each breaking change (use fenced code blocks)
+- Have a step-by-step migration checklist at the end
+- End with the upgrade command
+
+The audience is experienced developers who are already using v1.
+" --model "" --session google-gla_gemini-3-flash-preview-copywriting-trial-1 --yolo true --attach "" --interactive false[0m
+[2m[2mSession[0m: [1;33mgoogle-gla_gemini-3-flash-preview-copywriting-trial-1[0m[0m
+Written to `MIGRATION.md`. The guide covers all 7 breaking changes with before/after code examples:
+
+1. **Authentication** — `X-Auth-Token` → `Authorization: Bearer`
+2. **Endpoint prefix** — `/tasks` → `/v2/tasks`
+3. **Task ID type** — integer → UUID string (includes Python + TypeScript examples)
+4. **`done` → `completed`** — both read and write paths
+5. **`project_id` required** — creation now returns 422 if omitted
+6. **List response** — bare array → `{items, total, next_cursor}` envelope
+7. **Cursor pagination** — full pagination loop example included
+
+Ends with a checkbox checklist and the `pip install --upgrade zrb` command.

@@ -1,0 +1,151 @@
+[2m
+  🧠 Let[0m[2m me[0m[2m start[0m[2m by[0m[2m reading[0m[2m the[0m[2m relevant[0m[2m files[0m[2m to[0m[2m understand[0m[2m the[0m[2m code[0m[2mbase[0m[2m and[0m[2m the[0m[2m bug[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_5zqj2c0s | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_5zqj2c0s Executed
+[0m[2m
+  🧠 Let[0m[2m me[0m[2m list[0m[2m the[0m[2m files[0m[2m in[0m[2m the[0m[2m work[0m[2mdir[0m[2m to[0m[2m see[0m[2m what[0m[2m's[0m[2m there[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_6m65rn4w | LS {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_6m65rn4w Executed
+[0m[2m
+  🧠 Let[0m[2m me[0m[2m read[0m[2m all[0m[2m four[0m[2m files[0m[2m to[0m[2m understand[0m[2m the[0m[2m code[0m[2mbase[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_kzjd5wo2 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🧰 call_a5okfyk8 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🧰 call_orr3ni5v | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🧰 call_dytgbqh1 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_kzjd5wo2 Executed
+[0m[2m
+  🔠 call_a5okfyk8 Executed
+[0m[2m
+  🔠 call_orr3ni5v Executed
+[0m[2m
+  🔠 call_dytgbqh1 Executed
+[0m[2m
+  🧠 Now[0m[2m I[0m[2m can[0m[2m see[0m[2m the[0m[2m bugs[0m[2m clearly[0m[2m.[0m[2m Let[0m[2m me[0m[2m analyze[0m[2m them[0m[2m:[0m[2m
+     
+     ##[0m[2m Bug[0m[2m 1[0m[2m:[0m[2m TO[0m[2mCT[0m[2mOU[0m[2m Race[0m[2m Condition[0m[2m ([0m[2movers[0m[2melling[0m[2m +[0m[2m ghost[0m[2m charges[0m[2m)[0m[2m
+     
+     The[0m[2m `[0m[2mcheck[0m[2mout[0m[2m`[0m[2m function[0m[2m has[0m[2m a[0m[2m classic[0m[2m Time[0m[2m-of[0m[2m-C[0m[2mheck[0m[2m-Time[0m[2m-of[0m[2m-[0m[2mUse[0m[2m ([0m[2mTO[0m[2mCT[0m[2mOU[0m[2m)[0m[2m race[0m[2m condition[0m[2m:[0m[2m
+     
+     ```[0m[2mpython[0m[2m
+     available[0m[2m =[0m[2m await[0m[2m inventory[0m[2m.check[0m[2m_st[0m[2mock[0m[2m([0m[2mquantity[0m[2m)[0m[2m   #[0m[2m T[0m[2m1[0m[2m:[0m[2m check[0m[2m
+     ...[0m[2m
+     charged[0m[2m =[0m[2m await[0m[2m gateway[0m[2m.[0m[2mcharge[0m[2m(order[0m[2m_id[0m[2m,[0m[2m quantity[0m[2m *[0m[2m price[0m[2m)[0m[2m   #[0m[2m T[0m[2m2[0m[2m:[0m[2m pay[0m[2m
+     ...[0m[2m
+     de[0m[2mcre[0m[2mmented[0m[2m =[0m[2m await[0m[2m inventory[0m[2m.de[0m[2mcrement[0m[2m([0m[2mquantity[0m[2m)[0m[2m   #[0m[2m T[0m[2m3[0m[2m:[0m[2m use[0m[2m
+     ```[0m[2m
+     
+     Between[0m[2m T[0m[2m1[0m[2m ([0m[2mcheck[0m[2m stock[0m[2m)[0m[2m and[0m[2m T[0m[2m3[0m[2m ([0m[2mde[0m[2mcrement[0m[2m stock[0m[2m),[0m[2m other[0m[2m concurrent[0m[2m cor[0m[2moutines[0m[2m can[0m[2m also[0m[2m pass[0m[2m the[0m[2m stock[0m[2m check[0m[2m and[0m[2m charge[0m[2m.[0m[2m So[0m[2m multiple[0m[2m orders[0m[2m get[0m[2m charged[0m[2m,[0m[2m but[0m[2m when[0m[2m they[0m[2m try[0m[2m to[0m[2m decre[0m[2mment[0m[2m,[0m[2m some[0m[2m fail[0m[2m because[0m[2m stock[0m[2m is[0m[2m already[0m[2m empty[0m[2m.[0m[2m This[0m[2m causes[0m[2m:[0m[2m
+     
+     1[0m[2m.[0m[2m **[0m[2mO[0m[2mvers[0m[2melling[0m[2m**:[0m[2m If[0m[2m the[0m[2m decre[0m[2mment[0m[2m check[0m[2m passes[0m[2m but[0m[2m multiple[0m[2m cor[0m[2moutines[0m[2m passed[0m[2m the[0m[2m initial[0m[2m check[0m[2m,[0m[2m inventory[0m[2m goes[0m[2m negative[0m[2m ([0m[2mor[0m[2m decre[0m[2mment[0m[2m returns[0m[2m False[0m[2m but[0m[2m the[0m[2m check[0m[2m already[0m[2m passed[0m[2m).[0m[2m
+     2[0m[2m.[0m[2m **[0m[2mGhost[0m[2m charges[0m[2m**:[0m[2m Payment[0m[2m was[0m[2m charged[0m[2m ([0m[2mT[0m[2m2[0m[2m)[0m[2m but[0m[2m decre[0m[2mment[0m[2m failed[0m[2m ([0m[2mT[0m[2m3[0m[2m),[0m[2m so[0m[2m the[0m[2m customer[0m[2m is[0m[2m charged[0m[2m but[0m[2m receives[0m[2m nothing[0m[2m.[0m[2m
+     
+     Actually[0m[2m,[0m[2m looking[0m[2m more[0m[2m carefully[0m[2m at[0m[2m the[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m method[0m[2m:[0m[2m
+     
+     ```[0m[2mpython[0m[2m
+     async[0m[2m def[0m[2m decre[0m[2mment[0m[2m(self[0m[2m,[0m[2m quantity[0m[2m:[0m[2m int[0m[2m)[0m[2m ->[0m[2m bool[0m[2m:[0m[2m
+         await[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m02[0m[2m)[0m[2m
+         if[0m[2m self[0m[2m._[0m[2mstock[0m[2m >=[0m[2m quantity[0m[2m:[0m[2m
+             self[0m[2m._[0m[2mstock[0m[2m -=[0m[2m quantity[0m[2m
+             return[0m[2m True[0m[2m
+         return[0m[2m False[0m[2m
+     ```[0m[2m
+     
+     This[0m[2m does[0m[2m check[0m[2m internally[0m[2m,[0m[2m but[0m[2m due[0m[2m to[0m[2m con[0m[2mcurrency[0m[2m,[0m[2m multiple[0m[2m cor[0m[2moutines[0m[2m can[0m[2m all[0m[2m pass[0m[2m `[0m[2mself[0m[2m._[0m[2mstock[0m[2m >=[0m[2m quantity[0m[2m`[0m[2m check[0m[2m before[0m[2m any[0m[2m of[0m[2m them[0m[2m subtract[0m[2ms[0m[2m from[0m[2m `[0m[2m_[0m[2mstock[0m[2m`.[0m[2m So[0m[2m:[0m[2m
+     
+     -[0m[2m 12[0m[2m concurrent[0m[2m orders[0m[2m,[0m[2m 5[0m[2m stock[0m[2m
+     -[0m[2m All[0m[2m 12[0m[2m pass[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`[0m[2m because[0m[2m `[0m[2m_[0m[2mstock[0m[2m >=[0m[2m 1[0m[2m`[0m[2m ([0m[2mtrue[0m[2m for[0m[2m all[0m[2m of[0m[2m them[0m[2m)[0m[2m
+     -[0m[2m Some[0m[2m get[0m[2m charged[0m[2m ([0m[2mthe[0m[2m 75[0m[2m%[0m[2m success[0m[2m ones[0m[2m)[0m[2m
+     -[0m[2m When[0m[2m they[0m[2m decre[0m[2mment[0m[2m,[0m[2m only[0m[2m 5[0m[2m succeed[0m[2m,[0m[2m the[0m[2m rest[0m[2m fail[0m[2m
+     -[0m[2m The[0m[2m 5[0m[2m that[0m[2m succeeded[0m[2m got[0m[2m charged[0m[2m AND[0m[2m delivered[0m[2m →[0m[2m OK[0m[2m
+     -[0m[2m The[0m[2m rest[0m[2m got[0m[2m charged[0m[2m BUT[0m[2m decre[0m[2mment[0m[2m returned[0m[2m False[0m[2m →[0m[2m **[0m[2mgh[0m[2most[0m[2m charges[0m[2m**[0m[2m and[0m[2m **[0m[2movers[0m[2melling[0m[2m**[0m[2m
+     
+     Wait[0m[2m,[0m[2m does[0m[2m it[0m[2m overs[0m[2mell[0m[2m too[0m[2m?[0m[2m Let[0m[2m me[0m[2m re[0m[2m-check[0m[2m.[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m checks[0m[2m `[0m[2mself[0m[2m._[0m[2mstock[0m[2m >=[0m[2m quantity[0m[2m`[0m[2m again[0m[2m,[0m[2m but[0m[2m it[0m[2m's[0m[2m also[0m[2m not[0m[2m atomic[0m[2m.[0m[2m So[0m[2m if[0m[2m 5[0m[2m cor[0m[2moutines[0m[2m all[0m[2m pass[0m[2m `[0m[2mself[0m[2m._[0m[2mstock[0m[2m >=[0m[2m 1[0m[2m`[0m[2m at[0m[2m the[0m[2m same[0m[2m time[0m[2m,[0m[2m they[0m[2m all[0m[2m decre[0m[2mment[0m[2m,[0m[2m and[0m[2m the[0m[2m stock[0m[2m goes[0m[2m negative[0m[2m.[0m[2m That[0m[2m's[0m[2m the[0m[2m overs[0m[2melling[0m[2m bug[0m[2m.[0m[2m
+     
+     Actually[0m[2m,[0m[2m both[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`[0m[2m and[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m have[0m[2m the[0m[2m TO[0m[2mCT[0m[2mOU[0m[2m issue[0m[2m.[0m[2m The[0m[2m fix[0m[2m needs[0m[2m an[0m[2m atomic[0m[2m reserve[0m[2m-and[0m[2m-de[0m[2mcrement[0m[2m pattern[0m[2m.[0m[2m
+     
+     ##[0m[2m Fix[0m[2m Strategy[0m[2m
+     
+     I[0m[2m need[0m[2m an[0m[2m atomic[0m[2m operation[0m[2m that[0m[2m reserves[0m[2m stock[0m[2m and[0m[2m decre[0m[2mments[0m[2m it[0m[2m in[0m[2m one[0m[2m go[0m[2m.[0m[2m The[0m[2m public[0m[2m interface[0m[2m of[0m[2m `[0m[2mInventory[0m[2m`[0m[2m and[0m[2m `[0m[2mPayment[0m[2mGateway[0m[2m`[0m[2m cannot[0m[2m be[0m[2m changed[0m[2m,[0m[2m but[0m[2m I[0m[2m can[0m[2m add[0m[2m methods[0m[2m.[0m[2m
+     
+     The[0m[2m pattern[0m[2m should[0m[2m be[0m[2m:[0m[2m
+     
+     1[0m[2m.[0m[2m **[0m[2mAtomic[0m[2m reserve[0m[2m**:[0m[2m Reserve[0m[2m stock[0m[2m atom[0m[2mically[0m[2m ([0m[2mreturn[0m[2m True[0m[2m if[0m[2m stock[0m[2m available[0m[2m and[0m[2m reserve[0m[2m it[0m[2m,[0m[2m False[0m[2m otherwise[0m[2m).[0m[2m This[0m[2m replaces[0m[2m the[0m[2m check[0m[2m-t[0m[2mhen[0m[2m-de[0m[2mcrement[0m[2m pattern[0m[2m.[0m[2m
+     2[0m[2m.[0m[2m **[0m[2mRoll[0m[2mback[0m[2m on[0m[2m charge[0m[2m failure[0m[2m**:[0m[2m If[0m[2m charge[0m[2m fails[0m[2m,[0m[2m release[0m[2m the[0m[2m reservation[0m[2m.[0m[2m
+     3[0m[2m.[0m[2m **[0m[2mOnly[0m[2m charge[0m[2m after[0m[2m reservation[0m[2m**:[0m[2m Reserve[0m[2m first[0m[2m,[0m[2m then[0m[2m charge[0m[2m.[0m[2m Never[0m[2m charge[0m[2m without[0m[2m a[0m[2m reservation[0m[2m.[0m[2m
+     
+     This[0m[2m is[0m[2m the[0m[2m "[0m[2mAsync[0m[2m Check[0m[2mout[0m[2m Reserve[0m[2m Pattern[0m[2m"[0m[2m from[0m[2m the[0m[2m journal[0m[2m![0m[2m
+     
+     Let[0m[2m me[0m[2m add[0m[2m a[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m method[0m[2m to[0m[2m `[0m[2mInventory[0m[2m`[0m[2m that[0m[2m atom[0m[2mically[0m[2m checks[0m[2m AND[0m[2m decre[0m[2mments[0m[2m.[0m[2m And[0m[2m add[0m[2m a[0m[2m `[0m[2mrelease[0m[2m`[0m[2m method[0m[2m to[0m[2m un[0m[2m-res[0m[2merve[0m[2m.[0m[2m
+     
+     Then[0m[2m fix[0m[2m `[0m[2mcheck[0m[2mout[0m[2m.py[0m[2m`[0m[2m to[0m[2m:[0m[2m
+     1[0m[2m.[0m[2m Reserve[0m[2m atom[0m[2mically[0m[2m
+     2[0m[2m.[0m[2m Charge[0m[2m
+     3[0m[2m.[0m[2m If[0m[2m charge[0m[2m fails[0m[2m,[0m[2m release[0m[2m the[0m[2m reservation[0m[2m
+     4[0m[2m.[0m[2m No[0m[2m separate[0m[2m decre[0m[2mment[0m[2m needed[0m[2m ([0m[2mres[0m[2merve[0m[2m already[0m[2m does[0m[2m it[0m[2m)[0m[2m
+     
+     Let[0m[2m me[0m[2m activate[0m[2m the[0m[2m coding[0m[2m skill[0m[2m.[0m[2m
+  Two[0m[2m classic[0m[2m bugs[0m[2m in[0m[2m one[0m[2m short[0m[2m function[0m[2m:[0m[2m **[0m[2mTO[0m[2mCT[0m[2mOU[0m[2m race[0m[2m condition[0m[2m**[0m[2m ([0m[2mcheck[0m[2m-st[0m[2mock[0m[2m then[0m[2m decre[0m[2mment[0m[2m is[0m[2m not[0m[2m atomic[0m[2m across[0m[2m concurrent[0m[2m cor[0m[2moutines[0m[2m)[0m[2m and[0m[2m **[0m[2mmissing[0m[2m roll[0m[2mback[0m[2m**[0m[2m ([0m[2mcharge[0m[2m succeeds[0m[2m,[0m[2m decre[0m[2mment[0m[2m fails[0m[2m →[0m[2m ghost[0m[2m charge[0m[2m).[0m[2m
+     
+     The[0m[2m fix[0m[2m:[0m[2m replace[0m[2m the[0m[2m check[0m[2m-t[0m[2mhen[0m[2m-de[0m[2mcrement[0m[2m pattern[0m[2m with[0m[2m an[0m[2m atomic[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m that[0m[2m checks[0m[2m AND[0m[2m decre[0m[2mments[0m[2m in[0m[2m one[0m[2m go[0m[2m,[0m[2m with[0m[2m a[0m[2m `[0m[2mrelease[0m[2m`[0m[2m for[0m[2m roll[0m[2mback[0m[2m on[0m[2m payment[0m[2m failure[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_7kpbn48k | ActivateSkill {'name': 'core-coding'}
+[0m[2m
+  🔠 call_7kpbn48k Executed
+[0m[2m
+  🧠 I[0m[2m've[0m[2m already[0m[2m read[0m[2m all[0m[2m the[0m[2m files[0m[2m.[0m[2m Let[0m[2m me[0m[2m analyze[0m[2m the[0m[2m bugs[0m[2m and[0m[2m plan[0m[2m the[0m[2m fix[0m[2m.[0m[2m
+     
+     ##[0m[2m Root[0m[2m Cause[0m[2m Analysis[0m[2m
+     
+     The[0m[2m `[0m[2mcheck[0m[2mout[0m[2m`[0m[2m function[0m[2m has[0m[2m two[0m[2m race[0m[2m conditions[0m[2m:[0m[2m
+     
+     1[0m[2m.[0m[2m **[0m[2mTO[0m[2mCT[0m[2mOU[0m[2m between[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`[0m[2m and[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m**:[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`[0m[2m and[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m are[0m[2m separate[0m[2m async[0m[2m calls[0m[2m.[0m[2m Between[0m[2m them[0m[2m,[0m[2m other[0m[2m cor[0m[2moutines[0m[2m can[0m[2m also[0m[2m pass[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`[0m[2m and[0m[2m get[0m[2m charged[0m[2m.[0m[2m When[0m[2m they[0m[2m all[0m[2m reach[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`,[0m[2m some[0m[2m will[0m[2m fail[0m[2m because[0m[2m stock[0m[2m is[0m[2m depleted[0m[2m —[0m[2m but[0m[2m they[0m[2m've[0m[2m already[0m[2m been[0m[2m charged[0m[2m ([0m[2mgh[0m[2most[0m[2m charge[0m[2m).[0m[2m
+     
+     2[0m[2m.[0m[2m **[0m[2mNon[0m[2m-[0m[2matomic[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m**:[0m[2m Even[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m itself[0m[2m has[0m[2m a[0m[2m race[0m[2m —[0m[2m multiple[0m[2m cor[0m[2moutines[0m[2m can[0m[2m all[0m[2m pass[0m[2m the[0m[2m `[0m[2mif[0m[2m self[0m[2m._[0m[2mstock[0m[2m >=[0m[2m quantity[0m[2m:`[0m[2m guard[0m[2m at[0m[2m the[0m[2m same[0m[2m `[0m[2mawait[0m[2m`[0m[2m point[0m[2m,[0m[2m then[0m[2m all[0m[2m subtract[0m[2m,[0m[2m making[0m[2m stock[0m[2m go[0m[2m negative[0m[2m ([0m[2movers[0m[2melling[0m[2m).[0m[2m
+     
+     ##[0m[2m Fix[0m[2m Strategy[0m[2m
+     
+     The[0m[2m fix[0m[2m is[0m[2m the[0m[2m [[0m[2mAsync[0m[2m Check[0m[2mout[0m[2m Reserve[0m[2m Pattern[0m[2m]([0m[2mtechnical[0m[2m/[0m[2masync[0m[2m-check[0m[2mout[0m[2m-res[0m[2merve[0m[2m-p[0m[2mattern[0m[2m.md[0m[2m)[0m[2m —[0m[2m atomic[0m[2m reserve[0m[2m-b[0m[2mefore[0m[2m-ch[0m[2marge[0m[2m eliminates[0m[2m both[0m[2m bugs[0m[2m.[0m[2m
+     
+     **[0m[2mChanges[0m[2m to[0m[2m make[0m[2m:**[0m[2m
+     
+     1[0m[2m.[0m[2m **[0m[2m`[0m[2min[0m[2mventory[0m[2m.py[0m[2m`[0m[2m**[0m[2m —[0m[2m Add[0m[2m `[0m[2mres[0m[2merve[0m[2m([0m[2mquantity[0m[2m)`[0m[2m and[0m[2m `[0m[2mrelease[0m[2m([0m[2mquantity[0m[2m)`[0m[2m methods[0m[2m:[0m[2m
+        -[0m[2m `[0m[2mres[0m[2merve[0m[2m`:[0m[2m Atom[0m[2mically[0m[2m checks[0m[2m AND[0m[2m decre[0m[2mments[0m[2m stock[0m[2m in[0m[2m one[0m[2m async[0m[2m method[0m[2m ([0m[2mno[0m[2m gap[0m[2m between[0m[2m check[0m[2m and[0m[2m decre[0m[2mment[0m[2m).[0m[2m Uses[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.L[0m[2mock[0m[2m`[0m[2m to[0m[2m serialize[0m[2m.[0m[2m
+        -[0m[2m `[0m[2mrelease[0m[2m`:[0m[2m If[0m[2m payment[0m[2m fails[0m[2m,[0m[2m release[0m[2m the[0m[2m reserved[0m[2m stock[0m[2m back[0m[2m.[0m[2m
+     
+     2[0m[2m.[0m[2m **[0m[2m`[0m[2mcheck[0m[2mout[0m[2m.py[0m[2m`[0m[2m**[0m[2m —[0m[2m Fix[0m[2m the[0m[2m order[0m[2m of[0m[2m operations[0m[2m:[0m[2m
+        -[0m[2m Reserve[0m[2m stock[0m[2m atom[0m[2mically[0m[2m first[0m[2m
+        -[0m[2m If[0m[2m reserve[0m[2m fails[0m[2m →[0m[2m out[0m[2m of[0m[2m stock[0m[2m
+        -[0m[2m Charge[0m[2m the[0m[2m payment[0m[2m
+        -[0m[2m If[0m[2m charge[0m[2m fails[0m[2m →[0m[2m release[0m[2m the[0m[2m reservation[0m[2m,[0m[2m return[0m[2m False[0m[2m
+        -[0m[2m If[0m[2m charge[0m[2m succeeds[0m[2m →[0m[2m success[0m[2m ([0m[2mstock[0m[2m already[0m[2m decre[0m[2mmented[0m[2m by[0m[2m reserve[0m[2m)[0m[2m
+     
+     This[0m[2m means[0m[2m:[0m[2m
+     -[0m[2m No[0m[2m overs[0m[2melling[0m[2m:[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m is[0m[2m atomic[0m[2m,[0m[2m so[0m[2m stock[0m[2m never[0m[2m goes[0m[2m below[0m[2m 0[0m[2m
+     -[0m[2m No[0m[2m ghost[0m[2m charges[0m[2m:[0m[2m payment[0m[2m is[0m[2m only[0m[2m charged[0m[2m AFTER[0m[2m stock[0m[2m is[0m[2m reserved[0m[2m
+     -[0m[2m Stock[0m[2m is[0m[2m released[0m[2m if[0m[2m payment[0m[2m fails[0m[2m
+     
+     Let[0m[2m me[0m[2m implement[0m[2m this[0m[2m.[0m[2m
+  Both[0m[2m bugs[0m[2m are[0m[2m clear[0m[2m from[0m[2m reading[0m[2m the[0m[2m code[0m[2m:[0m[2m
+     
+     1[0m[2m.[0m[2m **[0m[2mTO[0m[2mCT[0m[2mOU[0m[2m race[0m[2m**:[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`[0m[2m and[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m are[0m[2m separate[0m[2m async[0m[2m calls[0m[2m.[0m[2m Between[0m[2m them[0m[2m,[0m[2m concurrent[0m[2m cor[0m[2moutines[0m[2m all[0m[2m see[0m[2m available[0m[2m stock[0m[2m,[0m[2m all[0m[2m charge[0m[2m,[0m[2m but[0m[2m only[0m[2m some[0m[2m can[0m[2m decre[0m[2mment[0m[2m →[0m[2m **[0m[2mgh[0m[2most[0m[2m charges[0m[2m**[0m[2m ([0m[2mcharged[0m[2m but[0m[2m no[0m[2m item[0m[2m).[0m[2m
+     2[0m[2m.[0m[2m **[0m[2mNon[0m[2m-[0m[2matomic[0m[2m decre[0m[2mment[0m[2m**:[0m[2m multiple[0m[2m cor[0m[2moutines[0m[2m pass[0m[2m the[0m[2m `[0m[2mself[0m[2m._[0m[2mstock[0m[2m >=[0m[2m quantity[0m[2m`[0m[2m guard[0m[2m at[0m[2m the[0m[2m same[0m[2m `[0m[2mawait[0m[2m`[0m[2m point[0m[2m,[0m[2m then[0m[2m all[0m[2m subtract[0m[2m →[0m[2m **[0m[2movers[0m[2melling[0m[2m**[0m[2m ([0m[2mnegative[0m[2m inventory[0m[2m).[0m[2m
+     
+     The[0m[2m fix[0m[2m:[0m[2m atomic[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m ([0m[2mcheck[0m[2m +[0m[2m decre[0m[2mment[0m[2m in[0m[2m one[0m[2m locked[0m[2m operation[0m[2m),[0m[2m with[0m[2m `[0m[2mrelease[0m[2m`[0m[2m for[0m[2m payment[0m[2m-f[0m[2mailure[0m[2m roll[0m[2mback[0m[2m.[0m[2m Charge[0m[2m only[0m[2m after[0m[2m reservation[0m[2m succeeds[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_f87f7j6i | Edit {'path': '/Users/gofrendigunawan/zrb ...', 'old_text': 'import asyncio\n\n\nclass Inv ...', 'new_text': 'import asyncio\n\n\nclass Inv ...'}
+[0m[2m
+  🔠 call_f87f7j6i Executed
+[0m
+[TIMEOUT after 300s]

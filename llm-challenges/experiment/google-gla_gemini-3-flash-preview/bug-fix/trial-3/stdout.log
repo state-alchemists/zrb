@@ -1,0 +1,287 @@
+[2m
+  🧠 Let[0m[2m me[0m[2m start[0m[2m by[0m[2m reading[0m[2m the[0m[2m relevant[0m[2m files[0m[2m to[0m[2m understand[0m[2m the[0m[2m code[0m[2mbase[0m[2m and[0m[2m identify[0m[2m the[0m[2m bugs[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_crheketz | Glob {'pattern': '*.py', 'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_crheketz Executed
+[0m[2m
+  🧠 Let[0m[2m me[0m[2m read[0m[2m all[0m[2m three[0m[2m files[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_z6ltm9x3 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🧰 call_5o53jzsa | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🧰 call_p9s26ug8 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_5o53jzsa Executed
+[0m[2m
+  🔠 call_z6ltm9x3 Executed
+[0m[2m
+  🔠 call_p9s26ug8 Executed
+[0m[2m
+  🧠 Let[0m[2m me[0m[2m analyze[0m[2m the[0m[2m bugs[0m[2m:[0m[2m
+     
+     **[0m[2mBug[0m[2m 1[0m[2m:[0m[2m Du[0m[2mplicate[0m[2m Processing[0m[2m**[0m[2m
+     
+     Looking[0m[2m at[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m:[0m[2m
+     ```[0m[2mpython[0m[2m
+     async[0m[2m def[0m[2m de[0m[2mqueue[0m[2m(self[0m[2m)[0m[2m ->[0m[2m Optional[0m[2m[[0m[2mDict[0m[2m]:[0m[2m
+         for[0m[2m job[0m[2m in[0m[2m self[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m():[0m[2m
+             if[0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m":[0m[2m
+                 await[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)[0m[2m
+                 job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m
+                 return[0m[2m job[0m[2m
+         return[0m[2m None[0m[2m
+     ```[0m[2m
+     
+     The[0m[2m issue[0m[2m is[0m[2m a[0m[2m TO[0m[2mCT[0m[2mOU[0m[2m ([0m[2mTime[0m[2m of[0m[2m Check[0m[2m,[0m[2m Time[0m[2m of[0m[2m Use[0m[2m)[0m[2m race[0m[2m condition[0m[2m.[0m[2m Between[0m[2m the[0m[2m check[0m[2m `[0m[2mjob[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m"[0m[2m`[0m[2m and[0m[2m the[0m[2m assignment[0m[2m `[0m[2mjob[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m`,[0m[2m there[0m[2m's[0m[2m an[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)`[0m[2m -[0m[2m but[0m[2m even[0m[2m without[0m[2m the[0m[2m sleep[0m[2m,[0m[2m just[0m[2m the[0m[2m `[0m[2mawait[0m[2m`[0m[2m point[0m[2m is[0m[2m enough[0m[2m for[0m[2m a[0m[2m task[0m[2m switch[0m[2m in[0m[2m as[0m[2myn[0m[2mcio[0m[2m.[0m[2m
+     
+     With[0m[2m multiple[0m[2m workers[0m[2m running[0m[2m concurrently[0m[2m via[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.g[0m[2mather[0m[2m`,[0m[2m two[0m[2m workers[0m[2m can[0m[2m both[0m[2m see[0m[2m the[0m[2m same[0m[2m job[0m[2m as[0m[2m "[0m[2mpending[0m[2m",[0m[2m then[0m[2m both[0m[2m set[0m[2m it[0m[2m to[0m[2m "[0m[2mprocessing[0m[2m",[0m[2m resulting[0m[2m in[0m[2m the[0m[2m same[0m[2m job[0m[2m being[0m[2m processed[0m[2m twice[0m[2m.[0m[2m
+     
+     The[0m[2m fix[0m[2m:[0m[2m The[0m[2m status[0m[2m check[0m[2m and[0m[2m assignment[0m[2m need[0m[2m to[0m[2m be[0m[2m atomic[0m[2m.[0m[2m We[0m[2m need[0m[2m to[0m[2m use[0m[2m a[0m[2m lock[0m[2m or[0m[2m redesign[0m[2m the[0m[2m de[0m[2mqueue[0m[2m to[0m[2m find[0m[2m and[0m[2m claim[0m[2m a[0m[2m job[0m[2m atom[0m[2mically[0m[2m ([0m[2me[0m[2m.g[0m[2m.,[0m[2m pop[0m[2m from[0m[2m a[0m[2m separate[0m[2m queue[0m[2m,[0m[2m or[0m[2m use[0m[2m an[0m[2m as[0m[2myn[0m[2mcio[0m[2m.L[0m[2mock[0m[2m).[0m[2m
+     
+     **[0m[2mBug[0m[2m 2[0m[2m:[0m[2m Van[0m[2mishing[0m[2m Fail[0m[2mures[0m[2m**[0m[2m
+     
+     Looking[0m[2m at[0m[2m `[0m[2mworker[0m[2m.py[0m[2m`[0m[2m:[0m[2m
+     ```[0m[2mpython[0m[2m
+     try[0m[2m:[0m[2m
+         ...[0m[2m
+         queue[0m[2m.com[0m[2mplete[0m[2m(j[0m[2mob[0m[2m["[0m[2mid[0m[2m"],[0m[2m f[0m[2m"[0m[2mprocessed[0m[2m by[0m[2m worker[0m[2m {[0m[2mworker[0m[2m_id[0m[2m}")[0m[2m
+         ...[0m[2m
+     except[0m[2m Exception[0m[2m as[0m[2m e[0m[2m:[0m[2m
+         print[0m[2m(f[0m[2m"[[0m[2mWorker[0m[2m {[0m[2mworker[0m[2m_id[0m[2m}][0m[2m job[0m[2m {[0m[2mjob[0m[2m['[0m[2mid[0m[2m'][0m[2m}[0m[2m failed[0m[2m:[0m[2m {[0m[2me[0m[2m}")[0m[2m
+     ```[0m[2m
+     
+     When[0m[2m a[0m[2m job[0m[2m raises[0m[2m an[0m[2m exception[0m[2m,[0m[2m the[0m[2m `[0m[2mexcept[0m[2m`[0m[2m block[0m[2m only[0m[2m prints[0m[2m the[0m[2m error[0m[2m -[0m[2m it[0m[2m never[0m[2m calls[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m()[0m[2m`.[0m[2m So[0m[2m the[0m[2m job[0m[2m stays[0m[2m in[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m status[0m[2m forever[0m[2m ([0m[2mit[0m[2m was[0m[2m set[0m[2m by[0m[2m `[0m[2mde[0m[2mqueue[0m[2m`[0m[2m),[0m[2m and[0m[2m never[0m[2m transitions[0m[2m to[0m[2m "[0m[2mfailed[0m[2m"[0m[2m or[0m[2m back[0m[2m to[0m[2m "[0m[2mpending[0m[2m"[0m[2m for[0m[2m ret[0m[2mry[0m[2m.[0m[2m
+     
+     The[0m[2m fix[0m[2m:[0m[2m In[0m[2m the[0m[2m `[0m[2mexcept[0m[2m`[0m[2m block[0m[2m,[0m[2m call[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m(j[0m[2mob[0m[2m["[0m[2mid[0m[2m"],[0m[2m str[0m[2m(e[0m[2m))[0m[2m`[0m[2m instead[0m[2m of[0m[2m just[0m[2m printing[0m[2m.[0m[2m
+     
+     Let[0m[2m me[0m[2m also[0m[2m verify[0m[2m the[0m[2m bugs[0m[2m by[0m[2m running[0m[2m the[0m[2m simulation[0m[2m.[0m[2m
+  I[0m[2m can[0m[2m see[0m[2m both[0m[2m bugs[0m[2m.[0m[2m Let[0m[2m me[0m[2m run[0m[2m the[0m[2m simulation[0m[2m to[0m[2m confirm[0m[2m,[0m[2m then[0m[2m fix[0m[2m them[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_41p99v9r | Bash {'command': 'python3 main.py', 'cwd': '/Users/gofrendigunawan/zrb ...'}
+[0m  [2m[Worker 0] picked up job 1
+[0m  [2m[Worker 1] picked up job 1
+[0m  [2m[Worker 2] picked up job 1
+[0m  [2m[Worker 3] picked up job 1
+[0m  [2m[Worker 4] picked up job 1
+[0m  [2m[Worker 0] finished job 1
+[0m  [2m[Worker 1] finished job 1
+[0m  [2m[Worker 2] finished job 1
+[0m  [2m[Worker 3] finished job 1
+[0m  [2m[Worker 4] finished job 1
+[0m  [2m[Worker 0] picked up job 2
+[0m  [2m[Worker 1] picked up job 2
+[0m  [2m[Worker 2] picked up job 2
+[0m  [2m[Worker 3] picked up job 2
+[0m  [2m[Worker 4] picked up job 2
+[0m  [2m[Worker 0] finished job 2
+[0m  [2m[Worker 1] finished job 2
+[0m  [2m[Worker 2] finished job 2
+[0m  [2m[Worker 3] finished job 2
+[0m  [2m[Worker 4] finished job 2
+[0m  [2m[Worker 0] picked up job 3
+[0m  [2m[Worker 1] picked up job 3
+[0m  [2m[Worker 2] picked up job 3
+[0m  [2m[Worker 3] picked up job 3
+[0m  [2m[Worker 4] picked up job 3
+[0m  [2m[Worker 0] finished job 3
+[0m  [2m[Worker 1] finished job 3
+[0m  [2m[Worker 2] finished job 3
+[0m  [2m[Worker 3] finished job 3
+[0m  [2m[Worker 4] finished job 3
+[0m  [2m[Worker 0] picked up job 4
+[0m  [2m[Worker 1] picked up job 4
+[0m  [2m[Worker 2] picked up job 4
+[0m  [2m[Worker 3] picked up job 4
+[0m  [2m[Worker 4] picked up job 4
+[0m  [2m[Worker 0] finished job 4
+[0m  [2m[Worker 1] finished job 4
+[0m  [2m[Worker 2] finished job 4
+[0m  [2m[Worker 3] finished job 4
+[0m  [2m[Worker 4] finished job 4
+[0m  [2m[Worker 0] picked up job 5
+[0m  [2m[Worker 1] picked up job 5
+[0m  [2m[Worker 2] picked up job 5
+[0m  [2m[Worker 3] picked up job 5
+[0m  [2m[Worker 4] picked up job 5
+[0m  [2m[Worker 0] finished job 5
+[0m  [2m[Worker 1] finished job 5
+[0m  [2m[Worker 2] finished job 5
+[0m  [2m[Worker 3] finished job 5
+[0m  [2m[Worker 4] finished job 5
+[0m  [2m[Worker 0] picked up job 6
+[0m  [2m[Worker 1] picked up job 6
+[0m  [2m[Worker 2] picked up job 6
+[0m  [2m[Worker 3] picked up job 6
+[0m  [2m[Worker 4] picked up job 6
+[0m  [2m[Worker 0] finished job 6
+[0m  [2m[Worker 1] finished job 6
+[0m  [2m[Worker 2] finished job 6
+[0m  [2m[Worker 3] finished job 6
+[0m  [2m[Worker 4] finished job 6
+[0m  [2m[Worker 0] picked up job 7
+[0m  [2m[Worker 1] picked up job 7
+[0m  [2m[Worker 2] picked up job 7
+[0m  [2m[Worker 3] picked up job 7
+[0m  [2m[Worker 4] picked up job 7
+[0m  [2m[Worker 0] finished job 7
+[0m  [2m[Worker 1] finished job 7
+[0m  [2m[Worker 2] finished job 7
+[0m  [2m[Worker 3] finished job 7
+[0m  [2m[Worker 4] finished job 7
+[0m  [2m[Worker 0] picked up job 8
+[0m  [2m[Worker 1] picked up job 8
+[0m  [2m[Worker 2] picked up job 8
+[0m  [2m[Worker 3] picked up job 8
+[0m  [2m[Worker 4] picked up job 8
+[0m  [2m[Worker 0] finished job 8
+[0m  [2m[Worker 1] finished job 8
+[0m  [2m[Worker 2] finished job 8
+[0m  [2m[Worker 3] finished job 8
+[0m  [2m[Worker 4] finished job 8
+[0m  [2m[Worker 0] picked up job 9
+[0m  [2m[Worker 1] picked up job 9
+[0m  [2m[Worker 2] picked up job 9
+[0m  [2m[Worker 3] picked up job 9
+[0m  [2m[Worker 4] picked up job 9
+[0m  [2m[Worker 0] finished job 9
+[0m  [2m[Worker 1] finished job 9
+[0m  [2m[Worker 2] finished job 9
+[0m  [2m[Worker 3] finished job 9
+[0m  [2m[Worker 4] finished job 9
+[0m  [2m[Worker 0] picked up job 10
+[0m  [2m[Worker 1] picked up job 10
+[0m  [2m[Worker 2] picked up job 10
+[0m  [2m[Worker 3] picked up job 10
+[0m  [2m[Worker 4] picked up job 10
+[0m  [2m[Worker 0] finished job 10
+[0m  [2m[Worker 1] finished job 10
+[0m  [2m[Worker 2] finished job 10
+[0m  [2m[Worker 3] finished job 10
+[0m  [2m[Worker 4] finished job 10
+[0m  [2m[Worker 0] picked up job 11
+[0m  [2m[Worker 1] picked up job 11
+[0m  [2m[Worker 2] picked up job 11
+[0m  [2m[Worker 3] picked up job 11
+[0m  [2m[Worker 4] picked up job 11
+[0m  [2m[Worker 0] job 11 failed: processing error for job 11
+[0m  [2m[Worker 1] job 11 failed: processing error for job 11
+[0m  [2m[Worker 2] job 11 failed: processing error for job 11
+[0m  [2m[Worker 3] job 11 failed: processing error for job 11
+[0m  [2m[Worker 4] job 11 failed: processing error for job 11
+[0m  [2m[Worker 0] picked up job 12
+[0m  [2m[Worker 1] picked up job 12
+[0m  [2m[Worker 2] picked up job 12
+[0m  [2m[Worker 3] picked up job 12
+[0m  [2m[Worker 4] picked up job 12
+[0m  [2m[Worker 0] job 12 failed: processing error for job 12
+[0m  [2m[Worker 1] job 12 failed: processing error for job 12
+[0m  [2m[Worker 2] job 12 failed: processing error for job 12
+[0m  [2m[Worker 3] job 12 failed: processing error for job 12
+[0m  [2m[Worker 4] job 12 failed: processing error for job 12
+[0m  [2m
+[0m  [2m=== Results ===
+[0m  [2mDone:   10 (expected 10)
+[0m  [2mFailed: 0 (expected 2)
+[0m  [2mStuck:  2 (expected 0)
+[0m[2m
+  🔠 call_41p99v9r Executed
+[0m[2m
+  🧠 Both[0m[2m bugs[0m[2m confirmed[0m[2m.[0m[2m Every[0m[2m job[0m[2m is[0m[2m processed[0m[2m by[0m[2m all[0m[2m 5[0m[2m workers[0m[2m ([0m[2mdu[0m[2mplicate[0m[2m processing[0m[2m),[0m[2m and[0m[2m the[0m[2m error[0m[2m jobs[0m[2m ([0m[2m11[0m[2m,[0m[2m 12[0m[2m)[0m[2m are[0m[2m stuck[0m[2m in[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m status[0m[2m instead[0m[2m of[0m[2m "[0m[2mfailed[0m[2m"[0m[2m ([0m[2mvan[0m[2mishing[0m[2m failures[0m[2m).[0m[2m
+     
+     Let[0m[2m me[0m[2m fix[0m[2m both[0m[2m:[0m[2m
+     
+     **[0m[2mBug[0m[2m 1[0m[2m:[0m[2m Du[0m[2mplicate[0m[2m Processing[0m[2m**[0m[2m -[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m in[0m[2m `[0m[2mjob[0m[2m_queue[0m[2m.py[0m[2m`[0m[2m
+     The[0m[2m TO[0m[2mCT[0m[2mOU[0m[2m race[0m[2m:[0m[2m the[0m[2m check[0m[2m `[0m[2mjob[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m"[0m[2m`[0m[2m and[0m[2m the[0m[2m assignment[0m[2m `[0m[2mjob[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m`[0m[2m happen[0m[2m separately[0m[2m with[0m[2m an[0m[2m `[0m[2mawait[0m[2m`[0m[2m in[0m[2m between[0m[2m.[0m[2m Multiple[0m[2m workers[0m[2m both[0m[2m see[0m[2m "[0m[2mpending[0m[2m",[0m[2m both[0m[2m claim[0m[2m it[0m[2m.[0m[2m
+     
+     Fix[0m[2m:[0m[2m Use[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.L[0m[2mock[0m[2m`[0m[2m to[0m[2m protect[0m[2m the[0m[2m check[0m[2m-and[0m[2m-[0m[2mclaim[0m[2m as[0m[2m an[0m[2m atomic[0m[2m operation[0m[2m.[0m[2m
+     
+     **[0m[2mBug[0m[2m 2[0m[2m:[0m[2m Van[0m[2mishing[0m[2m Fail[0m[2mures[0m[2m**[0m[2m -[0m[2m `[0m[2mworker[0m[2m.py[0m[2m`[0m[2m
+     The[0m[2m `[0m[2mexcept[0m[2m`[0m[2m block[0m[2m only[0m[2m prints[0m[2m the[0m[2m error[0m[2m but[0m[2m never[0m[2m calls[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m()[0m[2m`.[0m[2m The[0m[2m job[0m[2m stays[0m[2m in[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m status[0m[2m permanently[0m[2m.[0m[2m
+     
+     Fix[0m[2m:[0m[2m Call[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m(j[0m[2mob[0m[2m["[0m[2mid[0m[2m"],[0m[2m str[0m[2m(e[0m[2m))[0m[2m`[0m[2m in[0m[2m the[0m[2m except[0m[2m block[0m[2m.[0m[2m
+     
+     Let[0m[2m me[0m[2m also[0m[2m consider[0m[2m:[0m[2m shouldn[0m[2m't[0m[2m the[0m[2m `[0m[2mde[0m[2mqueue[0m[2m`[0m[2m return[0m[2m the[0m[2m job[0m[2m *[0m[2mdict[0m[2m*[0m[2m ([0m[2mnot[0m[2m a[0m[2m reference[0m[2m to[0m[2m internal[0m[2m state[0m[2m)[0m[2m to[0m[2m prevent[0m[2m call[0m[2mers[0m[2m from[0m[2m modifying[0m[2m the[0m[2m job[0m[2m externally[0m[2m?[0m[2m But[0m[2m the[0m[2m instructions[0m[2m say[0m[2m "[0m[2mdo[0m[2m not[0m[2m change[0m[2m public[0m[2m method[0m[2m signatures[0m[2m",[0m[2m and[0m[2m `[0m[2mde[0m[2mqueue[0m[2m`[0m[2m already[0m[2m returns[0m[2m `[0m[2mOptional[0m[2m[[0m[2mDict[0m[2m][0m[2m`[0m[2m —[0m[2m the[0m[2m workers[0m[2m access[0m[2m `[0m[2mjob[0m[2m["[0m[2mid[0m[2m"][0m[2m`[0m[2m and[0m[2m `[0m[2mjob[0m[2m["[0m[2mpayload[0m[2m"][0m[2m`.[0m[2m So[0m[2m I[0m[2m'll[0m[2m focus[0m[2m on[0m[2m the[0m[2m two[0m[2m specific[0m[2m bugs[0m[2m.[0m[2m
+     
+     Actually[0m[2m wait[0m[2m —[0m[2m looking[0m[2m at[0m[2m the[0m[2m worker[0m[2m code[0m[2m more[0m[2m carefully[0m[2m:[0m[2m
+     
+     ```[0m[2mpython[0m[2m
+     try[0m[2m:[0m[2m
+         ...[0m[2m
+         queue[0m[2m.com[0m[2mplete[0m[2m(j[0m[2mob[0m[2m["[0m[2mid[0m[2m"],[0m[2m f[0m[2m"[0m[2mprocessed[0m[2m by[0m[2m worker[0m[2m {[0m[2mworker[0m[2m_id[0m[2m}")[0m[2m
+         ...[0m[2m
+     except[0m[2m Exception[0m[2m as[0m[2m e[0m[2m:[0m[2m
+         print[0m[2m(f[0m[2m"[[0m[2mWorker[0m[2m {[0m[2mworker[0m[2m_id[0m[2m}][0m[2m job[0m[2m {[0m[2mjob[0m[2m['[0m[2mid[0m[2m'][0m[2m}[0m[2m failed[0m[2m:[0m[2m {[0m[2me[0m[2m}")[0m[2m
+     ```[0m[2m
+     
+     When[0m[2m an[0m[2m exception[0m[2m occurs[0m[2m,[0m[2m the[0m[2m worker[0m[2m just[0m[2m prints[0m[2m.[0m[2m It[0m[2m should[0m[2m call[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m(j[0m[2mob[0m[2m_id[0m[2m,[0m[2m error[0m[2m)`[0m[2m.[0m[2m
+     
+     Let[0m[2m me[0m[2m fix[0m[2m both[0m[2m files[0m[2m.[0m[2m
+  Both[0m[2m bugs[0m[2m confirmed[0m[2m.[0m[2m Every[0m[2m job[0m[2m is[0m[2m processed[0m[2m by[0m[2m **[0m[2mall[0m[2m 5[0m[2m workers[0m[2m**[0m[2m ([0m[2mdu[0m[2mplicate[0m[2m),[0m[2m and[0m[2m error[0m[2m jobs[0m[2m 11[0m[2m &[0m[2m 12[0m[2m are[0m[2m stuck[0m[2m in[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m ([0m[2mvan[0m[2mishing[0m[2m failures[0m[2m).[0m[2m Two[0m[2m root[0m[2m causes[0m[2m:[0m[2m
+     
+     1[0m[2m.[0m[2m **[0m[2m`[0m[2mde[0m[2mqueue[0m[2m`[0m[2m TO[0m[2mCT[0m[2mOU[0m[2m race[0m[2m**[0m[2m —[0m[2m the[0m[2m check[0m[2m `[0m[2mjob[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m"[0m[2m`[0m[2m and[0m[2m the[0m[2m assignment[0m[2m `[0m[2mjob[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m`[0m[2m are[0m[2m separated[0m[2m by[0m[2m an[0m[2m `[0m[2mawait[0m[2m`,[0m[2m so[0m[2m all[0m[2m 5[0m[2m workers[0m[2m see[0m[2m "[0m[2mpending[0m[2m"[0m[2m and[0m[2m all[0m[2m claim[0m[2m the[0m[2m same[0m[2m job[0m[2m.[0m[2m
+     2[0m[2m.[0m[2m **[0m[2m`[0m[2mexcept[0m[2m`[0m[2m block[0m[2m never[0m[2m calls[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m()`[0m[2m**[0m[2m —[0m[2m the[0m[2m job[0m[2m stays[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m permanently[0m[2m;[0m[2m ret[0m[2mries[0m[2m are[0m[2m impossible[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_kd26m01d | Edit {'path': '/Users/gofrendigunawan/zrb ...', 'old_text': 'class JobQueue:\n    def __ ...', 'new_text': 'class JobQueue:\n    def __ ...'}
+[0m[2m
+  🔠 call_kd26m01d Executed
+[0m[2m
+  🧠 Now[0m[2m fix[0m[2m the[0m[2m `[0m[2mde[0m[2mqueue[0m[2m`[0m[2m method[0m[2m to[0m[2m use[0m[2m the[0m[2m lock[0m[2m for[0m[2m atomic[0m[2m check[0m[2m-and[0m[2m-[0m[2mclaim[0m[2m,[0m[2m and[0m[2m fix[0m[2m the[0m[2m `[0m[2mworker[0m[2m.py[0m[2m`[0m[2m to[0m[2m call[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m()[0m[2m`.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_eg1bra02 | Edit {'path': '/Users/gofrendigunawan/zrb ...', 'old_text': '    async def dequeue(self ...', 'new_text': '    async def dequeue(self ...'}
+[0m[2m
+  🧰 call_9ndiozjo | Edit {'path': '/Users/gofrendigunawan/zrb ...', 'old_text': '        except Exception a ...', 'new_text': '        except Exception a ...'}
+[0m[2m
+  🔠 call_eg1bra02 Executed
+[0m[2m
+  🔠 call_9ndiozjo Executed
+[0m[2m
+  🧠 Now[0m[2m let[0m[2m me[0m[2m verify[0m[2m by[0m[2m running[0m[2m the[0m[2m simulation[0m[2m again[0m[2m.[0m[2m
+  Now[0m[2m let[0m[2m me[0m[2m verify[0m[2m the[0m[2m fix[0m[2m:[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_yzp37ww7 | Bash {'command': 'python3 main.py', 'cwd': '/Users/gofrendigunawan/zrb ...'}
+[0m  [2m[Worker 0] picked up job 1
+[0m  [2m[Worker 1] picked up job 2
+[0m  [2m[Worker 2] picked up job 3
+[0m  [2m[Worker 3] picked up job 4
+[0m  [2m[Worker 4] picked up job 5
+[0m  [2m[Worker 0] finished job 1
+[0m  [2m[Worker 0] picked up job 6
+[0m  [2m[Worker 1] finished job 2
+[0m  [2m[Worker 1] picked up job 7
+[0m  [2m[Worker 2] finished job 3
+[0m  [2m[Worker 2] picked up job 8
+[0m  [2m[Worker 3] finished job 4
+[0m  [2m[Worker 3] picked up job 9
+[0m  [2m[Worker 4] finished job 5
+[0m  [2m[Worker 4] picked up job 10
+[0m  [2m[Worker 0] finished job 6
+[0m  [2m[Worker 0] picked up job 11
+[0m  [2m[Worker 1] finished job 7
+[0m  [2m[Worker 1] picked up job 12
+[0m  [2m[Worker 2] finished job 8
+[0m  [2m[Worker 3] finished job 9
+[0m  [2m[Worker 4] finished job 10
+[0m  [2m[Worker 0] job 11 failed: processing error for job 11
+[0m  [2m[Worker 1] job 12 failed: processing error for job 12
+[0m  [2m[Worker 0] picked up job 11
+[0m  [2m[Worker 1] picked up job 12
+[0m  [2m[Worker 0] job 11 failed: processing error for job 11
+[0m  [2m[Worker 1] job 12 failed: processing error for job 12
+[0m  [2m[Worker 0] picked up job 11
+[0m  [2m[Worker 1] picked up job 12
+[0m  [2m[Worker 0] job 11 failed: processing error for job 11
+[0m  [2m[Worker 1] job 12 failed: processing error for job 12
+[0m  [2m
+[0m  [2m=== Results ===
+[0m  [2mDone:   10 (expected 10)
+[0m  [2mFailed: 2 (expected 2)
+[0m  [2mStuck:  0 (expected 0)
+[0m[2m
+  🔠 call_yzp37ww7 Executed
+[0m
+[TIMEOUT after 300s]

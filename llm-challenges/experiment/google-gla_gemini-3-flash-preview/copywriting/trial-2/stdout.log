@@ -1,0 +1,51 @@
+[2m
+  🧠 Let[0m[2m me[0m[2m start[0m[2m by[0m[2m reading[0m[2m the[0m[2m v[0m[2m1[0m[2m and[0m[2m v[0m[2m2[0m[2m spec[0m[2m files[0m[2m to[0m[2m understand[0m[2m the[0m[2m changes[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_bxflw5qy | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🧰 call_c0rhthsu | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_bxflw5qy Executed
+[0m[2m
+  🔠 call_c0rhthsu Executed
+[0m[2m
+  🧠 Let[0m[2m me[0m[2m activate[0m[2m the[0m[2m writing[0m[2m skill[0m[2m since[0m[2m I[0m[2m'm[0m[2m writing[0m[2m a[0m[2m migration[0m[2m guide[0m[2m document[0m[2m.[0m[2m
+     
+     Actually[0m[2m,[0m[2m let[0m[2m me[0m[2m just[0m[2m write[0m[2m the[0m[2m M[0m[2mIG[0m[2mRATION[0m[2m.md[0m[2m file[0m[2m directly[0m[2m.[0m[2m I[0m[2m have[0m[2m all[0m[2m the[0m[2m information[0m[2m I[0m[2m need[0m[2m from[0m[2m the[0m[2m two[0m[2m spec[0m[2m files[0m[2m.[0m[2m Let[0m[2m me[0m[2m identify[0m[2m all[0m[2m the[0m[2m breaking[0m[2m changes[0m[2m:[0m[2m
+     
+     1[0m[2m.[0m[2m **[0m[2mEndpoint[0m[2m prefix[0m[2m**:[0m[2m All[0m[2m endpoints[0m[2m now[0m[2m pref[0m[2mixed[0m[2m with[0m[2m `/[0m[2mv[0m[2m2[0m[2m/[0m[2m`[0m[2m
+     2[0m[2m.[0m[2m **[0m[2mAuthentication[0m[2m header[0m[2m**:[0m[2m `[0m[2mX[0m[2m-A[0m[2muth[0m[2m-T[0m[2moken[0m[2m`[0m[2m →[0m[2m `[0m[2mAuthorization[0m[2m:[0m[2m Bear[0m[2mer[0m[2m <token[0m[2m>[0m[2m`[0m[2m
+     3[0m[2m.[0m[2m **[0m[2mTask[0m[2m `[0m[2mid[0m[2m`[0m[2m type[0m[2m**:[0m[2m integer[0m[2m →[0m[2m UUID[0m[2m string[0m[2m
+     4[0m[2m.[0m[2m **[0m[2mTask[0m[2m `[0m[2mdone[0m[2m`[0m[2m field[0m[2m**:[0m[2m renamed[0m[2m to[0m[2m `[0m[2mcompleted[0m[2m`[0m[2m
+     5[0m[2m.[0m[2m **[0m[2mTask[0m[2m creation[0m[2m requires[0m[2m `[0m[2mproject[0m[2m_id[0m[2m`[0m[2m**:[0m[2m new[0m[2m required[0m[2m field[0m[2m
+     6[0m[2m.[0m[2m **[0m[2mList[0m[2m endpoints[0m[2m return[0m[2m pag[0m[2minated[0m[2m envelope[0m[2m**:[0m[2m bare[0m[2m array[0m[2m →[0m[2m `[0m[2m{[0m[2m items[0m[2m,[0m[2m total[0m[2m,[0m[2m next[0m[2m_c[0m[2mursor[0m[2m }[0m[2m`[0m[2m
+     
+     Let[0m[2m me[0m[2m write[0m[2m a[0m[2m comprehensive[0m[2m migration[0m[2m guide[0m[2m.[0m[2m
+  Now[0m[2m I[0m[2m have[0m[2m all[0m[2m the[0m[2m differences[0m[2m between[0m[2m v[0m[2m1[0m[2m and[0m[2m v[0m[2m2[0m[2m.[0m[2m Let[0m[2m me[0m[2m write[0m[2m the[0m[2m migration[0m[2m guide[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_l613wgza | ActivateSkill {'name': 'core-writing'}
+[0m[2m
+  🔠 call_l613wgza Executed
+[0m[2m
+  🧠 Good[0m[2m,[0m[2m the[0m[2m skill[0m[2m is[0m[2m activated[0m[2m.[0m[2m The[0m[2m audience[0m[2m is[0m[2m experienced[0m[2m developers[0m[2m already[0m[2m using[0m[2m v[0m[2m1[0m[2m.[0m[2m The[0m[2m tone[0m[2m should[0m[2m be[0m[2m technical[0m[2m,[0m[2m precise[0m[2m,[0m[2m instructional[0m[2m.[0m[2m The[0m[2m **[0m[2mBefore[0m[2m-A[0m[2mfter[0m[2m-B[0m[2mridge[0m[2m**[0m[2m formula[0m[2m fits[0m[2m well[0m[2m for[0m[2m a[0m[2m migration[0m[2m guide[0m[2m.[0m[2m Let[0m[2m me[0m[2m structure[0m[2m this[0m[2m:[0m[2m
+     
+     1[0m[2m.[0m[2m **[0m[2mBrief[0m[2m intro[0m[2m**[0m[2m —[0m[2m what[0m[2m v[0m[2m2[0m[2m is[0m[2m,[0m[2m why[0m[2m migrate[0m[2m
+     2[0m[2m.[0m[2m **[0m[2mBreaking[0m[2m changes[0m[2m**[0m[2m —[0m[2m each[0m[2m with[0m[2m before[0m[2m/[0m[2mafter[0m[2m code[0m[2m examples[0m[2m
+     3[0m[2m.[0m[2m **[0m[2mStep[0m[2m-by[0m[2m-step[0m[2m migration[0m[2m checklist[0m[2m**[0m[2m
+     4[0m[2m.[0m[2m **[0m[2mUp[0m[2mgrade[0m[2m command[0m[2m**[0m[2m
+     
+     Let[0m[2m me[0m[2m write[0m[2m it[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_xo4gg7l0 | Write {'path': '/Users/gofrendigunawan/zrb ...', 'content': '# Zrb Task API — v1 to v2  ...'}
+[0m[2m
+  🔠 call_xo4gg7l0 Executed
+[0m[2m
+  🧠 The[0m[2m file[0m[2m has[0m[2m been[0m[2m written[0m[2m.[0m[2m Let[0m[2m me[0m[2m verify[0m[2m it[0m[2m looks[0m[2m correct[0m[2m by[0m[2m reading[0m[2m it[0m[2m back[0m[2m,[0m[2m and[0m[2m also[0m[2m log[0m[2m this[0m[2m to[0m[2m the[0m[2m journal[0m[2m.[0m[2m
+  Let[0m[2m me[0m[2m verify[0m[2m the[0m[2m output[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 call_g6u09kcw | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_g6u09kcw Executed
+[0m
+[TIMEOUT after 300s]
