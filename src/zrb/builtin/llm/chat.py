@@ -39,6 +39,7 @@ from zrb.llm.tool import (
 from zrb.llm.tool.delegate import (
     create_delegate_to_agent_tool,
     create_parallel_delegate_tool,
+    get_available_agents_section,
 )
 from zrb.llm.tool.mcp import load_mcp_config
 from zrb.llm.tool.skill import create_activate_skill_tool
@@ -161,6 +162,7 @@ llm_chat.add_tool_guidance_factory(
         when_to_use="Batch repetitive tasks (>3 files), high-volume outputs (builds/verbose logs), or speculative 'trial and error' research. "
         "Do it yourself for single lookups, one-file edits, quick commands, or when the needed context is already loaded.",
         key_rule="Keep your main session history lean. Delegate heavy lifting. Always give the sub-agent full context — it cannot see your conversation history.",
+        group_description=get_available_agents_section(),
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",
@@ -411,6 +413,7 @@ sub_agent_manager.add_tool_guidance_factory(
         when_to_use="Batch repetitive tasks (>3 files), high-volume outputs (builds/verbose logs), or speculative 'trial and error' research. "
         "Do it yourself for single lookups, one-file edits, quick commands, or when the needed context is already loaded.",
         key_rule="Keep your main session history lean. Delegate heavy lifting. Always give the sub-agent full context — it cannot see your conversation history.",
+        group_description=get_available_agents_section(),
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",

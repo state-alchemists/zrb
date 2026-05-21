@@ -24,6 +24,24 @@ from zrb.llm.ui.std_ui import StdUI
 from zrb.util.string.name import get_random_name
 
 
+def get_available_agents_section(
+    sub_agent_manager: SubAgentManager | None = None,
+) -> str:
+    """Render the AVAILABLE AGENTS block shared by all Delegation tools.
+
+    Returned text is intended to be used as the ``group_description`` for the
+    Delegation tool guidance group so DelegateToAgent and DelegateToAgentsParallel
+    do not each repeat the agent catalogue in their docstrings.
+    """
+    if sub_agent_manager is None:
+        sub_agent_manager = default_sub_agent_manager
+    available_agents = sub_agent_manager.scan()
+    if not available_agents:
+        return "AVAILABLE AGENTS:\n- No sub-agents found."
+    agent_docs = [f"- `{a.name}`: {a.description}" for a in available_agents]
+    return "AVAILABLE AGENTS:\n" + "\n".join(agent_docs)
+
+
 @dataclass
 class AgentTaskResult:
     """Result from running a single agent task."""
@@ -201,14 +219,6 @@ def create_delegate_to_agent_tool(
 ):
     if sub_agent_manager is None:
         sub_agent_manager = default_sub_agent_manager
-    # Scan for available agents to populate the docstring
-    available_agents = sub_agent_manager.scan()
-    agent_docs = []
-    for agent in available_agents:
-        agent_docs.append(f"- `{agent.name}`: {agent.description}")
-    agent_doc_section = (
-        "\n".join(agent_docs) if agent_docs else "- No sub-agents found."
-    )
 
     async def delegate_to_agent(
         agent_name: str, task: str, additional_context: str = ""
@@ -239,8 +249,8 @@ def create_delegate_to_agent_tool(
     delegate_to_agent.zrb_is_delegate_tool = True
     delegate_to_agent.__name__ = "DelegateToAgent"
     delegate_to_agent.__doc__ = (
-        "Delegates a task to a named subagent for isolated execution.\n\n"
-        f"AVAILABLE AGENTS:\n{agent_doc_section}"
+        "Delegates a task to a named subagent for isolated execution. "
+        "See the Delegation group in the Tool Usage Guide for available agents."
     )
     return delegate_to_agent
 
@@ -251,14 +261,6 @@ def create_parallel_delegate_tool(
     """Create a tool for delegating tasks to multiple agents in parallel."""
     if sub_agent_manager is None:
         sub_agent_manager = default_sub_agent_manager
-    # Scan for available agents to populate the docstring
-    available_agents = sub_agent_manager.scan()
-    agent_docs = []
-    for agent in available_agents:
-        agent_docs.append(f"- `{agent.name}`: {agent.description}")
-    agent_doc_section = (
-        "\n".join(agent_docs) if agent_docs else "- No sub-agents found."
-    )
 
     async def parallel_delegate_to_agents(
         tasks: list[dict[str, str]],
@@ -325,7 +327,7 @@ def create_parallel_delegate_tool(
     parallel_delegate_to_agents.zrb_is_delegate_tool = True
     parallel_delegate_to_agents.__name__ = "DelegateToAgentsParallel"
     parallel_delegate_to_agents.__doc__ = (
-        "Delegates multiple tasks to subagents in parallel.\n\n"
-        f"AVAILABLE AGENTS:\n{agent_doc_section}"
+        "Delegates multiple tasks to subagents in parallel. "
+        "See the Delegation group in the Tool Usage Guide for available agents."
     )
     return parallel_delegate_to_agents

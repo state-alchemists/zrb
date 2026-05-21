@@ -437,6 +437,7 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
                     name=guidance.tool_name,
                     use_when=guidance.when_to_use,
                     key_rule=guidance.key_rule,
+                    group_description=guidance.group_description,
                 )
 
         # 4d. Resolve model-aware Tool Usage Guide intro sections.

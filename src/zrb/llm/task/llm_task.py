@@ -265,6 +265,7 @@ class LLMTask(BaseTask):
                 name=g.tool_name,
                 use_when=g.when_to_use,
                 key_rule=g.key_rule,
+                group_description=g.group_description,
             )
 
     def add_history_processor(self, *processor: HistoryProcessor):
