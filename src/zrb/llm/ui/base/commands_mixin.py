@@ -547,7 +547,9 @@ class CommandsMixin:
                 return True
         return False
 
-    def _get_help_text(self, limit: int | None = None, max_length: int | None = None) -> str:
+    def _get_help_text(
+        self, limit: int | None = None, max_length: int | None = None
+    ) -> str:
         raw_lines: list[tuple[str, str]] = []
 
         def add_cmd_help(commands: list[str], description: str):
@@ -594,7 +596,9 @@ class CommandsMixin:
             if max_length is None:
                 capped_desc = desc
             elif max_length > 4:
-                capped_desc = desc if len(desc) <= max_length else f"{desc[:max_length - 4]} ..."
+                capped_desc = (
+                    desc if len(desc) <= max_length else f"{desc[:max_length - 4]} ..."
+                )
             help_lines.append(f"  {cmd:<{max_cmd_len}} : {capped_desc}")
 
         shortcuts: list[tuple[str, str]] = [
