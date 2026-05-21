@@ -324,6 +324,6 @@ sub_agent_manager = SubAgentManager()
 # imports SubAgentManager from this module. Importing at the top would hit
 # this module mid-load before the class exists.
 
-from zrb.llm.agent.common_tools import apply_common_tools
+from zrb.llm.common_tools import apply_common_tools
 
 apply_common_tools(sub_agent_manager)
