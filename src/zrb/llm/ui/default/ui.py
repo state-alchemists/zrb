@@ -154,7 +154,7 @@ class UI(
             show_pydantic_ai_models=show_pydantic_ai_models,
         )
 
-        help_text = self._get_help_text(limit=15)
+        help_text = self._get_help_text(limit=15, max_length=75)
         full_greeting = create_banner(
             self._ascii_art,
             f"{greeting}\n{help_text}",

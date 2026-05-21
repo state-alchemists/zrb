@@ -1,6 +1,12 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.28.5 (May 21, 2026)
+
+- **Improvement: Welcome banner help-text truncation**:
+  - `commands_mixin.py`: `_get_help_text()` gained a `max_length` parameter. When set, long command descriptions (e.g. `"List snapshots or restore one (usage: /rewind [<n>|<sha>])"`) are truncated with ` ...` at the character cap, preventing them from overflowing the welcome banner on narrow terminals.
+  - `ui.py`: The `/info` and welcome-banner help render now passes `max_length=75`, so descriptions stay within typical terminal widths. Follow-up to the 2.28.4 banner width-guard — handles the description-text side of the same overflow problem.
+
 ## 2.28.4 (May 21, 2026)
 
 - **Security Fix: `idna` bumped to `>=3.15` (GHSA-65pc-fj4g-8rjx / CVE-2026-45409)**:
