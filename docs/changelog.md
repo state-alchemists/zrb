@@ -1,6 +1,18 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.28.4 (May 21, 2026)
+
+- **Security Fix: `idna` bumped to `>=3.15` (GHSA-65pc-fj4g-8rjx / CVE-2026-45409)**:
+  - `idna<3.15` is vulnerable to a DoS where crafted inputs (e.g. `"٠" * N`, `"・" * N + "漢"`) hit `valid_contexto` before length validation, consuming significant CPU. `idna` is a transitive dependency via `requests`, `httpx`, and `anyio`.
+  - Added explicit `idna = ">=3.15"` floor in `pyproject.toml`; `poetry.lock` updated from `idna==3.11` to `idna==3.15`.
+
+- **Improvement: LLM chat TUI touch-up**:
+  - `layout.py`: shrunk the input frame title from `"CTRL+j for newline, Alt+V to paste, ESC to cancel"` to `"Ctrl+J newline · Ctrl+V/Alt+V paste · ESC cancel · /help"` — full key reference is now under `/help` (or `/info`).
+  - `commands_mixin.py`: `/help` output now includes a "Keyboard Shortcuts" section (Ctrl+J, Ctrl+V/Alt+V, Tab/Shift+Tab, F6, Esc, Ctrl+Y, Ctrl+C, ↑/↓). Custom commands now render their `description` field rather than a synthesized `cmd <arg>` usage string. Welcome-screen help limit lowered from 25 to 15 commands so the shortcuts block fits without growing the banner.
+  - `banner.py`: `create_banner()` now accepts an optional `max_width`. When `art_width + 2 + text_width` exceeds it, the ASCII logo is dropped and only the text is rendered — prevents the welcome banner from wrapping into a mess on narrow terminals.
+  - `ui.py`: passes `max_width=get_terminal_size().columns` into the banner so logo suppression is automatic.
+
 ## 2.28.3 (May 18, 2026)
 
 - **Improvement: Mandate tightened with production-readiness rules**:
