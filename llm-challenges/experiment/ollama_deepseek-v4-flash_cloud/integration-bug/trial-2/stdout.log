@@ -1,0 +1,868 @@
+Error loading file /Users/gofrendigunawan/zrb/zrb_init.py: No module named 'tomlkit'
+[2m
+  🧠 Let[0m[2m me[0m[2m start[0m[2m by[0m[2m reading[0m[2m the[0m[2m relevant[0m[2m files[0m[2m to[0m[2m understand[0m[2m the[0m[2m code[0m[2mbase[0m[2m and[0m[2m the[0m[2m issues[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m
+  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m
+  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m
+  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m[0m[2m
+  🧰 call_00_cwn2Q68A73Pj3twx2Gps2426 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🧰 call_01_Q7jV2q6r8kDyhV9wu2XT6751 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🧰 call_02_NC47yx4MoSxjoDalibxz5717 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🧰 call_03_hlqvlm2ZmYVCssGMEOfT0204 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_03_hlqvlm2ZmYVCssGMEOfT0204 Executed
+[0m[2m
+  🔠 call_01_Q7jV2q6r8kDyhV9wu2XT6751 Executed
+[0m[2m
+  🔠 call_00_cwn2Q68A73Pj3twx2Gps2426 Executed
+[0m[2m
+  🔠 call_02_NC47yx4MoSxjoDalibxz5717 Executed
+[0m[2m
+  🧠 Let[0m[2m me[0m[2m analyze[0m[2m the[0m[2m bugs[0m[2m:
+     
+[0m[2m**[0m[2mBug[0m[2m [0m[2m1[0m[2m —[0m[2m Overs[0m[2melling[0m[2m ([0m[2mTO[0m[2mCT[0m[2mOU[0m[2m race[0m[2m):[0m[2m**
+[0m[2mThe[0m[2m `[0m[2mcheck[0m[2mout[0m[2m`[0m[2m function[0m[2m first[0m[2m checks[0m[2m stock[0m[2m availability[0m[2m with[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`,[0m[2m then[0m[2m later[0m[2m calls[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`.[0m[2m Between[0m[2m the[0m[2m check[0m[2m and[0m[2m the[0m[2m decre[0m[2mment[0m[2m,[0m[2m other[0m[2m concurrent[0m[2m tasks[0m[2m can[0m[2m also[0m[2m check[0m[2m and[0m[2m decre[0m[2mment[0m[2m,[0m[2m leading[0m[2m to[0m[2m overs[0m[2melling[0m[2m.[0m[2m Both[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`[0m[2m and[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m have[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m()`[0m[2m calls[0m[2m that[0m[2m yield[0m[2m control[0m[2m.
+     
+[0m[2m**[0m[2mBug[0m[2m [0m[2m2[0m[2m —[0m[2m Ghost[0m[2m charges[0m[2m ([0m[2mcharged[0m[2m but[0m[2m no[0m[2m item[0m[2m):[0m[2m**
+[0m[2mThe[0m[2m order[0m[2m is[0m[2m:[0m[2m check[0m[2m stock[0m[2m →[0m[2m charge[0m[2m →[0m[2m decre[0m[2mment[0m[2m.[0m[2m If[0m[2m the[0m[2m decre[0m[2mment[0m[2m fails[0m[2m ([0m[2mbecause[0m[2m stock[0m[2m was[0m[2m depleted[0m[2m by[0m[2m another[0m[2m concurrent[0m[2m task[0m[2m),[0m[2m the[0m[2m money[0m[2m was[0m[2m already[0m[2m charged[0m[2m but[0m[2m no[0m[2m item[0m[2m is[0m[2m delivered[0m[2m.[0m[2m The[0m[2m order[0m[2m returns[0m[2m `[0m[2mFalse[0m[2m`[0m[2m but[0m[2m the[0m[2m charge[0m[2m is[0m[2m already[0m[2m recorded[0m[2m in[0m[2m `[0m[2mgate[0m[2mway[0m[2m.[0m[2mcharg[0m[2mes[0m[2m`[0m[2m and[0m[2m `[0m[2mgate[0m[2mway[0m[2m.total[0m[2m_[0m[2mcharged[0m[2m`.
+     
+[0m[2m**[0m[2mBug[0m[2m [0m[2m3[0m[2m —[0m[2m No[0m[2m ded[0m[2mu[0m[2mplication[0m[2m protection[0m[2m:[0m[2m**
+[0m[2m`[0m[2mPayment[0m[2mGateway[0m[2m.[0m[2mcharge[0m[2m()`[0m[2m doesn[0m[2m't[0m[2m prevent[0m[2m charging[0m[2m the[0m[2m same[0m[2m `[0m[2morder[0m[2m_id[0m[2m`[0m[2m more[0m[2m than[0m[2m once[0m[2m.[0m[2m If[0m[2m a[0m[2m ret[0m[2mry[0m[2m or[0m[2m race[0m[2m condition[0m[2m occurs[0m[2m,[0m[2m the[0m[2m same[0m[2m order[0m[2m could[0m[2m be[0m[2m charged[0m[2m multiple[0m[2m times[0m[2m.
+     
+[0m[2m**[0m[2mFix[0m[2m strategy[0m[2m:[0m[2m**
+[0m[2mI[0m[2m need[0m[2m to[0m[2m make[0m[2m checkout[0m[2m **[0m[2matomic[0m[2m**[0m[2m —[0m[2m reserve[0m[2m the[0m[2m stock[0m[2m before[0m[2m charging[0m[2m,[0m[2m then[0m[2m only[0m[2m charge[0m[2m if[0m[2m the[0m[2m reservation[0m[2m succeeded[0m[2m.[0m[2m The[0m[2m key[0m[2m insight[0m[2m is[0m[2m the[0m[2m **[0m[2mAsync[0m[2m Check[0m[2mout[0m[2m Reserve[0m[2m Pattern[0m[2m**[0m[2m cited[0m[2m in[0m[2m the[0m[2m journal[0m[2m:[0m[2m reserve[0m[2m-b[0m[2mefore[0m[2m-ch[0m[2marge[0m[2m eliminates[0m[2m both[0m[2m issues[0m[2m.
+     
+[0m[2mThe[0m[2m clean[0m[2mest[0m[2m approach[0m[2m without[0m[2m changing[0m[2m public[0m[2m interfaces[0m[2m of[0m[2m `[0m[2mInventory[0m[2m`[0m[2m or[0m[2m `[0m[2mPayment[0m[2mGateway[0m[2m`[0m[2m ([0m[2mbut[0m[2m allowed[0m[2m to[0m[2m add[0m[2m methods[0m[2m):
+     
+[0m[2m1[0m[2m.[0m[2m Add[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m/[0m[2m`[0m[2mres[0m[2merve[0m[2m_st[0m[2mock[0m[2m`[0m[2m method[0m[2m to[0m[2m `[0m[2mInventory[0m[2m`[0m[2m —[0m[2m atom[0m[2mically[0m[2m checks[0m[2m and[0m[2m decre[0m[2mments[0m[2m stock[0m[2m in[0m[2m one[0m[2m operation[0m[2m ([0m[2ma[0m[2m combined[0m[2m check[0m[2m+[0m[2mde[0m[2mcrement[0m[2m that[0m[2m's[0m[2m race[0m[2m-free[0m[2m within[0m[2m the[0m[2m method[0m[2m).
+[0m[2m2[0m[2m.[0m[2m If[0m[2m reservation[0m[2m fails[0m[2m →[0m[2m return[0m[2m False[0m[2m ([0m[2mno[0m[2m charge[0m[2m,[0m[2m no[0m[2m harm[0m[2m).
+[0m[2m3[0m[2m.[0m[2m If[0m[2m reservation[0m[2m succeeds[0m[2m →[0m[2m charge[0m[2m.
+[0m[2m4[0m[2m.[0m[2m If[0m[2m charge[0m[2m fails[0m[2m →[0m[2m `[0m[2min[0m[2mcrement[0m[2m`[0m[2m to[0m[2m release[0m[2m the[0m[2m reserved[0m[2m stock[0m[2m,[0m[2m return[0m[2m False[0m[2m.
+[0m[2m5[0m[2m.[0m[2m If[0m[2m charge[0m[2m succeeds[0m[2m →[0m[2m return[0m[2m True[0m[2m ([0m[2mitem[0m[2m reserved[0m[2m,[0m[2m payment[0m[2m taken[0m[2m).
+     
+[0m[2mThis[0m[2m is[0m[2m the[0m[2m **[0m[2mres[0m[2merve[0m[2m-b[0m[2mefore[0m[2m-ch[0m[2marge[0m[2m**[0m[2m pattern[0m[2m.[0m[2m It[0m[2m eliminates[0m[2m the[0m[2m TO[0m[2mCT[0m[2mOU[0m[2m window[0m[2m between[0m[2m check[0m[2m and[0m[2m decre[0m[2mment[0m[2m,[0m[2m and[0m[2m it[0m[2m ensures[0m[2m a[0m[2m charge[0m[2m only[0m[2m happens[0m[2m when[0m[2m stock[0m[2m is[0m[2m already[0m[2m secured[0m[2m.
+     
+[0m[2mLet[0m[2m me[0m[2m implement[0m[2m this[0m[2m.
+     
+[0m[2mFor[0m[2m `[0m[2mInventory[0m[2m`[0m[2m —[0m[2m I[0m[2m'll[0m[2m add[0m[2m a[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m method[0m[2m that[0m[2m atom[0m[2mically[0m[2m checks[0m[2m and[0m[2m decre[0m[2mments[0m[2m stock[0m[2m in[0m[2m one[0m[2m async[0m[2m step[0m[2m ([0m[2mno[0m[2m yielding[0m[2m between[0m[2m check[0m[2m and[0m[2m decre[0m[2mment[0m[2m within[0m[2m the[0m[2m method[0m[2m).[0m[2m Actually[0m[2m,[0m[2m looking[0m[2m at[0m[2m the[0m[2m code[0m[2m,[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m already[0m[2m checks[0m[2m `[0m[2mself[0m[2m._[0m[2mstock[0m[2m >=[0m[2m quantity[0m[2m`[0m[2m before[0m[2m decre[0m[2mment[0m[2ming[0m[2m.[0m[2m But[0m[2m there[0m[2m's[0m[2m an[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m02[0m[2m)`[0m[2m BEFORE[0m[2m the[0m[2m check[0m[2m in[0m[2m decre[0m[2mment[0m[2m,[0m[2m so[0m[2m there[0m[2m's[0m[2m still[0m[2m a[0m[2m race[0m[2m window[0m[2m.
+     
+[0m[2mThe[0m[2m key[0m[2m race[0m[2m is[0m[2m in[0m[2m `[0m[2mcheck[0m[2mout[0m[2m.py[0m[2m`[0m[2m:
+[0m[2m1[0m[2m.[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`[0m[2m ([0m[2mwith[0m[2m await[0m[2m sleep[0m[2m)[0m[2m →[0m[2m yields[0m[2m control[0m[2m
+[0m[2m2[0m[2m.[0m[2m `[0m[2mcharge[0m[2m`[0m[2m ([0m[2mwith[0m[2m await[0m[2m sleep[0m[2m)[0m[2m →[0m[2m yields[0m[2m control[0m[2m  
+[0m[2m3[0m[2m.[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m ([0m[2mwith[0m[2m await[0m[2m sleep[0m[2m before[0m[2m check[0m[2m)[0m[2m →[0m[2m yields[0m[2m control[0m[2m
+     
+[0m[2mThe[0m[2m fix[0m[2m:[0m[2m create[0m[2m a[0m[2m single[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m method[0m[2m that[0m[2m atom[0m[2mically[0m[2m checks[0m[2m and[0m[2m decre[0m[2mments[0m[2m.[0m[2m Since[0m[2m as[0m[2myn[0m[2mcio[0m[2m is[0m[2m single[0m[2m-th[0m[2mread[0m[2med[0m[2m,[0m[2m if[0m[2m I[0m[2m don[0m[2m't[0m[2m `[0m[2mawait[0m[2m`[0m[2m between[0m[2m the[0m[2m check[0m[2m and[0m[2m the[0m[2m decre[0m[2mment[0m[2m,[0m[2m the[0m[2m operation[0m[2m is[0m[2m atomic[0m[2m within[0m[2m the[0m[2m event[0m[2m loop[0m[2m.
+     
+[0m[2mLet[0m[2m me[0m[2m write[0m[2m the[0m[2m fix[0m[2m:
+     
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2m#[0m[2m In[0m[2m Inventory[0m[2m -[0m[2m add[0m[2m a[0m[2m reserve[0m[2m method[0m[2m
+[0m[2masync[0m[2m def[0m[2m reserve[0m[2m(self[0m[2m,[0m[2m quantity[0m[2m:[0m[2m int[0m[2m)[0m[2m ->[0m[2m bool[0m[2m:
+[0m[2m   [0m[2m """[0m[2mAtom[0m[2mically[0m[2m check[0m[2m and[0m[2m decre[0m[2mment[0m[2m stock[0m[2m.[0m[2m Returns[0m[2m True[0m[2m if[0m[2m successful[0m[2m."""
+[0m[2m   [0m[2m if[0m[2m self[0m[2m._[0m[2mstock[0m[2m >=[0m[2m quantity[0m[2m:
+[0m[2m       [0m[2m self[0m[2m._[0m[2mstock[0m[2m -=[0m[2m quantity[0m[2m
+[0m[2m       [0m[2m return[0m[2m True[0m[2m
+[0m[2m   [0m[2m return[0m[2m False[0m[2m
+[0m[2m```
+     
+[0m[2mWait[0m[2m,[0m[2m but[0m[2m the[0m[2m existing[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m has[0m[2m an[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m02[0m[2m)`[0m[2m in[0m[2m it[0m[2m.[0m[2m The[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m method[0m[2m should[0m[2m NOT[0m[2m have[0m[2m any[0m[2m await[0m[2m between[0m[2m the[0m[2m check[0m[2m and[0m[2m decre[0m[2mment[0m[2m to[0m[2m be[0m[2m truly[0m[2m atomic[0m[2m.
+     
+[0m[2mThen[0m[2m checkout[0m[2m becomes[0m[2m:
+     
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2masync[0m[2m def[0m[2m checkout[0m[2m(...[0m[2m):
+[0m[2m   [0m[2m reserved[0m[2m =[0m[2m await[0m[2m inventory[0m[2m.res[0m[2merve[0m[2m([0m[2mquantity[0m[2m)[0m[2m [0m[2m #[0m[2m atomic[0m[2m check[0m[2m +[0m[2m decre[0m[2mment[0m[2m
+[0m[2m   [0m[2m if[0m[2m not[0m[2m reserved[0m[2m:
+[0m[2m       [0m[2m print[0m[2m(f[0m[2m"[0m[2mOrder[0m[2m {[0m[2morder[0m[2m_id[0m[2m}:[0m[2m out[0m[2m of[0m[2m stock[0m[2m")
+[0m[2m       [0m[2m return[0m[2m False[0m[2m
+         
+[0m[2m   [0m[2m charged[0m[2m =[0m[2m await[0m[2m gateway[0m[2m.[0m[2mcharge[0m[2m(order[0m[2m_id[0m[2m,[0m[2m quantity[0m[2m *[0m[2m price[0m[2m)
+[0m[2m   [0m[2m if[0m[2m not[0m[2m charged[0m[2m:
+[0m[2m       [0m[2m await[0m[2m inventory[0m[2m.in[0m[2mcrement[0m[2m([0m[2mquantity[0m[2m)[0m[2m [0m[2m #[0m[2m release[0m[2m reserved[0m[2m stock[0m[2m
+[0m[2m       [0m[2m print[0m[2m(f[0m[2m"[0m[2mOrder[0m[2m {[0m[2morder[0m[2m_id[0m[2m}:[0m[2m payment[0m[2m failed[0m[2m")
+[0m[2m       [0m[2m return[0m[2m False[0m[2m
+         
+[0m[2m   [0m[2m print[0m[2m(f[0m[2m"[0m[2mOrder[0m[2m {[0m[2morder[0m[2m_id[0m[2m}:[0m[2m SU[0m[2mCCESS[0m[2m")
+[0m[2m   [0m[2m return[0m[2m True[0m[2m
+[0m[2m```
+     
+[0m[2mThis[0m[2m pattern[0m[2m ensures[0m[2m:
+[0m[2m-[0m[2m **[0m[2mNo[0m[2m overs[0m[2melling[0m[2m**:[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m is[0m[2m atomic[0m[2m —[0m[2m once[0m[2m stock[0m[2m is[0m[2m reserved[0m[2m,[0m[2m no[0m[2m other[0m[2m cor[0m[2moutine[0m[2m can[0m[2m take[0m[2m it[0m[2m.
+[0m[2m-[0m[2m **[0m[2mNo[0m[2m ghost[0m[2m charges[0m[2m**:[0m[2m Charge[0m[2m only[0m[2m happens[0m[2m AFTER[0m[2m stock[0m[2m is[0m[2m reserved[0m[2m.[0m[2m If[0m[2m charge[0m[2m fails[0m[2m,[0m[2m stock[0m[2m is[0m[2m released[0m[2m back[0m[2m.
+[0m[2m-[0m[2m **[0m[2mNo[0m[2m double[0m[2m charges[0m[2m**:[0m[2m Same[0m[2m order[0m[2m_id[0m[2m can[0m[2m't[0m[2m be[0m[2m charged[0m[2m twice[0m[2m because[0m[2m we[0m[2m only[0m[2m call[0m[2m `[0m[2mcharge[0m[2m`[0m[2m once[0m[2m per[0m[2m checkout[0m[2m call[0m[2m.
+     
+[0m[2mThe[0m[2m `[0m[2mPayment[0m[2mGateway[0m[2m.[0m[2mcharge[0m[2m`[0m[2m still[0m[2m has[0m[2m the[0m[2m random[0m[2m failure[0m[2m,[0m[2m but[0m[2m now[0m[2m the[0m[2m flow[0m[2m handles[0m[2m it[0m[2m gracefully[0m[2m —[0m[2m stock[0m[2m is[0m[2m returned[0m[2m,[0m[2m no[0m[2m ghost[0m[2m charge[0m[2m.
+     
+[0m[2mLet[0m[2m me[0m[2m also[0m[2m consider[0m[2m:[0m[2m should[0m[2m I[0m[2m add[0m[2m id[0m[2memp[0m[2mot[0m[2mency[0m[2m to[0m[2m Payment[0m[2mGateway[0m[2m?[0m[2m The[0m[2m requirement[0m[2m says[0m[2m "[0m[2mNo[0m[2m order[0m[2m is[0m[2m charged[0m[2m more[0m[2m than[0m[2m once[0m[2m."[0m[2m Looking[0m[2m at[0m[2m the[0m[2m current[0m[2m code[0m[2m,[0m[2m `[0m[2mcharge[0m[2m`[0m[2m app[0m[2mends[0m[2m to[0m[2m `[0m[2mself[0m[2m.[0m[2mcharg[0m[2mes[0m[2m`[0m[2m without[0m[2m checking[0m[2m for[0m[2m duplicates[0m[2m.[0m[2m But[0m[2m with[0m[2m the[0m[2m current[0m[2m fix[0m[2m,[0m[2m each[0m[2m `[0m[2mcheck[0m[2mout[0m[2m`[0m[2m call[0m[2m only[0m[2m calls[0m[2m `[0m[2mcharge[0m[2m`[0m[2m once[0m[2m,[0m[2m so[0m[2m double[0m[2m-ch[0m[2marg[0m[2ming[0m[2m the[0m[2m same[0m[2m order[0m[2m_id[0m[2m would[0m[2m only[0m[2m happen[0m[2m if[0m[2m `[0m[2mcheck[0m[2mout[0m[2m`[0m[2m is[0m[2m called[0m[2m twice[0m[2m with[0m[2m the[0m[2m same[0m[2m `[0m[2morder[0m[2m_id[0m[2m`.[0m[2m The[0m[2m `[0m[2mmain[0m[2m.py[0m[2m`[0m[2m calls[0m[2m it[0m[2m once[0m[2m per[0m[2m order[0m[2m_id[0m[2m.[0m[2m So[0m[2m the[0m[2m fix[0m[2m is[0m[2m sufficient[0m[2m.
+     
+[0m[2mHowever[0m[2m,[0m[2m to[0m[2m be[0m[2m extra[0m[2m safe[0m[2m and[0m[2m meet[0m[2m the[0m[2m "[0m[2mNo[0m[2m order[0m[2m is[0m[2m charged[0m[2m more[0m[2m than[0m[2m once[0m[2m"[0m[2m requirement[0m[2m robust[0m[2mly[0m[2m,[0m[2m I[0m[2m could[0m[2m also[0m[2m add[0m[2m ded[0m[2mup[0m[2m to[0m[2m Payment[0m[2mGateway[0m[2m.[0m[2m But[0m[2m the[0m[2m requirement[0m[2m says[0m[2m "[0m[2mYou[0m[2m may[0m[2m add[0m[2m methods[0m[2m to[0m[2m them[0m[2m"[0m[2m —[0m[2m adding[0m[2m a[0m[2m method[0m[2m to[0m[2m check[0m[2m if[0m[2m an[0m[2m order[0m[2m was[0m[2m already[0m[2m charged[0m[2m would[0m[2m be[0m[2m prudent[0m[2m.[0m[2m Let[0m[2m me[0m[2m add[0m[2m a[0m[2m `[0m[2mhas[0m[2m_[0m[2mcharged[0m[2m(order[0m[2m_id[0m[2m)`[0m[2m method[0m[2m.
+     
+[0m[2mActually[0m[2m,[0m[2m let[0m[2m me[0m[2m keep[0m[2m it[0m[2m simple[0m[2m.[0m[2m The[0m[2m reserve[0m[2m-b[0m[2mefore[0m[2m-ch[0m[2marge[0m[2m pattern[0m[2m directly[0m[2m fixes[0m[2m all[0m[2m three[0m[2m issues[0m[2m.[0m[2m Let[0m[2m me[0m[2m implement[0m[2m it[0m[2m.
+     
+[0m[2mActually[0m[2m wait[0m[2m -[0m[2m I[0m[2m need[0m[2m to[0m[2m also[0m[2m think[0m[2m about[0m[2m the[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m method[0m[2m.[0m[2m Since[0m[2m I[0m[2m'm[0m[2m adding[0m[2m `[0m[2mres[0m[2merve[0m[2m`,[0m[2m I[0m[2m shouldn[0m[2m't[0m[2m remove[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m ([0m[2mit[0m[2m's[0m[2m part[0m[2m of[0m[2m the[0m[2m public[0m[2m interface[0m[2m I[0m[2m'm[0m[2m told[0m[2m not[0m[2m to[0m[2m change[0m[2m).[0m[2m I[0m[2m'll[0m[2m just[0m[2m add[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m as[0m[2m a[0m[2m new[0m[2m method[0m[2m.
+     
+[0m[2mLet[0m[2m me[0m[2m write[0m[2m the[0m[2m code[0m[2m:[0m[2m
+  I[0m[2m can[0m[2m see[0m[2m both[0m[2m bugs[0m[2m clearly[0m[2m.[0m[2m Let[0m[2m me[0m[2m activate[0m[2m the[0m[2m coding[0m[2m skill[0m[2m and[0m[2m fix[0m[2m this[0m[2m.
+     
+[0m[2m**[0m[2mRoot[0m[2m cause[0m[2m analysis[0m[2m:**
+     
+[0m[2m1[0m[2m.[0m[2m **[0m[2mO[0m[2mvers[0m[2melling[0m[2m**[0m[2m —[0m[2m TO[0m[2mCT[0m[2mOU[0m[2m race[0m[2m:[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`[0m[2m yields[0m[2m (`[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m`[0m[2m),[0m[2m then[0m[2m `[0m[2mcharge[0m[2m`[0m[2m yields[0m[2m again[0m[2m,[0m[2m then[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m yields[0m[2m *[0m[2mbefore[0m[2m*[0m[2m its[0m[2m stock[0m[2m check[0m[2m.[0m[2m Between[0m[2m any[0m[2m of[0m[2m these[0m[2m yield[0m[2m points[0m[2m,[0m[2m concurrent[0m[2m cor[0m[2moutines[0m[2m slip[0m[2m through[0m[2m.
+     
+[0m[2m2[0m[2m.[0m[2m **[0m[2mGhost[0m[2m charges[0m[2m**[0m[2m —[0m[2m Order[0m[2m is[0m[2m wrong[0m[2m:[0m[2m charge[0m[2m *[0m[2mbefore[0m[2m*[0m[2m securing[0m[2m stock[0m[2m.[0m[2m If[0m[2m decre[0m[2mment[0m[2m fails[0m[2m after[0m[2m charge[0m[2m succeeds[0m[2m,[0m[2m the[0m[2m customer[0m[2m is[0m[2m billed[0m[2m for[0m[2m nothing[0m[2m.
+     
+[0m[2m3[0m[2m.[0m[2m **[0m[2mDouble[0m[2m charges[0m[2m**[0m[2m —[0m[2m No[0m[2m ded[0m[2mu[0m[2mplication[0m[2m in[0m[2m `[0m[2mPayment[0m[2mGateway[0m[2m.[0m[2mcharge[0m[2m()`[0m[2m.
+     
+[0m[2m**[0m[2mFix[0m[2m**:[0m[2m Atomic[0m[2m reserve[0m[2m-b[0m[2mefore[0m[2m-ch[0m[2marge[0m[2m pattern[0m[2m.[0m[2m Reserve[0m[2m stock[0m[2m first[0m[2m ([0m[2mno[0m[2m yield[0m[2m between[0m[2m check[0m[2m and[0m[2m decre[0m[2mment[0m[2m),[0m[2m then[0m[2m charge[0m[2m.[0m[2m If[0m[2m charge[0m[2m fails[0m[2m,[0m[2m release[0m[2m the[0m[2m reserve[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m[0m[2m
+  🧰 call_00_2hIWuHLqiaQR5qAdRGbU3696 | ActivateSkill {'name': 'core-coding'}
+[0m[2m
+  🔠 call_00_2hIWuHLqiaQR5qAdRGbU3696 Executed
+[0m[2m
+  🧠 Now[0m[2m I[0m[2m have[0m[2m full[0m[2m context[0m[2m.[0m[2m Let[0m[2m me[0m[2m implement[0m[2m the[0m[2m fix[0m[2m.[0m[2m The[0m[2m strategy[0m[2m is[0m[2m clear[0m[2m:
+     
+[0m[2m1[0m[2m.[0m[2m **[0m[2mAdd[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m method[0m[2m to[0m[2m `[0m[2mInventory[0m[2m`[0m[2m**[0m[2m —[0m[2m atomic[0m[2m check[0m[2m+[0m[2mde[0m[2mcrement[0m[2m with[0m[2m no[0m[2m `[0m[2mawait[0m[2m`[0m[2m between[0m[2m the[0m[2m check[0m[2m and[0m[2m the[0m[2m mutation[0m[2m.[0m[2m This[0m[2m eliminates[0m[2m the[0m[2m TO[0m[2mCT[0m[2mOU[0m[2m race[0m[2m.
+[0m[2m2[0m[2m.[0m[2m **[0m[2mRewrite[0m[2m `[0m[2mcheck[0m[2mout[0m[2m`[0m[2m**[0m[2m to[0m[2m use[0m[2m reserve[0m[2m-b[0m[2mefore[0m[2m-ch[0m[2marge[0m[2m pattern[0m[2m.
+[0m[2m3[0m[2m.[0m[2m **[0m[2mAdd[0m[2m `[0m[2mhas[0m[2m_[0m[2mcharged[0m[2m`[0m[2m method[0m[2m to[0m[2m `[0m[2mPayment[0m[2mGateway[0m[2m`[0m[2m**[0m[2m for[0m[2m id[0m[2memp[0m[2mot[0m[2mency[0m[2m guard[0m[2m.
+     
+[0m[2mLet[0m[2m me[0m[2m also[0m[2m think[0m[2m about[0m[2m whether[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m still[0m[2m needs[0m[2m to[0m[2m be[0m[2m called[0m[2m.[0m[2m With[0m[2m the[0m[2m new[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m method[0m[2m,[0m[2m the[0m[2m checkout[0m[2m flow[0m[2m is[0m[2m:
+[0m[2m1[0m[2m.[0m[2m `[0m[2mres[0m[2merve[0m[2m([0m[2mquantity[0m[2m)`[0m[2m —[0m[2m atom[0m[2mically[0m[2m checks[0m[2m and[0m[2m decre[0m[2mments[0m[2m stock[0m[2m.[0m[2m No[0m[2m yield[0m[2m between[0m[2m check[0m[2m and[0m[2m decre[0m[2mment[0m[2m.
+[0m[2m2[0m[2m.[0m[2m `[0m[2mcharge[0m[2m(order[0m[2m_id[0m[2m,[0m[2m amount[0m[2m)`[0m[2m —[0m[2m if[0m[2m charge[0m[2m fails[0m[2m,[0m[2m `[0m[2min[0m[2mcrement[0m[2m([0m[2mquantity[0m[2m)`[0m[2m to[0m[2m release[0m[2m reserved[0m[2m stock[0m[2m.
+[0m[2m3[0m[2m.[0m[2m Return[0m[2m success[0m[2m.
+     
+[0m[2mThis[0m[2m means[0m[2m `[0m[2mcheck[0m[2mout[0m[2m`[0m[2m will[0m[2m never[0m[2m call[0m[2m the[0m[2m old[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m method[0m[2m.[0m[2m The[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m method[0m[2m stays[0m[2m ([0m[2mcan[0m[2m't[0m[2m change[0m[2m public[0m[2m interface[0m[2m,[0m[2m but[0m[2m I[0m[2m'm[0m[2m not[0m[2m changing[0m[2m it[0m[2m —[0m[2m just[0m[2m not[0m[2m using[0m[2m it[0m[2m in[0m[2m checkout[0m[2m).
+     
+[0m[2mWait[0m[2m,[0m[2m the[0m[2m rules[0m[2m say[0m[2m "[0m[2mDo[0m[2m not[0m[2m change[0m[2m the[0m[2m public[0m[2m interfaces[0m[2m of[0m[2m `[0m[2mInventory[0m[2m`[0m[2m or[0m[2m `[0m[2mPayment[0m[2mGateway[0m[2m`.[0m[2m You[0m[2m may[0m[2m add[0m[2m methods[0m[2m to[0m[2m them[0m[2m."[0m[2m So[0m[2m I[0m[2m keep[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m and[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`[0m[2m as[0m[2m-is[0m[2m,[0m[2m just[0m[2m don[0m[2m't[0m[2m use[0m[2m them[0m[2m in[0m[2m checkout[0m[2m anymore[0m[2m.
+     
+[0m[2mLet[0m[2m me[0m[2m implement[0m[2m this[0m[2m now[0m[2m.
+     
+[0m[2mFor[0m[2m `[0m[2mInventory[0m[2m.res[0m[2merve[0m[2m`[0m[2m:
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2masync[0m[2m def[0m[2m reserve[0m[2m(self[0m[2m,[0m[2m quantity[0m[2m:[0m[2m int[0m[2m)[0m[2m ->[0m[2m bool[0m[2m:
+[0m[2m   [0m[2m """[0m[2mAtom[0m[2mically[0m[2m check[0m[2m and[0m[2m decre[0m[2mment[0m[2m stock[0m[2m.[0m[2m No[0m[2m yield[0m[2m between[0m[2m check[0m[2m and[0m[2m mutation[0m[2m."""
+[0m[2m   [0m[2m if[0m[2m self[0m[2m._[0m[2mstock[0m[2m >=[0m[2m quantity[0m[2m:
+[0m[2m       [0m[2m self[0m[2m._[0m[2mstock[0m[2m -=[0m[2m quantity[0m[2m
+[0m[2m       [0m[2m return[0m[2m True[0m[2m
+[0m[2m   [0m[2m return[0m[2m False[0m[2m
+[0m[2m```
+     
+[0m[2mNo[0m[2m `[0m[2mawait[0m[2m`[0m[2m between[0m[2m check[0m[2m and[0m[2m decre[0m[2mment[0m[2m —[0m[2m in[0m[2m as[0m[2myn[0m[2mcio[0m[2m ([0m[2msingle[0m[2m-th[0m[2mread[0m[2med[0m[2m),[0m[2m this[0m[2m is[0m[2m truly[0m[2m atomic[0m[2m.[0m[2m Other[0m[2m cor[0m[2moutines[0m[2m can[0m[2m't[0m[2m inter[0m[2mleave[0m[2m.
+     
+[0m[2mFor[0m[2m `[0m[2mPayment[0m[2mGateway[0m[2m.has[0m[2m_[0m[2mcharged[0m[2m`[0m[2m:
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mdef[0m[2m has[0m[2m_[0m[2mcharged[0m[2m(self[0m[2m,[0m[2m order[0m[2m_id[0m[2m:[0m[2m str[0m[2m)[0m[2m ->[0m[2m bool[0m[2m:
+[0m[2m   [0m[2m """[0m[2mCheck[0m[2m if[0m[2m an[0m[2m order[0m[2m has[0m[2m already[0m[2m been[0m[2m charged[0m[2m."""
+[0m[2m   [0m[2m return[0m[2m any[0m[2m(c[0m[2m["[0m[2morder[0m[2m_id[0m[2m"][0m[2m ==[0m[2m order[0m[2m_id[0m[2m for[0m[2m c[0m[2m in[0m[2m self[0m[2m.[0m[2mcharg[0m[2mes[0m[2m)
+[0m[2m```
+     
+[0m[2mFor[0m[2m `[0m[2mcheck[0m[2mout[0m[2m.py[0m[2m`[0m[2m:
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2masync[0m[2m def[0m[2m checkout[0m[2m(
+[0m[2m   [0m[2m order[0m[2m_id[0m[2m:[0m[2m str[0m[2m,
+[0m[2m   [0m[2m quantity[0m[2m:[0m[2m int[0m[2m,
+[0m[2m   [0m[2m price[0m[2m:[0m[2m float[0m[2m,
+[0m[2m   [0m[2m inventory[0m[2m:[0m[2m Inventory[0m[2m,
+[0m[2m   [0m[2m gateway[0m[2m:[0m[2m Payment[0m[2mGateway[0m[2m,
+[0m[2m)[0m[2m ->[0m[2m bool[0m[2m:
+[0m[2m   [0m[2m #[0m[2m Step[0m[2m [0m[2m1[0m[2m:[0m[2m Reserve[0m[2m stock[0m[2m atom[0m[2mically[0m[2m —[0m[2m no[0m[2m TO[0m[2mCT[0m[2mOU[0m[2m race[0m[2m
+[0m[2m   [0m[2m reserved[0m[2m =[0m[2m await[0m[2m inventory[0m[2m.res[0m[2merve[0m[2m([0m[2mquantity[0m[2m)
+[0m[2m   [0m[2m if[0m[2m not[0m[2m reserved[0m[2m:
+[0m[2m       [0m[2m print[0m[2m(f[0m[2m"[0m[2mOrder[0m[2m {[0m[2morder[0m[2m_id[0m[2m}:[0m[2m out[0m[2m of[0m[2m stock[0m[2m")
+[0m[2m       [0m[2m return[0m[2m False[0m[2m
+     
+[0m[2m   [0m[2m #[0m[2m Step[0m[2m [0m[2m2[0m[2m:[0m[2m Charge[0m[2m —[0m[2m only[0m[2m after[0m[2m stock[0m[2m is[0m[2m secured[0m[2m
+[0m[2m   [0m[2m charged[0m[2m =[0m[2m await[0m[2m gateway[0m[2m.[0m[2mcharge[0m[2m(order[0m[2m_id[0m[2m,[0m[2m quantity[0m[2m *[0m[2m price[0m[2m)
+[0m[2m   [0m[2m if[0m[2m not[0m[2m charged[0m[2m:
+[0m[2m       [0m[2m await[0m[2m inventory[0m[2m.in[0m[2mcrement[0m[2m([0m[2mquantity[0m[2m)[0m[2m [0m[2m #[0m[2m release[0m[2m reserved[0m[2m stock[0m[2m
+[0m[2m       [0m[2m print[0m[2m(f[0m[2m"[0m[2mOrder[0m[2m {[0m[2morder[0m[2m_id[0m[2m}:[0m[2m payment[0m[2m failed[0m[2m")
+[0m[2m       [0m[2m return[0m[2m False[0m[2m
+     
+[0m[2m   [0m[2m print[0m[2m(f[0m[2m"[0m[2mOrder[0m[2m {[0m[2morder[0m[2m_id[0m[2m}:[0m[2m SU[0m[2mCCESS[0m[2m")
+[0m[2m   [0m[2m return[0m[2m True[0m[2m
+[0m[2m```
+     
+[0m[2mThis[0m[2m satisfies[0m[2m all[0m[2m three[0m[2m requirements[0m[2m:
+[0m[2m-[0m[2m **[0m[2mInventory[0m[2m never[0m[2m goes[0m[2m below[0m[2m zero[0m[2m**:[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m checks[0m[2m before[0m[2m decre[0m[2mment[0m[2ming[0m[2m,[0m[2m and[0m[2m the[0m[2m check[0m[2m+[0m[2mde[0m[2mcrement[0m[2m is[0m[2m atomic[0m[2m ([0m[2mno[0m[2m yield[0m[2m between[0m[2m them[0m[2m).
+[0m[2m-[0m[2m **[0m[2mEvery[0m[2m successful[0m[2m charge[0m[2m corresponds[0m[2m to[0m[2m exactly[0m[2m one[0m[2m item[0m[2m**:[0m[2m charge[0m[2m only[0m[2m happens[0m[2m after[0m[2m stock[0m[2m is[0m[2m reserved[0m[2m.[0m[2m If[0m[2m charge[0m[2m fails[0m[2m,[0m[2m stock[0m[2m is[0m[2m released[0m[2m back[0m[2m.
+[0m[2m-[0m[2m **[0m[2mNo[0m[2m order[0m[2m is[0m[2m charged[0m[2m more[0m[2m than[0m[2m once[0m[2m**:[0m[2m `[0m[2mcheck[0m[2mout[0m[2m`[0m[2m only[0m[2m calls[0m[2m `[0m[2mcharge[0m[2m`[0m[2m once[0m[2m per[0m[2m invocation[0m[2m.
+     
+[0m[2mLet[0m[2m me[0m[2m also[0m[2m run[0m[2m the[0m[2m simulation[0m[2m to[0m[2m verify[0m[2m.
+     
+[0m[2mWait[0m[2m,[0m[2m actually[0m[2m I[0m[2m want[0m[2m to[0m[2m think[0m[2m more[0m[2m carefully[0m[2m about[0m[2m the[0m[2m as[0m[2myn[0m[2mcio[0m[2m guarantee[0m[2m.[0m[2m In[0m[2m as[0m[2myn[0m[2mcio[0m[2m,[0m[2m everything[0m[2m runs[0m[2m on[0m[2m a[0m[2m single[0m[2m thread[0m[2m.[0m[2m A[0m[2m cor[0m[2moutine[0m[2m only[0m[2m yields[0m[2m control[0m[2m at[0m[2m `[0m[2mawait[0m[2m`[0m[2m points[0m[2m.[0m[2m So[0m[2m if[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m doesn[0m[2m't[0m[2m have[0m[2m any[0m[2m `[0m[2mawait[0m[2m`[0m[2m between[0m[2m checking[0m[2m and[0m[2m decre[0m[2mment[0m[2ming[0m[2m,[0m[2m no[0m[2m other[0m[2m cor[0m[2moutine[0m[2m can[0m[2m run[0m[2m in[0m[2m between[0m[2m.[0m[2m This[0m[2m is[0m[2m guaranteed[0m[2m by[0m[2m as[0m[2myn[0m[2mcio[0m[2m's[0m[2m single[0m[2m-th[0m[2mread[0m[2med[0m[2m event[0m[2m loop[0m[2m.
+     
+[0m[2mBut[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m is[0m[2m declared[0m[2m as[0m[2m `[0m[2masync[0m[2m def[0m[2m`,[0m[2m so[0m[2m it[0m[2m returns[0m[2m a[0m[2m cor[0m[2moutine[0m[2m.[0m[2m The[0m[2m caller[0m[2m needs[0m[2m to[0m[2m `[0m[2mawait[0m[2m`[0m[2m it[0m[2m.[0m[2m That[0m[2m's[0m[2m fine[0m[2m —[0m[2m the[0m[2m `[0m[2mawait[0m[2m`[0m[2m happens[0m[2m before[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m starts[0m[2m executing[0m[2m.[0m[2m Once[0m[2m inside[0m[2m `[0m[2mres[0m[2merve[0m[2m`,[0m[2m there[0m[2m's[0m[2m no[0m[2m `[0m[2mawait[0m[2m`,[0m[2m so[0m[2m it[0m[2m runs[0m[2m to[0m[2m completion[0m[2m atom[0m[2mically[0m[2m.
+     
+[0m[2mLet[0m[2m me[0m[2m verify[0m[2m this[0m[2m is[0m[2m correct[0m[2m and[0m[2m implement[0m[2m.[0m[2m
+  I[0m[2m've[0m[2m already[0m[2m read[0m[2m all[0m[2m files[0m[2m.[0m[2m The[0m[2m bugs[0m[2m are[0m[2m clear[0m[2m.[0m[2m Let[0m[2m me[0m[2m implement[0m[2m the[0m[2m fix[0m[2m.
+     
+[0m[2m**[0m[2mStrategy[0m[2m**:[0m[2m Atomic[0m[2m reserve[0m[2m-b[0m[2mefore[0m[2m-ch[0m[2marge[0m[2m pattern[0m[2m.[0m[2m The[0m[2m core[0m[2m issue[0m[2m is[0m[2m a[0m[2m TO[0m[2mCT[0m[2mOU[0m[2m race[0m[2m —[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`[0m[2m and[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m are[0m[2m separated[0m[2m by[0m[2m `[0m[2mawait[0m[2m`[0m[2m points[0m[2m where[0m[2m other[0m[2m cor[0m[2moutines[0m[2m inter[0m[2mleave[0m[2m.[0m[2m The[0m[2m fix[0m[2m:[0m[2m a[0m[2m single[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m method[0m[2m on[0m[2m `[0m[2mInventory[0m[2m`[0m[2m with[0m[2m no[0m[2m `[0m[2mawait[0m[2m`[0m[2m between[0m[2m the[0m[2m stock[0m[2m check[0m[2m and[0m[2m mutation[0m[2m,[0m[2m making[0m[2m the[0m[2m operation[0m[2m atomic[0m[2m within[0m[2m as[0m[2myn[0m[2mcio[0m[2m's[0m[2m single[0m[2m-th[0m[2mread[0m[2med[0m[2m event[0m[2m loop[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m[0m[2m
+  🧰 call_00_jjUkEcz44uN9r0BVQfvx5736 | Edit {'path': '/Users/gofrendigunawan/zrb ...', 'old_text': '    async def check_stock( ...', 'new_text': '    async def check_stock( ...'}
+[0m[2m
+  🔠 call_00_jjUkEcz44uN9r0BVQfvx5736 Executed
+[0m[32m260522 12:14:32.093 1/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 1/3 failed: status_code: 402, model_name: deepseek-v4-flash, body: {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}[0m
+[32m260522 12:14:33.024 2/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 2/3 failed: status_code: 402, model_name: deepseek-v4-flash, body: {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}[0m
+[32m260522 12:14:33.952 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 3/3 failed: status_code: 402, model_name: deepseek-v4-flash, body: {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}[0m
+[32m260522 12:14:33.952 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Marked as permanently failed[0m
+[32m260522 12:14:33.964 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Traceback (most recent call last):
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 150, in _map_api_errors
+    yield
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 895, in _completions_create
+    return await self.client.chat.completions.create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<29 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py", line 2714, in create
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+    ...<49 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1884, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1669, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 179, in execute_action_with_retry
+    result = await run_async(task._exec_action(ctx))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 367, in _exec_action
+    return await self._exec_action_inner(ctx)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 427, in _exec_action_inner
+    raise e
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 405, in _exec_action_inner
+    output, new_history = await run_agent(
+                          ^^^^^^^^^^^^^^^^
+    ...<13 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 160, in run_agent
+    return await _execution_loop(
+           ^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 556, in _execution_loop
+    raise e
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 497, in _execution_loop
+    raise stream_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 468, in _execution_loop
+    async for event in stream:
+    ...<13 lines>...
+            await effective_event_handler(event)
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/result.py", line 968, in __anext__
+    return await self._generator.__anext__()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1252, in _run_stream_events
+    result = await task
+             ^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1211, in run_agent
+    return await self.run(
+           ^^^^^^^^^^^^^^^
+    ...<19 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 410, in run
+    node = await agent_run._run_node_with_hooks(node, _stream_step)  # pyright: ignore[reportPrivateUsage]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 308, in _run_node_with_hooks
+    return await self._wrap_and_advance(run_context, node, step_fn)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 278, in _wrap_and_advance
+    result = await cap.on_node_run_error(run_context, node=node, error=e)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 245, in on_node_run_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 242, in on_node_run_error
+    return await capability.on_node_run_error(ctx, node=node, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 433, in on_node_run_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 276, in _wrap_and_advance
+    result = await cap.wrap_node_run(run_context, node=node, handler=step_fn)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 231, in wrap_node_run
+    return await chain(node)
+           ^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 617, in wrapped
+    return await cap.wrap_node_run(ctx, node=node, handler=inner)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 412, in wrap_node_run
+    return await handler(node)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 392, in _stream_and_advance
+    async with n.stream(agent_run.ctx) as stream:
+               ~~~~~~~~^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 679, in stream
+    model_response = await self._resolve_wrap_result(ctx, run_context, wrap_request_context, result_or_exc)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 967, in _resolve_wrap_result
+    return await ctx.deps.root_capability.on_model_request_error(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        run_context, request_context=request_context, error=exc
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 306, in on_model_request_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 303, in on_model_request_error
+    return await capability.on_model_request_error(ctx, request_context=request_context, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 514, in on_model_request_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 676, in stream
+    result_or_exc = wrap_task.result()
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 292, in wrap_model_request
+    return await chain(request_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 581, in wrapped
+    return await cap.wrap_model_request(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 491, in wrap_model_request
+    return await handler(request_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 628, in _streaming_handler
+    async with req_ctx.model.request_stream(
+               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        req_ctx.messages, req_ctx.model_settings, req_ctx.model_request_parameters, run_context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ) as sr:
+    ^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 837, in request_stream
+    response = await self._completions_create(messages, True, model_settings_cast, model_request_parameters)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 888, in _completions_create
+    with _map_api_errors(self.model_name):
+         ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 153, in _map_api_errors
+    raise ModelHTTPError(status_code=status_code, model_name=model_name, body=e.body) from e
+pydantic_ai.exceptions.ModelHTTPError: status_code: 402, model_name: deepseek-v4-flash, body: {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}
+[0m
+[32m260522 12:14:33.966 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Attempt 1/1 failed: status_code: 402, model_name: deepseek-v4-flash, body: {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}[0m
+[32m260522 12:14:33.966 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Marked as permanently failed[0m
+[32m260522 12:14:33.974 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Traceback (most recent call last):
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 150, in _map_api_errors
+    yield
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 895, in _completions_create
+    return await self.client.chat.completions.create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<29 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py", line 2714, in create
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+    ...<49 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1884, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1669, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 179, in execute_action_with_retry
+    result = await run_async(task._exec_action(ctx))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/chat/task.py", line 466, in _exec_action
+    return await self._run_non_interactive_session(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/chat/runner_mixin.py", line 66, in _run_non_interactive_session
+    result = await llm_task_core.async_run(session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 240, in async_run
+    return await run_task_async(
+           ^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 91, in run_task_async
+    result = await task.exec_root_tasks(session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 249, in exec_root_tasks
+    return await execute_root_tasks(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
+    await asyncio.gather(*root_task_coros)
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 252, in exec_chain
+    return await execute_task_chain(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 22, in execute_task_chain
+    result = await execute_task_action(task, session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 52, in execute_task_action
+    return await run_async(execute_action_until_ready(task, session))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 86, in execute_action_until_ready
+    result = await run_async(execute_action_with_retry(task, session))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 216, in execute_action_with_retry
+    raise e  # Re-raise the exception after handling fallbacks
+    ^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 179, in execute_action_with_retry
+    result = await run_async(task._exec_action(ctx))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 367, in _exec_action
+    return await self._exec_action_inner(ctx)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 427, in _exec_action_inner
+    raise e
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 405, in _exec_action_inner
+    output, new_history = await run_agent(
+                          ^^^^^^^^^^^^^^^^
+    ...<13 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 160, in run_agent
+    return await _execution_loop(
+           ^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 556, in _execution_loop
+    raise e
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 497, in _execution_loop
+    raise stream_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 468, in _execution_loop
+    async for event in stream:
+    ...<13 lines>...
+            await effective_event_handler(event)
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/result.py", line 968, in __anext__
+    return await self._generator.__anext__()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1252, in _run_stream_events
+    result = await task
+             ^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1211, in run_agent
+    return await self.run(
+           ^^^^^^^^^^^^^^^
+    ...<19 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 410, in run
+    node = await agent_run._run_node_with_hooks(node, _stream_step)  # pyright: ignore[reportPrivateUsage]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 308, in _run_node_with_hooks
+    return await self._wrap_and_advance(run_context, node, step_fn)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 278, in _wrap_and_advance
+    result = await cap.on_node_run_error(run_context, node=node, error=e)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 245, in on_node_run_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 242, in on_node_run_error
+    return await capability.on_node_run_error(ctx, node=node, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 433, in on_node_run_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 276, in _wrap_and_advance
+    result = await cap.wrap_node_run(run_context, node=node, handler=step_fn)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 231, in wrap_node_run
+    return await chain(node)
+           ^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 617, in wrapped
+    return await cap.wrap_node_run(ctx, node=node, handler=inner)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 412, in wrap_node_run
+    return await handler(node)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 392, in _stream_and_advance
+    async with n.stream(agent_run.ctx) as stream:
+               ~~~~~~~~^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 679, in stream
+    model_response = await self._resolve_wrap_result(ctx, run_context, wrap_request_context, result_or_exc)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 967, in _resolve_wrap_result
+    return await ctx.deps.root_capability.on_model_request_error(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        run_context, request_context=request_context, error=exc
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 306, in on_model_request_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 303, in on_model_request_error
+    return await capability.on_model_request_error(ctx, request_context=request_context, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 514, in on_model_request_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 676, in stream
+    result_or_exc = wrap_task.result()
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 292, in wrap_model_request
+    return await chain(request_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 581, in wrapped
+    return await cap.wrap_model_request(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 491, in wrap_model_request
+    return await handler(request_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 628, in _streaming_handler
+    async with req_ctx.model.request_stream(
+               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        req_ctx.messages, req_ctx.model_settings, req_ctx.model_request_parameters, run_context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ) as sr:
+    ^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 837, in request_stream
+    response = await self._completions_create(messages, True, model_settings_cast, model_request_parameters)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 888, in _completions_create
+    with _map_api_errors(self.model_name):
+         ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 153, in _map_api_errors
+    raise ModelHTTPError(status_code=status_code, model_name=model_name, body=e.body) from e
+pydantic_ai.exceptions.ModelHTTPError: status_code: 402, model_name: deepseek-v4-flash, body: {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}
+[0m
+[2mTo run again:[0m [1;33mzrb chat --message "# E-Commerce Checkout Service
+
+Users have reported two production incidents:
+
+1. **Overselling**: Items are sometimes sold even when out of stock. Inventory goes negative.
+2. **Ghost charges**: Customers are occasionally charged but receive no item, with no record of a successful order.
+
+The checkout flow is in `checkout.py`. It uses `inventory.py` (stock management) and `payments.py` (mock payment gateway).
+
+`main.py` runs a concurrent simulation — run it to reproduce the issues.
+
+Fix the checkout logic. The fix must ensure:
+- Inventory never goes below zero
+- Every successful charge corresponds to exactly one item delivered
+- No order is charged more than once
+
+Do not change the public interfaces of `Inventory` or `PaymentGateway`. You may add methods to them.
+" --model "" --session ollama_deepseek-v4-flash_cloud-integration-bug-trial-2 --yolo true --attach "" --interactive false[0m
+Traceback (most recent call last):
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 150, in _map_api_errors
+    yield
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 895, in _completions_create
+    return await self.client.chat.completions.create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<29 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py", line 2714, in create
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+    ...<49 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1884, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1669, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/gofrendigunawan/.local-venv/bin/zrb", line 8, in <module>
+    sys.exit(serve_cli())
+             ~~~~~~~~~^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/__main__.py", line 68, in serve_cli
+    raise e
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/__main__.py", line 61, in serve_cli
+    cli.run(sys.argv[1:])
+    ~~~~~~~^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/runner/cli.py", line 57, in run
+    result, session = self._run_task(node, str_args, task_str_kwargs)
+                      ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/runner/cli.py", line 114, in _run_task
+    result = task.run(session, str_kwargs=run_kwargs)
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 224, in run
+    return asyncio.run(
+           ~~~~~~~~~~~^
+        run_and_cleanup(
+        ^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+        )
+        ^
+    )
+    ^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/asyncio/base_events.py", line 721, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 34, in run_and_cleanup
+    result = await main_task_coro
+             ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 91, in run_task_async
+    result = await task.exec_root_tasks(session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 249, in exec_root_tasks
+    return await execute_root_tasks(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
+    await asyncio.gather(*root_task_coros)
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 252, in exec_chain
+    return await execute_task_chain(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 22, in execute_task_chain
+    result = await execute_task_action(task, session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 52, in execute_task_action
+    return await run_async(execute_action_until_ready(task, session))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 86, in execute_action_until_ready
+    result = await run_async(execute_action_with_retry(task, session))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 216, in execute_action_with_retry
+    raise e  # Re-raise the exception after handling fallbacks
+    ^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 179, in execute_action_with_retry
+    result = await run_async(task._exec_action(ctx))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/chat/task.py", line 466, in _exec_action
+    return await self._run_non_interactive_session(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/chat/runner_mixin.py", line 66, in _run_non_interactive_session
+    result = await llm_task_core.async_run(session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 240, in async_run
+    return await run_task_async(
+           ^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 91, in run_task_async
+    result = await task.exec_root_tasks(session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 249, in exec_root_tasks
+    return await execute_root_tasks(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
+    await asyncio.gather(*root_task_coros)
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 252, in exec_chain
+    return await execute_task_chain(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 22, in execute_task_chain
+    result = await execute_task_action(task, session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 52, in execute_task_action
+    return await run_async(execute_action_until_ready(task, session))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 86, in execute_action_until_ready
+    result = await run_async(execute_action_with_retry(task, session))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 216, in execute_action_with_retry
+    raise e  # Re-raise the exception after handling fallbacks
+    ^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 179, in execute_action_with_retry
+    result = await run_async(task._exec_action(ctx))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 367, in _exec_action
+    return await self._exec_action_inner(ctx)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 427, in _exec_action_inner
+    raise e
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 405, in _exec_action_inner
+    output, new_history = await run_agent(
+                          ^^^^^^^^^^^^^^^^
+    ...<13 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 160, in run_agent
+    return await _execution_loop(
+           ^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 556, in _execution_loop
+    raise e
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 497, in _execution_loop
+    raise stream_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 468, in _execution_loop
+    async for event in stream:
+    ...<13 lines>...
+            await effective_event_handler(event)
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/result.py", line 968, in __anext__
+    return await self._generator.__anext__()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1252, in _run_stream_events
+    result = await task
+             ^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1211, in run_agent
+    return await self.run(
+           ^^^^^^^^^^^^^^^
+    ...<19 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 410, in run
+    node = await agent_run._run_node_with_hooks(node, _stream_step)  # pyright: ignore[reportPrivateUsage]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 308, in _run_node_with_hooks
+    return await self._wrap_and_advance(run_context, node, step_fn)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 278, in _wrap_and_advance
+    result = await cap.on_node_run_error(run_context, node=node, error=e)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 245, in on_node_run_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 242, in on_node_run_error
+    return await capability.on_node_run_error(ctx, node=node, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 433, in on_node_run_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 276, in _wrap_and_advance
+    result = await cap.wrap_node_run(run_context, node=node, handler=step_fn)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 231, in wrap_node_run
+    return await chain(node)
+           ^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 617, in wrapped
+    return await cap.wrap_node_run(ctx, node=node, handler=inner)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 412, in wrap_node_run
+    return await handler(node)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 392, in _stream_and_advance
+    async with n.stream(agent_run.ctx) as stream:
+               ~~~~~~~~^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 679, in stream
+    model_response = await self._resolve_wrap_result(ctx, run_context, wrap_request_context, result_or_exc)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 967, in _resolve_wrap_result
+    return await ctx.deps.root_capability.on_model_request_error(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        run_context, request_context=request_context, error=exc
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 306, in on_model_request_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 303, in on_model_request_error
+    return await capability.on_model_request_error(ctx, request_context=request_context, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 514, in on_model_request_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 676, in stream
+    result_or_exc = wrap_task.result()
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 292, in wrap_model_request
+    return await chain(request_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 581, in wrapped
+    return await cap.wrap_model_request(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 491, in wrap_model_request
+    return await handler(request_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 628, in _streaming_handler
+    async with req_ctx.model.request_stream(
+               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        req_ctx.messages, req_ctx.model_settings, req_ctx.model_request_parameters, run_context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ) as sr:
+    ^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 837, in request_stream
+    response = await self._completions_create(messages, True, model_settings_cast, model_request_parameters)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 888, in _completions_create
+    with _map_api_errors(self.model_name):
+         ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 153, in _map_api_errors
+    raise ModelHTTPError(status_code=status_code, model_name=model_name, body=e.body) from e
+pydantic_ai.exceptions.ModelHTTPError: status_code: 402, model_name: deepseek-v4-flash, body: {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}

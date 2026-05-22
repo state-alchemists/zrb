@@ -1,0 +1,24 @@
+[
+  {
+    "parts": [
+      {
+        "part_kind": "user-prompt",
+        "content": "[SYSTEM] Error occurred: status_code: 402, model_name: deepseek-v4-flash, body: {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}"
+      },
+      {
+        "part_kind": "user-prompt",
+        "content": "Our background job processor has been acting up in production. Two separate issues have been reported:\n\n1. **Duplicate processing**: Some jobs appear to be executed more than once. We've seen side effects (emails, charges) triggered twice for a single job ID.\n2. **Vanishing failures**: Jobs that crash with an exception never show up as \"failed\". They seem to just disappear from the queue, making retries impossible.\n\nThe system is in `job_queue.py` (the queue) and `worker.py` (the processor). `main.py` runs a simulation you can use to reproduce the issues.\n\nFind the root causes and fix them. Do not change the public method signatures.\n"
+      }
+    ],
+    "kind": "request"
+  },
+  {
+    "parts": [
+      {
+        "part_kind": "user-prompt",
+        "content": "[SYSTEM] Error occurred: status_code: 402, model_name: deepseek-v4-flash, body: {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}"
+      }
+    ],
+    "kind": "request"
+  }
+]

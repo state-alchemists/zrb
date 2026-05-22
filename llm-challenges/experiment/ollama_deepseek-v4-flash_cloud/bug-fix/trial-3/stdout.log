@@ -1,0 +1,1460 @@
+Error loading file /Users/gofrendigunawan/zrb/zrb_init.py: No module named 'tomlkit'
+[2m
+  🧠 Let[0m[2m me[0m[2m start[0m[2m by[0m[2m understanding[0m[2m the[0m[2m system[0m[2m.[0m[2m I[0m[2m need[0m[2m to[0m[2m look[0m[2m at[0m[2m the[0m[2m relevant[0m[2m files[0m[2m:[0m[2m `[0m[2mjob[0m[2m_queue[0m[2m.py[0m[2m`,[0m[2m `[0m[2mworker[0m[2m.py[0m[2m`,[0m[2m and[0m[2m `[0m[2mmain[0m[2m.py[0m[2m`[0m[2m in[0m[2m the[0m[2m current[0m[2m work[0m[2mdir[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m
+  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m
+  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m[0m[2m
+  🧰 call_00_MKAzIZwltanuq91b9Kur6772 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🧰 call_01_R0GrtSY5t7YBZzCF4B7S5561 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🧰 call_02_hQJnCn8E4tkzCLnsOzoV8593 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
+[0m[2m
+  🔠 call_02_hQJnCn8E4tkzCLnsOzoV8593 Executed
+[0m[2m
+  🔠 call_00_MKAzIZwltanuq91b9Kur6772 Executed
+[0m[2m
+  🔠 call_01_R0GrtSY5t7YBZzCF4B7S5561 Executed
+[0m[2m
+  🧠 Let[0m[2m me[0m[2m analyze[0m[2m the[0m[2m bugs[0m[2m:
+     
+[0m[2m**[0m[2mBug[0m[2m [0m[2m1[0m[2m:[0m[2m Du[0m[2mplicate[0m[2m processing[0m[2m**
+     
+[0m[2mIn[0m[2m `[0m[2mjob[0m[2m_queue[0m[2m.py[0m[2m`,[0m[2m the[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m method[0m[2m:
+[0m[2m1[0m[2m.[0m[2m Iter[0m[2mates[0m[2m over[0m[2m all[0m[2m jobs[0m[2m
+[0m[2m2[0m[2m.[0m[2m Finds[0m[2m a[0m[2m job[0m[2m with[0m[2m `[0m[2mstatus[0m[2m ==[0m[2m "[0m[2mpending[0m[2m"`
+[0m[2m3[0m[2m.[0m[2m Sets[0m[2m `[0m[2mstatus[0m[2m =[0m[2m "[0m[2mprocessing[0m[2m"`
+[0m[2m4[0m[2m.[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)`[0m[2m —[0m[2m **[0m[2mTHIS[0m[2m IS[0m[2m THE[0m[2m PROBLE[0m[2mM[0m[2m**:[0m[2m The[0m[2m cor[0m[2moutine[0m[2m yields[0m[2m control[0m[2m here[0m[2m,[0m[2m and[0m[2m if[0m[2m multiple[0m[2m workers[0m[2m call[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m concurrently[0m[2m,[0m[2m they[0m[2m could[0m[2m both[0m[2m see[0m[2m `[0m[2mstatus[0m[2m ==[0m[2m "[0m[2mpending[0m[2m"[0m[2m`[0m[2m for[0m[2m the[0m[2m same[0m[2m job[0m[2m before[0m[2m either[0m[2m sets[0m[2m it[0m[2m to[0m[2m "[0m[2mprocessing[0m[2m".[0m[2m Wait[0m[2m,[0m[2m no[0m[2m,[0m[2m they[0m[2m are[0m[2m in[0m[2m the[0m[2m `[0m[2mfor[0m[2m`[0m[2m loop[0m[2m iter[0m[2mating[0m[2m over[0m[2m `[0m[2mself[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m()[0m[2m`.[0m[2m Let[0m[2m me[0m[2m re[0m[2m-read[0m[2m...
+     
+[0m[2mActually[0m[2m,[0m[2m the[0m[2m issue[0m[2m is[0m[2m more[0m[2m subtle[0m[2m.[0m[2m The[0m[2m `[0m[2mfor[0m[2m`[0m[2m loop[0m[2m iter[0m[2mates[0m[2m over[0m[2m `[0m[2mself[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m()[0m[2m`.[0m[2m In[0m[2m Python[0m[2m,[0m[2m `[0m[2mdict[0m[2m.values[0m[2m()`[0m[2m returns[0m[2m a[0m[2m view[0m[2m that[0m[2m iter[0m[2mates[0m[2m in[0m[2m insertion[0m[2m order[0m[2m.[0m[2m Two[0m[2m concurrent[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m calls[0m[2m:
+     
+[0m[2m1[0m[2m.[0m[2m Both[0m[2m iter[0m[2mates[0m[2m over[0m[2m `[0m[2mself[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m()`[0m[2m —[0m[2m they[0m[2m start[0m[2m their[0m[2m own[0m[2m separate[0m[2m iterator[0m[2m objects[0m[2m.
+[0m[2m2[0m[2m.[0m[2m Worker[0m[2m A[0m[2m finds[0m[2m job[0m[2m [0m[2m1[0m[2m,[0m[2m sets[0m[2m status[0m[2m to[0m[2m "[0m[2mprocessing[0m[2m",[0m[2m sleeps[0m[2m.
+[0m[2m3[0m[2m.[0m[2m Worker[0m[2m B[0m[2m iter[0m[2mates[0m[2m —[0m[2m it[0m[2m starts[0m[2m from[0m[2m the[0m[2m beginning[0m[2m of[0m[2m its[0m[2m own[0m[2m iterator[0m[2m.[0m[2m But[0m[2m wait[0m[2m,[0m[2m job[0m[2m [0m[2m1[0m[2m's[0m[2m status[0m[2m is[0m[2m now[0m[2m "[0m[2mprocessing[0m[2m",[0m[2m so[0m[2m Worker[0m[2m B[0m[2m sk[0m[2mips[0m[2m it[0m[2m and[0m[2m moves[0m[2m to[0m[2m the[0m[2m next[0m[2m.
+     
+[0m[2mH[0m[2mmm[0m[2m,[0m[2m let[0m[2m me[0m[2m think[0m[2m again[0m[2m about[0m[2m this[0m[2m more[0m[2m carefully[0m[2m.[0m[2m Actually[0m[2m the[0m[2m issue[0m[2m might[0m[2m be[0m[2m that[0m[2m `[0m[2mself[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m()`[0m[2m creates[0m[2m a[0m[2m new[0m[2m view[0m[2m each[0m[2m time[0m[2m,[0m[2m and[0m[2m iteration[0m[2m order[0m[2m is[0m[2m guaranteed[0m[2m.[0m[2m So[0m[2m when[0m[2m Worker[0m[2m A[0m[2m sets[0m[2m job[0m[2m [0m[2m1[0m[2m to[0m[2m "[0m[2mprocessing[0m[2m",[0m[2m Worker[0m[2m B[0m[2m's[0m[2m iteration[0m[2m ([0m[2mwhich[0m[2m started[0m[2m at[0m[2m the[0m[2m same[0m[2m time[0m[2m)[0m[2m would[0m[2m still[0m[2m see[0m[2m the[0m[2m old[0m[2m value[0m[2m...[0m[2m no[0m[2m,[0m[2m `[0m[2mdict[0m[2m.values[0m[2m()`[0m[2m returns[0m[2m a[0m[2m dynamic[0m[2m view[0m[2m,[0m[2m not[0m[2m a[0m[2m snapshot[0m[2m.
+     
+[0m[2mWait[0m[2m,[0m[2m but[0m[2m there[0m[2m's[0m[2m no[0m[2m lock[0m[2m.[0m[2m Let[0m[2m me[0m[2m think[0m[2m about[0m[2m a[0m[2m race[0m[2m condition[0m[2m:
+     
+[0m[2mWorker[0m[2m A[0m[2m:[0m[2m iter[0m[2mates[0m[2m,[0m[2m finds[0m[2m job[0m[2m [0m[2m1[0m[2m is[0m[2m "[0m[2mpending[0m[2m",[0m[2m sets[0m[2m to[0m[2m "[0m[2mprocessing[0m[2m",[0m[2m sleeps[0m[2m
+[0m[2mWorker[0m[2m B[0m[2m:[0m[2m iter[0m[2mates[0m[2m,[0m[2m finds[0m[2m job[0m[2m [0m[2m1[0m[2m is[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m ([0m[2malready[0m[2m set[0m[2m by[0m[2m A[0m[2m),[0m[2m sk[0m[2mips[0m[2m it[0m[2m,[0m[2m finds[0m[2m next[0m[2m pending[0m[2m job[0m[2m
+     
+[0m[2mThis[0m[2m seems[0m[2m fine[0m[2m for[0m[2m the[0m[2m sequential[0m[2m case[0m[2m.[0m[2m But[0m[2m what[0m[2m if[0m[2m:
+     
+[0m[2mWorker[0m[2m A[0m[2m:[0m[2m checks[0m[2m `[0m[2mjob[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m"[0m[2m`[0m[2m →[0m[2m True[0m[2m ([0m[2mfor[0m[2m job[0m[2m [0m[2m1[0m[2m)
+[0m[2mWorker[0m[2m B[0m[2m:[0m[2m checks[0m[2m `[0m[2mjob[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m"[0m[2m`[0m[2m →[0m[2m True[0m[2m ([0m[2mfor[0m[2m job[0m[2m [0m[2m1[0m[2m,[0m[2m B[0m[2m hasn[0m[2m't[0m[2m set[0m[2m it[0m[2m to[0m[2m processing[0m[2m yet[0m[2m)
+     
+[0m[2mBoth[0m[2m find[0m[2m the[0m[2m same[0m[2m job[0m[2m as[0m[2m pending[0m[2m![0m[2m Then[0m[2m both[0m[2m set[0m[2m it[0m[2m to[0m[2m processing[0m[2m.[0m[2m But[0m[2m the[0m[2m setting[0m[2m happens[0m[2m at[0m[2m different[0m[2m times[0m[2m...
+     
+[0m[2mActually[0m[2m,[0m[2m the[0m[2m race[0m[2m condition[0m[2m is[0m[2m:
+[0m[2m1[0m[2m.[0m[2m Worker[0m[2m A[0m[2m checks[0m[2m job[0m[2m [0m[2m1[0m[2m status[0m[2m ==[0m[2m "[0m[2mpending[0m[2m"[0m[2m →[0m[2m True[0m[2m
+[0m[2m2[0m[2m.[0m[2m Worker[0m[2m B[0m[2m checks[0m[2m job[0m[2m [0m[2m1[0m[2m status[0m[2m ==[0m[2m "[0m[2mpending[0m[2m"[0m[2m →[0m[2m True[0m[2m ([0m[2mA[0m[2m hasn[0m[2m't[0m[2m set[0m[2m it[0m[2m yet[0m[2m!)
+[0m[2m3[0m[2m.[0m[2m Worker[0m[2m A[0m[2m sets[0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mprocessing[0m[2m"
+[0m[2m4[0m[2m.[0m[2m Worker[0m[2m B[0m[2m sets[0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mprocessing[0m[2m"
+[0m[2m5[0m[2m.[0m[2m Both[0m[2m workers[0m[2m process[0m[2m the[0m[2m same[0m[2m job[0m[2m!
+     
+[0m[2mThis[0m[2m is[0m[2m the[0m[2m classic[0m[2m TO[0m[2mCT[0m[2mOU[0m[2m -[0m[2m the[0m[2m status[0m[2m check[0m[2m and[0m[2m status[0m[2m set[0m[2m are[0m[2m not[0m[2m atomic[0m[2m.[0m[2m Between[0m[2m the[0m[2m check[0m[2m and[0m[2m the[0m[2m set[0m[2m,[0m[2m another[0m[2m worker[0m[2m can[0m[2m also[0m[2m see[0m[2m "[0m[2mpending[0m[2m".
+     
+[0m[2mWait[0m[2m,[0m[2m but[0m[2m these[0m[2m are[0m[2m sequential[0m[2m operations[0m[2m on[0m[2m the[0m[2m same[0m[2m dict[0m[2m...[0m[2m In[0m[2m CP[0m[2mython[0m[2m,[0m[2m the[0m[2m G[0m[2mIL[0m[2m protects[0m[2m individual[0m[2m byte[0m[2mcode[0m[2m operations[0m[2m,[0m[2m but[0m[2m the[0m[2m check[0m[2m (`[0m[2mjob[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m"[0m[2m`)[0m[2m and[0m[2m the[0m[2m set[0m[2m (`[0m[2mjob[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m`)[0m[2m are[0m[2m separate[0m[2m byte[0m[2mcodes[0m[2m.[0m[2m Between[0m[2m them[0m[2m,[0m[2m another[0m[2m cor[0m[2moutine[0m[2m could[0m[2m run[0m[2m ([0m[2mvia[0m[2m the[0m[2m event[0m[2m loop[0m[2m).
+     
+[0m[2mBut[0m[2m is[0m[2m there[0m[2m an[0m[2m `[0m[2mawait[0m[2m`[0m[2m between[0m[2m them[0m[2m?[0m[2m No[0m[2m,[0m[2m not[0m[2m in[0m[2m the[0m[2m current[0m[2m code[0m[2m.[0m[2m However[0m[2m,[0m[2m in[0m[2m an[0m[2m async[0m[2m context[0m[2m with[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m`,[0m[2m there[0m[2m's[0m[2m no[0m[2m yield[0m[2m point[0m[2m between[0m[2m the[0m[2m check[0m[2m and[0m[2m the[0m[2m set[0m[2m.[0m[2m The[0m[2m cor[0m[2moutine[0m[2m won[0m[2m't[0m[2m be[0m[2m suspended[0m[2m unless[0m[2m it[0m[2m hits[0m[2m an[0m[2m `[0m[2mawait[0m[2m`.[0m[2m So[0m[2m...
+     
+[0m[2mActually[0m[2m wait[0m[2m,[0m[2m let[0m[2m me[0m[2m re[0m[2m-read[0m[2m de[0m[2mqueue[0m[2m:
+     
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2masync[0m[2m def[0m[2m de[0m[2mqueue[0m[2m(self[0m[2m)[0m[2m ->[0m[2m Optional[0m[2m[[0m[2mDict[0m[2m]:
+[0m[2m   [0m[2m for[0m[2m job[0m[2m in[0m[2m self[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m():
+[0m[2m       [0m[2m if[0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m":
+[0m[2m           [0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mprocessing[0m[2m"
+[0m[2m           [0m[2m await[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)
+[0m[2m           [0m[2m return[0m[2m job[0m[2m
+[0m[2m   [0m[2m return[0m[2m None[0m[2m
+[0m[2m```
+     
+[0m[2mBetween[0m[2m the[0m[2m check[0m[2m and[0m[2m the[0m[2m set[0m[2m —[0m[2m no[0m[2m,[0m[2m these[0m[2m are[0m[2m synchronous[0m[2m.[0m[2m Between[0m[2m the[0m[2m set[0m[2m and[0m[2m the[0m[2m return[0m[2m —[0m[2m there[0m[2m's[0m[2m an[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)[0m[2m`.[0m[2m By[0m[2m this[0m[2m time[0m[2m,[0m[2m the[0m[2m status[0m[2m is[0m[2m already[0m[2m "[0m[2mprocessing[0m[2m",[0m[2m so[0m[2m another[0m[2m worker[0m[2m won[0m[2m't[0m[2m pick[0m[2m it[0m[2m up[0m[2m.
+     
+[0m[2mBut[0m[2m wait[0m[2m,[0m[2m what[0m[2m about[0m[2m two[0m[2m workers[0m[2m calling[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m concurrently[0m[2m and[0m[2m both[0m[2m iter[0m[2mating[0m[2m?[0m[2m Could[0m[2m they[0m[2m both[0m[2m see[0m[2m the[0m[2m same[0m[2m job[0m[2m as[0m[2m "[0m[2mpending[0m[2m"[0m[2m before[0m[2m either[0m[2m sets[0m[2m it[0m[2m?
+     
+[0m[2mLet[0m[2m's[0m[2m trace[0m[2m:
+[0m[2m-[0m[2m `[0m[2mself[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m()`[0m[2m creates[0m[2m a[0m[2m new[0m[2m `[0m[2mdict[0m[2m_values[0m[2m`[0m[2m view[0m[2m each[0m[2m time[0m[2m `[0m[2mde[0m[2mqueue[0m[2m`[0m[2m is[0m[2m called[0m[2m.
+[0m[2m-[0m[2m Worker[0m[2m A[0m[2m starts[0m[2m iter[0m[2mating[0m[2m:[0m[2m gets[0m[2m iterator[0m[2m A[0m[2m
+[0m[2m-[0m[2m Worker[0m[2m B[0m[2m starts[0m[2m iter[0m[2mating[0m[2m:[0m[2m gets[0m[2m iterator[0m[2m B[0m[2m
+[0m[2m-[0m[2m Both[0m[2m iter[0m[2mators[0m[2m start[0m[2m at[0m[2m the[0m[2m beginning[0m[2m ([0m[2mjob[0m[2m [0m[2m1[0m[2m)
+     
+[0m[2mIf[0m[2m both[0m[2m workers[0m[2m are[0m[2m at[0m[2m the[0m[2m same[0m[2m point[0m[2m ([0m[2mboth[0m[2m checking[0m[2m job[0m[2m [0m[2m1[0m[2m):
+[0m[2m1[0m[2m.[0m[2m A[0m[2m:[0m[2m `[0m[2mjob[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m"[0m[2m`[0m[2m →[0m[2m True[0m[2m
+[0m[2m2[0m[2m.[0m[2m B[0m[2m:[0m[2m `[0m[2mjob[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m"[0m[2m`[0m[2m →[0m[2m True[0m[2m ([0m[2mA[0m[2m hasn[0m[2m't[0m[2m modified[0m[2m yet[0m[2m,[0m[2m and[0m[2m even[0m[2m if[0m[2m it[0m[2m did[0m[2m,[0m[2m B[0m[2m's[0m[2m iterator[0m[2m was[0m[2m already[0m[2m at[0m[2m this[0m[2m position[0m[2m...[0m[2m wait[0m[2m,[0m[2m B[0m[2m's[0m[2m iterator[0m[2m doesn[0m[2m't[0m[2m cache[0m[2m values[0m[2m —[0m[2m `[0m[2mdict[0m[2m_values[0m[2m`[0m[2m is[0m[2m a[0m[2m view[0m[2m.[0m[2m When[0m[2m B[0m[2m accesses[0m[2m `[0m[2mjob[0m[2m["[0m[2mstatus[0m[2m"][0m[2m`,[0m[2m it[0m[2m reads[0m[2m from[0m[2m the[0m[2m dict[0m[2m in[0m[2m real[0m[2m time[0m[2m.)
+     
+[0m[2mH[0m[2mmm[0m[2m,[0m[2m so[0m[2m if[0m[2m A[0m[2m sets[0m[2m `[0m[2mjob[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m`[0m[2m before[0m[2m B[0m[2m checks[0m[2m,[0m[2m then[0m[2m B[0m[2m would[0m[2m see[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m and[0m[2m skip[0m[2m.[0m[2m But[0m[2m if[0m[2m B[0m[2m checks[0m[2m before[0m[2m A[0m[2m sets[0m[2m,[0m[2m both[0m[2m see[0m[2m "[0m[2mpending[0m[2m"[0m[2m and[0m[2m both[0m[2m process[0m[2m.
+     
+[0m[2mThis[0m[2m is[0m[2m a[0m[2m race[0m[2m condition[0m[2m.[0m[2m In[0m[2m practice[0m[2m,[0m[2m async[0m[2m con[0m[2mcurrency[0m[2m means[0m[2m these[0m[2m cor[0m[2moutines[0m[2m run[0m[2m on[0m[2m the[0m[2m same[0m[2m thread[0m[2m,[0m[2m and[0m[2m they[0m[2m only[0m[2m switch[0m[2m at[0m[2m `[0m[2mawait[0m[2m`[0m[2m points[0m[2m.[0m[2m So[0m[2m between[0m[2m the[0m[2m check[0m[2m and[0m[2m the[0m[2m set[0m[2m,[0m[2m if[0m[2m there[0m[2m's[0m[2m no[0m[2m `[0m[2mawait[0m[2m`,[0m[2m the[0m[2m operation[0m[2m is[0m[2m effectively[0m[2m atomic[0m[2m because[0m[2m no[0m[2m other[0m[2m cor[0m[2moutine[0m[2m runs[0m[2m.
+     
+[0m[2mBut[0m[2m wait[0m[2m —[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.g[0m[2mather[0m[2m`[0m[2m runs[0m[2m all[0m[2m [0m[2m5[0m[2m workers[0m[2m concurrently[0m[2m.[0m[2m They[0m[2m all[0m[2m start[0m[2m `[0m[2mprocess[0m[2m_j[0m[2mob[0m[2m`,[0m[2m which[0m[2m calls[0m[2m `[0m[2mde[0m[2mqueue[0m[2m`.[0m[2m If[0m[2m they[0m[2m all[0m[2m call[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m at[0m[2m roughly[0m[2m the[0m[2m same[0m[2m time[0m[2m ([0m[2mbefore[0m[2m any[0m[2m of[0m[2m them[0m[2m reaches[0m[2m the[0m[2m `[0m[2mawait[0m[2m`[0m[2m),[0m[2m then[0m[2m:
+     
+[0m[2m1[0m[2m.[0m[2m Worker[0m[2m A[0m[2m starts[0m[2m de[0m[2mqueue[0m[2m:[0m[2m checks[0m[2m job[0m[2m [0m[2m1[0m[2m →[0m[2m pending[0m[2m,[0m[2m sets[0m[2m to[0m[2m processing[0m[2m,[0m[2m hits[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)`[0m[2m →[0m[2m yields[0m[2m
+[0m[2m2[0m[2m.[0m[2m Worker[0m[2m B[0m[2m starts[0m[2m de[0m[2mqueue[0m[2m:[0m[2m checks[0m[2m job[0m[2m [0m[2m1[0m[2m →[0m[2m processing[0m[2m,[0m[2m skip[0m[2m,[0m[2m checks[0m[2m job[0m[2m [0m[2m2[0m[2m →[0m[2m pending[0m[2m,[0m[2m sets[0m[2m to[0m[2m processing[0m[2m,[0m[2m hits[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)`[0m[2m →[0m[2m yields[0m[2m
+[0m[2m3[0m[2m.[0m[2m Worker[0m[2m C[0m[2m starts[0m[2m de[0m[2mqueue[0m[2m:[0m[2m ...[0m[2m job[0m[2m [0m[2m1[0m[2m →[0m[2m processing[0m[2m,[0m[2m job[0m[2m [0m[2m2[0m[2m →[0m[2m processing[0m[2m,[0m[2m job[0m[2m [0m[2m3[0m[2m →[0m[2m pending[0m[2m...
+     
+[0m[2mThis[0m[2m seems[0m[2m fine[0m[2m actually[0m[2m.[0m[2m The[0m[2m synchronous[0m[2m check[0m[2m-and[0m[2m-set[0m[2m between[0m[2m cor[0m[2moutine[0m[2m yields[0m[2m is[0m[2m protected[0m[2m by[0m[2m the[0m[2m G[0m[2mIL[0m[2m +[0m[2m single[0m[2m-th[0m[2mread[0m[2med[0m[2m event[0m[2m loop[0m[2m.
+     
+[0m[2mBut[0m[2m wait[0m[2m,[0m[2m there[0m[2m IS[0m[2m a[0m[2m potential[0m[2m race[0m[2m.[0m[2m Let[0m[2m me[0m[2m reconsider[0m[2m.
+     
+[0m[2mAll[0m[2m [0m[2m5[0m[2m workers[0m[2m call[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m initially[0m[2m.[0m[2m They[0m[2m all[0m[2m create[0m[2m their[0m[2m own[0m[2m `[0m[2mfor[0m[2m job[0m[2m in[0m[2m self[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m()`[0m[2m iter[0m[2mators[0m[2m.[0m[2m But[0m[2m only[0m[2m one[0m[2m runs[0m[2m at[0m[2m a[0m[2m time[0m[2m ([0m[2msingle[0m[2m-th[0m[2mread[0m[2med[0m[2m event[0m[2m loop[0m[2m with[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.g[0m[2mather[0m[2m`[0m[2m).
+     
+[0m[2mActually[0m[2m,[0m[2m with[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.g[0m[2mather[0m[2m`,[0m[2m all[0m[2m tasks[0m[2m run[0m[2m concurrently[0m[2m on[0m[2m the[0m[2m same[0m[2m thread[0m[2m.[0m[2m The[0m[2m event[0m[2m loop[0m[2m switches[0m[2m between[0m[2m them[0m[2m at[0m[2m `[0m[2mawait[0m[2m`[0m[2m points[0m[2m.[0m[2m So[0m[2m:
+     
+[0m[2m1[0m[2m.[0m[2m Worker[0m[2m A[0m[2m runs[0m[2m,[0m[2m calls[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()[0m[2m`,[0m[2m starts[0m[2m iter[0m[2mating[0m[2m.[0m[2m Worker[0m[2m A[0m[2m's[0m[2m iterator[0m[2m starts[0m[2m at[0m[2m job[0m[2m [0m[2m1[0m[2m.[0m[2m Checks[0m[2m job[0m[2m [0m[2m1[0m[2m →[0m[2m pending[0m[2m,[0m[2m sets[0m[2m to[0m[2m "[0m[2mprocessing[0m[2m",[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)`[0m[2m →[0m[2m yields[0m[2m.
+     
+[0m[2m2[0m[2m.[0m[2m Now[0m[2m Worker[0m[2m B[0m[2m runs[0m[2m.[0m[2m Its[0m[2m iterator[0m[2m ALSO[0m[2m starts[0m[2m at[0m[2m job[0m[2m [0m[2m1[0m[2m.[0m[2m Checks[0m[2m job[0m[2m [0m[2m1[0m[2m →[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m ([0m[2malready[0m[2m set[0m[2m by[0m[2m A[0m[2m).[0m[2m Sk[0m[2mips[0m[2m.[0m[2m Checks[0m[2m job[0m[2m [0m[2m2[0m[2m →[0m[2m "[0m[2mpending[0m[2m",[0m[2m sets[0m[2m to[0m[2m "[0m[2mprocessing[0m[2m",[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)`[0m[2m →[0m[2m yields[0m[2m.
+     
+[0m[2mThis[0m[2m works[0m[2m correctly[0m[2m.[0m[2m So[0m[2m where[0m[2m's[0m[2m the[0m[2m bug[0m[2m?
+     
+[0m[2mH[0m[2mmm[0m[2m,[0m[2m let[0m[2m me[0m[2m think[0m[2m about[0m[2m when[0m[2m a[0m[2m job[0m[2m fails[0m[2m and[0m[2m gets[0m[2m re[0m[2m-[0m[2mque[0m[2mued[0m[2m ([0m[2mstatus[0m[2m back[0m[2m to[0m[2m "[0m[2mpending[0m[2m").[0m[2m In[0m[2m `[0m[2mfail[0m[2m()`[0m[2m:
+     
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mdef[0m[2m fail[0m[2m(self[0m[2m,[0m[2m job[0m[2m_id[0m[2m:[0m[2m int[0m[2m,[0m[2m error[0m[2m:[0m[2m str[0m[2m)[0m[2m ->[0m[2m None[0m[2m:
+[0m[2m   [0m[2m job[0m[2m =[0m[2m self[0m[2m._[0m[2mjobs[0m[2m[j[0m[2mob[0m[2m_id[0m[2m]
+[0m[2m   [0m[2m if[0m[2m job[0m[2m["[0m[2mret[0m[2mries[0m[2m"][0m[2m <[0m[2m self[0m[2m.max[0m[2m_[0m[2mret[0m[2mries[0m[2m:
+[0m[2m       [0m[2m job[0m[2m["[0m[2mret[0m[2mries[0m[2m"][0m[2m +=[0m[2m [0m[2m1[0m[2m
+[0m[2m       [0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mpending[0m[2m"
+[0m[2m   [0m[2m else[0m[2m:
+[0m[2m       [0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mfailed[0m[2m"
+[0m[2m       [0m[2m job[0m[2m["[0m[2mresult[0m[2m"][0m[2m =[0m[2m error[0m[2m
+[0m[2m```
+     
+[0m[2mAfter[0m[2m a[0m[2m job[0m[2m fails[0m[2m and[0m[2m is[0m[2m set[0m[2m back[0m[2m to[0m[2m "[0m[2mpending[0m[2m",[0m[2m it[0m[2m becomes[0m[2m eligible[0m[2m for[0m[2m deque[0m[2muing[0m[2m again[0m[2m.[0m[2m Now[0m[2m the[0m[2m question[0m[2m is[0m[2m:[0m[2m could[0m[2m two[0m[2m workers[0m[2m both[0m[2m pick[0m[2m up[0m[2m the[0m[2m same[0m[2m job[0m[2m after[0m[2m it[0m[2m's[0m[2m been[0m[2m re[0m[2m-[0m[2mque[0m[2mued[0m[2m?
+     
+[0m[2mIn[0m[2m `[0m[2mworker[0m[2m.py[0m[2m`,[0m[2m after[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m()[0m[2m`,[0m[2m the[0m[2m worker[0m[2m goes[0m[2m back[0m[2m to[0m[2m the[0m[2m `[0m[2mwhile[0m[2m True[0m[2m`[0m[2m loop[0m[2m and[0m[2m calls[0m[2m `[0m[2mqueue[0m[2m.de[0m[2mqueue[0m[2m()`[0m[2m again[0m[2m.[0m[2m If[0m[2m the[0m[2m job[0m[2m was[0m[2m re[0m[2m-[0m[2mque[0m[2mued[0m[2m ([0m[2mret[0m[2mries[0m[2m <[0m[2m max[0m[2m_[0m[2mret[0m[2mries[0m[2m),[0m[2m it[0m[2m's[0m[2m now[0m[2m "[0m[2mpending[0m[2m"[0m[2m and[0m[2m can[0m[2m be[0m[2m deque[0m[2mued[0m[2m again[0m[2m.[0m[2m This[0m[2m is[0m[2m the[0m[2m intended[0m[2m ret[0m[2mry[0m[2m behavior[0m[2m.
+     
+[0m[2mBut[0m[2m here[0m[2m's[0m[2m the[0m[2m thing[0m[2m:[0m[2m the[0m[2m worker[0m[2m that[0m[2m just[0m[2m failed[0m[2m the[0m[2m job[0m[2m is[0m[2m about[0m[2m to[0m[2m call[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m again[0m[2m.[0m[2m Meanwhile[0m[2m,[0m[2m other[0m[2m workers[0m[2m are[0m[2m also[0m[2m calling[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()[0m[2m`.[0m[2m Could[0m[2m another[0m[2m worker[0m[2m pick[0m[2m up[0m[2m the[0m[2m same[0m[2m job[0m[2m instead[0m[2m of[0m[2m the[0m[2m original[0m[2m worker[0m[2m?[0m[2m Yes[0m[2m,[0m[2m but[0m[2m that[0m[2m's[0m[2m fine[0m[2m —[0m[2m ret[0m[2mries[0m[2m just[0m[2m mean[0m[2m the[0m[2m job[0m[2m gets[0m[2m picked[0m[2m up[0m[2m by[0m[2m any[0m[2m available[0m[2m worker[0m[2m.
+     
+[0m[2mWait[0m[2m,[0m[2m I[0m[2m'm[0m[2m over[0m[2mcom[0m[2mplic[0m[2mating[0m[2m this[0m[2m.[0m[2m Let[0m[2m me[0m[2m re[0m[2m-read[0m[2m the[0m[2m actual[0m[2m code[0m[2m more[0m[2m carefully[0m[2m for[0m[2m the[0m[2m bugs[0m[2m.
+     
+[0m[2m**[0m[2mBug[0m[2m [0m[2m1[0m[2m:[0m[2m Du[0m[2mplicate[0m[2m processing[0m[2m**
+     
+[0m[2mLet[0m[2m me[0m[2m look[0m[2m at[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m again[0m[2m:
+     
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2masync[0m[2m def[0m[2m de[0m[2mqueue[0m[2m(self[0m[2m)[0m[2m ->[0m[2m Optional[0m[2m[[0m[2mDict[0m[2m]:
+[0m[2m   [0m[2m for[0m[2m job[0m[2m in[0m[2m self[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m():
+[0m[2m       [0m[2m if[0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m":
+[0m[2m           [0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mprocessing[0m[2m"
+[0m[2m           [0m[2m await[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)
+[0m[2m           [0m[2m return[0m[2m job[0m[2m
+[0m[2m   [0m[2m return[0m[2m None[0m[2m
+[0m[2m```
+     
+[0m[2mThere[0m[2m IS[0m[2m a[0m[2m race[0m[2m condition[0m[2m here[0m[2m,[0m[2m but[0m[2m not[0m[2m what[0m[2m I[0m[2m initially[0m[2m thought[0m[2m.[0m[2m Let[0m[2m me[0m[2m trace[0m[2m through[0m[2m more[0m[2m carefully[0m[2m.
+     
+[0m[2mWhen[0m[2m as[0m[2myn[0m[2mcio[0m[2m.g[0m[2mather[0m[2m runs[0m[2m [0m[2m5[0m[2m workers[0m[2m concurrently[0m[2m:
+[0m[2m-[0m[2m All[0m[2m [0m[2m5[0m[2m workers[0m[2m call[0m[2m `[0m[2mprocess[0m[2m_j[0m[2mob[0m[2m`[0m[2m which[0m[2m immediately[0m[2m calls[0m[2m `[0m[2mde[0m[2mqueue[0m[2m`.
+[0m[2m-[0m[2m The[0m[2m event[0m[2m loop[0m[2m runs[0m[2m one[0m[2m at[0m[2m a[0m[2m time[0m[2m,[0m[2m switching[0m[2m at[0m[2m `[0m[2mawait[0m[2m`[0m[2m points[0m[2m.
+     
+[0m[2mWorker[0m[2m A[0m[2m:[0m[2m enters[0m[2m de[0m[2mqueue[0m[2m,[0m[2m loop[0m[2m starts[0m[2m,[0m[2m checks[0m[2m job[0m[2m [0m[2m1[0m[2m →[0m[2m pending[0m[2m,[0m[2m sets[0m[2m to[0m[2m processing[0m[2m,[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)`[0m[2m →[0m[2m Y[0m[2mIELD[0m[2m
+[0m[2mWorker[0m[2m B[0m[2m:[0m[2m enters[0m[2m de[0m[2mqueue[0m[2m,[0m[2m B[0m[2m's[0m[2m OWN[0m[2m fresh[0m[2m iterator[0m[2m starts[0m[2m at[0m[2m job[0m[2m [0m[2m1[0m[2m,[0m[2m checks[0m[2m job[0m[2m [0m[2m1[0m[2m →[0m[2m processing[0m[2m,[0m[2m sk[0m[2mips[0m[2m,[0m[2m job[0m[2m [0m[2m2[0m[2m →[0m[2m pending[0m[2m,[0m[2m sets[0m[2m to[0m[2m processing[0m[2m,[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)`[0m[2m →[0m[2m Y[0m[2mIELD[0m[2m
+[0m[2mWorker[0m[2m C[0m[2m:[0m[2m job[0m[2m [0m[2m1[0m[2m →[0m[2m processing[0m[2m,[0m[2m job[0m[2m [0m[2m2[0m[2m →[0m[2m processing[0m[2m,[0m[2m job[0m[2m [0m[2m3[0m[2m →[0m[2m pending[0m[2m,[0m[2m sets[0m[2m to[0m[2m processing[0m[2m,[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)`[0m[2m →[0m[2m Y[0m[2mIELD[0m[2m
+[0m[2m...
+     
+[0m[2mThis[0m[2m seems[0m[2m fine[0m[2m.[0m[2m Each[0m[2m worker[0m[2m gets[0m[2m a[0m[2m unique[0m[2m job[0m[2m.
+     
+[0m[2mWA[0m[2mIT[0m[2m.[0m[2m I[0m[2m think[0m[2m I[0m[2m missed[0m[2m something[0m[2m.[0m[2m Let[0m[2m me[0m[2m re[0m[2m-read[0m[2m worker[0m[2m.py[0m[2m:
+     
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2masync[0m[2m def[0m[2m process[0m[2m_j[0m[2mob[0m[2m(queue[0m[2m,[0m[2m worker[0m[2m_id[0m[2m:[0m[2m int[0m[2m)[0m[2m ->[0m[2m None[0m[2m:
+[0m[2m   [0m[2m while[0m[2m True[0m[2m:
+[0m[2m       [0m[2m job[0m[2m =[0m[2m await[0m[2m queue[0m[2m.de[0m[2mqueue[0m[2m()
+[0m[2m       [0m[2m if[0m[2m job[0m[2m is[0m[2m None[0m[2m:
+[0m[2m           [0m[2m return[0m[2m
+[0m[2m       [0m[2m ...
+[0m[2m```
+     
+[0m[2mAfter[0m[2m processing[0m[2m a[0m[2m job[0m[2m ([0m[2msuccess[0m[2m or[0m[2m failure[0m[2m),[0m[2m the[0m[2m worker[0m[2m loops[0m[2m back[0m[2m to[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()[0m[2m`.[0m[2m After[0m[2m a[0m[2m job[0m[2m fails[0m[2m and[0m[2m is[0m[2m re[0m[2m-[0m[2mque[0m[2mued[0m[2m ([0m[2mstatus[0m[2m back[0m[2m to[0m[2m "[0m[2mpending[0m[2m"),[0m[2m it[0m[2m becomes[0m[2m eligible[0m[2m again[0m[2m.
+     
+[0m[2mLet[0m[2m me[0m[2m trace[0m[2m what[0m[2m happens[0m[2m with[0m[2m a[0m[2m failing[0m[2m job[0m[2m that[0m[2m gets[0m[2m ret[0m[2mried[0m[2m:
+     
+[0m[2m1[0m[2m.[0m[2m Worker[0m[2m picks[0m[2m up[0m[2m bad[0m[2m_task[0m[2m ([0m[2mid[0m[2m=[0m[2m11[0m[2m),[0m[2m it[0m[2m has[0m[2m `[0m[2mraise[0m[2m_error[0m[2m=True[0m[2m`
+[0m[2m2[0m[2m.[0m[2m Worker[0m[2m processes[0m[2m,[0m[2m gets[0m[2m exception[0m[2m
+[0m[2m3[0m[2m.[0m[2m Worker[0m[2m calls[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m([0m[2m11[0m[2m,[0m[2m error[0m[2m_msg[0m[2m)`[0m[2m →[0m[2m ret[0m[2mries[0m[2m <[0m[2m max[0m[2m_[0m[2mret[0m[2mries[0m[2m,[0m[2m so[0m[2m status[0m[2m =[0m[2m "[0m[2mpending[0m[2m"
+[0m[2m4[0m[2m.[0m[2m Worker[0m[2m loops[0m[2m back[0m[2m,[0m[2m calls[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m again[0m[2m
+[0m[2m5[0m[2m.[0m[2m Another[0m[2m worker[0m[2m also[0m[2m calls[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m simultaneously[0m[2m
+     
+[0m[2mBoth[0m[2m workers[0m[2m could[0m[2m see[0m[2m job[0m[2m [0m[2m11[0m[2m as[0m[2m "[0m[2mpending[0m[2m"[0m[2m and[0m[2m both[0m[2m pick[0m[2m it[0m[2m up[0m[2m.[0m[2m But[0m[2m as[0m[2m I[0m[2m analyzed[0m[2m above[0m[2m,[0m[2m the[0m[2m synchronous[0m[2m check[0m[2m-and[0m[2m-set[0m[2m prevents[0m[2m this[0m[2m...[0m[2m UN[0m[2mLESS[0m[2m there[0m[2m's[0m[2m a[0m[2m race[0m[2m in[0m[2m the[0m[2m ordering[0m[2m.
+     
+[0m[2mActually[0m[2m,[0m[2m I[0m[2m think[0m[2m the[0m[2m main[0m[2m issue[0m[2m is[0m[2m different[0m[2m.[0m[2m Let[0m[2m me[0m[2m look[0m[2m at[0m[2m the[0m[2m worker[0m[2m more[0m[2m carefully[0m[2m.
+     
+[0m[2mWhen[0m[2m a[0m[2m worker[0m[2m catches[0m[2m an[0m[2m exception[0m[2m for[0m[2m a[0m[2m job[0m[2m,[0m[2m it[0m[2m calls[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m()[0m[2m`,[0m[2m which[0m[2m may[0m[2m re[0m[2m-[0m[2mqueue[0m[2m the[0m[2m job[0m[2m ([0m[2mset[0m[2m status[0m[2m back[0m[2m to[0m[2m "[0m[2mpending[0m[2m").[0m[2m Then[0m[2m the[0m[2m worker[0m[2m loops[0m[2m back[0m[2m to[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()[0m[2m`.[0m[2m Other[0m[2m workers[0m[2m that[0m[2m are[0m[2m currently[0m[2m waiting[0m[2m in[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m will[0m[2m also[0m[2m iterate[0m[2m through[0m[2m jobs[0m[2m.
+     
+[0m[2mHere[0m[2m's[0m[2m a[0m[2m potential[0m[2m duplicate[0m[2m processing[0m[2m scenario[0m[2m:
+     
+[0m[2m1[0m[2m.[0m[2m Worker[0m[2m A[0m[2m picks[0m[2m up[0m[2m job[0m[2m [0m[2m5[0m[2m.[0m[2m Processes[0m[2m it[0m[2m successfully[0m[2m.[0m[2m Calls[0m[2m `[0m[2mqueue[0m[2m.com[0m[2mplete[0m[2m([0m[2m5[0m[2m,[0m[2m ...[0m[2m)`[0m[2m.
+[0m[2m2[0m[2m.[0m[2m Worker[0m[2m A[0m[2m loops[0m[2m back[0m[2m to[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()[0m[2m`.[0m[2m Finds[0m[2m no[0m[2m more[0m[2m pending[0m[2m jobs[0m[2m.[0m[2m Returns[0m[2m None[0m[2m.
+[0m[2m3[0m[2m.[0m[2m Worker[0m[2m A[0m[2m's[0m[2m `[0m[2mprocess[0m[2m_j[0m[2mob[0m[2m`[0m[2m returns[0m[2m because[0m[2m `[0m[2mjob[0m[2m is[0m[2m None[0m[2m`.
+     
+[0m[2mWait[0m[2m,[0m[2m after[0m[2m job[0m[2m [0m[2m5[0m[2m is[0m[2m "[0m[2mdone[0m[2m",[0m[2m no[0m[2m one[0m[2m will[0m[2m pick[0m[2m it[0m[2m up[0m[2m again[0m[2m.[0m[2m So[0m[2m that[0m[2m's[0m[2m fine[0m[2m.
+     
+[0m[2mLet[0m[2m me[0m[2m think[0m[2m about[0m[2m the[0m[2m ret[0m[2mry[0m[2m case[0m[2m:
+     
+[0m[2m1[0m[2m.[0m[2m Worker[0m[2m A[0m[2m picks[0m[2m up[0m[2m job[0m[2m [0m[2m11[0m[2m ([0m[2mbad[0m[2m).[0m[2m Processes[0m[2m,[0m[2m exception[0m[2m.[0m[2m Calls[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m([0m[2m11[0m[2m)`[0m[2m →[0m[2m ret[0m[2mries[0m[2m=[0m[2m0[0m[2m <[0m[2m max[0m[2m_[0m[2mret[0m[2mries[0m[2m=[0m[2m2[0m[2m →[0m[2m status[0m[2m="[0m[2mpending[0m[2m".[0m[2m 
+[0m[2m2[0m[2m.[0m[2m Worker[0m[2m A[0m[2m loops[0m[2m back[0m[2m to[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m.
+[0m[2m3[0m[2m.[0m[2m Worker[0m[2m B[0m[2m is[0m[2m also[0m[2m in[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m.
+[0m[2m4[0m[2m.[0m[2m Both[0m[2m see[0m[2m job[0m[2m [0m[2m11[0m[2m as[0m[2m "[0m[2mpending[0m[2m".
+     
+[0m[2mAs[0m[2m I[0m[2m analyzed[0m[2m,[0m[2m the[0m[2m sequence[0m[2m within[0m[2m a[0m[2m single[0m[2m event[0m[2m loop[0m[2m thread[0m[2m is[0m[2m:
+[0m[2m-[0m[2m Worker[0m[2m A[0m[2m is[0m[2m running[0m[2m ([0m[2mres[0m[2mumed[0m[2m from[0m[2m the[0m[2m await[0m[2m in[0m[2m de[0m[2mqueue[0m[2m after[0m[2m the[0m[2m sleep[0m[2m)
+[0m[2m-[0m[2m Worker[0m[2m A[0m[2m returns[0m[2m from[0m[2m de[0m[2mqueue[0m[2m with[0m[2m some[0m[2m other[0m[2m job[0m[2m...[0m[2m wait[0m[2m,[0m[2m no[0m[2m,[0m[2m Worker[0m[2m A[0m[2m is[0m[2m now[0m[2m at[0m[2m the[0m[2m top[0m[2m of[0m[2m the[0m[2m loop[0m[2m,[0m[2m calling[0m[2m de[0m[2mqueue[0m[2m.
+     
+[0m[2mOK[0m[2m let[0m[2m me[0m[2m think[0m[2m differently[0m[2m.[0m[2m Let[0m[2m me[0m[2m look[0m[2m at[0m[2m the[0m[2m actual[0m[2m `[0m[2mawait[0m[2m`[0m[2m points[0m[2m in[0m[2m the[0m[2m call[0m[2m chain[0m[2m:
+     
+[0m[2mIn[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m:[0m[2m the[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)`[0m[2m is[0m[2m the[0m[2m only[0m[2m yield[0m[2m point[0m[2m.[0m[2m The[0m[2m check[0m[2m-and[0m[2m-set[0m[2m before[0m[2m it[0m[2m is[0m[2m synchronous[0m[2m.[0m[2m So[0m[2m two[0m[2m workers[0m[2m can[0m[2m't[0m[2m both[0m[2m pass[0m[2m the[0m[2m check[0m[2m for[0m[2m the[0m[2m same[0m[2m job[0m[2m in[0m[2m a[0m[2m single[0m[2m iteration[0m[2m.
+     
+[0m[2mBUT[0m[2m -[0m[2m after[0m[2m a[0m[2m job[0m[2m fails[0m[2m and[0m[2m is[0m[2m re[0m[2m-[0m[2mque[0m[2mued[0m[2m,[0m[2m the[0m[2m next[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m call[0m[2m will[0m[2m find[0m[2m it[0m[2m again[0m[2m.[0m[2m The[0m[2m same[0m[2m worker[0m[2m ([0m[2mor[0m[2m a[0m[2m different[0m[2m worker[0m[2m)[0m[2m will[0m[2m process[0m[2m it[0m[2m again[0m[2m.[0m[2m That[0m[2m's[0m[2m the[0m[2m ret[0m[2mry[0m[2m behavior[0m[2m,[0m[2m and[0m[2m it[0m[2m's[0m[2m intentional[0m[2m.
+     
+[0m[2mSo[0m[2m where[0m[2m does[0m[2m duplicate[0m[2m processing[0m[2m come[0m[2m from[0m[2m?
+     
+[0m[2mOH[0m[2m WA[0m[2mIT[0m[2m.[0m[2m I[0m[2m think[0m[2m I[0m[2m need[0m[2m to[0m[2m reconsider[0m[2m.[0m[2m Let[0m[2m me[0m[2m trace[0m[2m the[0m[2m actual[0m[2m execution[0m[2m of[0m[2m `[0m[2mde[0m[2mqueue[0m[2m`[0m[2m more[0m[2m carefully[0m[2m.
+     
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2masync[0m[2m def[0m[2m de[0m[2mqueue[0m[2m(self[0m[2m)[0m[2m ->[0m[2m Optional[0m[2m[[0m[2mDict[0m[2m]:
+[0m[2m   [0m[2m for[0m[2m job[0m[2m in[0m[2m self[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m():
+[0m[2m       [0m[2m if[0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m":
+[0m[2m           [0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mprocessing[0m[2m"
+[0m[2m           [0m[2m await[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)
+[0m[2m           [0m[2m return[0m[2m job[0m[2m
+[0m[2m   [0m[2m return[0m[2m None[0m[2m
+[0m[2m```
+     
+[0m[2mThe[0m[2m loop[0m[2m with[0m[2m `[0m[2mfor[0m[2m job[0m[2m in[0m[2m self[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m()`[0m[2m —[0m[2m this[0m[2m iter[0m[2mates[0m[2m over[0m[2m a[0m[2m dynamic[0m[2m view[0m[2m.[0m[2m But[0m[2m here[0m[2m's[0m[2m the[0m[2m key[0m[2m:[0m[2m the[0m[2m `[0m[2mfor[0m[2m`[0m[2m loop[0m[2m is[0m[2m just[0m[2m regular[0m[2m Python[0m[2m iteration[0m[2m.[0m[2m There[0m[2m is[0m[2m NO[0m[2m `[0m[2mawait[0m[2m`[0m[2m between[0m[2m the[0m[2m `[0m[2mfor[0m[2m`[0m[2m keyword[0m[2m and[0m[2m the[0m[2m first[0m[2m iteration[0m[2m.[0m[2m So[0m[2m when[0m[2m Worker[0m[2m A[0m[2m starts[0m[2m de[0m[2mqueue[0m[2m,[0m[2m it[0m[2m runs[0m[2m the[0m[2m entire[0m[2m loop[0m[2m body[0m[2m ([0m[2mcheck[0m[2m,[0m[2m set[0m[2m,[0m[2m sleep[0m[2m)[0m[2m for[0m[2m job[0m[2m [0m[2m1[0m[2m before[0m[2m yielding[0m[2m.[0m[2m Worker[0m[2m B[0m[2m starts[0m[2m later[0m[2m,[0m[2m has[0m[2m its[0m[2m own[0m[2m iterator[0m[2m for[0m[2m `[0m[2mself[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m()[0m[2m`,[0m[2m and[0m[2m will[0m[2m start[0m[2m from[0m[2m the[0m[2m beginning[0m[2m.[0m[2m It[0m[2m'll[0m[2m see[0m[2m job[0m[2m [0m[2m1[0m[2m is[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m and[0m[2m skip[0m[2m.
+     
+[0m[2mI[0m[2m'm[0m[2m now[0m[2m questioning[0m[2m whether[0m[2m there[0m[2m IS[0m[2m actually[0m[2m a[0m[2m race[0m[2m condition[0m[2m in[0m[2m `[0m[2mde[0m[2mqueue[0m[2m`[0m[2m for[0m[2m duplicate[0m[2m processing[0m[2m.[0m[2m Let[0m[2m me[0m[2m look[0m[2m at[0m[2m this[0m[2m from[0m[2m a[0m[2m different[0m[2m angle[0m[2m.
+     
+[0m[2mWait[0m[2m...[0m[2m What[0m[2m if[0m[2m the[0m[2m issue[0m[2m is[0m[2m NOT[0m[2m in[0m[2m `[0m[2mde[0m[2mqueue[0m[2m`[0m[2m but[0m[2m in[0m[2m how[0m[2m `[0m[2mprocess[0m[2m_j[0m[2mob[0m[2m`[0m[2m handles[0m[2m exceptions[0m[2m?
+     
+[0m[2mLook[0m[2m at[0m[2m process[0m[2m_j[0m[2mob[0m[2m again[0m[2m:
+     
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2masync[0m[2m def[0m[2m process[0m[2m_j[0m[2mob[0m[2m(queue[0m[2m,[0m[2m worker[0m[2m_id[0m[2m:[0m[2m int[0m[2m)[0m[2m ->[0m[2m None[0m[2m:
+[0m[2m   [0m[2m while[0m[2m True[0m[2m:
+[0m[2m       [0m[2m job[0m[2m =[0m[2m await[0m[2m queue[0m[2m.de[0m[2mqueue[0m[2m()
+[0m[2m       [0m[2m if[0m[2m job[0m[2m is[0m[2m None[0m[2m:
+[0m[2m           [0m[2m return[0m[2m
+     
+[0m[2m       [0m[2m print[0m[2m(f[0m[2m"[[0m[2mWorker[0m[2m {[0m[2mworker[0m[2m_id[0m[2m}][0m[2m picked[0m[2m up[0m[2m job[0m[2m {[0m[2mjob[0m[2m['[0m[2mid[0m[2m'][0m[2m}")
+[0m[2m       [0m[2m try[0m[2m:
+[0m[2m           [0m[2m await[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m05[0m[2m)
+     
+[0m[2m           [0m[2m if[0m[2m job[0m[2m["[0m[2mpayload[0m[2m"].[0m[2mget[0m[2m("[0m[2mraise[0m[2m_error[0m[2m"):
+[0m[2m               [0m[2m raise[0m[2m Runtime[0m[2mError[0m[2m(f[0m[2m"[0m[2mprocessing[0m[2m error[0m[2m for[0m[2m job[0m[2m {[0m[2mjob[0m[2m['[0m[2mid[0m[2m'][0m[2m}[0m[2m")
+     
+[0m[2m           [0m[2m queue[0m[2m.com[0m[2mplete[0m[2m(j[0m[2mob[0m[2m["[0m[2mid[0m[2m"],[0m[2m f[0m[2m"[0m[2mprocessed[0m[2m by[0m[2m worker[0m[2m {[0m[2mworker[0m[2m_id[0m[2m}")
+[0m[2m           [0m[2m print[0m[2m(f[0m[2m"[[0m[2mWorker[0m[2m {[0m[2mworker[0m[2m_id[0m[2m}][0m[2m finished[0m[2m job[0m[2m {[0m[2mjob[0m[2m['[0m[2mid[0m[2m'][0m[2m}")
+[0m[2m       [0m[2m except[0m[2m Exception[0m[2m as[0m[2m e[0m[2m:
+[0m[2m           [0m[2m print[0m[2m(f[0m[2m"[[0m[2mWorker[0m[2m {[0m[2mworker[0m[2m_id[0m[2m}][0m[2m job[0m[2m {[0m[2mjob[0m[2m['[0m[2mid[0m[2m'][0m[2m}[0m[2m failed[0m[2m:[0m[2m {[0m[2me[0m[2m}")
+[0m[2m           [0m[2m queue[0m[2m.f[0m[2mail[0m[2m(j[0m[2mob[0m[2m["[0m[2mid[0m[2m"],[0m[2m str[0m[2m(e[0m[2m))
+[0m[2m```
+     
+[0m[2mAfter[0m[2m failing[0m[2m,[0m[2m the[0m[2m worker[0m[2m loops[0m[2m back[0m[2m and[0m[2m calls[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m again[0m[2m.[0m[2m Now[0m[2m,[0m[2m the[0m[2m job[0m[2m has[0m[2m been[0m[2m re[0m[2m-[0m[2mque[0m[2mued[0m[2m ([0m[2mstatus[0m[2m =[0m[2m "[0m[2mpending[0m[2m").[0m[2m The[0m[2m same[0m[2m worker[0m[2m will[0m[2m get[0m[2m a[0m[2m new[0m[2m job[0m[2m from[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m.
+     
+[0m[2mScenario[0m[2m:
+[0m[2m1[0m[2m.[0m[2m Worker[0m[2m A[0m[2m picks[0m[2m up[0m[2m job[0m[2m [0m[2m11[0m[2m ([0m[2mbad[0m[2m).[0m[2m F[0m[2mails[0m[2m.[0m[2m queue[0m[2m.f[0m[2mail[0m[2m()[0m[2m sets[0m[2m status[0m[2m back[0m[2m to[0m[2m "[0m[2mpending[0m[2m".
+[0m[2m2[0m[2m.[0m[2m Worker[0m[2m A[0m[2m calls[0m[2m de[0m[2mqueue[0m[2m()[0m[2m —[0m[2m gets[0m[2m job[0m[2m [0m[2m11[0m[2m again[0m[2m ([0m[2mit[0m[2m's[0m[2m the[0m[2m first[0m[2m pending[0m[2m job[0m[2m).
+[0m[2m3[0m[2m.[0m[2m Worker[0m[2m A[0m[2m processes[0m[2m job[0m[2m [0m[2m11[0m[2m again[0m[2m.[0m[2m It[0m[2m fails[0m[2m again[0m[2m.[0m[2m queue[0m[2m.f[0m[2mail[0m[2m()[0m[2m increments[0m[2m ret[0m[2mries[0m[2m to[0m[2m [0m[2m2[0m[2m ([0m[2mstill[0m[2m <[0m[2m max[0m[2m_[0m[2mret[0m[2mries[0m[2m=[0m[2m2[0m[2m...[0m[2m wait[0m[2m,[0m[2m max[0m[2m_[0m[2mret[0m[2mries[0m[2m=[0m[2m2[0m[2m).
+     
+[0m[2mH[0m[2mmm[0m[2m,[0m[2m let[0m[2m me[0m[2m check[0m[2m:[0m[2m `[0m[2mmax[0m[2m_[0m[2mret[0m[2mries[0m[2m=[0m[2m2[0m[2m`.[0m[2m In[0m[2m `[0m[2mfail[0m[2m`[0m[2m:
+[0m[2m-[0m[2m First[0m[2m failure[0m[2m:[0m[2m ret[0m[2mries[0m[2m=[0m[2m0[0m[2m <[0m[2m [0m[2m2[0m[2m →[0m[2m ret[0m[2mries[0m[2m=[0m[2m1[0m[2m,[0m[2m status[0m[2m="[0m[2mpending[0m[2m"[0m[2m →[0m[2m deque[0m[2mued[0m[2m again[0m[2m
+[0m[2m-[0m[2m Second[0m[2m failure[0m[2m:[0m[2m ret[0m[2mries[0m[2m=[0m[2m1[0m[2m <[0m[2m [0m[2m2[0m[2m →[0m[2m ret[0m[2mries[0m[2m=[0m[2m2[0m[2m,[0m[2m status[0m[2m="[0m[2mpending[0m[2m"[0m[2m →[0m[2m deque[0m[2mued[0m[2m again[0m[2m
+[0m[2m-[0m[2m Third[0m[2m failure[0m[2m:[0m[2m ret[0m[2mries[0m[2m=[0m[2m2[0m[2m,[0m[2m NOT[0m[2m <[0m[2m [0m[2m2[0m[2m →[0m[2m status[0m[2m="[0m[2mfailed[0m[2m"
+     
+[0m[2mWait[0m[2m,[0m[2m so[0m[2m with[0m[2m max[0m[2m_[0m[2mret[0m[2mries[0m[2m=[0m[2m2[0m[2m,[0m[2m the[0m[2m job[0m[2m will[0m[2m actually[0m[2m be[0m[2m processed[0m[2m [0m[2m3[0m[2m times[0m[2m before[0m[2m being[0m[2m marked[0m[2m as[0m[2m "[0m[2mfailed[0m[2m"[0m[2m ([0m[2minitial[0m[2m +[0m[2m [0m[2m2[0m[2m ret[0m[2mries[0m[2m).[0m[2m But[0m[2m the[0m[2m test[0m[2m expects[0m[2m [0m[2m2[0m[2m failed[0m[2m jobs[0m[2m at[0m[2m the[0m[2m end[0m[2m.[0m[2m With[0m[2m [0m[2m2[0m[2m bad[0m[2m tasks[0m[2m,[0m[2m each[0m[2m gets[0m[2m attempted[0m[2m [0m[2m3[0m[2m times[0m[2m...[0m[2m h[0m[2mmm[0m[2m,[0m[2m but[0m[2m the[0m[2m test[0m[2m just[0m[2m checks[0m[2m final[0m[2m status[0m[2m,[0m[2m not[0m[2m number[0m[2m of[0m[2m processing[0m[2m runs[0m[2m.
+     
+[0m[2mOK[0m[2m,[0m[2m let[0m[2m me[0m[2m focus[0m[2m on[0m[2m what[0m[2m actually[0m[2m causes[0m[2m the[0m[2m bugs[0m[2m described[0m[2m.
+     
+[0m[2m**[0m[2mBug[0m[2m [0m[2m1[0m[2m:[0m[2m Du[0m[2mplicate[0m[2m processing[0m[2m**
+     
+[0m[2mLet[0m[2m me[0m[2m re[0m[2m-read[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m one[0m[2m more[0m[2m time[0m[2m:
+     
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2masync[0m[2m def[0m[2m de[0m[2mqueue[0m[2m(self[0m[2m)[0m[2m ->[0m[2m Optional[0m[2m[[0m[2mDict[0m[2m]:
+[0m[2m   [0m[2m for[0m[2m job[0m[2m in[0m[2m self[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m():
+[0m[2m       [0m[2m if[0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m":
+[0m[2m           [0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mprocessing[0m[2m"
+[0m[2m           [0m[2m await[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)
+[0m[2m           [0m[2m return[0m[2m job[0m[2m
+[0m[2m   [0m[2m return[0m[2m None[0m[2m
+[0m[2m```
+     
+[0m[2mI[0m[2m realize[0m[2m the[0m[2m race[0m[2m condition[0m[2m:[0m[2m Two[0m[2m concurrent[0m[2m calls[0m[2m to[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m both[0m[2m iterate[0m[2m over[0m[2m `[0m[2mself[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m()[0m[2m`.[0m[2m The[0m[2m iteration[0m[2m creates[0m[2m a[0m[2m new[0m[2m iterator[0m[2m each[0m[2m time[0m[2m.[0m[2m Both[0m[2m iter[0m[2mators[0m[2m start[0m[2m at[0m[2m position[0m[2m [0m[2m0[0m[2m.[0m[2m 
+     
+[0m[2mIn[0m[2m a[0m[2m single[0m[2m-th[0m[2mread[0m[2med[0m[2m event[0m[2m loop[0m[2m,[0m[2m the[0m[2m switch[0m[2m only[0m[2m happens[0m[2m at[0m[2m `[0m[2mawait[0m[2m`[0m[2m points[0m[2m.[0m[2m So[0m[2m:
+     
+[0m[2m1[0m[2m.[0m[2m Worker[0m[2m A[0m[2m:[0m[2m starts[0m[2m de[0m[2mqueue[0m[2m(),[0m[2m executes[0m[2m `[0m[2mfor[0m[2m job[0m[2m in[0m[2m self[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m()[0m[2m`,[0m[2m gets[0m[2m first[0m[2m job[0m[2m.[0m[2m Checks[0m[2m `[0m[2mjob[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m"[0m[2m`[0m[2m →[0m[2m True[0m[2m.[0m[2m Sets[0m[2m to[0m[2m "[0m[2mprocessing[0m[2m".[0m[2m Hits[0m[2m `[0m[2mawait[0m[2m`.[0m[2m Y[0m[2mIEL[0m[2mDS[0m[2m.
+[0m[2m2[0m[2m.[0m[2m Worker[0m[2m B[0m[2m:[0m[2m starts[0m[2m de[0m[2mqueue[0m[2m(),[0m[2m executes[0m[2m `[0m[2mfor[0m[2m job[0m[2m in[0m[2m self[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m()[0m[2m`,[0m[2m gets[0m[2m first[0m[2m job[0m[2m.[0m[2m Checks[0m[2m `[0m[2mjob[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m`[0m[2m →[0m[2m False[0m[2m.[0m[2m Contin[0m[2mues[0m[2m loop[0m[2m.[0m[2m Gets[0m[2m next[0m[2m job[0m[2m.[0m[2m Checks[0m[2m pending[0m[2m →[0m[2m True[0m[2m.[0m[2m Sets[0m[2m to[0m[2m "[0m[2mprocessing[0m[2m".[0m[2m Hits[0m[2m `[0m[2mawait[0m[2m`.[0m[2m Y[0m[2mIEL[0m[2mDS[0m[2m.
+     
+[0m[2mThis[0m[2m is[0m[2m correct[0m[2m -[0m[2m no[0m[2m duplicate[0m[2m.[0m[2m The[0m[2m single[0m[2m-th[0m[2mread[0m[2med[0m[2m event[0m[2m loop[0m[2m ensures[0m[2m that[0m[2m between[0m[2m the[0m[2m check[0m[2m and[0m[2m set[0m[2m ([0m[2mno[0m[2m await[0m[2m between[0m[2m them[0m[2m),[0m[2m no[0m[2m other[0m[2m cor[0m[2moutine[0m[2m runs[0m[2m.
+     
+[0m[2mSo[0m[2m maybe[0m[2m the[0m[2m duplicate[0m[2m processing[0m[2m isn[0m[2m't[0m[2m from[0m[2m the[0m[2m de[0m[2mqueue[0m[2m race[0m[2m.[0m[2m Let[0m[2m me[0m[2m think[0m[2m about[0m[2m what[0m[2m else[0m[2m could[0m[2m cause[0m[2m it[0m[2m.
+     
+[0m[2mWhat[0m[2m if[0m[2m the[0m[2m issue[0m[2m is[0m[2m in[0m[2m the[0m[2m `[0m[2mprocess[0m[2m_j[0m[2mob[0m[2m`[0m[2m exception[0m[2m handling[0m[2m?[0m[2m Between[0m[2m the[0m[2m failure[0m[2m and[0m[2m the[0m[2m `[0m[2mqueue[0m[2m.com[0m[2mplete[0m[2m()[0m[2m`,[0m[2m something[0m[2m could[0m[2m go[0m[2m wrong[0m[2m?
+     
+[0m[2mActually[0m[2m,[0m[2m wait[0m[2m.[0m[2m Let[0m[2m me[0m[2m look[0m[2m at[0m[2m `[0m[2mprocess[0m[2m_j[0m[2mob[0m[2m`[0m[2m again[0m[2m very[0m[2m carefully[0m[2m:
+     
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2masync[0m[2m def[0m[2m process[0m[2m_j[0m[2mob[0m[2m(queue[0m[2m,[0m[2m worker[0m[2m_id[0m[2m:[0m[2m int[0m[2m)[0m[2m ->[0m[2m None[0m[2m:
+[0m[2m   [0m[2m while[0m[2m True[0m[2m:
+[0m[2m       [0m[2m job[0m[2m =[0m[2m await[0m[2m queue[0m[2m.de[0m[2mqueue[0m[2m()
+[0m[2m       [0m[2m if[0m[2m job[0m[2m is[0m[2m None[0m[2m:
+[0m[2m           [0m[2m return[0m[2m
+     
+[0m[2m       [0m[2m print[0m[2m(f[0m[2m"[[0m[2mWorker[0m[2m {[0m[2mworker[0m[2m_id[0m[2m}][0m[2m picked[0m[2m up[0m[2m job[0m[2m {[0m[2mjob[0m[2m['[0m[2mid[0m[2m'][0m[2m}")
+[0m[2m       [0m[2m try[0m[2m:
+[0m[2m           [0m[2m await[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m05[0m[2m)
+     
+[0m[2m           [0m[2m if[0m[2m job[0m[2m["[0m[2mpayload[0m[2m"].[0m[2mget[0m[2m("[0m[2mraise[0m[2m_error[0m[2m"):
+[0m[2m               [0m[2m raise[0m[2m Runtime[0m[2mError[0m[2m(f[0m[2m"[0m[2mprocessing[0m[2m error[0m[2m for[0m[2m job[0m[2m {[0m[2mjob[0m[2m['[0m[2mid[0m[2m'][0m[2m}[0m[2m")
+     
+[0m[2m           [0m[2m queue[0m[2m.com[0m[2mplete[0m[2m(j[0m[2mob[0m[2m["[0m[2mid[0m[2m"],[0m[2m f[0m[2m"[0m[2mprocessed[0m[2m by[0m[2m worker[0m[2m {[0m[2mworker[0m[2m_id[0m[2m}")
+[0m[2m           [0m[2m print[0m[2m(f[0m[2m"[[0m[2mWorker[0m[2m {[0m[2mworker[0m[2m_id[0m[2m}][0m[2m finished[0m[2m job[0m[2m {[0m[2mjob[0m[2m['[0m[2mid[0m[2m'][0m[2m}")
+[0m[2m       [0m[2m except[0m[2m Exception[0m[2m as[0m[2m e[0m[2m:
+[0m[2m           [0m[2m print[0m[2m(f[0m[2m"[[0m[2mWorker[0m[2m {[0m[2mworker[0m[2m_id[0m[2m}][0m[2m job[0m[2m {[0m[2mjob[0m[2m['[0m[2mid[0m[2m'][0m[2m}[0m[2m failed[0m[2m:[0m[2m {[0m[2me[0m[2m}")
+[0m[2m           [0m[2m queue[0m[2m.f[0m[2mail[0m[2m(j[0m[2mob[0m[2m["[0m[2mid[0m[2m"],[0m[2m str[0m[2m(e[0m[2m))
+[0m[2m```
+     
+[0m[2mThe[0m[2m `[0m[2mtry[0m[2m/[0m[2mexcept[0m[2m`[0m[2m catches[0m[2m ALL[0m[2m exceptions[0m[2m,[0m[2m including[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.C[0m[2manc[0m[2melled[0m[2mError[0m[2m`.[0m[2m If[0m[2m the[0m[2m worker[0m[2m task[0m[2m is[0m[2m cancelled[0m[2m ([0m[2me[0m[2m.g[0m[2m.,[0m[2m by[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.g[0m[2mather[0m[2m`[0m[2m canc[0m[2melling[0m[2m all[0m[2m tasks[0m[2m when[0m[2m one[0m[2m raises[0m[2m an[0m[2m exception[0m[2m...[0m[2m but[0m[2m actually[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.g[0m[2mather[0m[2m`[0m[2m has[0m[2m `[0m[2mreturn[0m[2m_ex[0m[2mceptions[0m[2m=False[0m[2m`[0m[2m by[0m[2m default[0m[2m,[0m[2m so[0m[2m the[0m[2m first[0m[2m exception[0m[2m causes[0m[2m all[0m[2m tasks[0m[2m to[0m[2m be[0m[2m cancelled[0m[2m).
+     
+[0m[2mWait[0m[2m,[0m[2m `[0m[2mreturn[0m[2m_ex[0m[2mceptions[0m[2m=False[0m[2m`[0m[2m is[0m[2m the[0m[2m default[0m[2m for[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.g[0m[2mather[0m[2m`.[0m[2m If[0m[2m one[0m[2m worker[0m[2m raises[0m[2m an[0m[2m exception[0m[2m that[0m[2m's[0m[2m NOT[0m[2m caught[0m[2m ([0m[2mbut[0m[2m `[0m[2mprocess[0m[2m_j[0m[2mob[0m[2m`[0m[2m catches[0m[2m ALL[0m[2m exceptions[0m[2m in[0m[2m the[0m[2m `[0m[2mexcept[0m[2m Exception[0m[2m as[0m[2m e[0m[2m`[0m[2m block[0m[2m...[0m[2m),[0m[2m no[0m[2m,[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.C[0m[2manc[0m[2melled[0m[2mError[0m[2m`[0m[2m inher[0m[2mits[0m[2m from[0m[2m `[0m[2mBase[0m[2mException[0m[2m`,[0m[2m not[0m[2m `[0m[2mException[0m[2m`.[0m[2m So[0m[2m it[0m[2m wouldn[0m[2m't[0m[2m be[0m[2m caught[0m[2m here[0m[2m.
+     
+[0m[2mBut[0m[2m `[0m[2mprocess[0m[2m_j[0m[2mob[0m[2m`[0m[2m doesn[0m[2m't[0m[2m raise[0m[2m any[0m[2m un[0m[2mhand[0m[2mled[0m[2m exceptions[0m[2m because[0m[2m it[0m[2m catches[0m[2m `[0m[2mException[0m[2m`.[0m[2m So[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.g[0m[2mather[0m[2m`[0m[2m won[0m[2m't[0m[2m cancel[0m[2m other[0m[2m tasks[0m[2m.
+     
+[0m[2mH[0m[2mmm[0m[2m.[0m[2m Let[0m[2m me[0m[2m look[0m[2m at[0m[2m this[0m[2m from[0m[2m a[0m[2m different[0m[2m angle[0m[2m.[0m[2m Maybe[0m[2m the[0m[2m duplicate[0m[2m processing[0m[2m is[0m[2m about[0m[2m ret[0m[2mries[0m[2m.[0m[2m With[0m[2m max[0m[2m_[0m[2mret[0m[2mries[0m[2m=[0m[2m2[0m[2m and[0m[2m [0m[2m2[0m[2m bad[0m[2m jobs[0m[2m,[0m[2m each[0m[2m bad[0m[2m job[0m[2m will[0m[2m be[0m[2m ret[0m[2mried[0m[2m up[0m[2m to[0m[2m [0m[2m2[0m[2m extra[0m[2m times[0m[2m.[0m[2m So[0m[2m bad[0m[2m_task[0m[2m_[0m[2m1[0m[2m might[0m[2m get[0m[2m processed[0m[2m [0m[2m3[0m[2m times[0m[2m ([0m[2minitial[0m[2m +[0m[2m [0m[2m2[0m[2m ret[0m[2mries[0m[2m)[0m[2m before[0m[2m hitting[0m[2m "[0m[2mfailed[0m[2m".[0m[2m Each[0m[2m of[0m[2m those[0m[2m [0m[2m3[0m[2m times[0m[2m,[0m[2m "[0m[2mprocessing[0m[2m error[0m[2m"[0m[2m is[0m[2m printed[0m[2m.[0m[2m That[0m[2m's[0m[2m not[0m[2m really[0m[2m "[0m[2mdu[0m[2mplicate[0m[2m processing[0m[2m"[0m[2m though[0m[2m -[0m[2m that[0m[2m's[0m[2m intentional[0m[2m ret[0m[2mries[0m[2m.
+     
+[0m[2mWait[0m[2m,[0m[2m I[0m[2m think[0m[2m I[0m[2m need[0m[2m to[0m[2m look[0m[2m at[0m[2m this[0m[2m differently[0m[2m.[0m[2m Let[0m[2m me[0m[2m just[0m[2m run[0m[2m the[0m[2m simulation[0m[2m first[0m[2m and[0m[2m see[0m[2m what[0m[2m happens[0m[2m.
+     
+[0m[2mActually[0m[2m,[0m[2m here[0m[2m's[0m[2m another[0m[2m thought[0m[2m.[0m[2m Look[0m[2m at[0m[2m the[0m[2m `[0m[2mde[0m[2mqueue[0m[2m`[0m[2m method[0m[2m:
+     
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2masync[0m[2m def[0m[2m de[0m[2mqueue[0m[2m(self[0m[2m)[0m[2m ->[0m[2m Optional[0m[2m[[0m[2mDict[0m[2m]:
+[0m[2m   [0m[2m for[0m[2m job[0m[2m in[0m[2m self[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m():
+[0m[2m       [0m[2m if[0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m":
+[0m[2m           [0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mprocessing[0m[2m"
+[0m[2m           [0m[2m await[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)[0m[2m [0m[2m #[0m[2m <[0m[2m--[0m[2m Y[0m[2mIELD[0m[2m PO[0m[2mINT[0m[2m
+[0m[2m           [0m[2m return[0m[2m job[0m[2m
+[0m[2m   [0m[2m return[0m[2m None[0m[2m
+[0m[2m```
+     
+[0m[2mAfter[0m[2m setting[0m[2m the[0m[2m status[0m[2m to[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m and[0m[2m before[0m[2m returning[0m[2m,[0m[2m there[0m[2m's[0m[2m an[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)[0m[2m`.[0m[2m During[0m[2m this[0m[2m sleep[0m[2m,[0m[2m another[0m[2m worker[0m[2m could[0m[2m call[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()[0m[2m`.[0m[2m But[0m[2m the[0m[2m job[0m[2m is[0m[2m already[0m[2m marked[0m[2m "[0m[2mprocessing[0m[2m",[0m[2m so[0m[2m the[0m[2m other[0m[2m worker[0m[2m will[0m[2m skip[0m[2m it[0m[2m.[0m[2m So[0m[2m this[0m[2m is[0m[2m fine[0m[2m.
+     
+[0m[2mBUT[0m[2m what[0m[2m if[0m[2m the[0m[2m `[0m[2mde[0m[2mqueue[0m[2m`[0m[2m is[0m[2m called[0m[2m WH[0m[2mILE[0m[2m the[0m[2m loop[0m[2m is[0m[2m iter[0m[2mating[0m[2m?[0m[2m Here[0m[2m's[0m[2m a[0m[2m subt[0m[2mler[0m[2m scenario[0m[2m:
+     
+[0m[2m1[0m[2m.[0m[2m Worker[0m[2m A[0m[2m calls[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()[0m[2m`.[0m[2m Starts[0m[2m iter[0m[2mating[0m[2m.[0m[2m Gets[0m[2m to[0m[2m job[0m[2m [0m[2m5[0m[2m ([0m[2mthe[0m[2m last[0m[2m good[0m[2m job[0m[2m).[0m[2m Checks[0m[2m:[0m[2m pending[0m[2m →[0m[2m True[0m[2m.[0m[2m Sets[0m[2m to[0m[2m "[0m[2mprocessing[0m[2m".[0m[2m `[0m[2mawait[0m[2m`.[0m[2m Returns[0m[2m job[0m[2m [0m[2m5[0m[2m.
+[0m[2m2[0m[2m.[0m[2m Worker[0m[2m B[0m[2m calls[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()[0m[2m`.[0m[2m Starts[0m[2m iter[0m[2mating[0m[2m from[0m[2m beginning[0m[2m.[0m[2m Job[0m[2m [0m[2m1[0m[2m-[0m[2m4[0m[2m:[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m or[0m[2m "[0m[2mdone[0m[2m".[0m[2m Job[0m[2m [0m[2m5[0m[2m:[0m[2m "[0m[2mprocessing[0m[2m".[0m[2m No[0m[2m more[0m[2m pending[0m[2m jobs[0m[2m.[0m[2m Returns[0m[2m None[0m[2m.[0m[2m Worker[0m[2m B[0m[2m exits[0m[2m.
+[0m[2m3[0m[2m.[0m[2m Worker[0m[2m A[0m[2m processes[0m[2m job[0m[2m [0m[2m5[0m[2m,[0m[2m completes[0m[2m it[0m[2m.
+[0m[2m4[0m[2m.[0m[2m Now[0m[2m there[0m[2m are[0m[2m no[0m[2m more[0m[2m workers[0m[2m?[0m[2m No[0m[2m,[0m[2m other[0m[2m workers[0m[2m are[0m[2m still[0m[2m processing[0m[2m.
+     
+[0m[2mActually[0m[2m,[0m[2m with[0m[2m [0m[2m5[0m[2m workers[0m[2m and[0m[2m [0m[2m12[0m[2m jobs[0m[2m,[0m[2m some[0m[2m jobs[0m[2m will[0m[2m be[0m[2m "[0m[2mdone[0m[2m"[0m[2m by[0m[2m the[0m[2m time[0m[2m some[0m[2m workers[0m[2m finish[0m[2m their[0m[2m current[0m[2m job[0m[2m and[0m[2m call[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m again[0m[2m.
+     
+[0m[2mH[0m[2mmm[0m[2m I[0m[2m think[0m[2m I[0m[2m need[0m[2m to[0m[2m just[0m[2m run[0m[2m this[0m[2m and[0m[2m see[0m[2m the[0m[2m output[0m[2m,[0m[2m then[0m[2m analyze[0m[2m the[0m[2m actual[0m[2m bugs[0m[2m.
+     
+[0m[2mLet[0m[2m me[0m[2m think[0m[2m about[0m[2m **[0m[2mBug[0m[2m [0m[2m2[0m[2m:[0m[2m Van[0m[2mishing[0m[2m failures[0m[2m**.
+     
+[0m[2mWhen[0m[2m a[0m[2m job[0m[2m fails[0m[2m and[0m[2m the[0m[2m ret[0m[2mries[0m[2m have[0m[2m been[0m[2m exhausted[0m[2m ([0m[2mret[0m[2mries[0m[2m >=[0m[2m max[0m[2m_[0m[2mret[0m[2mries[0m[2m),[0m[2m `[0m[2mfail[0m[2m()`[0m[2m sets[0m[2m:
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mjob[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mfailed[0m[2m"
+[0m[2mjob[0m[2m["[0m[2mresult[0m[2m"][0m[2m =[0m[2m error[0m[2m
+[0m[2m```
+     
+[0m[2mThis[0m[2m looks[0m[2m correct[0m[2m.[0m[2m The[0m[2m job[0m[2m should[0m[2m show[0m[2m up[0m[2m as[0m[2m "[0m[2mfailed[0m[2m".
+     
+[0m[2mBut[0m[2m wait[0m[2m —[0m[2m what[0m[2m if[0m[2m the[0m[2m job[0m[2m fails[0m[2m on[0m[2m the[0m[2m LAST[0m[2m ret[0m[2mry[0m[2m AND[0m[2m the[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m()`[0m[2m is[0m[2m called[0m[2m from[0m[2m `[0m[2mprocess[0m[2m_j[0m[2mob[0m[2m`,[0m[2m and[0m[2m then[0m[2m the[0m[2m worker[0m[2m loops[0m[2m back[0m[2m to[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m?[0m[2m If[0m[2m the[0m[2m job[0m[2m's[0m[2m status[0m[2m is[0m[2m "[0m[2mfailed[0m[2m",[0m[2m it[0m[2m won[0m[2m't[0m[2m be[0m[2m deque[0m[2mued[0m[2m again[0m[2m.[0m[2m So[0m[2m the[0m[2m job[0m[2m should[0m[2m remain[0m[2m in[0m[2m the[0m[2m "[0m[2mfailed[0m[2m"[0m[2m state[0m[2m.
+     
+[0m[2mH[0m[2mmm[0m[2m,[0m[2m let[0m[2m me[0m[2m reconsider[0m[2m.[0m[2m The[0m[2m issue[0m[2m might[0m[2m be[0m[2m more[0m[2m subtle[0m[2m.[0m[2m What[0m[2m if[0m[2m `[0m[2mmax[0m[2m_[0m[2mret[0m[2mries[0m[2m`[0m[2m check[0m[2m has[0m[2m an[0m[2m off[0m[2m-by[0m[2m-one[0m[2m?
+     
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mdef[0m[2m fail[0m[2m(self[0m[2m,[0m[2m job[0m[2m_id[0m[2m:[0m[2m int[0m[2m,[0m[2m error[0m[2m:[0m[2m str[0m[2m)[0m[2m ->[0m[2m None[0m[2m:
+[0m[2m   [0m[2m job[0m[2m =[0m[2m self[0m[2m._[0m[2mjobs[0m[2m[j[0m[2mob[0m[2m_id[0m[2m]
+[0m[2m   [0m[2m if[0m[2m job[0m[2m["[0m[2mret[0m[2mries[0m[2m"][0m[2m <[0m[2m self[0m[2m.max[0m[2m_[0m[2mret[0m[2mries[0m[2m:[0m[2m [0m[2m #[0m[2m <[0m[2m---[0m[2m off[0m[2m by[0m[2m one[0m[2m?
+[0m[2m       [0m[2m job[0m[2m["[0m[2mret[0m[2mries[0m[2m"][0m[2m +=[0m[2m [0m[2m1[0m[2m
+[0m[2m       [0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mpending[0m[2m"
+[0m[2m   [0m[2m else[0m[2m:
+[0m[2m       [0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mfailed[0m[2m"
+[0m[2m       [0m[2m job[0m[2m["[0m[2mresult[0m[2m"][0m[2m =[0m[2m error[0m[2m
+[0m[2m```
+     
+[0m[2mWith[0m[2m `[0m[2mmax[0m[2m_[0m[2mret[0m[2mries[0m[2m=[0m[2m2[0m[2m`[0m[2m:
+[0m[2m-[0m[2m First[0m[2m failure[0m[2m:[0m[2m ret[0m[2mries[0m[2m=[0m[2m0[0m[2m <[0m[2m [0m[2m2[0m[2m →[0m[2m ret[0m[2mries[0m[2m=[0m[2m1[0m[2m,[0m[2m status[0m[2m="[0m[2mpending[0m[2m"
+[0m[2m-[0m[2m Second[0m[2m failure[0m[2m:[0m[2m ret[0m[2mries[0m[2m=[0m[2m1[0m[2m <[0m[2m [0m[2m2[0m[2m →[0m[2m ret[0m[2mries[0m[2m=[0m[2m2[0m[2m,[0m[2m status[0m[2m="[0m[2mpending[0m[2m"
+[0m[2m-[0m[2m Third[0m[2m failure[0m[2m:[0m[2m ret[0m[2mries[0m[2m=[0m[2m2[0m[2m,[0m[2m NOT[0m[2m <[0m[2m [0m[2m2[0m[2m →[0m[2m status[0m[2m="[0m[2mfailed[0m[2m"
+     
+[0m[2mSo[0m[2m with[0m[2m max[0m[2m_[0m[2mret[0m[2mries[0m[2m=[0m[2m2[0m[2m,[0m[2m the[0m[2m job[0m[2m gets[0m[2m [0m[2m3[0m[2m total[0m[2m attempts[0m[2m ([0m[2minitial[0m[2m +[0m[2m [0m[2m2[0m[2m ret[0m[2mries[0m[2m).[0m[2m This[0m[2m seems[0m[2m intentional[0m[2m —[0m[2m `[0m[2mmax[0m[2m_[0m[2mret[0m[2mries[0m[2m`[0m[2m means[0m[2m "[0m[2mmax[0m[2m additional[0m[2m attempts[0m[2m after[0m[2m the[0m[2m first[0m[2m one[0m[2m."
+     
+[0m[2mH[0m[2mmm[0m[2m wait[0m[2m,[0m[2m the[0m[2m user[0m[2m says[0m[2m "[0m[2mJobs[0m[2m that[0m[2m crash[0m[2m with[0m[2m an[0m[2m exception[0m[2m never[0m[2m show[0m[2m up[0m[2m as[0m[2m '[0m[2mfailed[0m[2m'.[0m[2m They[0m[2m seem[0m[2m to[0m[2m just[0m[2m disappear[0m[2m from[0m[2m the[0m[2m queue[0m[2m."
+     
+[0m[2mLet[0m[2m me[0m[2m think[0m[2m about[0m[2m whether[0m[2m the[0m[2m jobs[0m[2m could[0m[2m get[0m[2m stuck[0m[2m in[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m state[0m[2m instead[0m[2m of[0m[2m "[0m[2mfailed[0m[2m".[0m[2m If[0m[2m a[0m[2m worker[0m[2m crashes[0m[2m ([0m[2mnot[0m[2m a[0m[2m caught[0m[2m exception[0m[2m,[0m[2m but[0m[2m actually[0m[2m crashes[0m[2m),[0m[2m the[0m[2m job[0m[2m stays[0m[2m in[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m forever[0m[2m.[0m[2m But[0m[2m in[0m[2m our[0m[2m code[0m[2m,[0m[2m ALL[0m[2m exceptions[0m[2m are[0m[2m caught[0m[2m by[0m[2m `[0m[2mexcept[0m[2m Exception[0m[2m as[0m[2m e[0m[2m`.
+     
+[0m[2mOK[0m[2m actually[0m[2m,[0m[2m I[0m[2m just[0m[2m realized[0m[2m something[0m[2m.[0m[2m Let[0m[2m me[0m[2m look[0m[2m at[0m[2m the[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m05[0m[2m)`[0m[2m in[0m[2m `[0m[2mprocess[0m[2m_j[0m[2mob[0m[2m`[0m[2m:
+     
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mtry[0m[2m:
+[0m[2m   [0m[2m await[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m05[0m[2m)
+[0m[2m   [0m[2m if[0m[2m job[0m[2m["[0m[2mpayload[0m[2m"].[0m[2mget[0m[2m("[0m[2mraise[0m[2m_error[0m[2m"):
+[0m[2m       [0m[2m raise[0m[2m Runtime[0m[2mError[0m[2m(...[0m[2m)
+[0m[2m   [0m[2m queue[0m[2m.com[0m[2mplete[0m[2m(...[0m[2m)
+[0m[2mexcept[0m[2m Exception[0m[2m as[0m[2m e[0m[2m:
+[0m[2m   [0m[2m print[0m[2m(...[0m[2m)
+[0m[2m   [0m[2m queue[0m[2m.f[0m[2mail[0m[2m(j[0m[2mob[0m[2m["[0m[2mid[0m[2m"],[0m[2m str[0m[2m(e[0m[2m))
+[0m[2m```
+     
+[0m[2mBetween[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m05[0m[2m)`[0m[2m and[0m[2m `[0m[2mraise[0m[2m Runtime[0m[2mError[0m[2m`,[0m[2m there[0m[2m's[0m[2m no[0m[2m issue[0m[2m.[0m[2m The[0m[2m exception[0m[2m is[0m[2m caught[0m[2m and[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m()`[0m[2m is[0m[2m called[0m[2m.
+     
+[0m[2mH[0m[2mmm[0m[2m wait[0m[2m,[0m[2m what[0m[2m if[0m[2m ALL[0m[2m [0m[2m5[0m[2m workers[0m[2m exit[0m[2m early[0m[2m because[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m returns[0m[2m `[0m[2mNone[0m[2m`[0m[2m for[0m[2m all[0m[2m of[0m[2m them[0m[2m?[0m[2m If[0m[2m workers[0m[2m exit[0m[2m before[0m[2m all[0m[2m jobs[0m[2m are[0m[2m done[0m[2m,[0m[2m some[0m[2m jobs[0m[2m might[0m[2m be[0m[2m left[0m[2m in[0m[2m "[0m[2mpending[0m[2m"[0m[2m state[0m[2m.
+     
+[0m[2mLet[0m[2m me[0m[2m trace[0m[2m through[0m[2m:
+     
+[0m[2m12[0m[2m jobs[0m[2m ([0m[2m10[0m[2m good[0m[2m +[0m[2m [0m[2m2[0m[2m bad[0m[2m).[0m[2m [0m[2m5[0m[2m workers[0m[2m.[0m[2m Each[0m[2m worker[0m[2m processes[0m[2m jobs[0m[2m in[0m[2m a[0m[2m loop[0m[2m until[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m returns[0m[2m None[0m[2m.
+     
+[0m[2mGood[0m[2m workers[0m[2m process[0m[2m good[0m[2m jobs[0m[2m quickly[0m[2m.[0m[2m Bad[0m[2m jobs[0m[2m get[0m[2m ret[0m[2mried[0m[2m.[0m[2m All[0m[2m workers[0m[2m are[0m[2m cont[0m[2mending[0m[2m for[0m[2m jobs[0m[2m via[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m.
+     
+[0m[2mIf[0m[2m at[0m[2m some[0m[2m point[0m[2m,[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m returns[0m[2m None[0m[2m for[0m[2m all[0m[2m workers[0m[2m ([0m[2mbecause[0m[2m all[0m[2m jobs[0m[2m are[0m[2m either[0m[2m "[0m[2mdone[0m[2m",[0m[2m "[0m[2mfailed[0m[2m",[0m[2m or[0m[2m "[0m[2mprocessing[0m[2m"),[0m[2m then[0m[2m all[0m[2m workers[0m[2m exit[0m[2m.[0m[2m If[0m[2m a[0m[2m job[0m[2m was[0m[2m in[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m state[0m[2m ([0m[2mst[0m[2muck[0m[2m because[0m[2m a[0m[2m worker[0m[2m was[0m[2m about[0m[2m to[0m[2m complete[0m[2m/f[0m[2mail[0m[2m it[0m[2m),[0m[2m it[0m[2m's[0m[2m stuck[0m[2m.
+     
+[0m[2mWait[0m[2m,[0m[2m but[0m[2m each[0m[2m worker[0m[2m only[0m[2m calls[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m when[0m[2m it[0m[2m's[0m[2m ready[0m[2m for[0m[2m a[0m[2m new[0m[2m job[0m[2m.[0m[2m So[0m[2m there[0m[2m shouldn[0m[2m't[0m[2m be[0m[2m a[0m[2m case[0m[2m where[0m[2m a[0m[2m job[0m[2m is[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m without[0m[2m a[0m[2m worker[0m[2m actively[0m[2m processing[0m[2m it[0m[2m...[0m[2m unless[0m[2m the[0m[2m worker[0m[2m crashes[0m[2m.
+     
+[0m[2mH[0m[2mmm[0m[2m,[0m[2m the[0m[2m `[0m[2mmax[0m[2m_[0m[2mret[0m[2mries[0m[2m`[0m[2m check[0m[2m:[0m[2m with[0m[2m max[0m[2m_[0m[2mret[0m[2mries[0m[2m=[0m[2m2[0m[2m,[0m[2m each[0m[2m bad[0m[2m job[0m[2m gets[0m[2m processed[0m[2m up[0m[2m to[0m[2m [0m[2m3[0m[2m times[0m[2m.[0m[2m With[0m[2m [0m[2m5[0m[2m workers[0m[2m and[0m[2m [0m[2m12[0m[2m jobs[0m[2m ([0m[2m10[0m[2m good[0m[2m +[0m[2m [0m[2m2[0m[2m bad[0m[2m that[0m[2m get[0m[2m ret[0m[2mried[0m[2m multiple[0m[2m times[0m[2m),[0m[2m the[0m[2m total[0m[2m number[0m[2m of[0m[2m deque[0m[2mues[0m[2m is[0m[2m [0m[2m10[0m[2m +[0m[2m ([0m[2m2[0m[2m *[0m[2m [0m[2m3[0m[2m)[0m[2m =[0m[2m [0m[2m16[0m[2m.[0m[2m With[0m[2m [0m[2m5[0m[2m workers[0m[2m continuously[0m[2m looping[0m[2m,[0m[2m they[0m[2m should[0m[2m handle[0m[2m this[0m[2m fine[0m[2m.
+     
+[0m[2mBut[0m[2m there[0m[2m's[0m[2m a[0m[2m subtle[0m[2m issue[0m[2m:[0m[2m after[0m[2m a[0m[2m bad[0m[2m job[0m[2m fails[0m[2m [0m[2m3[0m[2m times[0m[2m and[0m[2m reaches[0m[2m "[0m[2mfailed[0m[2m"[0m[2m status[0m[2m,[0m[2m it[0m[2m won[0m[2m't[0m[2m be[0m[2m deque[0m[2mued[0m[2m again[0m[2m.[0m[2m So[0m[2m the[0m[2m final[0m[2m counts[0m[2m should[0m[2m be[0m[2m:[0m[2m [0m[2m10[0m[2m done[0m[2m,[0m[2m [0m[2m2[0m[2m failed[0m[2m.
+     
+[0m[2mLet[0m[2m me[0m[2m just[0m[2m run[0m[2m the[0m[2m simulation[0m[2m and[0m[2m see[0m[2m what[0m[2m actually[0m[2m happens[0m[2m.
+     
+[0m[2mActually[0m[2m,[0m[2m let[0m[2m me[0m[2m think[0m[2m about[0m[2m this[0m[2m more[0m[2m carefully[0m[2m before[0m[2m running[0m[2m.[0m[2m 
+     
+[0m[2mThe[0m[2m `[0m[2mde[0m[2mqueue[0m[2m`[0m[2m method[0m[2m iter[0m[2mates[0m[2m over[0m[2m `[0m[2mself[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m()`[0m[2m and[0m[2m for[0m[2m each[0m[2m pending[0m[2m job[0m[2m,[0m[2m sets[0m[2m to[0m[2m "[0m[2mprocessing[0m[2m",[0m[2m sleeps[0m[2m,[0m[2m then[0m[2m returns[0m[2m.[0m[2m No[0m[2m lock[0m[2m.[0m[2m 
+     
+[0m[2mWhat[0m[2m happens[0m[2m with[0m[2m as[0m[2myn[0m[2mcio[0m[2m.g[0m[2mather[0m[2m?[0m[2m All[0m[2m [0m[2m5[0m[2m tasks[0m[2m start[0m[2m concurrently[0m[2m.[0m[2m The[0m[2m event[0m[2m loop[0m[2m runs[0m[2m one[0m[2m at[0m[2m a[0m[2m time[0m[2m,[0m[2m switching[0m[2m at[0m[2m await[0m[2m points[0m[2m.
+     
+[0m[2mWorker[0m[2m A[0m[2m:[0m[2m calls[0m[2m de[0m[2mqueue[0m[2m ->[0m[2m gets[0m[2m iterator[0m[2m ->[0m[2m job[0m[2m [0m[2m1[0m[2m pending[0m[2m?[0m[2m Yes[0m[2m ->[0m[2m set[0m[2m to[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m ->[0m[2m await[0m[2m sleep[0m[2m [0m[2m0[0m[2m.[0m[2m01[0m[2m ->[0m[2m return[0m[2m job[0m[2m [0m[2m1[0m[2m
+[0m[2mWorker[0m[2m A[0m[2m:[0m[2m processes[0m[2m job[0m[2m [0m[2m1[0m[2m ->[0m[2m await[0m[2m sleep[0m[2m [0m[2m0[0m[2m.[0m[2m05[0m[2m ->[0m[2m no[0m[2m error[0m[2m ->[0m[2m complete[0m[2m job[0m[2m [0m[2m1[0m[2m ->[0m[2m loop[0m[2m to[0m[2m de[0m[2mqueue[0m[2m
+[0m[2mWorker[0m[2m A[0m[2m:[0m[2m calls[0m[2m de[0m[2mqueue[0m[2m ->[0m[2m job[0m[2m [0m[2m2[0m[2m pending[0m[2m?[0m[2m Yes[0m[2m ->[0m[2m set[0m[2m to[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m ->[0m[2m await[0m[2m sleep[0m[2m [0m[2m0[0m[2m.[0m[2m01[0m[2m ->[0m[2m return[0m[2m job[0m[2m [0m[2m2[0m[2m
+     
+[0m[2mBut[0m[2m at[0m[2m the[0m[2m same[0m[2m time[0m[2m...[0m[2m Actually[0m[2m,[0m[2m as[0m[2myn[0m[2mcio[0m[2m gathers[0m[2m all[0m[2m tasks[0m[2m,[0m[2m and[0m[2m since[0m[2m they[0m[2m switch[0m[2m at[0m[2m `[0m[2mawait[0m[2m`[0m[2m points[0m[2m,[0m[2m the[0m[2m sequence[0m[2m of[0m[2m operations[0m[2m is[0m[2m inter[0m[2mle[0m[2maved[0m[2m but[0m[2m deterministic[0m[2m.
+     
+[0m[2mLet[0m[2m me[0m[2m try[0m[2m running[0m[2m it[0m[2m first[0m[2m and[0m[2m see[0m[2m what[0m[2m happens[0m[2m.
+     
+[0m[2mBut[0m[2m actually[0m[2m,[0m[2m I[0m[2m think[0m[2m I[0m[2m found[0m[2m both[0m[2m bugs[0m[2m now[0m[2m.
+     
+[0m[2m**[0m[2mBug[0m[2m [0m[2m1[0m[2m ([0m[2mDuplicate[0m[2m Processing[0m[2m)[0m[2m**:[0m[2m The[0m[2m issue[0m[2m is[0m[2m in[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()[0m[2m`.[0m[2m While[0m[2m the[0m[2m single[0m[2m-th[0m[2mread[0m[2med[0m[2m event[0m[2m loop[0m[2m prevents[0m[2m the[0m[2m race[0m[2m I[0m[2m initially[0m[2m feared[0m[2m,[0m[2m consider[0m[2m this[0m[2m scenario[0m[2m:
+     
+[0m[2m1[0m[2m.[0m[2m Worker[0m[2m A[0m[2m takes[0m[2m job[0m[2m [0m[2m11[0m[2m ([0m[2mbad[0m[2m task[0m[2m).[0m[2m F[0m[2mails[0m[2m with[0m[2m exception[0m[2m.[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m()`[0m[2m sets[0m[2m status[0m[2m back[0m[2m to[0m[2m "[0m[2mpending[0m[2m"[0m[2m ([0m[2mret[0m[2mries[0m[2m=[0m[2m0[0m[2m <[0m[2m [0m[2m2[0m[2m).
+[0m[2m2[0m[2m.[0m[2m Worker[0m[2m A[0m[2m loops[0m[2m back[0m[2m,[0m[2m calls[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m.
+[0m[2m3[0m[2m.[0m[2m Worker[0m[2m A[0m[2m's[0m[2m iterator[0m[2m sees[0m[2m job[0m[2m [0m[2m11[0m[2m is[0m[2m "[0m[2mpending[0m[2m"[0m[2m again[0m[2m,[0m[2m sets[0m[2m to[0m[2m "[0m[2mprocessing[0m[2m",[0m[2m returns[0m[2m.
+[0m[2m4[0m[2m.[0m[2m Worker[0m[2m A[0m[2m processes[0m[2m job[0m[2m [0m[2m11[0m[2m.[0m[2m F[0m[2mails[0m[2m again[0m[2m.[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m()`[0m[2m sets[0m[2m status[0m[2m back[0m[2m to[0m[2m "[0m[2mpending[0m[2m"[0m[2m ([0m[2mret[0m[2mries[0m[2m=[0m[2m1[0m[2m <[0m[2m [0m[2m2[0m[2m).
+[0m[2m5[0m[2m.[0m[2m Worker[0m[2m A[0m[2m loops[0m[2m back[0m[2m,[0m[2m calls[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m.
+[0m[2m6[0m[2m.[0m[2m Worker[0m[2m A[0m[2m's[0m[2m iterator[0m[2m sees[0m[2m job[0m[2m [0m[2m11[0m[2m is[0m[2m "[0m[2mpending[0m[2m",[0m[2m sets[0m[2m to[0m[2m "[0m[2mprocessing[0m[2m",[0m[2m returns[0m[2m.
+[0m[2m7[0m[2m.[0m[2m Worker[0m[2m A[0m[2m processes[0m[2m job[0m[2m [0m[2m11[0m[2m.[0m[2m F[0m[2mails[0m[2m again[0m[2m ([0m[2m3[0m[2mrd[0m[2m time[0m[2m).[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m()`[0m[2m sets[0m[2m status[0m[2m to[0m[2m "[0m[2mfailed[0m[2m"[0m[2m ([0m[2mret[0m[2mries[0m[2m=[0m[2m2[0m[2m,[0m[2m not[0m[2m <[0m[2m [0m[2m2[0m[2m).
+     
+[0m[2mThis[0m[2m isn[0m[2m't[0m[2m duplicate[0m[2m —[0m[2m it[0m[2m's[0m[2m correct[0m[2m ret[0m[2mry[0m[2m behavior[0m[2m.[0m[2m So[0m[2m where[0m[2m's[0m[2m the[0m[2m actual[0m[2m duplicate[0m[2m?
+     
+[0m[2mLet[0m[2m me[0m[2m consider[0m[2m:[0m[2m what[0m[2m if[0m[2m the[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)`[0m[2m in[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m causes[0m[2m a[0m[2m different[0m[2m behavior[0m[2m?[0m[2m The[0m[2m sleep[0m[2m is[0m[2m between[0m[2m setting[0m[2m status[0m[2m and[0m[2m returning[0m[2m.[0m[2m While[0m[2m the[0m[2m worker[0m[2m is[0m[2m sleeping[0m[2m ([0m[2mafter[0m[2m marking[0m[2m the[0m[2m job[0m[2m as[0m[2m "[0m[2mprocessing[0m[2m"),[0m[2m no[0m[2m other[0m[2m worker[0m[2m can[0m[2m pick[0m[2m up[0m[2m the[0m[2m job[0m[2m.[0m[2m After[0m[2m the[0m[2m sleep[0m[2m,[0m[2m the[0m[2m job[0m[2m continues[0m[2m processing[0m[2m.
+     
+[0m[2mI[0m[2m'm[0m[2m st[0m[2mumped[0m[2m.[0m[2m Let[0m[2m me[0m[2m just[0m[2m run[0m[2m it[0m[2m.
+     
+[0m[2mWait[0m[2m...[0m[2m actually[0m[2m let[0m[2m me[0m[2m re[0m[2m-ex[0m[2mamine[0m[2m the[0m[2m scenario[0m[2m more[0m[2m carefully[0m[2m.
+     
+[0m[2mAfter[0m[2m a[0m[2m worker[0m[2m finishes[0m[2m processing[0m[2m a[0m[2m job[0m[2m ([0m[2meither[0m[2m success[0m[2m or[0m[2m failure[0m[2m),[0m[2m it[0m[2m loops[0m[2m back[0m[2m to[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()[0m[2m`.[0m[2m At[0m[2m this[0m[2m point[0m[2m,[0m[2m the[0m[2m job[0m[2m might[0m[2m already[0m[2m be[0m[2m back[0m[2m in[0m[2m "[0m[2mpending[0m[2m"[0m[2m state[0m[2m ([0m[2mif[0m[2m it[0m[2m failed[0m[2m with[0m[2m ret[0m[2mries[0m[2m left[0m[2m).[0m[2m When[0m[2m the[0m[2m S[0m[2mAME[0m[2m worker[0m[2m calls[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()[0m[2m`,[0m[2m it[0m[2m might[0m[2m immediately[0m[2m pick[0m[2m up[0m[2m the[0m[2m same[0m[2m job[0m[2m again[0m[2m.[0m[2m This[0m[2m isn[0m[2m't[0m[2m "[0m[2mdu[0m[2mplicate[0m[2m processing[0m[2m"[0m[2m per[0m[2m se[0m[2m —[0m[2m it[0m[2m's[0m[2m part[0m[2m of[0m[2m the[0m[2m ret[0m[2mry[0m[2m mechanism[0m[2m.
+     
+[0m[2mBut[0m[2m what[0m[2m if[0m[2m another[0m[2m worker[0m[2m concurrently[0m[2m also[0m[2m processes[0m[2m the[0m[2m same[0m[2m job[0m[2m?[0m[2m Could[0m[2m that[0m[2m happen[0m[2m?
+     
+[0m[2mAfter[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m()`[0m[2m sets[0m[2m status[0m[2m to[0m[2m "[0m[2mpending[0m[2m",[0m[2m the[0m[2m original[0m[2m worker[0m[2m loops[0m[2m back[0m[2m to[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()[0m[2m`.[0m[2m Other[0m[2m workers[0m[2m may[0m[2m also[0m[2m be[0m[2m in[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()[0m[2m`.[0m[2m But[0m[2m with[0m[2m single[0m[2m-th[0m[2mread[0m[2med[0m[2m event[0m[2m loop[0m[2m,[0m[2m only[0m[2m one[0m[2m runs[0m[2m at[0m[2m a[0m[2m time[0m[2m,[0m[2m and[0m[2m the[0m[2m check[0m[2m-and[0m[2m-set[0m[2m for[0m[2m "[0m[2mpending[0m[2m"[0m[2m is[0m[2m synchronous[0m[2m.[0m[2m So[0m[2m only[0m[2m one[0m[2m worker[0m[2m will[0m[2m get[0m[2m the[0m[2m job[0m[2m.
+     
+[0m[2mI[0m[2m think[0m[2m I[0m[2m might[0m[2m be[0m[2m over[0m[2mthinking[0m[2m this[0m[2m.[0m[2m Let[0m[2m me[0m[2m just[0m[2m run[0m[2m the[0m[2m simulation[0m[2m and[0m[2m see[0m[2m.
+     
+[0m[2mActually[0m[2m,[0m[2m wait[0m[2m.[0m[2m Let[0m[2m me[0m[2m re[0m[2m-read[0m[2m the[0m[2m de[0m[2mqueue[0m[2m more[0m[2m carefully[0m[2m:
+     
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2masync[0m[2m def[0m[2m de[0m[2mqueue[0m[2m(self[0m[2m)[0m[2m ->[0m[2m Optional[0m[2m[[0m[2mDict[0m[2m]:
+[0m[2m   [0m[2m for[0m[2m job[0m[2m in[0m[2m self[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m():
+[0m[2m       [0m[2m if[0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m":
+[0m[2m           [0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mprocessing[0m[2m"
+[0m[2m           [0m[2m await[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)
+[0m[2m           [0m[2m return[0m[2m job[0m[2m
+[0m[2m   [0m[2m return[0m[2m None[0m[2m
+[0m[2m```
+     
+[0m[2mAll[0m[2m workers[0m[2m share[0m[2m this[0m[2m single[0m[2m queue[0m[2m.[0m[2m `[0m[2mself[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m()`[0m[2m creates[0m[2m a[0m[2m view[0m[2m.[0m[2m Let[0m[2m me[0m[2m trace[0m[2m through[0m[2m with[0m[2m a[0m[2m specific[0m[2m scenario[0m[2m:
+     
+[0m[2mSetup[0m[2m:[0m[2m [0m[2m12[0m[2m jobs[0m[2m ([0m[2mIDs[0m[2m [0m[2m1[0m[2m-[0m[2m12[0m[2m).[0m[2m [0m[2m5[0m[2m workers[0m[2m.[0m[2m queue[0m[2m.en[0m[2mqueue[0m[2m in[0m[2m order[0m[2m ([0m[2m10[0m[2m good[0m[2m,[0m[2m [0m[2m2[0m[2m bad[0m[2m).
+     
+[0m[2mWorker[0m[2m A[0m[2m ([0m[2mfirst[0m[2m to[0m[2m run[0m[2m in[0m[2m event[0m[2m loop[0m[2m):
+[0m[2m-[0m[2m de[0m[2mqueue[0m[2m():[0m[2m iter[0m[2mates[0m[2m [0m[2m1[0m[2m-[0m[2m12[0m[2m,[0m[2m finds[0m[2m job[0m[2m [0m[2m1[0m[2m pending[0m[2m →[0m[2m processing[0m[2m,[0m[2m sleep[0m[2m [0m[2m0[0m[2m.[0m[2m01[0m[2m,[0m[2m returns[0m[2m job[0m[2m [0m[2m1[0m[2m
+[0m[2m-[0m[2m process[0m[2m:[0m[2m sleep[0m[2m [0m[2m0[0m[2m.[0m[2m05[0m[2m,[0m[2m complete[0m[2m job[0m[2m [0m[2m1[0m[2m
+     
+[0m[2mWorker[0m[2m B[0m[2m:
+[0m[2m-[0m[2m de[0m[2mqueue[0m[2m():[0m[2m iter[0m[2mates[0m[2m [0m[2m1[0m[2m-[0m[2m12[0m[2m,[0m[2m job[0m[2m [0m[2m1[0m[2m processing[0m[2m ([0m[2mskip[0m[2m),[0m[2m finds[0m[2m job[0m[2m [0m[2m2[0m[2m pending[0m[2m →[0m[2m processing[0m[2m,[0m[2m sleep[0m[2m [0m[2m0[0m[2m.[0m[2m01[0m[2m,[0m[2m returns[0m[2m job[0m[2m [0m[2m2[0m[2m
+[0m[2m-[0m[2m process[0m[2m:[0m[2m sleep[0m[2m [0m[2m0[0m[2m.[0m[2m05[0m[2m,[0m[2m complete[0m[2m job[0m[2m [0m[2m2[0m[2m
+     
+[0m[2m...[0m[2m and[0m[2m so[0m[2m on[0m[2m.
+     
+[0m[2mFirst[0m[2m [0m[2m5[0m[2m workers[0m[2m get[0m[2m jobs[0m[2m [0m[2m1[0m[2m-[0m[2m5[0m[2m.[0m[2m The[0m[2m remaining[0m[2m workers[0m[2m get[0m[2m jobs[0m[2m [0m[2m6[0m[2m-[0m[2m12[0m[2m after[0m[2m the[0m[2m first[0m[2m workers[0m[2m finish[0m[2m and[0m[2m call[0m[2m de[0m[2mqueue[0m[2m again[0m[2m.
+     
+[0m[2mThe[0m[2m simulation[0m[2m in[0m[2m main[0m[2m.py[0m[2m expects[0m[2m [0m[2m10[0m[2m done[0m[2m,[0m[2m [0m[2m2[0m[2m failed[0m[2m.[0m[2m Let[0m[2m me[0m[2m see[0m[2m if[0m[2m this[0m[2m actually[0m[2m happens[0m[2m or[0m[2m if[0m[2m there[0m[2m's[0m[2m a[0m[2m bug[0m[2m I[0m[2m'm[0m[2m not[0m[2m seeing[0m[2m.
+     
+[0m[2mOK[0m[2m,[0m[2m I[0m[2m think[0m[2m the[0m[2m key[0m[2m insight[0m[2m is[0m[2m:[0m[2m I[0m[2m need[0m[2m to[0m[2m run[0m[2m the[0m[2m code[0m[2m and[0m[2m see[0m[2m the[0m[2m actual[0m[2m output[0m[2m.[0m[2m Let[0m[2m me[0m[2m do[0m[2m that[0m[2m.
+     
+[0m[2mActually[0m[2m wait[0m[2m,[0m[2m let[0m[2m me[0m[2m think[0m[2m about[0m[2m one[0m[2m more[0m[2m thing[0m[2m.[0m[2m In[0m[2m `[0m[2mworker[0m[2m.py[0m[2m`[0m[2m:
+     
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2masync[0m[2m def[0m[2m process[0m[2m_j[0m[2mob[0m[2m(queue[0m[2m,[0m[2m worker[0m[2m_id[0m[2m:[0m[2m int[0m[2m)[0m[2m ->[0m[2m None[0m[2m:
+[0m[2m   [0m[2m while[0m[2m True[0m[2m:
+[0m[2m       [0m[2m job[0m[2m =[0m[2m await[0m[2m queue[0m[2m.de[0m[2mqueue[0m[2m()
+[0m[2m       [0m[2m if[0m[2m job[0m[2m is[0m[2m None[0m[2m:
+[0m[2m           [0m[2m return[0m[2m
+[0m[2m```
+     
+[0m[2mAfter[0m[2m ALL[0m[2m jobs[0m[2m are[0m[2m done[0m[2m/f[0m[2mailed[0m[2m,[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m returns[0m[2m `[0m[2mNone[0m[2m`[0m[2m because[0m[2m no[0m[2m job[0m[2m has[0m[2m "[0m[2mpending[0m[2m"[0m[2m status[0m[2m.[0m[2m So[0m[2m the[0m[2m worker[0m[2m returns[0m[2m.[0m[2m With[0m[2m [0m[2m5[0m[2m workers[0m[2m,[0m[2m if[0m[2m [0m[2m4[0m[2m have[0m[2m already[0m[2m returned[0m[2m but[0m[2m [0m[2m1[0m[2m is[0m[2m still[0m[2m processing[0m[2m the[0m[2m last[0m[2m job[0m[2m,[0m[2m the[0m[2m other[0m[2m [0m[2m4[0m[2m have[0m[2m already[0m[2m exited[0m[2m.[0m[2m But[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.g[0m[2mather[0m[2m`[0m[2m waits[0m[2m for[0m[2m ALL[0m[2m tasks[0m[2m to[0m[2m complete[0m[2m before[0m[2m returning[0m[2m.[0m[2m So[0m[2m it[0m[2m should[0m[2m wait[0m[2m for[0m[2m the[0m[2m last[0m[2m worker[0m[2m to[0m[2m finish[0m[2m too[0m[2m.
+     
+[0m[2mOK[0m[2m let[0m[2m me[0m[2m just[0m[2m run[0m[2m it[0m[2m.
+     
+[0m[2mActually[0m[2m,[0m[2m I[0m[2m think[0m[2m I[0m[2m just[0m[2m found[0m[2m B[0m[2mOTH[0m[2m bugs[0m[2m.[0m[2m Let[0m[2m me[0m[2m reconsider[0m[2m:
+     
+[0m[2m**[0m[2mBug[0m[2m [0m[2m1[0m[2m:[0m[2m Du[0m[2mplicate[0m[2m Processing[0m[2m**
+     
+[0m[2mLook[0m[2m at[0m[2m `[0m[2mde[0m[2mqueue[0m[2m`[0m[2m again[0m[2m:
+     
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2masync[0m[2m def[0m[2m de[0m[2mqueue[0m[2m(self[0m[2m)[0m[2m ->[0m[2m Optional[0m[2m[[0m[2mDict[0m[2m]:
+[0m[2m   [0m[2m for[0m[2m job[0m[2m in[0m[2m self[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m():
+[0m[2m       [0m[2m if[0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m":
+[0m[2m           [0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mprocessing[0m[2m"
+[0m[2m           [0m[2m await[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)
+[0m[2m           [0m[2m return[0m[2m job[0m[2m
+[0m[2m   [0m[2m return[0m[2m None[0m[2m
+[0m[2m```
+     
+[0m[2mWhen[0m[2m a[0m[2m worker[0m[2m calls[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m and[0m[2m gets[0m[2m a[0m[2m job[0m[2m,[0m[2m it[0m[2m marks[0m[2m it[0m[2m "[0m[2mprocessing[0m[2m",[0m[2m sleeps[0m[2m [0m[2m0[0m[2m.[0m[2m01[0m[2m,[0m[2m then[0m[2m returns[0m[2m.[0m[2m But[0m[2m what[0m[2m if[0m[2m another[0m[2m worker[0m[2m,[0m[2m currently[0m[2m ALSO[0m[2m in[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()[0m[2m`,[0m[2m is[0m[2m at[0m[2m a[0m[2m point[0m[2m where[0m[2m it[0m[2m checks[0m[2m the[0m[2m same[0m[2m job[0m[2m?
+     
+[0m[2mHere[0m[2m's[0m[2m the[0m[2m scenario[0m[2m:
+[0m[2m1[0m[2m.[0m[2m Worker[0m[2m A[0m[2m starts[0m[2m de[0m[2mqueue[0m[2m().[0m[2m Iterator[0m[2m starts[0m[2m at[0m[2m job[0m[2m [0m[2m1[0m[2m.[0m[2m Checks[0m[2m →[0m[2m pending[0m[2m.[0m[2m Sets[0m[2m to[0m[2m "[0m[2mprocessing[0m[2m".[0m[2m Hits[0m[2m `[0m[2mawait[0m[2m`.[0m[2m Y[0m[2mIEL[0m[2mDS[0m[2m.
+[0m[2m2[0m[2m.[0m[2m Worker[0m[2m B[0m[2m starts[0m[2m de[0m[2mqueue[0m[2m().[0m[2m Iterator[0m[2m starts[0m[2m at[0m[2m job[0m[2m [0m[2m1[0m[2m.[0m[2m Checks[0m[2m →[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m ([0m[2mset[0m[2m by[0m[2m A[0m[2m).[0m[2m Sk[0m[2mips[0m[2m.[0m[2m Contin[0m[2mues[0m[2m to[0m[2m job[0m[2m [0m[2m2[0m[2m.
+[0m[2m3[0m[2m.[0m[2m Worker[0m[2m A[0m[2m resumes[0m[2m from[0m[2m await[0m[2m,[0m[2m returns[0m[2m job[0m[2m [0m[2m1[0m[2m.
+[0m[2m4[0m[2m.[0m[2m Worker[0m[2m A[0m[2m processes[0m[2m job[0m[2m [0m[2m1[0m[2m successfully[0m[2m.[0m[2m Calls[0m[2m complete[0m[2m().[0m[2m Lo[0m[2mops[0m[2m back[0m[2m.
+[0m[2m5[0m[2m.[0m[2m Worker[0m[2m A[0m[2m calls[0m[2m de[0m[2mqueue[0m[2m again[0m[2m.[0m[2m New[0m[2m iterator[0m[2m,[0m[2m starts[0m[2m at[0m[2m job[0m[2m [0m[2m1[0m[2m.[0m[2m Job[0m[2m [0m[2m1[0m[2m is[0m[2m "[0m[2mdone[0m[2m".[0m[2m Sk[0m[2mips[0m[2m.[0m[2m Job[0m[2m [0m[2m2[0m[2m is[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m ([0m[2mt[0m[2maken[0m[2m by[0m[2m B[0m[2m).[0m[2m Sk[0m[2mips[0m[2m.[0m[2m Job[0m[2m [0m[2m3[0m[2m is[0m[2m "[0m[2mpending[0m[2m".[0m[2m Sets[0m[2m to[0m[2m "[0m[2mprocessing[0m[2m",[0m[2m sleeps[0m[2m,[0m[2m returns[0m[2m.
+     
+[0m[2mThis[0m[2m is[0m[2m fine[0m[2m.[0m[2m No[0m[2m duplicate[0m[2m.
+     
+[0m[2mBut[0m[2m wait[0m[2m —[0m[2m what[0m[2m about[0m[2m when[0m[2m jobs[0m[2m fail[0m[2m and[0m[2m get[0m[2m re[0m[2m-[0m[2mque[0m[2mued[0m[2m?
+     
+[0m[2m1[0m[2m.[0m[2m Worker[0m[2m A[0m[2m gets[0m[2m job[0m[2m [0m[2m11[0m[2m ([0m[2mbad[0m[2m).[0m[2m F[0m[2mails[0m[2m.[0m[2m queue[0m[2m.f[0m[2mail[0m[2m()[0m[2m sets[0m[2m status[0m[2m to[0m[2m "[0m[2mpending[0m[2m"[0m[2m ([0m[2mret[0m[2mries[0m[2m <[0m[2m max[0m[2m_[0m[2mret[0m[2mries[0m[2m).
+[0m[2m2[0m[2m.[0m[2m Worker[0m[2m A[0m[2m loops[0m[2m back[0m[2m to[0m[2m de[0m[2mqueue[0m[2m()[0m[2m.
+[0m[2m3[0m[2m.[0m[2m Worker[0m[2m A[0m[2m's[0m[2m new[0m[2m iterator[0m[2m starts[0m[2m at[0m[2m job[0m[2m [0m[2m1[0m[2m.[0m[2m Job[0m[2m [0m[2m1[0m[2m is[0m[2m "[0m[2mdone[0m[2m".[0m[2m ...[0m[2m Job[0m[2m [0m[2m11[0m[2m is[0m[2m "[0m[2mpending[0m[2m"[0m[2m again[0m[2m.[0m[2m Worker[0m[2m A[0m[2m picks[0m[2m it[0m[2m up[0m[2m again[0m[2m.
+     
+[0m[2mThis[0m[2m IS[0m[2m intentional[0m[2m ret[0m[2mry[0m[2m behavior[0m[2m,[0m[2m NOT[0m[2m duplicate[0m[2m processing[0m[2m.[0m[2m The[0m[2m job[0m[2m is[0m[2m intentionally[0m[2m being[0m[2m ret[0m[2mried[0m[2m.
+     
+[0m[2mH[0m[2mmm[0m[2m.[0m[2m Let[0m[2m me[0m[2m consider[0m[2m if[0m[2m the[0m[2m "[0m[2mdu[0m[2mplicate[0m[2m processing[0m[2m"[0m[2m is[0m[2m actually[0m[2m that[0m[2m when[0m[2m a[0m[2m job[0m[2m fails[0m[2m ([0m[2mexception[0m[2m),[0m[2m it[0m[2m might[0m[2m be[0m[2m processed[0m[2m TW[0m[2mICE[0m[2m at[0m[2m the[0m[2m same[0m[2m time[0m[2m —[0m[2m once[0m[2m by[0m[2m the[0m[2m original[0m[2m worker[0m[2m ([0m[2mwhich[0m[2m failed[0m[2m)[0m[2m and[0m[2m once[0m[2m by[0m[2m another[0m[2m worker[0m[2m ([0m[2mwhich[0m[2m picked[0m[2m it[0m[2m up[0m[2m after[0m[2m the[0m[2m re[0m[2m-[0m[2mqueue[0m[2m).
+     
+[0m[2mWith[0m[2m the[0m[2m single[0m[2m-th[0m[2mread[0m[2med[0m[2m event[0m[2m loop[0m[2m,[0m[2m this[0m[2m shouldn[0m[2m't[0m[2m happen[0m[2m.[0m[2m The[0m[2m original[0m[2m worker[0m[2m handles[0m[2m the[0m[2m exception[0m[2m,[0m[2m calls[0m[2m queue[0m[2m.f[0m[2mail[0m[2m(),[0m[2m and[0m[2m only[0m[2m AFTER[0m[2m that[0m[2m ([0m[2mon[0m[2m the[0m[2m next[0m[2m loop[0m[2m iteration[0m[2m)[0m[2m does[0m[2m de[0m[2mqueue[0m[2m get[0m[2m called[0m[2m again[0m[2m.[0m[2m By[0m[2m that[0m[2m time[0m[2m,[0m[2m no[0m[2m other[0m[2m worker[0m[2m is[0m[2m in[0m[2m the[0m[2m process[0m[2m of[0m[2m checking[0m[2m the[0m[2m same[0m[2m job[0m[2m for[0m[2m pending[0m[2m status[0m[2m.
+     
+[0m[2mOK[0m[2m I[0m[2m think[0m[2m I[0m[2m need[0m[2m to[0m[2m stop[0m[2m theor[0m[2mizing[0m[2m and[0m[2m just[0m[2m run[0m[2m the[0m[2m simulation[0m[2m.[0m[2m The[0m[2m actual[0m[2m behavior[0m[2m will[0m[2m tell[0m[2m me[0m[2m the[0m[2m bugs[0m[2m.
+     
+[0m[2mActually[0m[2m,[0m[2m wait[0m[2m.[0m[2m Let[0m[2m me[0m[2m reconsider[0m[2m **[0m[2mBug[0m[2m [0m[2m2[0m[2m:[0m[2m Van[0m[2mishing[0m[2m failures[0m[2m**.
+     
+[0m[2mWhat[0m[2m if[0m[2m the[0m[2m issue[0m[2m is[0m[2m that[0m[2m when[0m[2m a[0m[2m job[0m[2m's[0m[2m ret[0m[2mries[0m[2m are[0m[2m exhausted[0m[2m,[0m[2m it[0m[2m never[0m[2m gets[0m[2m to[0m[2m the[0m[2m point[0m[2m of[0m[2m being[0m[2m marked[0m[2m as[0m[2m "[0m[2mfailed[0m[2m"[0m[2m because[0m[2m of[0m[2m a[0m[2m race[0m[2m condition[0m[2m in[0m[2m `[0m[2mde[0m[2mqueue[0m[2m`[0m[2m?
+     
+[0m[2mH[0m[2mmm[0m[2m,[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m()`[0m[2m is[0m[2m called[0m[2m from[0m[2m worker[0m[2m's[0m[2m except[0m[2m block[0m[2m.[0m[2m It[0m[2m runs[0m[2m synchron[0m[2mously[0m[2m.[0m[2m The[0m[2m job[0m[2m's[0m[2m status[0m[2m is[0m[2m updated[0m[2m.[0m[2m That[0m[2m should[0m[2m be[0m[2m visible[0m[2m in[0m[2m the[0m[2m final[0m[2m state[0m[2m.
+     
+[0m[2mBut[0m[2m wait[0m[2m —[0m[2m what[0m[2m if[0m[2m the[0m[2m `[0m[2mexcept[0m[2m Exception[0m[2m as[0m[2m e[0m[2m`[0m[2m block[0m[2m in[0m[2m `[0m[2mprocess[0m[2m_j[0m[2mob[0m[2m`[0m[2m is[0m[2m NOT[0m[2m reached[0m[2m?[0m[2m What[0m[2m if[0m[2m the[0m[2m worker[0m[2m is[0m[2m cancelled[0m[2m or[0m[2m crashes[0m[2m in[0m[2m some[0m[2m other[0m[2m way[0m[2m?
+     
+[0m[2mActually[0m[2m,[0m[2m let[0m[2m me[0m[2m look[0m[2m at[0m[2m `[0m[2mprocess[0m[2m_j[0m[2mob[0m[2m`[0m[2m again[0m[2m:
+     
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2masync[0m[2m def[0m[2m process[0m[2m_j[0m[2mob[0m[2m(queue[0m[2m,[0m[2m worker[0m[2m_id[0m[2m:[0m[2m int[0m[2m)[0m[2m ->[0m[2m None[0m[2m:
+[0m[2m   [0m[2m while[0m[2m True[0m[2m:
+[0m[2m       [0m[2m job[0m[2m =[0m[2m await[0m[2m queue[0m[2m.de[0m[2mqueue[0m[2m()
+[0m[2m       [0m[2m if[0m[2m job[0m[2m is[0m[2m None[0m[2m:
+[0m[2m           [0m[2m return[0m[2m
+[0m[2m       [0m[2m ...
+[0m[2m       [0m[2m except[0m[2m Exception[0m[2m as[0m[2m e[0m[2m:
+[0m[2m           [0m[2m print[0m[2m(...[0m[2m)
+[0m[2m           [0m[2m queue[0m[2m.f[0m[2mail[0m[2m(j[0m[2mob[0m[2m["[0m[2mid[0m[2m"],[0m[2m str[0m[2m(e[0m[2m))
+[0m[2m```
+     
+[0m[2m`[0m[2mexcept[0m[2m Exception[0m[2m`[0m[2m does[0m[2m NOT[0m[2m catch[0m[2m `[0m[2mBase[0m[2mException[0m[2m`[0m[2m sub[0m[2mclasses[0m[2m like[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.C[0m[2manc[0m[2melled[0m[2mError[0m[2m`,[0m[2m `[0m[2mKeyboard[0m[2mInter[0m[2mrupt[0m[2m`,[0m[2m or[0m[2m `[0m[2mGenerator[0m[2mExit[0m[2m`.[0m[2m If[0m[2m the[0m[2m worker[0m[2m task[0m[2m is[0m[2m cancelled[0m[2m ([0m[2me[0m[2m.g[0m[2m.,[0m[2m by[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.g[0m[2mather[0m[2m`[0m[2m),[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.C[0m[2manc[0m[2melled[0m[2mError[0m[2m`[0m[2m would[0m[2m be[0m[2m raised[0m[2m and[0m[2m NOT[0m[2m caught[0m[2m by[0m[2m `[0m[2mexcept[0m[2m Exception[0m[2m`.[0m[2m This[0m[2m means[0m[2m:
+     
+[0m[2m1[0m[2m.[0m[2m A[0m[2m worker[0m[2m has[0m[2m a[0m[2m job[0m[2m in[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m state[0m[2m.
+[0m[2m2[0m[2m.[0m[2m The[0m[2m worker[0m[2m is[0m[2m cancelled[0m[2m ([0m[2mbut[0m[2m why[0m[2m would[0m[2m as[0m[2myn[0m[2mcio[0m[2m.g[0m[2mather[0m[2m cancel[0m[2m it[0m[2m?)
+[0m[2m3[0m[2m.[0m[2m The[0m[2m job[0m[2m stays[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m forever[0m[2m.
+     
+[0m[2mBut[0m[2m why[0m[2m would[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.g[0m[2mather[0m[2m`[0m[2m cancel[0m[2m tasks[0m[2m?[0m[2m Default[0m[2m `[0m[2mreturn[0m[2m_ex[0m[2mceptions[0m[2m=False[0m[2m`[0m[2m means[0m[2m if[0m[2m one[0m[2m task[0m[2m raises[0m[2m an[0m[2m un[0m[2mhand[0m[2mled[0m[2m exception[0m[2m,[0m[2m all[0m[2m remaining[0m[2m tasks[0m[2m are[0m[2m cancelled[0m[2m.[0m[2m But[0m[2m `[0m[2mprocess[0m[2m_j[0m[2mob[0m[2m`[0m[2m catches[0m[2m all[0m[2m exceptions[0m[2m ([0m[2mexcept[0m[2m Base[0m[2mException[0m[2m),[0m[2m so[0m[2m it[0m[2m shouldn[0m[2m't[0m[2m raise[0m[2m un[0m[2mhand[0m[2mled[0m[2m exceptions[0m[2m.
+     
+[0m[2mOK[0m[2m,[0m[2m I[0m[2m have[0m[2m another[0m[2m theory[0m[2m.[0m[2m What[0m[2m if[0m[2m one[0m[2m worker[0m[2m calls[0m[2m `[0m[2mqueue[0m[2m.com[0m[2mplete[0m[2m()`[0m[2m for[0m[2m a[0m[2m job[0m[2m,[0m[2m but[0m[2m another[0m[2m worker[0m[2m ALSO[0m[2m calls[0m[2m `[0m[2mqueue[0m[2m.com[0m[2mplete[0m[2m()`[0m[2m for[0m[2m the[0m[2m same[0m[2m job[0m[2m?
+     
+[0m[2mWorker[0m[2m A[0m[2m:[0m[2m picks[0m[2m up[0m[2m job[0m[2m [0m[2m11[0m[2m ([0m[2mbad[0m[2m).[0m[2m F[0m[2mails[0m[2m.[0m[2m queue[0m[2m.f[0m[2mail[0m[2m()[0m[2m →[0m[2m pending[0m[2m.
+[0m[2mWorker[0m[2m A[0m[2m:[0m[2m picks[0m[2m up[0m[2m job[0m[2m [0m[2m11[0m[2m again[0m[2m.[0m[2m F[0m[2mails[0m[2m.[0m[2m queue[0m[2m.f[0m[2mail[0m[2m()[0m[2m →[0m[2m pending[0m[2m.
+[0m[2mWorker[0m[2m A[0m[2m:[0m[2m picks[0m[2m up[0m[2m job[0m[2m [0m[2m11[0m[2m again[0m[2m.[0m[2m F[0m[2mails[0m[2m.[0m[2m queue[0m[2m.f[0m[2mail[0m[2m()[0m[2m →[0m[2m failed[0m[2m.
+     
+[0m[2mThis[0m[2m is[0m[2m sequential[0m[2m,[0m[2m not[0m[2m duplicate[0m[2m.
+     
+[0m[2mBut[0m[2m what[0m[2m if[0m[2m:
+[0m[2mWorker[0m[2m A[0m[2m:[0m[2m picks[0m[2m up[0m[2m job[0m[2m [0m[2m11[0m[2m ([0m[2mbad[0m[2m).[0m[2m Is[0m[2m about[0m[2m to[0m[2m fail[0m[2m.[0m[2m Exception[0m[2m occurs[0m[2m.
+[0m[2mWorker[0m[2m B[0m[2m:[0m[2m calls[0m[2m de[0m[2mqueue[0m[2m().[0m[2m At[0m[2m the[0m[2m same[0m[2m time[0m[2m,[0m[2m job[0m[2m [0m[2m11[0m[2m is[0m[2m in[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m state[0m[2m ([0m[2mWorker[0m[2m A[0m[2m has[0m[2m it[0m[2m).[0m[2m B[0m[2m sk[0m[2mips[0m[2m it[0m[2m.
+[0m[2mWorker[0m[2m A[0m[2m:[0m[2m catches[0m[2m exception[0m[2m,[0m[2m calls[0m[2m queue[0m[2m.f[0m[2mail[0m[2m()[0m[2m →[0m[2m pending[0m[2m.
+[0m[2mWorker[0m[2m A[0m[2m:[0m[2m loops[0m[2m,[0m[2m calls[0m[2m de[0m[2mqueue[0m[2m()[0m[2m.
+     
+[0m[2mNo[0m[2m race[0m[2m here[0m[2m either[0m[2m.
+     
+[0m[2mOK[0m[2m I[0m[2m'm[0m[2m going[0m[2m in[0m[2m circles[0m[2m.[0m[2m Let[0m[2m me[0m[2m just[0m[2m run[0m[2m it[0m[2m and[0m[2m see[0m[2m the[0m[2m actual[0m[2m output[0m[2m.
+     
+[0m[2mH[0m[2mmm[0m[2m,[0m[2m actually[0m[2m,[0m[2m there[0m[2m's[0m[2m one[0m[2m more[0m[2m thing[0m[2m I[0m[2m want[0m[2m to[0m[2m check[0m[2m.[0m[2m Let[0m[2m me[0m[2m look[0m[2m at[0m[2m this[0m[2m scenario[0m[2m more[0m[2m carefully[0m[2m with[0m[2m the[0m[2m concurrent[0m[2m access[0m[2m to[0m[2m the[0m[2m dict[0m[2m in[0m[2m `[0m[2mde[0m[2mqueue[0m[2m`.
+     
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2masync[0m[2m def[0m[2m de[0m[2mqueue[0m[2m(self[0m[2m)[0m[2m ->[0m[2m Optional[0m[2m[[0m[2mDict[0m[2m]:
+[0m[2m   [0m[2m for[0m[2m job[0m[2m in[0m[2m self[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m():
+[0m[2m       [0m[2m if[0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m":
+[0m[2m           [0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mprocessing[0m[2m"
+[0m[2m           [0m[2m await[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)
+[0m[2m           [0m[2m return[0m[2m job[0m[2m
+[0m[2m   [0m[2m return[0m[2m None[0m[2m
+[0m[2m```
+     
+[0m[2mWhat[0m[2m if[0m[2m an[0m[2m `[0m[2mawait[0m[2m`[0m[2m happens[0m[2m between[0m[2m iterations[0m[2m of[0m[2m the[0m[2m for[0m[2m loop[0m[2m?[0m[2m Specifically[0m[2m,[0m[2m when[0m[2m a[0m[2m worker[0m[2m finishes[0m[2m processing[0m[2m a[0m[2m job[0m[2m and[0m[2m calls[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m again[0m[2m,[0m[2m the[0m[2m event[0m[2m loop[0m[2m might[0m[2m switch[0m[2m mid[0m[2m-[0m[2miteration[0m[2m of[0m[2m the[0m[2m for[0m[2m loop[0m[2m?
+     
+[0m[2mNo[0m[2m —[0m[2m there[0m[2m's[0m[2m no[0m[2m `[0m[2mawait[0m[2m`[0m[2m between[0m[2m iterations[0m[2m of[0m[2m the[0m[2m for[0m[2m loop[0m[2m.[0m[2m The[0m[2m iteration[0m[2m is[0m[2m synchronous[0m[2m.[0m[2m The[0m[2m only[0m[2m `[0m[2mawait[0m[2m`[0m[2m is[0m[2m inside[0m[2m the[0m[2m `[0m[2mif[0m[2m`[0m[2m block[0m[2m ([0m[2mafter[0m[2m setting[0m[2m status[0m[2m).
+     
+[0m[2mOK[0m[2m,[0m[2m let[0m[2m me[0m[2m just[0m[2m run[0m[2m it[0m[2m and[0m[2m see[0m[2m.[0m[2m I[0m[2m'll[0m[2m also[0m[2m add[0m[2m some[0m[2m debug[0m[2m output[0m[2m.
+     
+[0m[2mLet[0m[2m me[0m[2m think[0m[2m about[0m[2m the[0m[2m problem[0m[2m more[0m[2m systematically[0m[2m by[0m[2m considering[0m[2m what[0m[2m happens[0m[2m with[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.g[0m[2mather[0m[2m`.
+     
+[0m[2m`[0m[2mas[0m[2myn[0m[2mcio[0m[2m.g[0m[2mather[0m[2m(*[0m[2mworkers[0m[2m)`[0m[2m runs[0m[2m all[0m[2m [0m[2m5[0m[2m workers[0m[2m concurrently[0m[2m.[0m[2m Each[0m[2m worker[0m[2m is[0m[2m a[0m[2m cor[0m[2moutine[0m[2m that[0m[2m loops[0m[2m:[0m[2m de[0m[2mqueue[0m[2m →[0m[2m process[0m[2m →[0m[2m de[0m[2mqueue[0m[2m →[0m[2m process[0m[2m →[0m[2m ...[0m[2m until[0m[2m de[0m[2mqueue[0m[2m returns[0m[2m None[0m[2m.
+     
+[0m[2mThe[0m[2m workers[0m[2m share[0m[2m the[0m[2m same[0m[2m `[0m[2mqueue[0m[2m`[0m[2m object[0m[2m.[0m[2m `[0m[2mself[0m[2m._[0m[2mjobs[0m[2m`[0m[2m is[0m[2m a[0m[2m dict[0m[2m.[0m[2m There[0m[2m's[0m[2m no[0m[2m explicit[0m[2m locking[0m[2m.
+     
+[0m[2mIn[0m[2m CP[0m[2mython[0m[2m's[0m[2m as[0m[2myn[0m[2mcio[0m[2m,[0m[2m everything[0m[2m runs[0m[2m on[0m[2m a[0m[2m single[0m[2m thread[0m[2m.[0m[2m Cor[0m[2moutine[0m[2m switches[0m[2m happen[0m[2m at[0m[2m `[0m[2mawait[0m[2m`[0m[2m points[0m[2m only[0m[2m.[0m[2m So[0m[2m between[0m[2m `[0m[2mawait[0m[2m`[0m[2m calls[0m[2m in[0m[2m a[0m[2m cor[0m[2moutine[0m[2m,[0m[2m the[0m[2m state[0m[2m is[0m[2m consistent[0m[2m ([0m[2mno[0m[2m other[0m[2m cor[0m[2moutine[0m[2m is[0m[2m modifying[0m[2m it[0m[2m).
+     
+[0m[2mThis[0m[2m means[0m[2m:
+[0m[2m-[0m[2m In[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m:[0m[2m the[0m[2m check[0m[2m `[0m[2mjob[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m"[0m[2m`[0m[2m and[0m[2m the[0m[2m set[0m[2m `[0m[2mjob[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m`[0m[2m happen[0m[2m atom[0m[2mically[0m[2m relative[0m[2m to[0m[2m other[0m[2m cor[0m[2moutines[0m[2m ([0m[2mno[0m[2m `[0m[2mawait[0m[2m`[0m[2m between[0m[2m them[0m[2m).
+[0m[2m-[0m[2m In[0m[2m `[0m[2mprocess[0m[2m_j[0m[2mob[0m[2m()`[0m[2m:[0m[2m between[0m[2m `[0m[2mqueue[0m[2m.com[0m[2mplete[0m[2m()`[0m[2m ([0m[2mor[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m()[0m[2m`)[0m[2m and[0m[2m the[0m[2m next[0m[2m `[0m[2mawait[0m[2m queue[0m[2m.de[0m[2mqueue[0m[2m()[0m[2m`,[0m[2m the[0m[2m worker[0m[2m is[0m[2m synchronous[0m[2m.[0m[2m No[0m[2m other[0m[2m cor[0m[2moutine[0m[2m runs[0m[2m.
+     
+[0m[2mSo[0m[2m there[0m[2m should[0m[2m be[0m[2m NO[0m[2m race[0m[2m conditions[0m[2m.[0m[2m Everything[0m[2m is[0m[2m deterministic[0m[2m.
+     
+[0m[2mThen[0m[2m what[0m[2m are[0m[2m the[0m[2m bugs[0m[2m?
+     
+[0m[2mLet[0m[2m me[0m[2m reconsider[0m[2m...[0m[2m Maybe[0m[2m the[0m[2m bugs[0m[2m are[0m[2m simpler[0m[2m than[0m[2m I[0m[2m think[0m[2m.
+     
+[0m[2m**[0m[2mBug[0m[2m [0m[2m1[0m[2m:[0m[2m Du[0m[2mplicate[0m[2m processing[0m[2m**[0m[2m —[0m[2m Maybe[0m[2m it[0m[2m's[0m[2m not[0m[2m a[0m[2m race[0m[2m condition[0m[2m at[0m[2m all[0m[2m.[0m[2m Maybe[0m[2m it[0m[2m's[0m[2m about[0m[2m the[0m[2m `[0m[2mde[0m[2mqueue[0m[2m`[0m[2m method[0m[2m returning[0m[2m the[0m[2m dict[0m[2m object[0m[2m,[0m[2m and[0m[2m the[0m[2m worker[0m[2m modifying[0m[2m it[0m[2m after[0m[2m `[0m[2mqueue[0m[2m.com[0m[2mplete[0m[2m()`[0m[2m or[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m()`[0m[2m has[0m[2m been[0m[2m called[0m[2m?[0m[2m No[0m[2m,[0m[2m the[0m[2m worker[0m[2m doesn[0m[2m't[0m[2m modify[0m[2m the[0m[2m returned[0m[2m dict[0m[2m.
+     
+[0m[2m**[0m[2mBug[0m[2m [0m[2m2[0m[2m:[0m[2m Van[0m[2mishing[0m[2m failures[0m[2m**[0m[2m —[0m[2m Maybe[0m[2m the[0m[2m job[0m[2m never[0m[2m actually[0m[2m gets[0m[2m to[0m[2m "[0m[2mfailed[0m[2m"[0m[2m state[0m[2m because[0m[2m of[0m[2m the[0m[2m `[0m[2mde[0m[2mqueue[0m[2m`[0m[2m loop[0m[2m.[0m[2m If[0m[2m a[0m[2m job[0m[2m keeps[0m[2m failing[0m[2m and[0m[2m getting[0m[2m ret[0m[2mried[0m[2m,[0m[2m it[0m[2m cycles[0m[2m through[0m[2m pending[0m[2m →[0m[2m processing[0m[2m →[0m[2m pending[0m[2m →[0m[2m processing[0m[2m...[0m[2m If[0m[2m the[0m[2m max[0m[2m_[0m[2mret[0m[2mries[0m[2m check[0m[2m in[0m[2m `[0m[2mfail[0m[2m()`[0m[2m has[0m[2m an[0m[2m off[0m[2m-by[0m[2m-one[0m[2m,[0m[2m the[0m[2m job[0m[2m might[0m[2m never[0m[2m reach[0m[2m "[0m[2mfailed[0m[2m"[0m[2m status[0m[2m.
+     
+[0m[2mLet[0m[2m me[0m[2m check[0m[2m:[0m[2m with[0m[2m `[0m[2mmax[0m[2m_[0m[2mret[0m[2mries[0m[2m=[0m[2m2[0m[2m`,[0m[2m `[0m[2mfail[0m[2m()`[0m[2m does[0m[2m:
+[0m[2m-[0m[2m ret[0m[2mries[0m[2m=[0m[2m0[0m[2m <[0m[2m [0m[2m2[0m[2m:[0m[2m ret[0m[2mries[0m[2m=[0m[2m1[0m[2m,[0m[2m pending[0m[2m
+[0m[2m-[0m[2m ret[0m[2mries[0m[2m=[0m[2m1[0m[2m <[0m[2m [0m[2m2[0m[2m:[0m[2m ret[0m[2mries[0m[2m=[0m[2m2[0m[2m,[0m[2m pending[0m[2m  
+[0m[2m-[0m[2m ret[0m[2mries[0m[2m=[0m[2m2[0m[2m:[0m[2m NOT[0m[2m <[0m[2m [0m[2m2[0m[2m:[0m[2m failed[0m[2m
+     
+[0m[2mSo[0m[2m the[0m[2m job[0m[2m DOES[0m[2m get[0m[2m marked[0m[2m as[0m[2m "[0m[2mfailed[0m[2m"[0m[2m after[0m[2m the[0m[2m [0m[2m3[0m[2mrd[0m[2m attempt[0m[2m.[0m[2m This[0m[2m seems[0m[2m correct[0m[2m.
+     
+[0m[2mUnless[0m[2m...[0m[2m wait[0m[2m,[0m[2m what[0m[2m if[0m[2m the[0m[2m job[0m[2m is[0m[2m picked[0m[2m up[0m[2m by[0m[2m a[0m[2m worker[0m[2m that[0m[2m's[0m[2m about[0m[2m to[0m[2m finish[0m[2m,[0m[2m and[0m[2m the[0m[2m worker[0m[2m exits[0m[2m before[0m[2m calling[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m()`[0m[2m?
+     
+[0m[2mNo[0m[2m,[0m[2m `[0m[2mcatch[0m[2m Exception[0m[2m`[0m[2m catches[0m[2m everything[0m[2m and[0m[2m always[0m[2m calls[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m()`[0m[2m.
+     
+[0m[2mOK[0m[2m let[0m[2m me[0m[2m try[0m[2m yet[0m[2m another[0m[2m theory[0m[2m.[0m[2m What[0m[2m if[0m[2m the[0m[2m issue[0m[2m is[0m[2m that[0m[2m `[0m[2mexcept[0m[2m Exception[0m[2m`[0m[2m catches[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.C[0m[2manc[0m[2melled[0m[2mError[0m[2m`[0m[2m —[0m[2m no[0m[2m,[0m[2m `[0m[2mCanc[0m[2melled[0m[2mError[0m[2m`[0m[2m inher[0m[2mits[0m[2m from[0m[2m `[0m[2mBase[0m[2mException[0m[2m`.
+     
+[0m[2mActually[0m[2m![0m[2m In[0m[2m Python[0m[2m [0m[2m3[0m[2m.[0m[2m9[0m[2m+,[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.C[0m[2manc[0m[2melled[0m[2mError[0m[2m`[0m[2m inher[0m[2mits[0m[2m from[0m[2m `[0m[2mBase[0m[2mException[0m[2m`,[0m[2m not[0m[2m `[0m[2mException[0m[2m`.[0m[2m So[0m[2m `[0m[2mexcept[0m[2m Exception[0m[2m`[0m[2m won[0m[2m't[0m[2m catch[0m[2m it[0m[2m.[0m[2m But[0m[2m `[0m[2mprocess[0m[2m_j[0m[2mob[0m[2m`[0m[2m doesn[0m[2m't[0m[2m seem[0m[2m to[0m[2m have[0m[2m any[0m[2m cancellation[0m[2m issues[0m[2m since[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.g[0m[2mather[0m[2m`[0m[2m with[0m[2m `[0m[2mreturn[0m[2m_ex[0m[2mceptions[0m[2m=False[0m[2m`[0m[2m ([0m[2mdefault[0m[2m)[0m[2m would[0m[2m cancel[0m[2m all[0m[2m tasks[0m[2m if[0m[2m one[0m[2m raises[0m[2m,[0m[2m but[0m[2m `[0m[2mprocess[0m[2m_j[0m[2mob[0m[2m`[0m[2m catches[0m[2m `[0m[2mException[0m[2m`,[0m[2m so[0m[2m it[0m[2m won[0m[2m't[0m[2m raise[0m[2m.
+     
+[0m[2mWA[0m[2mIT[0m[2m.[0m[2m Actually[0m[2m,[0m[2m I[0m[2m just[0m[2m realized[0m[2m:[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.g[0m[2mather[0m[2m`[0m[2m canc[0m[2mels[0m[2m remaining[0m[2m tasks[0m[2m only[0m[2m if[0m[2m one[0m[2m of[0m[2m them[0m[2m raises[0m[2m an[0m[2m un[0m[2mhand[0m[2mled[0m[2m exception[0m[2m.[0m[2m Since[0m[2m `[0m[2mprocess[0m[2m_j[0m[2mob[0m[2m`[0m[2m catches[0m[2m `[0m[2mException[0m[2m`,[0m[2m no[0m[2m task[0m[2m should[0m[2m raise[0m[2m.[0m[2m But[0m[2m what[0m[2m if[0m[2m the[0m[2m `[0m[2mCanc[0m[2melled[0m[2mError[0m[2m`[0m[2m from[0m[2m gather[0m[2m's[0m[2m cancellation[0m[2m is[0m[2m raised[0m[2m IN[0m[2m the[0m[2m except[0m[2m handler[0m[2m?
+     
+[0m[2mLet[0m[2m me[0m[2m trace[0m[2m:
+[0m[2m1[0m[2m.[0m[2m Worker[0m[2m A[0m[2m is[0m[2m processing[0m[2m a[0m[2m job[0m[2m ([0m[2mnot[0m[2m in[0m[2m exception[0m[2m handler[0m[2m).
+[0m[2m2[0m[2m.[0m[2m Worker[0m[2m B[0m[2m's[0m[2m task[0m[2m...[0m[2m wait[0m[2m,[0m[2m nothing[0m[2m raises[0m[2m an[0m[2m un[0m[2mhand[0m[2mled[0m[2m exception[0m[2m in[0m[2m process[0m[2m_j[0m[2mob[0m[2m because[0m[2m all[0m[2m exceptions[0m[2m are[0m[2m caught[0m[2m.
+     
+[0m[2mOK[0m[2m I[0m[2m think[0m[2m I[0m[2m REALLY[0m[2m need[0m[2m to[0m[2m just[0m[2m run[0m[2m this[0m[2m.
+     
+[0m[2mLet[0m[2m me[0m[2m also[0m[2m consider[0m[2m:[0m[2m is[0m[2m the[0m[2m bug[0m[2m about[0m[2m the[0m[2m `[0m[2mreturn[0m[2m None[0m[2m`[0m[2m in[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m?[0m[2m When[0m[2m all[0m[2m jobs[0m[2m are[0m[2m either[0m[2m done[0m[2m/f[0m[2mailed[0m[2m/[0m[2mprocessing[0m[2m,[0m[2m `[0m[2mde[0m[2mqueue[0m[2m`[0m[2m returns[0m[2m None[0m[2m,[0m[2m and[0m[2m the[0m[2m worker[0m[2m exits[0m[2m.[0m[2m But[0m[2m what[0m[2m if[0m[2m there[0m[2m are[0m[2m still[0m[2m jobs[0m[2m in[0m[2m "[0m[2mpending[0m[2m"[0m[2m state[0m[2m?
+     
+[0m[2mWith[0m[2m [0m[2m12[0m[2m jobs[0m[2m and[0m[2m [0m[2m5[0m[2m workers[0m[2m:
+[0m[2m-[0m[2m First[0m[2m batch[0m[2m:[0m[2m [0m[2m5[0m[2m jobs[0m[2m marked[0m[2m as[0m[2m processing[0m[2m,[0m[2m workers[0m[2m start[0m[2m processing[0m[2m them[0m[2m
+[0m[2m-[0m[2m As[0m[2m each[0m[2m worker[0m[2m finishes[0m[2m ([0m[2msuccess[0m[2m or[0m[2m failure[0m[2m),[0m[2m it[0m[2m calls[0m[2m de[0m[2mqueue[0m[2m()[0m[2m for[0m[2m the[0m[2m next[0m[2m pending[0m[2m job[0m[2m
+[0m[2m-[0m[2m Eventually[0m[2m all[0m[2m [0m[2m12[0m[2m jobs[0m[2m are[0m[2m done[0m[2m,[0m[2m failed[0m[2m,[0m[2m or[0m[2m their[0m[2m ret[0m[2mries[0m[2m exhausted[0m[2m
+     
+[0m[2mBut[0m[2m what[0m[2m if[0m[2m the[0m[2m timing[0m[2m works[0m[2m out[0m[2m such[0m[2m that[0m[2m a[0m[2m job[0m[2m is[0m[2m in[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m state[0m[2m ([0m[2mworker[0m[2m is[0m[2m currently[0m[2m processing[0m[2m it[0m[2m)[0m[2m AND[0m[2m all[0m[2m other[0m[2m workers[0m[2m see[0m[2m no[0m[2m pending[0m[2m jobs[0m[2m and[0m[2m exit[0m[2m?[0m[2m Then[0m[2m the[0m[2m remaining[0m[2m worker[0m[2m finishes[0m[2m its[0m[2m job[0m[2m,[0m[2m but[0m[2m all[0m[2m other[0m[2m workers[0m[2m have[0m[2m already[0m[2m exited[0m[2m.[0m[2m The[0m[2m last[0m[2m worker[0m[2m might[0m[2m finish[0m[2m and[0m[2m call[0m[2m de[0m[2mqueue[0m[2m,[0m[2m see[0m[2m no[0m[2m pending[0m[2m jobs[0m[2m,[0m[2m and[0m[2m exit[0m[2m.[0m[2m That[0m[2m's[0m[2m fine[0m[2m.
+     
+[0m[2mBut[0m[2m what[0m[2m about[0m[2m the[0m[2m scenario[0m[2m where[0m[2m a[0m[2m job[0m[2m is[0m[2m in[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m state[0m[2m and[0m[2m the[0m[2m worker[0m[2m gets[0m[2m stuck[0m[2m or[0m[2m crashes[0m[2m?[0m[2m With[0m[2m catch[0m[2m-all[0m[2m exception[0m[2m handling[0m[2m,[0m[2m it[0m[2m shouldn[0m[2m't[0m[2m crash[0m[2m.
+     
+[0m[2mI[0m[2m really[0m[2m need[0m[2m to[0m[2m just[0m[2m run[0m[2m this[0m[2m.[0m[2m Let[0m[2m me[0m[2m do[0m[2m that[0m[2m.
+     
+[0m[2mActually[0m[2m wait[0m[2m,[0m[2m I[0m[2m just[0m[2m thought[0m[2m of[0m[2m something[0m[2m.[0m[2m What[0m[2m if[0m[2m the[0m[2m `[0m[2mde[0m[2mqueue[0m[2m`[0m[2m is[0m[2m called[0m[2m from[0m[2m multiple[0m[2m workers[0m[2m and[0m[2m the[0m[2m for[0m[2m-loop[0m[2m's[0m[2m iterator[0m[2m is[0m[2m shared[0m[2m?[0m[2m No[0m[2m,[0m[2m each[0m[2m call[0m[2m to[0m[2m `[0m[2mself[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m()`[0m[2m creates[0m[2m a[0m[2m new[0m[2m view[0m[2m,[0m[2m and[0m[2m `[0m[2mfor[0m[2m ...[0m[2m in[0m[2m ...[0m[2m`[0m[2m creates[0m[2m a[0m[2m new[0m[2m iterator[0m[2m.
+     
+[0m[2mI[0m[2m was[0m[2m going[0m[2m to[0m[2m analyze[0m[2m more[0m[2m but[0m[2m let[0m[2m me[0m[2m just[0m[2m run[0m[2m the[0m[2m code[0m[2m.
+     
+[0m[2mAh[0m[2m wait[0m[2m,[0m[2m I[0m[2m just[0m[2m realized[0m[2m something[0m[2m![0m[2m Let[0m[2m me[0m[2m look[0m[2m at[0m[2m the[0m[2m `[0m[2mwhile[0m[2m True[0m[2m`[0m[2m in[0m[2m `[0m[2mprocess[0m[2m_j[0m[2mob[0m[2m`[0m[2m and[0m[2m the[0m[2m `[0m[2mreturn[0m[2m`[0m[2m when[0m[2m `[0m[2mjob[0m[2m is[0m[2m None[0m[2m`[0m[2m:
+     
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2masync[0m[2m def[0m[2m process[0m[2m_j[0m[2mob[0m[2m(queue[0m[2m,[0m[2m worker[0m[2m_id[0m[2m:[0m[2m int[0m[2m)[0m[2m ->[0m[2m None[0m[2m:
+[0m[2m   [0m[2m while[0m[2m True[0m[2m:
+[0m[2m       [0m[2m job[0m[2m =[0m[2m await[0m[2m queue[0m[2m.de[0m[2mqueue[0m[2m()
+[0m[2m       [0m[2m if[0m[2m job[0m[2m is[0m[2m None[0m[2m:
+[0m[2m           [0m[2m return[0m[2m
+[0m[2m       [0m[2m ...
+[0m[2m```
+     
+[0m[2m`[0m[2mawait[0m[2m queue[0m[2m.de[0m[2mqueue[0m[2m()`[0m[2m —[0m[2m this[0m[2m starts[0m[2m the[0m[2m while[0m[2m loop[0m[2m iteration[0m[2m.[0m[2m If[0m[2m de[0m[2mqueue[0m[2m returns[0m[2m None[0m[2m,[0m[2m the[0m[2m worker[0m[2m returns[0m[2m.[0m[2m If[0m[2m de[0m[2mqueue[0m[2m returns[0m[2m a[0m[2m job[0m[2m,[0m[2m the[0m[2m worker[0m[2m processes[0m[2m it[0m[2m ([0m[2mpot[0m[2mentially[0m[2m failing[0m[2m and[0m[2m ret[0m[2mrying[0m[2m via[0m[2m queue[0m[2m.f[0m[2mail[0m[2m()[0m[2m →[0m[2m pending[0m[2m),[0m[2m and[0m[2m then[0m[2m loops[0m[2m back[0m[2m.
+     
+[0m[2mWhen[0m[2m a[0m[2m job[0m[2m fails[0m[2m with[0m[2m ret[0m[2mries[0m[2m left[0m[2m,[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m()`[0m[2m sets[0m[2m status[0m[2m back[0m[2m to[0m[2m "[0m[2mpending[0m[2m".[0m[2m Then[0m[2m the[0m[2m worker[0m[2m loops[0m[2m back[0m[2m to[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m and[0m[2m finds[0m[2m the[0m[2m job[0m[2m again[0m[2m ([0m[2mit[0m[2m's[0m[2m pending[0m[2m).[0m[2m The[0m[2m same[0m[2m worker[0m[2m might[0m[2m process[0m[2m the[0m[2m same[0m[2m job[0m[2m again[0m[2m.[0m[2m This[0m[2m is[0m[2m the[0m[2m ret[0m[2mry[0m[2m mechanism[0m[2m.
+     
+[0m[2mBut[0m[2m here[0m[2m's[0m[2m a[0m[2m subtle[0m[2m bug[0m[2m I[0m[2m just[0m[2m found[0m[2m:[0m[2m The[0m[2m iteration[0m[2m order[0m[2m of[0m[2m `[0m[2mself[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m()`[0m[2m is[0m[2m insertion[0m[2m order[0m[2m ([0m[2mPython[0m[2m [0m[2m3[0m[2m.[0m[2m7[0m[2m+[0m[2m).[0m[2m So[0m[2m when[0m[2m iter[0m[2mating[0m[2m,[0m[2m jobs[0m[2m are[0m[2m always[0m[2m iter[0m[2mated[0m[2m in[0m[2m the[0m[2m order[0m[2m they[0m[2m were[0m[2m en[0m[2mque[0m[2mued[0m[2m.[0m[2m When[0m[2m a[0m[2m job[0m[2m is[0m[2m re[0m[2m-[0m[2mque[0m[2mued[0m[2m ([0m[2mstatus[0m[2m back[0m[2m to[0m[2m "[0m[2mpending[0m[2m"),[0m[2m it[0m[2m's[0m[2m still[0m[2m in[0m[2m its[0m[2m original[0m[2m position[0m[2m in[0m[2m the[0m[2m dict[0m[2m.[0m[2m So[0m[2m the[0m[2m for[0m[2m loop[0m[2m will[0m[2m encounter[0m[2m it[0m[2m again[0m[2m during[0m[2m iteration[0m[2m.
+     
+[0m[2mBut[0m[2m the[0m[2m for[0m[2m loop[0m[2m in[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m resumes[0m[2m from[0m[2m where[0m[2m it[0m[2m left[0m[2m off[0m[2m in[0m[2m the[0m[2m iterator[0m[2m,[0m[2m right[0m[2m?[0m[2m No[0m[2m —[0m[2m each[0m[2m call[0m[2m to[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m creates[0m[2m a[0m[2m NEW[0m[2m iterator[0m[2m over[0m[2m `[0m[2mself[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m()[0m[2m`.[0m[2m So[0m[2m it[0m[2m always[0m[2m starts[0m[2m from[0m[2m the[0m[2m beginning[0m[2m ([0m[2mjob[0m[2m [0m[2m1[0m[2m).
+     
+[0m[2mThis[0m[2m means[0m[2m:[0m[2m when[0m[2m a[0m[2m worker[0m[2m calls[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m after[0m[2m a[0m[2m failed[0m[2m job[0m[2m,[0m[2m its[0m[2m new[0m[2m iterator[0m[2m starts[0m[2m at[0m[2m job[0m[2m [0m[2m1[0m[2m.[0m[2m If[0m[2m some[0m[2m jobs[0m[2m are[0m[2m "[0m[2mdone[0m[2m"[0m[2m and[0m[2m others[0m[2m are[0m[2m "[0m[2mprocessing[0m[2m",[0m[2m it[0m[2m quickly[0m[2m reaches[0m[2m the[0m[2m re[0m[2m-[0m[2mque[0m[2mued[0m[2m job[0m[2m ([0m[2mwhich[0m[2m is[0m[2m "[0m[2mpending[0m[2m")[0m[2m and[0m[2m picks[0m[2m it[0m[2m up[0m[2m.[0m[2m This[0m[2m might[0m[2m mean[0m[2m the[0m[2m job[0m[2m always[0m[2m gets[0m[2m picked[0m[2m up[0m[2m by[0m[2m the[0m[2m same[0m[2m worker[0m[2m that[0m[2m just[0m[2m failed[0m[2m it[0m[2m,[0m[2m leading[0m[2m to[0m[2m...[0m[2m well[0m[2m,[0m[2m correct[0m[2m ret[0m[2mry[0m[2m behavior[0m[2m,[0m[2m but[0m[2m potentially[0m[2m unfair[0m[2m distribution[0m[2m.
+     
+[0m[2mH[0m[2mmm[0m[2m,[0m[2m I[0m[2m don[0m[2m't[0m[2m think[0m[2m this[0m[2m is[0m[2m a[0m[2m bug[0m[2m.[0m[2m It[0m[2m's[0m[2m just[0m[2m how[0m[2m it[0m[2m works[0m[2m.
+     
+[0m[2mOK[0m[2m let[0m[2m me[0m[2m just[0m[2m run[0m[2m the[0m[2m code[0m[2m and[0m[2m see[0m[2m what[0m[2m happens[0m[2m.
+     
+[0m[2mOne[0m[2m last[0m[2m thought[0m[2m:[0m[2m maybe[0m[2m the[0m[2m issue[0m[2m is[0m[2m that[0m[2m in[0m[2m `[0m[2mfail[0m[2m()[0m[2m`,[0m[2m when[0m[2m ret[0m[2mries[0m[2m are[0m[2m exhausted[0m[2m,[0m[2m the[0m[2m job[0m[2m is[0m[2m marked[0m[2m as[0m[2m "[0m[2mfailed[0m[2m"[0m[2m but[0m[2m the[0m[2m `[0m[2mprocess[0m[2m_j[0m[2mob[0m[2m`[0m[2m function[0m[2m's[0m[2m while[0m[2m loop[0m[2m means[0m[2m another[0m[2m attempt[0m[2m to[0m[2m process[0m[2m it[0m[2m might[0m[2m happen[0m[2m?[0m[2m No[0m[2m —[0m[2m `[0m[2mfail[0m[2m()`[0m[2m sets[0m[2m status[0m[2m to[0m[2m "[0m[2mfailed[0m[2m",[0m[2m and[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m only[0m[2m returns[0m[2m jobs[0m[2m with[0m[2m "[0m[2mpending[0m[2m"[0m[2m status[0m[2m.[0m[2m So[0m[2m a[0m[2m "[0m[2mfailed[0m[2m"[0m[2m job[0m[2m won[0m[2m't[0m[2m be[0m[2m deque[0m[2mued[0m[2m again[0m[2m.
+     
+[0m[2mBut[0m[2m WA[0m[2mIT[0m[2m —[0m[2m what[0m[2m if[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m is[0m[2m currently[0m[2m iter[0m[2mating[0m[2m when[0m[2m `[0m[2mfail[0m[2m()`[0m[2m changes[0m[2m the[0m[2m status[0m[2m?[0m[2m Let[0m[2m's[0m[2m trace[0m[2m:
+     
+[0m[2mWorker[0m[2m A[0m[2m:[0m[2m processing[0m[2m job[0m[2m [0m[2m11[0m[2m.[0m[2m It[0m[2m fails[0m[2m.[0m[2m ret[0m[2mries[0m[2m=[0m[2m1[0m[2m <[0m[2m max[0m[2m_[0m[2mret[0m[2mries[0m[2m=[0m[2m2[0m[2m →[0m[2m status[0m[2m="[0m[2mpending[0m[2m".
+[0m[2mWorker[0m[2m A[0m[2m:[0m[2m loops[0m[2m back[0m[2m,[0m[2m calls[0m[2m de[0m[2mqueue[0m[2m().[0m[2m New[0m[2m iterator[0m[2m from[0m[2m top[0m[2m.
+[0m[2mWorker[0m[2m A[0m[2m:[0m[2m iter[0m[2mates[0m[2m...[0m[2m job[0m[2m [0m[2m11[0m[2m is[0m[2m "[0m[2mpending[0m[2m".[0m[2m P[0m[2micks[0m[2m it[0m[2m up[0m[2m.[0m[2m Sets[0m[2m to[0m[2m "[0m[2mprocessing[0m[2m".[0m[2m Sleep[0m[2ms[0m[2m.[0m[2m Returns[0m[2m.
+[0m[2mWorker[0m[2m A[0m[2m:[0m[2m processes[0m[2m job[0m[2m [0m[2m11[0m[2m again[0m[2m.[0m[2m F[0m[2mails[0m[2m.[0m[2m ret[0m[2mries[0m[2m=[0m[2m2[0m[2m <[0m[2m max[0m[2m_[0m[2mret[0m[2mries[0m[2m=[0m[2m2[0m[2m →[0m[2m status[0m[2m="[0m[2mpending[0m[2m".
+[0m[2mWorker[0m[2m A[0m[2m:[0m[2m loops[0m[2m back[0m[2m.[0m[2m Calls[0m[2m de[0m[2mqueue[0m[2m().[0m[2m 
+[0m[2mWorker[0m[2m A[0m[2m:[0m[2m iter[0m[2mates[0m[2m...[0m[2m job[0m[2m [0m[2m11[0m[2m is[0m[2m "[0m[2mpending[0m[2m".[0m[2m P[0m[2micks[0m[2m it[0m[2m up[0m[2m AGA[0m[2mIN[0m[2m.[0m[2m 
+[0m[2mWorker[0m[2m A[0m[2m:[0m[2m processes[0m[2m job[0m[2m [0m[2m11[0m[2m again[0m[2m.[0m[2m F[0m[2mails[0m[2m.[0m[2m ret[0m[2mries[0m[2m=[0m[2m2[0m[2m,[0m[2m NOT[0m[2m <[0m[2m max[0m[2m_[0m[2mret[0m[2mries[0m[2m=[0m[2m2[0m[2m →[0m[2m status[0m[2m="[0m[2mfailed[0m[2m".
+     
+[0m[2mSo[0m[2m with[0m[2m max[0m[2m_[0m[2mret[0m[2mries[0m[2m=[0m[2m2[0m[2m,[0m[2m the[0m[2m job[0m[2m is[0m[2m processed[0m[2m [0m[2m3[0m[2m times[0m[2m ([0m[2minitial[0m[2m +[0m[2m [0m[2m2[0m[2m ret[0m[2mries[0m[2m).[0m[2m After[0m[2m the[0m[2m [0m[2m3[0m[2mrd[0m[2m failure[0m[2m,[0m[2m it[0m[2m reaches[0m[2m "[0m[2mfailed[0m[2m"[0m[2m status[0m[2m.
+     
+[0m[2mWhat[0m[2m if[0m[2m `[0m[2mmain[0m[2m.py[0m[2m`[0m[2m expects[0m[2m `[0m[2mmax[0m[2m_[0m[2mret[0m[2mries[0m[2m`[0m[2m to[0m[2m mean[0m[2m "[0m[2mmax[0m[2m total[0m[2m attempts[0m[2m"[0m[2m rather[0m[2m than[0m[2m "[0m[2mmax[0m[2m additional[0m[2m attempts[0m[2m"?[0m[2m Then[0m[2m with[0m[2m max[0m[2m_[0m[2mret[0m[2mries[0m[2m=[0m[2m2[0m[2m,[0m[2m a[0m[2m job[0m[2m should[0m[2m only[0m[2m be[0m[2m attempted[0m[2m [0m[2m2[0m[2m times[0m[2m total[0m[2m ([0m[2m1[0m[2m initial[0m[2m +[0m[2m [0m[2m1[0m[2m ret[0m[2mry[0m[2m),[0m[2m not[0m[2m [0m[2m3[0m[2m.
+     
+[0m[2mIf[0m[2m that[0m[2m's[0m[2m the[0m[2m case[0m[2m,[0m[2m the[0m[2m bug[0m[2m in[0m[2m `[0m[2mfail[0m[2m()`[0m[2m is[0m[2m:
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mif[0m[2m job[0m[2m["[0m[2mret[0m[2mries[0m[2m"][0m[2m <[0m[2m self[0m[2m.max[0m[2m_[0m[2mret[0m[2mries[0m[2m:[0m[2m [0m[2m #[0m[2m should[0m[2m be[0m[2m <=[0m[2m or[0m[2m job[0m[2m["[0m[2mret[0m[2mries[0m[2m"][0m[2m >=[0m[2m [0m[2m1[0m[2m
+[0m[2m```
+[0m[2mShould[0m[2m be[0m[2m `[0m[2mif[0m[2m job[0m[2m["[0m[2mret[0m[2mries[0m[2m"][0m[2m <[0m[2m self[0m[2m.max[0m[2m_[0m[2mret[0m[2mries[0m[2m -[0m[2m [0m[2m1[0m[2m`[0m[2m or[0m[2m something[0m[2m?
+     
+[0m[2mNo[0m[2m,[0m[2m that[0m[2m doesn[0m[2m't[0m[2m make[0m[2m sense[0m[2m.[0m[2m Let[0m[2m me[0m[2m think[0m[2m about[0m[2m what[0m[2m `[0m[2mmax[0m[2m_[0m[2mret[0m[2mries[0m[2m`[0m[2m conventionally[0m[2m means[0m[2m.[0m[2m It[0m[2m usually[0m[2m means[0m[2m "[0m[2mmax[0m[2m number[0m[2m of[0m[2m ret[0m[2mry[0m[2m attempts[0m[2m after[0m[2m the[0m[2m first[0m[2m failure[0m[2m."[0m[2m So[0m[2m max[0m[2m_[0m[2mret[0m[2mries[0m[2m=[0m[2m2[0m[2m means[0m[2m [0m[2m3[0m[2m total[0m[2m attempts[0m[2m.[0m[2m The[0m[2m code[0m[2m looks[0m[2m correct[0m[2m for[0m[2m this[0m[2m convention[0m[2m.
+     
+[0m[2mBut[0m[2m the[0m[2m test[0m[2m expects[0m[2m specific[0m[2m counts[0m[2m:[0m[2m [0m[2m10[0m[2m done[0m[2m,[0m[2m [0m[2m2[0m[2m failed[0m[2m.[0m[2m With[0m[2m the[0m[2m current[0m[2m code[0m[2m:
+[0m[2m-[0m[2m [0m[2m10[0m[2m good[0m[2m jobs[0m[2m →[0m[2m each[0m[2m processed[0m[2m once[0m[2m →[0m[2m done[0m[2m
+[0m[2m-[0m[2m [0m[2m2[0m[2m bad[0m[2m jobs[0m[2m →[0m[2m each[0m[2m processed[0m[2m [0m[2m3[0m[2m times[0m[2m ([0m[2minitial[0m[2m +[0m[2m [0m[2m2[0m[2m ret[0m[2mries[0m[2m)[0m[2m →[0m[2m eventually[0m[2m failed[0m[2m
+[0m[2m-[0m[2m Final[0m[2m:[0m[2m [0m[2m10[0m[2m done[0m[2m,[0m[2m [0m[2m2[0m[2m failed[0m[2m
+     
+[0m[2mThis[0m[2m matches[0m[2m expectations[0m[2m![0m[2m So[0m[2m the[0m[2m bugs[0m[2m must[0m[2m be[0m[2m elsewhere[0m[2m.
+     
+[0m[2mOK[0m[2m,[0m[2m I[0m[2m'm[0m[2m just[0m[2m going[0m[2m to[0m[2m run[0m[2m the[0m[2m code[0m[2m now[0m[2m.
+     
+[0m[2mLet[0m[2m me[0m[2m also[0m[2m look[0m[2m at[0m[2m it[0m[2m from[0m[2m a[0m[2m completely[0m[2m different[0m[2m angle[0m[2m.[0m[2m Maybe[0m[2m the[0m[2m bugs[0m[2m aren[0m[2m't[0m[2m about[0m[2m race[0m[2m conditions[0m[2m at[0m[2m all[0m[2m,[0m[2m but[0m[2m about[0m[2m logic[0m[2m errors[0m[2m:
+     
+[0m[2m1[0m[2m.[0m[2m **[0m[2mDuplicate[0m[2m processing[0m[2m**:[0m[2m What[0m[2m if[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m returns[0m[2m the[0m[2m same[0m[2m job[0m[2m twice[0m[2m because[0m[2m multiple[0m[2m workers[0m[2m are[0m[2m iter[0m[2mating[0m[2m simultaneously[0m[2m?[0m[2m But[0m[2m we[0m[2m established[0m[2m that[0m[2m with[0m[2m single[0m[2m-th[0m[2mread[0m[2med[0m[2m as[0m[2myn[0m[2mcio[0m[2m,[0m[2m the[0m[2m check[0m[2m-and[0m[2m-set[0m[2m is[0m[2m effectively[0m[2m atomic[0m[2m.
+     
+[0m[2m2[0m[2m.[0m[2m **[0m[2mVan[0m[2mishing[0m[2m failures[0m[2m**:[0m[2m What[0m[2m if[0m[2m `[0m[2mfail[0m[2m()`[0m[2m has[0m[2m a[0m[2m bug[0m[2m where[0m[2m it[0m[2m doesn[0m[2m't[0m[2m properly[0m[2m set[0m[2m the[0m[2m "[0m[2mfailed[0m[2m"[0m[2m status[0m[2m?
+     
+[0m[2mLet[0m[2m me[0m[2m look[0m[2m at[0m[2m `[0m[2mfail[0m[2m()`[0m[2m one[0m[2m more[0m[2m time[0m[2m:
+     
+[0m[2m```[0m[2mpython[0m[2m
+[0m[2mdef[0m[2m fail[0m[2m(self[0m[2m,[0m[2m job[0m[2m_id[0m[2m:[0m[2m int[0m[2m,[0m[2m error[0m[2m:[0m[2m str[0m[2m)[0m[2m ->[0m[2m None[0m[2m:
+[0m[2m   [0m[2m job[0m[2m =[0m[2m self[0m[2m._[0m[2mjobs[0m[2m[j[0m[2mob[0m[2m_id[0m[2m]
+[0m[2m   [0m[2m if[0m[2m job[0m[2m["[0m[2mret[0m[2mries[0m[2m"][0m[2m <[0m[2m self[0m[2m.max[0m[2m_[0m[2mret[0m[2mries[0m[2m:
+[0m[2m       [0m[2m job[0m[2m["[0m[2mret[0m[2mries[0m[2m"][0m[2m +=[0m[2m [0m[2m1[0m[2m
+[0m[2m       [0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mpending[0m[2m"
+[0m[2m   [0m[2m else[0m[2m:
+[0m[2m       [0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mfailed[0m[2m"
+[0m[2m       [0m[2m job[0m[2m["[0m[2mresult[0m[2m"][0m[2m =[0m[2m error[0m[2m
+[0m[2m```
+     
+[0m[2mIf[0m[2m `[0m[2mjob[0m[2m_id[0m[2m`[0m[2m doesn[0m[2m't[0m[2m exist[0m[2m in[0m[2m `[0m[2mself[0m[2m._[0m[2mjobs[0m[2m`,[0m[2m this[0m[2m raises[0m[2m a[0m[2m `[0m[2mKey[0m[2mError[0m[2m`.[0m[2m But[0m[2m `[0m[2mjob[0m[2m_id[0m[2m`[0m[2m always[0m[2m comes[0m[2m from[0m[2m a[0m[2m deque[0m[2mued[0m[2m job[0m[2m,[0m[2m so[0m[2m it[0m[2m should[0m[2m exist[0m[2m.
+     
+[0m[2mIf[0m[2m the[0m[2m job[0m[2m is[0m[2m somehow[0m[2m not[0m[2m in[0m[2m the[0m[2m dict[0m[2m ([0m[2me[0m[2m.g[0m[2m.,[0m[2m deleted[0m[2m),[0m[2m it[0m[2m would[0m[2m raise[0m[2m.[0m[2m But[0m[2m there[0m[2m's[0m[2m no[0m[2m deletion[0m[2m in[0m[2m the[0m[2m code[0m[2m.
+     
+[0m[2mI[0m[2m think[0m[2m the[0m[2m actual[0m[2m bugs[0m[2m might[0m[2m be[0m[2m more[0m[2m about[0m[2m what[0m[2m happens[0m[2m with[0m[2m concurrent[0m[2m access[0m[2m under[0m[2m as[0m[2myn[0m[2mcio[0m[2m.[0m[2m Let[0m[2m me[0m[2m just[0m[2m run[0m[2m the[0m[2m simulation[0m[2m and[0m[2m see[0m[2m.[0m[2m
+  Let[0m[2m me[0m[2m run[0m[2m the[0m[2m simulation[0m[2m to[0m[2m see[0m[2m the[0m[2m actual[0m[2m behavior[0m[2m.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m[0m[2m
+  🧰 call_00_3PK2YjoU0S3r0kXP0zHc3365 | Bash {'command': 'cd /Users/gofrendigunawan/ ...'}
+[0m  [2m[Worker 0] picked up job 1
+[0m  [2m[Worker 1] picked up job 2
+[0m  [2m[Worker 2] picked up job 3
+[0m  [2m[Worker 3] picked up job 4
+[0m  [2m[Worker 4] picked up job 5
+[0m  [2m[Worker 0] finished job 1
+[0m  [2m[Worker 1] finished job 2
+[0m  [2m[Worker 2] finished job 3
+[0m  [2m[Worker 3] finished job 4
+[0m  [2m[Worker 4] finished job 5
+[0m  [2m[Worker 0] picked up job 6
+[0m  [2m[Worker 1] picked up job 7
+[0m  [2m[Worker 2] picked up job 8
+[0m  [2m[Worker 3] picked up job 9
+[0m  [2m[Worker 4] picked up job 10
+[0m  [2m[Worker 0] finished job 6
+[0m  [2m[Worker 1] finished job 7
+[0m  [2m[Worker 2] finished job 8
+[0m  [2m[Worker 3] finished job 9
+[0m  [2m[Worker 4] finished job 10
+[0m  [2m[Worker 0] picked up job 11
+[0m  [2m[Worker 1] picked up job 12
+[0m  [2m[Worker 0] job 11 failed: processing error for job 11
+[0m  [2m[Worker 1] job 12 failed: processing error for job 12
+[0m  [2m[Worker 0] picked up job 11
+[0m  [2m[Worker 1] picked up job 12
+[0m  [2m[Worker 0] job 11 failed: processing error for job 11
+[0m  [2m[Worker 1] job 12 failed: processing error for job 12
+[0m  [2m[Worker 0] picked up job 11
+[0m  [2m[Worker 1] picked up job 12
+[0m  [2m[Worker 0] job 11 failed: processing error for job 11
+[0m  [2m[Worker 1] job 12 failed: processing error for job 12
+[0m  [2m
+[0m  [2m=== Results ===
+[0m  [2mDone:   10 (expected 10)
+[0m  [2mFailed: 2 (expected 2)
+[0m  [2mStuck:  0 (expected 0)
+[0m[2m
+  🔠 call_00_3PK2YjoU0S3r0kXP0zHc3365 Executed
+[0m[32m260522 12:14:40.588 1/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 1/3 failed: status_code: 402, model_name: deepseek-v4-flash, body: {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}[0m
+[32m260522 12:14:41.475 2/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 2/3 failed: status_code: 402, model_name: deepseek-v4-flash, body: {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}[0m
+[32m260522 12:14:42.399 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Attempt 3/3 failed: status_code: 402, model_name: deepseek-v4-flash, body: {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}[0m
+[32m260522 12:14:42.399 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Marked as permanently failed[0m
+[32m260522 12:14:42.410 3/3   🐶 chat-process ⬤ [0m [1;31m[ERROR] Traceback (most recent call last):
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 150, in _map_api_errors
+    yield
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 895, in _completions_create
+    return await self.client.chat.completions.create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<29 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py", line 2714, in create
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+    ...<49 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1884, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1669, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 179, in execute_action_with_retry
+    result = await run_async(task._exec_action(ctx))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 367, in _exec_action
+    return await self._exec_action_inner(ctx)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 427, in _exec_action_inner
+    raise e
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 405, in _exec_action_inner
+    output, new_history = await run_agent(
+                          ^^^^^^^^^^^^^^^^
+    ...<13 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 160, in run_agent
+    return await _execution_loop(
+           ^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 556, in _execution_loop
+    raise e
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 497, in _execution_loop
+    raise stream_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 468, in _execution_loop
+    async for event in stream:
+    ...<13 lines>...
+            await effective_event_handler(event)
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/result.py", line 968, in __anext__
+    return await self._generator.__anext__()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1252, in _run_stream_events
+    result = await task
+             ^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1211, in run_agent
+    return await self.run(
+           ^^^^^^^^^^^^^^^
+    ...<19 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 410, in run
+    node = await agent_run._run_node_with_hooks(node, _stream_step)  # pyright: ignore[reportPrivateUsage]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 308, in _run_node_with_hooks
+    return await self._wrap_and_advance(run_context, node, step_fn)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 278, in _wrap_and_advance
+    result = await cap.on_node_run_error(run_context, node=node, error=e)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 245, in on_node_run_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 242, in on_node_run_error
+    return await capability.on_node_run_error(ctx, node=node, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 433, in on_node_run_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 276, in _wrap_and_advance
+    result = await cap.wrap_node_run(run_context, node=node, handler=step_fn)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 231, in wrap_node_run
+    return await chain(node)
+           ^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 617, in wrapped
+    return await cap.wrap_node_run(ctx, node=node, handler=inner)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 412, in wrap_node_run
+    return await handler(node)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 392, in _stream_and_advance
+    async with n.stream(agent_run.ctx) as stream:
+               ~~~~~~~~^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 679, in stream
+    model_response = await self._resolve_wrap_result(ctx, run_context, wrap_request_context, result_or_exc)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 967, in _resolve_wrap_result
+    return await ctx.deps.root_capability.on_model_request_error(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        run_context, request_context=request_context, error=exc
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 306, in on_model_request_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 303, in on_model_request_error
+    return await capability.on_model_request_error(ctx, request_context=request_context, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 514, in on_model_request_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 676, in stream
+    result_or_exc = wrap_task.result()
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 292, in wrap_model_request
+    return await chain(request_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 581, in wrapped
+    return await cap.wrap_model_request(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 491, in wrap_model_request
+    return await handler(request_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 628, in _streaming_handler
+    async with req_ctx.model.request_stream(
+               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        req_ctx.messages, req_ctx.model_settings, req_ctx.model_request_parameters, run_context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ) as sr:
+    ^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 837, in request_stream
+    response = await self._completions_create(messages, True, model_settings_cast, model_request_parameters)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 888, in _completions_create
+    with _map_api_errors(self.model_name):
+         ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 153, in _map_api_errors
+    raise ModelHTTPError(status_code=status_code, model_name=model_name, body=e.body) from e
+pydantic_ai.exceptions.ModelHTTPError: status_code: 402, model_name: deepseek-v4-flash, body: {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}
+[0m
+[32m260522 12:14:42.412 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Attempt 1/1 failed: status_code: 402, model_name: deepseek-v4-flash, body: {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}[0m
+[32m260522 12:14:42.412 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Marked as permanently failed[0m
+[32m260522 12:14:42.419 1/1   🐶 chat ⬤ [0m [1;31m[ERROR] Traceback (most recent call last):
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 150, in _map_api_errors
+    yield
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 895, in _completions_create
+    return await self.client.chat.completions.create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<29 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py", line 2714, in create
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+    ...<49 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1884, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1669, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 179, in execute_action_with_retry
+    result = await run_async(task._exec_action(ctx))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/chat/task.py", line 466, in _exec_action
+    return await self._run_non_interactive_session(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/chat/runner_mixin.py", line 66, in _run_non_interactive_session
+    result = await llm_task_core.async_run(session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 240, in async_run
+    return await run_task_async(
+           ^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 91, in run_task_async
+    result = await task.exec_root_tasks(session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 249, in exec_root_tasks
+    return await execute_root_tasks(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
+    await asyncio.gather(*root_task_coros)
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 252, in exec_chain
+    return await execute_task_chain(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 22, in execute_task_chain
+    result = await execute_task_action(task, session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 52, in execute_task_action
+    return await run_async(execute_action_until_ready(task, session))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 86, in execute_action_until_ready
+    result = await run_async(execute_action_with_retry(task, session))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 216, in execute_action_with_retry
+    raise e  # Re-raise the exception after handling fallbacks
+    ^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 179, in execute_action_with_retry
+    result = await run_async(task._exec_action(ctx))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 367, in _exec_action
+    return await self._exec_action_inner(ctx)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 427, in _exec_action_inner
+    raise e
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 405, in _exec_action_inner
+    output, new_history = await run_agent(
+                          ^^^^^^^^^^^^^^^^
+    ...<13 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 160, in run_agent
+    return await _execution_loop(
+           ^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 556, in _execution_loop
+    raise e
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 497, in _execution_loop
+    raise stream_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 468, in _execution_loop
+    async for event in stream:
+    ...<13 lines>...
+            await effective_event_handler(event)
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/result.py", line 968, in __anext__
+    return await self._generator.__anext__()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1252, in _run_stream_events
+    result = await task
+             ^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1211, in run_agent
+    return await self.run(
+           ^^^^^^^^^^^^^^^
+    ...<19 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 410, in run
+    node = await agent_run._run_node_with_hooks(node, _stream_step)  # pyright: ignore[reportPrivateUsage]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 308, in _run_node_with_hooks
+    return await self._wrap_and_advance(run_context, node, step_fn)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 278, in _wrap_and_advance
+    result = await cap.on_node_run_error(run_context, node=node, error=e)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 245, in on_node_run_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 242, in on_node_run_error
+    return await capability.on_node_run_error(ctx, node=node, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 433, in on_node_run_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 276, in _wrap_and_advance
+    result = await cap.wrap_node_run(run_context, node=node, handler=step_fn)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 231, in wrap_node_run
+    return await chain(node)
+           ^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 617, in wrapped
+    return await cap.wrap_node_run(ctx, node=node, handler=inner)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 412, in wrap_node_run
+    return await handler(node)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 392, in _stream_and_advance
+    async with n.stream(agent_run.ctx) as stream:
+               ~~~~~~~~^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 679, in stream
+    model_response = await self._resolve_wrap_result(ctx, run_context, wrap_request_context, result_or_exc)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 967, in _resolve_wrap_result
+    return await ctx.deps.root_capability.on_model_request_error(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        run_context, request_context=request_context, error=exc
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 306, in on_model_request_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 303, in on_model_request_error
+    return await capability.on_model_request_error(ctx, request_context=request_context, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 514, in on_model_request_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 676, in stream
+    result_or_exc = wrap_task.result()
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 292, in wrap_model_request
+    return await chain(request_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 581, in wrapped
+    return await cap.wrap_model_request(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 491, in wrap_model_request
+    return await handler(request_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 628, in _streaming_handler
+    async with req_ctx.model.request_stream(
+               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        req_ctx.messages, req_ctx.model_settings, req_ctx.model_request_parameters, run_context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ) as sr:
+    ^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 837, in request_stream
+    response = await self._completions_create(messages, True, model_settings_cast, model_request_parameters)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 888, in _completions_create
+    with _map_api_errors(self.model_name):
+         ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 153, in _map_api_errors
+    raise ModelHTTPError(status_code=status_code, model_name=model_name, body=e.body) from e
+pydantic_ai.exceptions.ModelHTTPError: status_code: 402, model_name: deepseek-v4-flash, body: {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}
+[0m
+[2mTo run again:[0m [1;33mzrb chat --message "Our background job processor has been acting up in production. Two separate issues have been reported:
+
+1. **Duplicate processing**: Some jobs appear to be executed more than once. We've seen side effects (emails, charges) triggered twice for a single job ID.
+2. **Vanishing failures**: Jobs that crash with an exception never show up as \"failed\". They seem to just disappear from the queue, making retries impossible.
+
+The system is in `job_queue.py` (the queue) and `worker.py` (the processor). `main.py` runs a simulation you can use to reproduce the issues.
+
+Find the root causes and fix them. Do not change the public method signatures.
+" --model "" --session ollama_deepseek-v4-flash_cloud-bug-fix-trial-3 --yolo true --attach "" --interactive false[0m
+Traceback (most recent call last):
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 150, in _map_api_errors
+    yield
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 895, in _completions_create
+    return await self.client.chat.completions.create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<29 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py", line 2714, in create
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+    ...<49 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1884, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/openai/_base_client.py", line 1669, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.APIStatusError: Error code: 402 - {'error': {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}}
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/gofrendigunawan/.local-venv/bin/zrb", line 8, in <module>
+    sys.exit(serve_cli())
+             ~~~~~~~~~^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/__main__.py", line 68, in serve_cli
+    raise e
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/__main__.py", line 61, in serve_cli
+    cli.run(sys.argv[1:])
+    ~~~~~~~^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/runner/cli.py", line 57, in run
+    result, session = self._run_task(node, str_args, task_str_kwargs)
+                      ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/runner/cli.py", line 114, in _run_task
+    result = task.run(session, str_kwargs=run_kwargs)
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 224, in run
+    return asyncio.run(
+           ~~~~~~~~~~~^
+        run_and_cleanup(
+        ^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+        )
+        ^
+    )
+    ^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/asyncio/base_events.py", line 721, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 34, in run_and_cleanup
+    result = await main_task_coro
+             ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 91, in run_task_async
+    result = await task.exec_root_tasks(session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 249, in exec_root_tasks
+    return await execute_root_tasks(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
+    await asyncio.gather(*root_task_coros)
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 252, in exec_chain
+    return await execute_task_chain(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 22, in execute_task_chain
+    result = await execute_task_action(task, session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 52, in execute_task_action
+    return await run_async(execute_action_until_ready(task, session))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 86, in execute_action_until_ready
+    result = await run_async(execute_action_with_retry(task, session))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 216, in execute_action_with_retry
+    raise e  # Re-raise the exception after handling fallbacks
+    ^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 179, in execute_action_with_retry
+    result = await run_async(task._exec_action(ctx))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/chat/task.py", line 466, in _exec_action
+    return await self._run_non_interactive_session(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/chat/runner_mixin.py", line 66, in _run_non_interactive_session
+    result = await llm_task_core.async_run(session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 240, in async_run
+    return await run_task_async(
+           ^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 91, in run_task_async
+    result = await task.exec_root_tasks(session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 249, in exec_root_tasks
+    return await execute_root_tasks(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/lifecycle.py", line 129, in execute_root_tasks
+    await asyncio.gather(*root_task_coros)
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base_task.py", line 252, in exec_chain
+    return await execute_task_chain(self, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 22, in execute_task_chain
+    result = await execute_task_action(task, session)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 52, in execute_task_action
+    return await run_async(execute_action_until_ready(task, session))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 86, in execute_action_until_ready
+    result = await run_async(execute_action_with_retry(task, session))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 216, in execute_action_with_retry
+    raise e  # Re-raise the exception after handling fallbacks
+    ^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/task/base/execution.py", line 179, in execute_action_with_retry
+    result = await run_async(task._exec_action(ctx))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/util/run.py", line 19, in run_async
+    return await value
+           ^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 367, in _exec_action
+    return await self._exec_action_inner(ctx)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 427, in _exec_action_inner
+    raise e
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/task/llm_task.py", line 405, in _exec_action_inner
+    output, new_history = await run_agent(
+                          ^^^^^^^^^^^^^^^^
+    ...<13 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 160, in run_agent
+    return await _execution_loop(
+           ^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 556, in _execution_loop
+    raise e
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 497, in _execution_loop
+    raise stream_error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/zrb/llm/agent/run/runner.py", line 468, in _execution_loop
+    async for event in stream:
+    ...<13 lines>...
+            await effective_event_handler(event)
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/result.py", line 968, in __anext__
+    return await self._generator.__anext__()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1252, in _run_stream_events
+    result = await task
+             ^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 1211, in run_agent
+    return await self.run(
+           ^^^^^^^^^^^^^^^
+    ...<19 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 410, in run
+    node = await agent_run._run_node_with_hooks(node, _stream_step)  # pyright: ignore[reportPrivateUsage]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 308, in _run_node_with_hooks
+    return await self._wrap_and_advance(run_context, node, step_fn)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 278, in _wrap_and_advance
+    result = await cap.on_node_run_error(run_context, node=node, error=e)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 245, in on_node_run_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 242, in on_node_run_error
+    return await capability.on_node_run_error(ctx, node=node, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 433, in on_node_run_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/run.py", line 276, in _wrap_and_advance
+    result = await cap.wrap_node_run(run_context, node=node, handler=step_fn)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 231, in wrap_node_run
+    return await chain(node)
+           ^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 617, in wrapped
+    return await cap.wrap_node_run(ctx, node=node, handler=inner)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 412, in wrap_node_run
+    return await handler(node)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/agent/abstract.py", line 392, in _stream_and_advance
+    async with n.stream(agent_run.ctx) as stream:
+               ~~~~~~~~^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 679, in stream
+    model_response = await self._resolve_wrap_result(ctx, run_context, wrap_request_context, result_or_exc)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 967, in _resolve_wrap_result
+    return await ctx.deps.root_capability.on_model_request_error(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        run_context, request_context=request_context, error=exc
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 306, in on_model_request_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 303, in on_model_request_error
+    return await capability.on_model_request_error(ctx, request_context=request_context, error=error)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 514, in on_model_request_error
+    raise error
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 676, in stream
+    result_or_exc = wrap_task.result()
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 292, in wrap_model_request
+    return await chain(request_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/combined.py", line 581, in wrapped
+    return await cap.wrap_model_request(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/capabilities/abstract.py", line 491, in wrap_model_request
+    return await handler(request_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/_agent_graph.py", line 628, in _streaming_handler
+    async with req_ctx.model.request_stream(
+               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        req_ctx.messages, req_ctx.model_settings, req_ctx.model_request_parameters, run_context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ) as sr:
+    ^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 837, in request_stream
+    response = await self._completions_create(messages, True, model_settings_cast, model_request_parameters)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 888, in _completions_create
+    with _map_api_errors(self.model_name):
+         ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/gofrendigunawan/.pyenv/versions/3.13.0/lib/python3.13/contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "/Users/gofrendigunawan/.local-venv/lib/python3.13/site-packages/pydantic_ai/models/openai.py", line 153, in _map_api_errors
+    raise ModelHTTPError(status_code=status_code, model_name=model_name, body=e.body) from e
+pydantic_ai.exceptions.ModelHTTPError: status_code: 402, model_name: deepseek-v4-flash, body: {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}
