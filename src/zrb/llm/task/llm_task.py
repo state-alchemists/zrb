@@ -33,13 +33,13 @@ from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
     from pydantic_ai import Tool, UserContent
-    from pydantic_ai._agent_graph import HistoryProcessor
     from pydantic_ai.capabilities import AbstractCapability
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.tools import ToolFuncEither
     from pydantic_ai.toolsets import AbstractToolset
 
+    from zrb.llm.agent.common import HistoryProcessor
     from zrb.llm.approval.approval_channel import ApprovalChannel
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 

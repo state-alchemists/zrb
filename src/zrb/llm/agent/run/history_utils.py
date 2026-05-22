@@ -144,7 +144,7 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
     def _sanitize(part: Any) -> Any:
         """Replace bad content with provider-safe placeholder."""
         # Skip non-dataclasses and dataclasses without a content field
-        # (e.g. BuiltinToolCallPart, which carries args instead of content).
+        # (e.g. NativeToolCallPart, which carries args instead of content).
         if not is_dataclass(part) or not hasattr(part, "content"):
             return part
         content = part.content
@@ -238,17 +238,19 @@ def strip_to_text_only(history: list[Any]) -> list[Any]:
     ``UserPromptPart``, ``ToolReturnPart``, or ``RetryPromptPart`` — so we
     can't simply drop a ``TextPart`` into a user-role message.
 
-    Conversions:
+    Conversions (all tool-shaped parts collapse to a ``(sanitized-history)``
+    prose label — deliberately not shaped like a callable syntax so the
+    model doesn't pattern-match the label as a way to invoke tools):
 
     ``ModelResponse`` (assistant role):
-        ``BaseToolCallPart``      → ``TextPart("[Tool: name(args)]")``
-        ``BuiltinToolReturnPart`` → ``TextPart("[Result (name): content]")``
+        ``BaseToolCallPart``      → ``TextPart("(sanitized-history) previously attempted to call tool …")``
+        ``NativeToolReturnPart`` → ``TextPart("(sanitized-history) previous result from tool …")``
         ``ThinkingPart``          → ``TextPart(content)``
         ``TextPart``              → kept (empty content normalised to ``"."``)
 
     ``ModelRequest`` (user role):
-        ``ToolReturnPart``                       → ``UserPromptPart("[Result (name): content]")``
-        ``RetryPromptPart`` with ``tool_name``   → ``UserPromptPart("[Retry (name): content]")``
+        ``ToolReturnPart``                       → ``UserPromptPart("(sanitized-history) previous result …")``
+        ``RetryPromptPart`` with ``tool_name``   → ``UserPromptPart("(sanitized-history) prior retry feedback …")``
         ``UserPromptPart`` / ``SystemPromptPart``/ tool-less ``RetryPromptPart``
                                                  → kept (empty content normalised to ``"."``)
 
@@ -319,18 +321,28 @@ def strip_to_text_only(history: list[Any]) -> list[Any]:
 
 
 def _tool_call_to_text(part: Any) -> str:
-    """Convert a ToolCallPart to a descriptive text label."""
+    """Convert a ToolCallPart to a prose label for sanitized history.
+
+    The label is intentionally NOT shaped like a function-call syntax —
+    the model has been observed pattern-matching ``[Tool: name(args)]`` as
+    the "correct" way to invoke a tool after a fallback strip. Prose form
+    removes that crutch.
+    """
     from pydantic_ai.messages import ToolCallPart  # lazy: heavy third-party
 
     if not isinstance(part, ToolCallPart):
         return ""
     name = part.tool_name or "(unnamed)"
     args = part.args if hasattr(part, "args") and part.args else ""
-    return f"[Tool: {name}({args})]"
+    return (
+        f"(sanitized-history) previously attempted to call tool "
+        f'"{name}" with arguments {args}. This text is a record, '
+        "not a tool-calling format — do not imitate it."
+    )
 
 
 def _tool_return_to_text(part: Any) -> str:
-    """Convert a BaseToolReturnPart to a descriptive text label.
+    """Convert a BaseToolReturnPart to a prose label for sanitized history.
 
     Truncates large results to ``_TOOL_RESULT_MAX_CHARS`` to avoid blowing
     up the context window during a last-resort retry.
@@ -344,7 +356,7 @@ def _tool_return_to_text(part: Any) -> str:
     content = str(raw) if raw is not None else "(no value)"
     if len(content) > _TOOL_RESULT_MAX_CHARS:
         content = content[:_TOOL_RESULT_MAX_CHARS] + "..."
-    return f"[Result ({name}): {content}]"
+    return f'(sanitized-history) previous result from tool "{name}": ' f"{content}"
 
 
 def _thinking_part_content(part: Any) -> str:
@@ -358,7 +370,7 @@ def _thinking_part_content(part: Any) -> str:
 
 
 def _retry_prompt_to_text(part: Any) -> str:
-    """Convert a tool-linked ``RetryPromptPart`` to a descriptive text label."""
+    """Convert a tool-linked ``RetryPromptPart`` to a prose label."""
     from pydantic_ai.messages import RetryPromptPart  # lazy: heavy third-party
 
     if not isinstance(part, RetryPromptPart):
@@ -368,4 +380,4 @@ def _retry_prompt_to_text(part: Any) -> str:
     content = str(raw) if raw not in (None, "") else "(no value)"
     if len(content) > _TOOL_RESULT_MAX_CHARS:
         content = content[:_TOOL_RESULT_MAX_CHARS] + "..."
-    return f"[Retry ({name}): {content}]"
+    return f'(sanitized-history) prior retry feedback for tool "{name}": ' f"{content}"

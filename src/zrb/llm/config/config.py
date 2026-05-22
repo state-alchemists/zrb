@@ -38,13 +38,13 @@ class LLMConfig:
     @property
     def model(self) -> "str | Model":
         """
-        The LLM model to use. Returns a model string (e.g. 'openai:gpt-4o')
+        The LLM model to use. Returns a model string (e.g. 'openai-chat:gpt-4o')
         or a pydantic_ai Model object.
         """
         if self._model is not None:
             return self._model
 
-        model_name = CFG.LLM_MODEL or "openai:gpt-4o"
+        model_name = CFG.LLM_MODEL or "openai-chat:gpt-4o"
         return self._resolve_model_by_name(model_name)
 
     @model.setter
@@ -54,7 +54,7 @@ class LLMConfig:
     @property
     def small_model(self) -> "str | Model":
         """
-        The Small LLM model to use. Returns a model string (e.g. 'openai:gpt-4o-mini')
+        The Small LLM model to use. Returns a model string (e.g. 'openai-chat:gpt-4o-mini')
         or a pydantic_ai Model object.
         """
         if self._small_model is not None:

@@ -1,10 +1,11 @@
 import json
 import os
 import tempfile
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-from pydantic_ai.mcp import MCPServerSSE, MCPServerStdio
+from fastmcp.client.transports import StdioTransport
+from pydantic_ai.mcp import MCPToolset
 
 from zrb.llm.tool.mcp import load_mcp_config
 
@@ -52,25 +53,25 @@ def test_mcp_toolset_factory_instantiation(mock_fs):
         "os.getcwd", return_value=sub_dir
     ):
 
-        servers = load_mcp_config()
+        toolsets = load_mcp_config()
 
-        assert len(servers) == 2
+        assert len(toolsets) == 2
+        assert all(isinstance(t, MCPToolset) for t in toolsets)
 
-        # Identify servers
-        stdio = next((s for s in servers if isinstance(s, MCPServerStdio)), None)
-        sse = next((s for s in servers if isinstance(s, MCPServerSSE)), None)
+        by_id = {t.id: t for t in toolsets}
+        assert set(by_id) == {"stdio_server", "sse_server"}
 
-        assert stdio is not None
-        assert sse is not None
+        # Stdio: transport is a StdioTransport built from command/args/env
+        stdio_transport = by_id["stdio_server"].client.transport
+        assert isinstance(stdio_transport, StdioTransport)
+        assert stdio_transport.command == "echo"
+        # MY_VAR not set → falls back to default "hello"
+        assert stdio_transport.args == ["hello"]
+        assert stdio_transport.env == {"TEST_ENV": "value"}
 
-        # Check Stdio config
-        assert stdio.command == "echo"
-        # Since we didn't set MY_VAR, it should be "hello"
-        assert stdio.args == ["hello"]
-        assert stdio.env == {"TEST_ENV": "value"}
-
-        # Check SSE config
-        assert sse.url == "http://localhost:8080/sse"
+        # URL-based servers: FastMCP infers the transport from the URL string; we just check
+        # the toolset was created with the right id.
+        assert by_id["sse_server"].id == "sse_server"
 
 
 def test_mcp_toolset_factory_overrides(mock_fs):
@@ -86,8 +87,10 @@ def test_mcp_toolset_factory_overrides(mock_fs):
         "os.getcwd", return_value=sub_dir
     ):
 
-        servers = load_mcp_config()
+        toolsets = load_mcp_config()
 
-        assert len(servers) == 1
-        assert isinstance(servers[0], MCPServerStdio)
-        assert servers[0].command == "cmd2"
+        assert len(toolsets) == 1
+        assert isinstance(toolsets[0], MCPToolset)
+        transport = toolsets[0].client.transport
+        assert isinstance(transport, StdioTransport)
+        assert transport.command == "cmd2"

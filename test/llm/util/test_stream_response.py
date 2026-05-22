@@ -254,7 +254,7 @@ class TestStreamEventHandlerRunResult:
         mock_usage.details = {}
         mock_event = MagicMock()
         mock_event.result = MagicMock()
-        mock_event.result.usage.return_value = mock_usage
+        mock_event.result.usage = mock_usage
         handler._handle_run_result(mock_event)
         print_fn.assert_called()
         args = print_fn.call_args[0][0]

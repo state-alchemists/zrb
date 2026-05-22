@@ -1,9 +1,12 @@
 import json
 import os
+import re
 from typing import Any
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
+
+_ENV_VAR_PATTERN = re.compile(r"\$\{([^}:]+)(:-([^}]*))?\}")
 
 
 def load_mcp_config(config_file_name: str | None = None) -> list[Any]:
@@ -18,7 +21,7 @@ def load_mcp_config(config_file_name: str | None = None) -> list[Any]:
     if not merged_servers:
         return []
 
-    return _create_mcp_servers(merged_servers)
+    return _create_mcp_toolsets(merged_servers)
 
 
 def _get_config_files(config_file_name: str) -> list[str]:
@@ -70,38 +73,63 @@ def _merge_mcp_servers_config(config_files: list[str]) -> dict[str, Any]:
     return merged_servers
 
 
-def _create_mcp_servers(merged_servers: dict[str, Any]) -> list[Any]:
-    from pydantic_ai.mcp import MCPServerSSE, MCPServerStdio, _expand_env_vars
+def _create_mcp_toolsets(merged_servers: dict[str, Any]) -> list[Any]:
+    # lazy: heavy import (pydantic_ai, fastmcp)
+    from fastmcp.client.transports import StdioTransport
+    from pydantic_ai.mcp import MCPToolset
 
-    servers: list[Any] = []
+    toolsets: list[Any] = []
 
     for server_name, config in merged_servers.items():
         try:
             if "command" in config:
-                # Stdio
                 command = _expand_env_vars(config["command"])
                 args = [_expand_env_vars(arg) for arg in config.get("args", [])]
                 env = {
                     k: _expand_env_vars(v) for k, v in config.get("env", {}).items()
                 } or None
-
-                servers.append(
-                    MCPServerStdio(
-                        command=command,
-                        args=args,
-                        env=env,
+                transport = StdioTransport(command=command, args=args, env=env)
+                toolsets.append(
+                    MCPToolset(
+                        transport,
+                        id=server_name,
                         max_retries=CFG.LLM_MCP_MAX_RETRIES,
                     )
                 )
             elif "url" in config:
-                # SSE
                 url = _expand_env_vars(config["url"])
-                servers.append(
-                    MCPServerSSE(url=url, max_retries=CFG.LLM_MCP_MAX_RETRIES)
+                toolsets.append(
+                    MCPToolset(url, id=server_name, max_retries=CFG.LLM_MCP_MAX_RETRIES)
                 )
         except Exception as e:
             zrb_print(
                 f"Warning: Failed to create MCP server '{server_name}': {e}", plain=True
             )
 
-    return servers
+    return toolsets
+
+
+def _expand_env_vars(value: Any) -> Any:
+    """Recursively expand ``${VAR}`` / ``${VAR:-default}`` references in JSON-like values.
+
+    Mirrors the syntax pydantic-ai's MCP config loader accepts; reimplemented here so we don't
+    depend on the private ``pydantic_ai.mcp._expand_env_vars``.
+    """
+    if isinstance(value, str):
+
+        def replace_match(match: re.Match[str]) -> str:
+            var_name = match.group(1)
+            has_default = match.group(2) is not None
+            default_value = match.group(3) if has_default else None
+            if var_name in os.environ:
+                return os.environ[var_name]
+            if has_default:
+                return default_value or ""
+            raise ValueError(f"Environment variable ${{{var_name}}} is not defined")
+
+        return _ENV_VAR_PATTERN.sub(replace_match, value)
+    if isinstance(value, dict):
+        return {k: _expand_env_vars(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_expand_env_vars(item) for item in value]
+    return value

@@ -180,7 +180,7 @@ class StreamEventHandler:
         self._was_tool_call_delta = False
 
     def _handle_run_result(self, event: "AgentStreamEvent"):
-        usage = event.result.usage()
+        usage = event.result.usage
         usage_msg = " ".join(
             [
                 "💸",

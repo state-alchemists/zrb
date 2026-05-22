@@ -59,7 +59,6 @@ from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
     from pydantic_ai import Tool, UserContent
-    from pydantic_ai._agent_graph import HistoryProcessor
     from pydantic_ai.capabilities import AbstractCapability
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
@@ -67,6 +66,7 @@ if TYPE_CHECKING:
     from pydantic_ai.toolsets import AbstractToolset
     from rich.theme import Theme
 
+    from zrb.llm.agent.common import HistoryProcessor
     from zrb.llm.approval.approval_channel import ApprovalChannel
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 

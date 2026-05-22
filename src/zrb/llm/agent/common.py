@@ -12,17 +12,25 @@ from zrb.llm.util.prompt import expand_prompt
 from zrb.util.string.conversion import to_string
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable
+
     from pydantic_ai import (
         Agent,
         Tool,
     )
-    from pydantic_ai._agent_graph import HistoryProcessor
     from pydantic_ai.capabilities import AbstractCapability
+    from pydantic_ai.messages import ModelMessage
     from pydantic_ai.models import Model
     from pydantic_ai.output import OutputDataT, OutputSpec
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.tools import ToolFuncEither
     from pydantic_ai.toolsets import AbstractToolset
+
+    # zrb applies history processors itself in runner._apply_history_processors
+    # (passing extra positional args like `reserved_tokens` in some call sites),
+    # so the contract is broader than pydantic-ai's `HistoryProcessor` type alias.
+    # Kept local to avoid depending on a private pydantic-ai symbol.
+    HistoryProcessor = Callable[..., Awaitable[list[ModelMessage]]]
 
 
 def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
@@ -202,7 +210,7 @@ def create_agent(
         # (before the first model call) and in _execution_loop (between tool-call
         # iterations) where we own the history reference.
         capabilities=capabilities or [],
-        tool_retries=effective_retries,
+        retries={"tools": effective_retries},
     )
     agent._zrb_history_processors = history_processors or []  # type: ignore[attr-defined]
     return agent
