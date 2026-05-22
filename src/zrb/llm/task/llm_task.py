@@ -184,6 +184,15 @@ class LLMTask(BaseTask):
         self._summarize_command = (
             summarize_command if summarize_command is not None else []
         )
+        # Guidance factories for dynamically-named tools (e.g., RunZrbTask).
+        # Resolved per exec and applied to prompt_manager before composing the
+        # system prompt.
+        self._tool_guidance_factories: list[Callable[[AnyContext], ToolGuidance]] = []
+        # Section factories for model-aware Tool Usage Guide intros (e.g.,
+        # parallel-tool-call policy).
+        self._tool_guidance_section_factories: list[
+            Callable[[AnyContext, Any], "str | None"]
+        ] = []
 
     @property
     def prompt_manager(self) -> PromptManager:
@@ -267,6 +276,59 @@ class LLMTask(BaseTask):
                 key_rule=g.key_rule,
             )
 
+    def add_tool_guidance_factory(self, *factory: Callable[[AnyContext], ToolGuidance]):
+        self.append_tool_guidance_factory(*factory)
+
+    def append_tool_guidance_factory(
+        self, *factory: Callable[[AnyContext], ToolGuidance]
+    ):
+        """Register guidance for dynamically-named factory tools.
+
+        Each factory is called per exec and returns a single ``ToolGuidance``
+        that gets added to ``prompt_manager`` before the system prompt is
+        composed.
+        """
+        self._tool_guidance_factories += list(factory)
+
+    def add_tool_guidance_section_factory(
+        self, *factory: Callable[[AnyContext, Any], "str | None"]
+    ):
+        self.append_tool_guidance_section_factory(*factory)
+
+    def append_tool_guidance_section_factory(
+        self, *factory: Callable[[AnyContext, Any], "str | None"]
+    ):
+        """Register a factory that renders a model-aware Tool Usage Guide section.
+
+        Each factory is called per exec with ``(ctx, resolved_model)`` and
+        returns a Markdown block (typically starting with ``## Heading``) or
+        ``None``/empty string to skip injection.
+        """
+        self._tool_guidance_section_factories += list(factory)
+
+    def _resolve_tool_guidance_factories(self, ctx: AnyContext) -> None:
+        """Resolve guidance + section factories into ``_prompt_manager``.
+
+        Called once per exec before ``get_system_prompt``.
+        """
+        if self._prompt_manager is None:
+            return
+        for guidance_factory in self._tool_guidance_factories:
+            guidance = guidance_factory(ctx)
+            self._prompt_manager.add_tool_guidance(
+                group=guidance.group_name,
+                name=guidance.tool_name,
+                use_when=guidance.when_to_use,
+                key_rule=guidance.key_rule,
+            )
+        resolved_model = self._get_model(ctx)
+        sections: list[str] = []
+        for section_factory in self._tool_guidance_section_factories:
+            rendered = section_factory(ctx, resolved_model)
+            if rendered:
+                sections.append(rendered)
+        self._prompt_manager.tool_guidance_sections = sections
+
     def add_history_processor(self, *processor: HistoryProcessor):
         self.append_history_processor(*processor)
 
@@ -315,6 +377,11 @@ class LLMTask(BaseTask):
             ctx, history_manager, conversation_name, user_message, message_history
         ):
             return "Conversation history compressed."
+
+        # Resolve guidance/section factories into the prompt manager so the
+        # composed system prompt reflects dynamically-named tools and any
+        # model-aware Tool Usage Guide sections.
+        self._resolve_tool_guidance_factories(ctx)
 
         # Compute system prompt once and reuse for both agent creation and run_agent.
         # This avoids rebuilding the prompt (including expensive system_context I/O)

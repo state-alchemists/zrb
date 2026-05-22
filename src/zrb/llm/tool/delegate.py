@@ -8,7 +8,7 @@ from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.agent.run.runtime_state import get_current_ui
 
 # Import directly from the inner module to avoid a circular import: the
-# subagent package's __init__ triggers `register_default_tools`, which loads
+# subagent package's __init__ triggers `apply_common_tools`, which loads
 # zrb.llm.tool, which loads this module — so the package __init__ is still
 # mid-load when delegate.py executes its imports.
 from zrb.llm.agent.subagent.manager.manager import (
@@ -251,14 +251,6 @@ def create_parallel_delegate_tool(
     """Create a tool for delegating tasks to multiple agents in parallel."""
     if sub_agent_manager is None:
         sub_agent_manager = default_sub_agent_manager
-    # Scan for available agents to populate the docstring
-    available_agents = sub_agent_manager.scan()
-    agent_docs = []
-    for agent in available_agents:
-        agent_docs.append(f"- `{agent.name}`: {agent.description}")
-    agent_doc_section = (
-        "\n".join(agent_docs) if agent_docs else "- No sub-agents found."
-    )
 
     async def parallel_delegate_to_agents(
         tasks: list[dict[str, str]],
@@ -325,7 +317,7 @@ def create_parallel_delegate_tool(
     parallel_delegate_to_agents.zrb_is_delegate_tool = True
     parallel_delegate_to_agents.__name__ = "DelegateToAgentsParallel"
     parallel_delegate_to_agents.__doc__ = (
-        "Delegates multiple tasks to subagents in parallel.\n\n"
-        f"AVAILABLE AGENTS:\n{agent_doc_section}"
+        "Delegates multiple tasks to subagents in parallel. "
+        "See DelegateToAgent for the list of available agents."
     )
     return parallel_delegate_to_agents

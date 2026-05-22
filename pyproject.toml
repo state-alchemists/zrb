@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zrb"
-version = "2.28.3"
+version = "2.28.6"
 description = "Your Automation Powerhouse"
 authors = ["Go Frendi Gunawan <gofrendiasgard@gmail.com>"]
 license = "AGPL-3.0-or-later"
@@ -136,6 +136,13 @@ urllib3 = ">=2.7.0"
 # langsmith is a transitive dependency via langchain-core (pulled in by voyageai).
 # We pin >=0.8.0 to ensure the patched version is used.
 langsmith = {version = ">=0.8.0", optional = true}
+
+# Security fix: GHSA-65pc-fj4g-8rjx (CVE-2026-45409) - DoS via crafted input to
+# idna.encode() bypassing the CVE-2024-3651 fix; payloads like "٠" * N
+# exploit valid_contexto before length validation, consuming significant CPU.
+# idna is a transitive dependency via requests, httpx, anyio (pydantic-ai).
+# We pin >=3.15 to ensure the patched version is used.
+idna = ">=3.15"
 
 [tool.poetry.extras]
 # Install all extras:

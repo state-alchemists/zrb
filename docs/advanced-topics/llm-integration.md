@@ -260,7 +260,7 @@ my_chat_task.add_tool_guidance_factory(
 
 This is only needed when the tool name itself is dynamic. For static names, use `add_tool_guidance()` instead.
 
-> **Note:** `add_tool_guidance_factory` is only available on `LLMChatTask`, not `LLMTask`.
+> **Note:** `add_tool_guidance_factory()` and `add_tool_guidance_section_factory()` are available on `LLMChatTask`, `LLMTask`, and `SubAgentManager` — all of which conform to the `CommonToolHost` protocol in `zrb.llm.common_tools`.
 
 ---
 

@@ -318,8 +318,12 @@ class SubAgentManager(LoaderMixin, SearchMixin):
 # Module-level singleton - lightweight, agents loaded on first access
 sub_agent_manager = SubAgentManager()
 
-# Register the zrb-shipped tools. Lives in a sibling module so the visible
-# tool surface stays in one place.
-from zrb.llm.agent.subagent.default_tools import register_default_tools  # noqa: E402
 
-register_default_tools(sub_agent_manager)
+# Imported here (after SubAgentManager is defined) to break a circular import:
+# default_tools pulls in zrb.llm.tool, whose __init__ loads delegate.py, which
+# imports SubAgentManager from this module. Importing at the top would hit
+# this module mid-load before the class exists.
+
+from zrb.llm.common_tools import apply_common_tools
+
+apply_common_tools(sub_agent_manager)

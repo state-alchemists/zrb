@@ -1,6 +1,41 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.28.6 (May 22, 2026)
+
+- **Refactoring: Consolidated tool/guidance registration into `apply_common_tools()`**:
+  - New `src/zrb/llm/common_tools.py` exposes `apply_common_tools(host)` and a `CommonToolHost` `Protocol` satisfied by `LLMChatTask`, `LLMTask`, and `SubAgentManager`. Registers the zrb-shipped default tools (file/bash/code/web/lsp/plan/worktree/skill/zrb-task), the MCP toolset factory, the static `ToolGuidance` catalogue, the dynamic guidance factories (config-dependent names like `RunZrbTask`/`ListZrbTasks`/`ActivateSkill`/`DelegateToAgent*`), and the model-aware parallel-tool-call section factory.
+  - `src/zrb/builtin/llm/chat.py` shrunk from 440 lines to 152: imports, factories, static guidance, dynamic factories, and parallel-section wiring all delegated to `apply_common_tools(llm_chat)`. Only chat-specific config remains (delegate tool factories, tool policies, argument formatters, response handlers, custom commands, hook factories).
+  - `src/zrb/llm/agent/subagent/manager/manager.py` now calls `apply_common_tools(sub_agent_manager)` at module bottom. The old `src/zrb/llm/agent/subagent/default_tools.py` — which held a near-duplicate of chat.py's tool list — is deleted.
+  - `LLMTask` gained `add_tool_guidance_factory()` and `add_tool_guidance_section_factory()` (matching `LLMChatTask` / `SubAgentManager`), plus a private `_resolve_tool_guidance_factories()` called in `_exec_action_inner` before `get_system_prompt()`, so programmatic `LLMTask` users can register dynamic guidance the same way the main chat task does.
+  - Heavy `zrb.llm.tool.*` imports inside `apply_common_tools` are lazy and sourced directly from submodules (not the `zrb.llm.tool` re-export) to sidestep the existing `delegate.py` → `subagent.manager` circular-load cycle.
+
+- **Documentation: AGENTS.md + integration docs refreshed**:
+  - New `llm/common_tools.py` row in the LLM Integration table.
+  - Fixed stale references: `register_model_capabilities` → `model_capabilities.register()`; the `subagent/` layout description updated to reflect the nested `manager/` subpackage; `PromptManager` toggle description corrected from individual `include_*` flags (removed in 2.28.0) to the consolidated `include_sections: list[str] | None` parameter / `CFG.LLM_INCLUDE_SECTIONS` env var.
+  - `docs/advanced-topics/llm-integration.md`: the "`add_tool_guidance_factory` is only available on `LLMChatTask`, not `LLMTask`" note replaced with a statement that all three `CommonToolHost`s now support both factory APIs.
+
+- **Improvement: `_get_help_text` formatting cleanup**:
+  - `src/zrb/llm/ui/base/commands_mixin.py`: long single-line signatures and ternary expressions reflowed across multiple lines for readability. No behavior change.
+
+## 2.28.5 (May 21, 2026)
+
+- **Improvement: Welcome banner help-text truncation**:
+  - `commands_mixin.py`: `_get_help_text()` gained a `max_length` parameter. When set, long command descriptions (e.g. `"List snapshots or restore one (usage: /rewind [<n>|<sha>])"`) are truncated with ` ...` at the character cap, preventing them from overflowing the welcome banner on narrow terminals.
+  - `ui.py`: The `/info` and welcome-banner help render now passes `max_length=75`, so descriptions stay within typical terminal widths. Follow-up to the 2.28.4 banner width-guard — handles the description-text side of the same overflow problem.
+
+## 2.28.4 (May 21, 2026)
+
+- **Security Fix: `idna` bumped to `>=3.15` (GHSA-65pc-fj4g-8rjx / CVE-2026-45409)**:
+  - `idna<3.15` is vulnerable to a DoS where crafted inputs (e.g. `"٠" * N`, `"・" * N + "漢"`) hit `valid_contexto` before length validation, consuming significant CPU. `idna` is a transitive dependency via `requests`, `httpx`, and `anyio`.
+  - Added explicit `idna = ">=3.15"` floor in `pyproject.toml`; `poetry.lock` updated from `idna==3.11` to `idna==3.15`.
+
+- **Improvement: LLM chat TUI touch-up**:
+  - `layout.py`: shrunk the input frame title from `"CTRL+j for newline, Alt+V to paste, ESC to cancel"` to `"Ctrl+J newline · Ctrl+V/Alt+V paste · ESC cancel · /help"` — full key reference is now under `/help` (or `/info`).
+  - `commands_mixin.py`: `/help` output now includes a "Keyboard Shortcuts" section (Ctrl+J, Ctrl+V/Alt+V, Tab/Shift+Tab, F6, Esc, Ctrl+Y, Ctrl+C, ↑/↓). Custom commands now render their `description` field rather than a synthesized `cmd <arg>` usage string. Welcome-screen help limit lowered from 25 to 15 commands so the shortcuts block fits without growing the banner.
+  - `banner.py`: `create_banner()` now accepts an optional `max_width`. When `art_width + 2 + text_width` exceeds it, the ASCII logo is dropped and only the text is rendered — prevents the welcome banner from wrapping into a mess on narrow terminals.
+  - `ui.py`: passes `max_width=get_terminal_size().columns` into the banner so logo suppression is automatic.
+
 ## 2.28.3 (May 18, 2026)
 
 - **Improvement: Mandate tightened with production-readiness rules**:
