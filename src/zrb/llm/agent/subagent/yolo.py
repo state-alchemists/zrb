@@ -26,6 +26,7 @@ def make_yolo_inheritance_checker() -> Callable[..., bool]:
     # lazy: tests patch `zrb.llm.agent.run.runtime_state.get_current_*` and
     # rely on the patch taking effect inside the closure. Hoisting would
     # bind these names at module-load and bypass the mocks.
+    # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.agent.run.runtime_state import get_current_ui, get_current_yolo
 
     def check_yolo_inheritance(tool_def: Any = None) -> bool:

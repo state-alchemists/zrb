@@ -63,6 +63,7 @@ class OptionInput(BaseInput):
     def _get_value_from_user_input(
         self, shared_ctx: AnySharedContext, prompt_message: str, options: list[str]
     ) -> str:
+        # lazy: heavy third-party
         from prompt_toolkit import PromptSession
 
         if shared_ctx.is_tty:
@@ -72,6 +73,7 @@ class OptionInput(BaseInput):
         return input(f"{prompt_message}: ")
 
     def _get_option_completer(self, options: list[str]) -> "Completer":
+        # lazy: heavy third-party
         from prompt_toolkit.completion import CompleteEvent, Completer, Completion
         from prompt_toolkit.document import Document
 

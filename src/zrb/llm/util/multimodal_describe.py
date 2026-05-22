@@ -58,6 +58,7 @@ async def describe_binary_attachment(
     # lazy: avoid importing the agent stack at module-top — this util is
     # imported from the runner, and the runner is loaded transitively by
     # zrb.llm.agent's package __init__.
+    # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.agent import create_agent, run_agent
     from zrb.llm.config.config import llm_config
     from zrb.llm.config.limiter import llm_limiter

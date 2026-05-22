@@ -17,6 +17,7 @@ def show_task_page(
     url: str,
     args: list[str],
 ):
+    # lazy: heavy third-party
     from fastapi.responses import HTMLResponse
 
     web_title = CFG.WEB_TITLE if CFG.WEB_TITLE.strip() != "" else root_group.name

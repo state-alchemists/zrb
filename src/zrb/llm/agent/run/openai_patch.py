@@ -22,6 +22,7 @@ def patch_openai_model_response_serialization():
     Applied once at module load — fails gracefully if pydantic-ai internals change.
     """
     try:
+        # lazy: heavy third-party
         from pydantic_ai.models.openai import OpenAIChatModel
 
         def _patched_into_message_param(self):

@@ -36,6 +36,7 @@ if TYPE_CHECKING:
 def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
     """Wrap a tool with error handling to prevent crashes."""
     if hasattr(tool, "function"):
+        # lazy: heavy third-party
         from pydantic_ai import Tool as PydanticTool
 
         # It is a Tool instance
@@ -86,6 +87,7 @@ def safe_copy_result(result: Any) -> Any:
 
 def create_safe_wrapper(func: Callable) -> Callable:
     """Create a wrapper that catches exceptions and returns ToolReturn objects."""
+    # lazy: heavy third-party
     from pydantic_ai import ToolReturn
 
     @wraps(func)
@@ -118,6 +120,7 @@ def create_safe_wrapper(func: Callable) -> Callable:
 
 def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
     """Wrap a toolset with error handling."""
+    # lazy: heavy third-party
     from pydantic_ai import ToolReturn
     from pydantic_ai.toolsets import WrapperToolset
 
@@ -158,6 +161,7 @@ def create_agent(
     retries: int | None = None,
     yolo: bool | Callable[[Any, Any, dict[str, Any]], bool] = False,
 ) -> "Agent[None, Any]":
+    # lazy: heavy third-party
     from pydantic_ai import Agent, DeferredToolRequests
     from pydantic_ai.toolsets import FunctionToolset
 
@@ -240,6 +244,7 @@ def _apply_capability_constraints(
        the same capability registry, so toggling
        ``supports_parallel_tool_calls`` in one place updates both.
     """
+    # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.util.capabilities import model_capabilities
 
     capabilities = model_capabilities.get(

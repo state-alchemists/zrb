@@ -101,6 +101,7 @@ def _collect_git_info(
     Returns (git_lines, todos_data).  *todos_data* is ``None`` when outside a
     git directory and the todo call itself failed.
     """
+    # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.util.git import is_inside_git_dir
 
     if not is_inside_git_dir():
@@ -177,6 +178,7 @@ def system_context(
     next_handler: Callable[[AnyContext, str], str],
     model: "Any" = None,
 ) -> str:
+    # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.tool.ambient_state import (
         get_active_worktree,
         set_active_worktree,
@@ -247,6 +249,7 @@ def _format_model_line(model: "Any") -> str | None:
     in the Tool Usage Guide via ``get_parallel_tool_call_section`` —
     see ``src/zrb/builtin/llm/chat.py`` for the section-factory wiring.
     """
+    # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.util.capabilities import is_known_model
 
     if model is None or not is_known_model(model):

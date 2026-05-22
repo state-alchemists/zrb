@@ -227,6 +227,7 @@ class HTTPChatApprovalChannel(ApprovalChannel):
         except json.JSONDecodeError:
             pass
         try:
+            # lazy: heavy third-party
             import yaml
 
             result = yaml.safe_load(content)

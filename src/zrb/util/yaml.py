@@ -16,6 +16,7 @@ def yaml_dump(obj: Any, key: str = "") -> str:
     - None values are rendered correctly (not omitted)
     - Non-primitive/list/dict/set objects are ignored
     """
+    # lazy: heavy third-party
     import yaml
 
     # Process the object
@@ -120,6 +121,7 @@ def _parse_key(key: str) -> list[str]:
 
 def _load_yaml(value_str: str) -> Any:
     """Parse a string value using YAML rules."""
+    # lazy: heavy third-party
     import yaml
 
     # Handle empty string explicitly

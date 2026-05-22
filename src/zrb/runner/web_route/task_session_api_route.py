@@ -25,6 +25,7 @@ def serve_task_session_api(
     session_state_logger: AnySessionStateLogger,
     coroutines: list,
 ) -> None:
+    # lazy: heavy third-party
     from fastapi import Query, Request
     from fastapi.responses import JSONResponse
 

@@ -39,10 +39,12 @@ class ApprovalResult:
     def to_pydantic_result(self) -> ToolApproved | ToolDenied:
         """Convert to Pydantic AI result types."""
         if self.approved:
+            # lazy: heavy third-party
             from pydantic_ai import ToolApproved
 
             return ToolApproved(override_args=self.override_args)
         else:
+            # lazy: heavy third-party
             from pydantic_ai import ToolDenied
 
             return ToolDenied(self.message)

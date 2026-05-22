@@ -22,6 +22,7 @@ def serve_node_page(
     root_group: AnyGroup,
     web_auth_config: WebAuthConfig,
 ) -> None:
+    # lazy: heavy third-party
     from fastapi import Request
     from fastapi.responses import HTMLResponse
 

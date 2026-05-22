@@ -24,6 +24,7 @@ def generate_tokens_by_credentials(
 
 
 def regenerate_tokens(web_auth_config: WebAuthConfig, refresh_token: str) -> Token:
+    # lazy: heavy third-party
     from fastapi import HTTPException
 
     # Decode and validate token

@@ -459,6 +459,7 @@ class CommandsMixin:
             # Load current history for context (read-only snapshot).
             # Strip SystemPromptPart entries so the main agent's system prompt
             # doesn't conflict with the btw agent's own system prompt.
+            # lazy: heavy third-party
             from pydantic_ai import Agent
             from pydantic_ai.messages import ModelRequest, SystemPromptPart
 

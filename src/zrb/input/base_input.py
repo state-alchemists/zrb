@@ -104,6 +104,7 @@ class BaseInput(AnyInput):
         if not shared_ctx.is_tty:
             print(f"{prompt_message}: ", end="")
             return input()
+        # lazy: heavy third-party
         from prompt_toolkit import PromptSession
 
         reader = PromptSession()

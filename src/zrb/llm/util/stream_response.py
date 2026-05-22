@@ -53,6 +53,7 @@ class StreamEventHandler:
         return self._print_fn(result, kind)
 
     async def __call__(self, event: "AgentStreamEvent"):
+        # lazy: heavy third-party
         from pydantic_ai import (
             AgentRunResultEvent,
             FinalResultEvent,
@@ -81,6 +82,7 @@ class StreamEventHandler:
             self._event_prefix = f"\n{self._indentation}"
 
     def _handle_part_start(self, event: "AgentStreamEvent") -> bool:
+        # lazy: heavy third-party
         from pydantic_ai import ToolCallPart
         from pydantic_ai.messages import TextPart
 
@@ -120,6 +122,7 @@ class StreamEventHandler:
         return False
 
     def _handle_part_delta(self, event: "AgentStreamEvent"):
+        # lazy: heavy third-party
         from pydantic_ai import TextPartDelta, ThinkingPartDelta, ToolCallPartDelta
 
         if isinstance(event.delta, TextPartDelta):

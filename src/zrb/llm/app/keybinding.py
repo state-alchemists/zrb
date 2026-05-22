@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 
 
 def create_output_keybindings(input_field: "TextArea") -> "KeyBindings":
+    # lazy: heavy third-party
     from prompt_toolkit.application import get_app
     from prompt_toolkit.filters import has_completions
     from prompt_toolkit.key_binding import KeyBindings

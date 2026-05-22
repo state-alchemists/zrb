@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 
 
 def serve_login_api(app: "FastAPI", web_auth_config: WebAuthConfig) -> None:
+    # lazy: heavy third-party
     from fastapi import Depends, Response
     from fastapi.responses import JSONResponse
     from fastapi.security import OAuth2PasswordRequestForm

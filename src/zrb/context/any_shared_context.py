@@ -28,6 +28,7 @@ class AnySharedContext(ABC):
     def __get_pydantic_core_schema__(
         cls, source_type: Any, handler: "GetCoreSchemaHandler"
     ) -> "CoreSchema":
+        # lazy: heavy third-party
         from pydantic_core import core_schema
 
         return core_schema.is_instance_schema(cls)

@@ -130,6 +130,7 @@ class UI(
         self._capture = GlobalStreamCapture(self.append_to_output)
         self._style = create_style()
 
+        # lazy: heavy third-party
         from prompt_toolkit.history import InMemoryHistory
 
         self._input_history = InMemoryHistory()
@@ -174,6 +175,7 @@ class UI(
             status_bar_text=self.get_status_bar_text,
         )
 
+        # lazy: heavy third-party
         from prompt_toolkit.key_binding import KeyBindings
 
         self._app_kb = KeyBindings()
@@ -190,6 +192,7 @@ class UI(
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False
     ) -> Any:
+        # lazy: heavy third-party
         from prompt_toolkit.application import run_in_terminal
 
         def run_subprocess():
@@ -210,18 +213,22 @@ class UI(
         keybindings: "KeyBindings",
         style: "Style",
     ) -> "Application":
+        # lazy: heavy third-party
         from prompt_toolkit import Application
         from prompt_toolkit.output import create_output
 
         try:
+            # lazy: heavy third-party
             from prompt_toolkit.clipboard.pyperclip import PyperclipClipboard
 
             clipboard = PyperclipClipboard()
         except ImportError:
+            # lazy: heavy third-party
             from prompt_toolkit.clipboard import InMemoryClipboard
 
             clipboard = InMemoryClipboard()
         except Exception:
+            # lazy: heavy third-party
             from prompt_toolkit.clipboard import InMemoryClipboard
 
             clipboard = InMemoryClipboard()
@@ -235,6 +242,7 @@ class UI(
             try:
                 return original_get_size()
             except Exception:
+                # lazy: heavy third-party
                 from prompt_toolkit.data_structures import Size
 
                 size = get_terminal_size()

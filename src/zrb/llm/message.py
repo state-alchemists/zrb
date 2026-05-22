@@ -11,6 +11,7 @@ def ensure_alternating_roles(messages: list[Any]) -> list[Any]:
     if not messages:
         return messages
 
+    # lazy: heavy third-party
     from pydantic_ai.messages import ModelRequest, ModelResponse
 
     new_messages: list[Any] = []
@@ -52,6 +53,7 @@ def _strip_orphaned_parts(
     When *ensure_text* is ``True`` and the result has no ``TextPart`` with
     content, a ``"."`` text part is prepended so the message stays valid.
     """
+    # lazy: heavy third-party
     from pydantic_ai.messages import TextPart
 
     new_parts = [
@@ -82,6 +84,7 @@ def sanitize_orphaned_tool_calls(messages: list[Any]) -> list[Any]:
     return.  This function strips the orphaned parts and patches any messages
     that become text-less as a result.
     """
+    # lazy: heavy third-party
     from pydantic_ai.messages import (
         ModelRequest,
         ModelResponse,
@@ -180,6 +183,7 @@ def _iter_tool_events(
     functions (``sanitize_orphaned_tool_calls``, ``get_tool_pairs``,
     ``validate_tool_pair_integrity``).
     """
+    # lazy: heavy third-party
     from pydantic_ai.messages import ToolCallPart, ToolReturnPart
 
     for msg_idx, msg in enumerate(messages):

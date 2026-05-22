@@ -58,6 +58,7 @@ def create_web_app(
     session_state_logger: AnySessionStateLogger,
 ) -> "FastAPI":
 
+    # lazy: heavy third-party
     from fastapi import FastAPI
 
     _COROS = []

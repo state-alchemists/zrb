@@ -84,6 +84,7 @@ class KeybindingsMixin:
                 # lazy: tests patch `zrb.llm.util.clipboard.get_clipboard_image`
                 # at the source path; hoisting would bind the name at
                 # module-load and bypass the mock.
+                # lazy: zrb internal (heavy via transitive / circular)
                 from zrb.llm.util.clipboard import (
                     get_clipboard_image,
                     missing_tool_hint,
@@ -92,6 +93,7 @@ class KeybindingsMixin:
 
                 img_bytes = await get_clipboard_image()
                 if img_bytes is not None:
+                    # lazy: heavy third-party
                     from pydantic_ai import BinaryContent
 
                     scaled = scale_image_bytes(img_bytes, media_type="image/png")
@@ -121,6 +123,7 @@ class KeybindingsMixin:
                         # No image found — paste text into input field. Always
                         # target input_field, not current_buffer, since focus
                         # may be on the read-only output field.
+                        # lazy: heavy third-party
                         from prompt_toolkit.application import get_app as _get_app
 
                         _get_app().layout.focus(self._input_field)

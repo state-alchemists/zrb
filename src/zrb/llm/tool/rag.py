@@ -63,6 +63,7 @@ def create_rag_from_directory(
         embedding_model: str = "",
     ) -> dict[str, Any]:
         try:
+            # lazy: heavy third-party
             from chromadb import PersistentClient
             from chromadb.config import Settings
             from openai import OpenAI

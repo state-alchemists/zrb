@@ -56,6 +56,7 @@ async def search_internet(
     # bind the names at module-load and bypass test mocks.
     method = CFG.SEARCH_INTERNET_METHOD.strip().lower()
     if method == "serpapi" and CFG.SERPAPI_KEY:
+        # lazy: zrb internal (heavy via transitive / circular)
         from zrb.llm.tool.search.serpapi import search_internet as serpapi_search
 
         try:
@@ -65,6 +66,7 @@ async def search_internet(
         return normalize_search_result(raw, "serpapi")
 
     if method == "brave" and CFG.BRAVE_API_KEY:
+        # lazy: zrb internal (heavy via transitive / circular)
         from zrb.llm.tool.search.brave import search_internet as brave_search
 
         try:
@@ -74,6 +76,7 @@ async def search_internet(
         return normalize_search_result(raw, "brave")
 
     if method == "searxng":
+        # lazy: zrb internal (heavy via transitive / circular)
         from zrb.llm.tool.search.searxng import search_internet as searxng_search
 
         try:
@@ -83,6 +86,7 @@ async def search_internet(
         return normalize_search_result(raw, "searxng")
 
     # default: Google News RSS — free, no API key, no Docker required
+    # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.tool.search.google_rss import search_internet as google_rss_search
 
     try:
@@ -204,6 +208,7 @@ def _error_result(query: str, page: int, message: str, backend: str) -> dict:
 async def _fetch_page_content(url: str) -> tuple:
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     try:
+        # lazy: heavy third-party
         from playwright.async_api import async_playwright
 
         async with async_playwright() as p:
@@ -222,8 +227,10 @@ async def _fetch_page_content(url: str) -> tuple:
             await browser.close()
             return content, links
     except Exception:
+        # lazy: deferred to keep module import light
         from urllib.parse import urljoin
 
+        # lazy: heavy third-party
         import requests
         from bs4 import BeautifulSoup
 
@@ -243,6 +250,7 @@ async def _fetch_page_content(url: str) -> tuple:
 
 
 def _convert_html_to_markdown(html_text: str) -> str:
+    # lazy: heavy third-party
     from bs4 import BeautifulSoup
     from markdownify import markdownify as md
 

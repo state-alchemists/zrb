@@ -20,6 +20,7 @@ async def replace_in_file_validation_policy(
     2. File does not exist.
     3. old_text is not found in the file.
     """
+    # lazy: heavy third-party
     from pydantic_ai import ToolDenied
 
     if call.tool_name != "Edit":

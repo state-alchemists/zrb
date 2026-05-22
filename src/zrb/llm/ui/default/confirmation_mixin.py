@@ -27,6 +27,7 @@ class ConfirmationMixin:
         Queues confirmation requests so multiple concurrent callers each wait
         their turn. The prompt is shown only when the caller becomes current.
         """
+        # lazy: heavy third-party
         from prompt_toolkit.application import get_app
 
         future: asyncio.Future[str] = asyncio.Future()
@@ -65,6 +66,7 @@ class ConfirmationMixin:
 
     def _activate_next_confirmation(self):
         """Activate the next confirmation in the queue after one completes."""
+        # lazy: heavy third-party
         from prompt_toolkit.application import get_app
 
         self._confirmation_queue = [

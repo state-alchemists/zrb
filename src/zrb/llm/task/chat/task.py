@@ -586,6 +586,8 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         # lazy: zrb.llm.ui.* and zrb.llm.tool_call.handler sit downstream of
         # llm_task; hoisting these to module-top creates a circular import.
         from zrb.llm.tool_call.handler import ToolCallHandler
+
+        # lazy: zrb internal (heavy via transitive / circular)
         from zrb.llm.ui.std_ui import StdUI
 
         # Determine the tool confirmation and ui to use

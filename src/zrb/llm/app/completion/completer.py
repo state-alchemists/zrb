@@ -45,6 +45,7 @@ class InputCompleter(Completer):
         show_ollama_models: bool = True,
         show_pydantic_ai_models: bool = True,
     ):
+        # lazy: heavy third-party
         from pydantic_ai.models import KnownModelName
 
         self._history_manager = history_manager

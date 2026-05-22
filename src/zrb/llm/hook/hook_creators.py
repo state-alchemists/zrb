@@ -153,6 +153,7 @@ def create_prompt_hook(config: PromptHookConfig) -> HookCallable:
         """
         try:
             # Import here to avoid circular imports
+            # lazy: heavy third-party
             from pydantic_ai import Agent
 
             # Get LLM configuration
@@ -220,6 +221,7 @@ def create_agent_hook(config: AgentHookConfig) -> HookCallable:
         """
         try:
             # Import here to avoid circular imports
+            # lazy: heavy third-party
             from pydantic_ai import Agent
 
             # Get LLM configuration

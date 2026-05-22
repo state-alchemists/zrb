@@ -498,6 +498,7 @@ class LLMTask(BaseTask):
         # Detect retry and avoid duplicating the initial message if it's already in history
         # Also, if it's a retry, we might want to inform the LLM about the previous failure.
         if ctx.attempt > 1 and len(message_history) > 0:
+            # lazy: heavy third-party
             from pydantic_ai.messages import ModelRequest, UserPromptPart
 
             # Check if the last message (or one of the last few) is the user message
@@ -564,6 +565,7 @@ class LLMTask(BaseTask):
         conversation_name: str,
         error: Exception,
     ):
+        # lazy: heavy third-party
         from pydantic_ai.messages import (
             ModelRequest,
             ModelResponse,
@@ -623,6 +625,7 @@ class LLMTask(BaseTask):
         silently swallowed.
         """
         try:
+            # lazy: heavy third-party
             from pydantic_ai.messages import (
                 ModelRequest,
                 ModelResponse,

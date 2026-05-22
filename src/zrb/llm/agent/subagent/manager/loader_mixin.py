@@ -62,6 +62,7 @@ class LoaderMixin:
                 self._load_agent_from_markdown(rel_path, full_path)
 
     def _load_agent_from_python(self, rel_path: str, full_path: str) -> None:
+        # lazy: heavy third-party
         from pydantic_ai import Agent
 
         # lazy: SubAgentDefinition lives in the sibling module that imports
@@ -107,6 +108,7 @@ class LoaderMixin:
             pass
 
     def _load_agent_from_markdown(self, rel_path: str, full_path: str) -> None:
+        # lazy: zrb internal (heavy via transitive / circular)
         from zrb.llm.agent.subagent.manager.manager import SubAgentDefinition
 
         try:

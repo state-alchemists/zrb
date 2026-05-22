@@ -114,6 +114,7 @@ def bash_safe_command_policy() -> ToolPolicy:
         call: "ToolCallPart",
         next_handler: Callable[[UIProtocol, "ToolCallPart"], Awaitable[Any]],
     ) -> Any:
+        # lazy: heavy third-party
         from pydantic_ai import ToolApproved
 
         if call.tool_name != "Bash":

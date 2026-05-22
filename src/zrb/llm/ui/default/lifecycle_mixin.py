@@ -126,6 +126,7 @@ class LifecycleMixin:
 
     async def _refresh_loop(self):
         """Periodically invalidate UI to fix artifacts/lag."""
+        # lazy: heavy third-party
         from prompt_toolkit.application import get_app
 
         while True:
@@ -168,6 +169,7 @@ class LifecycleMixin:
         self._submit_user_message(self._llm_task, self._initial_message)
 
     def invalidate_ui(self):
+        # lazy: heavy third-party
         from prompt_toolkit.application import get_app
 
         try:
@@ -176,6 +178,7 @@ class LifecycleMixin:
             pass
 
     def on_exit(self):
+        # lazy: heavy third-party
         from prompt_toolkit.application import get_app
 
         try:

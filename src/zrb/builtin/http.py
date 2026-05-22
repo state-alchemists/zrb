@@ -44,6 +44,7 @@ from zrb.task.make_task import make_task
 )
 def http_request(ctx: AnyContext) -> Any:
 
+    # lazy: heavy third-party
     import requests
 
     try:
