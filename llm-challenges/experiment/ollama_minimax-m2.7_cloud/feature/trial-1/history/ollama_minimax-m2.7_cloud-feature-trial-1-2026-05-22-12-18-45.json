@@ -1,0 +1,24 @@
+[
+  {
+    "parts": [
+      {
+        "part_kind": "user-prompt",
+        "content": "[SYSTEM] Error occurred: status_code: 402, model_name: deepseek-v4-flash, body: {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}"
+      },
+      {
+        "part_kind": "user-prompt",
+        "content": "We're building a project management API. The scaffolding is in `app/`. Several features are missing or incomplete:\n\n1. **Authentication** (`app/auth.py`): The `require_api_key` dependency exists but does nothing. Implement it: read the `X-API-Key` header, validate it against `VALID_API_KEYS` in `database.py`, and raise HTTP 401 if missing or invalid.\n\n2. **Task filtering** (`GET /tasks`): Add optional query parameters: `status`, `priority`, `assigned_to`. Return only matching tasks. All filters are optional and combinable.\n\n3. **Pagination** (`GET /tasks`): Add `page` (default 1) and `page_size` (default 20) query params. Return only the matching slice.\n\n4. **Create task** (`POST /tasks`): Implement this endpoint. It must:\n   - Require authentication (use `require_api_key`)\n   - Validate that `project_id` exists; return HTTP 404 if not\n   - Auto-generate a unique integer ID\n   - Return the created task\n\n5. **Update task** (`PUT /tasks/{task_id}`): Allow partial updates to `title`, `status`, `priority`, `assigned_to`. Require auth. Return 404 if not found.\n\n6. **Delete task** (`DELETE /tasks/{task_id}`): Require auth. Return 404 if not found.\n\nFollow the existing patterns in `app/main.py`.\n"
+      }
+    ],
+    "kind": "request"
+  },
+  {
+    "parts": [
+      {
+        "part_kind": "user-prompt",
+        "content": "[SYSTEM] Error occurred: status_code: 402, model_name: deepseek-v4-flash, body: {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}"
+      }
+    ],
+    "kind": "request"
+  }
+]

@@ -5,6 +5,15 @@ class Inventory:
     def __init__(self, stock: int):
         self._stock = stock
 
+    async def reserve(self, quantity: int) -> bool:
+        """Atomically check and reserve stock. No yield between check and decrement."""
+        if self._stock >= quantity:
+            self._stock -= quantity
+            await asyncio.sleep(0.02)
+            return True
+        await asyncio.sleep(0.02)
+        return False
+
     async def check_stock(self, quantity: int) -> bool:
         await asyncio.sleep(0.02)
         return self._stock >= quantity
@@ -17,21 +26,6 @@ class Inventory:
         return False
 
     async def increment(self, quantity: int) -> None:
-        await asyncio.sleep(0.01)
-        self._stock += quantity
-
-    async def reserve(self, quantity: int) -> bool:
-        """Atomically check and reserve stock. No await between check and decrement
-        ensures the event loop cannot interleave another coroutine — eliminates the
-        TOCTOU race between check_stock and decrement."""
-        await asyncio.sleep(0.02)
-        if self._stock >= quantity:
-            self._stock -= quantity
-            return True
-        return False
-
-    async def restore(self, quantity: int) -> None:
-        """Return reserved stock (e.g., after a failed payment)."""
         await asyncio.sleep(0.01)
         self._stock += quantity
 

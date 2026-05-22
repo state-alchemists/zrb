@@ -18,4 +18,10 @@ async def process_job(queue, worker_id: int) -> None:
             print(f"[Worker {worker_id}] finished job {job['id']}")
         except Exception as e:
             print(f"[Worker {worker_id}] job {job['id']} failed: {e}")
-            queue.fail(job["id"], str(e))
+            try:
+                queue.fail(job["id"], str(e))
+            except Exception:
+                # Safeguard: if fail() itself raises (e.g. missing key),
+                # transition the job directly so it doesn't vanish in "processing"
+                job["status"] = "failed"
+                job["result"] = str(e)

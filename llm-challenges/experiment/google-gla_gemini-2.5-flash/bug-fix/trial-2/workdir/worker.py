@@ -14,7 +14,8 @@ async def process_job(queue, worker_id: int) -> None:
             if job["payload"].get("raise_error"):
                 raise RuntimeError(f"processing error for job {job['id']}")
 
-            queue.complete(job["id"], f"processed by worker {worker_id}")
+            await queue.complete(job["id"], f"processed by worker {worker_id}")
             print(f"[Worker {worker_id}] finished job {job['id']}")
         except Exception as e:
             print(f"[Worker {worker_id}] job {job['id']} failed: {e}")
+            await queue.fail(job["id"], str(e))

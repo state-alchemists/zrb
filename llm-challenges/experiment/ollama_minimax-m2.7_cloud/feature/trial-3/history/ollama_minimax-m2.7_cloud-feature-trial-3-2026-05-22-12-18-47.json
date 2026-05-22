@@ -1,0 +1,11 @@
+[
+  {
+    "parts": [
+      {
+        "part_kind": "user-prompt",
+        "content": "[SYSTEM] Error occurred: status_code: 402, model_name: deepseek-v4-flash, body: {'message': 'Insufficient Balance', 'type': 'unknown_error', 'param': None, 'code': 'invalid_request_error'}"
+      }
+    ],
+    "kind": "request"
+  }
+]

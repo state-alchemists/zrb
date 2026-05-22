@@ -7,6 +7,7 @@ class JobQueue:
         self._jobs: Dict[int, Dict[str, Any]] = {}
         self._next_id = 1
         self.max_retries = max_retries
+        self._lock = asyncio.Lock()
 
     def enqueue(self, payload: dict) -> int:
         job_id = self._next_id
@@ -21,18 +22,27 @@ class JobQueue:
         return job_id
 
     async def dequeue(self) -> Optional[Dict]:
-        for job in self._jobs.values():
-            if job["status"] == "pending":
-                job["status"] = "processing"
-                return job
+        async with self._lock:
+            for job in list(self._jobs.values()):
+                if job["status"] == "pending":
+                    job["status"] = "processing"
+                    return job
         return None
 
     def complete(self, job_id: int, result: Any) -> None:
+        if job_id not in self._jobs:
+            return
+        if self._jobs[job_id]["status"] != "processing":
+            return
         self._jobs[job_id]["status"] = "done"
         self._jobs[job_id]["result"] = result
 
     def fail(self, job_id: int, error: str) -> None:
+        if job_id not in self._jobs:
+            return
         job = self._jobs[job_id]
+        if job["status"] != "processing":
+            return
         if job["retries"] < self.max_retries:
             job["retries"] += 1
             job["status"] = "pending"

@@ -9,6 +9,14 @@ class Inventory:
         await asyncio.sleep(0.02)
         return self._stock >= quantity
 
+    async def reserve(self, quantity: int) -> bool:
+        """Atomically check and reserve stock. No await between check and decrement,
+        so the event loop cannot interleave another coroutine in the critical section."""
+        if self._stock >= quantity:
+            self._stock -= quantity
+            return True
+        return False
+
     async def decrement(self, quantity: int) -> bool:
         await asyncio.sleep(0.02)
         if self._stock >= quantity:
