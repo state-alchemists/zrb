@@ -39,7 +39,7 @@ source .venv/bin/activate && poetry lock && poetry install
 
 | Directory | Purpose |
 |-----------|---------|
-| `llm/agent/` | Agent execution and sub-agent management. Split into `run/` (`runner.py`, `retry_loop.py`, `history_utils.py`, `error_classifier.py`, etc.) and `subagent/` (`manager.py`, `loader_mixin.py`, `search_mixin.py`, etc.). `common.py` provides `create_agent`. |
+| `llm/agent/` | Agent execution and sub-agent management. Split into `run/` (`runner.py`, `retry_loop.py`, `history_utils.py`, `error_classifier.py`, etc.) and `subagent/` (`manager/` subpackage with `manager.py`, `loader_mixin.py`, `search_mixin.py`; plus `yolo.py`). `common.py` provides `create_agent`. |
 | `llm/app/` | LLM application-level integration helpers |
 | `llm/approval/` | Tool call approval protocols (`AnyToolConfirmation`, `ApprovalChannel`) |
 | `llm/config/` | `LLMConfig` (model selection, rate limiting) and `LLMLimiter` (token budgets) |
@@ -54,7 +54,8 @@ source .venv/bin/activate && poetry lock && poetry install
 | `llm/tool/` | Agent-callable tools split by concern: `file_list`, `file_read`, `file_write`, `file_edit`, `file_search`, `file_analyze` (re-exported via `file.py`); plus `bash`, `code`, `web`, `rag`, `delegate`, `plan`, `mcp`, `skill`, `worktree`, `zrb_task`, `search/` |
 | `llm/tool_call/` | Tool call data structures and result handling |
 | `llm/ui/` | `UIProtocol` and terminal UI for streaming responses and tool approval. Split into `base/` (`ui.py`, `commands_mixin.py`) and `default/` (`ui.py`, `confirmation_mixin.py`, `keybindings_mixin.py`, `lifecycle_mixin.py`, `output_mixin.py`). |
-| `llm/util/` | LLM-specific helpers: `attachment`, `capabilities` (per-model capability registry — input modalities, parallel-tool-call support; user-extensible via `register_model_capabilities`), `clipboard`, `git`, `history_formatter`, `image_scale`, `multimodal_describe`, `prompt`, `stream_response` |
+| `llm/util/` | LLM-specific helpers: `attachment`, `capabilities` (per-model capability registry — input modalities, parallel-tool-call support; user-extensible via `model_capabilities.register()`), `clipboard`, `git`, `history_formatter`, `image_scale`, `multimodal_describe`, `prompt`, `stream_response` |
+| `llm/common_tools.py` | `apply_common_tools(host)` — registers the zrb-shipped default tools, factories, and guidance on any `CommonToolHost` (satisfied by `LLMChatTask`, `LLMTask`, and `SubAgentManager`). Used by `builtin/llm/chat.py` and `agent/subagent/manager/manager.py` to keep the main agent and sub-agents on the same baseline. |
 
 ### Test Locations
 | Directory | Purpose |
@@ -77,7 +78,7 @@ source .venv/bin/activate && poetry lock && poetry install
 
 ## LLM Prompt System
 
-`PromptManager` (`src/zrb/llm/prompt/manager.py`) assembles the system prompt from ordered sections (persona → git mandate → system context → mandate → tool guidance → journal → project context → skills → user prompts). Each section can be toggled via `include_*` flags or the corresponding `CFG.LLM_INCLUDE_*` env var.
+`PromptManager` (`src/zrb/llm/prompt/manager.py`) assembles the system prompt from ordered sections (persona → git mandate → system context → mandate → tool guidance → journal → project context → skills → user prompts). Composition is controlled via the `include_sections: list[str] | None` constructor parameter or the `CFG.LLM_INCLUDE_SECTIONS` env var (comma-separated, order-sensitive); pass `None` to use the defaults.
 
 ### System Context Auto-Injections
 

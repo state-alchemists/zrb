@@ -160,8 +160,9 @@ async def test_buffered_ui_ask_user_no_prefix():
 def test_create_parallel_delegate_tool_docstring(mock_sub_agent_manager):
     """Test parallel delegate tool has proper docstring."""
     tool = create_parallel_delegate_tool(mock_sub_agent_manager)
-    assert "test-agent" in tool.__doc__
-    assert "A test agent" in tool.__doc__
+    # Parallel delegate keeps its docstring lean — points to DelegateToAgent
+    # rather than re-listing the agent catalogue.
+    assert "DelegateToAgent" in tool.__doc__
     assert "parallel" in tool.__doc__.lower()
     assert "DelegateToAgentsParallel" == tool.__name__
 
