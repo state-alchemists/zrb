@@ -12,22 +12,31 @@ from zrb.llm.util.prompt import expand_prompt
 from zrb.util.string.conversion import to_string
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable
+
     from pydantic_ai import (
         Agent,
         Tool,
     )
-    from pydantic_ai._agent_graph import HistoryProcessor
     from pydantic_ai.capabilities import AbstractCapability
+    from pydantic_ai.messages import ModelMessage
     from pydantic_ai.models import Model
     from pydantic_ai.output import OutputDataT, OutputSpec
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.tools import ToolFuncEither
     from pydantic_ai.toolsets import AbstractToolset
 
+    # zrb applies history processors itself in runner._apply_history_processors
+    # (passing extra positional args like `reserved_tokens` in some call sites),
+    # so the contract is broader than pydantic-ai's `HistoryProcessor` type alias.
+    # Kept local to avoid depending on a private pydantic-ai symbol.
+    HistoryProcessor = Callable[..., Awaitable[list[ModelMessage]]]
+
 
 def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
     """Wrap a tool with error handling to prevent crashes."""
     if hasattr(tool, "function"):
+        # lazy: heavy third-party
         from pydantic_ai import Tool as PydanticTool
 
         # It is a Tool instance
@@ -78,6 +87,7 @@ def safe_copy_result(result: Any) -> Any:
 
 def create_safe_wrapper(func: Callable) -> Callable:
     """Create a wrapper that catches exceptions and returns ToolReturn objects."""
+    # lazy: heavy third-party
     from pydantic_ai import ToolReturn
 
     @wraps(func)
@@ -110,6 +120,7 @@ def create_safe_wrapper(func: Callable) -> Callable:
 
 def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
     """Wrap a toolset with error handling."""
+    # lazy: heavy third-party
     from pydantic_ai import ToolReturn
     from pydantic_ai.toolsets import WrapperToolset
 
@@ -150,6 +161,7 @@ def create_agent(
     retries: int | None = None,
     yolo: bool | Callable[[Any, Any, dict[str, Any]], bool] = False,
 ) -> "Agent[None, Any]":
+    # lazy: heavy third-party
     from pydantic_ai import Agent, DeferredToolRequests
     from pydantic_ai.toolsets import FunctionToolset
 
@@ -202,7 +214,7 @@ def create_agent(
         # (before the first model call) and in _execution_loop (between tool-call
         # iterations) where we own the history reference.
         capabilities=capabilities or [],
-        tool_retries=effective_retries,
+        retries={"tools": effective_retries},
     )
     agent._zrb_history_processors = history_processors or []  # type: ignore[attr-defined]
     return agent
@@ -232,6 +244,7 @@ def _apply_capability_constraints(
        the same capability registry, so toggling
        ``supports_parallel_tool_calls`` in one place updates both.
     """
+    # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.util.capabilities import model_capabilities
 
     capabilities = model_capabilities.get(

@@ -6,6 +6,7 @@ from urllib.parse import quote_plus
 
 def search_internet(query: str, page: int = 1) -> dict:
     """Fetch search results from Google News RSS."""
+    # lazy: heavy third-party
     import requests
 
     url = (

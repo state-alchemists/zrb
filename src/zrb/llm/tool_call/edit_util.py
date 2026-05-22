@@ -62,6 +62,7 @@ async def edit_content_via_editor(
     # Parse edited content
     try:
         if is_yaml_edit:
+            # lazy: heavy third-party
             import yaml
 
             new_content = yaml.safe_load(new_content_str)

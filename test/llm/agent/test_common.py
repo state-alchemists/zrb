@@ -303,12 +303,12 @@ def test_create_agent_retries_fallback():
             # 1. retries=None (should use CFG.LLM_TOOL_MAX_RETRIES)
             create_agent(model="test-model", retries=None, yolo=True)
             args, kwargs = mock_agent_class.call_args
-            assert kwargs.get("tool_retries") == 5
+            assert kwargs.get("retries") == {"tools": 5}
 
             # 2. retries is specified (should override CFG)
             create_agent(model="test-model", retries=2, yolo=True)
             args, kwargs = mock_agent_class.call_args
-            assert kwargs.get("tool_retries") == 2
+            assert kwargs.get("retries") == {"tools": 2}
 
 
 def test_create_agent_forces_sequential_for_parallel_unsupported_model():

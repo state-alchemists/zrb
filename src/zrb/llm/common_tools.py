@@ -267,6 +267,7 @@ def apply_common_tools(host: CommonToolHost) -> None:
     # loads ``delegate.py`` which triggers ``SubAgentManager`` load which
     # ultimately re-enters this function. By that time the re-export
     # names (``analyze_file``, etc.) aren't yet bound on ``zrb.llm.tool``.
+    # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.lsp.tools import create_lsp_tools
     from zrb.llm.tool.bash import run_shell_command
     from zrb.llm.tool.code import analyze_code

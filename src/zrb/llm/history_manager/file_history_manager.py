@@ -32,6 +32,7 @@ class FileHistoryManager(AnyHistoryManager):
             os.makedirs(self._history_dir, exist_ok=True)
 
     def load(self, conversation_name: str) -> "list[ModelMessage]":
+        # lazy: heavy third-party
         from pydantic import ValidationError
         from pydantic_ai.messages import ModelMessagesTypeAdapter
 
@@ -85,6 +86,7 @@ class FileHistoryManager(AnyHistoryManager):
         self._cache[conversation_name] = messages
 
     def save(self, conversation_name: str):
+        # lazy: heavy third-party
         from pydantic import ValidationError
         from pydantic_ai.messages import ModelMessagesTypeAdapter
 

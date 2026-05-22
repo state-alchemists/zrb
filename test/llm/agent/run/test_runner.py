@@ -45,7 +45,7 @@ async def test_run_agent_runs_history_processors_before_pruning():
         return msgs
 
     agent = create_agent(
-        model="openai:gpt-4o-mini",
+        model="openai-chat:gpt-4o-mini",
         system_prompt="test",
         history_processors=[p1, p2],
         yolo=True,
@@ -80,7 +80,7 @@ async def test_run_agent_passes_system_prompt_overhead_to_processors():
         return msgs
 
     agent = create_agent(
-        model="openai:gpt-4o-mini",
+        model="openai-chat:gpt-4o-mini",
         system_prompt="test",
         history_processors=[capturing_processor],
         yolo=True,
@@ -118,7 +118,9 @@ async def test_run_agent_without_history_processors_does_not_crash():
     """An agent created without history_processors must still run."""
     from zrb.llm.agent.common import create_agent
 
-    agent = create_agent(model="openai:gpt-4o-mini", system_prompt="test", yolo=True)
+    agent = create_agent(
+        model="openai-chat:gpt-4o-mini", system_prompt="test", yolo=True
+    )
 
     mock_result = MagicMock()
     mock_result.output = "ok"

@@ -1,8 +1,8 @@
 from pydantic_ai.messages import (
-    BuiltinToolCallPart,
-    BuiltinToolReturnPart,
     ModelRequest,
     ModelResponse,
+    NativeToolCallPart,
+    NativeToolReturnPart,
     SystemPromptPart,
     TextPart,
     ThinkingPart,
@@ -137,10 +137,10 @@ def test_filter_nil_content():
 
 
 def test_filter_nil_content_preserves_builtin_tool_call_part():
-    # BuiltinToolCallPart is a dataclass without a `content` field; it must
+    # NativeToolCallPart is a dataclass without a `content` field; it must
     # pass through filter_nil_content untouched rather than crashing the
     # sanitizer when the model uses provider-side tools (e.g. web_search).
-    btc = BuiltinToolCallPart(tool_name="web_search", args="{}")
+    btc = NativeToolCallPart(tool_name="web_search", args="{}")
     msg = ModelResponse(parts=[btc, TextPart(content="ok")])
 
     filtered = filter_nil_content([msg])
@@ -149,12 +149,12 @@ def test_filter_nil_content_preserves_builtin_tool_call_part():
     out = filtered[0]
     assert isinstance(out, ModelResponse)
     assert len(out.parts) == 2
-    assert isinstance(out.parts[0], BuiltinToolCallPart)
+    assert isinstance(out.parts[0], NativeToolCallPart)
     assert out.parts[0].tool_name == "web_search"
 
 
 def test_strip_to_text_only_converts_all_non_text_parts():
-    """ToolCallPart → ``[Tool: name(args)]``, ToolReturnPart → ``[Result (name): content]``,
+    """ToolCallPart, ToolReturnPart → ``(sanitized-history) …`` prose,
     ThinkingPart → its text content.
     """
     history = [
@@ -187,15 +187,21 @@ def test_strip_to_text_only_converts_all_non_text_parts():
     # msg[0]: UserPromptPart unchanged
     assert result[0].parts[0].content == "deploy to prod"
 
-    # msg[1]: ToolCallPart → "[Tool: deploy({"env":"prod"})]"
-    assert result[1].parts[0].content == '[Tool: deploy({"env":"prod"})]'
+    # msg[1]: ToolCallPart → sanitized-history prose carrying tool name + args.
+    msg1_text = result[1].parts[0].content
+    assert "(sanitized-history)" in msg1_text
+    assert "deploy" in msg1_text
+    assert '"env":"prod"' in msg1_text
 
     # msg[2]: ToolReturnPart → UserPromptPart (TextPart is illegal in ModelRequest;
     # pydantic-ai's _map_user_message hits assert_never on any non-{System,User,
     # ToolReturn,Retry}PromptPart in a user-role message).
     assert isinstance(result[2], ModelRequest)
     assert isinstance(result[2].parts[0], UserPromptPart)
-    assert result[2].parts[0].content == "[Result (deploy): started]"
+    msg2_text = result[2].parts[0].content
+    assert "(sanitized-history)" in msg2_text
+    assert "deploy" in msg2_text
+    assert "started" in msg2_text
 
     # msg[3]: ThinkingPart → TextPart, TextPart kept
     assert isinstance(result[3], ModelResponse)
@@ -229,12 +235,17 @@ def test_strip_to_text_only_normalizes_null_content():
     assert len(result[0].parts) == 2
     assert result[0].parts[0].content == "."
     assert isinstance(result[0].parts[1], UserPromptPart)
-    assert result[0].parts[1].content == "[Result (t1): (no value)]"
+    msg0_p1 = result[0].parts[1].content
+    assert "(sanitized-history)" in msg0_p1
+    assert "t1" in msg0_p1
+    assert "(no value)" in msg0_p1
 
     # msg[1]: TextPart fixed, ToolCallPart → TextPart
     assert len(result[1].parts) == 2
     assert result[1].parts[0].content == "."
-    assert result[1].parts[1].content == "[Tool: t2({})]"
+    msg1_p1 = result[1].parts[1].content
+    assert "(sanitized-history)" in msg1_p1
+    assert "t2" in msg1_p1
 
 
 def test_strip_to_text_only_empty_result_returns_original():
@@ -247,7 +258,9 @@ def test_strip_to_text_only_empty_result_returns_original():
     assert isinstance(result[0], ModelResponse)
     assert len(result[0].parts) == 1
     assert isinstance(result[0].parts[0], TextPart)
-    assert "[Tool: x({})]" == result[0].parts[0].content
+    text = result[0].parts[0].content
+    assert "(sanitized-history)" in text
+    assert '"x"' in text
 
 
 def test_strip_to_text_only_keeps_conversation_flow():
@@ -298,29 +311,38 @@ def test_strip_to_text_only_keeps_conversation_flow():
 
     # msg[0] unchanged
     assert result[0].parts[0].content == "weather in Boston?"
-    # msg[1] → "[Tool: get_weather({"city":"Boston"})]"
+    # msg[1] → sanitized-history prose for get_weather/Boston
     assert isinstance(result[1].parts[0], TextPart)
+    assert "(sanitized-history)" in result[1].parts[0].content
     assert "get_weather" in result[1].parts[0].content
     assert "Boston" in result[1].parts[0].content
-    # msg[2] → UserPromptPart "[Result (get_weather): 72F]"
+    # msg[2] → UserPromptPart, sanitized-history record of result
     assert isinstance(result[2].parts[0], UserPromptPart)
-    assert "[Result (get_weather): 72F]" == result[2].parts[0].content
+    msg2_text = result[2].parts[0].content
+    assert "(sanitized-history)" in msg2_text
+    assert "get_weather" in msg2_text
+    assert "72F" in msg2_text
     # msg[3] unchanged
     assert result[3].parts[0].content == "It is 72F in Boston."
     # msg[4] unchanged
     assert result[4].parts[0].content == "What about NYC?"
-    # msg[5] → "[Tool: get_weather({"city":"NYC"})]"
+    # msg[5] → sanitized-history prose for get_weather/NYC
     assert isinstance(result[5].parts[0], TextPart)
+    assert "(sanitized-history)" in result[5].parts[0].content
     assert "NYC" in result[5].parts[0].content
-    # msg[6] → UserPromptPart "[Result (get_weather): 80F]"
+    # msg[6] → UserPromptPart, sanitized-history record of result
     assert isinstance(result[6].parts[0], UserPromptPart)
-    assert "[Result (get_weather): 80F]" == result[6].parts[0].content
+    msg6_text = result[6].parts[0].content
+    assert "(sanitized-history)" in msg6_text
+    assert "get_weather" in msg6_text
+    assert "80F" in msg6_text
     # msg[7] unchanged
     assert result[7].parts[0].content == "It is 80F in NYC."
 
 
 def test_strip_to_text_only_unnamed_tool_call_part():
-    """ToolCallPart without tool_name becomes ``[Tool: (unnamed)({})]``, not dropped."""
+    """ToolCallPart without tool_name becomes a sanitized-history label using
+    ``(unnamed)``, not dropped."""
     history = [
         ModelResponse(
             parts=[
@@ -332,16 +354,18 @@ def test_strip_to_text_only_unnamed_tool_call_part():
     assert len(result) == 1
     assert len(result[0].parts) == 1
     assert isinstance(result[0].parts[0], TextPart)
-    assert result[0].parts[0].content == "[Tool: (unnamed)({})]"
+    text = result[0].parts[0].content
+    assert "(sanitized-history)" in text
+    assert "(unnamed)" in text
 
 
 def test_filter_nil_content_uses_null_for_builtin_tool_return():
-    # BuiltinToolReturnPart is a sibling of ToolReturnPart (both extend
+    # NativeToolReturnPart is a sibling of ToolReturnPart (both extend
     # BaseToolReturnPart). A nil content must become "null", not ".",
     # so the placeholder is parseable as a tool result.
     msg = ModelRequest(
         parts=[
-            BuiltinToolReturnPart(
+            NativeToolReturnPart(
                 tool_name="web_search", content=None, tool_call_id="1"
             ),
         ]
@@ -435,8 +459,7 @@ def test_strip_to_text_only_parallel_tool_calls():
     assert all(isinstance(p, UserPromptPart) for p in result[2].parts)
     # UserPromptParts carry no tool_call_id, so no cross-reference survives.
     contents = [p.content for p in result[2].parts]
-    assert contents == [
-        "[Result (c): rc]",
-        "[Result (a): ra]",
-        "[Result (b): rb]",
-    ]
+    assert all("(sanitized-history)" in c for c in contents)
+    assert "c" in contents[0] and "rc" in contents[0]
+    assert "a" in contents[1] and "ra" in contents[1]
+    assert "b" in contents[2] and "rb" in contents[2]

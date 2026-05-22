@@ -263,6 +263,7 @@ async def summarize_history(
 
 def _create_summary_model_request(summary_text: str) -> Any:
     """Construct a ModelRequest message from summary text."""
+    # lazy: heavy third-party
     from pydantic_ai.messages import ModelRequest, UserPromptPart
 
     try:

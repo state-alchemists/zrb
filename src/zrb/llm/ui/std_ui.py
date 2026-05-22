@@ -17,6 +17,7 @@ class StdUI:
     async def ask_user(self, prompt: str) -> str:
         """Prompt user via CLI input."""
 
+        # lazy: heavy third-party
         from prompt_toolkit import PromptSession
         from prompt_toolkit.output import create_output
 

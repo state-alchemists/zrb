@@ -25,6 +25,7 @@ async def process_message_for_summarization(
     message_threshold: int,
     insanity_threshold: int,
 ) -> ModelMessage:
+    # lazy: heavy third-party
     from pydantic_ai.messages import ModelRequest, ToolReturnPart
 
     if not isinstance(msg, ModelRequest):
@@ -75,6 +76,7 @@ async def process_tool_return_part(
     message_threshold: int,
     insanity_threshold: int,
 ) -> tuple[Any, bool]:
+    # lazy: heavy third-party
     from pydantic_ai import ToolApproved, ToolDenied
 
     # Safely get content with default

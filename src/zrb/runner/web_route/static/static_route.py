@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 
 
 def serve_static_resources(app: "FastAPI", web_auth_config: WebAuthConfig) -> None:
+    # lazy: heavy third-party
     from fastapi import HTTPException
     from fastapi.responses import FileResponse, PlainTextResponse
     from fastapi.staticfiles import StaticFiles

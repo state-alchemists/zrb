@@ -33,13 +33,13 @@ from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
     from pydantic_ai import Tool, UserContent
-    from pydantic_ai._agent_graph import HistoryProcessor
     from pydantic_ai.capabilities import AbstractCapability
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.tools import ToolFuncEither
     from pydantic_ai.toolsets import AbstractToolset
 
+    from zrb.llm.agent.common import HistoryProcessor
     from zrb.llm.approval.approval_channel import ApprovalChannel
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
@@ -498,6 +498,7 @@ class LLMTask(BaseTask):
         # Detect retry and avoid duplicating the initial message if it's already in history
         # Also, if it's a retry, we might want to inform the LLM about the previous failure.
         if ctx.attempt > 1 and len(message_history) > 0:
+            # lazy: heavy third-party
             from pydantic_ai.messages import ModelRequest, UserPromptPart
 
             # Check if the last message (or one of the last few) is the user message
@@ -564,6 +565,7 @@ class LLMTask(BaseTask):
         conversation_name: str,
         error: Exception,
     ):
+        # lazy: heavy third-party
         from pydantic_ai.messages import (
             ModelRequest,
             ModelResponse,
@@ -623,6 +625,7 @@ class LLMTask(BaseTask):
         silently swallowed.
         """
         try:
+            # lazy: heavy third-party
             from pydantic_ai.messages import (
                 ModelRequest,
                 ModelResponse,

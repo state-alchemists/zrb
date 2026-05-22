@@ -9,6 +9,7 @@ else:
 
 def message_to_text(msg: Any) -> str:
     """Convert a pydantic_ai message to a readable text representation for summarization."""
+    # lazy: heavy third-party
     from pydantic_ai.messages import ModelRequest, ModelResponse
 
     if isinstance(msg, ModelRequest):
@@ -23,6 +24,7 @@ def message_to_text(msg: Any) -> str:
 
 
 def model_request_to_text(msg: ModelRequest) -> str:
+    # lazy: heavy third-party
     from pydantic_ai.messages import (
         AudioUrl,
         BinaryContent,
@@ -80,6 +82,7 @@ def model_request_to_text(msg: ModelRequest) -> str:
 
 
 def model_response_to_text(msg: ModelResponse) -> str:
+    # lazy: heavy third-party
     from pydantic_ai.messages import FilePart, TextPart, ToolCallPart, ToolReturnPart
 
     parts = []

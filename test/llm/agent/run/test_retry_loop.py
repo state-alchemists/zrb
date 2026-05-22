@@ -153,7 +153,10 @@ async def test_handle_stream_error_invalid_tool_call_without_string_message():
 
 @pytest.mark.asyncio
 async def test_handle_stream_error_opaque_400():
-    """Unclassified 400 with current_message fires opaque retry."""
+    """Unclassified 400 with current_message fires opaque retry, preserves
+    current_message, and appends a sanitization explainer to history."""
+    from pydantic_ai.messages import ModelRequest, UserPromptPart
+
     state = RetryState(opaque_retry_done=False)
     exc = Exception("Bad request")
     exc.status_code = 400
@@ -170,6 +173,14 @@ async def test_handle_stream_error_opaque_400():
     assert state.opaque_retry_done is True
     assert outcome.new_message == "hello"
     print_fn.assert_called()
+    # Explainer ModelRequest appended after sanitized history.
+    assert len(outcome.new_history) == 3
+    explainer = outcome.new_history[-1]
+    assert isinstance(explainer, ModelRequest)
+    assert isinstance(explainer.parts[0], UserPromptPart)
+    text = explainer.parts[0].content
+    assert "(sanitized-history)" in text
+    assert "tool-calling" in text
 
 
 @pytest.mark.asyncio
@@ -187,12 +198,13 @@ async def test_handle_stream_error_opaque_400_only_once():
 
 @pytest.mark.asyncio
 async def test_handle_stream_error_opaque_400_with_no_message():
-    """Opaque 400 with current_message=None fires retry + injects fallback prompt.
+    """Opaque 400 with current_message=None fires retry and injects the
+    sanitization explainer as the next user-role message.
 
-    Previously this was skipped because ``current_message is not None`` guarded the
-    handler, but during tool-call iterations and outer-retry resume the user message
-    is often merged into history (making current_message None). The handler now
-    injects a fallback prompt into the text-only history as a replacement user message.
+    During tool-call iterations and outer-retry resume the user message is
+    often merged into history (making current_message None). The handler
+    always appends the explainer ModelRequest so the model sees what was
+    sanitized and that tool use is still expected.
     """
     state = RetryState(opaque_retry_done=False)
     exc = Exception("Bad request")
@@ -203,15 +215,17 @@ async def test_handle_stream_error_opaque_400_with_no_message():
 
     assert outcome.should_retry is True
     assert state.opaque_retry_done is True
-    assert outcome.new_message is None  # fallback baked into history
+    assert outcome.new_message is None  # explainer baked into history
     assert len(outcome.new_history) == 2
-    # The fallback prompt was injected as a ModelRequest with a UserPromptPart
+    # The explainer was injected as a ModelRequest with a UserPromptPart
     from pydantic_ai.messages import ModelRequest, UserPromptPart
 
     injected = outcome.new_history[1]
     assert isinstance(injected, ModelRequest)
     assert isinstance(injected.parts[0], UserPromptPart)
-    assert "plain-text" in injected.parts[0].content
+    text = injected.parts[0].content
+    assert "(sanitized-history)" in text
+    assert "tool-calling" in text
 
 
 @pytest.mark.asyncio

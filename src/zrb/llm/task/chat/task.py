@@ -59,7 +59,6 @@ from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
     from pydantic_ai import Tool, UserContent
-    from pydantic_ai._agent_graph import HistoryProcessor
     from pydantic_ai.capabilities import AbstractCapability
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
@@ -67,6 +66,7 @@ if TYPE_CHECKING:
     from pydantic_ai.toolsets import AbstractToolset
     from rich.theme import Theme
 
+    from zrb.llm.agent.common import HistoryProcessor
     from zrb.llm.approval.approval_channel import ApprovalChannel
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
@@ -586,6 +586,8 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
         # lazy: zrb.llm.ui.* and zrb.llm.tool_call.handler sit downstream of
         # llm_task; hoisting these to module-top creates a circular import.
         from zrb.llm.tool_call.handler import ToolCallHandler
+
+        # lazy: zrb internal (heavy via transitive / circular)
         from zrb.llm.ui.std_ui import StdUI
 
         # Determine the tool confirmation and ui to use

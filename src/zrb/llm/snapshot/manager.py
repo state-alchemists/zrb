@@ -331,6 +331,7 @@ def _copy_files(
 
 
 def _stat_is_file(st: os.stat_result) -> bool:
+    # lazy: deferred to keep module import light
     import stat as _stat
 
     return _stat.S_ISREG(st.st_mode)

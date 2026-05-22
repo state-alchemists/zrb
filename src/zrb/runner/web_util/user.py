@@ -22,6 +22,7 @@ def get_user_by_credentials(
 async def get_user_from_request(
     web_auth_config: WebAuthConfig, request: "Request"
 ) -> User:
+    # lazy: heavy third-party
     from fastapi.security import OAuth2PasswordBearer
 
     if not web_auth_config.enable_auth:

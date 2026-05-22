@@ -38,13 +38,13 @@ class LLMConfig:
     @property
     def model(self) -> "str | Model":
         """
-        The LLM model to use. Returns a model string (e.g. 'openai:gpt-4o')
+        The LLM model to use. Returns a model string (e.g. 'openai-chat:gpt-4o')
         or a pydantic_ai Model object.
         """
         if self._model is not None:
             return self._model
 
-        model_name = CFG.LLM_MODEL or "openai:gpt-4o"
+        model_name = CFG.LLM_MODEL or "openai-chat:gpt-4o"
         return self._resolve_model_by_name(model_name)
 
     @model.setter
@@ -54,7 +54,7 @@ class LLMConfig:
     @property
     def small_model(self) -> "str | Model":
         """
-        The Small LLM model to use. Returns a model string (e.g. 'openai:gpt-4o-mini')
+        The Small LLM model to use. Returns a model string (e.g. 'openai-chat:gpt-4o-mini')
         or a pydantic_ai Model object.
         """
         if self._small_model is not None:
@@ -166,6 +166,7 @@ class LLMConfig:
 
         # If API Key or Base URL is set, we assume OpenAI-compatible provider
         if self.api_key or self.base_url:
+            # lazy: heavy third-party
             from pydantic_ai.providers.openai import OpenAIProvider
 
             return OpenAIProvider(api_key=self.api_key, base_url=self.base_url)
@@ -207,6 +208,7 @@ class LLMConfig:
             cache = self._cached_native_providers
         if provider_name not in cache:
             try:
+                # lazy: heavy third-party
                 from pydantic_ai.models import infer_provider_class
 
                 infer_provider_class(provider_name)
@@ -223,6 +225,7 @@ class LLMConfig:
         # 1. Provider is an Object (e.g. OpenAIProvider created from custom config)
         # We check specific types we know how to wrap
         try:
+            # lazy: heavy third-party
             from pydantic_ai.models.openai import OpenAIChatModel
             from pydantic_ai.providers.openai import OpenAIProvider
 

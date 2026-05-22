@@ -81,6 +81,7 @@ class RunnerMixin:
         enable_rewind: bool = False,
         snapshot_dir: str = "",
     ) -> Any:
+        # lazy: zrb internal (heavy via transitive / circular)
         from zrb.llm.ui.base.ui import BaseUI
 
         # Note: AsyncExitStack is handled by LLMTask._exec_action
@@ -229,6 +230,7 @@ class RunnerMixin:
         default_kwargs: dict[str, Any],
     ) -> "UIProtocol":
         """Determine the UI to use: factory-only, combined, or default-only."""
+        # lazy: zrb internal (heavy via transitive / circular)
         from zrb.llm.ui.default.ui import UI
         from zrb.llm.ui.multi_ui import MultiUI
 
@@ -240,6 +242,7 @@ class RunnerMixin:
             if len(self._approval_channels) == 1:
                 ui.set_approval_channel(self._approval_channels[0])
             elif len(self._approval_channels) > 1:
+                # lazy: zrb internal (heavy via transitive / circular)
                 from zrb.llm.approval import MultiplexApprovalChannel
 
                 ui.set_approval_channel(
@@ -248,6 +251,7 @@ class RunnerMixin:
             return ui
 
         # Create default UI with lazy import of output_lexer
+        # lazy: zrb internal (heavy via transitive / circular)
         from zrb.llm.app.lexer import CLIStyleLexer
 
         default_kwargs["output_lexer"] = CLIStyleLexer()
@@ -262,6 +266,7 @@ class RunnerMixin:
         if len(self._approval_channels) == 1:
             ui.set_approval_channel(self._approval_channels[0])
         elif len(self._approval_channels) > 1:
+            # lazy: zrb internal (heavy via transitive / circular)
             from zrb.llm.approval import MultiplexApprovalChannel
 
             ui.set_approval_channel(MultiplexApprovalChannel(self._approval_channels))
@@ -278,6 +283,7 @@ class RunnerMixin:
         if not conversation_name:
             return
         try:
+            # lazy: zrb internal (heavy via transitive / circular)
             from zrb.llm.util.history_formatter import format_history_as_text
 
             history = history_manager.load(conversation_name)

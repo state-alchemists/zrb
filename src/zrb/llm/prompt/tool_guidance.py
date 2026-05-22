@@ -82,6 +82,7 @@ def get_parallel_tool_call_section(model: "str | Model | None") -> str:
     models. Returns a loud warning when explicitly ``False``, and short
     encouragement when explicitly ``True``.
     """
+    # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.util.capabilities import is_known_model, model_capabilities
 
     if model is None or not is_known_model(model):

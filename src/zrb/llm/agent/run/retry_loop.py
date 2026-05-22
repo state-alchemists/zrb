@@ -193,29 +193,29 @@ async def handle_stream_error(
     # provider (GLM-5 on Bedrock, DeepSeek, local models, …).  Text is the
     # lowest common denominator every provider accepts.
     #
-    # The guard used to require ``current_message is not None``, but that
-    # skipped the handler when ``_merge_consecutive_messages`` had merged
-    # the user message into a previous ``ModelRequest`` (common during tool-
-    # call iterations and outer-retry resume).  Remove the guard so every
-    # opaque 400 gets the text-only fallback regardless of message state.
-    # When ``current_message`` is *None* we inject a resume prompt so the
-    # model produces a plain-text continuation instead of re-entering the
-    # tool-calling flow that triggered the rejection.
+    # An explainer ``UserPromptPart`` is always appended after the strip so
+    # the model knows the ``(sanitized-history)`` markers are a record, not
+    # a tool-calling format to imitate — and that tool use is still expected
+    # on the next turn.
     if not state.opaque_retry_done:
         status_code = getattr(exc, "status_code", None)
         if status_code == 400:
             state.opaque_retry_done = True
             sanitized = strip_to_text_only(current_history)
+            explainer = (
+                "[SYSTEM] The conversation history above has been sanitized "
+                "because your previous response could not round-trip through "
+                "the current provider. Lines tagged `(sanitized-history)` are "
+                "a TEXTUAL RECORD of past tool calls and results — they are "
+                "NOT a tool-calling format and you must not imitate them. "
+                "Continue the task using the normal tool-calling protocol: "
+                "emit a real tool call when you need one, not a textual "
+                "imitation."
+            )
+            sanitized = list(sanitized) + [
+                ModelRequest(parts=[UserPromptPart(content=explainer)])
+            ]
             fallback_message = current_message
-            if fallback_message is None:
-                fallback_message = (
-                    "[SYSTEM] The previous response was rejected by the provider. "
-                    "Please continue with a plain-text response — do not use tools."
-                )
-                sanitized = list(sanitized) + [
-                    ModelRequest(parts=[UserPromptPart(content=fallback_message)])
-                ]
-                fallback_message = None
             print_fn(
                 "\n[SYSTEM] Model response rejected by provider — "
                 "collapsing history to text-only and retrying..."

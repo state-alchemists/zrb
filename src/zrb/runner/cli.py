@@ -213,6 +213,7 @@ async def start_server(_: AnyContext):
     # FastAPI route registration; hoisting causes a circular import.
     from uvicorn import Config, Server
 
+    # lazy: zrb internal (heavy via transitive / circular)
     from zrb.runner.web_app import (
         configure_uvicorn_logging,
         create_web_app,

@@ -9,6 +9,7 @@ from zrb.util.cli.style import stylize_cyan
 
 def is_turn_start(msg: Any) -> bool:
     """Identify start of a new user interaction (User Prompt without Tool Return)."""
+    # lazy: heavy third-party
     from pydantic_ai.messages import ModelRequest, ToolReturnPart, UserPromptPart
 
     if not isinstance(msg, ModelRequest):
@@ -219,6 +220,7 @@ class LLMLimiter:
         """Truncates a string to a maximum number of tokens."""
         if self.use_tiktoken:
             try:
+                # lazy: heavy third-party
                 import tiktoken
 
                 enc = tiktoken.get_encoding(self.tiktoken_encoding)
@@ -242,6 +244,7 @@ class LLMLimiter:
         text = self._to_str(content)
         if self.use_tiktoken:
             try:
+                # lazy: heavy third-party
                 import tiktoken
 
                 enc = tiktoken.get_encoding(self.tiktoken_encoding)

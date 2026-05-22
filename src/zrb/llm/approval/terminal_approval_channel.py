@@ -38,6 +38,7 @@ class TerminalApprovalChannel:
         )
 
         # Format the approval message
+        # lazy: heavy third-party
         from pydantic_ai import ToolCallPart
 
         # Create a mock ToolCallPart for formatting
@@ -104,6 +105,7 @@ class TerminalApprovalChannel:
         response: str,
     ) -> ApprovalResult | None:
         """Handle edit via response handler chain (like ToolCallHandler does)."""
+        # lazy: heavy third-party
         from pydantic_ai import ToolApproved, ToolDenied
 
         # Use public getter for response handlers

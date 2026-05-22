@@ -45,6 +45,7 @@ class InputCompleter(Completer):
         show_ollama_models: bool = True,
         show_pydantic_ai_models: bool = True,
     ):
+        # lazy: heavy third-party
         from pydantic_ai.models import KnownModelName
 
         self._history_manager = history_manager
@@ -67,12 +68,12 @@ class InputCompleter(Completer):
             self._known_models = list(get_args(KnownModelName.__value__))
         except Exception:
             self._known_models = [
-                "openai:gpt-4o",
-                "openai:gpt-4o-mini",
-                "openai:gpt-4-turbo",
-                "openai:gpt-3.5-turbo",
-                "google-vertex:gemini-1.5-pro",
-                "google-vertex:gemini-1.5-flash",
+                "openai-chat:gpt-4o",
+                "openai-chat:gpt-4o-mini",
+                "openai-chat:gpt-4-turbo",
+                "openai-chat:gpt-3.5-turbo",
+                "google-cloud:gemini-1.5-pro",
+                "google-cloud:gemini-1.5-flash",
                 "anthropic:claude-3-5-sonnet-latest",
                 "mistral:mistral-large-latest",
                 "ollama:llama3",

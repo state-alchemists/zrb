@@ -16,6 +16,7 @@ async def replace_in_file_response_handler(
     response: str,
     next_handler: Callable[[UIProtocol, Any, str], Awaitable[Any]],
 ) -> Any:
+    # lazy: heavy third-party
     from pydantic_ai import ToolApproved
 
     if call.tool_name != "Edit":

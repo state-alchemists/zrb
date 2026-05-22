@@ -15,6 +15,7 @@ def serve_default_404(
     root_group: AnyGroup,
     web_auth_config: WebAuthConfig,
 ) -> None:
+    # lazy: heavy third-party
     from fastapi import Request
     from fastapi.exception_handlers import http_exception_handler
     from fastapi.responses import HTMLResponse

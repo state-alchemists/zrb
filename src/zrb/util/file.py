@@ -42,6 +42,7 @@ def _read_text_file_content(file_path: str) -> str:
 
 
 def _read_pdf_file_content(file_path: str) -> str:
+    # lazy: heavy third-party
     import pdfplumber
     from pdfplumber.pdf import PDF
 

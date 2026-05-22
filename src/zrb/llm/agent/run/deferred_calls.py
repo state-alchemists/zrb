@@ -39,6 +39,7 @@ async def process_deferred_requests(
     approval_channel: "ApprovalChannel | None" = None,
 ) -> "DeferredToolResults | None":
     """Run approval flow for each deferred call. Returns None if there are no requests."""
+    # lazy: heavy third-party
     from pydantic_ai import DeferredToolResults, ToolApproved, ToolDenied
 
     all_requests = (result_output.calls or []) + (result_output.approvals or [])
@@ -115,6 +116,7 @@ def rebuild_for_denials(
     we must clear `calls` so it is not invoked. Returns the same object if
     there are no denials.
     """
+    # lazy: heavy third-party
     from pydantic_ai import DeferredToolResults, ToolDenied
 
     has_denials = any(

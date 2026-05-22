@@ -78,6 +78,7 @@ class OutputMixin:
         flush: bool = False,
         kind: str = "text",
     ):
+        # lazy: heavy third-party
         from prompt_toolkit.application import get_app
         from prompt_toolkit.document import Document
 
@@ -172,6 +173,7 @@ class OutputMixin:
         return width
 
     def get_info_bar_text(self) -> "AnyFormattedText":
+        # lazy: heavy third-party
         from prompt_toolkit.formatted_text import HTML
         from prompt_toolkit.formatted_text.utils import fragment_list_width
 

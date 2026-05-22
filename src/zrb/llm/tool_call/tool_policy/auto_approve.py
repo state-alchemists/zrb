@@ -25,6 +25,7 @@ def auto_approve(
         call: "ToolCallPart",
         next_handler: Callable[[UIProtocol, "ToolCallPart"], Awaitable[Any]],
     ) -> Any:
+        # lazy: heavy third-party
         from pydantic_ai import ToolApproved
 
         # Check if tool name matches
