@@ -104,6 +104,16 @@ class MultiUI:
             except Exception:
                 pass
 
+    def _replay_history(self, messages: list) -> None:
+        """Replay loaded history on every child UI that supports it."""
+        for ui in self._uis:
+            replay = getattr(ui, "_replay_history", None)
+            if callable(replay):
+                try:
+                    replay(messages)
+                except Exception:
+                    pass
+
     async def _stream_ai_response(
         self,
         llm_task: Any,

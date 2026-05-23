@@ -175,3 +175,63 @@ async def test_run_interactive_session_with_factories_and_multiplex(runner):
 
         # When only one UI is resolved from factories, MultiUI is NOT used
         assert res == "Final"
+
+
+def test_load_session_history_uses_replay_when_available(runner):
+    """When a UI exposes _replay_history, it must be used to render loaded history."""
+    history_manager = MagicMock()
+    history_manager.load.return_value = ["msg1", "msg2"]
+
+    ui = MagicMock(spec=["_replay_history", "append_to_output"])
+    ui._replay_history = MagicMock()
+
+    runner._load_session_history(ui, history_manager, "sess1")
+
+    ui._replay_history.assert_called_once_with(["msg1", "msg2"])
+    ui.append_to_output.assert_not_called()
+
+
+def test_load_session_history_falls_back_to_text_dump(runner):
+    """UIs without _replay_history fall back to append_to_output with formatted text."""
+    history_manager = MagicMock()
+    history_manager.load.return_value = ["msg1"]
+
+    class TextOnlyUI:
+        def __init__(self):
+            self.appended: list[str] = []
+
+        def append_to_output(self, text):
+            self.appended.append(text)
+
+    ui = TextOnlyUI()
+
+    with patch(
+        "zrb.llm.util.history_formatter.format_history_as_text",
+        return_value="FORMATTED",
+    ):
+        runner._load_session_history(ui, history_manager, "sess1")
+
+    assert ui.appended == ["FORMATTED"]
+
+
+def test_load_session_history_empty_name_is_noop(runner):
+    """An empty conversation name must short-circuit the loader."""
+    history_manager = MagicMock()
+    ui = MagicMock(spec=["_replay_history", "append_to_output"])
+
+    runner._load_session_history(ui, history_manager, "")
+
+    history_manager.load.assert_not_called()
+    ui._replay_history.assert_not_called()
+
+
+def test_load_session_history_missing_file_is_silent(runner):
+    """FileNotFoundError from the history manager must not surface to the user."""
+    history_manager = MagicMock()
+    history_manager.load.side_effect = FileNotFoundError("no such session")
+    ui = MagicMock(spec=["_replay_history", "append_to_output"])
+
+    # Should not raise
+    runner._load_session_history(ui, history_manager, "sess-missing")
+
+    ui._replay_history.assert_not_called()

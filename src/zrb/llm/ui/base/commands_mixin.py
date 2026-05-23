@@ -13,7 +13,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from zrb.llm.custom_command.resolver import resolve_custom_command
-from zrb.llm.util.history_formatter import format_history_as_text
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_error, stylize_faint
 
@@ -77,6 +76,8 @@ class CommandsMixin:
 
         def _submit_user_message(self, llm_task: "LLMTask", text: str) -> None: ...
 
+        def _replay_history(self, messages: list) -> None: ...
+
         def _update_system_info(self) -> None: ...
 
         def _get_output_field_width(self) -> int: ...
@@ -135,9 +136,7 @@ class CommandsMixin:
                 self._conversation_session_name = name
                 try:
                     history = self._history_manager.load(name)
-
-                    history_text = format_history_as_text(history)
-                    self.append_to_output(stylize_faint(f"\n{history_text}\n"))
+                    self._replay_history(history)
                 except Exception as e:
                     self.append_to_output(
                         stylize_error(f"\n  ❌ Failed to load history: {e}\n")

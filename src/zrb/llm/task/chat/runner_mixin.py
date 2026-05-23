@@ -286,17 +286,27 @@ class RunnerMixin:
         history_manager: "AnyHistoryManager",
         conversation_name: str,
     ) -> None:
-        """Load and display session history if it exists."""
+        """Load and display session history if it exists.
+
+        Replays the loaded messages through the UI's live-message rendering
+        paths (markdown for assistant text, faint for tool calls, etc.) so
+        resuming a session feels like continuing the conversation. Falls back
+        to a plain text dump for UIs that don't implement `_replay_history`.
+        """
         if not conversation_name:
             return
         try:
-            # lazy: zrb internal (heavy via transitive / circular)
-            from zrb.llm.util.history_formatter import format_history_as_text
-
             history = history_manager.load(conversation_name)
-            if history:
-                history_text = format_history_as_text(history)
-                ui.append_to_output(history_text)
+            if not history:
+                return
+            replay = getattr(ui, "_replay_history", None)
+            if callable(replay):
+                replay(history)
+            else:
+                # lazy: zrb internal (heavy via transitive / circular)
+                from zrb.llm.util.history_formatter import format_history_as_text
+
+                ui.append_to_output(format_history_as_text(history))
         except FileNotFoundError:
             pass
         except Exception as e:

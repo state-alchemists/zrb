@@ -16,11 +16,11 @@ from pydantic_ai.messages import (
 )
 
 from zrb.llm.util.history_formatter import (
-    _format_args,
-    _format_timestamp,
     _indent_lines,
-    _truncate,
+    format_args,
     format_history_as_text,
+    format_timestamp,
+    truncate,
 )
 
 
@@ -169,42 +169,42 @@ class TestFormatHistoryAsText:
 
 
 class TestFormatTimestamp:
-    """Tests for _format_timestamp function."""
+    """Tests for format_timestamp function."""
 
     def test_none_timestamp(self):
         """Test with None timestamp."""
-        assert _format_timestamp(None) == ""
+        assert format_timestamp(None) == ""
 
     def test_datetime_object(self):
         """Test with datetime object."""
         dt = datetime(2024, 1, 15, 10, 30, 45)
-        result = _format_timestamp(dt)
+        result = format_timestamp(dt)
         assert "10:30" in result
 
     def test_iso_string_timestamp(self):
         """Test with ISO string timestamp."""
         iso_string = "2024-01-15T10:30:45Z"
-        result = _format_timestamp(iso_string)
+        result = format_timestamp(iso_string)
         assert "10:30" in result
 
 
 class TestFormatArgs:
-    """Tests for _format_args function."""
+    """Tests for format_args function."""
 
     def test_none_args(self):
         """Test with None args."""
-        assert _format_args(None) == "{}"
+        assert format_args(None) == "{}"
 
     def test_string_args(self):
         """Test with string args."""
-        result = _format_args("raw string")
+        result = format_args("raw string")
         # Should truncate long strings
         assert "raw" in result
 
     def test_dict_args(self):
         """Test with dict args."""
         args = {"path": ".", "recursive": True}
-        result = _format_args(args)
+        result = format_args(args)
         assert "path" in result
         assert "recursive" in result
 
@@ -231,15 +231,15 @@ class TestIndentLines:
 
 
 class TestTruncate:
-    """Tests for _truncate function."""
+    """Tests for truncate function."""
 
     def test_short_text(self):
         """Test with short text."""
-        assert _truncate("Hello", max_length=10) == "Hello"
+        assert truncate("Hello", max_length=10) == "Hello"
 
     def test_long_text(self):
         """Test with long text."""
-        result = _truncate("Hello World This is a Long Text", max_length=15)
+        result = truncate("Hello World This is a Long Text", max_length=15)
         assert len(result) == 15
         assert result.endswith("...")
 
@@ -340,50 +340,50 @@ def test_tool_return_unknown_when_no_name_and_no_matching_call():
     assert "🔠" in result
 
 
-# ── _format_args extra branches ──────────────────────────────────────────────
+# ── format_args extra branches ──────────────────────────────────────────────
 
 
-def test_format_args_empty_string():
+def testformat_args_empty_string():
     """Empty string arg returns '{}' (line 256)."""
-    assert _format_args("") == "{}"
+    assert format_args("") == "{}"
 
 
-def test_format_args_null_string():
+def testformat_args_null_string():
     """'null' JSON string returns '{}' (line 256)."""
-    assert _format_args("null") == "{}"
+    assert format_args("null") == "{}"
 
 
-def test_format_args_valid_json_dict_string():
+def testformat_args_valid_json_dict_string():
     """Valid JSON dict string is parsed and returned (lines 259-260)."""
-    result = _format_args('{"key": "val"}')
+    result = format_args('{"key": "val"}')
     assert "key" in result
     assert "val" in result
 
 
-def test_format_args_dict_with_dummy_key():
+def testformat_args_dict_with_dummy_key():
     """Dict containing 'dummy' key has it filtered out (line 267)."""
-    result = _format_args({"real": "value", "dummy": "ignored"})
+    result = format_args({"real": "value", "dummy": "ignored"})
     assert "real" in result
     assert "dummy" not in result
 
 
-def test_format_args_dict_with_long_string_value():
+def testformat_args_dict_with_long_string_value():
     """Dict with a long string value gets the value truncated (line 277)."""
     long_val = "a" * 100
-    result = _format_args({"key": long_val})
+    result = format_args({"key": long_val})
     assert "key" in result
     # The long value should be truncated (ends with ...)
     assert "..." in result
 
 
-# ── _format_timestamp extra branches ────────────────────────────────────────
+# ── format_timestamp extra branches ────────────────────────────────────────
 
 
-def test_format_timestamp_non_string_non_datetime():
+def testformat_timestamp_non_string_non_datetime():
     """Non-string, non-datetime (e.g. int) returns '' (line 307)."""
-    assert _format_timestamp(12345) == ""
+    assert format_timestamp(12345) == ""
 
 
-def test_format_timestamp_invalid_iso_string():
+def testformat_timestamp_invalid_iso_string():
     """Invalid ISO string returns '' (lines 310-311)."""
-    assert _format_timestamp("not-a-date") == ""
+    assert format_timestamp("not-a-date") == ""
