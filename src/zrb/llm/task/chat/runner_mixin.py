@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
-from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
+from zrb.llm.custom_command import resolve_custom_command, resolve_custom_commands
 from zrb.session.session import Session
 from zrb.util.attr import get_attr, get_str_attr
 
@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from pydantic_ai import UserContent
 
     from zrb.context.any_context import AnyContext
+    from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.task.llm_task import LLMTask
     from zrb.llm.tool_call.ui_protocol import UIProtocol
@@ -50,9 +51,17 @@ class RunnerMixin:
         initial_yolo: "bool | frozenset[str]",
         initial_attachments: "list[UserContent]",
     ) -> Any:
+        # Resolve custom commands and intercept if the message is a slash command
+        resolved_custom_commands = resolve_custom_commands(self._custom_commands)
+        effective_message = initial_message
+        if isinstance(initial_message, str):
+            resolved = resolve_custom_command(initial_message, resolved_custom_commands)
+            if resolved is not None:
+                effective_message = resolved
+
         # AsyncExitStack is handled by LLMTask._exec_action
         session_input = {
-            "message": initial_message,
+            "message": effective_message,
             "session": initial_conversation_name,
             "yolo": bool(initial_yolo),  # inner task uses dynamic_yolo; just pass bool
             "attachments": initial_attachments,
@@ -67,6 +76,10 @@ class RunnerMixin:
         # Store conversation name in xcom for CLI to print at the end
         ctx.xcom["__conversation_name__"] = initial_conversation_name
         return result
+
+    def _resolve_custom_commands(self) -> list["AnyCustomCommand"]:
+        """Resolve custom commands, calling any callable factories."""
+        return resolve_custom_commands(self._custom_commands)
 
     async def _run_interactive_session(
         self,
@@ -156,16 +169,7 @@ class RunnerMixin:
         if not isinstance(resolved_custom_model_names, list):
             resolved_custom_model_names = []
 
-        resolved_custom_commands: list[AnyCustomCommand] = []
-        for cmd in self._custom_commands:
-            if callable(cmd):
-                res = cmd()
-                if isinstance(res, list):
-                    resolved_custom_commands.extend(res)
-                else:
-                    resolved_custom_commands.append(res)
-            else:
-                resolved_custom_commands.append(cmd)
+        resolved_custom_commands = self._resolve_custom_commands()
 
         effective_show_ollama_models = (
             CFG.LLM_SHOW_OLLAMA_MODELS
