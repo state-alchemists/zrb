@@ -47,7 +47,7 @@ new ones, since cloud-side names rotate.
 
 ```bash
 zrb-llm-evaluator run \
-  --models openai:gpt-5.4-mini,google:gemini-2.5-flash,google:gemini-3-flash-preview,google:gemini-3.5-flash,deepseek:deepseek-v4-flash,ollama:gemma4:31b-cloud,ollama:qwen3.5:397b-cloud,ollama:qwen3-next:80b-cloud,ollama:qwen3-coder-next:cloud,ollama:glm-4.7:cloud,ollama:glm-5:cloud,ollama:glm-5.1:cloud,ollama:kimi-k2.5:cloud,ollama:kimi-k2.6:cloud,ollama:minimax-m2.5:cloud,ollama:minimax-m2.7:cloud,ollama:gpt-oss:120b-cloud \
+  --models openai:gpt-5.4-mini,openai:gpt-4o,google:gemini-2.5-flash,google:gemini-3-flash-preview,google:gemini-3.5-flash,deepseek:deepseek-v4-flash,ollama:gemma4:31b-cloud,ollama:qwen3.5:397b-cloud,ollama:qwen3-next:80b-cloud,ollama:qwen3-coder-next:cloud,ollama:glm-4.7:cloud,ollama:glm-5:cloud,ollama:glm-5.1:cloud,ollama:kimi-k2.5:cloud,ollama:kimi-k2.6:cloud,ollama:minimax-m2.5:cloud,ollama:minimax-m2.7:cloud,ollama:gpt-oss:120b-cloud \
   --test-cases ./challenges/bug-fix,./challenges/copywriting,./challenges/feature,./challenges/integration-bug,./challenges/refactor,./challenges/research \
   --trials 3 \
   --parallelism 8 \
