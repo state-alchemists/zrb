@@ -9,10 +9,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import shlex
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from zrb.llm.custom_command import resolve_custom_command
 from zrb.llm.util.history_formatter import format_history_as_text
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_error, stylize_faint
@@ -335,6 +335,10 @@ class CommandsMixin:
                 if not model_name:
                     continue
                 self._model = model_name
+                try:
+                    self._llm_task.prompt_manager.model = model_name
+                except Exception:
+                    pass
                 self.append_to_output(
                     stylize_faint(f"\n  🤖 Model switched to: {model_name}\n")
                 )
@@ -516,36 +520,10 @@ class CommandsMixin:
         if not text:
             return False
 
-        try:
-            parts = shlex.split(text)
-        except Exception:
-            return False
-
-        if not parts:
-            return False
-
-        cmd_name = parts[0]
-        for custom_cmd in self._custom_commands:
-            if cmd_name == custom_cmd.command:
-                provided_args = parts[1:]
-                # Join residue arguments
-                if len(provided_args) > len(custom_cmd.args):
-                    num_args = len(custom_cmd.args)
-                    if num_args > 0:
-                        args_to_keep = provided_args[: num_args - 1]
-                        residue = provided_args[num_args - 1 :]
-                        joined_residue = " ".join(residue)
-                        provided_args = args_to_keep + [joined_residue]
-
-                args_dict = {
-                    custom_cmd.args[i]: (
-                        provided_args[i] if i < len(provided_args) else ""
-                    )
-                    for i in range(len(custom_cmd.args))
-                }
-                prompt = custom_cmd.get_prompt(args_dict)
-                self._submit_user_message(self._llm_task, prompt)
-                return True
+        prompt = resolve_custom_command(text, self._custom_commands)
+        if prompt is not None:
+            self._submit_user_message(self._llm_task, prompt)
+            return True
         return False
 
     def _get_help_text(

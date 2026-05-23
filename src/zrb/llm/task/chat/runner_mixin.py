@@ -21,12 +21,11 @@ Assumes the host class provides:
 
 from __future__ import annotations
 
-import shlex
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
-from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
+from zrb.llm.custom_command import resolve_custom_command, resolve_custom_commands
 from zrb.session.session import Session
 from zrb.util.attr import get_attr, get_str_attr
 
@@ -34,6 +33,7 @@ if TYPE_CHECKING:
     from pydantic_ai import UserContent
 
     from zrb.context.any_context import AnyContext
+    from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.task.llm_task import LLMTask
     from zrb.llm.tool_call.ui_protocol import UIProtocol
@@ -52,10 +52,12 @@ class RunnerMixin:
         initial_attachments: "list[UserContent]",
     ) -> Any:
         # Resolve custom commands and intercept if the message is a slash command
-        resolved_custom_commands = self._resolve_custom_commands()
-        effective_message = self._apply_custom_command(
-            initial_message, resolved_custom_commands
-        )
+        resolved_custom_commands = resolve_custom_commands(self._custom_commands)
+        effective_message = initial_message
+        if isinstance(initial_message, str):
+            resolved = resolve_custom_command(initial_message, resolved_custom_commands)
+            if resolved is not None:
+                effective_message = resolved
 
         # AsyncExitStack is handled by LLMTask._exec_action
         session_input = {
@@ -77,58 +79,7 @@ class RunnerMixin:
 
     def _resolve_custom_commands(self) -> list["AnyCustomCommand"]:
         """Resolve custom commands, calling any callable factories."""
-        resolved: list[AnyCustomCommand] = []
-        for cmd in self._custom_commands:
-            if callable(cmd):
-                res = cmd()
-                if isinstance(res, list):
-                    resolved.extend(res)
-                else:
-                    resolved.append(res)
-            else:
-                resolved.append(cmd)
-        return resolved
-
-    def _apply_custom_command(
-        self,
-        message: Any,
-        custom_commands: list["AnyCustomCommand"],
-    ) -> str:
-        """If *message* starts with a registered custom command, resolve it.
-
-        Returns the transformed prompt; otherwise returns the message as-is.
-        """
-        if not isinstance(message, str) or not message.startswith("/"):
-            return message
-
-        try:
-            parts = shlex.split(message.strip())
-        except Exception:
-            return message
-
-        if not parts:
-            return message
-
-        cmd_name = parts[0]
-        for custom_cmd in custom_commands:
-            if cmd_name == custom_cmd.command:
-                provided_args = parts[1:]
-                # Join residue arguments if more provided than expected
-                if len(provided_args) > len(custom_cmd.args):
-                    num_args = len(custom_cmd.args)
-                    if num_args > 0:
-                        args_to_keep = provided_args[: num_args - 1]
-                        residue = provided_args[num_args - 1 :]
-                        provided_args = args_to_keep + [" ".join(residue)]
-
-                args_dict = {
-                    custom_cmd.args[i]: (
-                        provided_args[i] if i < len(provided_args) else ""
-                    )
-                    for i in range(len(custom_cmd.args))
-                }
-                return custom_cmd.get_prompt(args_dict)
-        return message
+        return resolve_custom_commands(self._custom_commands)
 
     async def _run_interactive_session(
         self,
@@ -218,16 +169,7 @@ class RunnerMixin:
         if not isinstance(resolved_custom_model_names, list):
             resolved_custom_model_names = []
 
-        resolved_custom_commands: list[AnyCustomCommand] = []
-        for cmd in self._custom_commands:
-            if callable(cmd):
-                res = cmd()
-                if isinstance(res, list):
-                    resolved_custom_commands.extend(res)
-                else:
-                    resolved_custom_commands.append(res)
-            else:
-                resolved_custom_commands.append(cmd)
+        resolved_custom_commands = self._resolve_custom_commands()
 
         effective_show_ollama_models = (
             CFG.LLM_SHOW_OLLAMA_MODELS
