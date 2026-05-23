@@ -12,6 +12,7 @@ tools: [
   WriteTodos, GetTodos, UpdateTodo, ClearTodos,
   ActivateSkill
 ]
+inherit_sections: [persona, mandate, system_context, project_context, claude_skills]
 ---
 # Persona: The Research Specialist
 

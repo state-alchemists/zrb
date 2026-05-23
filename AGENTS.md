@@ -78,7 +78,9 @@ source .venv/bin/activate && poetry lock && poetry install
 
 ## LLM Prompt System
 
-`PromptManager` (`src/zrb/llm/prompt/manager.py`) assembles the system prompt from ordered sections (persona → git mandate → system context → mandate → tool guidance → journal → project context → skills → user prompts). Composition is controlled via the `include_sections: list[str] | None` constructor parameter or the `CFG.LLM_INCLUDE_SECTIONS` env var (comma-separated, order-sensitive); pass `None` to use the defaults.
+`PromptManager` (`src/zrb/llm/prompt/manager.py`) assembles the system prompt from ordered sections. The default order — defined in `config/mixins/llm_prompt.py` as `DEFAULT_LLM_INCLUDE_SECTIONS` — is `persona → mandate → git_mandate → journal_mandate → system_context → project_context → tool_guidance → claude_skills`, followed by any user-added prompts. Composition is controlled via the `include_sections: list[str] | None` constructor parameter or the `ZRB_LLM_INCLUDE_SECTIONS` env var (comma-separated, order-sensitive); pass `None` to use the defaults.
+
+Each section is **MECE** — a single behavior lives in exactly one section. Persona = identity + priorities; `mandate` = operating rules (no tool/git specifics); `git_mandate` = git-specific approval rules; `journal_mandate` = memory protocol + index; `system_context` = runtime facts; `project_context` = AGENTS.md/CLAUDE.md project overrides; `tool_guidance` = per-tool when-to-use + key rules; `claude_skills` = skill catalogue. Adding rules: pick the smallest-scope section that owns the concept.
 
 ### System Context Auto-Injections
 

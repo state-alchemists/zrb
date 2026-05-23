@@ -121,6 +121,7 @@ class LoaderMixin:
             system_prompt = ""
             model = None
             tools: list[str] = []
+            inherit_sections: list[str] | None = None
             is_name_resolved = False
 
             # 1. YAML frontmatter (preferred)
@@ -137,6 +138,20 @@ class LoaderMixin:
                             description = frontmatter.get("description", description)
                             model = frontmatter.get("model", None)
                             tools = frontmatter.get("tools", [])
+                            # Accept list form (canonical) or comma string (Claude-compat).
+                            raw_inherit = frontmatter.get("inherit_sections")
+                            if isinstance(raw_inherit, list):
+                                inherit_sections = [
+                                    str(s).strip()
+                                    for s in raw_inherit
+                                    if str(s).strip()
+                                ]
+                            elif isinstance(raw_inherit, str):
+                                inherit_sections = [
+                                    s.strip()
+                                    for s in raw_inherit.split(",")
+                                    if s.strip()
+                                ]
                 except Exception:
                     pass
 
@@ -158,6 +173,7 @@ class LoaderMixin:
                 system_prompt=system_prompt,
                 model=model,
                 tools=tools,
+                inherit_sections=inherit_sections,
             )
         except Exception:
             pass

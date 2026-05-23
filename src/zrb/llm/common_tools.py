@@ -60,156 +60,138 @@ class CommonToolHost(Protocol):
 
 
 # ── Static guidance ──────────────────────────────────────────────────────────
-# When to use a tool + non-obvious gotchas. Docstrings cover what tools do.
-# Only include guidance that helps make better tool choices or prevents real
-# mistakes.
+# Cross-tool decisions only. Per-tool intrinsics (argument behavior, output
+# format, default values, irreversibility warnings) live in the tool docstrings
+# where they're attached to the schema and only consume context when the model
+# is actively considering that tool. Tool Usage Guide entries answer "when do
+# I reach for THIS tool instead of THAT one?" — anything that doesn't reduce
+# to a cross-tool choice belongs in the docstring.
 
 _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
     # File Operations
     ToolGuidance(
         group_name="File Operations",
         tool_name="LS",
-        when_to_use="Exploring without a specific filename pattern",
-        key_rule="For pattern-based discovery (e.g., **/*.py), use Glob instead.",
+        when_to_use="Exploring a directory without a known filename pattern",
+        key_rule="For pattern-based discovery (e.g. `**/*.py`), use Glob. For content search, use Grep.",
     ),
     ToolGuidance(
         group_name="File Operations",
         tool_name="Glob",
-        when_to_use="Finding files by pattern",
-        key_rule="For content search, use Grep. For unfiltered listing, use LS.",
+        when_to_use="Finding files by name pattern",
+        key_rule="For content search, use Grep. For an unfiltered directory listing, use LS.",
     ),
     ToolGuidance(
         group_name="File Operations",
         tool_name="Read",
-        key_rule="Content starts after ---CONTENT--- (metadata above is NOT the file). "
-        "Copy old_text for Edit from below ---CONTENT---. "
-        "Grep first to locate the relevant section before reading.",
+        key_rule="Grep to locate the relevant section first; then Read to load it. "
+        "When copying text for Edit's old_text, take it from below the ---CONTENT--- marker.",
     ),
     ToolGuidance(
         group_name="File Operations",
         tool_name="Write",
-        key_rule="Prefer Edit for surgical changes to existing files. "
-        "For existing files, read with Read first to confirm content before overwriting. "
-        "Large content: first chunk mode='w', subsequent mode='a'.",
+        key_rule="For surgical changes to an existing file, use Edit. "
+        "Before overwriting an existing file, Read it first to confirm the contents you are about to replace.",
     ),
     ToolGuidance(
         group_name="File Operations",
         tool_name="Edit",
-        key_rule="old_text from below ---CONTENT--- (not header). Include 2-3 surrounding lines for uniqueness. "
-        "If multiple matches, expand context or use count=1. "
-        "Before editing: Grep/LspFindReferences call sites and update them too.",
+        key_rule="Take old_text from below Read's ---CONTENT--- marker. "
+        "Before editing a public symbol, Grep or LspFindReferences for call sites and update them in the same turn.",
     ),
     ToolGuidance(
         group_name="File Operations",
         tool_name="Grep",
-        key_rule="Never use Grep output as Edit old_text (1000-char truncation) — Read first. "
-        "Use files_only=True for just file paths. "
-        "Use case_sensitive=False, context_lines=0 as needed.",
+        key_rule="Grep results are truncated to 1000 chars per line — for Edit's old_text, Read the file first to get exact content.",
     ),
     ToolGuidance(
         group_name="File Operations",
         tool_name="RM",
-        when_to_use="Prefer over Bash rm",
-        key_rule="recursive=True is irreversible — confirm first. "
-        "Check for imports/references with Grep before removing.",
+        when_to_use="Use instead of Bash rm",
+        key_rule="Before removing, Grep for imports or references and update them in the same turn.",
     ),
     ToolGuidance(
         group_name="File Operations",
         tool_name="MV",
-        when_to_use="Prefer over Bash mv",
-        key_rule="Creates missing parent dirs automatically. Check imports/references before moving.",
+        when_to_use="Use instead of Bash mv",
+        key_rule="Before moving, Grep for imports or references that name the old path and update them.",
     ),
     # Execution
     ToolGuidance(
         group_name="Execution",
         tool_name="Bash",
-        key_rule="NEVER use for file I/O - use Read/Write/Edit/Grep/RM/MV instead. "
-        "Never use to query state already in System Context (time, OS, CWD, tools). "
-        "Always pass non-interactive flags (-y, --yes, CI=true). "
-        "Default timeout is 120s; timed-out processes may linger. "
-        "Batch independent commands with &&. Use cwd= for worktrees. "
-        "Prefer rg over grep, gh for GitHub, rtk to prefix verbose commands.",
+        key_rule="For file I/O, use Read/Write/Edit/Grep/RM/MV — not Bash. "
+        "System Context already lists time, OS, CWD, and available tools — read from there before running commands to discover them.",
     ),
     # Analysis
     ToolGuidance(
         group_name="Analysis",
         tool_name="AnalyzeCode",
-        key_rule="VERY SLOW. Use Read + Grep first. Only invoke when insufficient.",
+        key_rule="Slow. Use Read + Grep first; reach for AnalyzeCode only when those are insufficient for the question.",
     ),
     ToolGuidance(
         group_name="Analysis",
         tool_name="AnalyzeFile",
-        key_rule="SLOW. Use Read for content. For directory-level, use AnalyzeCode.",
+        key_rule="Slow. Use Read for content; for directory-level analysis use AnalyzeCode.",
     ),
     # Research & Web
     ToolGuidance(
         group_name="Research & Web",
         tool_name="SearchInternet",
-        when_to_use="Current info, docs, recent events",
-        key_rule="Start broad, then OpenWebPage for exact pages.",
+        when_to_use="Current information, recent docs, or events",
+        key_rule="Start broad with SearchInternet, then OpenWebPage on the most promising URL.",
     ),
     ToolGuidance(
         group_name="Research & Web",
         tool_name="OpenWebPage",
         when_to_use="Fetching a known URL",
-        key_rule="Use SearchInternet first to find URLs.",
+        key_rule="When the URL is not known, SearchInternet first.",
     ),
     # Planning
     ToolGuidance(
         group_name="Planning",
         tool_name="WriteTodos",
         when_to_use="Planning a multi-step task",
-        key_rule="Mark 'in_progress' before starting, 'completed' immediately after — don't batch.",
+        key_rule="Mark `in_progress` before starting and `completed` immediately after — one status change per call.",
     ),
     ToolGuidance(
         group_name="Planning",
         tool_name="GetTodos",
-        when_to_use="Resuming work — check current plan",
-    ),
-    ToolGuidance(
-        group_name="Planning",
-        tool_name="UpdateTodo",
-        key_rule="Update immediately on status change — don't batch.",
+        when_to_use="Resuming work — check the current plan before proceeding",
     ),
     ToolGuidance(
         group_name="Planning",
         tool_name="ClearTodos",
-        when_to_use="Discarding a completed/abandoned plan",
+        when_to_use="Discarding a completed or abandoned plan",
     ),
     # Git Worktrees
     ToolGuidance(
         group_name="Git Worktrees",
         tool_name="ListWorktrees",
-        when_to_use="Check before creating/entering — avoid duplicates",
+        when_to_use="Check before EnterWorktree to avoid duplicates",
     ),
     ToolGuidance(
         group_name="Git Worktrees",
         tool_name="EnterWorktree",
         when_to_use="Isolated branch for experimental changes",
-        key_rule="ListWorktrees first. Pass returned path as Bash cwd.",
-    ),
-    ToolGuidance(
-        group_name="Git Worktrees",
-        tool_name="ExitWorktree",
-        when_to_use="Clean up after worktree work",
-        key_rule="Use keep_branch=True if merging later.",
+        key_rule="ListWorktrees first. Pass the returned path as the `cwd` argument to Bash.",
     ),
     # LSP
     ToolGuidance(
         group_name="LSP",
         tool_name="LspListServers",
-        when_to_use="Verify LSP is available before using Lsp* tools",
-        key_rule="If empty, fall back to Read/Grep.",
+        when_to_use="Verify an LSP server is running before reaching for other Lsp* tools",
+        key_rule="If no servers are listed, fall back to Read + Grep.",
     ),
     ToolGuidance(
         group_name="LSP",
         tool_name="LspFindReferences",
-        when_to_use="Find all call sites before renaming, moving, or deleting",
+        when_to_use="Find all call sites before renaming, moving, or deleting a symbol",
     ),
     ToolGuidance(
         group_name="LSP",
         tool_name="LspRenameSymbol",
-        key_rule="Use dry_run=True first. Apply only after user approval.",
+        key_rule="Run with `dry_run=True` first; apply only after user approval.",
     ),
 ]
 
