@@ -12,7 +12,7 @@ import os
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from zrb.llm.custom_command import resolve_custom_command
+from zrb.llm.custom_command.resolver import resolve_custom_command
 from zrb.llm.util.history_formatter import format_history_as_text
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_error, stylize_faint

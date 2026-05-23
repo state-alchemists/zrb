@@ -25,7 +25,10 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
-from zrb.llm.custom_command import resolve_custom_command, resolve_custom_commands
+from zrb.llm.custom_command.resolver import (
+    resolve_custom_command,
+    resolve_custom_commands,
+)
 from zrb.session.session import Session
 from zrb.util.attr import get_attr, get_str_attr
 
