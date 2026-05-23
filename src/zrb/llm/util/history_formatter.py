@@ -70,7 +70,7 @@ def _format_request(msg, index: int, pending_tool_calls: dict[str, str]) -> list
     - SystemPromptPart: System instructions
     """
     lines = []
-    timestamp = _format_timestamp(getattr(msg, "timestamp", None))
+    timestamp = format_timestamp(getattr(msg, "timestamp", None))
 
     # Collect parts by type
     user_prompt_parts = []
@@ -98,7 +98,7 @@ def _format_request(msg, index: int, pending_tool_calls: dict[str, str]) -> list
     for part in user_prompt_parts:
         content = getattr(part, "content", "")
         ts_display = f"{timestamp} " if timestamp else ""
-        lines.append(f"💬 {ts_display}>> {_truncate(str(content), 500)}")
+        lines.append(f"💬 {ts_display}>> {truncate(str(content), 500)}")
 
     # System prompts (rarely in history)
     for part in system_prompt_parts:
@@ -130,7 +130,7 @@ def _format_response(msg, index: int, pending_tool_calls: dict[str, str]) -> lis
     - ThinkingPart: Internal reasoning
     """
     lines = []
-    timestamp = _format_timestamp(getattr(msg, "timestamp", None))
+    timestamp = format_timestamp(getattr(msg, "timestamp", None))
     model_name = getattr(msg, "model_name", None)
 
     ts_display = f"{timestamp} " if timestamp else ""
@@ -177,7 +177,7 @@ def _format_tool_call(part, pending_tool_calls: dict[str, str]) -> list[str]:
     if tool_call_id and tool_name:
         pending_tool_calls[tool_call_id] = tool_name
 
-    args_str = _format_args(args)
+    args_str = format_args(args)
     id_display = tool_call_id or "?"
     name_display = tool_name or "unknown"
 
@@ -211,7 +211,7 @@ def _format_tool_return(part, pending_tool_calls: dict[str, str]) -> list[str]:
         name_display = "unknown"
 
     content_str = str(content) if content else ""
-    truncated = _truncate(content_str, 200)
+    truncated = truncate(content_str, 200)
 
     lines.append(f"  🔠 {id_display} | {name_display} {status_icon}")
     if truncated.strip():
@@ -245,7 +245,7 @@ def _indent_lines(text: str, indent: int = 2, max_lines: int = 50) -> list[str]:
     return lines
 
 
-def _truncate(text: str, max_length: int | None = None) -> str:
+def truncate(text: str, max_length: int | None = None) -> str:
     """Truncate text to max_length with ellipsis."""
 
     if max_length is None:
@@ -255,7 +255,7 @@ def _truncate(text: str, max_length: int | None = None) -> str:
     return text[: max_length - 3] + "..."
 
 
-def _format_args(args) -> str:
+def format_args(args) -> str:
     """Format tool call arguments for display."""
 
     if args is None:
@@ -268,12 +268,12 @@ def _format_args(args) -> str:
             if isinstance(obj, dict):
                 return _truncate_kwargs(obj)
         except (json.JSONDecodeError, TypeError):
-            return _truncate(args, 50)
+            return truncate(args, 50)
     if isinstance(args, dict):
         # Remove 'dummy' key if present (schema sanitization artifact)
         args_clean = {k: v for k, v in args.items() if k != "dummy"}
         return _truncate_kwargs(args_clean)
-    return _truncate(str(args), 50)
+    return truncate(str(args), 50)
 
 
 def _truncate_kwargs(kwargs: dict, max_length: int = 30) -> str:
@@ -291,7 +291,7 @@ def _truncate_kwargs(kwargs: dict, max_length: int = 30) -> str:
         return str(truncated)
 
 
-def _format_timestamp(timestamp) -> str:
+def format_timestamp(timestamp) -> str:
     """Format timestamp for display.
 
     Args:
