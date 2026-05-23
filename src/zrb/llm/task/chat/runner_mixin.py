@@ -21,6 +21,7 @@ Assumes the host class provides:
 
 from __future__ import annotations
 
+import shlex
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
@@ -50,9 +51,15 @@ class RunnerMixin:
         initial_yolo: "bool | frozenset[str]",
         initial_attachments: "list[UserContent]",
     ) -> Any:
+        # Resolve custom commands and intercept if the message is a slash command
+        resolved_custom_commands = self._resolve_custom_commands()
+        effective_message = self._apply_custom_command(
+            initial_message, resolved_custom_commands
+        )
+
         # AsyncExitStack is handled by LLMTask._exec_action
         session_input = {
-            "message": initial_message,
+            "message": effective_message,
             "session": initial_conversation_name,
             "yolo": bool(initial_yolo),  # inner task uses dynamic_yolo; just pass bool
             "attachments": initial_attachments,
@@ -67,6 +74,61 @@ class RunnerMixin:
         # Store conversation name in xcom for CLI to print at the end
         ctx.xcom["__conversation_name__"] = initial_conversation_name
         return result
+
+    def _resolve_custom_commands(self) -> list["AnyCustomCommand"]:
+        """Resolve custom commands, calling any callable factories."""
+        resolved: list[AnyCustomCommand] = []
+        for cmd in self._custom_commands:
+            if callable(cmd):
+                res = cmd()
+                if isinstance(res, list):
+                    resolved.extend(res)
+                else:
+                    resolved.append(res)
+            else:
+                resolved.append(cmd)
+        return resolved
+
+    def _apply_custom_command(
+        self,
+        message: Any,
+        custom_commands: list["AnyCustomCommand"],
+    ) -> str:
+        """If *message* starts with a registered custom command, resolve it.
+
+        Returns the transformed prompt; otherwise returns the message as-is.
+        """
+        if not isinstance(message, str) or not message.startswith("/"):
+            return message
+
+        try:
+            parts = shlex.split(message.strip())
+        except Exception:
+            return message
+
+        if not parts:
+            return message
+
+        cmd_name = parts[0]
+        for custom_cmd in custom_commands:
+            if cmd_name == custom_cmd.command:
+                provided_args = parts[1:]
+                # Join residue arguments if more provided than expected
+                if len(provided_args) > len(custom_cmd.args):
+                    num_args = len(custom_cmd.args)
+                    if num_args > 0:
+                        args_to_keep = provided_args[: num_args - 1]
+                        residue = provided_args[num_args - 1 :]
+                        provided_args = args_to_keep + [" ".join(residue)]
+
+                args_dict = {
+                    custom_cmd.args[i]: (
+                        provided_args[i] if i < len(provided_args) else ""
+                    )
+                    for i in range(len(custom_cmd.args))
+                }
+                return custom_cmd.get_prompt(args_dict)
+        return message
 
     async def _run_interactive_session(
         self,
