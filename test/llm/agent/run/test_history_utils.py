@@ -116,23 +116,23 @@ def test_filter_nil_content():
     assert isinstance(m1, ModelRequest)
     assert len(m1.parts) == 12  # ToolCallPart with no tool_name is dropped
     assert m1.parts[1].content == "null"
-    assert m1.parts[3].content == "."
-    assert m1.parts[5].content == "."
-    assert m1.parts[7].content == "."
-    assert m1.parts[9].content == "."
+    assert m1.parts[3].content == "(empty)"
+    assert m1.parts[5].content == "(empty)"
+    assert m1.parts[7].content == "(empty)"
+    assert m1.parts[9].content == "(empty)"
 
     # Check msg2
     m2 = filtered[1]
     assert isinstance(m2, ModelResponse)
     assert len(m2.parts) == 6
-    assert m2.parts[0].content == "."
+    assert m2.parts[0].content == "(empty)"
 
     # Check msg3
     m3 = filtered[2]
     assert isinstance(m3, ModelResponse)
     assert len(m3.parts) == 2
     assert isinstance(m3.parts[0], TextPart)
-    assert m3.parts[0].content == "."
+    assert m3.parts[0].content == "(tool call)"
     assert isinstance(m3.parts[1], ToolCallPart)
 
 
@@ -233,7 +233,7 @@ def test_strip_to_text_only_normalizes_null_content():
     # msg[0]: UserPromptPart fixed, ToolReturnPart → UserPromptPart (text in a
     # ModelRequest must be UserPromptPart, not TextPart).
     assert len(result[0].parts) == 2
-    assert result[0].parts[0].content == "."
+    assert result[0].parts[0].content == "(empty)"
     assert isinstance(result[0].parts[1], UserPromptPart)
     msg0_p1 = result[0].parts[1].content
     assert "(sanitized-history)" in msg0_p1
@@ -242,7 +242,7 @@ def test_strip_to_text_only_normalizes_null_content():
 
     # msg[1]: TextPart fixed, ToolCallPart → TextPart
     assert len(result[1].parts) == 2
-    assert result[1].parts[0].content == "."
+    assert result[1].parts[0].content == "(empty)"
     msg1_p1 = result[1].parts[1].content
     assert "(sanitized-history)" in msg1_p1
     assert "t2" in msg1_p1
@@ -361,7 +361,7 @@ def test_strip_to_text_only_unnamed_tool_call_part():
 
 def test_filter_nil_content_uses_null_for_builtin_tool_return():
     # NativeToolReturnPart is a sibling of ToolReturnPart (both extend
-    # BaseToolReturnPart). A nil content must become "null", not ".",
+    # BaseToolReturnPart). A nil content must become "null" (not "(empty)"),
     # so the placeholder is parseable as a tool result.
     msg = ModelRequest(
         parts=[

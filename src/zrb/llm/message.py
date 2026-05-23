@@ -51,7 +51,7 @@ def _strip_orphaned_parts(
     """Return *msg* with parts matching *orphaned_ids* removed, or ``None`` if empty.
 
     When *ensure_text* is ``True`` and the result has no ``TextPart`` with
-    content, a ``"."`` text part is prepended so the message stays valid.
+    content, a ``"(tool call)"`` text part is prepended so the message stays valid.
     """
     # lazy: heavy third-party
     from pydantic_ai.messages import TextPart
@@ -70,7 +70,7 @@ def _strip_orphaned_parts(
         if ensure_text and not any(
             isinstance(p, TextPart) and p.content for p in new_parts
         ):
-            new_parts.insert(0, TextPart(content="."))
+            new_parts.insert(0, TextPart(content="(tool call)"))
         return replace(msg, parts=new_parts)
     return msg
 

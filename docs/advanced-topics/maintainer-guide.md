@@ -309,7 +309,7 @@ Zrb applies `sanitize_history()` at three points:
 
 | Step | Function | What it fixes |
 |------|----------|---------------|
-| 1 | `filter_nil_content` | `None`/`""` content in any part type; injects `TextPart(".")` in `ModelResponse` when no text part exists |
+| 1 | `filter_nil_content` | `None`/`""` content in any part type (replaced with `"(empty)"`, or `"null"` for `ToolReturnPart`); injects `TextPart("(tool call)")` in `ModelResponse` when no text part exists but tool calls do |
 | 2 | `sanitize_orphaned_tool_calls` | Removes unmatched `ToolCallPart`/`ToolReturnPart` pairs; patches text-less messages left behind |
 | 3 | Drop empty messages | Removes `ModelRequest`/`ModelResponse` objects that have no parts remaining after steps 1–2 |
 | 4 | `ensure_alternating_roles` | Merges consecutive same-role messages by concatenating their `parts` lists (prevents back-to-back assistant or user messages) |
@@ -358,7 +358,7 @@ The patch is applied once at import time (`runner.py` calls `patch_openai_model_
 
 For providers that reject history containing `ThinkingPart` entries even after the above sanitization (e.g. a DeepSeek model accessed via a non-DeepSeek provider that doesn't know how to serialize `reasoning_content`), the retry loop detects a specific 400 error matching `"missing reasoning_content"` or `"reasoning_content field"` (checked by `is_missing_reasoning_content_error`).
 
-When detected, `strip_thinking_parts()` removes all `ThinkingPart` entries from every `ModelResponse` and retries. If stripping leaves a message with no parts, it is replaced with a single `TextPart(".")` to keep the message valid. This is a one-shot retry — it will not loop.
+When detected, `strip_thinking_parts()` removes all `ThinkingPart` entries from every `ModelResponse` and retries. If stripping leaves a message with no parts (or no text part), a single `TextPart("(tool call)")` is injected to keep the message valid. This is a one-shot retry — it will not loop.
 
 ### The Generic Opaque-400 Fallback
 

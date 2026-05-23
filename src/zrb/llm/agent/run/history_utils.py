@@ -74,9 +74,9 @@ def strip_thinking_parts(messages: list[Any]) -> list[Any]:
             continue
         new_parts = [p for p in msg.parts if not isinstance(p, ThinkingPart)]
         if not new_parts:
-            new_parts = [TextPart(content=".")]
+            new_parts = [TextPart(content="(tool call)")]
         elif not any(isinstance(p, TextPart) and p.content for p in new_parts):
-            new_parts.insert(0, TextPart(content="."))
+            new_parts.insert(0, TextPart(content="(tool call)"))
 
         result.append(replace(msg, parts=new_parts))
     return result
@@ -89,7 +89,7 @@ def sanitize_history(
     """Comprehensive history sanitization applied before every model call.
 
     Applies fixes in a fixed order so each step's output is valid input for the next:
-    1. filter_nil_content         — fix None/empty part content; inject "." placeholder
+    1. filter_nil_content         — fix None/empty part content; inject "(tool call)" placeholder
     2. sanitize_orphaned_tool_calls — remove unmatched ToolCallPart/ToolReturnPart pairs
        (skipped when allow_orphaned_tool_calls=True, i.e. when deferred_tool_results is set:
         ToolCallParts in history legitimately have no matching return in that path)
@@ -126,11 +126,14 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
     """Sanitize message history before sending to any provider.
 
     Fixes applied in one pass:
-    - None/empty/whitespace content → "." (or "null" for ToolReturnPart)
+    - None/empty/whitespace content → "(empty)" (or "null" for ToolReturnPart)
     - ToolCallPart with no tool_name → dropped
-    - ModelResponse with no text and no tool calls → TextPart(".") injected
+    - ModelResponse with no text but with tool calls → TextPart("(tool call)") injected
 
     Bedrock rejects blank text fields, OpenAI rejects null content.
+    The "(empty)" / "(tool call)" forms are self-describing so the model
+    can distinguish a missing payload from a real terse response and
+    avoid imitating a literal "." in its next turn.
     """
 
     from pydantic_ai.messages import (  # lazy: heavy third-party
@@ -149,7 +152,7 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
             return part
         content = part.content
         if content is None or (isinstance(content, str) and not content.strip()):
-            placeholder = "null" if isinstance(part, BaseToolReturnPart) else "."
+            placeholder = "null" if isinstance(part, BaseToolReturnPart) else "(empty)"
             return replace(part, content=placeholder)
         return part
 
@@ -172,7 +175,7 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
 
         # Providers reject assistant messages with no text and no tool calls
         if isinstance(msg, ModelResponse) and not has_text and valid_parts:
-            valid_parts.insert(0, TextPart(content="."))
+            valid_parts.insert(0, TextPart(content="(tool call)"))
 
         if valid_parts:
             filtered.append(replace(msg, parts=valid_parts))
@@ -246,13 +249,15 @@ def strip_to_text_only(history: list[Any]) -> list[Any]:
         ``BaseToolCallPart``      → ``TextPart("(sanitized-history) previously attempted to call tool …")``
         ``NativeToolReturnPart`` → ``TextPart("(sanitized-history) previous result from tool …")``
         ``ThinkingPart``          → ``TextPart(content)``
-        ``TextPart``              → kept (empty content normalised to ``"."``)
+        ``TextPart``              → kept (empty content normalised to ``"(empty)"``)
+    A ``ModelResponse`` left without any text part gets a leading
+    ``TextPart("(tool call)")`` injected so providers still accept it.
 
     ``ModelRequest`` (user role):
         ``ToolReturnPart``                       → ``UserPromptPart("(sanitized-history) previous result …")``
         ``RetryPromptPart`` with ``tool_name``   → ``UserPromptPart("(sanitized-history) prior retry feedback …")``
         ``UserPromptPart`` / ``SystemPromptPart``/ tool-less ``RetryPromptPart``
-                                                 → kept (empty content normalised to ``"."``)
+                                                 → kept (empty content normalised to ``"(empty)"``)
 
     Because both sides of every tool call/return pair are converted in
     sympathy, no ``tool_call_id`` cross-reference survives the strip, so
@@ -276,7 +281,7 @@ def strip_to_text_only(history: list[Any]) -> list[Any]:
         if hasattr(part, "content"):
             content = part.content
             if content is None or (isinstance(content, str) and not content.strip()):
-                return replace(part, content=".")
+                return replace(part, content="(empty)")
         return part
 
     def _normalize_for_response(part: Any) -> Any:
@@ -309,7 +314,7 @@ def strip_to_text_only(history: list[Any]) -> list[Any]:
             parts = [_normalize_for_response(p) for p in msg.parts]
             has_text = any(isinstance(p, TextPart) and p.content for p in parts)
             if not has_text:
-                parts.insert(0, TextPart(content="."))
+                parts.insert(0, TextPart(content="(tool call)"))
             if parts:
                 result.append(replace(msg, parts=parts))
         else:
@@ -366,7 +371,7 @@ def _thinking_part_content(part: Any) -> str:
     if not isinstance(part, ThinkingPart):
         return ""
     content = part.content if hasattr(part, "content") else ""
-    return str(content) if content else "."
+    return str(content) if content else "(empty)"
 
 
 def _retry_prompt_to_text(part: Any) -> str:
