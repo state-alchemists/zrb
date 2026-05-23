@@ -1,866 +1,0 @@
-Error loading file /Users/gofrendigunawan/zrb/zrb_init.py: No module named 'tomlkit'
-[2m
-  🧠 Let[0m[2m me[0m[2m start[0m[2m by[0m[2m understanding[0m[2m the[0m[2m problem[0m[2m.[0m[2m I[0m[2m need[0m[2m to[0m[2m read[0m[2m the[0m[2m relevant[0m[2m files[0m[2m to[0m[2m understand[0m[2m the[0m[2m checkout[0m[2m flow[0m[2m and[0m[2m identify[0m[2m the[0m[2m con[0m[2mcurrency[0m[2m bugs[0m[2m.[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m[0m[2m
-  🧰 call_00_nNQajQWb8gSUGQQTNkMN1908 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
-[0m[2m
-  🔠 call_00_nNQajQWb8gSUGQQTNkMN1908 Executed
-[0m[2m
-  🧠 Let[0m[2m me[0m[2m list[0m[2m the[0m[2m files[0m[2m in[0m[2m that[0m[2m directory[0m[2m to[0m[2m understand[0m[2m the[0m[2m structure[0m[2m.[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m[0m[2m
-  🧰 call_00_apcprxpi3pamEk10Q5Hn9471 | LS {'path': '/Users/gofrendigunawan/zrb ...'}
-[0m[2m
-  🔠 call_00_apcprxpi3pamEk10Q5Hn9471 Executed
-[0m[2m
-  🧠 Let[0m[2m me[0m[2m read[0m[2m all[0m[2m four[0m[2m files[0m[2m to[0m[2m understand[0m[2m the[0m[2m full[0m[2m system[0m[2m.[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m[0m[2m
-  🧰 call_00_x1j7pWSoP2IwcRQIF8xm8174 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
-[0m[2m
-  🧰 call_01_OvvqmTl3pBt0AoYfATp40543 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
-[0m[2m
-  🧰 call_02_iYx53lEwsLnT7JnUSyQn4849 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
-[0m[2m
-  🧰 call_03_3dokiLvqus6cG4Q1brMH4213 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
-[0m[2m
-  🔠 call_01_OvvqmTl3pBt0AoYfATp40543 Executed
-[0m[2m
-  🔠 call_02_iYx53lEwsLnT7JnUSyQn4849 Executed
-[0m[2m
-  🔠 call_00_x1j7pWSoP2IwcRQIF8xm8174 Executed
-[0m[2m
-  🔠 call_03_3dokiLvqus6cG4Q1brMH4213 Executed
-[0m[2m
-  🧠 Let[0m[2m me[0m[2m analyze[0m[2m the[0m[2m bugs[0m[2m:
-     
-[0m[2m##[0m[2m Bug[0m[2m [0m[2m1[0m[2m:[0m[2m Overs[0m[2melling[0m[2m ([0m[2mTO[0m[2mCT[0m[2mOU[0m[2m race[0m[2m condition[0m[2m)
-[0m[2mThe[0m[2m `[0m[2mcheck[0m[2mout[0m[2m`[0m[2m function[0m[2m does[0m[2m:
-[0m[2m1[0m[2m.[0m[2m `[0m[2min[0m[2mventory[0m[2m.check[0m[2m_st[0m[2mock[0m[2m([0m[2mquantity[0m[2m)`[0m[2m -[0m[2m checks[0m[2m if[0m[2m stock[0m[2m is[0m[2m available[0m[2m
-[0m[2m2[0m[2m.[0m[2m `[0m[2mgate[0m[2mway[0m[2m.[0m[2mcharge[0m[2m(order[0m[2m_id[0m[2m,[0m[2m quantity[0m[2m *[0m[2m price[0m[2m)`[0m[2m -[0m[2m charges[0m[2m the[0m[2m customer[0m[2m
-[0m[2m3[0m[2m.[0m[2m `[0m[2min[0m[2mventory[0m[2m.de[0m[2mcrement[0m[2m([0m[2mquantity[0m[2m)`[0m[2m -[0m[2m decre[0m[2mments[0m[2m the[0m[2m stock[0m[2m
-     
-[0m[2mThe[0m[2m problem[0m[2m is[0m[2m a[0m[2m classic[0m[2m TO[0m[2mCT[0m[2mOU[0m[2m ([0m[2mTime[0m[2m-of[0m[2m-C[0m[2mheck[0m[2m-Time[0m[2m-of[0m[2m-[0m[2mUse[0m[2m)[0m[2m race[0m[2m condition[0m[2m.[0m[2m Between[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`[0m[2m and[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`,[0m[2m other[0m[2m concurrent[0m[2m orders[0m[2m can[0m[2m also[0m[2m pass[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`.[0m[2m Multiple[0m[2m orders[0m[2m all[0m[2m see[0m[2m enough[0m[2m stock[0m[2m,[0m[2m and[0m[2m all[0m[2m proceed[0m[2m to[0m[2m charge[0m[2m and[0m[2m decre[0m[2mment[0m[2m,[0m[2m leading[0m[2m to[0m[2m:
-[0m[2m-[0m[2m Inventory[0m[2m going[0m[2m negative[0m[2m ([0m[2movers[0m[2melling[0m[2m)
-[0m[2m-[0m[2m Ghost[0m[2m charges[0m[2m ([0m[2mif[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m returns[0m[2m False[0m[2m because[0m[2m stock[0m[2m was[0m[2m already[0m[2m taken[0m[2m by[0m[2m another[0m[2m concurrent[0m[2m order[0m[2m)
-     
-[0m[2m##[0m[2m Bug[0m[2m [0m[2m2[0m[2m:[0m[2m Ghost[0m[2m charges[0m[2m
-[0m[2mWhen[0m[2m `[0m[2min[0m[2mventory[0m[2m.de[0m[2mcrement[0m[2m([0m[2mquantity[0m[2m)`[0m[2m returns[0m[2m False[0m[2m ([0m[2mbecause[0m[2m stock[0m[2m ran[0m[2m out[0m[2m between[0m[2m the[0m[2m check[0m[2m and[0m[2m the[0m[2m decre[0m[2mment[0m[2m),[0m[2m the[0m[2m customer[0m[2m has[0m[2m already[0m[2m been[0m[2m charged[0m[2m but[0m[2m gets[0m[2m no[0m[2m item[0m[2m.[0m[2m The[0m[2m charge[0m[2m is[0m[2m not[0m[2m reversed[0m[2m.
-     
-[0m[2m##[0m[2m Bug[0m[2m [0m[2m3[0m[2m:[0m[2m No[0m[2m id[0m[2memp[0m[2mot[0m[2mency[0m[2m /[0m[2m duplicate[0m[2m charges[0m[2m
-[0m[2mThe[0m[2m `[0m[2mcharge[0m[2m`[0m[2m method[0m[2m has[0m[2m no[0m[2m id[0m[2memp[0m[2mot[0m[2mency[0m[2m protection[0m[2m.[0m[2m If[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m fails[0m[2m,[0m[2m there[0m[2m's[0m[2m no[0m[2m way[0m[2m to[0m[2m refund[0m[2m.[0m[2m And[0m[2m there[0m[2m's[0m[2m no[0m[2m ded[0m[2mu[0m[2mplication[0m[2m.
-     
-[0m[2m##[0m[2m The[0m[2m Fix[0m[2m
-     
-[0m[2mThe[0m[2m three[0m[2m requirements[0m[2m:
-[0m[2m1[0m[2m.[0m[2m Inventory[0m[2m never[0m[2m goes[0m[2m below[0m[2m zero[0m[2m
-[0m[2m2[0m[2m.[0m[2m Every[0m[2m successful[0m[2m charge[0m[2m corresponds[0m[2m to[0m[2m exactly[0m[2m one[0m[2m item[0m[2m delivered[0m[2m
-[0m[2m3[0m[2m.[0m[2m No[0m[2m order[0m[2m is[0m[2m charged[0m[2m more[0m[2m than[0m[2m once[0m[2m
-     
-[0m[2mStrategy[0m[2m:[0m[2m Make[0m[2m stock[0m[2m reservation[0m[2m atomic[0m[2m.[0m[2m Instead[0m[2m of[0m[2m check[0m[2m-t[0m[2mhen[0m[2m-de[0m[2mcrement[0m[2m ([0m[2mwhich[0m[2m is[0m[2m ra[0m[2mcy[0m[2m),[0m[2m use[0m[2m a[0m[2m single[0m[2m atomic[0m[2m "[0m[2mres[0m[2merve[0m[2m"[0m[2m operation[0m[2m that[0m[2m checks[0m[2m AND[0m[2m decre[0m[2mments[0m[2m in[0m[2m one[0m[2m go[0m[2m,[0m[2m and[0m[2m only[0m[2m charge[0m[2m if[0m[2m the[0m[2m reserve[0m[2m succeeds[0m[2m.
-     
-[0m[2m###[0m[2m Approach[0m[2m:
-     
-[0m[2m1[0m[2m.[0m[2m Add[0m[2m a[0m[2m `[0m[2mres[0m[2merve[0m[2m([0m[2mquantity[0m[2m)[0m[2m ->[0m[2m bool[0m[2m`[0m[2m method[0m[2m to[0m[2m `[0m[2mInventory[0m[2m`[0m[2m that[0m[2m atom[0m[2mically[0m[2m checks[0m[2m stock[0m[2m and[0m[2m decre[0m[2mments[0m[2m it[0m[2m.[0m[2m This[0m[2m is[0m[2m the[0m[2m core[0m[2m fix[0m[2m —[0m[2m eliminates[0m[2m the[0m[2m TO[0m[2mCT[0m[2mOU[0m[2m window[0m[2m between[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`[0m[2m and[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`.
-     
-[0m[2m2[0m[2m.[0m[2m The[0m[2m `[0m[2mcheck[0m[2mout[0m[2m`[0m[2m flow[0m[2m becomes[0m[2m:
-[0m[2m  [0m[2m -[0m[2m Reserve[0m[2m stock[0m[2m ([0m[2matomic[0m[2m check[0m[2m +[0m[2m decre[0m[2mment[0m[2m)
-[0m[2m  [0m[2m -[0m[2m If[0m[2m reserve[0m[2m fails[0m[2m →[0m[2m return[0m[2m False[0m[2m
-[0m[2m  [0m[2m -[0m[2m Charge[0m[2m
-[0m[2m  [0m[2m -[0m[2m If[0m[2m charge[0m[2m fails[0m[2m →[0m[2m restore[0m[2m stock[0m[2m ([0m[2min[0m[2mcrement[0m[2m),[0m[2m return[0m[2m False[0m[2m
-[0m[2m  [0m[2m -[0m[2m Return[0m[2m True[0m[2m
-     
-[0m[2mThis[0m[2m ensures[0m[2m:
-[0m[2m-[0m[2m Inventory[0m[2m never[0m[2m goes[0m[2m below[0m[2m zero[0m[2m because[0m[2m reserve[0m[2m won[0m[2m't[0m[2m decre[0m[2mment[0m[2m past[0m[2m zero[0m[2m
-[0m[2m-[0m[2m Every[0m[2m charge[0m[2m corresponds[0m[2m to[0m[2m a[0m[2m successful[0m[2m stock[0m[2m reservation[0m[2m ([0m[2mitem[0m[2m delivered[0m[2m)
-[0m[2m-[0m[2m No[0m[2m duplicate[0m[2m charges[0m[2m since[0m[2m each[0m[2m order[0m[2m charges[0m[2m once[0m[2m
-     
-[0m[2mLet[0m[2m me[0m[2m also[0m[2m consider[0m[2m:[0m[2m the[0m[2m `[0m[2mcharge[0m[2m`[0m[2m method[0m[2m is[0m[2m not[0m[2m id[0m[2memp[0m[2mot[0m[2ment[0m[2m,[0m[2m but[0m[2m since[0m[2m we[0m[2m're[0m[2m doing[0m[2m reserve[0m[2m →[0m[2m charge[0m[2m →[0m[2m restore[0m[2m on[0m[2m charge[0m[2m failure[0m[2m,[0m[2m we[0m[2m only[0m[2m charge[0m[2m once[0m[2m per[0m[2m successful[0m[2m reservation[0m[2m.
-     
-[0m[2mWait[0m[2m,[0m[2m but[0m[2m what[0m[2m about[0m[2m the[0m[2m case[0m[2m where[0m[2m charge[0m[2m succeeds[0m[2m but[0m[2m we[0m[2m crash[0m[2m before[0m[2m returning[0m[2m?[0m[2m That[0m[2m's[0m[2m a[0m[2m different[0m[2m problem[0m[2m ([0m[2mcr[0m[2mash[0m[2m recovery[0m[2m)[0m[2m that[0m[2m's[0m[2m hard[0m[2m to[0m[2m solve[0m[2m without[0m[2m a[0m[2m transactional[0m[2m DB[0m[2m.[0m[2m For[0m[2m this[0m[2m simulation[0m[2m,[0m[2m the[0m[2m atomic[0m[2m reserve[0m[2m fixes[0m[2m the[0m[2m main[0m[2m issues[0m[2m.
-     
-[0m[2mAlso[0m[2m,[0m[2m for[0m[2m payments[0m[2m -[0m[2m there[0m[2m's[0m[2m a[0m[2m potential[0m[2m issue[0m[2m if[0m[2m `[0m[2mcharge[0m[2m`[0m[2m succeeds[0m[2m but[0m[2m something[0m[2m goes[0m[2m wrong[0m[2m after[0m[2m.[0m[2m But[0m[2m for[0m[2m the[0m[2m scope[0m[2m of[0m[2m this[0m[2m exercise[0m[2m,[0m[2m the[0m[2m atomic[0m[2m reserve[0m[2m solves[0m[2m both[0m[2m reported[0m[2m bugs[0m[2m.
-     
-[0m[2mLet[0m[2m me[0m[2m also[0m[2m make[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`[0m[2m and[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m available[0m[2m as[0m[2m they[0m[2m are[0m[2m the[0m[2m public[0m[2m interface[0m[2m -[0m[2m I[0m[2m'll[0m[2m add[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m as[0m[2m a[0m[2m new[0m[2m method[0m[2m.
-     
-[0m[2mActually[0m[2m,[0m[2m let[0m[2m me[0m[2m re[0m[2m-read[0m[2m the[0m[2m constraint[0m[2m:[0m[2m "[0m[2mDo[0m[2m not[0m[2m change[0m[2m the[0m[2m public[0m[2m interfaces[0m[2m of[0m[2m `[0m[2mInventory[0m[2m`[0m[2m or[0m[2m `[0m[2mPayment[0m[2mGateway[0m[2m`.[0m[2m You[0m[2m may[0m[2m add[0m[2m methods[0m[2m to[0m[2m them[0m[2m."
-     
-[0m[2mSo[0m[2m I[0m[2m can[0m[2m add[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m to[0m[2m Inventory[0m[2m and[0m[2m keep[0m[2m existing[0m[2m methods[0m[2m.[0m[2m Let[0m[2m me[0m[2m implement[0m[2m this[0m[2m.
-     
-[0m[2mFor[0m[2m Payment[0m[2mGateway[0m[2m,[0m[2m I[0m[2m might[0m[2m want[0m[2m to[0m[2m add[0m[2m a[0m[2m `[0m[2mref[0m[2mund[0m[2m`[0m[2m method[0m[2m so[0m[2m that[0m[2m when[0m[2m charge[0m[2m succeeds[0m[2m but[0m[2m something[0m[2m fails[0m[2m later[0m[2m,[0m[2m we[0m[2m can[0m[2m roll[0m[2m back[0m[2m.[0m[2m But[0m[2m actually[0m[2m with[0m[2m the[0m[2m new[0m[2m flow[0m[2m:
-     
-[0m[2m1[0m[2m.[0m[2m `[0m[2min[0m[2mventory[0m[2m.res[0m[2merve[0m[2m([0m[2mquantity[0m[2m)`[0m[2m →[0m[2m atom[0m[2mically[0m[2m check[0m[2m +[0m[2m decre[0m[2mment[0m[2m
-[0m[2m2[0m[2m.[0m[2m `[0m[2mgate[0m[2mway[0m[2m.[0m[2mcharge[0m[2m(order[0m[2m_id[0m[2m,[0m[2m amount[0m[2m)`[0m[2m →[0m[2m if[0m[2m fails[0m[2m,[0m[2m `[0m[2min[0m[2mventory[0m[2m.in[0m[2mcrement[0m[2m([0m[2mquantity[0m[2m)`[0m[2m to[0m[2m restore[0m[2m
-[0m[2m3[0m[2m.[0m[2m If[0m[2m charge[0m[2m succeeds[0m[2m →[0m[2m done[0m[2m
-     
-[0m[2mThis[0m[2m means[0m[2m every[0m[2m charge[0m[2m corresponds[0m[2m to[0m[2m a[0m[2m decree[0m[2mmented[0m[2m stock[0m[2m,[0m[2m so[0m[2m no[0m[2m ghost[0m[2m charges[0m[2m.
-     
-[0m[2mAnd[0m[2m stock[0m[2m never[0m[2m goes[0m[2m negative[0m[2m because[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m checks[0m[2m atom[0m[2mically[0m[2m.
-     
-[0m[2mLet[0m[2m me[0m[2m write[0m[2m the[0m[2m fix[0m[2m.
-     
-[0m[2mFor[0m[2m Inventory[0m[2m,[0m[2m I[0m[2m need[0m[2m to[0m[2m add[0m[2m a[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m method[0m[2m that[0m[2m's[0m[2m atomic[0m[2m.[0m[2m Since[0m[2m these[0m[2m are[0m[2m async[0m[2m methods[0m[2m with[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m`[0m[2m simulating[0m[2m latency[0m[2m,[0m[2m I[0m[2m need[0m[2m a[0m[2m lock[0m[2m to[0m[2m make[0m[2m it[0m[2m truly[0m[2m atomic[0m[2m.
-     
-[0m[2m```[0m[2mpython[0m[2m
-[0m[2mimport[0m[2m as[0m[2myn[0m[2mcio[0m[2m
-     
-[0m[2mclass[0m[2m Inventory[0m[2m:
-[0m[2m   [0m[2m def[0m[2m __[0m[2minit[0m[2m__([0m[2mself[0m[2m,[0m[2m stock[0m[2m:[0m[2m int[0m[2m):
-[0m[2m       [0m[2m self[0m[2m._[0m[2mstock[0m[2m =[0m[2m stock[0m[2m
-[0m[2m       [0m[2m self[0m[2m._[0m[2mlock[0m[2m =[0m[2m as[0m[2myn[0m[2mcio[0m[2m.L[0m[2mock[0m[2m()
-     
-[0m[2m   [0m[2m async[0m[2m def[0m[2m check[0m[2m_st[0m[2mock[0m[2m(self[0m[2m,[0m[2m quantity[0m[2m:[0m[2m int[0m[2m)[0m[2m ->[0m[2m bool[0m[2m:
-[0m[2m       [0m[2m await[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m02[0m[2m)
-[0m[2m       [0m[2m return[0m[2m self[0m[2m._[0m[2mstock[0m[2m >=[0m[2m quantity[0m[2m
-     
-[0m[2m   [0m[2m async[0m[2m def[0m[2m decre[0m[2mment[0m[2m(self[0m[2m,[0m[2m quantity[0m[2m:[0m[2m int[0m[2m)[0m[2m ->[0m[2m bool[0m[2m:
-[0m[2m       [0m[2m await[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m02[0m[2m)
-[0m[2m       [0m[2m if[0m[2m self[0m[2m._[0m[2mstock[0m[2m >=[0m[2m quantity[0m[2m:
-[0m[2m           [0m[2m self[0m[2m._[0m[2mstock[0m[2m -=[0m[2m quantity[0m[2m
-[0m[2m           [0m[2m return[0m[2m True[0m[2m
-[0m[2m       [0m[2m return[0m[2m False[0m[2m
-     
-[0m[2m   [0m[2m async[0m[2m def[0m[2m reserve[0m[2m(self[0m[2m,[0m[2m quantity[0m[2m:[0m[2m int[0m[2m)[0m[2m ->[0m[2m bool[0m[2m:
-[0m[2m       [0m[2m """[0m[2mAtom[0m[2mically[0m[2m check[0m[2m and[0m[2m reserve[0m[2m stock[0m[2m.[0m[2m Returns[0m[2m True[0m[2m if[0m[2m stock[0m[2m was[0m[2m available[0m[2m."""
-[0m[2m       [0m[2m async[0m[2m with[0m[2m self[0m[2m._[0m[2mlock[0m[2m:
-[0m[2m           [0m[2m await[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m02[0m[2m)
-[0m[2m           [0m[2m if[0m[2m self[0m[2m._[0m[2mstock[0m[2m >=[0m[2m quantity[0m[2m:
-[0m[2m               [0m[2m self[0m[2m._[0m[2mstock[0m[2m -=[0m[2m quantity[0m[2m
-[0m[2m               [0m[2m return[0m[2m True[0m[2m
-[0m[2m           [0m[2m return[0m[2m False[0m[2m
-     
-[0m[2m   [0m[2m async[0m[2m def[0m[2m increment[0m[2m(self[0m[2m,[0m[2m quantity[0m[2m:[0m[2m int[0m[2m)[0m[2m ->[0m[2m None[0m[2m:
-[0m[2m       [0m[2m async[0m[2m with[0m[2m self[0m[2m._[0m[2mlock[0m[2m:
-[0m[2m           [0m[2m await[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)
-[0m[2m           [0m[2m self[0m[2m._[0m[2mstock[0m[2m +=[0m[2m quantity[0m[2m
-     
-[0m[2m   [0m[2m @[0m[2mproperty[0m[2m
-[0m[2m   [0m[2m def[0m[2m stock[0m[2m(self[0m[2m)[0m[2m ->[0m[2m int[0m[2m:
-[0m[2m       [0m[2m return[0m[2m self[0m[2m._[0m[2mstock[0m[2m
-[0m[2m```
-     
-[0m[2mWait[0m[2m,[0m[2m but[0m[2m the[0m[2m existing[0m[2m methods[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`[0m[2m and[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m don[0m[2m't[0m[2m use[0m[2m the[0m[2m lock[0m[2m.[0m[2m They[0m[2m'll[0m[2m still[0m[2m be[0m[2m ra[0m[2mcy[0m[2m if[0m[2m called[0m[2m directly[0m[2m.[0m[2m But[0m[2m since[0m[2m I[0m[2m'm[0m[2m fixing[0m[2m `[0m[2mcheck[0m[2mout[0m[2m.py[0m[2m`[0m[2m to[0m[2m use[0m[2m `[0m[2mres[0m[2merve[0m[2m`,[0m[2m the[0m[2m existing[0m[2m methods[0m[2m'[0m[2m race[0m[2m condition[0m[2m doesn[0m[2m't[0m[2m matter[0m[2m for[0m[2m the[0m[2m new[0m[2m flow[0m[2m.
-     
-[0m[2mActually[0m[2m,[0m[2m let[0m[2m me[0m[2m think[0m[2m about[0m[2m whether[0m[2m `[0m[2min[0m[2mcrement[0m[2m`[0m[2m needs[0m[2m a[0m[2m lock[0m[2m too[0m[2m.[0m[2m If[0m[2m `[0m[2mcheck[0m[2mout[0m[2m`[0m[2m calls[0m[2m `[0m[2min[0m[2mcrement[0m[2m`[0m[2m after[0m[2m a[0m[2m failed[0m[2m charge[0m[2m ([0m[2mto[0m[2m restore[0m[2m stock[0m[2m),[0m[2m and[0m[2m concurrently[0m[2m another[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m is[0m[2m happening[0m[2m,[0m[2m we[0m[2m need[0m[2m mutual[0m[2m exclusion[0m[2m.[0m[2m So[0m[2m yes[0m[2m,[0m[2m `[0m[2min[0m[2mcrement[0m[2m`[0m[2m should[0m[2m also[0m[2m use[0m[2m the[0m[2m lock[0m[2m.
-     
-[0m[2mBut[0m[2m wait[0m[2m -[0m[2m `[0m[2min[0m[2mcrement[0m[2m`[0m[2m already[0m[2m exists[0m[2m in[0m[2m the[0m[2m original[0m[2m code[0m[2m.[0m[2m If[0m[2m I[0m[2m add[0m[2m a[0m[2m lock[0m[2m to[0m[2m it[0m[2m,[0m[2m I[0m[2m need[0m[2m to[0m[2m also[0m[2m add[0m[2m the[0m[2m lock[0m[2m to[0m[2m the[0m[2m other[0m[2m methods[0m[2m that[0m[2m modify[0m[2m `[0m[2m_[0m[2mstock[0m[2m`[0m[2m to[0m[2m be[0m[2m consistent[0m[2m.[0m[2m But[0m[2m since[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`[0m[2m and[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m are[0m[2m the[0m[2m old[0m[2m methods[0m[2m that[0m[2m are[0m[2m no[0m[2m longer[0m[2m used[0m[2m in[0m[2m the[0m[2m new[0m[2m checkout[0m[2m flow[0m[2m,[0m[2m it[0m[2m's[0m[2m fine[0m[2m -[0m[2m the[0m[2m lock[0m[2m would[0m[2m only[0m[2m protect[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m and[0m[2m `[0m[2min[0m[2mcrement[0m[2m`.
-     
-[0m[2mActually[0m[2m,[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m also[0m[2m modifies[0m[2m `[0m[2m_[0m[2mstock[0m[2m`.[0m[2m If[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m and[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m are[0m[2m both[0m[2m called[0m[2m simultaneously[0m[2m without[0m[2m sharing[0m[2m a[0m[2m lock[0m[2m,[0m[2m we[0m[2m'll[0m[2m have[0m[2m races[0m[2m.[0m[2m But[0m[2m the[0m[2m new[0m[2m `[0m[2mcheck[0m[2mout[0m[2m`[0m[2m only[0m[2m calls[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m ([0m[2mnot[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`[0m[2m then[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m),[0m[2m so[0m[2m this[0m[2m is[0m[2m fine[0m[2m.
-     
-[0m[2mLet[0m[2m me[0m[2m simplify[0m[2m:[0m[2m add[0m[2m a[0m[2m lock[0m[2m to[0m[2m Inventory[0m[2m,[0m[2m use[0m[2m it[0m[2m in[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m and[0m[2m `[0m[2min[0m[2mcrement[0m[2m`.[0m[2m Keep[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`[0m[2m and[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m unchanged[0m[2m ([0m[2mthey[0m[2m're[0m[2m not[0m[2m used[0m[2m in[0m[2m the[0m[2m new[0m[2m flow[0m[2m).
-     
-[0m[2mNow[0m[2m for[0m[2m `[0m[2mcheck[0m[2mout[0m[2m.py[0m[2m`[0m[2m:
-     
-[0m[2m```[0m[2mpython[0m[2m
-[0m[2masync[0m[2m def[0m[2m checkout[0m[2m(
-[0m[2m   [0m[2m order[0m[2m_id[0m[2m:[0m[2m str[0m[2m,
-[0m[2m   [0m[2m quantity[0m[2m:[0m[2m int[0m[2m,
-[0m[2m   [0m[2m price[0m[2m:[0m[2m float[0m[2m,
-[0m[2m   [0m[2m inventory[0m[2m:[0m[2m Inventory[0m[2m,
-[0m[2m   [0m[2m gateway[0m[2m:[0m[2m Payment[0m[2mGateway[0m[2m,
-[0m[2m)[0m[2m ->[0m[2m bool[0m[2m:
-[0m[2m   [0m[2m #[0m[2m Atom[0m[2mically[0m[2m reserve[0m[2m stock[0m[2m -[0m[2m this[0m[2m is[0m[2m the[0m[2m critical[0m[2m fix[0m[2m
-[0m[2m   [0m[2m #[0m[2m eliminates[0m[2m the[0m[2m TO[0m[2mCT[0m[2mOU[0m[2m race[0m[2m between[0m[2m check[0m[2m_st[0m[2mock[0m[2m and[0m[2m decre[0m[2mment[0m[2m
-[0m[2m   [0m[2m reserved[0m[2m =[0m[2m await[0m[2m inventory[0m[2m.res[0m[2merve[0m[2m([0m[2mquantity[0m[2m)
-[0m[2m   [0m[2m if[0m[2m not[0m[2m reserved[0m[2m:
-[0m[2m       [0m[2m print[0m[2m(f[0m[2m"[0m[2mOrder[0m[2m {[0m[2morder[0m[2m_id[0m[2m}:[0m[2m out[0m[2m of[0m[2m stock[0m[2m")
-[0m[2m       [0m[2m return[0m[2m False[0m[2m
-     
-[0m[2m   [0m[2m charged[0m[2m =[0m[2m await[0m[2m gateway[0m[2m.[0m[2mcharge[0m[2m(order[0m[2m_id[0m[2m,[0m[2m quantity[0m[2m *[0m[2m price[0m[2m)
-[0m[2m   [0m[2m if[0m[2m not[0m[2m charged[0m[2m:
-[0m[2m       [0m[2m #[0m[2m Payment[0m[2m failed[0m[2m,[0m[2m restore[0m[2m the[0m[2m reserved[0m[2m stock[0m[2m
-[0m[2m       [0m[2m await[0m[2m inventory[0m[2m.in[0m[2mcrement[0m[2m([0m[2mquantity[0m[2m)
-[0m[2m       [0m[2m print[0m[2m(f[0m[2m"[0m[2mOrder[0m[2m {[0m[2morder[0m[2m_id[0m[2m}:[0m[2m payment[0m[2m failed[0m[2m,[0m[2m stock[0m[2m restored[0m[2m")
-[0m[2m       [0m[2m return[0m[2m False[0m[2m
-     
-[0m[2m   [0m[2m print[0m[2m(f[0m[2m"[0m[2mOrder[0m[2m {[0m[2morder[0m[2m_id[0m[2m}:[0m[2m SU[0m[2mCCESS[0m[2m")
-[0m[2m   [0m[2m return[0m[2m True[0m[2m
-[0m[2m```
-     
-[0m[2mThis[0m[2m satisfies[0m[2m all[0m[2m three[0m[2m requirements[0m[2m:
-[0m[2m1[0m[2m.[0m[2m **[0m[2mInventory[0m[2m never[0m[2m goes[0m[2m below[0m[2m zero[0m[2m**:[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m atom[0m[2mically[0m[2m checks[0m[2m and[0m[2m only[0m[2m decre[0m[2mments[0m[2m if[0m[2m stock[0m[2m ≥[0m[2m quantity[0m[2m
-[0m[2m2[0m[2m.[0m[2m **[0m[2mEvery[0m[2m successful[0m[2m charge[0m[2m corresponds[0m[2m to[0m[2m exactly[0m[2m one[0m[2m item[0m[2m delivered[0m[2m**:[0m[2m stock[0m[2m is[0m[2m decre[0m[2mmented[0m[2m before[0m[2m charging[0m[2m,[0m[2m and[0m[2m if[0m[2m charge[0m[2m fails[0m[2m,[0m[2m stock[0m[2m is[0m[2m restored[0m[2m.[0m[2m Every[0m[2m charge[0m[2m means[0m[2m stock[0m[2m was[0m[2m successfully[0m[2m reserved[0m[2m →[0m[2m item[0m[2m is[0m[2m deliver[0m[2mable[0m[2m.
-[0m[2m3[0m[2m.[0m[2m **[0m[2mNo[0m[2m order[0m[2m is[0m[2m charged[0m[2m more[0m[2m than[0m[2m once[0m[2m**:[0m[2m each[0m[2m order[0m[2m charges[0m[2m exactly[0m[2m once[0m[2m in[0m[2m the[0m[2m flow[0m[2m.
-     
-[0m[2mLet[0m[2m me[0m[2m run[0m[2m the[0m[2m simulation[0m[2m first[0m[2m to[0m[2m confirm[0m[2m the[0m[2m bugs[0m[2m exist[0m[2m.[0m[2m
-  Let[0m[2m me[0m[2m first[0m[2m run[0m[2m the[0m[2m simulation[0m[2m to[0m[2m confirm[0m[2m the[0m[2m bugs[0m[2m exist[0m[2m.[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m[0m[2m
-  🧰 call_00_a1S9jOkvDua46ka6CrEl7191 | Bash {'command': 'python main.py', 'cwd': '/Users/gofrendigunawan/zrb ...', 'timeout': 30}
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_0: payment failed
-[0m  [2mOrder order_6: payment failed
-[0m  [2mOrder order_8: payment failed
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_5: SUCCESS
-[0m  [2mOrder order_7: inventory error after payment — item not delivered
-[0m  [2mOrder order_9: inventory error after payment — item not delivered
-[0m  [2mOrder order_10: inventory error after payment — item not delivered
-[0m  [2mOrder order_11: inventory error after payment — item not delivered
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  5
-[0m  [2mItems sold:         5  (initial stock: 5)
-[0m  [2mRemaining stock:    0
-[0m  [2mTotal charged:      $900.00
-[0m  [2mExpected charge:    $500.00
-[0m  [2mDuplicate charges:  0
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m[2m
-  🔠 call_00_a1S9jOkvDua46ka6CrEl7191 Executed
-[0m[2m
-  🧠 I[0m[2m can[0m[2m see[0m[2m the[0m[2m ghost[0m[2m charge[0m[2m issue[0m[2m clearly[0m[2m:[0m[2m orders[0m[2m [0m[2m7[0m[2m,[0m[2m [0m[2m9[0m[2m,[0m[2m [0m[2m10[0m[2m,[0m[2m [0m[2m11[0m[2m were[0m[2m charged[0m[2m but[0m[2m got[0m[2m no[0m[2m item[0m[2m because[0m[2m inventory[0m[2m ran[0m[2m out[0m[2m between[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`[0m[2m and[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`.[0m[2m Total[0m[2m charged[0m[2m is[0m[2m $[0m[2m900[0m[2m but[0m[2m only[0m[2m [0m[2m5[0m[2m items[0m[2m were[0m[2m actually[0m[2m delivered[0m[2m ($[0m[2m500[0m[2m).
-     
-[0m[2mLet[0m[2m me[0m[2m run[0m[2m again[0m[2m to[0m[2m also[0m[2m catch[0m[2m the[0m[2m overs[0m[2melling[0m[2m ([0m[2mnegative[0m[2m inventory[0m[2m)[0m[2m case[0m[2m:[0m[2m
-  B[0m[2mugs[0m[2m confirmed[0m[2m —[0m[2m ghost[0m[2m charges[0m[2m visible[0m[2m ([0m[2morders[0m[2m [0m[2m7[0m[2m,[0m[2m9[0m[2m,[0m[2m10[0m[2m,[0m[2m11[0m[2m charged[0m[2m but[0m[2m got[0m[2m no[0m[2m item[0m[2m).[0m[2m Let[0m[2m me[0m[2m run[0m[2m a[0m[2m few[0m[2m more[0m[2m times[0m[2m to[0m[2m also[0m[2m catch[0m[2m negative[0m[2m inventory[0m[2m.[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m[0m[2m
-  🧰 call_00_r82nI9efyWFFCCtkTCd18832 | Bash {'command': 'for i in 1 2 3; do echo "= ...', 'cwd': '/Users/gofrendigunawan/zrb ...', 'timeout': 60}
-[0m  [2m=== Run 1 ===
-[0m  [2mSuccessful orders:  5
-[0m  [2mItems sold:         5  (initial stock: 5)
-[0m  [2mRemaining stock:    0
-[0m  [2mTotal charged:      $1000.00
-[0m  [2mExpected charge:    $500.00
-[0m  [2mDuplicate charges:  0
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2m
-[0m  [2m=== Run 2 ===
-[0m  [2mSuccessful orders:  5
-[0m  [2mItems sold:         5  (initial stock: 5)
-[0m  [2mRemaining stock:    0
-[0m  [2mTotal charged:      $600.00
-[0m  [2mExpected charge:    $500.00
-[0m  [2mDuplicate charges:  0
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2m
-[0m  [2m=== Run 3 ===
-[0m  [2mSuccessful orders:  5
-[0m  [2mItems sold:         5  (initial stock: 5)
-[0m  [2mRemaining stock:    0
-[0m  [2mTotal charged:      $800.00
-[0m  [2mExpected charge:    $500.00
-[0m  [2mDuplicate charges:  0
-[0m  [2mERROR: Charge amount does not match successful orders!
-[0m  [2m
-[0m[2m
-  🔠 call_00_r82nI9efyWFFCCtkTCd18832 Executed
-[0m[2m
-  🧠 Good[0m[2m,[0m[2m the[0m[2m bugs[0m[2m are[0m[2m confirmed[0m[2m.[0m[2m Every[0m[2m run[0m[2m shows[0m[2m ghost[0m[2m charges[0m[2m ([0m[2mtotal[0m[2m charged[0m[2m exceeds[0m[2m expected[0m[2m).[0m[2m Now[0m[2m let[0m[2m me[0m[2m also[0m[2m try[0m[2m to[0m[2m reproduce[0m[2m the[0m[2m overs[0m[2melling[0m[2m ([0m[2mnegative[0m[2m inventory[0m[2m)[0m[2m case[0m[2m.[0m[2m Since[0m[2m stock[0m[2m starts[0m[2m at[0m[2m [0m[2m5[0m[2m and[0m[2m there[0m[2m are[0m[2m [0m[2m12[0m[2m concurrent[0m[2m orders[0m[2m,[0m[2m let[0m[2m me[0m[2m try[0m[2m more[0m[2m runs[0m[2m:[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m[0m[2m
-  🧰 call_00_xBMsOc4jsLbGMuKfOcZV1060 | Bash {'command': 'for i in $(seq 1 20); do p ...', 'cwd': '/Users/gofrendigunawan/zrb ...', 'timeout': 120}
-[0m  [2mDone trying
-[0m[2m
-  🔠 call_00_xBMsOc4jsLbGMuKfOcZV1060 Executed
-[0m[2m
-  🧠 The[0m[2m overs[0m[2melling[0m[2m ([0m[2mnegative[0m[2m inventory[0m[2m)[0m[2m is[0m[2m harder[0m[2m to[0m[2m trigger[0m[2m with[0m[2m these[0m[2m exact[0m[2m timing[0m[2m params[0m[2m because[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m has[0m[2m a[0m[2m guard[0m[2m `[0m[2mif[0m[2m self[0m[2m._[0m[2mstock[0m[2m >=[0m[2m quantity[0m[2m`.[0m[2m But[0m[2m it[0m[2m can[0m[2m still[0m[2m happen[0m[2m if[0m[2m the[0m[2m check[0m[2m in[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m and[0m[2m the[0m[2m subtraction[0m[2m are[0m[2m not[0m[2m atomic[0m[2m.[0m[2m Let[0m[2m me[0m[2m check[0m[2m the[0m[2m code[0m[2m more[0m[2m carefully[0m[2m.
-     
-[0m[2mActually[0m[2m,[0m[2m looking[0m[2m at[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m:
-[0m[2m```[0m[2mpython[0m[2m
-[0m[2masync[0m[2m def[0m[2m decre[0m[2mment[0m[2m(self[0m[2m,[0m[2m quantity[0m[2m:[0m[2m int[0m[2m)[0m[2m ->[0m[2m bool[0m[2m:
-[0m[2m   [0m[2m await[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m02[0m[2m)
-[0m[2m   [0m[2m if[0m[2m self[0m[2m._[0m[2mstock[0m[2m >=[0m[2m quantity[0m[2m:
-[0m[2m       [0m[2m self[0m[2m._[0m[2mstock[0m[2m -=[0m[2m quantity[0m[2m
-[0m[2m       [0m[2m return[0m[2m True[0m[2m
-[0m[2m   [0m[2m return[0m[2m False[0m[2m
-[0m[2m```
-     
-[0m[2mThe[0m[2m check[0m[2m and[0m[2m decre[0m[2mment[0m[2m are[0m[2m not[0m[2m atomic[0m[2m -[0m[2m between[0m[2m `[0m[2mif[0m[2m self[0m[2m._[0m[2mstock[0m[2m >=[0m[2m quantity[0m[2m`[0m[2m and[0m[2m `[0m[2mself[0m[2m._[0m[2mstock[0m[2m -=[0m[2m quantity[0m[2m`,[0m[2m another[0m[2m cor[0m[2moutine[0m[2m could[0m[2m decre[0m[2mment[0m[2m first[0m[2m.[0m[2m So[0m[2m if[0m[2m stock[0m[2m is[0m[2m [0m[2m1[0m[2m,[0m[2m two[0m[2m orders[0m[2m could[0m[2m both[0m[2m pass[0m[2m the[0m[2m check[0m[2m,[0m[2m and[0m[2m the[0m[2m first[0m[2m decre[0m[2mments[0m[2m to[0m[2m [0m[2m0[0m[2m,[0m[2m the[0m[2m second[0m[2m decre[0m[2mments[0m[2m to[0m[2m -[0m[2m1[0m[2m.
-     
-[0m[2mBut[0m[2m with[0m[2m the[0m[2m current[0m[2m timing[0m[2m ([0m[2m0[0m[2m.[0m[2m02[0m[2ms[0m[2m sleep[0m[2m before[0m[2m the[0m[2m check[0m[2m),[0m[2m it[0m[2m's[0m[2m a[0m[2m narrow[0m[2m window[0m[2m.[0m[2m Let[0m[2m me[0m[2m try[0m[2m more[0m[2m runs[0m[2m.
-     
-[0m[2mActually[0m[2m,[0m[2m the[0m[2m fact[0m[2m that[0m[2m remaining[0m[2m stock[0m[2m is[0m[2m always[0m[2m [0m[2m0[0m[2m ([0m[2mnever[0m[2m negative[0m[2m)[0m[2m in[0m[2m my[0m[2m runs[0m[2m suggests[0m[2m the[0m[2m timing[0m[2m window[0m[2m is[0m[2m very[0m[2m small[0m[2m.[0m[2m Let[0m[2m me[0m[2m try[0m[2m with[0m[2m more[0m[2m concurrent[0m[2m orders[0m[2m or[0m[2m just[0m[2m accept[0m[2m that[0m[2m the[0m[2m TO[0m[2mCT[0m[2mOU[0m[2m bug[0m[2m exists[0m[2m in[0m[2m principle[0m[2m and[0m[2m focus[0m[2m on[0m[2m fixing[0m[2m it[0m[2m.
-     
-[0m[2mActually[0m[2m,[0m[2m I[0m[2m can[0m[2m see[0m[2m the[0m[2m ghost[0m[2m charges[0m[2m in[0m[2m every[0m[2m run[0m[2m.[0m[2m That[0m[2m's[0m[2m the[0m[2m main[0m[2m bug[0m[2m.[0m[2m The[0m[2m overs[0m[2melling[0m[2m bug[0m[2m is[0m[2m the[0m[2m same[0m[2m root[0m[2m cause[0m[2m ([0m[2mTO[0m[2mCT[0m[2mOU[0m[2m between[0m[2m check[0m[2m_st[0m[2mock[0m[2m and[0m[2m decre[0m[2mment[0m[2m),[0m[2m just[0m[2m manifests[0m[2m differently[0m[2m.[0m[2m Let[0m[2m me[0m[2m fix[0m[2m both[0m[2m by[0m[2m making[0m[2m the[0m[2m reserve[0m[2m atomic[0m[2m.
-     
-[0m[2mLet[0m[2m me[0m[2m now[0m[2m implement[0m[2m the[0m[2m fix[0m[2m.[0m[2m
-  Both[0m[2m bugs[0m[2m confirmed[0m[2m.[0m[2m The[0m[2m root[0m[2m cause[0m[2m is[0m[2m the[0m[2m TO[0m[2mCT[0m[2mOU[0m[2m race[0m[2m in[0m[2m `[0m[2mcheck[0m[2mout[0m[2m()`[0m[2m —[0m[2m between[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`[0m[2m and[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`,[0m[2m concurrent[0m[2m orders[0m[2m can[0m[2m inter[0m[2mleave[0m[2m.[0m[2m Ghost[0m[2m charges[0m[2m happen[0m[2m when[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m fails[0m[2m *[0m[2mafter[0m[2m*[0m[2m payment[0m[2m.[0m[2m Overs[0m[2melling[0m[2m ([0m[2mnegative[0m[2m inventory[0m[2m)[0m[2m happens[0m[2m when[0m[2m two[0m[2m decre[0m[2mments[0m[2m both[0m[2m pass[0m[2m the[0m[2m `[0m[2m>=[0m[2m`[0m[2m check[0m[2m before[0m[2m either[0m[2m subtract[0m[2ms[0m[2m.
-     
-[0m[2mThe[0m[2m fix[0m[2m:[0m[2m add[0m[2m an[0m[2m atomic[0m[2m `[0m[2mres[0m[2merve[0m[2m()`[0m[2m method[0m[2m to[0m[2m `[0m[2mInventory[0m[2m`[0m[2m that[0m[2m checks[0m[2m and[0m[2m decre[0m[2mments[0m[2m under[0m[2m a[0m[2m lock[0m[2m,[0m[2m in[0m[2mverting[0m[2m the[0m[2m flow[0m[2m to[0m[2m reserve[0m[2m-first[0m[2m-t[0m[2mhen[0m[2m-ch[0m[2marge[0m[2m.[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m[0m[2m
-  🧰 call_00_EKHcBesPwGT3H4UvRc8r3243 | Edit {'path': '/Users/gofrendigunawan/zrb ...', 'old_text': 'import asyncio\n\n\nclass Inv ...', 'new_text': 'import asyncio\n\n\nclass Inv ...'}
-[0m[2m
-  🔠 call_00_EKHcBesPwGT3H4UvRc8r3243 Executed
-[0m[2m
-  🧠 Now[0m[2m fix[0m[2m checkout[0m[2m.py[0m[2m to[0m[2m use[0m[2m the[0m[2m new[0m[2m atomic[0m[2m `[0m[2mres[0m[2merve[0m[2m`[0m[2m method[0m[2m,[0m[2m in[0m[2mverting[0m[2m the[0m[2m flow[0m[2m so[0m[2m we[0m[2m reserve[0m[2m stock[0m[2m before[0m[2m charging[0m[2m.[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m[0m[2m
-  🧰 call_00_EXsMt9QbJAs9Ip8Fcn9L7140 | Edit {'path': '/Users/gofrendigunawan/zrb ...', 'old_text': 'async def checkout(\n    or ...', 'new_text': 'async def checkout(\n    or ...'}
-[0m[2m
-  🔠 call_00_EXsMt9QbJAs9Ip8Fcn9L7140 Executed
-[0m[2m
-  🧠 Now[0m[2m let[0m[2m me[0m[2m verify[0m[2m the[0m[2m fix[0m[2m by[0m[2m running[0m[2m the[0m[2m simulation[0m[2m multiple[0m[2m times[0m[2m.[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m[0m[2m
-  🧰 call_00_gVH6bQRma3BY6TDDtwH21365 | Bash {'command': 'for i in $(seq 1 20); do e ...', 'cwd': '/Users/gofrendigunawan/zrb ...', 'timeout': 120}
-[0m  [2m=== Run 1 ===
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_2: payment failed, stock restored
-[0m  [2mOrder order_4: payment failed, stock restored
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  3
-[0m  [2mItems sold:         3  (initial stock: 5)
-[0m  [2mRemaining stock:    2
-[0m  [2mTotal charged:      $300.00
-[0m  [2mExpected charge:    $300.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m
-[0m  [2m=== Run 2 ===
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_0: payment failed, stock restored
-[0m  [2mOrder order_1: payment failed, stock restored
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  3
-[0m  [2mItems sold:         3  (initial stock: 5)
-[0m  [2mRemaining stock:    2
-[0m  [2mTotal charged:      $300.00
-[0m  [2mExpected charge:    $300.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m
-[0m  [2m=== Run 3 ===
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_1: payment failed, stock restored
-[0m  [2mOrder order_2: payment failed, stock restored
-[0m  [2mOrder order_3: payment failed, stock restored
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  2
-[0m  [2mItems sold:         2  (initial stock: 5)
-[0m  [2mRemaining stock:    3
-[0m  [2mTotal charged:      $200.00
-[0m  [2mExpected charge:    $200.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m
-[0m  [2m=== Run 4 ===
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_1: payment failed, stock restored
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  4
-[0m  [2mItems sold:         4  (initial stock: 5)
-[0m  [2mRemaining stock:    1
-[0m  [2mTotal charged:      $400.00
-[0m  [2mExpected charge:    $400.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m
-[0m  [2m=== Run 5 ===
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_0: payment failed, stock restored
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  4
-[0m  [2mItems sold:         4  (initial stock: 5)
-[0m  [2mRemaining stock:    1
-[0m  [2mTotal charged:      $400.00
-[0m  [2mExpected charge:    $400.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m
-[0m  [2m=== Run 6 ===
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_0: payment failed, stock restored
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  4
-[0m  [2mItems sold:         4  (initial stock: 5)
-[0m  [2mRemaining stock:    1
-[0m  [2mTotal charged:      $400.00
-[0m  [2mExpected charge:    $400.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m
-[0m  [2m=== Run 7 ===
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_1: payment failed, stock restored
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  4
-[0m  [2mItems sold:         4  (initial stock: 5)
-[0m  [2mRemaining stock:    1
-[0m  [2mTotal charged:      $400.00
-[0m  [2mExpected charge:    $400.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m
-[0m  [2m=== Run 8 ===
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_0: payment failed, stock restored
-[0m  [2mOrder order_2: payment failed, stock restored
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  3
-[0m  [2mItems sold:         3  (initial stock: 5)
-[0m  [2mRemaining stock:    2
-[0m  [2mTotal charged:      $300.00
-[0m  [2mExpected charge:    $300.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m
-[0m  [2m=== Run 9 ===
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  5
-[0m  [2mItems sold:         5  (initial stock: 5)
-[0m  [2mRemaining stock:    0
-[0m  [2mTotal charged:      $500.00
-[0m  [2mExpected charge:    $500.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m
-[0m  [2m=== Run 10 ===
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_2: payment failed, stock restored
-[0m  [2mOrder order_3: payment failed, stock restored
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  3
-[0m  [2mItems sold:         3  (initial stock: 5)
-[0m  [2mRemaining stock:    2
-[0m  [2mTotal charged:      $300.00
-[0m  [2mExpected charge:    $300.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m
-[0m  [2m=== Run 11 ===
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_4: payment failed, stock restored
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  4
-[0m  [2mItems sold:         4  (initial stock: 5)
-[0m  [2mRemaining stock:    1
-[0m  [2mTotal charged:      $400.00
-[0m  [2mExpected charge:    $400.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m
-[0m  [2m=== Run 12 ===
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  5
-[0m  [2mItems sold:         5  (initial stock: 5)
-[0m  [2mRemaining stock:    0
-[0m  [2mTotal charged:      $500.00
-[0m  [2mExpected charge:    $500.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m
-[0m  [2m=== Run 13 ===
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_1: payment failed, stock restored
-[0m  [2mOrder order_2: payment failed, stock restored
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  3
-[0m  [2mItems sold:         3  (initial stock: 5)
-[0m  [2mRemaining stock:    2
-[0m  [2mTotal charged:      $300.00
-[0m  [2mExpected charge:    $300.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m
-[0m  [2m=== Run 14 ===
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_1: payment failed, stock restored
-[0m  [2mOrder order_2: payment failed, stock restored
-[0m  [2mOrder order_3: payment failed, stock restored
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  2
-[0m  [2mItems sold:         2  (initial stock: 5)
-[0m  [2mRemaining stock:    3
-[0m  [2mTotal charged:      $200.00
-[0m  [2mExpected charge:    $200.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m
-[0m  [2m=== Run 15 ===
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  5
-[0m  [2mItems sold:         5  (initial stock: 5)
-[0m  [2mRemaining stock:    0
-[0m  [2mTotal charged:      $500.00
-[0m  [2mExpected charge:    $500.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m
-[0m  [2m=== Run 16 ===
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_3: payment failed, stock restored
-[0m  [2mOrder order_4: payment failed, stock restored
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  3
-[0m  [2mItems sold:         3  (initial stock: 5)
-[0m  [2mRemaining stock:    2
-[0m  [2mTotal charged:      $300.00
-[0m  [2mExpected charge:    $300.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m
-[0m  [2m=== Run 17 ===
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  5
-[0m  [2mItems sold:         5  (initial stock: 5)
-[0m  [2mRemaining stock:    0
-[0m  [2mTotal charged:      $500.00
-[0m  [2mExpected charge:    $500.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m
-[0m  [2m=== Run 18 ===
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_2: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_3: payment failed, stock restored
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  4
-[0m  [2mItems sold:         4  (initial stock: 5)
-[0m  [2mRemaining stock:    1
-[0m  [2mTotal charged:      $400.00
-[0m  [2mExpected charge:    $400.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m
-[0m  [2m=== Run 19 ===
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_0: payment failed, stock restored
-[0m  [2mOrder order_2: payment failed, stock restored
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  3
-[0m  [2mItems sold:         3  (initial stock: 5)
-[0m  [2mRemaining stock:    2
-[0m  [2mTotal charged:      $300.00
-[0m  [2mExpected charge:    $300.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m
-[0m  [2m=== Run 20 ===
-[0m  [2mStarting simulation: 12 concurrent orders, stock=5
-[0m  [2mOrder order_0: SUCCESS
-[0m  [2mOrder order_1: SUCCESS
-[0m  [2mOrder order_3: SUCCESS
-[0m  [2mOrder order_5: out of stock
-[0m  [2mOrder order_4: SUCCESS
-[0m  [2mOrder order_6: out of stock
-[0m  [2mOrder order_7: out of stock
-[0m  [2mOrder order_8: out of stock
-[0m  [2mOrder order_9: out of stock
-[0m  [2mOrder order_10: out of stock
-[0m  [2mOrder order_11: out of stock
-[0m  [2mOrder order_2: payment failed, stock restored
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mSuccessful orders:  4
-[0m  [2mItems sold:         4  (initial stock: 5)
-[0m  [2mRemaining stock:    1
-[0m  [2mTotal charged:      $400.00
-[0m  [2mExpected charge:    $400.00
-[0m  [2mDuplicate charges:  0
-[0m  [2m
-[0m[2m
-  🔠 call_00_gVH6bQRma3BY6TDDtwH21365 Executed
-[0m[2m
-  🧠 All[0m[2m [0m[2m20[0m[2m runs[0m[2m pass[0m[2m all[0m[2m checks[0m[2m:
-[0m[2m-[0m[2m Inventory[0m[2m never[0m[2m goes[0m[2m below[0m[2m zero[0m[2m ([0m[2mstock[0m[2m always[0m[2m between[0m[2m [0m[2m0[0m[2m and[0m[2m INIT[0m[2mIAL[0m[2m_ST[0m[2mOCK[0m[2m)
-[0m[2m-[0m[2m Total[0m[2m charged[0m[2m always[0m[2m equals[0m[2m expected[0m[2m charge[0m[2m ([0m[2mno[0m[2m ghost[0m[2m charges[0m[2m)
-[0m[2m-[0m[2m No[0m[2m duplicate[0m[2m charges[0m[2m
-[0m[2m-[0m[2m No[0m[2m errors[0m[2m reported[0m[2m
-     
-[0m[2mThe[0m[2m fix[0m[2m is[0m[2m working[0m[2m correctly[0m[2m.[0m[2m Let[0m[2m me[0m[2m verify[0m[2m the[0m[2m final[0m[2m state[0m[2m of[0m[2m the[0m[2m files[0m[2m.[0m[2m
-  All[0m[2m [0m[2m20[0m[2m runs[0m[2m pass[0m[2m every[0m[2m check[0m[2m —[0m[2m zero[0m[2m errors[0m[2m across[0m[2m the[0m[2m board[0m[2m.[0m[2m Let[0m[2m me[0m[2m verify[0m[2m the[0m[2m final[0m[2m state[0m[2m of[0m[2m the[0m[2m changed[0m[2m files[0m[2m:[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m[0m[2m
-  🧰 call_00_dwWwMzYcRWB41hnNkCra4406 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
-[0m[2m
-  🧰 call_01_HK52QxEfIoWO5rv7Js728547 | Read {'path': '/Users/gofrendigunawan/zrb ...'}
-[0m[2m
-  🔠 call_00_dwWwMzYcRWB41hnNkCra4406 Executed
-[0m[2m
-  🔠 call_01_HK52QxEfIoWO5rv7Js728547 Executed
-[0m[2m
-  🧠 The[0m[2m fix[0m[2m is[0m[2m clean[0m[2m and[0m[2m verified[0m[2m.[0m[2m Let[0m[2m me[0m[2m log[0m[2m this[0m[2m to[0m[2m the[0m[2m journal[0m[2m.[0m[2m
-  Now[0m[2m let[0m[2m me[0m[2m log[0m[2m the[0m[2m fix[0m[2m.[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m[0m[2m
-  🧰 call_00_hAih0xr6gjGIlEzR0TsX8222 | SearchJournal {'query': 'checkout reserve pattern'}
-[0m[2m
-  🔠 call_00_hAih0xr6gjGIlEzR0TsX8222 Executed
-[0m[2m
-  🧠 The[0m[2m journal[0m[2m already[0m[2m has[0m[2m the[0m[2m pattern[0m[2m documented[0m[2m.[0m[2m Let[0m[2m me[0m[2m just[0m[2m append[0m[2m to[0m[2m the[0m[2m activity[0m[2m log[0m[2m.[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m[0m[2m
-  🧰 call_00_YUHH5clSNEM1S40LiEFb1859 | Bash {'command': 'ls /Users/gofrendigunawan/ ...', 'timeout': 5}
-[0m  [2m2026-05-14.md
-[0m  [2m2026-05-15.md
-[0m  [2m2026-05-16.md
-[0m  [2m2026-05-17.md
-[0m  [2m2026-05-18.md
-[0m  [2m2026-05-20.md
-[0m  [2m2026-05-21.md
-[0m  [2m2026-05-22.md
-[0m  [2mindex.md
-[0m[2m
-  🔠 call_00_YUHH5clSNEM1S40LiEFb1859 Executed
-[0m[2m
-  🧠 Let[0m[2m me[0m[2m append[0m[2m to[0m[2m today[0m[2m's[0m[2m activity[0m[2m log[0m[2m.[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m[0m[2m
-  🧰 call_00_EGPFqCO8BgGx9dL5C6l10107 | Read {'path': '/Users/gofrendigunawan/.zr ...'}
-[0m[2m
-  🔠 call_00_EGPFqCO8BgGx9dL5C6l10107 Executed
-[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m[0m[2m
-  🧰 call_00_ET_bqCWoK4uGKa0LSPuDpug0179 | Edit {'path': '/Users/gofrendigunawan/.zr ...', 'old_text': '- 11:58 — Wrote MIGRATION. ...', 'new_text': '- 11:58 — Wrote MIGRATION. ...'}
-[0m[2m
-  🔠 call_00_ET_bqCWoK4uGKa0LSPuDpug0179 Executed
-[0m[2m
-  🧠 The[0m[2m fix[0m[2m is[0m[2m complete[0m[2m.[0m[2m Let[0m[2m me[0m[2m summarize[0m[2m what[0m[2m was[0m[2m done[0m[2m.[0m[2m
-  ##[0m[2m Summary[0m[2m
-     
-[0m[2m**[0m[2mRoot[0m[2m cause[0m[2m:**[0m[2m TO[0m[2mCT[0m[2mOU[0m[2m race[0m[2m in[0m[2m `[0m[2mcheck[0m[2mout[0m[2m()`[0m[2m —[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`[0m[2m →[0m[2m `[0m[2mcharge[0m[2m`[0m[2m →[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m has[0m[2m a[0m[2m window[0m[2m where[0m[2m concurrent[0m[2m orders[0m[2m all[0m[2m pass[0m[2m `[0m[2mcheck[0m[2m_st[0m[2mock[0m[2m`,[0m[2m resulting[0m[2m in[0m[2m overs[0m[2melling[0m[2m ([0m[2mnegative[0m[2m inventory[0m[2m)[0m[2m and[0m[2m ghost[0m[2m charges[0m[2m ([0m[2mcustomer[0m[2m charged[0m[2m but[0m[2m `[0m[2mde[0m[2mcrement[0m[2m`[0m[2m fails[0m[2m).
-     
-[0m[2m**[0m[2mFix[0m[2m**[0m[2m ([0m[2m2[0m[2m files[0m[2m changed[0m[2m):
-     
-[0m[2m|[0m[2m File[0m[2m |[0m[2m Change[0m[2m |
-[0m[2m|---|---[0m[2m|
-[0m[2m|[0m[2m `[0m[2min[0m[2mventory[0m[2m.py[0m[2m`[0m[2m |[0m[2m Added[0m[2m `[0m[2mres[0m[2merve[0m[2m()`[0m[2m —[0m[2m atomic[0m[2m check[0m[2m-and[0m[2m-de[0m[2mcrement[0m[2m under[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.L[0m[2mock[0m[2m`.[0m[2m Also[0m[2m wrapped[0m[2m `[0m[2min[0m[2mcrement[0m[2m()`[0m[2m with[0m[2m the[0m[2m same[0m[2m lock[0m[2m to[0m[2m ensure[0m[2m mutual[0m[2m exclusion[0m[2m on[0m[2m stock[0m[2m restoration[0m[2m.[0m[2m |
-[0m[2m|[0m[2m `[0m[2mcheck[0m[2mout[0m[2m.py[0m[2m`[0m[2m |[0m[2m In[0m[2mverted[0m[2m flow[0m[2m:[0m[2m **[0m[2mres[0m[2merve[0m[2m stock[0m[2m →[0m[2m charge[0m[2m →[0m[2m restore[0m[2m on[0m[2m payment[0m[2m failure[0m[2m**.[0m[2m No[0m[2m more[0m[2m split[0m[2m check[0m[2m-t[0m[2mhen[0m[2m-de[0m[2mcrement[0m[2m.[0m[2m |
-     
-[0m[2m**[0m[2mWhy[0m[2m this[0m[2m fixes[0m[2m all[0m[2m three[0m[2m requirements[0m[2m:**
-     
-[0m[2m1[0m[2m.[0m[2m **[0m[2mInventory[0m[2m never[0m[2m goes[0m[2m below[0m[2m zero[0m[2m**[0m[2m —[0m[2m `[0m[2mres[0m[2merve[0m[2m()`[0m[2m atom[0m[2mically[0m[2m checks[0m[2m `[0m[2m_[0m[2mstock[0m[2m >=[0m[2m quantity[0m[2m`[0m[2m *[0m[2mand[0m[2m*[0m[2m decre[0m[2mments[0m[2m within[0m[2m the[0m[2m same[0m[2m critical[0m[2m section[0m[2m.[0m[2m No[0m[2m other[0m[2m cor[0m[2moutine[0m[2m can[0m[2m inter[0m[2mleave[0m[2m.
-[0m[2m2[0m[2m.[0m[2m **[0m[2mEvery[0m[2m successful[0m[2m charge[0m[2m →[0m[2m exactly[0m[2m one[0m[2m item[0m[2m delivered[0m[2m**[0m[2m —[0m[2m stock[0m[2m is[0m[2m decre[0m[2mmented[0m[2m *[0m[2mbefore[0m[2m*[0m[2m charging[0m[2m.[0m[2m If[0m[2m charge[0m[2m fails[0m[2m,[0m[2m stock[0m[2m is[0m[2m restored[0m[2m via[0m[2m `[0m[2min[0m[2mcrement[0m[2m()`[0m[2m.
-[0m[2m3[0m[2m.[0m[2m **[0m[2mNo[0m[2m order[0m[2m charged[0m[2m more[0m[2m than[0m[2m once[0m[2m**[0m[2m —[0m[2m each[0m[2m order[0m[2m calls[0m[2m `[0m[2mcharge[0m[2m`[0m[2m exactly[0m[2m once[0m[2m.[0m[2m On[0m[2m charge[0m[2m failure[0m[2m,[0m[2m the[0m[2m reserved[0m[2m stock[0m[2m rolls[0m[2m back[0m[2m clean[0m[2mly[0m[2m;[0m[2m on[0m[2m success[0m[2m,[0m[2m the[0m[2m item[0m[2m is[0m[2m already[0m[2m reserved[0m[2m.
-     
-[0m[2m**[0m[2mResult[0m[2m:**[0m[2m [0m[2m20[0m[2m/[0m[2m20[0m[2m concurrent[0m[2m simulation[0m[2m runs[0m[2m passed[0m[2m with[0m[2m zero[0m[2m errors[0m[2m.[0m[2m
-  💸 (Requests: 15 | Tool Calls: 18 | Total: 335413) Input: 329838 | Audio Input: 0 | Output: 5575 | Audio Output: 0 | Cache Read: 303744 | Cache Write: 0 | Details: {'prompt_cache_hit_tokens': 303744, 'prompt_cache_miss_tokens': 26094, 'reasoning_tokens': 2400}
-[0m[2mTo run again:[0m [1;33mzrb chat --message "# E-Commerce Checkout Service
-
-Users have reported two production incidents:
-
-1. **Overselling**: Items are sometimes sold even when out of stock. Inventory goes negative.
-2. **Ghost charges**: Customers are occasionally charged but receive no item, with no record of a successful order.
-
-The checkout flow is in `checkout.py`. It uses `inventory.py` (stock management) and `payments.py` (mock payment gateway).
-
-`main.py` runs a concurrent simulation — run it to reproduce the issues.
-
-Fix the checkout logic. The fix must ensure:
-- Inventory never goes below zero
-- Every successful charge corresponds to exactly one item delivered
-- No order is charged more than once
-
-Do not change the public interfaces of `Inventory` or `PaymentGateway`. You may add methods to them.
-" --model "" --session google-gla_gemini-2.5-flash-integration-bug-trial-1 --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mgoogle-gla_gemini-2.5-flash-integration-bug-trial-1[0m[0m
-## Summary
-
-**Root cause:** TOCTOU race in `checkout()` — `check_stock` → `charge` → `decrement` has a window where concurrent orders all pass `check_stock`, resulting in overselling (negative inventory) and ghost charges (customer charged but `decrement` fails).
-
-**Fix** (2 files changed):
-
-| File | Change |
-|---|---|
-| `inventory.py` | Added `reserve()` — atomic check-and-decrement under `asyncio.Lock`. Also wrapped `increment()` with the same lock to ensure mutual exclusion on stock restoration. |
-| `checkout.py` | Inverted flow: **reserve stock → charge → restore on payment failure**. No more split check-then-decrement. |
-
-**Why this fixes all three requirements:**
-
-1. **Inventory never goes below zero** — `reserve()` atomically checks `_stock >= quantity` *and* decrements within the same critical section. No other coroutine can interleave.
-2. **Every successful charge → exactly one item delivered** — stock is decremented *before* charging. If charge fails, stock is restored via `increment()`.
-3. **No order charged more than once** — each order calls `charge` exactly once. On charge failure, the reserved stock rolls back cleanly; on success, the item is already reserved.
-
-**Result:** 20/20 concurrent simulation runs passed with zero errors.
