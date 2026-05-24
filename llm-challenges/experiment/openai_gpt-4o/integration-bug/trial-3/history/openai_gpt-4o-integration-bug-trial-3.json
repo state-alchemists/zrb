@@ -1,0 +1,24 @@
+[
+  {
+    "parts": [
+      {
+        "part_kind": "user-prompt",
+        "content": "[SYSTEM] Error occurred: Connection error."
+      },
+      {
+        "part_kind": "user-prompt",
+        "content": "# E-Commerce Checkout Service\n\nUsers have reported two production incidents:\n\n1. **Overselling**: Items are sometimes sold even when out of stock. Inventory goes negative.\n2. **Ghost charges**: Customers are occasionally charged but receive no item, with no record of a successful order.\n\nThe checkout flow is in `checkout.py`. It uses `inventory.py` (stock management) and `payments.py` (mock payment gateway).\n\n`main.py` runs a concurrent simulation \u2014 run it to reproduce the issues.\n\nFix the checkout logic. The fix must ensure:\n- Inventory never goes below zero\n- Every successful charge corresponds to exactly one item delivered\n- No order is charged more than once\n\nDo not change the public interfaces of `Inventory` or `PaymentGateway`. You may add methods to them.\n"
+      }
+    ],
+    "kind": "request"
+  },
+  {
+    "parts": [
+      {
+        "part_kind": "user-prompt",
+        "content": "[SYSTEM] Error occurred: "
+      }
+    ],
+    "kind": "request"
+  }
+]

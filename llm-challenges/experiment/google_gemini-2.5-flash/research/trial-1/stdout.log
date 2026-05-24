@@ -1,0 +1,91 @@
+[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 pyd_ai_e3fbd64acd294c2fb8aa25998ff456cb | Read {'path': 'system_context.md'}
+[0m[2m
+  🔠 pyd_ai_e3fbd64acd294c2fb8aa25998ff456cb Executed
+[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 pyd_ai_55cec38583ee44f2b83b03c74b32dea9 | ActivateSkill {'name': 'core-design'}
+[0m[2m
+  🔠 pyd_ai_55cec38583ee44f2b83b03c74b32dea9 Executed
+[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 pyd_ai_7bc9ccceb26b42e78019ffcf3519f987 | Read {'path': '/Users/gofrendigunawan/.lo ...'}
+[0m[2m
+  🔠 pyd_ai_7bc9ccceb26b42e78019ffcf3519f987 Executed
+[0m[2m
+  # ADR [0m[2m001 — Notification Subsystem Architecture
+     
+     - **Status**: Proposed
+     - **[0m[2mDate**: 2026-05-24
+     - **Deciders**: Engineering Team
+     - **Context tags**: notifications, asynchronous, message queue, Redis, Kafka
+     
+     ## Context
+     
+     The existing notification module, part of a[0m[2m Python/Flask monolith, handles emails and webhooks synchronously within the HTTP request cycle. This approach has led to significant problems: request timeouts, silent failures due to external service outages, cascading failures from connection pool exhaustion, and a complete lack of delivery guarantees[0m[2m for critical notifications.
+     
+     The current system serves 85,000 monthly active users and processes approximately 2 million tasks per month, with peak loads of 500 requests per second. We need to decouple notifications for asynchronous processing, implement[0m[2m retry mechanisms with exponential backoff, guarantee at-least-once delivery for all events, and support exactly-once delivery for billing-critical events. The new architecture must scale to 10x current traffic and accommodate real-time WebSocket[0m[2m push notifications within two quarters.
+     
+     Our engineering team consists of 6 people (3 senior, 3 mid-level) with no dedicated infrastructure engineer. We currently use Redis for session storage and rate limiting. There is no prior team experience with Kafka.[0m[2m The solution must be implemented with a low budget, excluding fully managed Kafka solutions at scale, and deliver initial value within two weeks of setup.
+     
+     ## Decision
+     
+     We will implement the notification subsystem using **Redis Streams**.
+     
+     ## Rationale
+     
+[0m[2mRedis Streams offers a compelling balance of advanced messaging features and operational simplicity, aligning well with our team's capabilities and constraints. Its stream data structure provides ordered, persistent logs with consumer groups, enabling at-least-once delivery and distributed consumption[0m[2m without complex coordination. The ability to leverage an existing Redis instance significantly reduces setup time and operational overhead. Redis Streams' XACK command allows for explicit acknowledgment, which, when combined with application-level idempotency, can achieve exactly-once processing[0m[2m for billing notifications. For our projected 10x traffic growth (5000 req/s), a well-tuned Redis cluster can handle the throughput for message ingestion, and the fan-out for WebSocket integration is well-supported by[0m[2m Redis's Pub/Sub capabilities, or by having consumer groups manage WebSocket delivery. The two-week delivery constraint is achievable given our team's existing familiarity with Redis and the relatively straightforward API of Redis Streams.
+     
+     ## Alternatives Considered
+     
+[0m[2m-   **Apache Kafka** — Kafka provides robust, high-throughput, fault-tolerant distributed logging with strong ordering guarantees and excellent scalability. Its native support for exactly-once semantics and long-term message retention are ideal for our scaling targets and[0m[2m delivery guarantees. However, adopting Kafka introduces significant operational complexity and a steep learning curve for our team, which has no prior Kafka experience and no dedicated infrastructure engineer. Setting up, configuring, and maintaining a self-managed Kafka cluster (or even[0m[2m a partial setup) within two weeks on a modest budget is not feasible, and managed Confluent Cloud at full scale is too expensive. The initial setup and migration effort would exceed our two-week delivery constraint, hindering our immediate need to decouple notifications[0m[2m and achieve delivery guarantees.
+     
+     ## Consequences
+     
+     -   **Positive**:
+         -   Leverages existing Redis infrastructure, reducing setup time and operational overhead.
+         -   Lower learning curve for the engineering team due to prior Redis familiarity.
+[0m[2m    -   Supports ordered messages, consumer groups, and message retention out-of-the-box.
+         -   Achieves at-least-once delivery; exactly-once for critical paths is feasible with application-level idempotency.[0m[2m
+         -   Provides a clear path for WebSocket integration using existing Redis capabilities.
+         -   Meets the two-week setup/migration timeline for initial value delivery.
+         -   Cost-effective, as it avoids expensive managed Kafka services[0m[2m.
+     -   **Negative**:
+         -   Redis Streams' persistence model, while robust, is not designed for indefinite storage like Kafka. This will require a strategy for archiving or expiring old notification events if long-term historical access is needed[0m[2m beyond the stream's retention.
+         -   Scaling Redis Streams for extreme throughput (beyond 10x current, into millions of messages per second consistently) might eventually require sharding and more complex cluster management than Kafka.
+         [0m[2m-   Achieving true exactly-once semantics requires careful implementation of consumer-side idempotency, which adds application-level complexity compared to Kafka's more robust transactional guarantees.
+     -   **Follow-ups**:
+         -   Invest[0m[2migate Redis clustering strategies for high availability and horizontal scaling.
+         -   Define a message retention policy for Redis Streams.
+         -   Design and implement idempotency patterns for critical billing notification consumers.
+         -   Develop a plan for monitoring[0m[2m Redis Streams health and performance.
+     
+     I will now save this as `ADR-001-notification-architecture.md`.[0m[2m
+  🔄 Prepare tool parameters...[0m[2m
+  🧰 pyd_ai_55f55177c0044893924939f3e0e0f388 | Write {'path': 'ADR-001-notification-archi ...', 'content': '# ADR 001 — Notification S ...'}
+[0m[2m
+  🔠 pyd_ai_55f55177c0044893924939f3e0e0f388 Executed
+[0m[2m
+  The[0m[2m ADR `ADR-001-notification-architecture.md` has been created[0m[2m, recommending Redis Streams for the notification subsystem. It details the rationale, alternatives considered, and consequences of this decision, aligning with the provided system context and constraints.[0m[2m
+  💸 (Requests: 5 | Tool Calls: 4 | Total: 78099) Input: 75668 | Audio Input: 0 | Output: 2431 | Audio Output: 0 | Cache Read: 14897 | Cache Write: 0 | Details: {'cached_content_tokens': 14897, 'thoughts_tokens': 202, 'text_prompt_tokens': 75668, 'text_cache_tokens': 14897}
+[0m[2mTo run again:[0m [1;33mzrb chat --message "Read `system_context.md`. It describes a real production system and a specific architectural problem we need to solve.
+
+Write an Architecture Decision Record (ADR) evaluating two options for the notification subsystem:
+1. **Apache Kafka**
+2. **Redis Streams**
+
+Your ADR must follow this exact structure:
+- **Title**
+- **Status** (e.g. \"Proposed\")
+- **Context** — the problem and constraints
+- **Decision** — which option you choose and a clear justification
+- **Consequences** — pros AND cons of your decision
+- **Alternatives Considered** — why you rejected the other option
+
+Make a definitive recommendation. Use specific technical properties (throughput, ordering guarantees, message retention, consumer groups, exactly-once semantics, operational complexity) to justify your choice given the team size and constraints described.
+
+Save as `ADR-001-notification-architecture.md`.
+" --model google:gemini-2.5-flash --session google_gemini-2.5-flash-research-trial-1 --yolo true --attach "" --interactive false[0m
+[2m[2mSession[0m: [1;33mgoogle_gemini-2.5-flash-research-trial-1[0m[0m
+The ADR `ADR-001-notification-architecture.md` has been created, recommending Redis Streams for the notification subsystem. It details the rationale, alternatives considered, and consequences of this decision, aligning with the provided system context and constraints.
