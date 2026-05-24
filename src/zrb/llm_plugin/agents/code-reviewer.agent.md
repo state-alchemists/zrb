@@ -13,6 +13,7 @@ tools: [
   WriteTodos, GetTodos, UpdateTodo, ClearTodos,
   ActivateSkill
 ]
+inherit_sections: [persona, mandate, git_mandate, system_context, project_context, claude_skills]
 ---
 # Mandate
 

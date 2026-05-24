@@ -40,6 +40,7 @@ class SubAgentDefinition:
         tools: list[str] = [],
         agent_instance: Any | None = None,
         agent_factory: Callable[[], Any] | None = None,
+        inherit_sections: list[str] | None = None,
     ):
         self.name = name
         self.path = path
@@ -49,6 +50,11 @@ class SubAgentDefinition:
         self.tools = tools
         self.agent_instance = agent_instance
         self.agent_factory = agent_factory
+        # Inherit named PromptManager sections from the main-agent composition
+        # (persona, mandate, git_mandate, system_context, project_context, ...).
+        # None = no inheritance (legacy behavior: only the body + tool guidance).
+        # Use ``[]`` to explicitly opt out while documenting the intent.
+        self.inherit_sections = inherit_sections
 
 
 class SubAgentManager(LoaderMixin, SearchMixin):
@@ -265,17 +271,38 @@ class SubAgentManager(LoaderMixin, SearchMixin):
             if rendered:
                 section_strings.append(rendered)
 
+        # Filter guidance to the sub-agent's resolved tool surface so we don't
+        # emit guidance for tools it cannot call (notably the main-agent-only
+        # delegate tools, which were stripped above via ``zrb_is_delegate_tool``).
+        resolved_tool_names: set[str] = set()
+        for t in resolved_tools:
+            tname = getattr(t, "name", None) or getattr(t, "__name__", None)
+            if tname:
+                resolved_tool_names.add(tname)
         guidance_prompt = get_tool_guidance_prompt(
-            None,
+            resolved_tool_names or None,
             self._tool_guidance,
             self._tool_groups,
             extra_sections=section_strings if section_strings else None,
         )
-        effective_system_prompt = definition.system_prompt
+
+        # Inherited sections (persona, mandate, system_context, ...) come from
+        # the main-agent PromptManager composition. Sub-agents that need the
+        # parent's identity / operating rules / project context declare
+        # ``inherit_sections`` in their frontmatter; legacy agents with
+        # ``inherit_sections = None`` keep the lean original behavior.
+        inherited_prompt = self._build_inherited_prompt(
+            ctx, definition.inherit_sections, final_model
+        )
+
+        parts: list[str] = []
+        if inherited_prompt:
+            parts.append(inherited_prompt)
+        if definition.system_prompt:
+            parts.append(definition.system_prompt)
         if guidance_prompt:
-            effective_system_prompt = (
-                f"{effective_system_prompt}\n\n{guidance_prompt}".strip()
-            )
+            parts.append(guidance_prompt)
+        effective_system_prompt = "\n\n".join(parts).strip()
 
         return create_agent(
             model=final_model,
@@ -285,6 +312,44 @@ class SubAgentManager(LoaderMixin, SearchMixin):
             history_processors=[create_summarizer_history_processor()],
             yolo=effective_yolo,
         )
+
+    def _build_inherited_prompt(
+        self,
+        ctx: AnyContext,
+        inherit_sections: "list[str] | None",
+        model: Any,
+    ) -> str:
+        """Compose the named PromptManager sections for sub-agent inheritance.
+
+        ``None`` → return ``""`` (legacy lean sub-agent). ``[]`` → return
+        ``""`` (explicit opt-out). A non-empty list builds a temporary
+        PromptManager scoped to just those sections.
+
+        ``tool_guidance`` is intentionally NOT delegated to this PromptManager
+        — the calling ``create_agent`` already composes the sub-agent's own
+        tool-filtered guidance block, so re-rendering it here would either
+        duplicate or use the wrong tool set.
+        """
+        if not inherit_sections:
+            return ""
+        # lazy: zrb internal (heavy via transitive / circular) — PromptManager
+        # pulls in skill_manager which pulls in hook_manager.
+        from zrb.llm.prompt.manager import PromptManager
+
+        sections = [s for s in inherit_sections if s != "tool_guidance"]
+        if not sections:
+            return ""
+        pm = PromptManager(include_sections=sections)
+        pm.model = model
+        # Sub-agents have a different tool subset; let inherited tool_guidance
+        # (if any) render unfiltered rather than against the parent's tools.
+        pm.tool_names = None
+        try:
+            return pm.compose_prompt()(ctx).strip()
+        except Exception:
+            # Don't fail agent creation on inheritance issues — surface as no
+            # inheritance so the sub-agent still runs.
+            return ""
 
     def _ensure_loaded(self):
         """Lazy load agents on first access. No-op if already loaded."""

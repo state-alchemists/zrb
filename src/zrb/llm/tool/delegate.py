@@ -136,8 +136,48 @@ class BufferedUI(UIProtocol):
         self._wrapped.append_to_output(text, kind=kind)
 
 
+def _format_envelope(
+    deliverable: str,
+    non_goals: list[str],
+    task: str,
+    additional_context: str,
+) -> str:
+    """Assemble a scope-clamped envelope the sub-agent reads first.
+
+    The DELIVERABLE / NON-GOALS / TASK / CONTEXT / BEFORE RETURNING delimiters
+    are intentionally uppercase and structural so a sub-agent cannot miss the
+    fence while parsing free-form prose.
+    """
+    if non_goals:
+        non_goals_block = "\n".join(f"  - {item}" for item in non_goals)
+    else:
+        non_goals_block = "  - (none declared)"
+    context_block = additional_context.strip() if additional_context else "(none)"
+    active_wt = get_active_worktree()
+    if active_wt:
+        wt_line = (
+            f"Active worktree: {active_wt} — pass as cwd to Bash; "
+            "use absolute paths for Read/Write/Edit/Grep."
+        )
+        context_block = (
+            f"{context_block}\n{wt_line}" if context_block != "(none)" else wt_line
+        )
+    return (
+        f"DELIVERABLE: {deliverable}\n"
+        f"NON-GOALS (do NOT do these, even if obviously related):\n"
+        f"{non_goals_block}\n\n"
+        f"TASK: {task}\n\n"
+        f"CONTEXT:\n{context_block}\n\n"
+        "BEFORE RETURNING: confirm the deliverable exists exactly as stated "
+        "and no non-goal was violated. If the work expanded beyond the "
+        "deliverable, stop and report what you skipped rather than including it."
+    )
+
+
 async def _run_agent_task(
     agent_name: str,
+    deliverable: str,
+    non_goals: list[str],
     task: str,
     additional_context: str,
     sub_agent_manager: SubAgentManager,
@@ -159,17 +199,7 @@ async def _run_agent_task(
             "or check agent registration in your zrb config.",
         )
 
-    context_parts = []
-    if additional_context:
-        context_parts.append(additional_context)
-    active_wt = get_active_worktree()
-    if active_wt:
-        context_parts.append(
-            f"Active worktree: {active_wt} — pass as cwd to Bash; use absolute paths for Read/Write/Edit/Grep."
-        )
-    full_message = task
-    if context_parts:
-        full_message = f"{task}\n\nContext:\n" + "\n".join(context_parts)
+    full_message = _format_envelope(deliverable, non_goals, task, additional_context)
 
     try:
         result, _ = await run_agent(
@@ -211,8 +241,13 @@ def create_delegate_to_agent_tool(
     )
 
     async def delegate_to_agent(
-        agent_name: str, task: str, additional_context: str = ""
+        agent_name: str,
+        deliverable: str,
+        task: str,
+        non_goals: list[str],
+        additional_context: str = "",
     ) -> str:
+        """See module docstring; required-arg signature is the scope clamp."""
         parent_ui = get_current_ui() or StdUI()
         # Generate unique identifier for this agent instance
         unique_id = get_random_name(separator="-", add_random_digit=True)
@@ -221,6 +256,8 @@ def create_delegate_to_agent_tool(
 
         task_result = await _run_agent_task(
             agent_name=agent_name,
+            deliverable=deliverable,
+            non_goals=non_goals,
             task=task,
             additional_context=additional_context,
             sub_agent_manager=sub_agent_manager,
@@ -240,6 +277,16 @@ def create_delegate_to_agent_tool(
     delegate_to_agent.__name__ = "DelegateToAgent"
     delegate_to_agent.__doc__ = (
         "Delegates a task to a named subagent for isolated execution.\n\n"
+        "REQUIRED ARGS:\n"
+        "- agent_name: which sub-agent to run.\n"
+        "- deliverable: one sentence stating what must exist when the sub-agent "
+        "returns. Be concrete — name the artifact (file, function, decision).\n"
+        "- task: how to produce the deliverable. Reference exact files, "
+        "line numbers, or commands when known.\n"
+        "- non_goals: list of adjacent things the sub-agent must NOT do "
+        "(e.g. 'do not modify other files', 'do not refactor', 'do not add tests'). "
+        "Pass [] only when you are certain no scope expansion risk exists.\n"
+        "- additional_context: any extra context the sub-agent needs.\n\n"
         f"AVAILABLE AGENTS:\n{agent_doc_section}"
     )
     return delegate_to_agent
@@ -253,25 +300,42 @@ def create_parallel_delegate_tool(
         sub_agent_manager = default_sub_agent_manager
 
     async def parallel_delegate_to_agents(
-        tasks: list[dict[str, str]],
+        tasks: list[dict[str, Any]],
     ) -> str:
         """
         Delegates multiple tasks to subagents in parallel.
 
-        Each entry in `tasks` must have `agent_name`, `task`, and optional `additional_context`.
+        Each entry in `tasks` must have `agent_name`, `deliverable`, `task`,
+        and `non_goals`. `additional_context` is optional.
+        Apply Scope independently per task — each gets its own clamp.
         """
         if not tasks:
             return "No tasks provided."
+
+        # Validate required keys early so the model sees a clear schema error
+        # rather than a generic agent failure. Missing scope-clamp fields are
+        # the failure mode we are guarding against.
+        required = ("agent_name", "deliverable", "task", "non_goals")
+        for idx, spec in enumerate(tasks):
+            missing = [k for k in required if k not in spec]
+            if missing:
+                return (
+                    f"Error: tasks[{idx}] missing required keys: {missing}. "
+                    "[SYSTEM SUGGESTION]: every task needs agent_name, "
+                    "deliverable, task, and non_goals (list; [] allowed)."
+                )
 
         parent_ui = get_current_ui() or StdUI()
         # Shared lock ensures tool approvals are processed sequentially
         # across all parallel agents to prevent UI conflicts
         ui_lock = asyncio.Lock()
 
-        async def run_single_agent(task_spec: dict[str, str]) -> AgentTaskResult:
-            task = task_spec.get("task", "")
-            additional_context = task_spec.get("additional_context", "")
+        async def run_single_agent(task_spec: dict[str, Any]) -> AgentTaskResult:
             agent_name = task_spec.get("agent_name", "")
+            deliverable = task_spec.get("deliverable", "")
+            task = task_spec.get("task", "")
+            non_goals = task_spec.get("non_goals", []) or []
+            additional_context = task_spec.get("additional_context", "")
             # Generate unique identifier for this agent instance
             unique_id = get_random_name(separator="-", add_random_digit=True)
             prefix = f"[{agent_name}:{unique_id}] "
@@ -280,6 +344,8 @@ def create_parallel_delegate_tool(
 
             result = await _run_agent_task(
                 agent_name=agent_name,
+                deliverable=deliverable,
+                non_goals=non_goals,
                 task=task,
                 additional_context=additional_context,
                 sub_agent_manager=sub_agent_manager,

@@ -10,6 +10,10 @@ def read_file(
 ) -> str:
     """
     Reads a file's full content. Truncates at 1000 head/tail lines or 100k chars.
+
+    Output format: a metadata header line (`[File: ... | N lines]`) followed by a
+    `---CONTENT---` delimiter, then the file body. When copying text for Edit's
+    `old_text`, take it from below the `---CONTENT---` marker only.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
 

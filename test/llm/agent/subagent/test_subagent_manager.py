@@ -366,3 +366,150 @@ def test_sub_agent_manager_add_tool_guidance_section_factory_with_model():
         manager.create_agent("test")
         assert len(captured_models) == 1
         assert captured_models[0] is not None
+
+
+# --- inherit_sections + tool-guidance filter ----------------------------------
+
+
+def test_sub_agent_definition_defaults_inherit_sections_none():
+    """SubAgentDefinition without inherit_sections preserves lean prompt
+    composition (no parent persona/mandate injected)."""
+    agent_def = SubAgentDefinition(
+        name="legacy",
+        path=".",
+        description="d",
+        system_prompt="You are a legacy agent.",
+    )
+    assert agent_def.inherit_sections is None
+
+
+def test_sub_agent_manager_legacy_agent_skips_inheritance():
+    """Agents with inherit_sections=None get only body + own guidance —
+    no # Identity / # Operating Rules from the main agent."""
+    manager = SubAgentManager()
+    agent_def = SubAgentDefinition(
+        name="legacy",
+        path=".",
+        description="d",
+        system_prompt="You are a legacy agent. Do X.",
+    )
+    manager.add_agent(agent_def)
+
+    with patch("zrb.llm.agent.subagent.manager.manager.create_agent") as mock_create:
+        manager.create_agent("legacy")
+        prompt = mock_create.call_args.kwargs["system_prompt"]
+    assert "You are a legacy agent. Do X." in prompt
+    assert "# Identity" not in prompt
+    assert "# Operating Rules" not in prompt
+
+
+def test_sub_agent_manager_inherit_sections_composes_parent_sections():
+    """inherit_sections=[persona, mandate] prepends those rendered sections
+    above the agent body."""
+    manager = SubAgentManager()
+    agent_def = SubAgentDefinition(
+        name="inheriting",
+        path=".",
+        description="d",
+        system_prompt="You are an inheriting agent.",
+        inherit_sections=["persona", "mandate"],
+    )
+    manager.add_agent(agent_def)
+
+    with patch("zrb.llm.agent.subagent.manager.manager.create_agent") as mock_create:
+        manager.create_agent("inheriting")
+        prompt = mock_create.call_args.kwargs["system_prompt"]
+
+    persona_idx = prompt.find("# Identity")
+    mandate_idx = prompt.find("# Operating Rules")
+    body_idx = prompt.find("You are an inheriting agent.")
+    assert persona_idx != -1
+    assert mandate_idx != -1
+    assert body_idx != -1
+    # Inherited sections appear above the agent body.
+    assert persona_idx < body_idx
+    assert mandate_idx < body_idx
+
+
+def test_sub_agent_manager_inherit_sections_empty_list_means_opt_out():
+    """inherit_sections=[] explicitly opts out (same observable result as
+    None, but documents intent in the agent file)."""
+    manager = SubAgentManager()
+    agent_def = SubAgentDefinition(
+        name="optout",
+        path=".",
+        description="d",
+        system_prompt="Body only.",
+        inherit_sections=[],
+    )
+    manager.add_agent(agent_def)
+
+    with patch("zrb.llm.agent.subagent.manager.manager.create_agent") as mock_create:
+        manager.create_agent("optout")
+        prompt = mock_create.call_args.kwargs["system_prompt"]
+    assert "# Identity" not in prompt
+    assert "Body only." in prompt
+
+
+def test_sub_agent_manager_inherit_sections_excludes_tool_guidance():
+    """Even if a user lists ``tool_guidance`` in inherit_sections it must
+    not be composed via PromptManager — the sub-agent's own filtered
+    guidance is appended separately, so doubling it would be misleading."""
+    manager = SubAgentManager()
+    manager.add_tool_guidance(
+        ToolGuidance(
+            "Inherited Group", "InheritedTool", "Inherited use", "Inherited rule"
+        )
+    )
+    agent_def = SubAgentDefinition(
+        name="inheriting",
+        path=".",
+        description="d",
+        system_prompt="Body",
+        inherit_sections=["persona", "tool_guidance"],
+    )
+    manager.add_agent(agent_def)
+
+    with patch("zrb.llm.agent.subagent.manager.manager.create_agent") as mock_create:
+        manager.create_agent("inheriting")
+        prompt = mock_create.call_args.kwargs["system_prompt"]
+    # Persona (inherited) and the sub-agent's own Tool Usage Guide appear,
+    # but the guide is rendered exactly once.
+    assert "# Identity" in prompt
+    assert prompt.count("# Tool Usage Guide") == 1
+
+
+def test_sub_agent_manager_guidance_filtered_to_resolved_tools():
+    """Guidance for tools the sub-agent cannot call is suppressed."""
+    manager = SubAgentManager()
+
+    def available_tool():
+        """Available tool."""
+        return "ok"
+
+    def delegate_tool():
+        """Delegate tool — should not appear in guidance."""
+        return "nope"
+
+    delegate_tool.zrb_is_delegate_tool = True
+    manager.add_tool(available_tool, delegate_tool)
+    manager.add_tool_guidance(
+        ToolGuidance("Group", "available_tool", "Use it", "Always"),
+        ToolGuidance("Group", "delegate_tool", "Delegate things", "Don't"),
+    )
+
+    agent_def = SubAgentDefinition(
+        name="filtered",
+        path=".",
+        description="d",
+        system_prompt="Body",
+        tools=["available_tool", "delegate_tool"],
+    )
+    manager.add_agent(agent_def)
+
+    with patch("zrb.llm.agent.subagent.manager.manager.create_agent") as mock_create:
+        manager.create_agent("filtered")
+        prompt = mock_create.call_args.kwargs["system_prompt"]
+
+    assert "**available_tool**" in prompt
+    assert "**delegate_tool**" not in prompt

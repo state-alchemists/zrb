@@ -264,6 +264,73 @@ def test_create_project_context_prompt_unreadable_file(tmp_path):
     assert "AGENTS.md" in result
 
 
+def test_create_project_context_prompt_skips_stub_doc_pointer(tmp_path):
+    """A doc that is purely an `@reference` pointer is NOT loaded as a
+    section — expand_prompt will inline the referenced file later, so
+    loading the stub would double-count its content."""
+    # AGENTS.md has real content; CLAUDE.md is a stub pointer to it.
+    agents_md = tmp_path / "AGENTS.md"
+    agents_md.write_text("# Real Agents\nDetailed agent guidance here.")
+    claude_md = tmp_path / "CLAUDE.md"
+    claude_md.write_text("@AGENTS.md\n")
+
+    handler = create_project_context_prompt()
+    ctx = _make_ctx()
+
+    with patch(
+        "zrb.llm.prompt.claude._get_search_directories", return_value=[tmp_path]
+    ):
+        result = handler(ctx, "base prompt", _identity_next)
+
+    # AGENTS.md content appears exactly once — the stub did not duplicate it.
+    assert result.count("Detailed agent guidance here.") == 1
+    # CLAUDE.md path is still listed for visibility, even though body wasn't loaded.
+    assert "CLAUDE.md" in result
+
+
+def test_create_project_context_prompt_skips_multi_reference_stub(tmp_path):
+    """Stub detector accepts multiple @-references with surrounding whitespace."""
+    agents_md = tmp_path / "AGENTS.md"
+    agents_md.write_text("agents body")
+    rtk_md = tmp_path / "RTK.md"
+    rtk_md.write_text("rtk body")
+    claude_md = tmp_path / "CLAUDE.md"
+    claude_md.write_text("\n@AGENTS.md\n@RTK.md\n\n")
+
+    handler = create_project_context_prompt()
+    ctx = _make_ctx()
+    with patch(
+        "zrb.llm.prompt.claude._get_search_directories", return_value=[tmp_path]
+    ):
+        result = handler(ctx, "base prompt", _identity_next)
+
+    # CLAUDE.md body is not loaded as a section (stub).
+    assert "@AGENTS.md\n@RTK.md" not in result
+    # But the other docs are loaded.
+    assert "agents body" in result
+    assert "rtk body" in result
+
+
+def test_create_project_context_prompt_keeps_non_stub_with_references(tmp_path):
+    """A doc that mixes real content AND @-references is still loaded
+    (it's not a stub)."""
+    claude_md = tmp_path / "CLAUDE.md"
+    claude_md.write_text("# Claude additions\n@AGENTS.md\nSome extra rule.")
+    agents_md = tmp_path / "AGENTS.md"
+    agents_md.write_text("agents body")
+
+    handler = create_project_context_prompt()
+    ctx = _make_ctx()
+    with patch(
+        "zrb.llm.prompt.claude._get_search_directories", return_value=[tmp_path]
+    ):
+        result = handler(ctx, "base prompt", _identity_next)
+
+    # CLAUDE.md content IS loaded (mixed, not a pure stub).
+    assert "# Claude additions" in result
+    assert "Some extra rule." in result
+
+
 # ---------------------------------------------------------------------------
 # create_claude_skills_prompt tests
 # ---------------------------------------------------------------------------

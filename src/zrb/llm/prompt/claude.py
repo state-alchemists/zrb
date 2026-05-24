@@ -1,3 +1,4 @@
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Callable
@@ -6,6 +7,20 @@ from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.skill.manager import SkillManager
 from zrb.util.markdown import make_markdown_section
+
+# A "stub" doc is one whose body is entirely whitespace plus one or more
+# `@path` references — e.g. CLAUDE.md = "@AGENTS.md". Loading such files as a
+# project-context section is double-counting: the system prompt's later
+# ``expand_prompt`` pass inlines the referenced file as an Appendix. Detecting
+# stubs here lets us list the path in "All Documentation Files" without
+# loading content that would be duplicated.
+_STUB_DOC_PATTERN = re.compile(r"\A\s*(?:@[\w~\-./\\]+\s*)+\Z")
+
+
+def _is_stub_doc(content: str) -> bool:
+    if not content:
+        return False
+    return bool(_STUB_DOC_PATTERN.match(content))
 
 
 def create_claude_skills_prompt(
@@ -103,7 +118,10 @@ def create_project_context_prompt():
             most_specific_path, content = occurrences[-1]
             loaded_content = content[: CFG.LLM_PROJECT_DOC_MAX_CHARS] if content else ""
 
-            if loaded_content:
+            # Skip stub docs (pure ``@path`` pointers) — ``expand_prompt`` will
+            # inline the referenced files, so loading the stub body would
+            # duplicate that content.
+            if loaded_content and not _is_stub_doc(loaded_content):
                 loaded_docs.append((filename, loaded_content))
 
             # List all occurrences

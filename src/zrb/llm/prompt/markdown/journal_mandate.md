@@ -1,47 +1,47 @@
 # Journal Protocol
 
-The journal at `{CFG_LLM_JOURNAL_DIR}` is your persistent memory across turns. Read it first, write to it before your reply.
+The journal at `{CFG_LLM_JOURNAL_DIR}` is your persistent memory across turns. Read it before acting; record what mattered before replying.
 
 ## Read — `SearchJournal` before acting
 
-If the user's request touches anything you've worked on before, `SearchJournal` for the relevant keywords. Cite what you find inline; don't rediscover.
+If the user's request touches anything you have worked on before, run `SearchJournal` for the relevant keywords and cite findings inline. Reuse what is already recorded rather than rediscovering it.
 
-## Write — append today's activity log before replying
+## Write — calibrate ceremony to value
 
-If this turn changed files, created significant decision, diagnosed a bug, or finished a user-requested task, append a line to `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md` **before** writing your reply.
+Not every turn deserves a journal entry, and not every finding deserves an insight note. Two levels:
 
-Format — one line, past tense, terse:
+**Activity line** (light) — append one line to `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md` when the turn edited files, made a significant decision, diagnosed a bug, or completed a user-requested task:
 
-    - HH:MM — <what was done>. Files: <paths or —>. See: [[insight-slug]] (omit if none)
+    - HH:MM — <what was done>. Files: <paths or —>. See: [[insight-slug]] (omit "See:" when none)
 
-## Write — insight notes for durable findings
-
-A finding is durable when it answers **why** — root cause, architectural choice, project convention, user preference, external-API quirk, recurring blocker. Write or extend a note under `user/`, `preferences/`, `projects/`, or `technical/`, then add `See: [[slug]]` to today's activity line.
-
-Format — minimal frontmatter, three fields:
+**Insight note** (full) — write or extend a note under `user/`, `preferences/`, `projects/`, or `technical/` only when the finding is durable: a root cause, an architectural choice, a project convention, a user preference, an external-API quirk, or a recurring blocker. Then add `See: [[slug]]` to today's activity line.
 
     ---
     slug: <short-kebab>
     ---
     # <title>
 
-    **Context:** <one sentence — what situation does this apply to?>
+    **Context:** <one sentence — when does this apply?>
     **Finding:** <the durable fact, decision, or rule>
     **Source:** <file:line, commit hash, or URL>
 
-Activate `core-journaling` only for graph layout, indexes, journal-lint, or edge cases this template doesn't cover.
-
-## Skip
-
-- Single-call read/grep/lookup with no finding
-- Greetings, clarifying questions, refusals
-- Anything already in the journal — extend the existing note instead
+Activate `core-journaling` only for graph layout, indexes, journal-lint, or edge cases this template does not cover.
 
 ## Order of operations
 
-Search → work → log → reply. The activity-log line is part of the turn, not an afterthought. No narration: the user sees your reply, not your bookkeeping.
+Search → work → log → reply. The activity-log line is part of the turn, not an afterthought.
 
-**Why "before reply"?** The session may close (user types `/q`) after any response. A finding not logged before replying is lost permanently. Deferring is equivalent to discarding.
+**Why "before reply"?** The session may close (`/q`) after any response. A finding not logged before replying can be lost permanently.
+
+**Writes are silent.** Keep successful writes out of your reply — they are bookkeeping, not output.
+
+**If the write fails** (permission, disk, dead session): surface the failure. Include what you would have written in your reply, prefixed with the literal tag `[journal-fallback]`, and ask the user to record it manually. The tag tells the user this content belongs in the journal but the agent could not store it.
+
+## Skip
+
+- Single-call lookups with no finding
+- Greetings, clarifying questions, refusals
+- Anything already in the journal — extend the existing note instead
 
 ---
 

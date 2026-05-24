@@ -106,3 +106,55 @@ def test_sub_agent_manager_add_tool_list_public(manager):
         manager.create_agent("tool-test")
         resolved_tools = mock_create.call_args.kwargs["tools"]
         assert t1 in resolved_tools
+
+
+def test_loader_parses_inherit_sections_list(manager, tmp_path):
+    """inherit_sections in frontmatter as a YAML list is parsed into a list."""
+    md_file = tmp_path / "test.agent.md"
+    md_file.write_text(
+        """---
+name: inh-list
+description: d
+inherit_sections: [persona, mandate, system_context]
+---
+Body""",
+    )
+    manager.scan([str(tmp_path)])
+    agent = manager.get_agent_definition("inh-list")
+    assert agent is not None
+    assert agent.inherit_sections == ["persona", "mandate", "system_context"]
+
+
+def test_loader_parses_inherit_sections_comma_string(manager, tmp_path):
+    """inherit_sections in frontmatter as a comma-separated string is normalised
+    into a list (Claude-Code-compatible spelling)."""
+    md_file = tmp_path / "test.agent.md"
+    md_file.write_text(
+        """---
+name: inh-str
+description: d
+inherit_sections: "persona, mandate , project_context"
+---
+Body""",
+    )
+    manager.scan([str(tmp_path)])
+    agent = manager.get_agent_definition("inh-str")
+    assert agent is not None
+    assert agent.inherit_sections == ["persona", "mandate", "project_context"]
+
+
+def test_loader_omitted_inherit_sections_is_none(manager, tmp_path):
+    """When inherit_sections is omitted from frontmatter the agent stays in
+    legacy mode (inherit_sections=None, no parent sections injected)."""
+    md_file = tmp_path / "test.agent.md"
+    md_file.write_text(
+        """---
+name: legacy
+description: d
+---
+Body""",
+    )
+    manager.scan([str(tmp_path)])
+    agent = manager.get_agent_definition("legacy")
+    assert agent is not None
+    assert agent.inherit_sections is None

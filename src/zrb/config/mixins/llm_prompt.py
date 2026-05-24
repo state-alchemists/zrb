@@ -19,6 +19,10 @@ class LLMPromptMixin:
         self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT: str = "off"
         # Comma-separated, order-sensitive list of prompt sections to include.
         # Order in the list determines the order they appear in the system prompt.
+        # Each section is MECE (mutually exclusive in concern): persona=identity+priorities,
+        # mandate=operating rules, git_mandate=git approval, journal_mandate=memory protocol,
+        # system_context=runtime facts, project_context=AGENTS.md/CLAUDE.md,
+        # tool_guidance=per-tool rules, claude_skills=catalogue.
         self.DEFAULT_LLM_INCLUDE_SECTIONS: str = (
             "persona,mandate,git_mandate,journal_mandate,system_context,"
             "project_context,tool_guidance,claude_skills"
