@@ -1,7 +1,7 @@
 # Zrb Agent Guide
 
 ## Project Overview
-Zrb (Zaruba) is a Python-based task automation framework (v2.x). It supports task definition in pure Python, dependency-based execution (DAG), CLI and web UI runners, and built-in LLM/AI agent integration. Core logic is in `src/zrb/`.
+Zrb (Zaruba) is a Python task automation framework (v2.x). Pure-Python task definitions, DAG-based execution, CLI and web UI runners, and built-in LLM/AI agent integration. Core in `src/zrb/`.
 
 ## Development Setup
 ```bash
@@ -10,177 +10,98 @@ source .venv/bin/activate && poetry lock && poetry install
 
 ## Project Structure
 
-### Core Framework
-| Directory | Purpose |
-|-----------|---------|
-| `src/zrb/builtin/` | Pre-packaged user-executable tasks (`zrb <group> <task>`) |
-| `src/zrb/config/` | Global settings via `CFG` singleton — class composed of mixins under `_mixins/` (foundation, web, llm_core, llm_ui, llm_limits, llm_content, llm_prompt, llm_search, rag, internet_search, hooks, task_runtime). `CFG.FOO` access stays flat. |
-| `src/zrb/task/` | Task engine: `BaseTask`, `Task`, `CmdTask`, `LLMTask`, `Scheduler`, etc. |
-| `src/zrb/runner/` | CLI (`Cli` class) and Web UI (`FastAPI` app) entry points |
-| `src/zrb/group/` | CLI command group definitions (hierarchical task organization) |
-| `src/zrb/input/` | Input parameter types: `StrInput`, `IntInput`, `BoolInput`, `OptionInput`, etc. |
-| `src/zrb/env/` | Environment variable types: `Env`, `EnvMap`, `EnvFile` |
-| `src/zrb/context/` | Per-task `Context` and shared `SharedContext` (inputs, envs, xcom) |
-| `src/zrb/session/` | `Session` tracks execution state, task status, concurrent coroutines |
-| `src/zrb/xcom/` | `Xcom` deque-based inter-task messaging (push/pop/peek) |
-| `src/zrb/callback/` | Task lifecycle event callbacks |
-| `src/zrb/attr/` | Attribute descriptors (StrAttr, IntAttr, BoolAttr, etc.) for deferred evaluation |
-| `src/zrb/dot_dict/` | `DotDict` – dot-notation dict used for `ctx.input.*` and `ctx.env.*` |
-| `src/zrb/cmd/` | Command rendering utilities for `CmdTask` |
-| `src/zrb/content_transformer/` | Content transformation helpers (templating, string transforms) |
-| `src/zrb/session_state_log/`, `session_state_logger/` | Session state data structures (`_log`) and the persistent logger that writes them to disk (`_logger`) |
-| `src/zrb/task_status/` | Task status tracking (PENDING, STARTED, READY, DONE, FAILED, etc.) |
-| `src/zrb/util/` | General utility functions (git, file, string, async helpers) |
-| `src/zrb/llm_plugin/` | Built-in skills (`skills/`) and sub-agent definitions (`agents/`). Each skill is a `SKILL.md` or `SKILL.py` file; each agent is a `*.agent.md` file. |
+The tree is self-describing — `ls src/zrb/` plus each module's docstring covers the rest. Worth knowing up front:
 
-### LLM Integration (`src/zrb/llm/`)
+- `src/zrb/builtin/` — pre-packaged user-executable tasks (`zrb <group> <task>`)
+- `src/zrb/config/` — `CFG` singleton, composed from mixins under `_mixins/`. **`CFG.FOO` access stays flat** regardless of which mixin owns the attribute.
+- `src/zrb/task/` — task engine: `BaseTask`, `Task`, `CmdTask`, `LLMTask`, `HttpCheck`, `TcpCheck`, `Scheduler`, `Scaffolder`, `RsyncTask`
+- `src/zrb/llm/` — LLM integration. `prompt/` composes the system prompt; `tool/` ships agent-callable tools; `agent/subagent/` handles delegation; `common_tools.py` registers the shared baseline used by `LLMChatTask`, `LLMTask`, and `SubAgentManager`.
+- `src/zrb/llm_plugin/` — built-in skills (`skills/`) and sub-agent definitions (`agents/`). Each skill is `SKILL.md` or `SKILL.py`; each agent is `*.agent.md`.
+- `test/` — mirrors `src/` hierarchy
+- `llm-challenges/runner.py` — agent framework evaluation
 
-> 💡 For a top-down tour of how `zrb llm chat "..."` flows through these directories — CLI → task → agent run → UI streaming → history persistence — see `docs/advanced-topics/llm-chat-lifecycle.md`.
-
-| Directory | Purpose |
-|-----------|---------|
-| `llm/agent/` | Agent execution and sub-agent management. Split into `run/` (`runner.py`, `retry_loop.py`, `history_utils.py`, `error_classifier.py`, etc.) and `subagent/` (`manager/` subpackage with `manager.py`, `loader_mixin.py`, `search_mixin.py`; plus `yolo.py`). `common.py` provides `create_agent`. |
-| `llm/app/` | LLM application-level integration helpers |
-| `llm/approval/` | Tool call approval protocols (`AnyToolConfirmation`, `ApprovalChannel`) |
-| `llm/config/` | `LLMConfig` (model selection, rate limiting) and `LLMLimiter` (token budgets) |
-| `llm/custom_command/` | Custom CLI command integration for LLM tasks |
-| `llm/history_manager/` | `FileHistoryManager` – persist and load conversation history |
-| `llm/hook/` | `HookManager` – Claude Code–compatible lifecycle hooks. Split into `manager/` (`manager.py`, `loader_mixin.py`), `hook_loader.py` (search dirs + config parsing), `hook_creators.py` (command/prompt/agent factories), `matcher.py` (operator evaluation). |
-| `llm/lsp/` | Language Server Protocol support for LLM tools. Core logic split into `manager/` (`manager.py`, `lifecycle_mixin.py`, `query_mixin.py`, `symbol_utils.py`). |
-| `llm/prompt/` | System prompts, mandates, context journal; `PromptManager` composes sections; configurable tool guidance via `add_tool_guidance()` |
-| `llm/skill/` | `SkillManager` – reusable agent capabilities, dynamic activation |
-| `llm/summarizer/` | Context compression and history summarization for long conversations |
-| `llm/task/` | `LLMTask`, `LLMChatTask` – pydantic-ai–based tasks. `LLMChatTask` is split into `chat/` (`task.py`, `builder_mixin.py`, `runner_mixin.py`). |
-| `llm/tool/` | Agent-callable tools split by concern: `file_list`, `file_read`, `file_write`, `file_edit`, `file_search`, `file_analyze` (re-exported via `file.py`); plus `bash`, `code`, `web`, `rag`, `delegate`, `plan`, `mcp`, `skill`, `worktree`, `zrb_task`, `search/` |
-| `llm/tool_call/` | Tool call data structures and result handling |
-| `llm/ui/` | `UIProtocol` and terminal UI for streaming responses and tool approval. Split into `base/` (`ui.py`, `commands_mixin.py`) and `default/` (`ui.py`, `confirmation_mixin.py`, `keybindings_mixin.py`, `lifecycle_mixin.py`, `output_mixin.py`). |
-| `llm/util/` | LLM-specific helpers: `attachment`, `capabilities` (per-model capability registry — input modalities, parallel-tool-call support; user-extensible via `model_capabilities.register()`), `clipboard`, `git`, `history_formatter`, `image_scale`, `multimodal_describe`, `prompt`, `stream_response` |
-| `llm/common_tools.py` | `apply_common_tools(host)` — registers the zrb-shipped default tools, factories, and guidance on any `CommonToolHost` (satisfied by `LLMChatTask`, `LLMTask`, and `SubAgentManager`). Used by `builtin/llm/chat.py` and `agent/subagent/manager/manager.py` to keep the main agent and sub-agents on the same baseline. |
-
-### Test Locations
-| Directory | Purpose |
-|-----------|---------|
-| `test/` | Tests mirroring `src/` hierarchy |
-| `llm-challenges/` | Agent framework evaluation (contains `runner.py`) |
-
-## Key Task Types
-
-| Task Class | Import | Purpose |
-|-----------|--------|---------|
-| `Task` | `zrb.task.task` | Pure Python action (async or sync function) |
-| `CmdTask` | `zrb.task.cmd_task` | Shell command execution (local or SSH remote) |
-| `LLMTask` | `zrb.llm.task.llm_task` | Pydantic-AI agent with tools, skills, hooks |
-| `HttpCheck` | `zrb.task.http_check` | HTTP readiness check |
-| `TcpCheck` | `zrb.task.tcp_check` | TCP port readiness check |
-| `Scheduler` | `zrb.task.scheduler` | Cron-style trigger (extends `BaseTrigger`) |
-| `Scaffolder` | `zrb.task.scaffolder` | Jinja2 file templating / project scaffolding |
-| `RsyncTask` | `zrb.task.rsync_task` | File sync / deploy via rsync |
+> For a top-down tour of `zrb llm chat "..."` (CLI → task → agent run → UI → history), see `docs/advanced-topics/llm-chat-lifecycle.md`.
 
 ## LLM Prompt System
 
-`PromptManager` (`src/zrb/llm/prompt/manager.py`) assembles the system prompt from ordered sections. The default order — defined in `config/mixins/llm_prompt.py` as `DEFAULT_LLM_INCLUDE_SECTIONS` — is `persona → mandate → git_mandate → journal_mandate → system_context → project_context → tool_guidance → claude_skills`, followed by any user-added prompts. Composition is controlled via the `include_sections: list[str] | None` constructor parameter or the `ZRB_LLM_INCLUDE_SECTIONS` env var (comma-separated, order-sensitive); pass `None` to use the defaults.
+`PromptManager` (`src/zrb/llm/prompt/manager.py`) assembles the system prompt from ordered sections. Default order in `config/mixins/llm_prompt.py::DEFAULT_LLM_INCLUDE_SECTIONS`:
 
-Each section is **MECE** — a single behavior lives in exactly one section. Persona = identity + priorities; `mandate` = operating rules (no tool/git specifics); `git_mandate` = git-specific approval rules; `journal_mandate` = memory protocol + index; `system_context` = runtime facts; `project_context` = AGENTS.md/CLAUDE.md project overrides; `tool_guidance` = per-tool when-to-use + key rules; `claude_skills` = skill catalogue. Adding rules: pick the smallest-scope section that owns the concept.
+`persona → mandate → git_mandate → journal_mandate → system_context → project_context → tool_guidance → claude_skills`
 
-### System Context Auto-Injections
+User-added prompts follow. Override via the `include_sections` constructor parameter or the `ZRB_LLM_INCLUDE_SECTIONS` env var (comma-separated, order-sensitive).
 
-`src/zrb/llm/prompt/system_context.py` runs once per prompt build. Beyond environment facts it auto-injects three ambient-state bridges: **session wiring** (so todo tools target the active conversation), **active worktree** (rendered as a reminder line; stale paths self-clear), and **pending todos** (so the LLM sees them without calling `GetTodos`). See the module's docstring for specifics.
+**Each section is MECE — a single behavior lives in exactly one section.** Adding a rule: pick the smallest-scope section that owns the concept.
+
+- `persona` — identity + response style
+- `mandate` — operating rules (no tool/git specifics)
+- `git_mandate` — git approval rules
+- `journal_mandate` — memory protocol + index
+- `system_context` — runtime facts; auto-injects session wiring, active worktree, and pending todos so todo tools target the right conversation and stale state self-clears
+- `project_context` — AGENTS.md / CLAUDE.md project overrides
+- `tool_guidance` — per-tool when-to-use + key rules
+- `claude_skills` — skill catalogue
 
 ### Ambient State (`ContextVar`s)
 
-Zrb propagates ambient state via `contextvars.ContextVar`. The canonical index — every var, its owning module, and its typed wrapper — lives in `src/zrb/contextvars.py`. Open that file to see what's available.
+Canonical index in `src/zrb/contextvars.py` — every var, its owning module, and its typed wrapper.
 
-When you only need to **read** ambient state, prefer the wrapper. When you need to scope a value for the duration of a block (`token = var.set(...)` then `var.reset(token)`), use the underlying `ContextVar` directly — see `run_agent.py` for the canonical pattern.
+- **Reading:** prefer the wrapper.
+- **Scoped writes:** use the underlying `ContextVar` (`token = var.set(...)` then `var.reset(token)`). Canonical pattern in `run_agent.py`.
 
 ### Worktree Storage
 
-Git worktrees are created at `{git_root}/.zrb/worktree/{branch_name}`. This directory is listed in `.gitignore`.
+Git worktrees live at `{git_root}/.zrb/worktree/{branch_name}` (gitignored).
 
 ### Configuring Tool Guidance
 
-Tool guidance is fully explicit — there is no static catalogue. Register entries via `PromptManager`:
+Tool guidance is fully explicit — no static catalogue. Register via:
 
 ```python
-llm_chat.prompt_manager.add_tool_guidance(
-    group="My Tools",
-    name="MyTool",
-    use_when="Doing X when Y",
-    key_rule="Always pass --flag; never call without context.",  # optional
-)
+prompt_manager.add_tool_guidance(group="My Tools", name="MyTool",
+    use_when="Doing X when Y", key_rule="Pass --flag; never call without context.")
 ```
 
-`add_tool_group(name=...)` is called automatically by `add_tool_guidance` when the group does not yet exist. Calling it explicitly is only needed to pre-declare an empty group or control order.
+`add_tool_group` is called automatically when the group does not yet exist.
 
-`LLMChatTask._exec_action` automatically sets `prompt_manager.tool_names` from the resolved tool list at runtime, so guidance for unregistered tools is suppressed. For factory-created tools (whose Python function names differ from their LLM-visible names), add an `add_tool_guidance()` entry to ensure their guidance is included.
+`LLMChatTask._exec_action` sets `prompt_manager.tool_names` from the resolved tool list at runtime; guidance for unregistered tools is suppressed. **For factory-created tools whose Python function names differ from their LLM-visible names**, register an `add_tool_guidance()` entry explicitly — otherwise the runtime-name filter drops them.
 
 ## Development Conventions
 
 ### Code Style
 - Follow existing project conventions (formatting, naming, typing)
-- **Modularity**: Functions should be concise (~30-50 lines)
-- **Readability**: Place helper functions below their callers
-- **Error Handling**: For LLM tool errors, include `[SYSTEM SUGGESTION]` prefix with actionable guidance
+- **Modularity:** functions ~30–50 lines; helpers placed below their callers
+- **Error handling:** LLM tool errors include a `[SYSTEM SUGGESTION]` prefix with actionable guidance
 
 ### Imports
 
-Default to module-level imports. An in-function import must justify itself in one of these ways — and should be tagged with a `# lazy: <reason>` comment so future audits can recognize the pattern:
+Default to module-level imports. An in-function import must justify itself with a `# lazy: <reason>` comment matching one of:
 
-1. **Heavy third-party deferral.** `pydantic_ai`, `prompt_toolkit`, `mcp`, `fastapi`, `boto3`, `anthropic`, `openai`, `chromadb`, `playwright`, and other extras-marked packages are slow to import and not needed on every code path. Keep them lazy.
-2. **Transitively heavy via internal.** An internal `zrb.*` module that itself eagerly imports a heavy third-party package (e.g. `zrb.llm.agent` pulls in `pydantic_ai`) inherits the same rule. Hoisting it silently re-introduces the slow load.
-3. **Circular import.** When module A and B refer to each other, the inner one stays inside a function. The comment should name the cycle, e.g. `# lazy: circular — tool → ui → llm_task → here`.
-4. **Test patch seam.** Tests sometimes patch a function at its source path (`patch("zrb.X.Y.fn")`) and rely on the patch taking effect inside a consumer. Hoisting the import binds the name at consumer-load time and bypasses the mock. Keep the import lazy and note it: `# lazy: tests patch <path>; hoisting bypasses the mock`.
+1. **Heavy third-party deferral** — `pydantic_ai`, `prompt_toolkit`, `mcp`, `fastapi`, `boto3`, `anthropic`, `openai`, `chromadb`, `playwright`, and other extras-marked packages. Slow to import, not needed on every code path.
+2. **Transitively heavy via internal** — an internal `zrb.*` module that eagerly imports a heavy third-party package inherits the rule. Hoisting silently re-introduces the slow load.
+3. **Circular import** — name the cycle: `# lazy: circular — tool → ui → llm_task → here`.
+4. **Test patch seam** — tests sometimes patch at the source path and rely on the patch taking effect inside a consumer. Hoisting binds the name at consumer-load time and bypasses the mock. Tag: `# lazy: tests patch <path>; hoisting bypasses the mock`.
 
-A comment such as `# noqa: F401` belongs on imports that exist *only* as a test-patch attribute on the module itself — verify the import is actually patched against working code first; cargo-cult patches that target a name nothing reads should be deleted, not preserved.
+`# noqa: F401` belongs only on imports that exist as a test-patch attribute on the module itself — verify the patch actually targets working code; cargo-cult patches against names nothing reads should be deleted, not preserved.
 
-`flake8 src/zrb --select=F` runs as part of `./zrb-test.sh` and gates regressions: any unused or duplicate import in `src/` fails the test run early.
+`flake8 src/zrb --select=F` runs as part of `./zrb-test.sh` and fails on unused or duplicate imports.
 
 ### Test Guidelines
 
-**Run Tests:**
-```bash
-source .venv/bin/activate && ./zrb-test.sh [parameter]
-```
-
-**Parameters:**
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| (empty) | Run all tests | — |
-| `<file_path>` | Run tests in a file | `test/llm/prompt/test_journal.py` |
-| `<directory_path>` | Run tests in a directory | `test/llm/prompt/` |
-| `<test_function>` | Run a specific test | `test/llm/prompt/test_journal.py::test_journal_prompt_with_empty_journal` |
+Run: `source .venv/bin/activate && ./zrb-test.sh [path]` — pass nothing for all, or a file / directory / `file::test_function` path to scope.
 
 **Principles:**
-- **Coverage**: Aim for ≥90%
-- **Public API Only**: 
-  - ❌ **NEVER** access or test private members (anything with `_` prefix)
-  - This includes: `._private_attr`, `._private_method()`, accessing `._internal_state`
-  - Private members are implementation details - tests should verify behavior through public interfaces
-  - If internal behavior is hard to test publicly, refactor the class to expose a public hook or property
-  - Example violations to avoid:
-    ```python
-    # ❌ WRONG: Testing private attribute
-    assert obj._internal_state == "expected"
-    
-    # ❌ WRONG: Testing private method
-    obj._process_data()
-    
-    # ✅ CORRECT: Test through public API
-    obj.do_something()  # Internally calls _process_data()
-    assert obj.get_state() == "expected"  # Public property/method
-    ```
+- **Coverage:** ≥ 90%
+- **Public API only.** NEVER access or test private members (anything `_prefix`). If internal behavior is hard to test publicly, refactor the class to expose a public hook or property.
 - Use `pytest` fixtures and mocks for external dependencies
-- Follow Arrange-Act-Assert (AAA) pattern
+- Follow Arrange-Act-Assert (AAA)
 
-**Test File Conventions:**
-- ❌ No suffixes: `_advanced.py`, `_coverage.py`, `_extra.py`, `_comprehensive.py`
-- ✅ Single source of truth: Update main test file (e.g., `test_manager.py`)
-- ✅ Split large files (>500 lines) by **feature group** (e.g., `test_manager_lifecycle.py`, `test_manager_search.py`), NOT by depth or coverage level
+**Test file conventions:**
+- ❌ No suffixes like `_advanced.py`, `_coverage.py`, `_extra.py`, `_comprehensive.py`
+- ✅ Single source of truth: update the main test file (`test_manager.py`), not a sibling
+- ✅ Split files >500 lines by **feature group** (`test_manager_lifecycle.py`, `test_manager_search.py`), not by depth or coverage level
 
-**Coverage Exclusions (`.coveragerc`):**
-The following files are excluded from coverage reporting:
-- **Protocol/Interface files** (`any_*.py`): Base protocols and interfaces that define contracts but have no implementation
-- **Entry points** (`__main__.py`): Script entry points that are tested via integration tests
-- **Package init files** (`__init__.py`): Re-exports only, tested through public API usage
-- **User init file** (`zrb_init.py`): User-defined initialization, not library code
-
-Do NOT attempt to test these excluded files directly. They are intentionally omitted from coverage metrics.
+**Coverage exclusions** (`.coveragerc`) — do not test these directly:
+- `any_*.py` — protocols / interfaces (no implementation)
+- `__main__.py` — entry points (tested via integration)
+- `__init__.py` — re-exports only
+- `zrb_init.py` — user-defined initialization, not library code
