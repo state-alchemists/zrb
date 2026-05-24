@@ -224,16 +224,21 @@ _DYNAMIC_TOOL_GUIDANCE_FACTORIES: "list[Callable[[AnyContext], ToolGuidance]]" =
     lambda ctx: ToolGuidance(
         group_name="Delegation",
         tool_name="DelegateToAgent",
-        when_to_use="Batch repetitive tasks (>3 files), high-volume outputs (builds/verbose logs), or speculative 'trial and error' research. "
-        "Do it yourself for single lookups, one-file edits, quick commands, or when the needed context is already loaded.",
-        key_rule="Keep your main session history lean. Delegate heavy lifting. Always give the sub-agent full context — it cannot see your conversation history.",
+        when_to_use="Delegate only when ALL apply: (a) the work needs >5 tool calls, "
+        "(b) it spans >3 files OR requires speculative exploration, "
+        "(c) you cannot already write the exact edits. "
+        "Do the work yourself for ≤2 files, one-line changes, or any edit whose content you already know.",
+        key_rule="Required args (deliverable, non_goals) are the scope clamp — articulate them concretely. "
+        "Delegation costs fidelity: sub-agents over-produce against fuzzy specs, so name exact files / functions / "
+        "decisions in deliverable and list adjacent work to avoid in non_goals.",
     ),
     lambda ctx: ToolGuidance(
         group_name="Delegation",
         tool_name="DelegateToAgentsParallel",
         when_to_use="Two or more independent sub-tasks that do not depend on each other's output. "
         "Prefer this over sequential DelegateToAgent calls whenever tasks can run concurrently.",
-        key_rule="Sub-tasks must share no state and must each receive full context — they cannot see your conversation history.",
+        key_rule="Each task dict needs its own deliverable and non_goals — apply the scope clamp per task, not once for the batch. "
+        "Sub-tasks share no state; each one runs blind to the others.",
     ),
 ]
 

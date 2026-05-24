@@ -1,6 +1,64 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.30.0 (May 24, 2026)
+
+- **Breaking: `DelegateToAgent` / `DelegateToAgentsParallel` signature change**:
+  - `delegate_to_agent` now requires `deliverable: str` and `non_goals: list[str]` in addition to `agent_name` and `task`. The parallel variant requires the same keys per task dict; missing keys short-circuit with a clear schema error before any sub-agent runs.
+  - Sub-agent messages are now wrapped in a structured envelope (`DELIVERABLE` / `NON-GOALS` / `TASK` / `CONTEXT` / `BEFORE RETURNING`) so the scope clamp is the first thing the sub-agent reads, not free-form context.
+  - Rationale: with the previous free-form `task` arg, parent agents passed fuzzy specs and sub-agents over-produced. The required fields force the parent to articulate the deliverable and adjacent work to avoid; schema is enforcement, prompt rules were not.
+  - Migration: any custom code calling `delegate_to_agent(agent_name, task, ...)` positionally must add `deliverable` and `non_goals`. Pass `non_goals=[]` only when scope expansion is genuinely impossible.
+
+- **Improvement: Delegation tool guidance rewritten**:
+  - `common_tools.py` `DelegateToAgent` / `DelegateToAgentsParallel` `ToolGuidance` entries reframed affirmatively ("Delegate only when ALL apply…") with a fidelity rationale replacing the previous context-budget rationale.
+  - `mandate.md` Working Loop step 4 gained a one-sentence delegation gate so the whether-to-delegate decision lives in the same MECE section as the rest of execution discipline.
+
+- **Improvement: AGENTS.md restructured**:
+  - Project structure tables condensed into prose (was 175 lines of tables, now ~98 lines of concise bulleted walkthrough). Core Framework, LLM Integration, and Test Locations tables replaced with self-describing `ls src/zrb/` guidance plus per-module docstrings as the source of truth. Key Task Types table simplified.
+  - LLM Prompt System section rewritten with MECE section semantics, ContextVar reference pointing to `src/zrb/contextvars.py`, and new lazy-import policy documentation.
+
+- **Feature: `custom_command/resolver.py`**:
+  - Command resolution extracted from `custom_command/__init__.py` into its own module. No behavior change — cleaner module boundary.
+
+- **Feature: `BaseUI` extracted in `ui/base/ui.py`**:
+  - New base class (+107 lines) factors shared UI logic out of `commands_mixin.py`. `MultiUI` support added (+10 lines). Reduces `commands_mixin.py` by ~47 lines.
+
+- **Improvement: Prompts overhauled**:
+  - `persona.md`, `mandate.md`, `journal_mandate.md` — tightened, deduplicated, softened rigid phrasing (cue-framing replaces hard prohibitions). Consistent with the 2.28.2a1 mandate refactor pass.
+
+- **Improvement: History formatter refinements**:
+  - `history_formatter.py`: format stability improvements for multi-turn conversations.
+  - `runner_mixin.py`: Better retry handling when skill is passed as a message parameter.
+
+- **Improvement: Sub-agent manager improvements**:
+  - `loader_mixin.py`: New `_load_*` helpers (+16 lines) for cleaner skill/plugin resolution.
+  - `manager.py`: Tool registration and delegation flow streamlined (+75/−?).
+
+- **Improvement: Tool refinements**:
+  - `bash.py`: Better error messaging for failed commands.
+  - `file_read.py`: Improved path validation for edge cases.
+
+- **Improvement: Agent skill definitions**:
+  - `code-reviewer.agent.md`, `generalist.agent.md`, `researcher.agent.md` — each gained `disable-model-invocation: true` so they only fire when the user explicitly calls `/delegate-to`.
+
+- **Bug Fix: Function definition removed from `custom_command/__init__.py`**:
+  - Moved command resolution logic to `resolver.py` — `__init__.py` now only re-exports. Prevents accidental import cycles.
+
+- **Bug Fix: `Claude` prompt section loading**:
+  - `prompt/claude.py`: Fixed section-ordering edge case when project-context files are missing.
+
+- **Tests**:
+  - New: `test/llm/agent/subagent/test_loader_mixin.py` (52 lines), `test_subagent_manager.py` (147 lines).
+  - New: `test/llm/prompt/test_claude.py` (67 lines) — project-context loading edge cases.
+  - New: `test/llm/task/chat/test_runner_mixin.py` (60 lines) — runner retry/message handling.
+  - New: `test/llm/ui/test_ui.py` (244 lines) — base UI and multi-UI coverage.
+  - Extended: `test/llm/util/test_history_formatter.py` (+60 lines), `test_history_utils.py` (+18 lines).
+
+- **Documentation**:
+  - `AGENTS.md`: Fully restructured (see above).
+  - `CLAUDE.md`: Minor update.
+  - `docs/advanced-topics/maintainer-guide.md`: Updated to match the new AGENTS.md structure.
+
 ## 2.29.0 (May 22, 2026)
 
 - **Dependency: `pydantic-ai-slim` upgraded `~1.93.0` → `~1.101.0`, now installed with the `[mcp]` extra**:
