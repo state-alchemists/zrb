@@ -1,407 +1,0 @@
-[2m
-  🧠 Let[0m[2m me[0m[2m start[0m[2m by[0m[2m understanding[0m[2m the[0m[2m code[0m[2mbase[0m[2m.[0m[2m I[0m[2m need[0m[2m to[0m[2m look[0m[2m at[0m[2m the[0m[2m three[0m[2m files[0m[2m mentioned[0m[2m:[0m[2m `[0m[2mjob[0m[2m_queue[0m[2m.py[0m[2m`,[0m[2m `[0m[2mworker[0m[2m.py[0m[2m`,[0m[2m and[0m[2m `[0m[2mmain[0m[2m.py[0m[2m`.[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m[0m[2m
-  🧰 call_00_jMEpBrxdFHmJRtHZ4ICF6285 | Read {'path': '/Users/gofrendigunawan/llm ...'}
-[0m[2m
-  🧰 call_01_zL0XR8sHr8kyVvTkDKyR3467 | Read {'path': '/Users/gofrendigunawan/llm ...'}
-[0m[2m
-  🧰 call_02_MHlZ6VjktB5OjuNOG58t1829 | Read {'path': '/Users/gofrendigunawan/llm ...'}
-[0m[2m
-  🔠 call_00_jMEpBrxdFHmJRtHZ4ICF6285 Executed
-[0m[2m
-  🔠 call_02_MHlZ6VjktB5OjuNOG58t1829 Executed
-[0m[2m
-  🔠 call_01_zL0XR8sHr8kyVvTkDKyR3467 Executed
-[0m[2m
-  🧠 Let[0m[2m me[0m[2m analyze[0m[2m the[0m[2m two[0m[2m bugs[0m[2m:
-     
-[0m[2m**[0m[2mBug[0m[2m [0m[2m1[0m[2m:[0m[2m Du[0m[2mplicate[0m[2m processing[0m[2m**
-     
-[0m[2mLook[0m[2m at[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m in[0m[2m `[0m[2mjob[0m[2m_queue[0m[2m.py[0m[2m`[0m[2m:
-     
-[0m[2m```[0m[2mpython[0m[2m
-[0m[2masync[0m[2m def[0m[2m de[0m[2mqueue[0m[2m(self[0m[2m)[0m[2m ->[0m[2m Optional[0m[2m[[0m[2mDict[0m[2m]:
-[0m[2m   [0m[2m for[0m[2m job[0m[2m in[0m[2m self[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m():
-[0m[2m       [0m[2m if[0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m":
-[0m[2m           [0m[2m await[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)
-[0m[2m           [0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mprocessing[0m[2m"
-[0m[2m           [0m[2m return[0m[2m job[0m[2m
-[0m[2m   [0m[2m return[0m[2m None[0m[2m
-[0m[2m```
-     
-[0m[2mThe[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)`[0m[2m creates[0m[2m a[0m[2m race[0m[2m condition[0m[2m.[0m[2m Between[0m[2m the[0m[2m check[0m[2m `[0m[2mif[0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m"[0m[2m`[0m[2m and[0m[2m the[0m[2m assignment[0m[2m `[0m[2mjob[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m`,[0m[2m the[0m[2m cor[0m[2moutine[0m[2m yields[0m[2m control[0m[2m.[0m[2m If[0m[2m multiple[0m[2m workers[0m[2m call[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m concurrently[0m[2m,[0m[2m they[0m[2m can[0m[2m both[0m[2m see[0m[2m the[0m[2m same[0m[2m job[0m[2m as[0m[2m "[0m[2mpending[0m[2m"[0m[2m and[0m[2m both[0m[2m return[0m[2m it[0m[2m.[0m[2m This[0m[2m is[0m[2m the[0m[2m classic[0m[2m TO[0m[2mCT[0m[2mOU[0m[2m ([0m[2mTime[0m[2m-of[0m[2m-C[0m[2mheck[0m[2m-Time[0m[2m-of[0m[2m-[0m[2mUse[0m[2m)[0m[2m bug[0m[2m.
-     
-[0m[2m**[0m[2mBug[0m[2m [0m[2m2[0m[2m:[0m[2m Van[0m[2mishing[0m[2m failures[0m[2m**
-     
-[0m[2mLook[0m[2m at[0m[2m `[0m[2mworker[0m[2m.py[0m[2m`[0m[2m:
-     
-[0m[2m```[0m[2mpython[0m[2m
-[0m[2mexcept[0m[2m Exception[0m[2m as[0m[2m e[0m[2m:
-[0m[2m   [0m[2m print[0m[2m(f[0m[2m"[[0m[2mWorker[0m[2m {[0m[2mworker[0m[2m_id[0m[2m}][0m[2m job[0m[2m {[0m[2mjob[0m[2m['[0m[2mid[0m[2m'][0m[2m}[0m[2m failed[0m[2m:[0m[2m {[0m[2me[0m[2m}")
-[0m[2m```
-     
-[0m[2mThe[0m[2m `[0m[2mexcept[0m[2m`[0m[2m block[0m[2m only[0m[2m prints[0m[2m the[0m[2m error[0m[2m —[0m[2m it[0m[2m never[0m[2m calls[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m()[0m[2m`.[0m[2m So[0m[2m when[0m[2m a[0m[2m job[0m[2m raises[0m[2m an[0m[2m exception[0m[2m,[0m[2m it[0m[2m stays[0m[2m in[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m status[0m[2m ([0m[2mset[0m[2m by[0m[2m `[0m[2mde[0m[2mqueue[0m[2m`[0m[2m).[0m[2m It[0m[2m doesn[0m[2m't[0m[2m get[0m[2m marked[0m[2m as[0m[2m "[0m[2mfailed[0m[2m",[0m[2m so[0m[2m it[0m[2m's[0m[2m invisible[0m[2m to[0m[2m anyone[0m[2m looking[0m[2m at[0m[2m the[0m[2m queue[0m[2m's[0m[2m failure[0m[2m tracking[0m[2m.[0m[2m Ret[0m[2mries[0m[2m can[0m[2m never[0m[2m happen[0m[2m.
-     
-[0m[2mWait[0m[2m,[0m[2m actually[0m[2m let[0m[2m me[0m[2m re[0m[2m-read[0m[2m.[0m[2m The[0m[2m `[0m[2mfail[0m[2m`[0m[2m method[0m[2m checks[0m[2m `[0m[2mret[0m[2mries[0m[2m`[0m[2m and[0m[2m either[0m[2m re[0m[2m-[0m[2mque[0m[2mues[0m[2m or[0m[2m marks[0m[2m as[0m[2m failed[0m[2m.[0m[2m But[0m[2m since[0m[2m `[0m[2mprocess[0m[2m_j[0m[2mob[0m[2m`[0m[2m never[0m[2m calls[0m[2m `[0m[2mfail[0m[2m`,[0m[2m the[0m[2m job[0m[2m stays[0m[2m in[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m forever[0m[2m.[0m[2m It[0m[2m won[0m[2m't[0m[2m be[0m[2m picked[0m[2m up[0m[2m again[0m[2m ([0m[2mbecause[0m[2m `[0m[2mde[0m[2mqueue[0m[2m`[0m[2m only[0m[2m picks[0m[2m "[0m[2mpending[0m[2m"[0m[2m jobs[0m[2m),[0m[2m so[0m[2m it[0m[2m vanishes[0m[2m from[0m[2m the[0m[2m queue[0m[2m's[0m[2m perspective[0m[2m.
-     
-[0m[2mSo[0m[2m the[0m[2m fixes[0m[2m:
-     
-[0m[2m1[0m[2m.[0m[2m **[0m[2m`[0m[2mjob[0m[2m_queue[0m[2m.py[0m[2m`[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m**:[0m[2m Move[0m[2m the[0m[2m status[0m[2m check[0m[2m and[0m[2m update[0m[2m into[0m[2m an[0m[2m atomic[0m[2m operation[0m[2m.[0m[2m Since[0m[2m there[0m[2m's[0m[2m no[0m[2m mut[0m[2mex[0m[2m here[0m[2m,[0m[2m the[0m[2m simplest[0m[2m fix[0m[2m for[0m[2m async[0m[2m Python[0m[2m is[0m[2m to[0m[2m use[0m[2m a[0m[2m lock[0m[2m or[0m[2m rest[0m[2mructure[0m[2m so[0m[2m there[0m[2m's[0m[2m no[0m[2m yield[0m[2m point[0m[2m between[0m[2m the[0m[2m check[0m[2m and[0m[2m the[0m[2m set[0m[2m.[0m[2m Actually[0m[2m,[0m[2m the[0m[2m simplest[0m[2m fix[0m[2m:[0m[2m use[0m[2m a[0m[2m `[0m[2mde[0m[2mque[0m[2m`[0m[2m or[0m[2m iterate[0m[2m while[0m[2m using[0m[2m a[0m[2m lock[0m[2m.[0m[2m But[0m[2m let[0m[2m me[0m[2m think[0m[2m about[0m[2m the[0m[2m simplest[0m[2m approach[0m[2m that[0m[2m doesn[0m[2m't[0m[2m change[0m[2m the[0m[2m public[0m[2m API[0m[2m.
-     
-[0m[2m  [0m[2m Actually[0m[2m,[0m[2m the[0m[2m simplest[0m[2m fix[0m[2m is[0m[2m to[0m[2m remove[0m[2m the[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)`[0m[2m from[0m[2m inside[0m[2m the[0m[2m loop[0m[2m,[0m[2m or[0m[2m move[0m[2m it[0m[2m after[0m[2m the[0m[2m status[0m[2m update[0m[2m.[0m[2m But[0m[2m wait[0m[2m,[0m[2m is[0m[2m the[0m[2m sleep[0m[2m intentional[0m[2m?[0m[2m It[0m[2m could[0m[2m be[0m[2m meant[0m[2m to[0m[2m simulate[0m[2m some[0m[2m kind[0m[2m of[0m[2m back[0m[2moff[0m[2m or[0m[2m to[0m[2m give[0m[2m other[0m[2m cor[0m[2moutines[0m[2m a[0m[2m chance[0m[2m to[0m[2m run[0m[2m.
-     
-[0m[2m  [0m[2m The[0m[2m real[0m[2m issue[0m[2m is[0m[2m:[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)`[0m[2m is[0m[2m called[0m[2m BETWEEN[0m[2m checking[0m[2m the[0m[2m status[0m[2m and[0m[2m setting[0m[2m it[0m[2m.[0m[2m Multiple[0m[2m workers[0m[2m can[0m[2m see[0m[2m the[0m[2m same[0m[2m "[0m[2mpending[0m[2m"[0m[2m job[0m[2m concurrently[0m[2m.
-     
-[0m[2m  [0m[2m Fix[0m[2m:[0m[2m Use[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.L[0m[2mock[0m[2m`[0m[2m to[0m[2m protect[0m[2m the[0m[2m de[0m[2mqueue[0m[2m operation[0m[2m.[0m[2m Or[0m[2m alternatively[0m[2m,[0m[2m use[0m[2m a[0m[2m simpler[0m[2m approach[0m[2m:[0m[2m pop[0m[2m from[0m[2m a[0m[2m list[0m[2m rather[0m[2m than[0m[2m iter[0m[2mating[0m[2m and[0m[2m checking[0m[2m.[0m[2m But[0m[2m that[0m[2m would[0m[2m change[0m[2m the[0m[2m data[0m[2m structure[0m[2m.
-     
-[0m[2m  [0m[2m Actually[0m[2m the[0m[2m simplest[0m[2m fix[0m[2m that[0m[2m doesn[0m[2m't[0m[2m change[0m[2m public[0m[2m API[0m[2m:[0m[2m use[0m[2m an[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.L[0m[2mock[0m[2m`[0m[2m to[0m[2m serialize[0m[2m de[0m[2mqueue[0m[2m operations[0m[2m.[0m[2m The[0m[2m TO[0m[2mCT[0m[2mOU[0m[2m window[0m[2m disappears[0m[2m because[0m[2m the[0m[2m entire[0m[2m check[0m[2m-and[0m[2m-set[0m[2m is[0m[2m atomic[0m[2m under[0m[2m the[0m[2m lock[0m[2m.
-     
-[0m[2m  [0m[2m But[0m[2m wait[0m[2m,[0m[2m we[0m[2m could[0m[2m also[0m[2m just[0m[2m move[0m[2m the[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)`[0m[2m to[0m[2m after[0m[2m the[0m[2m status[0m[2m update[0m[2m,[0m[2m or[0m[2m remove[0m[2m it[0m[2m entirely[0m[2m.[0m[2m However[0m[2m,[0m[2m the[0m[2m sleep[0m[2m might[0m[2m be[0m[2m intentional[0m[2m for[0m[2m some[0m[2m reason[0m[2m ([0m[2mlike[0m[2m yielding[0m[2m to[0m[2m allow[0m[2m other[0m[2m async[0m[2m tasks[0m[2m).[0m[2m Let[0m[2m me[0m[2m keep[0m[2m it[0m[2m but[0m[2m move[0m[2m it[0m[2m after[0m[2m the[0m[2m atomic[0m[2m operation[0m[2m.
-     
-[0m[2m  [0m[2m Actually[0m[2m,[0m[2m the[0m[2m clean[0m[2mest[0m[2m fix[0m[2m is[0m[2m:[0m[2m acquire[0m[2m a[0m[2m lock[0m[2m before[0m[2m the[0m[2m iteration[0m[2m loop[0m[2m,[0m[2m set[0m[2m the[0m[2m status[0m[2m atom[0m[2mically[0m[2m,[0m[2m then[0m[2m release[0m[2m.[0m[2m The[0m[2m sleep[0m[2m can[0m[2m happen[0m[2m before[0m[2m the[0m[2m return[0m[2m.
-     
-[0m[2m2[0m[2m.[0m[2m **[0m[2m`[0m[2mworker[0m[2m.py[0m[2m`[0m[2m**:[0m[2m Call[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m(j[0m[2mob[0m[2m["[0m[2mid[0m[2m"],[0m[2m str[0m[2m(e[0m[2m))[0m[2m`[0m[2m in[0m[2m the[0m[2m except[0m[2m block[0m[2m,[0m[2m and[0m[2m let[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m`[0m[2m handle[0m[2m the[0m[2m ret[0m[2mry[0m[2m logic[0m[2m.
-     
-[0m[2mLet[0m[2m me[0m[2m also[0m[2m think[0m[2m about[0m[2m the[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m`[0m[2m method[0m[2m:
-     
-[0m[2m```[0m[2mpython[0m[2m
-[0m[2mdef[0m[2m fail[0m[2m(self[0m[2m,[0m[2m job[0m[2m_id[0m[2m:[0m[2m int[0m[2m,[0m[2m error[0m[2m:[0m[2m str[0m[2m)[0m[2m ->[0m[2m None[0m[2m:
-[0m[2m   [0m[2m job[0m[2m =[0m[2m self[0m[2m._[0m[2mjobs[0m[2m[j[0m[2mob[0m[2m_id[0m[2m]
-[0m[2m   [0m[2m if[0m[2m job[0m[2m["[0m[2mret[0m[2mries[0m[2m"][0m[2m <[0m[2m self[0m[2m.max[0m[2m_[0m[2mret[0m[2mries[0m[2m:
-[0m[2m       [0m[2m job[0m[2m["[0m[2mret[0m[2mries[0m[2m"][0m[2m +=[0m[2m [0m[2m1[0m[2m
-[0m[2m       [0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mpending[0m[2m"
-[0m[2m   [0m[2m else[0m[2m:
-[0m[2m       [0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mfailed[0m[2m"
-[0m[2m       [0m[2m job[0m[2m["[0m[2mresult[0m[2m"][0m[2m =[0m[2m error[0m[2m
-[0m[2m```
-     
-[0m[2mThis[0m[2m is[0m[2m fine[0m[2m in[0m[2m terms[0m[2m of[0m[2m logic[0m[2m.[0m[2m The[0m[2m issue[0m[2m is[0m[2m just[0m[2m that[0m[2m `[0m[2mworker[0m[2m.py[0m[2m`[0m[2m never[0m[2m calls[0m[2m it[0m[2m.
-     
-[0m[2mAlso[0m[2m,[0m[2m I[0m[2m notice[0m[2m that[0m[2m when[0m[2m `[0m[2mfail[0m[2m`[0m[2m re[0m[2m-[0m[2mque[0m[2mues[0m[2m ([0m[2msets[0m[2m status[0m[2m back[0m[2m to[0m[2m "[0m[2mpending[0m[2m"),[0m[2m the[0m[2m worker[0m[2m will[0m[2m eventually[0m[2m pick[0m[2m it[0m[2m up[0m[2m again[0m[2m.[0m[2m But[0m[2m there[0m[2m's[0m[2m a[0m[2m subtle[0m[2m issue[0m[2m:[0m[2m when[0m[2m the[0m[2m job[0m[2m is[0m[2m re[0m[2m-[0m[2mque[0m[2mued[0m[2m and[0m[2m then[0m[2m picked[0m[2m up[0m[2m again[0m[2m by[0m[2m `[0m[2mde[0m[2mqueue[0m[2m`,[0m[2m it[0m[2m sets[0m[2m the[0m[2m status[0m[2m to[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m and[0m[2m returns[0m[2m the[0m[2m same[0m[2m dict[0m[2m.[0m[2m The[0m[2m worker[0m[2m then[0m[2m tries[0m[2m to[0m[2m process[0m[2m it[0m[2m.[0m[2m But[0m[2m wait[0m[2m,[0m[2m in[0m[2m `[0m[2mworker[0m[2m.py[0m[2m`,[0m[2m after[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m returns[0m[2m a[0m[2m job[0m[2m,[0m[2m the[0m[2m worker[0m[2m enters[0m[2m the[0m[2m try[0m[2m/[0m[2mexcept[0m[2m.[0m[2m If[0m[2m it[0m[2m fails[0m[2m again[0m[2m,[0m[2m the[0m[2m except[0m[2m block[0m[2m fires[0m[2m again[0m[2m.[0m[2m Since[0m[2m I[0m[2m'm[0m[2m adding[0m[2m the[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m()`[0m[2m call[0m[2m in[0m[2m the[0m[2m except[0m[2m block[0m[2m,[0m[2m ret[0m[2mries[0m[2m should[0m[2m work[0m[2m.
-     
-[0m[2mBut[0m[2m there[0m[2m's[0m[2m a[0m[2m question[0m[2m:[0m[2m does[0m[2m the[0m[2m worker[0m[2m loop[0m[2m back[0m[2m to[0m[2m call[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m again[0m[2m after[0m[2m the[0m[2m except[0m[2m block[0m[2m?[0m[2m Let[0m[2m me[0m[2m look[0m[2m:
-     
-[0m[2m```[0m[2mpython[0m[2m
-[0m[2masync[0m[2m def[0m[2m process[0m[2m_j[0m[2mob[0m[2m(queue[0m[2m,[0m[2m worker[0m[2m_id[0m[2m:[0m[2m int[0m[2m)[0m[2m ->[0m[2m None[0m[2m:
-[0m[2m   [0m[2m while[0m[2m True[0m[2m:
-[0m[2m       [0m[2m job[0m[2m =[0m[2m await[0m[2m queue[0m[2m.de[0m[2mqueue[0m[2m()
-[0m[2m       [0m[2m if[0m[2m job[0m[2m is[0m[2m None[0m[2m:
-[0m[2m           [0m[2m return[0m[2m
-     
-[0m[2m       [0m[2m print[0m[2m(...[0m[2m)
-[0m[2m       [0m[2m try[0m[2m:
-[0m[2m           [0m[2m ...
-[0m[2m       [0m[2m except[0m[2m Exception[0m[2m as[0m[2m e[0m[2m:
-[0m[2m           [0m[2m print[0m[2m(...[0m[2m)
-[0m[2m           [0m[2m #[0m[2m then[0m[2m loops[0m[2m back[0m[2m to[0m[2m while[0m[2m True[0m[2m
-[0m[2m```
-     
-[0m[2mYes[0m[2m,[0m[2m after[0m[2m the[0m[2m except[0m[2m block[0m[2m,[0m[2m execution[0m[2m continues[0m[2m to[0m[2m the[0m[2m next[0m[2m iteration[0m[2m of[0m[2m the[0m[2m while[0m[2m loop[0m[2m,[0m[2m calling[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m again[0m[2m.[0m[2m So[0m[2m ret[0m[2mries[0m[2m will[0m[2m work[0m[2m correctly[0m[2m.
-     
-[0m[2mNow[0m[2m,[0m[2m for[0m[2m the[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m race[0m[2m condition[0m[2m fix[0m[2m,[0m[2m let[0m[2m me[0m[2m add[0m[2m an[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.L[0m[2mock[0m[2m`[0m[2m:
-     
-[0m[2m```[0m[2mpython[0m[2m
-[0m[2mclass[0m[2m Job[0m[2mQueue[0m[2m:
-[0m[2m   [0m[2m def[0m[2m __[0m[2minit[0m[2m__([0m[2mself[0m[2m,[0m[2m max[0m[2m_[0m[2mret[0m[2mries[0m[2m:[0m[2m int[0m[2m =[0m[2m [0m[2m3[0m[2m):
-[0m[2m       [0m[2m self[0m[2m._[0m[2mjobs[0m[2m:[0m[2m Dict[0m[2m[int[0m[2m,[0m[2m Dict[0m[2m[str[0m[2m,[0m[2m Any[0m[2m]][0m[2m =[0m[2m {}
-[0m[2m       [0m[2m self[0m[2m._[0m[2mnext[0m[2m_id[0m[2m =[0m[2m [0m[2m1[0m[2m
-[0m[2m       [0m[2m self[0m[2m.max[0m[2m_[0m[2mret[0m[2mries[0m[2m =[0m[2m max[0m[2m_[0m[2mret[0m[2mries[0m[2m
-[0m[2m       [0m[2m self[0m[2m._[0m[2mlock[0m[2m =[0m[2m as[0m[2myn[0m[2mcio[0m[2m.L[0m[2mock[0m[2m()
-     
-[0m[2m   [0m[2m async[0m[2m def[0m[2m de[0m[2mqueue[0m[2m(self[0m[2m)[0m[2m ->[0m[2m Optional[0m[2m[[0m[2mDict[0m[2m]:
-[0m[2m       [0m[2m async[0m[2m with[0m[2m self[0m[2m._[0m[2mlock[0m[2m:
-[0m[2m           [0m[2m for[0m[2m job[0m[2m in[0m[2m self[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m():
-[0m[2m               [0m[2m if[0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m":
-[0m[2m                   [0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mprocessing[0m[2m"
-[0m[2m                   [0m[2m await[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)
-[0m[2m                   [0m[2m return[0m[2m job[0m[2m
-[0m[2m       [0m[2m return[0m[2m None[0m[2m
-[0m[2m```
-     
-[0m[2mThis[0m[2m way[0m[2m,[0m[2m only[0m[2m one[0m[2m worker[0m[2m can[0m[2m be[0m[2m inside[0m[2m the[0m[2m de[0m[2mqueue[0m[2m loop[0m[2m at[0m[2m a[0m[2m time[0m[2m,[0m[2m eliminating[0m[2m the[0m[2m race[0m[2m condition[0m[2m.[0m[2m The[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)`[0m[2m happens[0m[2m after[0m[2m the[0m[2m status[0m[2m is[0m[2m set[0m[2m,[0m[2m so[0m[2m no[0m[2m other[0m[2m worker[0m[2m can[0m[2m see[0m[2m the[0m[2m same[0m[2m job[0m[2m as[0m[2m "[0m[2mpending[0m[2m".
-     
-[0m[2mWait[0m[2m,[0m[2m but[0m[2m actually[0m[2m the[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m`[0m[2m inside[0m[2m the[0m[2m lock[0m[2m isn[0m[2m't[0m[2m ideal[0m[2m —[0m[2m it[0m[2m holds[0m[2m the[0m[2m lock[0m[2m while[0m[2m sleeping[0m[2m,[0m[2m blocking[0m[2m other[0m[2m workers[0m[2m.[0m[2m But[0m[2m in[0m[2m this[0m[2m specific[0m[2m case[0m[2m,[0m[2m since[0m[2m we[0m[2m're[0m[2m atom[0m[2mically[0m[2m setting[0m[2m the[0m[2m status[0m[2m and[0m[2m then[0m[2m yielding[0m[2m,[0m[2m and[0m[2m the[0m[2m loop[0m[2m only[0m[2m processes[0m[2m one[0m[2m job[0m[2m at[0m[2m a[0m[2m time[0m[2m anyway[0m[2m,[0m[2m it[0m[2m's[0m[2m probably[0m[2m fine[0m[2m.[0m[2m The[0m[2m alternative[0m[2m would[0m[2m be[0m[2m to[0m[2m move[0m[2m the[0m[2m sleep[0m[2m after[0m[2m releasing[0m[2m the[0m[2m lock[0m[2m:
-     
-[0m[2m```[0m[2mpython[0m[2m
-[0m[2masync[0m[2m def[0m[2m de[0m[2mqueue[0m[2m(self[0m[2m)[0m[2m ->[0m[2m Optional[0m[2m[[0m[2mDict[0m[2m]:
-[0m[2m   [0m[2m async[0m[2m with[0m[2m self[0m[2m._[0m[2mlock[0m[2m:
-[0m[2m       [0m[2m for[0m[2m job[0m[2m in[0m[2m self[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m():
-[0m[2m           [0m[2m if[0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m":
-[0m[2m               [0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mprocessing[0m[2m"
-[0m[2m               [0m[2m return[0m[2m job[0m[2m
-[0m[2m   [0m[2m await[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)
-[0m[2m   [0m[2m return[0m[2m None[0m[2m
-[0m[2m```
-     
-[0m[2mH[0m[2mmm[0m[2m,[0m[2m but[0m[2m the[0m[2m sleep[0m[2m was[0m[2m before[0m[2m the[0m[2m return[0m[2m in[0m[2m the[0m[2m original[0m[2m code[0m[2m,[0m[2m suggesting[0m[2m it[0m[2m might[0m[2m have[0m[2m been[0m[2m intentional[0m[2m.[0m[2m Let[0m[2m me[0m[2m keep[0m[2m it[0m[2m inside[0m[2m the[0m[2m lock[0m[2m to[0m[2m minimize[0m[2m behavior[0m[2m changes[0m[2m.[0m[2m Actually[0m[2m,[0m[2m looking[0m[2m more[0m[2m carefully[0m[2m:[0m[2m in[0m[2m the[0m[2m original[0m[2m code[0m[2m,[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)`[0m[2m fires[0m[2m BEFORE[0m[2m setting[0m[2m the[0m[2m status[0m[2m.[0m[2m That[0m[2m's[0m[2m exactly[0m[2m what[0m[2m causes[0m[2m the[0m[2m race[0m[2m condition[0m[2m —[0m[2m the[0m[2m sleep[0m[2m yields[0m[2m control[0m[2m while[0m[2m the[0m[2m status[0m[2m is[0m[2m still[0m[2m "[0m[2mpending[0m[2m".
-     
-[0m[2mLet[0m[2m me[0m[2m just[0m[2m move[0m[2m the[0m[2m sleep[0m[2m after[0m[2m the[0m[2m status[0m[2m update[0m[2m,[0m[2m still[0m[2m within[0m[2m the[0m[2m lock[0m[2m:
-     
-[0m[2m```[0m[2mpython[0m[2m
-[0m[2masync[0m[2m def[0m[2m de[0m[2mqueue[0m[2m(self[0m[2m)[0m[2m ->[0m[2m Optional[0m[2m[[0m[2mDict[0m[2m]:
-[0m[2m   [0m[2m async[0m[2m with[0m[2m self[0m[2m._[0m[2mlock[0m[2m:
-[0m[2m       [0m[2m for[0m[2m job[0m[2m in[0m[2m self[0m[2m._[0m[2mjobs[0m[2m.values[0m[2m():
-[0m[2m           [0m[2m if[0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m":
-[0m[2m               [0m[2m job[0m[2m["[0m[2mstatus[0m[2m"][0m[2m =[0m[2m "[0m[2mprocessing[0m[2m"
-[0m[2m               [0m[2m await[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)
-[0m[2m               [0m[2m return[0m[2m job[0m[2m
-[0m[2m   [0m[2m return[0m[2m None[0m[2m
-[0m[2m```
-     
-[0m[2mActually[0m[2m,[0m[2m the[0m[2m clean[0m[2mest[0m[2m approach[0m[2m:[0m[2m keep[0m[2m the[0m[2m sleep[0m[2m but[0m[2m fix[0m[2m the[0m[2m timing[0m[2m.[0m[2m Let[0m[2m me[0m[2m do[0m[2m it[0m[2m.
-     
-[0m[2mNow[0m[2m let[0m[2m me[0m[2m first[0m[2m run[0m[2m the[0m[2m existing[0m[2m code[0m[2m to[0m[2m confirm[0m[2m the[0m[2m bugs[0m[2m,[0m[2m then[0m[2m fix[0m[2m.[0m[2m
-  Let[0m[2m me[0m[2m run[0m[2m the[0m[2m simulation[0m[2m first[0m[2m to[0m[2m confirm[0m[2m both[0m[2m bugs[0m[2m,[0m[2m then[0m[2m fix[0m[2m them[0m[2m.[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m[0m[2m
-  🧰 call_00_gC4HyRzP24Xe9CA5d7cO8368 | Bash {'command': 'cd /Users/gofrendigunawan/ ...', 'timeout': 15}
-[0m  [2m[Worker 0] picked up job 1
-[0m  [2m[Worker 1] picked up job 1
-[0m  [2m[Worker 2] picked up job 1
-[0m  [2m[Worker 3] picked up job 1
-[0m  [2m[Worker 4] picked up job 1
-[0m  [2m[Worker 0] finished job 1
-[0m  [2m[Worker 1] finished job 1
-[0m  [2m[Worker 2] finished job 1
-[0m  [2m[Worker 3] finished job 1
-[0m  [2m[Worker 4] finished job 1
-[0m  [2m[Worker 0] picked up job 2
-[0m  [2m[Worker 1] picked up job 2
-[0m  [2m[Worker 2] picked up job 2
-[0m  [2m[Worker 3] picked up job 2
-[0m  [2m[Worker 4] picked up job 2
-[0m  [2m[Worker 0] finished job 2
-[0m  [2m[Worker 1] finished job 2
-[0m  [2m[Worker 2] finished job 2
-[0m  [2m[Worker 3] finished job 2
-[0m  [2m[Worker 4] finished job 2
-[0m  [2m[Worker 0] picked up job 3
-[0m  [2m[Worker 1] picked up job 3
-[0m  [2m[Worker 2] picked up job 3
-[0m  [2m[Worker 3] picked up job 3
-[0m  [2m[Worker 4] picked up job 3
-[0m  [2m[Worker 0] finished job 3
-[0m  [2m[Worker 1] finished job 3
-[0m  [2m[Worker 2] finished job 3
-[0m  [2m[Worker 3] finished job 3
-[0m  [2m[Worker 4] finished job 3
-[0m  [2m[Worker 0] picked up job 4
-[0m  [2m[Worker 1] picked up job 4
-[0m  [2m[Worker 2] picked up job 4
-[0m  [2m[Worker 3] picked up job 4
-[0m  [2m[Worker 4] picked up job 4
-[0m  [2m[Worker 0] finished job 4
-[0m  [2m[Worker 1] finished job 4
-[0m  [2m[Worker 2] finished job 4
-[0m  [2m[Worker 3] finished job 4
-[0m  [2m[Worker 4] finished job 4
-[0m  [2m[Worker 0] picked up job 5
-[0m  [2m[Worker 1] picked up job 5
-[0m  [2m[Worker 2] picked up job 5
-[0m  [2m[Worker 3] picked up job 5
-[0m  [2m[Worker 4] picked up job 5
-[0m  [2m[Worker 0] finished job 5
-[0m  [2m[Worker 1] finished job 5
-[0m  [2m[Worker 2] finished job 5
-[0m  [2m[Worker 3] finished job 5
-[0m  [2m[Worker 4] finished job 5
-[0m  [2m[Worker 0] picked up job 6
-[0m  [2m[Worker 1] picked up job 6
-[0m  [2m[Worker 2] picked up job 6
-[0m  [2m[Worker 3] picked up job 6
-[0m  [2m[Worker 4] picked up job 6
-[0m  [2m[Worker 0] finished job 6
-[0m  [2m[Worker 1] finished job 6
-[0m  [2m[Worker 2] finished job 6
-[0m  [2m[Worker 3] finished job 6
-[0m  [2m[Worker 4] finished job 6
-[0m  [2m[Worker 0] picked up job 7
-[0m  [2m[Worker 1] picked up job 7
-[0m  [2m[Worker 2] picked up job 7
-[0m  [2m[Worker 3] picked up job 7
-[0m  [2m[Worker 4] picked up job 7
-[0m  [2m[Worker 0] finished job 7
-[0m  [2m[Worker 1] finished job 7
-[0m  [2m[Worker 2] finished job 7
-[0m  [2m[Worker 3] finished job 7
-[0m  [2m[Worker 4] finished job 7
-[0m  [2m[Worker 0] picked up job 8
-[0m  [2m[Worker 1] picked up job 8
-[0m  [2m[Worker 2] picked up job 8
-[0m  [2m[Worker 3] picked up job 8
-[0m  [2m[Worker 4] picked up job 8
-[0m  [2m[Worker 0] finished job 8
-[0m  [2m[Worker 1] finished job 8
-[0m  [2m[Worker 2] finished job 8
-[0m  [2m[Worker 3] finished job 8
-[0m  [2m[Worker 4] finished job 8
-[0m  [2m[Worker 0] picked up job 9
-[0m  [2m[Worker 1] picked up job 9
-[0m  [2m[Worker 2] picked up job 9
-[0m  [2m[Worker 3] picked up job 9
-[0m  [2m[Worker 4] picked up job 9
-[0m  [2m[Worker 0] finished job 9
-[0m  [2m[Worker 1] finished job 9
-[0m  [2m[Worker 2] finished job 9
-[0m  [2m[Worker 3] finished job 9
-[0m  [2m[Worker 4] finished job 9
-[0m  [2m[Worker 0] picked up job 10
-[0m  [2m[Worker 1] picked up job 10
-[0m  [2m[Worker 2] picked up job 10
-[0m  [2m[Worker 3] picked up job 10
-[0m  [2m[Worker 4] picked up job 10
-[0m  [2m[Worker 0] finished job 10
-[0m  [2m[Worker 1] finished job 10
-[0m  [2m[Worker 2] finished job 10
-[0m  [2m[Worker 3] finished job 10
-[0m  [2m[Worker 4] finished job 10
-[0m  [2m[Worker 0] picked up job 11
-[0m  [2m[Worker 1] picked up job 11
-[0m  [2m[Worker 2] picked up job 11
-[0m  [2m[Worker 3] picked up job 11
-[0m  [2m[Worker 4] picked up job 11
-[0m  [2m[Worker 0] job 11 failed: processing error for job 11
-[0m  [2m[Worker 1] job 11 failed: processing error for job 11
-[0m  [2m[Worker 2] job 11 failed: processing error for job 11
-[0m  [2m[Worker 3] job 11 failed: processing error for job 11
-[0m  [2m[Worker 4] job 11 failed: processing error for job 11
-[0m  [2m[Worker 0] picked up job 12
-[0m  [2m[Worker 1] picked up job 12
-[0m  [2m[Worker 2] picked up job 12
-[0m  [2m[Worker 3] picked up job 12
-[0m  [2m[Worker 4] picked up job 12
-[0m  [2m[Worker 0] job 12 failed: processing error for job 12
-[0m  [2m[Worker 1] job 12 failed: processing error for job 12
-[0m  [2m[Worker 2] job 12 failed: processing error for job 12
-[0m  [2m[Worker 3] job 12 failed: processing error for job 12
-[0m  [2m[Worker 4] job 12 failed: processing error for job 12
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mDone:   10 (expected 10)
-[0m  [2mFailed: 0 (expected 2)
-[0m  [2mStuck:  2 (expected 0)
-[0m[2m
-  🔠 call_00_gC4HyRzP24Xe9CA5d7cO8368 Executed
-[0m[2m
-  🧠 Both[0m[2m bugs[0m[2m confirmed[0m[2m:
-     
-[0m[2m1[0m[2m.[0m[2m **[0m[2mDuplicate[0m[2m processing[0m[2m**:[0m[2m Every[0m[2m job[0m[2m is[0m[2m picked[0m[2m up[0m[2m by[0m[2m all[0m[2m [0m[2m5[0m[2m workers[0m[2m concurrently[0m[2m —[0m[2m every[0m[2m single[0m[2m job[0m[2m appears[0m[2m [0m[2m5[0m[2m×[0m[2m.[0m[2m Jobs[0m[2m [0m[2m11[0m[2m and[0m[2m [0m[2m12[0m[2m ([0m[2mthe[0m[2m error[0m[2m jobs[0m[2m)[0m[2m each[0m[2m get[0m[2m picked[0m[2m up[0m[2m [0m[2m5[0m[2m times[0m[2m.[0m[2m The[0m[2m root[0m[2m cause[0m[2m is[0m[2m the[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)`[0m[2m between[0m[2m the[0m[2m status[0m[2m check[0m[2m and[0m[2m the[0m[2m status[0m[2m set[0m[2m in[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m —[0m[2m all[0m[2m workers[0m[2m see[0m[2m the[0m[2m job[0m[2m as[0m[2m "[0m[2mpending[0m[2m"[0m[2m because[0m[2m the[0m[2m first[0m[2m one[0m[2m yielding[0m[2m at[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)`[0m[2m hasn[0m[2m't[0m[2m set[0m[2m it[0m[2m to[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m yet[0m[2m.
-     
-[0m[2m2[0m[2m.[0m[2m **[0m[2mVan[0m[2mishing[0m[2m failures[0m[2m**:[0m[2m Jobs[0m[2m [0m[2m11[0m[2m and[0m[2m [0m[2m12[0m[2m end[0m[2m up[0m[2m "[0m[2mst[0m[2muck[0m[2m"[0m[2m ([0m[2mstatus[0m[2m "[0m[2mprocessing[0m[2m")[0m[2m because[0m[2m `[0m[2mprocess[0m[2m_j[0m[2mob[0m[2m`[0m[2m'[0m[2ms[0m[2m except[0m[2m block[0m[2m only[0m[2m prints[0m[2m the[0m[2m error[0m[2m —[0m[2m it[0m[2m never[0m[2m calls[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m()[0m[2m`.[0m[2m The[0m[2m job[0m[2m stays[0m[2m in[0m[2m "[0m[2mprocessing[0m[2m"[0m[2m forever[0m[2m and[0m[2m can[0m[2m never[0m[2m be[0m[2m ret[0m[2mried[0m[2m.
-     
-[0m[2mNow[0m[2m let[0m[2m me[0m[2m fix[0m[2m both[0m[2m:
-     
-[0m[2m**[0m[2mFix[0m[2m [0m[2m1[0m[2m (`[0m[2mjob[0m[2m_queue[0m[2m.py[0m[2m`)[0m[2m**:[0m[2m Add[0m[2m an[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.L[0m[2mock[0m[2m`[0m[2m to[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m so[0m[2m the[0m[2m check[0m[2m-and[0m[2m-set[0m[2m is[0m[2m atomic[0m[2m.
-     
-[0m[2m**[0m[2mFix[0m[2m [0m[2m2[0m[2m (`[0m[2mworker[0m[2m.py[0m[2m`)[0m[2m**:[0m[2m Call[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m(j[0m[2mob[0m[2m["[0m[2mid[0m[2m"],[0m[2m str[0m[2m(e[0m[2m))[0m[2m`[0m[2m in[0m[2m the[0m[2m except[0m[2m block[0m[2m.[0m[2m
-  Both[0m[2m bugs[0m[2m confirmed[0m[2m in[0m[2m the[0m[2m output[0m[2m:
-     
-[0m[2m1[0m[2m.[0m[2m **[0m[2mEvery[0m[2m job[0m[2m is[0m[2m picked[0m[2m up[0m[2m by[0m[2m all[0m[2m [0m[2m5[0m[2m workers[0m[2m**[0m[2m ([0m[2m5[0m[2m×[0m[2m duplicate[0m[2m processing[0m[2m).[0m[2m Each[0m[2m worker[0m[2m sees[0m[2m `[0m[2m"[0m[2mpending[0m[2m"[0m[2m`[0m[2m because[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)`[0m[2m in[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m yields[0m[2m control[0m[2m before[0m[2m setting[0m[2m the[0m[2m status[0m[2m —[0m[2m classic[0m[2m TO[0m[2mCT[0m[2mOU[0m[2m race[0m[2m.
-[0m[2m2[0m[2m.[0m[2m **[0m[2mJobs[0m[2m [0m[2m11[0m[2m and[0m[2m [0m[2m12[0m[2m end[0m[2m up[0m[2m "[0m[2mst[0m[2muck[0m[2m"[0m[2m**[0m[2m ([0m[2mstatus[0m[2m "[0m[2mprocessing[0m[2m"),[0m[2m never[0m[2m "[0m[2mfailed[0m[2m"[0m[2m —[0m[2m the[0m[2m `[0m[2mexcept[0m[2m`[0m[2m block[0m[2m in[0m[2m `[0m[2mprocess[0m[2m_j[0m[2mob[0m[2m`[0m[2m never[0m[2m calls[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m()`[0m[2m.
-     
-[0m[2mF[0m[2mixing[0m[2m both[0m[2m now[0m[2m.[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m[0m[2m
-  🧰 call_00_3oXEkjtYBF4yQxzyjgGR5629 | Edit {'path': '/Users/gofrendigunawan/llm ...', 'old_text': 'import asyncio\nfrom typing ...', 'new_text': 'import asyncio\nfrom typing ...'}
-[0m[2m
-  🔠 call_00_3oXEkjtYBF4yQxzyjgGR5629 Executed
-[0m[2m
-  🧠 Good[0m[2m,[0m[2m now[0m[2m fix[0m[2m worker[0m[2m.py[0m[2m -[0m[2m add[0m[2m the[0m[2m queue[0m[2m.f[0m[2mail[0m[2m()[0m[2m call[0m[2m in[0m[2m the[0m[2m except[0m[2m block[0m[2m.[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m[0m[2m
-  🧰 call_00_WVBd2abjG2CRUjj6vHSw4300 | Edit {'old_text': '        except Exception a ...', 'new_text': '        except Exception a ...', 'path': '/Users/gofrendigunawan/llm ...'}
-[0m[2m
-  🔠 call_00_WVBd2abjG2CRUjj6vHSw4300 Executed
-[0m[2m
-  🧠 Now[0m[2m let[0m[2m me[0m[2m run[0m[2m the[0m[2m simulation[0m[2m again[0m[2m to[0m[2m verify[0m[2m both[0m[2m fixes[0m[2m work[0m[2m.[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m[0m[2m
-  🧰 call_00_r9vDtOW0Wl4zETvMWBDS9693 | Bash {'command': 'cd /Users/gofrendigunawan/ ...', 'timeout': 15}
-[0m  [2m[Worker 0] picked up job 1
-[0m  [2m[Worker 1] picked up job 2
-[0m  [2m[Worker 2] picked up job 3
-[0m  [2m[Worker 3] picked up job 4
-[0m  [2m[Worker 4] picked up job 5
-[0m  [2m[Worker 0] finished job 1
-[0m  [2m[Worker 0] picked up job 6
-[0m  [2m[Worker 1] finished job 2
-[0m  [2m[Worker 1] picked up job 7
-[0m  [2m[Worker 2] finished job 3
-[0m  [2m[Worker 2] picked up job 8
-[0m  [2m[Worker 3] finished job 4
-[0m  [2m[Worker 3] picked up job 9
-[0m  [2m[Worker 4] finished job 5
-[0m  [2m[Worker 4] picked up job 10
-[0m  [2m[Worker 0] finished job 6
-[0m  [2m[Worker 0] picked up job 11
-[0m  [2m[Worker 1] finished job 7
-[0m  [2m[Worker 1] picked up job 12
-[0m  [2m[Worker 2] finished job 8
-[0m  [2m[Worker 3] finished job 9
-[0m  [2m[Worker 4] finished job 10
-[0m  [2m[Worker 0] job 11 failed: processing error for job 11
-[0m  [2m[Worker 1] job 12 failed: processing error for job 12
-[0m  [2m[Worker 0] picked up job 11
-[0m  [2m[Worker 1] picked up job 12
-[0m  [2m[Worker 0] job 11 failed: processing error for job 11
-[0m  [2m[Worker 1] job 12 failed: processing error for job 12
-[0m  [2m[Worker 0] picked up job 11
-[0m  [2m[Worker 1] picked up job 12
-[0m  [2m[Worker 0] job 11 failed: processing error for job 11
-[0m  [2m[Worker 1] job 12 failed: processing error for job 12
-[0m  [2m
-[0m  [2m=== Results ===
-[0m  [2mDone:   10 (expected 10)
-[0m  [2mFailed: 2 (expected 2)
-[0m  [2mStuck:  0 (expected 0)
-[0m[2m
-  🔠 call_00_r9vDtOW0Wl4zETvMWBDS9693 Executed
-[0m[2m
-  🧠 Both[0m[2m fixes[0m[2m work[0m[2m correctly[0m[2m.[0m[2m Let[0m[2m me[0m[2m verify[0m[2m the[0m[2m final[0m[2m state[0m[2m of[0m[2m the[0m[2m files[0m[2m.[0m[2m
-  Both[0m[2m fixes[0m[2m verified[0m[2m.[0m[2m Let[0m[2m me[0m[2m confirm[0m[2m the[0m[2m final[0m[2m state[0m[2m of[0m[2m both[0m[2m files[0m[2m.[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m
-  🔄 Prepare tool parameters...[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m  🔄 Prepare tool parameters ⠦[0m[2m  🔄 Prepare tool parameters ⠧[0m[2m  🔄 Prepare tool parameters ⠇[0m[2m  🔄 Prepare tool parameters ⠏[0m[2m  🔄 Prepare tool parameters ⠋[0m[2m  🔄 Prepare tool parameters ⠙[0m[2m  🔄 Prepare tool parameters ⠹[0m[2m  🔄 Prepare tool parameters ⠸[0m[2m  🔄 Prepare tool parameters ⠼[0m[2m  🔄 Prepare tool parameters ⠴[0m[2m[0m[2m
-  🧰 call_00_ELKKpOLdj7StLgFsWTof6347 | Read {'path': '/Users/gofrendigunawan/llm ...'}
-[0m[2m
-  🧰 call_01_F7sQqYHH3QzzllRhpQZM1734 | Read {'path': '/Users/gofrendigunawan/llm ...'}
-[0m[2m
-  🔠 call_00_ELKKpOLdj7StLgFsWTof6347 Executed
-[0m[2m
-  🔠 call_01_F7sQqYHH3QzzllRhpQZM1734 Executed
-[0m[2m
-  🧠 Both[0m[2m fixes[0m[2m are[0m[2m clean[0m[2m and[0m[2m verified[0m[2m by[0m[2m the[0m[2m simulation[0m[2m.[0m[2m Let[0m[2m me[0m[2m summarize[0m[2m.[0m[2m
-  Both[0m[2m fixes[0m[2m confirmed[0m[2m and[0m[2m verified[0m[2m.[0m[2m Here[0m[2m's[0m[2m the[0m[2m summary[0m[2m:
-     
-[0m[2m---
-     
-[0m[2m**[0m[2mRoot[0m[2m Cause[0m[2m [0m[2m1[0m[2m —[0m[2m Du[0m[2mplicate[0m[2m processing[0m[2m**[0m[2m (`[0m[2mjob[0m[2m_queue[0m[2m.py[0m[2m:[0m[2m22[0m[2m-[0m[2m27[0m[2m`[0m[2m):[0m[2m `[0m[2mde[0m[2mqueue[0m[2m()`[0m[2m had[0m[2m a[0m[2m TO[0m[2mCT[0m[2mOU[0m[2m race[0m[2m between[0m[2m checking[0m[2m `[0m[2mjob[0m[2m["[0m[2mstatus[0m[2m"][0m[2m ==[0m[2m "[0m[2mpending[0m[2m"[0m[2m`[0m[2m and[0m[2m setting[0m[2m it[0m[2m to[0m[2m `[0m[2m"[0m[2mprocessing[0m[2m"[0m[2m`.[0m[2m The[0m[2m `[0m[2mawait[0m[2m as[0m[2myn[0m[2mcio[0m[2m.sleep[0m[2m([0m[2m0[0m[2m.[0m[2m01[0m[2m)`[0m[2m between[0m[2m them[0m[2m yielded[0m[2m control[0m[2m,[0m[2m so[0m[2m all[0m[2m [0m[2m5[0m[2m concurrent[0m[2m workers[0m[2m saw[0m[2m the[0m[2m same[0m[2m job[0m[2m as[0m[2m "[0m[2mpending[0m[2m"[0m[2m and[0m[2m all[0m[2m claimed[0m[2m it[0m[2m.
-     
-[0m[2m**[0m[2mFix[0m[2m**:[0m[2m Added[0m[2m `[0m[2mas[0m[2myn[0m[2mcio[0m[2m.L[0m[2mock[0m[2m`[0m[2m (`[0m[2mself[0m[2m._[0m[2mde[0m[2mqueue[0m[2m_lock[0m[2m`)[0m[2m around[0m[2m the[0m[2m entire[0m[2m check[0m[2m-and[0m[2m-set[0m[2m block[0m[2m.[0m[2m The[0m[2m status[0m[2m is[0m[2m set[0m[2m to[0m[2m `[0m[2m"[0m[2mprocessing[0m[2m"[0m[2m`[0m[2m *[0m[2mbefore[0m[2m*[0m[2m the[0m[2m `[0m[2mawait[0m[2m`,[0m[2m so[0m[2m no[0m[2m other[0m[2m worker[0m[2m can[0m[2m see[0m[2m a[0m[2m stale[0m[2m "[0m[2mpending[0m[2m"[0m[2m status[0m[2m.
-     
-[0m[2m**[0m[2mRoot[0m[2m Cause[0m[2m [0m[2m2[0m[2m —[0m[2m Van[0m[2mishing[0m[2m failures[0m[2m**[0m[2m (`[0m[2mworker[0m[2m.py[0m[2m:[0m[2m16[0m[2m-[0m[2m17[0m[2m`[0m[2m):[0m[2m The[0m[2m `[0m[2mexcept[0m[2m`[0m[2m block[0m[2m in[0m[2m `[0m[2mprocess[0m[2m_j[0m[2mob[0m[2m`[0m[2m only[0m[2m printed[0m[2m the[0m[2m error[0m[2m —[0m[2m it[0m[2m never[0m[2m called[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m()[0m[2m`.[0m[2m The[0m[2m job[0m[2m remained[0m[2m in[0m[2m `[0m[2m"[0m[2mprocessing[0m[2m"[0m[2m`[0m[2m status[0m[2m forever[0m[2m,[0m[2m invisible[0m[2m to[0m[2m the[0m[2m queue[0m[2m's[0m[2m failure[0m[2m accounting[0m[2m and[0m[2m unable[0m[2m to[0m[2m ret[0m[2mry[0m[2m.
-     
-[0m[2m**[0m[2mFix[0m[2m**:[0m[2m Added[0m[2m `[0m[2mqueue[0m[2m.f[0m[2mail[0m[2m(j[0m[2mob[0m[2m["[0m[2mid[0m[2m"],[0m[2m str[0m[2m(e[0m[2m))[0m[2m`[0m[2m in[0m[2m the[0m[2m `[0m[2mexcept[0m[2m`[0m[2m block[0m[2m.[0m[2m This[0m[2m lets[0m[2m `[0m[2mJob[0m[2mQueue[0m[2m.f[0m[2mail[0m[2m`[0m[2m handle[0m[2m the[0m[2m ret[0m[2mry[0m[2m-or[0m[2m-f[0m[2mail[0m[2m logic[0m[2m —[0m[2m re[0m[2m-[0m[2mque[0m[2mues[0m[2m if[0m[2m ret[0m[2mries[0m[2m remain[0m[2m,[0m[2m marks[0m[2m as[0m[2m `[0m[2m"[0m[2mfailed[0m[2m"[0m[2m`[0m[2m when[0m[2m exhausted[0m[2m.
-     
-[0m[2mSim[0m[2mulation[0m[2m output[0m[2m now[0m[2m reads[0m[2m:[0m[2m `[0m[2mDone[0m[2m:[0m[2m [0m[2m10[0m[2m,[0m[2m Failed[0m[2m:[0m[2m [0m[2m2[0m[2m,[0m[2m St[0m[2muck[0m[2m:[0m[2m [0m[2m0[0m[2m`[0m[2m —[0m[2m all[0m[2m expected[0m[2m values[0m[2m.[0m[2m Jobs[0m[2m [0m[2m11[0m[2m and[0m[2m [0m[2m12[0m[2m each[0m[2m ret[0m[2mry[0m[2m twice[0m[2m ([0m[2mm[0m[2matching[0m[2m `[0m[2mmax[0m[2m_[0m[2mret[0m[2mries[0m[2m=[0m[2m2[0m[2m`)[0m[2m before[0m[2m settling[0m[2m into[0m[2m `[0m[2m"[0m[2mfailed[0m[2m"[0m[2m`[0m[2m status[0m[2m.[0m[2m
-  💸 (Requests: 7 | Tool Calls: 9 | Total: 138201) Input: 134320 | Audio Input: 0 | Output: 3881 | Audio Output: 0 | Cache Read: 116608 | Cache Write: 0 | Details: {'prompt_cache_hit_tokens': 116608, 'prompt_cache_miss_tokens': 17712, 'reasoning_tokens': 2092}
-[0m[2mTo run again:[0m [1;33mzrb chat --message "Our background job processor has been acting up in production. Two separate issues have been reported:
-
-1. **Duplicate processing**: Some jobs appear to be executed more than once. We've seen side effects (emails, charges) triggered twice for a single job ID.
-2. **Vanishing failures**: Jobs that crash with an exception never show up as \"failed\". They seem to just disappear from the queue, making retries impossible.
-
-The system is in `job_queue.py` (the queue) and `worker.py` (the processor). `main.py` runs a simulation you can use to reproduce the issues.
-
-Find the root causes and fix them. Do not change the public method signatures.
-" --model deepseek:deepseek-v4-flash --session deepseek_deepseek-v4-flash-bug-fix-trial-2 --yolo true --attach "" --interactive false[0m
-[2m[2mSession[0m: [1;33mdeepseek_deepseek-v4-flash-bug-fix-trial-2[0m[0m
-Both fixes confirmed and verified. Here's the summary:
-
----
-
-**Root Cause 1 — Duplicate processing** (`job_queue.py:22-27`): `dequeue()` had a TOCTOU race between checking `job["status"] == "pending"` and setting it to `"processing"`. The `await asyncio.sleep(0.01)` between them yielded control, so all 5 concurrent workers saw the same job as "pending" and all claimed it.
-
-**Fix**: Added `asyncio.Lock` (`self._dequeue_lock`) around the entire check-and-set block. The status is set to `"processing"` *before* the `await`, so no other worker can see a stale "pending" status.
-
-**Root Cause 2 — Vanishing failures** (`worker.py:16-17`): The `except` block in `process_job` only printed the error — it never called `queue.fail()`. The job remained in `"processing"` status forever, invisible to the queue's failure accounting and unable to retry.
-
-**Fix**: Added `queue.fail(job["id"], str(e))` in the `except` block. This lets `JobQueue.fail` handle the retry-or-fail logic — re-queues if retries remain, marks as `"failed"` when exhausted.
-
-Simulation output now reads: `Done: 10, Failed: 2, Stuck: 0` — all expected values. Jobs 11 and 12 each retry twice (matching `max_retries=2`) before settling into `"failed"` status.
