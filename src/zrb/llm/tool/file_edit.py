@@ -15,6 +15,11 @@ def replace_in_file(
 
     `count=-1` (default) replaces all occurrences; `count=1` replaces only the first.
     Returns an error with near-miss hints if old_text cannot be matched.
+
+    The file after replacement must be valid in its own language — indentation,
+    imports, references, syntax, and structure all coherent. If the change
+    would leave it malformed (broken indent, missing import, dangling brace),
+    widen `old_text` or use Write to re-emit the whole file instead.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):

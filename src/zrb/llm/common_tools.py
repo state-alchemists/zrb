@@ -96,7 +96,8 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
     ToolGuidance(
         group_name="File Operations",
         tool_name="Edit",
-        key_rule="Take old_text from below Read's ---CONTENT--- marker. "
+        key_rule="Read the file first — even if the user pasted the content into chat, the live file may diverge. "
+        "Take old_text from below Read's ---CONTENT--- marker. "
         "Before editing a public symbol, Grep or LspFindReferences for call sites and update them in the same turn.",
     ),
     ToolGuidance(
