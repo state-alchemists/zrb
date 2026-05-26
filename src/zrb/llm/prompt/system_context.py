@@ -34,7 +34,6 @@ from datetime import datetime
 from functools import lru_cache
 from typing import Any, Callable
 
-from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 
 _DEFAULT_TOOLS: list[tuple[str, str]] = [
@@ -216,7 +215,6 @@ def system_context(
         f"- Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         f"- OS: {platform.platform()}",
         f"- CWD: {cwd}",
-        f"- Token limit: {CFG.LLM_MAX_TOKEN_PER_REQUEST:,} per request",
     ]
     model_line = _format_model_line(model)
     if model_line:

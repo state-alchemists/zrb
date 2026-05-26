@@ -222,12 +222,8 @@ def create_rag_from_directory(
     retrieve.__name__ = tool_name
     retrieve.__doc__ = dedent(f"""
         {tool_description}
-        This tool performs a semantic search across a curated knowledge base of documents.
-        It is highly effective for answering questions that require specific project knowledge not found in general training data.
 
-        MANDATES:
-        - Use to find high-signal information in project documentation or internal wikis.
-        - The query should be semantic (natural language) for best results.
+        Pass a natural-language query; returns the top semantic matches from the indexed corpus.
         """).strip()
     return retrieve
 

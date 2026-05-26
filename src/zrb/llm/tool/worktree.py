@@ -17,7 +17,6 @@ async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
     Use for risky experiments, parallel approaches, or staging changes before merging.
     Use `keep_branch=True` in `ExitWorktree` to preserve the branch for later merging.
     Use `cwd` to specify the repository root if the current directory is not the target repo.
-    After creation: pass the worktree path as `cwd` to `Bash`; use absolute paths with `Read`, `Write`, `Edit`, and `Grep` (they don't accept `cwd`).
     """
 
     cwd = cwd or os.getcwd()
@@ -73,11 +72,7 @@ async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
 
     active_worktree.set(worktree_path)
     _ensure_gitignore(git_root, f".{CFG.ROOT_GROUP_NAME}/worktree/")
-    return (
-        f"Worktree created: {worktree_path}\n"
-        f"Branch: {branch_name}\n"
-        f"Use this path as cwd for Bash commands targeting this worktree."
-    )
+    return f"Worktree created: {worktree_path}\nBranch: {branch_name}"
 
 
 @tool_safe_async
@@ -85,7 +80,8 @@ async def exit_worktree(worktree_path: str, keep_branch: bool = False) -> str:
     """
     Removes a git worktree created with `EnterWorktree`.
 
-    Use `keep_branch=True` to preserve the branch for merging; default deletes it along with all its commits.
+    Default `keep_branch=False` deletes the branch along with all its commits — irreversible.
+    Pass `keep_branch=True` unless you have explicit approval to drop the work on that branch.
     Always clean up worktrees after use.
     """
     cwd = os.getcwd()

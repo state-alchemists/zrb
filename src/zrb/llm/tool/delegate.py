@@ -155,10 +155,7 @@ def _format_envelope(
     context_block = additional_context.strip() if additional_context else "(none)"
     active_wt = get_active_worktree()
     if active_wt:
-        wt_line = (
-            f"Active worktree: {active_wt} — pass as cwd to Bash; "
-            "use absolute paths for Read/Write/Edit/Grep."
-        )
+        wt_line = f"Active worktree: {active_wt}"
         context_block = (
             f"{context_block}\n{wt_line}" if context_block != "(none)" else wt_line
         )

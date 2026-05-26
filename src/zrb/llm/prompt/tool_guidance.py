@@ -91,21 +91,15 @@ def get_parallel_tool_call_section(model: "str | Model | None") -> str:
     flag: Any = caps.supports_parallel_tool_calls
     if flag is False:
         return (
-            "## No Tool Call Parallelism\n"
-            "- ⛔ **CRITICAL: You SHOULD ALWAYS call tools sequentially.**\n"
-            "- EMIT EXACTLY ONE tool call per response. NEVER concatenate tool "
-            "names — `ReadRead`, `ReadReadRead`, `ActivateSkillRead`, `EditEdit` "
-            "are NOT real tools and will ALWAYS be rejected.\n"
-            "- To do N actions, send N separate responses (ONE tool call each), "
-            "waiting for each result before the next. Reading 3 files = 3 "
-            "separate responses with ONE `Read` each, NEVER one response with "
-            "`ReadReadRead`."
+            "## Tool Call Parallelism\n"
+            "- This model does not support parallel tool calls. "
+            "Emit one tool call per response; for N actions, send N responses."
         )
     if flag is True:
         return (
-            "## Parallel Tool Calls Allowed\n"
-            "- ✅ **You SHOULD call independent tools in parallel.** When you "
-            "have multiple no-dependency actions, batch them: emit multiple "
-            "tool calls in one response. Always sequence dependent calls."
+            "## Tool Call Parallelism\n"
+            "- For independent reads/searches with no inter-dependency, "
+            "batch into one response with multiple tool calls. "
+            "Sequence dependent writes."
         )
     return ""

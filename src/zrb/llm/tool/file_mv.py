@@ -5,6 +5,9 @@ import shutil
 def move_file(src: str, dst: str) -> str:
     """
     Moves or renames a file or directory. Creates missing parent directories at the destination.
+
+    Overwrites the destination if it already exists. Before calling on a rename,
+    confirm the destination is free (e.g., with LS) unless overwrite is intended.
     """
     abs_src = os.path.abspath(os.path.expanduser(src))
     abs_dst = os.path.abspath(os.path.expanduser(dst))
