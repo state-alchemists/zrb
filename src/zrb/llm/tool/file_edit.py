@@ -1,7 +1,9 @@
 import os
 
+from zrb.llm.tool.post_write_check import format_post_write_diagnostics
 
-def replace_in_file(
+
+async def replace_in_file(
     path: str,
     old_text: str,
     new_text: str,
@@ -20,6 +22,11 @@ def replace_in_file(
     imports, references, syntax, and structure all coherent. If the change
     would leave it malformed (broken indent, missing import, dangling brace),
     widen `old_text` or use Write to re-emit the whole file instead.
+
+    After a successful replacement, runs an LSP diagnostic on the file when a
+    language server is available. Any errors introduced by the edit are
+    appended to the return value as a `[LSP DIAGNOSTIC]` section — investigate
+    and fix before continuing.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
@@ -80,7 +87,11 @@ def replace_in_file(
         return f"Error: Cannot write file {path}: {e}"
 
     replacements = match_count if count == -1 else min(match_count, count)
-    return f"Successfully updated {path} ({replacements} replacement(s)){fuzzy_note}"
+    diag_suffix = await format_post_write_diagnostics(abs_path)
+    return (
+        f"Successfully updated {path} ({replacements} replacement(s)){fuzzy_note}"
+        f"{diag_suffix}"
+    )
 
 
 def _match_line_trimmed(content: str, old_text: str) -> str | None:
