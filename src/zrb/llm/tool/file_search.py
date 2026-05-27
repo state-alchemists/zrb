@@ -138,8 +138,8 @@ def _build_search_output(
             f" (searched {searched_file_count} files)" if searched_file_count else ""
         )
         summary = (
-            f"No matches found for pattern '{regex}' in path '{path}'{searched}. "
-            f"[SYSTEM SUGGESTION]: Try broadening your regex pattern, removing the "
+            f"No matches found for regex '{regex}' in path '{path}'{searched}. "
+            f"[SYSTEM SUGGESTION]: Try broadening your regex, removing the "
             f"file_pattern filter, or checking if you're searching in the correct directory."
         )
     else:
