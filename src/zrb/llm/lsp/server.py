@@ -53,6 +53,14 @@ class LSPServer:
         self.initialized = False
         self._read_task: asyncio.Task | None = None
         self._message_buffer = ""
+        # Push-diagnostics state: most servers don't implement pull-diagnostics,
+        # so we receive textDocument/publishDiagnostics notifications and cache
+        # them per URI. _open_files tracks which files we've sent didOpen for,
+        # so subsequent edits go through didChange. Versions are incremented
+        # on every didChange as required by the LSP spec.
+        self._diagnostics: dict[str, list[dict]] = {}
+        self._open_files: set[str] = set()
+        self._versions: dict[str, int] = {}
 
     @property
     def is_alive(self) -> bool:
@@ -280,11 +288,17 @@ class LSPServer:
                     elif "result" in msg:
                         future.set_result(msg["result"])
 
-            # Handle notifications (e.g., window/logMessage)
+            # Handle server-originated notifications.
             elif "method" in msg:
-                # Could log server messages here
+                method = msg["method"]
                 params = msg.get("params", {})
-                if msg["method"] == "window/logMessage" and params.get("message"):
+                if method == "textDocument/publishDiagnostics":
+                    uri = params.get("uri")
+                    if uri:
+                        # Overwrite with the latest set — pylsp/pyright/etc.
+                        # always publish the complete set per analysis pass.
+                        self._diagnostics[uri] = params.get("diagnostics") or []
+                elif method == "window/logMessage" and params.get("message"):
                     # Don't spam, but could log at debug level
                     pass
 
@@ -346,28 +360,123 @@ class LSPServer:
         result = await self._send_request_raw(request)
         return result if isinstance(result, list) else None
 
-    async def get_diagnostics(self, file_path: str) -> list[dict] | None:
-        """Get diagnostics for a file."""
+    async def did_open_text_document(self, file_path: str) -> None:
+        """Send ``textDocument/didOpen`` so the server analyzes this file.
+
+        Idempotent — a no-op if the file is already open in this session.
+        Reads the current on-disk contents and sends them along with the
+        language id from the server config (falling back to extension-based
+        detection). LSP servers won't analyze files they haven't been told
+        about, so this is the prerequisite for receiving push diagnostics.
+        """
+        if not self.initialized:
+            return
+        uri = self._path_to_uri(file_path)
+        if uri in self._open_files:
+            return
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                text = f.read()
+        except Exception:
+            return
+        language_id = (
+            (self.config.language_ids[0] if self.config.language_ids else None)
+            or detect_language_from_file(file_path)
+            or "plaintext"
+        )
+        self._versions[uri] = 1
+        notif = JSONRPCMessage.create_notification(
+            "textDocument/didOpen",
+            {
+                "textDocument": {
+                    "uri": uri,
+                    "languageId": language_id,
+                    "version": self._versions[uri],
+                    "text": text,
+                }
+            },
+        )
+        await self._send_notification_raw(notif)
+        self._open_files.add(uri)
+
+    async def did_change_text_document(self, file_path: str) -> None:
+        """Send ``textDocument/didChange`` with the current on-disk contents.
+
+        Uses a full-document replacement (``contentChanges = [{"text": ...}]``)
+        rather than incremental edits — simpler, universally supported, and
+        the canonical source is the file on disk anyway. If the document was
+        never opened, delegates to :meth:`did_open_text_document`.
+        """
+        if not self.initialized:
+            return
+        uri = self._path_to_uri(file_path)
+        if uri not in self._open_files:
+            await self.did_open_text_document(file_path)
+            return
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                text = f.read()
+        except Exception:
+            return
+        self._versions[uri] = self._versions.get(uri, 1) + 1
+        notif = JSONRPCMessage.create_notification(
+            "textDocument/didChange",
+            {
+                "textDocument": {"uri": uri, "version": self._versions[uri]},
+                "contentChanges": [{"text": text}],
+            },
+        )
+        await self._send_notification_raw(notif)
+
+    async def get_diagnostics(
+        self, file_path: str, *, wait_for_publish: float = 1.5
+    ) -> list[dict] | None:
+        """Get diagnostics for a file.
+
+        Synchronizes the file with the server (``didOpen`` on first contact,
+        ``didChange`` on subsequent calls) then waits up to ``wait_for_publish``
+        seconds for the resulting ``textDocument/publishDiagnostics`` push
+        notification. Falls back to LSP 3.17 pull-diagnostics if no push
+        arrived (servers that support pull are happy; the rest just return
+        whatever the cache has).
+        """
         if not self.initialized:
             return None
 
-        # Note: Diagnostics are typically pushed from server via notifications
-        # This requests them via pull-diagnostics if supported
+        uri = self._path_to_uri(file_path)
+        # Drop the cached entry so we can detect the fresh publish.
+        self._diagnostics.pop(uri, None)
+
+        if uri in self._open_files:
+            await self.did_change_text_document(file_path)
+        else:
+            await self.did_open_text_document(file_path)
+
+        # Wait for the server to publish diagnostics. Single-threaded asyncio
+        # means _handle_message can only run between our awaits, so poll on
+        # short sleeps. 50ms is fine: pylsp/pyright typically publish in
+        # 50–500ms after didChange.
+        deadline = asyncio.get_event_loop().time() + wait_for_publish
+        while uri not in self._diagnostics:
+            if asyncio.get_event_loop().time() >= deadline:
+                break
+            await asyncio.sleep(0.05)
+
+        if uri in self._diagnostics:
+            return self._diagnostics[uri]
+
+        # Push never arrived — try pull-diagnostics as a last resort.
         request = JSONRPCMessage.create_request(
             "textDocument/diagnostic",
-            {
-                "textDocument": {"uri": self._path_to_uri(file_path)},
-            },
+            {"textDocument": {"uri": uri}},
             self._next_id(),
         )
-
         try:
             result = await self._send_request_raw(request)
             if result and "items" in result:
                 return result["items"]
             return result if isinstance(result, list) else None
         except LSPServerError:
-            # Some servers don't support pull diagnostics
             return None
 
     async def document_symbols(self, file_path: str) -> list[dict] | None:
