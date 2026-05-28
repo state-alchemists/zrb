@@ -58,7 +58,13 @@ class LSPServer:
         # them per URI. _open_files tracks which files we've sent didOpen for,
         # so subsequent edits go through didChange. Versions are incremented
         # on every didChange as required by the LSP spec.
-        self._diagnostics: dict[str, list[dict]] = {}
+        #
+        # Cache entries are (version_or_None, diagnostics_list). The version
+        # lets get_diagnostics reject late publishes from a previous didChange:
+        # a server may publish for version N after we already sent didChange
+        # for N+1, and we'd otherwise return stale results. Servers that don't
+        # send a version (older/non-conforming) fall through as best-effort.
+        self._diagnostics: dict[str, tuple[int | None, list[dict]]] = {}
         self._open_files: set[str] = set()
         self._versions: dict[str, int] = {}
 
@@ -297,7 +303,13 @@ class LSPServer:
                     if uri:
                         # Overwrite with the latest set — pylsp/pyright/etc.
                         # always publish the complete set per analysis pass.
-                        self._diagnostics[uri] = params.get("diagnostics") or []
+                        # Capture the document version (optional per spec) so
+                        # get_diagnostics can reject stale publishes.
+                        version = params.get("version")
+                        self._diagnostics[uri] = (
+                            version,
+                            params.get("diagnostics") or [],
+                        )
                 elif method == "window/logMessage" and params.get("message"):
                     # Don't spam, but could log at debug level
                     pass
@@ -403,8 +415,11 @@ class LSPServer:
         """Send ``textDocument/didChange`` with the current on-disk contents.
 
         Uses a full-document replacement (``contentChanges = [{"text": ...}]``)
-        rather than incremental edits — simpler, universally supported, and
-        the canonical source is the file on disk anyway. If the document was
+        rather than incremental edits — simpler, and the canonical source is
+        the file on disk anyway. The LSP spec permits a single ``text``-only
+        change in both Full and Incremental sync modes, and pylsp / pyright /
+        gopls / rust-analyzer all accept it. Servers that declared
+        ``textDocumentSync: None`` are not supported here. If the document was
         never opened, delegates to :meth:`did_open_text_document`.
         """
         if not self.initialized:
@@ -452,18 +467,31 @@ class LSPServer:
         else:
             await self.did_open_text_document(file_path)
 
+        # Version to gate against: any cached entry from a publish for an
+        # older version is stale and should be ignored. Read after the
+        # didOpen/didChange call so we see the version we just sent.
+        expected_version = self._versions.get(uri)
+
         # Wait for the server to publish diagnostics. Single-threaded asyncio
         # means _handle_message can only run between our awaits, so poll on
         # short sleeps. 50ms is fine: pylsp/pyright typically publish in
         # 50–500ms after didChange.
         deadline = asyncio.get_event_loop().time() + wait_for_publish
-        while uri not in self._diagnostics:
+        while True:
+            entry = self._diagnostics.get(uri)
+            if entry is not None:
+                published_version, diagnostics = entry
+                # Accept when the server didn't report a version (best effort)
+                # or when the publish is for our version or newer.
+                if (
+                    published_version is None
+                    or expected_version is None
+                    or published_version >= expected_version
+                ):
+                    return diagnostics
             if asyncio.get_event_loop().time() >= deadline:
                 break
             await asyncio.sleep(0.05)
-
-        if uri in self._diagnostics:
-            return self._diagnostics[uri]
 
         # Push never arrived — try pull-diagnostics as a last resort.
         request = JSONRPCMessage.create_request(

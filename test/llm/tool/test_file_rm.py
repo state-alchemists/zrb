@@ -1,4 +1,5 @@
 import os
+from unittest.mock import patch
 
 import pytest
 
@@ -61,3 +62,27 @@ def test_remove_file_default_not_recursive(temp_dir):
     result = remove_file(path)
     assert "Removed" in result
     assert not os.path.exists(path)
+
+
+def test_remove_file_propagates_os_remove_error(temp_dir):
+    """os.remove raising returns a clear error string rather than crashing."""
+    path = os.path.join(temp_dir, "plain.txt")
+    open(path, "w").close()
+    with patch("zrb.llm.tool.file_rm.os.remove", side_effect=PermissionError("denied")):
+        result = remove_file(path)
+    assert "Error removing" in result
+    assert "denied" in result
+
+
+def test_remove_directory_recursive_propagates_rmtree_error(temp_dir):
+    """shutil.rmtree raising returns a clear error string rather than crashing."""
+    d = os.path.join(temp_dir, "boom")
+    os.mkdir(d)
+    open(os.path.join(d, "file.txt"), "w").close()
+    with patch(
+        "zrb.llm.tool.file_rm.shutil.rmtree",
+        side_effect=PermissionError("denied"),
+    ):
+        result = remove_file(d, recursive=True)
+    assert "Error removing directory" in result
+    assert "denied" in result

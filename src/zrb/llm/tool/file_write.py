@@ -10,10 +10,9 @@ async def write_file(path: str, content: str, mode: str = "w") -> str:
     `mode="w"` (default) overwrites; `mode="a"` appends. For large content, write in chunks:
     first chunk with mode="w", subsequent chunks with mode="a".
 
-    After a successful write, runs an LSP diagnostic on the file when a language
-    server is available. Any errors introduced by the write are appended to the
-    return value as a `[LSP DIAGNOSTIC]` section — investigate and fix before
-    continuing.
+    After a successful write, runs LSP and static checks on the file. Any
+    errors detected are appended to the return value as a `[DIAGNOSTIC]`
+    section — investigate and fix before continuing.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     try:

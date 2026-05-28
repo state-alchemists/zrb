@@ -119,8 +119,10 @@ install_lsps() {
     # LSP servers power richer post-write diagnostics during ``zrb chat``.
     # Python (pylsp) is installed unconditionally because zrb itself is Python.
     # Other-language servers are offered only when their toolchain is present.
+    # Use ``python -m pip`` so pylsp lands in the same interpreter that runs
+    # zrb — a bare ``pip`` may resolve via PATH to a different Python.
     log_info "Installing python-lsp-server (pylsp)"
-    pip install 'python-lsp-server[all]'
+    python -m pip install 'python-lsp-server[all]'
 
     if command_exists npm && confirm "Install typescript-language-server (for JS/TS)?"
     then

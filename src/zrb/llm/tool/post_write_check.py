@@ -5,16 +5,18 @@ errors the edit may have introduced (missing imports, undefined names, syntax
 errors). Stays silent when no checker is available for the file's language so
 non-code edits (``.md``, ``.txt``, etc.) don't get spurious diagnostics.
 
-Strategy is tiered:
+Two sources run, deduplicated by ``(line, message)``:
 
-1. **LSP** (preferred) — ask the running LSP server via
-   :func:`lsp_manager.get_diagnostics`. This currently returns nothing for
-   newly-written files because zrb's LSP layer doesn't ``didOpen`` files and
-   most servers don't support pull-diagnostics; the call is left in place so
-   the path lights up automatically when that plumbing is fixed.
-2. **Language-specific static check** (fallback) — for Python, parse with
-   :mod:`ast` (catches ``SyntaxError``) and run :mod:`pyflakes` (catches
-   ``UndefinedName`` etc.). Other languages currently fall through silently.
+1. **LSP** — :func:`lsp_manager.get_diagnostics` performs the didOpen/didChange
+   handshake and waits briefly for ``textDocument/publishDiagnostics``. Picks
+   up project-wide knowledge (type errors, unresolved imports, etc.) when an
+   LSP server is configured for the language.
+2. **Language-specific static check** — for Python, parse with :mod:`ast`
+   (catches ``SyntaxError``) and run :mod:`pyflakes` (catches ``UndefinedName``
+   etc.). Always runs for supported languages because LSP-error filtering is
+   not uniform across servers — pylsp may classify undefined names as
+   ``warning`` and we'd otherwise miss them. Other languages have no static
+   fallback.
 """
 
 from __future__ import annotations
@@ -38,9 +40,16 @@ async def format_post_write_diagnostics(abs_path: str) -> str:
     if not os.path.isfile(abs_path):
         return ""
 
-    errors = await _query_lsp_errors(abs_path)
-    if errors is None:
-        errors = _static_check_errors(abs_path)
+    lsp_errors = await _query_lsp_errors(abs_path)
+    static_errors = _static_check_errors(abs_path)
+    seen: set[tuple[int, str]] = set()
+    errors: list[tuple[int, str]] = []
+    for line, msg in (lsp_errors or []) + static_errors:
+        key = (line, msg.strip())
+        if key in seen:
+            continue
+        seen.add(key)
+        errors.append((line, msg))
     if not errors:
         return ""
 
@@ -59,22 +68,24 @@ async def format_post_write_diagnostics(abs_path: str) -> str:
     )
 
 
-async def _query_lsp_errors(abs_path: str) -> list[tuple[int, str]] | None:
-    """Return LSP-reported errors, or ``None`` when LSP didn't yield anything.
+async def _query_lsp_errors(abs_path: str) -> list[tuple[int, str]]:
+    """Return LSP-reported errors for the file, or ``[]`` when LSP has nothing.
 
-    ``None`` (not ``[]``) signals the caller to try the static-check fallback.
-    An empty list means LSP authoritatively reported a clean file.
+    Returns an empty list whenever LSP is unavailable, the manager raised, the
+    response shape was unexpected, or the server authoritatively reported a
+    clean file — the caller merges this with the static-check result rather
+    than treating either source as authoritative.
     """
     try:
         result = await lsp_manager.get_diagnostics(abs_path, severity="error")
     except Exception:
-        return None
-    if not result.get("found"):
-        return None
-    return [
-        (d.get("line", 1), d.get("message", ""))
-        for d in result.get("diagnostics") or []
-    ]
+        return []
+    if not isinstance(result, dict) or not result.get("found"):
+        return []
+    diagnostics = result.get("diagnostics") or []
+    if not isinstance(diagnostics, list):
+        return []
+    return [(d.get("line", 1), d.get("message", "")) for d in diagnostics]
 
 
 def _static_check_errors(abs_path: str) -> list[tuple[int, str]]:

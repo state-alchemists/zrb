@@ -23,10 +23,9 @@ async def replace_in_file(
     would leave it malformed (broken indent, missing import, dangling brace),
     widen `old_text` or use Write to re-emit the whole file instead.
 
-    After a successful replacement, runs an LSP diagnostic on the file when a
-    language server is available. Any errors introduced by the edit are
-    appended to the return value as a `[LSP DIAGNOSTIC]` section — investigate
-    and fix before continuing.
+    After a successful replacement, runs LSP and static checks on the file.
+    Any errors detected are appended to the return value as a `[DIAGNOSTIC]`
+    section — investigate and fix before continuing.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
