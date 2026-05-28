@@ -144,6 +144,15 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         when_to_use="Fetching a known URL",
         key_rule="When the URL is not known, SearchInternet first.",
     ),
+    # User Interaction
+    ToolGuidance(
+        group_name="User Interaction",
+        tool_name="AskUserQuestion",
+        when_to_use="The choice is non-obvious AND the wrong pick would waste significant work — "
+        "ambiguous library/strategy/file selection, or scope splits the user hasn't called.",
+        key_rule="Do not ask for permission to do obvious things. Skip in non-interactive mode "
+        "(System Context flags `Interactive: no`) — the tool short-circuits there anyway.",
+    ),
     # Planning
     ToolGuidance(
         group_name="Planning",
@@ -253,6 +262,7 @@ def apply_common_tools(host: CommonToolHost) -> None:
     # names (``analyze_file``, etc.) aren't yet bound on ``zrb.llm.tool``.
     # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.lsp.tools import create_lsp_tools
+    from zrb.llm.tool.ask import ask_user_question
     from zrb.llm.tool.bash import run_shell_command
     from zrb.llm.tool.code import analyze_code
     from zrb.llm.tool.file import (
@@ -291,6 +301,7 @@ def apply_common_tools(host: CommonToolHost) -> None:
         analyze_file,
         remove_file,
         move_file,
+        ask_user_question,
         search_journal,
         search_internet,
         open_web_page,

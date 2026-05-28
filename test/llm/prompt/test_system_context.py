@@ -228,3 +228,42 @@ class TestSystemContext:
             model=opaque_model,
         )
         assert "Model:" not in received[0]
+
+    def test_system_context_renders_interactive_yes_by_default(self):
+        """Without ctx.input.interactive set, default is interactive=True."""
+        ctx = MagicMock(spec=AnyContext)
+        received = []
+        system_context(ctx, "", lambda c, p: received.append(p) or "ok")
+        rendered = received[0]
+        assert "Interactive: yes" in rendered
+        # Negative guard rail must not appear in interactive mode
+        assert "do not call AskUserQuestion" not in rendered
+
+    def test_system_context_renders_interactive_no_when_input_false(self):
+        """ctx.input.interactive=False renders the non-interactive guard line."""
+        ctx = MagicMock()
+        ctx.input.session = "noninteractive-session"
+        ctx.input.interactive = False
+        received = []
+        system_context(ctx, "", lambda c, p: received.append(p) or "ok")
+        rendered = received[0]
+        assert "Interactive: no" in rendered
+        assert "do not call AskUserQuestion" in rendered
+
+    def test_system_context_sets_interactive_mode_contextvar(self):
+        """The ContextVar must be updated so the tool can read it later."""
+        from zrb.llm.tool.ambient_state import (
+            get_interactive_mode,
+            set_interactive_mode,
+        )
+
+        # Start from a known state different from the value we'll set
+        set_interactive_mode(True)
+        try:
+            ctx = MagicMock()
+            ctx.input.session = "ctxvar-session"
+            ctx.input.interactive = False
+            system_context(ctx, "", lambda c, p: "ok")
+            assert get_interactive_mode() is False
+        finally:
+            set_interactive_mode(True)

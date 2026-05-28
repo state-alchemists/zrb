@@ -9,8 +9,11 @@ from zrb.llm.tool.ambient_state import (
     active_worktree,
     get_active_worktree,
     get_current_tool_session,
+    get_interactive_mode,
+    interactive_mode,
     set_active_worktree,
     set_current_tool_session,
+    set_interactive_mode,
 )
 
 
@@ -60,3 +63,24 @@ def test_setting_empty_session_is_a_no_op():
         assert get_current_tool_session() == "preserved"
     finally:
         set_current_tool_session("default")
+
+
+def test_interactive_mode_default_is_true():
+    # New ContextVar must default to True so unconfigured hosts behave like
+    # interactive chat (the historical assumption before this flag existed).
+    set_interactive_mode(True)
+    try:
+        assert get_interactive_mode() is True
+        assert interactive_mode.get() is True
+    finally:
+        set_interactive_mode(True)
+
+
+def test_interactive_mode_round_trip():
+    set_interactive_mode(False)
+    try:
+        assert get_interactive_mode() is False
+        assert interactive_mode.get() is False
+    finally:
+        set_interactive_mode(True)
+    assert get_interactive_mode() is True

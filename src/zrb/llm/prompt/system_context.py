@@ -22,6 +22,11 @@ assembly to ambient runtime state:
    are rendered into the system context so the LLM sees them at the start of
    every turn without needing to call ``GetTodos`` first. Completed and
    cancelled items are omitted.
+
+4. **Interactive mode** — reads ``ctx.input.interactive`` and calls
+   ``set_interactive_mode()``. The resulting ``ContextVar`` is what
+   ``ask_user_question`` consults before blocking on stdin; in non-interactive
+   runs the tool short-circuits with a ``[SYSTEM SUGGESTION]`` instead.
 """
 
 import glob
@@ -182,6 +187,7 @@ def system_context(
         get_active_worktree,
         set_active_worktree,
         set_current_tool_session,
+        set_interactive_mode,
     )
     from zrb.llm.tool.plan import todo_manager
 
@@ -191,6 +197,12 @@ def system_context(
         session_name = ""
     session_name = session_name.strip() or "default"
     set_current_tool_session(session_name)
+
+    try:
+        interactive_bool = bool(getattr(ctx.input, "interactive", True))
+    except Exception:
+        interactive_bool = True
+    set_interactive_mode(interactive_bool)
 
     cwd = os.getcwd()
     home = os.path.expanduser("~")
@@ -227,6 +239,13 @@ def system_context(
     if active_wt:
         parts.append(
             f"- Active worktree: {active_wt} (pass as cwd to Bash; use absolute paths for Read/Write/Edit/Grep)"
+        )
+    if interactive_bool:
+        parts.append("- Interactive: yes (AskUserQuestion is available)")
+    else:
+        parts.append(
+            "- Interactive: no — do not call AskUserQuestion or wait on user "
+            "input mid-turn; decide based on the conversation and continue."
         )
     if todos_data:
         try:
