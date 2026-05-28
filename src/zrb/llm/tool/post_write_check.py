@@ -72,7 +72,8 @@ async def _query_lsp_errors(abs_path: str) -> list[tuple[int, str]] | None:
     if not result.get("found"):
         return None
     return [
-        (d.get("line", 1), d.get("message", "")) for d in result.get("diagnostics") or []
+        (d.get("line", 1), d.get("message", ""))
+        for d in result.get("diagnostics") or []
     ]
 
 

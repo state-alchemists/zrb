@@ -313,9 +313,7 @@ def test_replace_in_file_fuzzy_indentation_flexible(tmp_path):
     file_path.write_text("    def foo():\n        pass\n")
 
     # old_text uses a different but consistent indentation level
-    result = _r(
-        str(file_path), "def foo():\n    pass", "def bar():\n    return 1"
-    )
+    result = _r(str(file_path), "def foo():\n    pass", "def bar():\n    return 1")
     assert "Successfully updated" in result
     assert "fuzzy match" in result.lower()
     content = file_path.read_text()
