@@ -105,6 +105,31 @@ function Install-Zrb {
     Log-Info "Zrb installed"
 }
 
+function Install-Lsps {
+    # LSP servers power richer post-write diagnostics during ``zrb chat``.
+    # Python (pylsp) is installed unconditionally because zrb itself is Python.
+    # Other-language servers are offered only when their toolchain is present.
+    Log-Info "Installing python-lsp-server (pylsp)"
+    python -m pip install 'python-lsp-server[all]' --quiet
+
+    if ((Command-Exists "npm") -and (Confirm "Install typescript-language-server (for JS/TS)?")) {
+        Log-Info "Installing typescript-language-server"
+        npm install -g typescript-language-server typescript
+    }
+
+    if ((Command-Exists "go") -and (Confirm "Install gopls (for Go)?")) {
+        Log-Info "Installing gopls"
+        go install golang.org/x/tools/gopls@latest
+    }
+
+    if ((Command-Exists "rustup") -and (Confirm "Install rust-analyzer (for Rust)?")) {
+        Log-Info "Installing rust-analyzer"
+        rustup component add rust-analyzer
+    }
+
+    Log-Info "LSP servers installed. zrb auto-detects which ones are on PATH."
+}
+
 #########################################################################################
 # Main Script
 #########################################################################################
@@ -162,6 +187,11 @@ if (-not (Test-Path "$HOME\.local-venv") -and (Confirm "Do you want to create a 
 # Install Zrb
 if (-not (Command-Exists "zrb")) {
     Install-Zrb
+}
+
+# Offer LSP servers (powers richer diagnostics during `zrb chat`)
+if (Confirm "Do you want to install LSP language servers for richer code diagnostics?") {
+    Install-Lsps
 }
 
 # Final message

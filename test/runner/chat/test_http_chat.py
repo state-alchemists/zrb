@@ -227,3 +227,130 @@ class TestHTTPChatApprovalChannelMore:
         res = await task
         assert res.approved is True
         assert res.override_args == {"b": 2}
+
+    @pytest.mark.asyncio
+    async def test_handle_response_deny(self, channel):
+        """`n` triggers the deny branch and broadcasts a [DENIED] message."""
+        from zrb.llm.approval.approval_channel import ApprovalContext
+
+        ctx = ApprovalContext("tool", {}, "id1")
+        task = asyncio.create_task(channel.request_approval(ctx))
+        await asyncio.sleep(0.01)
+
+        channel.handle_response("n", "id1")
+        res = await task
+        assert res.approved is False
+        assert "denied" in (res.message or "").lower()
+
+    @pytest.mark.asyncio
+    async def test_handle_response_unknown_treated_as_deny(self, channel):
+        """Unknown responses are denied with the raw text included."""
+        from zrb.llm.approval.approval_channel import ApprovalContext
+
+        ctx = ApprovalContext("tool", {}, "id1")
+        task = asyncio.create_task(channel.request_approval(ctx))
+        await asyncio.sleep(0.01)
+
+        channel.handle_response("maybe", "id1")
+        res = await task
+        assert res.approved is False
+        assert "maybe" in (res.message or "")
+
+    @pytest.mark.asyncio
+    async def test_handle_response_non_string_type(self, channel):
+        """Non-string responses are rejected with an [ERROR] broadcast."""
+        from zrb.llm.approval.approval_channel import ApprovalContext
+
+        ctx = ApprovalContext("tool", {}, "id1")
+        task = asyncio.create_task(channel.request_approval(ctx))
+        await asyncio.sleep(0.01)
+
+        # bypass the public string-only contract to exercise the defensive branch
+        channel.handle_response(42, "id1")  # type: ignore[arg-type]
+        res = await task
+        assert res.approved is False
+        assert "Invalid response type" in (res.message or "")
+
+    @pytest.mark.asyncio
+    async def test_handle_response_fallback_when_one_pending(self, channel):
+        """When exactly one approval is pending, omitting tool_call_id still applies."""
+        from zrb.llm.approval.approval_channel import ApprovalContext
+
+        ctx = ApprovalContext("tool", {}, "id1")
+        task = asyncio.create_task(channel.request_approval(ctx))
+        await asyncio.sleep(0.01)
+
+        applied = channel.handle_response("y")
+        assert applied is True
+        res = await task
+        assert res.approved is True
+
+    @pytest.mark.asyncio
+    async def test_handle_edit_response_invalid_format(self, channel):
+        """Garbage edit content denies the call with an [Invalid format] message."""
+        from zrb.llm.approval.approval_channel import ApprovalContext
+
+        ctx = ApprovalContext("tool", {}, "id1")
+        task = asyncio.create_task(channel.request_approval(ctx))
+        await asyncio.sleep(0.01)
+        channel.handle_response("e", "id1")
+        channel.handle_edit_response("not json nor yaml-as-dict")
+        res = await task
+        assert res.approved is False
+        assert "Invalid" in (res.message or "")
+
+    @pytest.mark.asyncio
+    async def test_parse_edited_content_via_yaml(self, channel):
+        """Edit content that is valid YAML (but not JSON) parses through the yaml path."""
+        from zrb.llm.approval.approval_channel import ApprovalContext
+
+        ctx = ApprovalContext("tool", {}, "id1")
+        task = asyncio.create_task(channel.request_approval(ctx))
+        await asyncio.sleep(0.01)
+        channel.handle_response("e", "id1")
+        # YAML mapping, not valid JSON
+        channel.handle_edit_response("a: 1\nb: two\n")
+        res = await task
+        assert res.approved is True
+        assert res.override_args == {"a": 1, "b": "two"}
+
+    @pytest.mark.asyncio
+    async def test_parse_edited_content_strips_code_fence(self, channel):
+        """Edit content wrapped in ``` fences still parses."""
+        from zrb.llm.approval.approval_channel import ApprovalContext
+
+        ctx = ApprovalContext("tool", {}, "id1")
+        task = asyncio.create_task(channel.request_approval(ctx))
+        await asyncio.sleep(0.01)
+        channel.handle_response("e", "id1")
+        channel.handle_edit_response('```\n{"x": 1}\n```')
+        res = await task
+        assert res.approved is True
+        assert res.override_args == {"x": 1}
+
+    def test_get_editing_args_returns_args_when_waiting(self, mock_session_manager):
+        """get_editing_args surfaces the pending args once edit mode is active."""
+        from zrb.llm.approval.approval_channel import ApprovalContext
+        from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
+
+        ch = HTTPChatApprovalChannel(mock_session_manager, "s")
+        loop = asyncio.new_event_loop()
+        try:
+            asyncio.set_event_loop(loop)
+
+            async def _drive():
+                ctx = ApprovalContext("tool", {"k": "v"}, "id1")
+                task = asyncio.create_task(ch.request_approval(ctx))
+                await asyncio.sleep(0.01)
+                ch.handle_response("e", "id1")
+                assert ch.get_editing_args() == {"k": "v"}
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
+            loop.run_until_complete(_drive())
+        finally:
+            loop.close()
+            asyncio.set_event_loop(None)

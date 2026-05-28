@@ -9,6 +9,7 @@ from zrb.builtin.llm.chat_tool_policy import (
     _approve_if_path_inside_parent,
     _path_inside_any_parent,
     _path_inside_parent,
+    approve_if_mv_inside_journal_dir,
     approve_if_path_inside_cwd,
     approve_if_path_inside_journal_dir,
     approve_if_path_inside_skill_or_plugin_dir,
@@ -91,6 +92,47 @@ class TestApproveIfPathInsideJournalDir:
         child = str(tmp_path / "entry.md")
         result = approve_if_path_inside_journal_dir({"path": child})
         assert result is True
+
+
+class TestApproveIfMvInsideJournalDir:
+    """Test approve_if_mv_inside_journal_dir — both src and dst must be inside."""
+
+    def _patch_cfg(self, monkeypatch, journal_dir):
+        monkeypatch.setattr(
+            "zrb.builtin.llm.chat_tool_policy.CFG",
+            type("CFG", (), {"LLM_JOURNAL_DIR": str(journal_dir)})(),
+        )
+
+    def test_both_paths_inside_journal_dir(self, tmp_path, monkeypatch):
+        self._patch_cfg(monkeypatch, tmp_path)
+        result = approve_if_mv_inside_journal_dir(
+            {"src": str(tmp_path / "a.md"), "dst": str(tmp_path / "b.md")}
+        )
+        assert result is True
+
+    def test_src_outside_returns_false(self, tmp_path, monkeypatch):
+        self._patch_cfg(monkeypatch, tmp_path)
+        result = approve_if_mv_inside_journal_dir(
+            {"src": "/etc/passwd", "dst": str(tmp_path / "b.md")}
+        )
+        assert result is False
+
+    def test_dst_outside_returns_false(self, tmp_path, monkeypatch):
+        self._patch_cfg(monkeypatch, tmp_path)
+        result = approve_if_mv_inside_journal_dir(
+            {"src": str(tmp_path / "a.md"), "dst": "/etc/passwd"}
+        )
+        assert result is False
+
+    def test_missing_src_returns_false(self, tmp_path, monkeypatch):
+        self._patch_cfg(monkeypatch, tmp_path)
+        result = approve_if_mv_inside_journal_dir({"dst": str(tmp_path / "b.md")})
+        assert result is False
+
+    def test_missing_dst_returns_false(self, tmp_path, monkeypatch):
+        self._patch_cfg(monkeypatch, tmp_path)
+        result = approve_if_mv_inside_journal_dir({"src": str(tmp_path / "a.md")})
+        assert result is False
 
 
 class TestPathInsideAnyParent:

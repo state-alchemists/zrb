@@ -39,7 +39,7 @@ class TestRAGFactory:
         assert inspect.iscoroutinefunction(retrieve)
         assert retrieve.__name__ == "test_tool"
         assert "test description" in retrieve.__doc__
-        assert "MANDATES" in retrieve.__doc__
+        assert "natural-language query" in retrieve.__doc__
 
     @pytest.mark.asyncio
     async def test_retrieve_logic(self, tmp_path):

@@ -106,11 +106,19 @@ async def test_lsp_server_queries(lsp_server):
             res = await lsp_server.document_symbols("/test/file.py")
             assert res == [{"name": "test"}]
 
-        # 2. Test get_diagnostics (via pull diagnostics if supported)
-        diag_res = json.dumps(
-            {"jsonrpc": "2.0", "id": 3, "result": {"items": [{"msg": "err"}]}}
+        # 2. Test get_diagnostics — primary path is the push notification
+        # textDocument/publishDiagnostics. The server cache reads from there;
+        # the pull-diagnostics request is now only a fallback when no push
+        # arrived within wait_for_publish.
+        diag_uri = lsp_server._path_to_uri("/test/file.py")
+        diag_notif = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "method": "textDocument/publishDiagnostics",
+                "params": {"uri": diag_uri, "diagnostics": [{"msg": "err"}]},
+            }
         )
-        diag_payload = f"Content-Length: {len(diag_res)}\r\n\r\n{diag_res}".encode()
+        diag_payload = f"Content-Length: {len(diag_notif)}\r\n\r\n{diag_notif}".encode()
         response_queue.put_nowait(diag_payload)
 
         res = await lsp_server.get_diagnostics("/test/file.py")

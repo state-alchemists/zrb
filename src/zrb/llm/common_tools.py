@@ -84,26 +84,22 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
     ToolGuidance(
         group_name="File Operations",
         tool_name="Read",
-        key_rule="Grep to locate the relevant section first; then Read to load it. "
-        "When copying text for Edit's old_text, take it from below the ---CONTENT--- marker.",
+        key_rule="Grep to locate the relevant section first; then Read to load it.",
     ),
     ToolGuidance(
         group_name="File Operations",
         tool_name="Write",
-        key_rule="For surgical changes to an existing file, use Edit. "
-        "Before overwriting an existing file, Read it first to confirm the contents you are about to replace.",
+        key_rule="For surgical changes to an existing file, use Edit.",
     ),
     ToolGuidance(
         group_name="File Operations",
         tool_name="Edit",
-        key_rule="Read the file first — even if the user pasted the content into chat, the live file may diverge. "
-        "Take old_text from below Read's ---CONTENT--- marker. "
-        "Before editing a public symbol, Grep or LspFindReferences for call sites and update them in the same turn.",
+        key_rule="Before editing a public symbol, Grep or LspFindReferences for call sites and update them in the same turn.",
     ),
     ToolGuidance(
         group_name="File Operations",
         tool_name="Grep",
-        key_rule="Grep results are truncated to 1000 chars per line — for Edit's old_text, Read the file first to get exact content.",
+        key_rule="For content search across files; to load a specific section, use Read.",
     ),
     ToolGuidance(
         group_name="File Operations",

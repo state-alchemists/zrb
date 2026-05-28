@@ -4,10 +4,12 @@ import shutil
 
 def remove_file(path: str, recursive: bool = False) -> str:
     """
-    Removes a file or directory.
+    Removes a file or directory. Irreversible — there is no trash; the bytes are gone.
 
     `recursive=False` (default): removes a file or an empty directory only.
-    `recursive=True`: removes a directory and all its contents (irreversible).
+    `recursive=True`: removes a directory and all its contents.
+
+    Before calling, confirm the path is the one the user intended (typo-check, absolute path).
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):

@@ -1,3 +1,4 @@
+import asyncio
 import os
 import shutil
 
@@ -13,6 +14,14 @@ from zrb.llm.tool.file import (
 )
 
 
+def _w(*a, **kw):
+    return asyncio.run(write_file(*a, **kw))
+
+
+def _r(*a, **kw):
+    return asyncio.run(replace_in_file(*a, **kw))
+
+
 @pytest.fixture
 def temp_dir(tmp_path):
     d = tmp_path / "test_file_tool"
@@ -25,7 +34,7 @@ def test_write_and_read_file(temp_dir):
     content = "hello world"
 
     # Test write_file
-    res = write_file(file_path, content)
+    res = _w(file_path, content)
     assert "Successfully wrote to" in res
     assert os.path.exists(file_path)
 
@@ -65,7 +74,7 @@ def test_replace_in_file(temp_dir):
     with open(file_path, "w") as f:
         f.write("hello world")
 
-    res = replace_in_file(file_path, "world", "zrb")
+    res = _r(file_path, "world", "zrb")
     assert "Successfully updated" in res
     with open(file_path, "r") as f:
         assert f.read() == "hello zrb"
@@ -246,7 +255,7 @@ def test_write_file_invalid_path(tmp_path):
     existing_file.write_text("exists")
     invalid_path = str(existing_file) + "/subfile.txt"
 
-    result = write_file(invalid_path, "content")
+    result = _w(invalid_path, "content")
     assert "Error" in result
 
 
@@ -254,7 +263,7 @@ def test_write_file_invalid_path(tmp_path):
 
 
 def test_replace_in_file_nonexistent_file(tmp_path):
-    result = replace_in_file(str(tmp_path / "ghost.txt"), "old", "new")
+    result = _r(str(tmp_path / "ghost.txt"), "old", "new")
     assert "Error" in result
     assert "not found" in result.lower()
 
@@ -263,7 +272,7 @@ def test_replace_in_file_text_not_found(tmp_path):
     file_path = tmp_path / "test.txt"
     file_path.write_text("hello world")
 
-    result = replace_in_file(str(file_path), "nonexistent text", "replacement")
+    result = _r(str(file_path), "nonexistent text", "replacement")
     assert "Error" in result
     assert "not found" in result.lower()
 
@@ -272,7 +281,7 @@ def test_replace_in_file_no_changes(tmp_path):
     file_path = tmp_path / "test.txt"
     file_path.write_text("hello world")
 
-    result = replace_in_file(str(file_path), "hello", "hello")
+    result = _r(str(file_path), "hello", "hello")
     assert "No changes made" in result
 
 
@@ -281,7 +290,7 @@ def test_replace_in_file_near_match(tmp_path):
     file_path.write_text("hello world\ngoodbye world\n")
 
     # old_text first line ("hello worl") is a substring of file line but full old_text doesn't match
-    result = replace_in_file(str(file_path), "hello worl\ngoodbye", "hello zrb")
+    result = _r(str(file_path), "hello worl\ngoodbye", "hello zrb")
     assert "not found" in result.lower()
     assert "Similar lines found" in result
 
@@ -292,7 +301,7 @@ def test_replace_in_file_fuzzy_trailing_whitespace(tmp_path):
     file_path.write_text("hello world   \ngoodbye world   \n")
 
     # old_text has no trailing whitespace, file has trailing spaces
-    result = replace_in_file(str(file_path), "hello world\ngoodbye world", "hi there")
+    result = _r(str(file_path), "hello world\ngoodbye world", "hi there")
     assert "Successfully updated" in result
     assert "fuzzy match" in result.lower()
     assert "hi there" in file_path.read_text()
@@ -304,9 +313,7 @@ def test_replace_in_file_fuzzy_indentation_flexible(tmp_path):
     file_path.write_text("    def foo():\n        pass\n")
 
     # old_text uses a different but consistent indentation level
-    result = replace_in_file(
-        str(file_path), "def foo():\n    pass", "def bar():\n    return 1"
-    )
+    result = _r(str(file_path), "def foo():\n    pass", "def bar():\n    return 1")
     assert "Successfully updated" in result
     assert "fuzzy match" in result.lower()
     content = file_path.read_text()
@@ -318,14 +325,14 @@ def test_replace_in_file_multiple_matches(tmp_path):
     file_path.write_text("foo bar foo baz")
 
     # Without count, replaces all
-    result = replace_in_file(str(file_path), "foo", "FOO")
+    result = _r(str(file_path), "foo", "FOO")
     assert "Successfully updated" in result
     with open(file_path) as f:
         assert f.read() == "FOO bar FOO baz"
 
     # With count=1, replaces first only
     file_path.write_text("foo bar foo baz")
-    result = replace_in_file(str(file_path), "foo", "FOO", count=1)
+    result = _r(str(file_path), "foo", "FOO", count=1)
     assert "Successfully updated" in result
     with open(file_path) as f:
         assert f.read() == "FOO bar foo baz"

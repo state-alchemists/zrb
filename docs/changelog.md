@@ -1,6 +1,55 @@
 🔖 [Documentation Home](../README.md)
 
 
+## 2.30.2a1 (May 28, 2026)
+
+- **Feature: Post-write/post-edit diagnostics**:
+  - New `src/zrb/llm/tool/post_write_check.py`: `format_post_write_diagnostics()` runs `ast.parse` + `pyflakes` on Python files after Write/Edit tool calls, surfacing syntax errors and undefined names inline in the tool result. Non-Python files and error-free files produce no output.
+  - `write_file()` (`file_write.py`) and `replace_in_file()` (`file_edit.py`) are now `async` and append a `[DIAGNOSTIC]` section to their return value when errors are detected — the model sees errors immediately and can fix them in the same turn.
+
+- **Feature: LSP push-diagnostics plumbing**:
+  - `LSPServer` (`lsp/server.py`) gained `did_open_text_document()` and `did_change_text_document()` with full `didOpen`/`didChange` state tracking per URI. `get_diagnostics()` now synchronizes the file with the server via `didOpen`/`didChange`, then polls for `textDocument/publishDiagnostics` push notifications (50ms interval, 1.5s timeout), falling back to LSP 3.17 pull-diagnostics. Incoming `publishDiagnostics` notifications are cached in `self._diagnostics`.
+  - Test updated to assert against the push-notification path instead of the pull-diagnostics response.
+
+- **Feature: Installer LSP server setup**:
+  - `install.sh` and `install.ps1` both gained `install_lsps()`: installs `python-lsp-server[all]` unconditionally, then optionally installs `typescript-language-server` (JS/TS), `gopls` (Go), and `rust-analyzer` (Rust) when their toolchains are present. Users are prompted during installation.
+
+- **Improvement: Prompt and tool guidance deduplication**:
+  - `common_tools.py`: Redundant tool guidance entries removed — Read's `old_text` note, Write's overwrite warning, Edit's read-first rule, Grep's truncation note — these are already documented in the tool docstrings themselves.
+  - `lsp/tools.py`: MANDATES sections removed from all 8 LSP tool docstrings. The usage rules remain in `tool_guidance.py` (the single source of truth).
+  - `rag.py`: MANDATES removed from RAG tool docstring; replaced with a one-line usage instruction.
+  - `tool_guidance.py`: Parallel-tool-call sections rewritten in plain language — no emoji, no ALL-CAPS, no concatenated-tool-name examples. Heading normalized to `## Tool Call Parallelism` for both supported and unsupported models.
+
+- **Improvement: Mandate.md strengthened**:
+  - Destructive action rule expanded: `package downgrades`, `CI/CD changes`, `posts to Slack/email/PRs` added. New clause: investigate unfamiliar state (unexpected files, branches, stashes, lock files) before destroying — `--no-verify`, `rm -rf`, `git reset --hard` are not shortcuts.
+  - Scope rule promoted above Memory (priority 6 → 5). Added scope-scoping rules: approved edit to file X ≠ approval to refactor file Y; approval is one-shot per action.
+  - Understand step: hypothesis threshold softened from "3+ tool calls" to "two distinct hypotheses failed".
+  - Plan step: explicitly states it describes *what changes where*, not a preamble.
+  - Execute step: broken into sub-bullets; `DelegateToAgent` gate removed (moved to tool guidance).
+
+- **Improvement: Persona.md tightened**:
+  - Removed "Your context window is a budget" line (covered by mandate completeness rule).
+  - Source citation format expanded: `file:line-range` and `file:symbol` added alongside existing `file:line`.
+
+- **Improvement: Tool docstring refinements**:
+  - `file_rm.py`: Clarified irreversibility ("there is no trash; the bytes are gone").
+  - `file_mv.py`: Added overwrite warning and path-confirmation guidance.
+  - `file_search.py`: Uses "regex" instead of "pattern" in no-match message.
+  - `worktree.py`: Entry message simplifies to path + branch only; exit message clarifies `keep_branch=False` is irreversible.
+  - `delegate.py`: Worktree line in sub-agent envelope shortened.
+
+- **Improvement: System context token-limit line removed**:
+  - `system_context.py`: Token-limit-per-request line removed, dropping the `CFG` import. Token limits are model-specific; the model itself already knows its own context window.
+
+- **Chore: Version bumped to 2.30.2a1**:
+  - `pyproject.toml`: `2.30.1` → `2.30.2a1`.
+
+- **Tests**:
+  - `test/llm/lsp/test_server.py`: `get_diagnostics` test rewritten to assert against `textDocument/publishDiagnostics` push notification instead of pull-diagnostics response.
+  - `test/llm/prompt/test_tool_guidance.py`: Assertions updated for plain-language section headings and no-emoji output.
+  - `test/llm/tool/test_file.py`: All `write_file`/`replace_in_file` calls wrapped in `asyncio.run()` via `_w`/`_r` helpers.
+  - `test/llm/tool/test_rag.py`: Assertion updated for new docstring format.
+
 ## 2.30.1 (May 25, 2026)
 
 - **Chore: LLM challenges extracted to separate repo**:

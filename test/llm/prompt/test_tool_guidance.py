@@ -133,11 +133,9 @@ def test_parallel_tool_call_section_silent_for_unknown_model():
 
 def test_parallel_tool_call_section_warns_for_known_unsupported():
     section = get_parallel_tool_call_section("ollama:minimax-m2.7:cloud")
-    assert section.startswith("## No Tool Call Parallelism")
-    assert "⛔" in section
-    assert "CRITICAL" in section
-    assert "You SHOULD ALWAYS call tools sequentially" in section
-    assert "`ReadReadRead`" in section
+    assert section.startswith("## Tool Call Parallelism")
+    assert "does not support parallel tool calls" in section
+    assert "one tool call per response" in section
 
 
 def test_parallel_tool_call_section_encourages_for_explicit_true():
@@ -146,9 +144,8 @@ def test_parallel_tool_call_section_encourages_for_explicit_true():
     )
     try:
         section = get_parallel_tool_call_section("custom:private-capable-model")
-        assert section.startswith("## Parallel Tool Calls Allowed")
-        assert "✅" in section
-        assert "You SHOULD call independent tools in parallel" in section
-        assert "CRITICAL" not in section
+        assert section.startswith("## Tool Call Parallelism")
+        assert "batch into one response" in section
+        assert "Sequence dependent writes" in section
     finally:
         model_capabilities.clear()

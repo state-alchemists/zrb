@@ -1,5 +1,6 @@
 import os
-from unittest.mock import patch
+import subprocess
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -103,3 +104,71 @@ def test_find_matches_with_ripgrep(journal_with_entries):
     assert "results" in result
     # rg path returns something (may return no matches if rg not installed, just no error)
     assert "error" not in result
+
+
+def test_rg_subprocess_timeout_returns_error(journal_with_entries):
+    """If rg times out, the helper surfaces an error instead of crashing."""
+    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
+        mock_cfg.LLM_JOURNAL_DIR = journal_with_entries
+        with patch(
+            "zrb.llm.tool.journal.shutil.which", return_value="/usr/bin/rg"
+        ), patch(
+            "zrb.llm.tool.journal.subprocess.run",
+            side_effect=subprocess.TimeoutExpired(cmd="rg", timeout=30),
+        ):
+            result = search_journal("database")
+    assert "error" in result
+    assert "rg failed" in result["error"]
+
+
+def test_rg_returncode_2_surfaces_stderr(journal_with_entries):
+    """rg's exit code 2 signals an internal error; stderr should be passed through."""
+    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
+        mock_cfg.LLM_JOURNAL_DIR = journal_with_entries
+        completed = MagicMock()
+        completed.returncode = 2
+        completed.stderr = "regex parse failure"
+        completed.stdout = ""
+        with patch(
+            "zrb.llm.tool.journal.shutil.which", return_value="/usr/bin/rg"
+        ), patch("zrb.llm.tool.journal.subprocess.run", return_value=completed):
+            result = search_journal("database")
+    assert "error" in result
+    assert "regex parse failure" in result["error"]
+
+
+def test_python_search_skips_hidden_files(journal_dir):
+    """Files prefixed with `.` are excluded from the python fallback walk."""
+    with open(os.path.join(journal_dir, "visible.md"), "w") as f:
+        f.write("findme here\n")
+    with open(os.path.join(journal_dir, ".hidden.md"), "w") as f:
+        f.write("findme also\n")
+    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
+        mock_cfg.LLM_JOURNAL_DIR = journal_dir
+        with patch("zrb.llm.tool.journal.shutil.which", return_value=None):
+            result = search_journal("findme")
+    files = {r["file"] for r in result["results"]}
+    assert "visible.md" in files
+    assert ".hidden.md" not in files
+
+
+def test_python_search_swallows_file_open_errors(journal_dir):
+    """A file that fails to open is skipped silently — search continues."""
+    with open(os.path.join(journal_dir, "good.md"), "w") as f:
+        f.write("findme here\n")
+
+    real_open = open
+
+    def fake_open(path, *args, **kwargs):
+        if "good.md" in str(path):
+            raise PermissionError("denied")
+        return real_open(path, *args, **kwargs)
+
+    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
+        mock_cfg.LLM_JOURNAL_DIR = journal_dir
+        with patch("zrb.llm.tool.journal.shutil.which", return_value=None), patch(
+            "builtins.open", side_effect=fake_open
+        ):
+            result = search_journal("findme")
+    # No crash; just no matches
+    assert result.get("results") == []
