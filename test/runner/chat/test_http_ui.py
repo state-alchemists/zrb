@@ -108,3 +108,66 @@ def test_create_http_ui_factory_with_commands():
     # Check public yolo and commands indirectly if possible,
     # but at least check that the factory returned a UI
     assert ui is not None
+
+
+@pytest.mark.asyncio
+async def test_print_streaming_sets_flag_then_text_skip(mock_deps):
+    """A `text` print right after a `streaming` print is silently dropped to
+    avoid the final markdown-render duplicating already-streamed content."""
+    ui, session_manager, _ = mock_deps
+    session_manager.broadcast.reset_mock()
+    await ui.print("partial chunk", kind="streaming")
+    await ui.print("partial chunk", kind="text")
+    # Only the streaming call broadcasts.
+    kinds = [c.kwargs.get("kind") for c in session_manager.broadcast.call_args_list]
+    assert "streaming" in kinds
+    assert kinds.count("text") == 0
+
+
+@pytest.mark.asyncio
+async def test_run_async_propagates_cancellation():
+    """If `_run_loop` is cancelled, `run_async` re-raises CancelledError."""
+    session_manager = MagicMock()
+    session_manager.broadcast = AsyncMock()
+    approval_channel = MagicMock()
+    factory = create_http_ui_factory(
+        session_manager, "test-id", "test-session", approval_channel
+    )
+    ui = factory(
+        ctx=MagicMock(),
+        llm_task=MagicMock(),
+        history_manager=MagicMock(),
+        ui_commands=None,
+        initial_message=None,
+        initial_conversation_name=None,
+        initial_yolo=False,
+        initial_attachments=None,
+    )
+
+    with patch.object(
+        ui, "_run_loop", new=AsyncMock(side_effect=asyncio.CancelledError())
+    ):
+        with pytest.raises(asyncio.CancelledError):
+            await ui.run_async()
+
+
+@pytest.mark.asyncio
+async def test_start_event_loop_is_noop():
+    """start_event_loop is intentionally a no-op for HTTPUI."""
+    session_manager = MagicMock()
+    approval_channel = MagicMock()
+    factory = create_http_ui_factory(
+        session_manager, "test-id", "test-session", approval_channel
+    )
+    ui = factory(
+        ctx=MagicMock(),
+        llm_task=MagicMock(),
+        history_manager=MagicMock(),
+        ui_commands=None,
+        initial_message=None,
+        initial_conversation_name=None,
+        initial_yolo=False,
+        initial_attachments=None,
+    )
+    # Should return immediately, no exception
+    await ui.start_event_loop()

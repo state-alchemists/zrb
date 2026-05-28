@@ -176,3 +176,52 @@ async def test_approval_endpoint_returns_editing_args(client: AsyncClient):
 
     assert response.status_code == 200
     assert response.json()["editing_args"] == {"k": "v"}
+
+
+@pytest.mark.asyncio
+async def test_delete_missing_session_returns_404(client: AsyncClient):
+    _mock_sm.remove_session = AsyncMock(return_value=False)
+    response = await client.delete("/api/v1/chat/sessions/ghost")
+    assert response.status_code == 404
+    assert "not found" in response.json()["error"].lower()
+
+
+@pytest.mark.asyncio
+async def test_get_messages_serializes_timestamp(client: AsyncClient):
+    """Messages with a timestamp get string-converted in the response."""
+    _mock_sm.get_messages.return_value = [
+        {"role": "user", "content": "hi", "timestamp": "2026-01-01T00:00:00"}
+    ]
+    response = await client.get("/api/v1/chat/sessions/test/messages")
+    assert response.status_code == 200
+    msg = response.json()["messages"][0]
+    assert msg["timestamp"] == "2026-01-01T00:00:00"
+
+
+@pytest.mark.asyncio
+async def test_post_message_dict_is_json_serialized(client: AsyncClient):
+    """A non-approval dict message gets json.dumps'd before send_input."""
+    _mock_sm.get_session.return_value = MagicMock()
+    _mock_sm.send_input = AsyncMock()
+    response = await client.post(
+        "/api/v1/chat/sessions/test/messages",
+        json={"message": {"hello": "world"}, "isApprovalAction": False},
+    )
+    assert response.status_code == 200
+    sent_msg = _mock_sm.send_input.call_args[0][1]
+    assert json.loads(sent_msg) == {"hello": "world"}
+
+
+@pytest.mark.asyncio
+async def test_get_llm_chat_task_returns_none_when_missing():
+    """Internal helper returns None when the chat node isn't registered."""
+    from zrb.runner.chat.chat_api_route import _get_llm_chat_task
+    from zrb.util.group import NodeNotFoundError
+
+    mock_root = MagicMock()
+    with patch(
+        "zrb.runner.chat.chat_api_route.extract_node_from_args",
+        side_effect=NodeNotFoundError("nope"),
+    ):
+        result = await _get_llm_chat_task(mock_root)
+    assert result is None

@@ -465,3 +465,140 @@ class TestChatSessionManager:
         )
         assert result["handled"] is True
         assert result["type"] == "edit"
+
+    @pytest.mark.asyncio
+    async def test_handle_approval_response_no_pending_approvals(self):
+        """When the channel has no pending approvals, handle returns the error fallback."""
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        mock_channel = MagicMock()
+        mock_channel.is_waiting_for_edit.return_value = False
+        mock_channel.has_pending_approvals.return_value = False
+
+        await manager.create_session(
+            session_id="no-pending", approval_channel=mock_channel
+        )
+        result = manager.handle_approval_response("no-pending", "y")
+        assert result["handled"] is False
+        assert "No pending approvals" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_has_session_true_and_false(self):
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        await manager.create_session(session_id="exists")
+        assert manager.has_session("exists") is True
+        assert manager.has_session("absent") is False
+
+    @pytest.mark.asyncio
+    async def test_sessions_property_returns_dict(self):
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        await manager.create_session(session_id="s1")
+        sessions = manager.sessions
+        assert "s1" in sessions
+
+    @pytest.mark.asyncio
+    async def test_create_session_with_no_session_id_generates_random(self):
+        """Passing session_id=None triggers the random-name branch."""
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        session = await manager.create_session()
+        assert session.session_id  # truthy
+
+    @pytest.mark.asyncio
+    async def test_remove_session_cancels_running_task(self):
+        """An in-flight task gets cancelled before the session is dropped."""
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        session = await manager.create_session(session_id="cancellable")
+
+        async def _hang():
+            await asyncio.sleep(60)
+
+        session.task_coroutine = asyncio.create_task(_hang())
+        await asyncio.sleep(0.01)
+
+        removed = await manager.remove_session("cancellable")
+        assert removed is True
+        assert manager.get_session("cancellable") is None
+
+    @pytest.mark.asyncio
+    async def test_get_messages_extracts_content_from_parts(self):
+        """Messages with parts get flattened into role/content/timestamp dicts."""
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        await manager.create_session(session_id="msg-test")
+
+        part = MagicMock()
+        part.content = "hello"
+        msg = MagicMock()
+        msg.kind = "request"
+        msg.parts = [part]
+        msg.timestamp = "2026-01-01T00:00:00"
+
+        with patch.object(manager._history_manager, "load", return_value=[msg]):
+            messages = manager.get_messages("msg-test")
+        assert messages[0]["role"] == "user"
+        assert messages[0]["content"] == "hello"
+        assert messages[0]["timestamp"] == "2026-01-01T00:00:00"
+
+    @pytest.mark.asyncio
+    async def test_get_messages_assistant_role_for_non_request(self):
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        await manager.create_session(session_id="role-test")
+
+        part = MagicMock()
+        part.content = {"complex": "structure"}  # non-string content path
+        msg = MagicMock()
+        msg.kind = "response"
+        msg.parts = [part]
+        del msg.timestamp  # exercise the getattr fallback
+
+        with patch.object(manager._history_manager, "load", return_value=[msg]):
+            messages = manager.get_messages("role-test")
+        assert messages[0]["role"] == "assistant"
+        assert "complex" in messages[0]["content"]
+        assert messages[0]["timestamp"] is None
+
+    def test_get_all_session_names_empty_when_no_history_dir(self):
+        """Without LLM_HISTORY_DIR set, the helper returns []."""
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = ChatSessionManager.get_instance_sync()
+        with patch("zrb.runner.chat.chat_session_manager.CFG") as mock_cfg:
+            mock_cfg.LLM_HISTORY_DIR = ""
+            assert manager._get_all_session_names() == []
+            assert manager._get_sessions_with_timestamps() == []
+
+    def test_get_all_session_names_empty_when_dir_missing(self, tmp_path):
+        """LLM_HISTORY_DIR set but nonexistent → returns []."""
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = ChatSessionManager.get_instance_sync()
+        with patch("zrb.runner.chat.chat_session_manager.CFG") as mock_cfg:
+            mock_cfg.LLM_HISTORY_DIR = str(tmp_path / "missing")
+            assert manager._get_all_session_names() == []
+            assert manager._get_sessions_with_timestamps() == []
+
+    @pytest.mark.asyncio
+    async def test_get_sessions_includes_active_without_history(self):
+        """An active session with no history file still shows up in the listing."""
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        await manager.create_session(session_id="active-only")
+        with patch("zrb.runner.chat.chat_session_manager.CFG") as mock_cfg:
+            mock_cfg.LLM_HISTORY_DIR = ""
+            mock_cfg.WEB_SESSION_PAGE_SIZE = 50
+            sessions = manager.get_sessions()
+        ids = [s["session_id"] for s in sessions]
+        assert "active-only" in ids
