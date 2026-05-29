@@ -217,6 +217,7 @@ def _hook_result(**overrides):
     r.permission_decision_reason = None
     r.reason = None
     r.continue_execution = True
+    r.data = {}
     for key, value in overrides.items():
         setattr(r, key, value)
     return r
@@ -296,6 +297,21 @@ async def test_dispatch_blocked_pre_cancels_command(
     assert not ui.execute_hook.called
     assert not any("Keyboard Shortcuts" in o for o in ui.outputs)
     assert any("⛔" in o and expected_reason in o for o in ui.outputs)
+
+
+@pytest.mark.asyncio
+async def test_precommand_hook_rewrites_command_args(ui):
+    # A PreCommand hook overrides command_args → "/model opus" runs as
+    # "/model sonnet" (the token is preserved, the argument swapped).
+    ui.execute_hook_blocking.return_value = [
+        _hook_result(data={"command_args": "sonnet"})
+    ]
+
+    await ui.dispatch_command("/model opus")
+
+    assert ui._model == "sonnet"  # the rewritten model was applied
+    # PostCommand reflects the rewritten argument, not the original.
+    assert ui.execute_hook.call_args.kwargs["command_args"] == "sonnet"
 
 
 @pytest.mark.asyncio

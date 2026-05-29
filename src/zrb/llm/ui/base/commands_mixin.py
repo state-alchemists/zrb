@@ -221,6 +221,14 @@ class CommandsMixin:
                 )
                 return
 
+            # A PreCommand hook may rewrite the argument (e.g. swap the model in
+            # `/model opus` → `sonnet`). The command token itself is preserved.
+            new_args = _command_arg_override(pre_results)
+            if new_args is not None:
+                args = new_args
+                text = f"{name} {new_args}".strip()
+                event_data["args"] = args
+
             handled = self._run_command_chain(text)
             if handled:
                 self.execute_hook(
@@ -800,6 +808,21 @@ def _command_blocked(results: list) -> bool:
         if not getattr(r, "continue_execution", True):
             return True
     return False
+
+
+def _command_arg_override(results: list) -> "str | None":
+    """A `command_args` override returned by a PreCommand hook, if any.
+
+    Lets a hook rewrite a command's argument on the fly — e.g. swap the model
+    in ``/model opus`` to ``sonnet``. The value lands in each result's ``data``
+    (the executor merges hook ``modifications`` / command-hook JSON there). The
+    highest-priority hook that sets it wins; the command token is unchanged.
+    """
+    for r in results or []:
+        value = (getattr(r, "data", None) or {}).get("command_args")
+        if value is not None:
+            return str(value)
+    return None
 
 
 def _command_block_reason(results: list) -> str | None:

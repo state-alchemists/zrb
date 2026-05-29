@@ -91,6 +91,17 @@ def test_search_files(temp_dir):
     assert res["results"][0]["file"] == os.path.relpath(file_path, os.getcwd())
 
 
+def test_search_files_pattern_is_keyword(temp_dir):
+    # Grep's parameter is `pattern` (matches Glob and the model's "Grep" prior),
+    # not `regex` — guards the regression where the agent's `pattern=` calls
+    # failed schema validation.
+    with open(os.path.join(temp_dir, "f.txt"), "w") as f:
+        f.write("needle here")
+    res = search_files(pattern="needle", path=temp_dir)
+    assert "error" not in res
+    assert "Found 1 matches" in res.get("summary", "")
+
+
 # --- list_files additional coverage ---
 
 

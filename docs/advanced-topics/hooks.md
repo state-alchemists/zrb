@@ -84,6 +84,21 @@ arguments are exposed as `command_name` / `command_args` (see [Environment
 Variables](#environment-variables)). A blocking `PreCommand` hook cancels the
 command before it runs; plain chat messages do **not** fire these events.
 
+A `PreCommand` hook can also **rewrite the command's argument** by returning a
+`command_args` value — the command token is preserved, the argument is
+swapped. For example, redirect a model switch:
+
+```python
+async def downgrade_opus(ctx):
+    if ctx.command_name == "/model" and "opus" in (ctx.command_args or "").lower():
+        return HookResult(modifications={"command_args": "sonnet"})  # opus -> sonnet
+    return HookResult()
+```
+
+A shell command hook does the same by printing JSON on stdout:
+`echo '{"command_args": "sonnet"}'`. The highest-priority hook that sets
+`command_args` wins.
+
 ---
 
 ## Hook Configuration
