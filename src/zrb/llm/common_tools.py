@@ -144,11 +144,26 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         when_to_use="Fetching a known URL",
         key_rule="When the URL is not known, SearchInternet first.",
     ),
+    # User Interaction
+    ToolGuidance(
+        group_name="User Interaction",
+        tool_name="AskUserQuestion",
+        when_to_use="The choice is non-obvious AND the wrong pick would waste significant work — "
+        "ambiguous library/strategy/file selection, or scope splits the user hasn't called.",
+        key_rule="Do not ask for permission to do obvious things. Skip in non-interactive mode "
+        "(System Context flags `Interactive: no`) — the tool short-circuits there anyway.",
+    ),
     # Planning
     ToolGuidance(
         group_name="Planning",
         tool_name="WriteTodos",
         when_to_use="Planning a multi-step task",
+        key_rule="Seed the full list up front; use UpdateTodo to change a single item's status afterward.",
+    ),
+    ToolGuidance(
+        group_name="Planning",
+        tool_name="UpdateTodo",
+        when_to_use="Advancing a todo's status as work progresses",
         key_rule="Mark `in_progress` before starting and `completed` immediately after — one status change per call.",
     ),
     ToolGuidance(
@@ -194,9 +209,10 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
 
 # ── Dynamic guidance ─────────────────────────────────────────────────────────
 # Factories so ``CFG.ROOT_GROUP_NAME`` is re-read at exec time (e.g. tool
-# names change if the user customizes the root group). DelegateToAgent
-# guidance is registered on sub-agents too — even though they can't call
-# the tool — so behavior matches pre-refactor.
+# names change if the user customizes the root group). The delegate-tool
+# guidance below is registered on every host, but only the main agent can
+# actually call DelegateToAgent / DelegateToAgentsParallel; sub-agents lack
+# the tool, so the runtime ``tool_names`` filter drops the guidance for them.
 
 _DYNAMIC_TOOL_GUIDANCE_FACTORIES: "list[Callable[[AnyContext], ToolGuidance]]" = [
     lambda ctx: ToolGuidance(
@@ -253,6 +269,7 @@ def apply_common_tools(host: CommonToolHost) -> None:
     # names (``analyze_file``, etc.) aren't yet bound on ``zrb.llm.tool``.
     # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.lsp.tools import create_lsp_tools
+    from zrb.llm.tool.ask import ask_user_question
     from zrb.llm.tool.bash import run_shell_command
     from zrb.llm.tool.code import analyze_code
     from zrb.llm.tool.file import (
@@ -291,6 +308,7 @@ def apply_common_tools(host: CommonToolHost) -> None:
         analyze_file,
         remove_file,
         move_file,
+        ask_user_question,
         search_journal,
         search_internet,
         open_web_page,

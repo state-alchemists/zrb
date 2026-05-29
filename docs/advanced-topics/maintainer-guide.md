@@ -158,7 +158,7 @@ To understand Zrb's core design decisions (such as the strict use of `asyncio`, 
 
 ## Context Propagation Internals
 
-Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are seven `ContextVar` instances across the codebase, split into three layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
+Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are eight `ContextVar` instances across the codebase, split into three layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
 
 ### The Three Layers
 
@@ -181,12 +181,13 @@ Holds the active `Context` for the currently executing task. Set at the start of
 
 All four are set at the start of `run_agent()` and reset in its `finally` block.
 
-**Layer 3 — Tool ambient state** (`src/zrb/llm/tool/worktree.py`, `src/zrb/llm/tool/plan.py`):
+**Layer 3 — Tool ambient state** (`src/zrb/llm/tool/worktree.py`, `src/zrb/llm/tool/plan.py`, `src/zrb/llm/tool/ask.py`):
 
 | Variable | Type | Purpose |
 |---|---|---|
 | `active_worktree` | `str` | Path of the worktree the agent is currently operating in (set by `EnterWorktree`, cleared by `ExitWorktree`) |
 | `_current_session` | `str` | Session id used by the todo tools so they default to the right conversation when called without an explicit `session=` |
+| `interactive_mode` | `bool` | Whether the current chat session is interactive — gates `ask_user_question` so non-interactive runs short-circuit instead of blocking on stdin |
 
 Set/cleared by their owning tool implementations rather than at a single entry point.
 

@@ -120,6 +120,8 @@ llm_chat.add_tool_policy(
     auto_approve("SearchInternet"),
     auto_approve("OpenWebPage"),
     auto_approve("ActivateSkill"),
+    # AskUserQuestion blocks on stdin only when interactive; no side effects.
+    auto_approve("AskUserQuestion"),
     auto_approve("DelegateToAgent"),
     auto_approve("DelegateToAgentsParallel"),
     # LSP tools - read-only, safe to auto-approve

@@ -11,6 +11,11 @@ exists" without chasing imports across tool modules.
 
 from __future__ import annotations
 
+from zrb.llm.tool.ask import (
+    get_interactive_mode,
+    interactive_mode,
+    set_interactive_mode,
+)
 from zrb.llm.tool.plan import (
     _current_session,
     get_current_context_session,
@@ -45,10 +50,13 @@ def set_current_tool_session(session_name: str) -> None:
 __all__ = [
     "active_worktree",
     "_current_session",
+    "interactive_mode",
     "get_active_worktree",
     "set_active_worktree",
     "get_current_tool_session",
     "set_current_tool_session",
     "get_current_context_session",
     "set_current_session",
+    "get_interactive_mode",
+    "set_interactive_mode",
 ]

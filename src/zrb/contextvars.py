@@ -40,8 +40,11 @@ from zrb.llm.tool.ambient_state import (
     active_worktree,
     get_active_worktree,
     get_current_tool_session,
+    get_interactive_mode,
+    interactive_mode,
     set_active_worktree,
     set_current_tool_session,
+    set_interactive_mode,
 )
 
 __all__ = [
@@ -64,4 +67,7 @@ __all__ = [
     "set_active_worktree",
     "get_current_tool_session",
     "set_current_tool_session",
+    "interactive_mode",
+    "get_interactive_mode",
+    "set_interactive_mode",
 ]

@@ -20,7 +20,7 @@ Follow **Scope → Discover → Synthesize → Plan** for every research task.
 - **Codebase**: Use `Grep`, `Glob`, and parallel `Read` calls to map relevant code.
 - **Web**: Use `SearchInternet` → `OpenWebPage` for current docs and solutions.
 - **Journal**: Use `SearchJournal` to check past findings.
-- **Context efficiency**: Batch reads. Use `DelegateToAgent` for massive or speculative exploration.
+- **Context efficiency**: Batch reads to keep context lean. Offload massive or speculative exploration to an isolated sub-agent when delegation is available, so the main context stays focused.
 
 ### 3. Analysis & Synthesis
 
@@ -39,7 +39,7 @@ Follow **Scope → Discover → Synthesize → Plan** for every research task.
 ## Safety Rules
 
 - **No premature modification**: During Scope and Discovery phases, do not modify any files. Investigation comes before action.
-- **Approval gate**: You must obtain explicit user approval of plans before implementing. This overrides the generic Task Handling rule about working autonomously for directives.
+- **Approval gate**: You must obtain explicit user approval of plans before implementing. This overrides the Working Loop's Frame step, which would otherwise work autonomously on directives.
 
 ## Output Standards
 

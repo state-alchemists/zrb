@@ -94,4 +94,4 @@ Exceeding any limit is a design defect — restructure before continuing.
 
 ### h.  **Synthesis:**
 
-journal non-trivial discoveries per the Journaling Protocol. For user-facing output (docs, error messages, commit messages), apply writing quality standards from `core-writing`.
+journal non-trivial discoveries per the Journal Protocol. For user-facing output (docs, error messages, commit messages), apply writing quality standards from `core-writing`.

@@ -12,9 +12,11 @@ Not every turn deserves a journal entry, and not every finding deserves an insig
 
 **Activity line** (light) — append one line to `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md` when the turn edited files, made a significant decision, diagnosed a bug, or completed a user-requested task:
 
-    - HH:MM — <what was done>. Files: <paths or —>. See: [[insight-slug]] (omit "See:" when none)
+    - HH:MM — <what was done>. Files: <paths or —>. See: [slug](technical/slug.md) (omit "See:" when none)
 
-**Insight note** (full) — write or extend a note under `user/`, `preferences/`, `projects/`, or `technical/` only when the finding is durable: a root cause, an architectural choice, a project convention, a user preference, an external-API quirk, or a recurring blocker. Then add `See: [[slug]]` to today's activity line.
+Links use standard markdown `[text](path.md)` relative to the journal root — never `[[wikilinks]]`. The journal-lint tool only recognizes markdown links.
+
+**Insight note** (full) — write or extend a note under `user/`, `preferences/`, `projects/`, or `technical/` only when the finding is durable: a root cause, an architectural choice, a project convention, a user preference, an external-API quirk, or a recurring blocker. Then add a `See:` markdown link to today's activity line.
 
     ---
     slug: <short-kebab>
@@ -24,6 +26,11 @@ Not every turn deserves a journal entry, and not every finding deserves an insig
     **Context:** <one sentence — when does this apply?>
     **Finding:** <the durable fact, decision, or rule>
     **Source:** <file:line, commit hash, or URL>
+
+    ## Backlinks
+    - [<linking note or activity entry>](<relative/path.md>) — <one-phrase reason>
+
+Every note carries a `## Backlinks` section, and every forward link you add gets a reciprocal backlink in the target. For graph layout, indexes, and linting, activate `core-journaling`.
 
 Activate `core-journaling` only for graph layout, indexes, journal-lint, or edge cases this template does not cover.
 
