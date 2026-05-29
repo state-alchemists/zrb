@@ -231,6 +231,8 @@ def test_classify_input_routes_by_recognition_not_prefix(ui):
     # Run-while-thinking commands.
     assert ui.classify_input("/btw what's up") == "thinking_command"
     assert ui.classify_input("/yolo") == "thinking_command"
+    # Selective yolo (/yolo Write,Edit) must also route as a command, not chat.
+    assert ui.classify_input("/yolo Write,Edit") == "thinking_command"
     # Exact-match toggle and argument command.
     assert ui.classify_input("/help") == "command"
     assert ui.classify_input("/save my-session") == "command"

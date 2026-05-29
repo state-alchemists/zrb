@@ -109,7 +109,8 @@ class CommandsMixin:
         """
         return [
             (self._handle_btw_command, self._btw_commands, True, True),
-            (self._handle_toggle_yolo, self._yolo_toggle_commands, False, True),
+            # prefix=True: `/yolo` toggles, `/yolo Write,Edit` sets selective yolo.
+            (self._handle_toggle_yolo, self._yolo_toggle_commands, True, True),
             (self._handle_exit_command, self._exit_commands, False, False),
             (self._handle_info_command, self._info_commands, False, False),
             (self._handle_save_command, self._save_commands, True, False),
