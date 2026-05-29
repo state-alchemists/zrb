@@ -137,6 +137,12 @@ The assistant comes with a rich set of built-in tools. These are automatically a
 | `OpenWebPage` | `open_web_page` | Fetch a URL and return its content as Markdown. Optionally summarizes via a sub-agent to reduce token usage. |
 | `SearchInternet` | `search_internet` | Search the web by query string. Defaults to Google News RSS (free, no setup). Optionally use SerpAPI, Brave, or SearXNG via `ZRB_SEARCH_INTERNET_METHOD`. |
 
+### User Interaction
+
+| Tool | Function | Description |
+|------|----------|-------------|
+| `AskUserQuestion` | `ask_user_question` | Ask the user one or more structured multiple-choice questions mid-turn and return their answers. Interactive sessions only — in non-interactive runs (`--interactive false`) it short-circuits with a `[SYSTEM SUGGESTION]` instead of blocking on stdin. |
+
 ### Code Intelligence
 
 | Tool | Function | Description |

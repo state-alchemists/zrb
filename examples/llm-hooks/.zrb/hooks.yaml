@@ -55,6 +55,21 @@
     shell: true
   enabled: true
 
-# Example 5: Claude Code compatible format
+# Example 5: Audit chat commands (PreCommand)
+# Fires when the user runs any chat command — /save, /exit, or a custom token
+# like a ">" redirect. CLAUDE_COMMAND_NAME / CLAUDE_COMMAND_ARGS carry the
+# parsed command. A PreCommand hook can also block: print
+# {"decision": "block", "reason": "..."} and exit 2.
+- name: audit-commands
+  description: Log every chat command the user runs
+  events:
+    - PreCommand
+  type: command
+  config:
+    command: 'echo "[CMD] $CLAUDE_COMMAND_NAME $CLAUDE_COMMAND_ARGS" >> /tmp/zrb-commands.log'
+    shell: true
+  enabled: true
+
+# Example 6: Claude Code compatible format
 # This format allows matching patterns
 # Note: This is automatically converted to zrb format
