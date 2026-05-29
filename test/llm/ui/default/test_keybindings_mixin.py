@@ -324,3 +324,144 @@ async def test_ctrl_v_no_image_no_hint(mock_ui, setup_bindings):
                 mock_ui._input_field.buffer.paste_clipboard_data.assert_called_with(
                     "pasted_text"
                 )
+
+
+# --- Integration: real keybinding + real classification/dispatch/handlers ---
+#
+# These drive the actual Enter binding through CommandsMixin's real
+# classify_input -> schedule_command -> dispatch_command -> _run_command_chain
+# -> _handle_* path. Only leaf IO (LLM submit, hook manager, the btw side-query)
+# is stubbed, so the routing regressions — especially a non-"/" ">" redirect
+# token — are caught end-to-end rather than behind mocked routing.
+
+from zrb.llm.ui.base.commands_mixin import CommandsMixin  # noqa: E402
+
+
+class IntegrationUI(KeybindingsMixin, CommandsMixin):
+    def __init__(self):
+        self._exit_commands = ["/exit"]
+        self._info_commands = ["/help"]
+        self._save_commands = ["/save"]
+        self._load_commands = ["/load"]
+        self._rewind_commands = ["/rewind"]
+        self._redirect_output_commands = [">"]  # non-"/" token (the regression)
+        self._attach_commands = ["/attach"]
+        self._yolo_toggle_commands = ["/yolo"]
+        self._set_model_commands = ["/model"]
+        self._exec_commands = ["/exec"]
+        self._btw_commands = ["/btw"]
+        self._summarize_commands = ["/summarize"]
+        self._custom_commands = []
+        self._is_thinking = False
+        self._background_tasks = set()
+        self._conversation_session_name = "default"
+        self._snapshot_manager = None
+        self._llm_task = MagicMock()
+        self.last_output = "AI RESPONSE TEXT"
+        self._input_field = MagicMock()
+        self._output_field = MagicMock()
+        self.submitted = []
+        self.outputs = []
+        self.btw_questions = []
+        self.execute_hook = MagicMock()
+        self.execute_hook_blocking = AsyncMock(return_value=[])
+        # Leaf collaborators only.
+        self._handle_confirmation = MagicMock(return_value=False)
+
+    def append_to_output(self, text, end="\n"):
+        self.outputs.append(str(text))
+
+    def _submit_user_message(self, task, text):
+        self.submitted.append(text)
+
+    async def _stream_btw_response(self, task, question):
+        self.btw_questions.append(question)
+
+
+@pytest.fixture
+def integration_ui():
+    ui = IntegrationUI()
+    kb = KeyBindings()
+    ui.setup_app_keybindings(kb, ui._llm_task)
+    return ui, kb
+
+
+async def _drain(ui):
+    """Await every scheduled task, including ones spawned during dispatch."""
+    while ui._background_tasks:
+        task = next(iter(ui._background_tasks))
+        try:
+            await task
+        except Exception:
+            pass
+        ui._background_tasks.discard(task)
+
+
+@pytest.mark.asyncio
+async def test_integration_redirect_token_writes_file(integration_ui, tmp_path):
+    # The bug that started this: ">" is a configured (non-"/") command token.
+    # Driving the real keybinding must run the redirect handler, not the LLM.
+    ui, kb = integration_ui
+    out = tmp_path / "sub" / "out.txt"
+    event = create_mock_event(f"> {out}")
+
+    trigger_binding(kb, "c-m", event)
+    assert len(ui._background_tasks) == 1
+    await _drain(ui)
+
+    assert out.read_text() == "AI RESPONSE TEXT"  # redirect actually ran
+    assert ui.submitted == []  # NOT forwarded to the LLM
+    assert ui.execute_hook_blocking.call_args.args[0] == HookEvent.PRE_COMMAND
+    assert ui.execute_hook.call_args.args[0] == HookEvent.POST_COMMAND
+
+
+def test_integration_plain_message_goes_to_llm(integration_ui):
+    ui, kb = integration_ui
+    event = create_mock_event("explain this code")
+
+    trigger_binding(kb, "c-m", event)
+
+    assert ui.submitted == ["explain this code"]
+    assert not ui._background_tasks  # no command dispatched, no hooks
+
+
+def test_integration_redirect_gated_while_thinking(integration_ui, tmp_path):
+    ui, kb = integration_ui
+    ui._is_thinking = True
+    out = tmp_path / "out.txt"
+    event = create_mock_event(f"> {out}")
+
+    trigger_binding(kb, "c-m", event)
+
+    assert not ui._background_tasks  # command held while thinking
+    assert ui.submitted == []
+    assert not out.exists()
+
+
+@pytest.mark.asyncio
+async def test_integration_slash_command_runs(integration_ui):
+    ui, kb = integration_ui
+    event = create_mock_event("/help")
+
+    trigger_binding(kb, "c-m", event)
+    await _drain(ui)
+
+    assert any("Keyboard Shortcuts" in o for o in ui.outputs)  # help printed
+    assert ui.submitted == []
+    assert ui.execute_hook.call_args.args[0] == HookEvent.POST_COMMAND
+
+
+@pytest.mark.asyncio
+async def test_integration_btw_runs_while_thinking(integration_ui):
+    # /btw is a run-while-thinking command: it dispatches and runs even while
+    # the LLM is responding.
+    ui, kb = integration_ui
+    ui._is_thinking = True
+    event = create_mock_event("/btw are you there")
+
+    trigger_binding(kb, "c-m", event)
+    assert len(ui._background_tasks) >= 1
+    await _drain(ui)
+
+    assert ui.btw_questions == ["are you there"]
+    assert ui.submitted == []
