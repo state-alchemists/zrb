@@ -43,7 +43,7 @@ class KeybindingsMixin:
         # From CommandsMixin
         def classify_input(self, text: str) -> str: ...
 
-        def schedule_command(self, text: str) -> None: ...
+        def schedule_command(self, text: str, *, guarded: bool = True) -> None: ...
 
         def _submit_user_message(self, llm_task: "AnyTask", text: str) -> None: ...
 
@@ -178,8 +178,10 @@ class KeybindingsMixin:
             # Run-while-thinking commands (/btw, YOLO toggle) dispatch even while
             # the LLM is responding.
             if kind == "thinking_command":
+                # Not guarded: like main, /btw and YOLO toggle run independently
+                # — never blocked by, nor blocking, another in-flight command.
                 buff.reset()
-                self.schedule_command(text)
+                self.schedule_command(text, guarded=False)
                 return
 
             # Everything else is gated while thinking (matches main: the buffer

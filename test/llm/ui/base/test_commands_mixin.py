@@ -1,5 +1,4 @@
 import asyncio
-import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -158,7 +157,7 @@ def test_handle_set_model_command(ui):
 @pytest.mark.asyncio
 async def test_handle_exec_command(ui):
     assert ui._handle_exec_command("/exec echo hello") is True
-    job = ui._message_queue.get_nowait()
+    ui._message_queue.get_nowait()  # drain the enqueued job
     with patch("asyncio.create_subprocess_shell") as mock_sub:
         mock_proc = AsyncMock()
         mock_proc.stdout.readline.side_effect = [b"hello\n", b""]
@@ -326,7 +325,7 @@ async def test_dispatch_thinking_gates_command(ui):
 async def test_schedule_command_runs_dispatch_as_task(ui):
     captured = {}
 
-    async def fake_dispatch(text):
+    async def fake_dispatch(text, *, guarded=True):
         captured["text"] = text
 
     ui.dispatch_command = fake_dispatch
@@ -356,6 +355,36 @@ async def test_schedule_rejects_concurrent_command(ui):
     assert len(ui._background_tasks) == 1
     assert not any("already running" in o for o in ui.outputs)
     await list(ui._background_tasks)[0]
+
+
+@pytest.mark.asyncio
+async def test_thinking_command_bypasses_inflight_guard(ui):
+    calls = []
+
+    async def fake_dispatch(text, *, guarded=True):
+        calls.append((text, guarded))
+
+    ui.dispatch_command = fake_dispatch
+
+    ui.schedule_command("/help")  # guarded → in flight
+    # A run-while-thinking command still schedules — not blocked by the guard.
+    ui.schedule_command("/btw hi", guarded=False)
+
+    assert len(ui._background_tasks) == 2
+    assert not any("already running" in o for o in ui.outputs)
+    for task in list(ui._background_tasks):
+        await task
+    assert ("/help", True) in calls
+    assert ("/btw hi", False) in calls
+
+
+@pytest.mark.asyncio
+async def test_classify_and_dispatch_agree(ui):
+    # classify_input and the dispatch chain both derive from _command_table,
+    # so a token classified "command" is actually consumed (Post fires).
+    assert ui.classify_input("/help") == "command"
+    await ui.dispatch_command("/help")
+    assert ui.execute_hook.call_args.args[0] == HookEvent.POST_COMMAND
 
 
 @pytest.mark.asyncio

@@ -18,7 +18,7 @@ from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_error, stylize_faint
 
 if TYPE_CHECKING:
-    from typing import Any
+    from typing import Any, Callable
 
     from pydantic_ai.messages import UserContent
     from pydantic_ai.models import Model
@@ -94,6 +94,38 @@ class CommandsMixin:
 
     # --- command dispatch (with hooks) ------------------------------------
 
+    def _command_table(self) -> "list[tuple[Callable, list[str], bool, bool]]":
+        """Single source of truth for command routing.
+
+        Ordered ``(handler, tokens, prefix, run_while_thinking)`` tuples shared
+        by :meth:`classify_input` (which matches ``tokens`` via :func:`_matches`)
+        and :meth:`_run_command_chain` (which calls ``handler``). Because both
+        derive from this one table, routing and execution cannot drift on which
+        tokens map to which command. Custom commands are matched separately via
+        ``resolve_custom_command`` (they have no fixed token list).
+
+        ``prefix=True`` → the token may be followed by ``" <args>"``;
+        ``prefix=False`` → exact-match toggle.
+        """
+        return [
+            (self._handle_btw_command, self._btw_commands, True, True),
+            (self._handle_toggle_yolo, self._yolo_toggle_commands, False, True),
+            (self._handle_exit_command, self._exit_commands, False, False),
+            (self._handle_info_command, self._info_commands, False, False),
+            (self._handle_save_command, self._save_commands, True, False),
+            (self._handle_load_command, self._load_commands, True, False),
+            (self._handle_rewind_command, self._rewind_commands, True, False),
+            (
+                self._handle_redirect_command,
+                self._redirect_output_commands,
+                True,
+                False,
+            ),
+            (self._handle_attach_command, self._attach_commands, True, False),
+            (self._handle_set_model_command, self._set_model_commands, True, False),
+            (self._handle_exec_command, self._exec_commands, True, False),
+        ]
+
     def classify_input(self, text: str) -> str:
         """Classify Enter input for routing — by recognition, not by prefix.
 
@@ -103,61 +135,51 @@ class CommandsMixin:
             ``"command"`` — any other recognized command (fires hooks).
             ``"message"`` — plain text forwarded to the LLM (no hooks).
 
-        Recognition mirrors the handlers (exact match for toggles, ``"<token> "``
-        prefix for argument commands, ``resolve_custom_command`` for custom), so
-        routing never assumes a ``/`` prefix — command tokens are
-        user-configurable (e.g. ``>`` for redirect). Keep this in sync with the
-        ``_handle_*`` match conditions.
+        Routing never assumes a ``/`` prefix — command tokens are
+        user-configurable (e.g. ``>`` for redirect). Driven by
+        :meth:`_command_table` so it stays in lockstep with the handler chain.
         """
         stripped = text.strip()
         if not stripped:
             return "message"
-        if _matches(stripped, self._btw_commands, prefix=True) or _matches(
-            stripped, self._yolo_toggle_commands, prefix=False
-        ):
-            return "thinking_command"
-        exact = list(self._info_commands) + list(self._exit_commands)
-        prefixed = [
-            *self._save_commands,
-            *self._load_commands,
-            *self._rewind_commands,
-            *self._redirect_output_commands,
-            *self._attach_commands,
-            *self._set_model_commands,
-            *self._exec_commands,
-        ]
-        if _matches(stripped, exact, prefix=False) or _matches(
-            stripped, prefixed, prefix=True
-        ):
-            return "command"
+        for _handler, tokens, prefix, run_while_thinking in self._command_table():
+            if _matches(stripped, tokens, prefix):
+                return "thinking_command" if run_while_thinking else "command"
         if resolve_custom_command(stripped, self._custom_commands) is not None:
             return "command"
         return "message"
 
-    def schedule_command(self, text: str) -> None:
+    def schedule_command(self, text: str, *, guarded: bool = True) -> None:
         """Run the hook-wrapped command dispatch as a background task.
 
         Called from the (synchronous) Enter keybinding for any recognized
         command. Scheduling is required because the PreCommand hook is async and
         may block the command.
 
-        Dispatch is serialized: ``main`` ran commands synchronously, so each
-        finished before the next began. Here a single in-flight command is
-        allowed; a second is rejected (rather than racing a prior `/save`,
+        Guarded dispatch is serialized: ``main`` ran commands synchronously, so
+        each finished before the next began. A single in-flight guarded command
+        is allowed; a second is rejected (rather than racing a prior `/save`,
         `/load`, or `/exit`). The flag is set synchronously — before the task is
         created — so the single-threaded event loop cannot slip a second command
         through the gap.
+
+        ``guarded=False`` is used for run-while-thinking commands (`/btw`, YOLO
+        toggle): like ``main``, they run independently and are neither blocked
+        by an in-flight command nor block one.
         """
-        if getattr(self, "_command_in_flight", False):
-            self.append_to_output(
-                stylize_faint(
-                    "\n  ⏳ A command is already running — wait for it to "
-                    "finish.\n"
+        if guarded:
+            if getattr(self, "_command_in_flight", False):
+                self.append_to_output(
+                    stylize_faint(
+                        "\n  ⏳ A command is already running — wait for it to "
+                        "finish.\n"
+                    )
                 )
-            )
-            return
-        self._command_in_flight = True
-        task = asyncio.get_event_loop().create_task(self.dispatch_command(text))
+                return
+            self._command_in_flight = True
+        task = asyncio.get_event_loop().create_task(
+            self.dispatch_command(text, guarded=guarded)
+        )
         self._background_tasks.add(task)
         task.add_done_callback(self._on_command_done)
 
@@ -171,7 +193,7 @@ class CommandsMixin:
         if exc is not None:
             logger.error("Command dispatch failed: %s", exc, exc_info=exc)
 
-    async def dispatch_command(self, text: str) -> None:
+    async def dispatch_command(self, text: str, *, guarded: bool = True) -> None:
         """Fire PreCommand → run handlers → fire PostCommand.
 
         A PreCommand hook that blocks (HookResult.block / exit code 2 / deny)
@@ -212,36 +234,22 @@ class CommandsMixin:
                 # Recognized token but no handler consumed it — forward to LLM.
                 self._submit_user_message(self._llm_task, text)
         finally:
-            self._command_in_flight = False
+            if guarded:
+                self._command_in_flight = False
 
     def _run_command_chain(self, text: str) -> bool:
-        """Run the command handlers in priority order.
+        """Run the command handlers in priority order (see :meth:`_command_table`).
 
-        Returns ``True`` if a handler consumed the input. Mirrors the order of
-        the Enter keybinding: `/btw` and YOLO toggle run even while the LLM is
-        thinking; everything else is gated behind the thinking guard.
+        Returns ``True`` if a handler consumed the input. Run-while-thinking
+        commands (`/btw`, YOLO toggle) run first; everything else is gated
+        behind the thinking guard. Custom commands are tried last.
         """
-        if self._handle_btw_command(text):
-            return True
-        if self._handle_toggle_yolo(text):
-            return True
-        if self._is_thinking:
-            return False
-        for handler in (
-            self._handle_exit_command,
-            self._handle_info_command,
-            self._handle_save_command,
-            self._handle_load_command,
-            self._handle_rewind_command,
-            self._handle_redirect_command,
-            self._handle_attach_command,
-            self._handle_set_model_command,
-            self._handle_exec_command,
-            self._handle_custom_command,
-        ):
+        for handler, _tokens, _prefix, run_while_thinking in self._command_table():
+            if not run_while_thinking and self._is_thinking:
+                return False
             if handler(text):
                 return True
-        return False
+        return self._handle_custom_command(text)
 
     # --- exit / info ------------------------------------------------------
 

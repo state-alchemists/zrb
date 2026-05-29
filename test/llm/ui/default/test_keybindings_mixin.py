@@ -1,4 +1,3 @@
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -210,7 +209,8 @@ def test_enter_thinking_command_routes_even_while_thinking(mock_ui, setup_bindin
     mock_ui.classify_input.return_value = "thinking_command"
     mock_ui._is_thinking = True
     trigger_binding(setup_bindings, "c-m", event)
-    mock_ui.schedule_command.assert_called_once_with("/btw hello")
+    # Scheduled unguarded so it never blocks / is blocked by another command.
+    mock_ui.schedule_command.assert_called_once_with("/btw hello", guarded=False)
     event.current_buffer.reset.assert_called_once()
     assert not event.current_buffer.append_to_history.called
     assert not mock_ui._submit_user_message.called

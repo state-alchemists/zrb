@@ -1,7 +1,5 @@
 """Tests for HookContext and HookResult from interface.py."""
 
-import pytest
-
 from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.types import HookEvent
 
