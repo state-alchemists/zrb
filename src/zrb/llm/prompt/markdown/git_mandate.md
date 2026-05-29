@@ -9,3 +9,5 @@ Before requesting approval, show `git status` + `git diff HEAD`. If the diff is 
 ## No Approval Needed
 
 `status`, `diff`, `log`, `branch`, `show`, `remote -v`, `worktree list`
+
+Worktree creation (`worktree add`, the `EnterWorktree` tool) is also exempt: it builds an isolated tree without touching the current working tree, index, or existing branches — so it carries none of the risk that gates `checkout`/`switch`/`branch`.

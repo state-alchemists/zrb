@@ -12,7 +12,7 @@ A single day's file (`activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md`) holds *multiple*
 - <significant change — file path, command, or decision>
 - <another>
 **Outcome**: <completed | blocked: <reason> | awaiting user: <on what>>
-**Cross-links**: [[technical/<topic>]] · [[projects/<project>]]    <!-- omit line if no cross-links -->
+**Cross-links**: [technical/<topic>](technical/<topic>.md) · [projects/<project>](projects/<project>.md)    <!-- omit line if no cross-links -->
 ````
 
 ## File-Level Boilerplate
@@ -67,5 +67,5 @@ Past tense, terse, factual. Treat it as evidence for your future self — not na
 - Rewrote 4 top-level skill SKILL.md files as thin user wrappers
 - Removed `research-and-plan/`, added `research/SKILL.md`
 **Outcome**: completed; 1,621 LLM tests pass
-**Cross-links**: [[projects/zrb]] · [[technical/skill-architecture]]
+**Cross-links**: [projects/zrb](projects/zrb.md) · [technical/skill-architecture](technical/skill-architecture.md)
 ````

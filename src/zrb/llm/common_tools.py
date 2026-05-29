@@ -158,6 +158,12 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
         group_name="Planning",
         tool_name="WriteTodos",
         when_to_use="Planning a multi-step task",
+        key_rule="Seed the full list up front; use UpdateTodo to change a single item's status afterward.",
+    ),
+    ToolGuidance(
+        group_name="Planning",
+        tool_name="UpdateTodo",
+        when_to_use="Advancing a todo's status as work progresses",
         key_rule="Mark `in_progress` before starting and `completed` immediately after — one status change per call.",
     ),
     ToolGuidance(
@@ -203,9 +209,10 @@ _STATIC_TOOL_GUIDANCE: "list[ToolGuidance]" = [
 
 # ── Dynamic guidance ─────────────────────────────────────────────────────────
 # Factories so ``CFG.ROOT_GROUP_NAME`` is re-read at exec time (e.g. tool
-# names change if the user customizes the root group). DelegateToAgent
-# guidance is registered on sub-agents too — even though they can't call
-# the tool — so behavior matches pre-refactor.
+# names change if the user customizes the root group). The delegate-tool
+# guidance below is registered on every host, but only the main agent can
+# actually call DelegateToAgent / DelegateToAgentsParallel; sub-agents lack
+# the tool, so the runtime ``tool_names`` filter drops the guidance for them.
 
 _DYNAMIC_TOOL_GUIDANCE_FACTORIES: "list[Callable[[AnyContext], ToolGuidance]]" = [
     lambda ctx: ToolGuidance(
