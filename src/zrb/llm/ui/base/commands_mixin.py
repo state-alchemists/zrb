@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from zrb.llm.custom_command.resolver import resolve_custom_command
+from zrb.llm.hook.types import HookEvent
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_error, stylize_faint
 
@@ -70,6 +71,12 @@ class CommandsMixin:
 
         def append_to_output(self, text: str, end: str = "\n") -> None: ...
 
+        def execute_hook(self, event: Any, event_data: Any, **kwargs) -> None: ...
+
+        async def execute_hook_blocking(
+            self, event: Any, event_data: Any, **kwargs
+        ) -> list: ...
+
         def invalidate_ui(self) -> None: ...
 
         def on_exit(self) -> None: ...
@@ -84,6 +91,157 @@ class CommandsMixin:
 
         @property
         def yolo(self) -> bool: ...
+
+    # --- command dispatch (with hooks) ------------------------------------
+
+    def classify_input(self, text: str) -> str:
+        """Classify Enter input for routing — by recognition, not by prefix.
+
+        Returns one of:
+            ``"thinking_command"`` — runs even while the LLM is thinking
+                (``/btw``, YOLO toggle).
+            ``"command"`` — any other recognized command (fires hooks).
+            ``"message"`` — plain text forwarded to the LLM (no hooks).
+
+        Recognition mirrors the handlers (exact match for toggles, ``"<token> "``
+        prefix for argument commands, ``resolve_custom_command`` for custom), so
+        routing never assumes a ``/`` prefix — command tokens are
+        user-configurable (e.g. ``>`` for redirect). Keep this in sync with the
+        ``_handle_*`` match conditions.
+        """
+        stripped = text.strip()
+        if not stripped:
+            return "message"
+        if _matches(stripped, self._btw_commands, prefix=True) or _matches(
+            stripped, self._yolo_toggle_commands, prefix=False
+        ):
+            return "thinking_command"
+        exact = list(self._info_commands) + list(self._exit_commands)
+        prefixed = [
+            *self._save_commands,
+            *self._load_commands,
+            *self._rewind_commands,
+            *self._redirect_output_commands,
+            *self._attach_commands,
+            *self._set_model_commands,
+            *self._exec_commands,
+        ]
+        if _matches(stripped, exact, prefix=False) or _matches(
+            stripped, prefixed, prefix=True
+        ):
+            return "command"
+        if resolve_custom_command(stripped, self._custom_commands) is not None:
+            return "command"
+        return "message"
+
+    def schedule_command(self, text: str) -> None:
+        """Run the hook-wrapped command dispatch as a background task.
+
+        Called from the (synchronous) Enter keybinding for any recognized
+        command. Scheduling is required because the PreCommand hook is async and
+        may block the command.
+
+        Dispatch is serialized: ``main`` ran commands synchronously, so each
+        finished before the next began. Here a single in-flight command is
+        allowed; a second is rejected (rather than racing a prior `/save`,
+        `/load`, or `/exit`). The flag is set synchronously — before the task is
+        created — so the single-threaded event loop cannot slip a second command
+        through the gap.
+        """
+        if getattr(self, "_command_in_flight", False):
+            self.append_to_output(
+                stylize_faint(
+                    "\n  ⏳ A command is already running — wait for it to "
+                    "finish.\n"
+                )
+            )
+            return
+        self._command_in_flight = True
+        task = asyncio.get_event_loop().create_task(self.dispatch_command(text))
+        self._background_tasks.add(task)
+        task.add_done_callback(self._on_command_done)
+
+    def _on_command_done(self, task: "asyncio.Task") -> None:
+        """Drop the task reference and surface any swallowed exception."""
+        self._background_tasks.discard(task)
+        try:
+            exc = task.exception()
+        except asyncio.CancelledError:
+            return
+        if exc is not None:
+            logger.error("Command dispatch failed: %s", exc, exc_info=exc)
+
+    async def dispatch_command(self, text: str) -> None:
+        """Fire PreCommand → run handlers → fire PostCommand.
+
+        A PreCommand hook that blocks (HookResult.block / exit code 2 / deny)
+        cancels the command. If no handler consumes the input (e.g. a command
+        typed without its required argument), it is forwarded to the LLM.
+        PostCommand fires only when a handler actually ran.
+        """
+        try:
+            name, args = _split_command(text)
+            event_data = {
+                "command": name,
+                "args": args,
+                "session": self._conversation_session_name,
+            }
+            pre_results = await self.execute_hook_blocking(
+                HookEvent.PRE_COMMAND,
+                event_data,
+                command_name=name,
+                command_args=args,
+            )
+            if _command_blocked(pre_results):
+                reason = _command_block_reason(pre_results) or "blocked by hook"
+                self.append_to_output(
+                    stylize_faint(f"\n  ⛔ {name} blocked: {reason}\n")
+                )
+                return
+
+            handled = self._run_command_chain(text)
+            if handled:
+                self.execute_hook(
+                    HookEvent.POST_COMMAND,
+                    {**event_data, "handled": True},
+                    command_name=name,
+                    command_args=args,
+                    command_handled=True,
+                )
+            elif not self._is_thinking:
+                # Recognized token but no handler consumed it — forward to LLM.
+                self._submit_user_message(self._llm_task, text)
+        finally:
+            self._command_in_flight = False
+
+    def _run_command_chain(self, text: str) -> bool:
+        """Run the command handlers in priority order.
+
+        Returns ``True`` if a handler consumed the input. Mirrors the order of
+        the Enter keybinding: `/btw` and YOLO toggle run even while the LLM is
+        thinking; everything else is gated behind the thinking guard.
+        """
+        if self._handle_btw_command(text):
+            return True
+        if self._handle_toggle_yolo(text):
+            return True
+        if self._is_thinking:
+            return False
+        for handler in (
+            self._handle_exit_command,
+            self._handle_info_command,
+            self._handle_save_command,
+            self._handle_load_command,
+            self._handle_rewind_command,
+            self._handle_redirect_command,
+            self._handle_attach_command,
+            self._handle_set_model_command,
+            self._handle_exec_command,
+            self._handle_custom_command,
+        ):
+            if handler(text):
+                return True
+        return False
 
     # --- exit / info ------------------------------------------------------
 
@@ -595,3 +753,53 @@ class CommandsMixin:
             help_lines.append(f"  {key:<{max_key_len}} : {desc}")
 
         return "\n".join(help_lines) + "\n"
+
+
+def _matches(text: str, tokens: list[str], prefix: bool) -> bool:
+    """Pure command-token match: exact (case-insensitive), or ``"<token> "``.
+
+    ``prefix=False`` matches only an exact token (toggles like ``/exit``);
+    ``prefix=True`` also matches ``"<token> <args>"`` (argument commands).
+    """
+    t = text.strip().lower()
+    for token in tokens:
+        c = token.lower()
+        if t == c:
+            return True
+        if prefix and t.startswith(c + " "):
+            return True
+    return False
+
+
+def _split_command(text: str) -> tuple[str, str]:
+    """Split ``cmd rest of line`` into ``("cmd", "rest of line")``."""
+    stripped = text.strip()
+    parts = stripped.split(None, 1)
+    name = parts[0] if parts else stripped
+    args = parts[1] if len(parts) > 1 else ""
+    return name, args
+
+
+def _command_blocked(results: list) -> bool:
+    """True if any PreCommand hook result asked to block the command."""
+    for r in results or []:
+        if getattr(r, "blocked", False) or getattr(r, "exit_code", 0) == 2:
+            return True
+        if getattr(r, "decision", None) == "block":
+            return True
+        if getattr(r, "permission_decision", None) == "deny":
+            return True
+        if not getattr(r, "continue_execution", True):
+            return True
+    return False
+
+
+def _command_block_reason(results: list) -> str | None:
+    """First human-readable reason from a blocking PreCommand result."""
+    for r in results or []:
+        reason = getattr(r, "permission_decision_reason", None) or getattr(
+            r, "reason", None
+        )
+        if reason:
+            return reason
+    return None

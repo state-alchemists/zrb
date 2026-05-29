@@ -289,6 +289,17 @@ class BaseUI(CommandsMixin):
             finally:
                 loop.close()
 
+    async def execute_hook_blocking(
+        self, event: HookEvent, event_data: Any, **kwargs
+    ) -> list:
+        """Run hooks and await their results.
+
+        Unlike :meth:`execute_hook` (fire-and-forget), this awaits the manager
+        so callers can inspect results for a blocking decision — used by the
+        PreCommand path to cancel a command before it runs.
+        """
+        return await hook_manager.execute_hooks(event, event_data, **kwargs)
+
     @property
     def yolo(self) -> bool | frozenset:
         if self._yolo_xcom_key not in self._ctx.xcom:

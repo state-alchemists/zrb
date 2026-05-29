@@ -40,6 +40,13 @@ class KeybindingsMixin:
         _input_field: Any
         _output_field: Any
 
+        # From CommandsMixin
+        def classify_input(self, text: str) -> str: ...
+
+        def schedule_command(self, text: str) -> None: ...
+
+        def _submit_user_message(self, llm_task: "AnyTask", text: str) -> None: ...
+
     def setup_app_keybindings(
         self, app_keybindings: "KeyBindings", llm_task: "AnyTask"
     ):
@@ -162,50 +169,31 @@ class KeybindingsMixin:
             if not text.strip():
                 return
 
-            # These commands work even while the LLM is thinking
-            if self._handle_btw_command(text):
+            # Route by recognition, not by "/" prefix — command tokens are
+            # user-configurable (e.g. ">" for redirect). Recognized commands go
+            # through the hook-wrapped async dispatch (PreCommand may block;
+            # PostCommand fires after); plain text is sent to the LLM.
+            kind = self.classify_input(text)
+
+            # Run-while-thinking commands (/btw, YOLO toggle) dispatch even while
+            # the LLM is responding.
+            if kind == "thinking_command":
                 buff.reset()
-                return
-            if self._handle_toggle_yolo(text):
-                buff.reset()
+                self.schedule_command(text)
                 return
 
+            # Everything else is gated while thinking (matches main: the buffer
+            # is kept so the user can resubmit once the response finishes).
             if self._is_thinking:
                 return
 
-            if self._handle_exit_command(text):
-                return
-            if self._handle_info_command(text):
+            if kind == "command":
                 buff.reset()
-                return
-            if self._handle_save_command(text):
-                buff.reset()
-                return
-            if self._handle_load_command(text):
-                buff.reset()
-                return
-            if self._handle_rewind_command(text):
-                buff.reset()
-                return
-            if self._handle_redirect_command(text):
-                buff.reset()
-                return
-            if self._handle_attach_command(text):
-                buff.reset()
-                return
-            if self._handle_set_model_command(text):
-                buff.reset()
-                return
-            if self._handle_exec_command(text):
-                buff.reset()
-                return
-            if self._handle_custom_command(text):
-                buff.reset()
+                self.schedule_command(text)
                 return
 
-            # Append to history manually to ensure persistence
+            # Plain message — record for up-arrow recall, then submit.
             buff.append_to_history()
-
             self._submit_user_message(llm_task, text)
             buff.reset()
 

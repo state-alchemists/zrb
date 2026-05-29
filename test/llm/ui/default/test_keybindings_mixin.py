@@ -28,6 +28,8 @@ class MockUI(KeybindingsMixin):
         self.invalidate_ui = MagicMock()
         self.toggle_yolo = MagicMock()
         self._submit_user_message = MagicMock()
+        self.schedule_command = MagicMock()
+        self.classify_input = MagicMock(return_value="message")
 
         # Mocks for CommandsMixin methods
         self._handle_btw_command = MagicMock(return_value=False)
@@ -200,38 +202,56 @@ def test_enter_handle_confirmation(mock_ui, setup_bindings):
     assert not mock_ui._submit_user_message.called
 
 
-def test_enter_btw_command(mock_ui, setup_bindings):
+def test_enter_thinking_command_routes_even_while_thinking(mock_ui, setup_bindings):
+    # Run-while-thinking commands (/btw, YOLO toggle) dispatch regardless of
+    # the thinking state. Commands are not appended to input history (main
+    # never recalled recognized commands).
     event = create_mock_event("/btw hello")
-    mock_ui._handle_btw_command.return_value = True
+    mock_ui.classify_input.return_value = "thinking_command"
+    mock_ui._is_thinking = True
     trigger_binding(setup_bindings, "c-m", event)
+    mock_ui.schedule_command.assert_called_once_with("/btw hello")
+    event.current_buffer.reset.assert_called_once()
+    assert not event.current_buffer.append_to_history.called
+    assert not mock_ui._submit_user_message.called
+
+
+def test_enter_command_routes_to_dispatch(mock_ui, setup_bindings):
+    # A recognized command (any token, e.g. ">" redirect) goes through the
+    # hook-wrapped async dispatch — never submitted to the LLM directly.
+    # Guards the regression where ">" redirect was swallowed.
+    event = create_mock_event("> ~/coba.txt")
+    mock_ui.classify_input.return_value = "command"
+    trigger_binding(setup_bindings, "c-m", event)
+    mock_ui.schedule_command.assert_called_once_with("> ~/coba.txt")
     event.current_buffer.reset.assert_called_once()
     assert not mock_ui._submit_user_message.called
 
 
-def test_enter_thinking(mock_ui, setup_bindings):
+def test_enter_command_gated_while_thinking(mock_ui, setup_bindings):
+    # A non-thinking command typed while the LLM is responding is held (not
+    # dispatched, not submitted, buffer kept) — matches main.
+    event = create_mock_event("/save x")
+    mock_ui.classify_input.return_value = "command"
+    mock_ui._is_thinking = True
+    trigger_binding(setup_bindings, "c-m", event)
+    assert not mock_ui.schedule_command.called
+    assert not mock_ui._submit_user_message.called
+    assert not event.current_buffer.reset.called
+
+
+def test_enter_message_thinking(mock_ui, setup_bindings):
     event = create_mock_event("hello")
+    mock_ui.classify_input.return_value = "message"
     mock_ui._is_thinking = True
     trigger_binding(setup_bindings, "c-m", event)
     assert not mock_ui._submit_user_message.called
-
-
-def test_enter_exit_command(mock_ui, setup_bindings):
-    event = create_mock_event("/exit")
-    mock_ui._handle_exit_command.return_value = True
-    trigger_binding(setup_bindings, "c-m", event)
-    assert not mock_ui._submit_user_message.called
-
-
-def test_enter_info_command(mock_ui, setup_bindings):
-    event = create_mock_event("/info")
-    mock_ui._handle_info_command.return_value = True
-    trigger_binding(setup_bindings, "c-m", event)
-    event.current_buffer.reset.assert_called_once()
-    assert not mock_ui._submit_user_message.called
+    assert not mock_ui.schedule_command.called
 
 
 def test_enter_submit_message(mock_ui, setup_bindings):
     event = create_mock_event("hello world")
+    mock_ui.classify_input.return_value = "message"
     trigger_binding(setup_bindings, "c-m", event)
     event.current_buffer.append_to_history.assert_called_once()
     mock_ui._submit_user_message.assert_called_once()

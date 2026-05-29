@@ -6,6 +6,11 @@ class HookEvent(str, Enum):
 
     SESSION_START = "SessionStart"
     USER_PROMPT_SUBMIT = "UserPromptSubmit"
+    # zrb-specific: bracket a UI command (any configured token, not just "/").
+    # PreCommand fires before dispatch and may block it; PostCommand fires
+    # after a recognized command ran. (Claude Code has no equivalent hook.)
+    PRE_COMMAND = "PreCommand"
+    POST_COMMAND = "PostCommand"
     PRE_TOOL_USE = "PreToolUse"
     POST_TOOL_USE = "PostToolUse"
     POST_TOOL_USE_FAILURE = "PostToolUseFailure"
