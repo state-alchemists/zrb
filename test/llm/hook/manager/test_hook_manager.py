@@ -421,6 +421,43 @@ class TestHookManagerHookTypes:
             assert results[0].data["k"] == "v"
 
     @pytest.mark.asyncio
+    async def test_command_hook_receives_command_env(self, manager, tmp_path):
+        # PreCommand/PostCommand command hooks must see the parsed command via
+        # CLAUDE_COMMAND_NAME / CLAUDE_COMMAND_ARGS.
+        f = tmp_path / "h.json"
+        f.write_text(
+            json.dumps(
+                [
+                    {
+                        "name": "h",
+                        "events": ["PreCommand"],
+                        "type": "command",
+                        "config": {"command": "true"},
+                    }
+                ]
+            )
+        )
+
+        mock_process = MagicMock()
+        mock_process.returncode = 0
+        mock_process.communicate = AsyncMock(return_value=(b"", b""))
+
+        with patch(
+            "asyncio.create_subprocess_shell", return_value=mock_process
+        ) as mock_shell:
+            manager.scan(search_dirs=[str(tmp_path)])
+            await manager.execute_hooks(
+                HookEvent.PRE_COMMAND,
+                {},
+                command_name="/save",
+                command_args="my-session",
+            )
+
+        env = mock_shell.call_args.kwargs["env"]
+        assert env["CLAUDE_COMMAND_NAME"] == "/save"
+        assert env["CLAUDE_COMMAND_ARGS"] == "my-session"
+
+    @pytest.mark.asyncio
     async def test_command_hook_async(self, manager, tmp_path):
         f = tmp_path / "h.json"
         f.write_text(

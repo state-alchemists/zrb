@@ -123,6 +123,24 @@ def test_execute_hook_observable(base_ui):
 
 
 @pytest.mark.asyncio
+async def test_execute_hook_blocking_returns_results(base_ui):
+    """execute_hook_blocking awaits the manager and returns its results."""
+    from zrb.llm.hook.types import HookEvent
+
+    sentinel = ["result"]
+    with patch(
+        "zrb.llm.hook.manager.hook_manager.execute_hooks", new_callable=AsyncMock
+    ) as mock_exec:
+        mock_exec.return_value = sentinel
+        results = await base_ui.execute_hook_blocking(
+            HookEvent.PRE_COMMAND, {"command": "/save"}, command_name="/save"
+        )
+        assert results is sentinel
+        assert mock_exec.call_args.args[0] == HookEvent.PRE_COMMAND
+        assert mock_exec.call_args.kwargs["command_name"] == "/save"
+
+
+@pytest.mark.asyncio
 async def test_update_system_info_loop(base_ui):
     """Test that the system info loop periodically calls update_system_info."""
     with patch.object(

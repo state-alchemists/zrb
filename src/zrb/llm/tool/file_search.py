@@ -13,7 +13,7 @@ from zrb.util.truncate import truncate_output
 
 
 def search_files(
-    regex: str,
+    pattern: str,
     path: str = ".",
     file_pattern: str = "",
     auto_truncate: bool = True,
@@ -24,18 +24,21 @@ def search_files(
     case_sensitive: bool = True,
 ) -> dict[str, Any]:
     """
-    Searches for a regex pattern across files. Results include line numbers and context.
+    Searches file *contents* for a regular expression. Results include line
+    numbers and context.
 
+    `pattern`: a regular expression (e.g. `def \\w+`), NOT a glob — to find
+        files by name, use Glob instead.
+    `file_pattern`: a glob restricting which files to search (e.g., `*.py`).
     `context_lines` (default 2): surrounding lines shown per match.
     `files_only=True`: returns `{"files": [...], "summary": "..."}` — much smaller output.
     `case_sensitive=False`: case-insensitive search.
-    `file_pattern`: restrict to specific file types (e.g., `*.py`).
     Lines are truncated at 1000 chars in output.
     """
     start_time = time.time()
     flags = 0 if case_sensitive else re.IGNORECASE
     try:
-        pattern = re.compile(regex, flags)
+        compiled = re.compile(pattern, flags)
     except re.error as e:
         return {"error": f"Invalid regex pattern: {e}"}
 
@@ -51,8 +54,8 @@ def search_files(
     )
 
     rg_result = _search_with_ripgrep(
-        pattern=pattern,
-        regex=regex,
+        pattern=compiled,
+        regex=pattern,
         abs_path=abs_path,
         file_pattern=file_pattern,
         case_sensitive=case_sensitive,
@@ -69,7 +72,7 @@ def search_files(
 
     return _search_with_os_walk(
         abs_path=abs_path,
-        pattern=pattern,
+        pattern=compiled,
         file_pattern=file_pattern,
         patterns_to_exclude=patterns_to_exclude,
         timeout=timeout,

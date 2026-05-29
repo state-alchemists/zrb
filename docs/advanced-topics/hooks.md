@@ -68,12 +68,36 @@ Hooks can attach to these lifecycle events:
 | `SessionStart` | Session begins | No |
 | `SessionEnd` | Session ends | No |
 | `UserPromptSubmit` | Before LLM processes text | No |
+| `PreCommand` | Before a UI command runs (chat TUI) | **Yes** |
+| `PostCommand` | After a recognized UI command runs | No |
 | `PreToolUse` | Before a tool executes | **Yes** |
 | `PostToolUse` | After tool succeeds | No |
 | `PostToolUseFailure` | After tool fails | No |
 | `Notification` | System notifications | No |
 | `Stop` | When execution stops | No |
 | `PreCompact` | Before history summarization | No |
+
+`PreCommand` / `PostCommand` fire in the interactive chat TUI when the user
+runs a built-in or custom command (any configured token — `/save`, `/exit`, a
+custom `>` redirect, etc.; not just `/`-prefixed). The command name and
+arguments are exposed as `command_name` / `command_args` (see [Environment
+Variables](#environment-variables)). A blocking `PreCommand` hook cancels the
+command before it runs; plain chat messages do **not** fire these events.
+
+A `PreCommand` hook can also **rewrite the command's argument** by returning a
+`command_args` value — the command token is preserved, the argument is
+swapped. For example, redirect a model switch:
+
+```python
+async def downgrade_opus(ctx):
+    if ctx.command_name == "/model" and "opus" in (ctx.command_args or "").lower():
+        return HookResult(modifications={"command_args": "sonnet"})  # opus -> sonnet
+    return HookResult()
+```
+
+A shell command hook does the same by printing JSON on stdout:
+`echo '{"command_args": "sonnet"}'`. The highest-priority hook that sets
+`command_args` wins.
 
 ---
 
@@ -470,6 +494,8 @@ Command hooks receive these environment variables automatically:
 | `CLAUDE_TOOL_NAME` | Tool name (for tool events) |
 | `CLAUDE_TOOL_INPUT` | Tool input as JSON string |
 | `CLAUDE_PROMPT` | User prompt (for prompt events) |
+| `CLAUDE_COMMAND_NAME` | Command token, e.g. `/save` or `>` (for `PreCommand`/`PostCommand`) |
+| `CLAUDE_COMMAND_ARGS` | Text after the command token (for `PreCommand`/`PostCommand`) |
 | `CLAUDE_EVENT_DATA` | Full event data as JSON string |
 | `CLAUDE_TRANSCRIPT_PATH` | Path to transcript file |
 | `CLAUDE_PERMISSION_MODE` | Current permission mode |

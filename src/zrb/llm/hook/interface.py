@@ -21,6 +21,9 @@ class HookContext:
 
     # Event-specific fields (populated based on event type)
     prompt: str | None = None  # UserPromptSubmit
+    command_name: str | None = None  # Pre/PostCommand — e.g. "/save" or ">"
+    command_args: str | None = None  # Pre/PostCommand — text after the token
+    command_handled: bool | None = None  # PostCommand — a handler consumed it
     tool_name: str | None = None  # PreToolUse, PostToolUse, etc.
     tool_input: dict[str, Any] | None = None
     tool_response: dict[str, Any] | None = None
@@ -49,6 +52,9 @@ class HookContext:
     # Fields to include in JSON output when non-None
     _JSON_FIELDS: "ClassVar[list[str]]" = [
         "prompt",
+        "command_name",
+        "command_args",
+        "command_handled",
         "tool_name",
         "tool_input",
         "tool_response",
