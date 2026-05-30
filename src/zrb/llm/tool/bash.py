@@ -22,9 +22,15 @@ async def run_shell_command(
     """
     Executes a non-interactive shell command. Streams stdout/stderr live and returns truncated output.
 
+    Commands must be fully non-interactive: pass `-y`, `--yes`, `CI=true`, or equivalent
+    auto-confirmation flags so the process never waits for stdin — interactive prompts will
+    hang until the timeout.
+
+    Batch independent commands with `&&` to avoid extra round-trips
+    (e.g. `pytest && flake8 src`). Use the `cwd` parameter instead of `cd <dir> && ...`
+    to set the working directory without leaving shell-state side-effects in this call.
+
     Default `timeout` is 120 seconds; timed-out processes may continue in the background.
-    Use `cwd` instead of `cd <dir> && ...` to set the working directory without shell state side-effects.
-    Prefer non-interactive flags (`-y`, `--yes`, `CI=true`) to avoid hangs.
     """
     if max_chars is None:
         max_chars = CFG.LLM_MAX_OUTPUT_CHARS

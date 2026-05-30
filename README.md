@@ -186,7 +186,7 @@ Zrb will interactively ask for the directory and diagram name. Just press **Ente
 
 ## 🖥️ Try the Web UI
 
-Prefer a graphical interface? Zrb has you covered. Explore the full details in the [Web UI Guide](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/web-ui.md).
+Prefer a graphical interface? Zrb has you covered. Explore the full details in the [Web UI Guide](docs/advanced-topics/web-ui.md).
 
 ```bash
 zrb server start
@@ -200,7 +200,7 @@ Then open your browser to `http://localhost:21213` to see your tasks in a clean,
 
 ## 💬 Interact with an LLM Directly
 
-Zrb brings AI capabilities right to your command line. For full details on configuring and using the AI assistant, see the [LLM Integration Guide](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/llm-integration.md).
+Zrb brings AI capabilities right to your command line. For full details on configuring and using the AI assistant, see the [LLM Integration Guide](docs/advanced-topics/llm-integration.md).
 
 ### Interactive Chat
 
@@ -216,9 +216,9 @@ zrb llm chat
 
 Ready to dive deeper into getting Zrb set up and customized? Our comprehensive guides cover everything you need:
 
--   **[Installation Guide](https://github.com/state-alchemists/zrb/blob/main/docs/installation/installation.md)**: Details on `pip` install, the automated `install.sh` script, Docker images, and even running Zrb on Android (Termux/Proot).
--   **[Environment Variables & Overrides](https://github.com/state-alchemists/zrb/blob/main/docs/configuration/env-vars.md)**: An exhaustive list of all general environment variables to customize Zrb's behavior.
--   **[LLM & Rate Limiter Configuration](https://github.com/state-alchemists/zrb/blob/main/docs/configuration/llm-config.md)**: Everything you need to configure your LLM provider, manage token budgets, and fine-tune AI behavior.
+-   **[Installation Guide](docs/installation/installation.md)**: Details on `pip` install, the automated `install.sh` script, Docker images, and even running Zrb on Android (Termux/Proot).
+-   **[Environment Variables & Overrides](docs/configuration/env-vars.md)**: An exhaustive list of all general environment variables to customize Zrb's behavior.
+-   **[LLM & Rate Limiter Configuration](docs/configuration/llm-config.md)**: Everything you need to configure your LLM provider, manage token budgets, and fine-tune AI behavior.
 
 ---
 
@@ -234,40 +234,48 @@ Zrb scales from simple scripts to massive automation ecosystems. Explore the doc
 
 ### I. Core Concepts
 The foundational pillars of the framework.
-- [Tasks & Execution Lifecycle](https://github.com/state-alchemists/zrb/blob/main/docs/core-concepts/tasks-and-lifecycle.md)
-- [CLI and Groups](https://github.com/state-alchemists/zrb/blob/main/docs/core-concepts/cli-and-groups.md)
-- [Inputs](https://github.com/state-alchemists/zrb/blob/main/docs/core-concepts/inputs.md)
-- [Environments (Envs)](https://github.com/state-alchemists/zrb/blob/main/docs/core-concepts/environments.md)
-- [Session, Context & XCom](https://github.com/state-alchemists/zrb/blob/main/docs/core-concepts/session-and-context.md)
+- [Tasks & Execution Lifecycle](docs/core-concepts/tasks-and-lifecycle.md)
+- [CLI and Groups](docs/core-concepts/cli-and-groups.md)
+- [Inputs](docs/core-concepts/inputs.md)
+- [Environments (Envs)](docs/core-concepts/environments.md)
+- [Session, Context & XCom](docs/core-concepts/session-and-context.md)
+- [The `@make_task` Decorator](docs/core-concepts/make-task.md) — full parameter reference
+- [XCom Deep Dive](docs/core-concepts/xcom-deep-dive.md) — advanced patterns & pitfalls
 
-### II. Task Types & Built-ins
-Pre-packaged operations you can use immediately.
-- [Task & CmdTask](https://github.com/state-alchemists/zrb/blob/main/docs/task-types/basic-tasks.md)
-- [Readiness: HttpCheck & TcpCheck](https://github.com/state-alchemists/zrb/blob/main/docs/task-types/readiness-checks.md)
-- [Automation: Triggers & Schedulers](https://github.com/state-alchemists/zrb/blob/main/docs/task-types/triggers-and-schedulers.md)
-- [File Ops: Scaffolder & RsyncTask](https://github.com/state-alchemists/zrb/blob/main/docs/task-types/file-ops.md)
-- [Built-in Helper Tasks](https://github.com/state-alchemists/zrb/blob/main/docs/task-types/builtin-helpers.md) (Git, Base64, UUID, HTTP, etc.)
+### II. Task Types
+All task types available in Zrb, from basic to advanced.
+- [Task & CmdTask](docs/task-types/basic-tasks.md) — Python actions and shell commands
+- [Custom Tasks](docs/task-types/custom-tasks.md) — subclassing `BaseTask` with async patterns
+- [Readiness: HttpCheck & TcpCheck](docs/task-types/readiness-checks.md)
+- [Automation: Triggers & Schedulers](docs/task-types/triggers-and-schedulers.md)
+- [File Ops: Scaffolder & RsyncTask](docs/task-types/file-ops.md)
+- [Built-in Helper Tasks](docs/task-types/builtin-helpers.md) (Git, Base64, UUID, HTTP, etc.)
 
-### III. Advanced Features
-Taking your automation to the next level.
-- [LLM Assistant (Pollux) & AI Tasks](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/llm-integration.md)
-- [MCP Support (Model Context Protocol)](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/mcp-support.md)
-- [LSP Support (Language Server Protocol)](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/lsp-support.md)
-- [Hook System (Claude Code Compatible)](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/hooks.md)
-- [White-labeling: Create a Custom CLI](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/white-labeling.md)
-- [CI/CD Integration](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/ci-cd.md)
+### III. LLM & AI Integration
+- [LLM Assistant & AI Tasks](docs/advanced-topics/llm-integration.md) — `LLMTask`, tools, sub-agents, context management
+- [LLMChatTask API Reference](docs/task-types/llmchat-task.md) — builder API, TUI configuration
+- [LLM Chat Request Lifecycle](docs/advanced-topics/llm-chat-lifecycle.md) — end-to-end tour: CLI → agent run → UI → history persistence
+- [Hook System (Claude Code Compatible)](docs/advanced-topics/hooks.md)
+- [MCP Support (Model Context Protocol)](docs/advanced-topics/mcp-support.md)
+- [LSP Support (Language Server Protocol)](docs/advanced-topics/lsp-support.md)
+- [Technical Spec: LLM Journal System](docs/technical-specs/llm-context.md)
+- [Claude Code Compatibility](docs/advanced-topics/claude-compatibility.md)
 
-### IV. Configuration
-- [Environment Variables & Overrides](https://github.com/state-alchemists/zrb/blob/main/docs/configuration/env-vars.md)
-- [LLM & Rate Limiter Configuration](https://github.com/state-alchemists/zrb/blob/main/docs/configuration/llm-config.md)
+### IV. Advanced Topics
+- [Architecture & Conventions](docs/advanced-topics/architecture.md) — for maintainers and contributors
+- [Web UI Guide](docs/advanced-topics/web-ui.md)
+- [White-labeling: Create a Custom CLI](docs/advanced-topics/white-labeling.md)
+- [CI/CD Integration](docs/advanced-topics/ci-cd.md)
+- [Testing Zrb Tasks](docs/advanced-topics/testing-tasks.md) — mocking context, testing pipelines
+- [Upgrading Guide](docs/advanced-topics/upgrading-guide.md)
+- [Maintainer Guide](docs/advanced-topics/maintainer-guide.md)
 
-### V. Guides & Specifications
-- [Web UI Guide](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/web-ui.md)
-- [Upgrading Guide](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/upgrading-guide.md)
-- [Maintainer Guide](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/maintainer-guide.md)
-- [Changelog](https://github.com/state-alchemists/zrb/blob/main/docs/changelog.md)
-- [Claude Code Compatibility](https://github.com/state-alchemists/zrb/blob/main/docs/advanced-topics/claude-compatibility.md)
-- [Technical Spec: LLM Journal System](https://github.com/state-alchemists/zrb/blob/main/docs/technical-specs/llm-context.md)
+### V. Configuration
+- [Environment Variables & Overrides](docs/configuration/env-vars.md)
+- [LLM & Rate Limiter Configuration](docs/configuration/llm-config.md)
+
+### VI. Changelog
+- [Changelog](docs/changelog.md) — full release history
 
 ---
 

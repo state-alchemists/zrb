@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import shutil
 import subprocess
 from typing import NamedTuple
@@ -35,20 +36,45 @@ class Snapshot(NamedTuple):
 class SnapshotManager:
     """Manages filesystem snapshots using a shadow git repository."""
 
-    def __init__(self, snapshot_dir: str, session_name: str, workdir: str):
+    # Directories that are large, regenerable, and almost never contain
+    # hand-edited content. Skipping them turns a multi-second copy on big
+    # projects into a sub-second one. Applied symmetrically to backup and
+    # restore — entries here are never copied, never deleted by restore.
+    DEFAULT_IGNORE_DIRS: frozenset[str] = frozenset(
+        {
+            # Python
+            ".venv",
+            "venv",
+            "__pycache__",
+            ".pytest_cache",
+            ".mypy_cache",
+            ".ruff_cache",
+            ".tox",
+            ".eggs",
+            # Node / JS
+            "node_modules",
+            ".next",
+            ".nuxt",
+            ".turbo",
+            ".parcel-cache",
+            # Generic caches
+            ".cache",
+        }
+    )
+
+    def __init__(
+        self,
+        snapshot_dir: str,
+        session_name: str,
+        workdir: str,
+        ignore_dirs: "frozenset[str] | set[str] | None" = None,
+    ):
         self._workdir = os.path.abspath(workdir)
         self._shadow_dir = os.path.join(snapshot_dir, _safe_name(session_name))
         self._initialized = False
-
-    def _ensure_initialized(self):
-        if self._initialized:
-            return
-        os.makedirs(self._shadow_dir, exist_ok=True)
-        if not os.path.isdir(os.path.join(self._shadow_dir, ".git")):
-            _git(self._shadow_dir, ["init"])
-            _git(self._shadow_dir, ["config", "user.email", "zrb-snapshot@local"])
-            _git(self._shadow_dir, ["config", "user.name", "zrb-snapshot"])
-        self._initialized = True
+        self._ignore_dirs: frozenset[str] = (
+            self.DEFAULT_IGNORE_DIRS if ignore_dirs is None else frozenset(ignore_dirs)
+        )
 
     async def take_snapshot(
         self, label: str, message_count: int | None = None
@@ -64,7 +90,13 @@ class SnapshotManager:
         try:
             self._ensure_initialized()
             await asyncio.to_thread(
-                _sync_dirs, self._workdir, self._shadow_dir, True, True
+                _sync_dirs,
+                self._workdir,
+                self._shadow_dir,
+                True,
+                True,
+                self._ignore_dirs,
+                True,  # incremental: workdir → shadow, dst-newer means unchanged
             )
             commit_msg = _build_commit_message(label, message_count)
             # Force an empty commit when message_count advanced but files didn't
@@ -80,25 +112,6 @@ class SnapshotManager:
             logger.warning(f"Snapshot failed: {e}")
             return None
 
-    def _commit(self, commit_msg: str, allow_empty: bool = False) -> str | None:
-        _git(self._shadow_dir, ["add", "-A"])
-        result = subprocess.run(
-            ["git", "diff", "--cached", "--quiet"],
-            cwd=self._shadow_dir,
-            capture_output=True,
-        )
-        if result.returncode == 0:
-            if allow_empty:
-                _git(
-                    self._shadow_dir,
-                    ["commit", "--allow-empty", "-m", commit_msg],
-                )
-                return _head_sha(self._shadow_dir)
-            # Nothing new to commit — return current HEAD sha if any
-            return _head_sha(self._shadow_dir)
-        _git(self._shadow_dir, ["commit", "-m", commit_msg])
-        return _head_sha(self._shadow_dir)
-
     async def take_init_snapshot(self) -> str | None:
         """Take an empty baseline snapshot at session start.
 
@@ -108,10 +121,17 @@ class SnapshotManager:
         try:
             self._ensure_initialized()
             # Only create init snapshot if the repo has no commits yet
-            if _head_sha(self._shadow_dir) is not None:
-                return _head_sha(self._shadow_dir)
+            existing_sha = _head_sha(self._shadow_dir)
+            if existing_sha is not None:
+                return existing_sha
             await asyncio.to_thread(
-                _sync_dirs, self._workdir, self._shadow_dir, True, True
+                _sync_dirs,
+                self._workdir,
+                self._shadow_dir,
+                True,
+                True,
+                self._ignore_dirs,
+                True,  # incremental: workdir → shadow
             )
             commit_msg = _build_commit_message("init", message_count=0)
             return await asyncio.to_thread(
@@ -160,12 +180,46 @@ class SnapshotManager:
             self._ensure_initialized()
             await asyncio.to_thread(_git, self._shadow_dir, ["reset", "--hard", sha])
             await asyncio.to_thread(
-                _sync_dirs, self._shadow_dir, self._workdir, True, True
+                _sync_dirs,
+                self._shadow_dir,
+                self._workdir,
+                True,
+                True,
+                self._ignore_dirs,
             )
             return True
         except Exception as e:
             logger.warning(f"restore_snapshot failed: {e}")
             return False
+
+    def _ensure_initialized(self):
+        if self._initialized:
+            return
+        os.makedirs(self._shadow_dir, exist_ok=True)
+        if not os.path.isdir(os.path.join(self._shadow_dir, ".git")):
+            _git(self._shadow_dir, ["init"])
+            _git(self._shadow_dir, ["config", "user.email", "zrb-snapshot@local"])
+            _git(self._shadow_dir, ["config", "user.name", "zrb-snapshot"])
+        self._initialized = True
+
+    def _commit(self, commit_msg: str, allow_empty: bool = False) -> str | None:
+        _git(self._shadow_dir, ["add", "-A"])
+        result = subprocess.run(
+            ["git", "diff", "--cached", "--quiet"],
+            cwd=self._shadow_dir,
+            capture_output=True,
+        )
+        if result.returncode == 0:
+            if allow_empty:
+                _git(
+                    self._shadow_dir,
+                    ["commit", "--allow-empty", "-m", commit_msg],
+                )
+                return _head_sha(self._shadow_dir)
+            # Nothing new to commit — return current HEAD sha if any
+            return _head_sha(self._shadow_dir)
+        _git(self._shadow_dir, ["commit", "-m", commit_msg])
+        return _head_sha(self._shadow_dir)
 
 
 # ---------------------------------------------------------------------------
@@ -184,7 +238,6 @@ def _build_commit_message(label: str, message_count: int | None) -> str:
 
 def _parse_commit_message(raw: str) -> tuple[str, int | None]:
     """Return (human_label, message_count).  message_count is None if not present."""
-    import re
 
     m = re.search(r"\[mc:(\d+)\]$", raw)
     if m:
@@ -231,8 +284,125 @@ def _git(cwd: str, args: list[str]):
     subprocess.run(["git"] + args, cwd=cwd, check=True, capture_output=True)
 
 
+def _prune_walk(dirs: list[str], exclude_git: bool, ignored: frozenset[str]) -> None:
+    """Remove ``.git`` and ignored directories from an ``os.walk`` *dirs* list in-place."""
+    if exclude_git and ".git" in dirs:
+        dirs.remove(".git")
+    if ignored:
+        dirs[:] = [d for d in dirs if d not in ignored]
+
+
+def _copy_files(
+    src: str,
+    dst: str,
+    exclude_git: bool,
+    ignored: frozenset[str],
+    src_rel_paths: set[str],
+    incremental: bool = False,
+) -> None:
+    """Copy all non-ignored files from *src* to *dst*, recording relative paths.
+
+    When *incremental* is True and the destination file already matches the
+    source by size and mtime, ``shutil.copy2`` is skipped. ``copy2`` preserves
+    source mtime, so the comparison is stable across runs. This is only sound
+    when copying from a canonical source to a cache (snapshot direction). On
+    the restore path, *incremental* MUST be False — dst-newer there means the
+    user edited a file after the snapshot, and the restore is exactly the
+    operation that must undo those edits.
+    """
+    for root, dirs, files in os.walk(src):
+        _prune_walk(dirs, exclude_git, ignored)
+        rel_root = os.path.relpath(root, src)
+        for fname in files:
+            src_path = os.path.join(root, fname)
+            try:
+                src_stat = os.stat(src_path)
+            except OSError:
+                continue
+            if not _stat_is_file(src_stat):
+                continue
+            rel_path = fname if rel_root == "." else os.path.join(rel_root, fname)
+            dst_path = os.path.join(dst, rel_path)
+            src_rel_paths.add(rel_path)
+            if incremental and _dst_is_up_to_date(dst_path, src_stat):
+                continue
+            os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+            shutil.copy2(src_path, dst_path)
+
+
+def _stat_is_file(st: os.stat_result) -> bool:
+    # lazy: deferred to keep module import light
+    import stat as _stat
+
+    return _stat.S_ISREG(st.st_mode)
+
+
+def _dst_is_up_to_date(dst_path: str, src_stat: os.stat_result) -> bool:
+    """Return True when *dst_path* exists and is at least as new as *src_stat*.
+
+    Same-size + mtime≥src guards against the common case (file unchanged) and
+    against editors that touch mtime without changing content. A pessimistic
+    miss just means we copy when we didn't have to — never the wrong content.
+    """
+    try:
+        dst_stat = os.stat(dst_path)
+    except OSError:
+        return False
+    if dst_stat.st_size != src_stat.st_size:
+        return False
+    return dst_stat.st_mtime >= src_stat.st_mtime
+
+
+def _collect_pruned_rel_paths(
+    root_dir: str, exclude_git: bool, ignored: frozenset[str]
+) -> set[str]:
+    """Walk *root_dir* (skipping .git and ignored dirs) and return relative file paths."""
+    paths: set[str] = set()
+    for root, dirs, files in os.walk(root_dir):
+        _prune_walk(dirs, exclude_git, ignored)
+        rel_root = os.path.relpath(root, root_dir)
+        for fname in files:
+            rel_path = fname if rel_root == "." else os.path.join(rel_root, fname)
+            paths.add(rel_path)
+    return paths
+
+
+def _remove_stale_files(dst: str, stale_paths: set[str]) -> None:
+    """Remove files in *stale_paths* from *dst* (silently ignoring OSError)."""
+    for rel_path in stale_paths:
+        try:
+            os.remove(os.path.join(dst, rel_path))
+        except OSError:
+            pass
+
+
+def _remove_empty_dirs(
+    root_dir: str, exclude_git: bool, ignored: frozenset[str]
+) -> None:
+    """Remove empty directories bottom-up, skipping .git and ignored trees."""
+    for root, dirs, files in os.walk(root_dir, topdown=False):
+        if root == root_dir:
+            continue
+        rel = os.path.relpath(root, root_dir)
+        rel_parts = rel.split(os.sep)
+        if exclude_git and ".git" in rel_parts:
+            continue
+        if ignored and any(part in ignored for part in rel_parts):
+            continue
+        try:
+            if not os.listdir(root):
+                os.rmdir(root)
+        except OSError:
+            pass
+
+
 def _sync_dirs(
-    src: str, dst: str, exclude_git: bool = True, delete: bool = False
+    src: str,
+    dst: str,
+    exclude_git: bool = True,
+    delete: bool = False,
+    ignore_dirs: "frozenset[str] | None" = None,
+    incremental: bool = False,
 ) -> None:
     """Recursively copy *src* into *dst*, optionally deleting stale dst files.
 
@@ -241,60 +411,27 @@ def _sync_dirs(
         dst: Destination directory path.
         exclude_git: When True, ``.git`` subtrees are skipped in both directions.
         delete: When True, files present in *dst* but absent from *src* are removed.
+        ignore_dirs: Directory basenames to skip in both walks. Entries are
+            never copied from src and never deleted from dst — keeping
+            regenerable trees like ``node_modules`` out of the snapshot
+            without restore wiping them from the user's workdir.
+        incremental: When True, skip per-file copies whose dst already matches
+            the src by size and mtime. Only safe in the **workdir → shadow**
+            direction (take_snapshot): there, dst-newer-than-src means shadow
+            already has the current version. In the **shadow → workdir**
+            direction (restore_snapshot), dst-newer means the user modified
+            after the snapshot — that file *must* be overwritten — so this
+            flag must remain False on restore.
     """
     os.makedirs(dst, exist_ok=True)
+    ignored: frozenset[str] = ignore_dirs or frozenset()
     src_rel_paths: set[str] = set()
 
-    # Copy src → dst
-    for root, dirs, files in os.walk(src):
-        if exclude_git and ".git" in dirs:
-            dirs.remove(".git")
-
-        rel_root = os.path.relpath(root, src)
-
-        for fname in files:
-            src_path = os.path.join(root, fname)
-            # Skip non-regular files (sockets, FIFOs, device files)
-            if not os.path.isfile(src_path):
-                continue
-            rel_path = fname if rel_root == "." else os.path.join(rel_root, fname)
-            dst_path = os.path.join(dst, rel_path)
-            src_rel_paths.add(rel_path)
-            os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-            shutil.copy2(src_path, dst_path)
+    _copy_files(src, dst, exclude_git, ignored, src_rel_paths, incremental)
 
     if not delete:
         return
 
-    # Collect dst files (excluding .git)
-    dst_rel_paths: set[str] = set()
-    for root, dirs, files in os.walk(dst):
-        if exclude_git and ".git" in dirs:
-            dirs.remove(".git")
-
-        rel_root = os.path.relpath(root, dst)
-        for fname in files:
-            rel_path = fname if rel_root == "." else os.path.join(rel_root, fname)
-            dst_rel_paths.add(rel_path)
-
-    # Remove stale files
-    for rel_path in dst_rel_paths - src_rel_paths:
-        try:
-            os.remove(os.path.join(dst, rel_path))
-        except OSError:
-            pass
-
-    # Remove empty directories (bottom-up).
-    # Skip any path that is, or lives inside, a .git directory.
-    for root, dirs, files in os.walk(dst, topdown=False):
-        if root == dst:
-            continue
-        if exclude_git:
-            rel = os.path.relpath(root, dst)
-            if ".git" in rel.split(os.sep):
-                continue
-        try:
-            if not os.listdir(root):
-                os.rmdir(root)
-        except OSError:
-            pass
+    dst_rel_paths = _collect_pruned_rel_paths(dst, exclude_git, ignored)
+    _remove_stale_files(dst, dst_rel_paths - src_rel_paths)
+    _remove_empty_dirs(dst, exclude_git, ignored)

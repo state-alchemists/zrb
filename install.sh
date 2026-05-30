@@ -115,6 +115,36 @@ install_zrb() {
     eval pip install --pre zrb
 }
 
+install_lsps() {
+    # LSP servers power richer post-write diagnostics during ``zrb chat``.
+    # Python (pylsp) is installed unconditionally because zrb itself is Python.
+    # Other-language servers are offered only when their toolchain is present.
+    # Use ``python -m pip`` so pylsp lands in the same interpreter that runs
+    # zrb — a bare ``pip`` may resolve via PATH to a different Python.
+    log_info "Installing python-lsp-server (pylsp)"
+    python -m pip install 'python-lsp-server[all]'
+
+    if command_exists npm && confirm "Install typescript-language-server (for JS/TS)?"
+    then
+        log_info "Installing typescript-language-server"
+        npm install -g typescript-language-server typescript
+    fi
+
+    if command_exists go && confirm "Install gopls (for Go)?"
+    then
+        log_info "Installing gopls"
+        go install golang.org/x/tools/gopls@latest
+    fi
+
+    if command_exists rustup && confirm "Install rust-analyzer (for Rust)?"
+    then
+        log_info "Installing rust-analyzer"
+        rustup component add rust-analyzer
+    fi
+
+    log_info "LSP servers installed. zrb auto-detects which ones are on PATH."
+}
+
 
 #########################################################################################
 # Getting variables
@@ -243,6 +273,11 @@ fi
 if ! command_exists zrb
 then
     install_zrb
+fi
+
+if confirm "Do you want to install LSP language servers for richer code diagnostics?"
+then
+    install_lsps
 fi
 
 if [ "$IS_PYENV_INSTALLED" = 1 ] || [ "$IS_LOCAL_VENV_INSTALLED" = 1 ]

@@ -1,68 +1,97 @@
 ---
 name: core-coding
-description: Tactical workflow for safe, maintainable, and high-quality codebase creation/modification. Enforces top-notch engineering standards for all coding-related tasks.
+description: "Activate before any coding task — reading, editing, or creating code files. Provides the mandatory Research → Strategy → Execution workflow plus the complexity budget and specialised deep-dive companions (testing, debug, refactor, review)."
 user-invocable: false
 ---
 # Skill: core-coding
 
-When working on any coding or development task, you MUST follow this `Research -> Strategy -> Execution` workflow to ensure safety, maintainability, and seamless integration.
+Follow **Research → Strategy → Execution** for every coding task.
+
+## Deep-Dive Companions
+
+When the current step matches a trigger below, `Read` the named companion from this skill's directory (the activation header lists the directory path and all companion paths). Companions are not pre-loaded — pull them on demand.
+
+| Trigger | Companion |
+|---------|-----------|
+| About to write, modify, or audit a test | `workflows/testing.md` |
+| Something is broken and root cause is unclear | `workflows/debug.md` |
+| Code structure needs improvement (complexity, duplication) | `workflows/refactor.md` |
+| Reviewing changes for correctness, security, or quality | `workflows/review.md` |
+| Code touches user input, auth, file I/O, or sensitive data | `workflows/review.md` (security audit checklist) |
+| First substantial edit in a project — identify the language from the manifest | `languages/<lang>.md` (one of `python`, `typescript`, `go`, `rust`, `java`, `ruby`, `php`) |
+
+If the user has provided custom guidelines for any of the above (in CLAUDE.md, AGENTS.md, their own skills, or project files), prefer those over the core companion. Core companions fill in the gaps.
 
 ## PHASE 1: RESEARCH & DISCOVERY
 
-a.  **High-Level Reconnaissance:**
-    - Use directory listing tools (`LS`) with limited depth for initial structure mapping.
-    - Identify: source directories, test directories, configuration files, entry points, and utility/helper modules.
-    - NEVER use listing tools if you already know specific file paths or if a targeted glob search is possible.
-b.  **Documentation & Context Analysis:** 
-    - Read `README.md`, `AGENTS.md`, `GEMINI.md`, `CLAUDE.md`, dependency files (e.g., `pyproject.toml`, `package.json`), and configuration files.
-    - Treat documentation as first-class code. Analyze `.md`, `.rst`, or `.txt` files to understand project architecture, design patterns, configuration options, usage examples, and constraints.
-c.  **Targeted Architecture Discovery:**
-    - Combine turns: Use `Glob` and `Grep` in parallel to map file structures, existing patterns, and available utility functions. 
-    - Use `Grep` with specific `regex` and `file_pattern` to minimize noise.
-    - **Context Efficiency**: If you need to read multiple related files, ALWAYS prefer `ReadMany` over multiple sequential `Read` calls.
-d.  **Tool Efficiency Heuristics:**
-    - **`Read` / `ReadMany`**: Use `Read` for single files. Use `ReadMany` to gather context from related files simultaneously. For large files, read specific line ranges.
-    - **`Glob`**: ALWAYS prefer over `LS` for targeted discovery.
-    - **`Grep`**: ALWAYS limit scope via `file_pattern` and specific `regex`.
-    - **`Write` / `Edit`**: ALWAYS prefer surgical editing (`Edit`) over rewriting entire files.
+Follow the **Scientific Method**: form a hypothesis → test it → analyze results. Avoid random changes.
 
-## PHASE 2: STRATEGY & ARCHITECTURE
+### a.  **High-Level Reconnaissance:**
 
-e.  **Formulate a Grounded Plan:**
-    - Inside your mandated `<thinking>` block, formulate a strategy that prioritizes **Maintainability**, **Readability**, and **Testability**.
-    - **Pattern Matching**: Your strategy MUST match existing project guidelines and patterns exactly (inferred from the code). The new code should be well integrated into the existing system, looking as though it were written by the original author.
-    - **Reuse Over Reinvention**: Identify if existing helper or utility functions can be leveraged. If it makes sense to use them, do so instead of creating new ones.
-    - **Design Principles**: Apply SOLID and DRY principles as much as possible.
-    - **Complexity Management**: Strictly avoid creating "God Classes" or "God Functions". You must keep **Cyclomatic Complexity** and **Cognitive Complexity** low.
-    - **Modularity**: Break down complex logic into small, single-responsibility helper functions. Avoid deep nesting (e.g., more than 2-3 levels of indentation).
-    - Do not introduce new architectural patterns without explicit approval.
-    - Define your testing strategy (how you will empirically verify the code change).
-    - Plan updates to the documentation if the codebase change affects APIs, configurations, or behaviors.
+- Use `LS` with limited depth for initial structure mapping.
+- Identify: source directories, test directories, config files, entry points, and utility modules.
+- Skip if you already know specific file paths — use targeted `Glob` instead.
 
-## PHASE 3: EXECUTION (Plan -> Act -> Validate)
+### b.  **Targeted Architecture Discovery:**
 
-f.  **Act (Surgical Implementation):**
-    - Make minimal, precise edits strictly related to the sub-task.
-    - Write code that is easy to trace and easy to test.
-    - Consolidate logic into clean abstractions rather than threading state across unrelated layers.
-    - Prefer to only use existing libraries and established patterns. NEVER introduce new technical debt.
-    - **Test-First for New Behavior**: When adding new functionality, activate the `testing` skill (TDD mode) to drive implementation with a failing test before writing any production code.
-    - **Transition Safety (Strangler Pattern)**: The codebase must remain in a stable, runnable state throughout all phases of modification. When replacing or significantly refactoring an existing component (e.g., a file, function, or module), use a progressive approach:
-        1. Create the new component alongside the old
-        2. Update and verify all references to point to the new component
-        3. Only then remove the old component.
-        NEVER delete a functioning component before its replacement is fully integrated and validated.
-    - **Structural Improvement**: If you identify a structural problem (duplication, high complexity, God functions) that is out of scope for the current task, report it. If it must be fixed now, activate the `refactor` skill.
-    - **Code Smell Reporting**: If you encounter existing code smells or poorly structured code during your work, report it to the user.
-    - **Update Documentation**: Keep documentation files in sync with code changes. Update configuration options, behavior, and verify that examples match the new implementation. Remove references to deprecated/removed functionality.
-    - **Boundary Check**: Your job ends at modifying and verifying the files. **NEVER use shell commands to stage (`git add`) or commit changes** after you are done. Leave version control to the user unless they explicitly ask for a git summary.
+- Use `Glob` and `Grep` in parallel to map file structures, existing patterns, and utility functions.
+- Use `Grep` with specific `regex` and `file_pattern` to minimize noise.
+- Issue several `Read` calls in parallel when gathering context from related files.
+- **Before modifying any existing function, method, or class signature:** use `LspFindReferences` if LSP is available, otherwise `Grep`. Find all call sites and include updating them in your plan.
+- **Before moving or removing any file or directory:** use `Grep` to find all imports and path references first.
 
-g.  **Validate (Zero-Regression & Verification):**
-    - **Validation is the only path to finality.** You must always make sure nothing breaks with your fix/update.
-    - For bug fixes: Empirically reproduce the failure BEFORE applying the fix. If the root cause is unclear after initial investigation, activate the `debug` skill.
-    - After changes: Run relevant tests, linters, and type-checkers to confirm success. A code change is incomplete without automated verification.
-    - **Build or test failures**: If the build, type-checker, or a test fails and the cause is unclear, activate the `debug` skill — it covers both build error resolution and behavioral root cause analysis.
-    - **Test Maintenance**: If a test fails (whether a new one or an existing one affected by your change), you MUST fix it. If generating new tests, activate the `testing` skill.
-    - If validation fails, diagnose the failure in a `<thinking>` block and adjust your strategy. Do not blindly repeat actions.
-    - **Security check**: If the code touches user input, authentication, authorization, file I/O, or sensitive data, activate `review` for a security audit after implementation.
-h.  **Synthesis:** Before your final response, journal any non-trivial discoveries per the Journaling Protocol.
+## PHASE 2: STRATEGY
+
+### c.  **Formulate a Grounded Plan:**
+
+- **Language & Framework Idioms:** identify the language, framework, and version from dependency files and existing code. Apply idiomatic conventions — a pattern correct in one language may be an anti-pattern in another. Never add attributes or behavior to objects owned by a library; wrap them in a type you own.
+- **Pattern Matching:** strategy MUST match existing project guidelines and patterns exactly. New code should look as though written by the original author.
+- **Reuse existing helpers** before creating new ones.
+- **Apply SOLID and DRY.** One reason to change per function and class.
+- **No magic numbers, strings, or unexplained constants.** Name every value that carries meaning.
+
+### d.  **Complexity Budget (non-negotiable hard limits):**
+
+Exceeding any limit is a design defect — restructure before continuing.
+
+| Metric | Limit | Remedy when exceeded |
+|--------|-------|----------------------|
+| Cyclomatic complexity | ≤ 10 per function | Extract sub-functions |
+| Cognitive complexity | ≤ 15 per function | Flatten nesting, add guard clauses |
+| Nesting depth | ≤ 2 levels | Invert conditionals; use early returns |
+| Function length | ≤ 30 lines | Extract cohesive blocks into named helpers |
+| Parameters per function | ≤ 4 | Group related params into a data object |
+
+**Guard clause mandate:** invert conditions to exit early; the happy path must never be the deepest `else`.
+
+**Boolean parameter prohibition:** a boolean parameter = two functions. Split them.
+
+**God Class/Function prohibition:** one reason to change per class/function. If you can't name the extracted piece, it's not a coherent abstraction.
+
+### e.  **Testing Strategy:** define verification before writing code. For test-first methodology, Read `workflows/testing.md`.
+
+- New behavior: identify the failing test (RED) first.
+- Bug fix: identify the minimal reproduction test first.
+- Refactoring: confirm existing tests pass as baseline before touching anything.
+
+## PHASE 3: EXECUTION (Plan → Act → Validate)
+
+### f.  **Act (Surgical Implementation):**
+
+- Minimal, precise edits only. One logical change per task (atomic). Use existing libraries and patterns.
+- Keep functions focused (~30-50 lines). Place helpers below callers.
+- **Strangler Pattern:** when replacing a component, keep codebase runnable at every step: new alongside old → update references → remove old.
+- **Out-of-scope structural problems:** report them. If they block this task, Read `workflows/refactor.md` and address atomically.
+- **Code Smell Reporting:** report poorly structured code you encounter — don't silently fix it.
+- **Docs:** keep documentation in sync; remove deprecated references.
+
+### g.  **Validate (Zero-Regression):**
+
+- Validation is the only path to finality.
+- Bug fixes: reproduce before fixing. If root cause is unclear, Read `workflows/debug.md`.
+- After any change: run tests, linters, and type-checkers.
+- If validation fails, diagnose before retrying.
+
+### h.  **Synthesis:**
+
+journal non-trivial discoveries per the Journal Protocol. For user-facing output (docs, error messages, commit messages), apply writing quality standards from `core-writing`.

@@ -1,7 +1,5 @@
 """Tests for HookContext and HookResult from interface.py."""
 
-import pytest
-
 from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.types import HookEvent
 
@@ -16,6 +14,28 @@ class TestHookContext:
         assert ctx.event_data == {"key": "value"}
         assert ctx.session_id is None
         assert ctx.metadata == {}
+
+    def test_command_fields_default_none(self):
+        """Command fields are present and default to None."""
+        ctx = HookContext(event=HookEvent.PRE_COMMAND, event_data={})
+        assert ctx.command_name is None
+        assert ctx.command_args is None
+        assert ctx.command_handled is None
+
+    def test_command_fields_in_claude_json(self):
+        """Command fields serialize into the Claude JSON when set."""
+        ctx = HookContext(
+            event=HookEvent.POST_COMMAND,
+            event_data={},
+            command_name="/save",
+            command_args="my session",
+            command_handled=True,
+        )
+        payload = ctx.to_claude_json()
+        assert payload["command_name"] == "/save"
+        assert payload["command_args"] == "my session"
+        assert payload["command_handled"] is True
+        assert payload["hook_event_name"] == "PostCommand"
 
     def test_creation_with_all_fields(self):
         """Test creating HookContext with all fields."""

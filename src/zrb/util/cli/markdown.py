@@ -11,6 +11,7 @@ def render_markdown(
     """
     Renders Markdown to a string, ensuring link URLs are visible.
     """
+    # lazy: heavy third-party
     from rich.console import Console
     from rich.markdown import Markdown
     from rich.theme import Theme

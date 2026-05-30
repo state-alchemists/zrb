@@ -9,9 +9,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.agent.run_agent import (
-    _extract_additional_context,
-    _extract_system_message,
+from zrb.llm.agent.run.hook_result_extractor import (
+    extract_additional_context,
+    extract_system_message,
 )
 from zrb.llm.hook.executor import HookExecutionResult
 from zrb.llm.hook.types import HookEvent
@@ -22,7 +22,7 @@ class TestExtractSystemMessage:
 
     def test_returns_none_for_empty_results(self):
         """Empty results list should return None."""
-        result = _extract_system_message([])
+        result = extract_system_message([])
         assert result is None
 
     def test_returns_none_when_no_system_message(self):
@@ -31,7 +31,7 @@ class TestExtractSystemMessage:
             HookExecutionResult(success=True, message="test"),
             HookExecutionResult(success=True, data={"foo": "bar"}),
         ]
-        assert _extract_system_message(results) is None
+        assert extract_system_message(results) is None
 
     def test_returns_first_system_message(self):
         """Should return the first system_message found."""
@@ -39,7 +39,7 @@ class TestExtractSystemMessage:
             HookExecutionResult(success=True, system_message="first"),
             HookExecutionResult(success=True, system_message="second"),
         ]
-        assert _extract_system_message(results) == "first"
+        assert extract_system_message(results) == "first"
 
     def test_finds_system_message_in_middle(self):
         """Should find system_message even if not in first result."""
@@ -48,7 +48,7 @@ class TestExtractSystemMessage:
             HookExecutionResult(success=True, system_message="found it"),
             HookExecutionResult(success=True, message="last"),
         ]
-        assert _extract_system_message(results) == "found it"
+        assert extract_system_message(results) == "found it"
 
 
 class TestExtractAdditionalContext:
@@ -56,7 +56,7 @@ class TestExtractAdditionalContext:
 
     def test_returns_none_for_empty_results(self):
         """Empty results list should return None."""
-        result = _extract_additional_context([])
+        result = extract_additional_context([])
         assert result is None
 
     def test_returns_none_when_no_additional_context(self):
@@ -65,7 +65,7 @@ class TestExtractAdditionalContext:
             HookExecutionResult(success=True, message="test"),
             HookExecutionResult(success=True, data={"foo": "bar"}),
         ]
-        assert _extract_additional_context(results) is None
+        assert extract_additional_context(results) is None
 
     def test_returns_first_additional_context(self):
         """Should return the first additional_context found."""
@@ -73,7 +73,7 @@ class TestExtractAdditionalContext:
             HookExecutionResult(success=True, additional_context="first"),
             HookExecutionResult(success=True, additional_context="second"),
         ]
-        assert _extract_additional_context(results) == "first"
+        assert extract_additional_context(results) == "first"
 
     def test_finds_additional_context_in_middle(self):
         """Should find additional_context even if not in first result."""
@@ -82,7 +82,7 @@ class TestExtractAdditionalContext:
             HookExecutionResult(success=True, additional_context="found it"),
             HookExecutionResult(success=True, message="last"),
         ]
-        assert _extract_additional_context(results) == "found it"
+        assert extract_additional_context(results) == "found it"
 
 
 class TestHookResultProcessing:
@@ -129,7 +129,7 @@ class TestHookResultProcessing:
         )
 
         # Verify systemMessage was extracted
-        system_msg = _extract_system_message(results)
+        system_msg = extract_system_message(results)
         assert system_msg == "Test reminder message"
 
     @pytest.mark.asyncio
@@ -148,7 +148,7 @@ class TestHookResultProcessing:
             HookEvent.SESSION_START, {"message": "test", "history": []}
         )
 
-        additional_ctx = _extract_additional_context(results)
+        additional_ctx = extract_additional_context(results)
         assert additional_ctx == "Injected context"
 
     @pytest.mark.asyncio
@@ -168,15 +168,24 @@ class TestHookResultProcessing:
             {"original_message": "test", "expanded_message": "test"},
         )
 
-        additional_ctx = _extract_additional_context(results)
+        additional_ctx = extract_additional_context(results)
         assert additional_ctx == "Extra context for prompt"
 
 
 class TestJournalingHookAntiRecursion:
     """Tests for JournalingHookHandler anti-recursion protection."""
 
+    @pytest.fixture(autouse=True)
+    def _enable_journal_reminder(self):
+        """Enable journal reminder for all tests in this class."""
+        from unittest.mock import patch
+
+        with patch("zrb.llm.hook.journal.CFG") as mock_cfg:
+            mock_cfg.LLM_INCLUDE_JOURNAL_REMINDER = True
+            yield mock_cfg
+
     @pytest.mark.asyncio
-    async def test_journaling_hook_only_fires_once(self):
+    async def test_journaling_hook_only_fires_once(self, _enable_journal_reminder):
         """Verify journaling hook only sends reminder once per session."""
         from zrb.llm.hook.interface import HookContext
         from zrb.llm.hook.journal import JournalingHookHandler
@@ -251,7 +260,6 @@ class TestJournalingHookAntiRecursion:
         from zrb.llm.hook.journal import JournalingHookHandler
 
         with patch("zrb.llm.hook.journal.CFG") as mock_cfg:
-            mock_cfg.LLM_INCLUDE_JOURNAL = False
             mock_cfg.LLM_INCLUDE_JOURNAL_REMINDER = False
             handler = JournalingHookHandler()
             context = HookContext(event=HookEvent.SESSION_END, event_data={})
@@ -327,17 +335,8 @@ class TestJournalingHookAntiRecursion:
         from zrb.llm.hook.journal import create_journaling_hook_factory
         from zrb.llm.hook.manager import HookManager
 
-        with patch("zrb.llm.hook.journal.CFG") as mock_cfg, patch(
-            "zrb.llm.hook.manager.CFG"
-        ) as mock_mgr_cfg:
-            mock_cfg.LLM_INCLUDE_JOURNAL = True
+        with patch("zrb.llm.hook.journal.CFG") as mock_cfg:
             mock_cfg.LLM_INCLUDE_JOURNAL_REMINDER = True
-            mock_mgr_cfg.LLM_INCLUDE_JOURNAL = False
-            mock_mgr_cfg.ROOT_GROUP_NAME = "zrb"
-            mock_mgr_cfg.LLM_PLUGIN_DIRS = []
-            mock_mgr_cfg.HOOKS_DIRS = []
-            mock_mgr_cfg.LLM_JOURNAL_DIR = "/tmp/test"
-            mock_mgr_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
 
             factory = create_journaling_hook_factory()
             manager = HookManager()
@@ -345,7 +344,7 @@ class TestJournalingHookAntiRecursion:
 
             # Hook should be registered for SESSION_END
             results = await manager.execute_hooks(HookEvent.SESSION_END, {})
-            system_msg = _extract_system_message(results)
+            system_msg = extract_system_message(results)
             assert system_msg is not None
 
     @pytest.mark.asyncio
@@ -356,17 +355,8 @@ class TestJournalingHookAntiRecursion:
         from zrb.llm.hook.journal import create_journaling_hook_factory
         from zrb.llm.hook.manager import HookManager
 
-        with patch("zrb.llm.hook.journal.CFG") as mock_cfg, patch(
-            "zrb.llm.hook.manager.CFG"
-        ) as mock_mgr_cfg:
-            mock_cfg.LLM_INCLUDE_JOURNAL = False
+        with patch("zrb.llm.hook.journal.CFG") as mock_cfg:
             mock_cfg.LLM_INCLUDE_JOURNAL_REMINDER = False
-            mock_mgr_cfg.LLM_INCLUDE_JOURNAL = False
-            mock_mgr_cfg.ROOT_GROUP_NAME = "zrb"
-            mock_mgr_cfg.LLM_PLUGIN_DIRS = []
-            mock_mgr_cfg.HOOKS_DIRS = []
-            mock_mgr_cfg.LLM_JOURNAL_DIR = "/tmp/test"
-            mock_mgr_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
 
             factory = create_journaling_hook_factory()
             manager = HookManager()
@@ -374,5 +364,5 @@ class TestJournalingHookAntiRecursion:
 
             # No hooks should be registered
             results = await manager.execute_hooks(HookEvent.SESSION_END, {})
-            system_msg = _extract_system_message(results)
+            system_msg = extract_system_message(results)
             assert system_msg is None

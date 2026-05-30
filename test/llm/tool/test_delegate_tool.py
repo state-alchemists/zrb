@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.agent.manager import SubAgentDefinition, SubAgentManager
+from zrb.llm.agent.subagent.manager import SubAgentDefinition, SubAgentManager
 from zrb.llm.tool.delegate import (
     BufferedUI,
     create_delegate_to_agent_tool,
@@ -35,7 +35,12 @@ async def test_delegate_tool_agent_not_found(mock_sub_agent_manager):
     mock_sub_agent_manager.create_agent.return_value = None
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
 
-    result = await tool("non-existent", "task")
+    result = await tool(
+        agent_name="non-existent",
+        deliverable="a result",
+        task="task",
+        non_goals=[],
+    )
     assert "Error" in result
     assert "not found" in result
 
@@ -52,7 +57,13 @@ async def test_delegate_tool_success(mock_sub_agent_manager):
     ) as mock_run_agent:
         mock_run_agent.return_value = ("Agent Result", [])
 
-        result = await tool("test-agent", "do this", "context")
+        result = await tool(
+            agent_name="test-agent",
+            deliverable="updated foo.py",
+            task="do this",
+            non_goals=["do not refactor unrelated code"],
+            additional_context="context",
+        )
 
         assert "test-agent" in result
         assert "completed:" in result
@@ -62,9 +73,39 @@ async def test_delegate_tool_success(mock_sub_agent_manager):
         mock_run_agent.assert_called_once()
         call_kwargs = mock_run_agent.call_args.kwargs
         assert call_kwargs["agent"] == mock_agent
-        assert "do this" in call_kwargs["message"]
-        assert "context" in call_kwargs["message"]
+        message = call_kwargs["message"]
+        # Envelope must fence the sub-agent before any free-form prose
+        assert "DELIVERABLE: updated foo.py" in message
+        assert "NON-GOALS" in message
+        assert "do not refactor unrelated code" in message
+        assert "do this" in message
+        assert "context" in message
+        assert "BEFORE RETURNING" in message
         assert isinstance(call_kwargs["ui"], BufferedUI)
+
+
+@pytest.mark.asyncio
+async def test_delegate_tool_empty_non_goals_renders_none_declared(
+    mock_sub_agent_manager,
+):
+    """Empty non_goals list still produces a visible placeholder in the envelope."""
+    mock_agent = MagicMock()
+    mock_sub_agent_manager.create_agent.return_value = mock_agent
+
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    with patch(
+        "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+    ) as mock_run_agent:
+        mock_run_agent.return_value = ("ok", [])
+        await tool(
+            agent_name="test-agent",
+            deliverable="d",
+            task="t",
+            non_goals=[],
+        )
+        message = mock_run_agent.call_args.kwargs["message"]
+        assert "(none declared)" in message
 
 
 @pytest.mark.asyncio
@@ -75,7 +116,12 @@ async def test_delegate_tool_exception(mock_sub_agent_manager):
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
 
     with patch("zrb.llm.tool.delegate.run_agent", side_effect=Exception("Run failed")):
-        result = await tool("test-agent", "task")
+        result = await tool(
+            agent_name="test-agent",
+            deliverable="d",
+            task="task",
+            non_goals=[],
+        )
         assert "Error:" in result
         assert "Run failed" in result
 
@@ -160,8 +206,9 @@ async def test_buffered_ui_ask_user_no_prefix():
 def test_create_parallel_delegate_tool_docstring(mock_sub_agent_manager):
     """Test parallel delegate tool has proper docstring."""
     tool = create_parallel_delegate_tool(mock_sub_agent_manager)
-    assert "test-agent" in tool.__doc__
-    assert "A test agent" in tool.__doc__
+    # Parallel delegate keeps its docstring lean — points to DelegateToAgent
+    # rather than re-listing the agent catalogue.
+    assert "DelegateToAgent" in tool.__doc__
     assert "parallel" in tool.__doc__.lower()
     assert "DelegateToAgentsParallel" == tool.__name__
 
@@ -174,6 +221,18 @@ async def test_parallel_delegate_empty_tasks(mock_sub_agent_manager):
     result = await tool([])
 
     assert result == "No tasks provided."
+
+
+def _make_task_spec(**overrides):
+    """Build a complete task spec with sensible defaults; overrides win."""
+    spec = {
+        "agent_name": "test-agent",
+        "deliverable": "a result",
+        "task": "do something",
+        "non_goals": [],
+    }
+    spec.update(overrides)
+    return spec
 
 
 @pytest.mark.asyncio
@@ -189,7 +248,7 @@ async def test_parallel_delegate_single_task(mock_sub_agent_manager):
     ) as mock_run_agent:
         mock_run_agent.return_value = ("Task result", [])
 
-        tasks = [{"agent_name": "test-agent", "task": "do something"}]
+        tasks = [_make_task_spec(task="do something")]
         result = await tool(tasks)
 
         # Agent name now includes unique identifier (e.g., 'test-agent:hard-bone')
@@ -211,10 +270,7 @@ async def test_parallel_delegate_multiple_tasks(mock_sub_agent_manager):
     ) as mock_run_agent:
         mock_run_agent.return_value = ("Result", [])
 
-        tasks = [
-            {"agent_name": "test-agent", "task": "task 1"},
-            {"agent_name": "test-agent", "task": "task 2"},
-        ]
+        tasks = [_make_task_spec(task="task 1"), _make_task_spec(task="task 2")]
         result = await tool(tasks)
 
         # Should call run_agent twice (in parallel via gather)
@@ -237,14 +293,69 @@ async def test_parallel_delegate_with_additional_context(mock_sub_agent_manager)
     ) as mock_run_agent:
         mock_run_agent.return_value = ("Result", [])
 
-        tasks = [
-            {"agent_name": "test-agent", "task": "task", "additional_context": "extra"}
-        ]
+        tasks = [_make_task_spec(additional_context="extra")]
         await tool(tasks)
 
         # Check that additional_context was included in message
         call_kwargs = mock_run_agent.call_args.kwargs
         assert "extra" in call_kwargs["message"]
+
+
+@pytest.mark.asyncio
+async def test_parallel_delegate_passes_non_goals_to_envelope(mock_sub_agent_manager):
+    """Each task's non_goals must land in its sub-agent envelope, not be shared."""
+    mock_agent = MagicMock()
+    mock_sub_agent_manager.create_agent.return_value = mock_agent
+
+    tool = create_parallel_delegate_tool(mock_sub_agent_manager)
+
+    with patch(
+        "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+    ) as mock_run_agent:
+        mock_run_agent.return_value = ("Result", [])
+
+        tasks = [
+            _make_task_spec(
+                task="t1",
+                deliverable="d1",
+                non_goals=["no formatting changes"],
+            ),
+            _make_task_spec(
+                task="t2",
+                deliverable="d2",
+                non_goals=["no new dependencies"],
+            ),
+        ]
+        await tool(tasks)
+
+        messages = [c.kwargs["message"] for c in mock_run_agent.call_args_list]
+        joined = "\n".join(messages)
+        assert "no formatting changes" in joined
+        assert "no new dependencies" in joined
+        assert "DELIVERABLE: d1" in joined
+        assert "DELIVERABLE: d2" in joined
+
+
+@pytest.mark.asyncio
+async def test_parallel_delegate_rejects_missing_required_keys(
+    mock_sub_agent_manager,
+):
+    """Missing scope-clamp keys should fail loudly before any sub-agent runs."""
+    tool = create_parallel_delegate_tool(mock_sub_agent_manager)
+
+    with patch(
+        "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+    ) as mock_run_agent:
+        # 'non_goals' missing
+        tasks = [
+            {"agent_name": "test-agent", "deliverable": "d", "task": "t"},
+        ]
+        result = await tool(tasks)
+
+        assert "Error" in result
+        assert "non_goals" in result
+        # Must short-circuit before invoking the sub-agent
+        mock_run_agent.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -254,7 +365,7 @@ async def test_parallel_delegate_agent_not_found(mock_sub_agent_manager):
 
     tool = create_parallel_delegate_tool(mock_sub_agent_manager)
 
-    tasks = [{"agent_name": "missing-agent", "task": "task"}]
+    tasks = [_make_task_spec(agent_name="missing-agent", task="task")]
     result = await tool(tasks)
 
     assert "missing-agent" in result
@@ -273,7 +384,7 @@ async def test_parallel_delegate_with_exception(mock_sub_agent_manager):
     with patch(
         "zrb.llm.tool.delegate.run_agent", side_effect=Exception("Agent failed")
     ):
-        tasks = [{"agent_name": "test-agent", "task": "task"}]
+        tasks = [_make_task_spec(task="task")]
         result = await tool(tasks)
 
         assert "test-agent" in result
@@ -302,10 +413,7 @@ async def test_parallel_delegate_mixed_success_failure(mock_sub_agent_manager):
     ) as mock_run_agent:
         mock_run_agent.side_effect = side_effect_run
 
-        tasks = [
-            {"agent_name": "test-agent", "task": "task1"},
-            {"agent_name": "test-agent", "task": "task2"},
-        ]
+        tasks = [_make_task_spec(task="task1"), _make_task_spec(task="task2")]
         result = await tool(tasks)
 
         # Should have both results

@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import io
 import os
+import shutil
 import sys
 import tempfile
 
@@ -41,6 +42,7 @@ async def get_clipboard_image() -> bytes | None:
 
 async def _macos() -> bytes | None:
     try:
+        # lazy: heavy third-party
         from PIL import ImageGrab  # type: ignore[import]
 
         img = await asyncio.to_thread(ImageGrab.grabclipboard)
@@ -94,6 +96,7 @@ async def _macos_osascript() -> bytes | None:
 
 def _windows() -> bytes | None:
     try:
+        # lazy: heavy third-party
         from PIL import ImageGrab  # type: ignore[import]
 
         img = ImageGrab.grabclipboard()
@@ -165,6 +168,7 @@ async def _wsl_powershell() -> bytes | None:
 def _to_png(data: bytes) -> bytes | None:
     """Convert arbitrary image bytes (e.g. BMP) to PNG using Pillow if available."""
     try:
+        # lazy: heavy third-party
         from PIL import Image  # type: ignore[import]
 
         img = Image.open(io.BytesIO(data))
@@ -207,13 +211,10 @@ def missing_tool_hint() -> str:
 
     if os.environ.get("WAYLAND_DISPLAY"):
         # Only show the hint when wl-paste is actually missing.
-        import shutil
 
         if shutil.which("wl-paste") is None:
             return "  Install wl-clipboard (wl-paste) for clipboard image support.\n"
         return ""
-
-    import shutil
 
     if shutil.which("xclip") is None:
         return "  Install xclip for clipboard image support.\n"

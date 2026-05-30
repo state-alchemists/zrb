@@ -1,12 +1,14 @@
 import json
 import os
 import re
+import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pydantic_ai import ModelMessage
 
+from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.util.match import fuzzy_match
@@ -14,6 +16,12 @@ from zrb.util.string.conversion import to_string
 
 # Pattern to match timestamp suffix like -2024-03-18-10-30-00 or -2024-03-18-10-30
 _TIMESTAMP_PATTERN = re.compile(r"-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d{2})?$")
+
+# Pattern to match a timestamped backup filename for a given base name.
+# Captures: "<base>-YYYY-MM-DD-HH-MM[-SS][-N].json".
+_BACKUP_FILENAME_PATTERN = re.compile(
+    r"^(?P<base>.+)-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d{2})?(?:-\d+)?\.json$"
+)
 
 
 class FileHistoryManager(AnyHistoryManager):
@@ -23,145 +31,268 @@ class FileHistoryManager(AnyHistoryManager):
         if not os.path.exists(self._history_dir):
             os.makedirs(self._history_dir, exist_ok=True)
 
+    def load(self, conversation_name: str) -> "list[ModelMessage]":
+        # lazy: heavy third-party
+        from pydantic import ValidationError
+        from pydantic_ai.messages import ModelMessagesTypeAdapter
+
+        if conversation_name in self._cache:
+            return self._cache[conversation_name]
+
+        file_path = self._get_file_path(conversation_name)
+        if not os.path.exists(file_path):
+            return []
+
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+                if not content.strip():
+                    return []
+                data = json.loads(content)
+
+                # ALWAYS clean data before validation to prevent boolean corruption
+                # This is critical because pydantic_ai validation might allow boolean values
+                # which will cause TypeError in Google model's _map_user_prompt
+                cleaned_data = self._clean_corrupted_content(data)
+
+                # Filter out empty responses (responses with no parts) before validation
+                # Empty responses can cause "invalid message content type: <nil>" errors
+                # with certain models like GLM-5 via Ollama
+                filtered_data = self._filter_empty_responses(cleaned_data)
+
+                # Validate the cleaned and filtered data
+                messages = ModelMessagesTypeAdapter.validate_python(filtered_data)
+                self._cache[conversation_name] = messages
+                return messages
+
+        except ValidationError as e:
+            # If validation fails even after cleaning, log and return empty
+            zrb_print(
+                f"Warning: Failed to load history for {conversation_name} even after cleanup: {e}",
+                plain=True,
+            )
+            return []
+
+        except (json.JSONDecodeError, OSError) as e:
+            # Log error or warn? For now, return empty list or re-raise.
+            # Returning empty list is safer for UI not to crash.
+            zrb_print(
+                f"Warning: Failed to load history for {conversation_name}: {e}",
+                plain=True,
+            )
+            return []
+
+    def update(self, conversation_name: str, messages: "list[ModelMessage]"):
+        self._cache[conversation_name] = messages
+
+    def save(self, conversation_name: str):
+        # lazy: heavy third-party
+        from pydantic import ValidationError
+        from pydantic_ai.messages import ModelMessagesTypeAdapter
+
+        if conversation_name not in self._cache:
+            return
+
+        messages = self._cache[conversation_name]
+        file_path = self._get_file_path(conversation_name)
+
+        try:
+            # First, try to serialize the messages
+            # Suppress Pydantic serialization warnings for BinaryContent in parts
+            # (pydantic-ai's type adapter schema doesn't include BinaryContent in its
+            # union, but serialization still works correctly)
+
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message="Pydantic serializer warnings",
+                    category=UserWarning,
+                )
+                data = ModelMessagesTypeAdapter.dump_python(messages, mode="json")
+
+            # ALWAYS clean data before saving to prevent boolean corruption
+            # This ensures that even if pydantic_ai validation allows boolean values,
+            # we convert them to strings before saving to disk
+            cleaned_data = self._clean_corrupted_content(data)
+
+            # Filter out empty responses before saving to prevent future issues
+            # Empty responses can cause "invalid message content type: <nil>" errors
+            # with certain models like GLM-5 via Ollama
+            filtered_data = self._filter_empty_responses(cleaned_data)
+
+            # Validate the cleaned and filtered data
+            ModelMessagesTypeAdapter.validate_python(filtered_data)
+
+            # Save the main history file
+            self._save_data_to_file(file_path, filtered_data)
+
+            # Create a timestamped backup, then enforce retention.
+            # Retention is controlled by LLM_HISTORY_BACKUP_RETAIN:
+            #   0  → backups disabled entirely
+            #  -1  → keep every backup (legacy behavior)
+            #   N  → keep the N most recent backups per conversation base name
+            backup_retain = CFG.LLM_HISTORY_BACKUP_RETAIN
+            if backup_retain != 0:
+                base_name = self._extract_base_name(conversation_name)
+                timestamp = datetime.now()
+                backup_path = self._get_backup_file_path(base_name, timestamp)
+                if backup_path:
+                    self._save_data_to_file(backup_path, filtered_data)
+                    if backup_retain > 0:
+                        self._rotate_backups(base_name, keep=backup_retain)
+
+        except ValidationError as e:
+            # If validation fails even after cleaning, log and don't save
+            zrb_print(
+                f"Warning: Failed to save history for {conversation_name} due to validation error: {e}",
+                plain=True,
+            )
+            # Don't save corrupted data
+
+        except OSError as e:
+            zrb_print(
+                f"Error: Failed to save history for {conversation_name}: {e}",
+                plain=True,
+            )
+
+    def search(self, keyword: str) -> list[str]:
+        if not os.path.exists(self._history_dir):
+            return []
+
+        matches = []
+        for filename in os.listdir(self._history_dir):
+            if not filename.endswith(".json"):
+                continue
+
+            # Remove extension to get session name
+            session_name = filename[:-5]
+
+            is_match, score = fuzzy_match(session_name, keyword)
+            if is_match:
+                matches.append((session_name, score))
+
+        # Sort by score (lower is better)
+        matches.sort(key=lambda x: x[1])
+
+        return [m[0] for m in matches]
+
+    # ------------------------------------------------------------------
+    # Part-cleaner helpers for _clean_corrupted_content
+    # ------------------------------------------------------------------
+
+    def _clean_user_prompt_part(self, data: dict[str, Any]) -> dict[str, Any]:
+        content = data.get("content")
+        if content is None:
+            content = ""
+        elif isinstance(content, list):
+            if any(not isinstance(item, str) for item in content):
+                content = to_string(content)
+        elif not isinstance(content, str):
+            content = to_string(content)
+        return {"part_kind": "user-prompt", "content": content}
+
+    def _clean_text_like_part(
+        self, part_kind: str, data: dict[str, Any]
+    ) -> dict[str, Any]:
+        content = data.get("content")
+        if not isinstance(content, str):
+            content = to_string(content) if content is not None else ""
+        return {"part_kind": part_kind, "content": content}
+
+    def _clean_tool_return_part(self, data: dict[str, Any]) -> dict[str, Any]:
+        content = data.get("content")
+        if content is None:
+            content = ""
+        res = {
+            "part_kind": "tool-return",
+            "content": content,
+            "tool_name": data.get("tool_name", "unknown"),
+        }
+        if data.get("tool_call_id"):
+            res["tool_call_id"] = data["tool_call_id"]
+        if data.get("timestamp"):
+            res["timestamp"] = data["timestamp"]
+        return res
+
+    def _clean_tool_call_part(self, data: dict[str, Any]) -> dict[str, Any] | None:
+        tool_name = data.get("tool_name")
+        if tool_name is None:
+            return None
+        res = {
+            "part_kind": "tool-call",
+            "tool_name": tool_name,
+            "args": data.get("args") if data.get("args") is not None else {},
+        }
+        if data.get("tool_call_id"):
+            res["tool_call_id"] = data["tool_call_id"]
+        return res
+
     def _clean_corrupted_content(self, data: Any) -> Any:
-        """Recursively clean corrupted content in message data.
-
-        Handles any part with content field that contains invalid types
-        (dictionaries, booleans, numbers, etc.) by converting them to strings.
-        """
+        """Recursively clean corrupted content in message data."""
         if isinstance(data, dict):
-            # Check if this is any part with a content field that could be corrupted
-            # pydantic-ai uses "part_kind" for part type
             part_kind = data.get("part_kind")
-            # Strictly filter fields based on part kind to ensure compatibility
             if part_kind == "user-prompt":
-                content = data.get("content")
-                if content is None:
-                    content = ""
-                elif isinstance(content, list):
-                    if any(not isinstance(item, str) for item in content):
-                        content = to_string(content)
-                elif not isinstance(content, str):
-                    content = to_string(content)
-                return {"part_kind": "user-prompt", "content": content}
-
-            if part_kind in ["text", "system-prompt", "thinking", "retry-prompt"]:
-                content = data.get("content")
-                if not isinstance(content, str):
-                    content = to_string(content) if content is not None else ""
-                return {"part_kind": part_kind, "content": content}
-
+                return self._clean_user_prompt_part(data)
+            if part_kind in ("text", "system-prompt", "thinking", "retry-prompt"):
+                return self._clean_text_like_part(part_kind, data)
             if part_kind == "tool-return":
-                content = data.get("content")
-                # tool-return content can be anything, but we ensure it's not None
-                if content is None:
-                    content = ""
-                tool_name = data.get("tool_name", "unknown")
-                tool_call_id = data.get("tool_call_id")
-                timestamp = data.get("timestamp")
-                res = {
-                    "part_kind": "tool-return",
-                    "content": content,
-                    "tool_name": tool_name,
-                }
-                if tool_call_id:
-                    res["tool_call_id"] = tool_call_id
-                if timestamp:
-                    res["timestamp"] = timestamp
-                return res
-
+                return self._clean_tool_return_part(data)
             if part_kind == "tool-call":
-                tool_name = data.get("tool_name")
-                args = data.get("args")
-                tool_call_id = data.get("tool_call_id")
-                if tool_name is None:
-                    return None  # Invalid tool call
-                res = {
-                    "part_kind": "tool-call",
-                    "tool_name": tool_name,
-                    "args": args if args is not None else {},
-                }
-                if tool_call_id:
-                    res["tool_call_id"] = tool_call_id
-                return res
-
-            # Recursively clean all values for unknown dicts
+                return self._clean_tool_call_part(data)
             return {
                 k: self._clean_corrupted_content(v)
                 for k, v in data.items()
                 if v is not None
             }
+        if isinstance(data, list):
+            return [
+                item
+                for item in (self._clean_corrupted_content(i) for i in data)
+                if item is not None
+            ]
+        return data
 
-        elif isinstance(data, list):
-            cleaned_list = [self._clean_corrupted_content(item) for item in data]
-            return [item for item in cleaned_list if item is not None]
-
-        else:
-            return data
+    def _is_valid_message_part(self, part: Any) -> bool:
+        """Check if a message part is non-empty and valid."""
+        if not isinstance(part, dict):
+            return part is not None
+        part_kind = part.get("part_kind")
+        if part_kind == "tool-call":
+            return part.get("tool_name") is not None
+        if "content" in part:
+            content = part.get("content")
+            return content is not None and content != ""
+        return part_kind is not None
 
     def _filter_empty_responses(self, data: Any) -> Any:
-        """Filter out empty responses and parts with null content from history data.
-
-        Empty responses and parts with null content can cause
-        "invalid message content type: <nil>" errors with certain models
-        like GLM-5 via Ollama when the history is sent to the model.
-        """
+        """Filter out empty responses and parts with null content from history data."""
         if isinstance(data, list):
-            filtered_list = []
+            filtered = []
             for item in data:
                 if isinstance(item, dict):
-                    # Check if this is a message (request or response)
                     kind = item.get("kind")
                     parts = item.get("parts")
-                    if kind in ["response", "request"]:
-                        # Filter the parts of the message
-                        if isinstance(parts, list):
-                            filtered_parts = []
-                            for part in parts:
-                                if isinstance(part, dict):
-                                    part_kind = part.get("part_kind")
-                                    # If it's a tool-call, it's valid if it has tool_name
-                                    if part_kind == "tool-call":
-                                        if part.get("tool_name") is None:
-                                            continue
-                                    # For other parts, check content
-                                    elif "content" in part:
-                                        content = part.get("content")
-                                        if content is None or content == "":
-                                            continue
-                                    # If it's none of the above and has no kind/content, skip it
-                                    elif part_kind is None:
-                                        continue
-                                elif part is None:
-                                    continue
-                                filtered_parts.append(part)
-                            # Update item with filtered parts
-                            item = {**item, "parts": filtered_parts}
-                            parts = filtered_parts
-
-                        # Skip the entire message if it has no parts
-                        if parts is None or len(parts) == 0:
+                    if kind in ("response", "request") and isinstance(parts, list):
+                        filtered_parts = [
+                            p for p in parts if self._is_valid_message_part(p)
+                        ]
+                        item = {**item, "parts": filtered_parts}
+                        if len(filtered_parts) == 0:
                             continue
-
-                    # Recursively filter nested structures in the item
-                    # (though messages are usually flat, it's safer)
                     item = {k: self._filter_empty_responses(v) for k, v in item.items()}
-                    filtered_list.append(item)
+                    filtered.append(item)
                 else:
-                    filtered_list.append(self._filter_empty_responses(item))
-            return filtered_list
-
-        elif isinstance(data, dict):
-            # Recursively filter all values and remove None/null
-            filtered_dict = {}
-            for k, v in data.items():
-                filtered_v = self._filter_empty_responses(v)
-                if filtered_v is not None:
-                    filtered_dict[k] = filtered_v
-            return filtered_dict
-
-        else:
-            return data
+                    filtered.append(self._filter_empty_responses(item))
+            return filtered
+        if isinstance(data, dict):
+            return {
+                k: v
+                for k, v in (
+                    (k, self._filter_empty_responses(v)) for k, v in data.items()
+                )
+                if v is not None
+            }
+        return data
 
     def _get_file_path(self, conversation_name: str) -> str:
         # Sanitize conversation name to be safe for filename
@@ -227,138 +358,33 @@ class FileHistoryManager(AnyHistoryManager):
             zrb_print(f"Error: Failed to save history to {file_path}: {e}", plain=True)
             return False
 
-    def load(self, conversation_name: str) -> "list[ModelMessage]":
-        from pydantic import ValidationError
-        from pydantic_ai.messages import ModelMessagesTypeAdapter
+    def _rotate_backups(self, base_name: str, keep: int) -> None:
+        """Delete older timestamped backups, keeping the *keep* most recent.
 
-        if conversation_name in self._cache:
-            return self._cache[conversation_name]
-
-        file_path = self._get_file_path(conversation_name)
-        if not os.path.exists(file_path):
-            return []
-
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                content = f.read()
-                if not content.strip():
-                    return []
-                data = json.loads(content)
-
-                # ALWAYS clean data before validation to prevent boolean corruption
-                # This is critical because pydantic_ai validation might allow boolean values
-                # which will cause TypeError in Google model's _map_user_prompt
-                cleaned_data = self._clean_corrupted_content(data)
-
-                # Filter out empty responses (responses with no parts) before validation
-                # Empty responses can cause "invalid message content type: <nil>" errors
-                # with certain models like GLM-5 via Ollama
-                filtered_data = self._filter_empty_responses(cleaned_data)
-
-                # Validate the cleaned and filtered data
-                messages = ModelMessagesTypeAdapter.validate_python(filtered_data)
-                self._cache[conversation_name] = messages
-                return messages
-
-        except ValidationError as e:
-            # If validation fails even after cleaning, log and return empty
-            zrb_print(
-                f"Warning: Failed to load history for {conversation_name} even after cleanup: {e}",
-                plain=True,
-            )
-            return []
-
-        except (json.JSONDecodeError, OSError) as e:
-            # Log error or warn? For now, return empty list or re-raise.
-            # Returning empty list is safer for UI not to crash.
-            zrb_print(
-                f"Warning: Failed to load history for {conversation_name}: {e}",
-                plain=True,
-            )
-            return []
-
-    def update(self, conversation_name: str, messages: "list[ModelMessage]"):
-        self._cache[conversation_name] = messages
-
-    def save(self, conversation_name: str):
-        from pydantic import ValidationError
-        from pydantic_ai.messages import ModelMessagesTypeAdapter
-
-        if conversation_name not in self._cache:
+        A no-op when *keep* is negative (unlimited retention) or zero (backups
+        disabled — no rotation needed because none are written). Errors during
+        cleanup are swallowed; backup hygiene must not break a successful save.
+        """
+        if keep < 0:
             return
-
-        messages = self._cache[conversation_name]
-        file_path = self._get_file_path(conversation_name)
-
         try:
-            # First, try to serialize the messages
-            # Suppress Pydantic serialization warnings for BinaryContent in parts
-            # (pydantic-ai's type adapter schema doesn't include BinaryContent in its
-            # union, but serialization still works correctly)
-            import warnings
-
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore",
-                    message="Pydantic serializer warnings",
-                    category=UserWarning,
-                )
-                data = ModelMessagesTypeAdapter.dump_python(messages, mode="json")
-
-            # ALWAYS clean data before saving to prevent boolean corruption
-            # This ensures that even if pydantic_ai validation allows boolean values,
-            # we convert them to strings before saving to disk
-            cleaned_data = self._clean_corrupted_content(data)
-
-            # Filter out empty responses before saving to prevent future issues
-            # Empty responses can cause "invalid message content type: <nil>" errors
-            # with certain models like GLM-5 via Ollama
-            filtered_data = self._filter_empty_responses(cleaned_data)
-
-            # Validate the cleaned and filtered data
-            ModelMessagesTypeAdapter.validate_python(filtered_data)
-
-            # Save the main history file
-            self._save_data_to_file(file_path, filtered_data)
-
-            # Create a timestamped backup
-            base_name = self._extract_base_name(conversation_name)
-            timestamp = datetime.now()
-            backup_path = self._get_backup_file_path(base_name, timestamp)
-            if backup_path:
-                self._save_data_to_file(backup_path, filtered_data)
-
-        except ValidationError as e:
-            # If validation fails even after cleaning, log and don't save
-            zrb_print(
-                f"Warning: Failed to save history for {conversation_name} due to validation error: {e}",
-                plain=True,
-            )
-            # Don't save corrupted data
-
-        except OSError as e:
-            zrb_print(
-                f"Error: Failed to save history for {conversation_name}: {e}",
-                plain=True,
-            )
-
-    def search(self, keyword: str) -> list[str]:
-        if not os.path.exists(self._history_dir):
-            return []
-
-        matches = []
-        for filename in os.listdir(self._history_dir):
-            if not filename.endswith(".json"):
+            entries = os.listdir(self._history_dir)
+        except OSError:
+            return
+        backups: list[str] = []
+        for name in entries:
+            match = _BACKUP_FILENAME_PATTERN.match(name)
+            if match and match.group("base") == base_name:
+                backups.append(name)
+        if len(backups) <= keep:
+            return
+        # Sort by filename descending (lexicographic = chronological for ISO-8601
+        # timestamps). More deterministic than mtime on filesystems with coarse
+        # granularity (FAT32, Docker overlayfs).
+        backups.sort(reverse=True)
+        for name in backups[keep:]:
+            full = os.path.join(self._history_dir, name)
+            try:
+                os.remove(full)
+            except OSError:
                 continue
-
-            # Remove extension to get session name
-            session_name = filename[:-5]
-
-            is_match, score = fuzzy_match(session_name, keyword)
-            if is_match:
-                matches.append((session_name, score))
-
-        # Sort by score (lower is better)
-        matches.sort(key=lambda x: x[1])
-
-        return [m[0] for m in matches]

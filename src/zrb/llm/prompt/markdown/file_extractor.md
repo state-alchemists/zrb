@@ -24,10 +24,12 @@ Based on the file type, extract only the most relevant information:
 
 | File Type | Extract |
 |-----------|---------|
-| **Source Code** (`.py`, `.js`, `.go`) | Classes, functions, key variables, their purpose |
-| **Configuration** (`.yaml`, `.toml`, `.json`) | Main sections, keys, values |
-| **Infrastructure** (`Dockerfile`, `.tf`) | Resources, settings, commands |
-| **Documentation** (`.md`) | Headings, summaries, code blocks |
+| **Source Code** (`.py`, `.js`, `.ts`, `.go`, `.rs`, `.java`) | Classes, functions, key variables, their purpose |
+| **Configuration** (`.yaml`, `.toml`, `.json`, `.ini`, `.env`) | Main sections, keys, values |
+| **Infrastructure** (`Dockerfile`, `.tf`, `.k8s.yaml`) | Resources, settings, commands |
+| **Scripts** (`.sh`, `.bash`, `.ps1`) | Main operations, arguments, side effects |
+| **Database** (`.sql`) | Tables, schema, key queries |
+| **Documentation** (`.md`, `.rst`) | Headings, summaries, code blocks |
 
 ### 3. Format Output
 Present the summary in structured markdown.

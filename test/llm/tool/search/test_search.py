@@ -42,7 +42,7 @@ def test_searxng_search_success(mock_get):
     assert result == {"results": []}
 
 
-@patch("zrb.llm.tool.search.searxng._is_docker_installed", return_value=False)
+@patch("zrb.llm.tool.search.searxng.is_docker_installed", return_value=False)
 @patch("requests.get")
 def test_searxng_search_connection_error(mock_get, mock_docker_installed):
     mock_get.side_effect = requests.exceptions.ConnectionError("Refused")
@@ -83,7 +83,7 @@ class TestSearxngSearch:
             searxng_search("query")
         assert "status code: 500" in str(excinfo.value)
 
-    @patch("zrb.llm.tool.search.searxng._is_docker_installed", return_value=True)
+    @patch("zrb.llm.tool.search.searxng.is_docker_installed", return_value=True)
     @patch("zrb.config.config.CFG", autospec=True)
     @patch("requests.get")
     def test_searxng_connection_error_with_docker(
@@ -99,7 +99,7 @@ class TestSearxngSearch:
         assert "Unable to connect to Searxng" in str(excinfo.value)
         assert "Searxng appears to be not running" in str(excinfo.value)
 
-    @patch("zrb.llm.tool.search.searxng._is_docker_installed", return_value=False)
+    @patch("zrb.llm.tool.search.searxng.is_docker_installed", return_value=False)
     @patch("zrb.config.config.CFG", autospec=True)
     @patch("requests.get")
     def test_searxng_connection_error_no_docker(self, mock_get, mock_cfg, mock_docker):
@@ -112,7 +112,7 @@ class TestSearxngSearch:
         assert "Unable to connect to Searxng" in str(excinfo.value)
         assert "Docker is not installed" in str(excinfo.value)
 
-    @patch("zrb.llm.tool.search.searxng._is_docker_installed", return_value=True)
+    @patch("zrb.llm.tool.search.searxng.is_docker_installed", return_value=True)
     @patch("zrb.config.config.CFG", autospec=True)
     @patch("requests.get")
     def test_searxng_timeout_with_docker(self, mock_get, mock_cfg, mock_docker):
@@ -125,7 +125,7 @@ class TestSearxngSearch:
             searxng_search("query")
         assert "timed out" in str(excinfo.value)
 
-    @patch("zrb.llm.tool.search.searxng._is_docker_installed", return_value=False)
+    @patch("zrb.llm.tool.search.searxng.is_docker_installed", return_value=False)
     @patch("zrb.config.config.CFG", autospec=True)
     @patch("requests.get")
     def test_searxng_timeout_no_docker(self, mock_get, mock_cfg, mock_docker):
@@ -138,7 +138,7 @@ class TestSearxngSearch:
         assert "timed out" in str(excinfo.value)
         # Should not have suggestion since it's not localhost
 
-    @patch("zrb.llm.tool.search.searxng._is_docker_installed", return_value=True)
+    @patch("zrb.llm.tool.search.searxng.is_docker_installed", return_value=True)
     @patch("zrb.config.config.CFG", autospec=True)
     @patch("requests.get")
     def test_searxng_remote_url_connection_error(self, mock_get, mock_cfg, mock_docker):
@@ -164,60 +164,60 @@ class TestSearxngSearch:
 class TestSearxngHelpers:
     """Tests for SearXNG helper functions."""
 
-    def test_is_default_searxng_url_localhost(self):
+    def testis_default_searxng_url_localhost(self):
         """Test localhost URL detection."""
-        from zrb.llm.tool.search.searxng import _is_default_searxng_url
+        from zrb.llm.tool.search.searxng import is_default_searxng_url
 
-        assert _is_default_searxng_url("http://localhost:8080") is True
-        assert _is_default_searxng_url("http://127.0.0.1:8080") is True
+        assert is_default_searxng_url("http://localhost:8080") is True
+        assert is_default_searxng_url("http://127.0.0.1:8080") is True
 
-    def test_is_default_searxng_url_remote(self):
+    def testis_default_searxng_url_remote(self):
         """Test remote URL detection."""
-        from zrb.llm.tool.search.searxng import _is_default_searxng_url
+        from zrb.llm.tool.search.searxng import is_default_searxng_url
 
-        assert _is_default_searxng_url("https://searx.be") is False
-        assert _is_default_searxng_url("https://example.com") is False
+        assert is_default_searxng_url("https://searx.be") is False
+        assert is_default_searxng_url("https://example.com") is False
 
     @patch("subprocess.run")
-    def test_is_docker_installed_success(self, mock_run):
-        """Test _is_docker_installed returns True when Docker is available."""
-        from zrb.llm.tool.search.searxng import _is_docker_installed
+    def testis_docker_installed_success(self, mock_run):
+        """Test is_docker_installed returns True when Docker is available."""
+        from zrb.llm.tool.search.searxng import is_docker_installed
 
         mock_result = MagicMock()
         mock_result.returncode = 0
         mock_run.return_value = mock_result
 
-        assert _is_docker_installed() is True
+        assert is_docker_installed() is True
         mock_run.assert_called_once()
 
     @patch("subprocess.run")
-    def test_is_docker_installed_failure(self, mock_run):
-        """Test _is_docker_installed returns False when Docker fails."""
-        from zrb.llm.tool.search.searxng import _is_docker_installed
+    def testis_docker_installed_failure(self, mock_run):
+        """Test is_docker_installed returns False when Docker fails."""
+        from zrb.llm.tool.search.searxng import is_docker_installed
 
         mock_result = MagicMock()
         mock_result.returncode = 1
         mock_run.return_value = mock_result
 
-        assert _is_docker_installed() is False
+        assert is_docker_installed() is False
 
     @patch("subprocess.run")
-    def test_is_docker_installed_subprocess_error(self, mock_run):
-        """Test _is_docker_installed handles subprocess error."""
-        from zrb.llm.tool.search.searxng import _is_docker_installed
+    def testis_docker_installed_subprocess_error(self, mock_run):
+        """Test is_docker_installed handles subprocess error."""
+        from zrb.llm.tool.search.searxng import is_docker_installed
 
         mock_run.side_effect = subprocess.SubprocessError("Failed")
 
-        assert _is_docker_installed() is False
+        assert is_docker_installed() is False
 
     @patch("subprocess.run")
-    def test_is_docker_installed_file_not_found(self, mock_run):
-        """Test _is_docker_installed handles FileNotFoundError."""
-        from zrb.llm.tool.search.searxng import _is_docker_installed
+    def testis_docker_installed_file_not_found(self, mock_run):
+        """Test is_docker_installed handles FileNotFoundError."""
+        from zrb.llm.tool.search.searxng import is_docker_installed
 
         mock_run.side_effect = FileNotFoundError("docker not found")
 
-        assert _is_docker_installed() is False
+        assert is_docker_installed() is False
 
 
 class TestBraveSearch:

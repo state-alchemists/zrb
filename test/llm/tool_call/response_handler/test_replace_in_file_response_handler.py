@@ -155,3 +155,82 @@ class TestReplaceInFileHandlerEdgeCases:
 
         # Should pass through to next handler
         assert result == "passed"
+
+    @pytest.mark.asyncio
+    async def test_args_string_that_is_invalid_json_falls_through(self):
+        """A non-JSON string args still gets handled via the next handler."""
+        from zrb.llm.tool_call.response_handler.replace_in_file_response_handler import (
+            replace_in_file_response_handler,
+        )
+
+        ui = MagicMock()
+        ui.run_interactive_command = AsyncMock()
+
+        call = MagicMock()
+        call.tool_name = "Edit"
+        call.args = "not-json-at-all"
+
+        next_handler = AsyncMock(return_value="fell_through")
+        result = await replace_in_file_response_handler(ui, call, "e", next_handler)
+        # Args stay a string (json.loads raised, swallowed), then non-dict → next
+        assert result == "fell_through"
+
+    @pytest.mark.asyncio
+    async def test_edit_returns_tool_approved_when_user_modifies_new_text(self):
+        """The diff-edit cmd modifies the new file → handler returns ToolApproved with
+        the overridden args."""
+        from zrb.llm.tool_call.response_handler.replace_in_file_response_handler import (
+            replace_in_file_response_handler,
+        )
+
+        ui = MagicMock()
+
+        async def fake_run(cmd, shell=False):
+            # Find the .new file in the cmd and overwrite it
+            for token in cmd.split():
+                if token.endswith(".new"):
+                    with open(token, "w", encoding="utf-8") as f:
+                        f.write("EDITED")
+
+        ui.run_interactive_command = AsyncMock(side_effect=fake_run)
+
+        call = MagicMock()
+        call.tool_name = "Edit"
+        call.args = {"old_text": "before", "new_text": "after"}
+
+        next_handler = AsyncMock()
+        with patch(
+            "zrb.llm.tool_call.response_handler.replace_in_file_response_handler.CFG"
+        ) as mock_cfg:
+            mock_cfg.DIFF_EDIT_COMMAND_TPL = "cp {new} {old}.bak && echo {new}"
+            result = await replace_in_file_response_handler(ui, call, "e", next_handler)
+        assert result is not None
+        assert getattr(result, "override_args", None) == {
+            "old_text": "before",
+            "new_text": "EDITED",
+        }
+
+    @pytest.mark.asyncio
+    async def test_exception_during_diff_returns_none(self):
+        """If the diff command raises, the handler logs and returns None."""
+        from zrb.llm.tool_call.response_handler.replace_in_file_response_handler import (
+            replace_in_file_response_handler,
+        )
+
+        ui = MagicMock()
+        ui.run_interactive_command = AsyncMock(
+            side_effect=RuntimeError("diff exploded")
+        )
+
+        call = MagicMock()
+        call.tool_name = "Edit"
+        call.args = {"old_text": "a", "new_text": "b"}
+
+        next_handler = AsyncMock()
+        result = await replace_in_file_response_handler(ui, call, "e", next_handler)
+        assert result is None
+        # Error message gets surfaced to the UI
+        appended = " ".join(
+            c.args[0] for c in ui.append_to_output.call_args_list if c.args
+        )
+        assert "diff exploded" in appended

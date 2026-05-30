@@ -7,17 +7,10 @@ import yaml
 
 from zrb.config.config import CFG
 from zrb.llm.hook.manager import hook_manager
+from zrb.llm.skill._util import discover_companion_files
+from zrb.util.asset_scanner import IGNORE_DIRS, scan_files
+from zrb.util.dir_search import get_upward_dirs, scan_plugin_dirs
 from zrb.util.load import load_module_from_path
-
-_IGNORE_DIRS = [
-    ".git",
-    "node_modules",
-    "__pycache__",
-    "venv",
-    "dist",
-    "build",
-    "htmlcov",
-]
 
 
 class Skill:
@@ -52,6 +45,7 @@ class Skill:
         agent: str | None = None,
         content: str | None = None,
         content_factory: Callable[[], str] | None = None,
+        companion_files: list[str] | None = None,
     ):
         self.name = name
         self.path = path
@@ -65,6 +59,7 @@ class Skill:
         self.agent = agent
         self.content = content
         self.content_factory = content_factory
+        self.companion_files = companion_files or []
 
 
 class SkillManager:
@@ -79,13 +74,8 @@ class SkillManager:
         self._search_dirs = search_dirs
         self._max_depth = max_depth
         self._skills: dict[str, Skill] = {}
-        self._ignore_dirs = _IGNORE_DIRS if ignore_dirs is None else ignore_dirs
+        self._ignore_dirs = IGNORE_DIRS if ignore_dirs is None else ignore_dirs
         self._scanned = False
-
-    def _ensure_scanned(self):
-        """Auto-scan on first access if not already scanned."""
-        if not self._scanned:
-            self.scan()
 
     def reload(self):
         """Force re-scan skills. Use after CFG changes or skill file updates."""
@@ -109,9 +99,11 @@ class SkillManager:
         self._scanned = True
         return list(self._skills.values())
 
+    _SKILL_ASSET = "skills"
+    _PLUGIN_ASSET = "plugins"
+
     def get_search_directories(self) -> list[str | Path]:
-        """
-        Get all skill search directories in priority order.
+        """Get all skill search directories in priority order.
 
         Priority (high → low):
         1. User home (~/.claude/, ~/.zrb/)
@@ -122,150 +114,168 @@ class SkillManager:
         6. Builtin (always included, lowest priority)
         """
         search_dirs: list[str | Path] = []
+        search_dirs.extend(self._get_home_search_dirs())
+        search_dirs.extend(self._get_project_search_dirs())
+        search_dirs.extend(self._get_plugin_search_dirs())
+        search_dirs.extend(self._get_base_search_dirs())
+        search_dirs.extend(self._get_extra_skill_dirs())
+        builtin_dir = self._get_builtin_dir()
+        if builtin_dir is not None:
+            search_dirs.append(builtin_dir)
+        search_dirs.append(Path(self._root_dir))
+        return search_dirs
+
+    def add_skill(self, skill: Skill):
+        """
+        Manually register a skill.
+        """
+        self._skills[skill.name] = skill
+
+    def get_skills(self) -> list[Skill]:
+        """Return all scanned skills, scanning lazily on first call."""
+        self._ensure_scanned()
+        return list(self._skills.values())
+
+    def get_skill(self, name: str) -> Skill | None:
+        self._ensure_scanned()
+        skill = self._skills.get(name)
+        if not skill:
+            # Try partial match or path match
+            for s in self._skills.values():
+                if s.name == name or s.path == name:
+                    skill = s
+                    break
+        return skill
+
+    def get_skill_content(self, name: str) -> str | None:
+        self._ensure_scanned()
+        skill = self.get_skill(name)
+        if not skill:
+            return None
+
+        if skill.content:
+            return skill.content
+
+        if skill.content_factory:
+            try:
+                return skill.content_factory()
+            except Exception as e:
+                return f"Error executing skill factory: {e}"
+
+        try:
+            with open(skill.path, "r", encoding="utf-8") as f:
+                return f.read()
+        except Exception as e:
+            return f"Error reading skill file: {e}"
+
+    def _ensure_scanned(self):
+        """Auto-scan on first access if not already scanned."""
+        if not self._scanned:
+            self.scan()
+
+    def _collect_skill_and_plugin_dirs(self, root: Path) -> list[Path]:
+        """Collect ``skills/`` and plugin ``skills/`` directories under *root*."""
+        dirs: list[Path] = []
+        skill_path = root / self._SKILL_ASSET
+        if skill_path.exists() and skill_path.is_dir():
+            dirs.append(skill_path)
+        plugins_dir = root / self._PLUGIN_ASSET
+        if plugins_dir.exists() and plugins_dir.is_dir():
+            for plugin_dir in scan_plugin_dirs(plugins_dir):
+                skill_path = plugin_dir / self._SKILL_ASSET
+                if skill_path.exists() and skill_path.is_dir():
+                    dirs.append(skill_path)
+        return dirs
+
+    def _get_home_search_dirs(self) -> list[Path]:
+        """User home directories — ~/.claude/, ~/.zrb/."""
+        dirs: list[Path] = []
+        if not CFG.LLM_SEARCH_HOME:
+            return dirs
         home = Path.home()
+        for pattern in CFG.LLM_CONFIG_DIR_NAMES:
+            root = home / pattern
+            if root.exists() and root.is_dir():
+                dirs.extend(self._collect_skill_and_plugin_dirs(root))
+        return dirs
 
-        # 1. USER HOME
-        if CFG.LLM_SEARCH_HOME:
+    def _get_project_search_dirs(self) -> list[Path]:
+        """Project directories — walk root → cwd looking for config dirs."""
+        dirs: list[Path] = []
+        if not CFG.LLM_SEARCH_PROJECT:
+            return dirs
+        for project_dir in self._get_upward_dirs():
             for pattern in CFG.LLM_CONFIG_DIR_NAMES:
-                root = home / pattern
+                root = project_dir / pattern
                 if root.exists() and root.is_dir():
-                    skill_path = root / "skills"
-                    if skill_path.exists() and skill_path.is_dir():
-                        search_dirs.append(skill_path)
+                    dirs.extend(self._collect_skill_and_plugin_dirs(root))
+        return dirs
 
-                    # Plugins within home root
-                    plugins_dir = root / "plugins"
-                    if plugins_dir.exists() and plugins_dir.is_dir():
-                        for plugin_dir in self._scan_plugin_dirs(plugins_dir):
-                            skill_path = plugin_dir / "skills"
-                            if skill_path.exists() and skill_path.is_dir():
-                                search_dirs.append(skill_path)
-
-        # 2. PROJECT TRAVERSAL (filesystem root → cwd for each config dir name)
-        if CFG.LLM_SEARCH_PROJECT:
-            for project_dir in self._get_upward_dirs():
-                for pattern in CFG.LLM_CONFIG_DIR_NAMES:
-                    root = project_dir / pattern
-                    if root.exists() and root.is_dir():
-                        skill_path = root / "skills"
-                        if skill_path.exists() and skill_path.is_dir():
-                            search_dirs.append(skill_path)
-
-                        plugins_dir = root / "plugins"
-                        if plugins_dir.exists() and plugins_dir.is_dir():
-                            for plugin_dir in self._scan_plugin_dirs(plugins_dir):
-                                skill_path = plugin_dir / "skills"
-                                if skill_path.exists() and skill_path.is_dir():
-                                    search_dirs.append(skill_path)
-
-        # 3. PLUGINS from configured directories
+    def _get_plugin_search_dirs(self) -> list[Path]:
+        """Plugins from configured ``LLM_PLUGIN_DIRS``."""
+        dirs: list[Path] = []
         for plugin_path_str in CFG.LLM_PLUGIN_DIRS:
             plugin_path = Path(plugin_path_str)
             if plugin_path.exists() and plugin_path.is_dir():
-                for plugin_dir in self._scan_plugin_dirs(plugin_path):
-                    skill_path = plugin_dir / "skills"
+                for plugin_dir in scan_plugin_dirs(plugin_path):
+                    skill_path = plugin_dir / self._SKILL_ASSET
                     if skill_path.exists() and skill_path.is_dir():
-                        search_dirs.append(skill_path)
+                        dirs.append(skill_path)
+        return dirs
 
-        # 4. BASE SEARCH DIRECTORIES
+    def _get_base_search_dirs(self) -> list[Path]:
+        """Base search directories and their plugins."""
+        dirs: list[Path] = []
         for root_str in CFG.LLM_BASE_SEARCH_DIRS:
             root = Path(root_str)
             if root.exists() and root.is_dir():
-                skill_path = root / "skills"
-                if skill_path.exists() and skill_path.is_dir():
-                    search_dirs.append(skill_path)
+                dirs.extend(self._collect_skill_and_plugin_dirs(root))
+        return dirs
 
-                plugins_dir = root / "plugins"
-                if plugins_dir.exists() and plugins_dir.is_dir():
-                    for plugin_dir in self._scan_plugin_dirs(plugins_dir):
-                        skill_path = plugin_dir / "skills"
-                        if skill_path.exists() and skill_path.is_dir():
-                            search_dirs.append(skill_path)
-
-        # 5. EXTRA DIRECT SKILL DIRECTORIES
+    def _get_extra_skill_dirs(self) -> list[Path]:
+        """Extra direct skill directories."""
+        dirs: list[Path] = []
         for dir_str in CFG.LLM_EXTRA_SKILL_DIRS:
             dir_path = Path(dir_str)
             if dir_path.exists() and dir_path.is_dir():
-                search_dirs.append(dir_path)
+                dirs.append(dir_path)
+        return dirs
 
-        # 7. BUILTIN (always included, lowest priority)
+    def _get_builtin_dir(self) -> Path | None:
+        """Builtin skills directory (always included, lowest priority).
+
+        Returns ``None`` when the path is missing (broken install / unusual layout)
+        so the caller can skip it rather than falling back to a spurious default.
+        """
         builtin_path = Path(__file__).parent.parent.parent / "llm_plugin" / "skills"
         if builtin_path.exists() and builtin_path.is_dir():
-            search_dirs.append(builtin_path)
-
-        # 8. root_dir itself (recursive scan target)
-        search_dirs.append(Path(self._root_dir))
-
-        return search_dirs
+            return builtin_path
+        return None
 
     def _get_upward_dirs(self) -> list[Path]:
-        """
-        Get directories from root to cwd for upward traversal.
+        """Get directories from root to cwd for upward traversal.
         Returns paths in root → cwd order.
         """
-        try:
-            cwd = Path(self._root_dir).resolve()
-            # parents[0] is parent of cwd, parents[-1] is filesystem root
-            # We reverse to get root → ... → cwd order
-            return list(cwd.parents)[::-1] + [cwd]
-        except Exception:
-            return []
-
-    def _scan_plugin_dirs(self, plugins_root: Path) -> list[Path]:
-        """
-        Scan plugin directories within a plugins root.
-        Returns paths to plugin directories (not the skills/ subdirectory).
-        """
-        plugin_dirs: list[Path] = []
-        try:
-            for item in plugins_root.iterdir():
-                if item.is_dir() and not item.name.startswith("."):
-                    # Check for plugin manifest
-                    manifest = item / ".claude-plugin" / "plugin.json"
-                    if manifest.exists():
-                        plugin_dirs.append(item)
-        except Exception:
-            pass
-        return plugin_dirs
+        return get_upward_dirs(self._root_dir)
 
     def _scan_dir(self, directory: Path, max_depth: int):
         try:
-            search_path = Path(directory).resolve()
-            self._scan_dir_recursive(search_path, search_path, max_depth, 0)
+            scan_files(
+                Path(directory),
+                max_depth,
+                self._on_file_found,
+                self._ignore_dirs,
+            )
         except Exception:
-            pass
+            CFG.LOGGER.warning(f"Failed to scan directory: {directory}", exc_info=True)
 
-    def _scan_dir_recursive(
-        self, base_dir: Path, current_dir: Path, max_depth: int, current_depth: int
-    ):
-        """Recursively scan directories with explicit depth control."""
-        if current_depth > max_depth:
-            return
-
-        try:
-            # List directory contents
-            for item in current_dir.iterdir():
-                if item.is_dir():
-                    # Skip ignored directories
-                    if item.name in self._ignore_dirs or item.name.startswith("."):
-                        continue
-                    # Recursively scan subdirectory
-                    self._scan_dir_recursive(
-                        base_dir, item, max_depth, current_depth + 1
-                    )
-                elif item.is_file():
-                    full_path = str(item)
-                    rel_path = os.path.relpath(full_path, self._root_dir)
-
-                    # Check for Python skill files
-                    if item.name == "SKILL.py" or item.name.endswith(".skill.py"):
-                        self._load_skill_from_python(rel_path, full_path)
-                    # Check for Markdown skill files
-                    elif item.name == "SKILL.md" or item.name.endswith(".skill.md"):
-                        self._load_skill_from_markdown(rel_path, full_path)
-        except (PermissionError, OSError):
-            # Skip directories we can't access
-            pass
+    def _on_file_found(self, item: Path) -> None:
+        full_path = str(item)
+        rel_path = os.path.relpath(full_path, self._root_dir)
+        if item.name == "SKILL.py" or item.name.endswith(".skill.py"):
+            self._load_skill_from_python(rel_path, full_path)
+        elif item.name == "SKILL.md" or item.name.endswith(".skill.md"):
+            self._load_skill_from_markdown(rel_path, full_path)
 
     def _load_skill_from_python(self, rel_path: str, full_path: str):
         try:
@@ -282,15 +292,17 @@ class SkillManager:
                 skill_obj = getattr(module, "SKILL")
 
             if isinstance(skill_obj, Skill):
+                skill_obj.companion_files = discover_companion_files(full_path)
                 self._skills[skill_obj.name] = skill_obj
             elif hasattr(module, "get_skill") and callable(module.get_skill):
                 # Factory function that returns a Skill
                 skill_obj = module.get_skill()
                 if isinstance(skill_obj, Skill):
+                    skill_obj.companion_files = discover_companion_files(full_path)
                     self._skills[skill_obj.name] = skill_obj
 
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.warning(f"Failed to load Python skill from {full_path}: {e}")
 
     def _load_skill_from_markdown(self, rel_path: str, full_path: str):
         try:
@@ -326,8 +338,6 @@ class SkillManager:
                             model_invocable = not frontmatter.get(
                                 "disable-model-invocation", False
                             )
-                            # user-invocable: false hides from / menu (for background knowledge)
-                            # Default is True (skills are visible in / menu)
                             user_invocable = frontmatter.get("user-invocable", True)
 
                             # Claude Code spec fields
@@ -363,7 +373,10 @@ class SkillManager:
                                         )
 
                 except Exception:
-                    pass
+                    CFG.LOGGER.warning(
+                        f"Failed to parse YAML frontmatter in {full_path}",
+                        exc_info=True,
+                    )
 
             # 2. Fallback: Parse Markdown for Header 1
             if not is_name_resolved:
@@ -387,51 +400,10 @@ class SkillManager:
                 context=context,
                 agent=agent,
                 content=content,  # Persist content to avoid re-reading
+                companion_files=discover_companion_files(full_path),
             )
-        except Exception:
-            pass
-
-    def _load_skill(self, rel_path: str, full_path: str):
-        # Backward compatibility / internal helper alias
-        self._load_skill_from_markdown(rel_path, full_path)
-
-    def add_skill(self, skill: Skill):
-        """
-        Manually register a skill.
-        """
-        self._skills[skill.name] = skill
-
-    def get_skill(self, name: str) -> Skill | None:
-        self._ensure_scanned()
-        skill = self._skills.get(name)
-        if not skill:
-            # Try partial match or path match
-            for s in self._skills.values():
-                if s.name == name or s.path == name:
-                    skill = s
-                    break
-        return skill
-
-    def get_skill_content(self, name: str) -> str | None:
-        self._ensure_scanned()
-        skill = self.get_skill(name)
-        if not skill:
-            return None
-
-        if skill.content:
-            return skill.content
-
-        if skill.content_factory:
-            try:
-                return skill.content_factory()
-            except Exception as e:
-                return f"Error executing skill factory: {e}"
-
-        try:
-            with open(skill.path, "r", encoding="utf-8") as f:
-                return f.read()
         except Exception as e:
-            return f"Error reading skill file: {e}"
+            CFG.LOGGER.warning(f"Failed to load Markdown skill from {full_path}: {e}")
 
 
 skill_manager = SkillManager()

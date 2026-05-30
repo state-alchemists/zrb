@@ -66,7 +66,7 @@ Your summary MUST follow this structure:
 |----------|---------|
 | **HIGH** (Always) | Technical specifications, APIs, code examples, version numbers, security warnings, performance benchmarks |
 | **MEDIUM** (If relevant) | Use cases, configuration options, installation instructions, troubleshooting tips |
-| **LOW** (Omit) | Marketing claims, testimonials, company history, visual design descriptions, repetitive content |
+| **LOW** (Omit unless directly answering the query) | Marketing claims, testimonials, company history, visual design descriptions, repetitive content |
 
 ---
 

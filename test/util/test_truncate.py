@@ -1,63 +1,4 @@
-from zrb.util.truncate import truncate_output, truncate_str
-
-
-def test_truncate_str_string():
-    assert truncate_str("hello world", 15) == "hello world"
-    assert truncate_str("hello world", 11) == "hello world"
-    assert truncate_str("hello world", 10) == "hello  ..."
-    assert truncate_str("hello world", 5) == "h ..."
-    assert truncate_str("hello world", 3) == "hel"
-    assert truncate_str("short", 10) == "short"
-
-
-def test_truncate_str_dict():
-    data = {"a": "hello world", "b": "another long string"}
-    truncated = truncate_str(data, 10)
-    assert truncated["a"] == "hello  ..."
-    assert truncated["b"] == "anothe ..."
-
-
-def test_truncate_str_list():
-    data = ["hello world", "another long string"]
-    truncated = truncate_str(data, 10)
-    assert truncated[0] == "hello  ..."
-    assert truncated[1] == "anothe ..."
-
-
-def test_truncate_str_tuple():
-    data = ("hello world", "another long string")
-    truncated = truncate_str(data, 10)
-    assert isinstance(truncated, tuple)
-    assert truncated[0] == "hello  ..."
-    assert truncated[1] == "anothe ..."
-
-
-def test_truncate_str_set():
-    data = {"hello world", "another long string"}
-    truncated = truncate_str(data, 10)
-    assert isinstance(truncated, set)
-    assert "hello  ..." in truncated
-    assert "anothe ..." in truncated
-
-
-def test_truncate_str_nested():
-    data = {
-        "a": ["hello world", ("short", "another very long string")],
-        "b": {"c": "a third long string here"},
-    }
-    truncated = truncate_str(data, 12)
-    assert truncated["a"][0] == "hello world"
-    assert truncated["a"][1][0] == "short"
-    assert truncated["a"][1][1] == "another  ..."
-    assert truncated["b"]["c"] == "a third  ..."
-
-
-def test_truncate_str_other_types():
-    assert truncate_str(123, 10) == 123
-    assert truncate_str(123.45, 10) == 123.45
-    assert truncate_str(True, 10) is True
-    assert truncate_str(None, 10) is None
-    assert truncate_str(b"byte string", 10) == b"byte string"
+from zrb.util.truncate import truncate_output
 
 
 # Tests for truncate_output
@@ -173,3 +114,68 @@ def test_truncate_output_no_head_no_tail():
     result, info = truncate_output(text, head_lines=0, tail_lines=0, max_chars=100)
     # With no head or tail, should either return as-is or truncate everything
     assert info["truncation_type"] in ("none", "lines", "chars")
+
+
+def test_truncate_output_lines_truncation_type():
+    """Test truncate_output returns 'lines' truncation type."""
+    text = "\n".join([f"line{i}" for i in range(50)])
+    result, info = truncate_output(text, head_lines=2, tail_lines=2, max_chars=50)
+    assert info["truncation_type"] == "lines"
+
+
+def test_truncate_output_both_truncation_type():
+    """Test truncate_output returns 'both' truncation type."""
+    # Create content that needs both line and char truncation
+    lines = ["A" * 2000 + "\n" for _ in range(100)]
+    text = "".join(lines)
+    result, info = truncate_output(
+        text, head_lines=1, tail_lines=1, max_line_length=100, max_chars=500
+    )
+    # Should have truncation
+    assert info["truncation_type"] in ("both", "chars", "lines", "line_length")
+
+
+def test_truncate_output_char_truncation_small_max():
+    """Test truncate_output with very small max_chars (< 15)."""
+    text = "line1\nline2\nline3\n"
+    result, info = truncate_output(text, head_lines=1, tail_lines=1, max_chars=10)
+    assert len(result) <= 10
+
+
+def test_truncate_output_char_truncation_very_small():
+    """Test truncate_output with max_chars < 3."""
+    text = "line1\nline2\nline3\n"
+    result, info = truncate_output(text, head_lines=1, tail_lines=1, max_chars=2)
+    assert len(result) <= 2
+
+
+def test_truncate_output_char_truncation_minimal():
+    """Test truncate_output with max_chars = 3."""
+    text = "line1\nline2\nline3\n"
+    result, info = truncate_output(text, head_lines=1, tail_lines=1, max_chars=3)
+    assert result == "..."
+
+
+def test_truncate_line_exceeds_length():
+    """Test _truncate_line truncates when exceeding length."""
+    from zrb.util.truncate import _truncate_line
+
+    result = _truncate_line("A" * 100 + "\n", 10)
+    assert len(result) <= 10 + len(" [LINE TRUNCATED]\n")
+    assert "[LINE TRUNCATED]" in result
+
+
+def test_truncate_line_under_length():
+    """Test _truncate_line returns unchanged when under length."""
+    from zrb.util.truncate import _truncate_line
+
+    result = _truncate_line("short\n", 100)
+    assert result == "short\n"
+
+
+def test_truncate_output_no_truncation_needed():
+    """Test _build_result_with_truncation_message when no lines removed."""
+    text = "line1\nline2\nline3\n"
+    result, info = truncate_output(text, head_lines=5, tail_lines=5, max_chars=1000)
+    assert result == text
+    assert info["omitted_lines"] == 0

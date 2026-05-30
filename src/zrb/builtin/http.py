@@ -1,3 +1,5 @@
+import json
+import shlex
 from typing import Any
 
 from zrb.builtin.group import http_group
@@ -41,8 +43,8 @@ from zrb.task.make_task import make_task
     ],
 )
 def http_request(ctx: AnyContext) -> Any:
-    import json
 
+    # lazy: heavy third-party
     import requests
 
     try:
@@ -115,8 +117,6 @@ def http_request(ctx: AnyContext) -> Any:
     ],
 )
 def generate_curl(ctx: AnyContext) -> str:
-    import json
-    import shlex
 
     try:
         # Prepare curl command parts

@@ -237,6 +237,25 @@ class TestCustomCommandEdgeCases:
         result = cmd.get_prompt({"file": "/path/to/file with spaces.txt"})
         assert "/path/to/file with spaces.txt" in result
 
+    def test_get_prompt_literal_dollar_not_placeholder(self):
+        """Prompt with literal $ (regex, prices, shell vars) still appends args.
+
+        Regression guard: the old code had a ``"$" not in self._prompt`` guard
+        that suppressed arguments when the prompt contained any dollar sign,
+        even if none were actual placeholders (e.g. regex like ``\\d+$``).
+        """
+        cmd = CustomCommand(
+            command="test",
+            prompt="Match end of line: \\d+$",
+            args=["ARGUMENTS"],
+        )
+
+        result = cmd.get_prompt({"ARGUMENTS": "hello"})
+
+        # The prompt should preserve the literal $ and append the argument
+        assert "\\d+$" in result
+        assert "ARGUMENTS: hello" in result
+
 
 class TestCustomCommandArgOrder:
     """Test argument ordering in CustomCommand."""

@@ -8,6 +8,7 @@ if TYPE_CHECKING:
 
 
 def serve_logout_api(app: "FastAPI", web_auth_config: WebAuthConfig) -> None:
+    # lazy: heavy third-party
     from fastapi import Response
 
     @app.get("/api/v1/logout")

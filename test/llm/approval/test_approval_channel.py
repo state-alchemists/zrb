@@ -270,7 +270,7 @@ class TestIntegrationWithRunAgent:
     @pytest.mark.asyncio
     async def test_approval_channel_parameter_propagation(self):
         """Test that approval_channel parameter is accepted by run_agent."""
-        from zrb.llm.agent.run_agent import run_agent
+        from zrb.llm.agent.run.runner import run_agent
         from zrb.llm.config.limiter import LLMLimiter
 
         # Create a mock channel
@@ -287,7 +287,7 @@ class TestIntegrationWithRunAgent:
 
     def test_current_approval_channel_in_run_agent_module(self):
         """Test that current_approval_channel is available from run_agent module."""
-        from zrb.llm.agent.run_agent import current_approval_channel as ctx_var
+        from zrb.llm.agent.run.runner import current_approval_channel as ctx_var
 
         # Both should be ContextVar with same name
         assert ctx_var.name == "current_approval_channel"

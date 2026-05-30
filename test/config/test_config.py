@@ -529,6 +529,15 @@ def test_llm_plugin_dirs(monkeypatch):
     assert config.LLM_PLUGIN_DIRS == ["dir1", "dir2"]
 
 
+def test_llm_plugin_dirs_tilde_expansion(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_PLUGIN_DIRS", "~/.bsim-ai-workflow")
+    config = Config()
+    result = config.LLM_PLUGIN_DIRS
+    assert len(result) == 1
+    assert result[0] == os.path.expanduser("~/.bsim-ai-workflow")
+    assert "~" not in result[0]
+
+
 def test_llm_small_model(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_SMALL_MODEL", "gpt-4o-mini")
     config = Config()
@@ -1213,45 +1222,15 @@ class TestConfigSetters:
         config.LLM_SHOW_TOOL_CALL_RESULT = False
         assert os.environ["ZRB_LLM_SHOW_TOOL_CALL_RESULT"] == "off"
 
-    def test_llm_include_persona_setter(self, monkeypatch):
+    def test_llm_include_sections_setter_list(self, monkeypatch):
         config = Config()
-        config.LLM_INCLUDE_PERSONA = True
-        assert os.environ["ZRB_LLM_INCLUDE_PERSONA"] == "on"
+        config.LLM_INCLUDE_SECTIONS = ["persona", "mandate"]
+        assert os.environ["ZRB_LLM_INCLUDE_SECTIONS"] == "persona,mandate"
 
-    def test_llm_include_mandate_setter(self, monkeypatch):
+    def test_llm_include_sections_setter_str(self, monkeypatch):
         config = Config()
-        config.LLM_INCLUDE_MANDATE = True
-        assert os.environ["ZRB_LLM_INCLUDE_MANDATE"] == "on"
-
-    def test_llm_include_git_mandate_setter(self, monkeypatch):
-        config = Config()
-        config.LLM_INCLUDE_GIT_MANDATE = False
-        assert os.environ["ZRB_LLM_INCLUDE_GIT_MANDATE"] == "off"
-
-    def test_llm_include_system_context_setter(self, monkeypatch):
-        config = Config()
-        config.LLM_INCLUDE_SYSTEM_CONTEXT = True
-        assert os.environ["ZRB_LLM_INCLUDE_SYSTEM_CONTEXT"] == "on"
-
-    def test_llm_include_journal_setter(self, monkeypatch):
-        config = Config()
-        config.LLM_INCLUDE_JOURNAL = True
-        assert os.environ["ZRB_LLM_INCLUDE_JOURNAL"] == "on"
-
-    def test_llm_include_claude_skills_setter(self, monkeypatch):
-        config = Config()
-        config.LLM_INCLUDE_CLAUDE_SKILLS = True
-        assert os.environ["ZRB_LLM_INCLUDE_CLAUDE_SKILLS"] == "on"
-
-    def test_llm_include_cli_skills_setter(self, monkeypatch):
-        config = Config()
-        config.LLM_INCLUDE_CLI_SKILLS = True
-        assert os.environ["ZRB_LLM_INCLUDE_CLI_SKILLS"] == "on"
-
-    def test_llm_include_project_context_setter(self, monkeypatch):
-        config = Config()
-        config.LLM_INCLUDE_PROJECT_CONTEXT = True
-        assert os.environ["ZRB_LLM_INCLUDE_PROJECT_CONTEXT"] == "on"
+        config.LLM_INCLUDE_SECTIONS = "system_context,tool_guidance"
+        assert os.environ["ZRB_LLM_INCLUDE_SECTIONS"] == "system_context,tool_guidance"
 
     def test_llm_search_project_setter_true(self, monkeypatch):
         config = Config()

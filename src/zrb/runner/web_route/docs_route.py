@@ -8,6 +8,7 @@ if TYPE_CHECKING:
 
 
 def serve_docs(app: "FastAPI") -> None:
+    # lazy: heavy third-party
     from fastapi.openapi.docs import get_swagger_ui_html
 
     @app.get("/docs", include_in_schema=False)

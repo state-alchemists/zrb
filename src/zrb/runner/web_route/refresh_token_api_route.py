@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 
 
 def serve_refresh_token_api(app: "FastAPI", web_auth_config: WebAuthConfig) -> None:
+    # lazy: heavy third-party
     from fastapi import Cookie, Response
     from fastapi.responses import JSONResponse
 

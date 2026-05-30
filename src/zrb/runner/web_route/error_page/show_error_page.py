@@ -6,6 +6,7 @@ from zrb.runner.web_util.html import get_html_auth_link
 
 
 def show_error_page(user: User, root_group: AnyGroup, status_code: int, message: str):
+    # lazy: heavy third-party
     from fastapi.responses import HTMLResponse
 
     web_title = CFG.WEB_TITLE if CFG.WEB_TITLE.strip() != "" else root_group.name

@@ -13,25 +13,21 @@ def approve_if_path_inside_journal_dir(args: dict[str, Any]) -> bool:
     return _approve_if_path_inside_parent(args, CFG.LLM_JOURNAL_DIR)
 
 
+def approve_if_mv_inside_journal_dir(args: dict[str, Any]) -> bool:
+    journal_dir = CFG.LLM_JOURNAL_DIR
+    src = args.get("src")
+    dst = args.get("dst")
+    if src is None or dst is None:
+        return False
+    return _path_inside_parent(str(src), journal_dir) and _path_inside_parent(
+        str(dst), journal_dir
+    )
+
+
 def _approve_if_path_inside_parent(args: dict[str, Any], parent_path: str) -> bool:
     path = args.get("path")
-    paths = args.get("paths")
-    files = args.get("files")  # For WriteMany (write_files)
     if path is not None:
         return _path_inside_parent(str(path), parent_path)
-    if paths is not None:
-        if isinstance(paths, list):
-            return all(_path_inside_parent(str(p), parent_path) for p in paths)
-        return False
-    if files is not None:
-        # Handle WriteMany: files is a list of dicts with 'path' key
-        if isinstance(files, list):
-            return all(
-                _path_inside_parent(str(f.get("path", "")), parent_path)
-                for f in files
-                if isinstance(f, dict)
-            )
-        return False
     return True
 
 
@@ -44,3 +40,31 @@ def _path_inside_parent(path: str, parent_path: str) -> bool:
         )
     except Exception:
         return False
+
+
+def _path_inside_any_parent(path: str, parent_paths: list[str]) -> bool:
+    """Check if *path* is inside any of the given *parent_paths*."""
+    for parent in parent_paths:
+        if _path_inside_parent(path, parent):
+            return True
+    return False
+
+
+def approve_if_path_inside_skill_or_plugin_dir(args: dict[str, Any]) -> bool:
+    """Auto-approve when *path* is inside a discovered skill or plugin directory."""
+    path = args.get("path")
+    if path is None:
+        return True
+    # lazy: skill_manager transitively pulls CFG and other modules; not needed
+    # at module load time.
+    from zrb.llm.skill.manager import skill_manager
+
+    abs_path = os.path.abspath(os.path.expanduser(str(path)))
+    # 1. Check resolved skill search directories (builtin + home + project + extras)
+    for search_dir in skill_manager.get_search_directories():
+        if _path_inside_parent(abs_path, str(search_dir)):
+            return True
+    # 2. Check explicit plugin directories (both env-var and programmatically set)
+    if _path_inside_any_parent(abs_path, list(CFG.LLM_PLUGIN_DIRS)):
+        return True
+    return False

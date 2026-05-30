@@ -2,13 +2,17 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
+from zrb.llm.agent.run.history_utils import sanitize_history
 from zrb.llm.agent.summarizer import (
     create_conversational_summarizer_agent,
     create_message_summarizer_agent,
 )
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
-from zrb.llm.message import ensure_alternating_roles, validate_tool_pair_integrity
+from zrb.llm.message import (
+    ensure_alternating_roles,
+    validate_tool_pair_integrity,
+)
 from zrb.llm.summarizer.chunk_processor import (
     chunk_and_summarize,
     consolidate_summaries,
@@ -22,7 +26,6 @@ from zrb.util.markdown import make_markdown_section
 
 if TYPE_CHECKING:
     from pydantic_ai.messages import ModelMessage
-    from pydantic_ai.models import Model
 else:
     ModelMessage = Any
 
@@ -37,8 +40,6 @@ def create_summarizer_history_processor(
     # Backward compatibility
     agent: Any = None,
     token_threshold: int | None = None,
-    model_getter: "Callable[[str | Model | None], str | Model | None] | None" = None,
-    model_renderer: "Callable[[str | Model | None], str | Model | None] | None" = None,
 ) -> "Callable[[list[ModelMessage]], Awaitable[list[ModelMessage]]]":
     """
     Creates a history processor that auto-summarizes history when it exceeds `token_threshold`.
@@ -52,18 +53,15 @@ def create_summarizer_history_processor(
         message_token_threshold = CFG.LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD
     if summary_window is None:
         summary_window = CFG.LLM_HISTORY_SUMMARIZATION_WINDOW
-    # Pre-create agents with getter/renderer when provided so they are consistent
-    # with the parent task's model pipeline.
-    if conversational_agent is None and (model_getter or model_renderer):
-        conversational_agent = create_conversational_summarizer_agent(
-            model_getter=model_getter, model_renderer=model_renderer
-        )
-    if message_agent is None and (model_getter or model_renderer):
-        message_agent = create_message_summarizer_agent(
-            model_getter=model_getter, model_renderer=model_renderer
-        )
+    # Pre-create agents when provided so they are consistent
+    if conversational_agent is None:
+        conversational_agent = create_conversational_summarizer_agent()
+    if message_agent is None:
+        message_agent = create_message_summarizer_agent()
 
-    async def process_history(messages: "list[ModelMessage]") -> "list[ModelMessage]":
+    async def process_history(
+        messages: "list[ModelMessage]", system_prompt_overhead: int = 0
+    ) -> "list[ModelMessage]":
         # 1. Summarize individual fat messages first
         try:
             messages = await summarize_messages(
@@ -80,27 +78,31 @@ def create_summarizer_history_processor(
             )
             # Continue with original messages if summarization fails
 
-        # 2. Check if total history exceeds threshold
+        # 2. Check if total history + system prompt exceeds threshold
         try:
+            adjusted_threshold = max(
+                1, conversational_token_threshold - system_prompt_overhead
+            )
+
             current_tokens = llm_limiter.count_tokens(messages)
             is_short_enough = len(messages) <= summary_window
-            is_within_tokens = current_tokens <= conversational_token_threshold
+            is_within_tokens = current_tokens <= adjusted_threshold
             if is_short_enough and is_within_tokens:
                 return messages
             to_summarize, _ = split_history(
-                messages, summary_window, llm_limiter, conversational_token_threshold
+                messages, summary_window, llm_limiter, adjusted_threshold
             )
             if (
                 is_within_tokens
-                and len(to_summarize) < 0.3 * conversational_token_threshold
+                and llm_limiter.count_tokens(to_summarize) < 0.3 * adjusted_threshold
             ):
-                # There is no need to summarize if we cannot save a leat 0.3 of context window
+                # There is no need to summarize if we cannot save at least 0.3 of context window
                 return messages
 
             zrb_print(
                 stylize_yellow(
                     (
-                        f"\n  History limits exceeded (tokens: {current_tokens}/{conversational_token_threshold}, messages: {len(messages)}/{summary_window}). "
+                        f"\n  History limits exceeded (tokens: {current_tokens}/{adjusted_threshold}, messages: {len(messages)}/{summary_window}). "
                         "Compressing conversation..."
                     )
                 ),
@@ -111,7 +113,7 @@ def create_summarizer_history_processor(
                 agent=conversational_agent or agent,
                 summary_window=summary_window,
                 limiter=llm_limiter,
-                conversational_token_threshold=conversational_token_threshold,
+                conversational_token_threshold=adjusted_threshold,
             )
             if result != messages:
                 new_tokens = llm_limiter.count_tokens(result)
@@ -237,17 +239,21 @@ async def summarize_history(
             return messages
         if not to_keep:
             return [summary_message]
-        # Validate tool pair integrity in kept messages
-
+        # Fix orphaned tool call/return pairs before returning.
+        # Compression can leave ToolCallParts whose returns were in the summarised
+        # portion, or ToolReturnParts whose calls were dropped.  Providers like
+        # Bedrock reject such history with ValidationException.
         is_valid, problems = validate_tool_pair_integrity(to_keep)
         if not is_valid and problems:
             zrb_print(
                 stylize_yellow(
                     f"  Warning: Kept messages have tool pair issues: {', '.join(problems[:3])}"
                     + ("..." if len(problems) > 3 else "")
+                    + " — sanitizing..."
                 ),
                 plain=True,
             )
+            to_keep = sanitize_history(to_keep)
 
         return ensure_alternating_roles([summary_message] + to_keep)
     except Exception as e:
@@ -257,6 +263,7 @@ async def summarize_history(
 
 def _create_summary_model_request(summary_text: str) -> Any:
     """Construct a ModelRequest message from summary text."""
+    # lazy: heavy third-party
     from pydantic_ai.messages import ModelRequest, UserPromptPart
 
     try:

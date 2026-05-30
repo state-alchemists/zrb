@@ -16,8 +16,13 @@ async def default_response_handler(
     user_response: str,
     next_handler: Callable[[UIProtocol, ToolCallPart, str], Awaitable[Any]],
 ) -> ToolApproved | ToolDenied | None:
+    # lazy: heavy third-party
     from pydantic_ai import ToolApproved, ToolDenied
 
+    # lazy: tests patch `zrb.llm.tool_call.edit_util.edit_content_via_editor`
+    # at the source path and rely on the patch taking effect inside this
+    # function. Hoisting would bind the name at module-load.
+    # lazy: zrb internal (heavy via transitive / circular)
     from zrb.llm.tool_call.edit_util import edit_content_via_editor
 
     zrb_print(user_response, plain=True)

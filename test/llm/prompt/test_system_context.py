@@ -75,9 +75,7 @@ class TestSystemContext:
             received.append(prompt)
             return "ok"
 
-        with patch(
-            "zrb.llm.prompt.system_context.is_inside_git_dir", return_value=True
-        ):
+        with patch("zrb.llm.util.git.is_inside_git_dir", return_value=True):
             with patch("subprocess.run") as mock_run:
 
                 def side_effect(args, **kwargs):
@@ -177,3 +175,95 @@ class TestSystemContext:
             system_context(ctx, "", lambda c, p: received.append(p) or "ok")
 
         assert "Todos" not in received[0]
+
+    def test_system_context_omits_model_line_when_model_is_none(self):
+        """Default callers (no model bound) get no Model line — back-compat."""
+        ctx = MagicMock(spec=AnyContext)
+        received = []
+        system_context(ctx, "", lambda c, p: received.append(p) or "ok")
+        assert "Model:" not in received[0]
+
+    def test_system_context_shows_plain_model_line_for_unknown_caps_model(self):
+        """When the registry has no parallel-tool-call knowledge, only the identifier shows — no guidance."""
+        ctx = MagicMock(spec=AnyContext)
+        received = []
+        system_context(
+            ctx,
+            "",
+            lambda c, p: received.append(p) or "ok",
+            model="openai:gpt-4o",
+        )
+        rendered = received[0]
+        assert "- Model: openai:gpt-4o" in rendered
+        # Neither encouragement nor warning when tristate is None
+        assert "CRITICAL" not in rendered
+        assert "supports parallel tool calls" not in rendered.lower()
+
+    def test_system_context_only_shows_model_line_no_capability_warning(self):
+        """Capability-driven guidance moved to Tool Usage Guide — system context is identity-only."""
+        ctx = MagicMock(spec=AnyContext)
+        received = []
+        system_context(
+            ctx,
+            "",
+            lambda c, p: received.append(p) or "ok",
+            model="ollama:minimax-m2.7:cloud",
+        )
+        rendered = received[0]
+        assert "- Model: ollama:minimax-m2.7:cloud" in rendered
+        # The CRITICAL warning is no longer emitted from system_context —
+        # it lives in the Tool Usage Guide section (see test_tool_guidance.py).
+        assert "CRITICAL" not in rendered
+        assert "`ReadReadRead`" not in rendered
+
+    def test_system_context_omits_model_line_when_model_unrecognisable(self):
+        """A MagicMock with no real ``model_name`` is treated as unknown."""
+        ctx = MagicMock(spec=AnyContext)
+        received = []
+        opaque_model = MagicMock()  # .model_name returns another MagicMock
+        system_context(
+            ctx,
+            "",
+            lambda c, p: received.append(p) or "ok",
+            model=opaque_model,
+        )
+        assert "Model:" not in received[0]
+
+    def test_system_context_renders_interactive_yes_by_default(self):
+        """Without ctx.input.interactive set, default is interactive=True."""
+        ctx = MagicMock(spec=AnyContext)
+        received = []
+        system_context(ctx, "", lambda c, p: received.append(p) or "ok")
+        rendered = received[0]
+        assert "Interactive: yes" in rendered
+        # Negative guard rail must not appear in interactive mode
+        assert "do not call AskUserQuestion" not in rendered
+
+    def test_system_context_renders_interactive_no_when_input_false(self):
+        """ctx.input.interactive=False renders the non-interactive guard line."""
+        ctx = MagicMock()
+        ctx.input.session = "noninteractive-session"
+        ctx.input.interactive = False
+        received = []
+        system_context(ctx, "", lambda c, p: received.append(p) or "ok")
+        rendered = received[0]
+        assert "Interactive: no" in rendered
+        assert "do not call AskUserQuestion" in rendered
+
+    def test_system_context_sets_interactive_mode_contextvar(self):
+        """The ContextVar must be updated so the tool can read it later."""
+        from zrb.llm.tool.ambient_state import (
+            get_interactive_mode,
+            set_interactive_mode,
+        )
+
+        # Start from a known state different from the value we'll set
+        set_interactive_mode(True)
+        try:
+            ctx = MagicMock()
+            ctx.input.session = "ctxvar-session"
+            ctx.input.interactive = False
+            system_context(ctx, "", lambda c, p: "ok")
+            assert get_interactive_mode() is False
+        finally:
+            set_interactive_mode(True)

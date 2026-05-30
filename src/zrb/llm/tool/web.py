@@ -4,7 +4,7 @@ from zrb.config.config import CFG
 from zrb.llm.agent import create_agent, run_agent
 from zrb.llm.config.config import llm_config
 from zrb.llm.config.limiter import llm_limiter
-from zrb.llm.prompt.prompt import get_web_summarizer_system_prompt
+from zrb.llm.prompt.prompt import get_prompt
 
 
 async def open_web_page(url: str, summarize: bool = True) -> dict:
@@ -50,8 +50,13 @@ async def search_internet(
 
     Requires SERPAPI_KEY, BRAVE_API_KEY, or SearXNG configuration.
     """
+    # lazy: backend modules are kept lazy so tests can patch
+    # `zrb.llm.tool.search.<backend>.search_internet` at the source path
+    # and have the patch take effect inside this function. Hoisting would
+    # bind the names at module-load and bypass test mocks.
     method = CFG.SEARCH_INTERNET_METHOD.strip().lower()
     if method == "serpapi" and CFG.SERPAPI_KEY:
+        # lazy: zrb internal (heavy via transitive / circular)
         from zrb.llm.tool.search.serpapi import search_internet as serpapi_search
 
         try:
@@ -61,6 +66,7 @@ async def search_internet(
         return normalize_search_result(raw, "serpapi")
 
     if method == "brave" and CFG.BRAVE_API_KEY:
+        # lazy: zrb internal (heavy via transitive / circular)
         from zrb.llm.tool.search.brave import search_internet as brave_search
 
         try:
@@ -69,13 +75,25 @@ async def search_internet(
             return _error_result(query, page, str(e), "brave")
         return normalize_search_result(raw, "brave")
 
-    from zrb.llm.tool.search.searxng import search_internet as searxng_search
+    if method == "searxng":
+        # lazy: zrb internal (heavy via transitive / circular)
+        from zrb.llm.tool.search.searxng import search_internet as searxng_search
+
+        try:
+            raw = searxng_search(query, page=page)
+        except Exception as e:  # noqa: BLE001
+            return _error_result(query, page, str(e), "searxng")
+        return normalize_search_result(raw, "searxng")
+
+    # default: Google News RSS — free, no API key, no Docker required
+    # lazy: zrb internal (heavy via transitive / circular)
+    from zrb.llm.tool.search.google_rss import search_internet as google_rss_search
 
     try:
-        raw = searxng_search(query, page=page)
+        raw = google_rss_search(query, page=page)
     except Exception as e:  # noqa: BLE001
-        return _error_result(query, page, str(e), "searxng")
-    return normalize_search_result(raw, "searxng")
+        return _error_result(query, page, str(e), "google_rss")
+    return normalize_search_result(raw, "google_rss")
 
 
 def normalize_search_result(raw: dict, backend: str) -> dict:
@@ -89,6 +107,8 @@ def normalize_search_result(raw: dict, backend: str) -> dict:
         return _normalize_serpapi(raw, query)
     if backend == "searxng":
         return _normalize_searxng(raw, query)
+    if backend == "google_rss":
+        return _normalize_google_rss(raw, query)
     return raw
 
 
@@ -155,6 +175,26 @@ def _normalize_searxng(raw: dict, query: str) -> dict:
     }
 
 
+def _normalize_google_rss(raw: dict, query: str) -> dict:
+    results = []
+    for item in raw.get("results", [])[:10]:
+        results.append(
+            {
+                "title": item.get("title", ""),
+                "url": item.get("url", ""),
+                "snippet": item.get("snippet", ""),
+                "source": item.get("source", "google_rss"),
+            }
+        )
+    return {
+        "query": query,
+        "results": results,
+        "total": len(results),
+        "page": raw.get("page", 1),
+        "error": None,
+    }
+
+
 def _error_result(query: str, page: int, message: str, backend: str) -> dict:
     return {
         "query": query,
@@ -168,6 +208,7 @@ def _error_result(query: str, page: int, message: str, backend: str) -> dict:
 async def _fetch_page_content(url: str) -> tuple:
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     try:
+        # lazy: heavy third-party
         from playwright.async_api import async_playwright
 
         async with async_playwright() as p:
@@ -186,8 +227,10 @@ async def _fetch_page_content(url: str) -> tuple:
             await browser.close()
             return content, links
     except Exception:
+        # lazy: deferred to keep module import light
         from urllib.parse import urljoin
 
+        # lazy: heavy third-party
         import requests
         from bs4 import BeautifulSoup
 
@@ -207,6 +250,7 @@ async def _fetch_page_content(url: str) -> tuple:
 
 
 def _convert_html_to_markdown(html_text: str) -> str:
+    # lazy: heavy third-party
     from bs4 import BeautifulSoup
     from markdownify import markdownify as md
 
@@ -223,7 +267,7 @@ async def _summarize_web_content(markdown_content: str, url: str) -> str:
     # Create the summarization agent
     agent = create_agent(
         model=llm_config.resolve_model(),
-        system_prompt=get_web_summarizer_system_prompt(),
+        system_prompt=get_prompt("web_summarizer"),
     )
 
     # Prepare the prompt data

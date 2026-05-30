@@ -1,20 +1,37 @@
 import asyncio
+import subprocess
+import sys
 from typing import Any, TextIO
+
+from zrb.config.config import CFG
+from zrb.util.cli.style import stylize_faint
 
 
 class StdUI:
     """Standard UI implementation of UIProtocol for terminal environments."""
 
+    def __init__(self, assistant_name: str | None = None):
+        raw = assistant_name if assistant_name else CFG.LLM_ASSISTANT_NAME
+        self._assistant_name = raw[0].upper() + raw[1:] if raw else raw
+
     async def ask_user(self, prompt: str) -> str:
         """Prompt user via CLI input."""
-        import sys
 
+        # lazy: heavy third-party
         from prompt_toolkit import PromptSession
         from prompt_toolkit.output import create_output
 
         # Always output to stderr to avoid polluting stdout
         output = create_output(stdout=sys.stderr)
         session = PromptSession(output=output)
+
+        # Show a waiting indicator when no explicit prompt is provided
+        # (the typical case for tool-confirmation requests).
+        if not prompt:
+            sys.stderr.write(
+                f"\n👋 {self._assistant_name} is waiting for confirmation\n"
+            )
+            sys.stderr.flush()
 
         try:
             user_input = await session.prompt_async(prompt)
@@ -35,9 +52,6 @@ class StdUI:
         kind: str = "text",
     ):
         """Print output to stderr."""
-        import sys
-
-        from zrb.util.cli.style import stylize_faint
 
         content = sep.join(str(v) for v in values) + end
         if kind != "text":
@@ -67,7 +81,6 @@ class StdUI:
         self, cmd: str | list[str], shell: bool = False
     ) -> Any:
         """Run interactive commands using subprocess."""
-        import subprocess
 
         def _run():
             return subprocess.run(cmd, shell=shell)

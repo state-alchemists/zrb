@@ -3,7 +3,7 @@ import traceback
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
-from zrb.context.any_context import AnyContext
+from zrb.context.any_context import AnyContext, current_ctx
 from zrb.session.any_session import AnySession
 from zrb.util.attr import get_bool_attr
 from zrb.util.run import run_async
@@ -35,8 +35,6 @@ async def execute_task_action(task: "BaseTask", session: AnySession):
     """
     Executes a single task's action, handling conditions and readiness checks.
     """
-    from zrb.context.any_context import current_ctx
-
     ctx = task.get_ctx(session)
     token = current_ctx.set(ctx)
     try:
@@ -139,7 +137,7 @@ async def execute_action_until_ready(task: "BaseTask", session: AnySession):
 
         # Start monitoring only if readiness passed and monitoring is enabled
         if readiness_passed and monitor_readiness:
-            # Import dynamically to avoid circular dependency if monitoring imports execution
+            # lazy: circular — zrb.task.base.monitoring imports from this module.
             from zrb.task.base.monitoring import monitor_task_readiness
 
             monitor_coro = asyncio.create_task(

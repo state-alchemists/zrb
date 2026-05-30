@@ -1,3 +1,4 @@
+import json
 import re
 from typing import Any
 
@@ -236,7 +237,6 @@ def to_string(value: Any) -> str:
     Convert any value to a string, safely handling dictionaries and lists via JSON.
     """
     if isinstance(value, (dict, list)):
-        import json
 
         try:
             return json.dumps(value, ensure_ascii=False)

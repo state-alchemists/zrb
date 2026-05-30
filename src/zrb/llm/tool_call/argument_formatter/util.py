@@ -41,6 +41,7 @@ def get_terminal_width(default: int = 80, ui: Any | None = None) -> int:
 
     # Try prompt_toolkit (if we're in a UI context)
     try:
+        # lazy: heavy third-party
         from prompt_toolkit.application import get_app
 
         app = get_app()

@@ -1,5 +1,6 @@
 import inspect
-from typing import Callable
+from functools import partial
+from typing import Any, Callable
 
 from zrb.attr.type import StrListAttr
 from zrb.config.config import CFG
@@ -8,13 +9,7 @@ from zrb.llm.prompt.claude import (
     create_claude_skills_prompt,
     create_project_context_prompt,
 )
-from zrb.llm.prompt.cli import create_cli_skills_prompt
-from zrb.llm.prompt.prompt import (
-    get_git_mandate_prompt,
-    get_journal_prompt,
-    get_mandate_prompt,
-    get_persona_prompt,
-)
+from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.prompt.system_context import system_context
 from zrb.llm.prompt.tool_guidance import (
     ToolCatalogue,
@@ -34,21 +29,19 @@ FullMiddleware = Callable[[AnyContext, str, Callable[[AnyContext, str], str]], s
 PromptMiddleware = SimplePrompt | FullMiddleware
 
 
+def _render_persona_prompt(assistant_name: str | None) -> str:
+    """Render persona prompt with optional assistant name override."""
+    effective = assistant_name if assistant_name is not None else CFG.LLM_ASSISTANT_NAME
+    capitalized = effective[0].upper() + effective[1:] if effective else effective
+    return get_prompt("persona", ASSISTANT_NAME=capitalized)
+
+
 class PromptManager:
     def __init__(
         self,
         prompts: list[PromptMiddleware | str] | None = None,
         assistant_name: str | Callable[[AnyContext], str] | None = None,
-        include_persona: bool | None = None,
-        include_mandate: bool | None = None,
-        include_git_mandate: bool | None = None,
-        include_system_context: bool | None = None,
-        include_journal: bool | None = None,
-        include_journal_mandate: bool | None = None,
-        include_claude_skills: bool | None = None,
-        include_cli_skills: bool | None = None,
-        include_project_context: bool | None = None,
-        include_tool_guidance: bool | None = None,
+        include_sections: list[str] | None = None,
         tool_names: "set[str] | Callable[[AnyContext], set[str]] | None" = None,
         tool_guidance: "ToolCatalogue | None" = None,
         tool_groups: "ToolGroups | None" = None,
@@ -59,20 +52,7 @@ class PromptManager:
     ):
         self._middlewares = prompts or []
         self._assistant_name = assistant_name
-        self._include_persona = include_persona
-        self._include_mandate = include_mandate
-        self._include_git_mandate = include_git_mandate
-        self._include_system_context = include_system_context
-        # include_journal_mandate is the specific flag; include_journal is the legacy alias
-        self._include_journal_mandate = (
-            include_journal_mandate
-            if include_journal_mandate is not None
-            else include_journal
-        )
-        self._include_claude_skills = include_claude_skills
-        self._include_cli_skills = include_cli_skills
-        self._include_project_context = include_project_context
-        self._include_tool_guidance = include_tool_guidance
+        self._include_sections = include_sections  # None means "use CFG default"
         self._tool_names = tool_names
         self._tool_guidance: ToolCatalogue = (
             tool_guidance if tool_guidance is not None else {}
@@ -82,113 +62,16 @@ class PromptManager:
         self._active_skills = active_skills
         self._render_active_skills = render_active_skills
         self._render = render
-
-    def _get_composed_middlewares(
-        self, ctx: AnyContext
-    ) -> list[PromptMiddleware | str]:
-        middlewares: list[PromptMiddleware | str] = []
-        assistant_name = (
-            get_str_attr(ctx, self._assistant_name) if self._assistant_name else None
-        )
-
-        # Get effective values (use config defaults if None)
-        include_persona = (
-            self._include_persona
-            if self._include_persona is not None
-            else CFG.LLM_INCLUDE_PERSONA
-        )
-        include_mandate = (
-            self._include_mandate
-            if self._include_mandate is not None
-            else CFG.LLM_INCLUDE_MANDATE
-        )
-        include_git_mandate = (
-            self._include_git_mandate
-            if self._include_git_mandate is not None
-            else CFG.LLM_INCLUDE_GIT_MANDATE
-        )
-        include_system_context = (
-            self._include_system_context
-            if self._include_system_context is not None
-            else CFG.LLM_INCLUDE_SYSTEM_CONTEXT
-        )
-        include_journal = (
-            self._include_journal_mandate
-            if self._include_journal_mandate is not None
-            else CFG.LLM_INCLUDE_JOURNAL_MANDATE
-        )
-        include_claude_skills = (
-            self._include_claude_skills
-            if self._include_claude_skills is not None
-            else CFG.LLM_INCLUDE_CLAUDE_SKILLS
-        )
-        include_cli_skills = (
-            self._include_cli_skills
-            if self._include_cli_skills is not None
-            else CFG.LLM_INCLUDE_CLI_SKILLS
-        )
-        include_project_context = (
-            self._include_project_context
-            if self._include_project_context is not None
-            else CFG.LLM_INCLUDE_PROJECT_CONTEXT
-        )
-        include_tool_guidance = (
-            self._include_tool_guidance
-            if self._include_tool_guidance is not None
-            else CFG.LLM_INCLUDE_TOOL_GUIDANCE
-        )
-        # Resolve tool_names once (may be a static set or a callable)
-        tool_names_value = (
-            self._tool_names(ctx) if callable(self._tool_names) else self._tool_names
-        )
-
-        # 1. Identity & Always-On Rules (these must not be truncated)
-        if include_persona:
-            middlewares.append(
-                new_prompt(lambda: get_persona_prompt(assistant_name=assistant_name))
-            )
-        if include_git_mandate:
-            middlewares.append(
-                new_prompt(
-                    lambda: get_git_mandate_prompt() if is_inside_git_dir() else ""
-                )
-            )
-        # 2. Facts: Current environmental state
-        if include_system_context:
-            middlewares.append(system_context)
-        # 3. Rules: Core operational behavior
-        if include_mandate:
-            middlewares.append(new_prompt(lambda: get_mandate_prompt()))
-        if include_tool_guidance:
-            # Capture values to avoid late-binding in lambda
-            _catalogue = self._tool_guidance
-            _groups = self._tool_groups
-            middlewares.append(
-                new_prompt(
-                    lambda tn=tool_names_value, c=_catalogue, g=_groups: get_tool_guidance_prompt(
-                        tn, c, g
-                    )
-                )
-            )
-        if include_journal:
-            middlewares.append(new_prompt(lambda: get_journal_prompt()))
-        # 4. Context: Project specific documentation and skills
-        if include_project_context:
-            middlewares.append(create_project_context_prompt())
-        if self._skill_manager:
-            active_skills = get_str_list_attr(
-                ctx, self._active_skills, self._render_active_skills
-            )
-            middlewares.append(
-                create_claude_skills_prompt(
-                    self._skill_manager, active_skills, include_claude_skills
-                )
-            )
-        if include_cli_skills:
-            middlewares.append(create_cli_skills_prompt())
-        # 5. User: Custom prompts
-        middlewares.extend(self._middlewares)
-        return middlewares
+        # Resolved current model — used by the system_context section to
+        # surface model-specific capabilities (e.g. parallel tool call
+        # support). Set by the task runner before each compose_prompt(),
+        # so /model switches mid-session are reflected automatically.
+        self._model: Any = None
+        # Pre-rendered Markdown blocks injected above the per-tool
+        # catalogue when the ``tool_guidance`` section is composed. Set
+        # by the task runner from model-aware section factories so the
+        # blocks reflect the active model.
+        self._tool_guidance_sections: list[str] = []
 
     @property
     def prompts(self):
@@ -207,84 +90,12 @@ class PromptManager:
         self._active_skills = value
 
     @property
-    def include_persona(self):
-        return self._include_persona
+    def include_sections(self) -> list[str] | None:
+        return self._include_sections
 
-    @include_persona.setter
-    def include_persona(self, value: bool):
-        self._include_persona = value
-
-    @property
-    def include_mandate(self):
-        return self._include_mandate
-
-    @include_mandate.setter
-    def include_mandate(self, value: bool):
-        self._include_mandate = value
-
-    @property
-    def include_git_mandate(self):
-        return self._include_git_mandate
-
-    @include_git_mandate.setter
-    def include_git_mandate(self, value: bool):
-        self._include_git_mandate = value
-
-    @property
-    def include_system_context(self):
-        return self._include_system_context
-
-    @include_system_context.setter
-    def include_system_context(self, value: bool):
-        self._include_system_context = value
-
-    @property
-    def include_journal_mandate(self):
-        return self._include_journal_mandate
-
-    @include_journal_mandate.setter
-    def include_journal_mandate(self, value: bool):
-        self._include_journal_mandate = value
-
-    @property
-    def include_journal(self):
-        return self._include_journal_mandate
-
-    @include_journal.setter
-    def include_journal(self, value: bool):
-        self._include_journal_mandate = value
-
-    @property
-    def include_claude_skills(self):
-        return self._include_claude_skills
-
-    @include_claude_skills.setter
-    def include_claude_skills(self, value: bool):
-        self._include_claude_skills = value
-
-    @property
-    def include_cli_skills(self):
-        return self._include_cli_skills
-
-    @include_cli_skills.setter
-    def include_cli_skills(self, value: bool):
-        self._include_cli_skills = value
-
-    @property
-    def include_project_context(self):
-        return self._include_project_context
-
-    @include_project_context.setter
-    def include_project_context(self, value: bool):
-        self._include_project_context = value
-
-    @property
-    def include_tool_guidance(self):
-        return self._include_tool_guidance
-
-    @include_tool_guidance.setter
-    def include_tool_guidance(self, value: bool):
-        self._include_tool_guidance = value
+    @include_sections.setter
+    def include_sections(self, value: list[str] | None):
+        self._include_sections = value
 
     @property
     def tool_names(self):
@@ -293,6 +104,22 @@ class PromptManager:
     @tool_names.setter
     def tool_names(self, value: "set[str] | Callable[[AnyContext], set[str]] | None"):
         self._tool_names = value
+
+    @property
+    def model(self) -> Any:
+        return self._model
+
+    @model.setter
+    def model(self, value: Any) -> None:
+        self._model = value
+
+    @property
+    def tool_guidance_sections(self) -> list[str]:
+        return self._tool_guidance_sections
+
+    @tool_guidance_sections.setter
+    def tool_guidance_sections(self, value: list[str] | None) -> None:
+        self._tool_guidance_sections = list(value) if value else []
 
     def add_tool_group(self, *, name: str) -> None:
         """Register a new tool group if it does not already exist."""
@@ -330,40 +157,6 @@ class PromptManager:
 
     def reset(self):
         self._middlewares = []
-
-    def _is_full_middleware(self, prompt: PromptMiddleware | str) -> bool:
-        """Check if prompt is a full middleware (accepts next param) or simple callable."""
-        if isinstance(prompt, str):
-            return False
-        if not callable(prompt):
-            return False
-        sig = inspect.signature(prompt)
-        params = list(sig.parameters.values())
-        # Full middleware has 3+ params: ctx, current_prompt, next, (optional *args, **kwargs)
-        # Simple prompt has 1 param: ctx
-        return len(params) >= 3
-
-    def _wrap_simple_prompt(self, prompt: str | SimplePrompt) -> FullMiddleware:
-        """Wrap a simple string or callable into a full middleware with rendering support."""
-
-        def middleware(
-            ctx: AnyContext, current: str, next_fn: Callable[[AnyContext, str], str]
-        ) -> str:
-            # Get the prompt content
-            if callable(prompt):
-                content = prompt(ctx)
-            else:
-                content = prompt
-
-            # Apply rendering if enabled (for string content)
-            if self._render and isinstance(content, str):
-                content = get_str_attr(ctx, content, auto_render=True)
-
-            # Continue chain automatically
-            new_prompt = f"{current}\n{content}" if content else current
-            return next_fn(ctx, new_prompt)
-
-        return middleware
 
     def add_prompt(self, *middleware: PromptMiddleware | str):
         self.append_prompt(*middleware)
@@ -413,6 +206,106 @@ class PromptManager:
             return dispatch(0, "")
 
         return composed_prompt_factory
+
+    def _get_composed_middlewares(
+        self, ctx: AnyContext
+    ) -> list[PromptMiddleware | str]:
+        # Resolve sections: instance override or CFG default
+        if self._include_sections is not None:
+            sections = list(self._include_sections)
+        else:
+            sections = list(CFG.LLM_INCLUDE_SECTIONS)
+
+        assistant_name = (
+            get_str_attr(ctx, self._assistant_name) if self._assistant_name else None
+        )
+        tool_names_value = (
+            self._tool_names(ctx) if callable(self._tool_names) else self._tool_names
+        )
+
+        # Capture values to avoid late-binding in lambdas
+        _catalogue = self._tool_guidance
+        _groups = self._tool_groups
+        _skill_mgr = self._skill_manager
+
+        middlewares: list[PromptMiddleware | str] = []
+
+        for section in sections:
+            if section == "persona":
+                middlewares.append(
+                    new_prompt(lambda an=assistant_name: _render_persona_prompt(an))
+                )
+            elif section == "git_mandate":
+                middlewares.append(
+                    new_prompt(
+                        lambda: get_prompt("git_mandate") if is_inside_git_dir() else ""
+                    )
+                )
+            elif section == "system_context":
+                # Bind the resolved model so system_context can surface
+                # capability-driven notes (e.g. "no parallel tool calls").
+                middlewares.append(partial(system_context, model=self._model))
+            elif section == "mandate":
+                middlewares.append(new_prompt(lambda: get_prompt("mandate")))
+            elif section == "tool_guidance":
+                _extra_sections = list(self._tool_guidance_sections)
+                middlewares.append(
+                    new_prompt(
+                        lambda tn=tool_names_value, c=_catalogue, g=_groups, es=_extra_sections: get_tool_guidance_prompt(
+                            tn, c, g, extra_sections=es
+                        )
+                    )
+                )
+            elif section == "journal_mandate":
+                middlewares.append(new_prompt(lambda: get_prompt("journal_mandate")))
+            elif section == "project_context":
+                middlewares.append(create_project_context_prompt())
+            elif section == "claude_skills":
+                if _skill_mgr:
+                    active_skills = get_str_list_attr(
+                        ctx, self._active_skills, self._render_active_skills
+                    )
+                    middlewares.append(
+                        create_claude_skills_prompt(_skill_mgr, active_skills)
+                    )
+
+        # User custom prompts always last
+        middlewares.extend(self._middlewares)
+        return middlewares
+
+    def _is_full_middleware(self, prompt: PromptMiddleware | str) -> bool:
+        """Check if prompt is a full middleware (accepts next param) or simple callable."""
+        if isinstance(prompt, str):
+            return False
+        if not callable(prompt):
+            return False
+        sig = inspect.signature(prompt)
+        params = list(sig.parameters.values())
+        # Full middleware has 3+ params: ctx, current_prompt, next, (optional *args, **kwargs)
+        # Simple prompt has 1 param: ctx
+        return len(params) >= 3
+
+    def _wrap_simple_prompt(self, prompt: str | SimplePrompt) -> FullMiddleware:
+        """Wrap a simple string or callable into a full middleware with rendering support."""
+
+        def middleware(
+            ctx: AnyContext, current: str, next_fn: Callable[[AnyContext, str], str]
+        ) -> str:
+            # Get the prompt content
+            if callable(prompt):
+                content = prompt(ctx)
+            else:
+                content = prompt
+
+            # Apply rendering if enabled (for string content)
+            if self._render and isinstance(content, str):
+                content = get_str_attr(ctx, content, auto_render=True)
+
+            # Continue chain automatically
+            new_prompt = f"{current}\n{content}" if content else current
+            return next_fn(ctx, new_prompt)
+
+        return middleware
 
 
 def new_prompt(new_prompt: str | Callable[[], str], render: bool = False):

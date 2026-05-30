@@ -17,6 +17,7 @@ async def read_file_validation_policy(
     Validates 'Read' (read_file) tool calls.
     Rejected if the file does not exist.
     """
+    # lazy: heavy third-party
     from pydantic_ai import ToolDenied
 
     if call.tool_name != "Read":

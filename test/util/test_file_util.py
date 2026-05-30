@@ -103,3 +103,38 @@ def test_list_files_depth(tmp_path):
     assert "file1.txt" in files2
     assert "subdir/file2.txt" in files2
     assert "subdir/subsubdir/file3.txt" not in files2
+
+
+def test_list_files_nonexistent_path():
+    """Test list_files raises FileNotFoundError for nonexistent path."""
+    with pytest.raises(FileNotFoundError):
+        list_files("/nonexistent/path/that/does/not/exist")
+
+
+def test_list_files_depth_zero():
+    """Test list_files treats depth <= 0 as depth 1."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        os.path.join(tmp, "file.txt")
+        with open(os.path.join(tmp, "file.txt"), "w") as f:
+            f.write("test")
+        files = list_files(tmp, depth=0)
+        assert "file.txt" in files
+
+
+def test_list_files_hidden_included(tmp_path):
+    """Test list_files includes hidden files when include_hidden=True."""
+    (tmp_path / ".hidden").write_text("hidden")
+    (tmp_path / "visible").write_text("visible")
+
+    files = list_files(str(tmp_path), include_hidden=True, depth=1)
+    assert ".hidden" in files
+    assert "visible" in files
+
+
+def test_is_path_excluded_part_match():
+    """Test is_path_excluded matches parts of path."""
+    patterns = ["__pycache__"]
+    assert is_path_excluded("src/__pycache__/module.pyc", patterns) is True
+    assert is_path_excluded("node_modules/pkg/index.js", ["node_modules"]) is True

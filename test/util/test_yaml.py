@@ -237,3 +237,60 @@ def test_edit_obj_list_invalid_key():
         assert False, "Should have raised KeyError"
     except (KeyError, ValueError):
         pass  # Expected
+
+
+def test_load_yaml_empty_string():
+    """Test _load_yaml with empty string."""
+    from zrb.util.yaml import _load_yaml
+
+    result = _load_yaml("")
+    assert result == ""
+
+
+def test_set_obj_value_empty_keys():
+    """Test _set_obj_value with empty keys list."""
+    from zrb.util.yaml import _set_obj_value
+
+    result = _set_obj_value({"a": 1}, [], "new_value")
+    assert result == "new_value"
+
+
+def test_set_obj_value_list_with_remaining_keys():
+    """Test _set_obj_value on list item with remaining keys."""
+    from zrb.util.yaml import _set_obj_value
+
+    obj = {"items": [{"name": "old"}]}
+    result = _set_obj_value(obj, ["items", "0", "name"], "new")
+    assert result == {"items": [{"name": "new"}]}
+
+
+def test_set_obj_value_non_dict_list_to_dict():
+    """Test _set_obj_value converts non-dict/list to dict."""
+    from zrb.util.yaml import _set_obj_value
+
+    result = _set_obj_value(42, ["key", "nested"], "value")
+    assert result == {"key": {"nested": "value"}}
+
+
+def test_set_obj_value_non_dict_list_final_key():
+    """Test _set_obj_value replaces non-dict/list with dict at final key."""
+    from zrb.util.yaml import _set_obj_value
+
+    result = _set_obj_value("original", ["key"], "new_value")
+    assert result == {"key": "new_value"}
+
+
+def test_get_obj_value_list_invalid_index():
+    """Test _get_obj_value with invalid list index."""
+    from zrb.util.yaml import _get_obj_value
+
+    result = _get_obj_value(["a", "b"], ["invalid"])
+    assert result is None
+
+
+def test_get_obj_value_non_list_dict():
+    """Test _get_obj_value on non-list/dict type."""
+    from zrb.util.yaml import _get_obj_value
+
+    result = _get_obj_value(42, ["key"])
+    assert result is None

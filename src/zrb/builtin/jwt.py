@@ -1,3 +1,4 @@
+import json
 from typing import Any
 
 from zrb.builtin.group import jwt_group
@@ -24,8 +25,8 @@ from zrb.task.make_task import make_task
     ],
 )
 def encode_jwt(ctx: AnyContext) -> str:
-    import json
 
+    # lazy: heavy third-party
     import jwt
 
     try:
@@ -57,6 +58,7 @@ def encode_jwt(ctx: AnyContext) -> str:
     ],
 )
 def decode_jwt(ctx: AnyContext) -> dict[str, Any]:
+    # lazy: heavy third-party
     import jwt
 
     try:
@@ -87,6 +89,7 @@ def decode_jwt(ctx: AnyContext) -> dict[str, Any]:
     ],
 )
 def validate_jwt(ctx: AnyContext) -> bool:
+    # lazy: heavy third-party
     import jwt
 
     try:

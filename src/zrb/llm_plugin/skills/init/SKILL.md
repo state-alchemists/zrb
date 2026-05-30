@@ -1,6 +1,6 @@
 ---
 name: init
-description: Initialize a project for AI-assisted development. Generates AGENTS.md (universal AI guide) through systematic codebase analysis. Use when setting up a new project or when no AI guidance files exist yet.
+description: Initialize a project for AI-assisted development. Generates AGENTS.md (universal AI guide) through systematic codebase analysis.
 disable-model-invocation: true
 user-invocable: true
 ---
@@ -25,7 +25,7 @@ Note: main source directories, test directories, config directories.
 
 ### 1b — Identify Build System and Language
 
-Read whichever of these exist (use `ReadMany`):
+Read whichever of these exist (issue parallel `Read` calls):
 
 | File | What it reveals |
 |------|----------------|
@@ -59,7 +59,7 @@ If multiple options exist (e.g., `make test` and `pytest`), list both and note w
 Glob src/**/*.py   # or the relevant extension
 ```
 
-Read `README.md` if it exists. Read 2-3 representative source files to understand:
+Read `README.md` if it exists. Read 2-3 representative source files to understand (choose: the main entry point, one domain model or core service, and one test file):
 - Entry points (main files, app factories, CLI entrypoints)
 - Key abstractions (core classes, interfaces, domain models)
 - Module organization pattern (feature-based, layer-based, etc.)

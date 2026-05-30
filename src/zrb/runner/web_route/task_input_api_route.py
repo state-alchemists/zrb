@@ -18,6 +18,7 @@ def serve_task_input_api(
     root_group: AnyGroup,
     web_auth_config: WebAuthConfig,
 ) -> None:
+    # lazy: heavy third-party
     from fastapi import Query, Request
     from fastapi.responses import JSONResponse
 

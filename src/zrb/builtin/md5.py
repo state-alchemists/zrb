@@ -1,3 +1,6 @@
+import hashlib
+import re
+
 from zrb.builtin.group import md5_group
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
@@ -12,7 +15,6 @@ from zrb.task.make_task import make_task
     alias="hash",
 )
 def hash_md5(ctx: AnyContext) -> str:
-    import hashlib
 
     result = hashlib.md5(ctx.input.text.encode()).hexdigest()
     ctx.print(result)
@@ -27,7 +29,6 @@ def hash_md5(ctx: AnyContext) -> str:
     alias="sum",
 )
 def sum_md5(ctx: AnyContext) -> str:
-    import hashlib
 
     with open(ctx.input.file, mode="rb") as file:
         content = file.read()
@@ -48,7 +49,6 @@ def sum_md5(ctx: AnyContext) -> str:
     alias="validate",
 )
 def validate_md5(ctx: AnyContext) -> bool:
-    import re
 
     pattern = r"^[a-f0-9]{32}$"
     is_valid = bool(re.fullmatch(pattern, ctx.input.hash))

@@ -36,6 +36,7 @@ These variables define which LLM Zrb uses for its primary reasoning and how it c
 |----------|-------------|---------|
 | `ZRB_LLM_MODEL` | Primary LLM model (`provider:model-name`) | `openai:gpt-4o` (if unset) |
 | `ZRB_LLM_SMALL_MODEL` | Faster model for background tasks | Falls back to `ZRB_LLM_MODEL` |
+| `ZRB_LLM_MULTIMODAL_MODEL` | Model for multimodal tasks (image analysis) | Falls back to `ZRB_LLM_MODEL` |
 | `ZRB_LLM_API_KEY` | API key for your LLM provider | None |
 | `ZRB_LLM_BASE_URL` | Custom endpoint URL | None |
 
@@ -164,21 +165,39 @@ Zrb loads prompts with a multi-level override system (first found wins):
 - `repo_summarizer`
 - `web_summarizer`
 
-### Prompt Component Toggles
+### Prompt Component Configuration
+
+The system prompt is assembled from an **ordered list of sections**. The list is read from `ZRB_LLM_INCLUDE_SECTIONS` (comma-separated). Order in the list controls the order each section appears in the prompt — drop a section by removing its name; reorder by rewriting the list.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_INCLUDE_PERSONA` | Include AI identity prompt | `1` |
-| `ZRB_LLM_INCLUDE_MANDATE` | Include behavioral rules | `1` |
-| `ZRB_LLM_INCLUDE_GIT_MANDATE` | Include git safety rules | `1` |
-| `ZRB_LLM_INCLUDE_JOURNAL` | Master switch: inject journal mandate + reminder (sets both sub-flags when they are unset) | `1` |
-| `ZRB_LLM_INCLUDE_JOURNAL_MANDATE` | Include journal instructions in the system prompt (falls back to `ZRB_LLM_INCLUDE_JOURNAL`) | `1` |
-| `ZRB_LLM_INCLUDE_JOURNAL_REMINDER` | Append a journaling reminder at session end (falls back to `ZRB_LLM_INCLUDE_JOURNAL`) | `1` |
-| `ZRB_LLM_INCLUDE_SYSTEM_CONTEXT` | Include OS/time details | `1` |
-| `ZRB_LLM_INCLUDE_TOOL_GUIDANCE` | Include per-tool usage guidance | `1` |
-| `ZRB_LLM_INCLUDE_CLAUDE_SKILLS` | Include Claude skills | `1` |
-| `ZRB_LLM_INCLUDE_CLI_SKILLS` | Include CLI skills | `0` |
-| `ZRB_LLM_INCLUDE_PROJECT_CONTEXT` | Include project docs | `1` |
+| `ZRB_LLM_INCLUDE_SECTIONS` | Comma-separated, order-sensitive list of sections to include | `persona,mandate,git_mandate,journal_mandate,system_context,project_context,tool_guidance,claude_skills` |
+| `ZRB_LLM_INCLUDE_JOURNAL_REMINDER` | Append a journaling reminder at session end (runtime hook, not a prompt section) | `off` |
+
+Recognised section names:
+
+| Section | Purpose |
+|---------|---------|
+| `persona` | AI identity prompt |
+| `mandate` | Behavioral rules |
+| `git_mandate` | Git safety rules (rendered only inside a git repo) |
+| `journal_mandate` | Journaling protocol |
+| `system_context` | OS / time / CWD / ambient state |
+| `project_context` | Project docs (`AGENTS.md`, `CLAUDE.md`, `README.md`, …) |
+| `tool_guidance` | Per-tool usage guidance |
+| `claude_skills` | Available skills index + active-skill contents |
+
+Examples:
+
+```bash
+# Strip the journaling mandate and project context (e.g. for benchmark runners).
+export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate,git_mandate,system_context,tool_guidance,claude_skills"
+
+# Personality-only: just persona and mandate.
+export ZRB_LLM_INCLUDE_SECTIONS="persona,mandate"
+```
+
+To toggle a single section programmatically, mutate `CFG.LLM_INCLUDE_SECTIONS` directly (it is a `list[str]`).
 
 ### Tool Guidance
 
@@ -198,7 +217,7 @@ task.prompt_manager.add_tool_guidance(
 )
 ```
 
-Guidance entries for tools that are not registered on the task are automatically suppressed at runtime, so the prompt never grows stale. Set `ZRB_LLM_INCLUDE_TOOL_GUIDANCE=0` to disable the entire section if you manage tool instructions another way.
+Guidance entries for tools that are not registered on the task are automatically suppressed at runtime, so the prompt never grows stale. To disable the entire section, drop `tool_guidance` from `ZRB_LLM_INCLUDE_SECTIONS`.
 
 ---
 
@@ -209,6 +228,7 @@ Guidance entries for tools that are not registered on the task are automatically
 | `ZRB_LLM_JOURNAL_DIR` | Long-term notes directory | `~/.zrb/llm-notes/` |
 | `ZRB_LLM_JOURNAL_INDEX_FILE` | Main index file name | `index.md` |
 | `ZRB_LLM_HISTORY_DIR` | Conversation history directory | `~/.zrb/llm-history/` |
+| `ZRB_LLM_HISTORY_BACKUP_RETAIN` | Number of timestamped history backups to keep per conversation (`-1` = keep all, `0` = disable) | `3` |
 
 ---
 
@@ -320,7 +340,12 @@ These variables control which internet search engine Zrb's LLM tools use.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_SEARCH_INTERNET_METHOD` | Search engine (`serpapi`, `brave`, `searxng`) | `serpapi` |
+| `ZRB_SEARCH_INTERNET_METHOD` | Search engine (`google_rss`, `serpapi`, `brave`, `searxng`) | `google_rss` |
+
+### Google News RSS (Default)
+
+Free, no API key, no Docker required. Fetches results from Google News RSS feed.
+No additional configuration needed.
 
 ### SerpAPI (Google)
 
@@ -455,6 +480,8 @@ All interval and delay values are in **milliseconds**.
 | `ZRB_LLM_HISTORY_MAX_DISPLAY_CHARS` | Maximum characters shown by the `/history` command | `5000` |
 | `ZRB_LLM_HISTORY_TRUNCATE_LENGTH` | Maximum chars per field when formatting history entries | `100` |
 | `ZRB_LLM_PROJECT_DOC_MAX_CHARS` | Maximum chars loaded from each project doc file (e.g. CLAUDE.md) | `8000` |
+| `ZRB_LLM_MAX_IMAGE_DIMENSION` | Longest-edge cap (pixels) for attached images before sending to LLM | `1568` |
+| `ZRB_LLM_IMAGE_JPEG_QUALITY` | JPEG quality (1-95) for re-encoding photos; PNGs are unaffected | `85` |
 | `ZRB_CMD_BUFFER_LIMIT` | Asyncio subprocess read-buffer limit in bytes | `102400` |
 | `ZRB_LLM_UI_MAX_BUFFER_SIZE` | Maximum buffered output chars before a forced flush (event-driven UIs) | `2000` |
 

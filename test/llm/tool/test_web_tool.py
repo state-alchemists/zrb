@@ -25,6 +25,12 @@ def mock_searxng():
         yield mock
 
 
+@pytest.fixture
+def mock_google_rss():
+    with patch("zrb.llm.tool.search.google_rss.search_internet") as mock:
+        yield mock
+
+
 @pytest.mark.asyncio
 async def test_search_internet_serpapi(mock_serpapi):
     with patch.dict(
@@ -53,10 +59,19 @@ async def test_search_internet_brave(mock_brave):
 
 @pytest.mark.asyncio
 async def test_search_internet_searxng(mock_searxng):
-    # Default fallback
-    with patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_SEARCH_INTERNET_METHOD": "other"}):
+    with patch.dict(
+        os.environ, {f"{CFG.ENV_PREFIX}_SEARCH_INTERNET_METHOD": "searxng"}
+    ):
         await search_internet("query")
         mock_searxng.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_search_internet_default_fallback(mock_google_rss):
+    # Unrecognized method falls back to google_rss
+    with patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_SEARCH_INTERNET_METHOD": "other"}):
+        await search_internet("query")
+        mock_google_rss.assert_called_once()
 
 
 @pytest.mark.asyncio

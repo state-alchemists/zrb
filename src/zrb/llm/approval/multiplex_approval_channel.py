@@ -1,5 +1,6 @@
 import asyncio
 import sys
+import traceback
 
 from zrb.config.config import CFG
 from zrb.llm.approval.approval_channel import (
@@ -65,7 +66,6 @@ class MultiplexApprovalChannel(ApprovalChannel):
                 )
                 raise
             except BaseException as e:
-                import traceback
 
                 CFG.LOGGER.debug(
                     f"Multiplex Channel {type(channel).__name__} Exception: {type(e).__name__}: {e}"

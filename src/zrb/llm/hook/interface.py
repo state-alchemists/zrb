@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, ClassVar
 
 from zrb.llm.hook.types import HookEvent
 
@@ -21,6 +21,9 @@ class HookContext:
 
     # Event-specific fields (populated based on event type)
     prompt: str | None = None  # UserPromptSubmit
+    command_name: str | None = None  # Pre/PostCommand — e.g. "/save" or ">"
+    command_args: str | None = None  # Pre/PostCommand — text after the token
+    command_handled: bool | None = None  # PostCommand — a handler consumed it
     tool_name: str | None = None  # PreToolUse, PostToolUse, etc.
     tool_input: dict[str, Any] | None = None
     tool_response: dict[str, Any] | None = None
@@ -46,6 +49,38 @@ class HookContext:
     model: str | None = None
     permission_suggestions: list[dict[str, Any]] | None = None  # PermissionRequest
 
+    # Fields to include in JSON output when non-None
+    _JSON_FIELDS: "ClassVar[list[str]]" = [
+        "prompt",
+        "command_name",
+        "command_args",
+        "command_handled",
+        "tool_name",
+        "tool_input",
+        "tool_response",
+        "tool_use_id",
+        "error",
+        "is_interrupt",
+        "message",
+        "title",
+        "notification_type",
+        "agent_id",
+        "agent_type",
+        "agent_transcript_path",
+        "stop_hook_active",
+        "teammate_name",
+        "team_name",
+        "task_id",
+        "task_subject",
+        "task_description",
+        "trigger",
+        "custom_instructions",
+        "reason",
+        "source",
+        "model",
+        "permission_suggestions",
+    ]
+
     def to_claude_json(self) -> dict[str, Any]:
         """Convert to Claude Code compatible JSON format."""
         base = {
@@ -55,83 +90,10 @@ class HookContext:
             "permission_mode": self.permission_mode,
             "hook_event_name": self.hook_event_name or self.event.value,
         }
-
-        # Add event-specific fields
-        if self.prompt is not None:
-            base["prompt"] = self.prompt
-
-        if self.tool_name is not None:
-            base["tool_name"] = self.tool_name
-
-        if self.tool_input is not None:
-            base["tool_input"] = self.tool_input
-
-        if self.tool_response is not None:
-            base["tool_response"] = self.tool_response
-
-        if self.tool_use_id is not None:
-            base["tool_use_id"] = self.tool_use_id
-
-        if self.error is not None:
-            base["error"] = self.error
-
-        if self.is_interrupt is not None:
-            base["is_interrupt"] = self.is_interrupt
-
-        if self.message is not None:
-            base["message"] = self.message
-
-        if self.title is not None:
-            base["title"] = self.title
-
-        if self.notification_type is not None:
-            base["notification_type"] = self.notification_type
-
-        if self.agent_id is not None:
-            base["agent_id"] = self.agent_id
-
-        if self.agent_type is not None:
-            base["agent_type"] = self.agent_type
-
-        if self.agent_transcript_path is not None:
-            base["agent_transcript_path"] = self.agent_transcript_path
-
-        if self.stop_hook_active is not None:
-            base["stop_hook_active"] = self.stop_hook_active
-
-        if self.teammate_name is not None:
-            base["teammate_name"] = self.teammate_name
-
-        if self.team_name is not None:
-            base["team_name"] = self.team_name
-
-        if self.task_id is not None:
-            base["task_id"] = self.task_id
-
-        if self.task_subject is not None:
-            base["task_subject"] = self.task_subject
-
-        if self.task_description is not None:
-            base["task_description"] = self.task_description
-
-        if self.trigger is not None:
-            base["trigger"] = self.trigger
-
-        if self.custom_instructions is not None:
-            base["custom_instructions"] = self.custom_instructions
-
-        if self.reason is not None:
-            base["reason"] = self.reason
-
-        if self.source is not None:
-            base["source"] = self.source
-
-        if self.model is not None:
-            base["model"] = self.model
-
-        if self.permission_suggestions is not None:
-            base["permission_suggestions"] = self.permission_suggestions
-
+        for json_field in self._JSON_FIELDS:
+            value = getattr(self, json_field, None)
+            if value is not None:
+                base[json_field] = value
         return base
 
 

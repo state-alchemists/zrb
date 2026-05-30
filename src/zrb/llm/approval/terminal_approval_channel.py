@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from zrb.config.config import CFG
 from zrb.llm.approval.approval_channel import ApprovalContext, ApprovalResult
 from zrb.llm.tool_call.edit_util import edit_content_via_editor
+from zrb.llm.tool_call.handler import ToolCallHandler
 from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
@@ -36,9 +38,8 @@ class TerminalApprovalChannel:
         )
 
         # Format the approval message
+        # lazy: heavy third-party
         from pydantic_ai import ToolCallPart
-
-        from zrb.llm.tool_call.handler import ToolCallHandler
 
         # Create a mock ToolCallPart for formatting
         call = ToolCallPart(
@@ -104,6 +105,7 @@ class TerminalApprovalChannel:
         response: str,
     ) -> ApprovalResult | None:
         """Handle edit via response handler chain (like ToolCallHandler does)."""
+        # lazy: heavy third-party
         from pydantic_ai import ToolApproved, ToolDenied
 
         # Use public getter for response handlers

@@ -1,11 +1,13 @@
-# Git Rules
+# Git Rules (Supplement to Operating Rules)
 
 ## Requires Approval
 
-Get explicit approval before running: `add`, `commit`, `push`, `pull`, `merge`, `rebase`, `checkout`, `switch`, `branch -D`, `reset`, `revert`, `stash`, `clean`.
+Before requesting approval, show `git status` + `git diff HEAD`. If the diff is too large to be useful inline, lead with a per-file summary (e.g., `src/foo.py +45 -12`) and offer to share specific files on request.
 
-Always show `git status` + `git diff HEAD` before asking.
+- State changes: `add`, `commit`, `push`, `pull`, `merge`, `rebase`, `checkout`, `switch`, `branch -D`, `reset`, `revert`, `stash`, `clean`
 
-## Always OK
+## No Approval Needed
 
 `status`, `diff`, `log`, `branch`, `show`, `remote -v`, `worktree list`
+
+Worktree creation (`worktree add`, the `EnterWorktree` tool) is also exempt: it builds an isolated tree without touching the current working tree, index, or existing branches — so it carries none of the risk that gates `checkout`/`switch`/`branch`.

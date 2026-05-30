@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -9,13 +9,7 @@ from zrb.llm.prompt.manager import PromptManager, new_prompt
 def test_prompt_manager_basic():
     manager = PromptManager(
         prompts=["Static Prompt"],
-        include_persona=False,
-        include_mandate=False,
-        include_system_context=False,
-        include_journal=False,
-        include_claude_skills=False,
-        include_cli_skills=False,
-        include_project_context=False,
+        include_sections=[],
     )
 
     ctx = SharedContext()
@@ -23,34 +17,35 @@ def test_prompt_manager_basic():
     assert "Static Prompt" in composed
 
 
-def test_prompt_manager_all_includes():
-    """Test with all include flags enabled to cover more branches."""
+def test_prompt_manager_include_sections():
+    """Test that include_sections controls which sections appear."""
     manager = PromptManager(
-        include_persona=True,
-        include_mandate=True,
-        include_system_context=True,
-        include_journal=True,
-        include_claude_skills=True,
-        include_cli_skills=True,
-        include_project_context=True,
+        include_sections=["persona", "mandate", "system_context"],
     )
 
     ctx = SharedContext()
     composed = manager.compose_prompt()(ctx)
-    # Most of these are mocked or default to some content
     assert isinstance(composed, str)
+    assert len(composed) > 0
+
+
+def test_prompt_manager_empty_sections():
+    """include_sections=[] means no built-in sections, only custom prompts."""
+    manager = PromptManager(
+        prompts=["Custom Only"],
+        include_sections=[],
+    )
+
+    ctx = SharedContext()
+    composed = manager.compose_prompt()(ctx)
+    assert "Custom Only" in composed
+    # Core sections should NOT appear
+    assert "# Identity" not in composed
+    assert "# Operating Rules" not in composed
 
 
 def test_prompt_manager_add_prompt():
-    manager = PromptManager(
-        include_persona=False,
-        include_mandate=False,
-        include_system_context=False,
-        include_journal=False,
-        include_claude_skills=False,
-        include_cli_skills=False,
-        include_project_context=False,
-    )
+    manager = PromptManager(include_sections=[])
     manager.add_prompt("P1")
     manager.append_prompt("P2")
 
@@ -69,13 +64,7 @@ def test_prompt_manager_middleware_types():
 
     manager = PromptManager(
         prompts=[simple_prompt, full_middleware, "String"],
-        include_persona=False,
-        include_mandate=False,
-        include_system_context=False,
-        include_journal=False,
-        include_claude_skills=False,
-        include_cli_skills=False,
-        include_project_context=False,
+        include_sections=[],
     )
 
     ctx = SharedContext()
@@ -95,121 +84,78 @@ def test_prompt_manager_setters():
     manager = PromptManager()
     manager.prompts = ["New"]
     manager.active_skills = ["skill1"]
-    manager.include_project_context = False
+    manager.include_sections = ["mandate"]
 
     assert manager.prompts == ["New"]
     assert manager.active_skills == ["skill1"]
-    assert manager.include_project_context is False
+    assert manager.include_sections == ["mandate"]
 
 
-def test_prompt_manager_all_property_getters_and_setters():
-    """Test all include_* property getters and setters (lines 170-230)."""
+def test_prompt_manager_include_sections_property():
+    """Test get/set of include_sections property."""
     manager = PromptManager()
+    assert manager.include_sections is None  # default: use CFG
 
-    # include_persona
-    manager.include_persona = True
-    assert manager.include_persona is True
-    manager.include_persona = False
-    assert manager.include_persona is False
+    manager.include_sections = ["persona", "system_context"]
+    assert manager.include_sections == ["persona", "system_context"]
 
-    # include_mandate
-    manager.include_mandate = True
-    assert manager.include_mandate is True
-    manager.include_mandate = False
-    assert manager.include_mandate is False
+    manager.include_sections = None
+    assert manager.include_sections is None
 
-    # include_git_mandate
-    manager.include_git_mandate = True
-    assert manager.include_git_mandate is True
-    manager.include_git_mandate = False
-    assert manager.include_git_mandate is False
 
-    # include_system_context
-    manager.include_system_context = True
-    assert manager.include_system_context is True
-    manager.include_system_context = False
-    assert manager.include_system_context is False
+def test_prompt_manager_model_property_defaults_to_none():
+    """``PromptManager.model`` starts unset; set by the task runner."""
+    manager = PromptManager()
+    assert manager.model is None
+    manager.model = "openai:gpt-4o"
+    assert manager.model == "openai:gpt-4o"
 
-    # include_journal (legacy alias for include_journal_mandate)
-    manager.include_journal = True
-    assert manager.include_journal is True
-    manager.include_journal = False
-    assert manager.include_journal is False
 
-    # include_journal_mandate (the specific toggle)
-    manager.include_journal_mandate = True
-    assert manager.include_journal_mandate is True
-    manager.include_journal_mandate = False
-    assert manager.include_journal_mandate is False
+def test_prompt_manager_threads_model_into_system_context():
+    """``model`` set on the manager appears in the rendered system context — identity only."""
+    manager = PromptManager(include_sections=["system_context"])
+    manager.model = "ollama:minimax-m2.7:cloud"
 
-    # include_claude_skills
-    manager.include_claude_skills = True
-    assert manager.include_claude_skills is True
-    manager.include_claude_skills = False
-    assert manager.include_claude_skills is False
+    ctx = MagicMock()
+    ctx.input.session = "manager-model-test"
+    composed = manager.compose_prompt()
+    with patch("zrb.llm.tool.plan.todo_manager") as mock_tm:
+        mock_tm.get_todos.return_value = None
+        rendered = composed(ctx)
 
-    # include_cli_skills
-    manager.include_cli_skills = True
-    assert manager.include_cli_skills is True
-    manager.include_cli_skills = False
-    assert manager.include_cli_skills is False
+    assert "- Model: ollama:minimax-m2.7:cloud" in rendered
+    # The capability warning is in Tool Usage Guide, not system context.
+    assert "CRITICAL" not in rendered
 
-    # include_project_context (getter already tested above, setter covered here again)
-    manager.include_project_context = True
-    assert manager.include_project_context is True
+
+def test_prompt_manager_tool_guidance_sections_injected_before_catalogue():
+    """`tool_guidance_sections` content appears in the Tool Usage Guide output."""
+    manager = PromptManager(include_sections=["tool_guidance"])
+    manager.tool_guidance_sections = ["## Tool Call Parallelism\n- ⛔ Test warning."]
+
+    ctx = MagicMock()
+    composed = manager.compose_prompt()
+    rendered = composed(ctx)
+
+    assert "# Tool Usage Guide" in rendered
+    assert "## Tool Call Parallelism" in rendered
+    assert "Test warning." in rendered
 
 
 def test_prompt_manager_render_true_with_string_prompt():
-    """PromptManager(render=True) with a plain string prompt (line 261)."""
+    """PromptManager(render=True) with a plain string prompt."""
     manager = PromptManager(
         prompts=["Hello world"],
         render=True,
-        include_persona=False,
-        include_mandate=False,
-        include_system_context=False,
-        include_journal=False,
-        include_claude_skills=False,
-        include_cli_skills=False,
-        include_project_context=False,
+        include_sections=[],
     )
     ctx = SharedContext()
     composed = manager.compose_prompt()(ctx)
     assert "Hello world" in composed
 
 
-def test_include_journal_mandate_param():
-    """include_journal_mandate is the canonical toggle; include_journal is its alias."""
-    ctx = SharedContext()
-
-    # include_journal_mandate=False disables the journal section
-    manager = PromptManager(
-        include_persona=False,
-        include_mandate=False,
-        include_system_context=False,
-        include_journal_mandate=False,
-        include_claude_skills=False,
-        include_cli_skills=False,
-        include_project_context=False,
-    )
-    assert manager.include_journal_mandate is False
-    assert manager.include_journal is False  # alias reflects the same value
-
-    # include_journal=False also sets include_journal_mandate
-    manager2 = PromptManager(
-        include_persona=False,
-        include_mandate=False,
-        include_system_context=False,
-        include_journal=False,
-        include_claude_skills=False,
-        include_cli_skills=False,
-        include_project_context=False,
-    )
-    assert manager2.include_journal_mandate is False
-    assert manager2.include_journal is False
-
-
 def test_new_prompt_with_render_true():
-    """new_prompt(render=True) renders the prompt string via get_str_attr (line 325)."""
+    """new_prompt(render=True) renders the prompt string via get_str_attr."""
     middleware = new_prompt("Static content", render=True)
     ctx = SharedContext()
 
@@ -217,20 +163,38 @@ def test_new_prompt_with_render_true():
     assert "Static content" in result
 
 
+# ── Section ordering ──────────────────────────────────────────────────────────
+
+
+def test_section_order_follows_include_sections():
+    """Sections appear in the order specified by include_sections."""
+    manager = PromptManager(
+        include_sections=["mandate", "persona"],
+    )
+    ctx = SharedContext()
+    composed = manager.compose_prompt()(ctx)
+    # "mandate" section starts with "# Operating Rules", "persona" with "# Identity"
+    mandate_pos = composed.index("# Operating Rules")
+    persona_pos = composed.index("# Identity")
+    assert mandate_pos < persona_pos
+
+    # Reverse order
+    manager2 = PromptManager(
+        include_sections=["persona", "mandate"],
+    )
+    composed2 = manager2.compose_prompt()(ctx)
+    persona_pos2 = composed2.index("# Identity")
+    mandate_pos2 = composed2.index("# Operating Rules")
+    assert persona_pos2 < mandate_pos2
+
+
 # ── Tool guidance ─────────────────────────────────────────────────────────────
 
 
 def _guidance_manager(**extra) -> PromptManager:
-    """Helper: a PromptManager with all built-in sections off except tool_guidance."""
+    """Helper: a PromptManager with tool_guidance enabled."""
     return PromptManager(
-        include_persona=False,
-        include_mandate=False,
-        include_system_context=False,
-        include_journal=False,
-        include_claude_skills=False,
-        include_cli_skills=False,
-        include_project_context=False,
-        include_tool_guidance=True,
+        include_sections=["tool_guidance"],
         **extra,
     )
 

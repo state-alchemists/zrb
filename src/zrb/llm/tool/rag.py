@@ -63,6 +63,7 @@ def create_rag_from_directory(
         embedding_model: str = "",
     ) -> dict[str, Any]:
         try:
+            # lazy: heavy third-party
             from chromadb import PersistentClient
             from chromadb.config import Settings
             from openai import OpenAI
@@ -221,12 +222,8 @@ def create_rag_from_directory(
     retrieve.__name__ = tool_name
     retrieve.__doc__ = dedent(f"""
         {tool_description}
-        This tool performs a semantic search across a curated knowledge base of documents.
-        It is highly effective for answering questions that require specific project knowledge not found in general training data.
 
-        MANDATES:
-        - Use to find high-signal information in project documentation or internal wikis.
-        - The query should be semantic (natural language) for best results.
+        Pass a natural-language query; returns the top semantic matches from the indexed corpus.
         """).strip()
     return retrieve
 
@@ -241,8 +238,11 @@ def _compute_file_hash(file_path: str) -> str:
 
 def _load_hashes(file_path: str) -> dict:
     if os.path.exists(file_path):
-        with open(file_path, "r", encoding="utf-8") as f:
-            return json.load(f)
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            CFG.LOGGER.error(f"Error loading hash file {file_path}: {e}")
     return {}
 
 

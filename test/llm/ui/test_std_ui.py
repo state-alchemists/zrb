@@ -131,3 +131,29 @@ async def test_stdui_ask_user_keyboard_interrupt():
 
             with pytest.raises(KeyboardInterrupt):
                 await ui.ask_user("Enter something: ")
+
+
+@pytest.mark.asyncio
+async def test_stdui_ask_user_no_prompt_shows_waiting_banner(capsys):
+    """When prompt is empty, a 'waiting for confirmation' line goes to stderr."""
+    ui = StdUI(assistant_name="zrb")
+
+    with patch("prompt_toolkit.PromptSession", create=True) as mock_session_class:
+        mock_session = MagicMock()
+        mock_session.prompt_async = AsyncMock(return_value="ok")
+        mock_session_class.return_value = mock_session
+        with patch("prompt_toolkit.output.create_output") as mock_create_output:
+            mock_create_output.return_value = MagicMock()
+            await ui.ask_user("")
+
+    captured = capsys.readouterr()
+    assert "waiting for confirmation" in captured.err
+    assert "Zrb" in captured.err  # capitalized
+
+
+def test_stdui_stream_to_parent_writes_like_append(capsys):
+    """stream_to_parent is a thin wrapper around append_to_output."""
+    ui = StdUI()
+    ui.stream_to_parent("streamed", flush=True, kind="text")
+    captured = capsys.readouterr()
+    assert "streamed" in captured.err

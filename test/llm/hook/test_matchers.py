@@ -11,7 +11,6 @@ from zrb.llm.hook.types import HookEvent
 def _create_mock_cfg():
     """Create mock config for tests."""
     mock_cfg = MagicMock()
-    mock_cfg.LLM_INCLUDE_JOURNAL = False
     mock_cfg.LLM_INCLUDE_JOURNAL_REMINDER = False
     mock_cfg.ROOT_GROUP_NAME = "zrb"
     mock_cfg.LLM_PLUGIN_DIRS = []
@@ -23,11 +22,8 @@ def _create_mock_cfg():
 
 @pytest.fixture
 def hook_manager():
-    # Patch CFG in all modules that import it
     mock_cfg = _create_mock_cfg()
-    with patch("zrb.llm.hook.manager.CFG", mock_cfg), patch(
-        "zrb.llm.hook.journal.CFG", mock_cfg
-    ):
+    with patch("zrb.llm.hook.journal.CFG", mock_cfg):
         return HookManager()
 
 
@@ -54,9 +50,7 @@ async def check_match(tmp_path, matchers, context_data):
         json.dump(hook_content, f)
 
     mock_cfg = _create_mock_cfg()
-    with patch("zrb.llm.hook.manager.CFG", mock_cfg), patch(
-        "zrb.llm.hook.journal.CFG", mock_cfg
-    ):
+    with patch("zrb.llm.hook.journal.CFG", mock_cfg):
         manager = HookManager()
         manager.scan(search_dirs=[str(hook_dir)])
 

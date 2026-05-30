@@ -38,7 +38,9 @@ class Cli(Group):
     def banner(self) -> str:
         return CFG.BANNER
 
-    def run(self, str_args: list[str] = []):
+    def run(self, str_args: list[str] | None = None):
+        if str_args is None:
+            str_args = []
         str_kwargs, str_args = self._extract_kwargs_from_args(str_args)
         node, node_path, str_args = extract_node_from_args(self, str_args)
         if isinstance(node, AnyGroup):
@@ -207,8 +209,11 @@ server_group = cli.add_group(
     alias="start",
 )
 async def start_server(_: AnyContext):
+    # lazy: zrb.runner.web_app imports zrb.runner.cli back through its
+    # FastAPI route registration; hoisting causes a circular import.
     from uvicorn import Config, Server
 
+    # lazy: zrb internal (heavy via transitive / circular)
     from zrb.runner.web_app import (
         configure_uvicorn_logging,
         create_web_app,

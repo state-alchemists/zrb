@@ -67,6 +67,7 @@ class HttpCheck(BaseTask):
         return get_str_attr(ctx, self._http_method, "GET", auto_render=True).upper()
 
     async def _exec_action(self, ctx: AnyContext) -> "bool | Response":
+        # lazy: heavy third-party
         import requests
 
         url = self._get_url(ctx)

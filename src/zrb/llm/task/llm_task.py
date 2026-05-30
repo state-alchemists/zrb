@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -13,7 +14,7 @@ from zrb.llm.agent import AnyToolConfirmation, create_agent, run_agent
 from zrb.llm.config.config import LLMConfig
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.config.limiter import LLMLimiter
-from zrb.llm.config.limiter import llm_limiter as default_llm_limitter
+from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.hook.manager import HookManager
@@ -32,13 +33,13 @@ from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
     from pydantic_ai import Tool, UserContent
-    from pydantic_ai._agent_graph import HistoryProcessor
     from pydantic_ai.capabilities import AbstractCapability
     from pydantic_ai.models import Model
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.tools import ToolFuncEither
     from pydantic_ai.toolsets import AbstractToolset
 
+    from zrb.llm.agent.common import HistoryProcessor
     from zrb.llm.approval.approval_channel import ApprovalChannel
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
@@ -79,7 +80,7 @@ class LLMTask(BaseTask):
         history_processors: list[HistoryProcessor] | None = None,
         capabilities: "list[AbstractCapability[Any]] | None" = None,
         llm_config: LLMConfig | None = None,
-        llm_limitter: LLMLimiter | None = None,
+        llm_limiter: LLMLimiter | None = None,
         model: (
             Callable[[AnyContext], Model | str | fstring | None] | Model | None
         ) = None,
@@ -88,10 +89,6 @@ class LLMTask(BaseTask):
             ModelSettings | Callable[[AnyContext], ModelSettings] | None
         ) = None,
         custom_model_names: StrListAttr | None = None,
-        model_getter: Callable[[Model | str | None], Model | str | None] | None = None,
-        model_renderer: (
-            Callable[[Model | str | None], Model | str | None] | None
-        ) = None,
         conversation_name: StrAttr | None = None,
         render_conversation_name: bool = True,
         history_manager: AnyHistoryManager | None = None,
@@ -138,9 +135,7 @@ class LLMTask(BaseTask):
             print_fn=print_fn,
         )
         self._llm_config = default_llm_config if llm_config is None else llm_config
-        self._llm_limitter = (
-            default_llm_limitter if llm_limitter is None else llm_limitter
-        )
+        self._llm_limiter = default_llm_limiter if llm_limiter is None else llm_limiter
         # Auto-convert system_prompt to prompt_manager if provided and prompt_manager not set
         if prompt_manager is None:
             prompt_manager = PromptManager(
@@ -148,13 +143,7 @@ class LLMTask(BaseTask):
                 render=render_system_prompt,
                 active_skills=active_skills,
                 render_active_skills=render_active_skills,
-                include_persona=False,
-                include_mandate=False,
-                include_system_context=False,
-                include_journal=False,
-                include_claude_skills=False,
-                include_cli_skills=False,
-                include_project_context=False,
+                include_sections=[],
             )
         self._system_prompt = system_prompt
         self._render_system_prompt = render_system_prompt
@@ -181,8 +170,6 @@ class LLMTask(BaseTask):
         self._render_model = render_model
         self._model_settings = model_settings
         self._custom_model_names = custom_model_names
-        self._model_getter = model_getter
-        self._model_renderer = model_renderer
         self._conversation_name = conversation_name
         self._render_conversation_name = render_conversation_name
         self._history_manager = history_manager
@@ -197,6 +184,15 @@ class LLMTask(BaseTask):
         self._summarize_command = (
             summarize_command if summarize_command is not None else []
         )
+        # Guidance factories for dynamically-named tools (e.g., RunZrbTask).
+        # Resolved per exec and applied to prompt_manager before composing the
+        # system prompt.
+        self._tool_guidance_factories: list[Callable[[AnyContext], ToolGuidance]] = []
+        # Section factories for model-aware Tool Usage Guide intros (e.g.,
+        # parallel-tool-call policy).
+        self._tool_guidance_section_factories: list[
+            Callable[[AnyContext, Any], "str | None"]
+        ] = []
 
     @property
     def prompt_manager(self) -> PromptManager:
@@ -236,30 +232,6 @@ class LLMTask(BaseTask):
     @custom_model_names.setter
     def custom_model_names(self, value: StrListAttr | None):
         self._custom_model_names = value
-
-    @property
-    def model_getter(
-        self,
-    ) -> Callable[[Model | str | None], Model | str | None] | None:
-        return self._model_getter
-
-    @model_getter.setter
-    def model_getter(
-        self, value: Callable[[Model | str | None], Model | str | None] | None
-    ):
-        self._model_getter = value
-
-    @property
-    def model_renderer(
-        self,
-    ) -> Callable[[Model | str | None], Model | str | None] | None:
-        return self._model_renderer
-
-    @model_renderer.setter
-    def model_renderer(
-        self, value: Callable[[Model | str | None], Model | str | None] | None
-    ):
-        self._model_renderer = value
 
     def add_toolset(self, *toolset: AbstractToolset):
         self.append_toolset(*toolset)
@@ -303,6 +275,59 @@ class LLMTask(BaseTask):
                 use_when=g.when_to_use,
                 key_rule=g.key_rule,
             )
+
+    def add_tool_guidance_factory(self, *factory: Callable[[AnyContext], ToolGuidance]):
+        self.append_tool_guidance_factory(*factory)
+
+    def append_tool_guidance_factory(
+        self, *factory: Callable[[AnyContext], ToolGuidance]
+    ):
+        """Register guidance for dynamically-named factory tools.
+
+        Each factory is called per exec and returns a single ``ToolGuidance``
+        that gets added to ``prompt_manager`` before the system prompt is
+        composed.
+        """
+        self._tool_guidance_factories += list(factory)
+
+    def add_tool_guidance_section_factory(
+        self, *factory: Callable[[AnyContext, Any], "str | None"]
+    ):
+        self.append_tool_guidance_section_factory(*factory)
+
+    def append_tool_guidance_section_factory(
+        self, *factory: Callable[[AnyContext, Any], "str | None"]
+    ):
+        """Register a factory that renders a model-aware Tool Usage Guide section.
+
+        Each factory is called per exec with ``(ctx, resolved_model)`` and
+        returns a Markdown block (typically starting with ``## Heading``) or
+        ``None``/empty string to skip injection.
+        """
+        self._tool_guidance_section_factories += list(factory)
+
+    def _resolve_tool_guidance_factories(self, ctx: AnyContext) -> None:
+        """Resolve guidance + section factories into ``_prompt_manager``.
+
+        Called once per exec before ``get_system_prompt``.
+        """
+        if self._prompt_manager is None:
+            return
+        for guidance_factory in self._tool_guidance_factories:
+            guidance = guidance_factory(ctx)
+            self._prompt_manager.add_tool_guidance(
+                group=guidance.group_name,
+                name=guidance.tool_name,
+                use_when=guidance.when_to_use,
+                key_rule=guidance.key_rule,
+            )
+        resolved_model = self._get_model(ctx)
+        sections: list[str] = []
+        for section_factory in self._tool_guidance_section_factories:
+            rendered = section_factory(ctx, resolved_model)
+            if rendered:
+                sections.append(rendered)
+        self._prompt_manager.tool_guidance_sections = sections
 
     def add_history_processor(self, *processor: HistoryProcessor):
         self.append_history_processor(*processor)
@@ -353,7 +378,16 @@ class LLMTask(BaseTask):
         ):
             return "Conversation history compressed."
 
-        agent = self._create_agent(ctx)
+        # Resolve guidance/section factories into the prompt manager so the
+        # composed system prompt reflects dynamically-named tools and any
+        # model-aware Tool Usage Guide sections.
+        self._resolve_tool_guidance_factories(ctx)
+
+        # Compute system prompt once and reuse for both agent creation and run_agent.
+        # This avoids rebuilding the prompt (including expensive system_context I/O)
+        # a second time inside _create_agent.
+        system_prompt = self.get_system_prompt(ctx)
+        agent = self._create_agent(ctx, system_prompt=system_prompt)
         effective_message, effective_attachments = self._get_effective_prompt(
             ctx, user_message, user_attachments, message_history
         )
@@ -361,7 +395,7 @@ class LLMTask(BaseTask):
         try:
             # Compute YOLO status for context propagation
             yolo_value = (
-                self._dynamic_yolo(ctx, None, {})
+                self._dynamic_yolo()
                 if callable(self._dynamic_yolo)
                 else get_bool_attr(ctx, self._yolo, False)
             )
@@ -372,7 +406,7 @@ class LLMTask(BaseTask):
                 agent=agent,
                 message=effective_message,
                 message_history=message_history,
-                limiter=self._llm_limitter,
+                limiter=self._llm_limiter,
                 attachments=effective_attachments,
                 print_fn=lambda *args, **kwargs: ctx.print(*args, **kwargs, plain=True),
                 event_handler=None,  # Let run_agent create the event handler with proper status_fn
@@ -381,8 +415,13 @@ class LLMTask(BaseTask):
                 ui=self._uis,
                 yolo=yolo_value,
                 approval_channel=self._approval_channel,
-                system_prompt=self._get_system_prompt(ctx),
+                system_prompt=system_prompt,
             )
+        except asyncio.CancelledError:
+            self._save_cancelled_history(
+                history_manager, conversation_name, message_history, user_message
+            )
+            raise
         except Exception as e:
             self._handle_run_error(ctx, history_manager, conversation_name, e)
             raise e
@@ -417,33 +456,27 @@ class LLMTask(BaseTask):
             return True
         return False
 
-    def _create_agent(self, ctx: AnyContext) -> Any:
+    def _create_agent(self, ctx: AnyContext, system_prompt: str | None = None) -> Any:
         yolo = (
             self._dynamic_yolo
             if self._dynamic_yolo is not None
             else get_bool_attr(ctx, self._yolo, False)
         )
-        system_prompt = self._get_system_prompt(ctx)
+        if system_prompt is None:
+            system_prompt = self.get_system_prompt(ctx)
         ctx.log_debug(f"SYSTEM PROMPT: {system_prompt}")
         # Get all tools and toolsets including those from factories
         resolved_tools = self._get_all_tools(ctx)
         resolved_toolsets = self._get_all_toolsets(ctx)
-        # Resolve model: base → getter (active, shown in UI) → renderer (final for pydantic_ai)
-        # Task-level getter/renderer take precedence; fall back to llm_config defaults.
+
+        # Resolve model using llm_config
         base_model = self._get_model(ctx)
-        effective_getter = self._model_getter or self._llm_config.model_getter
-        effective_renderer = self._model_renderer or self._llm_config.model_renderer
-        active_model = (
-            effective_getter(base_model) if effective_getter is not None else base_model
-        )
+        final_model = self._llm_config.resolve_model(base_model)
+
         for ui in self._uis:
             if hasattr(ui, "model"):
-                ui.model = active_model
-        final_model = (
-            effective_renderer(active_model)
-            if effective_renderer is not None
-            else active_model
-        )
+                ui.model = final_model
+
         return create_agent(
             model=final_model,
             system_prompt=system_prompt,
@@ -465,6 +498,7 @@ class LLMTask(BaseTask):
         # Detect retry and avoid duplicating the initial message if it's already in history
         # Also, if it's a retry, we might want to inform the LLM about the previous failure.
         if ctx.attempt > 1 and len(message_history) > 0:
+            # lazy: heavy third-party
             from pydantic_ai.messages import ModelRequest, UserPromptPart
 
             # Check if the last message (or one of the last few) is the user message
@@ -531,6 +565,7 @@ class LLMTask(BaseTask):
         conversation_name: str,
         error: Exception,
     ):
+        # lazy: heavy third-party
         from pydantic_ai.messages import (
             ModelRequest,
             ModelResponse,
@@ -575,13 +610,60 @@ class LLMTask(BaseTask):
         history_manager.update(conversation_name, new_history)
         history_manager.save(conversation_name)
 
+    def _save_cancelled_history(
+        self,
+        history_manager: AnyHistoryManager,
+        conversation_name: str,
+        message_history: list[Any],
+        user_message: Any,
+    ) -> None:
+        """Save partial history when a run is cancelled by the user (e.g. Escape).
+
+        Constructs a synthetic history containing the original history, the
+        user's message, and a cancellation marker so the next turn can build
+        on context rather than starting fresh.  Best-effort: failures are
+        silently swallowed.
+        """
+        try:
+            # lazy: heavy third-party
+            from pydantic_ai.messages import (
+                ModelRequest,
+                ModelResponse,
+                TextPart,
+                UserPromptPart,
+            )
+
+            partial_history = list(message_history)
+            partial_history.append(
+                ModelRequest(parts=[UserPromptPart(content=str(user_message))])
+            )
+            partial_history.append(
+                ModelResponse(
+                    parts=[
+                        TextPart(content="[SYSTEM: Response was interrupted by user]")
+                    ]
+                )
+            )
+            history_manager.update(conversation_name, partial_history)
+            history_manager.save(conversation_name)
+        except Exception:
+            pass
+
     def _post_process_output(self, output: Any) -> Any:
         if isinstance(output, str):
             # Remove ANSI escape codes first to ensure regex patterns work correctly
             output = remove_style(output)
         return output
 
-    def _get_system_prompt(self, ctx: AnyContext) -> str:
+    @property
+    def llm_config(self) -> LLMConfig:
+        return self._llm_config
+
+    @property
+    def llm_limiter(self) -> LLMLimiter:
+        return self._llm_limiter
+
+    def get_system_prompt(self, ctx: AnyContext) -> str:
         if self._prompt_manager is None:
             return ""
         compose_prompt = self._prompt_manager.compose_prompt()

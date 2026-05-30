@@ -194,3 +194,59 @@ def test_show_task_info_with_inputs():
         )
     )
     cli.run(str_args=["my-task", "-h"])
+
+
+def test_run_with_str_args_none_defaults_to_empty():
+    """run(str_args=None) walks to the empty-args branch and shows root info."""
+    cli = Cli()
+    cli.run(str_args=None)
+
+
+def test_run_keyword_with_equals_sign():
+    """`--key=value` is split on `=` rather than treated as a flag."""
+    cli = Cli()
+    cli.add_task(
+        Task(
+            name="add",
+            input=[IntInput(name="a"), IntInput(name="b")],
+            action="{ctx.input.a + ctx.input.b}",
+        )
+    )
+    result = cli.run(str_args=["add", "--a=4", "--b=5"])
+    assert result == "9"
+
+
+def test_run_kwarg_without_value_becomes_true_flag():
+    """`--flag` with no following value is recorded as 'true'."""
+    cli = Cli()
+
+    received = {}
+
+    def _capture(ctx):
+        received["enabled"] = ctx.input.enabled
+        return "ok"
+
+    cli.add_task(
+        Task(
+            name="toggle",
+            input=StrInput("enabled", default=""),
+            action=_capture,
+        )
+    )
+    cli.run(str_args=["toggle", "--enabled"])
+    assert received["enabled"] == "true"
+
+
+def test_get_run_command_param_quotes_strings_with_spaces():
+    """Values containing whitespace or quotes get double-quoted in the rerun hint."""
+    cli = Cli()
+    out = cli._get_run_command_param("msg", "hello world")
+    assert out == '--msg "hello world"'
+
+    # Already-quoted values get re-wrapped consistently
+    out2 = cli._get_run_command_param("msg", "")
+    assert out2 == '--msg ""'
+
+    # Plain values don't get quoted
+    out3 = cli._get_run_command_param("flag", "true")
+    assert out3 == "--flag true"

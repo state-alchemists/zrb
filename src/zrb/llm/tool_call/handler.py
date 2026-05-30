@@ -68,6 +68,7 @@ class ToolCallHandler:
         ui: UIProtocol,
         call: ToolCallPart,
     ) -> ToolApproved | ToolDenied | None:
+        # lazy: heavy third-party
         from pydantic_ai import ToolApproved, ToolDenied
 
         # Tool Policies (Pre-confirmation)

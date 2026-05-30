@@ -1,52 +1,71 @@
-import shlex
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from zrb.builtin.http import generate_curl, http_request
-from zrb.context.shared_context import SharedContext
-from zrb.session.session import Session
 
 
-@pytest.fixture
-def session():
-    return Session(shared_ctx=SharedContext(), state_logger=MagicMock())
+def test_http_request_success():
+    # Mock context
+    ctx = MagicMock()
+    ctx.input.method = "POST"
+    ctx.input.url = "http://test.com"
+    ctx.input.headers = '{"X-Test": "value"}'
+    ctx.input.body = '{"foo": "bar"}'
+    ctx.input.verify_ssl = True
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = "ok"
+
+    with patch("requests.request", return_value=mock_response):
+        # Call the underlying function directly to bypass BaseTask wrapper
+        # The underlying function is available in the _action attribute
+        res = http_request._action(ctx)
+        assert res.status_code == 200
+        assert res.text == "ok"
+        assert ctx.print.called
 
 
-@pytest.mark.asyncio
-async def test_http_request(session):
-    with patch("requests.request") as mock_request:
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.headers = {"Content-Type": "application/json"}
-        mock_response.text = '{"foo": "bar"}'
-        mock_request.return_value = mock_response
+def test_http_request_fail():
+    ctx = MagicMock()
+    ctx.input.method = "GET"
+    ctx.input.url = "http://error.com"
+    ctx.input.headers = "{}"
+    ctx.input.body = "{}"
+    ctx.input.verify_ssl = True
 
-        res = await http_request.async_run(
-            session=session,
-            kwargs={
-                "url": "http://example.com",
-                "method": "GET",
-                "headers": '{"Content-Type": "application/json"}',
-                "body": "{}",
-                "timeout": 10,
-                "verify_ssl": True,
-            },
-        )
-        assert res == mock_response
+    mock_response = MagicMock()
+    mock_response.status_code = 500
+
+    with patch("requests.request", return_value=mock_response):
+        res = http_request._action(ctx)
+        assert res.status_code == 500
 
 
-@pytest.mark.asyncio
-async def test_generate_curl(session):
-    res = await generate_curl.async_run(
-        session=session,
-        kwargs={
-            "url": "http://example.com",
-            "method": "POST",
-            "headers": '{"Content-Type": "application/json"}',
-            "body": '{"foo": "bar"}',
-            "verify_ssl": True,
-        },
-    )
-    assert "curl -X POST" in res
-    assert "http://example.com" in res
+def test_generate_curl_complex():
+    ctx = MagicMock()
+    ctx.input.method = "PUT"
+    ctx.input.url = "http://api.com/v1"
+    ctx.input.headers = '{"Auth": "token"}'
+    ctx.input.body = '{"data": 1}'
+    ctx.input.verify_ssl = False
+
+    res = generate_curl._action(ctx)
+    assert "-X PUT" in res
+    assert "-H Auth: token" in res
+    assert "--data-raw" in res
+    assert "--insecure" in res
+
+
+def test_generate_curl_simple():
+    ctx = MagicMock()
+    ctx.input.method = "GET"
+    ctx.input.url = "http://google.com"
+    ctx.input.headers = "{}"
+    ctx.input.body = "{}"
+    ctx.input.verify_ssl = True
+
+    res = generate_curl._action(ctx)
+    assert "curl -X GET" in res
+    assert "google.com" in res

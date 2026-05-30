@@ -3,7 +3,8 @@ import os
 from contextvars import ContextVar
 from datetime import datetime
 
-from zrb.llm.tool._wrapper import tool_safe_async
+from zrb.config.config import CFG
+from zrb.llm.tool.wrapper import tool_safe_async
 
 active_worktree: ContextVar[str] = ContextVar("zrb_active_worktree", default="")
 
@@ -16,9 +17,7 @@ async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
     Use for risky experiments, parallel approaches, or staging changes before merging.
     Use `keep_branch=True` in `ExitWorktree` to preserve the branch for later merging.
     Use `cwd` to specify the repository root if the current directory is not the target repo.
-    After creation: pass the worktree path as `cwd` to `Bash`; use absolute paths with `Read`, `Write`, `Edit`, and `Grep` (they don't accept `cwd`).
     """
-    from zrb.config.config import CFG
 
     cwd = cwd or os.getcwd()
 
@@ -33,9 +32,9 @@ async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
     root_out, err = await root_proc.communicate()
     if root_proc.returncode != 0:
         return (
-            f"Error: Not inside a git repository.\n"
-            f"[SYSTEM SUGGESTION]: Navigate to a directory that is a git repository root, "
-            f"or provide cwd pointing to one."
+            "Error: Not inside a git repository.\n"
+            "[SYSTEM SUGGESTION]: Navigate to a directory that is a git repository root, "
+            "or provide cwd pointing to one."
         )
 
     git_root = root_out.decode().strip()
@@ -73,11 +72,7 @@ async def enter_worktree(branch_name: str = "", cwd: str = "") -> str:
 
     active_worktree.set(worktree_path)
     _ensure_gitignore(git_root, f".{CFG.ROOT_GROUP_NAME}/worktree/")
-    return (
-        f"Worktree created: {worktree_path}\n"
-        f"Branch: {branch_name}\n"
-        f"Use this path as cwd for Bash commands targeting this worktree."
-    )
+    return f"Worktree created: {worktree_path}\nBranch: {branch_name}"
 
 
 @tool_safe_async
@@ -85,7 +80,8 @@ async def exit_worktree(worktree_path: str, keep_branch: bool = False) -> str:
     """
     Removes a git worktree created with `EnterWorktree`.
 
-    Use `keep_branch=True` to preserve the branch for merging; default deletes it along with all its commits.
+    Default `keep_branch=False` deletes the branch along with all its commits — irreversible.
+    Pass `keep_branch=True` unless you have explicit approval to drop the work on that branch.
     Always clean up worktrees after use.
     """
     cwd = os.getcwd()
@@ -171,8 +167,8 @@ async def list_worktrees() -> str:
     stdout, stderr = await proc.communicate()
     if proc.returncode != 0:
         return (
-            f"Error: Not inside a git repository.\n"
-            f"[SYSTEM SUGGESTION]: Navigate to a git repository root."
+            "Error: Not inside a git repository.\n"
+            "[SYSTEM SUGGESTION]: Navigate to a git repository root."
         )
 
     output = stdout.decode().strip()

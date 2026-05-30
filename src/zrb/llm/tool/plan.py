@@ -17,14 +17,11 @@ Usage:
 from __future__ import annotations
 
 import json
-import os
-import uuid
 from contextvars import ContextVar
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
-from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
 
 # Todo status types
@@ -53,46 +50,6 @@ class TodoManager:
             cls._instance._todo_dir.mkdir(parents=True, exist_ok=True)
         return cls._instance
 
-    def _get_todo_file(self, session_name: str) -> Path:
-        """Get the file path for a session's todos."""
-        # Sanitize session name for filesystem
-        safe_name = "".join(
-            c if c.isalnum() or c in "-_" else "_" for c in session_name
-        )
-        return self._todo_dir / f"{safe_name}.json"
-
-    def _load_todos(self, session_name: str) -> dict[str, Any] | None:
-        """Load todos from disk for a session."""
-        if session_name in self._todos:
-            return self._todos[session_name]
-
-        todo_file = self._get_todo_file(session_name)
-        if todo_file.exists():
-            try:
-                with open(todo_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    self._todos[session_name] = data
-                    return data
-            except Exception as e:
-                zrb_print(
-                    f"Warning: Failed to load todos for {session_name}: {e}", plain=True
-                )
-        return None
-
-    def _save_todos(self, session_name: str) -> None:
-        """Save todos to disk for a session."""
-        if session_name not in self._todos:
-            return
-
-        todo_file = self._get_todo_file(session_name)
-        try:
-            with open(todo_file, "w", encoding="utf-8") as f:
-                json.dump(self._todos[session_name], f, indent=2)
-        except Exception as e:
-            zrb_print(
-                f"Warning: Failed to save todos for {session_name}: {e}", plain=True
-            )
-
     def write_todos(
         self,
         session_name: str,
@@ -107,67 +64,37 @@ class TodoManager:
         """
         now = datetime.now().isoformat()
 
-        # Load existing if merging
         existing = self._load_todos(session_name) if not replace else None
         existing_todos = (
             {t["id"]: t for t in existing.get("todos", [])} if existing else {}
         )
 
-        # Process new todos
         new_todos = []
         for i, todo in enumerate(todos):
             todo_id = todo.get("id") or str(i + 1)
-            if todo_id in existing_todos and not replace:
-                # Merge: update existing
-                existing_todos[todo_id].update(
-                    {
-                        "content": todo.get(
-                            "content", existing_todos[todo_id]["content"]
-                        ),
-                        "status": todo.get("status", existing_todos[todo_id]["status"]),
-                    }
-                )
-                new_todos.append(existing_todos[todo_id])
-            else:
-                # New todo
-                new_todos.append(
-                    {
-                        "id": todo_id,
-                        "content": todo.get("content", ""),
-                        "status": todo.get("status", "pending"),
-                        "created_at": now,
-                    }
-                )
+            new_todos.append(
+                self._build_todo_entry(todo, todo_id, existing_todos, replace, now)
+            )
 
-        # If merging, include todos not in the update
+        # Include existing todos not in this update when merging
         if not replace and existing:
+            seen = {t["id"] for t in new_todos}
             for tid, t in existing_todos.items():
-                if tid not in {todo["id"] for todo in new_todos}:
+                if tid not in seen:
                     new_todos.append(t)
 
-        # Sort by id (numeric if possible)
-        def sort_key(t):
-            try:
-                return (0, int(t["id"]))
-            except (ValueError, TypeError):
-                return (1, t["id"])
+        new_todos.sort(key=self._sort_key)
 
-        new_todos.sort(key=sort_key)
-
+        stats = self._compute_stats(new_todos)
         result = {
             "todos": new_todos,
             "created_at": existing.get("created_at", now) if existing else now,
             "updated_at": now,
-            "total": len(new_todos),
-            "completed": sum(1 for t in new_todos if t["status"] == "completed"),
-            "in_progress": sum(1 for t in new_todos if t["status"] == "in_progress"),
-            "pending": sum(1 for t in new_todos if t["status"] == "pending"),
-            "cancelled": sum(1 for t in new_todos if t["status"] == "cancelled"),
+            **stats,
         }
 
         self._todos[session_name] = result
         self._save_todos(session_name)
-
         return result
 
     def get_todos(self, session_name: str) -> dict[str, Any] | None:
@@ -246,6 +173,88 @@ class TodoManager:
                 return False
         return True
 
+    def _get_todo_file(self, session_name: str) -> Path:
+        """Get the file path for a session's todos."""
+        # Sanitize session name for filesystem
+        safe_name = "".join(
+            c if c.isalnum() or c in "-_" else "_" for c in session_name
+        )
+        return self._todo_dir / f"{safe_name}.json"
+
+    def _load_todos(self, session_name: str) -> dict[str, Any] | None:
+        """Load todos from disk for a session."""
+        if session_name in self._todos:
+            return self._todos[session_name]
+
+        todo_file = self._get_todo_file(session_name)
+        if todo_file.exists():
+            try:
+                with open(todo_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    self._todos[session_name] = data
+                    return data
+            except Exception as e:
+                zrb_print(
+                    f"Warning: Failed to load todos for {session_name}: {e}", plain=True
+                )
+        return None
+
+    def _save_todos(self, session_name: str) -> None:
+        """Save todos to disk for a session."""
+        if session_name not in self._todos:
+            return
+
+        todo_file = self._get_todo_file(session_name)
+        try:
+            with open(todo_file, "w", encoding="utf-8") as f:
+                json.dump(self._todos[session_name], f, indent=2)
+        except Exception as e:
+            zrb_print(
+                f"Warning: Failed to save todos for {session_name}: {e}", plain=True
+            )
+
+    @staticmethod
+    def _compute_stats(new_todos: list[dict[str, Any]]) -> dict[str, int]:
+        """Compute todo summary counts."""
+        return {
+            "total": len(new_todos),
+            "completed": sum(1 for t in new_todos if t["status"] == "completed"),
+            "in_progress": sum(1 for t in new_todos if t["status"] == "in_progress"),
+            "pending": sum(1 for t in new_todos if t["status"] == "pending"),
+            "cancelled": sum(1 for t in new_todos if t["status"] == "cancelled"),
+        }
+
+    @staticmethod
+    def _build_todo_entry(
+        todo: dict[str, Any],
+        todo_id: str,
+        existing: dict[str, dict[str, Any]] | None,
+        replace: bool,
+        now: str,
+    ) -> dict[str, Any]:
+        """Build a single todo entry, merging with existing if not replacing."""
+        if existing and todo_id in existing and not replace:
+            existing[todo_id].update(
+                {
+                    "content": todo.get("content", existing[todo_id]["content"]),
+                    "status": todo.get("status", existing[todo_id]["status"]),
+                }
+            )
+            return existing[todo_id]
+        return {
+            "id": todo_id,
+            "content": todo.get("content", ""),
+            "status": todo.get("status", "pending"),
+            "created_at": now,
+        }
+
+    @staticmethod
+    def _sort_key(t: dict[str, Any]) -> tuple[int, int | str]:
+        try:
+            return (0, int(t["id"]))
+        except (ValueError, TypeError):
+            return (1, t["id"])
+
 
 # Singleton instance
 todo_manager = TodoManager()
@@ -295,7 +304,7 @@ async def write_todos(
         }.get(todo["status"], "[?]")
         lines.append(f"  {status_char} [{todo['id']}] {todo['content']}")
 
-    lines.append(f"\nUse `update_todo` to change status; `get_todos` to check state.")
+    lines.append("\nUse `update_todo` to change status; `get_todos` to check state.")
 
     return "\n".join(lines)
 
@@ -354,9 +363,9 @@ async def update_todo(
 
     if status is None and content is None:
         return (
-            f"Error: Must provide 'status' and/or 'content' to update.\n"
-            f"[SYSTEM SUGGESTION]: Provide at least one of status "
-            f"(pending/in_progress/completed/cancelled) or content."
+            "Error: Must provide 'status' and/or 'content' to update.\n"
+            "[SYSTEM SUGGESTION]: Provide at least one of status "
+            "(pending/in_progress/completed/cancelled) or content."
         )
 
     result = todo_manager.update_todo(session_name, todo_id, status, content)

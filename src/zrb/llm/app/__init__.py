@@ -69,14 +69,12 @@ Event-Driven (Telegram/Discord):
     # See examples/chat-telegram/ for a complete example.
 """
 
-from zrb.llm.ui.base_ui import BaseUI
-from zrb.llm.ui.simple_ui import (
-    EventDrivenUI,
-    PollingUI,
-    SimpleUI,
-    UIConfig,
-    create_ui_factory,
-)
+from zrb.llm.ui.base.ui import BaseUI
+from zrb.llm.ui.event_driven_ui import EventDrivenUI
+from zrb.llm.ui.polling_ui import PollingUI
+from zrb.llm.ui.simple_ui_base import SimpleUI
+from zrb.llm.ui.ui_config import UIConfig
+from zrb.llm.ui.ui_factory import create_ui_factory
 
 __all__ = [
     # Simple API (RECOMMENDED)

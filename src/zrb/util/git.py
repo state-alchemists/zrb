@@ -1,11 +1,9 @@
 import os
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from zrb.util.cmd.command import run_command
-
-if TYPE_CHECKING:
-    from zrb.util.git_diff_model import DiffResult
+from zrb.util.git_diff_model import DiffResult
 
 
 async def get_diff(
@@ -29,7 +27,6 @@ async def get_diff(
     Raises:
         Exception: If the git command returns a non-zero exit code.
     """
-    from zrb.util.git_diff_model import DiffResult
 
     cmd_result, exit_code = await run_command(
         cmd=["git", "diff", source_commit, current_commit],

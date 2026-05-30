@@ -1,5 +1,4 @@
 import asyncio
-import json
 import time
 from collections import deque
 from typing import Any, Callable
@@ -10,6 +9,7 @@ from zrb.util.cli.style import stylize_cyan
 
 def is_turn_start(msg: Any) -> bool:
     """Identify start of a new user interaction (User Prompt without Tool Return)."""
+    # lazy: heavy third-party
     from pydantic_ai.messages import ModelRequest, ToolReturnPart, UserPromptPart
 
     if not isinstance(msg, ModelRequest):
@@ -108,33 +108,75 @@ class LLMLimiter:
         if new_msg_tokens > available:
             return []
 
-        pruned_history = list(history)
+        n = len(history)
 
-        while pruned_history:
-            history_tokens = self._count_tokens(pruned_history)
-            total_tokens = history_tokens + new_msg_tokens
+        # Precompute per-message costs in O(n) to avoid O(n²) re-counting in the
+        # pruning loop.  Must replicate _to_str's list-level semantics exactly:
+        # bodies are counted per-message with skip_instructions=True, and only the
+        # LAST instruction in the current window is counted once (historical
+        # instructions are not replayed by pydantic-ai).  Counting each message
+        # individually with skip_instructions=False would include every message's
+        # instructions, wildly over-estimating the cost for long conversations.
+        msg_body_tokens = [
+            self._count_tokens(self._to_str(msg, skip_instructions=True))
+            for msg in history
+        ]
+        msg_instr_tokens = []
+        for msg in history:
+            instr = getattr(msg, "instructions", None)
+            msg_instr_tokens.append(
+                self._count_tokens(self._to_str(instr, skip_instructions=True))
+                if instr
+                else 0
+            )
 
-            if total_tokens <= available:
+        # last_instr_from[i] = index of the last message with instructions in
+        # history[i:], or -1.  Allows O(1) "what is the active instruction cost
+        # for the window starting at i?" lookups during the pruning loop.
+        last_instr_from = [-1] * (n + 1)
+        for i in range(n - 1, -1, -1):
+            last_instr_from[i] = (
+                i if msg_instr_tokens[i] > 0 else last_instr_from[i + 1]
+            )
+
+        def _instr_cost(from_idx: int) -> int:
+            li = last_instr_from[from_idx]
+            return msg_instr_tokens[li] if li >= 0 else 0
+
+        total_tokens = sum(msg_body_tokens) + _instr_cost(0)
+
+        if total_tokens + new_msg_tokens <= available:
+            return list(history)
+
+        start = 0
+        while start < n:
+            if total_tokens + new_msg_tokens <= available:
                 break
 
-            # Pruning Strategy: Find the start of the *next* turn and cut everything before it.
-            # We start searching from index 1 because removing index 0 (current start) is the goal.
-            next_turn_index = -1
-            for i in range(1, len(pruned_history)):
-                if is_turn_start(pruned_history[i]):
-                    next_turn_index = i
+            # Find the start of the next user turn after the current position.
+            next_turn = -1
+            for i in range(start + 1, n):
+                if is_turn_start(history[i]):
+                    next_turn = i
                     break
 
-            if next_turn_index != -1:
-                # Remove everything up to the next turn
-                pruned_history = pruned_history[next_turn_index:]
-            else:
-                # No subsequent turns found.
-                # This implies the history contains only one (potentially long) turn or partial fragments.
-                # To satisfy the limit, we must clear the history entirely.
-                pruned_history = []
+            if next_turn == -1:
+                # No subsequent turn found; clear all remaining history.
+                total_tokens = 0
+                start = n
+                break
 
-        return pruned_history
+            # Subtract body tokens for the dropped messages.
+            for i in range(start, next_turn):
+                total_tokens -= msg_body_tokens[i]
+
+            # Adjust for the instruction-window shift: the "active last instruction"
+            # may change as old messages are pruned from the front.
+            total_tokens += _instr_cost(next_turn) - _instr_cost(start)
+
+            start = next_turn
+
+        return history[start:]
 
     async def acquire(self, content: Any, notifier: Callable[[str], Any] | None = None):
         """
@@ -178,6 +220,7 @@ class LLMLimiter:
         """Truncates a string to a maximum number of tokens."""
         if self.use_tiktoken:
             try:
+                # lazy: heavy third-party
                 import tiktoken
 
                 enc = tiktoken.get_encoding(self.tiktoken_encoding)
@@ -201,6 +244,7 @@ class LLMLimiter:
         text = self._to_str(content)
         if self.use_tiktoken:
             try:
+                # lazy: heavy third-party
                 import tiktoken
 
                 enc = tiktoken.get_encoding(self.tiktoken_encoding)

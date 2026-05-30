@@ -76,6 +76,7 @@ async def test_kill_pid():
     assert psutil.pid_exists(pid)
 
     kill_pid(pid)
+    proc.wait()  # Fix ResourceWarning by waiting for it to fully terminate
 
     # Wait for process to terminate
     for _ in range(10):
@@ -266,6 +267,7 @@ def test_kill_pid_with_print_method():
         printed_messages.append(msg)
 
     kill_pid(pid, print_method=capture_print)
+    proc.wait()
 
     assert any(f"process {pid}" in msg.lower() for msg in printed_messages)
 
@@ -402,6 +404,7 @@ class TestKillPidWithChildren:
 
         time.sleep(0.1)  # Let child processes start
         kill_pid(pid, print_method=capture_print)
+        proc.wait()
 
         # Verify that some "Killing" messages were printed
         assert any("illing" in msg for msg in printed_messages)

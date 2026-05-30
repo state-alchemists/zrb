@@ -6,6 +6,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def mock_history_manager():
+    with patch("zrb.runner.chat.chat_session_manager.FileHistoryManager") as mock_fhm:
+        mock_fhm.return_value.load.return_value = []
+        yield
+
+
 class TestChatSession:
     def test_chat_session_creation(self):
         from zrb.runner.chat.chat_session_manager import ChatSession
@@ -287,9 +294,7 @@ class TestChatSessionManager:
 
     def test_get_sessions_with_history(self, tmp_path):
         """Test get_sessions returns sessions from history files."""
-        import json
-        import os
-
+        from zrb.llm.history_manager.file_history_manager import FileHistoryManager
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
         manager = ChatSessionManager.get_instance_sync()
@@ -300,21 +305,25 @@ class TestChatSessionManager:
         history_file = history_dir / "test-session-2024-01-15-10-30.json"
         history_file.write_text("[]")
 
-        with patch.object(manager, "_history_manager") as mock_hm:
-            # Override history dir
-            with patch("zrb.config.config.CFG") as mock_cfg:
-                mock_cfg.LLM_HISTORY_DIR = str(history_dir)
+        with patch("zrb.runner.chat.chat_session_manager.CFG") as mock_cfg, patch(
+            "os.path.getmtime", return_value=123456789.0
+        ):
+            mock_cfg.LLM_HISTORY_DIR = str(history_dir)
+            mock_cfg.WEB_SESSION_PAGE_SIZE = 10
 
-                # Re-create manager with mocked history dir
-                manager._history_manager.history_dir = str(history_dir)
-                manager._history_manager = manager._history_manager
+            # We must update the internal history manager to point to the new dir
+            # because the manager instance already exists.
+            original_hm = manager.history_manager
+            manager.set_history_manager(
+                FileHistoryManager(history_dir=str(history_dir))
+            )
 
+            try:
                 sessions = manager.get_sessions()
                 # Should include the session from history
-                assert (
-                    any(s["session_name"] == "test-session" for s in sessions)
-                    or len(manager._sessions) >= 0
-                )
+                assert any(s["session_name"] == "test-session" for s in sessions)
+            finally:
+                manager.set_history_manager(original_hm)
 
     @pytest.mark.asyncio
     async def test_create_session_with_custom_name(self):
@@ -327,114 +336,129 @@ class TestChatSessionManager:
         )
         assert session.session_name == "My Custom Session"
 
-    def test_has_pending_approvals_with_channel(self):
+    @pytest.mark.asyncio
+    async def test_has_pending_approvals_with_channel(self):
         """Test has_pending_approvals returns approval channel state."""
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
-        manager = ChatSessionManager.get_instance_sync()
+        manager = await ChatSessionManager.get_instance()
 
         # Create session with approval channel
         mock_channel = MagicMock()
         mock_channel.has_pending_approvals.return_value = True
 
-        manager._sessions["approval-test"] = MagicMock()
-        manager._sessions["approval-test"].approval_channel = mock_channel
+        session = await manager.create_session(
+            session_id="approval-test", approval_channel=mock_channel
+        )
 
         result = manager.has_pending_approvals("approval-test")
         assert result is True
         mock_channel.has_pending_approvals.assert_called_once()
 
-    def test_get_pending_approvals_with_channel(self):
+    @pytest.mark.asyncio
+    async def test_get_pending_approvals_with_channel(self):
         """Test get_pending_approvals returns approvals from channel."""
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
-        manager = ChatSessionManager.get_instance_sync()
+        manager = await ChatSessionManager.get_instance()
 
         mock_channel = MagicMock()
         mock_channel.get_pending_approvals.return_value = [{"id": 1}]
 
-        manager._sessions["approvals-test"] = MagicMock()
-        manager._sessions["approvals-test"].approval_channel = mock_channel
+        await manager.create_session(
+            session_id="approvals-test", approval_channel=mock_channel
+        )
 
         result = manager.get_pending_approvals("approvals-test")
         assert result == [{"id": 1}]
 
-    def test_is_waiting_for_edit_with_channel(self):
+    @pytest.mark.asyncio
+    async def test_is_waiting_for_edit_with_channel(self):
         """Test is_waiting_for_edit returns channel state."""
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
-        manager = ChatSessionManager.get_instance_sync()
+        manager = await ChatSessionManager.get_instance()
 
         mock_channel = MagicMock()
         mock_channel.is_waiting_for_edit.return_value = True
 
-        manager._sessions["edit-test"] = MagicMock()
-        manager._sessions["edit-test"].approval_channel = mock_channel
+        await manager.create_session(
+            session_id="edit-test", approval_channel=mock_channel
+        )
 
         result = manager.is_waiting_for_edit("edit-test")
         assert result is True
 
-    def test_get_editing_args_with_channel(self):
+    @pytest.mark.asyncio
+    async def test_get_editing_args_with_channel(self):
         """Test get_editing_args returns args from channel."""
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
-        manager = ChatSessionManager.get_instance_sync()
+        manager = await ChatSessionManager.get_instance()
 
         mock_channel = MagicMock()
         mock_channel.get_editing_args.return_value = {"arg1": "value1"}
 
-        manager._sessions["edit-args-test"] = MagicMock()
-        manager._sessions["edit-args-test"].approval_channel = mock_channel
+        await manager.create_session(
+            session_id="edit-args-test", approval_channel=mock_channel
+        )
 
         result = manager.get_editing_args("edit-args-test")
         assert result == {"arg1": "value1"}
 
-    def test_handle_approval_response_with_edit(self):
+    @pytest.mark.asyncio
+    async def test_handle_approval_response_with_edit(self):
         """Test handle_approval_response routes to edit handler."""
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
-        manager = ChatSessionManager.get_instance_sync()
+        manager = await ChatSessionManager.get_instance()
 
         mock_channel = MagicMock()
         mock_channel.is_waiting_for_edit.return_value = True
         mock_channel.handle_edit_response = MagicMock()
 
-        manager._sessions["approval-edit-test"] = MagicMock()
-        manager._sessions["approval-edit-test"].approval_channel = mock_channel
+        await manager.create_session(
+            session_id="approval-edit-test", approval_channel=mock_channel
+        )
 
         result = manager.handle_approval_response("approval-edit-test", "edited text")
         assert result["handled"] is True
         assert result["type"] == "edit"
 
-    def test_handle_approval_response_with_pending(self):
+    @pytest.mark.asyncio
+    async def test_handle_approval_response_with_pending(self):
         """Test handle_approval_response routes to approval handler."""
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
-        manager = ChatSessionManager.get_instance_sync()
+        manager = await ChatSessionManager.get_instance()
 
         mock_channel = MagicMock()
         mock_channel.is_waiting_for_edit.return_value = False
         mock_channel.has_pending_approvals.return_value = True
         mock_channel.handle_response.return_value = True
 
-        manager._sessions["approval-pending-test"] = MagicMock()
-        manager._sessions["approval-pending-test"].approval_channel = mock_channel
+        await manager.create_session(
+            session_id="approval-pending-test", approval_channel=mock_channel
+        )
 
         result = manager.handle_approval_response("approval-pending-test", "y")
         assert result["handled"] is True
         assert result["type"] == "approval"
 
-    def test_handle_approval_response_json_edit(self):
+    @pytest.mark.asyncio
+    async def test_handle_approval_response_json_edit(self):
         """Test handle_approval_response with JSON edit."""
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
-        manager = ChatSessionManager.get_instance_sync()
+        manager = await ChatSessionManager.get_instance()
 
         mock_channel = MagicMock()
+        mock_channel.is_waiting_for_edit.return_value = False
         mock_channel.handle_edit_response_obj = MagicMock()
 
-        manager._sessions["json-edit-test"] = MagicMock()
-        manager._sessions["json-edit-test"].approval_channel = mock_channel
+        await manager.create_session(
+            session_id="json-edit-test", approval_channel=mock_channel
+        )
 
         result = manager.handle_approval_response(
             "json-edit-test", '{"key": "value"}', is_json=True
@@ -442,19 +466,139 @@ class TestChatSessionManager:
         assert result["handled"] is True
         assert result["type"] == "edit"
 
-    def test_handle_approval_response_no_pending(self):
-        """Test handle_approval_response with no pending approvals."""
+    @pytest.mark.asyncio
+    async def test_handle_approval_response_no_pending_approvals(self):
+        """When the channel has no pending approvals, handle returns the error fallback."""
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
-        manager = ChatSessionManager.get_instance_sync()
-
+        manager = await ChatSessionManager.get_instance()
         mock_channel = MagicMock()
         mock_channel.is_waiting_for_edit.return_value = False
         mock_channel.has_pending_approvals.return_value = False
 
-        manager._sessions["no-pending-test"] = MagicMock()
-        manager._sessions["no-pending-test"].approval_channel = mock_channel
-
-        result = manager.handle_approval_response("no-pending-test", "y")
+        await manager.create_session(
+            session_id="no-pending", approval_channel=mock_channel
+        )
+        result = manager.handle_approval_response("no-pending", "y")
         assert result["handled"] is False
-        assert "error" in result
+        assert "No pending approvals" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_has_session_true_and_false(self):
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        await manager.create_session(session_id="exists")
+        assert manager.has_session("exists") is True
+        assert manager.has_session("absent") is False
+
+    @pytest.mark.asyncio
+    async def test_sessions_property_returns_dict(self):
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        await manager.create_session(session_id="s1")
+        sessions = manager.sessions
+        assert "s1" in sessions
+
+    @pytest.mark.asyncio
+    async def test_create_session_with_no_session_id_generates_random(self):
+        """Passing session_id=None triggers the random-name branch."""
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        session = await manager.create_session()
+        assert session.session_id  # truthy
+
+    @pytest.mark.asyncio
+    async def test_remove_session_cancels_running_task(self):
+        """An in-flight task gets cancelled before the session is dropped."""
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        session = await manager.create_session(session_id="cancellable")
+
+        async def _hang():
+            await asyncio.sleep(60)
+
+        session.task_coroutine = asyncio.create_task(_hang())
+        await asyncio.sleep(0.01)
+
+        removed = await manager.remove_session("cancellable")
+        assert removed is True
+        assert manager.get_session("cancellable") is None
+
+    @pytest.mark.asyncio
+    async def test_get_messages_extracts_content_from_parts(self):
+        """Messages with parts get flattened into role/content/timestamp dicts."""
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        await manager.create_session(session_id="msg-test")
+
+        part = MagicMock()
+        part.content = "hello"
+        msg = MagicMock()
+        msg.kind = "request"
+        msg.parts = [part]
+        msg.timestamp = "2026-01-01T00:00:00"
+
+        with patch.object(manager._history_manager, "load", return_value=[msg]):
+            messages = manager.get_messages("msg-test")
+        assert messages[0]["role"] == "user"
+        assert messages[0]["content"] == "hello"
+        assert messages[0]["timestamp"] == "2026-01-01T00:00:00"
+
+    @pytest.mark.asyncio
+    async def test_get_messages_assistant_role_for_non_request(self):
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        await manager.create_session(session_id="role-test")
+
+        part = MagicMock()
+        part.content = {"complex": "structure"}  # non-string content path
+        msg = MagicMock()
+        msg.kind = "response"
+        msg.parts = [part]
+        del msg.timestamp  # exercise the getattr fallback
+
+        with patch.object(manager._history_manager, "load", return_value=[msg]):
+            messages = manager.get_messages("role-test")
+        assert messages[0]["role"] == "assistant"
+        assert "complex" in messages[0]["content"]
+        assert messages[0]["timestamp"] is None
+
+    def test_get_all_session_names_empty_when_no_history_dir(self):
+        """Without LLM_HISTORY_DIR set, the helper returns []."""
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = ChatSessionManager.get_instance_sync()
+        with patch("zrb.runner.chat.chat_session_manager.CFG") as mock_cfg:
+            mock_cfg.LLM_HISTORY_DIR = ""
+            assert manager._get_all_session_names() == []
+            assert manager._get_sessions_with_timestamps() == []
+
+    def test_get_all_session_names_empty_when_dir_missing(self, tmp_path):
+        """LLM_HISTORY_DIR set but nonexistent → returns []."""
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = ChatSessionManager.get_instance_sync()
+        with patch("zrb.runner.chat.chat_session_manager.CFG") as mock_cfg:
+            mock_cfg.LLM_HISTORY_DIR = str(tmp_path / "missing")
+            assert manager._get_all_session_names() == []
+            assert manager._get_sessions_with_timestamps() == []
+
+    @pytest.mark.asyncio
+    async def test_get_sessions_includes_active_without_history(self):
+        """An active session with no history file still shows up in the listing."""
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+        await manager.create_session(session_id="active-only")
+        with patch("zrb.runner.chat.chat_session_manager.CFG") as mock_cfg:
+            mock_cfg.LLM_HISTORY_DIR = ""
+            mock_cfg.WEB_SESSION_PAGE_SIZE = 50
+            sessions = manager.get_sessions()
+        ids = [s["session_id"] for s in sessions]
+        assert "active-only" in ids

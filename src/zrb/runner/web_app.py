@@ -1,12 +1,14 @@
 import asyncio
 import logging
 import sys
+from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.config.web_auth_config import WebAuthConfig
 from zrb.group.any_group import AnyGroup
 from zrb.runner.chat.chat_api_route import serve_chat_api
+from zrb.runner.chat.chat_session_manager import ChatSessionManager
 from zrb.runner.web_route.chat_page.chat_page_route import serve_chat_page
 from zrb.runner.web_route.docs_route import serve_docs
 from zrb.runner.web_route.error_page.serve_default_404 import serve_default_404
@@ -55,14 +57,13 @@ def create_web_app(
     web_auth_config: WebAuthConfig,
     session_state_logger: AnySessionStateLogger,
 ) -> "FastAPI":
-    from contextlib import asynccontextmanager
 
+    # lazy: heavy third-party
     from fastapi import FastAPI
 
     _COROS = []
 
     async def _cleanup_sessions():
-        from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
         # Skip aggressive cleanup in pytest mode
         if "pytest" in sys.modules:

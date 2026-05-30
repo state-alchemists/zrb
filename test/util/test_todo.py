@@ -80,7 +80,7 @@ def test_select_todo_task(sample_task):
     assert select_todo_task(todo_list, "Cheese") is None
 
 
-@patch("zrb.util.todo.read_file")
+@patch("zrb.util.todo_parser.read_file")
 def test_load_todo_list(mock_read_file):
     mock_read_file.return_value = """
     (A) 2023-10-26 Task 1 +p1
@@ -92,7 +92,7 @@ def test_load_todo_list(mock_read_file):
     assert todo_list[1].description == "Task 2"
 
 
-@patch("zrb.util.todo.write_file")
+@patch("zrb.util.todo_parser.write_file")
 def test_save_todo_list(mock_write_file, sample_task):
     todo_list = [sample_task]
     save_todo_list("dummy.txt", todo_list)
@@ -161,13 +161,13 @@ class TestLoadTodoList:
     """Tests for load_todo_list edge cases."""
 
     def test_empty_file(self):
-        with patch("zrb.util.todo.read_file") as mock_read:
+        with patch("zrb.util.todo_parser.read_file") as mock_read:
             mock_read.return_value = ""
             todo_list = load_todo_list("empty.txt")
             assert len(todo_list) == 0
 
     def test_whitespace_only_lines(self):
-        with patch("zrb.util.todo.read_file") as mock_read:
+        with patch("zrb.util.todo_parser.read_file") as mock_read:
             mock_read.return_value = "   \n\n   \n"
             todo_list = load_todo_list("whitespace.txt")
             assert len(todo_list) == 0
@@ -303,35 +303,35 @@ class TestDurationFunctions:
         # M = months (2592000 seconds each)
         assert parse_duration("1M") == 2592000
 
-    def test_format_duration_zero(self):
-        from zrb.util.todo import _format_duration
+    def testformat_duration_zero(self):
+        from zrb.util.todo import format_duration
 
-        assert _format_duration(0) == "0s"
+        assert format_duration(0) == "0s"
 
 
 class TestDateToStr:
-    """Tests for _date_to_str function."""
+    """Tests for date_to_str function."""
 
-    def test_date_to_str_none(self):
-        from zrb.util.todo import _date_to_str
+    def testdate_to_str_none(self):
+        from zrb.util.todo import date_to_str
 
-        result = _date_to_str(None)
+        result = date_to_str(None)
         assert result == "".ljust(14)
 
-    def test_date_to_str_valid(self):
-        from zrb.util.todo import _date_to_str
+    def testdate_to_str_valid(self):
+        from zrb.util.todo import date_to_str
 
-        result = _date_to_str(datetime.date(2023, 10, 26))
+        result = date_to_str(datetime.date(2023, 10, 26))
         assert "2023-10-26" in result
 
 
 class TestGetLineStr:
-    """Tests for _get_line_str with different terminal widths."""
+    """Tests for get_line_str with different terminal widths."""
 
     def test_full_width(self):
-        from zrb.util.todo import _GAP_WIDTH, _get_line_str
+        from zrb.util.todo import GAP_WIDTH, get_line_str
 
-        result = _get_line_str(
+        result = get_line_str(
             terminal_width=200,
             description_width=50,
             additional_info_width=30,
@@ -346,9 +346,9 @@ class TestGetLineStr:
         assert "(A)" in result
 
     def test_medium_width(self):
-        from zrb.util.todo import _get_line_str
+        from zrb.util.todo import get_line_str
 
-        result = _get_line_str(
+        result = get_line_str(
             terminal_width=120,
             description_width=50,
             additional_info_width=30,
@@ -362,9 +362,9 @@ class TestGetLineStr:
         assert "Test task" in result
 
     def test_narrow_width(self):
-        from zrb.util.todo import _get_line_str
+        from zrb.util.todo import get_line_str
 
-        result = _get_line_str(
+        result = get_line_str(
             terminal_width=30,
             description_width=10,
             additional_info_width=0,
@@ -383,7 +383,7 @@ class TestVisualTodoLineTruncation:
     """Tests for description truncation in visual todo line."""
 
     def test_long_description_truncation(self):
-        from zrb.util.todo import _MAX_DESCRIPTION_WIDTH, get_visual_todo_line
+        from zrb.util.todo import MAX_DESCRIPTION_WIDTH, get_visual_todo_line
 
         long_task = TodoTaskModel(
             description="A" * 100,  # Very long description

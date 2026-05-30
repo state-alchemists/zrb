@@ -9,17 +9,13 @@ from zrb.group.any_group import AnyGroup
 from zrb.runner.web_schema.session import NewSessionResponse
 from zrb.runner.web_util.user import get_user_from_request
 from zrb.session.session import Session
+from zrb.session_state_log.session_state_log import SessionStateLog, SessionStateLogList
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 from zrb.task.any_task import AnyTask
 from zrb.util.group import NodeNotFoundError, extract_node_from_args, get_node_path
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
-
-    from zrb.session_state_log.session_state_log import (
-        SessionStateLog,
-        SessionStateLogList,
-    )
 
 
 def serve_task_session_api(
@@ -29,13 +25,9 @@ def serve_task_session_api(
     session_state_logger: AnySessionStateLogger,
     coroutines: list,
 ) -> None:
+    # lazy: heavy third-party
     from fastapi import Query, Request
     from fastapi.responses import JSONResponse
-
-    from zrb.session_state_log.session_state_log import (
-        SessionStateLog,
-        SessionStateLogList,
-    )
 
     @app.post("/api/v1/task-sessions/{path:path}")
     async def create_new_task_session_api(
@@ -117,7 +109,6 @@ def serve_task_session_api(
 def sanitize_session_state_log_list(
     task: AnyTask, session_state_log_list: "SessionStateLogList"
 ) -> "SessionStateLogList":
-    from zrb.session_state_log.session_state_log import SessionStateLogList
 
     return SessionStateLogList(
         total=session_state_log_list.total,
@@ -138,7 +129,6 @@ def sanitize_session_state_log(
     However, when we serve the session through HTTP API,
     we only want to show the original input names.
     """
-    from zrb.session_state_log.session_state_log import SessionStateLog
 
     enhanced_inputs = session_state_log.input
     real_inputs = {}

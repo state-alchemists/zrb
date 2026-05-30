@@ -10,6 +10,7 @@ from zrb.runner.web_util.html import (
 
 
 def show_group_page(user: User, root_group: AnyGroup, group: AnyGroup, url: str):
+    # lazy: heavy third-party
     from fastapi.responses import HTMLResponse
 
     web_title = CFG.WEB_TITLE if CFG.WEB_TITLE.strip() != "" else root_group.name

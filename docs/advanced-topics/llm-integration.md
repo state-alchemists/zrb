@@ -12,6 +12,7 @@ Zrb comes with a powerful, built-in AI assistant that can understand your codeba
 - [Programmatic Usage](#programmatic-usage-llmtask-and-llmchattask)
 - [Built-in LLM Tools](#built-in-llm-tools)
 - [Custom Tools and Sub-agents](#custom-tools-and-sub-agents)
+- [Model Capabilities](#model-capabilities)
 - [Context Management](#context-management)
 - [Quick Reference](#quick-reference)
 
@@ -95,6 +96,8 @@ custom_chat = cli.add_task(
 )
 ```
 
+> 📖 **API Reference:** For the full `LLMChatTask` builder API — tools, guidance, hooks, policies, triggers, and custom commands — see the [LLMChatTask API Reference](../task-types/llmchat-task.md).
+
 ### Comparison
 
 | Feature | `LLMTask` | `LLMChatTask` |
@@ -123,18 +126,22 @@ The assistant comes with a rich set of built-in tools. These are automatically a
 | `LS` | `list_files` | Recursively list files up to 3 levels deep, auto-excluding `.git`, `node_modules`, `__pycache__`, etc. |
 | `Glob` | `glob_files` | Find files matching a glob pattern (e.g., `**/*.py`). |
 | `Grep` | `search_files` | Search file contents by regex pattern. Supports `context_lines` (default 2), `files_only=True` to return only matching file paths, `case_sensitive=False` for case-insensitive search, and `file_pattern` to restrict to specific file types. |
-| `Read` | `read_file` | Read a single file's contents with optional line-range slicing and auto-truncation. |
-| `ReadMany` | `read_files` | Read multiple files in one call — faster than sequential `Read` calls. |
+| `Read` | `read_file` | Read a single file's contents with optional line-range slicing and auto-truncation. Issue parallel `Read` calls to load several files in one turn. |
 | `Write` | `write_file` | Write or overwrite a file. |
-| `WriteMany` | `write_files` | Write multiple files in one call. |
-| `Edit` | `replace_in_file` | Make targeted string replacements in a file. |
+| `Edit` | `replace_in_file` | Make targeted string replacements in a single file. |
 
 ### Web
 
 | Tool | Function | Description |
 |------|----------|-------------|
 | `OpenWebPage` | `open_web_page` | Fetch a URL and return its content as Markdown. Optionally summarizes via a sub-agent to reduce token usage. |
-| `SearchInternet` | `search_internet` | Search the web by query string. Requires a search engine API key (SerpAPI, Brave, or SearXNG). |
+| `SearchInternet` | `search_internet` | Search the web by query string. Defaults to Google News RSS (free, no setup). Optionally use SerpAPI, Brave, or SearXNG via `ZRB_SEARCH_INTERNET_METHOD`. |
+
+### User Interaction
+
+| Tool | Function | Description |
+|------|----------|-------------|
+| `AskUserQuestion` | `ask_user_question` | Ask the user one or more structured multiple-choice questions mid-turn and return their answers. Interactive sessions only — in non-interactive runs (`--interactive false`) it short-circuits with a `[SYSTEM SUGGESTION]` instead of blocking on stdin. |
 
 ### Code Intelligence
 
@@ -259,7 +266,7 @@ my_chat_task.add_tool_guidance_factory(
 
 This is only needed when the tool name itself is dynamic. For static names, use `add_tool_guidance()` instead.
 
-> **Note:** `add_tool_guidance_factory` is only available on `LLMChatTask`, not `LLMTask`.
+> **Note:** `add_tool_guidance_factory()` and `add_tool_guidance_section_factory()` are available on `LLMChatTask`, `LLMTask`, and `SubAgentManager` — all of which conform to the `CommonToolHost` protocol in `zrb.llm.common_tools`.
 
 ---
 
@@ -289,6 +296,54 @@ Sub-agent files are discovered from (in priority order):
 3. Paths in `ZRB_LLM_EXTRA_AGENT_DIRS`
 
 > 💡 **Benefit:** Sub-agents isolate context and keep the main conversation history clean.
+
+---
+
+## Model Capabilities
+
+Zrb maintains a per-model capability registry that tracks what each model can and can't do — image/audio/video input, whether parallel tool calls are supported, and so on. It's used internally to decide things like *"should I let pydantic-ai emit parallel tool calls for this model?"* and *"is the user attaching an image to a text-only model — describe it via the multimodal fallback?"*.
+
+The registry ships with a built-in name-pattern table (it knows about GPT-4o, Claude, Gemini, Llava, etc.) and exposes a module-level singleton you can extend from `zrb_init.py`:
+
+```python
+from zrb.llm.util.capabilities import model_capabilities
+
+# Tell zrb about your private model
+model_capabilities.register(
+    "my-private-model",
+    supports_image_input=True,
+    supports_parallel_tool_calls=False,
+)
+```
+
+`register(pattern, **overrides)` takes a case-insensitive regex matched against the bare model name (the part after `provider:`) and any subset of capability fields. Unspecified fields keep their pattern-table values. Most recently registered entries take priority on match.
+
+### Capability fields
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `supports_image_input` | `bool` | Model accepts image attachments |
+| `supports_audio_input` | `bool` | Model accepts audio attachments |
+| `supports_video_input` | `bool` | Model accepts video attachments |
+| `supports_parallel_tool_calls` | `bool \| None` | Tri-state: `True` known-good, `False` known-malforms parallel calls (zrb sets `parallel_tool_calls=False` at the provider level), `None` unknown — pass through |
+
+Field names mirror LiteLLM's `supports_*` conventions.
+
+### Querying
+
+```python
+caps = model_capabilities.get("openai:gpt-4o")
+if caps.supports_image_input:
+    ...
+
+# Convenience predicate
+if model_capabilities.supports_modality("openai:gpt-4o", "image"):
+    ...
+```
+
+`get()` returns conservative defaults (`False`/`None`) for `None` or unknown models, so callers should treat absence as "unknown — pass through" rather than "actively unsupported".
+
+> 💡 The default singleton is shared across the process. Tests that need full isolation can instantiate `ModelCapabilityRegistry()` directly.
 
 ---
 

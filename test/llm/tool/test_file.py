@@ -1,3 +1,4 @@
+import asyncio
 import os
 import shutil
 
@@ -7,12 +8,18 @@ from zrb.llm.tool.file import (
     glob_files,
     list_files,
     read_file,
-    read_files,
     replace_in_file,
     search_files,
     write_file,
-    write_files,
 )
+
+
+def _w(*a, **kw):
+    return asyncio.run(write_file(*a, **kw))
+
+
+def _r(*a, **kw):
+    return asyncio.run(replace_in_file(*a, **kw))
 
 
 @pytest.fixture
@@ -27,7 +34,7 @@ def test_write_and_read_file(temp_dir):
     content = "hello world"
 
     # Test write_file
-    res = write_file(file_path, content)
+    res = _w(file_path, content)
     assert "Successfully wrote to" in res
     assert os.path.exists(file_path)
 
@@ -67,7 +74,7 @@ def test_replace_in_file(temp_dir):
     with open(file_path, "w") as f:
         f.write("hello world")
 
-    res = replace_in_file(file_path, "world", "zrb")
+    res = _r(file_path, "world", "zrb")
     assert "Successfully updated" in res
     with open(file_path, "r") as f:
         assert f.read() == "hello zrb"
@@ -82,6 +89,17 @@ def test_search_files(temp_dir):
     assert "Found 1 matches" in res.get("summary", "")
     assert len(res.get("results", [])) == 1
     assert res["results"][0]["file"] == os.path.relpath(file_path, os.getcwd())
+
+
+def test_search_files_pattern_is_keyword(temp_dir):
+    # Grep's parameter is `pattern` (matches Glob and the model's "Grep" prior),
+    # not `regex` — guards the regression where the agent's `pattern=` calls
+    # failed schema validation.
+    with open(os.path.join(temp_dir, "f.txt"), "w") as f:
+        f.write("needle here")
+    res = search_files(pattern="needle", path=temp_dir)
+    assert "error" not in res
+    assert "Found 1 matches" in res.get("summary", "")
 
 
 # --- list_files additional coverage ---
@@ -239,31 +257,6 @@ def test_read_file_non_utf8(tmp_path):
     assert "binary" in result.lower() or "non-UTF-8" in result
 
 
-# --- read_files batch function ---
-
-
-def test_read_files_batch(tmp_path):
-    file_a = tmp_path / "a.txt"
-    file_b = tmp_path / "b.txt"
-    file_a.write_text("content a")
-    file_b.write_text("content b")
-
-    results = read_files([str(file_a), str(file_b)])
-    assert isinstance(results, dict)
-    assert "content a" in results[str(file_a)]
-    assert "content b" in results[str(file_b)]
-
-
-def test_read_files_batch_with_missing_file(tmp_path):
-    file_a = tmp_path / "a.txt"
-    file_a.write_text("content a")
-    missing = str(tmp_path / "missing.txt")
-
-    results = read_files([str(file_a), missing])
-    assert "content a" in results[str(file_a)]
-    assert "Error" in results[missing]
-
-
 # --- write_file exception path ---
 
 
@@ -273,51 +266,15 @@ def test_write_file_invalid_path(tmp_path):
     existing_file.write_text("exists")
     invalid_path = str(existing_file) + "/subfile.txt"
 
-    result = write_file(invalid_path, "content")
+    result = _w(invalid_path, "content")
     assert "Error" in result
-
-
-# --- write_files batch function ---
-
-
-def test_write_files_batch_success(tmp_path):
-    file_a = str(tmp_path / "a.txt")
-    file_b = str(tmp_path / "b.txt")
-
-    results = write_files(
-        [
-            {"path": file_a, "content": "hello a"},
-            {"path": file_b, "content": "hello b"},
-        ]
-    )
-
-    assert "Successfully wrote" in results[file_a]
-    assert "Successfully wrote" in results[file_b]
-    assert (tmp_path / "a.txt").read_text() == "hello a"
-    assert (tmp_path / "b.txt").read_text() == "hello b"
-
-
-def test_write_files_batch_missing_path_or_content(tmp_path):
-    file_a = str(tmp_path / "a.txt")
-
-    results = write_files(
-        [
-            {"path": file_a, "content": "hello"},
-            {"path": None, "content": "orphan"},
-            {"path": str(tmp_path / "no_content.txt")},
-        ]
-    )
-
-    assert "Successfully wrote" in results[file_a]
-    assert "Error: Missing path or content" in results["None"]
-    assert "Error: Missing path or content" in results[str(tmp_path / "no_content.txt")]
 
 
 # --- replace_in_file additional coverage ---
 
 
 def test_replace_in_file_nonexistent_file(tmp_path):
-    result = replace_in_file(str(tmp_path / "ghost.txt"), "old", "new")
+    result = _r(str(tmp_path / "ghost.txt"), "old", "new")
     assert "Error" in result
     assert "not found" in result.lower()
 
@@ -326,7 +283,7 @@ def test_replace_in_file_text_not_found(tmp_path):
     file_path = tmp_path / "test.txt"
     file_path.write_text("hello world")
 
-    result = replace_in_file(str(file_path), "nonexistent text", "replacement")
+    result = _r(str(file_path), "nonexistent text", "replacement")
     assert "Error" in result
     assert "not found" in result.lower()
 
@@ -335,7 +292,7 @@ def test_replace_in_file_no_changes(tmp_path):
     file_path = tmp_path / "test.txt"
     file_path.write_text("hello world")
 
-    result = replace_in_file(str(file_path), "hello", "hello")
+    result = _r(str(file_path), "hello", "hello")
     assert "No changes made" in result
 
 
@@ -344,7 +301,7 @@ def test_replace_in_file_near_match(tmp_path):
     file_path.write_text("hello world\ngoodbye world\n")
 
     # old_text first line ("hello worl") is a substring of file line but full old_text doesn't match
-    result = replace_in_file(str(file_path), "hello worl\ngoodbye", "hello zrb")
+    result = _r(str(file_path), "hello worl\ngoodbye", "hello zrb")
     assert "not found" in result.lower()
     assert "Similar lines found" in result
 
@@ -355,7 +312,7 @@ def test_replace_in_file_fuzzy_trailing_whitespace(tmp_path):
     file_path.write_text("hello world   \ngoodbye world   \n")
 
     # old_text has no trailing whitespace, file has trailing spaces
-    result = replace_in_file(str(file_path), "hello world\ngoodbye world", "hi there")
+    result = _r(str(file_path), "hello world\ngoodbye world", "hi there")
     assert "Successfully updated" in result
     assert "fuzzy match" in result.lower()
     assert "hi there" in file_path.read_text()
@@ -367,9 +324,7 @@ def test_replace_in_file_fuzzy_indentation_flexible(tmp_path):
     file_path.write_text("    def foo():\n        pass\n")
 
     # old_text uses a different but consistent indentation level
-    result = replace_in_file(
-        str(file_path), "def foo():\n    pass", "def bar():\n    return 1"
-    )
+    result = _r(str(file_path), "def foo():\n    pass", "def bar():\n    return 1")
     assert "Successfully updated" in result
     assert "fuzzy match" in result.lower()
     content = file_path.read_text()
@@ -381,14 +336,14 @@ def test_replace_in_file_multiple_matches(tmp_path):
     file_path.write_text("foo bar foo baz")
 
     # Without count, replaces all
-    result = replace_in_file(str(file_path), "foo", "FOO")
+    result = _r(str(file_path), "foo", "FOO")
     assert "Successfully updated" in result
     with open(file_path) as f:
         assert f.read() == "FOO bar FOO baz"
 
     # With count=1, replaces first only
     file_path.write_text("foo bar foo baz")
-    result = replace_in_file(str(file_path), "foo", "FOO", count=1)
+    result = _r(str(file_path), "foo", "FOO", count=1)
     assert "Successfully updated" in result
     with open(file_path) as f:
         assert f.read() == "FOO bar foo baz"
@@ -496,3 +451,97 @@ def test_search_files_files_only_summary(tmp_path):
     result = search_files("target", path=str(tmp_path), files_only=True)
     assert "Found" in result.get("summary", "")
     assert "2 files" in result.get("summary", "")
+
+
+# --- search_files Python fallback and truncation coverage ---
+
+
+class TestSearchFilesFallback:
+    @pytest.fixture
+    def temp_search_dir(self, tmp_path):
+        d = tmp_path / "test_search_fallback"
+        d.mkdir()
+        (d / "file1.txt").write_text(
+            "hello world\nline 2\nline 3\nline 4\nline 5\nline 6"
+        )
+        (d / "file2.py").write_text("print('hello')\n# comment")
+        return str(d)
+
+    def test_search_files_python_fallback(self, temp_search_dir):
+        from unittest.mock import patch
+
+        # Mock shutil.which to pretend 'rg' is not installed
+        with patch("shutil.which", return_value=None):
+            result = search_files("hello", path=temp_search_dir)
+
+            assert "Found 2 matches in 2 files" in result["summary"]
+            assert len(result["results"]) == 2
+            # Check if it actually used the Python fallback
+            assert "(searched" in result["summary"]
+
+    def test_search_files_python_fallback_files_only(self, temp_search_dir):
+        from unittest.mock import patch
+
+        with patch("shutil.which", return_value=None):
+            result = search_files("hello", path=temp_search_dir, files_only=True)
+
+            assert "files" in result
+            assert len(result["files"]) == 2
+
+    def test_search_files_python_fallback_no_match(self, temp_search_dir):
+        from unittest.mock import patch
+
+        with patch("shutil.which", return_value=None):
+            result = search_files("nonexistent_pattern_xyz", path=temp_search_dir)
+            assert "No matches found" in result["summary"]
+
+    def test_search_files_python_fallback_timeout(self, temp_search_dir):
+        import time
+        from unittest.mock import patch
+
+        with patch("shutil.which", return_value=None), patch(
+            "time.time", side_effect=[0, 100]
+        ):  # Fake immediate timeout
+            result = search_files("hello", path=temp_search_dir, timeout=0.1)
+            assert "warning" in result
+            assert "timed out" in result["warning"]
+
+
+class TestFileSearchTruncation:
+    def test_get_file_matches_truncation(self, tmp_path):
+        # We need to import the internal helper, but @AGENTS.md says Public API Only.
+        # We will test via search_files instead.
+        file_path = tmp_path / "large_file.txt"
+        file_path.write_text("\n".join([f"match {i}" for i in range(100)]))
+
+        from unittest.mock import patch
+
+        with patch("zrb.llm.tool.file_search.CFG") as mock_cfg, patch(
+            "shutil.which", return_value=None
+        ):
+            mock_cfg.LLM_FILE_READ_LINES = 20
+
+            result = search_files("match", path=str(tmp_path))
+            # The result for this one file should have truncation marker
+            assert any(
+                "TRUNCATED" in m["line_content"]
+                for r in result["results"]
+                for m in r["matches"]
+            )
+
+    def test_search_files_python_fallback_truncation(self, tmp_path):
+        from unittest.mock import patch
+
+        with patch("shutil.which", return_value=None), patch(
+            "zrb.llm.tool.file_search.CFG"
+        ) as mock_cfg:
+
+            # Create many matching files
+            for i in range(20):
+                (tmp_path / f"match_{i}.txt").write_text("needle")
+
+            mock_cfg.LLM_FILE_READ_LINES = 20  # preserved_head = 5, preserved_tail = 5
+
+            result = search_files("needle", path=str(tmp_path), auto_truncate=True)
+            assert "truncation_notice" in result
+            assert "TRUNCATED" in result["truncation_notice"]

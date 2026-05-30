@@ -1,8 +1,9 @@
+import re
 from typing import Any
 
 from zrb.context.any_context import zrb_print
 from zrb.llm.config.limiter import LLMLimiter
-from zrb.util.cli.style import stylize_error, stylize_yellow
+from zrb.util.cli.style import stylize_error
 
 
 async def summarize_text_plain(
@@ -113,7 +114,6 @@ async def summarize_long_text(
 
 async def summarize_text(text: str, agent: Any, partial: bool = False) -> str:
     """Helper to run the summarizer agent on a block of text."""
-    import re
 
     prompt_prefix = (
         "Summarize this partial conversation history:\n"

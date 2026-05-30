@@ -3,7 +3,6 @@ from zrb.llm.tool_call.argument_formatter.replace_in_file_formatter import (
 )
 from zrb.llm.tool_call.argument_formatter.write_file_formatter import (
     write_file_formatter,
-    write_files_formatter,
 )
 from zrb.llm.tool_call.handler import ToolCallHandler, check_tool_policies
 from zrb.llm.tool_call.middleware import (
@@ -20,9 +19,6 @@ from zrb.llm.tool_call.tool_policy.bash_validation import bash_safe_command_poli
 from zrb.llm.tool_call.tool_policy.read_file_validation import (
     read_file_validation_policy,
 )
-from zrb.llm.tool_call.tool_policy.read_files_validation import (
-    read_files_validation_policy,
-)
 from zrb.llm.tool_call.tool_policy.replace_in_file_validation import (
     replace_in_file_validation_policy,
 )
@@ -34,7 +30,6 @@ __all__ = [
     "bash_safe_command_policy",
     "replace_in_file_validation_policy",
     "read_file_validation_policy",
-    "read_files_validation_policy",
     "ToolCallHandler",
     "ArgumentFormatter",
     "ResponseHandler",
@@ -44,5 +39,4 @@ __all__ = [
     "replace_in_file_response_handler",
     "replace_in_file_formatter",
     "write_file_formatter",
-    "write_files_formatter",
 ]
