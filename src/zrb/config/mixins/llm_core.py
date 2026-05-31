@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from zrb.config.env_field import EnvField, on_off, read_bool
+from zrb.config.env_field import EnvField, on_off
+from zrb.util.string.conversion import to_boolean
 
 
 class LLMCoreMixin:
@@ -29,13 +30,13 @@ class LLMCoreMixin:
     LLM_API_KEY = EnvField(str, nullable=True)
 
     LLM_SHOW_OLLAMA_MODELS = EnvField(
-        read_bool,
+        to_boolean,
         serialize=on_off,
         doc="Enable/disable showing Ollama models in model completion.",
     )
 
     LLM_SHOW_PYDANTIC_AI_MODELS = EnvField(
-        read_bool,
+        to_boolean,
         serialize=on_off,
         doc=(
             "Enable/disable showing pydantic-ai KnownModelName models in model "

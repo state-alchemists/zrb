@@ -31,6 +31,7 @@ from zrb.llm.config.config import LLMConfig
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
+from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.hook.manager import HookManager
@@ -39,7 +40,6 @@ from zrb.llm.prompt.tool_guidance import ToolGuidance
 from zrb.llm.summarizer import (
     create_summarizer_history_processor,
 )
-from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.task.chat.builder_mixin import BuilderMixin
 from zrb.llm.task.chat.runner_mixin import RunnerMixin
 from zrb.llm.task.llm_task import LLMTask

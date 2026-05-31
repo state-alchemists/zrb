@@ -12,8 +12,8 @@ from zrb.config.env_field import (
     comma_list,
     expanduser_colon_list,
     on_off,
-    read_bool,
 )
+from zrb.util.string.conversion import to_boolean
 
 
 class _Host:
@@ -29,10 +29,8 @@ class _Host:
     ALIASED = EnvField(int, aliases=["NEW_NAME", "OLD_NAME"], default="0")
     ASYMMETRIC = EnvField(int, write_key="CANON_KEY", default="0")
     EXPLICIT_DEFAULT = EnvField(int, default="42")
-    FACTORY = EnvField(
-        str, default_factory=lambda host: f"dir-{host.ROOT_GROUP_NAME}"
-    )
-    FLAG = EnvField(read_bool, serialize=on_off, default="false")
+    FACTORY = EnvField(str, default_factory=lambda host: f"dir-{host.ROOT_GROUP_NAME}")
+    FLAG = EnvField(to_boolean, serialize=on_off, default="false")
     ITEMS = EnvField(colon_list, serialize=colon_join, default="")
     CMDS = EnvField(comma_list, serialize=comma_join, default="")
     NULLABLE = EnvField(str, nullable=True)

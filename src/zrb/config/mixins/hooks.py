@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from zrb.config.env_field import EnvField, colon_join, colon_list, on_off, read_bool
+from zrb.config.env_field import EnvField, colon_join, colon_list, on_off
+from zrb.util.string.conversion import to_boolean
 
 
 class HooksMixin:
@@ -16,12 +17,12 @@ class HooksMixin:
         self.DEFAULT_HOOKS_LOG_LEVEL: str = "INFO"
         super().__init__()
 
-    HOOKS_ENABLED = EnvField(read_bool, serialize=on_off)
+    HOOKS_ENABLED = EnvField(to_boolean, serialize=on_off)
 
     HOOKS_DIRS = EnvField(colon_list, serialize=colon_join)
 
     HOOKS_TIMEOUT = EnvField(int, doc="Timeout in milliseconds for hook execution.")
 
-    HOOKS_DEBUG = EnvField(read_bool, serialize=on_off)
+    HOOKS_DEBUG = EnvField(to_boolean, serialize=on_off)
 
     HOOKS_LOG_LEVEL = EnvField(str)

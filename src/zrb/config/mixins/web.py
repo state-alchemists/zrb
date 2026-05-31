@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from zrb.config.env_field import EnvField, colon_join, colon_list, on_off, read_bool
+from zrb.config.env_field import EnvField, colon_join, colon_list, on_off
+from zrb.util.string.conversion import to_boolean
 
 
 class WebMixin:
@@ -54,7 +55,7 @@ class WebMixin:
 
     WEB_SECRET_KEY = EnvField(str)
 
-    WEB_ENABLE_AUTH = EnvField(read_bool, serialize=on_off)
+    WEB_ENABLE_AUTH = EnvField(to_boolean, serialize=on_off)
 
     WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES = EnvField(int)
 

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import os
 
-from zrb.config.env_field import EnvField, comma_list, on_off, read_bool
+from zrb.config.env_field import EnvField, comma_list, on_off
+from zrb.util.string.conversion import to_boolean
 
 
 def _include_sections_serialize(value: list[str] | str) -> str:
@@ -45,9 +46,9 @@ class LLMPromptMixin:
 
     LLM_BASE_PROMPT_DIR = EnvField(str)
 
-    LLM_SHOW_TOOL_CALL_DETAIL = EnvField(read_bool, serialize=on_off)
+    LLM_SHOW_TOOL_CALL_DETAIL = EnvField(to_boolean, serialize=on_off)
 
-    LLM_SHOW_TOOL_CALL_RESULT = EnvField(read_bool, serialize=on_off)
+    LLM_SHOW_TOOL_CALL_RESULT = EnvField(to_boolean, serialize=on_off)
 
     LLM_INCLUDE_SECTIONS = EnvField(
         comma_list,
@@ -59,4 +60,4 @@ class LLMPromptMixin:
         ),
     )
 
-    LLM_INCLUDE_JOURNAL_REMINDER = EnvField(read_bool, serialize=on_off)
+    LLM_INCLUDE_JOURNAL_REMINDER = EnvField(to_boolean, serialize=on_off)

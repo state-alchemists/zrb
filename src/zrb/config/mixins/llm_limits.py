@@ -123,9 +123,7 @@ class LLMLimitsMixin:
         int, doc="Timeout in milliseconds for fetching model lists."
     )
 
-    LLM_GIT_CMD_TIMEOUT = EnvField(
-        int, doc="Timeout in milliseconds for git commands."
-    )
+    LLM_GIT_CMD_TIMEOUT = EnvField(int, doc="Timeout in milliseconds for git commands.")
 
     # --- Size caps --------------------------------------------------------
 

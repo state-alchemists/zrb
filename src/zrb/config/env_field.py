@@ -23,14 +23,9 @@ import os
 from typing import Any, Callable, Generic, TypeVar
 
 from zrb.config.helper import get_env
-from zrb.util.string.conversion import to_boolean
 
 T = TypeVar("T")
 _UNSET = object()
-
-# Re-exported so mixins can reference the project's canonical bool parser
-# alongside the serializers below without a second import line.
-read_bool = to_boolean
 
 
 def on_off(value: Any) -> str:
@@ -72,7 +67,7 @@ class EnvField(Generic[T]):
     ----------
     cast:
         Callable applied to the raw string on read (e.g. ``int``, ``float``,
-        ``read_bool``, ``colon_list``). Defaults to ``str`` (identity).
+        ``to_boolean``, ``colon_list``). Defaults to ``str`` (identity).
     serialize:
         Callable applied to the value on write before storing in os.environ
         (e.g. ``on_off``, ``colon_join``). Defaults to ``str``.

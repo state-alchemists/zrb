@@ -8,8 +8,8 @@ from zrb.config.env_field import (
     colon_list,
     expanduser_colon_list,
     on_off,
-    read_bool,
 )
+from zrb.util.string.conversion import to_boolean
 
 
 class LLMSearchMixin:
@@ -29,7 +29,7 @@ class LLMSearchMixin:
     LLM_PLUGIN_DIRS = EnvField(expanduser_colon_list, serialize=colon_join)
 
     LLM_SEARCH_PROJECT = EnvField(
-        read_bool,
+        to_boolean,
         serialize=on_off,
         doc=(
             "Enable/disable project directory search (traversal from filesystem "
@@ -38,7 +38,7 @@ class LLMSearchMixin:
     )
 
     LLM_SEARCH_HOME = EnvField(
-        read_bool,
+        to_boolean,
         serialize=on_off,
         doc="Enable/disable home directory search (~/.claude/, ~/.zrb/).",
     )
