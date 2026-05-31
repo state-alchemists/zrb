@@ -192,9 +192,11 @@ def create_prompt_hook(config: PromptHookConfig) -> HookCallable:
 
             # Parse the result for modifications
             modifications = {}
+            # str() is kept outside the try so the narrowed JSONDecodeError
+            # catch covers exactly the json.loads call and nothing else.
+            output_text = str(result.output)
             try:
                 # Try to parse as JSON if it looks like JSON
-                output_text = str(result.output)
                 if output_text.strip().startswith("{") and output_text.strip().endswith(
                     "}"
                 ):
@@ -263,9 +265,11 @@ def create_agent_hook(config: AgentHookConfig) -> HookCallable:
 
             # Parse the result for modifications
             modifications = {}
+            # str() is kept outside the try so the narrowed JSONDecodeError
+            # catch covers exactly the json.loads call and nothing else.
+            output_text = str(result.output)
             try:
                 # Try to parse as JSON if it looks like JSON
-                output_text = str(result.output)
                 if output_text.strip().startswith("{") and output_text.strip().endswith(
                     "}"
                 ):
