@@ -123,7 +123,7 @@ def create_command_hook(config: CommandHookConfig) -> HookCallable:
                     data = json.loads(output)
                     if isinstance(data, dict):
                         modifications = data
-                except Exception:
+                except json.JSONDecodeError:
                     # Not JSON, treat as plain output
                     pass
 
@@ -201,7 +201,7 @@ def create_prompt_hook(config: PromptHookConfig) -> HookCallable:
                     parsed = json.loads(output_text)
                     if isinstance(parsed, dict):
                         modifications = parsed
-            except Exception:
+            except json.JSONDecodeError:
                 # Not JSON, use as plain output
                 pass
 
@@ -272,7 +272,7 @@ def create_agent_hook(config: AgentHookConfig) -> HookCallable:
                     parsed = json.loads(output_text)
                     if isinstance(parsed, dict):
                         modifications = parsed
-            except Exception:
+            except json.JSONDecodeError:
                 # Not JSON, use as plain output
                 pass
 

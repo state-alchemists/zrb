@@ -39,6 +39,7 @@ from zrb.llm.prompt.tool_guidance import ToolGuidance
 from zrb.llm.summarizer import (
     create_summarizer_history_processor,
 )
+from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.task.chat.builder_mixin import BuilderMixin
 from zrb.llm.task.chat.runner_mixin import RunnerMixin
 from zrb.llm.task.llm_task import LLMTask
@@ -487,25 +488,11 @@ class LLMChatTask(BuilderMixin, RunnerMixin, BaseTask):
 
     def _get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
         """Get all tools including those resolved from factories using parent context."""
-        all_tools = list(self._tools)
-        for factory in self._tool_factories:
-            tool = factory(ctx)
-            if isinstance(tool, list):
-                all_tools.extend(tool)
-            else:
-                all_tools.append(tool)
-        return all_tools
+        return resolve_factory_items(self._tools, self._tool_factories, ctx)
 
     def _get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
         """Get all toolsets including those resolved from factories using parent context."""
-        all_toolsets = list(self._toolsets)
-        for factory in self._toolset_factories:
-            toolset = factory(ctx)
-            if isinstance(toolset, list):
-                all_toolsets.extend(toolset)
-            else:
-                all_toolsets.append(toolset)
-        return all_toolsets
+        return resolve_factory_items(self._toolsets, self._toolset_factories, ctx)
 
     def _get_ui_commands(self) -> dict[str, list[str]]:
         """Resolve all UI commands from attributes or CFG defaults."""
