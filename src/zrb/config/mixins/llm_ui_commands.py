@@ -6,9 +6,7 @@ Setters serialize back to comma-separated form.
 
 from __future__ import annotations
 
-import os
-
-from zrb.config.helper import get_env
+from zrb.config.env_field import EnvField, comma_join, comma_list
 
 
 class LLMUICommandsMixin:
@@ -29,175 +27,26 @@ class LLMUICommandsMixin:
         self.DEFAULT_LLM_UI_COMMAND_BTW: str = "/btw"
         super().__init__()
 
-    def _parse_command_list(self, cmd_str: str) -> list[str]:
-        return [cmd.strip() for cmd in cmd_str.split(",") if cmd.strip() != ""]
+    LLM_UI_COMMAND_SUMMARIZE = EnvField(comma_list, serialize=comma_join)
 
-    @property
-    def LLM_UI_COMMAND_SUMMARIZE(self) -> list[str]:
-        return self._parse_command_list(
-            get_env(
-                "LLM_UI_COMMAND_SUMMARIZE",
-                self.DEFAULT_LLM_UI_COMMAND_SUMMARIZE,
-                self.ENV_PREFIX,
-            )
-        )
+    LLM_UI_COMMAND_ATTACH = EnvField(comma_list, serialize=comma_join)
 
-    @LLM_UI_COMMAND_SUMMARIZE.setter
-    def LLM_UI_COMMAND_SUMMARIZE(self, value: list[str]):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_SUMMARIZE"] = ",".join(value)
+    LLM_UI_COMMAND_EXIT = EnvField(comma_list, serialize=comma_join)
 
-    @property
-    def LLM_UI_COMMAND_ATTACH(self) -> list[str]:
-        return self._parse_command_list(
-            get_env(
-                "LLM_UI_COMMAND_ATTACH",
-                self.DEFAULT_LLM_UI_COMMAND_ATTACH,
-                self.ENV_PREFIX,
-            )
-        )
+    LLM_UI_COMMAND_INFO = EnvField(comma_list, serialize=comma_join)
 
-    @LLM_UI_COMMAND_ATTACH.setter
-    def LLM_UI_COMMAND_ATTACH(self, value: list[str]):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_ATTACH"] = ",".join(value)
+    LLM_UI_COMMAND_SAVE = EnvField(comma_list, serialize=comma_join)
 
-    @property
-    def LLM_UI_COMMAND_EXIT(self) -> list[str]:
-        return self._parse_command_list(
-            get_env(
-                "LLM_UI_COMMAND_EXIT",
-                self.DEFAULT_LLM_UI_COMMAND_EXIT,
-                self.ENV_PREFIX,
-            )
-        )
+    LLM_UI_COMMAND_LOAD = EnvField(comma_list, serialize=comma_join)
 
-    @LLM_UI_COMMAND_EXIT.setter
-    def LLM_UI_COMMAND_EXIT(self, value: list[str]):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_EXIT"] = ",".join(value)
+    LLM_UI_COMMAND_REWIND = EnvField(comma_list, serialize=comma_join)
 
-    @property
-    def LLM_UI_COMMAND_INFO(self) -> list[str]:
-        return self._parse_command_list(
-            get_env(
-                "LLM_UI_COMMAND_INFO",
-                self.DEFAULT_LLM_UI_COMMAND_INFO,
-                self.ENV_PREFIX,
-            )
-        )
+    LLM_UI_COMMAND_YOLO_TOGGLE = EnvField(comma_list, serialize=comma_join)
 
-    @LLM_UI_COMMAND_INFO.setter
-    def LLM_UI_COMMAND_INFO(self, value: list[str]):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_INFO"] = ",".join(value)
+    LLM_UI_COMMAND_REDIRECT_OUTPUT = EnvField(comma_list, serialize=comma_join)
 
-    @property
-    def LLM_UI_COMMAND_SAVE(self) -> list[str]:
-        return self._parse_command_list(
-            get_env(
-                "LLM_UI_COMMAND_SAVE",
-                self.DEFAULT_LLM_UI_COMMAND_SAVE,
-                self.ENV_PREFIX,
-            )
-        )
+    LLM_UI_COMMAND_EXEC = EnvField(comma_list, serialize=comma_join)
 
-    @LLM_UI_COMMAND_SAVE.setter
-    def LLM_UI_COMMAND_SAVE(self, value: list[str]):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_SAVE"] = ",".join(value)
+    LLM_UI_COMMAND_SET_MODEL = EnvField(comma_list, serialize=comma_join)
 
-    @property
-    def LLM_UI_COMMAND_LOAD(self) -> list[str]:
-        return self._parse_command_list(
-            get_env(
-                "LLM_UI_COMMAND_LOAD",
-                self.DEFAULT_LLM_UI_COMMAND_LOAD,
-                self.ENV_PREFIX,
-            )
-        )
-
-    @LLM_UI_COMMAND_LOAD.setter
-    def LLM_UI_COMMAND_LOAD(self, value: list[str]):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_LOAD"] = ",".join(value)
-
-    @property
-    def LLM_UI_COMMAND_REWIND(self) -> list[str]:
-        return self._parse_command_list(
-            get_env(
-                "LLM_UI_COMMAND_REWIND",
-                self.DEFAULT_LLM_UI_COMMAND_REWIND,
-                self.ENV_PREFIX,
-            )
-        )
-
-    @LLM_UI_COMMAND_REWIND.setter
-    def LLM_UI_COMMAND_REWIND(self, value: list[str]):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_REWIND"] = ",".join(value)
-
-    @property
-    def LLM_UI_COMMAND_YOLO_TOGGLE(self) -> list[str]:
-        return self._parse_command_list(
-            get_env(
-                "LLM_UI_COMMAND_YOLO_TOGGLE",
-                self.DEFAULT_LLM_UI_COMMAND_YOLO_TOGGLE,
-                self.ENV_PREFIX,
-            )
-        )
-
-    @LLM_UI_COMMAND_YOLO_TOGGLE.setter
-    def LLM_UI_COMMAND_YOLO_TOGGLE(self, value: list[str]):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_YOLO_TOGGLE"] = ",".join(value)
-
-    @property
-    def LLM_UI_COMMAND_REDIRECT_OUTPUT(self) -> list[str]:
-        return self._parse_command_list(
-            get_env(
-                "LLM_UI_COMMAND_REDIRECT_OUTPUT",
-                self.DEFAULT_LLM_UI_COMMAND_REDIRECT_OUTPUT,
-                self.ENV_PREFIX,
-            )
-        )
-
-    @LLM_UI_COMMAND_REDIRECT_OUTPUT.setter
-    def LLM_UI_COMMAND_REDIRECT_OUTPUT(self, value: list[str]):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_REDIRECT_OUTPUT"] = ",".join(
-            value
-        )
-
-    @property
-    def LLM_UI_COMMAND_EXEC(self) -> list[str]:
-        return self._parse_command_list(
-            get_env(
-                "LLM_UI_COMMAND_EXEC",
-                self.DEFAULT_LLM_UI_COMMAND_EXEC,
-                self.ENV_PREFIX,
-            )
-        )
-
-    @LLM_UI_COMMAND_EXEC.setter
-    def LLM_UI_COMMAND_EXEC(self, value: list[str]):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_EXEC"] = ",".join(value)
-
-    @property
-    def LLM_UI_COMMAND_SET_MODEL(self) -> list[str]:
-        return self._parse_command_list(
-            get_env(
-                "LLM_UI_COMMAND_SET_MODEL",
-                self.DEFAULT_LLM_UI_COMMAND_SET_MODEL,
-                self.ENV_PREFIX,
-            )
-        )
-
-    @LLM_UI_COMMAND_SET_MODEL.setter
-    def LLM_UI_COMMAND_SET_MODEL(self, value: list[str]):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_SET_MODEL"] = ",".join(value)
-
-    @property
-    def LLM_UI_COMMAND_BTW(self) -> list[str]:
-        return self._parse_command_list(
-            get_env(
-                "LLM_UI_COMMAND_BTW",
-                self.DEFAULT_LLM_UI_COMMAND_BTW,
-                self.ENV_PREFIX,
-            )
-        )
-
-    @LLM_UI_COMMAND_BTW.setter
-    def LLM_UI_COMMAND_BTW(self, value: list[str]):
-        os.environ[f"{self.ENV_PREFIX}_LLM_UI_COMMAND_BTW"] = ",".join(value)
+    LLM_UI_COMMAND_BTW = EnvField(comma_list, serialize=comma_join)

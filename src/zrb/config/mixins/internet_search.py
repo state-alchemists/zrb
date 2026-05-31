@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 
-from zrb.config.helper import get_env
+from zrb.config.env_field import EnvField
 
 
 class InternetSearchMixin:
@@ -24,19 +24,13 @@ class InternetSearchMixin:
         self.DEFAULT_SEARXNG_LANG: str = "en-US"
         super().__init__()
 
-    @property
-    def SEARCH_INTERNET_METHOD(self) -> str:
-        """One of: google_rss (default), serpapi, brave, searxng."""
-        return get_env(
-            "SEARCH_INTERNET_METHOD",
-            self.DEFAULT_SEARCH_INTERNET_METHOD,
-            self.ENV_PREFIX,
-        )
+    SEARCH_INTERNET_METHOD = EnvField(
+        str, doc="One of: google_rss (default), serpapi, brave, searxng."
+    )
 
-    @SEARCH_INTERNET_METHOD.setter
-    def SEARCH_INTERNET_METHOD(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_SEARCH_INTERNET_METHOD"] = value
-
+    # BRAVE_API_KEY / SERPAPI_KEY use bare (un-prefixed) env vars by design, so
+    # they stay hand-written rather than going through EnvField (which always
+    # prefixes with ENV_PREFIX).
     @property
     def BRAVE_API_KEY(self) -> str:
         return os.getenv("BRAVE_API_KEY", self.DEFAULT_BRAVE_API_KEY)
@@ -45,21 +39,9 @@ class InternetSearchMixin:
     def BRAVE_API_KEY(self, value: str):
         os.environ["BRAVE_API_KEY"] = value
 
-    @property
-    def BRAVE_API_SAFE(self) -> str:
-        return get_env("BRAVE_API_SAFE", self.DEFAULT_BRAVE_API_SAFE, self.ENV_PREFIX)
+    BRAVE_API_SAFE = EnvField(str)
 
-    @BRAVE_API_SAFE.setter
-    def BRAVE_API_SAFE(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_BRAVE_API_SAFE"] = value
-
-    @property
-    def BRAVE_API_LANG(self) -> str:
-        return get_env("BRAVE_API_LANG", self.DEFAULT_BRAVE_API_LANG, self.ENV_PREFIX)
-
-    @BRAVE_API_LANG.setter
-    def BRAVE_API_LANG(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_BRAVE_API_LANG"] = value
+    BRAVE_API_LANG = EnvField(str)
 
     @property
     def SERPAPI_KEY(self) -> str:
@@ -69,53 +51,19 @@ class InternetSearchMixin:
     def SERPAPI_KEY(self, value: str):
         os.environ["SERPAPI_KEY"] = value
 
-    @property
-    def SERPAPI_SAFE(self) -> str:
-        return get_env("SERPAPI_SAFE", self.DEFAULT_SERPAPI_SAFE, self.ENV_PREFIX)
+    SERPAPI_SAFE = EnvField(str)
 
-    @SERPAPI_SAFE.setter
-    def SERPAPI_SAFE(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_SERPAPI_SAFE"] = value
+    SERPAPI_LANG = EnvField(str)
 
-    @property
-    def SERPAPI_LANG(self) -> str:
-        return get_env("SERPAPI_LANG", self.DEFAULT_SERPAPI_LANG, self.ENV_PREFIX)
+    SEARXNG_PORT = EnvField(int)
 
-    @SERPAPI_LANG.setter
-    def SERPAPI_LANG(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_SERPAPI_LANG"] = value
+    SEARXNG_BASE_URL = EnvField(
+        str,
+        default_factory=lambda cfg: (
+            cfg.DEFAULT_SEARXNG_BASE_URL or f"http://localhost:{cfg.SEARXNG_PORT}"
+        ),
+    )
 
-    @property
-    def SEARXNG_PORT(self) -> int:
-        return int(get_env("SEARXNG_PORT", self.DEFAULT_SEARXNG_PORT, self.ENV_PREFIX))
+    SEARXNG_SAFE = EnvField(int)
 
-    @SEARXNG_PORT.setter
-    def SEARXNG_PORT(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_SEARXNG_PORT"] = str(value)
-
-    @property
-    def SEARXNG_BASE_URL(self) -> str:
-        default = self.DEFAULT_SEARXNG_BASE_URL
-        if default == "":
-            default = f"http://localhost:{self.SEARXNG_PORT}"
-        return get_env("SEARXNG_BASE_URL", default, self.ENV_PREFIX)
-
-    @SEARXNG_BASE_URL.setter
-    def SEARXNG_BASE_URL(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_SEARXNG_BASE_URL"] = value
-
-    @property
-    def SEARXNG_SAFE(self) -> int:
-        return int(get_env("SEARXNG_SAFE", self.DEFAULT_SEARXNG_SAFE, self.ENV_PREFIX))
-
-    @SEARXNG_SAFE.setter
-    def SEARXNG_SAFE(self, value: int):
-        os.environ[f"{self.ENV_PREFIX}_SEARXNG_SAFE"] = str(value)
-
-    @property
-    def SEARXNG_LANG(self) -> str:
-        return get_env("SEARXNG_LANG", self.DEFAULT_SEARXNG_LANG, self.ENV_PREFIX)
-
-    @SEARXNG_LANG.setter
-    def SEARXNG_LANG(self, value: str):
-        os.environ[f"{self.ENV_PREFIX}_SEARXNG_LANG"] = value
+    SEARXNG_LANG = EnvField(str)

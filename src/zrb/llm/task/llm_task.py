@@ -15,6 +15,7 @@ from zrb.llm.config.config import LLMConfig
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
+from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 from zrb.llm.hook.manager import HookManager
@@ -337,25 +338,11 @@ class LLMTask(BaseTask):
 
     def _get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
         """Get all tools including those resolved from factories."""
-        all_tools = list(self._tools)
-        for factory in self._tool_factories:
-            tool = factory(ctx)
-            if isinstance(tool, list):
-                all_tools.extend(tool)
-            else:
-                all_tools.append(tool)
-        return all_tools
+        return resolve_factory_items(self._tools, self._tool_factories, ctx)
 
     def _get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
         """Get all toolsets including those resolved from factories."""
-        all_toolsets = list(self._toolsets)
-        for factory in self._toolset_factories:
-            toolset = factory(ctx)
-            if isinstance(toolset, list):
-                all_toolsets.extend(toolset)
-            else:
-                all_toolsets.append(toolset)
-        return all_toolsets
+        return resolve_factory_items(self._toolsets, self._toolset_factories, ctx)
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
         async with AsyncExitStack() as stack:
@@ -621,8 +608,9 @@ class LLMTask(BaseTask):
 
         Constructs a synthetic history containing the original history, the
         user's message, and a cancellation marker so the next turn can build
-        on context rather than starting fresh.  Best-effort: failures are
-        silently swallowed.
+        on context rather than starting fresh.  Best-effort: a failure must not
+        crash the interrupt path, but it is logged so silent history loss is
+        diagnosable.
         """
         try:
             # lazy: heavy third-party
@@ -646,8 +634,8 @@ class LLMTask(BaseTask):
             )
             history_manager.update(conversation_name, partial_history)
             history_manager.save(conversation_name)
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.warning(f"Failed to save cancelled history: {e}")
 
     def _post_process_output(self, output: Any) -> Any:
         if isinstance(output, str):

@@ -12,6 +12,7 @@ from zrb.llm.agent.subagent.manager.loader_mixin import LoaderMixin
 from zrb.llm.agent.subagent.manager.search_mixin import SearchMixin
 from zrb.llm.agent.subagent.yolo import make_yolo_inheritance_checker
 from zrb.llm.config.config import llm_config as default_llm_config
+from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.prompt.tool_guidance import (
     ToolCatalogue,
     ToolGroups,
@@ -370,14 +371,7 @@ class SubAgentManager(LoaderMixin, SearchMixin):
 
     def _get_all_toolsets(self, ctx: AnyContext) -> list[AbstractToolset[None]]:
         """All toolsets including those resolved from factories."""
-        all_toolsets = list(self._toolsets)
-        for factory in self._toolset_factories:
-            toolset = factory(ctx)
-            if isinstance(toolset, list):
-                all_toolsets.extend(toolset)
-            else:
-                all_toolsets.append(toolset)
-        return all_toolsets
+        return resolve_factory_items(self._toolsets, self._toolset_factories, ctx)
 
 
 # Module-level singleton - lightweight, agents loaded on first access
