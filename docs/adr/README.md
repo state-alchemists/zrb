@@ -89,13 +89,9 @@ deleting it — the history is the point.
 - **ADR-0046** — `BufferedUI` + confirmation queue for concurrent agents
 - **ADR-0047** — Lifecycle hooks (Claude-compatible)
 - **ADR-0048** — MCP (Model Context Protocol) support
-- **ADR-0049..0054** — Capability tags, permission rulesets, plan mode,
-  tool-output truncation, dynamic tool descriptions, background subagents —
-  these have full standalone design docs; see
-  [the feature design docs](../README.md) ([01](../01-tool-output-truncation.md),
-  [02](../02-dynamic-tool-descriptions.md), [03](../03-permission-rulesets.md),
-  [04](../04-plan-mode.md), [06](../06-background-subagents.md)).
-
-> The `../design/0X-*.md` files are *forward-looking design docs* for specific
-> features (written before/while building them). This `decisions/` log is the
-> *retrospective record* of the whole system. They cross-reference each other.
+- **ADR-0049** — Tool capability tags (Primitive A)
+- **ADR-0050** — Permission rulesets (Primitive B)
+- **ADR-0051** — Plan mode (read-only discovery)
+- **ADR-0052** — Tool-output truncation backstop
+- **ADR-0053** — Dynamic, permission-filtered tool descriptions
+- **ADR-0054** — Background subagents: inherit permissions and interrupt to ask
